@@ -147,3 +147,11 @@ contract test verifies the default launch behavior and SQL ordering.
 Media shell navigation repair: account results in Media Search now use the
 client router instead of a full-page anchor, preserving the Media shell while
 opening an actor profile. The client contract suite covers this route behavior.
+
+External safety evidence (2026-10-08): the supplied Cloudflare zone screenshot
+shows the CSAM Scanning Tool enabled for `oxsteed.com`. Cloudflare documents
+that this service hashes images served through its cache and can block matched
+URLs; it does not establish upload-time video screening, transcode safety, or a
+certified production Media vendor. The application therefore continues to
+keep public uploaded video gated by `MEDIA_CSAM_CERTIFIED` until that separate
+video-screening certification and operational response evidence are recorded.
