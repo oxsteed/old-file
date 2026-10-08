@@ -513,10 +513,13 @@ async function getFeed(req, res) {
     } catch (err) {
       // Never switch ranking mid-pagination or relax author/block predicates.
       // A first page may fall back to the safety-preserving chronological
-      // query during a rolling schema/code deployment. Once a cursor exists,
-      // fail closed rather than changing ranking or context mid-pagination.
-      if (!err.chronological && (before || !['42703', '42P01', '42601', '42803', '42804'].includes(err.code))) throw err;
-      if (!err.chronological) logger.error('media.getFeed ranked schema fallback', { code: err.code });
+      // query when the optional ranking path is unavailable. Once a cursor
+      // exists, fail closed rather than changing ranking or context
+      // mid-pagination. This keeps the feed available during rolling schema
+      // changes and catches provider-specific SQLSTATEs without relaxing any
+      // visibility, safety, author, or block predicates in the fallback.
+      if (!err.chronological && before) throw err;
+      if (!err.chronological) logger.error('media.getFeed ranked schema fallback', { code: err.code, message: err.message });
       mode = 'chronological';
       const fallbackParams = [queryLimit, asOf];
       let fallbackWhere = `p.visibility = 'public' AND p.deleted_at IS NULL AND p.parent_id IS NULL AND p.created_at <= $2::timestamptz
