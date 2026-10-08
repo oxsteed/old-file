@@ -441,3 +441,9 @@ catalogs include the validation and selection status copy. `npm run verify:i18n`
 `git diff --check`, and `npm run build:ci` all pass locally. Authenticated
 production entity search and owner-edit journeys remain live verification work.
 
+Hosted verification (2026-10-08): GitHub Actions CI run `37802171707` for
+commit `5c1a55cf` passed both `Server and Client Verification` and the
+`PostgreSQL migration rehearsal`. This is the first passing hosted run after
+the earlier account-billing failures; it includes the browser, server, build,
+and migration gates for this change.
+
