@@ -1341,9 +1341,93 @@ const PUBLIC_TOOL_RE = /^\/tool-rentals\/(\d+)$/i;
 const PUBLIC_LOGISTICS_CAMPAIGN_RE = /^\/logistics\/campaigns\/(\d+)$/i;
 const PUBLIC_JOB_RE = /^\/jobs\/public\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i;
 const LEGACY_JOB_RE = /^\/jobs\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i;
+const PUBLIC_MEDIA_POST_RE = /^\/media\/post\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i;
+
+async function handleMediaLanding(template, res, req) {
+  const origin = base();
+  const language = getRequestedLanguage(req);
+  const publicPath = '/media';
+  const url = getLocalizedRequestUrl(publicPath, req);
+  const title = 'OxSteed Media | Local updates';
+  const description = 'Local videos, photos, and useful connections from verified OxSteed helpers, businesses, and restaurants.';
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'CollectionPage',
+    name: title,
+    description,
+    url,
+    inLanguage: language,
+    isPartOf: { '@id': `${origin}/#website` },
+  };
+  let html = replaceMeta(template, { title, description, url, image: `${origin}/icons/icon-512.png` });
+  html = setDocumentLanguage(html, language);
+  html = addLanguageAlternates(html, `${origin}${publicPath}`);
+  html = injectJsonLd(html, jsonLd);
+  html = injectJsonLd(html, buildBreadcrumbJsonLd(title, url, req, language));
+  html = html.replace(
+    '<div id="root"></div>',
+    `<div id="root"><main id="ssr-shell" style="max-width:42rem;margin:0 auto;padding:2rem 1rem;"><p>OXSTEED · OXSTEED MEDIA</p><h1>OxSteed Media</h1><p>${escapeHtml(description)}</p></main></div>`,
+  );
+  res.set('Content-Type', 'text/html');
+  res.set('Content-Language', language);
+  res.set('Cache-Control', 'public, max-age=300, s-maxage=600');
+  return res.send(html);
+}
+
+async function handleMediaPost(postId, template, res, next, req) {
+  const { rows } = await pool.query(
+    `SELECT p.id, p.body, p.created_at, a.display_name, a.handle
+       FROM media_posts p JOIN media_actors a ON a.id = p.actor_id
+      WHERE p.id = $1::uuid AND p.deleted_at IS NULL AND p.visibility = 'public'
+        AND p.processing_status = 'ready' AND p.csam_status = 'passed'`,
+    [postId],
+  );
+  if (!rows[0]) {
+    return sendSeoNotFound(
+      template,
+      res,
+      `${base()}/media/post/${postId}`,
+      'Media post not found | OxSteed',
+      'This OxSteed Media post is not currently available.',
+    );
+  }
+  const post = rows[0];
+  const language = getRequestedLanguage(req);
+  const publicPath = `/media/post/${post.id}`;
+  const url = getLocalizedRequestUrl(publicPath, req);
+  const author = String(post.display_name || post.handle || 'OxSteed member').trim();
+  const body = String(post.body || '').replace(/\s+/g, ' ').trim();
+  const description = (body || `${author} shared an update on OxSteed Media.`).slice(0, 320);
+  const title = `${author} on OxSteed Media | OxSteed`;
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'SocialMediaPosting',
+    headline: body.slice(0, 110) || title,
+    articleBody: body || undefined,
+    datePublished: post.created_at,
+    author: { '@type': 'Person', name: author, url: `${base()}/media/@${post.handle}` },
+    url,
+    isPartOf: { '@id': `${base()}/media` },
+  };
+  let html = replaceMeta(template, { title, description, url, image: `${base()}/icons/icon-512.png` });
+  html = setDocumentLanguage(html, language);
+  html = addLanguageAlternates(html, `${base()}${publicPath}`);
+  html = injectJsonLd(html, jsonLd);
+  html = injectJsonLd(html, buildBreadcrumbJsonLd(title, url, req, language));
+  html = html.replace(
+    '<div id="root"></div>',
+    `<div id="root"><main id="ssr-shell" style="max-width:42rem;margin:0 auto;padding:2rem 1rem;"><p>OXSTEED · OXSTEED MEDIA</p><h1>${escapeHtml(author)} on OxSteed Media</h1><p>${escapeHtml(description)}</p></main></div>`,
+  );
+  res.set('Content-Type', 'text/html');
+  res.set('Content-Language', language);
+  res.set('Cache-Control', 'public, max-age=120, s-maxage=300');
+  return res.send(html);
+}
 
 function isPublicSeoPath(pagePath) {
   if (pagePath === '/' || pagePath === '/helpers' || pagePath === '/helpers/') return true;
+  if (pagePath === '/media' || pagePath === '/media/') return true;
+  if (PUBLIC_MEDIA_POST_RE.test(pagePath)) return true;
   if (MARKETING_PAGES[pagePath] && !MARKETING_PAGES[pagePath].noIndex) return true;
   if (PUBLIC_HELPER_RE.test(pagePath) || PUBLIC_BUSINESS_RE.test(pagePath)) return true;
   if (SLUG_HELPER_RE.test(pagePath) || SLUG_BUSINESS_RE.test(pagePath)) return true;
@@ -1779,6 +1863,21 @@ function prerenderPublicPages(req, res, next) {
   if (p === '/') {
     return handleHomepage(template, res, req).catch((err) => {
       logger.error('[prerender] homepage error', { error: err.message });
+      return next();
+    });
+  }
+
+  if (p === '/media' || p === '/media/') {
+    return handleMediaLanding(template, res, req).catch((err) => {
+      logger.error('[prerender] Media landing error', { error: err.message });
+      return next();
+    });
+  }
+
+  const matchMediaPost = p.match(PUBLIC_MEDIA_POST_RE);
+  if (matchMediaPost) {
+    return handleMediaPost(matchMediaPost[1], template, res, next, req).catch((err) => {
+      logger.error('[prerender] Media post error', { postId: matchMediaPost[1], error: err.message });
       return next();
     });
   }

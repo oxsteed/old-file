@@ -39,6 +39,20 @@ const VALID_LINK_COUNT_SQL = `COUNT(l.id) FILTER (WHERE
     ))
   )`;
 
+// Blocks apply to direct links as well as the feed. Keep the same two-way
+// relationship everywhere so a blocked author cannot be reached through a
+// post, quote, reply, actor, or search result URL.
+function addViewerBlockFilter(where, params, viewerUserId, actorAlias = 'a') {
+  if (!viewerUserId) return where;
+  params.push(viewerUserId);
+  const viewerParam = params.length;
+  return `${where} AND NOT EXISTS (
+    SELECT 1 FROM user_blocks ub
+     WHERE (ub.blocker_id = $${viewerParam} AND ub.blocked_id = ${actorAlias}.owner_user_id)
+        OR (ub.blocker_id = ${actorAlias}.owner_user_id AND ub.blocked_id = $${viewerParam})
+  )`;
+}
+
 async function notifyMediaUser({ userId, type, title, body, postId }) {
   if (!userId) return;
   try {
@@ -372,26 +386,39 @@ async function getFeed(req, res) {
 
 async function getPost(req, res) {
   try {
+    const params = [req.params.id];
+    const viewerUserId = req.user?.id || null;
+    const where = addViewerBlockFilter(
+      `p.id = $1 AND p.deleted_at IS NULL AND p.visibility = 'public'
+          AND p.processing_status = 'ready' AND p.csam_status = 'passed'`,
+      params,
+      viewerUserId
+    );
     const { rows } = await pool.query(
       `SELECT p.*, a.handle, a.display_name, a.avatar_url, a.verified_kind, a.actor_type, a.owner_user_id
          FROM media_posts p JOIN media_actors a ON a.id = p.actor_id
-        WHERE p.id = $1 AND p.deleted_at IS NULL AND p.visibility = 'public'
-          AND p.processing_status = 'ready' AND p.csam_status = 'passed'`,
-      [req.params.id]
+        WHERE ${where}`,
+      params
     );
     if (!rows[0]) return res.status(404).json({ error: 'Post not found' });
-    const post = await hydratePost(rows[0], req.user?.id || null);
+    const post = await hydratePost(rows[0], viewerUserId);
 
     // Quote embed
     if (post.quoted_post_id) {
+      const quoteParams = [post.quoted_post_id];
+      const quoteWhere = addViewerBlockFilter(
+        `p.id = $1 AND p.deleted_at IS NULL AND p.visibility = 'public'
+            AND p.processing_status = 'ready' AND p.csam_status = 'passed'`,
+        quoteParams,
+        viewerUserId
+      );
       const { rows: q } = await pool.query(
         `SELECT p.*, a.handle, a.display_name, a.avatar_url, a.verified_kind
            FROM media_posts p JOIN media_actors a ON a.id = p.actor_id
-          WHERE p.id = $1 AND p.deleted_at IS NULL AND p.visibility = 'public'
-            AND p.processing_status = 'ready' AND p.csam_status = 'passed'`,
-        [post.quoted_post_id]
+          WHERE ${quoteWhere}`,
+        quoteParams
       );
-      if (q[0]) post.quoted = await hydratePost(q[0], req.user?.id || null);
+      if (q[0]) post.quoted = await hydratePost(q[0], viewerUserId);
     }
     res.json({ post });
   } catch (err) {
@@ -410,13 +437,19 @@ async function getReplies(req, res) {
       orderClause = `(p.like_count * 3 + p.repost_count * 5 + p.reply_count * 2 +
         GREATEST(0, 100 - EXTRACT(EPOCH FROM (NOW() - p.created_at)) / 3600)) DESC`;
     }
+    const params = [req.params.id];
+    const where = addViewerBlockFilter(
+      `p.parent_id = $1 AND p.deleted_at IS NULL AND p.visibility = 'public'
+          AND p.processing_status = 'ready' AND p.csam_status = 'passed'`,
+      params,
+      req.user?.id || null
+    );
     const { rows } = await pool.query(
       `SELECT p.*, a.handle, a.display_name, a.avatar_url, a.verified_kind, a.actor_type
          FROM media_posts p JOIN media_actors a ON a.id = p.actor_id
-        WHERE p.parent_id = $1 AND p.deleted_at IS NULL AND p.visibility = 'public'
-          AND p.processing_status = 'ready' AND p.csam_status = 'passed'
+        WHERE ${where}
         ORDER BY ${orderClause} LIMIT 50`,
-      [req.params.id]
+      params
     );
     const replies = [];
     for (const row of rows) {
@@ -431,13 +464,19 @@ async function getReplies(req, res) {
 
 async function getQuotes(req, res) {
   try {
+    const params = [req.params.id];
+    const where = addViewerBlockFilter(
+      `p.quoted_post_id = $1 AND p.deleted_at IS NULL AND p.visibility = 'public'
+          AND p.processing_status = 'ready' AND p.csam_status = 'passed'`,
+      params,
+      req.user?.id || null
+    );
     const { rows } = await pool.query(
       `SELECT p.*, a.handle, a.display_name, a.avatar_url, a.verified_kind, a.actor_type
          FROM media_posts p JOIN media_actors a ON a.id = p.actor_id
-        WHERE p.quoted_post_id = $1 AND p.deleted_at IS NULL AND p.visibility = 'public'
-          AND p.processing_status = 'ready' AND p.csam_status = 'passed'
+        WHERE ${where}
         ORDER BY p.created_at DESC LIMIT 50`,
-      [req.params.id]
+      params
     );
     const quotes = [];
     for (const row of rows) {
@@ -879,23 +918,36 @@ async function searchMedia(req, res) {
     if (!query) return res.json({ posts: [], actors: [] });
     const pattern = `%${query}%`;
     const limit = Math.min(parseInt(req.query.limit, 10) || 20, 50);
+    const postParams = [pattern, limit];
+    const postWhere = addViewerBlockFilter(
+      `p.visibility = 'public' AND p.deleted_at IS NULL AND p.parent_id IS NULL
+          AND p.processing_status = 'ready' AND p.csam_status = 'passed'
+          AND (p.body ILIKE $1 OR a.handle ILIKE $1 OR a.display_name ILIKE $1)`,
+      postParams,
+      req.user?.id || null
+    );
     const { rows: posts } = await pool.query(
       `SELECT p.*, a.handle, a.display_name, a.avatar_url, a.verified_kind, a.actor_type
          FROM media_posts p JOIN media_actors a ON a.id = p.actor_id
-        WHERE p.visibility = 'public' AND p.deleted_at IS NULL AND p.parent_id IS NULL
-          AND p.processing_status = 'ready' AND p.csam_status = 'passed'
-          AND (p.body ILIKE $1 OR a.handle ILIKE $1 OR a.display_name ILIKE $1)
+        WHERE ${postWhere}
         ORDER BY p.created_at DESC LIMIT $2`,
-      [pattern, limit]
+      postParams
     );
     const hydrated = [];
     for (const post of posts) hydrated.push(await hydratePost(post, req.user?.id || null));
+    const actorParams = [pattern, limit];
+    const actorWhere = addViewerBlockFilter(
+      `handle ILIKE $1 OR display_name ILIKE $1`,
+      actorParams,
+      req.user?.id || null,
+      'media_actors'
+    );
     const { rows: actors } = await pool.query(
       `SELECT id, actor_type, handle, display_name, avatar_url, verified_kind
          FROM media_actors
-        WHERE handle ILIKE $1 OR display_name ILIKE $1
+        WHERE ${actorWhere}
         ORDER BY display_name ASC LIMIT $2`,
-      [pattern, limit]
+      actorParams
     );
     res.json({ posts: hydrated, actors });
   } catch (err) {
@@ -913,13 +965,19 @@ async function getBusinessPosts(req, res) {
       [businessId]
     );
     if (!actors[0]) return res.json({ posts: [] });
+    const params = [actors[0].id];
+    const where = addViewerBlockFilter(
+      `p.actor_id = $1 AND p.deleted_at IS NULL AND p.parent_id IS NULL
+          AND p.visibility = 'public' AND p.processing_status = 'ready' AND p.csam_status = 'passed'`,
+      params,
+      req.user?.id || null
+    );
     const { rows: posts } = await pool.query(
       `SELECT p.*, a.handle, a.display_name, a.avatar_url, a.verified_kind, a.actor_type
          FROM media_posts p JOIN media_actors a ON a.id = p.actor_id
-        WHERE p.actor_id = $1 AND p.deleted_at IS NULL AND p.parent_id IS NULL
-          AND p.visibility = 'public' AND p.processing_status = 'ready' AND p.csam_status = 'passed'
+        WHERE ${where}
         ORDER BY p.created_at DESC LIMIT 20`,
-      [actors[0].id]
+      params
     );
     const hydrated = [];
     for (const p of posts) hydrated.push(await hydratePost(p, req.user?.id || null));
@@ -932,18 +990,26 @@ async function getBusinessPosts(req, res) {
 
 async function getActor(req, res) {
   try {
+    const actorParams = [req.params.handle];
+    const actorWhere = addViewerBlockFilter('handle = $1', actorParams, req.user?.id);
     const { rows } = await pool.query(
-      `SELECT * FROM media_actors WHERE handle = $1`,
-      [req.params.handle]
+      `SELECT * FROM media_actors WHERE ${actorWhere}`,
+      actorParams
     );
     if (!rows[0]) return res.status(404).json({ error: 'Actor not found' });
+    const postParams = [rows[0].id];
+    const postWhere = addViewerBlockFilter(
+      `p.actor_id = $1 AND p.deleted_at IS NULL AND p.parent_id IS NULL
+          AND p.visibility = 'public' AND p.processing_status = 'ready' AND p.csam_status = 'passed'`,
+      postParams,
+      req.user?.id
+    );
     const { rows: posts } = await pool.query(
       `SELECT p.*, a.handle, a.display_name, a.avatar_url, a.verified_kind, a.actor_type
          FROM media_posts p JOIN media_actors a ON a.id = p.actor_id
-        WHERE p.actor_id = $1 AND p.deleted_at IS NULL AND p.parent_id IS NULL
-          AND p.visibility = 'public' AND p.processing_status = 'ready' AND p.csam_status = 'passed'
+        WHERE ${postWhere}
         ORDER BY p.created_at DESC LIMIT 20`,
-      [rows[0].id]
+      postParams
     );
     const hydrated = [];
     for (const p of posts) hydrated.push(await hydratePost(p, req.user?.id || null));
