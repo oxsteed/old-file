@@ -35,6 +35,11 @@ test('Media composer retries a restored asset when replacement media is selected
   assert.match(compose, /const handleExternalUrlChange = \(event\)/);
 });
 
+test('Media composer persists restored draft edits before retrying publication', () => {
+  assert.match(compose, /updateDraft/);
+  assert.match(compose, /await updateDraft\(postId, \{ body: body\.trim\(\), links, community_id: communityId \|\| null \}\)/);
+});
+
 test('Media search keeps account navigation inside the Media shell', () => {
   assert.match(search, /import \{ Link \} from 'react-router-dom'/);
   assert.match(search, /<Link key=\{account\.id\} to=\{`\/media\/@\$\{account\.handle\}`\}/);
