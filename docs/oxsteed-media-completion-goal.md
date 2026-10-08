@@ -108,3 +108,9 @@ return 401, and anonymous photo/video upload requests return 401 before any
 upload state can be created. Public feed reads continue to return 200. This is
 guest-boundary evidence only; an authenticated production test account is still
 required for owner, upload-worker, and moderation journey verification.
+
+Live shell-route check: `/media/messages`, `/media/notifications`,
+`/media/communities`, `/media/bookmarks`, and `/media/compose` each return
+HTTP 200 through the Media shell. Their authenticated data interactions remain
+covered by the existing client/server contracts and still need a signed-in
+production session for end-to-end confirmation.
