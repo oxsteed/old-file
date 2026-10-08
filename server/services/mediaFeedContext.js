@@ -100,7 +100,7 @@ function localitySql(location, params) {
       JOIN businesses b ON b.id::text=ml.target_id AND b.is_active AND b.deleted_at IS NULL
       WHERE ml.post_id=p.id AND ml.link_type='business'
     UNION ALL SELECT j.location_approx_lat,j.location_approx_lng,j.location_city,j.location_state FROM media_post_links ml
-      JOIN jobs j ON j.id::text=ml.target_id AND j.status IN ('open','published')
+      JOIN jobs j ON j.id::text=ml.target_id AND j.status IN ('published','matched')
       WHERE ml.post_id=p.id AND ml.link_type='job'
     UNION ALL SELECT NULL::numeric,NULL::numeric,tr.location_city,tr.location_state FROM media_post_links ml
       JOIN tool_rentals tr ON tr.id::text=ml.target_id AND tr.is_available

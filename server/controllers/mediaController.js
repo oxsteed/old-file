@@ -45,7 +45,7 @@ const VALID_LINK_COUNT_SQL = `COUNT(l.id) FILTER (WHERE
     )) OR
     (l.link_type = 'job' AND EXISTS (
       SELECT 1 FROM jobs j
-       WHERE j.id::text = l.target_id AND j.status IN ('open', 'published')
+       WHERE j.id::text = l.target_id AND j.status IN ('published', 'matched')
     )) OR
     (l.link_type = 'tool_rental' AND EXISTS (
       SELECT 1 FROM tool_rentals tr
@@ -309,7 +309,7 @@ async function hydrateLinks(postId) {
       }
       if (l.link_type === 'job') {
         const { rows: targets } = await pool.query(
-          `SELECT title AS name FROM jobs WHERE id = $1 AND deleted_at IS NULL AND status IN ('open', 'published')`, [targetId]
+          `SELECT title AS name FROM jobs WHERE id = $1 AND status IN ('published', 'matched')`, [targetId]
         );
         return targets[0] || null;
       }
@@ -1670,7 +1670,7 @@ async function searchMediaEntities(req, res) {
       ({ rows } = await pool.query(
         `SELECT id::text AS target_id, title AS name, NULL::int AS price_snapshot_cents
            FROM jobs
-          WHERE deleted_at IS NULL AND status IN ('open', 'published') AND title ILIKE $1
+          WHERE status IN ('published', 'matched') AND title ILIKE $1
           ORDER BY created_at DESC LIMIT $2`, [like, limit]
       ));
     } else if (type === 'tool_rental') {
