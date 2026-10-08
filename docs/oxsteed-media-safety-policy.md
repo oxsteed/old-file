@@ -57,3 +57,7 @@ tests were skipped because this Windows session has no test database URL.
 The CI workflow supplies that isolated database and runs all of those tests
 alongside a full migration rehearsal. JavaScript syntax and `git diff --check`
 passed. No browser interface copy was changed by this application update.
+
+A follow-up test confirmed that conversion failure marks the asset failed and
+refreshes the draft's aggregate state for the existing replacement/retry UI.
+The focused safety-policy suite then passed all 20 tests.

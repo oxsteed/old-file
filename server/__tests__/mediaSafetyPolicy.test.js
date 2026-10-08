@@ -155,6 +155,25 @@ test.each(['flagged', 'unavailable'])('interim processing never clears an existi
   expect(csam.checkMediaVideo).not.toHaveBeenCalled();
 });
 
+test('conversion failure updates the draft state so the owner can replace the file', async () => {
+  sourceDir = await fs.mkdtemp(path.join(os.tmpdir(), 'media-convert-failure-test-'));
+  const original = path.join(sourceDir, 'original.mp4');
+  await fs.writeFile(original, 'harmless fixture');
+  storage.resolveLocalStoragePath.mockReturnValue(original);
+  converter.transcodeOriginal.mockRejectedValueOnce(new Error('Conversion failed'));
+  pool.query.mockImplementation(async (sql) => {
+    if (sql.includes('WITH next AS')) return { rows: [{ id: 'convert', asset_id: 'asset', job_type: 'transcode' }] };
+    if (sql.includes('SELECT a.id')) return { rows: [{ ...clearedAsset(), processing_status: 'quarantine',
+      post_csam_status: 'cloudflare_deferred', post_processing_status: 'quarantine', visibility: 'unlisted' }] };
+    return { rows: [] };
+  });
+  await worker.runOnce();
+  const queries = pool.query.mock.calls.map(([sql]) => sql);
+  expect(queries.some((sql) => sql.includes("SET processing_status = 'failed'"))).toBe(true);
+  expect(queries.some((sql) => sql.includes('UPDATE media_posts p SET'))).toBe(true);
+  expect(queries.some((sql) => sql.includes("SET visibility = 'public'"))).toBe(false);
+});
+
 test('future vendor mode waits for certification and does not transcode an interim asset', async () => {
   process.env.MEDIA_CSAM_MODE = 'vendor';
   pool.query.mockImplementation(async (sql) => {

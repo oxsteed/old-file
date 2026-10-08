@@ -223,6 +223,7 @@ async function processTranscode(job) {
         WHERE id = $1 AND processing_status <> 'blocked' AND csam_status <> 'flagged'`,
       [asset.id]
     );
+    await refreshPostState(asset.post_id);
     await markFailed(job.id, error);
   } finally {
     await fsp.rm(tmpDir, { recursive: true, force: true });
