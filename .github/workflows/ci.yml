@@ -1,3 +1,7 @@
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 name: CI
 
 on:
