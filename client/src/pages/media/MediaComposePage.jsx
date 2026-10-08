@@ -3,7 +3,10 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { createPost, getCommunities, getDraft, getDrafts, linkAsset, publishPost, searchMediaEntities, uploadPhoto, uploadVideo } from '../../api/media';
 
-const LINK_TYPES = ['restaurant', 'food_item', 'helper', 'business', 'job'];
+const LINK_TYPES = [
+  'restaurant', 'food_item', 'helper', 'business', 'job',
+  'tool_rental', 'direct_catalog', 'logistics_campaign',
+];
 const DRAFT_STORAGE_KEY = 'oxsteed.media.compose.draft';
 
 export default function MediaComposePage() {

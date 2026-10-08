@@ -146,10 +146,13 @@ describe('OxSteed Media launch contracts', () => {
     });
   });
 
-  test('rejects v2 entity types before launch', async () => {
+  test('searches v2 tool rental entities for the combined Media rollout', async () => {
+    pool.query.mockResolvedValueOnce({ rows: [{ target_id: '12', name: 'Cordless saw', price_snapshot_cents: 2500 }] });
     const res = resMock();
     await media.searchMediaEntities({ query: { type: 'tool_rental', q: 'saw' } }, res);
-    expect(res.status).toHaveBeenCalledWith(400);
-    expect(pool.query).not.toHaveBeenCalled();
+    expect(pool.query.mock.calls[0][0]).toMatch(/tool_rentals/);
+    expect(res.json).toHaveBeenCalledWith({
+      entities: [{ target_id: '12', name: 'Cordless saw', price_snapshot_cents: 2500, link_type: 'tool_rental', label: 'Cordless saw' }],
+    });
   });
 });

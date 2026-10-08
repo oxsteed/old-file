@@ -12,7 +12,13 @@ const mediaSafety = require('../services/mediaSafetyPolicy');
 
 const MAX_LINKS_PER_POST = 5;
 const POSTS_PER_DAY = 10;
-const MVP_LINK_TYPES = new Set(['restaurant', 'food_item', 'helper', 'business', 'job']);
+// All Media link types are enabled under the combined MVP/v2/v3 delivery
+// strategy. Each type still has to resolve to a currently public target before
+// it contributes to feed ranking or becomes clickable.
+const MEDIA_LINK_TYPES = new Set([
+  'restaurant', 'food_item', 'helper', 'business', 'job',
+  'tool_rental', 'direct_catalog', 'logistics_campaign',
+]);
 const VALID_LINK_COUNT_SQL = `COUNT(l.id) FILTER (WHERE
     (l.link_type = 'restaurant' AND EXISTS (
       SELECT 1 FROM food_restaurants r
@@ -37,6 +43,18 @@ const VALID_LINK_COUNT_SQL = `COUNT(l.id) FILTER (WHERE
     (l.link_type = 'job' AND EXISTS (
       SELECT 1 FROM jobs j
        WHERE j.id::text = l.target_id AND j.status IN ('open', 'published')
+    )) OR
+    (l.link_type = 'tool_rental' AND EXISTS (
+      SELECT 1 FROM tool_rentals tr
+       WHERE tr.id::text = l.target_id AND tr.is_available = TRUE
+    )) OR
+    (l.link_type = 'direct_catalog' AND EXISTS (
+      SELECT 1 FROM direct_catalog_services s
+       WHERE s.id::text = l.target_id AND s.is_active = TRUE AND s.is_published = TRUE
+    )) OR
+    (l.link_type = 'logistics_campaign' AND EXISTS (
+      SELECT 1 FROM pooled_orders po
+       WHERE po.id::text = l.target_id AND po.status IN ('open', 'pledging')
     ))
   )`;
 
@@ -279,6 +297,30 @@ async function hydrateLinks(postId) {
       if (l.link_type === 'job') {
         const { rows: targets } = await pool.query(
           `SELECT title AS name FROM jobs WHERE id = $1 AND deleted_at IS NULL AND status IN ('open', 'published')`, [targetId]
+        );
+        return targets[0] || null;
+      }
+      if (l.link_type === 'tool_rental') {
+        const { rows: targets } = await pool.query(
+          `SELECT name, ROUND(COALESCE(daily_rate, hourly_rate) * 100)::int AS price_snapshot_cents
+             FROM tool_rentals
+            WHERE id = $1 AND is_available = TRUE`, [targetId]
+        );
+        return targets[0] || null;
+      }
+      if (l.link_type === 'direct_catalog') {
+        const { rows: targets } = await pool.query(
+          `SELECT COALESCE(name_i18n->>'en', slug) AS name, price_cents AS price_snapshot_cents
+             FROM direct_catalog_services
+            WHERE id::text = $1 AND is_active = TRUE AND is_published = TRUE`, [targetId]
+        );
+        return targets[0] || null;
+      }
+      if (l.link_type === 'logistics_campaign') {
+        const { rows: targets } = await pool.query(
+          `SELECT title AS name, ROUND(unit_landed_cost_usd * 100)::int AS price_snapshot_cents
+             FROM pooled_orders
+            WHERE id = $1 AND status IN ('open', 'pledging')`, [targetId]
         );
         return targets[0] || null;
       }
@@ -807,9 +849,9 @@ async function createPost(req, res) {
     if (links && links.length > MAX_LINKS_PER_POST) {
       return res.status(400).json({ error: `Max ${MAX_LINKS_PER_POST} links per post` });
     }
-    if (links && links.some((link) => !link || !MVP_LINK_TYPES.has(link.link_type) || !String(link.target_id || '').trim())) {
+    if (links && links.some((link) => !link || !MEDIA_LINK_TYPES.has(link.link_type) || !String(link.target_id || '').trim())) {
       return res.status(400).json({
-        error: 'Only restaurant, dish, helper, business, and job links are available at launch.',
+        error: 'Unsupported or incomplete OxSteed link.',
         code: 'media_link_type_unavailable',
       });
     }
@@ -1050,8 +1092,8 @@ async function replacePostLinks(req, res) {
   if (links.length > MAX_LINKS_PER_POST) {
     return res.status(400).json({ error: `Max ${MAX_LINKS_PER_POST} links per post` });
   }
-  if (links.some((link) => !link || !MVP_LINK_TYPES.has(link.link_type) || !String(link.target_id || '').trim())) {
-    return res.status(400).json({ error: 'Only restaurant, dish, helper, business, and job links are available at launch.', code: 'media_link_type_unavailable' });
+  if (links.some((link) => !link || !MEDIA_LINK_TYPES.has(link.link_type) || !String(link.target_id || '').trim())) {
+    return res.status(400).json({ error: 'Unsupported or incomplete OxSteed link.', code: 'media_link_type_unavailable' });
   }
   const client = await pool.connect();
   try {
@@ -1565,6 +1607,32 @@ async function searchMediaEntities(req, res) {
         `SELECT id::text AS target_id, title AS name, NULL::int AS price_snapshot_cents
            FROM jobs
           WHERE deleted_at IS NULL AND status IN ('open', 'published') AND title ILIKE $1
+          ORDER BY created_at DESC LIMIT $2`, [like, limit]
+      ));
+    } else if (type === 'tool_rental') {
+      ({ rows } = await pool.query(
+        `SELECT id::text AS target_id, name,
+                ROUND(COALESCE(daily_rate, hourly_rate) * 100)::int AS price_snapshot_cents
+           FROM tool_rentals
+          WHERE is_available = TRUE AND name ILIKE $1
+          ORDER BY name LIMIT $2`, [like, limit]
+      ));
+    } else if (type === 'direct_catalog') {
+      ({ rows } = await pool.query(
+        `SELECT id::text AS target_id,
+                COALESCE(name_i18n->>'en', slug) AS name,
+                price_cents AS price_snapshot_cents
+           FROM direct_catalog_services
+          WHERE is_active = TRUE AND is_published = TRUE
+            AND (COALESCE(name_i18n->>'en', '') ILIKE $1 OR slug ILIKE $1)
+          ORDER BY sort_order, name LIMIT $2`, [like, limit]
+      ));
+    } else if (type === 'logistics_campaign') {
+      ({ rows } = await pool.query(
+        `SELECT id::text AS target_id, title AS name,
+                ROUND(unit_landed_cost_usd * 100)::int AS price_snapshot_cents
+           FROM pooled_orders
+          WHERE status IN ('open', 'pledging') AND title ILIKE $1
           ORDER BY created_at DESC LIMIT $2`, [like, limit]
       ));
     } else {

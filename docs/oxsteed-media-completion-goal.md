@@ -258,3 +258,15 @@ URLs; it does not establish upload-time video screening, transcode safety, or a
 certified production Media vendor. The application therefore continues to
 keep public uploaded video gated by `MEDIA_CSAM_CERTIFIED` until that separate
 video-screening certification and operational response evidence are recorded.
+
+Combined-rollout link coverage (2026-10-08): Media now accepts and searches all
+specified linked-entity types: restaurants, dishes, helpers, businesses, jobs,
+tool rentals, Direct catalog services, and open logistics campaigns. Link
+hydration and the ranked-feed validity predicate only make currently available
+targets clickable; removed, unpublished, unavailable, or closed targets remain
+as non-clickable snapshots. Compose and owner link editing expose the same
+eight types. The focused Media contract/follow suites pass 13 tests locally;
+the pushed CI run 37787111951 passed both server/client verification and the
+PostgreSQL migration rehearsal. This batch still needs deployment and an
+authenticated live linked-card journey before the full goal can be marked
+complete.

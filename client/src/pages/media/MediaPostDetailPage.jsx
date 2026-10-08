@@ -233,7 +233,7 @@ export default function MediaPostDetailPage() {
                     </div>
                     <form className="media-link-picker" onSubmit={addDraftLink}>
                       <select value={linkType} onChange={(event) => setLinkType(event.target.value)}>
-                        {['restaurant', 'food_item', 'helper', 'business', 'job'].map((type) => <option key={type} value={type}>{t(`media.compose.linkTypes.${type}`, { defaultValue: type })}</option>)}
+                      {['restaurant', 'food_item', 'helper', 'business', 'job', 'tool_rental', 'direct_catalog', 'logistics_campaign'].map((type) => <option key={type} value={type}>{t(`media.compose.linkTypes.${type}`, { defaultValue: type })}</option>)}
                       </select>
                       <input value={linkName} onChange={(event) => setLinkName(event.target.value)} placeholder={t('media.compose.entitySearchPlaceholder')} />
                       <input value={linkTarget} readOnly aria-label={t('media.compose.targetId')} placeholder={t('media.compose.targetId')} />
