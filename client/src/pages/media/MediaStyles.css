@@ -380,6 +380,11 @@ div.media-support-panel { z-index: 150; }
   border: 1px solid var(--border, #e5e5e5);
   border-radius: 8px;
 }
+.media-entity-suggestions { display: grid; gap: 4px; margin-top: 6px; padding: 6px; border: 1px solid var(--color-border); border-radius: 10px; background: var(--color-surface); }
+.media-entity-suggestion { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 38px; padding: 7px 9px; border: 0; border-radius: 7px; background: transparent; color: var(--color-text); text-align: start; cursor: pointer; }
+.media-entity-suggestion:hover { background: var(--color-surface-2); }
+.media-entity-suggestion small, .media-entity-suggestion-status { color: var(--color-text-muted); font-size: 12px; }
+.media-entity-suggestion-status { padding: 6px 8px; }
 
 .media-actor-page {
   padding-top: 16px;

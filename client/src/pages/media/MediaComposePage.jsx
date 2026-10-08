@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { createPost, getCommunities, linkAsset, uploadPhoto, uploadVideo } from '../../api/media';
+import { createPost, getCommunities, linkAsset, searchMediaEntities, uploadPhoto, uploadVideo } from '../../api/media';
 
 const LINK_TYPES = ['restaurant', 'food_item', 'helper', 'business', 'job'];
 
@@ -13,6 +13,9 @@ export default function MediaComposePage() {
   const [linkType, setLinkType] = useState('restaurant');
   const [linkTarget, setLinkTarget] = useState('');
   const [linkName, setLinkName] = useState('');
+  const [linkPrice, setLinkPrice] = useState('');
+  const [entitySuggestions, setEntitySuggestions] = useState([]);
+  const [searchingEntities, setSearchingEntities] = useState(false);
   const [externalUrl, setExternalUrl] = useState('');
   const [mediaFile, setMediaFile] = useState(null);
   const [communities, setCommunities] = useState([]);
@@ -24,6 +27,23 @@ export default function MediaComposePage() {
     getCommunities().then((data) => setCommunities(data.communities || [])).catch(() => {});
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+    const query = linkName.trim();
+    if (!query) {
+      setEntitySuggestions([]);
+      return undefined;
+    }
+    const timer = setTimeout(() => {
+      setSearchingEntities(true);
+      searchMediaEntities({ type: linkType, q: query })
+        .then((data) => { if (!cancelled) setEntitySuggestions(data.entities || []); })
+        .catch(() => { if (!cancelled) setEntitySuggestions([]); })
+        .finally(() => { if (!cancelled) setSearchingEntities(false); });
+    }, 220);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [linkName, linkType]);
+
   const addLink = () => {
     if (links.length >= 5) {
       setError(t('media.compose.maxLinks'));
@@ -33,14 +53,29 @@ export default function MediaComposePage() {
       setError(t('media.compose.linkRequired'));
       return;
     }
+    const parsedPrice = linkPrice.trim() ? Number(linkPrice) : null;
+    if (parsedPrice != null && (!Number.isFinite(parsedPrice) || parsedPrice < 0)) {
+      setError(t('media.compose.priceInvalid'));
+      return;
+    }
     setLinks([...links, {
       link_type: linkType,
       target_id: linkTarget.trim(),
       name_snapshot: linkName.trim(),
+      price_snapshot_cents: parsedPrice == null ? null : Math.round(parsedPrice * 100),
     }]);
     setLinkTarget('');
     setLinkName('');
+    setLinkPrice('');
+    setEntitySuggestions([]);
     setError(null);
+  };
+
+  const chooseEntity = (entity) => {
+    setLinkTarget(entity.target_id);
+    setLinkName(entity.name);
+    setLinkPrice(entity.price_snapshot_cents != null ? (Number(entity.price_snapshot_cents) / 100).toFixed(2) : '');
+    setEntitySuggestions([]);
   };
 
   const removeLink = (idx) => {
@@ -101,10 +136,30 @@ export default function MediaComposePage() {
             <input
               value={linkName}
               onChange={e => setLinkName(e.target.value)}
-              placeholder={t('media.compose.displayName')}
+              placeholder={t('media.compose.entitySearchPlaceholder')}
+            />
+            <input
+              value={linkPrice}
+              onChange={e => setLinkPrice(e.target.value)}
+              placeholder={t('media.compose.pricePlaceholder')}
+              inputMode="decimal"
+              type="number"
+              min="0"
+              step="0.01"
             />
             <button type="button" onClick={addLink}>{t('media.compose.addLink')}</button>
           </div>
+          {(searchingEntities || entitySuggestions.length > 0) && (
+            <div className="media-entity-suggestions" role="listbox" aria-label={t('media.compose.entitySearchHint')}>
+              {searchingEntities && <span className="media-entity-suggestion-status">{t('media.compose.searchingEntities')}</span>}
+              {entitySuggestions.map((entity) => (
+                <button type="button" key={entity.target_id} className="media-entity-suggestion" onClick={() => chooseEntity(entity)}>
+                  <span>{entity.name}</span>
+                  {entity.price_snapshot_cents != null && <small>${(Number(entity.price_snapshot_cents) / 100).toFixed(2)}</small>}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
         <label className="media-compose-field">
           <span>{t('media.compose.uploadLabel')}</span>

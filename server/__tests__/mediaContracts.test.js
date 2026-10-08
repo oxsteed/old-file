@@ -60,4 +60,21 @@ describe('OxSteed Media launch contracts', () => {
     expect(pool.query).toHaveBeenCalledTimes(1);
     expect(duplicate.json).toHaveBeenCalledWith({ ok: true, recorded: false });
   });
+
+  test('searches only public launch entity types for the compose picker', async () => {
+    pool.query.mockResolvedValueOnce({ rows: [{ target_id: '7', name: 'Local Cafe', price_snapshot_cents: null }] });
+    const res = resMock();
+    await media.searchMediaEntities({ query: { type: 'restaurant', q: 'cafe', limit: '8' } }, res);
+    expect(pool.query.mock.calls[0][0]).toMatch(/food_restaurants/);
+    expect(res.json).toHaveBeenCalledWith({
+      entities: [{ target_id: '7', name: 'Local Cafe', price_snapshot_cents: null, link_type: 'restaurant', label: 'Local Cafe' }],
+    });
+  });
+
+  test('rejects v2 entity types before launch', async () => {
+    const res = resMock();
+    await media.searchMediaEntities({ query: { type: 'tool_rental', q: 'saw' } }, res);
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(pool.query).not.toHaveBeenCalled();
+  });
 });

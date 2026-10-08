@@ -893,9 +893,72 @@ async function getActor(req, res) {
   }
 }
 
+async function searchMediaEntities(req, res) {
+  try {
+    const type = String(req.query.type || 'restaurant').trim();
+    const query = String(req.query.q || '').trim().slice(0, 120);
+    const limit = Math.min(Math.max(Number.parseInt(req.query.limit, 10) || 8, 1), 20);
+    const like = `%${query}%`;
+    let rows;
+    if (type === 'restaurant') {
+      ({ rows } = await pool.query(
+        `SELECT id::text AS target_id, display_name AS name, NULL::int AS price_snapshot_cents
+           FROM food_restaurants
+          WHERE status = 'active' AND display_name ILIKE $1
+          ORDER BY display_name LIMIT $2`, [like, limit]
+      ));
+    } else if (type === 'food_item') {
+      ({ rows } = await pool.query(
+        `SELECT (r.id::text || ':' || i.id::text) AS target_id,
+                i.name || ' · ' || r.display_name AS name,
+                i.price_cents AS price_snapshot_cents
+           FROM food_menu_items i
+           JOIN food_restaurants r ON r.id = i.restaurant_id
+          WHERE r.status = 'active' AND i.name ILIKE $1
+          ORDER BY i.name LIMIT $2`, [like, limit]
+      ));
+    } else if (type === 'helper') {
+      ({ rows } = await pool.query(
+        `SELECT COALESCE(hp.profile_slug, hp.id::text) AS target_id,
+                TRIM(COALESCE(u.first_name, '') || ' ' || COALESCE(u.last_name, '')) AS name,
+                NULL::int AS price_snapshot_cents
+           FROM helper_profiles hp
+           JOIN users u ON u.id = hp.user_id
+          WHERE u.deleted_at IS NULL AND u.is_active = TRUE
+            AND u.identity_verified = TRUE
+            AND (hp.profile_slug ILIKE $1 OR u.first_name ILIKE $1 OR u.last_name ILIKE $1)
+          ORDER BY name LIMIT $2`, [like, limit]
+      ));
+    } else if (type === 'business') {
+      ({ rows } = await pool.query(
+        `SELECT COALESCE(profile_slug, id::text) AS target_id, business_name AS name,
+                NULL::int AS price_snapshot_cents
+           FROM businesses
+          WHERE deleted_at IS NULL AND is_active = TRUE AND is_business_verified = TRUE
+            AND business_name ILIKE $1
+          ORDER BY business_name LIMIT $2`, [like, limit]
+      ));
+    } else if (type === 'job') {
+      ({ rows } = await pool.query(
+        `SELECT id::text AS target_id, title AS name, NULL::int AS price_snapshot_cents
+           FROM jobs
+          WHERE deleted_at IS NULL AND status IN ('open', 'published') AND title ILIKE $1
+          ORDER BY created_at DESC LIMIT $2`, [like, limit]
+      ));
+    } else {
+      return res.status(400).json({ error: 'Unsupported Media entity type' });
+    }
+    res.json({ entities: rows.map((row) => ({ ...row, link_type: type, label: row.name })) });
+  } catch (err) {
+    logger.error('media.searchMediaEntities error', { message: err.message });
+    res.status(500).json({ error: 'Failed to search Media entities' });
+  }
+}
+
 module.exports = {
   getFeed, getPost, getReplies, getQuotes, createPost,
   toggleLike, toggleBookmark, toggleRepost, recordView, flagPost,
   getCommunities, getCommunity, joinCommunity, leaveCommunity, searchMedia,
   getActor, getOrCreateActor, getBusinessPosts,
+  searchMediaEntities,
 };

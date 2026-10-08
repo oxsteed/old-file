@@ -30411,7 +30411,12 @@
         "book": "حجز",
         "apply": "تقديم",
         "rent": "استئجار"
-      }
+      },
+      "entitySearchPlaceholder": "ابحث عن كيانات OxSteed العامة",
+      "pricePlaceholder": "السعر (اختياري)",
+      "priceInvalid": "أدخل سعراً صالحاً غير سالب.",
+      "entitySearchHint": "اقتراحات الكيانات",
+      "searchingEntities": "جارٍ البحث…"
     },
     "notifications": {
       "kicker": "تحديثات الشبكة",

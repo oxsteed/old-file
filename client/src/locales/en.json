@@ -30400,7 +30400,12 @@
         "book": "Book",
         "apply": "Apply",
         "rent": "Rent"
-      }
+      },
+      "entitySearchPlaceholder": "Search public OxSteed entities",
+      "pricePlaceholder": "Price (optional)",
+      "priceInvalid": "Enter a valid non-negative price.",
+      "entitySearchHint": "Entity suggestions",
+      "searchingEntities": "Searching…"
     },
     "notifications": {
       "kicker": "Network updates",

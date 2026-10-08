@@ -19,6 +19,7 @@ const mediaUploadLimiter = rateLimit({
 // Public feed (guests can view).
 router.get('/feed', ctrl.getFeed);
 router.get('/search', ctrl.searchMedia);
+router.get('/entities', ctrl.searchMediaEntities);
 router.get('/communities', ctrl.getCommunities);
 router.get('/communities/:slug', ctrl.getCommunity);
 router.post('/communities/:id/join', requireAuth, ctrl.joinCommunity);

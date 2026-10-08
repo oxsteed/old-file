@@ -30400,7 +30400,12 @@
         "book": "Rezève",
         "apply": "Aplike",
         "rent": "Lwe"
-      }
+      },
+      "entitySearchPlaceholder": "Chèche antite piblik OxSteed",
+      "pricePlaceholder": "Pri (si ou vle)",
+      "priceInvalid": "Mete yon pri valab ki pa negatif.",
+      "entitySearchHint": "Sijesyon antite",
+      "searchingEntities": "Ap chèche…"
     },
     "notifications": {
       "kicker": "Mizajou rezo a",

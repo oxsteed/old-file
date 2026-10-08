@@ -30400,7 +30400,12 @@
         "book": "Reservar",
         "apply": "Solicitar",
         "rent": "Alquilar"
-      }
+      },
+      "entitySearchPlaceholder": "Buscar entidades públicas de OxSteed",
+      "pricePlaceholder": "Precio (opcional)",
+      "priceInvalid": "Introduce un precio válido no negativo.",
+      "entitySearchHint": "Sugerencias de entidades",
+      "searchingEntities": "Buscando…"
     },
     "notifications": {
       "kicker": "Actualizaciones de la red",
