@@ -105,3 +105,36 @@ and phone contact. Legal links preserve their normal URLs while opening the
 localized policy document in a lazy-loaded Media dialog with Escape and backdrop
 close behavior. The footer stays above the mobile tab bar with safe-area spacing
 on phones.
+
+## MVP implementation audit (2026-10-08)
+
+The Media branch now includes the locked MVP behavior across the feed, detail,
+compose, Spaces, notifications, messages, moderation, and upload paths. The
+server enforces verified helper/business/restaurant posting, the five MVP link
+types with a five-link cap, link hydration and unavailable snapshots, blocked
+author filtering, link-aware and nearby ranking, view deduplication, report
+limits, and owner link replacement. Photos use the private scan and thumbnail
+pipeline. Video uploads require Didit, stay quarantined, and remain queued until
+the production CSAM vendor is certified; the worker then screens and transcodes
+them before publication. Admin approval is an audited override path for
+quarantined posts, and DMCA review removes the post from public visibility.
+
+Public `/media` and `/media/post/:id` requests now receive server-rendered
+canonical, Open Graph, Twitter, localized alternate, and structured posting
+metadata. Direct post, quote, reply, actor, and search endpoints apply the same
+two-way block relationship as the feed. The later follow graph, restaurant
+dual-write, additional link types, Relevant sort, creator marketplace, boosts,
+and public video unlock remain deferred to v2/v3 as specified.
+
+Verification for the current implementation in the writable checkout
+`C:\Temp\oxsteed-media-design-20261008`:
+
+- `npm run verify:i18n` passed across en/es/fr/ht/ar.
+- `npm run build` passed.
+- Media contract tests passed (5 tests).
+- Media URL and restaurant Media regression tests passed (89 tests).
+- `node --check` passed for the changed Media controller, prerender middleware,
+  and video worker.
+- CI run [37727013316](https://github.com/oxsteed/old-file/actions/runs/37727013316)
+  was running after commit `d53f3d9077f3f3c8997a0f725951f9e16a56e7cc`; the
+  final workflow result remains the deployment gate.
