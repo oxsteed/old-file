@@ -30322,7 +30322,12 @@
         "logistics_campaign": "Voir"
       },
       "metaTitle": "Publication OxSteed Media",
-      "metaDescription": "Une actualité locale de la communauté OxSteed."
+      "metaDescription": "Une actualité locale de la communauté OxSteed.",
+      "editLinks": "Modifier les éléments liés",
+      "cancelLinks": "Fermer l’éditeur de liens",
+      "saveLinks": "Enregistrer les éléments liés",
+      "savingLinks": "Enregistrement…",
+      "linksError": "Impossible de mettre à jour les éléments liés."
     },
     "search": {
       "title": "Rechercher dans Media",

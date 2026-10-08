@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../context/AuthContext';
-import { createPost, getPost, getQuotes, getReplies, recordView } from '../../api/media';
+import { createPost, getPost, getQuotes, getReplies, recordView, replacePostLinks } from '../../api/media';
 import './MediaStyles.css';
 import MediaPostCard from './MediaPostCard';
 import MediaReplyComposer from './MediaReplyComposer';
@@ -21,6 +21,12 @@ export default function MediaPostDetailPage() {
   const [error, setError] = useState(null);
   const [quoteBody, setQuoteBody] = useState('');
   const [quoting, setQuoting] = useState(false);
+  const [editingLinks, setEditingLinks] = useState(false);
+  const [draftLinks, setDraftLinks] = useState([]);
+  const [linkType, setLinkType] = useState('restaurant');
+  const [linkTarget, setLinkTarget] = useState('');
+  const [linkName, setLinkName] = useState('');
+  const [savingLinks, setSavingLinks] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -31,6 +37,7 @@ export default function MediaPostDetailPage() {
         getReplies(id),
       ]);
       setPost(postData.post);
+      setDraftLinks(postData.post.links || []);
       setReplies(repliesData.replies);
       recordView(id).catch(() => {});
     } catch (err) {
@@ -76,6 +83,38 @@ export default function MediaPostDetailPage() {
     }
   };
 
+  const addDraftLink = (event) => {
+    event.preventDefault();
+    if (!linkTarget.trim() || !linkName.trim() || draftLinks.length >= 5) return;
+    setDraftLinks((current) => [...current, {
+      link_type: linkType,
+      target_id: linkTarget.trim(),
+      name_snapshot: linkName.trim(),
+    }]);
+    setLinkTarget('');
+    setLinkName('');
+  };
+
+  const saveLinks = async () => {
+    setSavingLinks(true);
+    try {
+      const data = await replacePostLinks(id, draftLinks.map((link) => ({
+        link_type: link.link_type,
+        target_id: link.target_id,
+        name_snapshot: link.name_snapshot || link.name,
+        label: link.label || null,
+        price_snapshot_cents: link.price_snapshot_cents,
+      })));
+      setPost(data.post);
+      setDraftLinks(data.post.links || []);
+      setEditingLinks(false);
+    } catch (err) {
+      setError(err.response?.data?.error || t('media.post.linksError'));
+    } finally {
+      setSavingLinks(false);
+    }
+  };
+
   return (
       <div className="media-post-detail">
         <PageMeta
@@ -104,6 +143,36 @@ export default function MediaPostDetailPage() {
         {post && !loading && (
           <>
             <MediaPostCard post={post} />
+            {user?.id && String(post.owner_user_id) === String(user.id) && (
+              <section className="media-links-editor">
+                <button type="button" className="media-text-button" onClick={() => setEditingLinks((value) => !value)}>
+                  {editingLinks ? t('media.post.cancelLinks') : t('media.post.editLinks')}
+                </button>
+                {editingLinks && (
+                  <div className="media-links-editor-panel">
+                    <div className="media-links-editor-list">
+                      {draftLinks.map((link, index) => (
+                        <div className="media-compose-link" key={`${link.id || link.target_id}-${index}`}>
+                          <span>{link.name || link.name_snapshot}</span>
+                          <button type="button" onClick={() => setDraftLinks((current) => current.filter((_, i) => i !== index))}>{t('media.compose.remove')}</button>
+                        </div>
+                      ))}
+                    </div>
+                    <form className="media-link-picker" onSubmit={addDraftLink}>
+                      <select value={linkType} onChange={(event) => setLinkType(event.target.value)}>
+                        {['restaurant', 'food_item', 'helper', 'business', 'job'].map((type) => <option key={type} value={type}>{t(`media.compose.linkTypes.${type}`, { defaultValue: type })}</option>)}
+                      </select>
+                      <input value={linkTarget} onChange={(event) => setLinkTarget(event.target.value)} placeholder={t('media.compose.targetId')} />
+                      <input value={linkName} onChange={(event) => setLinkName(event.target.value)} placeholder={t('media.compose.entitySearchPlaceholder')} />
+                      <button type="submit" disabled={draftLinks.length >= 5}>{t('media.compose.addLink')}</button>
+                    </form>
+                    <button type="button" className="media-primary-button" onClick={saveLinks} disabled={savingLinks}>
+                      {savingLinks ? t('media.post.savingLinks') : t('media.post.saveLinks')}
+                    </button>
+                  </div>
+                )}
+              </section>
+            )}
             <button type="button" className="media-view-quotes" onClick={loadQuotes}>
               {quotesOpen ? t('media.post.hideQuotes') : t('media.post.viewQuotes')} ({post.quote_count || 0})
             </button>

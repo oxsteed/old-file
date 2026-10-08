@@ -30322,7 +30322,12 @@
         "logistics_campaign": "Gade"
       },
       "metaTitle": "Piblikasyon OxSteed Media",
-      "metaDescription": "Yon nouvèl lokal nan kominote OxSteed la."
+      "metaDescription": "Yon nouvèl lokal nan kominote OxSteed la.",
+      "editLinks": "Modifye eleman ki lye yo",
+      "cancelLinks": "Fèmen editè lyen an",
+      "saveLinks": "Anrejistre eleman ki lye yo",
+      "savingLinks": "Ap anrejistre…",
+      "linksError": "Nou pa t kapab mete eleman ki lye yo ajou."
     },
     "search": {
       "title": "Chèche nan Media",

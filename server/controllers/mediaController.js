@@ -373,7 +373,7 @@ async function getFeed(req, res) {
 async function getPost(req, res) {
   try {
     const { rows } = await pool.query(
-      `SELECT p.*, a.handle, a.display_name, a.avatar_url, a.verified_kind, a.actor_type
+      `SELECT p.*, a.handle, a.display_name, a.avatar_url, a.verified_kind, a.actor_type, a.owner_user_id
          FROM media_posts p JOIN media_actors a ON a.id = p.actor_id
         WHERE p.id = $1 AND p.deleted_at IS NULL AND p.visibility = 'public'
           AND p.processing_status = 'ready' AND p.csam_status = 'passed'`,

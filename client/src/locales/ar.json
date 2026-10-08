@@ -30333,7 +30333,12 @@
         "logistics_campaign": "عرض"
       },
       "metaTitle": "منشور OxSteed Media",
-      "metaDescription": "تحديث محلي من مجتمع OxSteed."
+      "metaDescription": "تحديث محلي من مجتمع OxSteed.",
+      "editLinks": "تعديل العناصر المرتبطة",
+      "cancelLinks": "إغلاق محرر الروابط",
+      "saveLinks": "حفظ العناصر المرتبطة",
+      "savingLinks": "جارٍ الحفظ…",
+      "linksError": "تعذر تحديث العناصر المرتبطة."
     },
     "search": {
       "title": "البحث في Media",
