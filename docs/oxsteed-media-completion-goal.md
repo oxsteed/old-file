@@ -132,3 +132,9 @@ like, bookmark, repost, and count fields when a post payload is replaced, and
 their toggle buttons expose `aria-pressed`. This prevents stale viewer state
 from surviving feed refreshes or reused card instances. The client contract
 test covers the reconciliation and accessibility attributes.
+
+Upload retry repair: selecting a replacement photo/video or external YouTube/
+Vimeo link on a restored draft now clears the old attachment marker and resets
+processing progress, so submit actually sends the replacement instead of
+trying to publish a failed or quarantined asset again. The client contract
+suite covers both replacement handlers.

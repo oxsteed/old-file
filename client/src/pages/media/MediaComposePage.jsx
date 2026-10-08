@@ -121,6 +121,27 @@ export default function MediaComposePage() {
     setEntitySuggestions([]);
   };
 
+  const handleMediaFileChange = (event) => {
+    const nextFile = event.target.files?.[0] || null;
+    setMediaFile(nextFile);
+    if (nextFile) {
+      // A replacement file must be uploaded even when this draft restored a
+      // failed or quarantined asset from a previous session.
+      setAttachedAsset(false);
+      setUploadProgress(0);
+      setProcessingStatus('draft');
+    }
+  };
+
+  const handleExternalUrlChange = (event) => {
+    const nextUrl = event.target.value;
+    setExternalUrl(nextUrl);
+    if (nextUrl.trim()) {
+      setAttachedAsset(false);
+      setProcessingStatus('draft');
+    }
+  };
+
   const removeLink = (idx) => {
     setLinks(links.filter((_, i) => i !== idx));
   };
@@ -249,7 +270,7 @@ export default function MediaComposePage() {
           <input
             type="file"
             accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime"
-            onChange={(e) => setMediaFile(e.target.files?.[0] || null)}
+            onChange={handleMediaFileChange}
           />
           <small>{t('media.compose.uploadHint')}</small>
           {previewUrl && mediaFile?.type.startsWith('video/') && <video className="media-compose-preview" src={previewUrl} controls muted />}
@@ -265,7 +286,7 @@ export default function MediaComposePage() {
         </label>
         <label className="media-compose-field">
           <span>{t('media.compose.videoLabel')}</span>
-          <input value={externalUrl} onChange={(e) => setExternalUrl(e.target.value)} placeholder={t('media.compose.videoPlaceholder')} type="url" />
+          <input value={externalUrl} onChange={handleExternalUrlChange} placeholder={t('media.compose.videoPlaceholder')} type="url" />
           <small>{t('media.compose.videoHint')}</small>
         </label>
         {status && <p className="media-status" role="status" data-processing-status={processingStatus || undefined}>{status}</p>}

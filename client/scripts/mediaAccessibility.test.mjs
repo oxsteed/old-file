@@ -26,3 +26,10 @@ test('Media composer exposes processing status to assistive technology', () => {
   assert.match(compose, /data-processing-status/);
   assert.match(compose, /role="status"/);
 });
+
+test('Media composer retries a restored asset when replacement media is selected', () => {
+  assert.match(compose, /const handleMediaFileChange = \(event\)/);
+  assert.match(compose, /setAttachedAsset\(false\)/);
+  assert.match(compose, /onChange=\{handleMediaFileChange\}/);
+  assert.match(compose, /const handleExternalUrlChange = \(event\)/);
+});
