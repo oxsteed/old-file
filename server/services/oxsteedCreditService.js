@@ -4033,7 +4033,7 @@ async function openSystemCreditDispute({ customerId, transactionId, reasonCode, 
 
 const CREDIT_DISPUTE_STATUSES = new Set(['open', 'in_review', 'resolved', 'rejected', 'resolved_customer', 'resolved_merchant']);
 
-async function listCreditDisputes({ customerId, partnerId, status, limit = 100, offset = 0, includePagination = false } = {}) {
+async function listCreditDisputes({ customerId, partnerId, status, referenceTypes, limit = 100, offset = 0, includePagination = false } = {}) {
   const params = [];
   const filters = [];
   if (customerId) {
@@ -4051,6 +4051,15 @@ async function listCreditDisputes({ customerId, partnerId, status, limit = 100, 
     if (!CREDIT_DISPUTE_STATUSES.has(normalizedStatus)) throw new AppError('Invalid credit dispute status', 400, 'credit_dispute_status_invalid');
     params.push(normalizedStatus);
     filters.push(`d.status = $${params.length}`);
+  }
+  if (Array.isArray(referenceTypes) && referenceTypes.length) {
+    const normalizedReferenceTypes = referenceTypes
+      .map((value) => normalizeString(value, 80))
+      .filter(Boolean);
+    if (normalizedReferenceTypes.length) {
+      params.push(normalizedReferenceTypes);
+      filters.push(`t.reference_type = ANY($${params.length}::text[])`);
+    }
   }
   const safeLimit = Math.max(1, Math.min(Number.parseInt(String(limit), 10) || 100, 250));
   const parsedOffset = Number.parseInt(String(offset), 10);

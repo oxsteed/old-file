@@ -66,3 +66,6 @@ export const createCreatorBoost = (postId, data) => api.post(`/media/posts/${pos
 export const settleCreatorBoost = (boostId) => api.post(`/media/creator/boosts/${boostId}/settle`).then(r => r.data);
 export const cancelCreatorBoost = (boostId) => api.post(`/media/creator/boosts/${boostId}/cancel`).then(r => r.data);
 export const openCreatorDispute = (kind, id, data, idempotencyKey) => api.post(`/media/creator/disputes/${kind}/${id}`, data, { headers: { 'Idempotency-Key': idempotencyKey } }).then(r => r.data);
+export const getMediaCreatorDisputes = (params = {}) => api.get('/admin/media/creator-disputes', { params }).then(r => r.data);
+export const reviewMediaCreatorDispute = (disputeId, reason) => api.post(`/admin/media/creator-disputes/${disputeId}/review`, { reason }).then(r => r.data);
+export const resolveMediaCreatorDispute = (disputeId, data) => api.post(`/admin/media/creator-disputes/${disputeId}/resolve`, data).then(r => r.data);

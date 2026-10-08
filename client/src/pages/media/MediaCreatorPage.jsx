@@ -41,6 +41,7 @@ export default function MediaCreatorPage() {
   const [disputeTarget, setDisputeTarget] = useState(null);
   const [disputeDescription, setDisputeDescription] = useState('');
   const statusLabel = (status) => t(`media.creator.status.${status}`, { defaultValue: status });
+  const disputeStatusLabel = (status) => t(`media.creator.disputeStates.${status}`, { defaultValue: status });
   const paymentLabel = (kind) => kind === 'tip' ? t('media.creator.tip') : kind === 'sponsorship' ? t('media.creator.sponsor') : t('media.post.boost');
 
   const load = () => {
@@ -255,7 +256,8 @@ export default function MediaCreatorPage() {
         <h2 id="creator-payments-title">{t('media.creator.paymentHistory')}</h2>
         {payments.map((payment) => <article className="media-card media-creator-gig" key={`${payment.kind}-${payment.id}`}>
           <div className="media-creator-gig-heading"><div><h3>{paymentLabel(payment.kind)}</h3><p>{statusLabel(payment.status)}</p></div><strong>{payment.amount_cents} {payment.currency_code}</strong></div>
-          {payment.credit_transaction_id && ['completed', 'posted', 'active', 'scheduled'].includes(payment.status) && <button type="button" className="media-secondary-button" onClick={() => { setDisputeTarget(payment); setDisputeDescription(''); }} disabled={submitting}>{t('media.creator.dispute')}</button>}
+          {payment.dispute_status && <p className="media-form-hint" role="status">{t('media.creator.disputeStatus', { status: disputeStatusLabel(payment.dispute_status) })}{payment.dispute_resolution ? ` · ${payment.dispute_resolution}` : ''}</p>}
+          {payment.credit_transaction_id && !payment.dispute_status && ['completed', 'posted', 'active', 'scheduled'].includes(payment.status) && <button type="button" className="media-secondary-button" onClick={() => { setDisputeTarget(payment); setDisputeDescription(''); }} disabled={submitting}>{t('media.creator.dispute')}</button>}
         </article>)}
       </section>}
       {!loading && user && myApplications.length > 0 && <section className="media-creator-offers" aria-labelledby="creator-applications-title">

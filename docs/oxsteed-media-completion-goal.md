@@ -61,7 +61,7 @@ verified live for the new candidate. A historical test count is not proof.
 | Gig reservation and payment | Behavior-tested locally: award reserves Credit, approved deliverables settle once, and cancellation/rejection releases the reservation. | Isolated accounting and live execution still required. | Re-run conservation/replay cases in disposable PostgreSQL and verify deployed payment history. |
 | Sponsorship reservation/delivery/payment | Behavior-tested locally: acceptance reserves funds, creators submit a published ready deliverable, settlement requires `delivered`, and cancellation releases an active reservation. | Credit isolated accounting and authenticated live proof outstanding. | Execute sponsorship reserve/settle/release races and verify the deployed journey. |
 | Tips | Implemented and behavior-tested locally: tips use durable payload-bound idempotency and settle through the shared creator settlement rail with verification and self-payment guards. | Real currency/freeze/fee/replay proof missing. | Run isolated accounting replay/failure cases and verify live transaction history. |
-| Cancellation/release/refund/dispute review | Incomplete: current shared dispute wrappers do not close full lifecycle. | Real accounting and admin audit proof required. | Implement authorized single release, contest review and audited refunds. |
+| Cancellation/release/refund/dispute review | Behavior-tested locally: creator payments now expose their latest Credit dispute state, hide duplicate dispute actions while a case is open or under review, and add a Media-scoped administrator queue that routes review, compensation and resolution through the shared audited Credit service. | Real accounting and authenticated administrator proof required. | Run the isolated reserve/release/refund/dispute matrix and verify the deployed Media admin queue. |
 | Boost payment to platform revenue | Implemented and behavior-tested locally: purchaser wallet is charged through the shared settlement rail into `platform_revenue`; self-transfer and replay are rejected. | Real accounting and deployed proof outstanding. | Verify conservation, idempotent retries and platform ledger history in the isolated/live release checks. |
 | Sponsored placement and 24-hour duration | Behavior-tested locally: active settled boosts receive a separate ranked lane inserted at positions 5, 10, and so on; organic ordering remains stable, ranked cursors carry `feed_position`, and cards show a localized sponsored label only during the active window. | Real active-boost database cases and deployed feed proof remain outstanding. | Run isolated expiry/replay/cap cases and verify live placement. |
 | Price/currency disclosure and purchaser history | Behavior-tested locally: boost confirmation returns amount/currency before settlement, and the Media creator shell now lists tip, sponsorship and boost payment history with transaction-linked dispute entry points. | Payment retry/cancellation/refund and authenticated live history proof missing. | Add admin refund review and verify purchaser/creator history against deployed Credit records. |
@@ -723,3 +723,14 @@ reconcile those counters while REST remains authoritative, including room
 rejoin after reconnect. Focused Media/realtime suites (53 tests) and the client
 build pass locally; the hosted candidate CI and anonymous production endpoints
 are healthy, while an authenticated multi-client live count check remains open.
+
+Creator dispute lifecycle batch (2026-10-08): creator payment history now
+hydrates the latest Credit dispute state and suppresses duplicate dispute
+actions while a case is open or under review. Media administrators have a
+separate creator-dispute queue with explicit review and resolution endpoints;
+the queue filters to Media tip, sponsorship and boost transactions and routes
+all state changes and compensation through the existing audited Credit dispute
+service. Focused server suites (39 Media tests and 150 Credit governance tests)
+and the full client `npm run build:ci` pass locally. Disposable PostgreSQL,
+authenticated administrator execution and live deployment verification remain
+open for this batch.

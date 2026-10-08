@@ -464,29 +464,53 @@ async function listCreatorPayments(req, res, next) {
          SELECT 'tip'::text AS kind, t.id, t.status, t.amount_cents, t.currency_code,
                 t.credit_transaction_id, t.created_at, tx.posted_at,
                 t.from_user_id AS payer_user_id, a.owner_user_id AS creator_user_id,
-                t.post_id
+                t.post_id, dispute.id AS dispute_id, dispute.status AS dispute_status,
+                dispute.resolution AS dispute_resolution
            FROM media_creator_tips t
            JOIN media_actors a ON a.id = t.creator_actor_id
            LEFT JOIN oxsteed_credit_transactions tx ON tx.id = t.credit_transaction_id
+           LEFT JOIN LATERAL (
+             SELECT d.id, d.status, d.resolution
+               FROM oxsteed_credit_disputes d
+              WHERE d.transaction_id = t.credit_transaction_id
+              ORDER BY d.opened_at DESC, d.id DESC
+              LIMIT 1
+           ) dispute ON TRUE
           WHERE t.from_user_id = $1 OR a.owner_user_id = $1
          UNION ALL
          SELECT 'sponsorship'::text AS kind, s.id, s.status, s.amount_cents, s.currency_code,
                 s.credit_transaction_id, s.created_at, tx.posted_at,
                 s.sponsor_user_id AS payer_user_id, a.owner_user_id AS creator_user_id,
-                s.post_id
+                s.post_id, dispute.id AS dispute_id, dispute.status AS dispute_status,
+                dispute.resolution AS dispute_resolution
            FROM media_creator_sponsorships s
            JOIN media_actors a ON a.id = s.creator_actor_id
            LEFT JOIN oxsteed_credit_transactions tx ON tx.id = s.credit_transaction_id
+           LEFT JOIN LATERAL (
+             SELECT d.id, d.status, d.resolution
+               FROM oxsteed_credit_disputes d
+              WHERE d.transaction_id = s.credit_transaction_id
+              ORDER BY d.opened_at DESC, d.id DESC
+              LIMIT 1
+           ) dispute ON TRUE
           WHERE s.sponsor_user_id = $1 OR a.owner_user_id = $1
          UNION ALL
          SELECT 'boost'::text AS kind, b.id, b.status, b.amount_cents, b.currency_code,
                 b.credit_transaction_id, b.created_at, tx.posted_at,
                 b.purchaser_user_id AS payer_user_id, a.owner_user_id AS creator_user_id,
-                b.post_id
+                b.post_id, dispute.id AS dispute_id, dispute.status AS dispute_status,
+                dispute.resolution AS dispute_resolution
            FROM media_post_boosts b
            JOIN media_posts p ON p.id = b.post_id
            JOIN media_actors a ON a.id = p.actor_id
            LEFT JOIN oxsteed_credit_transactions tx ON tx.id = b.credit_transaction_id
+           LEFT JOIN LATERAL (
+             SELECT d.id, d.status, d.resolution
+               FROM oxsteed_credit_disputes d
+              WHERE d.transaction_id = b.credit_transaction_id
+              ORDER BY d.opened_at DESC, d.id DESC
+              LIMIT 1
+           ) dispute ON TRUE
           WHERE b.purchaser_user_id = $1 OR a.owner_user_id = $1
        ) payments
       ORDER BY created_at DESC, id DESC

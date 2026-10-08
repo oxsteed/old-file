@@ -7,6 +7,88 @@ const { verifiedActorSql } = require('../services/mediaPublisherPolicy');
 const pool = require('../db');
 const logger = require('../utils/logger');
 const auditService = require('../services/auditService');
+const { listCreditDisputes } = require('../services/oxsteedCreditService');
+const { resolveDisputeWithCompensation } = require('../services/oxsteedCreditDisputeService');
+
+const MEDIA_PAYMENT_REFERENCE_TYPES = Object.freeze([
+  'media_creator_tip',
+  'media_creator_sponsorship',
+  'media_post_boost',
+]);
+
+function mediaPaymentKind(referenceType) {
+  return referenceType === 'media_creator_tip' ? 'tip'
+    : referenceType === 'media_creator_sponsorship' ? 'sponsorship'
+      : referenceType === 'media_post_boost' ? 'boost' : null;
+}
+
+async function assertMediaCreatorDispute(disputeId) {
+  const { rows } = await pool.query(
+    `SELECT d.id, t.reference_type
+       FROM oxsteed_credit_disputes d
+       JOIN oxsteed_credit_transactions t ON t.id = d.transaction_id
+      WHERE d.id = $1 AND t.reference_type = ANY($2::text[])`,
+    [disputeId, MEDIA_PAYMENT_REFERENCE_TYPES]
+  );
+  if (!rows[0]) {
+    const error = new Error('Media creator dispute not found');
+    error.status = 404;
+    error.code = 'media_creator_dispute_not_found';
+    throw error;
+  }
+  return rows[0];
+}
+
+async function listCreatorDisputes(req, res, next) {
+  try {
+    const result = await listCreditDisputes({
+      referenceTypes: MEDIA_PAYMENT_REFERENCE_TYPES,
+      status: req.query.status,
+      limit: req.query.limit,
+      offset: req.query.offset,
+      includePagination: true,
+    });
+    res.json({
+      ...result,
+      disputes: result.disputes.map((dispute) => ({
+        ...dispute,
+        mediaKind: mediaPaymentKind(dispute.referenceType),
+      })),
+    });
+  } catch (err) { next(err); }
+}
+
+async function reviewCreatorDispute(req, res, next) {
+  try {
+    await assertMediaCreatorDispute(req.params.disputeId);
+    const result = await resolveDisputeWithCompensation({
+      disputeId: req.params.disputeId,
+      adminId: req.user.id,
+      decision: 'in_review',
+      reason: req.body?.reason || req.body?.resolution,
+      requestIp: req.ip || null,
+      correlationId: req.correlationId || req.get('X-Request-ID') || null,
+    });
+    res.json(result);
+  } catch (err) { next(err); }
+}
+
+async function resolveCreatorDispute(req, res, next) {
+  try {
+    await assertMediaCreatorDispute(req.params.disputeId);
+    const decision = req.body?.status === 'resolved' ? 'resolved_merchant' : req.body?.status || req.body?.decision;
+    const result = await resolveDisputeWithCompensation({
+      disputeId: req.params.disputeId,
+      adminId: req.user.id,
+      decision,
+      reason: req.body?.reason || req.body?.resolution,
+      compensationCents: req.body?.compensationCents ?? req.body?.compensation_cents ?? 0,
+      requestIp: req.ip || null,
+      correlationId: req.correlationId || req.get('X-Request-ID') || null,
+    });
+    res.json(result);
+  } catch (err) { next(err); }
+}
 
 async function listFlags(req, res) {
   try {
@@ -171,4 +253,12 @@ async function approvePost(req, res) {
   }
 }
 
-module.exports = { listFlags, listPendingPosts, reviewFlag, approvePost };
+module.exports = {
+  listFlags,
+  listPendingPosts,
+  reviewFlag,
+  approvePost,
+  listCreatorDisputes,
+  reviewCreatorDispute,
+  resolveCreatorDispute,
+};
