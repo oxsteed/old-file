@@ -6,6 +6,7 @@
 
 const pool = require('../db');
 const crypto = require('crypto');
+const AppError = require('../utils/appError');
 const logger = require('../utils/logger');
 const { sendNotification } = require('../services/notificationService');
 const { getSignedDownloadUrl } = require('../utils/storage');
@@ -685,6 +686,72 @@ async function getPost(req, res) {
   }
 }
 
+// Toggle a counted action while holding the post row lock.  The old read,
+// insert/delete, increment sequence could race: two requests could both see
+// the same state, one could fail on the unique key, or the denormalized count
+// could drift after a partial failure.  Recomputing from the action table in
+// the same transaction makes the response and stored count authoritative.
+async function toggleCountedAction({ postId, viewerUserId, actorId, userId, table, actorColumn, countColumn }) {
+  const allowedTables = new Set(['media_likes', 'media_bookmarks', 'media_reposts']);
+  const allowedActors = new Set(['user_id', 'actor_id']);
+  const allowedCounts = new Set(['like_count', 'bookmark_count', 'repost_count']);
+  if (!allowedTables.has(table) || !allowedActors.has(actorColumn) || !allowedCounts.has(countColumn)) {
+    throw new AppError('Unsupported Media action.', 400, 'media_action_invalid');
+  }
+  const client = await pool.connect();
+  const actorValue = actorId || userId;
+  try {
+    await client.query('BEGIN');
+    const blockParams = [postId];
+    let blockSql = '';
+    if (viewerUserId) {
+      blockParams.push(viewerUserId);
+      blockSql = `AND NOT EXISTS (
+        SELECT 1 FROM user_blocks ub
+         WHERE (ub.blocker_id = $2 AND ub.blocked_id = a.owner_user_id)
+            OR (ub.blocker_id = a.owner_user_id AND ub.blocked_id = $2)
+      )`;
+    }
+    const { rows: posts } = await client.query(
+      `SELECT p.id FROM media_posts p
+         JOIN media_actors a ON a.id = p.actor_id
+        WHERE p.id = $1 AND p.deleted_at IS NULL AND p.visibility = 'public'
+          AND p.processing_status = 'ready' AND ${mediaSafety.publicPostSql('p')}
+          AND EXISTS (SELECT 1 FROM users au WHERE au.id = a.owner_user_id
+            AND au.deleted_at IS NULL AND au.is_active = TRUE AND au.is_banned = FALSE)
+          ${blockSql}
+        FOR UPDATE OF p`, blockParams
+    );
+    if (!posts[0]) throw new AppError('Post not found', 404, 'media_post_not_found');
+
+    const actorParams = [postId, actorValue];
+    const { rows: inserted = [] } = await client.query(
+      `INSERT INTO ${table} (post_id, ${actorColumn}) VALUES ($1, $2)
+       ON CONFLICT (post_id, ${actorColumn}) DO NOTHING RETURNING 1`, actorParams
+    );
+    let active = inserted.length > 0;
+    if (!active) {
+      const { rowCount } = await client.query(
+        `DELETE FROM ${table} WHERE post_id = $1 AND ${actorColumn} = $2`, actorParams
+      );
+      active = rowCount > 0 ? false : true;
+    }
+    const { rows: counts } = await client.query(
+      `UPDATE media_posts SET ${countColumn} = (
+          SELECT COUNT(*)::int FROM ${table} WHERE post_id = $1
+        ) WHERE id = $1 RETURNING ${countColumn}`,
+      [postId]
+    );
+    await client.query('COMMIT');
+    return { active, count: Number(counts[0]?.[countColumn] || 0) };
+  } catch (err) {
+    try { await client.query('ROLLBACK'); } catch (_) { /* preserve original action error */ }
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
 // Stable, guest-safe image endpoint for social crawlers. The HTML preview uses
 // this URL instead of embedding a short-lived private storage signature; the
 // endpoint rechecks the same public safety predicate before issuing a brief
@@ -1264,35 +1331,29 @@ async function replacePostLinks(req, res) {
 async function toggleLike(req, res) {
   try {
     if (!await visiblePost(req.params.id, req.user.id)) return res.status(404).json({ error: 'Post not found' });
-    const userId = req.user.id;
-    const postId = req.params.id;
-    const { rows: existing } = await pool.query(
-      `SELECT 1 FROM media_likes WHERE post_id = $1 AND user_id = $2`,
-      [postId, userId]
-    );
-    if (existing[0]) {
-      await pool.query(`DELETE FROM media_likes WHERE post_id = $1 AND user_id = $2`, [postId, userId]);
-      const { rows: updated } = await pool.query(`UPDATE media_posts SET like_count = GREATEST(0, like_count - 1) WHERE id = $1 RETURNING like_count`, [postId]);
-      broadcastMediaPostCounts(postId, { like_count: updated[0]?.like_count });
-      return res.json({ liked: false, like_count: Number(updated[0]?.like_count || 0) });
-    }
-    await pool.query(`INSERT INTO media_likes (post_id, user_id) VALUES ($1, $2)`, [postId, userId]);
-    const { rows: updated } = await pool.query(`UPDATE media_posts SET like_count = like_count + 1 WHERE id = $1 RETURNING like_count`, [postId]);
-    broadcastMediaPostCounts(postId, { like_count: updated[0]?.like_count });
+    const result = await toggleCountedAction({
+      postId: req.params.id,
+      viewerUserId: req.user.id,
+      userId: req.user.id,
+      table: 'media_likes',
+      actorColumn: 'user_id',
+      countColumn: 'like_count',
+    });
+    broadcastMediaPostCounts(req.params.id, { like_count: result.count });
     const { rows: owners } = await pool.query(
       `SELECT a.owner_user_id FROM media_posts p JOIN media_actors a ON a.id = p.actor_id WHERE p.id = $1`,
-      [postId]
+      [req.params.id]
     );
-    if (owners[0]?.owner_user_id && owners[0].owner_user_id !== userId) {
+    if (result.active && owners[0]?.owner_user_id && owners[0].owner_user_id !== req.user.id) {
       await notifyMediaUser({
         userId: owners[0].owner_user_id,
         type: 'media_like',
         title: 'Someone liked your OxSteed Media post',
         body: 'Your post received a like.',
-        postId,
+        postId: req.params.id,
       });
     }
-    res.json({ liked: true, like_count: Number(updated[0]?.like_count || 0) });
+    res.json({ liked: result.active, like_count: result.count });
   } catch (err) {
     logger.error('media.toggleLike error', { message: err.message });
     mediaError(res, err, 'Failed to toggle like');
@@ -1302,22 +1363,16 @@ async function toggleLike(req, res) {
 async function toggleBookmark(req, res) {
   try {
     if (!await visiblePost(req.params.id, req.user.id)) return res.status(404).json({ error: 'Post not found' });
-    const userId = req.user.id;
-    const postId = req.params.id;
-    const { rows: existing } = await pool.query(
-      `SELECT 1 FROM media_bookmarks WHERE post_id = $1 AND user_id = $2`,
-      [postId, userId]
-    );
-    if (existing[0]) {
-      await pool.query(`DELETE FROM media_bookmarks WHERE post_id = $1 AND user_id = $2`, [postId, userId]);
-      const { rows: updated } = await pool.query(`UPDATE media_posts SET bookmark_count = GREATEST(0, bookmark_count - 1) WHERE id = $1 RETURNING bookmark_count`, [postId]);
-      broadcastMediaPostCounts(postId, { bookmark_count: updated[0]?.bookmark_count });
-      return res.json({ bookmarked: false, bookmark_count: Number(updated[0]?.bookmark_count || 0) });
-    }
-    await pool.query(`INSERT INTO media_bookmarks (post_id, user_id) VALUES ($1, $2)`, [postId, userId]);
-    const { rows: updated } = await pool.query(`UPDATE media_posts SET bookmark_count = bookmark_count + 1 WHERE id = $1 RETURNING bookmark_count`, [postId]);
-    broadcastMediaPostCounts(postId, { bookmark_count: updated[0]?.bookmark_count });
-    res.json({ bookmarked: true, bookmark_count: Number(updated[0]?.bookmark_count || 0) });
+    const result = await toggleCountedAction({
+      postId: req.params.id,
+      viewerUserId: req.user.id,
+      userId: req.user.id,
+      table: 'media_bookmarks',
+      actorColumn: 'user_id',
+      countColumn: 'bookmark_count',
+    });
+    broadcastMediaPostCounts(req.params.id, { bookmark_count: result.count });
+    res.json({ bookmarked: result.active, bookmark_count: result.count });
   } catch (err) {
     logger.error('media.toggleBookmark error', { message: err.message });
     mediaError(res, err, 'Failed to toggle bookmark');
@@ -1330,21 +1385,16 @@ async function toggleRepost(req, res) {
     const userId = req.user.id;
     const actor = await getOrCreateActor(userId);
     if (!actor || actor.verified_kind === 'none') return res.status(403).json({ error: 'Only verified posters can repost' });
-    const postId = req.params.id;
-    const { rows: existing } = await pool.query(
-      `SELECT 1 FROM media_reposts WHERE post_id = $1 AND actor_id = $2`,
-      [postId, actor.id]
-    );
-    if (existing[0]) {
-      await pool.query(`DELETE FROM media_reposts WHERE post_id = $1 AND actor_id = $2`, [postId, actor.id]);
-      const { rows: updated } = await pool.query(`UPDATE media_posts SET repost_count = GREATEST(0, repost_count - 1) WHERE id = $1 RETURNING repost_count`, [postId]);
-      broadcastMediaPostCounts(postId, { repost_count: updated[0]?.repost_count });
-      return res.json({ reposted: false, repost_count: Number(updated[0]?.repost_count || 0) });
-    }
-    await pool.query(`INSERT INTO media_reposts (post_id, actor_id) VALUES ($1, $2)`, [postId, actor.id]);
-    const { rows: updated } = await pool.query(`UPDATE media_posts SET repost_count = repost_count + 1 WHERE id = $1 RETURNING repost_count`, [postId]);
-    broadcastMediaPostCounts(postId, { repost_count: updated[0]?.repost_count });
-    res.json({ reposted: true, repost_count: Number(updated[0]?.repost_count || 0) });
+    const result = await toggleCountedAction({
+      postId: req.params.id,
+      viewerUserId: req.user.id,
+      actorId: actor.id,
+      table: 'media_reposts',
+      actorColumn: 'actor_id',
+      countColumn: 'repost_count',
+    });
+    broadcastMediaPostCounts(req.params.id, { repost_count: result.count });
+    res.json({ reposted: result.active, repost_count: result.count });
   } catch (err) {
     logger.error('media.toggleRepost error', { message: err.message });
     mediaError(res, err, 'Failed to toggle repost');

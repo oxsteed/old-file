@@ -140,21 +140,27 @@ describe('OxSteed Media launch contracts', () => {
   });
 
   test('returns authoritative action counts for live card reconciliation', async () => {
+    const client = { query: (...args) => pool.query(...args), release: jest.fn() };
+    pool.connect = jest.fn().mockResolvedValue(client);
     pool.query
-      .mockResolvedValueOnce({ rows: [{ id: 'post-1' }] })
-      .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({ rowCount: 1 })
+      .mockResolvedValueOnce({ rows: [{ id: 'post-1' }] }) // visiblePost
+      .mockResolvedValueOnce({ rows: [] }) // BEGIN
+      .mockResolvedValueOnce({ rows: [{ id: 'post-1' }] }) // locked public post
+      .mockResolvedValueOnce({ rows: [{}], rowCount: 1 }) // insert like
       .mockResolvedValueOnce({ rows: [{ like_count: 9 }] })
-      .mockResolvedValueOnce({ rows: [] });
+      .mockResolvedValueOnce({ rows: [] }) // COMMIT
+      .mockResolvedValueOnce({ rows: [] }); // owner lookup
     const likeRes = resMock();
     await media.toggleLike({ params: { id: 'post-1' }, user: { id: 'user-1' } }, likeRes);
     expect(likeRes.json).toHaveBeenCalledWith({ liked: true, like_count: 9 });
 
     pool.query.mockReset()
-      .mockResolvedValueOnce({ rows: [{ id: 'post-1' }] })
-      .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({ rowCount: 1 })
-      .mockResolvedValueOnce({ rows: [{ bookmark_count: 4 }] });
+      .mockResolvedValueOnce({ rows: [{ id: 'post-1' }] }) // visiblePost
+      .mockResolvedValueOnce({ rows: [] }) // BEGIN
+      .mockResolvedValueOnce({ rows: [{ id: 'post-1' }] }) // locked public post
+      .mockResolvedValueOnce({ rows: [{}], rowCount: 1 }) // insert bookmark
+      .mockResolvedValueOnce({ rows: [{ bookmark_count: 4 }] })
+      .mockResolvedValueOnce({ rows: [] }); // COMMIT
     const bookmarkRes = resMock();
     await media.toggleBookmark({ params: { id: 'post-1' }, user: { id: 'user-1' } }, bookmarkRes);
     expect(bookmarkRes.json).toHaveBeenCalledWith({ bookmarked: true, bookmark_count: 4 });
@@ -163,12 +169,35 @@ describe('OxSteed Media launch contracts', () => {
       .mockResolvedValueOnce({ rows: [{ id: 'post-1' }] })
       .mockResolvedValueOnce({ rows: [{ id: 'actor-1', actor_type: 'helper', verified_kind: 'identity' }] })
       .mockResolvedValueOnce({ rows: [{ found: 1 }] })
-      .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({ rowCount: 1 })
+      .mockResolvedValueOnce({ rows: [] }) // BEGIN
+      .mockResolvedValueOnce({ rows: [{ id: 'post-1' }] }) // locked public post
+      .mockResolvedValueOnce({ rows: [{}], rowCount: 1 }) // insert repost
       .mockResolvedValueOnce({ rows: [{ repost_count: 3 }] });
+    pool.query.mockResolvedValueOnce({ rows: [] }); // COMMIT
     const repostRes = resMock();
     await media.toggleRepost({ params: { id: 'post-1' }, user: { id: 'user-1' } }, repostRes);
     expect(repostRes.json).toHaveBeenCalledWith({ reposted: true, repost_count: 3 });
+  });
+
+  test('recomputes the count when a concurrent-safe toggle removes an action', async () => {
+    const client = { query: (...args) => pool.query(...args), release: jest.fn() };
+    pool.connect = jest.fn().mockResolvedValue(client);
+    pool.query.mockReset()
+      .mockResolvedValueOnce({ rows: [{ id: 'post-2' }] }) // visiblePost
+      .mockResolvedValueOnce({ rows: [] }) // BEGIN
+      .mockResolvedValueOnce({ rows: [{ id: 'post-2' }] }) // locked public post
+      .mockResolvedValueOnce({ rows: [], rowCount: 0 }) // insert conflict
+      .mockResolvedValueOnce({ rows: [], rowCount: 1 }) // remove existing action
+      .mockResolvedValueOnce({ rows: [{ like_count: 0 }] })
+      .mockResolvedValueOnce({ rows: [] }) // COMMIT
+      .mockResolvedValueOnce({ rows: [] }); // owner lookup
+    const res = resMock();
+
+    await media.toggleLike({ params: { id: 'post-2' }, user: { id: 'user-2' } }, res);
+
+    expect(res.json).toHaveBeenCalledWith({ liked: false, like_count: 0 });
+    expect(pool.query.mock.calls.some(([sql]) => /ON CONFLICT \(post_id, user_id\) DO NOTHING/.test(sql))).toBe(true);
+    expect(pool.query.mock.calls.some(([sql]) => /SELECT COUNT\(\*\)::int FROM media_likes/.test(sql))).toBe(true);
   });
 
   test('records a share once and returns the authoritative share count', async () => {
