@@ -114,3 +114,8 @@ Live shell-route check: `/media/messages`, `/media/notifications`,
 HTTP 200 through the Media shell. Their authenticated data interactions remain
 covered by the existing client/server contracts and still need a signed-in
 production session for end-to-end confirmation.
+
+Media notification rows are now keyboard-operable with Enter/Space, retain a
+visible list-item role, and expose the notification title as an accessible
+label. The new client accessibility contract passes locally with the existing
+client typecheck.

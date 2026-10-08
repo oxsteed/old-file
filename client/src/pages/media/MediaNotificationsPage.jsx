@@ -92,6 +92,15 @@ export default function MediaNotificationsPage() {
                 key={notification.id}
                 className={`media-notification-row${unread ? ' unread' : ''}`}
                 role="listitem"
+                tabIndex="0"
+                aria-label={notification.title}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    if (unread) markAsRead(notification.id);
+                    if (notification.action_url) navigate(notification.action_url);
+                  }
+                }}
                 onClick={() => {
                   if (unread) markAsRead(notification.id);
                   if (notification.action_url) navigate(notification.action_url);
