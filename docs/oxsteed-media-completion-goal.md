@@ -274,10 +274,10 @@ processing progress, so submit actually sends the replacement instead of
 trying to publish a failed or quarantined asset again. The client contract
 suite covers both replacement handlers.
 
-Rollout-boundary repair: the API now keeps replies newest-first at launch even
-if a caller sends `sort=relevant`; the later Relevant ranking is only available
-when `MEDIA_RELEVANT_REPLIES_ENABLED=true` is explicitly configured. A server
-contract test verifies the default launch behavior and SQL ordering.
+Rollout-boundary repair (superseded by the combined strategy): the API and
+detail page now support both newest-first and Relevant reply ordering in the
+same implementation. The current contract test verifies Relevant SQL ordering;
+unknown sort values still fall back safely to newest-first.
 
 Media shell navigation repair: account results in Media Search now use the
 client router instead of a full-page anchor, preserving the Media shell while
