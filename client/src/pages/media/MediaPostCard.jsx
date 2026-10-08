@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
 import { toggleLike, toggleBookmark, toggleRepost } from '../../api/media';
 
 function VerifiedBadge({ kind, label }) {
@@ -23,8 +25,23 @@ function timeAgo(date, language) {
   return formatter.format(-Math.floor(s / 86400), 'day');
 }
 
+function MediaVideo({ asset, label, mutedLabel, unmutedLabel }) {
+  const [muted, setMuted] = useState(true);
+  return (
+    <div className="media-video-frame">
+      <video src={asset.url} poster={asset.thumbnail_url || undefined} controls muted={muted} playsInline preload="metadata" />
+      <button type="button" className="media-video-mute" onClick={() => setMuted((value) => !value)}>
+        {muted ? mutedLabel : unmutedLabel}
+        <span className="sr-only">{label}</span>
+      </button>
+    </div>
+  );
+}
+
 export default function MediaPostCard({ post, onUpdate }) {
   const { t, i18n } = useTranslation();
+  const navigate = useNavigate();
+  const { user } = useAuth();
   const [liked, setLiked] = useState(post.liked);
   const [bookmarked, setBookmarked] = useState(post.bookmarked);
   const [reposted, setReposted] = useState(!!post.reposted);
@@ -34,6 +51,7 @@ export default function MediaPostCard({ post, onUpdate }) {
 
   const handleLike = async (e) => {
     e.preventDefault();
+    if (!user) return navigate('/login', { state: { from: window.location.pathname } });
     try {
       const r = await toggleLike(post.id);
       setLiked(r.liked);
@@ -43,6 +61,7 @@ export default function MediaPostCard({ post, onUpdate }) {
 
   const handleBookmark = async (e) => {
     e.preventDefault();
+    if (!user) return navigate('/login', { state: { from: window.location.pathname } });
     try {
       const r = await toggleBookmark(post.id);
       setBookmarked(r.bookmarked);
@@ -52,6 +71,7 @@ export default function MediaPostCard({ post, onUpdate }) {
 
   const handleRepost = async (e) => {
     e.preventDefault();
+    if (!user) return navigate('/login', { state: { from: window.location.pathname } });
     try {
       const r = await toggleRepost(post.id);
       setReposted(r.reposted);
@@ -103,7 +123,7 @@ export default function MediaPostCard({ post, onUpdate }) {
                 return <iframe key={asset.id} title={t('media.post.videoEmbed')} src={embedUrl} loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen />;
               }
               if (asset.asset_type === 'video' && asset.url) {
-                return <video key={asset.id} src={asset.url} poster={asset.thumbnail_url || undefined} controls muted playsInline preload="metadata" />;
+                return <MediaVideo key={asset.id} asset={asset} label={t('media.post.videoEmbed')} mutedLabel={t('media.post.unmute')} unmutedLabel={t('media.post.mute')} />;
               }
               if (asset.asset_type === 'image' && asset.url) {
                 return <img key={asset.id} src={asset.url} alt={t('media.post.photoAlt', { name: post.display_name })} loading="lazy" />;
@@ -124,11 +144,17 @@ export default function MediaPostCard({ post, onUpdate }) {
         )}
         {post.links && post.links.length > 0 && (
           <div className="media-linked-entities">
-            <div className="media-linked-label">Linked on OxSteed</div>
+            <div className="media-linked-label">{t('media.post.linkedOn')}</div>
             <div className="media-linked-row">
               {post.links.map(link => (
                 link.available && link.canonical_url ? (
-                  <Link key={link.id} to={link.canonical_url} className="media-link-chip">
+                  <Link key={link.id} to={link.canonical_url} className="media-link-chip" onClick={(event) => {
+                    const transactional = ['food_item', 'helper', 'job', 'tool_rental', 'direct_catalog'].includes(link.link_type);
+                    if (transactional && !user) {
+                      event.preventDefault();
+                      navigate('/login', { state: { from: window.location.pathname } });
+                    }
+                  }}>
                     <span className="media-link-type">{link.link_type}</span>
                     <span className="media-link-name">{link.label || link.name_snapshot}</span>
                     {link.price_snapshot_cents != null && (

@@ -700,10 +700,10 @@ async function flagPost(req, res) {
     if (!reason) return res.status(400).json({ error: 'Reason is required' });
     const { rows: recent } = await pool.query(
       `SELECT COUNT(*)::int AS count FROM media_post_flags
-        WHERE user_id = $1 AND created_at > NOW() - INTERVAL '1 day'`, [req.user.id]
+        WHERE user_id = $1 AND created_at > NOW() - INTERVAL '1 hour'`, [req.user.id]
     );
-    if (recent[0]?.count >= 10) {
-      return res.status(429).json({ error: 'Daily report limit reached', code: 'media_report_limit_reached' });
+    if (recent[0]?.count >= 30) {
+      return res.status(429).json({ error: 'Hourly report limit reached', code: 'media_report_limit_reached' });
     }
     const { rows: duplicate } = await pool.query(
       `SELECT 1 FROM media_post_flags

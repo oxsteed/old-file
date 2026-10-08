@@ -499,4 +499,6 @@ module.exports = {
   ffmpegAvailable,
   ffmpegPath,
   sanitizeError,
+  probeDimensions,
+  transcodeOriginal,
 };

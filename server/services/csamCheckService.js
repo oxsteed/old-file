@@ -277,21 +277,67 @@ async function recordFlagged(mediaId, previousCsamStatus) {
  * @returns {'pass'|'flagged'|'unavailable'}
  */
 async function checkVideo(mediaId, storageKey) {
-  const name = vendor();
-  if (!['thorn', 'photodna', 'google_csai'].includes(name)) {
-    return 'unavailable';
-  }
-  const sha256 = await sha256OfStorageKey(storageKey);
-  if (!sha256) {
-    logger.warn('CSAM check unavailable: stored original not readable', { mediaId });
-    return 'unavailable';
-  }
-  const adapters = { thorn: checkWithThorn, photodna: checkWithPhotoDna, google_csai: checkWithGoogleCsai };
-  const verdict = await adapters[name](sha256);
+  const verdict = await runConfiguredCheck(storageKey, { mediaId, source: 'restaurant_media_upload' });
   if (verdict === 'flagged') {
     await recordFlagged(mediaId, 'pending');
   }
   return verdict;
 }
 
-module.exports = { checkVideo, recordFlagged };
+async function runConfiguredCheck(storageKey, { mediaId, source = 'media_upload' } = {}) {
+  const name = vendor();
+  if (!['thorn', 'photodna', 'google_csai'].includes(name)) return 'unavailable';
+  const sha256 = await sha256OfStorageKey(storageKey);
+  if (!sha256) {
+    logger.warn('CSAM check unavailable: stored original not readable', { mediaId, source });
+    return 'unavailable';
+  }
+  const adapters = { thorn: checkWithThorn, photodna: checkWithPhotoDna, google_csai: checkWithGoogleCsai };
+  return adapters[name](sha256);
+}
+
+async function recordMediaFlagged(assetId, postId) {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    await client.query(
+      `UPDATE media_post_assets
+          SET csam_status = 'flagged', processing_status = 'blocked'
+        WHERE id = $1`,
+      [assetId]
+    );
+    await client.query(
+      `UPDATE media_posts
+          SET csam_status = 'flagged', processing_status = 'blocked'
+        WHERE id = $1`,
+      [postId]
+    );
+    await auditService.logAdminAction({
+      adminId: null,
+      action: 'media_csam_flagged',
+      targetType: 'media_post',
+      targetId: isUuid(postId) ? postId : null,
+      targetKey: isUuid(postId) ? null : String(postId).slice(0, 160),
+      description: 'CSAM vendor flagged uploaded OxSteed Media video; kept blocked.',
+      before: { csam_status: 'pending', processing_status: 'quarantine' },
+      after: { csam_status: 'flagged', processing_status: 'blocked' },
+      client,
+      throwOnError: true,
+    });
+    await client.query('COMMIT');
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
+/** Run the configured vendor for an OxSteed Media upload. */
+async function checkMediaVideo(assetId, postId, storageKey) {
+  const verdict = await runConfiguredCheck(storageKey, { mediaId: assetId, source: 'media_upload' });
+  if (verdict === 'flagged') await recordMediaFlagged(assetId, postId);
+  return verdict;
+}
+
+module.exports = { checkVideo, checkMediaVideo, recordFlagged, recordMediaFlagged };

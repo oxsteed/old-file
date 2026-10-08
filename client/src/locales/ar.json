@@ -30300,7 +30300,13 @@
       "quoteLabel": "أضف تعليقك",
       "quotePlaceholder": "أضف سياقًا إلى هذا المنشور…",
       "quotePosting": "جارٍ الاقتباس…",
-      "quoteError": "تعذر اقتباس هذا المنشور."
+      "quoteError": "تعذر اقتباس هذا المنشور.",
+      "linkedOn": "مرتبط على OxSteed",
+      "mute": "كتم الصوت",
+      "unmute": "تشغيل الصوت",
+      "viewQuotes": "عرض الاقتباسات",
+      "hideQuotes": "إخفاء الاقتباسات",
+      "noQuotes": "لا توجد اقتباسات بعد."
     },
     "search": {
       "title": "البحث في Media",
@@ -30377,6 +30383,12 @@
     "messages": {
       "kicker": "محادثات خاصة",
       "description": "حافظ على سير العمل المحلي مع رسائلك في مكان واحد."
+    },
+    "reply": {
+      "error": "تعذر نشر الرد.",
+      "placeholder": "اكتب ردك",
+      "posting": "جارٍ النشر…",
+      "submit": "رد"
     }
   },
   "businessMedia": {

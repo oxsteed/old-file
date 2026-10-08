@@ -1,7 +1,8 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { createPost, getPost, getReplies, recordView } from '../../api/media';
+import { useAuth } from '../../context/AuthContext';
+import { createPost, getPost, getQuotes, getReplies, recordView } from '../../api/media';
 import './MediaStyles.css';
 import MediaPostCard from './MediaPostCard';
 import MediaReplyComposer from './MediaReplyComposer';
@@ -9,8 +10,12 @@ import MediaReplyComposer from './MediaReplyComposer';
 export default function MediaPostDetailPage() {
   const { t } = useTranslation();
   const { id } = useParams();
+  const navigate = useNavigate();
+  const { user } = useAuth();
   const [post, setPost] = useState(null);
   const [replies, setReplies] = useState([]);
+  const [quotes, setQuotes] = useState([]);
+  const [quotesOpen, setQuotesOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [quoteBody, setQuoteBody] = useState('');
@@ -44,6 +49,10 @@ export default function MediaPostDetailPage() {
   const handleQuote = async (event) => {
     event.preventDefault();
     if (!quoteBody.trim()) return;
+    if (!user) {
+      navigate('/login', { state: { from: window.location.pathname } });
+      return;
+    }
     setQuoting(true);
     try {
       await createPost({ body: quoteBody.trim(), quoted_post_id: id });
@@ -52,6 +61,17 @@ export default function MediaPostDetailPage() {
       setError(err.response?.data?.error || t('media.post.quoteError'));
     } finally {
       setQuoting(false);
+    }
+  };
+
+  const loadQuotes = async () => {
+    if (quotesOpen) return setQuotesOpen(false);
+    try {
+      const data = await getQuotes(id);
+      setQuotes(data.quotes || []);
+      setQuotesOpen(true);
+    } catch (err) {
+      setError(err.response?.data?.error || t('media.post.quoteError'));
     }
   };
 
@@ -78,6 +98,15 @@ export default function MediaPostDetailPage() {
         {post && !loading && (
           <>
             <MediaPostCard post={post} />
+            <button type="button" className="media-view-quotes" onClick={loadQuotes}>
+              {quotesOpen ? t('media.post.hideQuotes') : t('media.post.viewQuotes')} ({post.quote_count || 0})
+            </button>
+            {quotesOpen && (
+              <div className="media-quotes-list">
+                {quotes.map((quote) => <MediaPostCard key={quote.id} post={quote} />)}
+                {!quotes.length && <p className="media-empty">{t('media.post.noQuotes')}</p>}
+              </div>
+            )}
             <form className="media-quote-composer" onSubmit={handleQuote}>
               <label htmlFor="media-quote-body">{t('media.post.quoteLabel')}</label>
               <textarea

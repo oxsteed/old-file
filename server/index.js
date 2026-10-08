@@ -846,6 +846,14 @@ async function startServer() {
       message: err.message,
     });
   }
+  try {
+    const { startMediaTranscodeWorker } = require('./services/mediaTranscodeWorker');
+    startMediaTranscodeWorker();
+  } catch (err) {
+    logger.warn('OxSteed Media video worker failed to start; uploads stay quarantined', {
+      message: err.message,
+    });
+  }
 
   // Abandoned checkout / draft recovery pushes. Pure re-engagement; never
   // touches money. A failure here must not affect boot.
@@ -881,6 +889,10 @@ async function terminate(signal, exitCode = 0, cause) {
     try {
       const { stopVideoTranscodeWorker } = require('./services/videoTranscodeWorker');
       stopVideoTranscodeWorker();
+    } catch { /* worker may never have started */ }
+    try {
+      const { stopMediaTranscodeWorker } = require('./services/mediaTranscodeWorker');
+      stopMediaTranscodeWorker();
     } catch { /* worker may never have started */ }
     try {
       const { stopAbandonedRecoveryWorker } = require('./services/abandonedRecoveryWorker');

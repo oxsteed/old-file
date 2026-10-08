@@ -4,8 +4,17 @@
 
 const router = require('express').Router();
 const { requireAuth, requireAdmin } = require('../middleware/auth');
+const rateLimit = require('express-rate-limit');
 const ctrl = require('../controllers/mediaController');
 const assetCtrl = require('../controllers/mediaAssetController');
+
+const mediaUploadLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many Media uploads. Please try again later.', code: 'media_upload_rate_limited' },
+});
 
 // Public feed (guests can view).
 router.get('/feed', ctrl.getFeed);
@@ -29,8 +38,8 @@ router.post('/posts/:id/view', ctrl.recordView);
 router.post('/posts/:id/flags', requireAuth, ctrl.flagPost);
 
 // Asset uploads.
-router.post('/assets/photo-uploads', requireAuth, assetCtrl.mediaPhotoUpload, assetCtrl.uploadPhoto);
-router.post('/assets/video-uploads', requireAuth, assetCtrl.mediaVideoUpload, assetCtrl.videoUpload);
+router.post('/assets/photo-uploads', requireAuth, mediaUploadLimiter, assetCtrl.mediaPhotoUpload, assetCtrl.uploadPhoto);
+router.post('/assets/video-uploads', requireAuth, mediaUploadLimiter, assetCtrl.mediaVideoUpload, assetCtrl.videoUpload);
 router.post('/assets/link', requireAuth, assetCtrl.linkAsset);
 
 module.exports = router;

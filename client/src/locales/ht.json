@@ -30289,7 +30289,13 @@
       "quoteLabel": "Ajoute kòmantè ou",
       "quotePlaceholder": "Ajoute kontèks sou piblikasyon sa a…",
       "quotePosting": "Ap site…",
-      "quoteError": "Nou pa t kapab site piblikasyon sa a."
+      "quoteError": "Nou pa t kapab site piblikasyon sa a.",
+      "linkedOn": "Lye sou OxSteed",
+      "mute": "Bèmen",
+      "unmute": "Retabli son",
+      "viewQuotes": "Wè sitasyon yo",
+      "hideQuotes": "Kache sitasyon yo",
+      "noQuotes": "Pa gen sitasyon ankò."
     },
     "search": {
       "title": "Chèche nan Media",
@@ -30366,6 +30372,12 @@
     "messages": {
       "kicker": "Konvèsasyon prive",
       "description": "Kontinye travay lokal la ak mesaj ou yo nan yon sèl kote."
+    },
+    "reply": {
+      "error": "Nou pa t kapab pibliye repons lan.",
+      "placeholder": "Pibliye repons ou",
+      "posting": "Ap pibliye…",
+      "submit": "Reponn"
     }
   },
   "businessMedia": {

@@ -30289,7 +30289,13 @@
       "quoteLabel": "Añade tu comentario",
       "quotePlaceholder": "Añade contexto a esta publicación…",
       "quotePosting": "Citando…",
-      "quoteError": "No se pudo citar esta publicación."
+      "quoteError": "No se pudo citar esta publicación.",
+      "linkedOn": "Enlazado en OxSteed",
+      "mute": "Silenciar",
+      "unmute": "Activar sonido",
+      "viewQuotes": "Ver citas",
+      "hideQuotes": "Ocultar citas",
+      "noQuotes": "Aún no hay citas."
     },
     "search": {
       "title": "Buscar en Media",
@@ -30366,6 +30372,12 @@
     "messages": {
       "kicker": "Conversaciones privadas",
       "description": "Mantén el trabajo local en marcha con tus mensajes en un solo lugar."
+    },
+    "reply": {
+      "error": "No se pudo publicar la respuesta.",
+      "placeholder": "Publica tu respuesta",
+      "posting": "Publicando…",
+      "submit": "Responder"
     }
   },
   "businessMedia": {

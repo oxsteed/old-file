@@ -30289,7 +30289,13 @@
       "quoteLabel": "Add your comment",
       "quotePlaceholder": "Add context to this post…",
       "quotePosting": "Quoting…",
-      "quoteError": "Could not quote this post."
+      "quoteError": "Could not quote this post.",
+      "linkedOn": "Linked on OxSteed",
+      "mute": "Mute",
+      "unmute": "Unmute",
+      "viewQuotes": "View quotes",
+      "hideQuotes": "Hide quotes",
+      "noQuotes": "No quotes yet."
     },
     "search": {
       "title": "Search Media",
@@ -30366,6 +30372,12 @@
     "messages": {
       "kicker": "Private conversations",
       "description": "Keep local work moving with messages in one place."
+    },
+    "reply": {
+      "error": "Could not post reply.",
+      "placeholder": "Post your reply",
+      "posting": "Posting…",
+      "submit": "Reply"
     }
   },
   "businessMedia": {

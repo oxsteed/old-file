@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { ArrowUpRight, Bell, Briefcase, Home, Mail, MapPin, Plus, Search, ShieldCheck, Users, Utensils, UserRound } from 'lucide-react';
@@ -7,6 +7,8 @@ import LanguageSelector from '../../components/LanguageSelector';
 import ThemeToggle from '../../components/ThemeToggle';
 import OxSteedIcon from '../../components/OxSteedIcon';
 import { useAuth } from '../../context/AuthContext';
+import useNotifications from '../../hooks/useNotifications';
+import api from '../../api/axios';
 import MediaFooter from './MediaFooter';
 import './MediaStyles.css';
 
@@ -27,6 +29,8 @@ const DISCOVER = [
 export default function MediaShell({ children }) {
   const { t } = useTranslation();
   const { user, loading, logout } = useAuth();
+  const { unreadCount: notificationUnread } = useNotifications();
+  const [messageUnread, setMessageUnread] = useState(0);
   const { pathname } = useLocation();
   const currentPath = pathname.replace(/\/+$/, '') || '/';
   const activeTab = currentPath === '/media/compose' ? null
@@ -37,15 +41,37 @@ export default function MediaShell({ children }) {
     || user?.email
     || '';
 
+  useEffect(() => {
+    let cancelled = false;
+    if (!user) {
+      setMessageUnread(0);
+      return () => { cancelled = true; };
+    }
+    api.get('/messages/conversations', { params: { limit: 100, offset: 0 } })
+      .then(({ data }) => {
+        if (cancelled) return;
+        const conversations = Array.isArray(data) ? data : (data?.conversations || []);
+        setMessageUnread(conversations.reduce((total, conversation) => total + (Number(conversation.unread_count) || 0), 0));
+      })
+      .catch(() => {
+        if (!cancelled) setMessageUnread(0);
+      });
+    return () => { cancelled = true; };
+  }, [user]);
+
   const navigation = (mobile = false) => (
     <nav className={mobile ? 'media-bottom-nav' : 'media-side-nav'} aria-label={t('media.shell.navigation')}>
-      {TABS.map(({ path, key, Icon }) => (
+      {TABS.map(({ path, key, Icon }) => {
+        const unread = key === 'notifications' ? notificationUnread : key === 'messages' ? messageUnread : 0;
+        return (
         <Link key={path} to={path} aria-current={activeTab === path ? 'page' : undefined}
           className={`media-nav-tab ${activeTab === path ? 'active' : ''}`}>
           <Icon size={22} strokeWidth={activeTab === path ? 2.4 : 1.8} aria-hidden="true" />
           <span className="media-nav-label">{t(`media.shell.${key}`)}</span>
+          {unread > 0 && <span className="media-nav-badge" aria-label={t('media.notifications.unread', { count: unread })}>{unread > 99 ? '99+' : unread}</span>}
         </Link>
-      ))}
+        );
+      })}
     </nav>
   );
 
