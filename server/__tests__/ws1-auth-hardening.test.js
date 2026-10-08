@@ -73,8 +73,8 @@ describe('H8a/H9/M22 chatNamespace authenticator', () => {
   const revocation = require('../services/tokenRevocationService');
 
   const userRow = { is_active: true, role: 'customer', logistics_role: null };
-  const makeSocket = (auth, query) => ({
-    handshake: { auth: auth || {}, query: query || {} },
+  const makeSocket = (auth, query, headers = {}) => ({
+    handshake: { auth: auth || {}, query: query || {}, headers },
   });
 
   function authFor(poolOverrides) {
@@ -137,6 +137,28 @@ describe('H8a/H9/M22 chatNamespace authenticator', () => {
     expect(socket.userId).toBe('u1');
     expect(socket.accessToken).toBe(token);
     expect(typeof socket.tokenIssuedAt).toBe('number');
+  });
+
+  test('malformed access cookie does not crash the authenticator', async () => {
+    const { auth } = authFor();
+    const next = jest.fn();
+    await auth(makeSocket({}, {}, { cookie: 'oxsteed_access=%E0' }), next);
+    expect(next.mock.calls[0][0].message).toMatch(/Authentication required/);
+  });
+
+  test('cookie auth is rejected from a disallowed Origin', async () => {
+    const pool = { query: jest.fn().mockResolvedValue({ rows: [userRow] }) };
+    const auth = createChatAuthenticator({
+      pool,
+      jwtSecret: JWT_SECRET,
+      allowedOrigins: ['https://oxsteed.com'],
+    });
+    const next = jest.fn();
+    await auth(makeSocket({}, {}, {
+      cookie: 'oxsteed_access=from-cookie',
+      origin: 'https://evil.example',
+    }), next);
+    expect(next.mock.calls[0][0].message).toMatch(/Authentication required/);
   });
 });
 

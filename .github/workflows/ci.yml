@@ -96,6 +96,17 @@ jobs:
           NODE_ENV: test
         run: npm run migrate
 
+      - name: Server entry module smoke
+        working-directory: server
+        env:
+          NODE_ENV: test
+          DATABASE_URL: postgresql://oxsteed:statement-test-password@127.0.0.1:5432/credit_statement_test?sslmode=disable
+          JWT_SECRET: test-jwt-secret-min-32-chars-long!!
+          ENCRYPTION_KEY: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+          STRIPE_SECRET_KEY: sk_test_dummy
+          STRIPE_WEBHOOK_SECRET: whsec_dummy
+        run: node -e "require('./middleware/launchGate'); require('./utils/logger'); console.log('server boot-critical ok')"
+
       - name: Server regression and security tests
         working-directory: server
         env:
