@@ -148,6 +148,9 @@ sponsorship commits (`37795836625` for `c24910fa` and `37796160256` for
 The deliverable lifecycle push (`7dcde21c`) was likewise rejected before job
 startup in CI run `37797458742` for the same account billing reason. Local
 verification therefore remains the only current evidence for this slice.
+
+The cancellation safeguards push (`e7b0ca3a`) hit the same pre-start billing
+rejection in CI run `37798153624`; no remote test or migration job executed.
 Follows, business/profile integration, restaurant post copying, extra link types,
 creator payments and boosts are all in the current implementation goal. The
 v2/v3 labels identify feature groups, not a requirement to postpone their build.
