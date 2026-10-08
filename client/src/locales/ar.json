@@ -6427,7 +6427,14 @@
       "publishHint": "أكمل متطلبات الإدراج للنشر.",
       "saveShortcut": "احفظ باستخدام Ctrl+S أو ⌘S",
       "websiteHint": "سنضيف https:// إذا كتبت نطاقاً.",
-      "aboutCount": "{{count}} / {{max}}"
+      "aboutCount": "{{count}} / {{max}}",
+      "sectionVisibility": "الأقسام العامة",
+      "visibilityHint": "اختر الأقسام التي تظهر في صفحة نشاطك التجاري العامة. تبقى الأقسام المخفية محفوظة ومرئية لك هنا.",
+      "showServices": "إظهار الخدمات",
+      "showGallery": "إظهار معرض الصور",
+      "showHours": "إظهار ساعات العمل",
+      "showPolicies": "إظهار السياسات",
+      "showFaqs": "إظهار الأسئلة الشائعة"
     },
     "kpiMtdRevenue": "إيرادات مليون دينار",
     "kpiMtdProfit": "ربح مليون دينار",
@@ -9679,6 +9686,7 @@
     "bookAndChatAria": "الكتاب والدردشة",
     "messageBusinessAria": "أرسل رسالة إلى هذا العمل",
     "manager": "مدير",
+    "owner": "المالك",
     "representative": "ممثل",
     "galleryAlt": "صورة الأعمال",
     "share": {

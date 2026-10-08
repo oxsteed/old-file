@@ -305,9 +305,17 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
   // ── Live status polling ───────────────────────────────────────────────────
   useEffect(() => {
     let cancelled = false;
+    // Business profiles do not receive the owner's user id (GV-5), so they
+    // poll the business-scoped status endpoint instead of /helpers/null/status.
+    const statusPath = helperId
+      ? `/helpers/${encodeURIComponent(helperId)}/status`
+      : businessId
+        ? `/businesses/${encodeURIComponent(businessId)}/status`
+        : null;
+    if (!statusPath) return undefined;
     const checkStatus = async () => {
       try {
-        const { data } = await api.get(`/helpers/${helperId}/status`);
+        const { data } = await api.get(statusPath);
         if (cancelled) return;
         const nextStatus = data.helperStatus;
         setSession(prev => {
@@ -341,7 +349,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
     checkStatus();
     const interval = setInterval(checkStatus, 30_000);
     return () => { cancelled = true; clearInterval(interval); };
-  }, [helperId]);
+  }, [helperId, businessId]);
 
   const guestStorageKey = `oxs:guest-contact:${helperId}:${businessId ?? 'personal'}`;
   const guestTokenKey = `oxs:guest-token:${helperId}:${businessId ?? 'personal'}`;

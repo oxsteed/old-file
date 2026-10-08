@@ -1916,10 +1916,27 @@ exports.createMessengerGuestBooking = async (req, res, next) => {
       throw new AppError('Authentication or verified guest session required', 401, 'auth_error');
     }
 
-    const helperId = body.helperId || body.helper_id || verifiedGuestSession?.helper_id;
+    let helperId = body.helperId || body.helper_id || verifiedGuestSession?.helper_id;
     const businessId = body.businessId ?? body.business_id ?? verifiedGuestSession?.business_id ?? null;
+    // Business profiles no longer expose the owner's user id (GV-5), so a
+    // signed-in visitor booking from a business messenger sends only
+    // businessId. Resolve the owner server-side (same predicate as
+    // profileChatMessage).
+    if (!helperId && businessId) {
+      const parsedBusinessId = parseInt(businessId, 10) || null;
+      if (parsedBusinessId) {
+        const { rows: bizRows } = await pool.query(
+          `SELECT user_id FROM businesses
+            WHERE id = $1 AND is_active = TRUE AND deleted_at IS NULL
+              AND COALESCE(is_hidden_by_admin, FALSE) = FALSE`,
+          [parsedBusinessId]
+        );
+        helperId = bizRows[0]?.user_id || null;
+        if (!helperId) throw new AppError('Business not found', 404, 'not_found');
+      }
+    }
     if (!helperId) {
-      throw new AppError('helperId is required', 400, 'validation_failed', { helperId: 'helperId is required' });
+      throw new AppError('helperId or businessId is required', 400, 'validation_failed', { helperId: 'helperId or businessId is required' });
     }
 
     {

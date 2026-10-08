@@ -15,8 +15,13 @@ import { buildPublicProfileSummaryModel } from '../utils/profileStudio';
 import './BusinessPublicProfilePage.css';
 
 /**
- * Business Public Profile Page
- * Shows public business profile with cover image at top and QR code
+ * Business Public Profile Page (admin customer-snapshot renderer).
+ *
+ * Live public business URLs (/b/:id, /businesses/public/:id, /business/:id)
+ * all render BusinessProfilePage (GV-1: one canonical page). This component
+ * is kept for the admin customer-preview snapshot and for
+ * normalizeBusinessPublicProfile, and mirrors the same owner-free contract:
+ * Pay/status come from business-scoped endpoints, never the owner's id.
  */
 /** Capitalize each word for display ("dayton, oh" -> "Dayton, Oh"). Data may be stored lowercase. */
 function capitalizeWords(value) {
@@ -102,11 +107,12 @@ export default function BusinessPublicProfilePage({ customerSnapshot = null } = 
   }, [businessId]);
 
   // Owner's public QR pay link; the header shows a Pay button when present.
+  const payBusinessId = business?.id;
   useEffect(() => {
-    if (!business?.owner_id) return;
+    if (!payBusinessId || customerSnapshot) return;
     let cancelled = false;
     api
-      .get(`/qr-payments/public/user/${encodeURIComponent(business.owner_id)}/pay-code`)
+      .get(`/qr-payments/public/business/${encodeURIComponent(payBusinessId)}/pay-code`)
       .then((res) => {
         if (!cancelled && res.data?.pay_url) setPayUrl(res.data.pay_url);
       })
@@ -114,7 +120,7 @@ export default function BusinessPublicProfilePage({ customerSnapshot = null } = 
         /* no pay link; the Pay button stays hidden */
       });
     return () => { cancelled = true; };
-  }, [business?.owner_id]);
+  }, [payBusinessId, customerSnapshot]);
 
   const loadBusiness = async () => {
     try {
@@ -150,7 +156,7 @@ export default function BusinessPublicProfilePage({ customerSnapshot = null } = 
 
   const chatSession = business
     ? {
-        id: `session_${business.owner_id || business.id || businessId}`,
+        id: `session_business_${business.id || businessId}`,
         destination: 'business',
         status: 'ai_assistant',
         helperStatus: 'ai_assistant',
@@ -266,7 +272,7 @@ export default function BusinessPublicProfilePage({ customerSnapshot = null } = 
                   <button className="cta-button" type="button" onClick={() => navigate(`/book/business/${businessId}`)}>
                     {t('businessProfile.contactBusiness')}
                   </button>
-                  {business.allowGuestContact !== false && (
+                  {(user || business.allowGuestContact !== false) && (
                     <button className="cta-button cta-button-secondary" type="button" onClick={handleOpenChat}>
                       {t('businessPublicProfile.messageBusiness')}
                     </button>
@@ -419,21 +425,22 @@ export default function BusinessPublicProfilePage({ customerSnapshot = null } = 
         </aside>
       </div>
 
-      {/* Guest messenger dock — mounted only when the business allows guest contact */}
-      {business.allowGuestContact !== false && chatSession && (
+      {/* Messenger dock: always available to signed-in visitors; guests only
+          when the business allows guest contact (GV-2). */}
+      {(user || business.allowGuestContact !== false) && chatSession && (
         <PublicProfileMessenger
           open={chatOpen}
           onOpen={handleOpenChat}
           onClose={() => setChatOpen(false)}
           session={chatSession}
           helperName={business.name || business.business_name || ''}
-          helperId={business.owner_id || null}
+          helperId={null}
           businessId={String(business.id || businessId)}
           avatarUrl={business.profilePhotoUrl || business.logo_url}
           avatarShape="square"
           isGuest={!user}
           allowLiveChat={business.allowLiveChat !== false}
-          allowGuestContact
+          allowGuestContact={business.allowGuestContact !== false}
           entityKind="business"
           // Optional passthroughs (BusinessProfilePage omits these too).
           destination={undefined}

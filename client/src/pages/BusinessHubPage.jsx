@@ -617,6 +617,11 @@ function BusinessHubInner() {
         address_state:        profileForm.address_state ?? '',
         address_zip:          profileForm.address_zip ?? '',
         address_country:      profileForm.address_country || 'US',
+        show_services:        profileForm.show_services !== false,
+        show_gallery:         profileForm.show_gallery !== false,
+        show_hours:           profileForm.show_hours !== false,
+        show_policies:        profileForm.show_policies !== false,
+        show_faqs:            profileForm.show_faqs !== false,
         ...photoPatch,
       };
       if (bl) {

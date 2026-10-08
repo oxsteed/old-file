@@ -6746,7 +6746,14 @@
       "publishHint": "Completa los requisitos de listado para publicar.",
       "saveShortcut": "Guarda con Ctrl+S o ⌘S",
       "websiteHint": "Añadiremos https:// si escribes un dominio.",
-      "aboutCount": "{{count}} / {{max}}"
+      "aboutCount": "{{count}} / {{max}}",
+      "sectionVisibility": "Secciones públicas",
+      "visibilityHint": "Elige qué secciones aparecen en la página pública de tu negocio. Las secciones ocultas se guardan y siguen visibles para ti aquí.",
+      "showServices": "Mostrar servicios",
+      "showGallery": "Mostrar galería",
+      "showHours": "Mostrar horario de atención",
+      "showPolicies": "Mostrar políticas",
+      "showFaqs": "Mostrar preguntas frecuentes"
     },
     "kpiMtdRevenue": "Ingresos del Mes",
     "kpiMtdProfit": "Ganancia del Mes",
@@ -9679,6 +9686,7 @@
     "bookAndChatAria": "Reservar y chatear",
     "messageBusinessAria": "Enviar un mensaje a este negocio",
     "manager": "Gerente",
+    "owner": "Propietario",
     "representative": "Representante",
     "galleryAlt": "Foto del negocio",
     "share": {

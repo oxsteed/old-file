@@ -160,7 +160,6 @@ const QrGeneratorLandingPage = lazyWithRetry(() => import('./pages/QrGeneratorLa
 const DeliveryLandingPage = lazyWithRetry(() => import('./pages/DeliveryLandingPage'));
 const QrPaySetupPage = lazyWithRetry(() => import('./pages/QrPaySetupPage'));
 const PayByQrPage = lazyWithRetry(() => import('./pages/PayByQrPage'));
-const BusinessPublicProfilePage = lazyWithRetry(() => import('./pages/BusinessPublicProfilePage'));
 const JobPublicPage = lazyWithRetry(() => import('./pages/JobPublicPage'));
 const ConsultingFullPortal = lazyWithRetry(() => import('./pages/ConsultingFullPortal'));
 const ConsultingPortalPage = lazyWithRetry(() => import('./pages/ConsultingPortalPage'));
@@ -456,8 +455,8 @@ export default function App() {
                     <Route path="/franchise/status"        element={<Guarded><ProtectedRoute><RouteErrorBoundary><FranchiseApplicantDashboard /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/franchise/territory"     element={<Guarded><ProtectedRoute><RouteErrorBoundary><FranchiseTerritoryOpsPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/helpers/:id"             element={<Guarded><HelperBusinessProfilePage /></Guarded>} />
-                    <Route path="/businesses/public/:businessId" element={<BusinessPublicProfilePage />} />
-                    <Route path="/b/:businessId"        element={<BusinessPublicProfilePage />} />
+                    <Route path="/businesses/public/:businessId" element={<Guarded><BusinessProfilePage /></Guarded>} />
+                    <Route path="/b/:businessId"        element={<Guarded><BusinessProfilePage /></Guarded>} />
                     <Route path="/book/:id"                element={<Guarded><ProtectedRoute><RouteErrorBoundary><BookHelperPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/book/business/:id"       element={<Guarded><ProtectedRoute><RouteErrorBoundary><BookBusinessPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/business/:businessId/services/:serviceId/book" element={<Guarded><ProtectedRoute><RouteErrorBoundary><BookServicePage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />

@@ -45,6 +45,9 @@ const { getClientRequestId } = require('../utils/idempotency');
 const { resolveOrderItemModifiers } = require('./foodController');
 const { calculateRoute: calculateGeoRoute } = require('../services/geoRouteProviderService');
 
+// Absolute ceiling for a POS ticket tip, in cents ($500).
+const POS_TIP_ABSOLUTE_MAX_CENTS = 50000;
+
 const MANAGE_ROLES = new Set(['owner', 'manager']);
 const APP_KEYS = new Set(['manager', 'pos', 'kitchen', 'display', 'inventory', 'crew', 'runner', 'restaurant', 'credit_kiosk']);
 const DEVICE_STATUSES = new Set(['pending', 'paired', 'disabled']);
@@ -3573,11 +3576,14 @@ exports.createPosOrder = async (req, res, next) => {
       });
       const subtotal = normalized.reduce((sum, line) => sum + line.lineTotal, 0);
       const tip = parseCents(req.body.tipCents ?? req.body.tip_cents, 'tipCents');
-      // Cap tips at 100% of subtotal or $500, whichever is higher (prevents abuse)
-      const maxTip = Math.max(subtotal, 50000);
+      // Cap tips at 100% of the subtotal, never more than $500 (same rule as
+      // customer orders in foodController.parseTipCents). The old
+      // Math.max(...) made the cap "whichever is higher", so any ticket could
+      // carry a $500 tip.
+      const maxTip = Math.min(Math.max(0, subtotal), POS_TIP_ABSOLUTE_MAX_CENTS);
       if (tip > maxTip) {
         throw new AppError('Validation failed', 400, 'validation_failed', {
-          tipCents: `Tip cannot exceed ${maxTip / 100}`
+          tipCents: `Must not exceed ${maxTip} cents`,
         });
       }
       const { discountCents: discount, discountLines } = normalizeDiscountLines(req.body, subtotal, {

@@ -12,63 +12,66 @@ const { resolvePublicDisplayName } = require('../utils/publicDisplayName');
  * Get user reputation score (public - for profile display)
  * GET /api/reputation/:userId
  */
+/**
+ * Public reputation summary for one user (no fee history). Shared by
+ * GET /api/reputation/:userId and the business-scoped
+ * GET /api/businesses/:id/reputation (which omits the owner's user id).
+ */
+async function loadReputationSummary(userId) {
+  const result = await pool.query(
+    `SELECT
+      user_id,
+      total_jobs,
+      completed_jobs,
+      cancelled_jobs,
+      cancellation_rate,
+      cancelled_24h_or_less,
+      cancelled_24h_to_3d,
+      cancelled_3d_plus,
+      reliability_score,
+      caution_level,
+      last_calculated_at
+    FROM user_reputation_scores
+    WHERE user_id = $1`,
+    [userId]
+  );
+
+  if (!result.rows.length) {
+    return {
+      userId,
+      totalJobs: 0,
+      completedJobs: 0,
+      cancelledJobs: 0,
+      cancellationRate: 0,
+      reliabilityScore: 100,
+      cautionLevel: 'none',
+      lastCalculatedAt: null
+    };
+  }
+
+  const rep = result.rows[0];
+  return {
+    userId: rep.user_id,
+    totalJobs: rep.total_jobs,
+    completedJobs: rep.completed_jobs,
+    cancelledJobs: rep.cancelled_jobs,
+    cancellationRate: rep.cancellation_rate,
+    cancellationPattern: {
+      lessThan24h: rep.cancelled_24h_or_less,
+      from24hTo3d: rep.cancelled_24h_to_3d,
+      threeDaysPlus: rep.cancelled_3d_plus
+    },
+    reliabilityScore: rep.reliability_score,
+    cautionLevel: rep.caution_level,  // 'none', 'caution', 'restricted'
+    lastCalculatedAt: rep.last_calculated_at
+  };
+}
+
 async function getUserReputation(req, res) {
   try {
     const { userId } = req.params;
-
-    const result = await pool.query(
-      `SELECT
-        user_id,
-        total_jobs,
-        completed_jobs,
-        cancelled_jobs,
-        cancellation_rate,
-        cancelled_24h_or_less,
-        cancelled_24h_to_3d,
-        cancelled_3d_plus,
-        reliability_score,
-        caution_level,
-        last_calculated_at
-      FROM user_reputation_scores
-      WHERE user_id = $1`,
-      [userId]
-    );
-
-    if (!result.rows.length) {
-      return res.json({
-        success: true,
-        data: {
-          userId,
-          totalJobs: 0,
-          completedJobs: 0,
-          cancelledJobs: 0,
-          cancellationRate: 0,
-          reliabilityScore: 100,
-          cautionLevel: 'none',
-          lastCalculatedAt: null
-        }
-      });
-    }
-
-    const rep = result.rows[0];
-    res.json({
-      success: true,
-      data: {
-        userId: rep.user_id,
-        totalJobs: rep.total_jobs,
-        completedJobs: rep.completed_jobs,
-        cancelledJobs: rep.cancelled_jobs,
-        cancellationRate: rep.cancellation_rate,
-        cancellationPattern: {
-          lessThan24h: rep.cancelled_24h_or_less,
-          from24hTo3d: rep.cancelled_24h_to_3d,
-          threeDaysPlus: rep.cancelled_3d_plus
-        },
-        reliabilityScore: rep.reliability_score,
-        cautionLevel: rep.caution_level,  // 'none', 'caution', 'restricted'
-        lastCalculatedAt: rep.last_calculated_at
-      }
-    });
+    const data = await loadReputationSummary(userId);
+    res.json({ success: true, data });
   } catch (err) {
     logger.error('Error fetching user reputation', { error: err.message, userId: req.params.userId });
     res.status(500).json({ success: false, error: 'Failed to fetch reputation' });
@@ -431,6 +434,7 @@ async function getCustomerReliability(req, res) {
 
 module.exports = {
   getUserReputation,
+  loadReputationSummary,
   recalculateReputation,
   getEnforcementActions,
   checkRestrictions,

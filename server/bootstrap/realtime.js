@@ -9,6 +9,7 @@ const { bindRestaurantDisplayNamespace } = require('../realtime/restaurantDispla
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const tokenRevocationService = require('../services/tokenRevocationService');
+const { resolveSocketAccessToken } = require('../utils/accessCookie');
 
 const REALTIME_INSTANCE = Symbol.for('oxsteed.realtime.instance');
 
@@ -99,7 +100,7 @@ function createRealtimeServer({
 
   try {
     const chat = io.of('/chat');
-    chat.use(createChatAuthenticator({ pool, jwtSecret }));
+    chat.use(createChatAuthenticator({ pool, jwtSecret, allowedOrigins }));
     bindChatNamespace(chat, { pool, socketService, logger: log });
     socketService.init(chat);
 
@@ -124,12 +125,15 @@ function createRealtimeServer({
           return next(new Error('Guest support authentication failed'));
         }
       }
-      const token = socket.handshake.auth?.token || (() => {
-        const cookieHeader = socket.handshake?.headers?.cookie;
-        if (!cookieHeader) return null;
-        const match = cookieHeader.match(/(?:^|;\s*)oxsteed_access=([^;]+)/);
-        return match ? decodeURIComponent(match[1]) : null;
-      })();
+      // Explicit auth payload first (impersonation / native), then the httpOnly
+      // cookie. The cookie is parsed without throwing and only honoured from an
+      // allowed Origin (CSWSH guard), see utils/accessCookie.
+      let token = null;
+      try {
+        ({ token } = resolveSocketAccessToken(socket, { allowedOrigins }));
+      } catch (_) {
+        token = null;
+      }
       if (!token) return next(new Error('Authentication required'));
       try {
         const decoded = jwt.verify(token, jwtSecret, { algorithms: ['HS256'] });

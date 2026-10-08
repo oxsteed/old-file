@@ -5,7 +5,8 @@ const { authenticate, optionalAuth } = require('../middleware/auth');
 const requireBusinessAccess = require('../middleware/requireBusinessAccess');
 const { requireFeatureEnabled } = require('../middleware/featureFlags');
 const { rejectImpersonated } = require('../middleware/rejectImpersonated');
-const { vortexRedeemLimiter } = require('../middleware/rateLimiter');
+const { vortexRedeemLimiter, generalLimiter } = require('../middleware/rateLimiter');
+const businessPublicSignals = require('../controllers/businessPublicSignalsController');
 
 // Audit fix: Vortex is launch-hidden. Gate the leftover Vortex APIs in this
 // router to match the UI and the /api/vortex routes.
@@ -83,6 +84,10 @@ router.get('/media/:assetId',                getBusinessMediaAsset);
 
 // ── Public profile (no auth) - must be before authenticated /:id routes ───────
 router.get('/:id/public',  getBusinessPublicProfile);
+// GV-5 fallout: business-scoped public signals (owner resolved server-side,
+// owner user id never returned).
+router.get('/:id/status',     generalLimiter, businessPublicSignals.getBusinessStatus);
+router.get('/:id/reputation', generalLimiter, businessPublicSignals.getBusinessReputation);
 router.get('/:id/profile', getBusinessPublicProfile);
 
 // ── Authenticated profile editor (before generic PUT /:id) ───────────────────
@@ -153,6 +158,10 @@ router.post('/:id/vortex-tokens',               authenticate, rejectImpersonated
 router.delete('/:id/vortex-tokens/:tokenId',    authenticate, rejectImpersonated, requireVortexEnabled, bizIdAccess('manager'), revokeToken);
 
 // ── Business content (services, gallery, policies, faqs, hours) ────────────────
+// Public GETs use optionalAuth so the content visibility gate
+// (businessContentController.resolveContentGate) can recognise the
+// owner/manager: without req.user the Business Hub editor got 404 for its own
+// draft/unlisted business content.
 // SERVICES
 router.get('/:businessId/services/manage',       authenticate, (req, res, next) => {
   req.query = { ...req.query, all: 'true' };
@@ -164,25 +173,25 @@ router.put('/:businessId/services/:serviceId',   authenticate, businessIdAccess(
 router.delete('/:businessId/services/:serviceId', authenticate, businessIdAccess('any'), deleteBusinessService);
 
 // GALLERY
-router.get('/:businessId/gallery',               getBusinessGallery);
+router.get('/:businessId/gallery',               optionalAuth, getBusinessGallery);
 router.post('/:businessId/gallery',              authenticate, businessIdAccess('any'), addBusinessGalleryPhoto);
 router.put('/:businessId/gallery/:photoId',      authenticate, businessIdAccess('any'), updateBusinessGalleryPhoto);
 router.delete('/:businessId/gallery/:photoId',   authenticate, businessIdAccess('any'), deleteBusinessGalleryPhoto);
 
 // POLICIES
-router.get('/:businessId/policies',              getBusinessPolicies);
+router.get('/:businessId/policies',              optionalAuth, getBusinessPolicies);
 router.post('/:businessId/policies',             authenticate, businessIdAccess('any'), createBusinessPolicy);
 router.put('/:businessId/policies/:policyId',    authenticate, businessIdAccess('any'), updateBusinessPolicy);
 router.delete('/:businessId/policies/:policyId', authenticate, businessIdAccess('any'), deleteBusinessPolicy);
 
 // FAQs
-router.get('/:businessId/faqs',                  getBusinessFAQs);
+router.get('/:businessId/faqs',                  optionalAuth, getBusinessFAQs);
 router.post('/:businessId/faqs',                 authenticate, businessIdAccess('any'), createBusinessFAQ);
 router.put('/:businessId/faqs/:faqId',           authenticate, businessIdAccess('any'), updateBusinessFAQ);
 router.delete('/:businessId/faqs/:faqId',        authenticate, businessIdAccess('any'), deleteBusinessFAQ);
 
 // HOURS
-router.get('/:businessId/hours',                 getBusinessHours);
+router.get('/:businessId/hours',                 optionalAuth, getBusinessHours);
 router.put('/:businessId/hours',                 authenticate, businessIdAccess('any'), updateBusinessHours);
 
 // SKILLS

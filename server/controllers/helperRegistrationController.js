@@ -1,5 +1,6 @@
 // server/controllers/helperRegistrationController.js
 const crypto = require('crypto');
+const { setSessionCookies, setAccessTokenCookie } = require('../utils/authCookies');
 const pool = require('../db');
 const bcrypt = require('bcrypt');
 const { generateTokens } = require('../middleware/auth');
@@ -363,6 +364,7 @@ async function verifyOTP(req, res) {
       "INSERT INTO sessions (user_id, refresh_token, expires_at) VALUES ($1, $2, NOW() + interval '7 days')",
       [userId, hashedRefresh]
     );
+    setSessionCookies(res, tokens);
 
     res.json({
       message: 'Email verified',
@@ -460,6 +462,7 @@ async function completeRegistration(req, res) {
     );
 
     const tokens = generateTokens(fullRows[0]);
+    setAccessTokenCookie(res, tokens.accessToken);
     res.status(201).json({
       message: 'Registration complete',
       user: formatAuthUser(fullRows[0]),

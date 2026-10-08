@@ -5,6 +5,7 @@ const crypto = require('crypto');
 const tokenRevocationService = require('../services/tokenRevocationService');
 const { validateBeforeHandler } = require('../utils/socketAuthValidator');
 const { logAdminAction } = require('../services/auditService');
+const { resolveSocketAccessToken } = require('../utils/accessCookie');
 
 // Logistics roles admitted to the operations workspace (mirrors
 // server/middleware/requireInternalLogisticsWorkspace.js). Holders with an
@@ -99,17 +100,7 @@ async function logGuestChatAdminBreakGlassJoin({ auditLog = logAdminAction, admi
   });
 }
 
-// Reads the httpOnly oxsteed_access cookie from the WebSocket handshake
-// headers. Browsers send cookies on the handshake automatically, so this lets
-// clients authenticate without keeping the JWT in localStorage (XSS vector).
-function cookieAccessToken(socket) {
-  const cookieHeader = socket.handshake?.headers?.cookie;
-  if (!cookieHeader) return null;
-  const match = cookieHeader.match(/(?:^|;\s*)oxsteed_access=([^;]+)/);
-  return match ? decodeURIComponent(match[1]) : null;
-}
-
-function createChatAuthenticator({ pool, jwtSecret }) {
+function createChatAuthenticator({ pool, jwtSecret, allowedOrigins } = {}) {
   if (!pool || typeof pool.query !== 'function') {
     throw new TypeError('Chat namespace requires a database pool');
   }
@@ -117,7 +108,8 @@ function createChatAuthenticator({ pool, jwtSecret }) {
     throw new Error('Chat namespace requires JWT_SECRET');
   }
 
-  return async (socket, next) => {    const guestToken = socket.handshake.auth?.guestToken;
+  const authenticate = async (socket, next) => {
+    const guestToken = socket.handshake.auth?.guestToken;
     const guestSessionId = socket.handshake.auth?.guestSessionId;
     if (guestToken && guestSessionId) {
       try {
@@ -152,8 +144,9 @@ function createChatAuthenticator({ pool, jwtSecret }) {
     // Audit fix: fall back to the httpOnly oxsteed_access cookie (sent by the
     // browser on the WebSocket handshake) so clients no longer need the token
     // in localStorage (XSS vector). The auth payload still takes precedence
-    // (impersonation sessions).
-    const token = socket.handshake.auth?.token || cookieAccessToken(socket);
+    // (impersonation sessions). The cookie is parsed defensively and only
+    // honoured from an allowed Origin (CSWSH guard), see utils/accessCookie.
+    const { token } = resolveSocketAccessToken(socket, { allowedOrigins });
     if (!token) return next(new Error('Authentication required'));
 
     try {
@@ -185,6 +178,22 @@ function createChatAuthenticator({ pool, jwtSecret }) {
     } catch (err) {
       return next(new Error(err.name === 'JsonWebTokenError' ? 'Invalid token' : 'Auth check failed'));
     }
+  };
+
+  // Defence in depth: Socket.IO does not await middleware, so any rejection
+  // escaping the authenticator would become an unhandledRejection, which the
+  // server treats as fatal. Convert it into a handshake error instead.
+  return (socket, next) => {
+    let settled = false;
+    const once = (...args) => {
+      if (settled) return;
+      settled = true;
+      next(...args);
+    };
+    // Returned so callers/tests can await completion; Socket.IO ignores it.
+    return Promise.resolve()
+      .then(() => authenticate(socket, once))
+      .catch(() => once(new Error('Auth check failed')));
   };
 }
 

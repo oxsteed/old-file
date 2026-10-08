@@ -85,10 +85,41 @@ async function isBusinessPubliclyVisible(client, businessId) {
 // Owners/managers always see their own business content: the Business Hub
 // editor reads these same GET endpoints, including for draft/unlisted
 // businesses. Everyone else must pass the public visibility gate (404).
-async function passesContentVisibilityGate(req, client, businessId) {
+// GV-4: per-section visibility (businesses.show_* from migration 730).
+const SECTION_FLAG = Object.freeze({
+  services: 'show_services',
+  gallery: 'show_gallery',
+  policies: 'show_policies',
+  faqs: 'show_faqs',
+  hours: 'show_hours',
+});
+
+async function isSectionHidden(client, businessId, section) {
+  const column = SECTION_FLAG[section];
+  if (!column) return false;
+  try {
+    const { rows } = await client.query(
+      `SELECT ${column} AS visible FROM businesses WHERE id = $1`,
+      [businessId]
+    );
+    return rows[0]?.visible === false;
+  } catch (err) {
+    // Column missing on an unmigrated database: treat as visible.
+    logger.warn('business section visibility lookup failed', { section, err: err.message });
+    return false;
+  }
+}
+
+// 'allow'  -> serve the content
+// 'hidden' -> public viewer, business hid this section: serve an empty list
+// 'deny'   -> business not publicly visible (404)
+// Owners/managers always get 'allow' so the Business Hub editor sees everything.
+async function resolveContentGate(req, client, businessId, section) {
   const canManage = await canAccessBusiness(req.user?.id, businessId, ['owner', 'manager']);
-  if (canManage) return true;
-  return isBusinessPubliclyVisible(client, businessId);
+  if (canManage) return 'allow';
+  if (!(await isBusinessPubliclyVisible(client, businessId))) return 'deny';
+  if (section && (await isSectionHidden(client, businessId, section))) return 'hidden';
+  return 'allow';
 }
 
 // ─── SERVICES ────────────────────────────────────────────────────────────────
@@ -105,11 +136,10 @@ exports.getBusinessServices = async (req, res) => {
       if (showAll) {
         const hasAccess = await canAccessBusiness(req.user?.id, businessId, ['owner', 'manager']);
         if (!hasAccess) return sendError(res, 403, 'Access denied');
-      } else if (!(await passesContentVisibilityGate(req, client, businessId))) {
-        // Audit fix: unlisted/inactive/admin-hidden/setup-incomplete/deleted
-        // businesses hide their public services (same gate as the aggregate
-        // public profile). Owners/managers still see their own content.
-        return sendError(res, 404, 'Business not found');
+      } else {
+        const gate = await resolveContentGate(req, client, businessId, 'services');
+        if (gate === 'deny') return sendError(res, 404, 'Business not found');
+        if (gate === 'hidden') return sendSuccess(res, []);
       }
 
       const query = `SELECT ${SERVICE_SELECT}
@@ -287,9 +317,9 @@ exports.getBusinessGallery = async (req, res) => {
       // full aggregate-profile visibility predicate (active, listed, not
       // admin-hidden, setup complete, service kind, not deleted).
       // Owners/managers still see their own gallery.
-      if (!(await passesContentVisibilityGate(req, client, businessId))) {
-        return sendError(res, 404, 'Business not found');
-      }
+      const gate = await resolveContentGate(req, client, businessId, 'gallery');
+      if (gate === 'deny') return sendError(res, 404, 'Business not found');
+      if (gate === 'hidden') return sendSuccess(res, []);
 
       const result = await client.query(
         `SELECT id, url, caption, alt, sort_order, created_at
@@ -415,9 +445,9 @@ exports.getBusinessPolicies = async (req, res) => {
 
     try {
       // Audit fix: same public visibility gate as the aggregate profile.
-      if (!(await passesContentVisibilityGate(req, client, businessId))) {
-        return sendError(res, 404, 'Business not found');
-      }
+      const gate = await resolveContentGate(req, client, businessId, 'policies');
+      if (gate === 'deny') return sendError(res, 404, 'Business not found');
+      if (gate === 'hidden') return sendSuccess(res, []);
 
       const result = await client.query(
         `SELECT id, title, content, icon, sort_order, created_at
@@ -534,9 +564,9 @@ exports.getBusinessFAQs = async (req, res) => {
 
     try {
       // Audit fix: same public visibility gate as the aggregate profile.
-      if (!(await passesContentVisibilityGate(req, client, businessId))) {
-        return sendError(res, 404, 'Business not found');
-      }
+      const gate = await resolveContentGate(req, client, businessId, 'faqs');
+      if (gate === 'deny') return sendError(res, 404, 'Business not found');
+      if (gate === 'hidden') return sendSuccess(res, []);
 
       const result = await client.query(
         `SELECT id, question, answer, sort_order, created_at
@@ -653,9 +683,9 @@ exports.getBusinessHours = async (req, res) => {
 
     try {
       // Audit fix: same public visibility gate as the aggregate profile.
-      if (!(await passesContentVisibilityGate(req, client, businessId))) {
-        return sendError(res, 404, 'Business not found');
-      }
+      const gate = await resolveContentGate(req, client, businessId, 'hours');
+      if (gate === 'deny') return sendError(res, 404, 'Business not found');
+      if (gate === 'hidden') return sendSuccess(res, []);
 
       const result = await client.query(
         `SELECT id, day_of_week, start_time, end_time, is_closed, created_at

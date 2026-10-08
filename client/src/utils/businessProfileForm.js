@@ -3,7 +3,18 @@
  * onto the Business Hub profile form so a just-created draft can render
  * even if profile-edit is still catching up.
  */
+const SECTION_VISIBILITY_KEYS = [
+  'show_services',
+  'show_gallery',
+  'show_hours',
+  'show_policies',
+  'show_faqs',
+];
+
 export function profileFormFromBusiness(biz = {}) {
+  const visibility = Object.fromEntries(
+    SECTION_VISIBILITY_KEYS.map((key) => [key, biz[key] !== false]),
+  );
   return {
     business_name: biz.business_name || '',
     business_type: biz.business_type || '',
@@ -19,6 +30,7 @@ export function profileFormFromBusiness(biz = {}) {
     service_radius_miles: biz.service_radius_miles || '',
     logo_url: biz.logo_url || '',
     cover_photo_url: biz.cover_photo_url || '',
+    ...visibility,
   };
 }
 

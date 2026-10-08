@@ -1,6 +1,7 @@
 'use strict';
 
 const crypto = require('crypto');
+const { setSessionCookies } = require('../utils/authCookies');
 const jwt = require('jsonwebtoken');
 const {
   generateRegistrationOptions,
@@ -212,6 +213,9 @@ async function issueAdminSession(admin, req, res) {
   await db.query(`INSERT INTO sessions (user_id, refresh_token, expires_at) VALUES ($1, $2, NOW() + interval '7 days')`, [admin.id, hashedRefresh]);
   await db.query(`UPDATE users SET last_login_at = NOW(), last_login_ip = $1 WHERE id = $2`, [req.ip || null, admin.id]).catch(() => {});
   await db.query(`INSERT INTO user_login_history (user_id, ip_address, user_agent, success) VALUES ($1, $2, $3, TRUE)`, [admin.id, req.ip || null, req.headers['user-agent'] || null]).catch(() => {});
+  // Web sessions authenticate via httpOnly cookies (the client no longer
+  // stores the access token); JSON tokens are kept for native clients.
+  setSessionCookies(res, tokens);
   return res.json({ success: true, user: admin, accessToken: tokens.accessToken, refreshToken: tokens.refreshToken });
 }
 
