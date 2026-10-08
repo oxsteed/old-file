@@ -1,7 +1,7 @@
 import LegalPageLayout from '../components/LegalPageLayout';
 import { useTranslation } from 'react-i18next';
 
-export default function SecurityPolicy() {
+export default function SecurityPolicy({ embedded = false }: { embedded?: boolean }) {
   const { t } = useTranslation();
 
   return (
@@ -9,6 +9,7 @@ export default function SecurityPolicy() {
       title={t('securityPolicyPage.title')}
       description={t('securityPolicyPage.section1Text')}
       effectiveDate="2026-03-22"
+      embedded={embedded}
     >
       <section className="mb-8">
         <h2 className="text-lg font-bold text-orange-400 mb-3">

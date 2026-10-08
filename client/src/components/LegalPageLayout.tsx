@@ -9,6 +9,7 @@ interface LegalPageLayoutProps {
   description?: string;
   effectiveDate: string;
   children: React.ReactNode;
+  embedded?: boolean;
 }
 
 /**
@@ -23,7 +24,7 @@ interface LegalPageLayoutProps {
  *  - Back-to-top button
  *  - Consistent heading hierarchy
  */
-export default function LegalPageLayout({ title, description, effectiveDate, children }: LegalPageLayoutProps) {
+export default function LegalPageLayout({ title, description, effectiveDate, children, embedded = false }: LegalPageLayoutProps) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
@@ -40,7 +41,7 @@ export default function LegalPageLayout({ title, description, effectiveDate, chi
   };
 
   return (
-    <PageShell>
+    <PageShell hideNav={embedded} hideFooter={embedded} mainId={embedded ? 'media-legal-content' : 'main-content'}>
       <PageMeta title={title} description={description || title} />
       <div
         ref={mainRef}
@@ -127,7 +128,7 @@ export default function LegalPageLayout({ title, description, effectiveDate, chi
           </div>
 
           {/* Navigation Footer */}
-          <div style={{
+          {!embedded && <div style={{
             marginTop: 'var(--space-12)',
             paddingTop: 'var(--space-6)',
             borderTop: '1px solid var(--color-border)',
@@ -149,7 +150,7 @@ export default function LegalPageLayout({ title, description, effectiveDate, chi
             >
               {t('legalPage.backToTop')}
             </button>
-          </div>
+          </div>}
         </article>
       </div>
     </PageShell>

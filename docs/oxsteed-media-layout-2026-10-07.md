@@ -14,8 +14,9 @@ compose entry, a Latest label, and a modest empty state. Its footer is replaced
 with compact legal/support links in the desktop rail. The post-detail route also
 uses the shared shell rather than nesting another global page shell.
 
-The shell retains language and theme controls and an accessible return link to
-OxSteed. Navigation and new feed text are translated in en/es/fr/ht/ar; generated
+The shell retains language and theme controls and the OxSteed Media wordmark
+links to the OxSteed homepage. Guests see Sign In and Join OxSteed; signed-in
+users see their name and Sign Out. Navigation and new feed text are translated in en/es/fr/ht/ar; generated
 locale namespaces/shards are produced by the existing catalog script. Styles
 use the shared theme tokens and logical properties for Arabic.
 
@@ -53,7 +54,7 @@ starting from `0e0a5963f530130d48c5920390f7c8df119eac81`.
 - `node media-preview.cjs`: temporary browser check against the production build
   with isolated API fixtures. Passed at 320, 390, 640, 700, 768, 1024, and 1440 pixels;
   no horizontal overflow, correct mobile/desktop navigation, one main landmark,
-  no large footer, correct Home selection with a trailing slash, empty/populated
+  compact footer card, correct Home selection with a trailing slash, empty/populated
   feeds, error/retry, Arabic RTL, dark theme, and no uncaught page errors.
   Also checked assistant-button clearance and opening/closing the assistant
   above the mobile navigation, with AI capability enabled in the fixture.
@@ -100,5 +101,7 @@ Media launch gates. Their new copy is localized across all five catalogs.
 
 The Media shell also uses the real OxSteed logo in its header and a compact
 footer card with the full legal links, cookie settings, copyright, support email,
-and phone contact. The footer stays above the mobile tab bar with safe-area
-spacing on phones.
+and phone contact. Legal links preserve their normal URLs while opening the
+localized policy document in a lazy-loaded Media dialog with Escape and backdrop
+close behavior. The footer stays above the mobile tab bar with safe-area spacing
+on phones.

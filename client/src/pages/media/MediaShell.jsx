@@ -69,7 +69,7 @@ export default function MediaShell({ children }) {
               ) : (
                 <div className="media-auth-links" aria-label={t('media.shell.account')}>
                   <Link to="/login" className="media-auth-link">{t('nav.signIn')}</Link>
-                  <Link to="/join" className="media-auth-link media-auth-link-primary">{t('auth.signUp')}</Link>
+                  <Link to="/join" className="media-auth-link media-auth-link-primary">{t('nav.joinOxsteed')}</Link>
                 </div>
               ))}
               <LanguageSelector />

@@ -1,7 +1,7 @@
 import LegalPageLayout from '../components/LegalPageLayout';
 import { useTranslation } from 'react-i18next';
 
-export default function DoNotSell() {
+export default function DoNotSell({ embedded = false }: { embedded?: boolean }) {
   const { t } = useTranslation();
 
   return (
@@ -9,6 +9,7 @@ export default function DoNotSell() {
       title={t('doNotSellPage.title')}
       description={t('doNotSellPage.doesNotSellText1')}
       effectiveDate="2026-03-22"
+      embedded={embedded}
     >
       <section className="mb-8">
         <h2 className="text-lg font-bold text-orange-400 mb-3">

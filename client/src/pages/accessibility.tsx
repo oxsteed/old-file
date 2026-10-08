@@ -1,7 +1,7 @@
 import LegalPageLayout from '../components/LegalPageLayout';
 import { useTranslation } from 'react-i18next';
 
-export default function AccessibilityPage() {
+export default function AccessibilityPage({ embedded = false }: { embedded?: boolean }) {
   const { t } = useTranslation();
 
   const measures = [
@@ -17,6 +17,7 @@ export default function AccessibilityPage() {
       title={t('accessibilityPage.title')}
       description={t('accessibilityPage.overview')}
       effectiveDate="2026-03-23"
+      embedded={embedded}
     >
       <section className="mb-8">
         <h2 className="text-lg font-bold text-orange-400 mb-3">

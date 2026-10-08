@@ -12,18 +12,18 @@ import { useTranslation } from 'react-i18next';
  *     <YourPageContent />
  *   </PageShell>
  *
- * @param {{ children: any, hideNav?: boolean, hideFooter?: boolean }} props
+ * @param {{ children: any, hideNav?: boolean, hideFooter?: boolean, mainId?: string }} props
  */
-export default function PageShell({ children, hideNav = false, hideFooter = false }) {
+export default function PageShell({ children, hideNav = false, hideFooter = false, mainId = 'main-content' }) {
   const { t } = useTranslation('common');
 
   return (
     <div className="ox-page">
-      <a href="#main-content" className="skip-nav">
+      <a href={`#${mainId}`} className="skip-nav">
         {t('navigation.skipToMainContent')}
       </a>
       {!hideNav && <Navbar />}
-      <main id="main-content" className="ox-main" tabIndex={-1} style={{ outline: 'none' }}>
+      <main id={mainId} className="ox-main" tabIndex={-1} style={{ outline: 'none' }}>
         {children}
       </main>
       {!hideFooter && <Footer />}

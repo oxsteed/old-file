@@ -7,7 +7,7 @@ const tableStyles = {
   td: { padding: '10px 12px', borderBottom: '1px solid #222', color: '#ccc', fontSize: 13 },
 };
 
-export default function CookiePolicyPage() {
+export default function CookiePolicyPage({ embedded = false }: { embedded?: boolean }) {
   const { t } = useTranslation();
 
   return (
@@ -15,6 +15,7 @@ export default function CookiePolicyPage() {
       title={t('cookiePolicyPage.title')}
       description={t('cookiePolicyPage.section1Text')}
       effectiveDate="2026-03-23"
+      embedded={embedded}
     >
       <section className="mb-8">
         <h2 className="text-lg font-bold text-orange-400 mb-3">

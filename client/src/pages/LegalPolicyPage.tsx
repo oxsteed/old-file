@@ -65,6 +65,7 @@ type LegalPolicyPageProps = {
   sectionAnchorPrefix: string;
   /** Namespace prefix for strings in locale JSON, e.g. termsPage */
   i18nPrefix: string;
+  embedded?: boolean;
 };
 
 export default function LegalPolicyPage({
@@ -74,6 +75,7 @@ export default function LegalPolicyPage({
   sectionIds,
   sectionAnchorPrefix,
   i18nPrefix,
+  embedded = false,
 }: LegalPolicyPageProps) {
   const { t, i18n } = useTranslation();
   const [searchQuery, setSearchQuery] = useState('');
@@ -182,7 +184,7 @@ export default function LegalPolicyPage({
   const searchInputId = `${sectionAnchorPrefix}-search`;
 
   return (
-    <PageShell>
+    <PageShell hideNav={embedded} hideFooter={embedded} mainId={embedded ? 'media-legal-content' : 'main-content'}>
       <PageMeta title={t(pk('title'))} description={metaDescription} />
       <div className="min-h-screen bg-gray-950 text-gray-300 flex flex-col">
         <div className="bg-gradient-to-r from-orange-600/20 via-orange-500/10 to-transparent border-b border-gray-800">
