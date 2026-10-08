@@ -350,16 +350,18 @@ async function getFeed(req, res) {
     const viewerUserId = req.user?.id || null;
     let localityBoost = '0';
 
-    let orderBy = 'p.created_at DESC';
+    const orderBy = 'p.created_at DESC, p.id DESC';
     const params = [limit];
     let where = `p.visibility = 'public' AND p.deleted_at IS NULL AND p.parent_id IS NULL
       AND p.processing_status = 'ready' AND p.csam_status = 'passed'
       AND EXISTS (SELECT 1 FROM users au WHERE au.id = a.owner_user_id
         AND au.deleted_at IS NULL AND au.is_active = TRUE AND au.is_banned = FALSE)`;
 
+    let rankedCursor = null;
     if (before) {
-      where += ` AND p.created_at < $2`;
-      params.push(before);
+      try {
+        rankedCursor = JSON.parse(Buffer.from(before, 'base64url').toString('utf8'));
+      } catch { rankedCursor = null; }
     }
     if (viewerUserId) {
       params.push(viewerUserId);
@@ -369,10 +371,36 @@ async function getFeed(req, res) {
          WHERE (ub.blocker_id = $${viewerParam} AND ub.blocked_id = a.owner_user_id)
             OR (ub.blocker_id = a.owner_user_id AND ub.blocked_id = $${viewerParam})
       )`;
-      localityBoost = `CASE WHEN p.community_id IS NOT NULL AND EXISTS (
-        SELECT 1 FROM media_community_members cm
-         WHERE cm.community_id = p.community_id AND cm.user_id = $${viewerParam}
-      ) THEN 1 ELSE 0 END`;
+      localityBoost = `CASE
+        WHEN p.community_id IS NOT NULL AND EXISTS (
+          SELECT 1 FROM media_community_members cm
+           WHERE cm.community_id = p.community_id AND cm.user_id = $${viewerParam}
+        ) THEN 2
+        WHEN p.community_id IS NOT NULL AND EXISTS (
+          SELECT 1 FROM media_communities nearby
+          JOIN users viewer_location ON viewer_location.id = $${viewerParam}
+           WHERE nearby.id = p.community_id
+             AND nearby.geo_scope IS NOT NULL
+             AND LOWER(split_part(nearby.geo_scope, ',', 1)) = LOWER(viewer_location.city)
+        ) THEN 1
+        ELSE 0 END`;
+    }
+
+    let rankedAfter = '';
+    if (rankedCursor?.created_at && rankedCursor?.id) {
+      params.push(Number(rankedCursor.link_count) || 0, Number(rankedCursor.locality_boost) || 0,
+        rankedCursor.created_at, rankedCursor.id);
+      const linkParam = params.length - 3;
+      const localityParam = params.length - 2;
+      const createdParam = params.length - 1;
+      const idParam = params.length;
+      rankedAfter = ` HAVING (link_count < $${linkParam}
+        OR (link_count = $${linkParam} AND locality_boost < $${localityParam})
+        OR (link_count = $${linkParam} AND locality_boost = $${localityParam} AND p.created_at < $${createdParam})
+        OR (link_count = $${linkParam} AND locality_boost = $${localityParam} AND p.created_at = $${createdParam} AND p.id < $${idParam}))`;
+    } else if (before) {
+      params.push(before);
+      rankedAfter = ` HAVING p.created_at < $${params.length}`;
     }
 
     // Deep-link boost: posts with valid local entity links rank higher.
@@ -385,6 +413,7 @@ async function getFeed(req, res) {
          LEFT JOIN media_post_links l ON l.post_id = p.id
         WHERE ${where}
         GROUP BY p.id, a.handle, a.display_name, a.avatar_url, a.verified_kind, a.actor_type
+        ${rankedAfter}
         ORDER BY link_count DESC, locality_boost DESC, ${orderBy}
         LIMIT $1`,
       params
@@ -394,7 +423,14 @@ async function getFeed(req, res) {
     for (const row of rows) {
       posts.push(await hydratePost(row, viewerUserId));
     }
-    res.json({ posts, next_before: rows.length ? rows[rows.length - 1].created_at : null });
+    const last = rows[rows.length - 1];
+    const nextBefore = last ? Buffer.from(JSON.stringify({
+      link_count: Number(last.link_count) || 0,
+      locality_boost: Number(last.locality_boost) || 0,
+      created_at: last.created_at,
+      id: last.id,
+    })).toString('base64url') : null;
+    res.json({ posts, next_before: nextBefore, has_more: rows.length === limit });
   } catch (err) {
     logger.error('media.getFeed error', { message: err.message });
     res.status(500).json({ error: 'Failed to load feed' });
@@ -441,6 +477,56 @@ async function getPost(req, res) {
   } catch (err) {
     logger.error('media.getPost error', { message: err.message });
     res.status(500).json({ error: 'Failed to load post' });
+  }
+}
+
+async function getDrafts(req, res) {
+  try {
+    const { rows } = await pool.query(
+      `SELECT p.*, a.handle, a.display_name, a.avatar_url, a.verified_kind, a.actor_type, a.owner_user_id
+         FROM media_posts p
+         JOIN media_actors a ON a.id = p.actor_id
+        WHERE p.deleted_at IS NULL AND p.processing_status = 'draft'
+          AND a.owner_user_id = $1
+        ORDER BY p.created_at DESC
+        LIMIT 20`,
+      [req.user.id]
+    );
+    const drafts = [];
+    for (const row of rows) drafts.push(await hydratePost(row, req.user.id));
+    res.json({ drafts });
+  } catch (err) {
+    logger.error('media.getDrafts error', { message: err.message });
+    res.status(500).json({ error: 'Failed to load drafts' });
+  }
+}
+
+async function getBookmarks(req, res) {
+  try {
+    const params = [req.user.id];
+    const where = addViewerBlockFilter(
+      `p.deleted_at IS NULL AND p.visibility = 'public'
+        AND p.processing_status = 'ready' AND p.csam_status = 'passed'
+        AND b.user_id = $1`,
+      params,
+      req.user.id
+    );
+    const { rows } = await pool.query(
+      `SELECT p.*, a.handle, a.display_name, a.avatar_url, a.verified_kind, a.actor_type, a.owner_user_id
+         FROM media_bookmarks b
+         JOIN media_posts p ON p.id = b.post_id
+         JOIN media_actors a ON a.id = p.actor_id
+        WHERE ${where}
+        ORDER BY b.created_at DESC
+        LIMIT 100`,
+      params
+    );
+    const posts = [];
+    for (const row of rows) posts.push(await hydratePost(row, req.user.id));
+    res.json({ posts });
+  } catch (err) {
+    logger.error('media.getBookmarks error', { message: err.message });
+    res.status(500).json({ error: 'Failed to load saved posts' });
   }
 }
 
@@ -513,6 +599,11 @@ async function createPost(req, res) {
     const userId = req.user.id;
     const businessId = req.body?.business_id ? parseInt(req.body.business_id, 10) : null;
     const { body, parent_id, quoted_post_id, links, community_id } = req.body;
+    const isDraft = req.body?.draft === true;
+
+    if (isDraft && (parent_id || quoted_post_id)) {
+      return res.status(400).json({ error: 'Replies and quote posts cannot be saved as drafts', code: 'media_draft_target_invalid' });
+    }
     
     let actor;
     if (businessId) {
@@ -592,11 +683,14 @@ async function createPost(req, res) {
     }
 
     const { rows } = await pool.query(
-      `INSERT INTO media_posts (actor_id, body, parent_id, quoted_post_id, community_id, root_id)
+      `INSERT INTO media_posts
+         (actor_id, body, parent_id, quoted_post_id, community_id, root_id, visibility, processing_status)
        VALUES ($1, $2, $3, $4, $5,
-         CASE WHEN $3 IS NOT NULL THEN (SELECT COALESCE(root_id, id) FROM media_posts WHERE id = $3) END)
+         CASE WHEN $3 IS NOT NULL THEN (SELECT COALESCE(root_id, id) FROM media_posts WHERE id = $3) END,
+         CASE WHEN $6 THEN 'unlisted' ELSE 'public' END,
+         CASE WHEN $6 THEN 'draft' ELSE 'ready' END)
        RETURNING *`,
-      [actor.id, body.trim(), parent_id || null, quoted_post_id || null, community_id || null]
+      [actor.id, body.trim(), parent_id || null, quoted_post_id || null, community_id || null, isDraft]
     );
     const post = rows[0];
 
@@ -642,10 +736,126 @@ async function createPost(req, res) {
       );
     }
 
-    res.status(201).json({ post: await hydratePost(post, userId) });
+    res.status(201).json({ post: await hydratePost(post, userId), draft: isDraft });
   } catch (err) {
     logger.error('media.createPost error', { message: err.message });
     res.status(500).json({ error: 'Failed to create post' });
+  }
+}
+
+async function publishPost(req, res) {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const { rows: owned } = await client.query(
+      `SELECT p.*, a.owner_user_id
+         FROM media_posts p
+         JOIN media_actors a ON a.id = p.actor_id
+         JOIN users u ON u.id = a.owner_user_id
+        WHERE p.id = $1 AND a.owner_user_id = $2 AND p.deleted_at IS NULL
+          AND u.deleted_at IS NULL AND u.is_active = TRUE AND u.is_banned = FALSE
+        FOR UPDATE`,
+      [req.params.id, req.user.id]
+    );
+    if (!owned[0]) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Draft not found', code: 'media_draft_not_found' });
+    }
+    if (owned[0].visibility === 'public' && owned[0].processing_status === 'ready') {
+      await client.query('COMMIT');
+      return res.json({ post: await hydratePost(owned[0], req.user.id), published: true });
+    }
+    if (!['draft', 'quarantine', 'failed', 'ready'].includes(owned[0].processing_status) || owned[0].visibility !== 'unlisted') {
+      await client.query('ROLLBACK');
+      return res.status(409).json({ error: 'This post is not a publishable draft', code: 'media_draft_state_invalid' });
+    }
+
+    const { rows: assets } = await client.query(
+      `SELECT id, asset_type, processing_status, csam_status, renditions
+         FROM media_post_assets WHERE post_id = $1 ORDER BY sort_order, created_at`,
+      [req.params.id]
+    );
+    const unsafe = assets.find((asset) =>
+      !['ready'].includes(asset.processing_status || 'ready') ||
+      !['not_required', 'passed'].includes(asset.csam_status || 'not_required') ||
+      (asset.asset_type === 'video' && process.env.MEDIA_CSAM_CERTIFIED !== 'true') ||
+      (asset.asset_type === 'video' && (!asset.renditions || Object.keys(asset.renditions).length === 0))
+    );
+    if (unsafe || owned[0].csam_status !== 'passed') {
+      await client.query('ROLLBACK');
+      return res.status(409).json({
+        error: 'Media is still processing or awaiting safety approval.',
+        code: 'media_safety_pending',
+      });
+    }
+
+    const { rows: published } = await client.query(
+      `UPDATE media_posts
+          SET visibility = 'public', processing_status = 'ready', edited_at = NOW()
+        WHERE id = $1
+        RETURNING *`,
+      [req.params.id]
+    );
+    await client.query('COMMIT');
+    res.json({ post: await hydratePost(published[0], req.user.id), published: true });
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
+    logger.error('media.publishPost error', { message: err.message });
+    res.status(500).json({ error: 'Failed to publish draft' });
+  } finally {
+    client.release();
+  }
+}
+
+async function updatePost(req, res) {
+  const body = typeof req.body?.body === 'string' ? req.body.body.trim() : '';
+  if (!body) return res.status(400).json({ error: 'Post body is required', code: 'media_body_required' });
+  if (body.length > 2000) return res.status(400).json({ error: 'Post body too long (max 2000)', code: 'media_body_too_long' });
+  try {
+    const { rows } = await pool.query(
+      `UPDATE media_posts p
+          SET body = $1, edited_at = NOW()
+        FROM media_actors a
+       WHERE p.id = $2 AND p.actor_id = a.id AND a.owner_user_id = $3
+         AND p.deleted_at IS NULL AND p.visibility = 'public'
+       RETURNING p.*`,
+      [body, req.params.id, req.user.id]
+    );
+    if (!rows[0]) return res.status(404).json({ error: 'Post not found', code: 'media_post_not_found' });
+    const { rows: hydrated } = await pool.query(
+      `SELECT p.*, a.handle, a.display_name, a.avatar_url, a.verified_kind, a.actor_type, a.owner_user_id
+         FROM media_posts p JOIN media_actors a ON a.id = p.actor_id WHERE p.id = $1`,
+      [req.params.id]
+    );
+    res.json({ post: await hydratePost(hydrated[0], req.user.id) });
+  } catch (err) {
+    logger.error('media.updatePost error', { message: err.message });
+    res.status(500).json({ error: 'Failed to update post' });
+  }
+}
+
+async function deletePost(req, res) {
+  try {
+    const { rows } = await pool.query(
+      `UPDATE media_posts p
+          SET deleted_at = NOW(), visibility = 'removed'
+        FROM media_actors a
+       WHERE p.id = $1 AND p.actor_id = a.id AND a.owner_user_id = $2
+         AND p.deleted_at IS NULL
+       RETURNING p.id, p.parent_id, p.quoted_post_id`,
+      [req.params.id, req.user.id]
+    );
+    if (!rows[0]) return res.status(404).json({ error: 'Post not found', code: 'media_post_not_found' });
+    if (rows[0].parent_id) {
+      await pool.query(`UPDATE media_posts SET reply_count = GREATEST(0, reply_count - 1) WHERE id = $1`, [rows[0].parent_id]);
+    }
+    if (rows[0].quoted_post_id) {
+      await pool.query(`UPDATE media_posts SET quote_count = GREATEST(0, quote_count - 1) WHERE id = $1`, [rows[0].quoted_post_id]);
+    }
+    res.json({ deleted: true, id: rows[0].id });
+  } catch (err) {
+    logger.error('media.deletePost error', { message: err.message });
+    res.status(500).json({ error: 'Failed to delete post' });
   }
 }
 
@@ -1114,7 +1324,7 @@ async function searchMediaEntities(req, res) {
 }
 
 module.exports = {
-  getFeed, getPost, getReplies, getQuotes, createPost,
+  getFeed, getPost, getDrafts, getBookmarks, getReplies, getQuotes, createPost, publishPost, updatePost, deletePost,
   replacePostLinks,
   toggleLike, toggleBookmark, toggleRepost, recordView, flagPost,
   getCommunities, getCommunity, joinCommunity, leaveCommunity, searchMedia,

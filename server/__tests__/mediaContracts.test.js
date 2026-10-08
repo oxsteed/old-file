@@ -16,6 +16,23 @@ function resMock() {
 describe('OxSteed Media launch contracts', () => {
   beforeEach(() => pool.query.mockReset());
 
+  test('keeps a draft private when an uploaded video is still awaiting safety processing', async () => {
+    const client = { query: jest.fn(), release: jest.fn() };
+    pool.connect = jest.fn().mockResolvedValue(client);
+    client.query
+      .mockResolvedValueOnce({})
+      .mockResolvedValueOnce({ rows: [{ id: 'draft-1', visibility: 'unlisted', processing_status: 'draft', csam_status: 'passed' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'asset-1', asset_type: 'video', processing_status: 'quarantine', csam_status: 'pending', renditions: {} }] })
+      .mockResolvedValueOnce({});
+    const res = resMock();
+
+    await media.publishPost({ params: { id: 'draft-1' }, user: { id: 'user-1' } }, res);
+
+    expect(res.status).toHaveBeenCalledWith(409);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ code: 'media_safety_pending' }));
+    expect(client.query.mock.calls.at(-1)[0]).toBe('ROLLBACK');
+  });
+
   test('requires a verified business before creating a business post', async () => {
     pool.query.mockResolvedValueOnce({ rows: [] });
 

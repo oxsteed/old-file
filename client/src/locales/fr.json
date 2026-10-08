@@ -30253,6 +30253,7 @@
       "spaces": "Espaces",
       "notifications": "Notifications",
       "messages": "Messages",
+      "saved": "Publications enregistrées",
       "homepage": "Accueil d’OxSteed",
       "account": "Compte",
       "close": "Fermer",
@@ -30281,6 +30282,9 @@
       "noReplies": "Aucune réponse pour le moment.",
       "verified": "Vérifié",
       "views": "vues",
+      "reply": "Répondre",
+      "like": "J’aime",
+      "bookmark": "Enregistrer",
       "repost": "Republier",
       "share": "Partager",
       "videoEmbed": "Vidéo intégrée",
@@ -30327,7 +30331,26 @@
       "cancelLinks": "Fermer l’éditeur de liens",
       "saveLinks": "Enregistrer les éléments liés",
       "savingLinks": "Enregistrement…",
-      "linksError": "Impossible de mettre à jour les éléments liés."
+      "linksError": "Impossible de mettre à jour les éléments liés.",
+      "edit": "Modifier la publication",
+      "cancelEdit": "Annuler la modification",
+      "delete": "Supprimer la publication",
+      "deleteConfirm": "Supprimer cette publication ?",
+      "deleteError": "Impossible de supprimer cette publication.",
+      "editError": "Impossible de mettre à jour cette publication.",
+      "editLabel": "Texte de la publication",
+      "saving": "Enregistrement…",
+      "save": "Enregistrer les modifications",
+      "report": "Signaler la publication",
+      "reportReason": "Pourquoi signalez-vous ceci ?",
+      "reportSpam": "Spam",
+      "reportHarassment": "Harcèlement",
+      "reportUnsafe": "Contenu dangereux",
+      "reportCopyright": "Droits d’auteur",
+      "reporting": "Envoi…",
+      "reportSubmit": "Signaler",
+      "reportSent": "Signalement envoyé. Merci.",
+      "reportError": "Impossible d’envoyer le signalement."
     },
     "search": {
       "title": "Rechercher dans Media",
@@ -30410,7 +30433,14 @@
       "pricePlaceholder": "Prix (facultatif)",
       "priceInvalid": "Saisissez un prix valide et positif ou nul.",
       "entitySearchHint": "Suggestions d’entités",
-      "searchingEntities": "Recherche…"
+      "searchingEntities": "Recherche…",
+      "draftRestored": "Brouillon restauré. Sélectionnez à nouveau le fichier pour réessayer l’envoi.",
+      "attaching": "Ajout du média…",
+      "uploading": "Envoi et vérification du média…",
+      "publishing": "Publication après les contrôles de sécurité…",
+      "draftSaved": "Votre brouillon est enregistré. Corrigez le problème puis réessayez.",
+      "previewAlt": "Aperçu du média sélectionné",
+      "uploadProgress": "Progression de l’envoi"
     },
     "notifications": {
       "kicker": "Actualités du réseau",
@@ -30426,6 +30456,11 @@
     "messages": {
       "kicker": "Conversations privées",
       "description": "Gardez vos activités locales en mouvement avec vos messages au même endroit."
+    },
+    "bookmarks": {
+      "title": "Publications enregistrées",
+      "loadError": "Impossible de charger les publications enregistrées.",
+      "empty": "Les publications que vous enregistrez apparaîtront ici."
     },
     "reply": {
       "error": "Impossible de publier la réponse.",

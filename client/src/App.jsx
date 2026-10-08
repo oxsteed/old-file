@@ -199,6 +199,7 @@ const MediaShell = lazyWithRetry(() => import('./pages/media/MediaShell'));
 const MediaFeedPage = lazyWithRetry(() => import('./pages/media/MediaFeedPage'));
 const MediaPostDetailPage = lazyWithRetry(() => import('./pages/media/MediaPostDetailPage'));
 const MediaComposePage = lazyWithRetry(() => import('./pages/media/MediaComposePage'));
+const MediaBookmarksPage = lazyWithRetry(() => import('./pages/media/MediaBookmarksPage'));
 const MediaSearchPage = lazyWithRetry(() => import('./pages/media/MediaSearchPage'));
 const MediaCommunitiesPage = lazyWithRetry(() => import('./pages/media/MediaCommunitiesPage'));
 const MediaCommunityPage = lazyWithRetry(() => import('./pages/media/MediaCommunityPage'));
@@ -420,6 +421,7 @@ export default function App() {
                     {/* OxSteed Media */}
                     <Route path="/media"                   element={<Guarded><MediaLaunchGate><MediaShell><MediaFeedPage /></MediaShell></MediaLaunchGate></Guarded>} />
                     <Route path="/media/compose"           element={<Guarded><ProtectedRoute><MediaLaunchGate><MediaShell><MediaComposePage /></MediaShell></MediaLaunchGate></ProtectedRoute></Guarded>} />
+                    <Route path="/media/bookmarks"         element={<Guarded><ProtectedRoute><MediaLaunchGate><MediaShell><MediaBookmarksPage /></MediaShell></MediaLaunchGate></ProtectedRoute></Guarded>} />
                     <Route path="/media/post/:id"          element={<Guarded><MediaLaunchGate><MediaShell><MediaPostDetailPage /></MediaShell></MediaLaunchGate></Guarded>} />
                     <Route path="/media/search"            element={<Guarded><MediaLaunchGate><MediaShell><MediaSearchPage /></MediaShell></MediaLaunchGate></Guarded>} />
                     <Route path="/media/communities"       element={<Guarded><MediaLaunchGate><MediaShell><MediaCommunitiesPage /></MediaShell></MediaLaunchGate></Guarded>} />

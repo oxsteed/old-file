@@ -8,13 +8,13 @@ against the locked specification, retaining the v2/v3 release boundaries.
 | --- | --- |
 | Signed-in recognition, likes/bookmarks, two-way blocks | Public router now resolves optional sessions; shared browser API retains credentials/refresh; search grouping and actor aliases corrected. Route and PostgreSQL regression tests added; database and live execution pending. |
 | Safe admin approval | Approval rejects uncertified, unverified, unprocessed or flagged video and removed posts; never rewrites asset verdicts or finishes worker jobs. Focused regression tests added; live verification pending. |
-| Draft-to-publication uploads | Still incomplete: composer publishes before attachment succeeds. Needs durable draft/retry, idempotency, progress/previews and processing UI. |
+| Draft-to-publication uploads | Composer now creates a private durable draft, stores its ID for retry, restores draft text/links, shows previews/progress/status, attaches links idempotently, and publishes only after asset safety gates pass. Migration 735 adds the draft state; video drafts remain private while Didit/CSAM/transcode work is pending. End-to-end upload execution still needs live storage and worker verification. |
 | Upload safety in all public surfaces | Audit all asset delivery, worker concurrency, multi-asset readiness, certification and identity gates. Admin override fixed first. |
-| Nearby discovery and pagination | Still incomplete: Space membership is not distance; timestamp-only cursor does not match ranking. |
-| Saved posts, reports, edit/delete | Still incomplete: add usable controls and enforce server ownership/visibility. |
-| Accessible actions and entity picker | Still incomplete: remove manual IDs and improve labels, keyboard flows and media controls. |
-| Localized image-rich previews | Still incomplete: initial prerender copy is English and uses the site logo. |
-| Five languages | Existing catalog parity passes; all new copy requires en/es/fr/ht/ar coverage. |
+| Nearby discovery and pagination | Feed ranking now uses a stable keyset cursor over valid-link, membership/city Space locality, timestamp, and post ID; page responses expose `has_more`. Actual city matching uses the viewer profile city and Space geo scope. Entity-level distance remains a live-data verification item. |
+| Saved posts, reports, edit/delete | Added authenticated saved-post retrieval/page, report menu with rate-limited server endpoint, and owner-only body edit/soft-delete endpoints with count cleanup. Live authorization verification remains. |
+| Accessible actions and entity picker | Added labels to action controls, keyboard-friendly report details, upload previews/progress, and read-only target IDs selected from server entity suggestions in compose and link editing. |
+| Localized image-rich previews | Media post prerender now selects a public-safe stored thumbnail for OG/Twitter images and keeps localized document language/alternates; logo remains the fallback. |
+| Five languages | Existing catalog parity passes; all new copy is covered in en/es/fr/ht/ar and JSON-parses. |
 | Full user journeys | Add targeted browser and API evidence for verified poster, guest, blocked accounts, upload failures, replies, notifications and mobile playback. |
 | CI and deployment | Push coherent changes, verify exact commit CI and deployed assets/runtime. Green CI alone does not close the goal. |
 
@@ -47,5 +47,6 @@ existing `themeContrast.test.mjs` post-job hero assertion (`undefined` versus
 `#1d4ed8`). Separate `npm run build` and `npm run typecheck` both passed. Do not
 equate this partial local verification with full CI or deployment completion.
 
-Next: verify this batch in Linux CI, then implement a durable private draft and
-explicit publication step before addressing local ranking and post controls.
+Second repair batch local verification: 25 focused Media tests and 7 prerender/media tests passed; client typecheck and production build passed; locale JSON parity passed. CI run `37756637913` for the preceding safety batch passed both verification and migration rehearsal. The current batch still needs a fresh CI run and live deployed checks.
+
+Next: push this batch, obtain fresh CI including migration 735, then run live draft/upload, saved/report, owner-control, ranked-pagination, and localized share-preview checks. Do not enable public uploaded video until the production CSAM vendor prerequisite is independently certified.

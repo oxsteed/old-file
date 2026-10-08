@@ -28,7 +28,7 @@ export default function MediaFeedPage() {
         setPosts(data.posts);
       }
       setBefore(data.next_before);
-      setHasMore(data.posts.length > 0);
+      setHasMore(data.has_more === true && Boolean(data.next_before));
     } catch (err) {
       setError(t('media.feed.loadError'));
     } finally {

@@ -16,6 +16,7 @@ const { getPublicSiteUrl, absoluteUrl } = require('../utils/publicSiteUrl');
 const { buildPublicProfileDescription } = require('../utils/seoProfileDescription');
 const { resolvePublicDisplayName } = require('../utils/publicDisplayName');
 const { createTtlCache } = require('../utils/processState');
+const { getSignedDownloadUrl } = require('../utils/storage');
 
 let cachedTemplate = null;
 const SEO_LANGUAGES = new Set(['en', 'es', 'fr', 'ht', 'ar']);
@@ -1376,7 +1377,10 @@ async function handleMediaLanding(template, res, req) {
 
 async function handleMediaPost(postId, template, res, next, req) {
   const { rows } = await pool.query(
-    `SELECT p.id, p.body, p.created_at, a.display_name, a.handle
+    `SELECT p.id, p.body, p.created_at, a.display_name, a.handle,
+            (SELECT thumbnail_key FROM media_post_assets mpa
+              WHERE mpa.post_id = p.id AND mpa.thumbnail_key IS NOT NULL
+              ORDER BY mpa.sort_order, mpa.created_at LIMIT 1) AS thumbnail_key
        FROM media_posts p JOIN media_actors a ON a.id = p.actor_id
       WHERE p.id = $1::uuid AND p.deleted_at IS NULL AND p.visibility = 'public'
         AND p.processing_status = 'ready' AND p.csam_status = 'passed'`,
@@ -1399,6 +1403,12 @@ async function handleMediaPost(postId, template, res, next, req) {
   const body = String(post.body || '').replace(/\s+/g, ' ').trim();
   const description = (body || `${author} shared an update on OxSteed Media.`).slice(0, 320);
   const title = `${author} on OxSteed Media | OxSteed`;
+  let image = `${base()}/icons/icon-512.png`;
+  if (post.thumbnail_key) {
+    try { image = await getSignedDownloadUrl(post.thumbnail_key); } catch (err) {
+      logger.warn('[prerender] Media thumbnail unavailable', { postId: post.id, message: err.message });
+    }
+  }
   const jsonLd = {
     '@context': 'https://schema.org',
     '@type': 'SocialMediaPosting',
@@ -1409,7 +1419,7 @@ async function handleMediaPost(postId, template, res, next, req) {
     url,
     isPartOf: { '@id': `${base()}/media` },
   };
-  let html = replaceMeta(template, { title, description, url, image: `${base()}/icons/icon-512.png` });
+  let html = replaceMeta(template, { title, description, url, image });
   html = setDocumentLanguage(html, language);
   html = addLanguageAlternates(html, `${base()}${publicPath}`);
   html = injectJsonLd(html, jsonLd);

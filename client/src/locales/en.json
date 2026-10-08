@@ -30253,6 +30253,7 @@
       "spaces": "Spaces",
       "notifications": "Notifications",
       "messages": "Messages",
+      "saved": "Saved posts",
       "homepage": "OxSteed homepage",
       "account": "Account",
       "close": "Close",
@@ -30281,6 +30282,9 @@
       "noReplies": "No replies yet.",
       "verified": "Verified",
       "views": "views",
+      "reply": "Reply",
+      "like": "Like",
+      "bookmark": "Bookmark",
       "repost": "Repost",
       "share": "Share",
       "videoEmbed": "Embedded video",
@@ -30327,7 +30331,26 @@
       "cancelLinks": "Close link editor",
       "saveLinks": "Save linked items",
       "savingLinks": "Saving…",
-      "linksError": "Could not update linked items."
+      "linksError": "Could not update linked items.",
+      "edit": "Edit post",
+      "cancelEdit": "Cancel edit",
+      "delete": "Delete post",
+      "deleteConfirm": "Delete this post?",
+      "deleteError": "Could not delete this post.",
+      "editError": "Could not update this post.",
+      "editLabel": "Post text",
+      "saving": "Saving…",
+      "save": "Save changes",
+      "report": "Report post",
+      "reportReason": "Why are you reporting this?",
+      "reportSpam": "Spam",
+      "reportHarassment": "Harassment",
+      "reportUnsafe": "Unsafe content",
+      "reportCopyright": "Copyright",
+      "reporting": "Sending…",
+      "reportSubmit": "Report",
+      "reportSent": "Report sent. Thank you.",
+      "reportError": "Could not send report."
     },
     "search": {
       "title": "Search Media",
@@ -30410,7 +30433,14 @@
       "pricePlaceholder": "Price (optional)",
       "priceInvalid": "Enter a valid non-negative price.",
       "entitySearchHint": "Entity suggestions",
-      "searchingEntities": "Searching…"
+      "searchingEntities": "Searching…",
+      "draftRestored": "Draft restored. Select the file again to retry an interrupted upload.",
+      "attaching": "Attaching media…",
+      "uploading": "Uploading and checking your media…",
+      "publishing": "Publishing when safety checks are complete…",
+      "draftSaved": "Your draft is saved. Fix the issue and try again.",
+      "previewAlt": "Selected media preview",
+      "uploadProgress": "Upload progress"
     },
     "notifications": {
       "kicker": "Network updates",
@@ -30426,6 +30456,11 @@
     "messages": {
       "kicker": "Private conversations",
       "description": "Keep local work moving with messages in one place."
+    },
+    "bookmarks": {
+      "title": "Saved posts",
+      "loadError": "Could not load saved posts.",
+      "empty": "Posts you save will appear here."
     },
     "reply": {
       "error": "Could not post reply.",

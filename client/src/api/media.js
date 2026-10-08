@@ -4,9 +4,14 @@ export const getFeed = (params = {}) => api.get('/media/feed', { params }).then(
 export const searchMedia = (params = {}) => api.get('/media/search', { params }).then(r => r.data);
 export const searchMediaEntities = (params = {}) => api.get('/media/entities', { params }).then(r => r.data);
 export const getPost = (id) => api.get(`/media/posts/${id}`).then(r => r.data);
+export const getDrafts = () => api.get('/media/posts/drafts').then(r => r.data);
+export const getBookmarks = () => api.get('/media/posts/bookmarks').then(r => r.data);
 export const getReplies = (id, sort = 'latest') => api.get(`/media/posts/${id}/replies`, { params: { sort } }).then(r => r.data);
 export const getQuotes = (id) => api.get(`/media/posts/${id}/quotes`).then(r => r.data);
 export const createPost = (data) => api.post('/media/posts', data).then(r => r.data);
+export const publishPost = (id) => api.post(`/media/posts/${id}/publish`).then(r => r.data);
+export const updatePost = (id, data) => api.patch(`/media/posts/${id}`, data).then(r => r.data);
+export const deletePost = (id) => api.delete(`/media/posts/${id}`).then(r => r.data);
 export const replacePostLinks = (id, links) => api.put(`/media/posts/${id}/links`, { links }).then(r => r.data);
 export const linkAsset = (postId, external_url) => api.post('/media/assets/link', { post_id: postId, external_url }).then(r => r.data);
 export const uploadPhoto = (postId, file, onUploadProgress) => {

@@ -5690,6 +5690,7 @@
       "orders": "Kòmand",
       "bookings": "Rezèvasyon",
       "messages": "Mesaj",
+      "saved": "Pòs anrejistre yo",
       "support": "Sipò"
     },
     "viewHistory": "Wè istwa",
@@ -30253,6 +30254,7 @@
       "spaces": "Espas",
       "notifications": "Notifikasyon",
       "messages": "Mesaj",
+      "saved": "Pòs anrejistre yo",
       "homepage": "Paj dakèy OxSteed",
       "account": "Kont",
       "close": "Fèmen",
@@ -30281,6 +30283,9 @@
       "noReplies": "Pa gen repons pou kounye a.",
       "verified": "Verifye",
       "views": "vi",
+      "reply": "Reponn",
+      "like": "Renmen",
+      "bookmark": "Anrejistre",
       "repost": "Repibliye",
       "share": "Pataje",
       "videoEmbed": "Videyo entegre",
@@ -30327,7 +30332,26 @@
       "cancelLinks": "Fèmen editè lyen an",
       "saveLinks": "Anrejistre eleman ki lye yo",
       "savingLinks": "Ap anrejistre…",
-      "linksError": "Nou pa t kapab mete eleman ki lye yo ajou."
+      "linksError": "Nou pa t kapab mete eleman ki lye yo ajou.",
+      "edit": "Modifye pòs la",
+      "cancelEdit": "Anile modifikasyon",
+      "delete": "Efase pòs la",
+      "deleteConfirm": "Efase pòs sa a?",
+      "deleteError": "Nou pa t kapab efase pòs sa a.",
+      "editError": "Nou pa t kapab mete pòs sa a ajou.",
+      "editLabel": "Tèks pòs la",
+      "saving": "Ap anrejistre…",
+      "save": "Anrejistre chanjman yo",
+      "report": "Rapòte pòs la",
+      "reportReason": "Poukisa w ap rapòte sa?",
+      "reportSpam": "Spam",
+      "reportHarassment": "Arasman",
+      "reportUnsafe": "Kontni ki pa an sekirite",
+      "reportCopyright": "Dwa otè",
+      "reporting": "Ap voye…",
+      "reportSubmit": "Rapòte",
+      "reportSent": "Rapò a voye. Mèsi.",
+      "reportError": "Nou pa t kapab voye rapò a."
     },
     "search": {
       "title": "Chèche nan Media",
@@ -30410,7 +30434,14 @@
       "pricePlaceholder": "Pri (si ou vle)",
       "priceInvalid": "Mete yon pri valab ki pa negatif.",
       "entitySearchHint": "Sijesyon antite",
-      "searchingEntities": "Ap chèche…"
+      "searchingEntities": "Ap chèche…",
+      "draftRestored": "Bouyon an retabli. Chwazi fichye a ankò pou eseye telechaje li.",
+      "attaching": "Ap ajoute medya…",
+      "uploading": "Ap telechaje epi verifye medya ou a…",
+      "publishing": "Ap pibliye lè kontwòl sekirite yo fini…",
+      "draftSaved": "Bouyon ou an anrejistre. Korije pwoblèm nan epi eseye ankò.",
+      "previewAlt": "Aperçu medya ou chwazi a",
+      "uploadProgress": "Pwogrè telechajman"
     },
     "notifications": {
       "kicker": "Mizajou rezo a",
@@ -30426,6 +30457,11 @@
     "messages": {
       "kicker": "Konvèsasyon prive",
       "description": "Kontinye travay lokal la ak mesaj ou yo nan yon sèl kote."
+    },
+    "bookmarks": {
+      "title": "Pòs anrejistre yo",
+      "loadError": "Nou pa t kapab chaje pòs anrejistre yo.",
+      "empty": "Pòs ou anrejistre yo ap parèt isit la."
     },
     "reply": {
       "error": "Nou pa t kapab pibliye repons lan.",

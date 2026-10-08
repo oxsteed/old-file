@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { ArrowUpRight, Bell, Briefcase, Home, Mail, MapPin, Plus, Search, ShieldCheck, Users, Utensils, UserRound } from 'lucide-react';
+import { ArrowUpRight, Bell, Bookmark, Briefcase, Home, Mail, MapPin, Plus, Search, ShieldCheck, Users, Utensils, UserRound } from 'lucide-react';
 import PageShell from '../../components/PageShell';
 import LanguageSelector from '../../components/LanguageSelector';
 import ThemeToggle from '../../components/ThemeToggle';
@@ -110,6 +110,7 @@ export default function MediaShell({ children }) {
               <Link className="media-primary-button media-rail-compose" to="/media/compose">
                 <Plus size={18} aria-hidden="true" />{t('media.feed.compose')}
               </Link>
+              {user && <Link className="media-saved-link" to="/media/bookmarks"><Bookmark size={17} aria-hidden="true" />{t('media.shell.saved', { defaultValue: 'Saved posts' })}</Link>}
             </div>
           </aside>
           <div className="media-content">{children}</div>

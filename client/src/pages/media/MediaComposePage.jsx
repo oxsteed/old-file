@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { createPost, getCommunities, linkAsset, searchMediaEntities, uploadPhoto, uploadVideo } from '../../api/media';
+import { createPost, getCommunities, getDrafts, linkAsset, publishPost, searchMediaEntities, uploadPhoto, uploadVideo } from '../../api/media';
 
 const LINK_TYPES = ['restaurant', 'food_item', 'helper', 'business', 'job'];
+const DRAFT_STORAGE_KEY = 'oxsteed.media.compose.draft';
 
 export default function MediaComposePage() {
   const { t } = useTranslation();
@@ -21,11 +22,45 @@ export default function MediaComposePage() {
   const [communities, setCommunities] = useState([]);
   const [communityId, setCommunityId] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [draftId, setDraftId] = useState(() => window.localStorage.getItem(DRAFT_STORAGE_KEY) || '');
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [attachedAsset, setAttachedAsset] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState('');
+  const [status, setStatus] = useState('');
   const [error, setError] = useState(null);
 
   useEffect(() => {
     getCommunities().then((data) => setCommunities(data.communities || [])).catch(() => {});
   }, []);
+
+  useEffect(() => {
+    const storedDraftId = window.localStorage.getItem(DRAFT_STORAGE_KEY);
+    if (!storedDraftId) return;
+    getDrafts().then((data) => {
+      const draft = (data.drafts || []).find((item) => item.id === storedDraftId);
+      if (!draft) {
+        window.localStorage.removeItem(DRAFT_STORAGE_KEY);
+        setDraftId('');
+        return;
+      }
+      setDraftId(draft.id);
+      setBody(draft.body || '');
+      setLinks(draft.links || []);
+      setCommunityId(draft.community_id || '');
+      setAttachedAsset((draft.assets || []).length > 0);
+      setStatus(t('media.compose.draftRestored', { defaultValue: 'Draft restored. Select the file again to retry an interrupted upload.' }));
+    }).catch(() => {});
+  }, [t]);
+
+  useEffect(() => {
+    if (!mediaFile) {
+      setPreviewUrl('');
+      return undefined;
+    }
+    const nextUrl = URL.createObjectURL(mediaFile);
+    setPreviewUrl(nextUrl);
+    return () => URL.revokeObjectURL(nextUrl);
+  }, [mediaFile]);
 
   useEffect(() => {
     let cancelled = false;
@@ -90,16 +125,41 @@ export default function MediaComposePage() {
     }
     setSubmitting(true);
     setError(null);
+    setStatus('');
+    setUploadProgress(0);
     try {
-      const data = await createPost({ body: body.trim(), links, community_id: communityId || undefined });
-      if (externalUrl.trim()) await linkAsset(data.post.id, externalUrl.trim());
-      if (mediaFile) {
-        if (mediaFile.type.startsWith('video/')) await uploadVideo(data.post.id, mediaFile);
-        else await uploadPhoto(data.post.id, mediaFile);
+      let postId = draftId;
+      if (!postId) {
+        const data = await createPost({ body: body.trim(), links, community_id: communityId || undefined, draft: true });
+        postId = data.post.id;
+        setDraftId(postId);
+        window.localStorage.setItem(DRAFT_STORAGE_KEY, postId);
       }
-      navigate(`/media/post/${data.post.id}`);
+      let hasAttachedAsset = attachedAsset;
+      if (externalUrl.trim() && !hasAttachedAsset) {
+        setStatus(t('media.compose.attaching', { defaultValue: 'Attaching media…' }));
+        await linkAsset(postId, externalUrl.trim());
+        hasAttachedAsset = true;
+        setAttachedAsset(true);
+      }
+      if (mediaFile && !hasAttachedAsset) {
+        setStatus(t('media.compose.uploading', { defaultValue: 'Uploading and checking your media…' }));
+        const onUploadProgress = (event) => {
+          if (event.total) setUploadProgress(Math.round((event.loaded / event.total) * 100));
+        };
+        if (mediaFile.type.startsWith('video/')) await uploadVideo(postId, mediaFile, onUploadProgress);
+        else await uploadPhoto(postId, mediaFile, onUploadProgress);
+        hasAttachedAsset = true;
+        setAttachedAsset(true);
+      }
+      setStatus(t('media.compose.publishing', { defaultValue: 'Publishing when safety checks are complete…' }));
+      const published = await publishPost(postId);
+      window.localStorage.removeItem(DRAFT_STORAGE_KEY);
+      setDraftId('');
+      navigate(`/media/post/${published.post.id}`);
     } catch (err) {
       setError(err.response?.data?.error || t('media.compose.createError'));
+      setStatus(t('media.compose.draftSaved', { defaultValue: 'Your draft is saved. Fix the issue and try again.' }));
     } finally {
       setSubmitting(false);
     }
@@ -130,7 +190,8 @@ export default function MediaComposePage() {
             </select>
             <input
               value={linkTarget}
-              onChange={e => setLinkTarget(e.target.value)}
+              readOnly
+              aria-label={t('media.compose.targetId')}
               placeholder={t('media.compose.targetId')}
             />
             <input
@@ -169,6 +230,9 @@ export default function MediaComposePage() {
             onChange={(e) => setMediaFile(e.target.files?.[0] || null)}
           />
           <small>{t('media.compose.uploadHint')}</small>
+          {previewUrl && mediaFile?.type.startsWith('video/') && <video className="media-compose-preview" src={previewUrl} controls muted />}
+          {previewUrl && mediaFile && !mediaFile.type.startsWith('video/') && <img className="media-compose-preview" src={previewUrl} alt={t('media.compose.previewAlt', { defaultValue: 'Selected media preview' })} />}
+          {uploadProgress > 0 && uploadProgress < 100 && <progress value={uploadProgress} max="100" aria-label={t('media.compose.uploadProgress', { defaultValue: 'Upload progress' })}>{uploadProgress}%</progress>}
         </label>
         <label className="media-compose-field">
           <span>{t('media.compose.spaceLabel')}</span>
@@ -182,7 +246,8 @@ export default function MediaComposePage() {
           <input value={externalUrl} onChange={(e) => setExternalUrl(e.target.value)} placeholder={t('media.compose.videoPlaceholder')} type="url" />
           <small>{t('media.compose.videoHint')}</small>
         </label>
-        {error && <p className="media-error">{error}</p>}
+        {status && <p className="media-status" role="status">{status}</p>}
+        {error && <p className="media-error" role="alert">{error}</p>}
         <button type="submit" disabled={submitting} className="media-post-btn">
           {submitting ? t('media.compose.posting') : t('media.compose.post')}
         </button>

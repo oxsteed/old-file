@@ -30253,6 +30253,7 @@
       "spaces": "Espacios",
       "notifications": "Notificaciones",
       "messages": "Mensajes",
+      "saved": "Publicaciones guardadas",
       "homepage": "Página de inicio de OxSteed",
       "account": "Cuenta",
       "close": "Cerrar",
@@ -30281,6 +30282,9 @@
       "noReplies": "Aún no hay respuestas.",
       "verified": "Verificado",
       "views": "vistas",
+      "reply": "Responder",
+      "like": "Me gusta",
+      "bookmark": "Guardar",
       "repost": "Republicar",
       "share": "Compartir",
       "videoEmbed": "Video insertado",
@@ -30327,7 +30331,26 @@
       "cancelLinks": "Cerrar editor de enlaces",
       "saveLinks": "Guardar elementos enlazados",
       "savingLinks": "Guardando…",
-      "linksError": "No se pudieron actualizar los elementos enlazados."
+      "linksError": "No se pudieron actualizar los elementos enlazados.",
+      "edit": "Editar publicación",
+      "cancelEdit": "Cancelar edición",
+      "delete": "Eliminar publicación",
+      "deleteConfirm": "¿Eliminar esta publicación?",
+      "deleteError": "No se pudo eliminar esta publicación.",
+      "editError": "No se pudo actualizar esta publicación.",
+      "editLabel": "Texto de la publicación",
+      "saving": "Guardando…",
+      "save": "Guardar cambios",
+      "report": "Denunciar publicación",
+      "reportReason": "¿Por qué denuncias esto?",
+      "reportSpam": "Spam",
+      "reportHarassment": "Acoso",
+      "reportUnsafe": "Contenido inseguro",
+      "reportCopyright": "Derechos de autor",
+      "reporting": "Enviando…",
+      "reportSubmit": "Denunciar",
+      "reportSent": "Denuncia enviada. Gracias.",
+      "reportError": "No se pudo enviar la denuncia."
     },
     "search": {
       "title": "Buscar en Media",
@@ -30410,7 +30433,14 @@
       "pricePlaceholder": "Precio (opcional)",
       "priceInvalid": "Introduce un precio válido no negativo.",
       "entitySearchHint": "Sugerencias de entidades",
-      "searchingEntities": "Buscando…"
+      "searchingEntities": "Buscando…",
+      "draftRestored": "Borrador restaurado. Selecciona el archivo otra vez para reintentar la carga.",
+      "attaching": "Adjuntando contenido…",
+      "uploading": "Cargando y revisando tu contenido…",
+      "publishing": "Se publicará cuando terminen las comprobaciones de seguridad…",
+      "draftSaved": "Tu borrador está guardado. Corrige el problema e inténtalo de nuevo.",
+      "previewAlt": "Vista previa del contenido seleccionado",
+      "uploadProgress": "Progreso de carga"
     },
     "notifications": {
       "kicker": "Actualizaciones de la red",
@@ -30426,6 +30456,11 @@
     "messages": {
       "kicker": "Conversaciones privadas",
       "description": "Mantén el trabajo local en marcha con tus mensajes en un solo lugar."
+    },
+    "bookmarks": {
+      "title": "Publicaciones guardadas",
+      "loadError": "No se pudieron cargar las publicaciones guardadas.",
+      "empty": "Las publicaciones que guardes aparecerán aquí."
     },
     "reply": {
       "error": "No se pudo publicar la respuesta.",

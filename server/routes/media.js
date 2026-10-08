@@ -21,6 +21,8 @@ const mediaUploadLimiter = rateLimit({
 // two-way blocks must apply on public reads too.
 router.use(optionalAuth);
 router.get('/feed', ctrl.getFeed);
+router.get('/posts/drafts', requireAuth, ctrl.getDrafts);
+router.get('/posts/bookmarks', requireAuth, ctrl.getBookmarks);
 router.get('/search', ctrl.searchMedia);
 router.get('/entities', ctrl.searchMediaEntities);
 router.get('/communities', ctrl.getCommunities);
@@ -35,6 +37,9 @@ router.get('/actors/:handle', ctrl.getActor);
 
 // Authenticated actions.
 router.post('/posts', requireAuth, ctrl.createPost);
+router.post('/posts/:id/publish', requireAuth, ctrl.publishPost);
+router.patch('/posts/:id', requireAuth, ctrl.updatePost);
+router.delete('/posts/:id', requireAuth, ctrl.deletePost);
 router.put('/posts/:id/links', requireAuth, ctrl.replacePostLinks);
 router.post('/posts/:id/like', requireAuth, ctrl.toggleLike);
 router.post('/posts/:id/bookmark', requireAuth, ctrl.toggleBookmark);

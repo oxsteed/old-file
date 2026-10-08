@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { toggleLike, toggleBookmark, toggleRepost } from '../../api/media';
+import { flagPost, toggleLike, toggleBookmark, toggleRepost } from '../../api/media';
 
 function VerifiedBadge({ kind, label }) {
   if (!kind || kind === 'none') return null;
@@ -63,6 +63,9 @@ export default function MediaPostCard({ post, onUpdate }) {
   const [likeCount, setLikeCount] = useState(post.like_count);
   const [bookmarkCount, setBookmarkCount] = useState(post.bookmark_count);
   const [repostCount, setRepostCount] = useState(post.repost_count);
+  const [reportReason, setReportReason] = useState('spam');
+  const [reporting, setReporting] = useState(false);
+  const [reportMessage, setReportMessage] = useState('');
 
   const handleLike = async (e) => {
     e.preventDefault();
@@ -104,6 +107,20 @@ export default function MediaPostCard({ post, onUpdate }) {
         await navigator.clipboard.writeText(url);
       }
     } catch { /* sharing can be cancelled by the user */ }
+  };
+
+  const handleReport = async () => {
+    if (!user) return navigate('/login', { state: { from: window.location.pathname } });
+    setReporting(true);
+    setReportMessage('');
+    try {
+      await flagPost(post.id, { reason: reportReason });
+      setReportMessage(t('media.post.reportSent', { defaultValue: 'Report sent. Thank you.' }));
+    } catch (err) {
+      setReportMessage(err.response?.data?.error || t('media.post.reportError', { defaultValue: 'Could not send report.' }));
+    } finally {
+      setReporting(false);
+    }
   };
 
   return (
@@ -203,21 +220,35 @@ export default function MediaPostCard({ post, onUpdate }) {
           </div>
         )}
         <div className="media-action-row">
-          <Link to={`/media/post/${post.id}`} className="media-action">
+          <Link to={`/media/post/${post.id}`} className="media-action" aria-label={t('media.post.reply', { defaultValue: 'Reply' })}>
             💬 {formatCount(post.reply_count)}
           </Link>
           <button onClick={handleRepost} className={`media-action ${reposted ? 'active' : ''}`} aria-label={t('media.post.repost')}>
             🔁 {formatCount(repostCount)}
           </button>
-          <button onClick={handleLike} className={`media-action ${liked ? 'active' : ''}`}>
+          <button onClick={handleLike} className={`media-action ${liked ? 'active' : ''}`} aria-label={t('media.post.like', { defaultValue: 'Like' })}>
             {liked ? '❤️' : '🤍'} {formatCount(likeCount)}
           </button>
-          <button onClick={handleBookmark} className={`media-action ${bookmarked ? 'active' : ''}`}>
+          <button onClick={handleBookmark} className={`media-action ${bookmarked ? 'active' : ''}`} aria-label={t('media.post.bookmark', { defaultValue: 'Bookmark' })}>
             {bookmarked ? '🔖' : '📑'} {formatCount(bookmarkCount)}
           </button>
           <button onClick={handleShare} className="media-action" aria-label={t('media.post.share')}>
             ↗️ {t('media.post.share')}
           </button>
+          <details className="media-report-menu">
+            <summary className="media-action" aria-label={t('media.post.report', { defaultValue: 'Report post' })}>•••</summary>
+            <div className="media-report-panel">
+              <label htmlFor={`media-report-${post.id}`}>{t('media.post.reportReason', { defaultValue: 'Why are you reporting this?' })}</label>
+              <select id={`media-report-${post.id}`} value={reportReason} onChange={(event) => setReportReason(event.target.value)}>
+                <option value="spam">{t('media.post.reportSpam', { defaultValue: 'Spam' })}</option>
+                <option value="harassment">{t('media.post.reportHarassment', { defaultValue: 'Harassment' })}</option>
+                <option value="unsafe">{t('media.post.reportUnsafe', { defaultValue: 'Unsafe content' })}</option>
+                <option value="copyright">{t('media.post.reportCopyright', { defaultValue: 'Copyright' })}</option>
+              </select>
+              <button type="button" onClick={handleReport} disabled={reporting}>{reporting ? t('media.post.reporting', { defaultValue: 'Sending…' }) : t('media.post.reportSubmit', { defaultValue: 'Report' })}</button>
+              {reportMessage && <span role="status">{reportMessage}</span>}
+            </div>
+          </details>
         </div>
       </div>
     </article>

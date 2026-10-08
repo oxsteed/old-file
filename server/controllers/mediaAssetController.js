@@ -246,6 +246,14 @@ async function linkAsset(req, res) {
     else if (vimeo) { provider = 'vimeo'; videoId = vimeo[1]; }
     else return res.status(400).json({ error: 'Only YouTube/Vimeo links supported' });
 
+    const { rows: existing } = await pool.query(
+      `SELECT * FROM media_post_assets
+        WHERE post_id = $1 AND provider = $2 AND external_url = $3
+        LIMIT 1`,
+      [post_id, provider, external_url]
+    );
+    if (existing[0]) return res.status(200).json({ asset: existing[0], existing: true });
+
     const { rows } = await pool.query(
       `INSERT INTO media_post_assets
          (post_id, asset_type, provider, external_url, external_video_id)

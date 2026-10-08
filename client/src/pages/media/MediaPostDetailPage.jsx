@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../context/AuthContext';
-import { createPost, getPost, getQuotes, getReplies, recordView, replacePostLinks } from '../../api/media';
+import { createPost, deletePost, getPost, getQuotes, getReplies, recordView, replacePostLinks, searchMediaEntities, updatePost } from '../../api/media';
 import './MediaStyles.css';
 import MediaPostCard from './MediaPostCard';
 import MediaReplyComposer from './MediaReplyComposer';
@@ -27,6 +27,11 @@ export default function MediaPostDetailPage() {
   const [linkTarget, setLinkTarget] = useState('');
   const [linkName, setLinkName] = useState('');
   const [savingLinks, setSavingLinks] = useState(false);
+  const [editingBody, setEditingBody] = useState(false);
+  const [bodyDraft, setBodyDraft] = useState('');
+  const [savingBody, setSavingBody] = useState(false);
+  const [entitySuggestions, setEntitySuggestions] = useState([]);
+  const [searchingEntities, setSearchingEntities] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -37,6 +42,7 @@ export default function MediaPostDetailPage() {
         getReplies(id),
       ]);
       setPost(postData.post);
+      setBodyDraft(postData.post.body || '');
       setDraftLinks(postData.post.links || []);
       setReplies(repliesData.replies);
       recordView(id).catch(() => {});
@@ -48,6 +54,23 @@ export default function MediaPostDetailPage() {
   }, [id, t]);
 
   useEffect(() => { load(); }, [load]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const query = linkName.trim();
+    if (!editingLinks || !query) {
+      setEntitySuggestions([]);
+      return undefined;
+    }
+    const timer = setTimeout(() => {
+      setSearchingEntities(true);
+      searchMediaEntities({ type: linkType, q: query })
+        .then((data) => { if (!cancelled) setEntitySuggestions(data.entities || []); })
+        .catch(() => { if (!cancelled) setEntitySuggestions([]); })
+        .finally(() => { if (!cancelled) setSearchingEntities(false); });
+    }, 220);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [editingLinks, linkName, linkType]);
 
   const handleNewReply = (reply) => {
     setReplies(r => [reply, ...r]);
@@ -93,6 +116,13 @@ export default function MediaPostDetailPage() {
     }]);
     setLinkTarget('');
     setLinkName('');
+    setEntitySuggestions([]);
+  };
+
+  const chooseEntity = (entity) => {
+    setLinkTarget(entity.target_id);
+    setLinkName(entity.name);
+    setEntitySuggestions([]);
   };
 
   const saveLinks = async () => {
@@ -115,11 +145,36 @@ export default function MediaPostDetailPage() {
     }
   };
 
+  const saveBody = async (event) => {
+    event.preventDefault();
+    setSavingBody(true);
+    try {
+      const data = await updatePost(id, { body: bodyDraft });
+      setPost(data.post);
+      setEditingBody(false);
+    } catch (err) {
+      setError(err.response?.data?.error || t('media.post.editError', { defaultValue: 'Could not update this post.' }));
+    } finally {
+      setSavingBody(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!window.confirm(t('media.post.deleteConfirm', { defaultValue: 'Delete this post?' }))) return;
+    try {
+      await deletePost(id);
+      navigate('/media');
+    } catch (err) {
+      setError(err.response?.data?.error || t('media.post.deleteError', { defaultValue: 'Could not delete this post.' }));
+    }
+  };
+
   return (
       <div className="media-post-detail">
         <PageMeta
           title={post?.body ? `${post.display_name}: ${post.body.slice(0, 70)}` : t('media.post.metaTitle')}
           description={post?.body || t('media.post.metaDescription')}
+          image={post?.assets?.find((asset) => asset.thumbnail_url || asset.url)?.thumbnail_url || post?.assets?.find((asset) => asset.url)?.url}
           type="article"
         />
         {loading && (
@@ -144,7 +199,25 @@ export default function MediaPostDetailPage() {
           <>
             <MediaPostCard post={post} />
             {user?.id && String(post.owner_user_id) === String(user.id) && (
-              <section className="media-links-editor">
+              <section className="media-owner-controls">
+                <div className="media-owner-actions">
+                  <button type="button" className="media-text-button" onClick={() => setEditingBody((value) => !value)}>
+                    {editingBody ? t('media.post.cancelEdit', { defaultValue: 'Cancel edit' }) : t('media.post.edit', { defaultValue: 'Edit post' })}
+                  </button>
+                  <button type="button" className="media-text-button media-danger-button" onClick={handleDelete}>
+                    {t('media.post.delete', { defaultValue: 'Delete post' })}
+                  </button>
+                </div>
+                {editingBody && (
+                  <form className="media-links-editor-panel" onSubmit={saveBody}>
+                    <label htmlFor="media-edit-body">{t('media.post.editLabel', { defaultValue: 'Post text' })}</label>
+                    <textarea id="media-edit-body" value={bodyDraft} onChange={(event) => setBodyDraft(event.target.value)} maxLength={2000} rows={4} />
+                    <button type="submit" className="media-primary-button" disabled={savingBody || !bodyDraft.trim()}>
+                      {savingBody ? t('media.post.saving', { defaultValue: 'Saving…' }) : t('media.post.save', { defaultValue: 'Save changes' })}
+                    </button>
+                  </form>
+                )}
+                <div className="media-links-editor">
                 <button type="button" className="media-text-button" onClick={() => setEditingLinks((value) => !value)}>
                   {editingLinks ? t('media.post.cancelLinks') : t('media.post.editLinks')}
                 </button>
@@ -162,15 +235,27 @@ export default function MediaPostDetailPage() {
                       <select value={linkType} onChange={(event) => setLinkType(event.target.value)}>
                         {['restaurant', 'food_item', 'helper', 'business', 'job'].map((type) => <option key={type} value={type}>{t(`media.compose.linkTypes.${type}`, { defaultValue: type })}</option>)}
                       </select>
-                      <input value={linkTarget} onChange={(event) => setLinkTarget(event.target.value)} placeholder={t('media.compose.targetId')} />
                       <input value={linkName} onChange={(event) => setLinkName(event.target.value)} placeholder={t('media.compose.entitySearchPlaceholder')} />
+                      <input value={linkTarget} readOnly aria-label={t('media.compose.targetId')} placeholder={t('media.compose.targetId')} />
                       <button type="submit" disabled={draftLinks.length >= 5}>{t('media.compose.addLink')}</button>
                     </form>
+                    {(searchingEntities || entitySuggestions.length > 0) && (
+                      <div className="media-entity-suggestions" role="listbox" aria-label={t('media.compose.entitySearchHint')}>
+                        {searchingEntities && <span className="media-entity-suggestion-status">{t('media.compose.searchingEntities')}</span>}
+                        {entitySuggestions.map((entity) => (
+                          <button type="button" key={entity.target_id} className="media-entity-suggestion" onClick={() => chooseEntity(entity)}>
+                            <span>{entity.name}</span>
+                            {entity.price_snapshot_cents != null && <small>${(Number(entity.price_snapshot_cents) / 100).toFixed(2)}</small>}
+                          </button>
+                        ))}
+                      </div>
+                    )}
                     <button type="button" className="media-primary-button" onClick={saveLinks} disabled={savingLinks}>
                       {savingLinks ? t('media.post.savingLinks') : t('media.post.saveLinks')}
                     </button>
                   </div>
                 )}
+                </div>
               </section>
             )}
             <button type="button" className="media-view-quotes" onClick={loadQuotes}>
