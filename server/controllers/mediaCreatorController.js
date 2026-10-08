@@ -66,6 +66,8 @@ async function listGigs(req, res, next) {
 async function createGig(req, res, next) {
   const client = await pool.connect();
   try {
+    const idempotencyKey = text(req.get('Idempotency-Key') || req.body?.idempotencyKey, 160, 'Idempotency-Key');
+    await client.query('BEGIN');
     const actor = await verifiedActor(client, req.user.id, req.body?.ownerActorId || null);
     if (!actor) throw new AppError('A current verified Media business or restaurant actor is required.', 403, 'media_creator_unverified');
     const title = text(req.body?.title, 160, 'Title');
@@ -73,7 +75,24 @@ async function createGig(req, res, next) {
     const budget = asPositiveInt(req.body?.budgetCents);
     const maxApplications = Math.min(Math.max(Number(req.body?.maxApplications) || 25, 1), 100);
     const linkedPostId = req.body?.linkedPostId || null;
-    await client.query('BEGIN');
+    const { rows: existingRows } = await client.query(
+      `SELECT * FROM media_creator_gigs
+        WHERE owner_user_id = $1 AND idempotency_key = $2
+        FOR UPDATE`, [req.user.id, idempotencyKey]
+    );
+    if (existingRows[0]) {
+      const existing = existingRows[0];
+      if (String(existing.owner_actor_id) !== String(actor.id)
+        || String(existing.title) !== title
+        || String(existing.brief) !== brief
+        || Number(existing.budget_cents) !== budget
+        || Number(existing.max_applications) !== maxApplications
+        || String(existing.linked_post_id || '') !== String(linkedPostId || '')) {
+        throw new AppError('Gig idempotency key was already used for different details.', 409, 'media_creator_idempotency_conflict');
+      }
+      await client.query('COMMIT');
+      return res.status(200).json({ gig: existing, replayed: true });
+    }
     if (linkedPostId) {
       const { rows } = await client.query(
         `SELECT id FROM media_posts WHERE id = $1 AND actor_id = $2 AND visibility = 'public' AND processing_status = 'ready'`,
@@ -83,9 +102,9 @@ async function createGig(req, res, next) {
     }
     const { rows } = await client.query(
       `INSERT INTO media_creator_gigs
-         (owner_user_id, owner_actor_id, linked_post_id, title, brief, budget_cents, max_applications)
-       VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
-      [req.user.id, actor.id, linkedPostId, title, brief, budget, maxApplications]
+         (owner_user_id, owner_actor_id, linked_post_id, title, brief, budget_cents, max_applications, idempotency_key)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
+      [req.user.id, actor.id, linkedPostId, title, brief, budget, maxApplications, idempotencyKey]
     );
     await client.query('COMMIT');
     res.status(201).json({ gig: rows[0] });

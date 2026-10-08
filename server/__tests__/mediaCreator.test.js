@@ -59,6 +59,28 @@ test('replays an identical submitted gig application without resetting its lifec
   expect(client.release).toHaveBeenCalled();
 });
 
+test('replays an identical gig creation instead of duplicating the opportunity', async () => {
+  const pool = require('../db');
+  const client = { query: mockQuery, release: jest.fn() };
+  pool.connect.mockResolvedValueOnce(client);
+  mockQuery.mockImplementation(async (sql) => {
+    const query = String(sql);
+    if (query === 'BEGIN' || query === 'COMMIT') return { rows: [] };
+    if (query.includes('FROM media_actors a')) return { rows: [{ id: 'actor-1', owner_user_id: 'owner-1' }] };
+    if (query.includes('FROM media_creator_gigs')) return { rows: [{ id: 'gig-1', owner_user_id: 'owner-1', owner_actor_id: 'actor-1', title: 'Local launch', brief: 'Launch support', budget_cents: 900, max_applications: 25, linked_post_id: null, idempotency_key: 'gig-key-1', status: 'open' }] };
+    return { rows: [] };
+  });
+  const res = resMock();
+  await creator.createGig({
+    user: { id: 'owner-1' },
+    body: { title: 'Local launch', brief: 'Launch support', budgetCents: 900, idempotencyKey: 'gig-key-1' },
+    get: (header) => header === 'Idempotency-Key' ? 'gig-key-1' : null,
+  }, res, jest.fn());
+  expect(res.status).toHaveBeenCalledWith(200);
+  expect(res.json).toHaveBeenCalledWith({ gig: expect.objectContaining({ id: 'gig-1', status: 'open' }), replayed: true });
+  expect(client.release).toHaveBeenCalled();
+});
+
 test('only lets a currently verified creator accept a sponsorship and reserve its funds', async () => {
   const pool = require('../db');
   const client = { query: mockQuery, release: jest.fn() };

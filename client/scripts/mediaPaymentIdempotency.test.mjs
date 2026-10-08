@@ -7,8 +7,14 @@ const creator = fs.readFileSync(new URL('../src/pages/media/MediaCreatorPage.jsx
 const card = fs.readFileSync(new URL('../src/pages/media/MediaPostCard.jsx', import.meta.url), 'utf8');
 
 test('creator payment APIs move idempotency keys to request headers', () => {
+  assert.match(api, /createCreatorGig[\s\S]*headers: idempotencyKey \? \{ 'Idempotency-Key': idempotencyKey \}/);
   assert.match(api, /createCreatorTip[\s\S]*headers: idempotencyKey \? \{ 'Idempotency-Key': idempotencyKey \}/);
   assert.match(api, /createCreatorBoost[\s\S]*headers: idempotencyKey \? \{ 'Idempotency-Key': idempotencyKey \}/);
+});
+
+test('gig creation keeps one key across a retryable submit', () => {
+  assert.match(creator, /idempotencyKey: gigIdempotencyKey/);
+  assert.match(creator, /setGigIdempotencyKey\(`media-gig-\$\{Date\.now\(\)\}/);
 });
 
 test('tip and sponsorship retries reuse the key created when support opens', () => {

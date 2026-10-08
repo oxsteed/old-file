@@ -45,7 +45,12 @@ export const toggleFollow = (actorId) => api.post(`/media/actors/${actorId}/foll
 export const getMediaVerification = () => api.get('/media/verification').then(r => r.data);
 export const submitMediaVerification = (data) => api.post('/media/verification/requests', data).then(r => r.data);
 export const getCreatorGigs = (params = {}) => api.get('/media/creator/gigs', { params }).then(r => r.data);
-export const createCreatorGig = (data) => api.post('/media/creator/gigs', data).then(r => r.data);
+export const createCreatorGig = (data) => {
+  const { idempotencyKey, ...payload } = data || {};
+  return api.post('/media/creator/gigs', payload, {
+    headers: idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : undefined,
+  }).then(r => r.data);
+};
 export const applyToCreatorGig = (gigId, data) => api.post(`/media/creator/gigs/${gigId}/applications`, data).then(r => r.data);
 export const getCreatorApplications = (gigId) => api.get(`/media/creator/gigs/${gigId}/applications`).then(r => r.data);
 export const getMyCreatorApplications = () => api.get('/media/creator/applications').then(r => r.data);

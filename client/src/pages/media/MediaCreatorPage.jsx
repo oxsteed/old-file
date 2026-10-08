@@ -23,6 +23,7 @@ export default function MediaCreatorPage() {
   const [gigTitle, setGigTitle] = useState('');
   const [gigBrief, setGigBrief] = useState('');
   const [gigBudget, setGigBudget] = useState('');
+  const [gigIdempotencyKey, setGigIdempotencyKey] = useState('');
   const [supportTarget, setSupportTarget] = useState(null);
   const [supportMode, setSupportMode] = useState('tip');
   const [supportAmount, setSupportAmount] = useState('');
@@ -68,7 +69,7 @@ export default function MediaCreatorPage() {
     setSubmitting(true);
     setError('');
     try {
-      await createCreatorGig({ title: gigTitle, brief: gigBrief, budgetCents: Number(gigBudget) });
+      await createCreatorGig({ title: gigTitle, brief: gigBrief, budgetCents: Number(gigBudget), idempotencyKey: gigIdempotencyKey });
       setCreateOpen(false); setGigTitle(''); setGigBrief(''); setGigBudget(''); load();
     } catch (err) { setError(err.response?.data?.error || t('media.creator.loadError')); }
     finally { setSubmitting(false); }
@@ -224,7 +225,7 @@ export default function MediaCreatorPage() {
           <h1>{t('media.creator.title')}</h1>
           <p>{t('media.creator.subtitle')}</p>
         </div>
-        {user && <button type="button" className="media-primary-button" onClick={() => setCreateOpen(true)}>{t('media.creator.createGig')}</button>}
+        {user && <button type="button" className="media-primary-button" onClick={() => { setGigIdempotencyKey(`media-gig-${Date.now()}-${Math.random().toString(16).slice(2)}`); setCreateOpen(true); }}>{t('media.creator.createGig')}</button>}
       </header>
       {error && <div className="media-error" role="alert"><p>{error}</p><button type="button" onClick={load}>{t('media.feed.refresh')}</button></div>}
       {actionMessage && <p className="media-status" role="status">{actionMessage}</p>}
