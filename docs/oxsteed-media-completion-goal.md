@@ -52,3 +52,10 @@ Second repair batch local verification: 25 focused Media tests and 7 prerender/m
 Live shell checks after the push: `/health` and `/ready` returned 200; `/media`, `/media/messages`, `/media/notifications`, `/media/communities`, `/media/bookmarks`, and `/media/compose` returned 200. The live readiness payload reported all migrations applied and workers ready. Authenticated storage, upload-worker, moderation, and owner-authorization journeys still need production credentials and a real test account; those are not claimed from anonymous checks. Do not enable public uploaded video until the production CSAM vendor prerequisite is independently certified.
 
 Third repair batch local verification: 30 focused Media tests passed, including verified reply notification delivery, oversized-upload error mapping, Didit gating, revoked-verification publication denial, and quarantined-draft recovery. Client typecheck, production build, locale parity, server syntax checks, and `git diff --check` passed. The batch is ready for CI and deployment verification.
+
+Post-push live asset check: the deployed Media compose chunk contains the
+localized processing-status copy, durable processing-status data attribute, and
+draft recovery path; the deployed post-card chunk contains `playsInline` and
+`muted` video behavior. The production release metadata still omits a Git SHA,
+so this confirms the deployed behavior but does not prove an exact commit
+identity. Authenticated upload and owner flows remain unverified live.
