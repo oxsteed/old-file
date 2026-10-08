@@ -4,6 +4,7 @@
 
 const pool = require('../db');
 const logger = require('../utils/logger');
+const auditService = require('../services/auditService');
 
 async function listFlags(req, res) {
   try {
@@ -79,7 +80,16 @@ async function reviewFlag(req, res) {
       );
     }
 
-    // TODO: logAdminAction
+    await auditService.logAdminAction({
+      adminId: req.user.id,
+      action: `media_flag_${newStatus}`,
+      targetType: 'media_post',
+      targetId: flag.post_id,
+      description: `Media flag reviewed as ${newStatus}.`,
+      before: { flag_status: flag.status },
+      after: { flag_status: newStatus },
+      req,
+    });
     res.json({ ok: true, status: newStatus });
   } catch (err) {
     logger.error('mediaAdmin.reviewFlag error', { message: err.message });
@@ -94,7 +104,7 @@ async function approvePost(req, res) {
   try {
     await client.query('BEGIN');
     const { rows } = await client.query(
-      `SELECT id, processing_status, csam_status FROM media_posts
+      `SELECT id, visibility, processing_status, csam_status FROM media_posts
         WHERE id = $1 AND deleted_at IS NULL FOR UPDATE`, [req.params.id]
     );
     if (!rows[0]) {
@@ -107,6 +117,17 @@ async function approvePost(req, res) {
               admin_override_by = $2, admin_override_at = NOW(), admin_override_reason = $3
         WHERE id = $1`, [req.params.id, req.user.id, reason]
     );
+    await auditService.logAdminAction({
+      adminId: req.user.id,
+      action: 'media_post_admin_approved',
+      targetType: 'media_post',
+      targetId: req.params.id,
+      description: 'Administrator approved a quarantined OxSteed Media post for publication.',
+      before: rows[0],
+      after: { visibility: 'public', processing_status: 'ready', csam_status: 'passed', reason },
+      client,
+      throwOnError: true,
+    });
     await client.query(
       `UPDATE media_post_assets
           SET processing_status = 'ready', csam_status = CASE WHEN asset_type = 'video' THEN 'passed' ELSE csam_status END

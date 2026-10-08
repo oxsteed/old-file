@@ -129,7 +129,10 @@ export default function MediaPostDetailPage() {
             </form>
             <MediaReplyComposer parentId={id} onReply={handleNewReply} />
             <div className="media-replies-section">
-              <h2>{t('media.post.replies')} ({post.reply_count})</h2>
+              <div className="media-replies-heading">
+                <h2>{t('media.post.replies')} ({post.reply_count})</h2>
+                <span className="media-latest-sort">{t('media.post.latest')}</span>
+              </div>
               {replies.map(reply => (
                 <MediaPostCard key={reply.id} post={reply} />
               ))}

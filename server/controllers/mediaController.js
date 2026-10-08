@@ -181,8 +181,8 @@ const LINK_URL_BUILDERS = {
     const [restId, itemId] = String(id).split(':');
     return `/restaurants/r/${restId}?dish=${itemId}`;
   },
-  helper: (id) => `/helpers/${id}`,
-  business: (id) => `/b/${id}`,
+  helper: (id) => `/helpers/${encodeURIComponent(String(id))}`,
+  business: (id) => /^\d+$/.test(String(id)) ? `/businesses/public/${id}` : `/b/${encodeURIComponent(String(id))}`,
   job: (id) => `/jobs/public/${id}`,
   tool_rental: (id) => `/tool-rentals/${id}`,
   direct_catalog: (id) => `/direct/skills?item=${id}`,
@@ -312,6 +312,7 @@ async function getFeed(req, res) {
     const limit = Math.min(parseInt(req.query.limit, 10) || 20, 50);
     const before = req.query.before || null;
     const viewerUserId = req.user?.id || null;
+    let localityBoost = '0';
 
     let orderBy = 'p.created_at DESC';
     const params = [limit];
@@ -326,23 +327,29 @@ async function getFeed(req, res) {
     }
     if (viewerUserId) {
       params.push(viewerUserId);
+      const viewerParam = params.length;
       where += ` AND NOT EXISTS (
         SELECT 1 FROM user_blocks ub
-         WHERE (ub.blocker_id = $${params.length} AND ub.blocked_id = a.owner_user_id)
-            OR (ub.blocker_id = a.owner_user_id AND ub.blocked_id = $${params.length})
+         WHERE (ub.blocker_id = $${viewerParam} AND ub.blocked_id = a.owner_user_id)
+            OR (ub.blocker_id = a.owner_user_id AND ub.blocked_id = $${viewerParam})
       )`;
+      localityBoost = `CASE WHEN p.community_id IS NOT NULL AND EXISTS (
+        SELECT 1 FROM media_community_members cm
+         WHERE cm.community_id = p.community_id AND cm.user_id = $${viewerParam}
+      ) THEN 1 ELSE 0 END`;
     }
 
     // Deep-link boost: posts with valid local entity links rank higher.
     const { rows } = await pool.query(
       `SELECT p.*, a.handle, a.display_name, a.avatar_url, a.verified_kind, a.actor_type,
-              ${VALID_LINK_COUNT_SQL} AS link_count
+              ${VALID_LINK_COUNT_SQL} AS link_count,
+              ${localityBoost} AS locality_boost
          FROM media_posts p
          JOIN media_actors a ON a.id = p.actor_id
          LEFT JOIN media_post_links l ON l.post_id = p.id
         WHERE ${where}
         GROUP BY p.id, a.handle, a.display_name, a.avatar_url, a.verified_kind, a.actor_type
-        ORDER BY link_count DESC, ${orderBy}
+        ORDER BY link_count DESC, locality_boost DESC, ${orderBy}
         LIMIT $1`,
       params
     );

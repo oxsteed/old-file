@@ -299,6 +299,9 @@ div.media-support-panel { z-index: 150; }
   font-size: 18px;
   margin-bottom: 12px;
 }
+.media-replies-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.media-replies-heading h2 { margin: 0; }
+.media-latest-sort { color: var(--color-primary); font-size: 12px; font-weight: 700; }
 
 .media-reply-sort {
   display: flex;
