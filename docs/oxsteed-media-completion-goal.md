@@ -71,6 +71,6 @@ were healthy. The ranked link predicate referenced `jobs.deleted_at`, which is
 not part of the current jobs schema; removing that invalid column reference
 restores a schema-compatible job-link check. The regression test asserts the
 feed SQL cannot reintroduce that reference. A read-only chronological fallback
-now catches undefined optional link-schema objects during rolling deployment,
-preserving visibility and block filters while logging the schema error. The
-focused Media set is now 32 tests passing locally.
+now catches ranked-query read failures during rolling deployment, preserving
+visibility and block filters while logging the primary error. The focused
+Media set is now 32 tests passing locally.
