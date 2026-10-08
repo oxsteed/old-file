@@ -64,3 +64,10 @@ Feed ranking coverage: `mediaFeedRanking.test.js` now exercises the ranked
 link/locality ordering, two-way block predicate, and opaque cursor parameters
 across a second page. The focused Media set is 31 tests passing locally; this
 test still needs the next CI run for remote confirmation.
+
+Live feed diagnosis and repair: an anonymous request to
+`/api/media/feed?limit=1` returned HTTP 500 while the other Media shell routes
+were healthy. The ranked link predicate referenced `jobs.deleted_at`, which is
+not part of the current jobs schema; removing that invalid column reference
+restores a schema-compatible job-link check. The regression test asserts the
+feed SQL cannot reintroduce that reference.

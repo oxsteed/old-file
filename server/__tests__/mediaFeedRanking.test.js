@@ -50,6 +50,7 @@ describe('Media ranked feed journey', () => {
     expect(firstSql).toContain('NOT EXISTS (');
     expect(firstSql).toContain('user_blocks');
     expect(firstSql).toContain('geo_scope');
+    expect(firstSql).not.toContain('j.deleted_at');
     expect(firstSql).toContain('ORDER BY link_count DESC, locality_boost DESC, p.created_at DESC, p.id DESC');
 
     pool.query.mockClear();

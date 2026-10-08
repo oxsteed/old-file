@@ -35,7 +35,7 @@ const VALID_LINK_COUNT_SQL = `COUNT(l.id) FILTER (WHERE
     )) OR
     (l.link_type = 'job' AND EXISTS (
       SELECT 1 FROM jobs j
-       WHERE j.id::text = l.target_id AND j.deleted_at IS NULL AND j.status IN ('open', 'published')
+       WHERE j.id::text = l.target_id AND j.status IN ('open', 'published')
     ))
   )`;
 
