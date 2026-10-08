@@ -39,8 +39,8 @@ describe('OxSteed Media follows', () => {
   test('scopes the mine feed to the signed-in owner', async () => {
     pool.query.mockResolvedValueOnce({ rows: [] });
     const res = resMock();
-    await media.getFeed({ query: { tab: 'mine', limit: '5' }, user: { id: 'viewer-1' } }, res);
-    expect(pool.query.mock.calls[0][0]).toMatch(/a\.owner_user_id = \$2/);
+    await media.getFeed({ query: { tab: 'mine', limit: '5', location_mode: 'all' }, user: { id: 'viewer-1' } }, res);
+    expect(pool.query.mock.calls[0][0]).toMatch(/a\.owner_user_id = \$3/);
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ posts: [], tab: 'mine' }));
   });
 

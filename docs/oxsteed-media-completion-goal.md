@@ -45,10 +45,10 @@ verified live for the new candidate. A historical test count is not proof.
 | Navbar/account/footer/legal navigation | Implemented in current source. | Signed-in/out, cookies, keyboard and Arabic proof outstanding. | Include navigation and legal dialogs in browser matrix. |
 | Accessibility and five languages | Incomplete: existing catalogs and labels, but full error/keyboard/RTL audit outstanding. | Build/parity and Arabic/mobile matrix required for candidate. | Run build, localization parity, keyboard and RTL checks per batch. |
 | Image-rich share previews | Implemented in prior prerender source. | Current safe assets/localized real share previews outstanding. | Verify guest-safe image metadata in every language after build. |
-| Nearby coordinates and city/state fallback | Incomplete: existing ranking only considers Space membership/location. | Actual entity locality cases missing. | Implement entity coordinates with explicit city/state fallback and synthetic nearby/far cases. |
-| Guest and device location choices | Incomplete. | No explicit location flow yet. | Add saved guest choice and user-triggered device request; never request automatically. |
-| Versioned context-bound feed cursor | Incomplete: ranked subquery replaces invalid alias HAVING; cursor retains microseconds and never silently changes ranking after a page. Version/location binding still outstanding. | Real complete-pagination proof missing. | Use ranked subquery, bind tab/location/ranking version and test stable pagination. |
-| Stale tab responses and duplicates | Incomplete: current client appends without request-generation guard/deduplication. | Browser tab-switch race missing. | Guard stale requests and deduplicate page append; test out-of-order responses. |
+| Nearby coordinates and city/state fallback | Behavior-tested locally: entity coordinates from helpers, businesses, restaurants, jobs and linked targets rank nearby; explicit city/state matching remains available and removed entities lose their boost. | Real PostgreSQL locality cases are specified but skipped on this Windows host. | Execute the locality suite in the isolated PostgreSQL environment and verify deployed entity schemas. |
+| Guest and device location choices | Behavior-tested locally: guests can choose city/state, use device location only after an explicit action, persist a rounded choice, return to profile location, or select all locations. | Real-device permission and deployed session evidence outstanding. | Verify permission denial, Arabic layout and mobile behavior in the release matrix. |
+| Versioned context-bound feed cursor | Behavior-tested locally: cursor includes version, tab, viewer, location, ranking mode, cutoff and microsecond timestamp; changed context returns a recoverable 400; fallback preserves its chronological mode and cutoff. | Real complete-pagination proof is skipped without PostgreSQL. | Execute isolated ranked and fallback pagination cases, then verify candidate deployment. |
+| Stale tab responses and duplicates | Behavior-tested locally: generation guards discard out-of-order tab/location responses and page appends deduplicate post IDs. | Browser test uses mocked API; production race evidence outstanding. | Verify rapid tab/location changes against the deployed API. |
 | Follows and Following | Implemented in existing source. | Real block/follow/paging and actor-count proof outstanding. | Run actual SQL and browser tab-switch journey. |
 | Live authoritative counts | Incomplete. | Existing realtime lifecycle integration/reconciliation outstanding. | Subscribe through existing lifecycle and reconcile API counts on refresh/events. |
 | Business Hub integration | Implemented in prior source. | Actual selected-business authorization/navigation outstanding. | Verify Media posting and history for owned entities. |
@@ -72,10 +72,11 @@ verified live for the new candidate. A historical test count is not proof.
 | Exact deployed release/readiness/schema/assets | Incomplete: healthy baseline is not new-candidate deployment proof. | Deployment access and reproducible content identity required. | Compare candidate hash and validate `/ready`, migration 742, workers and assets. |
 | Authenticated production/real-device matrix | Incomplete. | Signed-in helper/business/restaurant/admin and real device access outstanding. | Capture full non-financial production journeys; reconcile finance read-only. |
 
-Current local execution: all 149 Media behavior checks passed in 12 suites;
-17 PostgreSQL cases in two suites skipped because no disposable PostgreSQL is
-available locally. Two maintained Chromium browser journeys passed, covering
-desktop and 390px composer recovery and guest public-card navigation. The CI
+Current local execution: all 165 Media behavior checks passed in 13 suites;
+18 PostgreSQL cases in two suites skipped because no disposable PostgreSQL is
+available locally. Four maintained Chromium browser journeys passed, covering
+desktop and 390px composer recovery, guest public-card navigation, tab/location
+races and explicit device-location choices. The CI
 result checker, existing Credit fixture regression, fixture isolation rejection,
 shell syntax and `git diff --check` passed. `npm run build:ci` passed localization,
 TypeScript, production bundling and verification of 760 assets. A broader local

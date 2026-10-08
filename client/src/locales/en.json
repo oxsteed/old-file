@@ -30382,6 +30382,18 @@
       "posts": "Posts"
     },
     "feed": {
+      "chooseLocation": "Choose a location",
+      "nearDevice": "Nearby your chosen location",
+      "allLocations": "All locations",
+      "locationHelp": "Use a city and state or region to find local updates. Device location is requested only when you choose it.",
+      "city": "City",
+      "state": "State or region",
+      "applyLocation": "Apply location",
+      "useDeviceLocation": "Use my device location",
+      "locating": "Finding your location…",
+      "locationUnavailable": "Device location is unavailable. Enter a city and state or region instead.",
+      "profileLocation": "Use my profile location",
+      "cursorChanged": "Your feed context changed. Refresh to start again.",
       "following": "Following",
       "refresh": "Refresh feed",
       "prompt": "What’s happening nearby?",

@@ -699,3 +699,14 @@ div.media-support-panel { z-index: 150; }
 @media (prefers-reduced-motion: reduce) {
   .media-skeleton .skeleton-line { animation: none; }
 }
+
+.media-location-toggle { display: inline-flex; align-items: center; gap: 6px; padding: 8px 0; color: var(--color-text-muted); font-size: 13px; text-align: start; }
+.media-location-choice { padding: 16px 24px; border-bottom: 1px solid var(--color-border); }
+.media-location-choice p { font-size: 13px; margin-bottom: 12px; }
+.media-location-choice form { display: flex; flex-wrap: wrap; align-items: end; gap: 10px; }
+.media-location-choice label { display: flex; flex: 1 1 140px; flex-direction: column; gap: 4px; min-width: 0; font-size: 13px; }
+.media-location-choice input { width: 100%; min-width: 0; border: 1px solid var(--color-border); background: var(--color-surface); color: var(--color-text); border-radius: 8px; padding: 9px; }
+.media-location-choice button { padding: 9px 12px; border: 1px solid var(--color-border); border-radius: 8px; font-size: 13px; }
+.media-location-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.media-location-choice button:disabled { opacity: .6; }
+.media-location-toggle:focus-visible, .media-location-choice button:focus-visible, .media-location-choice input:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 3px; }

@@ -29,11 +29,12 @@ describeDb('Media attachment transactions in PostgreSQL', () => {
     await db.query(`CREATE TABLE users (id UUID PRIMARY KEY, is_verified boolean DEFAULT true,
       city text DEFAULT 'Springfield', state text DEFAULT 'OH',
       deleted_at timestamptz, is_active boolean DEFAULT true, is_banned boolean DEFAULT false)`);
-    await db.query(`CREATE TABLE helper_profiles (id serial PRIMARY KEY,user_id UUID,profile_slug text);
+    await db.query(`CREATE TABLE helper_profiles (id serial PRIMARY KEY,user_id UUID,profile_slug text,service_lat numeric,service_lng numeric,service_city text,service_state text);
       CREATE TABLE businesses (id bigint PRIMARY KEY, user_id UUID, profile_slug text,
-        business_name text DEFAULT 'Synthetic business',
+        business_name text DEFAULT 'Synthetic business', service_lat numeric,service_lng numeric,service_city text,service_state text,address_city text,address_state text,
         deleted_at timestamptz, is_active boolean DEFAULT true, is_business_verified boolean DEFAULT false);
       CREATE TABLE food_restaurants (id bigint PRIMARY KEY, business_id bigint, owner_user_id UUID, slug text,
+        latitude double precision,longitude double precision,address_city text,address_state text,
         status text DEFAULT 'active', is_verified boolean DEFAULT false)`);
     // Actual migration DDL and constraints, isolated from all shared fixtures.
     for (const number of [709, 731, 732, 735, 736, 742]) {
@@ -174,5 +175,48 @@ describeDb('Media attachment transactions in PostgreSQL', () => {
     expect(seen[0]).toBe(ids[0]);
     expect(seen).toHaveLength(ids.length);
     expect(new Set(seen)).toEqual(new Set(ids));
+  });
+
+  test('real locality ranks entity coordinates, city/state fallback and valid links without losing pages', async () => {
+    await db.query("UPDATE media_posts SET visibility='unlisted'");
+    await db.query(`UPDATE helper_profiles SET service_city='Boston',service_state='MA',service_lat=NULL,service_lng=NULL WHERE user_id=$1`, [user]);
+    await db.query(`UPDATE businesses SET service_lat=39.924,service_lng=-83.811,service_city='Springfield',service_state='OH' WHERE id=102`);
+    await db.query(`UPDATE food_restaurants SET latitude=42.360,longitude=-71.059,address_city='Boston',address_state='MA' WHERE id=202`);
+    const ids = Array.from({ length: 4 }, () => randomUUID());
+    for (let index = 0; index < ids.length; index += 1) {
+      await db.query(`INSERT INTO media_posts(id,actor_id,body,visibility,created_at)
+        VALUES($1,$2,'Synthetic nearby discovery','public',TIMESTAMPTZ '2026-10-08 12:00:00+00'+$3*INTERVAL '1 microsecond')`, [ids[index], actor, index]);
+    }
+    await db.query(`INSERT INTO media_post_links(post_id,link_type,target_id,name_snapshot)
+      VALUES($1,'business','102','Nearby business'),($2,'restaurant','202','Far restaurant'),
+        ($2,'business','missing','Removed business'),($3,'business','missing','Removed business')`, [ids[0], ids[1], ids[2]]);
+    const response = () => ({ status: jest.fn().mockReturnThis(), json: jest.fn() });
+    const query = { latitude: '39.924', longitude: '-83.811', location_mode: 'custom', limit: '1' };
+    const seen = []; let before;
+    for (let page = 0; page < 5; page += 1) {
+      const res = response(); await media.getFeed({ query: { ...query, before } }, res);
+      expect(res.status).not.toHaveBeenCalled();
+      const payload = res.json.mock.calls[0][0]; seen.push(...payload.posts.map(item => item.id));
+      if (!page) {
+        expect(payload.posts[0]).toMatchObject({ id: ids[0], locality_boost: 3, link_count: '1' });
+        // A cursor cannot be reused after switching location.
+        const changed = response();
+        await media.getFeed({ query: { ...query, latitude: '42.360', before: payload.next_before } }, changed);
+        expect(changed.status).toHaveBeenCalledWith(400);
+      }
+      if (!payload.has_more) break;
+      before = payload.next_before;
+    }
+    expect(new Set(seen)).toEqual(new Set(ids)); expect(seen).toHaveLength(4);
+    await db.query('UPDATE businesses SET service_lat=NULL,service_lng=NULL WHERE id=102');
+    const cityRes = response();
+    await media.getFeed({ query: { city: 'Springfield', state: 'OH', limit: '10' } }, cityRes);
+    expect(cityRes.status).not.toHaveBeenCalled();
+    expect(cityRes.json.mock.calls[0][0].posts[0]).toMatchObject({ id: ids[0], locality_boost: 2 });
+    await db.query('UPDATE businesses SET is_active=false WHERE id=102');
+    const removed = response(); await media.getFeed({ query: { city: 'Springfield', state: 'OH' } }, removed);
+    expect(removed.status).not.toHaveBeenCalled();
+    expect(removed.json.mock.calls[0][0].posts.find(item => item.id === ids[0]))
+      .toMatchObject({ locality_boost: 0, link_count: '0', links: [expect.objectContaining({ available: false })] });
   });
 });

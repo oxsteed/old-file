@@ -358,5 +358,21 @@
     "searchFailed": "La recherche n’a pas abouti. Réessayez."
   },
   "updated": "Mis à jour",
-  "loading": "Loading…"
+  "loading": "Loading…",
+  "media": {
+    "feed": {
+      "chooseLocation": "Choisir un lieu",
+      "nearDevice": "Près du lieu choisi",
+      "allLocations": "Tous les lieux",
+      "locationHelp": "Indiquez une ville et un état ou une région pour trouver des publications locales. La position de votre appareil est demandée uniquement à votre initiative.",
+      "city": "Ville",
+      "state": "État ou région",
+      "applyLocation": "Appliquer le lieu",
+      "useDeviceLocation": "Utiliser la position de mon appareil",
+      "locating": "Recherche de votre position…",
+      "locationUnavailable": "La position de votre appareil est indisponible. Indiquez une ville et un état ou une région.",
+      "profileLocation": "Utiliser le lieu de mon profil",
+      "cursorChanged": "Le contexte du fil a changé. Actualisez pour recommencer."
+    }
+  }
 }

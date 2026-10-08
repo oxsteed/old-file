@@ -44,7 +44,7 @@ describe('Media ranked feed journey', () => {
 
   test('returns ranked posts with a cursor that preserves link and locality order', async () => {
     const first = response();
-    await media.getFeed({ query: { limit: '2' }, user: { id: 'viewer-1' } }, first);
+    await media.getFeed({ query: { limit: '2', city: 'Springfield', state: 'OH' }, user: { id: 'viewer-1' } }, first);
 
     const payload = first.json.mock.calls[0][0];
     expect(payload.posts.map((post) => post.id)).toEqual(['post-linked-nearby', 'post-plain-away']);
@@ -55,17 +55,19 @@ describe('Media ranked feed journey', () => {
     expect(firstSql).toContain('NOT EXISTS (');
     expect(firstSql).toContain('user_blocks');
     expect(firstSql).toContain('geo_scope');
-    expect(firstSql).toContain('viewer_location.state');
+    expect(firstSql).toContain('hp.service_lat');
+    expect(firstSql).toContain('r.latitude');
+    expect(firstSql).toContain('j.location_approx_lat');
     expect(firstSql).toContain('TRIM(split_part(nearby.geo_scope');
     expect(firstSql).not.toContain('j.deleted_at');
-    expect(firstSql).toContain('ORDER BY link_count DESC, locality_boost DESC, ranked.created_at DESC, ranked.id DESC');
+    expect(firstSql).toContain('ORDER BY locality_boost DESC, link_count DESC, ranked.created_at DESC, ranked.id DESC');
 
     pool.query.mockClear();
     const second = response();
-    await media.getFeed({ query: { limit: '2', before: payload.next_before }, user: { id: 'viewer-1' } }, second);
+    await media.getFeed({ query: { limit: '2', city: 'Springfield', state: 'OH', before: payload.next_before }, user: { id: 'viewer-1' } }, second);
 
     const secondCall = pool.query.mock.calls.find(([sql]) => sql.includes('SELECT p.*, a.handle'));
-    expect(secondCall[0]).toContain('WHERE (link_count <');
+    expect(secondCall[0]).toContain('WHERE (locality_boost <');
     expect(secondCall[1]).toEqual(expect.arrayContaining([3, 'viewer-1', 0, 0, '2026-10-08T11:00:00.000Z', 'post-plain-away']));
   });
 
@@ -80,7 +82,7 @@ describe('Media ranked feed journey', () => {
       return { rows: [] };
     });
     const result = response();
-    await media.getFeed({ query: { limit: '1' }, user: { id: 'viewer-1' } }, result);
+    await media.getFeed({ query: { limit: '1', location_mode: 'all' }, user: { id: 'viewer-1' } }, result);
 
     expect(result.json.mock.calls[0][0]).toMatchObject({ posts: [{ id: 'only-post' }], has_more: false, next_before: null });
     const feedCall = pool.query.mock.calls.find(([sql]) => sql.includes('SELECT p.*, a.handle'));
@@ -103,7 +105,7 @@ describe('Media ranked feed journey', () => {
       return { rows: [] };
     });
     const result = response();
-    await media.getFeed({ query: { limit: '1' }, user: { id: 'viewer-1' } }, result);
+    await media.getFeed({ query: { limit: '1', location_mode: 'all' }, user: { id: 'viewer-1' } }, result);
     expect(result.status).not.toHaveBeenCalled();
     expect(result.json.mock.calls[0][0].posts[0]).toMatchObject({ id: 'fallback-post' });
   });
@@ -113,17 +115,19 @@ describe('Media ranked feed journey', () => {
       .mockImplementationOnce(async () => { throw Object.assign(new Error('ranked query failed'), { code: '42703' }); })
       .mockImplementationOnce(async () => { throw Object.assign(new Error('users.is_banned missing'), { code: '42703' }); });
     const result = response();
-    await media.getFeed({ query: { limit: '1' }, user: { id: 'viewer-1' } }, result);
+    await media.getFeed({ query: { limit: '1', location_mode: 'all' }, user: { id: 'viewer-1' } }, result);
     expect(result.status).toHaveBeenCalledWith(500);
     expect(pool.query).toHaveBeenCalledTimes(2);
     expect(result.json.mock.calls[0][0].posts).toBeUndefined();
   });
 
   test('never silently changes ranking after a ranked page cursor', async () => {
-    const cursor = Buffer.from(JSON.stringify({ id: 'post', created_at: '2026-10-08T10:00:00.000Z', link_count: 1, locality_boost: 2 })).toString('base64url');
+    const contexts = require('../services/mediaFeedContext');
+    const cursor = contexts.encodeCursor({ id: 'post', created_at: '2026-10-08T10:00:00.000Z', link_count: 1, locality_boost: 2 },
+      contexts.contextKey('home', 'viewer', { city: '', state: '', latitude: null, longitude: null }), 'ranked', '2026-10-08T11:00:00.000Z');
     pool.query.mockImplementationOnce(async () => { throw Object.assign(new Error('optional column missing'), { code: '42703' }); });
     const result = response();
-    await media.getFeed({ query: { before: cursor }, user: { id: 'viewer' } }, result);
+    await media.getFeed({ query: { before: cursor, location_mode: 'all' }, user: { id: 'viewer' } }, result);
     expect(result.status).toHaveBeenCalledWith(500);
     expect(pool.query).toHaveBeenCalledTimes(1);
   });
@@ -136,9 +140,37 @@ describe('Media ranked feed journey', () => {
         cursor_created_at: '2026-10-08T12:00:00.123455Z', link_count: 0, locality_boost: 0 },
     ] }));
     const result = response();
-    await media.getFeed({ query: { limit: '1' } }, result);
+    await media.getFeed({ query: { limit: '1', location_mode: 'all' } }, result);
     const payload = result.json.mock.calls[0][0];
     expect(JSON.parse(Buffer.from(payload.next_before, 'base64url').toString()).created_at)
       .toBe('2026-10-08T12:00:00.123456Z');
+  });
+
+  test('a chronological rollout page retains its mode and cutoff even after schema recovery', async () => {
+    const contexts = require('../services/mediaFeedContext');
+    const cutoff = '2026-10-08T13:00:00.000Z';
+    const cursor = contexts.encodeCursor({ id: 'fallback-post', created_at: '2026-10-08T12:00:00.123456Z' },
+      contexts.contextKey('home', null, { city: '', state: '', latitude: null, longitude: null }), 'chronological', cutoff);
+    const result = response();
+    await media.getFeed({ query: { before: cursor, location_mode: 'all' } }, result);
+    expect(result.status).not.toHaveBeenCalled();
+    const [sql, parameters] = pool.query.mock.calls[0];
+    expect(sql).toContain('0::bigint AS link_count');
+    expect(sql).toContain('p.created_at <= $2::timestamptz');
+    expect(parameters).toEqual(expect.arrayContaining([cutoff, '2026-10-08T12:00:00.123456Z', 'fallback-post']));
+    expect(sql).toContain('au.is_banned = FALSE');
+    expect(sql).toContain('safety_asset');
+  });
+
+  test('invalid or changed-context cursors return a recoverable error before selecting posts', async () => {
+    const first = response(); await media.getFeed({ query: { limit: '1' } }, first);
+    const cursor = first.json.mock.calls[0][0].next_before;
+    pool.query.mockClear();
+    for (const query of [{ before: cursor, city: 'Springfield', state: 'OH' }, { before: 'bad-cursor' }]) {
+      const result = response(); await media.getFeed({ query }, result);
+      expect(result.status).toHaveBeenCalledWith(400);
+      expect(result.json.mock.calls[0][0].code).toBe('media_feed_cursor_invalid');
+    }
+    expect(pool.query).not.toHaveBeenCalled();
   });
 });

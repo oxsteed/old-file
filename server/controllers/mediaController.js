@@ -11,6 +11,7 @@ const { sendNotification } = require('../services/notificationService');
 const { getSignedDownloadUrl } = require('../utils/storage');
 const mediaSafety = require('../services/mediaSafetyPolicy');
 const { verifiedActorSql } = require('../services/mediaPublisherPolicy');
+const feedContext = require('../services/mediaFeedContext');
 
 const MAX_LINKS_PER_POST = 5;
 const POSTS_PER_DAY = 10;
@@ -36,7 +37,7 @@ const VALID_LINK_COUNT_SQL = `COUNT(l.id) FILTER (WHERE
     (l.link_type = 'helper' AND EXISTS (
       SELECT 1 FROM helper_profiles hp JOIN users u ON u.id = hp.user_id
        WHERE (hp.id::text = l.target_id OR hp.user_id::text = l.target_id OR hp.profile_slug::text = l.target_id)
-         AND u.deleted_at IS NULL
+         AND u.deleted_at IS NULL AND u.is_active = TRUE AND u.is_banned = FALSE
     )) OR
     (l.link_type = 'business' AND EXISTS (
       SELECT 1 FROM businesses b
@@ -418,24 +419,23 @@ async function getFeed(req, res) {
         code: tab === 'mine' ? 'media_mine_auth_required' : 'media_following_auth_required',
       });
     }
-    let localityBoost = '0';
+    const location = await feedContext.resolveLocation(req.query, viewerUserId, pool);
+    const context = feedContext.contextKey(tab, viewerUserId, location);
+    const rankedCursor = feedContext.decodeCursor(before, context);
+    const asOf = rankedCursor?.as_of || new Date().toISOString();
+    let mode = rankedCursor?.mode || 'ranked';
 
     const orderBy = 'ranked.created_at DESC, ranked.id DESC';
     // Fetch one look-ahead row so a full page does not falsely advertise a
     // next page when the result set ends exactly on the requested limit.
     const queryLimit = limit + 1;
-    const params = [queryLimit];
-    let where = `p.visibility = 'public' AND p.deleted_at IS NULL AND p.parent_id IS NULL
+    const params = [queryLimit, asOf];
+    let localityBoost = feedContext.localitySql(location, params);
+    let where = `p.visibility = 'public' AND p.deleted_at IS NULL AND p.parent_id IS NULL AND p.created_at <= $2::timestamptz
       AND p.processing_status = 'ready' AND ${mediaSafety.publicPostSql('p')}
       AND EXISTS (SELECT 1 FROM users au WHERE au.id = a.owner_user_id
         AND au.deleted_at IS NULL AND au.is_active = TRUE AND au.is_banned = FALSE)`;
 
-    let rankedCursor = null;
-    if (before) {
-      try {
-        rankedCursor = JSON.parse(Buffer.from(before, 'base64url').toString('utf8'));
-      } catch { rankedCursor = null; }
-    }
     let viewerParam = null;
     if (viewerUserId) {
       params.push(viewerUserId);
@@ -445,23 +445,11 @@ async function getFeed(req, res) {
          WHERE (ub.blocker_id = $${viewerParam} AND ub.blocked_id = a.owner_user_id)
             OR (ub.blocker_id = a.owner_user_id AND ub.blocked_id = $${viewerParam})
       )`;
-      localityBoost = `CASE
+      localityBoost = `GREATEST(${localityBoost}, CASE
         WHEN p.community_id IS NOT NULL AND EXISTS (
           SELECT 1 FROM media_community_members cm
            WHERE cm.community_id = p.community_id AND cm.user_id = $${viewerParam}
-        ) THEN 2
-        WHEN p.community_id IS NOT NULL AND EXISTS (
-          SELECT 1 FROM media_communities nearby
-          JOIN users viewer_location ON viewer_location.id = $${viewerParam}
-           WHERE nearby.id = p.community_id
-             AND nearby.geo_scope IS NOT NULL
-             AND LOWER(TRIM(split_part(nearby.geo_scope, ',', 1))) = LOWER(TRIM(viewer_location.city))
-             AND (
-               NULLIF(TRIM(split_part(nearby.geo_scope, ',', 2)), '') IS NULL
-               OR LOWER(TRIM(split_part(nearby.geo_scope, ',', 2))) = LOWER(TRIM(viewer_location.state))
-             )
-        ) THEN 1
-        ELSE 0 END`;
+        ) THEN 1 ELSE 0 END)`;
     }
     if (tab === 'following') {
       where += ` AND EXISTS (
@@ -474,6 +462,15 @@ async function getFeed(req, res) {
       where += ` AND a.owner_user_id = $${viewerParam}`;
     }
 
+    if (location.city) {
+      params.push(location.city, location.state);
+      localityBoost = `GREATEST(${localityBoost}, CASE WHEN EXISTS (
+        SELECT 1 FROM media_communities nearby WHERE nearby.id=p.community_id
+          AND LOWER(TRIM(split_part(nearby.geo_scope,',',1)))=$${params.length - 1}
+          AND LOWER(TRIM(split_part(nearby.geo_scope,',',2)))=$${params.length}
+        ) THEN 1 ELSE 0 END)`;
+    }
+
     let rankedAfter = '';
     if (rankedCursor?.created_at && rankedCursor?.id) {
       params.push(Number(rankedCursor.link_count) || 0, Number(rankedCursor.locality_boost) || 0,
@@ -482,22 +479,20 @@ async function getFeed(req, res) {
       const localityParam = params.length - 2;
       const createdParam = params.length - 1;
       const idParam = params.length;
-      rankedAfter = ` WHERE (link_count < $${linkParam}
-        OR (link_count = $${linkParam} AND locality_boost < $${localityParam})
-        OR (link_count = $${linkParam} AND locality_boost = $${localityParam} AND ranked.created_at < $${createdParam})
-        OR (link_count = $${linkParam} AND locality_boost = $${localityParam} AND ranked.created_at = $${createdParam} AND ranked.id < $${idParam}))`;
-    } else if (before) {
-      params.push(before);
-      rankedAfter = ` WHERE ranked.created_at < $${params.length}`;
+      rankedAfter = ` WHERE (locality_boost < $${localityParam}
+        OR (locality_boost = $${localityParam} AND link_count < $${linkParam})
+        OR (locality_boost = $${localityParam} AND link_count = $${linkParam} AND ranked.created_at < $${createdParam})
+        OR (locality_boost = $${localityParam} AND link_count = $${linkParam} AND ranked.created_at = $${createdParam} AND ranked.id < $${idParam}))`;
     }
 
-    // Deep-link boost: posts with valid local entity links rank higher.
+    // Nearby posts lead; valid local entity links boost within that area.
     // Keep a schema-compatible read path for rolling deployments where an
     // optional entity table/column may not have arrived with the Media code.
     // The fallback never publishes or mutates data; it simply omits link and
     // locality boosts until the primary query is available again.
     let rows;
     try {
+      if (mode === 'chronological') throw Object.assign(new Error('Continue chronological cursor'), { chronological: true });
       ({ rows } = await pool.query(
         `SELECT ranked.* FROM (
          SELECT p.*, a.handle, a.display_name, a.avatar_url, a.verified_kind, a.actor_type, a.owner_user_id,
@@ -508,19 +503,20 @@ async function getFeed(req, res) {
            JOIN media_actors a ON a.id = p.actor_id
            LEFT JOIN media_post_links l ON l.post_id = p.id
           WHERE ${where}
-          GROUP BY p.id, a.handle, a.display_name, a.avatar_url, a.verified_kind, a.actor_type, a.owner_user_id
+          GROUP BY p.id, a.id
          ) ranked
           ${rankedAfter}
-          ORDER BY link_count DESC, locality_boost DESC, ${orderBy}
+          ORDER BY locality_boost DESC, link_count DESC, ${orderBy}
           LIMIT $1`,
         params
       ));
     } catch (err) {
       // Never switch ranking mid-pagination or relax author/block predicates.
-      if (before || !['42703', '42P01'].includes(err.code)) throw err;
-      logger.error('media.getFeed ranked schema fallback', { code: err.code, message: err.message });
-      const fallbackParams = [queryLimit];
-      let fallbackWhere = `p.visibility = 'public' AND p.deleted_at IS NULL AND p.parent_id IS NULL
+      if (!err.chronological && (before || !['42703', '42P01'].includes(err.code))) throw err;
+      if (!err.chronological) logger.error('media.getFeed ranked schema fallback', { code: err.code });
+      mode = 'chronological';
+      const fallbackParams = [queryLimit, asOf];
+      let fallbackWhere = `p.visibility = 'public' AND p.deleted_at IS NULL AND p.parent_id IS NULL AND p.created_at <= $2::timestamptz
         AND p.processing_status = 'ready' AND ${mediaSafety.publicPostSql('p')}
         AND EXISTS (SELECT 1 FROM users au WHERE au.id = a.owner_user_id
           AND au.deleted_at IS NULL AND au.is_active = TRUE AND au.is_banned = FALSE)`;
@@ -547,9 +543,6 @@ async function getFeed(req, res) {
         const idParam = fallbackParams.length;
         fallbackWhere += ` AND (p.created_at < $${createdParam}
           OR (p.created_at = $${createdParam} AND p.id < $${idParam}))`;
-      } else if (before) {
-        fallbackParams.push(before);
-        fallbackWhere += ` AND p.created_at < $${fallbackParams.length}`;
       }
         ({ rows } = await pool.query(
           `SELECT p.*, a.handle, a.display_name, a.avatar_url, a.verified_kind, a.actor_type, a.owner_user_id,
@@ -572,14 +565,10 @@ async function getFeed(req, res) {
       posts.push(await hydratePost(row, viewerUserId));
     }
     const last = visibleRows[visibleRows.length - 1];
-    const nextBefore = hasMore && last ? Buffer.from(JSON.stringify({
-      link_count: Number(last.link_count) || 0,
-      locality_boost: Number(last.locality_boost) || 0,
-      created_at: last.cursor_created_at || last.created_at,
-      id: last.id,
-    })).toString('base64url') : null;
-    res.json({ posts, next_before: nextBefore, has_more: hasMore, tab });
+    const nextBefore = hasMore && last ? feedContext.encodeCursor(last, context, mode, asOf) : null;
+    res.json({ posts, next_before: nextBefore, has_more: hasMore, tab, location });
   } catch (err) {
+    if (err.status === 400) return res.status(400).json({ error: 'Refresh the feed with a valid location and cursor', code: err.code });
     logger.error('media.getFeed error', { message: err.message });
     res.status(500).json({ error: 'Failed to load feed' });
   }

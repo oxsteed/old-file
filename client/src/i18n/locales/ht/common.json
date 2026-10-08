@@ -358,5 +358,21 @@
     "searchFailed": "Rechèch la pa t fini. Eseye ankò."
   },
   "updated": "Mete ajou",
-  "loading": "Loading…"
+  "loading": "Loading…",
+  "media": {
+    "feed": {
+      "chooseLocation": "Chwazi yon kote",
+      "nearDevice": "Toupre kote ou chwazi a",
+      "allLocations": "Tout kote",
+      "locationHelp": "Antre yon vil ak yon eta oswa rejyon pou jwenn nouvèl lokal. Nou mande kote aparèy ou a sèlman lè ou chwazi sa.",
+      "city": "Vil",
+      "state": "Eta oswa rejyon",
+      "applyLocation": "Aplike kote a",
+      "useDeviceLocation": "Sèvi ak kote aparèy mwen an",
+      "locating": "N ap chèche kote ou ye…",
+      "locationUnavailable": "Kote aparèy la pa disponib. Antre yon vil ak yon eta oswa rejyon pito.",
+      "profileLocation": "Sèvi ak kote pwofil mwen an",
+      "cursorChanged": "Kontèks fil ou a chanje. Rafrechi pou rekòmanse."
+    }
+  }
 }

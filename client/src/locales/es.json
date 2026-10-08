@@ -30382,6 +30382,18 @@
       "posts": "Publicaciones"
     },
     "feed": {
+      "chooseLocation": "Elegir ubicación",
+      "nearDevice": "Cerca de tu ubicación elegida",
+      "allLocations": "Todas las ubicaciones",
+      "locationHelp": "Usa una ciudad y un estado o región para encontrar novedades locales. La ubicación del dispositivo solo se solicita cuando la eliges.",
+      "city": "Ciudad",
+      "state": "Estado o región",
+      "applyLocation": "Aplicar ubicación",
+      "useDeviceLocation": "Usar la ubicación de mi dispositivo",
+      "locating": "Buscando tu ubicación…",
+      "locationUnavailable": "La ubicación del dispositivo no está disponible. Introduce una ciudad y un estado o región.",
+      "profileLocation": "Usar la ubicación de mi perfil",
+      "cursorChanged": "El contexto del feed cambió. Actualiza para empezar de nuevo.",
       "refresh": "Actualizar publicaciones",
       "prompt": "¿Qué pasa por aquí?",
       "emptyHeading": "Lo bueno empieza cerca.",
