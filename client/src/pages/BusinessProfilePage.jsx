@@ -220,8 +220,16 @@ function TeamSection({ team }) {
   const { t } = useTranslation();
   if (!team || team.length === 0) return null;
 
-  function getInitials(first, last) {
-    return `${(first || '')[0] || ''}${(last || '')[0] || ''}`.toUpperCase() || '?';
+  function roleLabel(member) {
+    if (member.role === 'manager') return t('businessProfile.manager');
+    if (member.role === 'owner') return t('businessProfile.owner');
+    return t('businessProfile.representative');
+  }
+
+  function getInitials(first, last, roleText) {
+    const fromName = `${(first || '')[0] || ''}${(last || '')[0] || ''}`.toUpperCase();
+    if (fromName) return fromName;
+    return (roleText || '?').slice(0, 1).toUpperCase();
   }
 
   return (
@@ -235,37 +243,35 @@ function TeamSection({ team }) {
       </h2>
       <ul className="space-y-3" role="list">
         {team.map((member, i) => {
+          const roleText = roleLabel(member);
           const displayName = [member.first_name, member.last_name].filter(Boolean).join(' ').trim();
-          const roleLabel = member.role === 'manager'
-            ? t('businessProfile.manager')
-            : t('businessProfile.representative');
-          const avatarLabel = displayName || roleLabel;
-
+          const hasName = Boolean(displayName);
+          const avatarAlt = hasName ? displayName : roleText;
           return (
           <li key={i} className="flex items-center gap-3">
             {member.profile_photo_url ? (
               <img
                 src={member.profile_photo_url}
-                alt={avatarLabel}
+                alt={avatarAlt}
                 className="w-10 h-10 rounded-full object-cover flex-shrink-0"
                 loading="lazy"
               />
             ) : (
               <div className="w-10 h-10 rounded-full bg-gray-700 border border-gray-600 flex items-center justify-center flex-shrink-0">
                 <span className="text-sm font-semibold text-gray-300 select-none">
-                  {displayName
-                    ? getInitials(member.first_name, member.last_name)
-                    : (roleLabel[0] || '?').toUpperCase()}
+                  {getInitials(member.first_name, member.last_name, roleText)}
                 </span>
               </div>
             )}
             <div>
-              <p className="text-sm font-medium text-white">
-                {displayName || roleLabel}
-              </p>
-              {displayName ? (
-                <p className="text-xs text-gray-400">{roleLabel}</p>
-              ) : null}
+              {hasName ? (
+                <>
+                  <p className="text-sm font-medium text-white">{displayName}</p>
+                  <p className="text-xs text-gray-400">{roleText}</p>
+                </>
+              ) : (
+                <p className="text-sm font-medium text-white">{roleText}</p>
+              )}
             </div>
           </li>
           );
