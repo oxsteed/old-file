@@ -94,7 +94,18 @@ async function processCsam(job) {
   const asset = await getAsset(job.asset_id);
   if (!asset) return markFailed(job.id, new Error('media asset missing'));
   if (asset.csam_status === 'passed' || asset.csam_status === 'flagged') return markDone(job.id);
-  if (!csamVendorCertified()) return markFailed(job.id, new Error('CSAM vendor is not certified'));
+  // Keep the job pending until the production vendor is certified. Uploads
+  // made while certification is pending must become eligible automatically
+  // after the launch switch changes; marking them failed would strand them.
+  if (!csamVendorCertified()) {
+    await pool.query(
+      `UPDATE media_processing_jobs
+          SET status = 'pending', last_error = $2, updated_at = NOW()
+        WHERE id = $1`,
+      [job.id, 'CSAM vendor is not certified'],
+    );
+    return;
+  }
   const verdict = await csamCheckService.checkMediaVideo(asset.id, asset.post_id, asset.storage_key);
   if (verdict === 'pass') {
     await pool.query(
