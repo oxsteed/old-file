@@ -97,3 +97,8 @@ restaurant actors before any approval write. A revoked verification returns
 `media_not_verified_poster`; no post, asset, or audit row is mutated. The
 focused Media authorization/safety suite now passes 20 tests, and the combined
 Media API focus passes 34 tests.
+
+Media accessibility coverage now asserts that inline video and mute controls
+have accessible labels and that composer processing status is exposed with a
+status landmark. The new client contract test passes locally; the existing
+client typecheck was also run after the change.

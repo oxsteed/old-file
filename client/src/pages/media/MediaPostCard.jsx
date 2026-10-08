@@ -29,8 +29,8 @@ function MediaVideo({ asset, label, mutedLabel, unmutedLabel }) {
   const [muted, setMuted] = useState(true);
   return (
     <div className="media-video-frame">
-      <video src={asset.url} poster={asset.thumbnail_url || undefined} controls muted={muted} playsInline preload="metadata" />
-      <button type="button" className="media-video-mute" onClick={() => setMuted((value) => !value)}>
+      <video src={asset.url} poster={asset.thumbnail_url || undefined} controls muted={muted} playsInline preload="metadata" aria-label={label} />
+      <button type="button" className="media-video-mute" aria-label={muted ? mutedLabel : unmutedLabel} onClick={() => setMuted((value) => !value)}>
         {muted ? mutedLabel : unmutedLabel}
         <span className="sr-only">{label}</span>
       </button>
