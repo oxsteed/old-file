@@ -82,3 +82,8 @@ with `{ posts: [], next_before: null, has_more: false }`. The rendered
 then loaded the empty-feed state (“Good things start locally” / “No updates
 yet”). `/ready` was healthy with all 736 migrations applied and workers ready;
 the release metadata still does not expose a Git SHA.
+
+Nearby ranking now trims and compares both the viewer city and state against a
+Space geo scope, with state omitted only when the Space has no state suffix.
+The focused ranking regression covers that state-aware SQL alongside cursor
+pagination and the fallback paths.

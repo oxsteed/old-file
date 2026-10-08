@@ -383,7 +383,11 @@ async function getFeed(req, res) {
           JOIN users viewer_location ON viewer_location.id = $${viewerParam}
            WHERE nearby.id = p.community_id
              AND nearby.geo_scope IS NOT NULL
-             AND LOWER(split_part(nearby.geo_scope, ',', 1)) = LOWER(viewer_location.city)
+             AND LOWER(TRIM(split_part(nearby.geo_scope, ',', 1))) = LOWER(TRIM(viewer_location.city))
+             AND (
+               NULLIF(TRIM(split_part(nearby.geo_scope, ',', 2)), '') IS NULL
+               OR LOWER(TRIM(split_part(nearby.geo_scope, ',', 2))) = LOWER(TRIM(viewer_location.state))
+             )
         ) THEN 1
         ELSE 0 END`;
     }
