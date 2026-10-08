@@ -201,22 +201,30 @@ describe('OxSteed Media launch contracts', () => {
   });
 
   test('records a share once and returns the authoritative share count', async () => {
+    const client = { query: (...args) => pool.query(...args), release: jest.fn() };
+    pool.connect = jest.fn().mockResolvedValue(client);
     pool.query
       .mockResolvedValueOnce({ rows: [{ id: 'post-1' }] })
-      .mockResolvedValueOnce({ rows: [{ post_id: 'post-1' }] })
-      .mockResolvedValueOnce({ rows: [{ share_count: 6 }] });
+      .mockResolvedValueOnce({ rows: [] }) // BEGIN
+      .mockResolvedValueOnce({ rows: [{ id: 'post-1' }] }) // locked public post
+      .mockResolvedValueOnce({ rows: [{}] }) // insert share
+      .mockResolvedValueOnce({ rows: [{ share_count: 6 }] })
+      .mockResolvedValueOnce({ rows: [] }); // COMMIT
     const res = resMock();
 
     await media.recordShare({ params: { id: 'post-1' }, user: { id: 'user-1' }, ip: '127.0.0.1', headers: {} }, res);
 
     expect(res.json).toHaveBeenCalledWith({ shared: true, share_count: 6 });
-    expect(pool.query.mock.calls[1][0]).toContain('ON CONFLICT (post_id, viewer_hash) DO NOTHING');
-    expect(pool.query.mock.calls[2][0]).toContain('share_count = share_count + CASE');
+    expect(pool.query.mock.calls.some(([sql]) => sql.includes('ON CONFLICT (post_id, viewer_hash) DO NOTHING'))).toBe(true);
+    expect(pool.query.mock.calls.some(([sql]) => sql.includes('SELECT COUNT(*)::int FROM media_shares'))).toBe(true);
 
     pool.query.mockReset()
       .mockResolvedValueOnce({ rows: [{ id: 'post-1' }] })
-      .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({ rows: [{ share_count: 6 }] });
+      .mockResolvedValueOnce({ rows: [] }) // BEGIN
+      .mockResolvedValueOnce({ rows: [{ id: 'post-1' }] }) // locked public post
+      .mockResolvedValueOnce({ rows: [] }) // duplicate share
+      .mockResolvedValueOnce({ rows: [{ share_count: 6 }] })
+      .mockResolvedValueOnce({ rows: [] }); // COMMIT
     const duplicateRes = resMock();
     await media.recordShare({ params: { id: 'post-1' }, user: { id: 'user-1' }, ip: '127.0.0.1', headers: {} }, duplicateRes);
     expect(duplicateRes.json).toHaveBeenCalledWith({ shared: false, share_count: 6 });
@@ -251,22 +259,29 @@ describe('OxSteed Media launch contracts', () => {
   });
 
   test('only increments a view counter when the unique view insert succeeds', async () => {
+    const client = { query: (...args) => pool.query(...args), release: jest.fn() };
+    pool.connect = jest.fn().mockResolvedValue(client);
     pool.query
       .mockResolvedValueOnce({ rows: [{ id: 'post-1' }] })
-      .mockResolvedValueOnce({ rowCount: 1, rows: [{ post_id: 'post-1' }] })
-      .mockResolvedValueOnce({ rowCount: 1, rows: [] });
+      .mockResolvedValueOnce({ rows: [] }) // BEGIN
+      .mockResolvedValueOnce({ rows: [{ id: 'post-1' }] }) // locked public post
+      .mockResolvedValueOnce({ rows: [{}], rowCount: 1 }) // insert view
+      .mockResolvedValueOnce({ rows: [{ view_count: 1 }] })
+      .mockResolvedValueOnce({ rows: [] }); // COMMIT
     const first = resMock();
     await media.recordView({ params: { id: 'post-1' }, ip: '127.0.0.1', headers: {} }, first);
-    expect(pool.query).toHaveBeenCalledTimes(3);
-    expect(pool.query.mock.calls[2][0]).toMatch(/view_count = view_count \+ 1/);
-    expect(first.json).toHaveBeenCalledWith({ ok: true, recorded: true });
+    expect(first.json).toHaveBeenCalledWith({ ok: true, recorded: true, view_count: 1 });
 
     pool.query.mockReset();
     pool.query.mockResolvedValueOnce({ rows: [{ id: 'post-1' }] })
-      .mockResolvedValueOnce({ rowCount: 0, rows: [] });
+      .mockResolvedValueOnce({ rows: [] }) // BEGIN
+      .mockResolvedValueOnce({ rows: [{ id: 'post-1' }] }) // locked public post
+      .mockResolvedValueOnce({ rows: [] }) // duplicate view
+      .mockResolvedValueOnce({ rows: [{ view_count: 1 }] })
+      .mockResolvedValueOnce({ rows: [] }); // COMMIT
     const duplicate = resMock();
     await media.recordView({ params: { id: 'post-1' }, ip: '127.0.0.1', headers: {} }, duplicate);
-    expect(pool.query).toHaveBeenCalledTimes(2);
+    expect(pool.query).toHaveBeenCalledTimes(6);
     expect(duplicate.json).toHaveBeenCalledWith({ ok: true, recorded: false });
   });
 

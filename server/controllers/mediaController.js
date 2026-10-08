@@ -752,6 +752,62 @@ async function toggleCountedAction({ postId, viewerUserId, actorId, userId, tabl
   }
 }
 
+async function recordUniqueCountedEvent({ postId, viewerUserId, viewerHash, table, actorColumn, countColumn }) {
+  const allowedTables = new Set(['media_shares', 'media_post_views']);
+  const allowedActors = new Set(['user_id', 'viewer_user_id']);
+  const allowedCounts = new Set(['share_count', 'view_count']);
+  if (!allowedTables.has(table) || !allowedActors.has(actorColumn) || !allowedCounts.has(countColumn)) {
+    throw new AppError('Unsupported Media event.', 400, 'media_event_invalid');
+  }
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const blockParams = [postId];
+    let blockSql = '';
+    if (viewerUserId) {
+      blockParams.push(viewerUserId);
+      blockSql = `AND NOT EXISTS (
+        SELECT 1 FROM user_blocks ub
+         WHERE (ub.blocker_id = $2 AND ub.blocked_id = a.owner_user_id)
+            OR (ub.blocker_id = a.owner_user_id AND ub.blocked_id = $2)
+      )`;
+    }
+    const { rows: posts } = await client.query(
+      `SELECT p.id FROM media_posts p
+         JOIN media_actors a ON a.id = p.actor_id
+        WHERE p.id = $1 AND p.deleted_at IS NULL AND p.visibility = 'public'
+          AND p.processing_status = 'ready' AND ${mediaSafety.publicPostSql('p')}
+          AND EXISTS (SELECT 1 FROM users au WHERE au.id = a.owner_user_id
+            AND au.deleted_at IS NULL AND au.is_active = TRUE AND au.is_banned = FALSE)
+          ${blockSql}
+        FOR UPDATE OF p`, blockParams
+    );
+    if (!posts[0]) throw new AppError('Post not found', 404, 'media_post_not_found');
+
+    const actorValue = viewerUserId || null;
+    const { rows: inserted = [] } = await client.query(
+      `INSERT INTO ${table} (post_id, ${actorColumn}, viewer_hash)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (post_id, viewer_hash) DO NOTHING RETURNING 1`,
+      [postId, actorValue, viewerHash]
+    );
+    const recorded = inserted.length > 0;
+    const { rows: counts } = await client.query(
+      `UPDATE media_posts SET ${countColumn} = (
+          SELECT COUNT(*)::int FROM ${table} WHERE post_id = $1
+        ) WHERE id = $1 RETURNING ${countColumn}`,
+      [postId]
+    );
+    await client.query('COMMIT');
+    return { recorded, count: Number(counts[0]?.[countColumn] || 0) };
+  } catch (err) {
+    try { await client.query('ROLLBACK'); } catch (_) { /* preserve original event error */ }
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
 // Stable, guest-safe image endpoint for social crawlers. The HTML preview uses
 // this URL instead of embedding a short-lived private storage signature; the
 // endpoint rechecks the same public safety predicate before issuing a brief
@@ -1414,22 +1470,16 @@ async function recordShare(req, res) {
     const postId = req.params.id;
     const viewerUserId = req.user?.id || null;
     const viewerHash = viewerHashForRequest(req, viewerUserId);
-    const { rows: inserted } = await pool.query(
-      `INSERT INTO media_shares (post_id, user_id, viewer_hash)
-       VALUES ($1, $2, $3)
-       ON CONFLICT (post_id, viewer_hash) DO NOTHING
-       RETURNING post_id`,
-      [postId, viewerUserId, viewerHash]
-    );
-    const { rows: counts } = await pool.query(
-      `UPDATE media_posts
-          SET share_count = share_count + CASE WHEN $2::boolean THEN 1 ELSE 0 END
-        WHERE id = $1
-        RETURNING share_count`,
-      [postId, Boolean(inserted[0])]
-    );
-    broadcastMediaPostCounts(postId, { share_count: counts[0]?.share_count });
-    return res.json({ shared: Boolean(inserted[0]), share_count: Number(counts[0]?.share_count || 0) });
+    const result = await recordUniqueCountedEvent({
+      postId,
+      viewerUserId,
+      viewerHash,
+      table: 'media_shares',
+      actorColumn: 'user_id',
+      countColumn: 'share_count',
+    });
+    broadcastMediaPostCounts(postId, { share_count: result.count });
+    return res.json({ shared: result.recorded, share_count: result.count });
   } catch (err) {
     logger.error('media.recordShare error', { message: err.message });
     return mediaError(res, err, 'Failed to record share');
@@ -1442,26 +1492,16 @@ async function recordView(req, res) {
     const postId = req.params.id;
     const viewerUserId = req.user?.id || null;
     const viewerHash = viewerHashForRequest(req, viewerUserId);
-    const { rowCount } = await pool.query(
-      `INSERT INTO media_post_views (post_id, viewer_user_id, viewer_hash)
-       VALUES ($1, $2, $3)
-       ON CONFLICT (post_id, viewer_hash) DO NOTHING
-       RETURNING post_id`,
-      [postId, viewerUserId, viewerHash]
-    );
-    let viewCount = null;
-    if (rowCount > 0) {
-      const { rows: updated } = await pool.query(
-        `UPDATE media_posts SET view_count = view_count + 1
-          WHERE id = $1 AND visibility = 'public'
-            AND processing_status = 'ready' AND ${mediaSafety.publicPostSql('media_posts')}
-          RETURNING view_count`,
-        [postId]
-      );
-      viewCount = updated[0]?.view_count ?? null;
-      broadcastMediaPostCounts(postId, { view_count: viewCount });
-    }
-    res.json({ ok: true, recorded: rowCount > 0, ...(viewCount == null ? {} : { view_count: Number(viewCount) }) });
+    const result = await recordUniqueCountedEvent({
+      postId,
+      viewerUserId,
+      viewerHash,
+      table: 'media_post_views',
+      actorColumn: 'viewer_user_id',
+      countColumn: 'view_count',
+    });
+    if (result.recorded) broadcastMediaPostCounts(postId, { view_count: result.count });
+    res.json({ ok: true, recorded: result.recorded, ...(result.recorded ? { view_count: result.count } : {}) });
   } catch (err) {
     logger.error('media.recordView error', { message: err.message });
     mediaError(res, err, 'Failed to record view');
