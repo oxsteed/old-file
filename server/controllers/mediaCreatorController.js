@@ -24,6 +24,23 @@ function text(value, max, field) {
   return valueText;
 }
 
+// A Credit mutation and its marketplace state transition must commit as one
+// unit. Treat a missing RETURNING row or ledger id as a failed transition so
+// callers never receive a successful response for a payment that cannot be
+// reconciled later.
+function requireMutationRow(rows, message, code = 'media_creator_state_transition_failed') {
+  if (!rows?.[0]) throw new AppError(message, 503, code);
+  return rows[0];
+}
+
+function requireTransactionId(transfer) {
+  const transactionId = transfer?.transaction?.id || transfer?.id;
+  if (!transactionId) {
+    throw new AppError('Credit settlement did not return a transaction.', 503, 'media_creator_credit_transition_failed');
+  }
+  return transactionId;
+}
+
 async function verifiedActor(client, userId, actorId = null) {
   const params = [userId];
   const actorFilter = actorId ? 'AND a.id = $2' : '';
@@ -237,6 +254,7 @@ async function awardApplication(req, res, next) {
       `UPDATE media_creator_applications SET status = 'awarded', updated_at = NOW()
         WHERE id = $1 RETURNING *`, [current.id]
     );
+    const awardedApplication = requireMutationRow(rows, 'The creator application could not be awarded.', 'media_creator_award_transition_failed');
     await client.query(
       `UPDATE media_creator_gigs
           SET status = 'awarded', award_amount_cents = $2, credit_reservation_id = $3, updated_at = NOW()
@@ -247,7 +265,7 @@ async function awardApplication(req, res, next) {
         WHERE gig_id = $1 AND id <> $2 AND status IN ('submitted','shortlisted')`, [current.gig_id, current.id]
     );
     await client.query('COMMIT');
-    res.json({ application: rows[0], reservation: reservationResult.reservation });
+    res.json({ application: awardedApplication, reservation: reservationResult.reservation });
   } catch (err) { await client.query('ROLLBACK').catch(() => {}); next(err); }
   finally { client.release(); }
 }
@@ -344,13 +362,14 @@ async function reviewDeliverable(req, res, next) {
         allowCreatorRecipient: true,
         allowCreatorSender: true,
       });
-      transactionId = transfer.transaction?.id || transfer.id || null;
+      transactionId = requireTransactionId(transfer);
     }
 
     const { rows } = await client.query(
       `UPDATE media_creator_deliverables SET status = $2, reviewed_at = NOW()
         WHERE id = $1 RETURNING *`, [current.id, status]
     );
+    const reviewedDeliverable = requireMutationRow(rows, 'The deliverable review could not be saved.', 'media_creator_review_transition_failed');
     if (status === 'approved') {
       await client.query(
         `UPDATE media_creator_applications SET status = 'approved', updated_at = NOW() WHERE id = $1`, [current.application_id]
@@ -376,7 +395,7 @@ async function reviewDeliverable(req, res, next) {
       await client.query(`UPDATE media_creator_gigs SET status = 'cancelled', updated_at = NOW() WHERE id = $1`, [current.gig_id]);
     }
     await client.query('COMMIT');
-    res.json({ deliverable: rows[0], ...(transfer ? { transfer } : {}) });
+    res.json({ deliverable: reviewedDeliverable, ...(transfer ? { transfer } : {}) });
   } catch (err) { await client.query('ROLLBACK').catch(() => {}); next(err); }
   finally { client.release(); }
 }
@@ -525,8 +544,9 @@ async function acceptSponsorship(req, res, next) {
         WHERE id = $1 AND status = 'pending_credit'
         RETURNING *`, [offer.id, reservationResult.reservation.id]
     );
+    const acceptedSponsorship = requireMutationRow(rows, 'The sponsorship acceptance could not be saved.', 'media_creator_sponsorship_transition_failed');
     await client.query('COMMIT');
-    res.json({ sponsorship: rows[0], reservation: reservationResult.reservation, replayed: reservationResult.replayed });
+    res.json({ sponsorship: acceptedSponsorship, reservation: reservationResult.reservation, replayed: reservationResult.replayed });
   } catch (err) { await client.query('ROLLBACK').catch(() => {}); next(err); }
   finally { client.release(); }
 }
@@ -677,14 +697,16 @@ async function settleSponsorship(req, res, next) {
       description: 'OxSteed Media approved creator sponsorship',
       metadata: { mediaSponsorshipId: sponsorship.id, deliveryPostId: sponsorship.delivery_post_id },
     });
+    const transactionId = requireTransactionId(transfer);
     const { rows: updated } = await client.query(
       `UPDATE media_creator_sponsorships
           SET status = 'completed', credit_transaction_id = $2, updated_at = NOW()
         WHERE id = $1 AND status = 'delivered'
-        RETURNING *`, [sponsorship.id, transfer.transaction?.id || transfer.id || null]
+        RETURNING *`, [sponsorship.id, transactionId]
     );
+    const completedSponsorship = requireMutationRow(updated, 'The sponsorship settlement could not be saved.', 'media_creator_sponsorship_transition_failed');
     await client.query('COMMIT');
-    res.json({ sponsorship: updated[0], transfer });
+    res.json({ sponsorship: completedSponsorship, transfer });
   } catch (err) { await client.query('ROLLBACK').catch(() => {}); next(err); }
   finally { client.release(); }
 }
@@ -828,10 +850,11 @@ async function settleBoost(req, res, next) {
       `UPDATE media_post_boosts
           SET status = 'active', credit_transaction_id = $2, starts_at = NOW(), ends_at = NOW() + INTERVAL '24 hours'
         WHERE id = $1 AND status = 'pending_credit' RETURNING *`,
-      [boost.id, transfer.transaction?.id || transfer.id || null]
+      [boost.id, requireTransactionId(transfer)]
     );
+    const activeBoost = requireMutationRow(updated, 'The boost payment could not be activated.', 'media_boost_transition_failed');
     await client.query('COMMIT');
-    res.json({ boost: updated[0], transfer });
+    res.json({ boost: activeBoost, transfer });
   } catch (err) { await client.query('ROLLBACK').catch(() => {}); next(err); }
   finally { client.release(); }
 }
@@ -955,10 +978,11 @@ async function settleTip(req, res, next) {
     const { rows: updated } = await client.query(
       `UPDATE media_creator_tips SET status = 'posted', credit_transaction_id = $2
         WHERE id = $1 AND status = 'pending_credit' RETURNING *`,
-      [tip.id, transfer.transaction?.id || transfer.id || null]
+      [tip.id, requireTransactionId(transfer)]
     );
+    const postedTip = requireMutationRow(updated, 'The tip settlement could not be saved.', 'media_creator_tip_transition_failed');
     await client.query('COMMIT');
-    res.json({ tip: updated[0], transfer });
+    res.json({ tip: postedTip, transfer });
   } catch (err) { await client.query('ROLLBACK').catch(() => {}); next(err); }
   finally { client.release(); }
 }

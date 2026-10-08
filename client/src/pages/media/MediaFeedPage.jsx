@@ -44,6 +44,11 @@ export default function MediaFeedPage() {
   const [before, setBefore] = useState(null);
   const [hasMore, setHasMore] = useState(true);
   const [location, setLocation] = useState(savedLocation);
+  // The API resolves profile-based location choices to the canonical city or
+  // device context. Keep that resolved value for the label and form so a
+  // signed-in viewer can see what "nearby" means without changing the saved
+  // preference from profile to a stale copy of the profile address.
+  const [resolvedLocation, setResolvedLocation] = useState(savedLocation);
   const [choosingLocation, setChoosingLocation] = useState(false);
   const [city, setCity] = useState(location.city || '');
   const [state, setState] = useState(location.state || '');
@@ -68,6 +73,14 @@ export default function MediaFeedPage() {
         setPosts(p => mergePosts(p, data.posts));
       } else {
         setPosts(mergePosts([], data.posts));
+      }
+      if (data.location && typeof data.location === 'object') {
+        const nextResolved = { ...location, ...data.location };
+        setResolvedLocation(nextResolved);
+        if (location.location_mode === 'profile' && data.location.city && data.location.state) {
+          setCity(data.location.city);
+          setState(data.location.state);
+        }
       }
       setBefore(data.next_before);
       setHasMore(data.has_more === true && Boolean(data.next_before));
@@ -96,6 +109,7 @@ export default function MediaFeedPage() {
     locationRequest.current += 1;
     setLocating(false);
     setLocation(choice);
+    setResolvedLocation(choice);
     setLocationError(null);
     setChoosingLocation(false);
     try { localStorage.setItem(LOCATION_KEY, JSON.stringify(choice)); } catch { /* Optional persistence. */ }
@@ -120,8 +134,8 @@ export default function MediaFeedPage() {
             <button type="button" className="media-location-toggle" aria-expanded={choosingLocation}
               aria-controls="media-location-choice" onClick={() => setChoosingLocation(value => !value)}>
               <MapPin size={13} aria-hidden="true" />
-              {location.city ? `${location.city}, ${location.state}` : t(location.latitude !== undefined
-                ? 'media.feed.nearDevice' : location.location_mode === 'all'
+              {resolvedLocation.city ? `${resolvedLocation.city}, ${resolvedLocation.state}` : t(resolvedLocation.latitude !== null && resolvedLocation.latitude !== undefined
+                ? 'media.feed.nearDevice' : resolvedLocation.location_mode === 'all'
                   ? 'media.feed.allLocations' : 'media.feed.chooseLocation')}
             </button>
           </div>
