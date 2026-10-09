@@ -91,7 +91,7 @@ row stays incomplete until that dependency is verified.
 | Exact deployed release/readiness/schema/assets | Behavior-verified live after the latest rollout: `/ready` and `/health` returned 200; `/ready` reported release `content-ac71aaf48e521400`, migrations `749/749`, no pending/unexpected migrations, healthy database/Redis/Credit/realtime/workers; Media feed, capabilities, notifications, and messages returned 200, while unauthenticated bookmarks returned 401 and an invalid cursor returned the expected 400. | Coolify release metadata does not expose the git SHA, so exact commit-to-image identity remains unavailable. | Obtain release SHA or reproducible asset identity from deployment metadata and verify authenticated journeys. |
 | Authenticated production/real-device matrix | Incomplete. | Signed-in helper/business/restaurant/admin and real device access outstanding. | Capture full non-financial production journeys; reconcile finance read-only. |
 
-Current local execution: 221 Media behavior checks passed in 16 suites;
+Current local execution: 222 Media behavior checks passed in 16 suites;
 26 PostgreSQL cases in two suites skipped because no disposable PostgreSQL is
 available locally. The maintained Media client contract and full `npm run
 build:ci` passed, and four maintained Chromium browser journeys passed, covering
@@ -1186,3 +1186,11 @@ counts now exclude deleted, inactive, or banned follower accounts, keeping the
 displayed count aligned with the same account visibility policy used by the
 feed. The focused follows contract remains green at 7 tests; the integrated
 Media baseline remains 221 passing tests with 26 PostgreSQL-only skips.
+
+Logistics-link owner safety checkpoint (2026-10-09): campaign link ranking,
+hydration, and entity search now require both the organizer account and the
+associated business owner to be active, unbanned, and undeleted; reciprocal
+blocking applies to both owners. A removed business therefore leaves only an
+inert snapshot label. The focused Media contract suite passes 28 tests and the
+integrated suite passes 222 tests with 26 PostgreSQL-only skips. Real campaign
+removal and transaction-target verification remain open.

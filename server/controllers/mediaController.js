@@ -95,8 +95,11 @@ function validLinkCountSql(viewerParam = null) {
     )) OR
     (l.link_type = 'logistics_campaign' AND EXISTS (
       SELECT 1 FROM pooled_orders po
+       JOIN businesses b ON b.id = po.organizer_business_id
+        AND b.deleted_at IS NULL AND b.is_active = TRUE
        WHERE po.id::text = l.target_id AND po.status IN ('open', 'pledging')
          AND ${activeMediaOwnerSql('po.organizer_user_id', 'logistics_link_owner')}${blocked('po.organizer_user_id')}
+         AND ${activeMediaOwnerSql('b.user_id', 'logistics_business_link_owner')}${blocked('b.user_id')}
     ))
   )`;
 }
@@ -396,9 +399,13 @@ async function lookupLinkTarget(link, viewerUserId = null, db = pool) {
     const { rows } = await db.query(
       `SELECT po.title, ROUND(po.unit_landed_cost_usd * 100)::int AS price_snapshot_cents
          FROM pooled_orders po
+         JOIN businesses b ON b.id = po.organizer_business_id
+          AND b.deleted_at IS NULL AND b.is_active = TRUE
         WHERE po.id = $1 AND po.status IN ('open', 'pledging')
           AND ${activeMediaOwnerSql('po.organizer_user_id', 'logistics_target_owner')}
-          ${linkViewerBlockPredicate('po.organizer_user_id')}`, [targetId, viewerUserId]
+          ${linkViewerBlockPredicate('po.organizer_user_id')}
+          AND ${activeMediaOwnerSql('b.user_id', 'logistics_business_target_owner')}
+          ${linkViewerBlockPredicate('b.user_id')}`, [targetId, viewerUserId]
     );
     return rows[0] || null;
   }
@@ -2173,9 +2180,13 @@ async function searchMediaEntities(req, res) {
         `SELECT id::text AS target_id, title AS name,
                 ROUND(unit_landed_cost_usd * 100)::int AS price_snapshot_cents
            FROM pooled_orders po
+           JOIN businesses b ON b.id = po.organizer_business_id
+            AND b.deleted_at IS NULL AND b.is_active = TRUE
           WHERE po.status IN ('open', 'pledging') AND po.title ILIKE $1
             AND ${activeMediaOwnerSql('po.organizer_user_id', 'logistics_search_owner')}
+            AND ${activeMediaOwnerSql('b.user_id', 'logistics_business_search_owner')}
             ${linkViewerBlockPredicate('po.organizer_user_id', '$3')}
+            ${linkViewerBlockPredicate('b.user_id', '$3')}
           ORDER BY po.created_at DESC LIMIT $2`, [like, limit, viewerUserId]
       ));
     } else {

@@ -488,6 +488,36 @@ describe('OxSteed Media launch contracts', () => {
     }));
   });
 
+  test('logistics cards require both active organizer and business owners', async () => {
+    pool.query.mockImplementation(async (sql) => {
+      if (sql.includes('SELECT p.*, a.handle')) {
+        return { rows: [{ id: 'post-logistics-link', visibility: 'public', processing_status: 'ready',
+          display_name: 'Local business', owner_user_id: 'owner-1' }] };
+      }
+      if (sql.includes('FROM media_post_links')) {
+        return { rows: [{ id: 'link-logistics', link_type: 'logistics_campaign', target_id: 'campaign-1',
+          name_snapshot: 'Springfield delivery', price_snapshot_cents: 1000 }] };
+      }
+      if (sql.includes('FROM pooled_orders po')) {
+        expect(sql).toContain('JOIN businesses b');
+        expect(sql).toContain('logistics_business_target_owner.is_active = TRUE');
+        expect(sql).toContain('user_blocks');
+        return { rows: [] };
+      }
+      if (sql.includes('FROM media_post_assets')) return { rows: [] };
+      return { rows: [] };
+    });
+    const res = resMock();
+
+    await media.getPost({ params: { id: 'post-logistics-link' }, user: { id: 'viewer-1' } }, res);
+
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+      post: expect.objectContaining({
+        links: [expect.objectContaining({ name: 'Springfield delivery', available: false, canonical_url: null })],
+      }),
+    }));
+  });
+
   test('rejects arbitrary Media report reasons before creating a moderation row', async () => {
     pool.query.mockResolvedValueOnce({ rows: [{ id: 'post-report' }] });
     const res = resMock();
