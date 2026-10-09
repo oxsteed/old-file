@@ -1950,7 +1950,13 @@ async function getActor(req, res) {
     const actorWhere = addViewerBlockFilter('a.handle = $1', actorParams, req.user?.id, 'a');
     const { rows } = await pool.query(
       `SELECT a.*, ${verifiedActorSql('a')} AS current_actor_verified,
-              (SELECT COUNT(*)::int FROM media_follows mf WHERE mf.actor_id = a.id) AS follower_count
+              (SELECT COUNT(*)::int
+                 FROM media_follows mf
+                 JOIN users follow_user ON follow_user.id = mf.follower_user_id
+                WHERE mf.actor_id = a.id
+                  AND follow_user.deleted_at IS NULL
+                  AND follow_user.is_active = TRUE
+                  AND follow_user.is_banned = FALSE) AS follower_count
          FROM media_actors a WHERE ${actorWhere}`,
       actorParams
     );
@@ -2046,7 +2052,13 @@ async function toggleFollow(req, res) {
         following = rowCount === 0;
       }
       const { rows: counts } = await client.query(
-        `SELECT COUNT(*)::int AS follower_count FROM media_follows WHERE actor_id = $1`, [actor.id]
+        `SELECT COUNT(*)::int AS follower_count
+           FROM media_follows mf
+           JOIN users follow_user ON follow_user.id = mf.follower_user_id
+          WHERE mf.actor_id = $1
+            AND follow_user.deleted_at IS NULL
+            AND follow_user.is_active = TRUE
+            AND follow_user.is_banned = FALSE`, [actor.id]
       );
       followerCount = Number(counts[0]?.follower_count || 0);
       await client.query('COMMIT');

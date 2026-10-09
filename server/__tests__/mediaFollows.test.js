@@ -61,6 +61,7 @@ describe('OxSteed Media follows', () => {
 
     expect(pool.query.mock.calls[1][0]).toContain('FOR UPDATE');
     expect(pool.query.mock.calls[2][0]).toContain('ON CONFLICT (follower_user_id, actor_id) DO NOTHING');
+    expect(pool.query.mock.calls[3][0]).toContain('follow_user.is_active = TRUE');
     expect(res.json).toHaveBeenCalledWith({ following: true, follower_count: 3 });
     expect(sendNotification).toHaveBeenCalledWith(expect.objectContaining({
       type: 'media_follow',

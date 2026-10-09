@@ -1180,3 +1180,9 @@ path for admin approval and every caller that reuses the predicate. The
 focused safety contract passes 22 tests; the integrated Media suite remains
 green at 221 tests with 26 PostgreSQL-only skips. Live and disposable database
 verification remain outstanding.
+
+Follower-count hygiene checkpoint (2026-10-09): actor and toggle-follow
+counts now exclude deleted, inactive, or banned follower accounts, keeping the
+displayed count aligned with the same account visibility policy used by the
+feed. The focused follows contract remains green at 7 tests; the integrated
+Media baseline remains 221 passing tests with 26 PostgreSQL-only skips.
