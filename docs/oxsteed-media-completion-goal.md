@@ -57,7 +57,7 @@ row stays incomplete until that dependency is verified.
 | Owner editing/deletion | Behavior-tested locally: owner deletion now locks the post, updates reply/quote counters, and commits the visibility change atomically; owner-scoped denial and counter refresh are covered by the focused contract suite. | Real PostgreSQL authorization/count/source-propagation and deployed proof remain outstanding. | Execute owner versus non-owner, quoted/reply counter, and federated-source removal cases in the isolated harness. |
 | Two-way blocking and inactive authors | Behavior-tested in the maintained PostgreSQL suite: both block directions hide actors/posts and now stop like, bookmark, repost, view, and report actions before any write; inactive and banned author predicates remain enforced. Linked helper, business, restaurant, job, rental and logistics cards now apply the same two-way owner-block predicate while retaining an inert snapshot. | The 15-case SQL suite is skipped on this Windows host; hosted database and deployed proof remain outstanding. | Execute all visibility/action cases in the disposable harness, including inactive authors and blocked links/replies. |
 | Daily/upload/report limits | Implemented: existing rate/count controls. | Concurrent actual API limit proof outstanding. | Test simultaneous post limits and structured upload/report rejection. |
-| Linked entity selection and five-card limit | Behavior-tested: server search and composer selection exist, the composer chooses an explicitly owned verified business or restaurant publisher before creating a draft, and hydrated cards hide owners blocked in either direction while preserving a plain snapshot label. | Real invalid/removed/entity ownership and currencies outstanding. | Verify all eight link types and authoritative target metadata. |
+| Linked entity selection and five-card limit | Behavior-tested: server search and composer selection exist, entity search and hydration apply two-way owner blocking, the composer chooses an explicitly owned verified business or restaurant publisher before creating a draft, and blocked targets preserve a plain snapshot label. | Real invalid/removed/entity ownership and currencies outstanding. | Verify all eight link types and authoritative target metadata. |
 | Public cards versus transaction login | Behavior-tested locally: all formerly intercepted guest card types now navigate to public targets; removed cards remain inert. | Browser dependencies mocked; destination transaction gates outstanding. | Verify actual public pages and login at transaction start. |
 | City/category Spaces | Implemented in current source. | Real channel filters, membership and counts outstanding. | Run actual database/browser city/category/membership matrix. |
 | In-shell notifications and messages | Implemented in current source. | Actual replies/likes/inbox links and account sessions outstanding. | Exercise existing activity systems within Media for each persona. |
@@ -91,7 +91,7 @@ row stays incomplete until that dependency is verified.
 | Exact deployed release/readiness/schema/assets | Behavior-verified live after the latest rollout: `/ready` and `/health` returned 200; `/ready` reported release `content-ac71aaf48e521400`, migrations `749/749`, no pending/unexpected migrations, healthy database/Redis/Credit/realtime/workers; Media feed, capabilities, notifications, and messages returned 200, while unauthenticated bookmarks returned 401 and an invalid cursor returned the expected 400. | Coolify release metadata does not expose the git SHA, so exact commit-to-image identity remains unavailable. | Obtain release SHA or reproducible asset identity from deployment metadata and verify authenticated journeys. |
 | Authenticated production/real-device matrix | Incomplete. | Signed-in helper/business/restaurant/admin and real device access outstanding. | Capture full non-financial production journeys; reconcile finance read-only. |
 
-Current local execution: 211 Media behavior checks passed in 16 suites;
+Current local execution: 212 Media behavior checks passed in 16 suites;
 25 PostgreSQL cases in two suites skipped because no disposable PostgreSQL is
 available locally. The maintained Media client contract and full `npm run
 build:ci` passed, and four maintained Chromium browser journeys passed, covering
@@ -108,7 +108,7 @@ currently reports healthy release `content-5a3ad5ab7517685f`, which is not proof
 that the new changes deployed. No completion claim is made.
 
 Integrated Media suite checkpoint (2026-10-09): the current writable checkout
-ran all 18 maintained `media*.test.js` files with 211 passing tests and 25
+ran all 18 maintained `media*.test.js` files with 212 passing tests and 25
 database-only skips; no Media suite failed. The skipped PostgreSQL cases cover
 saved-feed reload, block/action boundaries, and other real database journeys
 that require the hosted disposable environment.
@@ -120,6 +120,13 @@ saved label but returns `available: false` and no canonical URL, so a stale
 entity cannot become a navigation or transaction bypass. The maintained
 contract and integrated Media suite pass 211 tests; the PostgreSQL link fixture
 is specified but skipped locally and still needs hosted and deployed proof.
+
+Entity-search block boundary checkpoint (2026-10-09): signed-in entity search
+now applies the same reciprocal owner-block predicate as card hydration across
+restaurants, dishes, helpers, businesses, jobs, rentals and logistics. The
+compose picker cannot reintroduce a blocked target through a fresh search. The
+focused contract and integrated Media suite pass 212 tests; real database and
+deployed search evidence remain open.
 
 Creator settlement replay checkpoint (2026-10-09): creator gig, sponsorship,
 tip, and boost settlement retries now recover an already-posted matching

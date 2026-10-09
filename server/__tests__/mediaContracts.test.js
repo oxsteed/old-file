@@ -334,6 +334,21 @@ describe('OxSteed Media launch contracts', () => {
     });
   });
 
+  test('entity search applies two-way owner blocking before returning link targets', async () => {
+    pool.query.mockResolvedValueOnce({ rows: [] });
+    const res = resMock();
+    await media.searchMediaEntities({
+      query: { type: 'helper', q: 'local', limit: '8' },
+      user: { id: 'viewer-1' },
+    }, res);
+
+    const [sql, params] = pool.query.mock.calls[0];
+    expect(sql).toContain('user_blocks');
+    expect(sql).toContain('$3::text');
+    expect(params).toEqual(['%local%', 8, 'viewer-1']);
+    expect(res.json).toHaveBeenCalledWith({ entities: [] });
+  });
+
   test('keeps an unavailable dish link as a snapshot instead of a live action card', async () => {
     pool.query.mockImplementation(async (sql) => {
       if (sql.includes('SELECT p.*, a.handle')) {

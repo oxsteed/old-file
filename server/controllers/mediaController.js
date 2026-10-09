@@ -1994,6 +1994,7 @@ async function searchMediaEntities(req, res) {
     const type = String(req.query.type || 'restaurant').trim();
     const query = String(req.query.q || '').trim().slice(0, 120);
     const limit = Math.min(Math.max(Number.parseInt(req.query.limit, 10) || 8, 1), 20);
+    const viewerUserId = req.user?.id || null;
     const like = `%${query}%`;
     let rows;
     if (type === 'restaurant') {
@@ -2001,7 +2002,8 @@ async function searchMediaEntities(req, res) {
         `SELECT id::text AS target_id, display_name AS name, NULL::int AS price_snapshot_cents
            FROM food_restaurants
           WHERE status = 'active' AND display_name ILIKE $1
-          ORDER BY display_name LIMIT $2`, [like, limit]
+            ${linkViewerBlockPredicate('owner_user_id', '$3')}
+          ORDER BY display_name LIMIT $2`, [like, limit, viewerUserId]
       ));
     } else if (type === 'food_item') {
       ({ rows } = await pool.query(
@@ -2011,7 +2013,8 @@ async function searchMediaEntities(req, res) {
            FROM food_menu_items i
            JOIN food_restaurants r ON r.id = i.restaurant_id
           WHERE r.status = 'active' AND i.is_available = TRUE AND i.name ILIKE $1
-          ORDER BY i.name LIMIT $2`, [like, limit]
+            ${linkViewerBlockPredicate('r.owner_user_id', '$3')}
+          ORDER BY i.name LIMIT $2`, [like, limit, viewerUserId]
       ));
     } else if (type === 'helper') {
       ({ rows } = await pool.query(
@@ -2023,7 +2026,8 @@ async function searchMediaEntities(req, res) {
           WHERE u.deleted_at IS NULL AND u.is_active = TRUE
             AND u.is_verified = TRUE
             AND (hp.profile_slug ILIKE $1 OR u.first_name ILIKE $1 OR u.last_name ILIKE $1)
-          ORDER BY name LIMIT $2`, [like, limit]
+            ${linkViewerBlockPredicate('u.id', '$3')}
+          ORDER BY name LIMIT $2`, [like, limit, viewerUserId]
       ));
     } else if (type === 'business') {
       ({ rows } = await pool.query(
@@ -2032,14 +2036,16 @@ async function searchMediaEntities(req, res) {
            FROM businesses
           WHERE deleted_at IS NULL AND is_active = TRUE AND is_business_verified = TRUE
             AND business_name ILIKE $1
-          ORDER BY business_name LIMIT $2`, [like, limit]
+            ${linkViewerBlockPredicate('user_id', '$3')}
+          ORDER BY business_name LIMIT $2`, [like, limit, viewerUserId]
       ));
     } else if (type === 'job') {
       ({ rows } = await pool.query(
         `SELECT id::text AS target_id, title AS name, NULL::int AS price_snapshot_cents
            FROM jobs
           WHERE status IN ('published', 'matched') AND title ILIKE $1
-          ORDER BY created_at DESC LIMIT $2`, [like, limit]
+            ${linkViewerBlockPredicate('client_id', '$3')}
+          ORDER BY created_at DESC LIMIT $2`, [like, limit, viewerUserId]
       ));
     } else if (type === 'tool_rental') {
       ({ rows } = await pool.query(
@@ -2047,7 +2053,8 @@ async function searchMediaEntities(req, res) {
                 ROUND(COALESCE(daily_rate, hourly_rate) * 100)::int AS price_snapshot_cents
            FROM tool_rentals
           WHERE is_available = TRUE AND name ILIKE $1
-          ORDER BY name LIMIT $2`, [like, limit]
+            ${linkViewerBlockPredicate('user_id', '$3')}
+          ORDER BY name LIMIT $2`, [like, limit, viewerUserId]
       ));
     } else if (type === 'direct_catalog') {
       ({ rows } = await pool.query(
@@ -2065,7 +2072,8 @@ async function searchMediaEntities(req, res) {
                 ROUND(unit_landed_cost_usd * 100)::int AS price_snapshot_cents
            FROM pooled_orders
           WHERE status IN ('open', 'pledging') AND title ILIKE $1
-          ORDER BY created_at DESC LIMIT $2`, [like, limit]
+            ${linkViewerBlockPredicate('organizer_user_id', '$3')}
+          ORDER BY created_at DESC LIMIT $2`, [like, limit, viewerUserId]
       ));
     } else {
       return res.status(400).json({ error: 'Unsupported Media entity type' });
