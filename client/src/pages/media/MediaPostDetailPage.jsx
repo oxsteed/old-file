@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../context/AuthContext';
@@ -34,8 +34,10 @@ export default function MediaPostDetailPage() {
   const [savingBody, setSavingBody] = useState(false);
   const [entitySuggestions, setEntitySuggestions] = useState([]);
   const [searchingEntities, setSearchingEntities] = useState(false);
+  const generation = useRef(0);
 
   const load = useCallback(async () => {
+    const request = ++generation.current;
     setLoading(true);
     setError(null);
     try {
@@ -43,19 +45,25 @@ export default function MediaPostDetailPage() {
         getPost(id),
         getReplies(id, replySort),
       ]);
+      if (request !== generation.current) return;
       setPost(postData.post);
       setBodyDraft(postData.post.body || '');
       setDraftLinks(postData.post.links || []);
       setReplies(repliesData.replies);
       recordView(id).catch(() => {});
     } catch (err) {
-      setError(err.response?.data?.error || t('media.post.loadError'));
+      if (request === generation.current) setError(err.response?.data?.error || t('media.post.loadError'));
     } finally {
-      setLoading(false);
+      if (request === generation.current) setLoading(false);
     }
-  }, [id, replySort, t]);
+  }, [id, replySort, t, user?.id]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    setPost(null); setReplies([]); setQuotes([]); setQuotesOpen(false);
+    setEditingBody(false); setEditingLinks(false); setQuoteBody('');
+    load();
+    return () => { generation.current += 1; };
+  }, [load]);
 
   useEffect(() => {
     let cancelled = false;
@@ -202,7 +210,7 @@ export default function MediaPostDetailPage() {
           </div>
         )}
         {error && !loading && (
-          <div className="media-error">
+          <div className="media-error" role="alert">
             <p>{error}</p>
             <button type="button" onClick={load}>{t('common.retry', 'Retry')}</button>
           </div>
@@ -249,7 +257,7 @@ export default function MediaPostDetailPage() {
                       ))}
                     </div>
                     <form className="media-link-picker" onSubmit={addDraftLink}>
-                      <select value={linkType} onChange={(event) => {
+                      <select aria-label={t('media.compose.linkTypeLabel')} value={linkType} onChange={(event) => {
                         setLinkType(event.target.value);
                         setLinkName('');
                         setLinkTarget('');
@@ -258,6 +266,7 @@ export default function MediaPostDetailPage() {
                       {['restaurant', 'food_item', 'helper', 'business', 'job', 'tool_rental', 'direct_catalog', 'logistics_campaign'].map((type) => <option key={type} value={type}>{t(`media.compose.linkTypes.${type}`, { defaultValue: type })}</option>)}
                       </select>
                       <input
+                        aria-label={t('media.compose.entitySearchPlaceholder')}
                         value={linkName}
                         onChange={(event) => {
                           setLinkName(event.target.value);
@@ -274,7 +283,7 @@ export default function MediaPostDetailPage() {
                       </p>
                     )}
                     {(searchingEntities || entitySuggestions.length > 0) && (
-                      <div className="media-entity-suggestions" role="listbox" aria-label={t('media.compose.entitySearchHint')}>
+                      <div className="media-entity-suggestions" role="group" aria-label={t('media.compose.entitySearchHint')}>
                         {searchingEntities && <span className="media-entity-suggestion-status">{t('media.compose.searchingEntities')}</span>}
                         {entitySuggestions.map((entity) => (
                           <button type="button" key={entity.target_id} className="media-entity-suggestion" onClick={() => chooseEntity(entity)}>

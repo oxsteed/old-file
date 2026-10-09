@@ -56,10 +56,13 @@ router.post('/actors/:actorId/follow', requireAuth, ctrl.toggleFollow);
 // Combined v3 creator marketplace surfaces. Monetary rows are held in
 // pending_credit until the guarded OxSteed Credit transfer is authorized.
 router.get('/creator/gigs', creatorCtrl.listGigs);
+router.get('/creator/my-gigs', requireAuth, creatorCtrl.listMyGigs);
 router.post('/creator/gigs', requireAuth, creatorCtrl.createGig);
 router.post('/creator/gigs/:gigId/applications', requireAuth, creatorCtrl.applyToGig);
 router.get('/creator/gigs/:gigId/applications', requireAuth, creatorCtrl.listApplications);
 router.get('/creator/applications', requireAuth, creatorCtrl.listMyApplications);
+router.post('/creator/applications/:applicationId/decline', requireAuth, creatorCtrl.declineApplication);
+router.post('/creator/applications/:applicationId/accept', requireAuth, creatorCtrl.acceptApplication);
 router.post('/creator/applications/:applicationId/award', requireAuth, creatorCtrl.awardApplication);
 router.post('/creator/applications/:applicationId/deliverables', requireAuth, creatorCtrl.submitDeliverable);
 router.patch('/creator/deliverables/:deliverableId', requireAuth, creatorCtrl.reviewDeliverable);
@@ -69,6 +72,8 @@ router.post('/creator/tips/:tipId/settle', requireAuth, creatorCtrl.settleTip);
 router.post('/creator/sponsorships', requireAuth, creatorCtrl.createSponsorship);
 router.get('/creator/sponsorships', requireAuth, creatorCtrl.listSponsorships);
 router.get('/creator/payments', requireAuth, creatorCtrl.listCreatorPayments);
+router.get('/creator/work-reviews', requireAuth, creatorCtrl.listWorkReviews);
+router.post('/creator/sponsorships/:sponsorshipId/changes', requireAuth, creatorCtrl.requestSponsorshipChanges);
 router.post('/creator/sponsorships/:sponsorshipId/accept', requireAuth, creatorCtrl.acceptSponsorship);
 router.post('/creator/sponsorships/:sponsorshipId/deliverables', requireAuth, creatorCtrl.submitSponsorshipDeliverable);
 router.post('/creator/sponsorships/:sponsorshipId/settle', requireAuth, creatorCtrl.settleSponsorship);

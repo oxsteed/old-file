@@ -30,7 +30,10 @@ test('pagination binds location, account, tab and version, preserving a precise 
   const context = feed.contextKey('home', 'viewer', all);
   const row = { id: 'synthetic', cursor_created_at: '2026-10-08T12:00:00.123456Z', link_count: 2, locality_boost: 3, feed_position: 5 };
   const cursor = feed.encodeCursor(row, context, 'ranked', '2026-10-08T13:00:00Z');
-  expect(feed.decodeCursor(cursor, context)).toMatchObject({ v: 2, created_at: row.cursor_created_at, feed_position: 5, mode: 'ranked', as_of: '2026-10-08T13:00:00Z' });
+  expect(feed.decodeCursor(cursor, context)).toMatchObject({ v: 3, created_at: row.cursor_created_at, feed_position: 5, mode: 'ranked', as_of: '2026-10-08T13:00:00Z' });
+  const old = JSON.parse(Buffer.from(cursor, 'base64url').toString('utf8'));
+  old.v = 2;
+  expect(() => feed.decodeCursor(Buffer.from(JSON.stringify(old)).toString('base64url'), context)).toThrow();
   for (const other of [feed.contextKey('following', 'viewer', all), feed.contextKey('home', null, all),
     feed.contextKey('home', 'viewer', { ...all, city: 'springfield', state: 'oh' })]) {
     expect(() => feed.decodeCursor(cursor, other)).toThrow();

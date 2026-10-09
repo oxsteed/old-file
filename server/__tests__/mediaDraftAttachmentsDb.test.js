@@ -82,6 +82,42 @@ describeDb('Media attachment transactions in PostgreSQL', () => {
       .toEqual({ visibility: 'unlisted', processing_status: 'draft' });
   });
 
+  test('concurrent compose requests cannot exceed the daily cap after waiting for an actor lock', async () => {
+    const quotaUser = randomUUID();
+    const quotaActor = randomUUID();
+    await db.query('INSERT INTO users (id) VALUES ($1)', [quotaUser]);
+    await db.query('INSERT INTO helper_profiles (user_id) VALUES ($1)', [quotaUser]);
+    await db.query(`INSERT INTO media_actors (id,actor_type,owner_user_id,handle,display_name)
+      VALUES ($1,'helper',$2,$3,'Quota helper')`, [quotaActor, quotaUser, `quota-${quotaActor}`]);
+    await db.query(`INSERT INTO media_posts (actor_id,body)
+      SELECT $1,'Existing daily post' FROM generate_series(1,9)`, [quotaActor]);
+    const holder = await db.connect();
+    const responses = [0,1].map(() => ({ status: jest.fn().mockReturnThis(), json: jest.fn() }));
+    let requests;
+    try {
+      await holder.query('BEGIN');
+      await holder.query('SELECT pg_advisory_xact_lock(hashtextextended($1::text,0))', [quotaActor]);
+      requests = responses.map(response => media.createPost({ user: { id: quotaUser },
+        body: { body: 'Concurrent tenth post', draft: true } }, response));
+      let waiting = 0;
+      for (let attempt = 0; attempt < 100 && waiting < 2; attempt += 1) {
+        const result = await setup.query(`SELECT count(*)::int AS waiting FROM pg_stat_activity
+          WHERE wait_event = 'advisory' AND query LIKE '%pg_advisory_xact_lock%'`);
+        waiting = result.rows[0].waiting;
+        if (waiting < 2) await new Promise(resolve => setTimeout(resolve, 10));
+      }
+      expect(waiting).toBe(2);
+      await holder.query('COMMIT');
+      await Promise.all(requests);
+      expect(responses.map(response => response.status.mock.calls[0][0]).sort()).toEqual([201,429]);
+      expect((await db.query('SELECT count(*)::int AS count FROM media_posts WHERE actor_id=$1', [quotaActor])).rows[0].count).toBe(10);
+    } finally {
+      await holder.query('ROLLBACK');
+      holder.release();
+      if (requests) await Promise.allSettled(requests);
+    }
+  });
+
   test('simultaneous lost-response retries commit one attachment', async () => {
     const results = await Promise.all([attachments.attach(image()), attachments.attach(image())]);
     expect(results.map((r) => r.asset.id)[0]).toBe(results[1].asset.id);
@@ -196,6 +232,49 @@ describeDb('Media attachment transactions in PostgreSQL', () => {
     expect(seen[0]).toBe(ids[0]);
     expect(seen).toHaveLength(ids.length);
     expect(new Set(seen)).toEqual(new Set(ids));
+  });
+
+  test('simultaneous reports preserve the hourly cap and reject duplicate open reports', async () => {
+    await db.query("UPDATE media_posts SET visibility='public',processing_status='ready',csam_status='passed' WHERE id=$1",[post]);
+    for (const capped of [true,false]) {
+      const reporter=randomUUID();
+      await db.query('INSERT INTO users(id) VALUES($1)',[reporter]);
+      if(capped)await db.query(`INSERT INTO media_post_flags(post_id,user_id,reason,status)
+        SELECT $1,$2,'spam','dismissed' FROM generate_series(1,29)`,[post,reporter]);
+      const responses=[0,1].map(()=>({status:jest.fn().mockReturnThis(),json:jest.fn()}));
+      await Promise.all(responses.map(response=>media.flagPost({params:{id:post},user:{id:reporter},body:{reason:'spam'}},response)));
+      expect(responses.map(response=>response.status.mock.calls[0][0]).sort()).toEqual(capped?[201,429]:[201,409]);
+      const count=await db.query('SELECT count(*)::int AS count FROM media_post_flags WHERE user_id=$1',[reporter]);
+      expect(count.rows[0].count).toBe(capped?30:1);
+    }
+  });
+
+  test('boost-heavy feeds retain every post and cap sponsored placement across page boundaries', async () => {
+    await db.query("UPDATE media_posts SET visibility='unlisted'");
+    await db.query('DELETE FROM media_post_boosts');
+    const ids = Array.from({ length: 9 }, () => randomUUID());
+    for (let index = 0; index < ids.length; index += 1) {
+      await db.query(`INSERT INTO media_posts(id,actor_id,body,visibility,created_at)
+        VALUES($1,$2,'Synthetic boosted feed','public',NOW()-$3*INTERVAL '1 second')`, [ids[index],actor,index]);
+      if (index < 7) await db.query(`INSERT INTO media_post_boosts(post_id,status,starts_at,ends_at)
+        VALUES($1,'active',NOW()-INTERVAL '1 hour',NOW()+INTERVAL '1 hour')`, [ids[index]]);
+    }
+    const posts = []; let before;
+    for (let page = 0; page < 10; page += 1) {
+      const res = { status: jest.fn().mockReturnThis(), json: jest.fn() };
+      await media.getFeed({ query: { location_mode: 'all',limit:'2',before } },res);
+      expect(res.status).not.toHaveBeenCalled();
+      const payload=res.json.mock.calls[0][0]; posts.push(...payload.posts);
+      if (!payload.has_more) break;
+      before=payload.next_before;
+    }
+    expect(posts).toHaveLength(9);
+    expect(new Set(posts.map(item => item.id))).toEqual(new Set(ids));
+    expect(posts.flatMap((item,index) => item.is_sponsored ? [index+1] : [])).toEqual([5]);
+    await db.query("UPDATE media_post_boosts SET ends_at=NOW()-INTERVAL '1 second'");
+    const expired = { status: jest.fn().mockReturnThis(),json: jest.fn() };
+    await media.getFeed({ query: { location_mode: 'all',limit:'20' } },expired);
+    expect(expired.json.mock.calls[0][0].posts.every(item => !item.is_sponsored)).toBe(true);
   });
 
   test('real locality ranks entity coordinates, city/state fallback and valid links without losing pages', async () => {

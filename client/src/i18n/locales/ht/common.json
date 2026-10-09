@@ -373,6 +373,57 @@
       "locationUnavailable": "Kote aparèy la pa disponib. Antre yon vil ak yon eta oswa rejyon pito.",
       "profileLocation": "Sèvi ak kote pwofil mwen an",
       "cursorChanged": "Kontèks fil ou a chanje. Rafrechi pou rekòmanse."
+    },
+    "search": {
+      "loading": "N ap chèche nan Media…",
+      "loadError": "Nou pa t ka chaje rezilta yo. Chèche ankò."
+    },
+    "actor": {
+      "loadError": "Nou pa t ka chaje kont sa a. Eseye ankò."
+    },
+    "compose": {
+      "linkTypeLabel": "Kalite atik ki lye"
+    },
+    "creator": {
+      "status": {
+        "open": "Louvri",
+        "active": "Aktif",
+        "scheduled": "Pwograme",
+        "posted": "Peye",
+        "expired": "Ekspire",
+        "in_progress": "Ankou",
+        "withdrawn": "Retire"
+      },
+      "currency": "Lajan",
+      "amountCurrency": "Montan ({{currency}})",
+      "invalidAmount": "Antre yon montan pozitif avèk bon presizyon pou lajan an.",
+      "acceptWork": "Aksepte travay la",
+      "workReviewNotice": "Yon administratè ap revize travay sa a. Lajan yo rete rezève jiskaske gen yon desizyon.",
+      "workReviews": "Travay anba revizyon",
+      "revisionReason": "Chanjman ki nesesè",
+      "myGigs": "Travay kreyatè mwen yo",
+      "opportunities": "Opòtinite pou kreyatè",
+      "reviewStates": {
+        "open": "Ap tann revizyon administratè",
+        "released": "Anile epi rezèv la lage",
+        "resumed": "Travay rekòmanse"
+      },
+      "reviewQueueError": "Aksè revizyon an pa disponib oswa kont ou pa gen pèmisyon pou diskisyon.",
+      "reviewResolveError": "Nou pa t ka rezoud revizyon sa a. Eseye ankò.",
+      "adminReviewHint": "Desizyon yo anrejistre. Rekòmanse kenbe lajan rezève; anile lage rezèv la san peye kreyatè a.",
+      "noWorkReviews": "Pa gen travay k ap tann revizyon.",
+      "reviewDecisionReason": "Rezon pou desizyon sa a",
+      "resumeWork": "Rekòmanse travay",
+      "releaseWork": "Anile epi lage rezèv la",
+      "reviewKinds": {
+        "gig": "Travay kreyatè",
+        "sponsorship": "Patwonaj"
+      },
+      "declineWork": "Refize travay la"
+    },
+    "post": {
+      "boostPrice": "Konfime {{amount}} pou 24 èdtan plasman patwone.",
+      "boostNotice": "Peye avèk OxSteed Credit pou 24 èdtan plasman patwone lokal. Piblikasyon an toujou pase kontwòl sekirite ak enpòtans lokal."
     }
   }
 }

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import { searchMedia } from '../../api/media';
@@ -10,14 +10,29 @@ export default function MediaSearchPage() {
   const [results, setResults] = useState([]);
   const [accounts, setAccounts] = useState([]);
   const [searched, setSearched] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const generation = useRef(0);
+
+  useEffect(() => () => { generation.current += 1; }, []);
 
   const handleSearch = async (e) => {
     e.preventDefault();
     if (!query.trim()) return;
-    const data = await searchMedia({ q: query.trim(), limit: 50 });
-    setResults(data.posts || []);
-    setAccounts(data.actors || []);
-    setSearched(true);
+    const request = ++generation.current;
+    setLoading(true); setError(''); setSearched(false);
+    setResults([]); setAccounts([]);
+    try {
+      const data = await searchMedia({ q: query.trim(), limit: 50 });
+      if (request !== generation.current) return;
+      setResults(data.posts || []);
+      setAccounts(data.actors || []);
+      setSearched(true);
+    } catch {
+      if (request === generation.current) setError(t('media.search.loadError'));
+    } finally {
+      if (request === generation.current) setLoading(false);
+    }
   };
 
   return (
@@ -25,12 +40,16 @@ export default function MediaSearchPage() {
       <h1>{t('media.search.title')}</h1>
       <form onSubmit={handleSearch}>
         <input
+          type="search"
+          aria-label={t('media.search.placeholder')}
           value={query}
           onChange={e => setQuery(e.target.value)}
           placeholder={t('media.search.placeholder')}
         />
         <button type="submit">{t('media.search.submit')}</button>
       </form>
+      {loading && <p role="status">{t('media.search.loading')}</p>}
+      {error && <p className="media-error" role="alert">{error}</p>}
       {searched && (
         <div className="media-search-results">
           {accounts.length > 0 && (

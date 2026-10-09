@@ -30,7 +30,7 @@ describe('Media creator dispute administration', () => {
     await admin.listCreatorDisputes({ query: { status: 'open', limit: '10', offset: '0' } }, res, jest.fn());
 
     expect(listCreditDisputes).toHaveBeenCalledWith(expect.objectContaining({
-      referenceTypes: ['media_creator_tip', 'media_creator_sponsorship', 'media_post_boost'],
+      referenceTypes: ['media_creator_tip', 'media_creator_gig', 'media_creator_sponsorship', 'media_post_boost'],
       status: 'open',
       limit: '10',
       offset: '0',

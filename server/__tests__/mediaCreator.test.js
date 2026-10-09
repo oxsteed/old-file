@@ -82,7 +82,8 @@ test('rolls back a gig deliverable when the application transition is missing', 
   pool.connect.mockResolvedValueOnce(client);
   client.query
     .mockResolvedValueOnce({ rows: [] }) // BEGIN is intentionally represented by the shared mock
-    .mockResolvedValueOnce({ rows: [{ id: 'application-1', status: 'awarded', applicant_actor_id: 'actor-1' }] })
+    .mockResolvedValueOnce({ rows: [{ id: 'application-1', status: 'awarded', accepted_at: '2026-10-09T00:00:00Z', applicant_actor_id: 'actor-1' }] })
+    .mockResolvedValueOnce({ rows: [] }) // no open work review
     .mockResolvedValueOnce({ rows: [{ id: 'post-1' }] })
     .mockResolvedValueOnce({ rows: [{ id: 'deliverable-1' }] })
     .mockResolvedValueOnce({ rows: [] }); // guarded application UPDATE
@@ -100,7 +101,7 @@ test('rolls back a gig deliverable when the application transition is missing', 
   expect(client.query).toHaveBeenCalledWith('ROLLBACK');
 });
 
-test('rolls back when a rejected deliverable cannot transition its gig state', async () => {
+test('rolls back a rejected deliverable when its work review cannot be saved', async () => {
   const pool = require('../db');
   const client = { query: mockQuery, release: jest.fn() };
   pool.connect.mockResolvedValueOnce(client);
@@ -109,7 +110,7 @@ test('rolls back when a rejected deliverable cannot transition its gig state', a
     if (query === 'BEGIN' || query === 'ROLLBACK') return { rows: [] };
     if (query.includes('FROM media_creator_deliverables d')) {
       return { rows: [{
-        id: 'deliverable-1', application_id: 'application-1', status: 'submitted',
+        id: 'deliverable-1', application_id: 'application-1', status: 'submitted', application_status: 'delivered', gig_status: 'awarded',
         applicant_user_id: 'creator-1', gig_id: 'gig-1', owner_user_id: 'owner-1',
         credit_reservation_id: null, award_amount_cents: 900,
       }] };
@@ -132,7 +133,7 @@ test('rolls back when a rejected deliverable cannot transition its gig state', a
   }, resMock(), next);
 
   expect(next).toHaveBeenCalledWith(expect.objectContaining({
-    code: 'media_creator_review_transition_failed',
+    code: 'media_creator_work_review_transition_failed',
     status: 503,
   }));
   expect(client.query).toHaveBeenLastCalledWith('ROLLBACK');
@@ -280,6 +281,7 @@ test('fails closed when a sponsorship active reservation does not match its dura
     }
     if (query.includes('SELECT owner_user_id FROM media_actors')) return { rows: [{ owner_user_id: 'creator-1' }] };
     if (query.includes('FROM media_actors a')) return { rows: [{ id: 'actor-1', owner_user_id: 'creator-1' }] };
+    if (query.includes('SELECT p.id FROM media_posts')) return { rows: [{ id: 'post-1' }] };
     if (query.includes('FROM oxsteed_credit_reservations')) {
       return { rows: [{ id: 'different-reservation', account_id: 11, amount_cents: 900, status: 'active' }] };
     }
@@ -355,7 +357,7 @@ test('submits gig deliverables with application and deliverable updates in one t
   mockQuery.mockImplementation(async (sql) => {
     const query = String(sql);
     if (query === 'BEGIN' || query === 'COMMIT') return { rows: [] };
-    if (query.includes('SELECT ap.id, ap.status, ap.applicant_actor_id')) return { rows: [{ id: 'app-1', status: 'awarded', applicant_actor_id: 'actor-1' }] };
+    if (query.includes('SELECT ap.id, ap.status, ap.applicant_actor_id')) return { rows: [{ id: 'app-1', status: 'awarded', accepted_at: '2026-10-09T00:00:00Z', applicant_actor_id: 'actor-1' }] };
     if (query.includes('SELECT p.id FROM media_posts')) return { rows: [{ id: 'post-1' }] };
     if (query.includes('INSERT INTO media_creator_deliverables')) return { rows: [{ id: 'deliverable-1', application_id: 'app-1', status: 'submitted' }] };
     if (query.includes("SET status = 'delivered'")) return { rows: [{ id: 'app-1', status: 'delivered' }] };
@@ -372,8 +374,8 @@ test('submits gig deliverables with application and deliverable updates in one t
   expect(res.status).toHaveBeenCalledWith(201);
   expect(res.json).toHaveBeenCalledWith({ deliverable: expect.objectContaining({ id: 'deliverable-1' }) });
   expect(mockQuery.mock.calls.map(([sql]) => String(sql))).toEqual([
-    'BEGIN', expect.stringContaining('SELECT ap.id, ap.status'), expect.stringContaining('SELECT p.id FROM media_posts'),
-    expect.stringContaining('INSERT INTO media_creator_deliverables'), expect.stringContaining('UPDATE media_creator_applications'), 'COMMIT',
+    'BEGIN', expect.stringContaining('SELECT ap.id, ap.status'), expect.stringContaining('FROM media_creator_work_reviews'), expect.stringContaining('SELECT p.id FROM media_posts'),
+    expect.stringContaining('INSERT INTO media_creator_deliverables'), expect.stringContaining('UPDATE media_creator_applications'), expect.stringContaining('SELECT owner_user_id FROM media_creator_gigs'), 'COMMIT',
   ]);
   expect(client.release).toHaveBeenCalled();
 });
@@ -396,6 +398,7 @@ test('lists creator payment history across tips, sponsorships and boosts', async
   expect(mockQuery.mock.calls[0][0]).toContain("'tip'::text AS kind");
   expect(mockQuery.mock.calls[0][0]).toContain("'sponsorship'::text AS kind");
   expect(mockQuery.mock.calls[0][0]).toContain("'boost'::text AS kind");
+  expect(mockQuery.mock.calls[0][0]).toContain("'gig'::text AS kind");
 });
 
 test('lists an applicant’s awarded work with its latest deliverable state', async () => {
@@ -624,4 +627,60 @@ test('does not allow a creator dispute to target an unrelated payment kind', asy
   await creator.openCreatorDispute({ params: { kind: 'refund', id: '11111111-1111-4111-8111-111111111111' }, user: { id: 'payer-1' }, body: {}, get: () => null }, resMock(), next);
   expect(next).toHaveBeenCalledWith(expect.objectContaining({ code: 'media_creator_dispute_type_invalid' }));
   expect(mockQuery).not.toHaveBeenCalled();
+});
+
+
+test('does not reveal a sponsorship acceptance replay to an unrelated user', async () => {
+  mockQuery.mockImplementation(async (sql) => {
+    if (String(sql).includes('SELECT s.*, a.owner_user_id AS creator_user_id')) return { rows: [{ id: 's-1', status: 'accepted', credit_reservation_id: 'reservation-1', creator_user_id: 'creator-1' }] };
+    return { rows: [] };
+  });
+  const next = jest.fn(); const res = resMock();
+  await creator.acceptSponsorship({ params: { sponsorshipId: 's-1' }, user: { id: 'intruder' } }, res, next);
+  expect(next).toHaveBeenCalledWith(expect.objectContaining({ code: 'media_creator_sponsorship_not_found' }));
+  expect(res.json).not.toHaveBeenCalled();
+  expect(mockQuery).toHaveBeenLastCalledWith('ROLLBACK');
+});
+
+test('rechecks creator verification before approving a gig payment', async () => {
+  mockQuery.mockImplementation(async (sql) => {
+    if (String(sql).includes('FROM media_creator_deliverables d')) return { rows: [{ id: 'd-1', status: 'submitted', application_status: 'delivered', gig_status: 'awarded', applicant_actor_id: 'actor-1', applicant_user_id: 'creator-1', credit_reservation_id: 'reservation-1', award_amount_cents: 900 }] };
+    if (String(sql).includes('SELECT owner_user_id FROM media_actors')) return { rows: [{ owner_user_id: 'creator-1' }] };
+    return { rows: [] };
+  });
+  const next = jest.fn();
+  await creator.reviewDeliverable({ params: { deliverableId: 'd-1' }, user: { id: 'buyer-1' }, body: { status: 'approved' } }, resMock(), next);
+  expect(next).toHaveBeenCalledWith(expect.objectContaining({ code: 'media_creator_unverified' }));
+  expect(mockQuery.mock.calls.some(([sql]) => String(sql).includes('FROM oxsteed_credit_reservations'))).toBe(false);
+});
+
+test('rejects sponsorship payment when its delivery post is no longer public and safe', async () => {
+  mockQuery.mockImplementation(async (sql) => {
+    const query = String(sql);
+    if (query.includes('SELECT s.*, a.owner_user_id AS creator_user_id')) return { rows: [{ id: 's-1', status: 'delivered', sponsor_user_id: 'buyer-1', creator_user_id: 'creator-1', creator_actor_id: 'actor-1', delivery_post_id: 'post-1' }] };
+    if (query.includes('SELECT owner_user_id FROM media_actors')) return { rows: [{ owner_user_id: 'creator-1' }] };
+    if (query.includes('FROM media_actors a')) return { rows: [{ id: 'actor-1', owner_user_id: 'creator-1' }] };
+    return { rows: [] };
+  });
+  const next = jest.fn();
+  await creator.settleSponsorship({ params: { sponsorshipId: 's-1' }, user: { id: 'buyer-1' } }, resMock(), next);
+  expect(next).toHaveBeenCalledWith(expect.objectContaining({ code: 'media_creator_sponsorship_deliverable_invalid' }));
+  expect(mockQuery.mock.calls.some(([sql]) => String(sql).includes('FROM oxsteed_credit_reservations'))).toBe(false);
+});
+
+
+test.each([true, false, 1.5, 2147483648])('rejects invalid marketplace minor-unit amount %p before opening payment state', async amountCents => {
+  const next = jest.fn();
+  await creator.createSponsorship({ user: { id: 'payer' }, body: { amountCents, brief: 'Synthetic brief', idempotencyKey: 'key' }, get: () => null }, resMock(), next);
+  expect(next).toHaveBeenCalledWith(expect.objectContaining({ code: 'media_creator_amount_invalid' }));
+  expect(mockQuery.mock.calls.some(([sql]) => String(sql) === 'BEGIN')).toBe(false);
+});
+
+test('my gig dashboard retains private owner-scoped lifecycle history', async () => {
+  mockQuery.mockResolvedValue({ rows: [{ id: 'gig', status: 'awarded', application_count: 2 }] });
+  const res = resMock();
+  await creator.listMyGigs({ user: { id: 'owner' } }, res, jest.fn());
+  expect(res.json).toHaveBeenCalledWith({ gigs: [{ id: 'gig', status: 'awarded', application_count: 2 }] });
+  expect(mockQuery.mock.calls[0][0]).toContain('g.owner_user_id = $1');
+  expect(mockQuery.mock.calls[0][1]).toEqual(['owner']);
 });

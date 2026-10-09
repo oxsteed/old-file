@@ -103,6 +103,31 @@ describeDb('Media block boundaries in PostgreSQL', () => {
     expect(response.json.mock.calls[0][0].posts[0]).toMatchObject({ id: 'allowed', owner_user_id: 'allowed', liked: true, bookmarked: true });
   });
 
+  test('an unverified member reply stays public without granting root publication visibility', async () => {
+    await db.query(`INSERT INTO media_actors(id,owner_user_id,handle,display_name,actor_type,verified_kind)
+      VALUES('member','viewer','member-viewer','Member','user','none');
+      UPDATE users SET is_verified=false WHERE id='viewer';
+      INSERT INTO media_posts(id,actor_id,body,parent_id)
+        VALUES('member-reply','member','A useful reply','allowed'),('member-root','member','An ineligible root',NULL)`);
+    try {
+      const replies=res();
+      await media.getReplies({ params:{ id:'allowed' },query:{} },replies);
+      expect(replies.status).not.toHaveBeenCalled();
+      expect(replies.json.mock.calls[0][0].replies).toEqual(expect.arrayContaining([
+        expect.objectContaining({ id:'member-reply',verified_kind:'none' }),
+      ]));
+      const detail=res(); await media.getPost({ params:{ id:'member-reply' } },detail);
+      expect(detail.status).not.toHaveBeenCalled();
+      const root=res(); await media.getPost({ params:{ id:'member-root' } },root);
+      expect(root.status).toHaveBeenCalledWith(404);
+      await db.query("INSERT INTO user_blocks VALUES('allowed','viewer')");
+      const blocked=res(); await media.getReplies({ params:{ id:'allowed' },query:{},user:{ id:'allowed' } },blocked);
+      expect(blocked.json.mock.calls[0][0].replies.some(item=>item.id==='member-reply')).toBe(false);
+    } finally {
+      await db.query("DELETE FROM user_blocks WHERE blocker_id='allowed' AND blocked_id='viewer'; DELETE FROM media_posts WHERE actor_id='member'; DELETE FROM media_actors WHERE id='member'; UPDATE users SET is_verified=true WHERE id='viewer'");
+    }
+  });
+
   test('linked cards preserve a snapshot while hiding blocked entity owners', async () => {
     await db.query(`INSERT INTO media_post_links (id, post_id, link_type, target_id, name_snapshot, sort_order)
       VALUES ('blocked-helper-link', 'allowed', 'helper', 'helper-outbound', 'Blocked helper', 0)`);

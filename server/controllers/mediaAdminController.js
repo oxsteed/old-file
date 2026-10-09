@@ -13,12 +13,14 @@ const { sendMediaError } = require('../utils/mediaError');
 
 const MEDIA_PAYMENT_REFERENCE_TYPES = Object.freeze([
   'media_creator_tip',
+  'media_creator_gig',
   'media_creator_sponsorship',
   'media_post_boost',
 ]);
 
 function mediaPaymentKind(referenceType) {
   return referenceType === 'media_creator_tip' ? 'tip'
+    : referenceType === 'media_creator_gig' ? 'gig'
     : referenceType === 'media_creator_sponsorship' ? 'sponsorship'
       : referenceType === 'media_post_boost' ? 'boost' : null;
 }

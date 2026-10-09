@@ -373,6 +373,57 @@
       "locationUnavailable": "La ubicación del dispositivo no está disponible. Introduce una ciudad y un estado o región.",
       "profileLocation": "Usar la ubicación de mi perfil",
       "cursorChanged": "El contexto del feed cambió. Actualiza para empezar de nuevo."
+    },
+    "search": {
+      "loading": "Buscando en Media…",
+      "loadError": "No se pudieron cargar los resultados. Vuelve a buscar."
+    },
+    "actor": {
+      "loadError": "No se pudo cargar esta cuenta. Inténtalo de nuevo."
+    },
+    "compose": {
+      "linkTypeLabel": "Tipo de elemento vinculado"
+    },
+    "creator": {
+      "status": {
+        "open": "Abierto",
+        "active": "Activo",
+        "scheduled": "Programado",
+        "posted": "Pagado",
+        "expired": "Vencido",
+        "in_progress": "En curso",
+        "withdrawn": "Retirado"
+      },
+      "currency": "Moneda",
+      "amountCurrency": "Importe ({{currency}})",
+      "invalidAmount": "Introduce un importe positivo con la precisión de la moneda.",
+      "acceptWork": "Aceptar trabajo",
+      "workReviewNotice": "Un administrador está revisando este trabajo. Los fondos siguen reservados hasta que se tome una decisión.",
+      "workReviews": "Trabajos en revisión",
+      "revisionReason": "Cambios necesarios",
+      "myGigs": "Mis trabajos de creador",
+      "opportunities": "Oportunidades para creadores",
+      "reviewStates": {
+        "open": "Pendiente de revisión administrativa",
+        "released": "Cancelado y reserva liberada",
+        "resumed": "Trabajo reanudado"
+      },
+      "reviewQueueError": "La revisión no está disponible o tu cuenta no tiene permisos de disputas.",
+      "reviewResolveError": "No se pudo resolver la revisión. Inténtalo de nuevo.",
+      "adminReviewHint": "Las decisiones se auditan. Reanudar conserva los fondos reservados; cancelar libera la reserva sin pagar al creador.",
+      "noWorkReviews": "No hay trabajos pendientes de revisión.",
+      "reviewDecisionReason": "Motivo de esta decisión",
+      "resumeWork": "Reanudar trabajo",
+      "releaseWork": "Cancelar y liberar reserva",
+      "reviewKinds": {
+        "gig": "Trabajo de creador",
+        "sponsorship": "Patrocinio"
+      },
+      "declineWork": "Rechazar trabajo"
+    },
+    "post": {
+      "boostPrice": "Confirma {{amount}} por 24 horas de publicación patrocinada.",
+      "boostNotice": "Paga con OxSteed Credit por 24 horas de publicación patrocinada local. Tu publicación mantiene los controles de seguridad y relevancia local."
     }
   }
 }

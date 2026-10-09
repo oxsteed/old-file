@@ -3,6 +3,7 @@
 // Shown when a logged-in user has not completed Didit (didit_status !== 'verified'/'skipped').
 // Also handles the case where Didit is not configured (verification_unavailable error).
 
+import { useEffect } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { CheckCircle2, CreditCard, Lock, ShieldCheck, UserCheck } from 'lucide-react';
@@ -12,7 +13,7 @@ import Footer from '../components/Footer';
 import PageMeta from '../components/PageMeta';
 import './VerifyIdentityPage.css';
 
-export default function VerifyIdentityPage() {
+export default function VerifyIdentityPage({ embedded = false }: { embedded?: boolean } = {}) {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { user } = useAuth();
@@ -27,16 +28,40 @@ export default function VerifyIdentityPage() {
   const destination = returnTo || (user && ['helper', 'helper_pro', 'broker'].includes(user?.role ?? '')
     ? '/helper-dashboard'
     : '/dashboard');
+  const Content = embedded ? 'section' : 'main';
+  // The provider returns to the existing standalone callback URL. Keep the
+  // originating Media journey in this tab, scoped to this account and one hour.
+  useEffect(() => {
+    if (!user?.id) return;
+    try {
+      if (embedded) {
+        sessionStorage.setItem('oxsteed.media.didit.return', JSON.stringify({
+          userId: String(user.id), returnTo: destination, createdAt: Date.now(),
+        }));
+      } else {
+        const stored = JSON.parse(sessionStorage.getItem('oxsteed.media.didit.return') || 'null');
+        if (stored?.userId === String(user.id) && Date.now() - stored.createdAt < 60 * 60 * 1000
+          && typeof stored.returnTo === 'string' && stored.returnTo.startsWith('/media/')) {
+          navigate(`/media/verify-identity?returnTo=${encodeURIComponent(stored.returnTo)}`, { replace: true });
+        }
+      }
+    } catch { /* Storage may be disabled; the explicit return query still works. */ }
+  }, [embedded, user?.id, destination, navigate]);
+
+  const finish = (replace = false) => {
+    try { sessionStorage.removeItem('oxsteed.media.didit.return'); } catch { /* optional storage */ }
+    navigate(destination, { replace });
+  };
 
   return (
-    <div className="verify-identity-page">
+    <div className={`verify-identity-page${embedded ? ' media-identity-embedded' : ''}`}>
       <PageMeta
         title={t('verifyIdentity.metaTitle')}
         description={t('verifyIdentity.metaDescription')}
         noIndex
       />
 
-      <nav className="verify-identity-nav">
+      {!embedded && <nav className="verify-identity-nav">
         <div className="verify-identity-nav-inner">
           <Link to="/" className="verify-identity-brand">OxSteed</Link>
           <div className="verify-identity-nav-badge">
@@ -44,9 +69,9 @@ export default function VerifyIdentityPage() {
             {t('verifyIdentity.secureBadge')}
           </div>
         </div>
-      </nav>
+      </nav>}
 
-      <main className="verify-identity-main">
+      <Content className="verify-identity-main">
         <section className="verify-identity-hero" aria-labelledby="verify-identity-title">
           <div className="verify-identity-copy">
             <div className="verify-identity-eyebrow">
@@ -88,15 +113,15 @@ export default function VerifyIdentityPage() {
             </div>
 
             <DiditPanel
-              onVerified={() => navigate(destination, { replace: true })}
+              onVerified={() => finish(true)}
               // No previous step - the user is already registered; send them to dashboard.
-              onBack={() => navigate(destination)}
+              onBack={() => finish()}
             />
           </div>
         </section>
-      </main>
+      </Content>
 
-      <Footer />
+      {!embedded && <Footer />}
     </div>
   );
 }

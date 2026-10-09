@@ -14,17 +14,20 @@ const fixtures = require('./media-isolated-fixtures');
 async function main() {
   fixtures.assertIsolated();
   const pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: false });
-  const base = 'http://127.0.0.1:5000/api/media';
+  const base = 'http://127.0.0.1:5000/api';
   const postIds = [];
   const tmp = await fs.mkdtemp(path.join(os.tmpdir(), 'media-isolated-'));
   const headers = user => user ? { authorization: `Bearer ${jwt.sign({ id: user, role: 'helper' },
     process.env.JWT_SECRET, { expiresIn: '10m', algorithm: 'HS256' })}` } : {};
   async function api(route, user, body, method = 'GET') {
     const form = body instanceof FormData;
-    const response = await fetch(`${base}${route}`, { method, headers: { ...headers(user),
+    const routePath = route.startsWith('/admin/') ? route : `/media${route}`;
+    const response = await fetch(`${base}${routePath}`, { method, headers: { ...headers(user),
       ...(!form && body ? { 'content-type': 'application/json' } : {}) },
     body: body == null ? undefined : form ? body : JSON.stringify(body) });
-    return { status: response.status, data: await response.json() };
+    const data = await response.json();
+    if (response.status === 500) throw new Error(`Isolated ${method} ${routePath} returned 500 (${data.code || data.error || 'server error'})`);
+    return { status: response.status, data };
   }
   async function draft(user, extra = {}) {
     const result = await api('/posts', user, { body: `Synthetic Media check ${randomUUID()}`, draft: true, ...extra }, 'POST');
@@ -38,7 +41,28 @@ async function main() {
   }
   try {
     await fixtures.seed(pool);
-    const { helper, business, restaurant, customer, blocked } = fixtures.personas;
+    const { admin, helper, business, restaurant, customer, blocked } = fixtures.personas;
+    // Real ownership, request, resubmission and administrator review, rather
+    // than treating seeded verification flags as evidence of that journey.
+    for (const [type,owner,entityId,table,flag] of [
+      ['business',business,905,'businesses','is_business_verified'],
+      ['restaurant',restaurant,901,'food_restaurants','is_verified'],
+    ]) {
+      await pool.query(`UPDATE ${table} SET ${flag}=false WHERE id=$1`,[entityId]);
+      assert.equal((await api('/verification/requests',customer,{ entity_type:type,entity_id:String(entityId) },'POST')).status,404);
+      const requested=await api('/verification/requests',owner,{ entity_type:type,entity_id:String(entityId),details:{ notes:'Synthetic verification evidence' } },'POST');
+      assert.equal(requested.status,201);
+      const requestId=requested.data.request.id;
+      assert.equal((await api(`/admin/media/verification-requests/${requestId}/review`,customer,{ status:'approved' },'POST')).status,403);
+      assert.equal((await api(`/admin/media/verification-requests/${requestId}/review`,admin,{ status:'needs_changes',note:'Add synthetic ownership evidence' },'POST')).status,200);
+      const resubmitted=await api('/verification/requests',owner,{ entity_type:type,entity_id:String(entityId),details:{ notes:'Synthetic revised ownership evidence' } },'POST');
+      assert.equal(resubmitted.status,201);
+      assert.equal(resubmitted.data.request.id,requestId);
+      assert.equal((await api(`/admin/media/verification-requests/${requestId}/review`,admin,{ status:'approved' },'POST')).status,200);
+      const center=await api('/verification',owner);
+      assert.equal(center.status,200);
+      assert(center.data[type==='business'?'businesses':'restaurants'].some(entity=>String(entity.id)===String(entityId)&&entity.is_verified));
+    }
     const scan = await require('../services/fileScanService').scanBuffer(Buffer.from('Synthetic harmless scanner check'));
     assert.equal(scan.provider, 'clamav'); assert.equal(scan.clean, true); assert.equal(scan.skipped, false);
     execFileSync('/usr/bin/ffmpeg', ['-version'], { stdio: 'ignore' });
@@ -47,6 +71,12 @@ async function main() {
     assert.equal((await api(`/posts/${id}`, null)).status, 404, 'private drafts must not be public');
     assert.equal((await api('/posts', customer, { body: 'Unauthorized publication' }, 'POST')).status, 403);
     const photo = await sharp({ create: { width: 64, height: 64, channels: 3, background: '#e95008' } }).jpeg().toBuffer();
+    const antivirusTest=Buffer.from('X5O!P%@AP[4\\PZX54(P^)7CC)7}$EICAR-STANDARD-ANTIVIRUS-TEST-FILE!$H+H*','ascii');
+    const rejected=await api('/assets/photo-uploads',helper,file(id,Buffer.concat([photo,antivirusTest]),'rejected.jpg','image/jpeg'),'POST');
+    assert.equal(rejected.status,400);
+    assert.equal(rejected.data.code,'media_scan_rejected');
+    assert.equal((await pool.query('SELECT count(*)::int AS count FROM media_post_assets WHERE post_id=$1',[id])).rows[0].count,0,
+      'rejected malware must not become a stored attachment');
     assert.equal((await api('/assets/photo-uploads', customer, file(id, photo, 'photo.jpg', 'image/jpeg'), 'POST')).status, 403);
     const upload = await api('/assets/photo-uploads', helper, file(id, photo, 'photo.jpg', 'image/jpeg'), 'POST');
     assert.equal(upload.status, 201);
@@ -58,6 +88,16 @@ async function main() {
       assert.equal((await api(`/posts/${postId}/publish`, owner, {}, 'POST')).status, 200);
     }
     assert.equal((await api(`/posts/${id}`, null)).status, 200);
+    const reply=await api('/posts',customer,{ body:'Synthetic member reply',parent_id:id },'POST');
+    assert.equal(reply.status,201,'unverified members may reply');
+    postIds.push(reply.data.post.id);
+    const replies=await api(`/posts/${id}/replies`,null);
+    assert.equal(replies.status,200);
+    assert(replies.data.replies.some(post=>post.id===reply.data.post.id),'member reply must remain visible after reload');
+    const quote=await api('/posts',business,{ body:'Synthetic quote',quoted_post_id:id,business_id:905 },'POST');
+    assert.equal(quote.status,201);
+    postIds.push(quote.data.post.id);
+    assert.equal((await api(`/posts/${quote.data.post.id}`,null)).data.post.quoted.id,id);
     assert.equal((await api(`/posts/${id}`, blocked)).status, 404, 'both directions of blocking hide public posts');
     assert.equal((await api('/assets/photo-uploads', helper, file(id, photo, 'photo.jpg', 'image/jpeg'), 'POST')).status, 409);
 
@@ -110,8 +150,8 @@ async function main() {
     assert.equal(new Set(pageIds).size, pageIds.length, 'cursor pages must not repeat a post');
     const nearby = await api('/feed?limit=3&city=Springfield&state=OH', null);
     assert.equal(nearby.status, 200);
-    assert.equal(nearby.data.location.city, 'Springfield');
-    assert.equal(nearby.data.location.state, 'OH');
+    assert.equal(nearby.data.location.city, 'springfield');
+    assert.equal(nearby.data.location.state, 'oh');
     const followedActor = firstPage.data.posts.find(post => String(post.owner_user_id) !== String(customer))?.actor_id;
     assert(followedActor, 'published fixture feed must expose an actor to follow');
     const followOn = await api(`/actors/${followedActor}/follow`, customer, {}, 'POST');
@@ -153,7 +193,8 @@ async function main() {
     assert.equal((await api(`/posts/${id}/like`, customer, {}, 'POST')).status, 200);
     console.log(JSON.stringify({ ok: true, evidence: ['helper/business/restaurant drafts', 'ownership', 'guests',
       'two-way blocks', 'durable photo retries', 'personal action state', 'saved posts', 'reports',
-      'owner edit/delete', 'real ClamAV', 'real FFmpeg', 'public rendition delivery'] }));
+      'owner edit/delete', 'entity verification request/resubmission/admin approval', 'unverified member replies',
+      'quotes', 'malware rejection and recovery', 'real ClamAV', 'real FFmpeg', 'public rendition delivery'] }));
   } finally {
     // No financial writes. Keep moderation and artifact history scoped to this
     // disposable database; use the normal owner API for post removal.

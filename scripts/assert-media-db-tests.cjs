@@ -1,7 +1,7 @@
 'use strict';
 const fs = require('node:fs');
 const path = require('node:path');
-const REQUIRED = ['mediaVisibilityDb.test.js', 'mediaDraftAttachmentsDb.test.js'];
+const REQUIRED = ['mediaVisibilityDb.test.js', 'mediaDraftAttachmentsDb.test.js', 'mediaCreatorWorkReviewDb.test.js'];
 function assertMediaResults(report) {
   for (const file of REQUIRED) {
     const suite = report.testResults?.find(result => path.basename(result.name) === file);

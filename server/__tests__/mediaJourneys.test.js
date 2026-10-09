@@ -23,7 +23,7 @@ function response() {
 
 beforeEach(() => {
   pool.query.mockReset().mockResolvedValue({ rows: [], rowCount: 0 });
-  pool.connect.mockReset();
+  pool.connect.mockReset().mockImplementation(async () => ({ query: (...args) => pool.query(...args), release: jest.fn() }));
   sendNotification.mockClear();
 });
 

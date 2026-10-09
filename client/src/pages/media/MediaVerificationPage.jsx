@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { getMediaVerification, submitMediaVerification } from '../../api/media';
 import PageMeta from '../../components/PageMeta';
 import { useAuth } from '../../context/AuthContext';
+import { trapMediaDialogFocus } from './mediaDialogFocus';
 
 function statusKey(entity) {
   if (entity.is_verified) return 'approved';
@@ -32,7 +33,7 @@ export default function MediaVerificationPage() {
   const verificationDialogRef = useRef(null);
 
   const returnTo = safeReturnTo(params.get('returnTo'));
-  const diditHref = `/verify-identity?returnTo=${encodeURIComponent(returnTo)}`;
+  const diditHref = `/media/verify-identity?returnTo=${encodeURIComponent(returnTo)}`;
   const displayName = user?.display_name || user?.name || user?.email || '';
 
   const load = () => {
@@ -50,14 +51,18 @@ export default function MediaVerificationPage() {
     if (!formEntity) return undefined;
     const previousFocus = verificationTriggerRef.current
       || (typeof document !== 'undefined' ? document.activeElement : null);
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
     const closeOnEscape = (event) => {
       if (event.key === 'Escape') setFormEntity(null);
+      trapMediaDialogFocus(event, verificationDialogRef.current);
     };
     document.addEventListener('keydown', closeOnEscape);
     const focusDialog = () => verificationDialogRef.current?.querySelector('textarea, button')?.focus();
     const focusHandle = window.requestAnimationFrame(focusDialog);
     return () => {
       document.removeEventListener('keydown', closeOnEscape);
+      document.body.style.overflow = previousOverflow;
       window.cancelAnimationFrame(focusHandle);
       window.requestAnimationFrame(() => previousFocus?.focus?.());
     };

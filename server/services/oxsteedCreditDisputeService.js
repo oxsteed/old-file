@@ -129,7 +129,7 @@ async function resolveDisputeWithCompensation({
     }
 
     const { rows: transactionRows } = await client.query(
-      `SELECT id, amount_cents, currency_code, transaction_type
+      `SELECT id, amount_cents, currency_code, transaction_type, reference_type
          FROM oxsteed_credit_transactions
         WHERE id = $1`,
       [dispute.transaction_id]
@@ -191,6 +191,7 @@ async function resolveDisputeWithCompensation({
           correlationId: correlationId || null,
           requestIp: requestIp || null,
           metadata,
+          allowMediaCreatorOwner: normalizedActorType === 'admin' && ['media_creator_tip','media_creator_gig','media_creator_sponsorship','media_post_boost'].includes(transaction.reference_type),
         });
         compensationEntry = {
           kind: 'adjustment',

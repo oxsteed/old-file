@@ -5,6 +5,8 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { createCreatorBoost, flagPost, recordShare, settleCreatorBoost, toggleLike, toggleBookmark, toggleRepost } from '../../api/media';
 import useMediaPostRealtime from '../../hooks/useMediaPostRealtime';
+import { trapMediaDialogFocus } from './mediaDialogFocus';
+import { DEFAULT_CREDIT_CURRENCIES, getCreditMinorUnits, parseCreditMajorAmount } from '../../lib/creditCurrency';
 
 function VerifiedBadge({ kind, label }) {
   if (!kind || kind === 'none') return null;
@@ -12,6 +14,7 @@ function VerifiedBadge({ kind, label }) {
 }
 
 function formatCount(n) {
+  n = Number(n) || 0;
   if (n >= 1000000) return `${(n / 1000000).toFixed(1)}M`;
   if (n >= 1000) return `${(n / 1000).toFixed(1)}K`;
   return String(n);
@@ -74,8 +77,10 @@ export default function MediaPostCard({ post, onUpdate, onBookmarkChange }) {
   const [reportMessage, setReportMessage] = useState('');
   const [boostOpen, setBoostOpen] = useState(false);
   const [boostAmount, setBoostAmount] = useState('');
+  const [boostCurrency, setBoostCurrency] = useState('USD');
   const [boostIdempotencyKey, setBoostIdempotencyKey] = useState('');
   const [boosting, setBoosting] = useState(false);
+  const [boostComplete, setBoostComplete] = useState(false);
   const [boostMessage, setBoostMessage] = useState('');
   const boostTriggerRef = useRef(null);
   const boostDialogRef = useRef(null);
@@ -83,14 +88,18 @@ export default function MediaPostCard({ post, onUpdate, onBookmarkChange }) {
   useEffect(() => {
     if (!boostOpen) return undefined;
     const previousFocus = typeof document !== 'undefined' ? document.activeElement : null;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
     const closeOnEscape = (event) => {
       if (event.key === 'Escape') setBoostOpen(false);
+      trapMediaDialogFocus(event, boostDialogRef.current);
     };
     document.addEventListener('keydown', closeOnEscape);
     const focusDialog = () => boostDialogRef.current?.querySelector('input, button')?.focus();
     const focusHandle = window.requestAnimationFrame(focusDialog);
     return () => {
       document.removeEventListener('keydown', closeOnEscape);
+      document.body.style.overflow = previousOverflow;
       window.cancelAnimationFrame(focusHandle);
       window.requestAnimationFrame(() => previousFocus?.focus?.());
     };
@@ -225,14 +234,18 @@ export default function MediaPostCard({ post, onUpdate, onBookmarkChange }) {
 
   const handleBoost = async (event) => {
     event.preventDefault();
+    if (boosting || boostComplete) return;
     if (!user) return navigate('/login', { state: { from: window.location.pathname } });
     setBoosting(true); setBoostMessage('');
     try {
+      const amountCents = parseCreditMajorAmount(boostAmount, boostCurrency);
+      if (amountCents === null) { setBoostMessage(t('media.creator.invalidAmount')); return; }
       const created = await createCreatorBoost(post.id, {
-        amountCents: Number(boostAmount),
+        amountCents, currencyCode: boostCurrency,
         idempotencyKey: boostIdempotencyKey,
       });
       await settleCreatorBoost(created.boost.id);
+      setBoostComplete(true);
       setBoostMessage(t('media.post.boostSent'));
     } catch (err) {
       setBoostMessage(err.response?.data?.error || t('media.post.boostError'));
@@ -347,7 +360,7 @@ export default function MediaPostCard({ post, onUpdate, onBookmarkChange }) {
             ↗️ {t('media.post.share')} {formatCount(shareCount)}
           </button>
           {user && String(post.owner_user_id) === String(user.id) && post.visibility === 'public' && (
-            <button ref={boostTriggerRef} type="button" onClick={() => { setBoostAmount(''); setBoostMessage(''); setBoostIdempotencyKey(`media-boost-${post.id}-${Date.now()}-${Math.random().toString(16).slice(2)}`); setBoostOpen(true); }} className="media-action" aria-label={t('media.post.boost')}>
+            <button ref={boostTriggerRef} type="button" onClick={() => { setBoostAmount(''); setBoostMessage(''); setBoostComplete(false); setBoostIdempotencyKey(`media-boost-${post.id}-${Date.now()}-${Math.random().toString(16).slice(2)}`); setBoostOpen(true); }} className="media-action" aria-label={t('media.post.boost')}>
               ✨ {t('media.post.boost')}
             </button>
           )}
@@ -372,12 +385,16 @@ export default function MediaPostCard({ post, onUpdate, onBookmarkChange }) {
         <form ref={boostDialogRef} className="media-verification-form" onSubmit={handleBoost} role="dialog" aria-modal="true" aria-labelledby={`media-boost-title-${post.id}`}>
           <button type="button" className="media-dialog-close" onClick={() => setBoostOpen(false)} aria-label={t('media.shell.close')}><span aria-hidden="true">×</span></button>
           <h2 id={`media-boost-title-${post.id}`}>{t('media.post.boost')}</h2>
-          {boostMessage ? <p role="status">{boostMessage}</p> : <>
-            <label htmlFor={`media-boost-amount-${post.id}`}>{t('media.post.boostAmount')}</label>
-            <input id={`media-boost-amount-${post.id}`} type="number" min="1" step="1" value={boostAmount} onChange={(event) => setBoostAmount(event.target.value)} required />
+          {boostMessage && <p role="status">{boostMessage}</p>}
+          <>
+            <label htmlFor={`media-boost-currency-${post.id}`}>{t('media.creator.currency')}</label>
+            <select id={`media-boost-currency-${post.id}`} disabled={boosting || boostComplete} value={boostCurrency} onChange={event => setBoostCurrency(event.target.value)}>{DEFAULT_CREDIT_CURRENCIES.map(currency => <option key={currency} value={currency}>{currency}</option>)}</select>
+            <label htmlFor={`media-boost-amount-${post.id}`}>{t('media.creator.amountCurrency', { currency: boostCurrency })}</label>
+            <input id={`media-boost-amount-${post.id}`} disabled={boosting || boostComplete} inputMode="decimal" value={boostAmount} onChange={(event) => setBoostAmount(event.target.value)} required />
             <p className="media-form-hint">{t('media.post.boostNotice')}</p>
-            <button type="submit" className="media-primary-button" disabled={boosting}>{boosting ? t('media.compose.posting') : t('media.post.boostConfirm')}</button>
-          </>}
+            {parseCreditMajorAmount(boostAmount, boostCurrency) !== null && <p className="media-form-hint" role="status">{t('media.post.boostPrice', { amount: new Intl.NumberFormat(i18n.language || 'en', { style: 'currency', currency: boostCurrency }).format(parseCreditMajorAmount(boostAmount, boostCurrency) / 10 ** getCreditMinorUnits(boostCurrency)) })}</p>}
+            <button type="submit" className="media-primary-button" disabled={boosting || boostComplete}>{boosting ? t('media.compose.posting') : t('media.post.boostConfirm')}</button>
+          </>
         </form>
       </div>}
     </article>

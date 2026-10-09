@@ -4,7 +4,7 @@ const fs = require('fs');
 const path = require('path');
 
 function valuesSection(filename, marker) {
-  const sql = fs.readFileSync(path.join(__dirname, '..', 'migrations', filename), 'utf8');
+  const sql = fs.readFileSync(path.join(__dirname, '..', 'migrations', filename), 'utf8').replace(/\r\n/g, '\n');
   const start = sql.indexOf('VALUES');
   const end = sql.indexOf(marker, start);
   if (start < 0 || end < 0) throw new Error(`Could not locate values section in ${filename}`);

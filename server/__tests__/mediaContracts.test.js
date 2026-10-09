@@ -23,7 +23,7 @@ function resMock() {
 describe('OxSteed Media launch contracts', () => {
   beforeEach(() => {
     pool.query.mockReset();
-    pool.connect = jest.fn();
+    pool.connect = jest.fn().mockImplementation(async () => ({ query: (...args) => pool.query(...args), release: jest.fn() }));
   });
 
   test('keeps a draft private when an uploaded video is still awaiting safety processing', async () => {
@@ -339,7 +339,7 @@ describe('OxSteed Media launch contracts', () => {
     expect(res.status).toHaveBeenCalledWith(201);
     const insert = pool.query.mock.calls.find(([sql]) => sql.includes('INSERT INTO media_posts'));
     expect(insert[0]).toContain('CASE WHEN $3::uuid IS NOT NULL');
-    expect(insert[0]).toContain('pg_advisory_xact_lock');
+    expect(pool.query.mock.calls.some(([sql]) => sql.includes('pg_advisory_xact_lock'))).toBe(true);
     expect(insert[0]).toContain('media_post_quota.count < $7');
     expect(insert[1][6]).toBe(10);
   });

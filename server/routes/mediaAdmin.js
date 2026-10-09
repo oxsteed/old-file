@@ -4,11 +4,15 @@ const router = require('express').Router();
 const { requireAdmin, requirePermission } = require('../middleware/adminAuth');
 const ctrl = require('../controllers/mediaAdminController');
 const verificationCtrl = require('../controllers/mediaVerificationAdminController');
+const workCtrl = require('../controllers/mediaCreatorWorkAdminController');
 
 router.use(requireAdmin);
 
 // Creator payments use the shared Credit dispute rail. Keep the Media queue
 // scoped to creator references while preserving the existing staff grants.
+router.get('/creator-work-reviews', requirePermission('manage_disputes'), workCtrl.listWorkReviews);
+router.post('/creator-work-reviews/:reviewId/resolve', requirePermission('issue_refunds'), workCtrl.resolveWorkReview);
+
 router.get('/creator-disputes', requirePermission('manage_disputes'), ctrl.listCreatorDisputes);
 router.post('/creator-disputes/:disputeId/review', requirePermission('manage_disputes'), ctrl.reviewCreatorDispute);
 router.post('/creator-disputes/:disputeId/resolve', requirePermission('issue_refunds'), ctrl.resolveCreatorDispute);

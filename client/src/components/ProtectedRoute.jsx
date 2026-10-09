@@ -17,6 +17,7 @@ const ONBOARDING_ALLOWED_PATHS = [
 const DIDIT_EXEMPT_PATHS = [
   '/verify-identity',
   '/media/verification',
+  '/media/verify-identity',
 ];
 
 // Paths that are part of email verification flow.

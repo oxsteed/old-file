@@ -2,7 +2,9 @@
 
 const { createHash } = require('crypto');
 
-const VERSION = 2;
+// Placement now retains overflow boosted posts in the organic lane. Old
+// ranking cursors must refresh instead of continuing with changed positions.
+const VERSION = 3;
 function invalid(code = 'media_location_invalid') {
   return Object.assign(new Error('Refresh the feed with a valid location and cursor'), { status: 400, code });
 }

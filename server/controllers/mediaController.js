@@ -33,7 +33,10 @@ function activeMediaOwnerSql(ownerExpression, alias = 'media_link_owner') {
 // verification, not only the historical post safety verdict. This keeps
 // revoked helpers, businesses, and restaurants out of every public surface.
 function publicMediaSql(postAlias = 'p', actorAlias = 'a') {
-  return `${mediaSafety.publicPostSql(postAlias)} AND (${verifiedActorSql(actorAlias)})`;
+  // Verified actors publish root/quote posts; ordinary active members can
+  // participate in reply threads without receiving a publisher badge.
+  return `${mediaSafety.publicPostSql(postAlias)} AND
+    (${postAlias}.parent_id IS NOT NULL OR (${verifiedActorSql(actorAlias)}))`;
 }
 function publicActor(actor) {
   if (!actor || actor.current_actor_verified !== false) return actor;
@@ -639,20 +642,32 @@ async function getFeed(req, res) {
                   to_char(p.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS cursor_created_at,
                   ${validLinkCountSql(viewerParam)} AS link_count,
                   ${localityBoost} AS locality_boost,
-                  ${ACTIVE_BOOST_SQL} AS is_sponsored
+                  ${ACTIVE_BOOST_SQL} AS boost_eligible
              FROM media_posts p
              JOIN media_actors a ON a.id = p.actor_id
              LEFT JOIN media_post_links l ON l.post_id = p.id
             WHERE ${where}
             GROUP BY p.id, a.handle, a.display_name, a.avatar_url, a.verified_kind, a.actor_type,
                      a.owner_user_id, a.business_id, a.restaurant_id
-         ), ranked AS (
+         ), eligible AS (
            SELECT base.*,
+                  ROW_NUMBER() OVER (
+                    PARTITION BY boost_eligible
+                    ORDER BY locality_boost DESC, link_count DESC, created_at DESC, id DESC
+                  ) AS boost_rank,
+                  COUNT(*) OVER () AS candidate_count
+             FROM base
+         ), placement AS (
+           SELECT eligible.*,
+                  (boost_eligible AND boost_rank <= candidate_count / 5) AS is_sponsored
+             FROM eligible
+         ), ranked AS (
+           SELECT placement.*,
                   ROW_NUMBER() OVER (
                     PARTITION BY is_sponsored
                     ORDER BY locality_boost DESC, link_count DESC, created_at DESC, id DESC
                   ) AS lane_rank
-             FROM base
+             FROM placement
          ), slotted AS (
            SELECT ranked.*,
                   CASE WHEN is_sponsored
@@ -1077,6 +1092,7 @@ async function getQuotes(req, res) {
 }
 
 async function createPost(req, res) {
+  let client;
   try {
     const userId = req.user.id;
     const businessId = req.body?.business_id ? String(req.body.business_id).trim() : null;
@@ -1194,15 +1210,32 @@ async function createPost(req, res) {
       }
     }
 
-    // Serialize the quota check with the insert. A read-then-insert check can
-    // overshoot the daily cap when two compose requests arrive together.
-    const { rows } = await pool.query(
-      `WITH media_post_quota_lock AS (
-             SELECT pg_advisory_xact_lock(hashtextextended($1::text, 0))
-         ), media_post_quota AS (
+    client = await pool.connect();
+    await client.query('BEGIN');
+    // A lock inside the insert statement still uses the snapshot taken before
+    // waiting. Acquire it separately so the quota sees the previous commit.
+    await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1::text, 0))', [actor.id]);
+    if (parent_id || quoted_post_id) {
+      const targetIds = [...new Set([parent_id, quoted_post_id].filter(Boolean))].sort();
+      const targetParams = [targetIds];
+      const targetWhere = addViewerBlockFilter(
+        `p.id = ANY($1::uuid[]) AND p.deleted_at IS NULL AND p.visibility = 'public'
+         AND p.processing_status = 'ready' AND ${publicMediaSql('p', 'a')}`,
+        targetParams, userId
+      );
+      const { rows: lockedTargets } = await client.query(
+        `SELECT p.id FROM media_posts p JOIN media_actors a ON a.id=p.actor_id
+          WHERE ${targetWhere} ORDER BY p.id FOR UPDATE OF p`, targetParams
+      );
+      if (lockedTargets.length !== targetIds.length) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'The post you are replying to or quoting is unavailable', code: 'media_target_unavailable' });
+      }
+    }
+    const { rows } = await client.query(
+      `WITH media_post_quota AS (
            SELECT COUNT(*)::int AS count
              FROM media_posts existing
-             CROSS JOIN media_post_quota_lock
             WHERE existing.actor_id = $1::uuid
               AND existing.created_at > NOW() - INTERVAL '1 day'
          )
@@ -1217,14 +1250,19 @@ async function createPost(req, res) {
        RETURNING *`,
       [actor.id, body.trim(), parent_id || null, quoted_post_id || null, community_id || null, isDraft, POSTS_PER_DAY]
     );
-    if (!rows[0]) return res.status(429).json({ error: 'Daily post limit reached', code: 'media_daily_post_limit' });
+    if (!rows[0]) {
+      await client.query('ROLLBACK');
+      return res.status(429).json({ error: 'Daily post limit reached', code: 'media_daily_post_limit' });
+    }
     const post = rows[0];
+    const countEvents = [];
+    let replyRecipient;
 
     // Attach links with snapshots.
     if (normalizedLinks.length) {
       for (let i = 0; i < normalizedLinks.length; i++) {
         const l = normalizedLinks[i];
-        await pool.query(
+        await client.query(
           `INSERT INTO media_post_links
              (post_id, link_type, target_id, label, name_snapshot, price_snapshot_cents, currency_code, sort_order)
            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
@@ -1237,7 +1275,7 @@ async function createPost(req, res) {
 
     // Update parent reply count.
     if (parent_id) {
-      const { rows: parentCounts } = await pool.query(
+      const { rows: parentCounts } = await client.query(
         `UPDATE media_posts parent
             SET reply_count = (
               SELECT COUNT(*)::int FROM media_posts reply
@@ -1247,24 +1285,17 @@ async function createPost(req, res) {
           WHERE parent.id = $1 RETURNING parent.reply_count`,
         [parent_id]
       );
-      broadcastMediaPostCounts(parent_id, { reply_count: parentCounts[0]?.reply_count });
-      const { rows: parentActors } = await pool.query(
+      countEvents.push([parent_id, { reply_count: parentCounts[0]?.reply_count }]);
+      const { rows: parentActors } = await client.query(
         `SELECT a.owner_user_id FROM media_posts p JOIN media_actors a ON a.id = p.actor_id WHERE p.id = $1`,
         [parent_id]
       );
       if (parentActors[0]?.owner_user_id && parentActors[0].owner_user_id !== userId) {
-        await notifyMediaUser({
-          userId: parentActors[0].owner_user_id,
-          type: 'media_reply',
-          title: 'New reply on your OxSteed Media post',
-          body: 'Someone replied to your post.',
-          postId: parent_id,
-          idempotencyKey: `media_reply:${post.id}`,
-        });
+        replyRecipient = parentActors[0].owner_user_id;
       }
     }
     if (quoted_post_id) {
-      const { rows: quoteCounts } = await pool.query(
+      const { rows: quoteCounts } = await client.query(
         `UPDATE media_posts quoted
             SET quote_count = (
               SELECT COUNT(*)::int FROM media_posts quote
@@ -1274,13 +1305,26 @@ async function createPost(req, res) {
           WHERE quoted.id = $1 RETURNING quoted.quote_count`,
         [quoted_post_id]
       );
-      broadcastMediaPostCounts(quoted_post_id, { quote_count: quoteCounts[0]?.quote_count });
+      countEvents.push([quoted_post_id, { quote_count: quoteCounts[0]?.quote_count }]);
     }
+
+    await client.query('COMMIT');
+    client.release();
+    client = null;
+    for (const [id, counts] of countEvents) broadcastMediaPostCounts(id, counts);
+    if (replyRecipient) await notifyMediaUser({
+      userId: replyRecipient, type: 'media_reply',
+      title: 'New reply on your OxSteed Media post', body: 'Someone replied to your post.',
+      postId: parent_id, idempotencyKey: `media_reply:${post.id}`,
+    });
 
     res.status(201).json({ post: await hydratePost(post, userId), draft: isDraft });
   } catch (err) {
+    if (client) await client.query('ROLLBACK').catch(() => {});
     logger.error('media.createPost error', { message: err.message });
     mediaError(res, err, 'Failed to create post');
+  } finally {
+    if (client) client.release();
   }
 }
 

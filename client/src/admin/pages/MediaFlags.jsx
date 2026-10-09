@@ -1,7 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
+import { useTranslation } from 'react-i18next';
+import { getMediaCreatorWorkReviews, resolveMediaCreatorWorkReview } from '../../api/media';
 
 export default function MediaFlagsPage() {
+  const { t } = useTranslation();
   const [flags, setFlags] = useState([]);
   const [pendingPosts, setPendingPosts] = useState([]);
   const [approvalReasons, setApprovalReasons] = useState({});
@@ -10,6 +13,10 @@ export default function MediaFlagsPage() {
   const [verificationError, setVerificationError] = useState('');
   const [status, setStatus] = useState('open');
   const [loading, setLoading] = useState(true);
+  const [workReviews, setWorkReviews] = useState([]);
+  const [workReviewReasons, setWorkReviewReasons] = useState({});
+  const [workReviewError, setWorkReviewError] = useState('');
+  const [workReviewPending, setWorkReviewPending] = useState(null);
 
   const load = async () => {
     setLoading(true);
@@ -20,6 +27,12 @@ export default function MediaFlagsPage() {
       ]);
       setFlags(data.flags);
       setPendingPosts(pending.data.posts || []);
+      try {
+        const reviews = await getMediaCreatorWorkReviews({ status: 'open' });
+        setWorkReviews(reviews.workReviews || []); setWorkReviewError('');
+      } catch {
+        setWorkReviews([]); setWorkReviewError(t('media.creator.reviewQueueError'));
+      }
       try {
         const verification = await axios.get('/api/admin/media/verification-requests', { params: { status: 'submitted' } });
         setVerificationRequests(verification.data.requests || []);
@@ -33,6 +46,18 @@ export default function MediaFlagsPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const resolveWork = async (review, decision) => {
+    const reason = String(workReviewReasons[review.id] || '').trim();
+    if (reason.length < 3 || workReviewPending) return;
+    setWorkReviewPending(review.id); setWorkReviewError('');
+    try {
+      await resolveMediaCreatorWorkReview(review.id, { decision, reason });
+      setWorkReviews(items => items.filter(item => item.id !== review.id));
+      setWorkReviewReasons(items => ({ ...items, [review.id]: '' }));
+    } catch { setWorkReviewError(t('media.creator.reviewResolveError')); }
+    finally { setWorkReviewPending(null); }
   };
 
   const handleVerificationReview = async (id, status) => {
@@ -73,6 +98,22 @@ export default function MediaFlagsPage() {
   return (
     <div className="admin-page">
       <h1>Media Flags</h1>
+      <section aria-labelledby="media-admin-work-reviews-title">
+        <h2 id="media-admin-work-reviews-title">{t('media.creator.workReviews')}</h2>
+        <p>{t('media.creator.adminReviewHint')}</p>
+        {workReviewError && <p role="alert">{workReviewError}</p>}
+        {!workReviewError && !workReviews.length && <p>{t('media.creator.noWorkReviews')}</p>}
+        {workReviews.map(review => <article key={review.id} className="admin-card">
+          <h3>{t(`media.creator.reviewKinds.${review.kind}`)} · {review.reference_id}</h3>
+          <p>{review.reason}</p>
+          <label htmlFor={`media-review-reason-${review.id}`}>{t('media.creator.reviewDecisionReason')}</label>
+          <textarea id={`media-review-reason-${review.id}`} maxLength={4000} value={workReviewReasons[review.id] || ''} onChange={event => setWorkReviewReasons(items => ({ ...items, [review.id]: event.target.value }))} />
+          <div className="admin-actions">
+            <button type="button" onClick={() => resolveWork(review, 'resume')} disabled={Boolean(workReviewPending) || (workReviewReasons[review.id] || '').trim().length < 3}>{t('media.creator.resumeWork')}</button>
+            <button type="button" onClick={() => resolveWork(review, 'release')} disabled={Boolean(workReviewPending) || (workReviewReasons[review.id] || '').trim().length < 3}>{t('media.creator.releaseWork')}</button>
+          </div>
+        </article>)}
+      </section>
       <section>
         <h2>Publisher verification requests</h2>
         {verificationError && <p>{verificationError}</p>}

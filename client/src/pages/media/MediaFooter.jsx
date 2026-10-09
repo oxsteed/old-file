@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useCookieConsentContext } from '../../context/CookieConsentContext';
 import OxSteedIcon from '../../components/OxSteedIcon';
+import { trapMediaDialogFocus } from './mediaDialogFocus';
 
 const LEGAL_LINKS = [
   ['terms', '/terms'],
@@ -28,6 +29,7 @@ export default function MediaFooter() {
   const [openLegal, setOpenLegal] = useState(null);
   const closeButtonRef = useRef(null);
   const legalTriggerRef = useRef(null);
+  const legalDialogRef = useRef(null);
   const LegalPage = openLegal ? LEGAL_PAGES[openLegal] : null;
 
   const closeLegal = () => {
@@ -45,6 +47,7 @@ export default function MediaFooter() {
     closeButtonRef.current?.focus();
     const onKeyDown = (event) => {
       if (event.key === 'Escape') closeLegal();
+      trapMediaDialogFocus(event, legalDialogRef.current);
     };
     window.addEventListener('keydown', onKeyDown);
     return () => {
@@ -91,7 +94,7 @@ export default function MediaFooter() {
       </footer>
       {LegalPage && (
         <div className="media-legal-overlay" role="presentation" onMouseDown={closeOnBackdrop}>
-          <section className="media-legal-dialog" role="dialog" aria-modal="true" aria-labelledby="media-legal-title">
+          <section ref={legalDialogRef} tabIndex={-1} className="media-legal-dialog" role="dialog" aria-modal="true" aria-labelledby="media-legal-title">
             <header className="media-legal-dialog-header">
               <div>
                 <span className="media-legal-dialog-kicker">{t('media.feed.title')}</span>

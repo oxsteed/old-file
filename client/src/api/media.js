@@ -45,6 +45,7 @@ export const toggleFollow = (actorId) => api.post(`/media/actors/${actorId}/foll
 export const getMediaVerification = () => api.get('/media/verification').then(r => r.data);
 export const submitMediaVerification = (data) => api.post('/media/verification/requests', data).then(r => r.data);
 export const getCreatorGigs = (params = {}) => api.get('/media/creator/gigs', { params }).then(r => r.data);
+export const getMyCreatorGigs = () => api.get('/media/creator/my-gigs').then(r => r.data);
 export const createCreatorGig = (data) => {
   const { idempotencyKey, ...payload } = data || {};
   return api.post('/media/creator/gigs', payload, {
@@ -55,6 +56,8 @@ export const applyToCreatorGig = (gigId, data) => api.post(`/media/creator/gigs/
 export const getCreatorApplications = (gigId) => api.get(`/media/creator/gigs/${gigId}/applications`).then(r => r.data);
 export const getMyCreatorApplications = () => api.get('/media/creator/applications').then(r => r.data);
 export const awardCreatorApplication = (applicationId) => api.post(`/media/creator/applications/${applicationId}/award`).then(r => r.data);
+export const acceptCreatorApplication = (applicationId) => api.post(`/media/creator/applications/${applicationId}/accept`).then(r => r.data);
+export const declineCreatorApplication = (applicationId) => api.post(`/media/creator/applications/${applicationId}/decline`).then(r => r.data);
 export const cancelCreatorGig = (gigId) => api.post(`/media/creator/gigs/${gigId}/cancel`).then(r => r.data);
 export const submitCreatorDeliverable = (applicationId, data) => api.post(`/media/creator/applications/${applicationId}/deliverables`, data).then(r => r.data);
 export const reviewCreatorDeliverable = (deliverableId, status) => api.patch(`/media/creator/deliverables/${deliverableId}`, { status }).then(r => r.data);
@@ -89,3 +92,8 @@ export const openCreatorDispute = (kind, id, data, idempotencyKey) => api.post(`
 export const getMediaCreatorDisputes = (params = {}) => api.get('/admin/media/creator-disputes', { params }).then(r => r.data);
 export const reviewMediaCreatorDispute = (disputeId, reason) => api.post(`/admin/media/creator-disputes/${disputeId}/review`, { reason }).then(r => r.data);
 export const resolveMediaCreatorDispute = (disputeId, data) => api.post(`/admin/media/creator-disputes/${disputeId}/resolve`, data).then(r => r.data);
+
+export const getCreatorWorkReviews = () => api.get('/media/creator/work-reviews').then(r => r.data);
+export const requestCreatorSponsorshipChanges = (sponsorshipId, reason) => api.post(`/media/creator/sponsorships/${sponsorshipId}/changes`, { reason }).then(r => r.data);
+export const getMediaCreatorWorkReviews = (params = {}) => api.get('/admin/media/creator-work-reviews', { params }).then(r => r.data);
+export const resolveMediaCreatorWorkReview = (reviewId, data) => api.post(`/admin/media/creator-work-reviews/${reviewId}/resolve`, data).then(r => r.data);

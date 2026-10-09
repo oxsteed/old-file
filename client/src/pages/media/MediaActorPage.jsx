@@ -7,7 +7,8 @@ import { getActor, toggleFollow } from '../../api/media';
 import MediaPostCard from './MediaPostCard';
 
 export default function MediaActorPage() {
-  const { handle } = useParams();
+  const { handle: routeHandle } = useParams();
+  const handle = routeHandle?.replace(/^@/, '') || '';
   const { t } = useTranslation();
   const { user } = useAuth();
   const [actor, setActor] = useState(null);
@@ -15,21 +16,26 @@ export default function MediaActorPage() {
   const [loading, setLoading] = useState(true);
   const [followLoading, setFollowLoading] = useState(false);
   const [followError, setFollowError] = useState(null);
+  const [loadError, setLoadError] = useState(null);
 
   useEffect(() => {
+    let cancelled = false;
     (async () => {
       setLoading(true);
+      setActor(null); setPosts([]); setLoadError(null); setFollowError(null);
       try {
         const data = await getActor(handle);
+        if (cancelled) return;
         setActor(data.actor);
-        setPosts(data.posts);
-      } catch (err) {
-        console.error('Failed to load actor', err);
+        setPosts(data.posts || []);
+      } catch {
+        if (!cancelled) setLoadError(t('media.actor.loadError'));
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     })();
-  }, [handle]);
+    return () => { cancelled = true; };
+  }, [handle, user?.id, t]);
 
   const handleFollow = async () => {
     if (!actor || followLoading) return;
@@ -37,7 +43,7 @@ export default function MediaActorPage() {
     setFollowError(null);
     try {
       const result = await toggleFollow(actor.id);
-      setActor((current) => current ? {
+      setActor((current) => current?.id === actor.id ? {
         ...current,
         following: result.following,
         follower_count: result.follower_count,
@@ -49,7 +55,8 @@ export default function MediaActorPage() {
     }
   };
 
-  if (loading) return <p>{t('media.actor.loading')}</p>;
+  if (loading) return <p role="status">{t('media.actor.loading')}</p>;
+  if (loadError) return <p className="media-error" role="alert">{loadError}</p>;
   if (!actor) return <p>{t('media.actor.notFound')}</p>;
 
   return (

@@ -30257,7 +30257,109 @@
     "refundUnavailableHint": "هذا الطلب ليس حالياً في حالة دفع قابلة للاسترداد."
   },
   "media": {
-    "creator": { "kicker": "سوق المبدعين", "title": "سوق المبدعين", "subtitle": "اعثر على حملات محلية مدفوعة وحوّل أعمال Media المعتمدة إلى فرص.", "loadError": "تعذر تحميل فرص المبدعين.", "empty": "لا توجد فرص مفتوحة حالياً.", "apply": "التقدم لهذه المهمة", "createGig": "نشر مهمة للمبدعين", "gigTitle": "عنوان المهمة", "gigBrief": "الوصف", "budget": "الميزانية بالسنت", "pitch": "عرضك", "proposed": "المبلغ المقترح بالسنت", "submit": "إرسال الطلب", "submitted": "تم إرسال الطلب.", "tip": "إرسال إكرامية", "sponsor": "تقديم رعاية", "amount": "المبلغ بالسنت", "brief": "موجز الحملة", "creditNotice": "تحويل الائتمان محمي بواسطة نظام OxSteed وقد يتطلب اعتماد الحساب.", "send": "متابعة", "tipSent": "تم إرسال الإكرامية بنجاح.", "sponsorshipSent": "تم إرسال عرض الرعاية لقبول المبدع.", "paymentError": "تعذر إكمال تحويل الائتمان.", "offers": "عروض الرعاية", "paymentHistory": "سجل المدفوعات", "accept": "قبول العرض", "pendingAcceptance": "بانتظار قبول المبدع.", "accepted": "مقبول؛ بانتظار تسوية الائتمان.", "reviewApplications": "مراجعة الطلبات", "applications": "الطلبات", "noApplications": "لا توجد طلبات بعد.", "award": "إسناد المهمة", "cancel": "إلغاء", "myApplications": "طلباتي", "submitDeliverable": "إرسال التسليم", "choosePost": "اختر منشوراً منشوراً", "deliverableNote": "ملاحظة للعميل", "deliverableStatus": "حالة التسليم", "approveDeliverable": "اعتماد التسليم", "requestChanges": "طلب تغييرات", "settle":"تسوية الدفع", "settled":"تمت تسوية الدفع.", "dispute":"الإبلاغ عن مشكلة في الدفع", "disputeDescription":"صف ما يحتاج إلى مراجعة", "disputeHint":"يفتح هذا نزاع ائتمان خاضعاً للتدقيق للمراجعة.", "submitDispute":"إرسال النزاع", "disputeSubmitted":"تم إرسال النزاع للمراجعة.", "settling":"جارٍ المعالجة…", "disputeStatus":"النزاع: {{status}}","disputeStates":{"open":"مفتوح","in_review":"قيد المراجعة","resolved_customer":"تمت تسويته مع تعويض العميل","resolved_merchant":"تمت التسوية","rejected":"مرفوض"},"status": { "pending_credit": "بانتظار القبول", "accepted": "مقبول", "completed": "مكتمل", "cancelled": "ملغى", "submitted": "مُرسل", "awarded": "مُسند", "delivered": "مُسلّم", "rejected": "مرفوض", "approved": "معتمد", "changes_requested": "التغييرات مطلوبة" } },
+    "creator": {
+      "kicker": "سوق المبدعين",
+      "title": "سوق المبدعين",
+      "subtitle": "اعثر على حملات محلية مدفوعة وحوّل أعمال Media المعتمدة إلى فرص.",
+      "loadError": "تعذر تحميل فرص المبدعين.",
+      "empty": "لا توجد فرص مفتوحة حالياً.",
+      "apply": "التقدم لهذه المهمة",
+      "createGig": "نشر مهمة للمبدعين",
+      "gigTitle": "عنوان المهمة",
+      "gigBrief": "الوصف",
+      "budget": "الميزانية بالسنت",
+      "pitch": "عرضك",
+      "proposed": "المبلغ المقترح بالسنت",
+      "submit": "إرسال الطلب",
+      "submitted": "تم إرسال الطلب.",
+      "tip": "إرسال إكرامية",
+      "sponsor": "تقديم رعاية",
+      "amount": "المبلغ بالسنت",
+      "brief": "موجز الحملة",
+      "creditNotice": "تحويل الائتمان محمي بواسطة نظام OxSteed وقد يتطلب اعتماد الحساب.",
+      "send": "متابعة",
+      "tipSent": "تم إرسال الإكرامية بنجاح.",
+      "sponsorshipSent": "تم إرسال عرض الرعاية لقبول المبدع.",
+      "paymentError": "تعذر إكمال تحويل الائتمان.",
+      "offers": "عروض الرعاية",
+      "paymentHistory": "سجل المدفوعات",
+      "accept": "قبول العرض",
+      "pendingAcceptance": "بانتظار قبول المبدع.",
+      "accepted": "مقبول؛ بانتظار تسوية الائتمان.",
+      "reviewApplications": "مراجعة الطلبات",
+      "applications": "الطلبات",
+      "noApplications": "لا توجد طلبات بعد.",
+      "award": "إسناد المهمة",
+      "cancel": "إلغاء",
+      "myApplications": "طلباتي",
+      "submitDeliverable": "إرسال التسليم",
+      "choosePost": "اختر منشوراً منشوراً",
+      "deliverableNote": "ملاحظة للعميل",
+      "deliverableStatus": "حالة التسليم",
+      "approveDeliverable": "اعتماد التسليم",
+      "requestChanges": "طلب تغييرات",
+      "settle": "تسوية الدفع",
+      "settled": "تمت تسوية الدفع.",
+      "dispute": "الإبلاغ عن مشكلة في الدفع",
+      "disputeDescription": "صف ما يحتاج إلى مراجعة",
+      "disputeHint": "يفتح هذا نزاع ائتمان خاضعاً للتدقيق للمراجعة.",
+      "submitDispute": "إرسال النزاع",
+      "disputeSubmitted": "تم إرسال النزاع للمراجعة.",
+      "settling": "جارٍ المعالجة…",
+      "disputeStatus": "النزاع: {{status}}",
+      "disputeStates": {
+        "open": "مفتوح",
+        "in_review": "قيد المراجعة",
+        "resolved_customer": "تمت تسويته مع تعويض العميل",
+        "resolved_merchant": "تمت التسوية",
+        "rejected": "مرفوض"
+      },
+      "status": {
+        "pending_credit": "بانتظار القبول",
+        "accepted": "مقبول",
+        "completed": "مكتمل",
+        "cancelled": "ملغى",
+        "submitted": "مُرسل",
+        "awarded": "مُسند",
+        "delivered": "مُسلّم",
+        "rejected": "مرفوض",
+        "approved": "معتمد",
+        "changes_requested": "التغييرات مطلوبة",
+        "open": "مفتوح",
+        "active": "نشط",
+        "scheduled": "مجدول",
+        "posted": "مدفوع",
+        "expired": "منتهي",
+        "in_progress": "قيد التنفيذ",
+        "withdrawn": "مسحوب"
+      },
+      "currency": "العملة",
+      "amountCurrency": "المبلغ ({{currency}})",
+      "invalidAmount": "أدخل مبلغًا موجبًا بالدقة الصحيحة للعملة.",
+      "acceptWork": "قبول العمل",
+      "workReviewNotice": "هذا العمل قيد مراجعة المسؤول. تبقى الأموال محجوزة حتى صدور قرار.",
+      "workReviews": "الأعمال قيد المراجعة",
+      "revisionReason": "التعديلات المطلوبة",
+      "myGigs": "مهام الإنشاء الخاصة بي",
+      "opportunities": "فرص صُنّاع المحتوى",
+      "reviewStates": {
+        "open": "بانتظار مراجعة المسؤول",
+        "released": "أُلغي العمل وأُفرج عن الحجز",
+        "resumed": "استُؤنف العمل"
+      },
+      "reviewQueueError": "الوصول إلى المراجعة غير متاح أو حسابك لا يملك صلاحيات النزاعات.",
+      "reviewResolveError": "تعذّر حسم مراجعة العمل. حاول مرة أخرى.",
+      "adminReviewHint": "تُسجّل القرارات للتدقيق. الاستئناف يبقي الأموال محجوزة؛ والإلغاء يحرّر الحجز دون دفع لصانع المحتوى.",
+      "noWorkReviews": "لا توجد أعمال بانتظار المراجعة.",
+      "reviewDecisionReason": "سبب هذا القرار",
+      "resumeWork": "استئناف العمل",
+      "releaseWork": "إلغاء العمل وتحرير الحجز",
+      "reviewKinds": {
+        "gig": "مهمة إنشاء محتوى",
+        "sponsorship": "رعاية"
+      },
+      "declineWork": "رفض العمل"
+    },
     "actor": {
       "follow": "متابعة",
       "unfollow": "إلغاء المتابعة",
@@ -30268,7 +30370,8 @@
       "you": "أنت",
       "loading": "جارٍ تحميل الملف الشخصي…",
       "notFound": "الملف الشخصي غير موجود.",
-      "noPosts": "لا توجد منشورات بعد."
+      "noPosts": "لا توجد منشورات بعد.",
+      "loadError": "تعذّر تحميل هذا الحساب. حاول مرة أخرى."
     },
     "shell": {
       "navigation": "التنقل في Media",
@@ -30316,8 +30419,9 @@
       "actionError": "تعذّر تنفيذ هذا الإجراء. حاول مرة أخرى.",
       "boost": "ترويج المنشور",
       "boostAmount": "مبلغ الترويج بالسنت",
-      "boostNotice": "تستخدم الترويجات رصيد OxSteed وتحافظ على صلة المحتوى محلياً.",
-      "boostConfirm": "ترويج المنشور", "sponsored": "مموّل",
+      "boostNotice": "ادفع برصيد OxSteed Credit مقابل ظهور محلي برعاية لمدة 24 ساعة. تبقى فحوص الأمان والملاءمة المحلية مطبقة على المنشور.",
+      "boostConfirm": "ترويج المنشور",
+      "sponsored": "مموّل",
       "boostSent": "تمت جدولة الترويج بنجاح.",
       "boostError": "تعذر إكمال ترويج المنشور.",
       "videoEmbed": "فيديو مضمن",
@@ -30383,7 +30487,8 @@
       "reporting": "جارٍ الإرسال…",
       "reportSubmit": "إبلاغ",
       "reportSent": "تم إرسال البلاغ. شكرًا لك.",
-      "reportError": "تعذر إرسال البلاغ."
+      "reportError": "تعذر إرسال البلاغ.",
+      "boostPrice": "أكّد {{amount}} مقابل ظهور برعاية لمدة 24 ساعة."
     },
     "search": {
       "title": "البحث في Media",
@@ -30391,7 +30496,9 @@
       "submit": "بحث",
       "empty": "لم يتم العثور على نتائج.",
       "accounts": "الحسابات",
-      "posts": "المنشورات"
+      "posts": "المنشورات",
+      "loading": "جارٍ البحث في ميديا…",
+      "loadError": "تعذّر تحميل النتائج. حاول البحث مرة أخرى."
     },
     "feed": {
       "chooseLocation": "اختيار الموقع",
@@ -30501,7 +30608,8 @@
       "processingReady": "اكتملت فحوصات الوسائط. مسودتك جاهزة للنشر.",
       "processingDelayed": "تستغرق فحوصات الوسائط وقتًا أطول من المتوقع. يمكنك إعادة محاولة هذه المسودة لاحقًا.",
       "previewAlt": "معاينة الوسائط المحددة",
-      "uploadProgress": "تقدم الرفع"
+      "uploadProgress": "تقدم الرفع",
+      "linkTypeLabel": "نوع العنصر المرتبط"
     },
     "verification": {
       "metaTitle": "التحقق في Media",
@@ -30531,7 +30639,16 @@
       "submit": "إرسال الطلب",
       "submitting": "جارٍ الإرسال…",
       "requestError": "تعذر إرسال الطلب.",
-      "status": { "approved": "تم التحقق", "submitted": "تم إرسال الطلب", "in_review": "قيد المراجعة", "needs_changes": "مطلوب تعديل", "rejected": "تم رفض الطلب", "pending": "التحقق قيد الانتظار", "skipped": "تم تخطي التحقق", "unavailable": "لم يُطلب" }
+      "status": {
+        "approved": "تم التحقق",
+        "submitted": "تم إرسال الطلب",
+        "in_review": "قيد المراجعة",
+        "needs_changes": "مطلوب تعديل",
+        "rejected": "تم رفض الطلب",
+        "pending": "التحقق قيد الانتظار",
+        "skipped": "تم تخطي التحقق",
+        "unavailable": "لم يُطلب"
+      }
     },
     "notifications": {
       "kicker": "تحديثات الشبكة",

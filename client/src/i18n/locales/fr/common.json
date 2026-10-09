@@ -373,6 +373,57 @@
       "locationUnavailable": "La position de votre appareil est indisponible. Indiquez une ville et un état ou une région.",
       "profileLocation": "Utiliser le lieu de mon profil",
       "cursorChanged": "Le contexte du fil a changé. Actualisez pour recommencer."
+    },
+    "search": {
+      "loading": "Recherche dans Media…",
+      "loadError": "Impossible de charger les résultats. Relancez la recherche."
+    },
+    "actor": {
+      "loadError": "Impossible de charger ce compte. Réessayez."
+    },
+    "compose": {
+      "linkTypeLabel": "Type d’élément lié"
+    },
+    "creator": {
+      "status": {
+        "open": "Ouvert",
+        "active": "Actif",
+        "scheduled": "Programmé",
+        "posted": "Payé",
+        "expired": "Expiré",
+        "in_progress": "En cours",
+        "withdrawn": "Retiré"
+      },
+      "currency": "Devise",
+      "amountCurrency": "Montant ({{currency}})",
+      "invalidAmount": "Saisissez un montant positif avec la précision de la devise.",
+      "acceptWork": "Accepter le travail",
+      "workReviewNotice": "Ce travail est examiné par un administrateur. Les fonds restent réservés jusqu’à la décision.",
+      "workReviews": "Travaux en cours d’examen",
+      "revisionReason": "Modifications nécessaires",
+      "myGigs": "Mes missions de création",
+      "opportunities": "Opportunités pour les créateurs",
+      "reviewStates": {
+        "open": "En attente d’examen administratif",
+        "released": "Annulé et réservation libérée",
+        "resumed": "Travail repris"
+      },
+      "reviewQueueError": "L’accès est indisponible ou votre compte ne dispose pas des droits de litige.",
+      "reviewResolveError": "Impossible de résoudre cet examen. Réessayez.",
+      "adminReviewHint": "Les décisions sont auditées. Reprendre conserve les fonds réservés ; annuler libère la réservation sans payer le créateur.",
+      "noWorkReviews": "Aucun travail en attente d’examen.",
+      "reviewDecisionReason": "Motif de cette décision",
+      "resumeWork": "Reprendre le travail",
+      "releaseWork": "Annuler et libérer la réservation",
+      "reviewKinds": {
+        "gig": "Mission de création",
+        "sponsorship": "Sponsoring"
+      },
+      "declineWork": "Refuser le travail"
+    },
+    "post": {
+      "boostPrice": "Confirmez {{amount}} pour 24 heures de placement sponsorisé.",
+      "boostNotice": "Payez avec OxSteed Credit pour 24 heures de placement sponsorisé local. Les contrôles de sécurité et de pertinence locale restent applicables."
     }
   }
 }

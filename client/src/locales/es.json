@@ -30246,7 +30246,109 @@
     "refundUnavailableHint": "Este pedido no se encuentra actualmente en un estado de pago reembolsable."
   },
   "media": {
-    "creator": { "kicker": "Mercado de creadores", "title": "Mercado de creadores", "subtitle": "Encuentra campañas locales pagadas y convierte tu trabajo aprobado en oportunidades.", "loadError": "No se pudieron cargar las oportunidades.", "empty": "Aún no hay oportunidades abiertas.", "apply": "Solicitar este trabajo", "createGig": "Publicar un trabajo de creador", "gigTitle": "Título del trabajo", "gigBrief": "Descripción", "budget": "Presupuesto en centavos", "pitch": "Tu propuesta", "proposed": "Monto propuesto en centavos", "submit": "Enviar solicitud", "submitted": "Solicitud enviada.", "tip": "Enviar propina", "sponsor": "Ofrecer patrocinio", "amount": "Monto en centavos", "brief": "Descripción de campaña", "creditNotice": "La transferencia de Crédito está protegida por el sistema de OxSteed y puede requerir aprobación.", "send": "Continuar", "tipSent": "Propina enviada correctamente.", "sponsorshipSent": "Oferta de patrocinio enviada para aceptación del creador.", "paymentError": "No se pudo completar la transferencia de Crédito.", "offers": "Ofertas de patrocinio", "paymentHistory": "Historial de pagos", "accept": "Aceptar oferta", "pendingAcceptance": "Esperando la aceptación del creador.", "accepted": "Aceptada; pendiente de liquidación de Crédito.", "reviewApplications": "Revisar solicitudes", "applications": "Solicitudes", "noApplications": "Aún no hay solicitudes.", "award": "Asignar trabajo", "cancel": "Cancelar", "myApplications": "Mis solicitudes", "submitDeliverable": "Enviar entrega", "choosePost": "Elige una publicación publicada", "deliverableNote": "Nota para el cliente", "deliverableStatus": "Estado de la entrega", "approveDeliverable": "Aprobar entrega", "requestChanges": "Solicitar cambios", "settle":"Liquidar pago", "settled":"Pago liquidado.", "dispute":"Informar un problema de pago", "disputeDescription":"Describe lo que debe revisarse", "disputeHint":"Esto abre una disputa de Crédito auditada para revisión.", "submitDispute":"Enviar disputa", "disputeSubmitted":"Disputa enviada para revisión.", "settling":"Procesando…", "disputeStatus":"Disputa: {{status}}","disputeStates":{"open":"Abierta","in_review":"En revisión","resolved_customer":"Resuelta con compensación al cliente","resolved_merchant":"Resuelta","rejected":"Rechazada"},"status": { "pending_credit": "Esperando aceptación", "accepted": "Aceptado", "completed": "Completado", "cancelled": "Cancelado", "submitted": "Enviado", "awarded": "Asignado", "delivered": "Entregado", "rejected": "Rechazado", "approved": "Aprobado", "changes_requested": "Cambios solicitados" } },
+    "creator": {
+      "kicker": "Mercado de creadores",
+      "title": "Mercado de creadores",
+      "subtitle": "Encuentra campañas locales pagadas y convierte tu trabajo aprobado en oportunidades.",
+      "loadError": "No se pudieron cargar las oportunidades.",
+      "empty": "Aún no hay oportunidades abiertas.",
+      "apply": "Solicitar este trabajo",
+      "createGig": "Publicar un trabajo de creador",
+      "gigTitle": "Título del trabajo",
+      "gigBrief": "Descripción",
+      "budget": "Presupuesto en centavos",
+      "pitch": "Tu propuesta",
+      "proposed": "Monto propuesto en centavos",
+      "submit": "Enviar solicitud",
+      "submitted": "Solicitud enviada.",
+      "tip": "Enviar propina",
+      "sponsor": "Ofrecer patrocinio",
+      "amount": "Monto en centavos",
+      "brief": "Descripción de campaña",
+      "creditNotice": "La transferencia de Crédito está protegida por el sistema de OxSteed y puede requerir aprobación.",
+      "send": "Continuar",
+      "tipSent": "Propina enviada correctamente.",
+      "sponsorshipSent": "Oferta de patrocinio enviada para aceptación del creador.",
+      "paymentError": "No se pudo completar la transferencia de Crédito.",
+      "offers": "Ofertas de patrocinio",
+      "paymentHistory": "Historial de pagos",
+      "accept": "Aceptar oferta",
+      "pendingAcceptance": "Esperando la aceptación del creador.",
+      "accepted": "Aceptada; pendiente de liquidación de Crédito.",
+      "reviewApplications": "Revisar solicitudes",
+      "applications": "Solicitudes",
+      "noApplications": "Aún no hay solicitudes.",
+      "award": "Asignar trabajo",
+      "cancel": "Cancelar",
+      "myApplications": "Mis solicitudes",
+      "submitDeliverable": "Enviar entrega",
+      "choosePost": "Elige una publicación publicada",
+      "deliverableNote": "Nota para el cliente",
+      "deliverableStatus": "Estado de la entrega",
+      "approveDeliverable": "Aprobar entrega",
+      "requestChanges": "Solicitar cambios",
+      "settle": "Liquidar pago",
+      "settled": "Pago liquidado.",
+      "dispute": "Informar un problema de pago",
+      "disputeDescription": "Describe lo que debe revisarse",
+      "disputeHint": "Esto abre una disputa de Crédito auditada para revisión.",
+      "submitDispute": "Enviar disputa",
+      "disputeSubmitted": "Disputa enviada para revisión.",
+      "settling": "Procesando…",
+      "disputeStatus": "Disputa: {{status}}",
+      "disputeStates": {
+        "open": "Abierta",
+        "in_review": "En revisión",
+        "resolved_customer": "Resuelta con compensación al cliente",
+        "resolved_merchant": "Resuelta",
+        "rejected": "Rechazada"
+      },
+      "status": {
+        "pending_credit": "Esperando aceptación",
+        "accepted": "Aceptado",
+        "completed": "Completado",
+        "cancelled": "Cancelado",
+        "submitted": "Enviado",
+        "awarded": "Asignado",
+        "delivered": "Entregado",
+        "rejected": "Rechazado",
+        "approved": "Aprobado",
+        "changes_requested": "Cambios solicitados",
+        "open": "Abierto",
+        "active": "Activo",
+        "scheduled": "Programado",
+        "posted": "Pagado",
+        "expired": "Vencido",
+        "in_progress": "En curso",
+        "withdrawn": "Retirado"
+      },
+      "currency": "Moneda",
+      "amountCurrency": "Importe ({{currency}})",
+      "invalidAmount": "Introduce un importe positivo con la precisión de la moneda.",
+      "acceptWork": "Aceptar trabajo",
+      "workReviewNotice": "Un administrador está revisando este trabajo. Los fondos siguen reservados hasta que se tome una decisión.",
+      "workReviews": "Trabajos en revisión",
+      "revisionReason": "Cambios necesarios",
+      "myGigs": "Mis trabajos de creador",
+      "opportunities": "Oportunidades para creadores",
+      "reviewStates": {
+        "open": "Pendiente de revisión administrativa",
+        "released": "Cancelado y reserva liberada",
+        "resumed": "Trabajo reanudado"
+      },
+      "reviewQueueError": "La revisión no está disponible o tu cuenta no tiene permisos de disputas.",
+      "reviewResolveError": "No se pudo resolver la revisión. Inténtalo de nuevo.",
+      "adminReviewHint": "Las decisiones se auditan. Reanudar conserva los fondos reservados; cancelar libera la reserva sin pagar al creador.",
+      "noWorkReviews": "No hay trabajos pendientes de revisión.",
+      "reviewDecisionReason": "Motivo de esta decisión",
+      "resumeWork": "Reanudar trabajo",
+      "releaseWork": "Cancelar y liberar reserva",
+      "reviewKinds": {
+        "gig": "Trabajo de creador",
+        "sponsorship": "Patrocinio"
+      },
+      "declineWork": "Rechazar trabajo"
+    },
     "actor": {
       "follow": "Seguir",
       "unfollow": "Dejar de seguir",
@@ -30257,7 +30359,8 @@
       "you": "Tú",
       "loading": "Cargando perfil…",
       "notFound": "No se encontró el perfil.",
-      "noPosts": "Aún no hay publicaciones."
+      "noPosts": "Aún no hay publicaciones.",
+      "loadError": "No se pudo cargar esta cuenta. Inténtalo de nuevo."
     },
     "shell": {
       "navigation": "Navegación de Media",
@@ -30305,8 +30408,9 @@
       "actionError": "No se pudo completar esa acción. Inténtalo de nuevo.",
       "boost": "Impulsar publicación",
       "boostAmount": "Monto del impulso en centavos",
-      "boostNotice": "Los impulsos usan OxSteed Credit y mantienen las salvaguardas de relevancia local.",
-      "boostConfirm": "Impulsar publicación", "sponsored": "Patrocinado",
+      "boostNotice": "Paga con OxSteed Credit por 24 horas de publicación patrocinada local. Tu publicación mantiene los controles de seguridad y relevancia local.",
+      "boostConfirm": "Impulsar publicación",
+      "sponsored": "Patrocinado",
       "boostSent": "Impulso programado correctamente.",
       "boostError": "No se pudo completar el impulso.",
       "videoEmbed": "Video insertado",
@@ -30372,7 +30476,8 @@
       "reporting": "Enviando…",
       "reportSubmit": "Denunciar",
       "reportSent": "Denuncia enviada. Gracias.",
-      "reportError": "No se pudo enviar la denuncia."
+      "reportError": "No se pudo enviar la denuncia.",
+      "boostPrice": "Confirma {{amount}} por 24 horas de publicación patrocinada."
     },
     "search": {
       "title": "Buscar en Media",
@@ -30380,7 +30485,9 @@
       "submit": "Buscar",
       "empty": "No se encontraron resultados.",
       "accounts": "Cuentas",
-      "posts": "Publicaciones"
+      "posts": "Publicaciones",
+      "loading": "Buscando en Media…",
+      "loadError": "No se pudieron cargar los resultados. Vuelve a buscar."
     },
     "feed": {
       "chooseLocation": "Elegir ubicación",
@@ -30490,7 +30597,8 @@
       "processingReady": "Las comprobaciones del contenido terminaron. Tu borrador está listo para publicarse.",
       "processingDelayed": "Las comprobaciones están tardando más de lo esperado. Puedes reintentar este borrador más tarde.",
       "previewAlt": "Vista previa del contenido seleccionado",
-      "uploadProgress": "Progreso de carga"
+      "uploadProgress": "Progreso de carga",
+      "linkTypeLabel": "Tipo de elemento vinculado"
     },
     "verification": {
       "metaTitle": "Verificación de Media",
@@ -30520,7 +30628,16 @@
       "submit": "Enviar solicitud",
       "submitting": "Enviando…",
       "requestError": "No se pudo enviar la solicitud.",
-      "status": { "approved": "Verificado", "submitted": "Solicitud enviada", "in_review": "En revisión", "needs_changes": "Cambios solicitados", "rejected": "Solicitud rechazada", "pending": "Verificación pendiente", "skipped": "Verificación omitida", "unavailable": "No solicitada" }
+      "status": {
+        "approved": "Verificado",
+        "submitted": "Solicitud enviada",
+        "in_review": "En revisión",
+        "needs_changes": "Cambios solicitados",
+        "rejected": "Solicitud rechazada",
+        "pending": "Verificación pendiente",
+        "skipped": "Verificación omitida",
+        "unavailable": "No solicitada"
+      }
     },
     "notifications": {
       "kicker": "Actualizaciones de la red",

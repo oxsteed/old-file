@@ -56,7 +56,7 @@ function scanServer() {
           if (!SKIP_DIRS.has(entry.name)) stack.push(path.join(cur, entry.name));
         } else if (entry.isFile() && entry.name.endsWith('.js') && !entry.name.endsWith('.test.js')) {
           const absPath = path.join(cur, entry.name);
-          visit(absPath, path.relative(SERVER_ROOT, absPath));
+          visit(absPath, path.relative(SERVER_ROOT, absPath).split(path.sep).join('/'));
         }
       }
     }

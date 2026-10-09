@@ -31,9 +31,9 @@ export default function MediaShell({ children }) {
   const { user, loading, logout } = useAuth();
   const { unreadCount: notificationUnread } = useNotifications();
   const [messageUnread, setMessageUnread] = useState(0);
-  const { pathname } = useLocation();
+  const { pathname, search } = useLocation();
   const currentPath = pathname.replace(/\/+$/, '') || '/';
-  const activeTab = ['/media/compose', '/media/verification', '/media/creator'].includes(currentPath) ? null
+  const activeTab = ['/media/compose', '/media/verification', '/media/verify-identity', '/media/creator'].includes(currentPath) ? null
     : TABS.find(tab => tab.path !== '/media' && currentPath.startsWith(tab.path))?.path || '/media';
   const displayName = user?.display_name
     || user?.name
@@ -94,7 +94,7 @@ export default function MediaShell({ children }) {
                 </div>
               ) : (
                 <div className="media-auth-links" aria-label={t('media.shell.account')}>
-                  <Link to="/login" className="media-auth-link">{t('nav.signIn')}</Link>
+                  <Link to="/login" state={{ from: `${pathname}${search}` }} className="media-auth-link">{t('nav.signIn')}</Link>
                   <Link to="/join" className="media-auth-link media-auth-link-primary">{t('nav.joinOxsteed')}</Link>
                 </div>
               ))}
@@ -102,6 +102,12 @@ export default function MediaShell({ children }) {
               <ThemeToggle />
             </div>
           </div>
+          <nav className="media-mobile-shortcuts" aria-label={t('media.shell.account')}>
+            <Link to="/media/compose"><Plus size={16} aria-hidden="true" />{t('media.feed.compose')}</Link>
+            {user && <Link to="/media/bookmarks"><Bookmark size={16} aria-hidden="true" />{t('media.shell.saved')}</Link>}
+            {user && <Link to="/media/verification"><ShieldCheck size={16} aria-hidden="true" />{t('media.shell.verification')}</Link>}
+            <Link to="/media/creator"><Briefcase size={16} aria-hidden="true" />{t('media.creator.title')}</Link>
+          </nav>
         </header>
         <div className="media-layout">
           <aside className="media-left-rail">

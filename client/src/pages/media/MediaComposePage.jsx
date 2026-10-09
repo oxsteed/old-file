@@ -300,6 +300,7 @@ export default function MediaComposePage() {
       <h1>{t('media.compose.title')}</h1>
       <form onSubmit={handleSubmit}>
         <textarea
+          aria-label={t('media.compose.placeholder')}
           value={body}
           onChange={e => setBody(e.target.value)}
           placeholder={t('media.compose.placeholder')}
@@ -315,7 +316,7 @@ export default function MediaComposePage() {
             </div>
           ))}
           <div className="media-link-picker">
-            <select value={linkType} onChange={e => {
+            <select aria-label={t('media.compose.linkTypeLabel')} value={linkType} onChange={e => {
               setLinkType(e.target.value);
               setLinkName('');
               setLinkTarget('');
@@ -324,6 +325,7 @@ export default function MediaComposePage() {
               {LINK_TYPES.map(type => <option key={type} value={type}>{t(`media.compose.linkTypes.${type}`, { defaultValue: type })}</option>)}
             </select>
             <input
+              aria-label={t('media.compose.entitySearchPlaceholder')}
               value={linkName}
               onChange={e => {
                 setLinkName(e.target.value);
@@ -333,6 +335,7 @@ export default function MediaComposePage() {
               placeholder={t('media.compose.entitySearchPlaceholder')}
             />
             <input
+              aria-label={t('media.compose.pricePlaceholder')}
               value={linkPrice}
               onChange={e => setLinkPrice(e.target.value)}
               placeholder={t('media.compose.pricePlaceholder')}
@@ -349,7 +352,7 @@ export default function MediaComposePage() {
             </p>
           )}
           {(searchingEntities || entitySuggestions.length > 0) && (
-            <div className="media-entity-suggestions" role="listbox" aria-label={t('media.compose.entitySearchHint')}>
+            <div className="media-entity-suggestions" role="group" aria-label={t('media.compose.entitySearchHint')}>
               {searchingEntities && <span className="media-entity-suggestion-status">{t('media.compose.searchingEntities')}</span>}
               {entitySuggestions.map((entity) => (
                 <button type="button" key={entity.target_id} className="media-entity-suggestion" onClick={() => chooseEntity(entity)}>
@@ -368,7 +371,7 @@ export default function MediaComposePage() {
             onChange={handleMediaFileChange}
           />
           <small>{t('media.compose.uploadHint')}</small>
-          {previewUrl && mediaFile?.type.startsWith('video/') && <video className="media-compose-preview" src={previewUrl} controls muted />}
+          {previewUrl && mediaFile?.type.startsWith('video/') && <video className="media-compose-preview" src={previewUrl} controls muted playsInline aria-label={t('media.compose.previewAlt')} />}
           {previewUrl && mediaFile && !mediaFile.type.startsWith('video/') && <img className="media-compose-preview" src={previewUrl} alt={t('media.compose.previewAlt', { defaultValue: 'Selected media preview' })} />}
           {uploadProgress > 0 && uploadProgress < 100 && <progress value={uploadProgress} max="100" aria-label={t('media.compose.uploadProgress', { defaultValue: 'Upload progress' })}>{uploadProgress}%</progress>}
         </label>

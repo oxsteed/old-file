@@ -30246,7 +30246,109 @@
     "refundUnavailableHint": "Cette commande n’est pas actuellement dans un état de paiement remboursable."
   },
   "media": {
-    "creator": { "kicker": "Marché des créateurs", "title": "Marché des créateurs", "subtitle": "Trouvez des campagnes locales rémunérées et transformez votre travail approuvé en opportunités.", "loadError": "Impossible de charger les opportunités.", "empty": "Aucune opportunité ouverte pour le moment.", "apply": "Postuler à cette mission", "createGig": "Publier une mission créateur", "gigTitle": "Titre de la mission", "gigBrief": "Brief", "budget": "Budget en centimes", "pitch": "Votre proposition", "proposed": "Montant proposé en centimes", "submit": "Envoyer la candidature", "submitted": "Candidature envoyée.", "tip": "Envoyer un pourboire", "sponsor": "Proposer un parrainage", "amount": "Montant en centimes", "brief": "Brief de campagne", "creditNotice": "Le transfert de Crédit est protégé par le système OxSteed et peut nécessiter une validation du compte.", "send": "Continuer", "tipSent": "Pourboire envoyé.", "sponsorshipSent": "Offre de parrainage envoyée pour acceptation.", "paymentError": "Le transfert de Crédit n’a pas pu être effectué.", "offers": "Offres de parrainage", "paymentHistory": "Historique des paiements", "accept": "Accepter l’offre", "pendingAcceptance": "En attente de l’acceptation du créateur.", "accepted": "Acceptée ; règlement Credit en attente.", "reviewApplications": "Examiner les candidatures", "applications": "Candidatures", "noApplications": "Aucune candidature pour le moment.", "award": "Attribuer la mission", "cancel": "Annuler", "myApplications": "Mes candidatures", "submitDeliverable": "Envoyer la livraison", "choosePost": "Choisir une publication publiée", "deliverableNote": "Note pour le client", "deliverableStatus": "Statut de la livraison", "approveDeliverable": "Approuver la livraison", "requestChanges": "Demander des changements", "settle":"Régler le paiement", "settled":"Paiement réglé.", "dispute":"Signaler un problème de paiement", "disputeDescription":"Décrivez ce qui doit être vérifié", "disputeHint":"Cela ouvre une contestation Credit auditée pour examen.", "submitDispute":"Envoyer la contestation", "disputeSubmitted":"Contestation envoyée pour examen.", "settling":"Traitement…", "disputeStatus":"Litige : {{status}}","disputeStates":{"open":"Ouvert","in_review":"En cours d’examen","resolved_customer":"Résolu avec compensation client","resolved_merchant":"Résolu","rejected":"Rejeté"},"status": { "pending_credit": "En attente d’acceptation", "accepted": "Acceptée", "completed": "Terminée", "cancelled": "Annulée", "submitted": "Envoyée", "awarded": "Attribuée", "delivered": "Livrée", "rejected": "Refusée", "approved": "Approuvée", "changes_requested": "Modifications demandées" } },
+    "creator": {
+      "kicker": "Marché des créateurs",
+      "title": "Marché des créateurs",
+      "subtitle": "Trouvez des campagnes locales rémunérées et transformez votre travail approuvé en opportunités.",
+      "loadError": "Impossible de charger les opportunités.",
+      "empty": "Aucune opportunité ouverte pour le moment.",
+      "apply": "Postuler à cette mission",
+      "createGig": "Publier une mission créateur",
+      "gigTitle": "Titre de la mission",
+      "gigBrief": "Brief",
+      "budget": "Budget en centimes",
+      "pitch": "Votre proposition",
+      "proposed": "Montant proposé en centimes",
+      "submit": "Envoyer la candidature",
+      "submitted": "Candidature envoyée.",
+      "tip": "Envoyer un pourboire",
+      "sponsor": "Proposer un parrainage",
+      "amount": "Montant en centimes",
+      "brief": "Brief de campagne",
+      "creditNotice": "Le transfert de Crédit est protégé par le système OxSteed et peut nécessiter une validation du compte.",
+      "send": "Continuer",
+      "tipSent": "Pourboire envoyé.",
+      "sponsorshipSent": "Offre de parrainage envoyée pour acceptation.",
+      "paymentError": "Le transfert de Crédit n’a pas pu être effectué.",
+      "offers": "Offres de parrainage",
+      "paymentHistory": "Historique des paiements",
+      "accept": "Accepter l’offre",
+      "pendingAcceptance": "En attente de l’acceptation du créateur.",
+      "accepted": "Acceptée ; règlement Credit en attente.",
+      "reviewApplications": "Examiner les candidatures",
+      "applications": "Candidatures",
+      "noApplications": "Aucune candidature pour le moment.",
+      "award": "Attribuer la mission",
+      "cancel": "Annuler",
+      "myApplications": "Mes candidatures",
+      "submitDeliverable": "Envoyer la livraison",
+      "choosePost": "Choisir une publication publiée",
+      "deliverableNote": "Note pour le client",
+      "deliverableStatus": "Statut de la livraison",
+      "approveDeliverable": "Approuver la livraison",
+      "requestChanges": "Demander des changements",
+      "settle": "Régler le paiement",
+      "settled": "Paiement réglé.",
+      "dispute": "Signaler un problème de paiement",
+      "disputeDescription": "Décrivez ce qui doit être vérifié",
+      "disputeHint": "Cela ouvre une contestation Credit auditée pour examen.",
+      "submitDispute": "Envoyer la contestation",
+      "disputeSubmitted": "Contestation envoyée pour examen.",
+      "settling": "Traitement…",
+      "disputeStatus": "Litige : {{status}}",
+      "disputeStates": {
+        "open": "Ouvert",
+        "in_review": "En cours d’examen",
+        "resolved_customer": "Résolu avec compensation client",
+        "resolved_merchant": "Résolu",
+        "rejected": "Rejeté"
+      },
+      "status": {
+        "pending_credit": "En attente d’acceptation",
+        "accepted": "Acceptée",
+        "completed": "Terminée",
+        "cancelled": "Annulée",
+        "submitted": "Envoyée",
+        "awarded": "Attribuée",
+        "delivered": "Livrée",
+        "rejected": "Refusée",
+        "approved": "Approuvée",
+        "changes_requested": "Modifications demandées",
+        "open": "Ouvert",
+        "active": "Actif",
+        "scheduled": "Programmé",
+        "posted": "Payé",
+        "expired": "Expiré",
+        "in_progress": "En cours",
+        "withdrawn": "Retiré"
+      },
+      "currency": "Devise",
+      "amountCurrency": "Montant ({{currency}})",
+      "invalidAmount": "Saisissez un montant positif avec la précision de la devise.",
+      "acceptWork": "Accepter le travail",
+      "workReviewNotice": "Ce travail est examiné par un administrateur. Les fonds restent réservés jusqu’à la décision.",
+      "workReviews": "Travaux en cours d’examen",
+      "revisionReason": "Modifications nécessaires",
+      "myGigs": "Mes missions de création",
+      "opportunities": "Opportunités pour les créateurs",
+      "reviewStates": {
+        "open": "En attente d’examen administratif",
+        "released": "Annulé et réservation libérée",
+        "resumed": "Travail repris"
+      },
+      "reviewQueueError": "L’accès est indisponible ou votre compte ne dispose pas des droits de litige.",
+      "reviewResolveError": "Impossible de résoudre cet examen. Réessayez.",
+      "adminReviewHint": "Les décisions sont auditées. Reprendre conserve les fonds réservés ; annuler libère la réservation sans payer le créateur.",
+      "noWorkReviews": "Aucun travail en attente d’examen.",
+      "reviewDecisionReason": "Motif de cette décision",
+      "resumeWork": "Reprendre le travail",
+      "releaseWork": "Annuler et libérer la réservation",
+      "reviewKinds": {
+        "gig": "Mission de création",
+        "sponsorship": "Sponsoring"
+      },
+      "declineWork": "Refuser le travail"
+    },
     "actor": {
       "follow": "Suivre",
       "unfollow": "Ne plus suivre",
@@ -30257,7 +30359,8 @@
       "you": "Vous",
       "loading": "Chargement du profil…",
       "notFound": "Profil introuvable.",
-      "noPosts": "Aucune publication pour le moment."
+      "noPosts": "Aucune publication pour le moment.",
+      "loadError": "Impossible de charger ce compte. Réessayez."
     },
     "shell": {
       "navigation": "Navigation Media",
@@ -30305,8 +30408,9 @@
       "actionError": "Cette action n’a pas pu être effectuée. Réessayez.",
       "boost": "Mettre en avant la publication",
       "boostAmount": "Montant de mise en avant en centimes",
-      "boostNotice": "Les mises en avant utilisent OxSteed Credit et respectent la pertinence locale.",
-      "boostConfirm": "Mettre en avant", "sponsored": "Sponsorisé",
+      "boostNotice": "Payez avec OxSteed Credit pour 24 heures de placement sponsorisé local. Les contrôles de sécurité et de pertinence locale restent applicables.",
+      "boostConfirm": "Mettre en avant",
+      "sponsored": "Sponsorisé",
       "boostSent": "Mise en avant programmée.",
       "boostError": "La mise en avant n’a pas pu être effectuée.",
       "videoEmbed": "Vidéo intégrée",
@@ -30372,7 +30476,8 @@
       "reporting": "Envoi…",
       "reportSubmit": "Signaler",
       "reportSent": "Signalement envoyé. Merci.",
-      "reportError": "Impossible d’envoyer le signalement."
+      "reportError": "Impossible d’envoyer le signalement.",
+      "boostPrice": "Confirmez {{amount}} pour 24 heures de placement sponsorisé."
     },
     "search": {
       "title": "Rechercher dans Media",
@@ -30380,7 +30485,9 @@
       "submit": "Rechercher",
       "empty": "Aucun résultat.",
       "accounts": "Comptes",
-      "posts": "Publications"
+      "posts": "Publications",
+      "loading": "Recherche dans Media…",
+      "loadError": "Impossible de charger les résultats. Relancez la recherche."
     },
     "feed": {
       "chooseLocation": "Choisir un lieu",
@@ -30490,7 +30597,8 @@
       "processingReady": "Les vérifications du média sont terminées. Votre brouillon est prêt à être publié.",
       "processingDelayed": "Les vérifications prennent plus de temps que prévu. Vous pourrez réessayer ce brouillon plus tard.",
       "previewAlt": "Aperçu du média sélectionné",
-      "uploadProgress": "Progression de l’envoi"
+      "uploadProgress": "Progression de l’envoi",
+      "linkTypeLabel": "Type d’élément lié"
     },
     "verification": {
       "metaTitle": "Vérification Media",
@@ -30520,7 +30628,16 @@
       "submit": "Envoyer la demande",
       "submitting": "Envoi…",
       "requestError": "Impossible d’envoyer la demande.",
-      "status": { "approved": "Vérifié", "submitted": "Demande envoyée", "in_review": "En examen", "needs_changes": "Modifications demandées", "rejected": "Demande refusée", "pending": "Vérification en attente", "skipped": "Vérification ignorée", "unavailable": "Non demandée" }
+      "status": {
+        "approved": "Vérifié",
+        "submitted": "Demande envoyée",
+        "in_review": "En examen",
+        "needs_changes": "Modifications demandées",
+        "rejected": "Demande refusée",
+        "pending": "Vérification en attente",
+        "skipped": "Vérification ignorée",
+        "unavailable": "Non demandée"
+      }
     },
     "notifications": {
       "kicker": "Actualités du réseau",

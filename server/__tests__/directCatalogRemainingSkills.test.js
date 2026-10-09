@@ -17,7 +17,7 @@ const EXPECTED_CATEGORIES = [
 const LOCALES = ['en', 'es', 'fr', 'ht', 'ar'];
 
 function readMigration() {
-  return fs.readFileSync(path.join(__dirname, '..', 'migrations', MIGRATION), 'utf8');
+  return fs.readFileSync(path.join(__dirname, '..', 'migrations', MIGRATION), 'utf8').replace(/\r\n/g, '\n');
 }
 
 // Extracts the opening lines "('category', 'slug'," of a VALUES list.

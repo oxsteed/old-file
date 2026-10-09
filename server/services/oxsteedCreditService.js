@@ -2788,7 +2788,7 @@ async function chargeCreatorBoost(args) {
   return withTransaction(pool, (client) => chargeCreatorBoostInTransaction(client, args), 'media_creator_boost_payment');
 }
 
-async function adjustCustomerCreditInTransaction(client, { customerId, amountCents, currencyCode = CREDIT_CURRENCY, direction = 'credit', idempotencyKey, actorUserId, actorType = 'admin', reason, referenceType = 'admin_adjustment', referenceId, correlationId, requestIp, metadata = {} }) {
+async function adjustCustomerCreditInTransaction(client, { customerId, amountCents, currencyCode = CREDIT_CURRENCY, direction = 'credit', idempotencyKey, actorUserId, actorType = 'admin', reason, referenceType = 'admin_adjustment', referenceId, correlationId, requestIp, metadata = {}, allowMediaCreatorOwner = false }) {
   const amount = parseAmountCents(amountCents);
   const currency = assertSupportedCreditCurrency(currencyCode);
   const normalizedActorType = normalizeString(actorType, 32) || 'admin';
@@ -2797,7 +2797,20 @@ async function adjustCustomerCreditInTransaction(client, { customerId, amountCen
   if (!['credit', 'debit'].includes(direction)) throw new AppError('Adjustment direction must be credit or debit', 400, 'credit_adjustment_direction_invalid');
   if (!normalizeString(reason, 2)) throw new AppError('A reason is required for credit adjustments', 400, 'credit_adjustment_reason_required');
   if (direction === 'credit' && !normalizeString(referenceId, 160)) throw new AppError('A funding reference is required for positive administrative credit adjustments', 400, 'credit_funding_reference_required');
-  const customerAccount = await ensureAccount(client, { accountType: 'customer_wallet', customerId, currencyCode: currency });
+  if (allowMediaCreatorOwner === true) {
+    if (referenceType !== 'oxsteed_credit_dispute' || direction !== 'credit' || normalizedActorType !== 'admin') throw new AppError('Creator wallet adjustment requires an audited Media dispute.', 403, 'credit_creator_adjustment_scope_invalid');
+    const { rows: scopeRows } = await client.query(
+      `SELECT d.id FROM oxsteed_credit_disputes d JOIN oxsteed_credit_transactions t ON t.id = d.transaction_id
+        JOIN oxsteed_credit_accounts a ON a.id = t.debit_account_id
+        WHERE d.id = $1 AND d.customer_id = $2 AND t.actor_user_id = $2 AND a.customer_id = $2
+          AND a.account_type = 'customer_wallet' AND a.restaurant_id IS NULL AND a.partner_id IS NULL
+          AND t.currency_code = $3 AND a.currency_code = $3 AND t.status = 'posted'
+          AND t.reference_type IN ('media_creator_tip','media_creator_gig','media_creator_sponsorship','media_post_boost')`,
+      [referenceId, customerId, currency]
+    );
+    if (!scopeRows[0]) throw new AppError('Creator wallet adjustment requires an audited Media payer dispute.', 403, 'credit_creator_adjustment_scope_invalid');
+  }
+  const customerAccount = await ensureAccount(client, { accountType: 'customer_wallet', customerId, currencyCode: currency, allowNonCustomerOwner: allowMediaCreatorOwner === true });
   const treasuryAccount = await ensureAccount(client, { accountType: 'platform_treasury', currencyCode: currency });
   const existing = await getExistingTransaction(client, normalizeString(idempotencyKey, 160));
   if (!existing && normalizedActorType === 'admin') {
@@ -3954,7 +3967,7 @@ const DISPUTE_SLA_HOURS_FALLBACK = Math.max(
 );
 const DISPUTE_TYPE_VALUES = ['unauthorized_topup', 'failed_payout', 'duplicate_charge', 'incorrect_amount', 'chargeback'];
 
-async function openCreditDispute({ customerId, transactionId, reasonCode, description, actorUserId, idempotencyKey, requestIp, disputeType, statement }) {
+async function openCreditDispute({ customerId, transactionId, reasonCode, description, actorUserId, idempotencyKey, requestIp, disputeType, statement, allowMediaCreatorOwner = false }) {
   const normalizedReason = normalizeString(reasonCode, 60);
   const normalizedDescription = normalizeString(description, 4000);
   const normalizedDisputeType = disputeType ? normalizeString(disputeType, 40) : null;
@@ -3969,14 +3982,16 @@ async function openCreditDispute({ customerId, transactionId, reasonCode, descri
   const normalizedIdempotencyKey = normalizeString(idempotencyKey, 160);
   if (!normalizedIdempotencyKey) throw new AppError('Idempotency-Key is required for credit disputes', 400, 'credit_idempotency_key_required');
   return withTransaction(pool, async (client) => {
+    const creatorScope = allowMediaCreatorOwner === true;
     const { rows: transactionRows } = await client.query(
       `SELECT t.id, t.partner_id
          FROM oxsteed_credit_transactions t
          JOIN oxsteed_credit_accounts a ON a.id = t.debit_account_id OR a.id = t.credit_account_id
-         JOIN users owner ON owner.id = a.customer_id AND owner.role = 'customer' AND owner.is_active = TRUE
+         JOIN users owner ON owner.id = a.customer_id AND ${creatorScope ? "owner.role IN ('customer','helper','helper_pro','broker')" : "owner.role = 'customer'"} AND owner.is_active = TRUE AND owner.is_banned = FALSE AND owner.deleted_at IS NULL
         WHERE t.id = $1 AND t.status = 'posted'
           AND a.account_type = 'customer_wallet' AND a.customer_id = $2
           AND a.currency_code = t.currency_code
+          ${creatorScope ? "AND t.reference_type IN ('media_creator_tip','media_creator_gig','media_creator_sponsorship','media_post_boost') AND a.id = t.debit_account_id AND t.actor_user_id = $2" : ''}
         FOR SHARE`,
       [transactionId, customerId]
     );

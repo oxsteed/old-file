@@ -55,7 +55,7 @@ jobs:
         run: node --test scripts/scale/scale-harness.test.cjs
 
       - name: Isolated Credit fixture regression tests
-        run: node --test scripts/credit-isolated-seed.test.cjs
+        run: node --test scripts/credit-isolated-seed.test.cjs scripts/media-credit-isolated.test.cjs
 
       - name: Client smoke tests
         working-directory: client
@@ -195,6 +195,10 @@ jobs:
           set +e
           "${compose[@]}" exec -T app node /app/server/scripts/verify-media-isolated.js
           verify_status=$?
+          if [ "$verify_status" -eq 0 ]; then
+            "${compose[@]}" exec -T app node /app/server/scripts/verify-media-credit-isolated.js
+            verify_status=$?
+          fi
           set -e
           if [ "$verify_status" -ne 0 ]; then
             echo 'Media harness app logs:'

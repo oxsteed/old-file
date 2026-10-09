@@ -407,7 +407,7 @@ describe('transcode worker', () => {
     const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'oxsteed-vidtest-'));
     const srcPath = path.join(tmpDir, 'src.mp4');
     await new Promise((resolve, reject) => {
-      execFile('/usr/bin/ffmpeg', [
+      execFile(process.env.FFMPEG_PATH || '/usr/bin/ffmpeg', [
         '-y', '-f', 'lavfi', '-i', 'testsrc=duration=2:size=320x240:rate=10',
         '-c:v', 'libx264', '-pix_fmt', 'yuv420p', srcPath,
       ], (err) => (err ? reject(err) : resolve()));
@@ -509,7 +509,7 @@ describe('transcode worker', () => {
   test('worker does not start when VIDEO_WORKER_ENABLED is not 1', () => {
     delete process.env.VIDEO_WORKER_ENABLED;
     expect(worker.startVideoTranscodeWorker()).toMatchObject({ started: false, reason: 'disabled' });
-    expect(worker.ffmpegAvailable()).toBe(true); // /usr/bin/ffmpeg exists
+    expect(worker.ffmpegAvailable()).toBe(true);
   });
 
   test('worker starts when enabled and ffmpeg exists', () => {

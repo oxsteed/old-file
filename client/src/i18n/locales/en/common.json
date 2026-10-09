@@ -373,6 +373,57 @@
       "locationUnavailable": "Device location is unavailable. Enter a city and state or region instead.",
       "profileLocation": "Use my profile location",
       "cursorChanged": "Your feed context changed. Refresh to start again."
+    },
+    "search": {
+      "loading": "Searching Media…",
+      "loadError": "Could not load search results. Try searching again."
+    },
+    "actor": {
+      "loadError": "Could not load this account. Try again."
+    },
+    "compose": {
+      "linkTypeLabel": "Linked item type"
+    },
+    "creator": {
+      "status": {
+        "open": "Open",
+        "active": "Active",
+        "scheduled": "Scheduled",
+        "posted": "Paid",
+        "expired": "Expired",
+        "in_progress": "In progress",
+        "withdrawn": "Withdrawn"
+      },
+      "currency": "Currency",
+      "amountCurrency": "Amount ({{currency}})",
+      "invalidAmount": "Enter a positive amount with the correct currency precision.",
+      "acceptWork": "Accept work",
+      "workReviewNotice": "This work is under administrator review. Funds remain reserved until a decision is made.",
+      "workReviews": "Work under review",
+      "revisionReason": "Changes needed",
+      "myGigs": "My creator gigs",
+      "opportunities": "Creator opportunities",
+      "reviewStates": {
+        "open": "Awaiting administrator review",
+        "released": "Cancelled and reservation released",
+        "resumed": "Work resumed"
+      },
+      "reviewQueueError": "Review access is unavailable or your account lacks dispute permissions.",
+      "reviewResolveError": "Could not resolve this work review. Try again.",
+      "adminReviewHint": "Decisions are audited. Resume keeps funds reserved; cancel releases the reservation without paying the creator.",
+      "noWorkReviews": "No work is awaiting review.",
+      "reviewDecisionReason": "Reason for this decision",
+      "resumeWork": "Resume work",
+      "releaseWork": "Cancel and release reservation",
+      "reviewKinds": {
+        "gig": "Creator gig",
+        "sponsorship": "Sponsorship"
+      },
+      "declineWork": "Decline work"
+    },
+    "post": {
+      "boostPrice": "Confirm {{amount}} for 24 hours of sponsored placement.",
+      "boostNotice": "Pay with OxSteed Credit for 24 hours of local sponsored placement. Your post keeps the same safety and local relevance checks."
     }
   }
 }
