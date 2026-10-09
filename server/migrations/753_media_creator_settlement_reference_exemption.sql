@@ -1,4 +1,4 @@
--- Migration 751: exempt Media creator settlements from the settlement-snapshot guard.
+-- Migration 753: exempt Media creator settlements from the settlement-snapshot guard.
 --
 -- Migration 490 requires every 'settlement' journal transaction to carry
 -- reference_type = 'credit_settlement' plus a matching approved/paid row in

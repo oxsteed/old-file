@@ -261,6 +261,17 @@ async function recordFlagged(mediaId, previousCsamStatus) {
         WHERE source_restaurant_media_id = $1`,
       [mediaId]
     );
+    await client.query('COMMIT');
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
+  // Audit outside the transaction: admin_audit_log.admin_id is NOT NULL, so
+  // a system verdict cannot be logged transactionally. The safety action
+  // above must commit even if the audit write fails.
+  try {
     await auditService.logAdminAction({
       adminId: null, // system verdict, not an admin action
       action: 'restaurant_media_csam_flagged',
@@ -270,15 +281,10 @@ async function recordFlagged(mediaId, previousCsamStatus) {
       description: 'CSAM vendor flagged uploaded restaurant video; kept in quarantine, never published.',
       before: { csam_status: previousCsamStatus, processing_status: 'quarantine' },
       after: { csam_status: 'flagged', processing_status: 'quarantine' },
-      client,
-      throwOnError: true,
+      throwOnError: false,
     });
-    await client.query('COMMIT');
-  } catch (err) {
-    await client.query('ROLLBACK');
-    throw err;
-  } finally {
-    client.release();
+  } catch (auditErr) {
+    logger.warn('CSAM flag audit log failed (safety action committed)', { message: auditErr.message });
   }
 }
 
