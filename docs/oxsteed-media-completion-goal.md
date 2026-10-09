@@ -1311,3 +1311,13 @@ passes 2 tests, and the full client CI build passes typecheck, localization,
 production bundling, and verification of 761 emitted assets. Authenticated
 profile sessions, restaurant public-profile coverage, and deployed candidate
 verification remain open.
+
+Restaurant-profile Media integration checkpoint (2026-10-09): the existing
+restaurant Media tab now keeps its current restaurant-media experience and
+also renders the same bounded OxSteed Media actor preview, using the
+restaurant slug or stable actor fallback. The preview uses the shared public
+visibility and action-state contract, so restaurant posts copied into Media
+are discoverable from the restaurant page without replacing the legacy tab.
+The focused profile-preview contract now covers helper, business, and
+restaurant integrations; deployed authenticated and source-copy propagation
+evidence remain open.

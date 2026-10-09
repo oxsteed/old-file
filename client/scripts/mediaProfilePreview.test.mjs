@@ -9,6 +9,7 @@ const preview = fs.readFileSync(path.join(root, 'src/components/media/MediaProfi
 const mediaApi = fs.readFileSync(path.join(root, 'src/api/media.js'), 'utf8');
 const businessProfile = fs.readFileSync(path.join(root, 'src/pages/BusinessPublicProfilePage.tsx'), 'utf8');
 const helperProfile = fs.readFileSync(path.join(root, 'src/pages/HelperBusinessProfilePage.tsx'), 'utf8');
+const restaurantProfile = fs.readFileSync(path.join(root, 'src/pages/food/FoodRestaurantPage.jsx'), 'utf8');
 
 test('public profiles render a bounded Media preview through the actor contract', () => {
   assert.match(preview, /getActor\(handle\)/);
@@ -16,6 +17,8 @@ test('public profiles render a bounded Media preview through the actor contract'
   assert.match(preview, /encodeURIComponent\(handle\)/);
   assert.match(businessProfile, /MediaProfilePreview/);
   assert.match(helperProfile, /MediaProfilePreview/);
+  assert.match(restaurantProfile, /MediaProfilePreview/);
+  assert.match(restaurantProfile, /restaurant-\$\{restaurant\?\.id \|\| restaurantId\}/);
 });
 
 test('actor handles are URL encoded before crossing the Media API boundary', () => {

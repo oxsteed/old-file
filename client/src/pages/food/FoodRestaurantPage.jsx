@@ -44,6 +44,7 @@ import { FOOD_STATUS_KEYS } from './foodShared';
 import { notifyMoneyMoment } from '../../utils/pwaInstall';
 import { notifyPushMoment } from '../../utils/pushPrompt';
 import RestaurantMediaFeed from './components/RestaurantMediaFeed';
+import MediaProfilePreview from '../../components/media/MediaProfilePreview';
 import { recordView } from '../../hooks/useRecentlyViewed';
 import Navbar from '../../components/Navbar';
 import Footer from '../../components/Footer';
@@ -2295,6 +2296,9 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
                     menuItems={allItemsFlat}
                     onDishTap={jumpToMenuItem}
                     onRequireLogin={openLoginGate}
+                  />
+                  <MediaProfilePreview
+                    handle={restaurant?.slug || `restaurant-${restaurant?.id || restaurantId}`}
                   />
                 </div>
               )}

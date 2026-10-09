@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { getActor } from '../../api/media';
 import MediaPostCard from '../../pages/media/MediaPostCard';
+import '../../pages/media/MediaStyles.css';
 
 /** A public-safe Media window for helper and business profiles. */
 export default function MediaProfilePreview({ handle }) {
