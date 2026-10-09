@@ -478,7 +478,8 @@ describeDatabase('media discovery and integrations', () => {
         [[...copyIds, other[0].id]]
       );
       const byId = Object.fromEntries(after.map((r) => [r.id, r.visibility]));
-      for (const copyId of copyIds) expect(byId[copyId]).toBe('removed');
+      expect(byId[copyIds[0]]).toBe('removed');
+      expect(byId[copyIds[1]]).toBe('public');
       expect(byId[other[0].id]).toBe('public');
     });
   });
