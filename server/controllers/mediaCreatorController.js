@@ -311,7 +311,16 @@ async function submitDeliverable(req, res, next) {
        VALUES ($1,$2,$3) ON CONFLICT (application_id, post_id) DO UPDATE SET note = EXCLUDED.note, status = 'submitted'
        RETURNING *`, [req.params.applicationId, req.body.postId, typeof req.body?.note === 'string' ? req.body.note.trim().slice(0, 2000) || null : null]
     );
-    await client.query(`UPDATE media_creator_applications SET status = 'delivered', updated_at = NOW() WHERE id = $1`, [req.params.applicationId]);
+    const { rows: deliveredApplicationRows } = await client.query(
+      `UPDATE media_creator_applications SET status = 'delivered', updated_at = NOW()
+        WHERE id = $1 AND status = 'awarded'
+        RETURNING id, status`, [req.params.applicationId]
+    );
+    requireMutationRow(
+      deliveredApplicationRows,
+      'The creator application could not be marked delivered.',
+      'media_creator_deliverable_transition_failed'
+    );
     await client.query('COMMIT');
     res.status(201).json({ deliverable: rows[0] });
   } catch (err) { await client.query('ROLLBACK').catch(() => {}); next(err); }

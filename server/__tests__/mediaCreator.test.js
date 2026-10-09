@@ -47,6 +47,30 @@ test('rejects an unknown deliverable review status before it can settle a gig', 
   expect(mockQuery).not.toHaveBeenCalled();
 });
 
+test('rolls back a gig deliverable when the application transition is missing', async () => {
+  const pool = require('../db');
+  const client = { query: mockQuery, release: jest.fn() };
+  pool.connect.mockResolvedValueOnce(client);
+  client.query
+    .mockResolvedValueOnce({ rows: [] }) // BEGIN is intentionally represented by the shared mock
+    .mockResolvedValueOnce({ rows: [{ id: 'application-1', status: 'awarded', applicant_actor_id: 'actor-1' }] })
+    .mockResolvedValueOnce({ rows: [{ id: 'post-1' }] })
+    .mockResolvedValueOnce({ rows: [{ id: 'deliverable-1' }] })
+    .mockResolvedValueOnce({ rows: [] }); // guarded application UPDATE
+  const next = jest.fn();
+
+  await creator.submitDeliverable({
+    params: { applicationId: 'application-1' },
+    user: { id: 'creator-1' },
+    body: { postId: 'post-1', note: 'Ready for review' },
+  }, resMock(), next);
+
+  expect(next).toHaveBeenCalledWith(expect.objectContaining({
+    code: 'media_creator_deliverable_transition_failed',
+  }));
+  expect(client.query).toHaveBeenCalledWith('ROLLBACK');
+});
+
 test('rolls back when a rejected deliverable cannot transition its gig state', async () => {
   const pool = require('../db');
   const client = { query: mockQuery, release: jest.fn() };
@@ -279,6 +303,7 @@ test('submits gig deliverables with application and deliverable updates in one t
     if (query.includes('SELECT ap.id, ap.status, ap.applicant_actor_id')) return { rows: [{ id: 'app-1', status: 'awarded', applicant_actor_id: 'actor-1' }] };
     if (query.includes('SELECT p.id FROM media_posts')) return { rows: [{ id: 'post-1' }] };
     if (query.includes('INSERT INTO media_creator_deliverables')) return { rows: [{ id: 'deliverable-1', application_id: 'app-1', status: 'submitted' }] };
+    if (query.includes("SET status = 'delivered'")) return { rows: [{ id: 'app-1', status: 'delivered' }] };
     return { rows: [] };
   });
   const res = resMock();
