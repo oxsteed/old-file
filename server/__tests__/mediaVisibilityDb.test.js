@@ -74,6 +74,21 @@ describeDb('Media block boundaries in PostgreSQL', () => {
     expect(postRes.status).toHaveBeenCalledWith(404);
   });
 
+  test.each(['toggleLike', 'toggleBookmark', 'toggleRepost', 'recordView', 'flagPost'])
+    ('blocked %s stops before an action write', async (method) => {
+      const response = res();
+      await media[method]({
+        params: { id: 'outbound' },
+        user: { id: 'viewer' },
+        query: {},
+        body: { reason: 'spam' },
+        ip: '127.0.0.1',
+        headers: { 'user-agent': 'media-test' },
+      }, response);
+      expect(response.status).toHaveBeenCalledWith(404);
+      expect(response.json).toHaveBeenCalledWith({ error: 'Post not found' });
+    });
+
   test('allowed actor resolves and hydrated action state survives reload', async () => {
     await db.query("INSERT INTO media_likes VALUES ('allowed', 'viewer'); INSERT INTO media_bookmarks VALUES ('allowed', 'viewer')");
     const response = res();
