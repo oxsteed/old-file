@@ -65,6 +65,27 @@ async function reserveFunds(client, { accountId, reservationType, referenceType,
   const account = accountRows[0];
   if (!account) throw new AppError('Credit account not found for reservation', 404, 'credit_reservation_account_not_found');
   if (account.status === 'closed') throw new AppError('Credit account is closed', 409, 'credit_account_inactive');
+
+  // Resolve an existing reference before checking available balance. A replay
+  // includes its own active reservation in reserved_cents, so checking funds
+  // first would incorrectly reject an otherwise safe idempotent retry.
+  const { rows: existingReferenceRows } = await client.query(
+    `SELECT * FROM oxsteed_credit_reservations
+      WHERE reference_type = $1 AND reference_id = $2 AND status = 'active'
+      ORDER BY created_at DESC
+      LIMIT 1
+      FOR UPDATE`,
+    [normalizedReferenceType, normalizedReferenceId]
+  );
+  const existingReference = existingReferenceRows[0];
+  if (existingReference) {
+    if (Number(existingReference.amount_cents) === amount
+      && String(existingReference.account_id) === String(account.id)) {
+      return { reservation: formatReservation(existingReference), replayed: true };
+    }
+    throw new AppError('An active reservation already exists for this reference', 409, 'credit_reservation_conflict');
+  }
+
   const available = Number(account.balance_cents || 0) - Number(account.reserved_cents || 0);
   if (amount > available) {
     throw new AppError('Insufficient available OxSteed Credit for reservation', 409, 'credit_insufficient_funds', {

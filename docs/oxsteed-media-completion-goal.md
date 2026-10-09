@@ -938,3 +938,10 @@ HTTP 200 for `/ready`, `/health`, `/api/media/capabilities`,
 `content-ac71aaf48e521400`, 749/749 migrations, and healthy dependencies. The
 release metadata still omits a git SHA, so exact candidate-to-image identity
 and authenticated production journeys remain open.
+
+Credit reservation replay checkpoint (2026-10-09): active reservation lookup
+now happens before the available-balance check, so a retry of an existing
+reservation cannot be rejected by its own reserved amount. A low-available-
+balance replay regression was added; the focused marketplace/governance suite
+passes 20 tests and the reservation service syntax check passes. Real isolated
+PostgreSQL conservation and concurrent settlement evidence remains required.

@@ -512,6 +512,31 @@ describe('reservation enforcement', () => {
     expect(mockQuery.mock.calls.some(([sql]) => String(sql).includes('reserved_cents = reserved_cents +'))).toBe(false);
   });
 
+  test('replays an existing reservation before applying the available-balance check', async () => {
+    mockQuery.mockImplementation((sql) => {
+      const s = String(sql);
+      if (s.includes('FROM oxsteed_credit_accounts') && s.includes('FOR UPDATE')) {
+        return { rows: [{ id: 101, balance_cents: 10000, reserved_cents: 9500, status: 'active' }] };
+      }
+      if (s.includes('FROM oxsteed_credit_reservations') && s.includes("status = 'active'")) {
+        return { rows: [{ id: 'res-replay', account_id: 101, reservation_type: 'media_creator_gig', reference_type: 'media_creator_gig', reference_id: 'gig-low-balance', amount_cents: 900, status: 'active' }] };
+      }
+      return { rows: [] };
+    });
+
+    const result = await reserveFunds({ query: mockQuery }, {
+      accountId: 101,
+      reservationType: 'media_creator_gig',
+      referenceType: 'media_creator_gig',
+      referenceId: 'gig-low-balance',
+      amountCents: 900,
+    });
+
+    expect(result).toEqual(expect.objectContaining({ replayed: true }));
+    expect(result.reservation).toEqual(expect.objectContaining({ id: 'res-replay', amountCents: 900 }));
+    expect(mockQuery.mock.calls.some(([sql]) => String(sql).includes('reserved_cents = reserved_cents +'))).toBe(false);
+  });
+
   test('a failed settlement payout releases its reservation', async () => {
     const SETTLEMENT_ID = 'ssssssss-ssss-4sss-ssss-ssssssssssss';
     mockQuery.mockImplementation((sql, params = []) => {
