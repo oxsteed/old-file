@@ -1372,19 +1372,29 @@ async function updatePost(req, res) {
 }
 
 async function deletePost(req, res) {
+  const client = await pool.connect();
+  let transactionOpen = false;
   try {
-    const { rows } = await pool.query(
+    await client.query('BEGIN');
+    transactionOpen = true;
+    const { rows } = await client.query(
       `UPDATE media_posts p
           SET deleted_at = NOW(), visibility = 'removed'
         FROM media_actors a
        WHERE p.id = $1 AND p.actor_id = a.id AND a.owner_user_id = $2
          AND p.deleted_at IS NULL
-       RETURNING p.id, p.parent_id, p.quoted_post_id`,
+      RETURNING p.id, p.parent_id, p.quoted_post_id`,
       [req.params.id, req.user.id]
     );
-    if (!rows[0]) return res.status(404).json({ error: 'Post not found', code: 'media_post_not_found' });
+    if (!rows[0]) {
+      await client.query('ROLLBACK');
+      transactionOpen = false;
+      return res.status(404).json({ error: 'Post not found', code: 'media_post_not_found' });
+    }
+    let parentCount;
+    let quoteCount;
     if (rows[0].parent_id) {
-      const { rows: parentCounts } = await pool.query(
+      const { rows: parentCounts } = await client.query(
         `UPDATE media_posts parent
             SET reply_count = (
               SELECT COUNT(*)::int FROM media_posts reply
@@ -1394,10 +1404,10 @@ async function deletePost(req, res) {
           WHERE parent.id = $1 RETURNING parent.reply_count`,
         [rows[0].parent_id]
       );
-      broadcastMediaPostCounts(rows[0].parent_id, { reply_count: parentCounts[0]?.reply_count });
+      parentCount = parentCounts[0]?.reply_count;
     }
     if (rows[0].quoted_post_id) {
-      const { rows: quoteCounts } = await pool.query(
+      const { rows: quoteCounts } = await client.query(
         `UPDATE media_posts quoted
             SET quote_count = (
               SELECT COUNT(*)::int FROM media_posts quote
@@ -1407,12 +1417,19 @@ async function deletePost(req, res) {
           WHERE quoted.id = $1 RETURNING quoted.quote_count`,
         [rows[0].quoted_post_id]
       );
-      broadcastMediaPostCounts(rows[0].quoted_post_id, { quote_count: quoteCounts[0]?.quote_count });
+      quoteCount = quoteCounts[0]?.quote_count;
     }
+    await client.query('COMMIT');
+    transactionOpen = false;
+    if (rows[0].parent_id) broadcastMediaPostCounts(rows[0].parent_id, { reply_count: parentCount });
+    if (rows[0].quoted_post_id) broadcastMediaPostCounts(rows[0].quoted_post_id, { quote_count: quoteCount });
     res.json({ deleted: true, id: rows[0].id });
   } catch (err) {
+    if (transactionOpen) await client.query('ROLLBACK').catch(() => {});
     logger.error('media.deletePost error', { message: err.message });
     mediaError(res, err, 'Failed to delete post');
+  } finally {
+    client.release();
   }
 }
 

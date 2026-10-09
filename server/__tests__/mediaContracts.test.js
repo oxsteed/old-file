@@ -459,4 +459,40 @@ describe('OxSteed Media launch contracts', () => {
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ code: 'media_report_limit_reached' }));
     expect(client.release).toHaveBeenCalled();
   });
+
+  test('deletes an owned post and refreshes reply and quote counts atomically', async () => {
+    const client = { query: (...args) => pool.query(...args), release: jest.fn() };
+    pool.connect.mockResolvedValue(client);
+    pool.query
+      .mockResolvedValueOnce({}) // begin
+      .mockResolvedValueOnce({ rows: [{ id: 'post-1', parent_id: 'parent-1', quoted_post_id: 'quoted-1' }] })
+      .mockResolvedValueOnce({ rows: [{ reply_count: 2 }] })
+      .mockResolvedValueOnce({ rows: [{ quote_count: 3 }] })
+      .mockResolvedValueOnce({}); // commit
+    const res = resMock();
+
+    await media.deletePost({ params: { id: 'post-1' }, user: { id: 'owner-1' } }, res);
+
+    expect(res.json).toHaveBeenCalledWith({ deleted: true, id: 'post-1' });
+    expect(pool.query.mock.calls.some(([sql]) => sql === 'COMMIT')).toBe(true);
+    expect(pool.query.mock.calls.some(([sql]) => sql === 'ROLLBACK')).toBe(false);
+    expect(client.release).toHaveBeenCalled();
+  });
+
+  test('does not delete a post owned by another user', async () => {
+    const client = { query: (...args) => pool.query(...args), release: jest.fn() };
+    pool.connect.mockResolvedValue(client);
+    pool.query
+      .mockResolvedValueOnce({}) // begin
+      .mockResolvedValueOnce({ rows: [] }) // owner-scoped update
+      .mockResolvedValueOnce({}); // rollback
+    const res = resMock();
+
+    await media.deletePost({ params: { id: 'post-1' }, user: { id: 'other-user' } }, res);
+
+    expect(res.status).toHaveBeenCalledWith(404);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ code: 'media_post_not_found' }));
+    expect(pool.query.mock.calls.some(([sql]) => sql === 'COMMIT')).toBe(false);
+    expect(client.release).toHaveBeenCalled();
+  });
 });
