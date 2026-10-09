@@ -1286,3 +1286,10 @@ contracts instead of leaving them as standalone checks. Those contracts pass
 20 tests in total, and the full `build:ci` completes typecheck, production
 bundling, localization parity, and verification of 761 emitted assets. Live
 authenticated and real-device behavior remains a later evidence layer.
+
+Following journey checkpoint (2026-10-09): the isolated Media verifier now
+follows a fixture actor, confirms the Following feed includes that actor,
+reverses the relationship idempotently, and continues to assert blocked-author
+exclusion. Local feed context, ranking, and follow contracts remain green;
+the follow journey itself awaits hosted PostgreSQL execution and authenticated
+deployed verification.

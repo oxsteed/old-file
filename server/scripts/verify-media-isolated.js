@@ -112,6 +112,17 @@ async function main() {
     assert.equal(nearby.status, 200);
     assert.equal(nearby.data.location.city, 'Springfield');
     assert.equal(nearby.data.location.state, 'OH');
+    const followedActor = firstPage.data.posts.find(post => String(post.owner_user_id) !== String(customer))?.actor_id;
+    assert(followedActor, 'published fixture feed must expose an actor to follow');
+    const followOn = await api(`/actors/${followedActor}/follow`, customer, {}, 'POST');
+    assert.equal(followOn.status, 200);
+    assert.equal(followOn.data.following, true);
+    const followingFeed = await api('/feed?tab=following&limit=3', customer);
+    assert.equal(followingFeed.status, 200);
+    assert(followingFeed.data.posts.some(post => String(post.actor_id) === String(followedActor)),
+      'Following should include posts from the followed actor');
+    assert.equal((await api(`/actors/${followedActor}/follow`, customer, {}, 'POST')).data.following, false,
+      'follow retries must remove the same relationship');
     const blockedFeed = await api('/feed?limit=3', blocked);
     assert.equal(blockedFeed.status, 200);
     assert(blockedFeed.data.posts.every(post => String(post.owner_user_id) !== String(helper)),
