@@ -30426,6 +30426,8 @@
       "join": "Unirse al Espacio",
       "leave": "Salir del Espacio",
       "signInToJoin": "Inicia sesión para unirte",
+      "posts": "{{count}} publicaciones",
+      "members": "{{count}} miembros",
       "local": "Comunidad local",
       "emptyHeading": "Aún no hay publicaciones en este Espacio.",
       "emptyDescription": "Comparte algo útil con tu comunidad local."

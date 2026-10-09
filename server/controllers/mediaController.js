@@ -1780,6 +1780,8 @@ async function getCommunities(req, res) {
     const { rows } = await pool.query(
       `SELECT c.*,
               COUNT(DISTINCT p.id)::int AS post_count,
+              (SELECT COUNT(*)::int FROM media_community_members cm_count
+                WHERE cm_count.community_id = c.id) AS member_count,
               EXISTS (
                 SELECT 1 FROM media_community_members cm
                  WHERE cm.community_id = c.id AND cm.user_id = $1
@@ -1808,6 +1810,8 @@ async function getCommunity(req, res) {
     const { rows: communities } = await pool.query(
       `SELECT c.*,
               COUNT(DISTINCT p.id)::int AS post_count,
+              (SELECT COUNT(*)::int FROM media_community_members cm_count
+                WHERE cm_count.community_id = c.id) AS member_count,
               EXISTS (
                 SELECT 1 FROM media_community_members cm
                  WHERE cm.community_id = c.id AND cm.user_id = $2

@@ -465,6 +465,7 @@ div.media-support-panel { z-index: 150; }
 .media-community-card-body small { margin-top: 4px; color: var(--color-text-muted); font-size: 12px; }
 .media-community-card-count { display: inline-flex; align-items: center; gap: 4px; color: var(--color-text-muted); font-size: 12px;
 }
+.media-community-card-count > span { display: inline-flex; align-items: center; gap: 4px; }
 
 .media-community-geo,
 .media-community-cat {

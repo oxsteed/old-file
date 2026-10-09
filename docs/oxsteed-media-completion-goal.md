@@ -1220,3 +1220,10 @@ asset, inactive author, or revoked verification cannot be submitted for paid
 delivery. The focused creator suite passes 25 tests and the integrated Media
 suite passes 223 tests with 26 PostgreSQL-only skips. Disposable accounting,
 authenticated deployment, and exact candidate identity remain outstanding.
+
+Spaces membership-count checkpoint (2026-10-09): the community list and detail
+responses now include an authoritative `member_count` from
+`media_community_members`, and the Media Space UI shows post and member totals
+with localized labels in English, Spanish, French, Haitian Creole, and Arabic.
+The client build passed with 761 emitted assets; the PostgreSQL Space visibility
+suite remains skipped locally because no disposable database is available.

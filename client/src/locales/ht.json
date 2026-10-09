@@ -30426,6 +30426,8 @@
       "join": "Antre nan Espas la",
       "leave": "Kite Espas la",
       "signInToJoin": "Konekte pou antre",
+      "posts": "{{count}} pòs",
+      "members": "{{count}} manm",
       "local": "Kominote lokal",
       "emptyHeading": "Pa gen pòs nan Espas sa a ankò.",
       "emptyDescription": "Pataje yon bagay ki itil ak kominote lokal ou a."

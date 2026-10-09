@@ -26,7 +26,10 @@ export default function MediaCommunitiesPage() {
         <Link key={c.id} to={`/media/communities/${encodeURIComponent(c.slug)}`} className="media-community-card">
           <span className="media-community-card-icon"><Users size={19} aria-hidden="true" /></span>
           <span className="media-community-card-body"><strong>{c.title}</strong><small>{[c.geo_scope, c.category].filter(Boolean).join(' · ') || t('media.spaces.local')}</small></span>
-          <span className="media-community-card-count"><MapPin size={14} aria-hidden="true" />{c.post_count || 0}</span>
+          <span className="media-community-card-count">
+            <span aria-label={t('media.spaces.posts', { count: c.post_count || 0 })}><MapPin size={14} aria-hidden="true" />{c.post_count || 0}</span>
+            <span aria-label={t('media.spaces.members', { count: c.member_count || 0 })}><Users size={14} aria-hidden="true" />{c.member_count || 0}</span>
+          </span>
         </Link>
       ))}
       {!communities.length && (

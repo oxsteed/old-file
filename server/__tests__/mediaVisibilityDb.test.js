@@ -157,10 +157,11 @@ describeDb('Media block boundaries in PostgreSQL', () => {
     const list = res();
     await media.getCommunities({ user: { id: 'viewer' } }, list);
     expect(list.status).not.toHaveBeenCalled();
-    expect(list.json.mock.calls[0][0].communities[0]).toMatchObject({ joined: true, post_count: 1 });
+    expect(list.json.mock.calls[0][0].communities[0]).toMatchObject({ joined: true, post_count: 1, member_count: 1 });
     const detail = res();
     await media.getCommunity({ params: { slug: 'local-town' }, user: { id: 'viewer' } }, detail);
     expect(detail.status).not.toHaveBeenCalled();
+    expect(detail.json.mock.calls[0][0].community).toMatchObject({ joined: true, member_count: 1 });
     expect(detail.json.mock.calls[0][0].posts.map((p) => p.id)).toEqual(['allowed']);
   });
 

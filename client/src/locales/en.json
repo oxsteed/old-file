@@ -30426,6 +30426,8 @@
       "join": "Join Space",
       "leave": "Leave Space",
       "signInToJoin": "Sign in to join",
+      "posts": "{{count}} posts",
+      "members": "{{count}} members",
       "local": "Local community",
       "emptyHeading": "No posts in this Space yet.",
       "emptyDescription": "Share something useful with your local community."

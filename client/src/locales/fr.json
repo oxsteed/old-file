@@ -30426,6 +30426,8 @@
       "join": "Rejoindre l’espace",
       "leave": "Quitter l’espace",
       "signInToJoin": "Connectez-vous pour rejoindre",
+      "posts": "{{count}} publications",
+      "members": "{{count}} membres",
       "local": "Communauté locale",
       "emptyHeading": "Aucune publication dans cet espace.",
       "emptyDescription": "Partagez quelque chose d’utile avec votre communauté locale."

@@ -62,7 +62,7 @@ export default function MediaCommunityPage() {
           <div>
             <p className="media-page-kicker"><MapPin size={14} aria-hidden="true" />{t('media.spaces.kicker')}</p>
             <h1>{community.title}</h1>
-            <p>{[community.geo_scope, community.category].filter(Boolean).join(' · ')}</p>
+            <p>{[community.geo_scope, community.category, t('media.spaces.members', { count: community.member_count || 0 })].filter(Boolean).join(' · ')}</p>
           </div>
         </div>
         {user ? (
