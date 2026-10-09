@@ -10,6 +10,20 @@ import PageMeta from '../../components/PageMeta';
 import { getSharedBrowserLocation } from '../../utils/browserLocation';
 
 const LOCATION_KEY = 'oxsteed.media.location';
+function queryLocation() {
+  if (typeof window === 'undefined') return null;
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('location') === 'all') return { location_mode: 'all' };
+  const city = params.get('city');
+  const state = params.get('state');
+  const normalizedCity = city?.trim();
+  const normalizedState = state?.trim();
+  if (normalizedCity && normalizedState && normalizedCity.length <= 120 && normalizedState.length <= 120) {
+    return { location_mode: 'custom', city: normalizedCity, state: normalizedState };
+  }
+  return null;
+}
+
 function savedLocation() {
   try {
     const choice = JSON.parse(localStorage.getItem(LOCATION_KEY));
@@ -28,6 +42,17 @@ function savedLocation() {
   return { location_mode: 'profile' };
 }
 
+function initialLocation() {
+  return queryLocation() || savedLocation();
+}
+
+function initialTab() {
+  if (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('tab') === 'following') {
+    return 'following';
+  }
+  return 'home';
+}
+
 function mergePosts(current, incoming) {
   const byId = new Map(current.map(post => [post.id, post]));
   for (const post of incoming) byId.set(post.id, post);
@@ -37,18 +62,18 @@ function mergePosts(current, incoming) {
 export default function MediaFeedPage() {
   const { t } = useTranslation();
   const { user } = useAuth();
-  const [tab, setTab] = useState('home');
+  const [tab, setTab] = useState(initialTab);
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [before, setBefore] = useState(null);
   const [hasMore, setHasMore] = useState(true);
-  const [location, setLocation] = useState(savedLocation);
+  const [location, setLocation] = useState(initialLocation);
   // The API resolves profile-based location choices to the canonical city or
   // device context. Keep that resolved value for the label and form so a
   // signed-in viewer can see what "nearby" means without changing the saved
   // preference from profile to a stale copy of the profile address.
-  const [resolvedLocation, setResolvedLocation] = useState(savedLocation);
+  const [resolvedLocation, setResolvedLocation] = useState(initialLocation);
   const [choosingLocation, setChoosingLocation] = useState(false);
   const [city, setCity] = useState(location.city || '');
   const [state, setState] = useState(location.state || '');
@@ -58,6 +83,29 @@ export default function MediaFeedPage() {
   const inFlight = useRef(false);
   const locationRequest = useRef(0);
   const activeTab = tab === 'following' && !user ? 'home' : tab;
+
+  // Keep shareable tab and city choices in the Media URL while leaving precise
+  // device coordinates in local storage. This also restores a Following or
+  // city feed when a user returns through a browser bookmark.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    if (tab === 'following') params.set('tab', 'following');
+    else params.delete('tab');
+    if (location.location_mode === 'all') {
+      params.set('location', 'all');
+      params.delete('city'); params.delete('state');
+    } else if (location.location_mode === 'custom' && location.city && location.state) {
+      params.delete('location');
+      params.set('city', location.city);
+      params.set('state', location.state);
+    } else {
+      params.delete('location'); params.delete('city'); params.delete('state');
+    }
+    const next = params.toString();
+    const current = window.location.search.replace(/^\?/, '');
+    if (next !== current) window.history.replaceState(window.history.state, '', `${window.location.pathname}${next ? `?${next}` : ''}${window.location.hash}`);
+  }, [location, tab]);
 
   const load = useCallback(async (beforeParam) => {
     if (beforeParam && inFlight.current) return;

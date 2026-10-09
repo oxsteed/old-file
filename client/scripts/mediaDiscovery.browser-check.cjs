@@ -111,3 +111,29 @@ test('guests choose and retain locations; device permission is requested only on
     assert.equal(await page.evaluate(() => window.requests[1].params.location_mode), 'all');
   } finally { if (browser) await browser.close(); await app.close(); }
 });
+
+test('restores a Following city feed from a shared Media URL and keeps URL state in sync', async () => {
+  const app = await fixture(); let browser;
+  try {
+    browser = await chromium.launch({ headless: true, channel: 'chrome' });
+    const page = await browser.newPage();
+    await page.goto(`${app.url}/?tab=following&city=Springfield&state=OH`);
+    await page.waitForFunction(() => window.requests.length === 1);
+    assert.deepEqual(await page.evaluate(() => window.requests[0].params), {
+      before: null, limit: 20, tab: 'following', location_mode: 'custom', city: 'Springfield', state: 'OH',
+    });
+    assert.match(await page.evaluate(() => window.location.search), /tab=following/);
+    assert.match(await page.evaluate(() => window.location.search), /city=Springfield/);
+
+    await page.getByRole('button', { name: 'media.feed.latest', exact: true }).click();
+    await page.waitForFunction(() => window.requests.length === 2);
+    assert.equal(await page.evaluate(() => window.requests[1].params.tab), 'home');
+    assert.doesNotMatch(await page.evaluate(() => window.location.search), /tab=following/);
+
+    await page.getByRole('button', { name: 'Springfield, OH', exact: true }).click();
+    await page.getByRole('button', { name: 'media.feed.allLocations', exact: true }).click();
+    await page.waitForFunction(() => window.requests.length === 3);
+    assert.equal(await page.evaluate(() => window.location.search), '?location=all');
+    assert.equal(await page.evaluate(() => window.requests[2].params.location_mode), 'all');
+  } finally { if (browser) await browser.close(); await app.close(); }
+});
