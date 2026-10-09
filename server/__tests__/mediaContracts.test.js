@@ -304,4 +304,34 @@ describe('OxSteed Media launch contracts', () => {
       entities: [{ target_id: '12', name: 'Cordless saw', price_snapshot_cents: 2500, link_type: 'tool_rental', label: 'Cordless saw' }],
     });
   });
+
+  test('keeps an unavailable dish link as a snapshot instead of a live action card', async () => {
+    pool.query.mockImplementation(async (sql) => {
+      if (sql.includes('SELECT p.*, a.handle')) {
+        return { rows: [{ id: 'post-dish', visibility: 'public', processing_status: 'ready',
+          display_name: 'Local restaurant', owner_user_id: 'owner-1' }] };
+      }
+      if (sql.includes('FROM media_post_links')) {
+        return { rows: [{ id: 'link-dish', link_type: 'food_item', target_id: '7:42',
+          name_snapshot: 'Special of the day', price_snapshot_cents: 1200 }] };
+      }
+      if (sql.includes('FROM media_post_assets')) return { rows: [] };
+      if (sql.includes('FROM food_menu_items i')) {
+        expect(sql).toContain('i.is_available = TRUE');
+        return { rows: [] };
+      }
+      return { rows: [] };
+    });
+    const res = resMock();
+
+    await media.getPost({ params: { id: 'post-dish' }, user: null }, res);
+
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+      post: expect.objectContaining({
+        links: [expect.objectContaining({
+          name: 'Special of the day', available: false, canonical_url: null,
+        })],
+      }),
+    }));
+  });
 });

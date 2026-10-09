@@ -43,7 +43,7 @@ const VALID_LINK_COUNT_SQL = `COUNT(l.id) FILTER (WHERE
       JOIN food_restaurants r ON r.id = i.restaurant_id
        WHERE i.id::text = split_part(l.target_id, ':', 2)
          AND r.id::text = split_part(l.target_id, ':', 1)
-         AND r.status = 'active'
+         AND r.status = 'active' AND i.is_available = TRUE
     )) OR
     (l.link_type = 'helper' AND EXISTS (
       SELECT 1 FROM helper_profiles hp JOIN users u ON u.id = hp.user_id
@@ -304,7 +304,7 @@ async function hydrateLinks(postId) {
           `SELECT i.name, i.price_cents
              FROM food_menu_items i
              JOIN food_restaurants r ON r.id = i.restaurant_id
-            WHERE i.id = $1 AND r.id = $2 AND r.status = 'active'`,
+            WHERE i.id = $1 AND r.id = $2 AND r.status = 'active' AND i.is_available = TRUE`,
           [itemId, restaurantId]
         );
         return targets[0] || null;
@@ -1898,7 +1898,7 @@ async function searchMediaEntities(req, res) {
                 i.price_cents AS price_snapshot_cents
            FROM food_menu_items i
            JOIN food_restaurants r ON r.id = i.restaurant_id
-          WHERE r.status = 'active' AND i.name ILIKE $1
+          WHERE r.status = 'active' AND i.is_available = TRUE AND i.name ILIKE $1
           ORDER BY i.name LIMIT $2`, [like, limit]
       ));
     } else if (type === 'helper') {

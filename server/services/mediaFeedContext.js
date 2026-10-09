@@ -93,7 +93,7 @@ function localitySql(location, params) {
     UNION ALL SELECT r.latitude,r.longitude,r.address_city,r.address_state FROM media_post_links ml
       JOIN food_menu_items i ON i.id::text=split_part(ml.target_id,':',2)
       JOIN food_restaurants r ON r.id=i.restaurant_id AND r.id::text=split_part(ml.target_id,':',1)
-      WHERE ml.post_id=p.id AND ml.link_type='food_item' AND r.status='active'
+      WHERE ml.post_id=p.id AND ml.link_type='food_item' AND r.status='active' AND i.is_available=TRUE
     UNION ALL SELECT hp.service_lat,hp.service_lng,hp.service_city,hp.service_state FROM media_post_links ml
       JOIN helper_profiles hp ON (hp.id::text=ml.target_id OR hp.user_id::text=ml.target_id OR hp.profile_slug=ml.target_id)
       JOIN users u ON u.id=hp.user_id AND u.is_active AND NOT u.is_banned AND u.deleted_at IS NULL
