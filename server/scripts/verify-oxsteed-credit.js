@@ -1049,7 +1049,7 @@ async function main() {
          FROM oxsteed_credit_accounts a
          LEFT JOIN users u ON u.id = a.customer_id
         WHERE a.account_type = 'customer_wallet'
-          AND (u.id IS NULL OR u.role <> 'customer')`,
+          AND (u.id IS NULL OR u.role NOT IN ('customer', 'helper', 'helper_pro', 'broker'))`,
     );
     checks.invalidCustomerWalletOwners = Number(customerOwnerInvariantRows[0]?.invalid_count || 0);
 
