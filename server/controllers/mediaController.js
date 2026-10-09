@@ -350,7 +350,7 @@ async function lookupLinkTarget(link, viewerUserId = null, db = pool) {
          FROM helper_profiles hp
          JOIN users u ON u.id = hp.user_id
         WHERE (hp.id::text = $1 OR hp.user_id::text = $1 OR hp.profile_slug::text = $1)
-          AND u.deleted_at IS NULL
+          AND u.deleted_at IS NULL AND u.is_active = TRUE AND u.is_banned = FALSE
           ${linkViewerBlockPredicate('u.id')}`, [targetId, viewerUserId]
     );
     return rows[0] || null;

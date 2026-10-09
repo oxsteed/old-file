@@ -468,6 +468,8 @@ describe('OxSteed Media launch contracts', () => {
       if (sql.includes('helper_profiles hp JOIN users u')) {
         expect(sql).toContain('user_blocks');
         expect(sql).toContain('$2::text');
+        expect(sql).toContain('u.is_active = TRUE');
+        expect(sql).toContain('u.is_banned = FALSE');
         return { rows: [] };
       }
       if (sql.includes('FROM media_post_assets')) return { rows: [] };

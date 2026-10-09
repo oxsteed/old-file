@@ -1165,3 +1165,10 @@ changing the relationship or sending a notification. The focused follows
 contract passes 7 tests and the integrated Media suite passes 221 tests with
 26 PostgreSQL-only skips. Real concurrent follow/block/count behavior remains
 for the disposable PostgreSQL and deployed checks.
+
+Helper-card safety checkpoint (2026-10-09): hydrated helper links now require
+the target account to be active, unbanned, and undeleted in addition to the
+existing reciprocal-block check. A stale helper link therefore remains a
+snapshot label without a canonical action URL. The integrated Media suite
+passes 221 tests with 26 PostgreSQL-only skips; the next exact action is the
+real link-hydration and locality journey in disposable PostgreSQL.
