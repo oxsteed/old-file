@@ -85,6 +85,7 @@ const LEGACY_CREDIT_REASON = 'Legacy transaction: reason unavailable';
 const CUSTOMER_TRANSFERS_ENABLED = String(process.env.OXSTEED_CREDIT_ALLOW_CUSTOMER_TRANSFERS || '').toLowerCase() === 'true';
 const POSTABLE_CREDIT_TRANSACTION_TYPES = Object.freeze([
   'load', 'purchase', 'refund', 'transfer', 'adjustment', 'settlement',
+  'media_creator_settlement',
   'settlement_reversal',
   'funding', 'reserve_release', 'conversion_debit', 'conversion_fee', 'conversion_credit',
   'cash_out',
@@ -1044,7 +1045,7 @@ async function assertCustomerTransferCapacity(client, { customerId, amountCents,
       WHERE t.status = 'posted'
         AND (
           t.transaction_type = 'transfer'
-          OR (t.transaction_type = 'settlement' AND t.reference_type IN (
+          OR (t.transaction_type = 'media_creator_settlement' AND t.reference_type IN (
             'media_creator_gig', 'media_creator_sponsorship',
             'media_creator_tip', 'media_post_boost'
           ))
@@ -2590,7 +2591,7 @@ async function replayCreatorSettlementIfPresent(client, {
       && accounts?.recipient_customer_id === null
     : String(accounts?.recipient_customer_id) === String(recipientCustomerId)
       && accounts?.recipient_account_type === recipientAccountType;
-  if (existing.transaction_type !== 'settlement'
+  if (existing.transaction_type !== 'media_creator_settlement'
     || String(accounts?.sender_customer_id) !== String(senderCustomerId)
     || accounts?.sender_account_type !== 'customer_wallet'
     || !recipientMatches) {
@@ -2598,7 +2599,7 @@ async function replayCreatorSettlementIfPresent(client, {
   }
 
   return postJournalTransaction(client, {
-    transactionType: 'settlement',
+    transactionType: 'media_creator_settlement',
     debitAccountId: existing.debit_account_id,
     creditAccountId: existing.credit_account_id,
     customerId: senderCustomerId,
@@ -2689,7 +2690,7 @@ async function settleCreatorCreditInTransaction(client, {
     allowNonCustomerOwner: true,
   });
   return postJournalTransaction(client, {
-    transactionType: 'settlement',
+    transactionType: 'media_creator_settlement',
     debitAccountId: sender.id,
     creditAccountId: recipient.id,
     customerId: senderCustomerId,
@@ -2765,7 +2766,7 @@ async function chargeCreatorBoostInTransaction(client, {
   });
   const revenue = await ensureAccount(client, { accountType: 'platform_revenue', currencyCode: currency });
   return postJournalTransaction(client, {
-    transactionType: 'settlement',
+    transactionType: 'media_creator_settlement',
     debitAccountId: sender.id,
     creditAccountId: revenue.id,
     customerId: senderCustomerId,
