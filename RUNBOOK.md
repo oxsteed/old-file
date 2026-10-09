@@ -55,3 +55,15 @@ This runbook is intentionally short and action-oriented.
 2. Confirm status is refundable (authorized/captured).
 3. Refund: `POST /api/payments/refund` (admin only).
 4. Document reason and notify user.
+
+## Media CSAM (Cloudflare + owner video override)
+1. Operational steps, env vars, and daily-email match response:
+   `docs/oxsteed-media-csam-cloudflare-runbook.md`.
+2. Public photos in production require `MEDIA_CSAM_MODE=cloudflare` plus
+   `MEDIA_CLOUDFLARE_HOST` / `MEDIA_CLOUDFLARE_PUBLIC_BASE_URL` and the zone
+   CSAM Scanning Tool enabled (cached images only).
+3. Public video without upload-time CSAM is **owner-accepted risk** only when
+   `MEDIA_PUBLIC_VIDEO_WITHOUT_CSAM=true` (server logs a startup warning). Disable
+   once `MEDIA_CSAM_MODE=vendor` and `MEDIA_CSAM_CERTIFIED=true` are live.
+4. Cloudflare match takedown: Admin → Media flags → CSAM takedown by public URL,
+   or `POST /api/admin/media/takedowns/by-url` with the path from the daily email.
