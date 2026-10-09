@@ -131,6 +131,22 @@ describe('OxSteed Media launch contracts', () => {
     expect(client.query.mock.calls.some(([sql]) => sql.includes('DELETE FROM media_post_links'))).toBe(true);
   });
 
+  test('returns the authoritative Space member count after joining or leaving', async () => {
+    pool.query
+      .mockResolvedValueOnce({ rows: [{ id: 'space-1' }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ member_count: 4 }] })
+      .mockResolvedValueOnce({ rows: [], rowCount: 1 })
+      .mockResolvedValueOnce({ rows: [{ member_count: 3 }] });
+    const joinResponse = resMock();
+    await media.joinCommunity({ params: { id: 'space-1' }, user: { id: 'user-1' } }, joinResponse);
+    expect(joinResponse.json).toHaveBeenCalledWith({ joined: true, member_count: 4 });
+
+    const leaveResponse = resMock();
+    await media.leaveCommunity({ params: { id: 'space-1' }, user: { id: 'user-1' } }, leaveResponse);
+    expect(leaveResponse.json).toHaveBeenCalledWith({ joined: false, member_count: 3 });
+  });
+
   test('rejects an unavailable linked target before replacing draft cards', async () => {
     const client = { query: jest.fn(), release: jest.fn() };
     pool.connect = jest.fn().mockResolvedValue(client);

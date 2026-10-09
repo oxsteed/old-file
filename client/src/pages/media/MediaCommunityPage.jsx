@@ -38,7 +38,11 @@ export default function MediaCommunityPage() {
         : await joinCommunity(data.community.id);
       setData((current) => ({
         ...current,
-        community: { ...current.community, joined: result.joined },
+        community: {
+          ...current.community,
+          joined: result.joined,
+          ...(Number.isFinite(Number(result.member_count)) ? { member_count: Number(result.member_count) } : {}),
+        },
       }));
     } catch (err) {
       setError(err.response?.data?.error || t('media.spaces.membershipError'));

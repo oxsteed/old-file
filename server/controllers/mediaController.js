@@ -1858,7 +1858,11 @@ async function joinCommunity(req, res) {
        VALUES ($1, $2) ON CONFLICT DO NOTHING`,
       [req.params.id, req.user.id]
     );
-    res.json({ joined: true });
+    const { rows: counts } = await pool.query(
+      `SELECT COUNT(*)::int AS member_count
+         FROM media_community_members WHERE community_id = $1`, [req.params.id]
+    );
+    res.json({ joined: true, member_count: counts[0]?.member_count || 0 });
   } catch (err) {
     logger.error('media.joinCommunity error', { message: err.message });
     mediaError(res, err, 'Failed to join Space');
@@ -1871,7 +1875,11 @@ async function leaveCommunity(req, res) {
       `DELETE FROM media_community_members WHERE community_id = $1 AND user_id = $2`,
       [req.params.id, req.user.id]
     );
-    res.json({ joined: false });
+    const { rows: counts } = await pool.query(
+      `SELECT COUNT(*)::int AS member_count
+         FROM media_community_members WHERE community_id = $1`, [req.params.id]
+    );
+    res.json({ joined: false, member_count: counts[0]?.member_count || 0 });
   } catch (err) {
     logger.error('media.leaveCommunity error', { message: err.message });
     mediaError(res, err, 'Failed to leave Space');

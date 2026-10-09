@@ -1227,3 +1227,10 @@ responses now include an authoritative `member_count` from
 with localized labels in English, Spanish, French, Haitian Creole, and Arabic.
 The client build passed with 761 emitted assets; the PostgreSQL Space visibility
 suite remains skipped locally because no disposable database is available.
+
+Spaces membership refresh checkpoint (2026-10-09): join and leave responses now
+return the committed member total, and the Space detail view applies that total
+immediately after the action. The focused Media contract suite passes 29 tests,
+the full client build and 761-asset verification pass, and the three preserved
+browser scratch files remain untracked. Real concurrent membership and deployed
+authenticated evidence remain outstanding.
