@@ -286,7 +286,14 @@ const LINK_CTAS = {
   logistics_campaign: 'View',
 };
 
-async function hydrateLinks(postId) {
+const linkViewerBlockPredicate = (ownerExpression, viewerPlaceholder = '$2') => `
+            AND (${viewerPlaceholder}::text IS NULL OR NOT EXISTS (
+              SELECT 1 FROM user_blocks ub
+               WHERE (ub.blocker_id::text = ${viewerPlaceholder}::text AND ub.blocked_id::text = ${ownerExpression}::text)
+                  OR (ub.blocker_id::text = ${ownerExpression}::text AND ub.blocked_id::text = ${viewerPlaceholder}::text)
+            ))`;
+
+async function hydrateLinks(postId, viewerUserId = null) {
   const { rows } = await pool.query(
     `SELECT * FROM media_post_links WHERE post_id = $1 ORDER BY sort_order`,
     [postId]
@@ -296,7 +303,9 @@ async function hydrateLinks(postId) {
     try {
       if (l.link_type === 'restaurant') {
         const { rows: targets } = await pool.query(
-          `SELECT display_name AS name FROM food_restaurants WHERE id = $1 AND status = 'active'`, [targetId]
+          `SELECT display_name AS name FROM food_restaurants
+            WHERE id = $1 AND status = 'active'
+            ${linkViewerBlockPredicate('owner_user_id')}`, [targetId, viewerUserId]
         );
         return targets[0] || null;
       }
@@ -306,8 +315,9 @@ async function hydrateLinks(postId) {
           `SELECT i.name, i.price_cents
              FROM food_menu_items i
              JOIN food_restaurants r ON r.id = i.restaurant_id
-            WHERE i.id = $1 AND r.id = $2 AND r.status = 'active' AND i.is_available = TRUE`,
-          [itemId, restaurantId]
+            WHERE i.id = $1 AND r.id = $2 AND r.status = 'active' AND i.is_available = TRUE
+              ${linkViewerBlockPredicate('r.owner_user_id', '$3')}`,
+          [itemId, restaurantId, viewerUserId]
         );
         return targets[0] || null;
       }
@@ -317,20 +327,25 @@ async function hydrateLinks(postId) {
              FROM helper_profiles hp
              JOIN users u ON u.id = hp.user_id
             WHERE (hp.id::text = $1 OR hp.user_id::text = $1 OR hp.profile_slug::text = $1)
-              AND u.deleted_at IS NULL`, [targetId]
+              AND u.deleted_at IS NULL
+              ${linkViewerBlockPredicate('u.id')}`, [targetId, viewerUserId]
         );
         return targets[0] || null;
       }
       if (l.link_type === 'business') {
         const { rows: targets } = await pool.query(
-          `SELECT business_name AS name FROM businesses WHERE (id::text = $1 OR profile_slug::text = $1)
-             AND deleted_at IS NULL AND is_active = TRUE`, [targetId]
+          `SELECT business_name AS name FROM businesses
+            WHERE (id::text = $1 OR profile_slug::text = $1)
+              AND deleted_at IS NULL AND is_active = TRUE
+              ${linkViewerBlockPredicate('user_id')}`, [targetId, viewerUserId]
         );
         return targets[0] || null;
       }
       if (l.link_type === 'job') {
         const { rows: targets } = await pool.query(
-          `SELECT title AS name FROM jobs WHERE id = $1 AND status IN ('published', 'matched')`, [targetId]
+          `SELECT title AS name FROM jobs
+            WHERE id = $1 AND status IN ('published', 'matched')
+              ${linkViewerBlockPredicate('client_id')}`, [targetId, viewerUserId]
         );
         return targets[0] || null;
       }
@@ -338,7 +353,8 @@ async function hydrateLinks(postId) {
         const { rows: targets } = await pool.query(
           `SELECT name, ROUND(COALESCE(daily_rate, hourly_rate) * 100)::int AS price_snapshot_cents
              FROM tool_rentals
-            WHERE id = $1 AND is_available = TRUE`, [targetId]
+            WHERE id = $1 AND is_available = TRUE
+              ${linkViewerBlockPredicate('user_id')}`, [targetId, viewerUserId]
         );
         return targets[0] || null;
       }
@@ -354,7 +370,8 @@ async function hydrateLinks(postId) {
         const { rows: targets } = await pool.query(
           `SELECT title AS name, ROUND(unit_landed_cost_usd * 100)::int AS price_snapshot_cents
              FROM pooled_orders
-            WHERE id = $1 AND status IN ('open', 'pledging')`, [targetId]
+            WHERE id = $1 AND status IN ('open', 'pledging')
+              ${linkViewerBlockPredicate('organizer_user_id')}`, [targetId, viewerUserId]
         );
         return targets[0] || null;
       }
@@ -380,7 +397,7 @@ async function hydrateLinks(postId) {
 }
 
 async function hydratePost(post, viewerUserId) {
-  const links = await hydrateLinks(post.id);
+  const links = await hydrateLinks(post.id, viewerUserId);
   const { rows: assetRows } = await pool.query(
     `SELECT * FROM media_post_assets WHERE post_id = $1 ORDER BY sort_order`,
     [post.id]

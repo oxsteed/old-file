@@ -364,6 +364,37 @@ describe('OxSteed Media launch contracts', () => {
     }));
   });
 
+  test('hides linked entity cards owned by a blocked user while keeping the snapshot', async () => {
+    pool.query.mockImplementation(async (sql) => {
+      if (sql.includes('SELECT p.*, a.handle')) {
+        return { rows: [{ id: 'post-helper-link', visibility: 'public', processing_status: 'ready',
+          display_name: 'Local business', owner_user_id: 'owner-1' }] };
+      }
+      if (sql.includes('FROM media_post_links')) {
+        return { rows: [{ id: 'link-helper', link_type: 'helper', target_id: 'helper-outbound',
+          name_snapshot: 'Blocked helper', price_snapshot_cents: null }] };
+      }
+      if (sql.includes('helper_profiles hp JOIN users u')) {
+        expect(sql).toContain('user_blocks');
+        expect(sql).toContain('$2::text');
+        return { rows: [] };
+      }
+      if (sql.includes('FROM media_post_assets')) return { rows: [] };
+      return { rows: [] };
+    });
+    const res = resMock();
+
+    await media.getPost({ params: { id: 'post-helper-link' }, user: { id: 'viewer-1' } }, res);
+
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+      post: expect.objectContaining({
+        links: [expect.objectContaining({
+          name: 'Blocked helper', available: false, canonical_url: null,
+        })],
+      }),
+    }));
+  });
+
   test('rejects arbitrary Media report reasons before creating a moderation row', async () => {
     pool.query.mockResolvedValueOnce({ rows: [{ id: 'post-report' }] });
     const res = resMock();

@@ -17,11 +17,23 @@ without waiting for an earlier CI run to finish; unfinished CI remains
 explicitly unverified until it completes. The primary agent coordinates shared
 checkout integration, deployment evidence and final completion decisions.
 
+Easy-to-hard execution order (2026-10-09): track the remaining work in this
+sequence so each checkpoint closes a complete dependency layer before moving
+upward: (1) static contracts, localization and navigation; (2) single-user
+publishing, saved posts, reports, owner controls and linked-card safety; (3)
+real PostgreSQL, storage, worker, blocking, locality and pagination journeys;
+(4) follows, live counts, profile/business/restaurant integrations and
+restaurant propagation; (5) isolated Credit reservations, settlement,
+refunds, disputes and paid placement; (6) release identity, authenticated
+production, mobile/RTL and exact deployed verification. A layer can be
+behavior-tested before its external dependency is available, but its matrix
+row stays incomplete until that dependency is verified.
+
 ### Current requirement-level work and evidence
 
 | Requirement | State and implementation / behavioral evidence | Deployment / dependency | Next exact action |
 | --- | --- | --- | --- |
-| Reconciled source and retained work | Behavior-tested: writable checkout HEAD `c521a60f` matches the pushed branch; three pre-existing untracked browser scratch files remain preserved. | Runtime release metadata still exposes content identity but no git SHA. | Keep the scratch files untracked and compare release metadata at each deployment checkpoint. |
+| Reconciled source and retained work | Behavior-tested: writable checkout HEAD is kept aligned with the pushed branch; three pre-existing untracked browser scratch files remain preserved. | Runtime release metadata still exposes content identity but no git SHA. | Keep the scratch files untracked and compare release metadata at each deployment checkpoint. |
 | Repeatable isolated fixtures | Implemented: optional Media compose extension, scoped wrapper, synthetic persona seed and real API/scan/conversion verifier. | Not executed here: Windows host has no reachable Colima/Docker runtime. | Execute `start`, `seed`, `media-test` on Colima and capture repeat/reset evidence. |
 | Required real database proof | Behavior-tested in hosted CI: the disposable Media harness ran against PostgreSQL, Redis, ClamAV, FFmpeg, private storage, and synthetic personas; the earlier full server job was cancelled before its database suite completed. | Local Windows checkout still has no disposable PostgreSQL runtime. Exact-candidate run `37873084185` is still in progress. | Preserve the harness assertion and rerun it for each candidate; record the final exact-candidate result. |
 | Helper Didit-backed identity | Implemented: `users.is_verified` checks at upload and commit; mocked behavior covers revocation at attachment commit. | Authenticated Didit return and production upload outstanding. | Prove webhook → verified helper → compose in isolated/live journeys. |
@@ -43,9 +55,9 @@ checkout integration, deployment evidence and final completion decisions.
 | Saved posts | Behavior-tested locally: authenticated saved feed filters removed and mutually blocked posts, and unsaving from Saved Posts immediately removes the card through a bookmark-change callback. | PostgreSQL case is skipped on this Windows host; exact-candidate hosted execution and authenticated live reload/unsave remain outstanding. | Execute the saved-feed case in the disposable harness, then verify bookmark → saved feed → unsave in an authenticated deployment. |
 | Reporting and automatic moderation | Behavior-tested locally: report reason/note validation now runs the hourly cap, duplicate check, and insert inside a per-reporter advisory-locked transaction; duplicate and cap responses are covered by 46 focused access/contract tests. | Real concurrent PostgreSQL, repeat/limit, DMCA, and administrator proof remain outstanding. | Execute concurrent report submissions in the disposable harness and verify moderation outcomes. |
 | Owner editing/deletion | Behavior-tested locally: owner deletion now locks the post, updates reply/quote counters, and commits the visibility change atomically; owner-scoped denial and counter refresh are covered by the focused contract suite. | Real PostgreSQL authorization/count/source-propagation and deployed proof remain outstanding. | Execute owner versus non-owner, quoted/reply counter, and federated-source removal cases in the isolated harness. |
-| Two-way blocking and inactive authors | Behavior-tested in the maintained PostgreSQL suite: both block directions hide actors/posts and now stop like, bookmark, repost, view, and report actions before any write; inactive and banned author predicates remain enforced. | The 14-case SQL suite is skipped on this Windows host; hosted database and deployed proof remain outstanding. | Execute all visibility/action cases in the disposable harness, including inactive authors and blocked links/replies. |
+| Two-way blocking and inactive authors | Behavior-tested in the maintained PostgreSQL suite: both block directions hide actors/posts and now stop like, bookmark, repost, view, and report actions before any write; inactive and banned author predicates remain enforced. Linked helper, business, restaurant, job, rental and logistics cards now apply the same two-way owner-block predicate while retaining an inert snapshot. | The 15-case SQL suite is skipped on this Windows host; hosted database and deployed proof remain outstanding. | Execute all visibility/action cases in the disposable harness, including inactive authors and blocked links/replies. |
 | Daily/upload/report limits | Implemented: existing rate/count controls. | Concurrent actual API limit proof outstanding. | Test simultaneous post limits and structured upload/report rejection. |
-| Linked entity selection and five-card limit | Behavior-tested: server search and composer selection exist, and the composer now chooses an explicitly owned verified business or restaurant publisher before creating a draft. | Real invalid/removed/entity ownership and currencies outstanding. | Verify all eight link types and authoritative target metadata. |
+| Linked entity selection and five-card limit | Behavior-tested: server search and composer selection exist, the composer chooses an explicitly owned verified business or restaurant publisher before creating a draft, and hydrated cards hide owners blocked in either direction while preserving a plain snapshot label. | Real invalid/removed/entity ownership and currencies outstanding. | Verify all eight link types and authoritative target metadata. |
 | Public cards versus transaction login | Behavior-tested locally: all formerly intercepted guest card types now navigate to public targets; removed cards remain inert. | Browser dependencies mocked; destination transaction gates outstanding. | Verify actual public pages and login at transaction start. |
 | City/category Spaces | Implemented in current source. | Real channel filters, membership and counts outstanding. | Run actual database/browser city/category/membership matrix. |
 | In-shell notifications and messages | Implemented in current source. | Actual replies/likes/inbox links and account sessions outstanding. | Exercise existing activity systems within Media for each persona. |
@@ -79,8 +91,8 @@ checkout integration, deployment evidence and final completion decisions.
 | Exact deployed release/readiness/schema/assets | Behavior-verified live after the latest rollout: `/ready` and `/health` returned 200; `/ready` reported release `content-ac71aaf48e521400`, migrations `749/749`, no pending/unexpected migrations, healthy database/Redis/Credit/realtime/workers; Media feed, capabilities, notifications, and messages returned 200, while unauthenticated bookmarks returned 401 and an invalid cursor returned the expected 400. | Coolify release metadata does not expose the git SHA, so exact commit-to-image identity remains unavailable. | Obtain release SHA or reproducible asset identity from deployment metadata and verify authenticated journeys. |
 | Authenticated production/real-device matrix | Incomplete. | Signed-in helper/business/restaurant/admin and real device access outstanding. | Capture full non-financial production journeys; reconcile finance read-only. |
 
-Current local execution: 210 Media behavior checks passed in 16 suites;
-24 PostgreSQL cases in two suites skipped because no disposable PostgreSQL is
+Current local execution: 211 Media behavior checks passed in 16 suites;
+25 PostgreSQL cases in two suites skipped because no disposable PostgreSQL is
 available locally. The maintained Media client contract and full `npm run
 build:ci` passed, and four maintained Chromium browser journeys passed, covering
 desktop and 390px composer recovery, guest public-card navigation, tab/location
@@ -96,10 +108,18 @@ currently reports healthy release `content-5a3ad5ab7517685f`, which is not proof
 that the new changes deployed. No completion claim is made.
 
 Integrated Media suite checkpoint (2026-10-09): the current writable checkout
-ran all 18 maintained `media*.test.js` files with 210 passing tests and 24
+ran all 18 maintained `media*.test.js` files with 211 passing tests and 25
 database-only skips; no Media suite failed. The skipped PostgreSQL cases cover
 saved-feed reload, block/action boundaries, and other real database journeys
 that require the hosted disposable environment.
+
+Linked-card block boundary checkpoint (2026-10-09): hydrated helper, business,
+restaurant, job, tool-rental and logistics cards now evaluate the viewer's
+two-way block relationship against the target owner. A blocked target keeps its
+saved label but returns `available: false` and no canonical URL, so a stale
+entity cannot become a navigation or transaction bypass. The maintained
+contract and integrated Media suite pass 211 tests; the PostgreSQL link fixture
+is specified but skipped locally and still needs hosted and deployed proof.
 
 Creator settlement replay checkpoint (2026-10-09): creator gig, sponsorship,
 tip, and boost settlement retries now recover an already-posted matching

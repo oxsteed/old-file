@@ -30,7 +30,7 @@ describeDb('Media block boundaries in PostgreSQL', () => {
       CREATE TEMP TABLE user_blocks (blocker_id text, blocked_id text);
       CREATE TEMP TABLE media_posts (id text PRIMARY KEY, actor_id text, body text, parent_id text, quoted_post_id text, community_id text, deleted_at timestamptz,
         visibility text DEFAULT 'public', processing_status text DEFAULT 'ready', csam_status text DEFAULT 'passed', created_at timestamptz DEFAULT now());
-      CREATE TEMP TABLE media_post_links (id text, post_id text, sort_order int);
+      CREATE TEMP TABLE media_post_links (id text, post_id text, link_type text, target_id text, name_snapshot text, price_snapshot_cents int, sort_order int);
       CREATE TEMP TABLE media_post_assets (id text, post_id text, sort_order int, asset_type text, processing_status text, csam_status text, renditions jsonb);
       CREATE TEMP TABLE media_likes (post_id text, user_id text);
       CREATE TEMP TABLE media_bookmarks (post_id text, user_id text);
@@ -95,6 +95,25 @@ describeDb('Media block boundaries in PostgreSQL', () => {
     await media.getActor({ params: { handle: 'local-allowed' }, user: { id: 'viewer' } }, response);
     expect(response.status).not.toHaveBeenCalled();
     expect(response.json.mock.calls[0][0].posts[0]).toMatchObject({ id: 'allowed', owner_user_id: 'allowed', liked: true, bookmarked: true });
+  });
+
+  test('linked cards preserve a snapshot while hiding blocked entity owners', async () => {
+    await db.query(`INSERT INTO media_post_links (id, post_id, link_type, target_id, name_snapshot, sort_order)
+      VALUES ('blocked-helper-link', 'allowed', 'helper', 'helper-outbound', 'Blocked helper', 0)`);
+    try {
+      const response = res();
+      await media.getPost({ params: { id: 'allowed' }, user: { id: 'viewer' } }, response);
+      expect(response.status).not.toHaveBeenCalled();
+      expect(response.json.mock.calls[0][0].post.links).toEqual([
+        expect.objectContaining({
+          name: 'Blocked helper',
+          available: false,
+          canonical_url: null,
+        }),
+      ]);
+    } finally {
+      await db.query("DELETE FROM media_post_links WHERE id = 'blocked-helper-link'");
+    }
   });
 
   test('saved posts exclude both blocked directions and removed posts after reload', async () => {
