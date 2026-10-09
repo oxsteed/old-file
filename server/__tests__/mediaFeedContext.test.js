@@ -53,3 +53,14 @@ test('linked locality candidates require active target owners', () => {
   expect(sql).toContain('rental_local_owner.is_active = TRUE');
   expect(sql).toContain('logistics_local_owner.is_banned = FALSE');
 });
+
+test('actor locality candidates require active owners and reciprocal block filtering', () => {
+  const params = [];
+  const sql = feed.localitySql({ city: 'springfield', state: 'oh', latitude: null, longitude: null }, params, 5);
+  expect(sql).toContain('helper_local_owner.is_active = TRUE');
+  expect(sql).toContain('business_actor_local_owner.deleted_at IS NULL');
+  expect(sql).toContain('restaurant_actor_local_owner.is_banned = FALSE');
+  expect(sql).toMatch(/ub\.blocker_id = \$5 AND ub\.blocked_id = hp\.user_id/);
+  expect(sql).toMatch(/ub\.blocker_id = \$5 AND ub\.blocked_id = b\.user_id/);
+  expect(sql).toMatch(/ub\.blocker_id = \$5 AND ub\.blocked_id = r\.owner_user_id/);
+});

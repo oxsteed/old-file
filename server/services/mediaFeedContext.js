@@ -95,12 +95,16 @@ function localitySql(location, params, viewerParam = null) {
       )`;
   const candidates = `
     SELECT hp.service_lat AS lat,hp.service_lng AS lng,hp.service_city AS city,hp.service_state AS state
-      FROM helper_profiles hp WHERE a.actor_type='helper' AND hp.user_id=a.owner_user_id
+      FROM helper_profiles hp
+      WHERE a.actor_type='helper' AND hp.user_id=a.owner_user_id
+        AND ${activeOwnerSql('hp.user_id', 'helper_local_owner')}${blocked('hp.user_id')}
     UNION ALL SELECT b.service_lat,b.service_lng,COALESCE(NULLIF(b.service_city,''),b.address_city),
       COALESCE(NULLIF(b.service_state,''),b.address_state) FROM businesses b
       WHERE a.actor_type='business' AND b.id=a.business_id AND b.is_active AND b.deleted_at IS NULL
+        AND ${activeOwnerSql('b.user_id', 'business_actor_local_owner')}${blocked('b.user_id')}
     UNION ALL SELECT r.latitude,r.longitude,r.address_city,r.address_state FROM food_restaurants r
       WHERE a.actor_type='restaurant' AND r.id=a.restaurant_id AND r.status='active'
+        AND ${activeOwnerSql('r.owner_user_id', 'restaurant_actor_local_owner')}${blocked('r.owner_user_id')}
     UNION ALL SELECT r.latitude,r.longitude,r.address_city,r.address_state FROM media_post_links ml
       JOIN food_restaurants r ON r.id::text=ml.target_id
       WHERE ml.post_id=p.id AND ml.link_type='restaurant' AND r.status='active'
