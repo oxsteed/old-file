@@ -54,3 +54,33 @@ test('worker failures clear the lease and schedule bounded retry', async () => {
   expect(failureSql).toContain('AND lease_token = $3');
   expect(failureParams).toEqual(['job', 'ffmpeg unavailable', 'lease-2']);
 });
+
+test('flagged CSAM verdict completes the leased scan without publishing the asset', async () => {
+  const csam = require('../services/csamCheckService');
+  const previousMode = process.env.MEDIA_CSAM_MODE;
+  const previousCertified = process.env.MEDIA_CSAM_CERTIFIED;
+  process.env.MEDIA_CSAM_MODE = 'vendor';
+  process.env.MEDIA_CSAM_CERTIFIED = 'true';
+  csam.checkMediaVideo.mockResolvedValue('flagged');
+  pool.query
+    .mockResolvedValueOnce({ rows: [{ id: 'job', asset_id: 'asset', job_type: 'csam_check', lease_token: 'lease-flagged' }] })
+    .mockResolvedValueOnce({ rows: [{ id: 'asset', post_id: 'post', storage_key: 'private/video.mp4',
+      csam_status: 'pending', processing_status: 'quarantine', post_csam_status: 'pending',
+      post_processing_status: 'quarantine', visibility: 'unlisted', deleted_at: null }] })
+    .mockResolvedValueOnce({ rowCount: 1, rows: [] });
+
+  try {
+    await worker.runOnce();
+
+    expect(csam.checkMediaVideo).toHaveBeenCalledWith('asset', 'post', 'private/video.mp4');
+    const [doneSql, doneParams] = pool.query.mock.calls[2];
+    expect(doneSql).toContain("SET status = 'done'");
+    expect(doneSql).toContain('AND lease_token = $2');
+    expect(doneParams).toEqual(['job', 'lease-flagged']);
+  } finally {
+    if (previousMode === undefined) delete process.env.MEDIA_CSAM_MODE;
+    else process.env.MEDIA_CSAM_MODE = previousMode;
+    if (previousCertified === undefined) delete process.env.MEDIA_CSAM_CERTIFIED;
+    else process.env.MEDIA_CSAM_CERTIFIED = previousCertified;
+  }
+});

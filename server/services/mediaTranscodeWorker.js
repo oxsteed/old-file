@@ -144,7 +144,11 @@ async function processCsam(job) {
     await markDone(job);
     return;
   }
-  if (verdict === 'flagged') return markDone(job.id);
+  // A flagged verdict is terminal for this scan job, but the asset remains
+  // quarantined. Pass the full claimed job so completion is fenced by the
+  // lease token; passing only the id silently leaves the job running until
+  // its lease expires and causes needless reprocessing.
+  if (verdict === 'flagged') return markDone(job);
   // An unavailable vendor is a hard safety stop. Keep the video quarantined;
   // an operator can requeue the job after credentials/vendor health recover.
   await markFailed(job, new Error('CSAM screening unavailable'));
