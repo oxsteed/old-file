@@ -38,13 +38,28 @@ const GATED_PREFIXES = Object.freeze([
     flag: 'productMarketplace',
     allow: Object.freeze(['/api/marketplace/products/sync-homedepot']),
   },
+  {
+    prefix: '/api/media',
+    flag: 'oxsteedMedia',
+    allow: Object.freeze([]),
+  },
+  {
+    prefix: '/api/admin/media',
+    flag: 'oxsteedMedia',
+    allow: Object.freeze([]),
+  },
 ]);
 
 // Mirrors client/src/utils/launchScope.js LAUNCH_VISIBILITY for the gated
 // products. When a product launches, flip its flag here (and in the client).
+function oxsteedMediaLaunched() {
+  return String(process.env.OXSTEED_MEDIA_LAUNCHED || '').trim().toLowerCase() === 'true';
+}
+
 const LAUNCH_VISIBILITY = Object.freeze({
   templates: false,
   productMarketplace: false,
+  oxsteedMedia: oxsteedMediaLaunched(),
 });
 
 function isLaunchGateDisabled() {

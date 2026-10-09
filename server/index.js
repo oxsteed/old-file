@@ -507,7 +507,7 @@ app.use('/api/fee-config', feeConfigRoutes);
 app.use('/api/admin/pricing-overrides', pricingOverridesRoutes);
 app.use('/api/admin/one-truth',        oneTruthRoutes);
 app.use('/api/admin/treasury',         treasuryRoutes);
-app.use('/api/admin/media',            require('./routes/mediaAdmin'));
+app.use('/api/admin/media',            launchGate(), require('./routes/mediaAdmin'));
 app.use('/api/admin/food-orders',      require('./routes/adminFoodOrders'));
 app.use('/api/agent', agentCreditAdjustmentRoutes);
 app.use('/api/agent', agentFoodRefundActionsRoutes);
@@ -681,7 +681,7 @@ app.post(
   require('./middleware/rejectImpersonated').rejectImpersonated,
   require('./controllers/oxsteedCreditController').applyForCredit
 );
-app.use('/api/media', require('./routes/media'));
+app.use('/api/media', launchGate(), require('./routes/media'));
 // Monthly statement operations: private archive, entry investigation, and
 // accessible renditions. Each router enforces per-request authorization.
 app.use('/api/statement-archive', createStatementArchiveRouter());

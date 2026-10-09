@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { LAUNCH_VISIBILITY } from '../../utils/launchScope';
 import { getActor } from '../../api/media';
 import MediaPostCard from '../../pages/media/MediaPostCard';
 import '../../pages/media/MediaStyles.css';
 
 /** A public-safe Media window for helper and business profiles. */
 export default function MediaProfilePreview({ handle }) {
+  if (!LAUNCH_VISIBILITY.oxsteedMedia) return null;
   const { t } = useTranslation();
   const [actor, setActor] = useState(null);
   const [posts, setPosts] = useState([]);

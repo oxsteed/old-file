@@ -21,7 +21,8 @@ function storage() {
 
 test('the guide directory exposes every planned area', () => {
   assert.deepEqual(getExperienceAreaKeys(), EXPERIENCE_AREA_KEYS);
-  assert.equal(EXPERIENCE_AREA_KEYS.length, 14);
+  assert.equal(EXPERIENCE_AREA_KEYS.length, 15);
+  assert.equal(getExperienceArea('media').enabled, false);
   assert.equal(experienceAreaTranslationKey('restaurant-credit'), 'restaurantCredit');
   assert.equal(experienceAreaTranslationKey('get-started'), 'getStarted');
 });

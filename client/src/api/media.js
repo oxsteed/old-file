@@ -36,6 +36,8 @@ export const toggleRepost = (id) => api.post(`/media/posts/${id}/repost`).then(r
 export const recordShare = (id) => api.post(`/media/posts/${id}/share`).then(r => r.data);
 export const recordView = (id) => api.post(`/media/posts/${id}/view`).then(r => r.data);
 export const flagPost = (id, data) => api.post(`/media/posts/${id}/flags`, data).then(r => r.data);
+export const getMediaBadges = () => api.get('/media/badges').then(r => r.data);
+export const markMediaCommunitiesSeen = (communityId = null) => api.post('/media/communities/seen', communityId ? { community_id: communityId } : {}).then(r => r.data);
 export const getCommunities = () => api.get('/media/communities').then(r => r.data);
 export const getCommunity = (slug) => api.get(`/media/communities/${encodeURIComponent(slug)}`).then(r => r.data);
 export const joinCommunity = (id) => api.post(`/media/communities/${id}/join`).then(r => r.data);

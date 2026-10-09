@@ -1,3 +1,5 @@
+import { LAUNCH_VISIBILITY } from './launchScope.js';
+
 // Single source of truth for the OxSteed Network branch catalog.
 // Both the navbar switcher (OxSteedNetworkSwitcher) and the full-page
 // app launcher (/network) read from here so the two never drift.
@@ -12,6 +14,9 @@ export function getNetworkBranches(t, { showSupportWorkspace = false } = {}) {
   const focusedBranches = [
     { key: 'marketplace',    to: '/jobs',                    title: t('network.marketplace.title', 'OxSteed Marketplace'),     hint: t('network.marketplace.hint', 'Hire local helpers, post jobs, compare bids') },
     { key: 'restaurants',    to: '/restaurants',             title: t('nav.localFoodDirectory'),      hint: t('network.restaurants.hint', 'Franchise-grade tools for independent restaurants') },
+    ...(LAUNCH_VISIBILITY.oxsteedMedia
+      ? [{ key: 'media', to: '/media', title: t('network.media.title', 'OxSteed Media'), hint: t('network.media.hint', 'Local posts, links, and discovery for the OxSteed economy') }]
+      : []),
   ];
 
   const hiddenLegacyBranches = [

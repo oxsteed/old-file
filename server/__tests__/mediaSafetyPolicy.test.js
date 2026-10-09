@@ -35,6 +35,7 @@ beforeEach(() => {
   jest.clearAllMocks();
   process.env.MEDIA_CSAM_MODE = 'cloudflare';
   process.env.MEDIA_CSAM_CERTIFIED = 'false';
+  process.env.MEDIA_PUBLIC_VIDEO_INTERIM = 'true';
 });
 afterEach(async () => {
   if (sourceDir) await fs.rm(sourceDir, { recursive: true, force: true });
@@ -53,9 +54,42 @@ function clearedAsset() {
     processing_status: 'ready', csam_status: 'cloudflare_deferred', renditions: [{ storage_key: 'ready.mp4' }] };
 }
 
+test('MEDIA_PUBLIC_VIDEO_WITHOUT_CSAM enables production video without vendor certification', () => {
+  const originalNodeEnv = process.env.NODE_ENV;
+  const originalOverride = process.env.MEDIA_PUBLIC_VIDEO_WITHOUT_CSAM;
+  process.env.NODE_ENV = 'production';
+  process.env.MEDIA_CSAM_MODE = 'cloudflare';
+  process.env.MEDIA_CSAM_CERTIFIED = 'false';
+  delete process.env.MEDIA_PUBLIC_VIDEO_INTERIM;
+  process.env.MEDIA_PUBLIC_VIDEO_WITHOUT_CSAM = 'true';
+  expect(policy.publicVideoPublicationEnabled()).toBe(true);
+  expect(policy.videoVerdictAllowed('cloudflare_deferred')).toBe(true);
+  if (originalNodeEnv === undefined) delete process.env.NODE_ENV;
+  else process.env.NODE_ENV = originalNodeEnv;
+  if (originalOverride === undefined) delete process.env.MEDIA_PUBLIC_VIDEO_WITHOUT_CSAM;
+  else process.env.MEDIA_PUBLIC_VIDEO_WITHOUT_CSAM = originalOverride;
+});
+
+test('MEDIA_PUBLIC_VIDEO_INTERIM is ignored in production unless CSAM is certified', () => {
+  const originalNodeEnv = process.env.NODE_ENV;
+  process.env.NODE_ENV = 'production';
+  process.env.MEDIA_CSAM_CERTIFIED = 'false';
+  process.env.MEDIA_PUBLIC_VIDEO_INTERIM = 'true';
+  expect(policy.interimHarnessAllowed()).toBe(false);
+  expect(policy.publicVideoPublicationEnabled()).toBe(false);
+  process.env.MEDIA_CSAM_CERTIFIED = 'true';
+  expect(policy.interimHarnessAllowed()).toBe(true);
+  if (originalNodeEnv === undefined) delete process.env.NODE_ENV;
+  else process.env.NODE_ENV = originalNodeEnv;
+});
+
 test('new installs default to interim mode; certified installs keep vendor mode; unknown settings fail closed', () => {
   delete process.env.MEDIA_CSAM_MODE;
+  delete process.env.MEDIA_PUBLIC_VIDEO_INTERIM;
   expect(policy.mode()).toBe('cloudflare');
+  expect(policy.publicVideoPublicationEnabled()).toBe(false);
+  expect(policy.assetReady(clearedAsset())).toBe(false);
+  process.env.MEDIA_PUBLIC_VIDEO_INTERIM = 'true';
   expect(policy.assetReady(clearedAsset())).toBe(true);
   process.env.MEDIA_CSAM_CERTIFIED = 'true';
   expect(policy.mode()).toBe('vendor');
@@ -73,9 +107,13 @@ test('public capabilities report the effective policy without credentials', asyn
   const res = await request(app).get('/api/media/capabilities');
   expect(res.status).toBe(200);
   expect(res.headers['cache-control']).toBe('no-store');
-  expect(res.body).toEqual({
-    video_safety_mode: 'cloudflare', video_policy_allows_publication: true,
-    upload_identity_required: true, malware_scan_required: true, transcode_required: true,
+  expect(res.body).toMatchObject({
+    video_safety_mode: 'cloudflare',
+    video_policy_allows_publication: true,
+    public_video_without_csam: false,
+    upload_identity_required: true,
+    malware_scan_required: true,
+    transcode_required: true,
   });
 });
 
@@ -166,6 +204,27 @@ test('interim worker processes a pending original without fabricating a vendor p
   expect(asset).toMatchObject({ processing_status: 'ready', csam_status: 'cloudflare_deferred' });
   expect(pool.query.mock.calls.some(([sql]) => /SET csam_status = 'passed'/.test(sql))).toBe(false);
   expect(policy.assetReady(asset)).toBe(true);
+});
+
+test.each(['pending', 'flagged', 'unavailable'])('explicit override worker preserves safety state for %s', async (status) => {
+  const originalOverride = process.env.MEDIA_PUBLIC_VIDEO_WITHOUT_CSAM;
+  process.env.MEDIA_PUBLIC_VIDEO_WITHOUT_CSAM = 'true';
+  try {
+    pool.query.mockImplementation(async (sql) => {
+      if (sql.includes('WITH next AS')) return { rows: [{ id: 'scan', asset_id: 'asset', job_type: 'csam_check' }] };
+      if (sql.includes('SELECT a.id')) return { rows: [{ ...clearedAsset(), csam_status: status }] };
+      return { rows: [] };
+    });
+    await worker.runOnce();
+    const queries = pool.query.mock.calls.map(([sql]) => sql);
+    expect(queries.some((sql) => sql.includes("SET csam_status = 'public_without_csam'"))).toBe(status === 'pending');
+    expect(queries.some((sql) => sql.includes('published_without_csam = TRUE'))).toBe(status === 'pending');
+    expect(queries.some((sql) => sql.includes("SET csam_status = 'passed'"))).toBe(false);
+    expect(csam.checkMediaVideo).not.toHaveBeenCalled();
+  } finally {
+    if (originalOverride === undefined) delete process.env.MEDIA_PUBLIC_VIDEO_WITHOUT_CSAM;
+    else process.env.MEDIA_PUBLIC_VIDEO_WITHOUT_CSAM = originalOverride;
+  }
 });
 
 test.each(['flagged', 'unavailable'])('interim processing never clears an existing %s verdict', async (status) => {

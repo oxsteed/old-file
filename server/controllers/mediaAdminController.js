@@ -10,6 +10,7 @@ const auditService = require('../services/auditService');
 const { listCreditDisputes } = require('../services/oxsteedCreditService');
 const { resolveDisputeWithCompensation } = require('../services/oxsteedCreditDisputeService');
 const { sendMediaError } = require('../utils/mediaError');
+const { recordCloudflareMatchTakedown } = require('../services/mediaCloudflareTakedown');
 
 const MEDIA_PAYMENT_REFERENCE_TYPES = Object.freeze([
   'media_creator_tip',
@@ -292,11 +293,32 @@ async function approvePost(req, res) {
   }
 }
 
+async function takedownByPublicUrl(req, res) {
+  try {
+    const publicUrl = typeof req.body?.public_url === 'string' ? req.body.public_url.trim()
+      : typeof req.body?.url === 'string' ? req.body.url.trim() : '';
+    const note = typeof req.body?.note === 'string' ? req.body.note.trim() : '';
+    if (!publicUrl) {
+      return res.status(400).json({ error: 'A public media URL is required.', code: 'media_csam_url_required' });
+    }
+    const result = await recordCloudflareMatchTakedown({
+      publicUrl,
+      adminId: req.user.id,
+      note: note || `Manual Cloudflare CSAM match takedown by admin ${req.user.id}`,
+    });
+    return res.json(result);
+  } catch (err) {
+    logger.error('mediaAdmin.takedownByPublicUrl error', { message: err.message });
+    return sendMediaError(res, err, 'Failed to quarantine media from URL');
+  }
+}
+
 module.exports = {
   listFlags,
   listPendingPosts,
   reviewFlag,
   approvePost,
+  takedownByPublicUrl,
   listCreatorDisputes,
   reviewCreatorDispute,
   resolveCreatorDispute,

@@ -30,7 +30,11 @@ jest.unmock('../utils/transaction');
 const { disposableDatabaseOptIn } = require('./helpers/statementTestDatabase');
 
 const database = disposableDatabaseOptIn('CREDIT_MEDIA_VERIFIER_TEST_DATABASE_URL');
-if (database) process.env.DATABASE_URL = database;
+if (database) {
+  process.env.DATABASE_URL = database;
+  // Shared disposable DBs may already hold issuance near the default 5M cap.
+  process.env.OXSTEED_CREDIT_MAX_TOTAL_ISSUANCE_CENTS = String(50_000_000_000);
+}
 
 const describeDatabase = database ? describe : describe.skip;
 

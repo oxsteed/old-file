@@ -17,6 +17,8 @@ const { execFileSync } = require('child_process');
 const UPLOAD_ROOT = fs.mkdtempSync(path.join(os.tmpdir(), 'media-publish-transcode-'));
 process.env.LOCAL_UPLOAD_DIR = UPLOAD_ROOT;
 process.env.MEDIA_CSAM_MODE = 'cloudflare';
+process.env.MEDIA_PUBLIC_VIDEO_INTERIM = 'true';
+process.env.OXSTEED_MEDIA_LAUNCHED = 'true';
 
 const { disposableDatabaseOptIn } = require('./helpers/statementTestDatabase');
 const database = disposableDatabaseOptIn('MEDIA_PUBLISH_TEST_DATABASE_URL');
@@ -99,7 +101,7 @@ describeDatabase('media publish: video conversion journey', () => {
       is_active boolean DEFAULT true, is_business_verified boolean DEFAULT false)`);
     await db.query(`CREATE TABLE food_restaurants (id bigint PRIMARY KEY, business_id bigint, owner_user_id UUID,
       slug text, status text DEFAULT 'active', is_verified boolean DEFAULT false)`);
-    for (const number of [709, 731, 732, 733, 735, 736, 742, 743, 744]) {
+    for (const number of [709, 731, 732, 733, 735, 736, 742, 743, 744, 754]) {
       const dir = path.resolve(__dirname, '../migrations');
       const file = fs.readdirSync(dir).find((name) => name.startsWith(`${number}_`));
       await db.query(fs.readFileSync(path.join(dir, file), 'utf8'));

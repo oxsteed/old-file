@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../context/AuthContext';
 import { createPost } from '../../api/media';
+import { useMediaGuestGate } from './MediaGuestGate';
 
 export default function MediaReplyComposer({ parentId, onReply }) {
   const { t } = useTranslation();
-  const navigate = useNavigate();
   const { user } = useAuth();
+  const { requireLogin } = useMediaGuestGate();
   const [body, setBody] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
@@ -16,7 +16,7 @@ export default function MediaReplyComposer({ parentId, onReply }) {
     e.preventDefault();
     if (!body.trim()) return;
     if (!user) {
-      navigate('/login', { state: { from: window.location.pathname } });
+      requireLogin(`${window.location.pathname}${window.location.search}`);
       return;
     }
     setSubmitting(true);

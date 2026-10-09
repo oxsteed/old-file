@@ -10,11 +10,13 @@ const AppError = require('../utils/appError');
 const logger = require('../utils/logger');
 const { sendNotification } = require('../services/notificationService');
 const { getSignedDownloadUrl } = require('../utils/storage');
+const { buildCloudflarePublicAssetUrl, photoDeliveryAllowed } = require('../services/mediaCloudflareDelivery');
 const mediaSafety = require('../services/mediaSafetyPolicy');
 const { verifiedActorSql } = require('../services/mediaPublisherPolicy');
 const feedContext = require('../services/mediaFeedContext');
 const socketService = require('../services/socketService');
 const { sendMediaError } = require('../utils/mediaError');
+const auditService = require('../services/auditService');
 
 const MAX_LINKS_PER_POST = 5;
 const POSTS_PER_DAY = 10;
@@ -473,11 +475,16 @@ async function hydratePost(post, viewerUserId) {
     }
     if (!asset.storage_key) return { ...asset, url: asset.external_url || null };
     try {
+      const renditionKey = asset.asset_type === 'video' && mediaSafety.assetReady(asset)
+        ? asset.renditions[0].storage_key : asset.storage_key;
+      const cloudflareUrl = post.visibility === 'public' && asset.asset_type === 'image' && photoDeliveryAllowed()
+        ? buildCloudflarePublicAssetUrl(renditionKey) : null;
       return {
         ...asset,
-        url: await getSignedDownloadUrl(asset.asset_type === 'video' && mediaSafety.assetReady(asset)
-          ? asset.renditions[0].storage_key : asset.storage_key),
-        thumbnail_url: asset.thumbnail_key ? await getSignedDownloadUrl(asset.thumbnail_key) : null,
+        url: cloudflareUrl || await getSignedDownloadUrl(renditionKey),
+        thumbnail_url: asset.thumbnail_key
+          ? (buildCloudflarePublicAssetUrl(asset.thumbnail_key) || await getSignedDownloadUrl(asset.thumbnail_key))
+          : null,
       };
     } catch (err) {
       logger.warn('media asset URL signing failed', { assetId: asset.id, message: err.message });
@@ -901,13 +908,44 @@ async function recordUniqueCountedEvent({ postId, viewerUserId, viewerHash, tabl
     if (!posts[0]) throw new AppError('Post not found', 404, 'media_post_not_found');
 
     const actorValue = viewerUserId || null;
-    const { rows: inserted = [] } = await client.query(
-      `INSERT INTO ${table} (post_id, ${actorColumn}, viewer_hash)
-       VALUES ($1, $2, $3)
-       ON CONFLICT (post_id, viewer_hash) DO NOTHING RETURNING 1`,
-      [postId, actorValue, viewerHash]
-    );
-    const recorded = inserted.length > 0;
+    let recorded = false;
+    if (table === 'media_post_views') {
+      const { rows: inserted = [] } = await client.query(
+        `INSERT INTO ${table} (post_id, ${actorColumn}, viewer_hash)
+         VALUES ($1, $2, $3)
+         ON CONFLICT (post_id, viewer_hash) DO NOTHING RETURNING 1`,
+        [postId, actorValue, viewerHash]
+      );
+      if (inserted.length > 0) {
+        recorded = true;
+      } else {
+        const { rows: refreshed = [] } = await client.query(
+          `UPDATE ${table}
+              SET created_at = NOW(), ${actorColumn} = $3
+            WHERE post_id = $1 AND viewer_hash = $2
+              AND created_at < NOW() - INTERVAL '24 hours'
+            RETURNING 1`,
+          [postId, viewerHash, actorValue]
+        );
+        recorded = refreshed.length > 0;
+        if (recorded) {
+          const { rows: bumped } = await client.query(
+            `UPDATE media_posts SET view_count = view_count + 1 WHERE id = $1 RETURNING view_count`,
+            [postId]
+          );
+          await client.query('COMMIT');
+          return { recorded: true, count: Number(bumped[0]?.view_count || 0) };
+        }
+      }
+    } else {
+      const { rows: inserted = [] } = await client.query(
+        `INSERT INTO ${table} (post_id, ${actorColumn}, viewer_hash)
+         VALUES ($1, $2, $3)
+         ON CONFLICT (post_id, viewer_hash) DO NOTHING RETURNING 1`,
+        [postId, actorValue, viewerHash]
+      );
+      recorded = inserted.length > 0;
+    }
     const { rows: counts } = await client.query(
       `UPDATE media_posts SET ${countColumn} = (
           SELECT COUNT(*)::int FROM ${table} WHERE post_id = $1
@@ -1475,6 +1513,32 @@ async function publishPost(req, res) {
         RETURNING *`,
       [req.params.id]
     );
+    const csamMode = mediaSafety.mode();
+    if (hasVideo && mediaSafety.publicVideoWithoutCsamOverride()) {
+      await client.query(
+        `UPDATE media_post_assets
+            SET csam_mode = $2, published_without_csam = TRUE
+          WHERE post_id = $1 AND asset_type = 'video'`,
+        [req.params.id, csamMode]
+      );
+    } else {
+      await client.query(
+        `UPDATE media_post_assets SET csam_mode = $2 WHERE post_id = $1 AND csam_mode IS NULL`,
+        [req.params.id, csamMode]
+      );
+    }
+    if (hasVideo && mediaSafety.publicVideoWithoutCsamOverride()) {
+      await auditService.logAdminAction({
+        adminId: req.user.id,
+        action: 'media_video_published_without_csam',
+        targetType: 'media_post',
+        targetId: req.params.id,
+        description: 'Owner published Media video under MEDIA_PUBLIC_VIDEO_WITHOUT_CSAM override.',
+        after: { csam_mode: csamMode, published_without_csam: true },
+        client,
+        throwOnError: false,
+      });
+    }
     await client.query('COMMIT');
     res.json({ post: await hydratePost(published[0], req.user.id), published: true });
   } catch (err) {
@@ -1806,6 +1870,22 @@ async function flagPost(req, res) {
        VALUES ($1, $2, $3, $4)`,
       [req.params.id, req.user.id, reason, note || null]
     );
+    const autohideThreshold = Number(process.env.MEDIA_OPEN_FLAG_AUTOHIDE_THRESHOLD || 5);
+    if (Number.isFinite(autohideThreshold) && autohideThreshold > 0) {
+      const { rows: openFlags } = await client.query(
+        `SELECT COUNT(*)::int AS count FROM media_post_flags
+          WHERE post_id = $1 AND status = 'open'`,
+        [req.params.id]
+      );
+      if ((openFlags[0]?.count || 0) >= autohideThreshold) {
+        await client.query(
+          `UPDATE media_posts
+              SET visibility = 'removed', updated_at = NOW()
+            WHERE id = $1 AND visibility <> 'removed'`,
+          [req.params.id]
+        );
+      }
+    }
     await client.query('COMMIT');
     transactionOpen = false;
     res.status(201).json({ ok: true });
@@ -1815,6 +1895,64 @@ async function flagPost(req, res) {
     mediaError(res, err, 'Failed to flag post');
   } finally {
     if (client) client.release();
+  }
+}
+
+async function countSpacesUnread(userId) {
+  if (!userId) return 0;
+  const params = [userId];
+  const authorWhere = addViewerBlockFilter('a.id = p.actor_id', params, userId);
+  const { rows } = await pool.query(
+    `SELECT COUNT(DISTINCT p.id)::int AS spaces_unread
+       FROM media_community_members cm
+       JOIN media_posts p ON p.community_id = cm.community_id
+       JOIN media_actors a ON a.id = p.actor_id
+      WHERE cm.user_id = $1
+        AND p.parent_id IS NULL
+        AND p.visibility = 'public' AND p.deleted_at IS NULL
+        AND p.processing_status = 'ready'
+        AND ${publicMediaSql('p', 'a')}
+        AND p.created_at > cm.last_seen_at
+        AND (${verifiedActorSql('a')})
+        AND ${authorWhere}`,
+    params
+  );
+  return Number(rows[0]?.spaces_unread || 0);
+}
+
+async function getShellBadges(req, res) {
+  try {
+    if (!req.user?.id) return res.json({ spaces_unread: 0 });
+    const spacesUnread = await countSpacesUnread(req.user.id);
+    res.json({ spaces_unread: spacesUnread });
+  } catch (err) {
+    logger.error('media.getShellBadges error', { message: err.message });
+    mediaError(res, err, 'Failed to load Media badges');
+  }
+}
+
+async function markCommunitiesSeen(req, res) {
+  try {
+    if (!req.user?.id) return res.status(401).json({ error: 'Authentication required' });
+    const communityId = req.body?.community_id || null;
+    if (communityId) {
+      await pool.query(
+        `UPDATE media_community_members
+            SET last_seen_at = NOW()
+          WHERE user_id = $1 AND community_id = $2`,
+        [req.user.id, communityId]
+      );
+    } else {
+      await pool.query(
+        `UPDATE media_community_members SET last_seen_at = NOW() WHERE user_id = $1`,
+        [req.user.id]
+      );
+    }
+    const spacesUnread = await countSpacesUnread(req.user.id);
+    res.json({ ok: true, spaces_unread: spacesUnread });
+  } catch (err) {
+    logger.error('media.markCommunitiesSeen error', { message: err.message });
+    mediaError(res, err, 'Failed to update Space read state');
   }
 }
 
@@ -1878,6 +2016,13 @@ async function getCommunity(req, res) {
       params
     );
     if (!communities[0]) return res.status(404).json({ error: 'Space not found' });
+    if (req.user?.id && communities[0].joined) {
+      await pool.query(
+        `UPDATE media_community_members SET last_seen_at = NOW()
+          WHERE community_id = $1 AND user_id = $2`,
+        [communities[0].id, req.user.id]
+      );
+    }
     const postParams = [communities[0].id];
     const postWhere = addViewerBlockFilter(
       `p.community_id = $1 AND p.visibility = 'public' AND p.deleted_at IS NULL
@@ -1905,8 +2050,9 @@ async function joinCommunity(req, res) {
     const { rows } = await pool.query(`SELECT id FROM media_communities WHERE id = $1`, [req.params.id]);
     if (!rows[0]) return res.status(404).json({ error: 'Space not found' });
     await pool.query(
-      `INSERT INTO media_community_members (community_id, user_id)
-       VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+      `INSERT INTO media_community_members (community_id, user_id, last_seen_at)
+       VALUES ($1, $2, NOW())
+       ON CONFLICT (community_id, user_id) DO UPDATE SET last_seen_at = NOW()`,
       [req.params.id, req.user.id]
     );
     const { rows: counts } = await pool.query(
@@ -2274,6 +2420,7 @@ module.exports = {
   getFeed, getPost, getShareImage, getDrafts, getDraft, getBookmarks, getReplies, getQuotes, createPost, updateDraft, publishPost, updatePost, deletePost,
   replacePostLinks,
   toggleLike, toggleBookmark, toggleRepost, recordShare, recordView, flagPost,
+  getShellBadges, markCommunitiesSeen,
   getCommunities, getCommunity, joinCommunity, leaveCommunity, searchMedia,
   getActor, getOrCreateActor, getBusinessPosts, toggleFollow,
   searchMediaEntities,

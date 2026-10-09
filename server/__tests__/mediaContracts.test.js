@@ -396,12 +396,13 @@ describe('OxSteed Media launch contracts', () => {
     pool.query.mockResolvedValueOnce({ rows: [{ id: 'post-1' }] })
       .mockResolvedValueOnce({ rows: [] }) // BEGIN
       .mockResolvedValueOnce({ rows: [{ id: 'post-1' }] }) // locked public post
-      .mockResolvedValueOnce({ rows: [] }) // duplicate view
+      .mockResolvedValueOnce({ rows: [] }) // duplicate view insert
+      .mockResolvedValueOnce({ rows: [] }) // 24h view refresh attempt
       .mockResolvedValueOnce({ rows: [{ view_count: 1 }] })
       .mockResolvedValueOnce({ rows: [] }); // COMMIT
     const duplicate = resMock();
     await media.recordView({ params: { id: 'post-1' }, ip: '127.0.0.1', headers: {} }, duplicate);
-    expect(pool.query).toHaveBeenCalledTimes(6);
+    expect(pool.query).toHaveBeenCalledTimes(7);
     expect(duplicate.json).toHaveBeenCalledWith({ ok: true, recorded: false });
   });
 
@@ -561,6 +562,7 @@ describe('OxSteed Media launch contracts', () => {
       .mockResolvedValueOnce({ rows: [{ count: 0 }] }) // hourly limit
       .mockResolvedValueOnce({ rows: [] }) // duplicate report
       .mockResolvedValueOnce({ rows: [{ id: 'flag-1' }] }) // insert
+      .mockResolvedValueOnce({ rows: [{ count: 1 }] }) // open-flag count for auto-hide check
       .mockResolvedValueOnce({}); // commit
     const res = resMock();
 

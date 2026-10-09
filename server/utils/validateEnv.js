@@ -161,6 +161,12 @@ module.exports = function validateEnv() {
   warnIfSuspicious('STRIPE_SECRET_KEY', 'Payments may be using test or placeholder credentials');
   warnIfSuspicious('STRIPE_WEBHOOK_SECRET', 'Webhook verification may be using test or placeholder credentials');
 
+  try {
+    require('../services/mediaSafetyPolicy').logPolicyStartupWarnings();
+  } catch (err) {
+    logger.warn('Media safety startup checks skipped', { message: err.message });
+  }
+
   logger.info('All required environment variables present');
 };
 

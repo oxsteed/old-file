@@ -21,6 +21,7 @@ router.get('/flags', requirePermission('moderate_content'), ctrl.listFlags);
 router.get('/posts/pending', requirePermission('moderate_content'), ctrl.listPendingPosts);
 router.post('/flags/:id/review', requirePermission('moderate_content'), ctrl.reviewFlag);
 router.post('/posts/:id/approve', requirePermission('moderate_content'), ctrl.approvePost);
+router.post('/takedowns/by-url', requirePermission('moderate_content'), ctrl.takedownByPublicUrl);
 router.get('/verification-requests', requirePermission('verify_users'), verificationCtrl.listVerificationRequests);
 router.post('/verification-requests/:id/review', requirePermission('verify_users'), verificationCtrl.reviewVerificationRequest);
 

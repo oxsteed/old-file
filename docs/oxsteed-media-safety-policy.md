@@ -30,8 +30,11 @@ or that every asset delivered by OxSteed is covered by its cache scanning.
   view counting, and share previews enforce the same public asset rules.
 - Publication and admin approval recheck identity and current actor verification;
   removed, flagged, failed, pending, or incomplete content remains blocked.
-- `MEDIA_CSAM_MODE=disabled` or an unknown mode stops public uploaded video.
-  Existing launch flags, reporting, takedowns, and moderation remain required.
+- `MEDIA_CSAM_MODE=disabled` or an unknown mode stops public uploaded video unless
+  the owner explicitly sets `MEDIA_PUBLIC_VIDEO_WITHOUT_CSAM=true` (startup
+  warning; `published_without_csam` on the asset and audit row). Turn that
+  override off when a certified upload-screening vendor is live.
+- Existing launch flags, reporting, takedowns, and moderation remain required.
 - `/api/media/capabilities` exposes the effective mode and policy requirements
   without secrets. It describes policy availability, not scanner/worker health
   or evidence of an authenticated upload succeeding.

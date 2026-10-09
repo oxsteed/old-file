@@ -14119,7 +14119,13 @@
         "metaTitle": "Kijan pou kòmanse ak OxSteed",
         "metaDescription": "Chwazi chemen OxSteed ki mache ak wòl ou."
       },
-      "media": "OxSteed Media"
+      "media": {
+        "title": "OxSteed Media",
+        "description": "Pibliye lokalman, lyen restoran ak biznis, reponn nan fil yo, epi dekouvri pòs tou pre.",
+        "eyebrow": "Medya lokal",
+        "metaTitle": "Kijan OxSteed Media fonksyone",
+        "metaDescription": "Kijan ede, biznis ak restoran verifye pataje pòs ak lyen sou OxSteed."
+      }
     },
     "steps": {
       "discover": {
@@ -14333,6 +14339,10 @@
       },
       "openDirect": {
         "title": "Kòmanse yon demann Direct"
+      },
+      "openMedia": {
+        "title": "Louvri OxSteed Media",
+        "description": "Gade pòs lokal yo, swiv kreyatè yo, epi louvri restoran oswa biznis ki lyen."
       },
       "directQuotes": {
         "title": "Wè yon devis Direct"
@@ -20142,6 +20152,10 @@
     "restaurants": {
       "title": "Local Food Directory",
       "hint": "Zouti nivo franchiz pou restoran endepandan"
+    },
+    "media": {
+      "title": "OxSteed Media",
+      "hint": "Pòs lokal, lyen, ak dekouvèt pou ekonomi OxSteed la"
     },
     "logistics": {
       "title": "OxSteed Lojistik",
@@ -30349,6 +30363,15 @@
       },
       "declineWork": "Refize travay la"
     },
+    "admin": {
+      "csamTakedownTitle": "Retire match CSAM Cloudflare",
+      "csamTakedownHint": "Mete URL piblik konplè ki soti nan imèl CSAM chak jou Cloudflare la. OxSteed mete medya a an karantèn, retire pòs la epi ekri yon odit.",
+      "csamTakedownUrl": "URL piblik medya a",
+      "csamTakedownNote": "Nòt entèn (opsyonèl)",
+      "csamTakedownSubmit": "Mete an karantèn ak URL",
+      "csamTakedownSuccess": "Medya a an karantèn epi pa parèt piblikman ankò.",
+      "csamTakedownError": "Nou pa t kapab mete URL sa a an karantèn. Verifye host la matche ak MEDIA_CLOUDFLARE_HOST."
+    },
     "actor": {
       "follow": "Swiv",
       "unfollow": "Sispann swiv",
@@ -30361,6 +30384,12 @@
       "notFound": "Nou pa jwenn pwofil la.",
       "noPosts": "Pa gen pòs ankò.",
       "loadError": "Nou pa t ka chaje kont sa a. Eseye ankò."
+    },
+    "guestSignIn": {
+      "title": "Konekte pou kontinye",
+      "body": "Kreye yon kont oswa konekte pou itilize aksyon sa a epi retounen isit apre.",
+      "signIn": "Konekte",
+      "cancel": "Pa kounye a"
     },
     "shell": {
       "navigation": "Navigasyon Media",
@@ -30400,6 +30429,7 @@
       "noReplies": "Pa gen repons pou kounye a.",
       "verified": "Verifye",
       "views": "vi",
+      "showMore": "Montre plis",
       "reply": "Reponn",
       "like": "Renmen",
       "bookmark": "Anrejistre",
