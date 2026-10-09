@@ -1865,6 +1865,64 @@ async function flagPost(req, res) {
   }
 }
 
+async function countSpacesUnread(userId) {
+  if (!userId) return 0;
+  const params = [userId];
+  const authorWhere = addViewerBlockFilter('a.id = p.actor_id', params, userId);
+  const { rows } = await pool.query(
+    `SELECT COUNT(DISTINCT p.id)::int AS spaces_unread
+       FROM media_community_members cm
+       JOIN media_posts p ON p.community_id = cm.community_id
+       JOIN media_actors a ON a.id = p.actor_id
+      WHERE cm.user_id = $1
+        AND p.parent_id IS NULL
+        AND p.visibility = 'public' AND p.deleted_at IS NULL
+        AND p.processing_status = 'ready'
+        AND ${publicMediaSql('p', 'a')}
+        AND p.created_at > cm.last_seen_at
+        AND (${verifiedActorSql('a')})
+        AND ${authorWhere}`,
+    params
+  );
+  return Number(rows[0]?.spaces_unread || 0);
+}
+
+async function getShellBadges(req, res) {
+  try {
+    if (!req.user?.id) return res.json({ spaces_unread: 0 });
+    const spacesUnread = await countSpacesUnread(req.user.id);
+    res.json({ spaces_unread: spacesUnread });
+  } catch (err) {
+    logger.error('media.getShellBadges error', { message: err.message });
+    mediaError(res, err, 'Failed to load Media badges');
+  }
+}
+
+async function markCommunitiesSeen(req, res) {
+  try {
+    if (!req.user?.id) return res.status(401).json({ error: 'Authentication required' });
+    const communityId = req.body?.community_id || null;
+    if (communityId) {
+      await pool.query(
+        `UPDATE media_community_members
+            SET last_seen_at = NOW()
+          WHERE user_id = $1 AND community_id = $2`,
+        [req.user.id, communityId]
+      );
+    } else {
+      await pool.query(
+        `UPDATE media_community_members SET last_seen_at = NOW() WHERE user_id = $1`,
+        [req.user.id]
+      );
+    }
+    const spacesUnread = await countSpacesUnread(req.user.id);
+    res.json({ ok: true, spaces_unread: spacesUnread });
+  } catch (err) {
+    logger.error('media.markCommunitiesSeen error', { message: err.message });
+    mediaError(res, err, 'Failed to update Space read state');
+  }
+}
+
 async function getCommunities(req, res) {
   try {
     const params = [req.user?.id || null];
@@ -1925,6 +1983,13 @@ async function getCommunity(req, res) {
       params
     );
     if (!communities[0]) return res.status(404).json({ error: 'Space not found' });
+    if (req.user?.id && communities[0].joined) {
+      await pool.query(
+        `UPDATE media_community_members SET last_seen_at = NOW()
+          WHERE community_id = $1 AND user_id = $2`,
+        [communities[0].id, req.user.id]
+      );
+    }
     const postParams = [communities[0].id];
     const postWhere = addViewerBlockFilter(
       `p.community_id = $1 AND p.visibility = 'public' AND p.deleted_at IS NULL
@@ -1952,8 +2017,9 @@ async function joinCommunity(req, res) {
     const { rows } = await pool.query(`SELECT id FROM media_communities WHERE id = $1`, [req.params.id]);
     if (!rows[0]) return res.status(404).json({ error: 'Space not found' });
     await pool.query(
-      `INSERT INTO media_community_members (community_id, user_id)
-       VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+      `INSERT INTO media_community_members (community_id, user_id, last_seen_at)
+       VALUES ($1, $2, NOW())
+       ON CONFLICT (community_id, user_id) DO UPDATE SET last_seen_at = NOW()`,
       [req.params.id, req.user.id]
     );
     const { rows: counts } = await pool.query(
@@ -2321,6 +2387,7 @@ module.exports = {
   getFeed, getPost, getShareImage, getDrafts, getDraft, getBookmarks, getReplies, getQuotes, createPost, updateDraft, publishPost, updatePost, deletePost,
   replacePostLinks,
   toggleLike, toggleBookmark, toggleRepost, recordShare, recordView, flagPost,
+  getShellBadges, markCommunitiesSeen,
   getCommunities, getCommunity, joinCommunity, leaveCommunity, searchMedia,
   getActor, getOrCreateActor, getBusinessPosts, toggleFollow,
   searchMediaEntities,

@@ -40,6 +40,8 @@ router.get('/posts/drafts', requireAuth, ctrl.getDrafts);
 router.get('/posts/bookmarks', requireAuth, ctrl.getBookmarks);
 router.get('/search', ctrl.searchMedia);
 router.get('/entities', ctrl.searchMediaEntities);
+router.get('/badges', requireAuth, ctrl.getShellBadges);
+router.post('/communities/seen', requireAuth, ctrl.markCommunitiesSeen);
 router.get('/communities', ctrl.getCommunities);
 router.get('/communities/:slug', ctrl.getCommunity);
 router.post('/communities/:id/join', requireAuth, ctrl.joinCommunity);

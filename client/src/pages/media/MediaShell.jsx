@@ -10,6 +10,8 @@ import { useAuth } from '../../context/AuthContext';
 import useNotifications from '../../hooks/useNotifications';
 import api from '../../api/axios';
 import MediaFooter from './MediaFooter';
+import { MediaGuestGateProvider } from './MediaGuestGate';
+import { getMediaBadges, markMediaCommunitiesSeen } from '../../api/media';
 import './MediaStyles.css';
 
 const TABS = [
@@ -31,6 +33,7 @@ export default function MediaShell({ children }) {
   const { user, loading, logout } = useAuth();
   const { unreadCount: notificationUnread } = useNotifications();
   const [messageUnread, setMessageUnread] = useState(0);
+  const [spacesUnread, setSpacesUnread] = useState(0);
   const { pathname, search } = useLocation();
   const currentPath = pathname.replace(/\/+$/, '') || '/';
   const activeTab = ['/media/compose', '/media/verification', '/media/verify-identity', '/media/creator'].includes(currentPath) ? null
@@ -59,10 +62,34 @@ export default function MediaShell({ children }) {
     return () => { cancelled = true; };
   }, [user]);
 
+  useEffect(() => {
+    let cancelled = false;
+    if (!user) {
+      setSpacesUnread(0);
+      return () => { cancelled = true; };
+    }
+    getMediaBadges()
+      .then((data) => { if (!cancelled) setSpacesUnread(Number(data?.spaces_unread) || 0); })
+      .catch(() => { if (!cancelled) setSpacesUnread(0); });
+    return () => { cancelled = true; };
+  }, [user, pathname]);
+
+  useEffect(() => {
+    if (!user || !pathname.startsWith('/media/communities')) return undefined;
+    let cancelled = false;
+    markMediaCommunitiesSeen()
+      .then((data) => { if (!cancelled) setSpacesUnread(Number(data?.spaces_unread) || 0); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [pathname, user]);
+
   const navigation = (mobile = false) => (
     <nav className={mobile ? 'media-bottom-nav' : 'media-side-nav'} aria-label={t('media.shell.navigation')}>
       {TABS.map(({ path, key, Icon }) => {
-        const unread = key === 'notifications' ? notificationUnread : key === 'messages' ? messageUnread : 0;
+        const unread = key === 'notifications' ? notificationUnread
+          : key === 'messages' ? messageUnread
+            : key === 'spaces' ? spacesUnread
+              : 0;
         return (
         <Link key={path} to={path} aria-current={activeTab === path ? 'page' : undefined}
           className={`media-nav-tab ${activeTab === path ? 'active' : ''}`}>
@@ -76,6 +103,7 @@ export default function MediaShell({ children }) {
   );
 
   return (
+    <MediaGuestGateProvider>
     <PageShell hideNav hideFooter>
       <div className="media-shell">
         <header className="media-app-header">
@@ -147,5 +175,6 @@ export default function MediaShell({ children }) {
         {navigation(true)}
       </div>
     </PageShell>
+    </MediaGuestGateProvider>
   );
 }
