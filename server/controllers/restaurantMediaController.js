@@ -426,7 +426,7 @@ exports.postRestaurantMedia = async (req, res, next) => {
       // idempotent and keeps the restaurant safety state linked to its Media
       // post.
       await dualWriteToMedia(client, {
-        restaurantId, userId: req.user.id, caption,
+        restaurantId, userId: req.user.id, ownerUserId: restaurant.owner_user_id, caption,
         dishRows, restaurantName: restaurant.business_name,
         sourceRestaurantMediaId: media.id,
         asset: {
@@ -524,7 +524,7 @@ async function insertMediaDishSnapshots(client, mediaId, dishRows) {
 // Creates a media_post with actor_type=restaurant and mirrors dish items
 // into media_post_links. Fail-open: if Media tables don't exist yet, skip.
 async function dualWriteToMedia(client, {
-  restaurantId, userId, caption, dishRows, restaurantName,
+  restaurantId, userId, ownerUserId, caption, dishRows, restaurantName,
   sourceRestaurantMediaId, asset,
 }) {
   try {
@@ -537,7 +537,8 @@ async function dualWriteToMedia(client, {
     }
     // Get or create the restaurant actor.
     const { rows: existing } = await client.query(
-      `SELECT id FROM media_actors WHERE actor_type = 'restaurant' AND restaurant_id = $1`,
+      `SELECT id, owner_user_id FROM media_actors
+        WHERE actor_type = 'restaurant' AND restaurant_id = $1`,
       [restaurantId]
     );
     let actorId = existing[0]?.id;
@@ -548,9 +549,15 @@ async function dualWriteToMedia(client, {
          VALUES ('restaurant', $1, $2, $3, $4, 'restaurant')
          ON CONFLICT (handle) DO UPDATE SET display_name = EXCLUDED.display_name
          RETURNING id`,
-        [userId, restaurantId, `restaurant-${restaurantId}`, restaurantName || `Restaurant ${restaurantId}`]
+        [ownerUserId || userId, restaurantId, `restaurant-${restaurantId}`, restaurantName || `Restaurant ${restaurantId}`]
       );
       actorId = created[0].id;
+    } else if (ownerUserId && String(existing[0].owner_user_id) !== String(ownerUserId)) {
+      // Federated actor ownership follows the restaurant, not the customer or
+      // staff member who happened to submit the source post.
+      await client.query(
+        `UPDATE media_actors SET owner_user_id = $1 WHERE id = $2`,`r`n        [ownerUserId, actorId]
+      );
     }
 
     const isVideoUpload = asset?.assetType === 'video';
@@ -766,7 +773,7 @@ exports.postRestaurantMediaPhoto = async (req, res, next) => {
         );
         await insertMediaDishSnapshots(client, row.id, dishRows);
         await dualWriteToMedia(client, {
-          restaurantId, userId: req.user.id, caption,
+          restaurantId, userId: req.user.id, ownerUserId: restaurant.owner_user_id, caption,
           dishRows, restaurantName: restaurant.business_name,
           sourceRestaurantMediaId: row.id,
           asset: {
@@ -910,11 +917,34 @@ exports.deleteRestaurantMedia = async (req, res, next) => {
       ));
     }
 
-    await pool.query(`UPDATE restaurant_media SET status = 'hidden' WHERE id = $1`, [media.id]);
-    await pool.query(
-      `UPDATE media_posts SET visibility = 'removed', deleted_at = COALESCE(deleted_at, NOW())
-        WHERE source_restaurant_media_id = $1`, [media.id]
-    );
+    // Hide the restaurant source and its federated Media post together. A
+    // source must never remain public while its copied post is still visible.
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      const { rows: [locked] } = await client.query(
+        `SELECT id FROM restaurant_media WHERE id = $1 FOR UPDATE`,
+        [media.id]
+      );
+      if (!locked) {
+        await client.query('ROLLBACK');
+        return next(new AppError('Media not found', 404, 'media_not_found'));
+      }
+      await client.query(
+        `UPDATE restaurant_media SET status = 'hidden' WHERE id = $1`,
+        [media.id]
+      );
+      await client.query(
+        `UPDATE media_posts SET visibility = 'removed', deleted_at = COALESCE(deleted_at, NOW())
+          WHERE source_restaurant_media_id = $1`, [media.id]
+      );
+      await client.query('COMMIT');
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
     return res.json({ success: true });
   } catch (err) {
     next(err);

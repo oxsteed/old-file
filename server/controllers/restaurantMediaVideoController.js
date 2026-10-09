@@ -392,7 +392,7 @@ async function postVideoUpload(req, res, next) {
         [media.id]
       );
       await dualWriteToMedia(client, {
-        restaurantId, userId: req.user.id, caption,
+        restaurantId, userId: req.user.id, ownerUserId: restaurant.owner_user_id, caption,
         dishRows, restaurantName: null,
         sourceRestaurantMediaId: media.id,
         asset: { assetType: 'video', provider: 'upload', storageKey: storedKey },

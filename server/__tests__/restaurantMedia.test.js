@@ -355,7 +355,11 @@ describe('deleteRestaurantMedia', () => {
   test('poster can delete their own media', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [MEDIA_ROW] })
-      .mockResolvedValueOnce({ rows: [] }); // soft-delete
+      .mockResolvedValueOnce({}) // BEGIN
+      .mockResolvedValueOnce({ rows: [{ id: 'media-1' }] }) // lock source
+      .mockResolvedValueOnce({}) // hide source
+      .mockResolvedValueOnce({}) // hide federated post
+      .mockResolvedValueOnce({}); // COMMIT
     const res = await request(buildApp({ user: { id: 'user-poster' } }))
       .delete('/api/restaurants/42/media/media-1');
     expect(res.status).toBe(200);
@@ -380,7 +384,11 @@ describe('deleteRestaurantMedia', () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [MEDIA_ROW] })
       .mockResolvedValueOnce({ rows: [{}] }) // owner match
-      .mockResolvedValueOnce({ rows: [] }); // soft-delete
+      .mockResolvedValueOnce({}) // BEGIN
+      .mockResolvedValueOnce({ rows: [{ id: 'media-1' }] }) // lock source
+      .mockResolvedValueOnce({}) // hide source
+      .mockResolvedValueOnce({}) // hide federated post
+      .mockResolvedValueOnce({}); // COMMIT
     const res = await request(buildApp({ user: { id: 'user-owner' } }))
       .delete('/api/restaurants/42/media/media-1');
     expect(res.status).toBe(200);
@@ -390,7 +398,11 @@ describe('deleteRestaurantMedia', () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [MEDIA_ROW] })
       .mockResolvedValueOnce({ rows: [] }) // not owner
-      .mockResolvedValueOnce({ rows: [] }); // soft-delete
+      .mockResolvedValueOnce({}) // BEGIN
+      .mockResolvedValueOnce({ rows: [{ id: 'media-1' }] }) // lock source
+      .mockResolvedValueOnce({}) // hide source
+      .mockResolvedValueOnce({}) // hide federated post
+      .mockResolvedValueOnce({}); // COMMIT
     const res = await request(buildApp({
       user: { id: 'user-admin' },
       extraUserFields: { isAdmin: true, isSuperAdmin: true },
@@ -405,7 +417,11 @@ describe('deleteRestaurantMedia', () => {
       .mockResolvedValueOnce({ rows: [MEDIA_ROW] })
       .mockResolvedValueOnce({ rows: [] }) // not owner
       .mockResolvedValueOnce({ rows: [{}] }) // grant found
-      .mockResolvedValueOnce({ rows: [] }); // soft-delete
+      .mockResolvedValueOnce({}) // BEGIN
+      .mockResolvedValueOnce({ rows: [{ id: 'media-1' }] }) // lock source
+      .mockResolvedValueOnce({}) // hide source
+      .mockResolvedValueOnce({}) // hide federated post
+      .mockResolvedValueOnce({}); // COMMIT
     const res = await request(buildApp({
       user: { id: 'user-admin' },
       extraUserFields: { isAdmin: true, isSuperAdmin: false },
