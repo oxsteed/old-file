@@ -243,6 +243,32 @@ describe('OxSteed Media launch contracts', () => {
     expect(pool.query.mock.calls[0][0]).toMatch(/is_business_verified\s*=\s*TRUE/);
   });
 
+  test('casts nullable draft reply parameters for PostgreSQL type inference', async () => {
+    const actor = {
+      id: 'actor-1', owner_user_id: 'helper-1', actor_type: 'helper', verified_kind: 'identity',
+      handle: 'helper-1', display_name: 'Helper One', avatar_url: null,
+    };
+    pool.query.mockImplementation(async (sql) => {
+      if (sql.includes('SELECT * FROM media_actors WHERE owner_user_id')) return { rows: [actor] };
+      if (sql.includes('helper_profiles hp JOIN users u')) return { rows: [{ id: 'helper-1' }] };
+      if (sql.includes('COUNT(*) AS c')) return { rows: [{ c: '0' }] };
+      if (sql.includes('INSERT INTO media_posts')) return { rows: [{
+        id: 'post-1', actor_id: actor.id, body: 'Draft body', visibility: 'unlisted', processing_status: 'draft',
+      }] };
+      return { rows: [] };
+    });
+    const res = resMock();
+
+    await media.createPost({
+      user: { id: 'helper-1' },
+      body: { body: 'Draft body', draft: true },
+    }, res);
+
+    expect(res.status).toHaveBeenCalledWith(201);
+    const insert = pool.query.mock.calls.find(([sql]) => sql.includes('INSERT INTO media_posts'));
+    expect(insert[0]).toContain('CASE WHEN $3::uuid IS NOT NULL');
+  });
+
   test('does not let a user attach a photo to someone else\'s post', async () => {
     pool.query.mockResolvedValueOnce({ rows: [] });
     const res = resMock();

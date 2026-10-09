@@ -1077,7 +1077,7 @@ async function createPost(req, res) {
       `INSERT INTO media_posts
          (actor_id, body, parent_id, quoted_post_id, community_id, root_id, visibility, processing_status)
        VALUES ($1, $2, $3, $4, $5,
-         CASE WHEN $3 IS NOT NULL THEN (SELECT COALESCE(root_id, id) FROM media_posts WHERE id = $3) END,
+         CASE WHEN $3::uuid IS NOT NULL THEN (SELECT COALESCE(root_id, id) FROM media_posts WHERE id = $3::uuid) END,
          CASE WHEN $6 THEN 'unlisted' ELSE 'public' END,
          CASE WHEN $6 THEN 'draft' ELSE 'ready' END)
        RETURNING *`,
