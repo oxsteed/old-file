@@ -1020,7 +1020,8 @@ async function getReplies(req, res) {
       // Relevant: engagement-weighted (likes x3 + reposts x5 + replies x2),
       // with recency decay (newer posts get a boost).
       orderClause = `(p.like_count * 3 + p.repost_count * 5 + p.reply_count * 2 +
-        GREATEST(0, 100 - EXTRACT(EPOCH FROM (NOW() - p.created_at)) / 3600)) DESC`;
+        GREATEST(0, 100 - EXTRACT(EPOCH FROM (NOW() - p.created_at)) / 3600)) DESC,
+        p.created_at DESC, p.id DESC`;
     }
     const params = [req.params.id];
     const where = addViewerBlockFilter(

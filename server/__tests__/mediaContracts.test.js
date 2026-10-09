@@ -180,6 +180,7 @@ describe('OxSteed Media launch contracts', () => {
 
     expect(res.json).toHaveBeenCalledWith({ replies: [], sort: 'relevant' });
     expect(pool.query.mock.calls[1][0]).toContain('ORDER BY (p.like_count * 3');
+    expect(pool.query.mock.calls[1][0]).toContain('p.created_at DESC, p.id DESC');
   });
 
   test('returns authoritative action counts for live card reconciliation', async () => {
