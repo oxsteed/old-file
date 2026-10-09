@@ -114,4 +114,55 @@ describe('Media creator dispute administration', () => {
     expect(resolveDisputeWithCompensation).not.toHaveBeenCalled();
     expect(next).toHaveBeenCalledWith(expect.objectContaining({ code: 'media_creator_dispute_not_found', status: 404 }));
   });
+
+  test('commits flag decisions, post removal, and audit as one transaction', async () => {
+    const client = { query: jest.fn(), release: jest.fn() };
+    client.query
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ id: 'flag-1', post_id: 'post-1', status: 'open' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'flag-1', status: 'removed' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'post-1', visibility: 'removed' }] })
+      .mockResolvedValueOnce({ rows: [] });
+    pool.connect.mockResolvedValueOnce(client);
+    const res = response();
+
+    await admin.reviewFlag({
+      params: { id: 'flag-1' },
+      body: { action: 'remove' },
+      user: { id: 'admin-1' },
+      ip: '127.0.0.1',
+      get: () => null,
+    }, res);
+
+    expect(res.json).toHaveBeenCalledWith({ ok: true, status: 'removed' });
+    expect(client.query.mock.calls.map(([sql]) => String(sql))).toEqual([
+      'BEGIN', expect.stringContaining('FOR UPDATE'), expect.stringContaining('RETURNING *'),
+      expect.stringContaining('RETURNING id, visibility'), expect.stringContaining('COMMIT'),
+    ]);
+    expect(client.release).toHaveBeenCalled();
+  });
+
+  test('rolls back a flag decision when the post removal transition is missing', async () => {
+    const client = { query: jest.fn(), release: jest.fn() };
+    client.query
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ id: 'flag-1', post_id: 'post-1', status: 'open' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'flag-1', status: 'removed' }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] });
+    pool.connect.mockResolvedValueOnce(client);
+    const res = response();
+
+    await admin.reviewFlag({
+      params: { id: 'flag-1' },
+      body: { action: 'dmca' },
+      user: { id: 'admin-1' },
+      get: () => null,
+    }, res);
+
+    expect(res.status).toHaveBeenCalledWith(503);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ code: 'media_flag_post_transition_failed' }));
+    expect(client.query).toHaveBeenLastCalledWith('ROLLBACK');
+    expect(client.release).toHaveBeenCalled();
+  });
 });

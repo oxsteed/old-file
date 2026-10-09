@@ -137,32 +137,52 @@ async function listPendingPosts(req, res) {
 }
 
 async function reviewFlag(req, res) {
+  const client = await pool.connect();
   try {
     const { action, takedownReason } = req.body;
     // action: dismiss | remove | dmca
     if (!['dismiss', 'remove', 'dmca'].includes(action)) {
       return res.status(400).json({ error: 'Invalid action' });
     }
-    const { rows } = await pool.query(
-      `SELECT * FROM media_post_flags WHERE id = $1`,
+    await client.query('BEGIN');
+    const { rows } = await client.query(
+      `SELECT * FROM media_post_flags WHERE id = $1 FOR UPDATE`,
       [req.params.id]
     );
-    if (!rows[0]) return res.status(404).json({ error: 'Flag not found' });
+    if (!rows[0]) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Flag not found' });
+    }
     const flag = rows[0];
 
     const newStatus = action === 'dismiss' ? 'dismissed' : action === 'dmca' ? 'dmca' : 'removed';
-    await pool.query(
+    const { rows: updatedFlags } = await client.query(
       `UPDATE media_post_flags
        SET status = $1, decided_by = $2, decided_at = NOW()
-       WHERE id = $3`,
-      [newStatus, req.user.id, flag.id]
+       WHERE id = $3 AND status = $4
+       RETURNING *`,
+      [newStatus, req.user.id, flag.id, flag.status]
     );
+    if (!updatedFlags[0]) {
+      const error = new Error('The moderation decision could not be saved.');
+      error.status = 503;
+      error.code = 'media_flag_transition_failed';
+      error.isOperational = true;
+      throw error;
+    }
 
     if (action === 'remove' || action === 'dmca') {
-      await pool.query(
-        `UPDATE media_posts SET visibility = 'removed' WHERE id = $1`,
+      const { rows: updatedPosts } = await client.query(
+        `UPDATE media_posts SET visibility = 'removed' WHERE id = $1 RETURNING id, visibility`,
         [flag.post_id]
       );
+      if (!updatedPosts[0]) {
+        const error = new Error('The flagged post could not be removed.');
+        error.status = 503;
+        error.code = 'media_flag_post_transition_failed';
+        error.isOperational = true;
+        throw error;
+      }
     }
 
     await auditService.logAdminAction({
@@ -174,11 +194,17 @@ async function reviewFlag(req, res) {
       before: { flag_status: flag.status },
       after: { flag_status: newStatus },
       req,
+      client,
+      throwOnError: true,
     });
+    await client.query('COMMIT');
     res.json({ ok: true, status: newStatus });
   } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
     logger.error('mediaAdmin.reviewFlag error', { message: err.message });
     sendMediaError(res, err, 'Failed to review flag');
+  } finally {
+    client.release();
   }
 }
 
