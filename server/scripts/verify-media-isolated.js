@@ -56,6 +56,46 @@ async function main() {
     assert.equal((await api(`/posts/${id}`, null)).status, 200);
     assert.equal((await api(`/posts/${id}`, blocked)).status, 404, 'both directions of blocking hide public posts');
     assert.equal((await api('/assets/photo-uploads', helper, file(id, photo, 'photo.jpg', 'image/jpeg'), 'POST')).status, 409);
+
+    const likeOn = await api(`/posts/${id}/like`, customer, {}, 'POST');
+    assert.equal(likeOn.status, 200);
+    assert.equal(likeOn.data.liked, true);
+    assert.equal((await api(`/posts/${id}/like`, customer, {}, 'POST')).data.liked, false,
+      'like retries must toggle the same personal state without duplicating a row');
+    const bookmarkOn = await api(`/posts/${id}/bookmark`, customer, {}, 'POST');
+    assert.equal(bookmarkOn.status, 200);
+    assert.equal(bookmarkOn.data.bookmarked, true);
+    const saved = await api('/posts/bookmarks', customer);
+    assert(saved.data.posts.some(post => String(post.id) === String(id)), 'saved posts must return the bookmarked post');
+    const repostOn = await api(`/posts/${id}/repost`, helper, {}, 'POST');
+    assert.equal(repostOn.status, 200);
+    assert.equal(repostOn.data.reposted, true);
+    assert.equal((await api(`/posts/${id}/repost`, helper, {}, 'POST')).data.reposted, false,
+      'repost retries must toggle the same actor state without duplicate rows');
+    const shareOn = await api(`/posts/${id}/share`, null, {}, 'POST');
+    assert.equal(shareOn.status, 200);
+    assert.equal(shareOn.data.shared, true);
+    assert.equal((await api(`/posts/${id}/share`, null, {}, 'POST')).data.shared, false,
+      'guest shares must be unique for one request fingerprint');
+    const viewOn = await api(`/posts/${id}/view`, null, {}, 'POST');
+    assert.equal(viewOn.status, 200);
+    assert.equal(viewOn.data.recorded, true);
+    assert.equal((await api(`/posts/${id}/view`, null, {}, 'POST')).data.recorded, false,
+      'guest views must be unique for one request fingerprint');
+    const reportOn = await api(`/posts/${id}/flags`, customer, { reason: 'spam' }, 'POST');
+    assert.equal(reportOn.status, 201);
+    assert.equal((await api(`/posts/${id}/flags`, customer, { reason: 'spam' }, 'POST')).status, 409,
+      'open duplicate reports must be rejected');
+
+    const ownerPost = await draft(helper);
+    assert.equal((await api('/assets/photo-uploads', helper, file(ownerPost, photo, 'owner.jpg', 'image/jpeg'), 'POST')).status, 201);
+    assert.equal((await api(`/posts/${ownerPost}/publish`, helper, {}, 'POST')).status, 200);
+    assert.equal((await api(`/posts/${ownerPost}`, customer, { body: 'Unauthorized edit' }, 'PATCH')).status, 404,
+      'non-owners cannot edit a published post');
+    assert.equal((await api(`/posts/${ownerPost}`, helper, { body: 'Owner edit' }, 'PATCH')).status, 200);
+    assert.equal((await api(`/posts/${ownerPost}`, helper, {}, 'DELETE')).status, 200);
+    assert.equal((await api(`/posts/${ownerPost}`, null)).status, 404, 'deleted posts are no longer public');
+
     const videoId = await draft(helper);
     const videoPath = path.join(tmp, 'video.mp4');
     execFileSync('/usr/bin/ffmpeg', ['-y', '-f', 'lavfi', '-i', 'color=c=orange:s=320x240:d=1',
@@ -80,7 +120,8 @@ async function main() {
     assert.equal(asset.status, 200, 'ready rendition must be served');
     assert.equal((await api(`/posts/${id}/like`, customer, {}, 'POST')).status, 200);
     console.log(JSON.stringify({ ok: true, evidence: ['helper/business/restaurant drafts', 'ownership', 'guests',
-      'two-way blocks', 'durable photo retries', 'real ClamAV', 'real FFmpeg', 'public rendition delivery'] }));
+      'two-way blocks', 'durable photo retries', 'personal action state', 'saved posts', 'reports',
+      'owner edit/delete', 'real ClamAV', 'real FFmpeg', 'public rendition delivery'] }));
   } finally {
     // No financial writes. Keep moderation and artifact history scoped to this
     // disposable database; use the normal owner API for post removal.

@@ -1263,3 +1263,12 @@ bookmark behavior. The focused action contract passes 2 tests, and the full
 client CI build passes localization, typecheck, production bundling, and
 verification of 761 emitted assets. Database concurrency, authenticated live
 action behavior, and the candidate CI run remain open for the next layer.
+
+Disposable journey expansion checkpoint (2026-10-09): the isolated Media
+verifier now exercises like/unlike, saved-post reload, verified repost toggle,
+unique guest share and view events, duplicate report rejection, and owner-only
+edit/delete in addition to its existing draft, upload, ClamAV, FFmpeg,
+blocking, and public-delivery checks. The harness passes syntax validation;
+the local contract suite passes 29 tests with 16 PostgreSQL-only skips, and
+the deployment wiring contract passes 37 tests. Actual execution remains
+queued for the disposable CI database and exact deployed candidate.
