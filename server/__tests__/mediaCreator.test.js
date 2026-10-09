@@ -25,6 +25,27 @@ test('filters creator opportunities for a signed-in viewer who blocks the owner'
   expect(mockQuery.mock.calls[0][1]).toEqual([12, 'viewer-1']);
 });
 
+test('applies the reciprocal block rule to direct creator applications', async () => {
+  const pool = require('../db');
+  const client = { query: mockQuery, release: jest.fn() };
+  pool.connect.mockResolvedValueOnce(client);
+  mockQuery.mockImplementation(async (sql) => {
+    const query = String(sql);
+    if (query === 'BEGIN' || query === 'ROLLBACK') return { rows: [] };
+    if (query.includes('FROM media_actors a')) return { rows: [{ id: 'actor-1', owner_user_id: 'creator-1' }] };
+    if (query.includes('FROM media_creator_gigs')) return { rows: [] };
+    return { rows: [] };
+  });
+  const next = jest.fn();
+  await creator.applyToGig({
+    params: { gigId: 'gig-1' },
+    user: { id: 'creator-1' },
+    body: { actorId: 'actor-1', pitch: 'I can do this', proposedCents: 900 },
+  }, resMock(), next);
+  expect(next).toHaveBeenCalledWith(expect.objectContaining({ code: 'media_creator_gig_not_found' }));
+  expect(mockQuery.mock.calls.find(([sql]) => String(sql).includes('FROM media_creator_gigs'))?.[0]).toContain('FROM user_blocks ub');
+});
+
 test('rejects a tip target that is not a currently verified creator actor', async () => {
   mockQuery.mockResolvedValueOnce({ rows: [] });
   const client = { query: mockQuery, release: jest.fn() };

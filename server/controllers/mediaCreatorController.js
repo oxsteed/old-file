@@ -164,7 +164,16 @@ async function applyToGig(req, res, next) {
     if (!actor) throw new AppError('A current verified helper, business, or restaurant actor is required.', 403, 'media_creator_unverified');
     const pitch = text(req.body?.pitch, 3000, 'Pitch');
     const proposed = asPositiveInt(req.body?.proposedCents);
-    const { rows: gigs } = await client.query(`SELECT * FROM media_creator_gigs WHERE id = $1 AND status = 'open' FOR UPDATE`, [req.params.gigId]);
+    const { rows: gigs } = await client.query(
+      `SELECT * FROM media_creator_gigs
+        WHERE id = $1 AND status = 'open'
+          AND NOT EXISTS (
+            SELECT 1 FROM user_blocks ub
+             WHERE (ub.blocker_id = $2 AND ub.blocked_id = media_creator_gigs.owner_user_id)
+                OR (ub.blocker_id = media_creator_gigs.owner_user_id AND ub.blocked_id = $2)
+          )
+        FOR UPDATE`, [req.params.gigId, req.user.id]
+    );
     if (!gigs[0]) throw new AppError('Creator gig not found or closed.', 404, 'media_creator_gig_not_found');
     if (proposed > Number(gigs[0].budget_cents)) {
       throw new AppError('The proposed amount cannot exceed this gig budget.', 400, 'media_creator_amount_over_budget');
@@ -252,6 +261,13 @@ async function awardApplication(req, res, next) {
     );
     const current = currentRows[0];
     if (!current) throw new AppError('Application is not available to award.', 404, 'media_creator_application_not_found');
+    const { rows: blockedRows } = await client.query(
+      `SELECT 1 FROM user_blocks
+        WHERE (blocker_id = $1 AND blocked_id = $2)
+           OR (blocker_id = $2 AND blocked_id = $1)
+        LIMIT 1`, [req.user.id, current.applicant_user_id]
+    );
+    if (blockedRows[0]) throw new AppError('Application is not available to award.', 404, 'media_creator_application_not_found');
     // A lost response after a successful award is safely replayable.
     if (current.status === 'awarded' && current.gig_status === 'awarded' && current.credit_reservation_id) {
       await client.query('COMMIT');

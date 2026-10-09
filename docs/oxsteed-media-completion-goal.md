@@ -1335,3 +1335,9 @@ match before releasing it. A mismatched hold fails closed inside the existing
 transaction. The focused creator suite adds the sponsorship mismatch case and
 passes 28 tests; isolated ledger races and deployed payment evidence remain
 open.
+
+Marketplace action-safety checkpoint (2026-10-09): direct gig applications
+and owner awards now enforce reciprocal blocking even when a caller knows the
+underlying gig or application ID. The focused creator controller suite passes
+29 tests; isolated concurrent marketplace and deployed Credit evidence remain
+open.
