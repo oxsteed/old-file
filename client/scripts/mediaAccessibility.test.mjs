@@ -79,3 +79,10 @@ test('Media composer waits for publisher verification before creating a draft', 
   assert.match(compose, /setPublisherStatus\('error'\)/);
   assert.match(compose, /media_publisher_unavailable/);
 });
+
+test('Media personal actions expose failure feedback and prevent duplicate requests', () => {
+  assert.match(postCard, /const \[actionPending, setActionPending\] = useState\('\'\)/);
+  assert.match(postCard, /setActionMessage\(err\.response\?\.data\?\.error \|\| t\('media\.post\.actionError'/);
+  assert.match(postCard, /aria-live="polite"/);
+  assert.match(postCard, /disabled=\{Boolean\(actionPending\)\}/);
+});

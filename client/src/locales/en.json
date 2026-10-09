@@ -30302,6 +30302,7 @@
       "bookmark": "Bookmark",
       "repost": "Repost",
       "share": "Share",
+      "actionError": "That action could not be completed. Try again.",
       "boost": "Boost post",
       "boostAmount": "Boost amount in cents",
       "boostNotice": "Boosts use OxSteed Credit and keep local relevance safeguards.",

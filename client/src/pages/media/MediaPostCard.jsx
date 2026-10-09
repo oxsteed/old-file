@@ -67,6 +67,8 @@ export default function MediaPostCard({ post, onUpdate }) {
   const [repostCount, setRepostCount] = useState(post.repost_count);
   const [replyCount, setReplyCount] = useState(post.reply_count);
   const [viewCount, setViewCount] = useState(post.view_count);
+  const [actionPending, setActionPending] = useState('');
+  const [actionMessage, setActionMessage] = useState('');
   const [reportReason, setReportReason] = useState('spam');
   const [reporting, setReporting] = useState(false);
   const [reportMessage, setReportMessage] = useState('');
@@ -107,39 +109,53 @@ export default function MediaPostCard({ post, onUpdate }) {
   const handleLike = async (e) => {
     e.preventDefault();
     if (!user) return navigate('/login', { state: { from: window.location.pathname } });
+    if (actionPending) return;
+    setActionPending('like'); setActionMessage('');
     try {
       const r = await toggleLike(post.id);
       setLiked(r.liked);
       if (Number.isFinite(Number(r.like_count))) setLikeCount(Number(r.like_count));
       else setLikeCount(c => Math.max(0, c + (r.liked ? 1 : -1)));
-    } catch { /* keep the server state when the request fails */ }
+    } catch (err) {
+      setActionMessage(err.response?.data?.error || t('media.post.actionError', { defaultValue: 'That action could not be completed. Try again.' }));
+    } finally { setActionPending(''); }
   };
 
   const handleBookmark = async (e) => {
     e.preventDefault();
     if (!user) return navigate('/login', { state: { from: window.location.pathname } });
+    if (actionPending) return;
+    setActionPending('bookmark'); setActionMessage('');
     try {
       const r = await toggleBookmark(post.id);
       setBookmarked(r.bookmarked);
       if (Number.isFinite(Number(r.bookmark_count))) setBookmarkCount(Number(r.bookmark_count));
       else setBookmarkCount(c => Math.max(0, c + (r.bookmarked ? 1 : -1)));
-    } catch { /* keep the server state when the request fails */ }
+    } catch (err) {
+      setActionMessage(err.response?.data?.error || t('media.post.actionError', { defaultValue: 'That action could not be completed. Try again.' }));
+    } finally { setActionPending(''); }
   };
 
   const handleRepost = async (e) => {
     e.preventDefault();
     if (!user) return navigate('/login', { state: { from: window.location.pathname } });
+    if (actionPending) return;
+    setActionPending('repost'); setActionMessage('');
     try {
       const r = await toggleRepost(post.id);
       setReposted(r.reposted);
       if (Number.isFinite(Number(r.repost_count))) setRepostCount(Number(r.repost_count));
       else setRepostCount(c => Math.max(0, c + (r.reposted ? 1 : -1)));
-    } catch { /* keep the server state when the request fails */ }
+    } catch (err) {
+      setActionMessage(err.response?.data?.error || t('media.post.actionError', { defaultValue: 'That action could not be completed. Try again.' }));
+    } finally { setActionPending(''); }
   };
 
   const handleShare = async (e) => {
     e.preventDefault();
+    if (actionPending) return;
     const url = `${window.location.origin}/media/post/${post.id}`;
+    setActionPending('share'); setActionMessage('');
     try {
       let shared = false;
       if (typeof navigator !== 'undefined' && navigator.share) {
@@ -153,7 +169,9 @@ export default function MediaPostCard({ post, onUpdate }) {
         const result = await recordShare(post.id);
         if (Number.isFinite(Number(result.share_count))) setShareCount(Number(result.share_count));
       }
-    } catch { /* sharing can be cancelled by the user */ }
+    } catch (err) {
+      if (err?.name !== 'AbortError') setActionMessage(err.response?.data?.error || t('media.post.actionError', { defaultValue: 'That action could not be completed. Try again.' }));
+    } finally { setActionPending(''); }
   };
 
   const handleReport = async () => {
@@ -281,16 +299,16 @@ export default function MediaPostCard({ post, onUpdate }) {
           <Link to={`/media/post/${post.id}`} className="media-action" aria-label={t('media.post.reply', { defaultValue: 'Reply' })}>
             💬 {formatCount(replyCount)}
           </Link>
-          <button onClick={handleRepost} className={`media-action ${reposted ? 'active' : ''}`} aria-label={t('media.post.repost')} aria-pressed={reposted}>
+          <button onClick={handleRepost} disabled={Boolean(actionPending)} className={`media-action ${reposted ? 'active' : ''}`} aria-label={t('media.post.repost')} aria-pressed={reposted}>
             🔁 {formatCount(repostCount)}
           </button>
-          <button onClick={handleLike} className={`media-action ${liked ? 'active' : ''}`} aria-label={t('media.post.like', { defaultValue: 'Like' })} aria-pressed={liked}>
+          <button onClick={handleLike} disabled={Boolean(actionPending)} className={`media-action ${liked ? 'active' : ''}`} aria-label={t('media.post.like', { defaultValue: 'Like' })} aria-pressed={liked}>
             {liked ? '❤️' : '🤍'} {formatCount(likeCount)}
           </button>
-          <button onClick={handleBookmark} className={`media-action ${bookmarked ? 'active' : ''}`} aria-label={t('media.post.bookmark', { defaultValue: 'Bookmark' })} aria-pressed={bookmarked}>
+          <button onClick={handleBookmark} disabled={Boolean(actionPending)} className={`media-action ${bookmarked ? 'active' : ''}`} aria-label={t('media.post.bookmark', { defaultValue: 'Bookmark' })} aria-pressed={bookmarked}>
             {bookmarked ? '🔖' : '📑'} {formatCount(bookmarkCount)}
           </button>
-          <button onClick={handleShare} className="media-action" aria-label={t('media.post.share')}>
+          <button onClick={handleShare} disabled={Boolean(actionPending)} className="media-action" aria-label={t('media.post.share')}>
             ↗️ {t('media.post.share')} {formatCount(shareCount)}
           </button>
           {user && String(post.owner_user_id) === String(user.id) && post.visibility === 'public' && (
@@ -313,6 +331,7 @@ export default function MediaPostCard({ post, onUpdate }) {
             </div>
           </details>
         </div>
+        {actionMessage && <p className="media-action-status" role="status" aria-live="polite">{actionMessage}</p>}
       </div>
       {boostOpen && <div className="media-verification-dialog" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setBoostOpen(false); }}>
         <form className="media-verification-form" onSubmit={handleBoost} role="dialog" aria-modal="true" aria-labelledby={`media-boost-title-${post.id}`}>

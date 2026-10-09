@@ -920,3 +920,11 @@ focused Media client/browser checks pass 13 tests, all five locale catalogs
 pass parity checks, and the integrated client build passes with 761 emitted
 assets. This closes the client-side identity race; authenticated production
 verification and exact candidate CI remain open.
+
+Action feedback checkpoint (2026-10-09): Media like, bookmark, repost, and
+share controls now suppress duplicate requests while an action is in flight
+and expose localized, live-region failure feedback instead of silently
+swallowing transport errors. The focused client/browser suite passes 14 tests,
+all five locale catalogs remain aligned, and the full client build passes with
+761 emitted assets. Server authorization and multi-client live count evidence
+remain open.

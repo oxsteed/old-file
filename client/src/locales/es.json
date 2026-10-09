@@ -30302,6 +30302,7 @@
       "bookmark": "Guardar",
       "repost": "Republicar",
       "share": "Compartir",
+      "actionError": "No se pudo completar esa acción. Inténtalo de nuevo.",
       "boost": "Impulsar publicación",
       "boostAmount": "Monto del impulso en centavos",
       "boostNotice": "Los impulsos usan OxSteed Credit y mantienen las salvaguardas de relevancia local.",

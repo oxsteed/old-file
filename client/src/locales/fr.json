@@ -30302,6 +30302,7 @@
       "bookmark": "Enregistrer",
       "repost": "Republier",
       "share": "Partager",
+      "actionError": "Cette action n’a pas pu être effectuée. Réessayez.",
       "boost": "Mettre en avant la publication",
       "boostAmount": "Montant de mise en avant en centimes",
       "boostNotice": "Les mises en avant utilisent OxSteed Credit et respectent la pertinence locale.",
