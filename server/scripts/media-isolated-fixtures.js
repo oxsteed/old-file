@@ -25,7 +25,15 @@ async function seed(pool) {
     await db.query('BEGIN');
     const { rows } = await db.query('SELECT id FROM users WHERE id = ANY($1::uuid[])', [Object.values(personas)]);
     if (rows.length !== Object.values(personas).length) throw new Error('Run the isolated Credit seed first');
-    await db.query('UPDATE users SET is_verified = TRUE WHERE id = ANY($1::uuid[])', [[personas.helper, personas.restaurant]]);
+    // The disposable verifier reaches authenticated Media routes through the
+    // normal Didit middleware. Keep the identity gate and Media publisher
+    // flag explicit for every synthetic publisher persona; the production
+    // path still obtains these values from Didit and entity review.
+    await db.query(`UPDATE users
+                       SET is_verified = TRUE,
+                           didit_status = 'verified',
+                           didit_verified_at = COALESCE(didit_verified_at, NOW())
+                     WHERE id = ANY($1::uuid[])`, [[personas.helper, personas.business, personas.restaurant]]);
     await db.query(`INSERT INTO helper_profiles (user_id, profile_slug, service_city, service_state, service_lat, service_lng)
       VALUES ($1,'media-synthetic-helper','Springfield','OH',39.9242,-83.8088)
       ON CONFLICT (user_id) DO UPDATE SET profile_slug=EXCLUDED.profile_slug,
