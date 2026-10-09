@@ -21,7 +21,10 @@ function resMock() {
 }
 
 describe('OxSteed Media launch contracts', () => {
-  beforeEach(() => pool.query.mockReset());
+  beforeEach(() => {
+    pool.query.mockReset();
+    pool.connect = jest.fn();
+  });
 
   test('keeps a draft private when an uploaded video is still awaiting safety processing', async () => {
     const client = { query: jest.fn(), release: jest.fn() };
@@ -377,11 +380,16 @@ describe('OxSteed Media launch contracts', () => {
   });
 
   test('normalizes valid report input and bounds moderation notes', async () => {
+    const client = { query: (...args) => pool.query(...args), release: jest.fn() };
+    pool.connect.mockResolvedValue(client);
     pool.query
       .mockResolvedValueOnce({ rows: [{ id: 'post-report' }] }) // visiblePost
+      .mockResolvedValueOnce({}) // begin
+      .mockResolvedValueOnce({}) // reporter advisory lock
       .mockResolvedValueOnce({ rows: [{ count: 0 }] }) // hourly limit
       .mockResolvedValueOnce({ rows: [] }) // duplicate report
-      .mockResolvedValueOnce({ rows: [{ id: 'flag-1' }] }); // insert
+      .mockResolvedValueOnce({ rows: [{ id: 'flag-1' }] }) // insert
+      .mockResolvedValueOnce({}); // commit
     const res = resMock();
 
     await media.flagPost({
@@ -405,5 +413,50 @@ describe('OxSteed Media launch contracts', () => {
     expect(tooLong.status).toHaveBeenCalledWith(400);
     expect(tooLong.json).toHaveBeenCalledWith(expect.objectContaining({ code: 'media_report_note_too_long' }));
     expect(pool.query).toHaveBeenCalledTimes(1);
+  });
+
+  test('serializes duplicate reports and returns a stable conflict', async () => {
+    const client = { query: (...args) => pool.query(...args), release: jest.fn() };
+    pool.connect.mockResolvedValue(client);
+    pool.query
+      .mockResolvedValueOnce({ rows: [{ id: 'post-report' }] }) // visiblePost
+      .mockResolvedValueOnce({}) // begin
+      .mockResolvedValueOnce({}) // reporter advisory lock
+      .mockResolvedValueOnce({ rows: [{ count: 1 }] }) // hourly limit
+      .mockResolvedValueOnce({ rows: [{ found: 1 }] }) // duplicate report
+      .mockResolvedValueOnce({}); // rollback
+    const res = resMock();
+
+    await media.flagPost({
+      params: { id: 'post-report' },
+      user: { id: 'reporter-1' },
+      body: { reason: 'spam' },
+    }, res);
+
+    expect(res.status).toHaveBeenCalledWith(409);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ code: 'media_report_exists' }));
+    expect(client.release).toHaveBeenCalled();
+  });
+
+  test('enforces the hourly report cap before inserting', async () => {
+    const client = { query: (...args) => pool.query(...args), release: jest.fn() };
+    pool.connect.mockResolvedValue(client);
+    pool.query
+      .mockResolvedValueOnce({ rows: [{ id: 'post-report' }] }) // visiblePost
+      .mockResolvedValueOnce({}) // begin
+      .mockResolvedValueOnce({}) // reporter advisory lock
+      .mockResolvedValueOnce({ rows: [{ count: 30 }] }) // hourly limit
+      .mockResolvedValueOnce({}); // rollback
+    const res = resMock();
+
+    await media.flagPost({
+      params: { id: 'post-report' },
+      user: { id: 'reporter-1' },
+      body: { reason: 'spam' },
+    }, res);
+
+    expect(res.status).toHaveBeenCalledWith(429);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ code: 'media_report_limit_reached' }));
+    expect(client.release).toHaveBeenCalled();
   });
 });

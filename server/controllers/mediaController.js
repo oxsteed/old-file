@@ -1591,6 +1591,8 @@ async function recordView(req, res) {
 }
 
 async function flagPost(req, res) {
+  let client;
+  let transactionOpen = false;
   try {
     if (!await visiblePost(req.params.id, req.user.id)) return res.status(404).json({ error: 'Post not found' });
     const reason = typeof req.body?.reason === 'string' ? req.body.reason.trim().toLowerCase() : '';
@@ -1608,28 +1610,48 @@ async function flagPost(req, res) {
         code: 'media_report_note_too_long',
       });
     }
-    const { rows: recent } = await pool.query(
+    client = await pool.connect();
+    await client.query('BEGIN');
+    transactionOpen = true;
+    // Serialize report submissions for one reporter so the hourly cap and
+    // open-report duplicate check remain correct under concurrent requests.
+    await client.query(
+      `SELECT pg_advisory_xact_lock(hashtextextended($1::text, 0))`,
+      [`media-report:${req.user.id}`]
+    );
+    const { rows: recent } = await client.query(
       `SELECT COUNT(*)::int AS count FROM media_post_flags
         WHERE user_id = $1 AND created_at > NOW() - INTERVAL '1 hour'`, [req.user.id]
     );
     if (recent[0]?.count >= 30) {
+      await client.query('ROLLBACK');
+      transactionOpen = false;
       return res.status(429).json({ error: 'Hourly report limit reached', code: 'media_report_limit_reached' });
     }
-    const { rows: duplicate } = await pool.query(
+    const { rows: duplicate } = await client.query(
       `SELECT 1 FROM media_post_flags
         WHERE post_id = $1 AND user_id = $2 AND status = 'open' LIMIT 1`,
       [req.params.id, req.user.id]
     );
-    if (duplicate[0]) return res.status(409).json({ error: 'You already reported this post', code: 'media_report_exists' });
-    await pool.query(
+    if (duplicate[0]) {
+      await client.query('ROLLBACK');
+      transactionOpen = false;
+      return res.status(409).json({ error: 'You already reported this post', code: 'media_report_exists' });
+    }
+    await client.query(
       `INSERT INTO media_post_flags (post_id, user_id, reason, note)
        VALUES ($1, $2, $3, $4)`,
       [req.params.id, req.user.id, reason, note || null]
     );
+    await client.query('COMMIT');
+    transactionOpen = false;
     res.status(201).json({ ok: true });
   } catch (err) {
+    if (transactionOpen && client) await client.query('ROLLBACK').catch(() => {});
     logger.error('media.flagPost error', { message: err.message });
     mediaError(res, err, 'Failed to flag post');
+  } finally {
+    if (client) client.release();
   }
 }
 
