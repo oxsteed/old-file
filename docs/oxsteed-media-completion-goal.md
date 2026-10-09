@@ -77,7 +77,7 @@ row stays incomplete until that dependency is verified.
 | Creator/buyer dashboards and opportunities | Behavior-tested locally: creator shell lists offers, open gigs and applications; sponsorship offers now support acceptance, deliverable submission and settlement controls. | Real full dashboard journey outstanding. | Verify authenticated creator/buyer/admin dashboards live and add remaining marketplace status/history views. |
 | Applications and award/acceptance | Behavior-tested locally: existing transactional award path reserves the approved amount and rejects competing applications; concurrent production proof remains outstanding. | Real concurrent authorization/limits outstanding. | Execute isolated race cases and verify authenticated deployment. |
 | Deliverable revisions and approval | Behavior-tested locally: awarded gig deliverables and sponsorship deliverables expose owner checks, publish/ready validation and review transitions; full revision matrix remains outstanding. | Real revision/concurrent approval proof missing. | Implement and test any remaining revision states across gig and sponsorship UI. |
-| Gig reservation and payment | Behavior-tested locally: award reserves Credit, approved deliverables settle once, and cancellation/rejection releases the reservation. | Isolated accounting and live execution still required. | Re-run conservation/replay cases in disposable PostgreSQL and verify deployed payment history. |
+| Gig reservation and payment | Behavior-tested locally: award reserves Credit, approved deliverables settle once, and cancellation/rejection releases the reservation; linked and submitted posts are rechecked for current public safety and verified publisher state. | Isolated accounting and live execution still required. | Re-run conservation/replay cases in disposable PostgreSQL and verify deployed payment history. |
 | Sponsorship reservation/delivery/payment | Behavior-tested locally: acceptance reserves funds, creators submit a published ready deliverable, settlement requires `delivered`, and cancellation releases an active reservation. | Credit isolated accounting and authenticated live proof outstanding. | Execute sponsorship reserve/settle/release races and verify the deployed journey. |
 | Tips | Implemented and behavior-tested locally: tips use durable payload-bound idempotency and settle through the shared creator settlement rail with verification and self-payment guards. | Real currency/freeze/fee/replay proof missing. | Run isolated accounting replay/failure cases and verify live transaction history. |
 | Cancellation/release/refund/dispute review | Behavior-tested locally: creator payments now expose their latest Credit dispute state, hide duplicate dispute actions while a case is open or under review, and add a Media-scoped administrator queue that routes review, compensation and resolution through the shared audited Credit service. | Real accounting and authenticated administrator proof required. | Run the isolated reserve/release/refund/dispute matrix and verify the deployed Media admin queue. |
@@ -91,7 +91,7 @@ row stays incomplete until that dependency is verified.
 | Exact deployed release/readiness/schema/assets | Behavior-verified live after the latest rollout: `/ready` and `/health` returned 200; `/ready` reported release `content-ac71aaf48e521400`, migrations `749/749`, no pending/unexpected migrations, healthy database/Redis/Credit/realtime/workers; Media feed, capabilities, notifications, and messages returned 200, while unauthenticated bookmarks returned 401 and an invalid cursor returned the expected 400. | Coolify release metadata does not expose the git SHA, so exact commit-to-image identity remains unavailable. | Obtain release SHA or reproducible asset identity from deployment metadata and verify authenticated journeys. |
 | Authenticated production/real-device matrix | Incomplete. | Signed-in helper/business/restaurant/admin and real device access outstanding. | Capture full non-financial production journeys; reconcile finance read-only. |
 
-Current local execution: 215 Media behavior checks passed in 16 suites;
+Current local execution: 216 Media behavior checks passed in 16 suites;
 26 PostgreSQL cases in two suites skipped because no disposable PostgreSQL is
 available locally. The maintained Media client contract and full `npm run
 build:ci` passed, and four maintained Chromium browser journeys passed, covering
@@ -108,7 +108,7 @@ currently reports healthy release `content-5a3ad5ab7517685f`, which is not proof
 that the new changes deployed. No completion claim is made.
 
 Integrated Media suite checkpoint (2026-10-09): the current writable checkout
-ran all 18 maintained `media*.test.js` files with 215 passing tests and 26
+ran all 18 maintained `media*.test.js` files with 216 passing tests and 26
 database-only skips; no Media suite failed. The skipped PostgreSQL cases cover
 saved-feed reload, block/action boundaries, and other real database journeys
 that require the hosted disposable environment.
@@ -167,6 +167,13 @@ current helper/business/restaurant verification. Two focused regressions prove
 that a post which is no longer public, ready, safety-cleared or verified cannot
 enter or complete paid placement. The integrated Media suite passes 215 tests;
 isolated Credit conservation, replay and deployed payment evidence remain open.
+
+Creator-post safety checkpoint (2026-10-09): gig links, creator deliverables,
+tips and sponsorships now require the referenced post to remain public, ready,
+undeleted and clear under the same safety policy used by public delivery; a
+deliverable also requires the creator actor to remain verified. A focused unsafe
+tip regression and the integrated Media suite pass 216 tests. Isolated Credit
+accounting and authenticated deployment evidence remain open.
 
 Creator settlement replay checkpoint (2026-10-09): creator gig, sponsorship,
 tip, and boost settlement retries now recover an already-posted matching

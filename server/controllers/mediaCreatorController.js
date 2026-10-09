@@ -125,7 +125,10 @@ async function createGig(req, res, next) {
     }
     if (linkedPostId) {
       const { rows } = await client.query(
-        `SELECT id FROM media_posts WHERE id = $1 AND actor_id = $2 AND visibility = 'public' AND processing_status = 'ready'`,
+        `SELECT p.id FROM media_posts p
+          WHERE p.id = $1 AND p.actor_id = $2 AND p.visibility = 'public'
+            AND p.processing_status = 'ready' AND p.deleted_at IS NULL
+            AND ${mediaSafety.publicPostSql('p')}`,
         [linkedPostId, actor.id]
       );
       if (!rows[0]) throw new AppError('The linked post is not owned by this verified actor.', 400, 'media_creator_post_invalid');
@@ -301,9 +304,12 @@ async function submitDeliverable(req, res, next) {
       throw new AppError('Only an awarded creator application can submit a deliverable.', 403, 'media_creator_deliverable_invalid');
     }
     const { rows: posts } = await client.query(
-      `SELECT p.id FROM media_posts p JOIN media_creator_applications ap ON ap.applicant_actor_id = p.actor_id
+      `SELECT p.id FROM media_posts p
+        JOIN media_creator_applications ap ON ap.applicant_actor_id = p.actor_id
+        JOIN media_actors a ON a.id = p.actor_id
         WHERE ap.id = $1 AND ap.applicant_user_id = $2 AND ap.status = 'awarded'
-          AND p.id = $3 AND p.visibility = 'public' AND p.processing_status = 'ready'`,
+          AND p.id = $3 AND p.visibility = 'public' AND p.processing_status = 'ready' AND p.deleted_at IS NULL
+          AND (${verifiedActorSql('a')}) AND ${mediaSafety.publicPostSql('p')}`,
       [req.params.applicationId, req.user.id, req.body?.postId]
     );
     if (!posts[0]) throw new AppError('Only a published post owned by the awarded creator can be submitted.', 403, 'media_creator_deliverable_invalid');
@@ -448,9 +454,10 @@ async function createTip(req, res, next) {
     if (String(actor.owner_user_id) === String(req.user.id)) throw new AppError('You cannot tip your own creator account.', 400, 'media_creator_self_payment');
     if (req.body?.postId) {
       const { rows: posts } = await client.query(
-        `SELECT id FROM media_posts
-          WHERE id = $1 AND actor_id = $2 AND visibility = 'public'
-            AND processing_status = 'ready' AND deleted_at IS NULL`, [req.body.postId, actor.id]
+        `SELECT p.id FROM media_posts p
+          WHERE p.id = $1 AND p.actor_id = $2 AND p.visibility = 'public'
+            AND p.processing_status = 'ready' AND p.deleted_at IS NULL
+            AND ${mediaSafety.publicPostSql('p')}`, [req.body.postId, actor.id]
       );
       if (!posts[0]) throw new AppError('The tip post is not available.', 404, 'media_creator_post_invalid');
     }
@@ -492,9 +499,10 @@ async function createSponsorship(req, res, next) {
     if (String(actor.owner_user_id) === String(req.user.id)) throw new AppError('You cannot sponsor your own creator account.', 400, 'media_creator_self_payment');
     if (req.body?.postId) {
       const { rows: posts } = await client.query(
-        `SELECT id FROM media_posts
-          WHERE id = $1 AND actor_id = $2 AND visibility = 'public'
-            AND processing_status = 'ready' AND deleted_at IS NULL`, [req.body.postId, actor.id]
+        `SELECT p.id FROM media_posts p
+          WHERE p.id = $1 AND p.actor_id = $2 AND p.visibility = 'public'
+            AND p.processing_status = 'ready' AND p.deleted_at IS NULL
+            AND ${mediaSafety.publicPostSql('p')}`, [req.body.postId, actor.id]
       );
       if (!posts[0]) throw new AppError('The sponsorship post is not available.', 404, 'media_creator_post_invalid');
     }
