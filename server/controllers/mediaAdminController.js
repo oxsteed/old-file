@@ -230,7 +230,9 @@ async function approvePost(req, res) {
       return res.status(404).json({ error: 'Post not found' });
     }
     const post = rows[0];
-    if (post.current_actor_verified === false) {
+    // Treat an unavailable or malformed verification result as unverified.
+    // Approval must never rely on a nullable/partial actor row.
+    if (post.current_actor_verified !== true) {
       await client.query('ROLLBACK');
       return res.status(409).json({
         error: 'The current helper, business, or restaurant verification is required before approval.',
@@ -252,12 +254,20 @@ async function approvePost(req, res) {
         code: 'media_safety_pending',
       });
     }
-    await client.query(
+    const { rows: approvedRows } = await client.query(
       `UPDATE media_posts
           SET visibility = 'public',
               admin_override_by = $2, admin_override_at = NOW(), admin_override_reason = $3
-        WHERE id = $1`, [req.params.id, req.user.id, reason]
+        WHERE id = $1 AND visibility <> 'removed' AND deleted_at IS NULL
+        RETURNING id, visibility, admin_override_by`, [req.params.id, req.user.id, reason]
     );
+    if (!approvedRows[0]) {
+      throw Object.assign(new Error('The post could not be approved in its current state.'), {
+        status: 409,
+        code: 'media_approval_transition_failed',
+        isOperational: true,
+      });
+    }
     await auditService.logAdminAction({
       adminId: req.user.id,
       action: 'media_post_admin_approved',

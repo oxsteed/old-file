@@ -72,11 +72,12 @@ describe('Media approval preserves safety evidence', () => {
 
   async function approve(postChanges = {}, assetChanges = {}, certified = 'true') {
     process.env.MEDIA_CSAM_CERTIFIED = certified;
-    const post = { id: 'post-1', visibility: 'unlisted', processing_status: 'ready', csam_status: 'passed', is_verified: true, ...postChanges };
+    const post = { id: 'post-1', visibility: 'unlisted', processing_status: 'ready', csam_status: 'passed', is_verified: true, current_actor_verified: true, ...postChanges };
     const asset = { asset_type: 'video', processing_status: 'ready', csam_status: 'passed', renditions: [{ storage_key: 'ready.mp4' }], ...assetChanges };
     client.query.mockImplementation(async (sql) => {
       if (sql.includes('SELECT p.id')) return { rows: [post] };
       if (sql.includes('SELECT asset_type')) return { rows: [asset] };
+      if (sql.includes('UPDATE media_posts')) return { rows: [{ id: post.id, visibility: 'public', admin_override_by: 'admin' }] };
       return { rows: [] };
     });
     const res = response();
@@ -109,6 +110,13 @@ describe('Media approval preserves safety evidence', () => {
     expect(audit.logAdminAction).not.toHaveBeenCalled();
   });
 
+  test('fails closed when the verification result is unavailable', async () => {
+    const res = await approve({ current_actor_verified: null }, {}, 'true');
+    expect(res.status).toHaveBeenCalledWith(409);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ code: 'media_not_verified_poster' }));
+    expect(audit.logAdminAction).not.toHaveBeenCalled();
+  });
+
   test('publishes cleared content without rewriting asset verdicts or completing worker jobs', async () => {
     const res = await approve();
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ approved: true }));
@@ -117,6 +125,21 @@ describe('Media approval preserves safety evidence', () => {
     expect(updates[0][0]).not.toMatch(/SET.*csam_status|SET.*processing_status/s);
     expect(audit.logAdminAction).toHaveBeenCalledWith(expect.objectContaining({ client, throwOnError: true }));
     expect(client.query).toHaveBeenCalledWith('COMMIT');
+  });
+
+  test('fails closed when the approval transition affects no row', async () => {
+    client.query.mockImplementation(async (sql) => {
+      if (sql.includes('SELECT p.id')) return { rows: [{ id: 'post-1', visibility: 'unlisted', processing_status: 'ready', csam_status: 'passed', is_verified: true, current_actor_verified: true }] };
+      if (sql.includes('SELECT asset_type')) return { rows: [{ asset_type: 'video', processing_status: 'ready', csam_status: 'passed', renditions: [{ storage_key: 'ready.mp4' }] }] };
+      if (sql.includes('UPDATE media_posts')) return { rows: [] };
+      return { rows: [] };
+    });
+    const res = response();
+    await admin.approvePost({ params: { id: 'post-1' }, user: { id: 'admin' }, body: { reason: 'Editorial review complete' } }, res);
+    expect(res.status).toHaveBeenCalledWith(409);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ code: 'media_approval_transition_failed' }));
+    expect(audit.logAdminAction).not.toHaveBeenCalled();
+    expect(client.query).toHaveBeenCalledWith('ROLLBACK');
   });
 
   test('interim approval accepts processed videos and preserves their deferred verdict', async () => {
