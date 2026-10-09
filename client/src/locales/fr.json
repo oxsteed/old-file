@@ -30376,6 +30376,12 @@
       "noPosts": "Aucune publication pour le moment.",
       "loadError": "Impossible de charger ce compte. Réessayez."
     },
+    "guestSignIn": {
+      "title": "Connectez-vous pour continuer",
+      "body": "Créez un compte ou connectez-vous pour effectuer cette action et revenir ici ensuite.",
+      "signIn": "Se connecter",
+      "cancel": "Pas maintenant"
+    },
     "shell": {
       "navigation": "Navigation Media",
       "home": "Accueil",

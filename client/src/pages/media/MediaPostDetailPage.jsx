@@ -7,12 +7,14 @@ import './MediaStyles.css';
 import MediaPostCard from './MediaPostCard';
 import MediaReplyComposer from './MediaReplyComposer';
 import PageMeta from '../../components/PageMeta';
+import { useMediaGuestGate } from './MediaGuestGate';
 
 export default function MediaPostDetailPage() {
   const { t } = useTranslation();
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { requireLogin } = useMediaGuestGate();
   const [post, setPost] = useState(null);
   const [replies, setReplies] = useState([]);
   const [quotes, setQuotes] = useState([]);
@@ -97,7 +99,7 @@ export default function MediaPostDetailPage() {
     event.preventDefault();
     if (!quoteBody.trim()) return;
     if (!user) {
-      navigate('/login', { state: { from: window.location.pathname } });
+      requireLogin(window.location.pathname);
       return;
     }
     setQuoting(true);

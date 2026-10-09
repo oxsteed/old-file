@@ -30376,6 +30376,12 @@
       "noPosts": "Pa gen pòs ankò.",
       "loadError": "Nou pa t ka chaje kont sa a. Eseye ankò."
     },
+    "guestSignIn": {
+      "title": "Konekte pou kontinye",
+      "body": "Kreye yon kont oswa konekte pou itilize aksyon sa a epi retounen isit apre.",
+      "signIn": "Konekte",
+      "cancel": "Pa kounye a"
+    },
     "shell": {
       "navigation": "Navigasyon Media",
       "home": "Akèy",

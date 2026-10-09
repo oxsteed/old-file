@@ -30376,6 +30376,12 @@
       "noPosts": "No posts yet.",
       "loadError": "Could not load this account. Try again."
     },
+    "guestSignIn": {
+      "title": "Sign in to continue",
+      "body": "Create an account or sign in to use this action and return here afterward.",
+      "signIn": "Sign in",
+      "cancel": "Not now"
+    },
     "shell": {
       "navigation": "Media navigation",
       "home": "Home",

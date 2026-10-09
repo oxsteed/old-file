@@ -30376,6 +30376,12 @@
       "noPosts": "Aún no hay publicaciones.",
       "loadError": "No se pudo cargar esta cuenta. Inténtalo de nuevo."
     },
+    "guestSignIn": {
+      "title": "Inicia sesión para continuar",
+      "body": "Crea una cuenta o inicia sesión para usar esta acción y volver aquí después.",
+      "signIn": "Iniciar sesión",
+      "cancel": "Ahora no"
+    },
     "shell": {
       "navigation": "Navegación de Media",
       "home": "Inicio",

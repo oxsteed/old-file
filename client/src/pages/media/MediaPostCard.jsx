@@ -7,6 +7,8 @@ import { createCreatorBoost, flagPost, recordShare, settleCreatorBoost, toggleLi
 import useMediaPostRealtime from '../../hooks/useMediaPostRealtime';
 import { trapMediaDialogFocus } from './mediaDialogFocus';
 import { DEFAULT_CREDIT_CURRENCIES, getCreditMinorUnits, parseCreditMajorAmount } from '../../lib/creditCurrency';
+import { mediaLinkRequiresLogin } from '../../utils/mediaLinkGuestGate';
+import { useMediaGuestGate } from './MediaGuestGate';
 
 function VerifiedBadge({ kind, label }) {
   if (!kind || kind === 'none') return null;
@@ -57,8 +59,6 @@ function QuotedMedia({ assets, label }) {
   return null;
 }
 
-const TRANSACTIONAL_LINK_TYPES = new Set(['food_item', 'job', 'tool_rental', 'direct_catalog', 'logistics_campaign']);
-
 export default function MediaPostCard({
   post,
   onUpdate,
@@ -69,6 +69,12 @@ export default function MediaPostCard({
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { requireLogin } = useMediaGuestGate();
+  const ensureAuth = () => {
+    if (user) return true;
+    requireLogin(`${window.location.pathname}${window.location.search}`);
+    return false;
+  };
   const [liked, setLiked] = useState(post.liked);
   const [bookmarked, setBookmarked] = useState(post.bookmarked);
   const [reposted, setReposted] = useState(!!post.reposted);
@@ -147,7 +153,7 @@ export default function MediaPostCard({
 
   const handleLike = async (e) => {
     e.preventDefault();
-    if (!user) return navigate('/login', { state: { from: window.location.pathname } });
+    if (!ensureAuth()) return;
     if (actionPending) return;
     setActionPending('like'); setActionMessage('');
     try {
@@ -166,7 +172,7 @@ export default function MediaPostCard({
 
   const handleBookmark = async (e) => {
     e.preventDefault();
-    if (!user) return navigate('/login', { state: { from: window.location.pathname } });
+    if (!ensureAuth()) return;
     if (actionPending) return;
     setActionPending('bookmark'); setActionMessage('');
     try {
@@ -186,7 +192,7 @@ export default function MediaPostCard({
 
   const handleRepost = async (e) => {
     e.preventDefault();
-    if (!user) return navigate('/login', { state: { from: window.location.pathname } });
+    if (!ensureAuth()) return;
     if (actionPending) return;
     setActionPending('repost'); setActionMessage('');
     try {
@@ -231,7 +237,7 @@ export default function MediaPostCard({
   };
 
   const handleReport = async () => {
-    if (!user) return navigate('/login', { state: { from: window.location.pathname } });
+    if (!ensureAuth()) return;
     setReporting(true);
     setReportMessage('');
     try {
@@ -247,7 +253,7 @@ export default function MediaPostCard({
   const handleBoost = async (event) => {
     event.preventDefault();
     if (boosting || boostComplete) return;
-    if (!user) return navigate('/login', { state: { from: window.location.pathname } });
+    if (!ensureAuth()) return;
     setBoosting(true); setBoostMessage('');
     try {
       const amountCents = parseCreditMajorAmount(boostAmount, boostCurrency);
@@ -329,7 +335,17 @@ export default function MediaPostCard({
               <div className="media-quoted-links">
                 <span className="media-linked-label">{t('media.post.linkedOn')}</span>
                 {post.quoted.links.map((link) => link.available && link.canonical_url ? (
-                  <Link key={link.id} to={link.canonical_url} className="media-link-chip">
+                  <Link
+                    key={link.id}
+                    to={link.canonical_url}
+                    className="media-link-chip"
+                    onClick={(event) => {
+                      if (!user && mediaLinkRequiresLogin(link)) {
+                        event.preventDefault();
+                        requireLogin(link.canonical_url);
+                      }
+                    }}
+                  >
                     <span className="media-link-name">{link.name || link.name_snapshot}</span>
                   </Link>
                 ) : (
@@ -350,9 +366,9 @@ export default function MediaPostCard({
                     to={link.canonical_url}
                     className="media-link-chip"
                     onClick={(event) => {
-                      if (!user && TRANSACTIONAL_LINK_TYPES.has(link.link_type)) {
+                      if (!user && mediaLinkRequiresLogin(link)) {
                         event.preventDefault();
-                        navigate('/login', { state: { from: link.canonical_url } });
+                        requireLogin(link.canonical_url);
                       }
                     }}
                   >
