@@ -1341,3 +1341,14 @@ and owner awards now enforce reciprocal blocking even when a caller knows the
 underlying gig or application ID. The focused creator controller suite passes
 29 tests; isolated concurrent marketplace and deployed Credit evidence remain
 open.
+
+Integrated Media server checkpoint (2026-10-09): the complete Media Jest
+selection passes 228 tests with 26 PostgreSQL-only skips across 16 suites;
+expected error-path logs are contained and no suite fails. The preserved live
+Chromium check also passes against the currently deployed shell with Media
+assets `MediaStyles-I9bdDQQo.css`, `MediaShell-BNTgXeQ_.js`, and
+`MediaFeedPage-CjqvC8Br.js`; feed loading, single-main structure, desktop and
+mobile overflow, and footer behavior all pass. `/ready` and `/media` return
+200 again after the earlier rollout gap. Exact candidate-to-image identity,
+authenticated production journeys, and the hosted PostgreSQL skips remain
+open; the latest CI run is asynchronous.
