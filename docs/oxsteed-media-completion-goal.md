@@ -21,7 +21,7 @@ checkout integration, deployment evidence and final completion decisions.
 
 | Requirement | State and implementation / behavioral evidence | Deployment / dependency | Next exact action |
 | --- | --- | --- | --- |
-| Reconciled source and retained work | Behavior-tested: writable checkout HEAD `4e004995` matches the pushed branch; three pre-existing untracked browser scratch files remain preserved. | Runtime release metadata still exposes content identity but no git SHA. | Keep the scratch files untracked and compare release metadata at each deployment checkpoint. |
+| Reconciled source and retained work | Behavior-tested: writable checkout HEAD `7a430995` matches the pushed branch; three pre-existing untracked browser scratch files remain preserved. | Runtime release metadata still exposes content identity but no git SHA. | Keep the scratch files untracked and compare release metadata at each deployment checkpoint. |
 | Repeatable isolated fixtures | Implemented: optional Media compose extension, scoped wrapper, synthetic persona seed and real API/scan/conversion verifier. | Not executed here: Windows host has no reachable Colima/Docker runtime. | Execute `start`, `seed`, `media-test` on Colima and capture repeat/reset evidence. |
 | Required real database proof | Behavior-tested in hosted CI: the disposable Media harness ran against PostgreSQL, Redis, ClamAV, FFmpeg, private storage, and synthetic personas; the earlier full server job was cancelled before its database suite completed. | Local Windows checkout still has no disposable PostgreSQL runtime. Exact-candidate run `37873084185` is still in progress. | Preserve the harness assertion and rerun it for each candidate; record the final exact-candidate result. |
 | Helper Didit-backed identity | Implemented: `users.is_verified` checks at upload and commit; mocked behavior covers revocation at attachment commit. | Authenticated Didit return and production upload outstanding. | Prove webhook → verified helper → compose in isolated/live journeys. |
@@ -61,7 +61,7 @@ checkout integration, deployment evidence and final completion decisions.
 | Business Hub integration | Implemented in prior source. | Actual selected-business authorization/navigation outstanding. | Verify Media posting and history for owned entities. |
 | Profile Studio/public-profile integration | Implemented in prior source. | Actual safe profile tabs and guest behavior outstanding. | Test profile editing/navigation and public safe posts. |
 | Rentals/Direct/Logistics cards | Implemented in current link resolvers/search. | Actual public targets/removal/currency proof outstanding. | Seed and verify additional types alongside launch types. |
-| Restaurant copy/ownership/deduplication | Implemented in prior source/migration 739. | Real source moderation/removal propagation incomplete. | Test and repair safe idempotent copy plus removal propagation. |
+| Restaurant copy/ownership/deduplication | Behavior-tested: source posts remain deduplicated and anchored to the current restaurant owner; a later CSAM flag now removes every federated Media post by source ID in the same transaction, with focused CSAM/federation tests passing. | Real source moderation/removal propagation and deployed execution remain outstanding. | Run source removal, moderation and duplicate-prevention cases in the isolated PostgreSQL harness. |
 | Creator/buyer dashboards and opportunities | Behavior-tested locally: creator shell lists offers, open gigs and applications; sponsorship offers now support acceptance, deliverable submission and settlement controls. | Real full dashboard journey outstanding. | Verify authenticated creator/buyer/admin dashboards live and add remaining marketplace status/history views. |
 | Applications and award/acceptance | Behavior-tested locally: existing transactional award path reserves the approved amount and rejects competing applications; concurrent production proof remains outstanding. | Real concurrent authorization/limits outstanding. | Execute isolated race cases and verify authenticated deployment. |
 | Deliverable revisions and approval | Behavior-tested locally: awarded gig deliverables and sponsorship deliverables expose owner checks, publish/ready validation and review transitions; full revision matrix remains outstanding. | Real revision/concurrent approval proof missing. | Implement and test any remaining revision states across gig and sponsorship UI. |
@@ -75,7 +75,7 @@ checkout integration, deployment evidence and final completion decisions.
 | Atomic accounting/precision/fees/isolation | Incomplete for marketplace: shared rail safeguards exist, transitions are not fully atomic with payment. Creator settlement and boost retries now resolve a matching committed journal entry before daily limits, sanctions, or balance checks, with account ownership and idempotency semantics preserved; focused replay regressions pass. | Real isolated conservation/races/currency cases required. | Add transactional marketplace service and accounting behavior suites. |
 | Migration upgrade and repeat application | Implemented: new 742, 743, 744 and 746 filenames follow inspected predecessors; 746 adds creator payment reservation/transaction links and delivery metadata. | Actual 746 migration execution is pending hosted CI/deployment. | Rehearse against disposable upgraded schema and repeat without data changes. |
 | Cloudflare interim and deferred Thorn | Implemented: retained explicit interim status; no synthetic vendor clearance. | Real runtime/public-delivery proof outstanding. | Keep honest policy disclosures and future vendor switch tests. |
-| Passing exact-candidate CI | Incomplete for current candidate: the exact current candidate `4e004995` is pending in [37874125718](https://github.com/oxsteed/old-file/actions/runs/37874125718). | The exact candidate has not completed its server regression and migration jobs yet. | Record the terminal result of `37874125718`; keep the goal open until the run passes or a failure is repaired. |
+| Passing exact-candidate CI | Incomplete for current candidate: the exact current candidate `7a430995` is pending in [37874293194](https://github.com/oxsteed/old-file/actions/runs/37874293194). | The exact candidate has not completed its server regression and migration jobs yet. | Record the terminal result of `37874293194`; keep the goal open until the run passes or a failure is repaired. |
 | Exact deployed release/readiness/schema/assets | Behavior-verified live after the latest rollout: `/ready` and `/health` returned 200; `/ready` reported release `content-ac71aaf48e521400`, migrations `749/749`, no pending/unexpected migrations, healthy database/Redis/Credit/realtime/workers; Media feed, capabilities, notifications, and messages returned 200, while unauthenticated bookmarks returned 401 and an invalid cursor returned the expected 400. | Coolify release metadata does not expose the git SHA, so exact commit-to-image identity remains unavailable. | Obtain release SHA or reproducible asset identity from deployment metadata and verify authenticated journeys. |
 | Authenticated production/real-device matrix | Incomplete. | Signed-in helper/business/restaurant/admin and real device access outstanding. | Capture full non-financial production journeys; reconcile finance read-only. |
 
@@ -112,6 +112,15 @@ link that opened it. The maintained Media accessibility and notification
 contracts pass 14 tests; `npm run verify:i18n` and `npm run build:ci` pass with
 761 emitted assets. Full Arabic/RTL, mobile and real-browser keyboard evidence
 remains open.
+
+Restaurant federation safety checkpoint (2026-10-09): a later CSAM vendor
+flag on a restaurant source row now marks every copied OxSteed Media post
+removed, with `deleted_at` preserved, in the same transaction as the source
+verdict and audit event. The flagged-vendor regression and all three
+federation ownership/deduplication tests pass locally. The complete restaurant
+video suite still has three environment-only FFmpeg failures on this Windows
+host; the focused CSAM/federation checks pass, and hosted CI remains the
+required real-worker verification.
 
 Publishing/identity checkpoint: shared entity-specific verification now covers
 ordinary publication, admin approval and creator recognition. Previously created
