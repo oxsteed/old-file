@@ -32,6 +32,21 @@ test('rejects a tip target that is not a currently verified creator actor', asyn
   expect(client.release).toHaveBeenCalled();
 });
 
+test('rejects an unknown deliverable review status before it can settle a gig', async () => {
+  const next = jest.fn();
+  await creator.reviewDeliverable({
+    params: { deliverableId: 'deliverable-1' },
+    body: { status: 'settle_anyway' },
+    user: { id: 'owner-1' },
+  }, resMock(), next);
+
+  expect(next).toHaveBeenCalledWith(expect.objectContaining({
+    code: 'media_creator_review_status_invalid',
+    status: 400,
+  }));
+  expect(mockQuery).not.toHaveBeenCalled();
+});
+
 test('replays an identical submitted gig application without resetting its lifecycle', async () => {
   const pool = require('../db');
   const client = { query: mockQuery, release: jest.fn() };

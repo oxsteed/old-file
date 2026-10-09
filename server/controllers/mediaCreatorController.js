@@ -319,7 +319,11 @@ async function submitDeliverable(req, res, next) {
 }
 
 async function reviewDeliverable(req, res, next) {
-  const status = req.body?.status === 'changes_requested' ? 'changes_requested' : req.body?.status === 'rejected' ? 'rejected' : 'approved';
+  const requestedStatus = typeof req.body?.status === 'string' ? req.body.status.trim() : '';
+  if (!['approved', 'changes_requested', 'rejected'].includes(requestedStatus)) {
+    return next(new AppError('Deliverable review status is invalid.', 400, 'media_creator_review_status_invalid'));
+  }
+  const status = requestedStatus;
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
