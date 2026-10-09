@@ -10,11 +10,13 @@ const AppError = require('../utils/appError');
 const logger = require('../utils/logger');
 const { sendNotification } = require('../services/notificationService');
 const { getSignedDownloadUrl } = require('../utils/storage');
+const { buildCloudflarePublicAssetUrl, photoDeliveryAllowed } = require('../services/mediaCloudflareDelivery');
 const mediaSafety = require('../services/mediaSafetyPolicy');
 const { verifiedActorSql } = require('../services/mediaPublisherPolicy');
 const feedContext = require('../services/mediaFeedContext');
 const socketService = require('../services/socketService');
 const { sendMediaError } = require('../utils/mediaError');
+const auditService = require('../services/auditService');
 
 const MAX_LINKS_PER_POST = 5;
 const POSTS_PER_DAY = 10;
@@ -473,11 +475,16 @@ async function hydratePost(post, viewerUserId) {
     }
     if (!asset.storage_key) return { ...asset, url: asset.external_url || null };
     try {
+      const renditionKey = asset.asset_type === 'video' && mediaSafety.assetReady(asset)
+        ? asset.renditions[0].storage_key : asset.storage_key;
+      const cloudflareUrl = post.visibility === 'public' && asset.asset_type === 'image' && photoDeliveryAllowed()
+        ? buildCloudflarePublicAssetUrl(renditionKey) : null;
       return {
         ...asset,
-        url: await getSignedDownloadUrl(asset.asset_type === 'video' && mediaSafety.assetReady(asset)
-          ? asset.renditions[0].storage_key : asset.storage_key),
-        thumbnail_url: asset.thumbnail_key ? await getSignedDownloadUrl(asset.thumbnail_key) : null,
+        url: cloudflareUrl || await getSignedDownloadUrl(renditionKey),
+        thumbnail_url: asset.thumbnail_key
+          ? (buildCloudflarePublicAssetUrl(asset.thumbnail_key) || await getSignedDownloadUrl(asset.thumbnail_key))
+          : null,
       };
     } catch (err) {
       logger.warn('media asset URL signing failed', { assetId: asset.id, message: err.message });
@@ -1506,6 +1513,32 @@ async function publishPost(req, res) {
         RETURNING *`,
       [req.params.id]
     );
+    const csamMode = mediaSafety.mode();
+    if (hasVideo && mediaSafety.publicVideoWithoutCsamOverride()) {
+      await client.query(
+        `UPDATE media_post_assets
+            SET csam_mode = $2, published_without_csam = TRUE
+          WHERE post_id = $1 AND asset_type = 'video'`,
+        [req.params.id, csamMode]
+      );
+    } else {
+      await client.query(
+        `UPDATE media_post_assets SET csam_mode = $2 WHERE post_id = $1 AND csam_mode IS NULL`,
+        [req.params.id, csamMode]
+      );
+    }
+    if (hasVideo && mediaSafety.publicVideoWithoutCsamOverride()) {
+      await auditService.logAdminAction({
+        adminId: req.user.id,
+        action: 'media_video_published_without_csam',
+        targetType: 'media_post',
+        targetId: req.params.id,
+        description: 'Owner published Media video under MEDIA_PUBLIC_VIDEO_WITHOUT_CSAM override.',
+        after: { csam_mode: csamMode, published_without_csam: true },
+        client,
+        throwOnError: false,
+      });
+    }
     await client.query('COMMIT');
     res.json({ post: await hydratePost(published[0], req.user.id), published: true });
   } catch (err) {

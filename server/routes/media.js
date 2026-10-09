@@ -28,6 +28,9 @@ router.get('/capabilities', (_req, res) => {
   res.json({
     video_safety_mode: safety.mode(),
     video_policy_allows_publication: safety.videoAllowed(),
+    public_video_without_csam: safety.publicVideoWithoutCsamOverride(),
+    cloudflare_photo_delivery_ready: safety.photoDeliveryAllowed(),
+    cloudflare_mode_misconfigured: safety.cloudflareModeMisconfigured(),
     upload_identity_required: true,
     malware_scan_required: true,
     transcode_required: true,
