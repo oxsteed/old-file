@@ -133,6 +133,59 @@ async function probeDimensions(filePath) {
   return (await probe(filePath)) || null;
 }
 
+async function probeDuration(filePath) {
+  try {
+    const { stdout } = await execFileAsync(ffprobePath(), [
+      '-v', 'error', '-show_entries', 'format=duration',
+      '-of', 'default=noprint_wrappers=1:nokey=1', filePath,
+    ], { timeout: 30000 });
+    const seconds = Number(String(stdout).trim());
+    if (Number.isFinite(seconds) && seconds > 0) return seconds;
+  } catch { /* fall through */ }
+  return null;
+}
+
+async function posterFileReady(posterPath) {
+  try {
+    const stat = await fsp.stat(posterPath);
+    return stat.isFile() && stat.size > 0;
+  } catch {
+    return false;
+  }
+}
+
+async function extractPosterFrame(sourcePath, posterPath, seekSeconds) {
+  await execFileAsync(ffmpegPath(), [
+    '-y', '-ss', String(seekSeconds), '-i', sourcePath, '-frames:v', '1', '-q:v', '4', posterPath,
+  ]);
+}
+
+/**
+ * Extract a poster JPG. Uses a bounded seek (never past EOF on short clips),
+ * then verifies the file exists and is non-empty. FFmpeg may exit 0 without
+ * writing a frame (observed on short inputs with -ss past duration).
+ */
+async function extractPoster(sourcePath, posterPath, durationSeconds = null) {
+  const seekPrimary = durationSeconds != null
+    ? Math.max(0, Math.min(1, durationSeconds / 2))
+    : 1;
+  try {
+    await extractPosterFrame(sourcePath, posterPath, seekPrimary);
+  } catch {
+    // Retry from the first frame below.
+  }
+  if (await posterFileReady(posterPath)) return;
+
+  try {
+    await fsp.unlink(posterPath);
+  } catch { /* missing file is fine */ }
+
+  await extractPosterFrame(sourcePath, posterPath, 0);
+  if (!(await posterFileReady(posterPath))) {
+    throw new Error('Poster frame extraction failed');
+  }
+}
+
 function scaledWidth(sourceW, sourceH, targetH) {
   if (sourceW && sourceH) {
     return Math.max(2, Math.round((targetH * sourceW) / sourceH / 2) * 2);
@@ -260,17 +313,9 @@ async function transcodeOriginal({ sourcePath, tmpDir, sourceDims }) {
     await execFileAsync(ffmpegPath(), jobDef.args(width, outPath));
     outputs.push({ height: jobDef.height, width, path: outPath, contentType: 'video/mp4' });
   }
-  // Poster: frame at ~1s (falls back to the first frame for very short clips).
   const posterPath = path.join(tmpDir, 'poster.jpg');
-  try {
-    await execFileAsync(ffmpegPath(), [
-      '-y', '-ss', '1', '-i', sourcePath, '-frames:v', '1', '-q:v', '4', posterPath,
-    ]);
-  } catch {
-    await execFileAsync(ffmpegPath(), [
-      '-y', '-i', sourcePath, '-frames:v', '1', '-q:v', '4', posterPath,
-    ]);
-  }
+  const durationSeconds = await probeDuration(sourcePath);
+  await extractPoster(sourcePath, posterPath, durationSeconds);
   return { outputs, posterPath };
 }
 
@@ -500,5 +545,8 @@ module.exports = {
   ffmpegPath,
   sanitizeError,
   probeDimensions,
+  probeDuration,
+  extractPoster,
+  posterFileReady,
   transcodeOriginal,
 };
