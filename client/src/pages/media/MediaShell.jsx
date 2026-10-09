@@ -11,7 +11,7 @@ import useNotifications from '../../hooks/useNotifications';
 import api from '../../api/axios';
 import MediaFooter from './MediaFooter';
 import { MediaGuestGateProvider } from './MediaGuestGate';
-import { getMediaBadges, markMediaCommunitiesSeen } from '../../api/media';
+import { getMediaBadges } from '../../api/media';
 import './MediaStyles.css';
 
 const TABS = [
@@ -73,15 +73,6 @@ export default function MediaShell({ children }) {
       .catch(() => { if (!cancelled) setSpacesUnread(0); });
     return () => { cancelled = true; };
   }, [user, pathname]);
-
-  useEffect(() => {
-    if (!user || !pathname.startsWith('/media/communities')) return undefined;
-    let cancelled = false;
-    markMediaCommunitiesSeen()
-      .then((data) => { if (!cancelled) setSpacesUnread(Number(data?.spaces_unread) || 0); })
-      .catch(() => {});
-    return () => { cancelled = true; };
-  }, [pathname, user]);
 
   const navigation = (mobile = false) => (
     <nav className={mobile ? 'media-bottom-nav' : 'media-side-nav'} aria-label={t('media.shell.navigation')}>

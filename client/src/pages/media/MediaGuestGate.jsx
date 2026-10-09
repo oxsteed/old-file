@@ -6,10 +6,13 @@ const MediaGuestGateContext = createContext(null);
 
 export function useMediaGuestGate() {
   const ctx = useContext(MediaGuestGateContext);
-  if (!ctx) {
-    throw new Error('useMediaGuestGate must be used within MediaGuestGateProvider');
-  }
-  return ctx;
+  const navigate = useNavigate();
+  const location = useLocation();
+  const requireLoginFallback = useCallback((path) => {
+    navigate('/login', { state: { from: path || `${location.pathname}${location.search}` } });
+  }, [navigate, location.pathname, location.search]);
+  if (ctx) return ctx;
+  return { requireLogin: requireLoginFallback };
 }
 
 export function MediaGuestGateProvider({ children }) {
