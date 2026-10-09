@@ -11,7 +11,7 @@ import useNotifications from '../../hooks/useNotifications';
 import api from '../../api/axios';
 import MediaFooter from './MediaFooter';
 import { MediaGuestGateProvider } from './MediaGuestGate';
-import { getMediaBadges } from '../../api/media';
+import { getMediaBadges, markMediaCommunitiesSeen } from '../../api/media';
 import './MediaStyles.css';
 
 const TABS = [
@@ -68,7 +68,10 @@ export default function MediaShell({ children }) {
       setSpacesUnread(0);
       return () => { cancelled = true; };
     }
-    getMediaBadges()
+    const badgeRequest = pathname.startsWith('/media/communities')
+      ? markMediaCommunitiesSeen()
+      : getMediaBadges();
+    badgeRequest
       .then((data) => { if (!cancelled) setSpacesUnread(Number(data?.spaces_unread) || 0); })
       .catch(() => { if (!cancelled) setSpacesUnread(0); });
     return () => { cancelled = true; };
