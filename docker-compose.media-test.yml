@@ -2,7 +2,7 @@
 # daemon ports, production volumes or provider credentials are used.
 services:
   clamav:
-    image: clamav/clamav:1.5-debian13-slim
+    image: ${CLAMAV_IMAGE:-clamav/clamav:1.5-debian13-slim}
     environment:
       CLAMAV_NO_MILTERD: "true"
     volumes:

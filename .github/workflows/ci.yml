@@ -18,7 +18,7 @@ jobs:
       contents: read
     services:
       postgres:
-        image: postgis/postgis:16-3.4-alpine
+        image: ghcr.io/cloudnative-pg/postgis:16-3.4
         env:
           POSTGRES_USER: oxsteed
           POSTGRES_PASSWORD: statement-test-password
@@ -163,6 +163,9 @@ jobs:
           CREDIT_TEST_PROJECT=oxsteed-credit-test-ci-${{ github.run_id }}-${{ github.run_attempt }}
           CREDIT_TEST_POSTGRES_VOLUME=oxsteed-media-ci-${{ github.run_id }}-${{ github.run_attempt }}-postgres
           CREDIT_TEST_REDIS_VOLUME=oxsteed-media-ci-${{ github.run_id }}-${{ github.run_attempt }}-redis
+          CREDIT_TEST_POSTGRES_IMAGE=ghcr.io/cloudnative-pg/postgis:16-3.4
+          CREDIT_TEST_REDIS_IMAGE=public.ecr.aws/docker/library/redis:7
+          CLAMAV_IMAGE=oxsteed-ci-clamav
           CREDIT_TEST_DB_PASSWORD=$(openssl rand -hex 24)
           CREDIT_TEST_JWT_SECRET=$(openssl rand -hex 32)
           CREDIT_TEST_ENCRYPTION_KEY=$(openssl rand -hex 32)
@@ -173,6 +176,9 @@ jobs:
           # The generated file contains only CI-scoped identifiers and random hex.
           source "$env_file"
           set +a
+
+          docker build --tag "$CLAMAV_IMAGE" \
+            --file .github/ci/clamav.Dockerfile .github/ci/clamav
 
           compose=(docker compose --env-file "$env_file" --project-name "$COMPOSE_PROJECT" \
             --file docker-compose.credit-test.yml --file docker-compose.media-test.yml)
@@ -216,7 +222,7 @@ jobs:
       contents: read
     services:
       postgres:
-        image: postgis/postgis:16-3.4-alpine
+        image: ghcr.io/cloudnative-pg/postgis:16-3.4
         env:
           POSTGRES_USER: oxsteed
           POSTGRES_PASSWORD: migration-rehearsal-password

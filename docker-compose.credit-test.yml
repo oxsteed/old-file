@@ -2,7 +2,7 @@
 # The harness supplies unique project-scoped volume names and credentials.
 services:
   postgres:
-    image: postgis/postgis:16-3.4-alpine
+    image: ${CREDIT_TEST_POSTGRES_IMAGE:-postgis/postgis:16-3.4-alpine}
     environment:
       POSTGRES_USER: oxsteed
       POSTGRES_PASSWORD: ${CREDIT_TEST_DB_PASSWORD}
@@ -18,7 +18,7 @@ services:
       - credit_test
 
   redis:
-    image: redis:7-alpine
+    image: ${CREDIT_TEST_REDIS_IMAGE:-redis:7-alpine}
     command: ["redis-server", "--appendonly", "yes"]
     volumes:
       - credit_test_redis_data:/data
