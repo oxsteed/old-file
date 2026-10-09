@@ -206,6 +206,27 @@ test('interim worker processes a pending original without fabricating a vendor p
   expect(policy.assetReady(asset)).toBe(true);
 });
 
+test.each(['pending', 'flagged', 'unavailable'])('explicit override worker preserves safety state for %s', async (status) => {
+  const originalOverride = process.env.MEDIA_PUBLIC_VIDEO_WITHOUT_CSAM;
+  process.env.MEDIA_PUBLIC_VIDEO_WITHOUT_CSAM = 'true';
+  try {
+    pool.query.mockImplementation(async (sql) => {
+      if (sql.includes('WITH next AS')) return { rows: [{ id: 'scan', asset_id: 'asset', job_type: 'csam_check' }] };
+      if (sql.includes('SELECT a.id')) return { rows: [{ ...clearedAsset(), csam_status: status }] };
+      return { rows: [] };
+    });
+    await worker.runOnce();
+    const queries = pool.query.mock.calls.map(([sql]) => sql);
+    expect(queries.some((sql) => sql.includes("SET csam_status = 'public_without_csam'"))).toBe(status === 'pending');
+    expect(queries.some((sql) => sql.includes('published_without_csam = TRUE'))).toBe(status === 'pending');
+    expect(queries.some((sql) => sql.includes("SET csam_status = 'passed'"))).toBe(false);
+    expect(csam.checkMediaVideo).not.toHaveBeenCalled();
+  } finally {
+    if (originalOverride === undefined) delete process.env.MEDIA_PUBLIC_VIDEO_WITHOUT_CSAM;
+    else process.env.MEDIA_PUBLIC_VIDEO_WITHOUT_CSAM = originalOverride;
+  }
+});
+
 test.each(['flagged', 'unavailable'])('interim processing never clears an existing %s verdict', async (status) => {
   pool.query.mockImplementation(async (sql) => {
     if (sql.includes('WITH next AS')) return { rows: [{ id: 'scan', asset_id: 'asset', job_type: 'csam_check' }] };

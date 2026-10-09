@@ -38,6 +38,38 @@ test('public video is blocked unless override, vendor, or non-production interim
   process.env.MEDIA_PUBLIC_VIDEO_WITHOUT_CSAM = 'true';
   expect(policy.publicVideoPublicationEnabled()).toBe(true);
   expect(policy.videoVerdictAllowed('cloudflare_deferred')).toBe(true);
+  expect(policy.videoVerdictAllowed('public_without_csam')).toBe(true);
+  expect(policy.postVerdictAllowed('public_without_csam')).toBe(true);
+  expect(policy.publicVideoWithoutCsam()).toBe(true);
+  expect(policy.publicVideoWithoutCsam).toBe(policy.publicVideoWithoutCsamOverride);
+  expect(policy.publicPostSql('p')).toContain("'public_without_csam'");
+
+  process.env.MEDIA_PUBLIC_VIDEO_WITHOUT_CSAM = 'false';
+  expect(policy.videoVerdictAllowed('public_without_csam')).toBe(false);
+  expect(policy.postVerdictAllowed('public_without_csam')).toBe(false);
+  expect(policy.publicPostSql('p')).not.toContain("'public_without_csam'");
+});
+
+test('video override retains photo delivery, author verification, and rendition gates', () => {
+  process.env.MEDIA_CSAM_MODE = 'cloudflare';
+  process.env.NODE_ENV = 'production';
+  process.env.MEDIA_PUBLIC_VIDEO_WITHOUT_CSAM = 'true';
+  delete process.env.MEDIA_CLOUDFLARE_HOST;
+  const sql = policy.publicPostSql('p');
+  expect(sql).toContain("photo_gate.asset_type = 'image'");
+  expect(sql).toContain('public_author_user.is_banned = FALSE');
+  expect(sql).toContain('safety_user.is_verified = TRUE');
+  expect(sql).toContain('jsonb_array_length(safety_asset.renditions) = 0');
+  expect(policy.assetReady({ asset_type: 'image', processing_status: 'ready', csam_status: 'passed' })).toBe(false);
+  const video = { asset_type: 'video', processing_status: 'ready', csam_status: 'public_without_csam',
+    renditions: [{ storage_key: 'ready.mp4' }] };
+  expect(policy.assetReady(video)).toBe(true);
+  expect(policy.assetReady({ ...video, processing_status: 'quarantine' })).toBe(false);
+  expect(policy.assetReady({ ...video, renditions: [] })).toBe(false);
+  expect(policy.assetReady({ ...video, renditions: [{ storage_key: ' ' }] })).toBe(false);
+  for (const csam_status of ['pending', 'flagged', 'unavailable']) {
+    expect(policy.assetReady({ ...video, csam_status })).toBe(false);
+  }
 });
 
 test('production cloudflare mode without media host blocks public photos', () => {

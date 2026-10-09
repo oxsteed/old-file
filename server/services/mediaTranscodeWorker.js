@@ -110,6 +110,29 @@ async function processCsam(job) {
   const asset = await getAsset(job.asset_id);
   if (!asset) return markFailed(job, new Error('media asset missing'));
   if (asset.csam_status === 'passed' || asset.csam_status === 'flagged') return markDone(job);
+  if (asset.csam_status === 'public_without_csam') return markDone(job);
+  // Emile's override: publish video without a CSAM vendor verdict. The asset
+  // is marked as such in its record and in the audit log. Didit, virus scan,
+  // quarantine, rate limits, flags, auto-hide, takedowns, and the Cloudflare
+  // match path all keep working. Turn off via MEDIA_PUBLIC_VIDEO_WITHOUT_CSAM.
+  if (mediaSafety.publicVideoWithoutCsam() && asset.csam_status === 'pending') {
+    await pool.query(
+      `UPDATE media_post_assets
+          SET csam_status = 'public_without_csam',
+              published_without_csam = TRUE
+        WHERE id = $1 AND csam_status = 'pending'`,
+      [asset.id]
+    );
+    // Audit trail: the published_without_csam flag on the record is the
+    // durable mark. Log to the application audit stream as well.
+    logger.warn('Media video published without CSAM vendor verdict', {
+      assetId: asset.id,
+      postId: asset.post_id,
+      override: 'MEDIA_PUBLIC_VIDEO_WITHOUT_CSAM',
+    });
+    await refreshPostState(asset.post_id);
+    return markDone(job);
+  }
   // Only pending/deferred assets can transition to the interim policy. A
   // flagged or unavailable result must not be erased by a configuration change.
   if (mediaSafety.mode() === 'cloudflare' && ['pending', 'cloudflare_deferred'].includes(asset.csam_status)) {

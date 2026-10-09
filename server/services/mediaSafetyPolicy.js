@@ -19,6 +19,7 @@ function vendorCertified() {
   return String(process.env.MEDIA_CSAM_CERTIFIED || '').trim().toLowerCase() === 'true';
 }
 
+// Explicit owner override only; identity, malware, delivery, and takedown gates remain.
 function publicVideoWithoutCsamOverride() {
   return String(process.env.MEDIA_PUBLIC_VIDEO_WITHOUT_CSAM || '').trim().toLowerCase() === 'true';
 }
@@ -47,6 +48,7 @@ function publicVideoPublicationEnabled() {
 
 function acceptedVideoStatuses() {
   if (!publicVideoPublicationEnabled()) return [];
+  if (publicVideoWithoutCsamOverride()) return ['passed', 'cloudflare_deferred', 'public_without_csam'];
   if (mode() === 'cloudflare') return ['passed', 'cloudflare_deferred'];
   if (mode() === 'vendor' && vendorCertified()) return ['passed'];
   return [];
@@ -55,7 +57,9 @@ function acceptedVideoStatuses() {
 function videoAllowed() { return acceptedVideoStatuses().length > 0; }
 function videoVerdictAllowed(status) { return acceptedVideoStatuses().includes(status); }
 function postVerdictAllowed(status) {
-  return status === 'passed' || (mode() === 'cloudflare' && status === 'cloudflare_deferred');
+  return status === 'passed'
+    || (publicVideoWithoutCsamOverride() && status === 'public_without_csam')
+    || (mode() === 'cloudflare' && status === 'cloudflare_deferred');
 }
 
 function imageCsamStatusAllowed(status) {
@@ -81,7 +85,10 @@ function videoVerdictSql(column) {
 
 // Apply to every public read as well as publishing, including share previews.
 function publicPostSql(alias = 'p') {
-  const postStatuses = mode() === 'cloudflare' ? "'passed', 'cloudflare_deferred'" : "'passed'";
+  const override = publicVideoWithoutCsamOverride();
+  const postStatuses = override
+    ? "'passed', 'cloudflare_deferred', 'public_without_csam'"
+    : mode() === 'cloudflare' ? "'passed', 'cloudflare_deferred'" : "'passed'";
   const photoGateSql = mode() === 'cloudflare' && !photoDeliveryAllowed()
     ? `AND NOT EXISTS (
       SELECT 1 FROM media_post_assets photo_gate
@@ -134,6 +141,8 @@ module.exports = {
   mode,
   vendorCertified,
   publicVideoWithoutCsamOverride,
+  // Keep the stabilization worker's API compatible with the newer policy API.
+  publicVideoWithoutCsam: publicVideoWithoutCsamOverride,
   publicVideoPublicationEnabled,
   interimHarnessAllowed,
   videoAllowed,
