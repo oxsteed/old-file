@@ -1,5 +1,7 @@
 'use strict';
 
+const logger = require('../utils/logger');
+
 // The interim policy is a publication decision, not a vendor screening verdict.
 // Existing certified installations keep their strict mode unless explicitly changed.
 function mode() {
@@ -15,10 +17,24 @@ function vendorCertified() {
 // Public uploaded video stays blocked until a production CSAM vendor is certified,
 // unless operators explicitly opt into the interim Cloudflare policy for isolated
 // CI/harness environments (MEDIA_PUBLIC_VIDEO_INTERIM=true).
+function interimHarnessRequested() {
+  return String(process.env.MEDIA_PUBLIC_VIDEO_INTERIM || '').trim().toLowerCase() === 'true';
+}
+
+function interimHarnessAllowed() {
+  if (!interimHarnessRequested()) return false;
+  if (vendorCertified()) return true;
+  const nodeEnv = String(process.env.NODE_ENV || '').trim().toLowerCase();
+  if (nodeEnv === 'production') {
+    logger.warn('[mediaSafetyPolicy] MEDIA_PUBLIC_VIDEO_INTERIM is not allowed in production without MEDIA_CSAM_CERTIFIED=true');
+    return false;
+  }
+  return true;
+}
+
 function publicVideoPublicationEnabled() {
   if (vendorCertified() && mode() === 'vendor') return true;
-  return String(process.env.MEDIA_PUBLIC_VIDEO_INTERIM || '').trim().toLowerCase() === 'true'
-    && mode() === 'cloudflare';
+  return interimHarnessAllowed() && mode() === 'cloudflare';
 }
 
 function acceptedVideoStatuses() {
@@ -83,6 +99,7 @@ module.exports = {
   mode,
   vendorCertified,
   publicVideoPublicationEnabled,
+  interimHarnessAllowed,
   videoAllowed,
   videoVerdictAllowed,
   postVerdictAllowed,

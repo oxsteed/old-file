@@ -89,7 +89,7 @@ import { getProfessionalOperationsWorkspace } from '../api/professionalOperation
 import { getContinuityOperationsWorkspace } from '../api/continuityOperations';
 import { formatDate, formatMoney } from '../lib/format';
 import { getDefaultCurrency } from '../lib/countries';
-import { LAUNCH_BUSINESS_HUB_TABS, LAUNCH_VISIBILITY } from '../utils/launchScope';
+import { isBusinessHubTabLaunched, LAUNCH_VISIBILITY } from '../utils/launchScope';
 import { canAccessBusinessHub } from '../utils/modeAccess';
 import TabErrorBoundary from '../components/TabErrorBoundary';
 const HiringPipelineBoard = lazyDefault(() => import('../components/careers/HiringPipelineBoard'));
@@ -1353,7 +1353,7 @@ function BusinessHubInner() {
   const candidateTabs = isRestaurantBusiness
     ? ['messages', 'team', 'hiring']
     : serviceBusinessTabs;
-  const visibleTabs = candidateTabs.filter((tb) => LAUNCH_BUSINESS_HUB_TABS.has(tb)).filter((tb) => {
+  const visibleTabs = candidateTabs.filter((tb) => isBusinessHubTabLaunched(tb)).filter((tb) => {
     if (tb === 'workflow' && !canEditBizProfile) return false;
     if (tb === 'profile' && !canEditBizProfile) return false;
     if (tb === 'clients' && !canEditBizProfile) return false;
@@ -1376,7 +1376,7 @@ function BusinessHubInner() {
       setTab(aliasedTab);
       return;
     }
-    if (!LAUNCH_BUSINESS_HUB_TABS.has(tab)) {
+    if (!isBusinessHubTabLaunched(tab)) {
       setTab(canViewFinanceHub ? 'overview' : 'team');
       return;
     }
