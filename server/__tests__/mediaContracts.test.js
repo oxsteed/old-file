@@ -418,6 +418,8 @@ describe('OxSteed Media launch contracts', () => {
     const [sql, params] = pool.query.mock.calls[0];
     expect(sql).toContain('user_blocks');
     expect(sql).toContain('$3::text');
+    expect(sql).toContain('helper_profiles');
+    expect(sql).toContain('u.is_active = TRUE');
     expect(params).toEqual(['%local%', 8, 'viewer-1']);
     expect(res.json).toHaveBeenCalledWith({ entities: [] });
   });
@@ -435,6 +437,7 @@ describe('OxSteed Media launch contracts', () => {
       if (sql.includes('FROM media_post_assets')) return { rows: [] };
       if (sql.includes('FROM food_menu_items i')) {
         expect(sql).toContain('i.is_available = TRUE');
+        expect(sql).toContain('food_item_target_owner.is_active = TRUE');
         return { rows: [] };
       }
       return { rows: [] };

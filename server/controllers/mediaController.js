@@ -22,6 +22,13 @@ const MEDIA_REPORT_REASONS = new Set(['spam', 'harassment', 'unsafe', 'copyright
 const MAX_MEDIA_REPORT_NOTE_LENGTH = 1000;
 
 const mediaError = sendMediaError;
+function activeMediaOwnerSql(ownerExpression, alias = 'media_link_owner') {
+  return `EXISTS (SELECT 1 FROM users ${alias}
+    WHERE ${alias}.id = ${ownerExpression}
+      AND ${alias}.deleted_at IS NULL
+      AND ${alias}.is_active = TRUE
+      AND ${alias}.is_banned = FALSE)`;
+}
 // Public Media reads must re-check the represented entity's current
 // verification, not only the historical post safety verdict. This keeps
 // revoked helpers, businesses, and restaurants out of every public surface.
@@ -51,14 +58,16 @@ function validLinkCountSql(viewerParam = null) {
   return `COUNT(l.id) FILTER (WHERE
     (l.link_type = 'restaurant' AND EXISTS (
       SELECT 1 FROM food_restaurants r
-       WHERE r.id::text = l.target_id AND r.status = 'active'${blocked('r.owner_user_id')}
+       WHERE r.id::text = l.target_id AND r.status = 'active'
+         AND ${activeMediaOwnerSql('r.owner_user_id', 'restaurant_link_owner')}${blocked('r.owner_user_id')}
     )) OR
     (l.link_type = 'food_item' AND EXISTS (
       SELECT 1 FROM food_menu_items i
       JOIN food_restaurants r ON r.id = i.restaurant_id
        WHERE i.id::text = split_part(l.target_id, ':', 2)
          AND r.id::text = split_part(l.target_id, ':', 1)
-         AND r.status = 'active' AND i.is_available = TRUE${blocked('r.owner_user_id')}
+         AND r.status = 'active' AND i.is_available = TRUE
+         AND ${activeMediaOwnerSql('r.owner_user_id', 'food_item_link_owner')}${blocked('r.owner_user_id')}
     )) OR
     (l.link_type = 'helper' AND EXISTS (
       SELECT 1 FROM helper_profiles hp JOIN users u ON u.id = hp.user_id
@@ -67,15 +76,18 @@ function validLinkCountSql(viewerParam = null) {
     )) OR
     (l.link_type = 'business' AND EXISTS (
       SELECT 1 FROM businesses b
-       WHERE b.id::text = l.target_id AND b.deleted_at IS NULL AND b.is_active = TRUE${blocked('b.user_id')}
+       WHERE b.id::text = l.target_id AND b.deleted_at IS NULL AND b.is_active = TRUE
+         AND ${activeMediaOwnerSql('b.user_id', 'business_link_owner')}${blocked('b.user_id')}
     )) OR
     (l.link_type = 'job' AND EXISTS (
       SELECT 1 FROM jobs j
-       WHERE j.id::text = l.target_id AND j.status IN ('published', 'matched')${blocked('j.client_id')}
+       WHERE j.id::text = l.target_id AND j.status IN ('published', 'matched')
+         AND ${activeMediaOwnerSql('j.client_id', 'job_link_owner')}${blocked('j.client_id')}
     )) OR
     (l.link_type = 'tool_rental' AND EXISTS (
       SELECT 1 FROM tool_rentals tr
-       WHERE tr.id::text = l.target_id AND tr.is_available = TRUE${blocked('tr.user_id')}
+       WHERE tr.id::text = l.target_id AND tr.is_available = TRUE
+         AND ${activeMediaOwnerSql('tr.user_id', 'rental_link_owner')}${blocked('tr.user_id')}
     )) OR
     (l.link_type = 'direct_catalog' AND EXISTS (
       SELECT 1 FROM direct_catalog_services s
@@ -83,7 +95,8 @@ function validLinkCountSql(viewerParam = null) {
     )) OR
     (l.link_type = 'logistics_campaign' AND EXISTS (
       SELECT 1 FROM pooled_orders po
-       WHERE po.id::text = l.target_id AND po.status IN ('open', 'pledging')${blocked('po.organizer_user_id')}
+       WHERE po.id::text = l.target_id AND po.status IN ('open', 'pledging')
+         AND ${activeMediaOwnerSql('po.organizer_user_id', 'logistics_link_owner')}${blocked('po.organizer_user_id')}
     ))
   )`;
 }
@@ -313,6 +326,7 @@ async function lookupLinkTarget(link, viewerUserId = null, db = pool) {
     const { rows } = await db.query(
       `SELECT display_name AS name FROM food_restaurants
         WHERE id = $1 AND status = 'active'
+          AND ${activeMediaOwnerSql('owner_user_id', 'restaurant_target_owner')}
         ${linkViewerBlockPredicate('owner_user_id')}`, [targetId, viewerUserId]
     );
     return rows[0] || null;
@@ -324,6 +338,7 @@ async function lookupLinkTarget(link, viewerUserId = null, db = pool) {
          FROM food_menu_items i
          JOIN food_restaurants r ON r.id = i.restaurant_id
         WHERE i.id = $1 AND r.id = $2 AND r.status = 'active' AND i.is_available = TRUE
+          AND ${activeMediaOwnerSql('r.owner_user_id', 'food_item_target_owner')}
           ${linkViewerBlockPredicate('r.owner_user_id', '$3')}`,
       [itemId, restaurantId, viewerUserId]
     );
@@ -342,27 +357,30 @@ async function lookupLinkTarget(link, viewerUserId = null, db = pool) {
   }
   if (link.link_type === 'business') {
     const { rows } = await db.query(
-      `SELECT business_name AS name FROM businesses
+        `SELECT business_name AS name FROM businesses
         WHERE (id::text = $1 OR profile_slug::text = $1)
           AND deleted_at IS NULL AND is_active = TRUE
+          AND ${activeMediaOwnerSql('user_id', 'business_target_owner')}
           ${linkViewerBlockPredicate('user_id')}`, [targetId, viewerUserId]
     );
     return rows[0] || null;
   }
   if (link.link_type === 'job') {
     const { rows } = await db.query(
-      `SELECT title AS name FROM jobs
-        WHERE id = $1 AND status IN ('published', 'matched')
-          ${linkViewerBlockPredicate('client_id')}`, [targetId, viewerUserId]
+      `SELECT j.title AS name FROM jobs j
+        WHERE j.id = $1 AND j.status IN ('published', 'matched')
+          AND ${activeMediaOwnerSql('j.client_id', 'job_target_owner')}
+          ${linkViewerBlockPredicate('j.client_id')}`, [targetId, viewerUserId]
     );
     return rows[0] || null;
   }
   if (link.link_type === 'tool_rental') {
     const { rows } = await db.query(
-      `SELECT name, ROUND(COALESCE(daily_rate, hourly_rate) * 100)::int AS price_snapshot_cents
-         FROM tool_rentals
-        WHERE id = $1 AND is_available = TRUE
-          ${linkViewerBlockPredicate('user_id')}`, [targetId, viewerUserId]
+      `SELECT tr.name, ROUND(COALESCE(tr.daily_rate, tr.hourly_rate) * 100)::int AS price_snapshot_cents
+         FROM tool_rentals tr
+        WHERE tr.id = $1 AND tr.is_available = TRUE
+          AND ${activeMediaOwnerSql('tr.user_id', 'rental_target_owner')}
+          ${linkViewerBlockPredicate('tr.user_id')}`, [targetId, viewerUserId]
     );
     return rows[0] || null;
   }
@@ -376,10 +394,11 @@ async function lookupLinkTarget(link, viewerUserId = null, db = pool) {
   }
   if (link.link_type === 'logistics_campaign') {
     const { rows } = await db.query(
-      `SELECT title AS name, ROUND(unit_landed_cost_usd * 100)::int AS price_snapshot_cents
-         FROM pooled_orders
-        WHERE id = $1 AND status IN ('open', 'pledging')
-          ${linkViewerBlockPredicate('organizer_user_id')}`, [targetId, viewerUserId]
+      `SELECT po.title, ROUND(po.unit_landed_cost_usd * 100)::int AS price_snapshot_cents
+         FROM pooled_orders po
+        WHERE po.id = $1 AND po.status IN ('open', 'pledging')
+          AND ${activeMediaOwnerSql('po.organizer_user_id', 'logistics_target_owner')}
+          ${linkViewerBlockPredicate('po.organizer_user_id')}`, [targetId, viewerUserId]
     );
     return rows[0] || null;
   }
@@ -2061,6 +2080,7 @@ async function searchMediaEntities(req, res) {
         `SELECT id::text AS target_id, display_name AS name, NULL::int AS price_snapshot_cents
            FROM food_restaurants
           WHERE status = 'active' AND display_name ILIKE $1
+            AND ${activeMediaOwnerSql('owner_user_id', 'restaurant_search_owner')}
             ${linkViewerBlockPredicate('owner_user_id', '$3')}
           ORDER BY display_name LIMIT $2`, [like, limit, viewerUserId]
       ));
@@ -2072,6 +2092,7 @@ async function searchMediaEntities(req, res) {
            FROM food_menu_items i
            JOIN food_restaurants r ON r.id = i.restaurant_id
           WHERE r.status = 'active' AND i.is_available = TRUE AND i.name ILIKE $1
+            AND ${activeMediaOwnerSql('r.owner_user_id', 'food_item_search_owner')}
             ${linkViewerBlockPredicate('r.owner_user_id', '$3')}
           ORDER BY i.name LIMIT $2`, [like, limit, viewerUserId]
       ));
@@ -2094,6 +2115,7 @@ async function searchMediaEntities(req, res) {
                 NULL::int AS price_snapshot_cents
            FROM businesses
           WHERE deleted_at IS NULL AND is_active = TRUE AND is_business_verified = TRUE
+            AND ${activeMediaOwnerSql('user_id', 'business_search_owner')}
             AND business_name ILIKE $1
             ${linkViewerBlockPredicate('user_id', '$3')}
           ORDER BY business_name LIMIT $2`, [like, limit, viewerUserId]
@@ -2101,19 +2123,21 @@ async function searchMediaEntities(req, res) {
     } else if (type === 'job') {
       ({ rows } = await pool.query(
         `SELECT id::text AS target_id, title AS name, NULL::int AS price_snapshot_cents
-           FROM jobs
-          WHERE status IN ('published', 'matched') AND title ILIKE $1
-            ${linkViewerBlockPredicate('client_id', '$3')}
-          ORDER BY created_at DESC LIMIT $2`, [like, limit, viewerUserId]
+           FROM jobs j
+          WHERE j.status IN ('published', 'matched') AND j.title ILIKE $1
+            AND ${activeMediaOwnerSql('j.client_id', 'job_search_owner')}
+            ${linkViewerBlockPredicate('j.client_id', '$3')}
+          ORDER BY j.created_at DESC LIMIT $2`, [like, limit, viewerUserId]
       ));
     } else if (type === 'tool_rental') {
       ({ rows } = await pool.query(
         `SELECT id::text AS target_id, name,
                 ROUND(COALESCE(daily_rate, hourly_rate) * 100)::int AS price_snapshot_cents
-           FROM tool_rentals
-          WHERE is_available = TRUE AND name ILIKE $1
-            ${linkViewerBlockPredicate('user_id', '$3')}
-          ORDER BY name LIMIT $2`, [like, limit, viewerUserId]
+           FROM tool_rentals tr
+          WHERE tr.is_available = TRUE AND tr.name ILIKE $1
+            AND ${activeMediaOwnerSql('tr.user_id', 'rental_search_owner')}
+            ${linkViewerBlockPredicate('tr.user_id', '$3')}
+          ORDER BY tr.name LIMIT $2`, [like, limit, viewerUserId]
       ));
     } else if (type === 'direct_catalog') {
       ({ rows } = await pool.query(
@@ -2129,10 +2153,11 @@ async function searchMediaEntities(req, res) {
       ({ rows } = await pool.query(
         `SELECT id::text AS target_id, title AS name,
                 ROUND(unit_landed_cost_usd * 100)::int AS price_snapshot_cents
-           FROM pooled_orders
-          WHERE status IN ('open', 'pledging') AND title ILIKE $1
-            ${linkViewerBlockPredicate('organizer_user_id', '$3')}
-          ORDER BY created_at DESC LIMIT $2`, [like, limit, viewerUserId]
+           FROM pooled_orders po
+          WHERE po.status IN ('open', 'pledging') AND po.title ILIKE $1
+            AND ${activeMediaOwnerSql('po.organizer_user_id', 'logistics_search_owner')}
+            ${linkViewerBlockPredicate('po.organizer_user_id', '$3')}
+          ORDER BY po.created_at DESC LIMIT $2`, [like, limit, viewerUserId]
       ));
     } else {
       return res.status(400).json({ error: 'Unsupported Media entity type' });

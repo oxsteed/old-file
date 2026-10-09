@@ -43,3 +43,13 @@ test('pagination binds location, account, tab and version, preserving a precise 
     expect(() => feed.decodeCursor(invalid, context)).toThrow();
   }
 });
+
+test('linked locality candidates require active target owners', () => {
+  const params = [];
+  const sql = feed.localitySql({ city: 'springfield', state: 'oh', latitude: null, longitude: null }, params, 5);
+  expect(sql).toContain('restaurant_local_owner.is_active = TRUE');
+  expect(sql).toContain('food_item_local_owner.is_banned = FALSE');
+  expect(sql).toContain('job_local_owner.deleted_at IS NULL');
+  expect(sql).toContain('rental_local_owner.is_active = TRUE');
+  expect(sql).toContain('logistics_local_owner.is_banned = FALSE');
+});

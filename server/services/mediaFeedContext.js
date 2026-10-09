@@ -71,6 +71,14 @@ function encodeCursor(row, context, mode, asOf) {
   })).toString('base64url');
 }
 
+function activeOwnerSql(ownerExpression, alias = 'media_local_owner') {
+  return `EXISTS (SELECT 1 FROM users ${alias}
+    WHERE ${alias}.id = ${ownerExpression}
+      AND ${alias}.deleted_at IS NULL
+      AND ${alias}.is_active = TRUE
+      AND ${alias}.is_banned = FALSE)`;
+}
+
 // Reuse entity coordinates rather than trusting post text or client labels.
 // Only currently public linked entities can contribute to locality. Direct's
 // global catalog has no location; it contributes a valid link, not invented geo.
@@ -95,11 +103,13 @@ function localitySql(location, params, viewerParam = null) {
       WHERE a.actor_type='restaurant' AND r.id=a.restaurant_id AND r.status='active'
     UNION ALL SELECT r.latitude,r.longitude,r.address_city,r.address_state FROM media_post_links ml
       JOIN food_restaurants r ON r.id::text=ml.target_id
-      WHERE ml.post_id=p.id AND ml.link_type='restaurant' AND r.status='active'${blocked('r.owner_user_id')}
+      WHERE ml.post_id=p.id AND ml.link_type='restaurant' AND r.status='active'
+        AND ${activeOwnerSql('r.owner_user_id', 'restaurant_local_owner')}${blocked('r.owner_user_id')}
     UNION ALL SELECT r.latitude,r.longitude,r.address_city,r.address_state FROM media_post_links ml
       JOIN food_menu_items i ON i.id::text=split_part(ml.target_id,':',2)
       JOIN food_restaurants r ON r.id=i.restaurant_id AND r.id::text=split_part(ml.target_id,':',1)
-      WHERE ml.post_id=p.id AND ml.link_type='food_item' AND r.status='active' AND i.is_available=TRUE${blocked('r.owner_user_id')}
+      WHERE ml.post_id=p.id AND ml.link_type='food_item' AND r.status='active' AND i.is_available=TRUE
+        AND ${activeOwnerSql('r.owner_user_id', 'food_item_local_owner')}${blocked('r.owner_user_id')}
     UNION ALL SELECT hp.service_lat,hp.service_lng,hp.service_city,hp.service_state FROM media_post_links ml
       JOIN helper_profiles hp ON (hp.id::text=ml.target_id OR hp.user_id::text=ml.target_id OR hp.profile_slug=ml.target_id)
       JOIN users u ON u.id=hp.user_id AND u.is_active AND NOT u.is_banned AND u.deleted_at IS NULL
@@ -107,18 +117,23 @@ function localitySql(location, params, viewerParam = null) {
     UNION ALL SELECT b.service_lat,b.service_lng,COALESCE(NULLIF(b.service_city,''),b.address_city),
       COALESCE(NULLIF(b.service_state,''),b.address_state) FROM media_post_links ml
       JOIN businesses b ON b.id::text=ml.target_id AND b.is_active AND b.deleted_at IS NULL
-      WHERE ml.post_id=p.id AND ml.link_type='business'${blocked('b.user_id')}
+      WHERE ml.post_id=p.id AND ml.link_type='business'
+        AND ${activeOwnerSql('b.user_id', 'business_local_owner')}${blocked('b.user_id')}
       UNION ALL SELECT j.location_approx_lat,j.location_approx_lng,j.location_city,j.location_state FROM media_post_links ml
       JOIN jobs j ON j.id::text=ml.target_id AND j.status IN ('published','matched')
-      WHERE ml.post_id=p.id AND ml.link_type='job'${blocked('j.client_id')}
+      WHERE ml.post_id=p.id AND ml.link_type='job'
+        AND ${activeOwnerSql('j.client_id', 'job_local_owner')}${blocked('j.client_id')}
       UNION ALL SELECT NULL::numeric,NULL::numeric,tr.location_city,tr.location_state FROM media_post_links ml
       JOIN tool_rentals tr ON tr.id::text=ml.target_id AND tr.is_available
-      WHERE ml.post_id=p.id AND ml.link_type='tool_rental'${blocked('tr.user_id')}
+      WHERE ml.post_id=p.id AND ml.link_type='tool_rental'
+        AND ${activeOwnerSql('tr.user_id', 'rental_local_owner')}${blocked('tr.user_id')}
     UNION ALL SELECT b.service_lat,b.service_lng,COALESCE(NULLIF(b.service_city,''),b.address_city),
       COALESCE(NULLIF(b.service_state,''),b.address_state) FROM media_post_links ml
       JOIN pooled_orders po ON po.id::text=ml.target_id AND po.status IN ('open','pledging')
       JOIN businesses b ON b.id=po.organizer_business_id AND b.is_active AND b.deleted_at IS NULL
-      WHERE ml.post_id=p.id AND ml.link_type='logistics_campaign'${blocked('po.organizer_user_id')}`;
+      WHERE ml.post_id=p.id AND ml.link_type='logistics_campaign'
+        AND ${activeOwnerSql('po.organizer_user_id', 'logistics_local_owner')}
+        AND ${activeOwnerSql('b.user_id', 'logistics_business_owner')}${blocked('po.organizer_user_id')}`;
   const distance = `6371 * acos(LEAST(1.0,GREATEST(-1.0,
     sin(radians(${lat}))*sin(radians(geo.lat::double precision)) +
     cos(radians(${lat}))*cos(radians(geo.lat::double precision))*cos(radians(geo.lng::double precision-${lng})))))`;
