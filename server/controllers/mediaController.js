@@ -20,6 +20,12 @@ const MAX_LINKS_PER_POST = 5;
 const POSTS_PER_DAY = 10;
 
 const mediaError = sendMediaError;
+// Public Media reads must re-check the represented entity's current
+// verification, not only the historical post safety verdict. This keeps
+// revoked helpers, businesses, and restaurants out of every public surface.
+function publicMediaSql(postAlias = 'p', actorAlias = 'a') {
+  return `${mediaSafety.publicPostSql(postAlias)} AND (${verifiedActorSql(actorAlias)})`;
+}
 // All Media link types are enabled under the combined MVP/v2/v3 delivery
 // strategy. Each type still has to resolve to a currently public target before
 // it contributes to feed ranking or becomes clickable.
@@ -115,7 +121,7 @@ async function visiblePost(postId, viewerUserId) {
   const params = [postId];
   const where = addViewerBlockFilter(
     `p.id = $1 AND p.deleted_at IS NULL AND p.visibility = 'public'
-      AND p.processing_status = 'ready' AND ${mediaSafety.publicPostSql('p')}`,
+      AND p.processing_status = 'ready' AND ${publicMediaSql('p', 'a')}`,
     params, viewerUserId
   );
   const { rows } = await pool.query(
@@ -475,7 +481,7 @@ async function getFeed(req, res) {
     const params = [queryLimit, asOf];
     let localityBoost = feedContext.localitySql(location, params);
     let where = `p.visibility = 'public' AND p.deleted_at IS NULL AND p.parent_id IS NULL AND p.created_at <= $2::timestamptz
-      AND p.processing_status = 'ready' AND ${mediaSafety.publicPostSql('p')}
+      AND p.processing_status = 'ready' AND ${publicMediaSql('p', 'a')}
       AND EXISTS (SELECT 1 FROM users au WHERE au.id = a.owner_user_id
         AND au.deleted_at IS NULL AND au.is_active = TRUE AND au.is_banned = FALSE)`;
 
@@ -586,7 +592,7 @@ async function getFeed(req, res) {
       mode = 'chronological';
       const fallbackParams = [queryLimit, asOf];
       let fallbackWhere = `p.visibility = 'public' AND p.deleted_at IS NULL AND p.parent_id IS NULL AND p.created_at <= $2::timestamptz
-        AND p.processing_status = 'ready' AND ${mediaSafety.publicPostSql('p')}
+        AND p.processing_status = 'ready' AND ${publicMediaSql('p', 'a')}
         AND EXISTS (SELECT 1 FROM users au WHERE au.id = a.owner_user_id
           AND au.deleted_at IS NULL AND au.is_active = TRUE AND au.is_banned = FALSE)`;
       if (viewerUserId) {
@@ -649,7 +655,7 @@ async function getPost(req, res) {
     const viewerUserId = req.user?.id || null;
     const where = addViewerBlockFilter(
       `p.id = $1 AND p.deleted_at IS NULL AND p.visibility = 'public'
-          AND p.processing_status = 'ready' AND ${mediaSafety.publicPostSql('p')}`,
+          AND p.processing_status = 'ready' AND ${publicMediaSql('p', 'a')}`,
       params,
       viewerUserId
     );
@@ -667,7 +673,7 @@ async function getPost(req, res) {
       const quoteParams = [post.quoted_post_id];
       const quoteWhere = addViewerBlockFilter(
         `p.id = $1 AND p.deleted_at IS NULL AND p.visibility = 'public'
-            AND p.processing_status = 'ready' AND ${mediaSafety.publicPostSql('p')}`,
+            AND p.processing_status = 'ready' AND ${publicMediaSql('p', 'a')}`,
         quoteParams,
         viewerUserId
       );
@@ -716,7 +722,7 @@ async function toggleCountedAction({ postId, viewerUserId, actorId, userId, tabl
       `SELECT p.id FROM media_posts p
          JOIN media_actors a ON a.id = p.actor_id
         WHERE p.id = $1 AND p.deleted_at IS NULL AND p.visibility = 'public'
-          AND p.processing_status = 'ready' AND ${mediaSafety.publicPostSql('p')}
+          AND p.processing_status = 'ready' AND ${publicMediaSql('p', 'a')}
           AND EXISTS (SELECT 1 FROM users au WHERE au.id = a.owner_user_id
             AND au.deleted_at IS NULL AND au.is_active = TRUE AND au.is_banned = FALSE)
           ${blockSql}
@@ -776,7 +782,7 @@ async function recordUniqueCountedEvent({ postId, viewerUserId, viewerHash, tabl
       `SELECT p.id FROM media_posts p
          JOIN media_actors a ON a.id = p.actor_id
         WHERE p.id = $1 AND p.deleted_at IS NULL AND p.visibility = 'public'
-          AND p.processing_status = 'ready' AND ${mediaSafety.publicPostSql('p')}
+          AND p.processing_status = 'ready' AND ${publicMediaSql('p', 'a')}
           AND EXISTS (SELECT 1 FROM users au WHERE au.id = a.owner_user_id
             AND au.deleted_at IS NULL AND au.is_active = TRUE AND au.is_banned = FALSE)
           ${blockSql}
@@ -817,9 +823,10 @@ async function getShareImage(req, res) {
     const { rows } = await pool.query(
       `SELECT mpa.thumbnail_key
          FROM media_posts p
+         JOIN media_actors a ON a.id = p.actor_id
          JOIN media_post_assets mpa ON mpa.post_id = p.id
         WHERE p.id = $1::uuid AND p.deleted_at IS NULL AND p.visibility = 'public'
-          AND p.processing_status = 'ready' AND ${mediaSafety.publicPostSql('p')}
+          AND p.processing_status = 'ready' AND ${publicMediaSql('p', 'a')}
           AND mpa.thumbnail_key IS NOT NULL
         ORDER BY mpa.sort_order, mpa.created_at
         LIMIT 1`,
@@ -883,7 +890,7 @@ async function getBookmarks(req, res) {
     const params = [req.user.id];
     const where = addViewerBlockFilter(
       `p.deleted_at IS NULL AND p.visibility = 'public'
-        AND p.processing_status = 'ready' AND ${mediaSafety.publicPostSql('p')}
+        AND p.processing_status = 'ready' AND ${publicMediaSql('p', 'a')}
         AND b.user_id = $1`,
       params,
       req.user.id
@@ -923,7 +930,7 @@ async function getReplies(req, res) {
     const params = [req.params.id];
     const where = addViewerBlockFilter(
       `p.parent_id = $1 AND p.deleted_at IS NULL AND p.visibility = 'public'
-          AND p.processing_status = 'ready' AND ${mediaSafety.publicPostSql('p')}`,
+          AND p.processing_status = 'ready' AND ${publicMediaSql('p', 'a')}`,
       params,
       req.user?.id || null
     );
@@ -951,7 +958,7 @@ async function getQuotes(req, res) {
     const params = [req.params.id];
     const where = addViewerBlockFilter(
       `p.quoted_post_id = $1 AND p.deleted_at IS NULL AND p.visibility = 'public'
-          AND p.processing_status = 'ready' AND ${mediaSafety.publicPostSql('p')}`,
+          AND p.processing_status = 'ready' AND ${publicMediaSql('p', 'a')}`,
       params,
       req.user?.id || null
     );
@@ -1586,7 +1593,7 @@ async function getCommunities(req, res) {
           AND p.visibility = 'public' AND p.deleted_at IS NULL
           AND p.processing_status = 'ready' AND ${mediaSafety.publicPostSql('p')}
           AND p.parent_id IS NULL
-          AND EXISTS (SELECT 1 FROM media_actors a WHERE ${authorWhere})
+          AND EXISTS (SELECT 1 FROM media_actors a WHERE ${authorWhere} AND (${verifiedActorSql('a')}))
         GROUP BY c.id
         ORDER BY c.geo_scope NULLS LAST, c.category NULLS LAST, c.title`,
       params
@@ -1614,7 +1621,7 @@ async function getCommunity(req, res) {
           AND p.visibility = 'public' AND p.deleted_at IS NULL
           AND p.processing_status = 'ready' AND ${mediaSafety.publicPostSql('p')}
           AND p.parent_id IS NULL
-          AND EXISTS (SELECT 1 FROM media_actors a WHERE ${authorWhere})
+          AND EXISTS (SELECT 1 FROM media_actors a WHERE ${authorWhere} AND (${verifiedActorSql('a')}))
         WHERE c.slug = $1
         GROUP BY c.id`,
       params
@@ -1623,7 +1630,7 @@ async function getCommunity(req, res) {
     const postParams = [communities[0].id];
     const postWhere = addViewerBlockFilter(
       `p.community_id = $1 AND p.visibility = 'public' AND p.deleted_at IS NULL
-          AND p.processing_status = 'ready' AND ${mediaSafety.publicPostSql('p')}
+          AND p.processing_status = 'ready' AND ${publicMediaSql('p', 'a')}
           AND p.parent_id IS NULL`, postParams, req.user?.id
     );
     const { rows } = await pool.query(
@@ -1680,7 +1687,7 @@ async function searchMedia(req, res) {
     const postParams = [pattern, limit];
     const postWhere = addViewerBlockFilter(
       `p.visibility = 'public' AND p.deleted_at IS NULL AND p.parent_id IS NULL
-          AND p.processing_status = 'ready' AND ${mediaSafety.publicPostSql('p')}
+          AND p.processing_status = 'ready' AND ${publicMediaSql('p', 'a')}
           AND (p.body ILIKE $1 OR a.handle ILIKE $1 OR a.display_name ILIKE $1)`,
       postParams,
       req.user?.id || null
@@ -1727,7 +1734,7 @@ async function getBusinessPosts(req, res) {
     const params = [actors[0].id];
     const where = addViewerBlockFilter(
       `p.actor_id = $1 AND p.deleted_at IS NULL AND p.parent_id IS NULL
-          AND p.visibility = 'public' AND p.processing_status = 'ready' AND ${mediaSafety.publicPostSql('p')}`,
+          AND p.visibility = 'public' AND p.processing_status = 'ready' AND ${publicMediaSql('p', 'a')}`,
       params,
       req.user?.id || null
     );
@@ -1769,7 +1776,7 @@ async function getActor(req, res) {
     const postParams = [rows[0].id];
     const postWhere = addViewerBlockFilter(
       `p.actor_id = $1 AND p.deleted_at IS NULL AND p.parent_id IS NULL
-          AND p.visibility = 'public' AND p.processing_status = 'ready' AND ${mediaSafety.publicPostSql('p')}`,
+          AND p.visibility = 'public' AND p.processing_status = 'ready' AND ${publicMediaSql('p', 'a')}`,
       postParams,
       req.user?.id
     );

@@ -85,6 +85,16 @@ test('public video visibility follows the Didit-backed users.is_verified flag', 
   expect(sql).not.toContain('safety_user.identity_verified');
 });
 
+test('public post reads recheck the represented helper, business, or restaurant verification', async () => {
+  pool.query.mockResolvedValueOnce({ rows: [] });
+  const res = response();
+  await media.getPost({ params: { id: 'post' }, user: {} }, res);
+  const sql = pool.query.mock.calls[0][0];
+  expect(sql).toContain('b.is_business_verified = TRUE');
+  expect(sql).toContain('r.is_verified = TRUE');
+  expect(sql).toContain('hu.is_verified = TRUE');
+});
+
 test.each([
   [{ clean: true, provider: 'clamav' }, 202],
   [{ clean: false, provider: 'clamav' }, 400],
