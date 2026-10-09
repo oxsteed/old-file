@@ -1293,3 +1293,10 @@ reverses the relationship idempotently, and continues to assert blocked-author
 exclusion. Local feed context, ranking, and follow contracts remain green;
 the follow journey itself awaits hosted PostgreSQL execution and authenticated
 deployed verification.
+
+Boost cancellation integrity checkpoint (2026-10-09): cancellation now locks
+the boost row and commits the guarded `pending_credit` transition in a single
+transaction, matching settlement's lock boundary. Replays remain idempotent,
+settled boosts are rejected, and a lost transition rolls back. The focused
+creator marketplace suite passes 26 tests. Isolated Credit races, ledger
+conservation, and deployed payment proof remain open.

@@ -413,13 +413,37 @@ test('replays sponsorship cancellation without releasing Credit twice', async ()
 
 test('replays boost cancellation after the first cancellation', async () => {
   const pool = require('../db');
+  const client = { query: mockQuery, release: jest.fn() };
+  pool.connect.mockResolvedValueOnce(client);
   mockQuery
     .mockResolvedValueOnce({ rows: [] })
-    .mockResolvedValueOnce({ rows: [{ id: 'boost-1', status: 'cancelled', purchaser_user_id: 'buyer-1' }] });
+    .mockResolvedValueOnce({ rows: [{ id: 'boost-1', status: 'cancelled', purchaser_user_id: 'buyer-1' }] })
+    .mockResolvedValueOnce({ rows: [] });
   const res = resMock();
   await creator.cancelBoost({ params: { boostId: 'boost-1' }, user: { id: 'buyer-1' } }, res, jest.fn());
   expect(res.json).toHaveBeenCalledWith({ boost: expect.objectContaining({ id: 'boost-1', status: 'cancelled' }), replayed: true });
-  expect(mockQuery).toHaveBeenCalledTimes(2);
+  expect(mockQuery.mock.calls.map(([sql]) => String(sql))).toEqual([
+    'BEGIN', expect.stringContaining('FROM media_post_boosts'), 'COMMIT',
+  ]);
+  expect(client.release).toHaveBeenCalled();
+});
+
+test('rolls back a boost cancellation when the guarded transition is lost', async () => {
+  const pool = require('../db');
+  const client = { query: mockQuery, release: jest.fn() };
+  pool.connect.mockResolvedValueOnce(client);
+  mockQuery.mockImplementation(async (sql) => {
+    const query = String(sql);
+    if (query === 'BEGIN' || query === 'ROLLBACK') return { rows: [] };
+    if (query.includes('FROM media_post_boosts')) return { rows: [{ id: 'boost-1', status: 'pending_credit', purchaser_user_id: 'buyer-1' }] };
+    if (query.includes('UPDATE media_post_boosts')) return { rows: [] };
+    return { rows: [] };
+  });
+  const next = jest.fn();
+  await creator.cancelBoost({ params: { boostId: 'boost-1' }, user: { id: 'buyer-1' } }, resMock(), next);
+  expect(next).toHaveBeenCalledWith(expect.objectContaining({ code: 'media_boost_transition_failed' }));
+  expect(client.query).toHaveBeenLastCalledWith('ROLLBACK');
+  expect(client.release).toHaveBeenCalled();
 });
 
 test('requires a currently public and verified post before creating a boost', async () => {

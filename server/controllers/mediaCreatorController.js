@@ -921,22 +921,36 @@ async function settleBoost(req, res, next) {
 }
 
 async function cancelBoost(req, res, next) {
+  const client = await pool.connect();
   try {
-    const { rows } = await pool.query(
-      `UPDATE media_post_boosts SET status = 'cancelled'
-        WHERE id = $1 AND purchaser_user_id = $2 AND status = 'pending_credit' RETURNING *`,
+    await client.query('BEGIN');
+    const { rows } = await client.query(
+      `SELECT * FROM media_post_boosts
+        WHERE id = $1 AND purchaser_user_id = $2
+        FOR UPDATE`,
       [req.params.boostId, req.user.id]
     );
-    if (!rows[0]) {
-      const { rows: existing } = await pool.query(
-        `SELECT * FROM media_post_boosts WHERE id = $1 AND purchaser_user_id = $2`,
-        [req.params.boostId, req.user.id]
-      );
-      if (existing[0]?.status === 'cancelled') return res.json({ boost: existing[0], replayed: true });
+    const boost = rows[0];
+    if (!boost) throw new AppError('Boost cannot be cancelled.', 404, 'media_boost_not_found');
+    if (boost.status === 'cancelled') {
+      await client.query('COMMIT');
+      return res.json({ boost, replayed: true });
+    }
+    if (boost.status !== 'pending_credit') {
       throw new AppError('Boost cannot be cancelled after settlement.', 409, 'media_boost_cancel_invalid');
     }
-    res.json({ boost: rows[0] });
-  } catch (err) { next(err); }
+    const { rows: updated } = await client.query(
+      `UPDATE media_post_boosts SET status = 'cancelled', updated_at = NOW()
+        WHERE id = $1 AND purchaser_user_id = $2 AND status = 'pending_credit' RETURNING *`,
+      [boost.id, req.user.id]
+    );
+    const cancelledBoost = requireMutationRow(updated, 'The boost cancellation could not be saved.', 'media_boost_transition_failed');
+    await client.query('COMMIT');
+    res.json({ boost: cancelledBoost });
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
+    next(err);
+  } finally { client.release(); }
 }
 
 /**
