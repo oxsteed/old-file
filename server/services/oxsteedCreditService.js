@@ -2591,7 +2591,11 @@ async function replayCreatorSettlementIfPresent(client, {
       && accounts?.recipient_customer_id === null
     : String(accounts?.recipient_customer_id) === String(recipientCustomerId)
       && accounts?.recipient_account_type === recipientAccountType;
-  if (existing.transaction_type !== 'media_creator_settlement'
+  // Settlements written before the Media-specific journal type was added
+  // remain replayable by idempotency key. New writes always use
+  // media_creator_settlement; this compatibility branch only reads an
+  // already-posted legacy row and preserves its original type on replay.
+  if (!['media_creator_settlement', 'settlement'].includes(existing.transaction_type)
     || String(accounts?.sender_customer_id) !== String(senderCustomerId)
     || accounts?.sender_account_type !== 'customer_wallet'
     || !recipientMatches) {
@@ -2599,7 +2603,7 @@ async function replayCreatorSettlementIfPresent(client, {
   }
 
   return postJournalTransaction(client, {
-    transactionType: 'media_creator_settlement',
+    transactionType: existing.transaction_type,
     debitAccountId: existing.debit_account_id,
     creditAccountId: existing.credit_account_id,
     customerId: senderCustomerId,
