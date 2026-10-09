@@ -78,6 +78,17 @@ async function verifiedCreatorById(client, actorId) {
   return rows[0] ? verifiedActor(client, rows[0].owner_user_id, actorId) : null;
 }
 
+async function assertCreatorNotBlocked(client, viewerUserId, creatorUserId) {
+  const { rows } = await client.query(
+    `SELECT 1 FROM user_blocks
+      WHERE (blocker_id = $1 AND blocked_id = $2)
+         OR (blocker_id = $2 AND blocked_id = $1)
+      LIMIT 1`,
+    [viewerUserId, creatorUserId]
+  );
+  if (rows[0]) throw new AppError('Creator actor is not available.', 404, 'media_creator_actor_not_found');
+}
+
 async function listGigs(req, res, next) {
   try {
     const limit = Math.min(Math.max(Number(req.query.limit) || 20, 1), 50);
@@ -482,6 +493,7 @@ async function createTip(req, res, next) {
     const actor = await verifiedCreatorById(client, req.body?.actorId);
     if (!actor) throw new AppError('Creator actor is not currently verified.', 404, 'media_creator_actor_not_found');
     if (String(actor.owner_user_id) === String(req.user.id)) throw new AppError('You cannot tip your own creator account.', 400, 'media_creator_self_payment');
+    await assertCreatorNotBlocked(client, req.user.id, actor.owner_user_id);
     if (req.body?.postId) {
       const { rows: posts } = await client.query(
         `SELECT p.id FROM media_posts p
@@ -527,6 +539,7 @@ async function createSponsorship(req, res, next) {
     const actor = await verifiedCreatorById(client, req.body?.actorId);
     if (!actor) throw new AppError('Creator actor is not currently verified.', 404, 'media_creator_actor_not_found');
     if (String(actor.owner_user_id) === String(req.user.id)) throw new AppError('You cannot sponsor your own creator account.', 400, 'media_creator_self_payment');
+    await assertCreatorNotBlocked(client, req.user.id, actor.owner_user_id);
     if (req.body?.postId) {
       const { rows: posts } = await client.query(
         `SELECT p.id FROM media_posts p

@@ -570,6 +570,34 @@ test('rejects an unsafe post target before creating a creator tip', async () => 
   expect(client.release).toHaveBeenCalled();
 });
 
+test('rejects a tip when either party has blocked the creator', async () => {
+  const pool = require('../db');
+  const client = { query: mockQuery, release: jest.fn() };
+  pool.connect.mockResolvedValueOnce(client);
+  mockQuery.mockImplementation(async (sql) => {
+    const query = String(sql);
+    if (query === 'BEGIN' || query === 'ROLLBACK') return { rows: [] };
+    if (query.includes('SELECT owner_user_id FROM media_actors')) return { rows: [{ owner_user_id: 'creator-1' }] };
+    if (query.includes('SELECT a.*')) return { rows: [{ id: 'actor-1', owner_user_id: 'creator-1' }] };
+    if (query.includes('FROM user_blocks')) return { rows: [{ '?column?': 1 }] };
+    return { rows: [] };
+  });
+  const next = jest.fn();
+
+  await creator.createTip({
+    user: { id: 'buyer-1' },
+    body: { actorId: 'actor-1', amountCents: 500, idempotencyKey: 'tip-blocked' },
+    get: () => null,
+  }, resMock(), next);
+
+  expect(next).toHaveBeenCalledWith(expect.objectContaining({
+    code: 'media_creator_actor_not_found',
+    status: 404,
+  }));
+  expect(mockQuery.mock.calls.some(([sql]) => String(sql).includes('INSERT INTO media_creator_tips'))).toBe(false);
+  expect(client.release).toHaveBeenCalled();
+});
+
 test('opens an idempotent dispute only for the payer\'s settled creator payment', async () => {
   mockQuery.mockResolvedValueOnce({ rows: [{ id: '11111111-1111-4111-8111-111111111111', payer_user_id: 'payer-1', transaction_id: 'tx-1', payment_status: 'posted' }] });
   const openCreditDispute = jest.spyOn(require('../services/oxsteedCreditService'), 'openCreditDispute')
