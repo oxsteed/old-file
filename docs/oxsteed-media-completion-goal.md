@@ -847,3 +847,15 @@ replacement uploads, guest linked-card navigation, and inert removed targets.
 The focused server safety, publisher-verification, draft-attachment, contract,
 and access suites passed 87 tests. Real PostgreSQL, private storage, ClamAV,
 FFmpeg, and authenticated production execution remain outstanding.
+
+Feed contract batch (2026-10-09): the ranked feed now accepts the canonical
+`cursor` query parameter and returns `next_cursor` alongside the retained
+`next_before` field. The cursor remains bound to viewer, tab, location, ranking
+mode, cutoff, and version. The focused ranking suite passes 10 tests; the
+change is pushed in `1e860a42`.
+
+Admin approval integrity batch (2026-10-09): administrator publication now
+fails closed when actor verification is missing or indeterminate and only
+reports success after the guarded public transition returns a row. The focused
+access and moderation suites pass 33 tests; the change is pushed in
+`9faefa8e`. Hosted CI and authenticated production proof remain outstanding.
