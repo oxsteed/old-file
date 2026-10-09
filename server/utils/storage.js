@@ -13,6 +13,10 @@ const REGION = process.env.AWS_REGION || 'us-east-1';
 const ENDPOINT = process.env.AWS_S3_ENDPOINT || process.env.S3_ENDPOINT || undefined;
 const PUBLIC_BASE_URL = String(process.env.S3_PUBLIC_BASE_URL || '').replace(/\/$/, '');
 const LOCAL_PUBLIC_BASE_URL = String(process.env.APP_URL || process.env.CLIENT_URL || '').replace(/\/$/, '');
+function getLocalStorageRoot() {
+  // Read dynamically so tests can set LOCAL_UPLOAD_DIR before use.
+  return path.resolve(process.env.LOCAL_UPLOAD_DIR || path.join(process.cwd(), 'runtime', 'uploads'));
+}
 const LOCAL_STORAGE_ROOT = path.resolve(process.env.LOCAL_UPLOAD_DIR || path.join(process.cwd(), 'runtime', 'uploads'));
 const SIGNING_SECRET = String(process.env.ENCRYPTION_KEY || process.env.JWT_SECRET || 'oxsteed-local-storage').trim();
 const FORCE_PATH_STYLE = /^(1|true|yes)$/i.test(String(process.env.S3_FORCE_PATH_STYLE || ''));
@@ -99,7 +103,7 @@ function isPublicKeyAllowed(key) {
 function localFilePath(key) {
   const normalized = normalizeKey(key);
   if (!normalized) return null;
-  return path.join(LOCAL_STORAGE_ROOT, ...normalized.split('/'));
+  return path.join(getLocalStorageRoot(), ...normalized.split('/'));
 }
 
 function localMetaPath(key) {
