@@ -7,10 +7,12 @@ import { useTranslation } from 'react-i18next';
 import { Plus, RefreshCw } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../../api/axios';
+import { LAUNCH_VISIBILITY } from '../../utils/launchScope';
 import MediaPostCard from '../../pages/media/MediaPostCard';
 import '../../pages/media/MediaStyles.css';
 
 export default function ProfileMediaSection({ userId }) {
+  if (!LAUNCH_VISIBILITY.oxsteedMedia) return null;
   const { t } = useTranslation();
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);

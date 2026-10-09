@@ -114,7 +114,8 @@ async function processCsam(job) {
   // flagged or unavailable result must not be erased by a configuration change.
   if (mediaSafety.mode() === 'cloudflare' && ['pending', 'cloudflare_deferred'].includes(asset.csam_status)) {
     await pool.query(
-      `UPDATE media_post_assets SET csam_status = 'cloudflare_deferred'
+      `UPDATE media_post_assets
+          SET csam_status = 'cloudflare_deferred', csam_mode = 'cloudflare'
         WHERE id = $1 AND csam_status IN ('pending', 'cloudflare_deferred')`, [asset.id]
     );
     await refreshPostState(asset.post_id);

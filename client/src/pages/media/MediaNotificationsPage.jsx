@@ -32,6 +32,15 @@ function notificationTime(value, language) {
   }
 }
 
+const MEDIA_NOTIFICATION_TYPES = new Set([
+  'media_reply',
+  'media_like',
+  'media_repost',
+  'media_quote',
+  'media_follow',
+  'media_creator_update',
+]);
+
 export default function MediaNotificationsPage() {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
@@ -43,6 +52,8 @@ export default function MediaNotificationsPage() {
     markAllAsRead,
     refresh,
   } = useNotifications();
+  const mediaNotifications = (notifications || []).filter((item) => MEDIA_NOTIFICATION_TYPES.has(item.type));
+  const mediaUnread = mediaNotifications.filter((item) => !item.read_at && !item.is_read).length;
 
   return (
     <div className="media-activity-page media-notifications-page">
@@ -65,9 +76,9 @@ export default function MediaNotificationsPage() {
 
       <div className="media-activity-toolbar">
         <span className="media-activity-count">
-          {t('media.notifications.unread', { count: unreadCount })}
+          {t('media.notifications.unread', { count: mediaUnread })}
         </span>
-        {unreadCount > 0 && (
+        {mediaUnread > 0 && (
           <button type="button" className="media-text-button" onClick={markAllAsRead}>
             <Check size={15} aria-hidden="true" />
             {t('media.notifications.markAllRead')}
@@ -77,7 +88,7 @@ export default function MediaNotificationsPage() {
 
       {loading ? (
         <div className="media-activity-empty"><p>{t('media.notifications.loading')}</p></div>
-      ) : notifications.length === 0 ? (
+      ) : mediaNotifications.length === 0 ? (
         <div className="media-activity-empty">
           <span className="media-activity-empty-icon" aria-hidden="true"><Bell size={27} /></span>
           <h2>{t('media.notifications.emptyHeading')}</h2>
@@ -85,7 +96,7 @@ export default function MediaNotificationsPage() {
         </div>
       ) : (
         <div className="media-notification-list" role="list">
-          {notifications.map((notification) => {
+          {mediaNotifications.map((notification) => {
             const unread = !notification.is_read && !notification.read_at;
             const bodyId = `media-notification-body-${notification.id}`;
             const activateNotification = () => {

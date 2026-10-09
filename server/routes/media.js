@@ -28,6 +28,9 @@ router.get('/capabilities', (_req, res) => {
   res.json({
     video_safety_mode: safety.mode(),
     video_policy_allows_publication: safety.videoAllowed(),
+    public_video_without_csam: safety.publicVideoWithoutCsamOverride(),
+    cloudflare_photo_delivery_ready: safety.photoDeliveryAllowed(),
+    cloudflare_mode_misconfigured: safety.cloudflareModeMisconfigured(),
     upload_identity_required: true,
     malware_scan_required: true,
     transcode_required: true,
@@ -40,6 +43,8 @@ router.get('/posts/drafts', requireAuth, ctrl.getDrafts);
 router.get('/posts/bookmarks', requireAuth, ctrl.getBookmarks);
 router.get('/search', ctrl.searchMedia);
 router.get('/entities', ctrl.searchMediaEntities);
+router.get('/badges', requireAuth, ctrl.getShellBadges);
+router.post('/communities/seen', requireAuth, ctrl.markCommunitiesSeen);
 router.get('/communities', ctrl.getCommunities);
 router.get('/communities/:slug', ctrl.getCommunity);
 router.post('/communities/:id/join', requireAuth, ctrl.joinCommunity);

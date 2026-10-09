@@ -58,7 +58,7 @@ export const LAUNCH_VISIBILITY = Object.freeze({
   businessHubRoleMenuWidgets: false,
   businessHubSpecializedTemplates: false,
   businessHubVortexAccess: true,
-  oxsteedMedia: true,
+  oxsteedMedia: false,
   discoverEverything: false,
   footerUtilityPills: true,
   genericQrGenerator: false,
@@ -77,6 +77,11 @@ export const LAUNCH_VISIBILITY = Object.freeze({
   toolRentals: true,
   vortexWorkspaceEntry: true,
 });
+
+export function isBusinessHubTabLaunched(tab) {
+  if (tab === 'media') return LAUNCH_VISIBILITY.oxsteedMedia;
+  return LAUNCH_BUSINESS_HUB_TABS.has(tab);
+}
 
 export function isLaunchSelfSelectableMode(mode) {
   return LAUNCH_SELF_SELECTABLE_MODES.includes(mode);
@@ -103,12 +108,21 @@ const LAUNCH_ROUTE_REDIRECTS = Object.freeze([
   { prefix: '/franchise', to: '/business-hub' },
 ]);
 
+function mediaLaunchRedirect(pathname) {
+  if (!LAUNCH_VISIBILITY.oxsteedMedia && (pathname === '/media' || pathname.startsWith('/media/'))) {
+    return '/';
+  }
+  return null;
+}
+
 function matchesPathPrefix(pathname, prefix) {
   return pathname === prefix || pathname.startsWith(`${prefix}/`);
 }
 
 export function getLaunchRedirect(pathname = '/') {
   const normalizedPath = pathname.startsWith('/') ? pathname : `/${pathname}`;
+  const mediaRedirect = mediaLaunchRedirect(normalizedPath);
+  if (mediaRedirect) return mediaRedirect;
   if (/^\/orders\/[^/]+(?:\/|$)/.test(normalizedPath)) return '/orders';
   const specialtyMatch = normalizedPath.match(
     /^\/business\/([^/]+)\/(?:maintenance-request|trades-request|beauty-intake|creative-intake|professional-intake|continuity-intake|ai-preview)(?:\/|$)/,

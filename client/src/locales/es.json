@@ -14119,7 +14119,13 @@
         "metaTitle": "Cómo comenzar con OxSteed",
         "metaDescription": "Elige el camino de OxSteed que corresponde a tu rol."
       },
-      "media": "OxSteed Media"
+      "media": {
+        "title": "OxSteed Media",
+        "description": "Publica en local, enlaza restaurantes y negocios, responde en hilos y descubre publicaciones cercanas.",
+        "eyebrow": "Medios locales",
+        "metaTitle": "Cómo funciona OxSteed Media",
+        "metaDescription": "Cómo ayudantes, negocios y restaurantes verificados comparten publicaciones con enlaces en OxSteed."
+      }
     },
     "steps": {
       "discover": {
@@ -14333,6 +14339,10 @@
       },
       "openDirect": {
         "title": "Iniciar una solicitud Direct"
+      },
+      "openMedia": {
+        "title": "Abrir OxSteed Media",
+        "description": "Explora publicaciones locales, sigue creadores y abre restaurantes o negocios enlazados."
       },
       "directQuotes": {
         "title": "Ver una cotización Direct"
@@ -20142,6 +20152,10 @@
     "restaurants": {
       "title": "Local Food Directory",
       "hint": "Herramientas de nivel franquicia para restaurantes independientes"
+    },
+    "media": {
+      "title": "OxSteed Media",
+      "hint": "Publicaciones locales, enlaces y descubrimiento para la economía OxSteed"
     },
     "logistics": {
       "title": "Logística OxSteed",
@@ -30349,6 +30363,15 @@
       },
       "declineWork": "Rechazar trabajo"
     },
+    "admin": {
+      "csamTakedownTitle": "Retirada por coincidencia CSAM de Cloudflare",
+      "csamTakedownHint": "Pega la URL pública completa del correo diario de CSAM de Cloudflare. OxSteed pone el activo en cuarentena, retira la publicación y registra una auditoría.",
+      "csamTakedownUrl": "URL pública del medio",
+      "csamTakedownNote": "Nota interna (opcional)",
+      "csamTakedownSubmit": "Poner en cuarentena por URL",
+      "csamTakedownSuccess": "Medio en cuarentena y retirado de la vista pública.",
+      "csamTakedownError": "No se pudo poner en cuarentena esa URL. Comprueba que el host coincida con MEDIA_CLOUDFLARE_HOST."
+    },
     "actor": {
       "follow": "Seguir",
       "unfollow": "Dejar de seguir",
@@ -30361,6 +30384,12 @@
       "notFound": "No se encontró el perfil.",
       "noPosts": "Aún no hay publicaciones.",
       "loadError": "No se pudo cargar esta cuenta. Inténtalo de nuevo."
+    },
+    "guestSignIn": {
+      "title": "Inicia sesión para continuar",
+      "body": "Crea una cuenta o inicia sesión para usar esta acción y volver aquí después.",
+      "signIn": "Iniciar sesión",
+      "cancel": "Ahora no"
     },
     "shell": {
       "navigation": "Navegación de Media",
@@ -30400,6 +30429,7 @@
       "noReplies": "Aún no hay respuestas.",
       "verified": "Verificado",
       "views": "vistas",
+      "showMore": "Mostrar más",
       "reply": "Responder",
       "like": "Me gusta",
       "bookmark": "Guardar",

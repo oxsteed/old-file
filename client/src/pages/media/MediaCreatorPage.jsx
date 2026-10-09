@@ -6,10 +6,17 @@ import { useAuth } from '../../context/AuthContext';
 import { acceptCreatorApplication, declineCreatorApplication, cancelCreatorBoost, getCreatorWorkReviews, getMyCreatorGigs, requestCreatorSponsorshipChanges } from '../../api/media';
 import { DEFAULT_CREDIT_CURRENCIES, getCreditMinorUnits, parseCreditMajorAmount } from '../../lib/creditCurrency';
 import { trapMediaDialogFocus } from './mediaDialogFocus';
+import { useMediaGuestGate } from './MediaGuestGate';
 
 export default function MediaCreatorPage() {
   const { t, i18n } = useTranslation();
   const { user } = useAuth();
+  const { requireLogin } = useMediaGuestGate();
+  const ensureAuth = () => {
+    if (user) return true;
+    requireLogin(`${window.location.pathname}${window.location.search}`);
+    return false;
+  };
   const [gigs, setGigs] = useState([]);
   const [ownedGigs, setOwnedGigs] = useState([]);
   const [sponsorships, setSponsorships] = useState([]);
@@ -305,13 +312,18 @@ export default function MediaCreatorPage() {
           <div className="media-creator-gig-heading"><div><h2>{gig.title}</h2><p>{gig.owner_name || gig.owner_handle}</p></div><strong>{amountText(gig.budget_cents, gig.currency_code)}</strong></div>
           <p>{gig.brief}</p>
           <p>{statusLabel(gig.status || 'open')}</p>
-          {user && <div className="media-creator-actions">
-            {String(gig.owner_user_id) !== String(user.id) && <button type="button" className="media-primary-button" onClick={() => { setSelected(gig); setPitch(''); setProposedCents(majorText(gig.budget_cents, gig.currency_code)); setSubmitted(false); }}>{t('media.creator.apply')}</button>}
-            {String(gig.owner_user_id) !== String(user.id) && <><button type="button" className="media-secondary-button" onClick={() => openSupport(gig, 'tip')}>{t('media.creator.tip')}</button>
-            <button type="button" className="media-secondary-button" onClick={() => openSupport(gig, 'sponsorship')}>{t('media.creator.sponsor')}</button></>}
-            {String(gig.owner_user_id) === String(user.id) && <button type="button" className="media-secondary-button" onClick={() => openApplications(gig)}>{t('media.creator.reviewApplications')}</button>}
-            {String(gig.owner_user_id) === String(user.id) && ['open', 'awarded', 'in_progress', 'submitted'].includes(gig.status) && <button type="button" className="media-secondary-button" onClick={() => cancelGig(gig.id)} disabled={submitting || openReview('gig', gig.id)}>{t('media.creator.cancel', { defaultValue: 'Cancel' })}</button>}
-          </div>}
+          {String(gig.owner_user_id) !== String(user?.id) ? (
+            <div className="media-creator-actions">
+              <button type="button" className="media-primary-button" onClick={() => { if (!ensureAuth()) return; setSelected(gig); setPitch(''); setProposedCents(majorText(gig.budget_cents, gig.currency_code)); setSubmitted(false); }}>{t('media.creator.apply')}</button>
+              <button type="button" className="media-secondary-button" onClick={() => { if (!ensureAuth()) return; openSupport(gig, 'tip'); }}>{t('media.creator.tip')}</button>
+              <button type="button" className="media-secondary-button" onClick={() => { if (!ensureAuth()) return; openSupport(gig, 'sponsorship'); }}>{t('media.creator.sponsor')}</button>
+            </div>
+          ) : user ? (
+            <div className="media-creator-actions">
+              <button type="button" className="media-secondary-button" onClick={() => openApplications(gig)}>{t('media.creator.reviewApplications')}</button>
+              {['open', 'awarded', 'in_progress', 'submitted'].includes(gig.status) && <button type="button" className="media-secondary-button" onClick={() => cancelGig(gig.id)} disabled={submitting || openReview('gig', gig.id)}>{t('media.creator.cancel', { defaultValue: 'Cancel' })}</button>}
+            </div>
+          ) : null}
         </article>
       ))}</section>)}
       {!loading && user && sponsorships.length > 0 && <section className="media-creator-offers" aria-labelledby="creator-offers-title">

@@ -48,7 +48,7 @@ describeDb('Media attachment transactions in PostgreSQL', () => {
       CREATE TABLE media_post_boosts (post_id UUID,status text,starts_at timestamptz,ends_at timestamptz);
       CREATE TABLE user_blocks (blocker_id UUID,blocked_id UUID)`);
     // Actual migration DDL and constraints, isolated from all shared fixtures.
-    for (const number of [709, 731, 732, 735, 736, 742, 743, 744]) {
+    for (const number of [709, 731, 732, 735, 736, 742, 743, 744, 754]) {
       const dir = path.resolve(__dirname, '../migrations');
       const file = fs.readdirSync(dir).find((name) => name.startsWith(`${number}_`));
       await db.query(fs.readFileSync(path.join(dir, file), 'utf8'));

@@ -14119,7 +14119,13 @@
         "metaTitle": "Commencer avec OxSteed",
         "metaDescription": "Choisissez le parcours OxSteed qui correspond à votre rôle."
       },
-      "media": "OxSteed Media"
+      "media": {
+        "title": "OxSteed Media",
+        "description": "Publiez localement, liez restaurants et entreprises, répondez dans les fils et découvrez des posts proches.",
+        "eyebrow": "Médias locaux",
+        "metaTitle": "Comment fonctionne OxSteed Media",
+        "metaDescription": "Comment les aidants, entreprises et restaurants vérifiés partagent des posts avec des liens OxSteed."
+      }
     },
     "steps": {
       "discover": {
@@ -14333,6 +14339,10 @@
       },
       "openDirect": {
         "title": "Démarrer une demande Direct"
+      },
+      "openMedia": {
+        "title": "Ouvrir OxSteed Media",
+        "description": "Parcourez les posts locaux, suivez des créateurs et ouvrez les restaurants ou entreprises liés."
       },
       "directQuotes": {
         "title": "Voir un devis Direct"
@@ -20142,6 +20152,10 @@
     "restaurants": {
       "title": "Local Food Directory",
       "hint": "Des outils de niveau franchise pour les restaurants indépendants"
+    },
+    "media": {
+      "title": "OxSteed Media",
+      "hint": "Posts locaux, liens et découverte pour l'économie OxSteed"
     },
     "logistics": {
       "title": "Logistique OxSteed",
@@ -30349,6 +30363,15 @@
       },
       "declineWork": "Refuser le travail"
     },
+    "admin": {
+      "csamTakedownTitle": "Retrait après correspondance CSAM Cloudflare",
+      "csamTakedownHint": "Collez l’URL publique complète de l’e-mail CSAM quotidien de Cloudflare. OxSteed met l’élément en quarantaine, retire la publication et enregistre un audit.",
+      "csamTakedownUrl": "URL publique du média",
+      "csamTakedownNote": "Note interne (facultatif)",
+      "csamTakedownSubmit": "Mettre en quarantaine via l’URL",
+      "csamTakedownSuccess": "Média mis en quarantaine et retiré de la vue publique.",
+      "csamTakedownError": "Impossible de mettre cette URL en quarantaine. Vérifiez que l’hôte correspond à MEDIA_CLOUDFLARE_HOST."
+    },
     "actor": {
       "follow": "Suivre",
       "unfollow": "Ne plus suivre",
@@ -30361,6 +30384,12 @@
       "notFound": "Profil introuvable.",
       "noPosts": "Aucune publication pour le moment.",
       "loadError": "Impossible de charger ce compte. Réessayez."
+    },
+    "guestSignIn": {
+      "title": "Connectez-vous pour continuer",
+      "body": "Créez un compte ou connectez-vous pour effectuer cette action et revenir ici ensuite.",
+      "signIn": "Se connecter",
+      "cancel": "Pas maintenant"
     },
     "shell": {
       "navigation": "Navigation Media",
@@ -30400,6 +30429,7 @@
       "noReplies": "Aucune réponse pour le moment.",
       "verified": "Vérifié",
       "views": "vues",
+      "showMore": "Afficher plus",
       "reply": "Répondre",
       "like": "J’aime",
       "bookmark": "Enregistrer",

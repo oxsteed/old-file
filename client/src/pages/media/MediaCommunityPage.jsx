@@ -5,11 +5,13 @@ import { useTranslation } from 'react-i18next';
 import { getCommunity, joinCommunity, leaveCommunity } from '../../api/media';
 import { useAuth } from '../../context/AuthContext';
 import MediaPostCard from './MediaPostCard';
+import { useMediaGuestGate } from './MediaGuestGate';
 
 export default function MediaCommunityPage() {
   const { t } = useTranslation();
   const { slug } = useParams();
   const { user } = useAuth();
+  const { requireLogin } = useMediaGuestGate();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -74,7 +76,9 @@ export default function MediaCommunityPage() {
             {community.joined ? t('media.spaces.leave') : t('media.spaces.join')}
           </button>
         ) : (
-          <Link to="/login" className="media-text-button">{t('media.spaces.signInToJoin')}</Link>
+          <button type="button" className="media-text-button" onClick={() => requireLogin(`/media/communities/${slug}`)}>
+            {t('media.spaces.signInToJoin')}
+          </button>
         )}
       </header>
       <div className="media-community-posts">

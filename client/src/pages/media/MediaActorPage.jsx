@@ -5,12 +5,14 @@ import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../context/AuthContext';
 import { getActor, toggleFollow } from '../../api/media';
 import MediaPostCard from './MediaPostCard';
+import { useMediaGuestGate } from './MediaGuestGate';
 
 export default function MediaActorPage() {
   const { handle: routeHandle } = useParams();
   const handle = routeHandle?.replace(/^@/, '') || '';
   const { t } = useTranslation();
   const { user } = useAuth();
+  const { requireLogin } = useMediaGuestGate();
   const [actor, setActor] = useState(null);
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -82,9 +84,13 @@ export default function MediaActorPage() {
             {followLoading ? t('media.actor.followingAction') : actor.following ? t('media.actor.unfollow') : t('media.actor.follow')}
           </button>
         ) : !user ? (
-          <Link className="media-secondary-button media-actor-follow" to={`/login?returnTo=${encodeURIComponent(`/media/@${handle}`)}`}>
+          <button
+            type="button"
+            className="media-secondary-button media-actor-follow"
+            onClick={() => requireLogin(`/media/@${handle}`)}
+          >
             {t('media.actor.signInToFollow')}
-          </Link>
+          </button>
         ) : null}
       </div>
       {followError && <p className="media-error" role="alert">{followError}</p>}

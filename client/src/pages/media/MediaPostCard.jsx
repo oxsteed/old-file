@@ -7,6 +7,8 @@ import { createCreatorBoost, flagPost, recordShare, settleCreatorBoost, toggleLi
 import useMediaPostRealtime from '../../hooks/useMediaPostRealtime';
 import { trapMediaDialogFocus } from './mediaDialogFocus';
 import { DEFAULT_CREDIT_CURRENCIES, getCreditMinorUnits, parseCreditMajorAmount } from '../../lib/creditCurrency';
+import { mediaLinkRequiresLogin } from '../../utils/mediaLinkGuestGate';
+import { useMediaGuestGate } from './MediaGuestGate';
 
 function VerifiedBadge({ kind, label }) {
   if (!kind || kind === 'none') return null;
@@ -57,10 +59,22 @@ function QuotedMedia({ assets, label }) {
   return null;
 }
 
-export default function MediaPostCard({ post, onUpdate, onBookmarkChange }) {
+export default function MediaPostCard({
+  post,
+  onUpdate,
+  onBookmarkChange,
+  showAbsoluteTimestamp = false,
+  truncateBody = false,
+}) {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { requireLogin } = useMediaGuestGate();
+  const ensureAuth = () => {
+    if (user) return true;
+    requireLogin(`${window.location.pathname}${window.location.search}`);
+    return false;
+  };
   const [liked, setLiked] = useState(post.liked);
   const [bookmarked, setBookmarked] = useState(post.bookmarked);
   const [reposted, setReposted] = useState(!!post.reposted);
@@ -84,6 +98,10 @@ export default function MediaPostCard({ post, onUpdate, onBookmarkChange }) {
   const [boostMessage, setBoostMessage] = useState('');
   const boostTriggerRef = useRef(null);
   const boostDialogRef = useRef(null);
+  const [bodyExpanded, setBodyExpanded] = useState(false);
+  const bodyText = post.body || '';
+  const bodyTruncateAt = 280;
+  const shouldTruncateBody = truncateBody && !bodyExpanded && bodyText.length > bodyTruncateAt;
 
   useEffect(() => {
     if (!boostOpen) return undefined;
@@ -135,7 +153,7 @@ export default function MediaPostCard({ post, onUpdate, onBookmarkChange }) {
 
   const handleLike = async (e) => {
     e.preventDefault();
-    if (!user) return navigate('/login', { state: { from: window.location.pathname } });
+    if (!ensureAuth()) return;
     if (actionPending) return;
     setActionPending('like'); setActionMessage('');
     try {
@@ -154,7 +172,7 @@ export default function MediaPostCard({ post, onUpdate, onBookmarkChange }) {
 
   const handleBookmark = async (e) => {
     e.preventDefault();
-    if (!user) return navigate('/login', { state: { from: window.location.pathname } });
+    if (!ensureAuth()) return;
     if (actionPending) return;
     setActionPending('bookmark'); setActionMessage('');
     try {
@@ -174,7 +192,7 @@ export default function MediaPostCard({ post, onUpdate, onBookmarkChange }) {
 
   const handleRepost = async (e) => {
     e.preventDefault();
-    if (!user) return navigate('/login', { state: { from: window.location.pathname } });
+    if (!ensureAuth()) return;
     if (actionPending) return;
     setActionPending('repost'); setActionMessage('');
     try {
@@ -219,7 +237,7 @@ export default function MediaPostCard({ post, onUpdate, onBookmarkChange }) {
   };
 
   const handleReport = async () => {
-    if (!user) return navigate('/login', { state: { from: window.location.pathname } });
+    if (!ensureAuth()) return;
     setReporting(true);
     setReportMessage('');
     try {
@@ -235,7 +253,7 @@ export default function MediaPostCard({ post, onUpdate, onBookmarkChange }) {
   const handleBoost = async (event) => {
     event.preventDefault();
     if (boosting || boostComplete) return;
-    if (!user) return navigate('/login', { state: { from: window.location.pathname } });
+    if (!ensureAuth()) return;
     setBoosting(true); setBoostMessage('');
     try {
       const amountCents = parseCreditMajorAmount(boostAmount, boostCurrency);
@@ -270,11 +288,21 @@ export default function MediaPostCard({ post, onUpdate, onBookmarkChange }) {
           <VerifiedBadge kind={post.verified_kind} label={t('media.post.verified')} />
           <span className="media-post-handle">@{post.handle}</span>
           <span className="media-post-time">· {timeAgo(post.created_at, i18n.language)}</span>
+          {showAbsoluteTimestamp && (
+            <time className="media-post-absolute-time" dateTime={post.created_at}>
+              · {new Intl.DateTimeFormat(i18n.language || 'en', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(post.created_at))}
+            </time>
+          )}
           <span className="media-post-views">· {formatCount(viewCount)} {t('media.post.views')}</span>
         </div>
         <Link to={`/media/post/${post.id}`} className="media-post-text">
-          {post.body}
+          {shouldTruncateBody ? `${bodyText.slice(0, bodyTruncateAt)}…` : bodyText}
         </Link>
+        {shouldTruncateBody && (
+          <button type="button" className="media-text-button media-show-more" onClick={() => setBodyExpanded(true)}>
+            {t('media.post.showMore', { defaultValue: 'Show more' })}
+          </button>
+        )}
         {post.assets?.length > 0 && (
           <div className={`media-post-assets media-post-assets-${Math.min(post.assets.length, 4)}`}>
             {post.assets.map((asset) => {
@@ -307,7 +335,17 @@ export default function MediaPostCard({ post, onUpdate, onBookmarkChange }) {
               <div className="media-quoted-links">
                 <span className="media-linked-label">{t('media.post.linkedOn')}</span>
                 {post.quoted.links.map((link) => link.available && link.canonical_url ? (
-                  <Link key={link.id} to={link.canonical_url} className="media-link-chip">
+                  <Link
+                    key={link.id}
+                    to={link.canonical_url}
+                    className="media-link-chip"
+                    onClick={(event) => {
+                      if (!user && mediaLinkRequiresLogin(link)) {
+                        event.preventDefault();
+                        requireLogin(link.canonical_url);
+                      }
+                    }}
+                  >
                     <span className="media-link-name">{link.name || link.name_snapshot}</span>
                   </Link>
                 ) : (
@@ -323,7 +361,17 @@ export default function MediaPostCard({ post, onUpdate, onBookmarkChange }) {
             <div className="media-linked-row">
               {post.links.map(link => (
                 link.available && link.canonical_url ? (
-                  <Link key={link.id} to={link.canonical_url} className="media-link-chip">
+                  <Link
+                    key={link.id}
+                    to={link.canonical_url}
+                    className="media-link-chip"
+                    onClick={(event) => {
+                      if (!user && mediaLinkRequiresLogin(link)) {
+                        event.preventDefault();
+                        requireLogin(link.canonical_url);
+                      }
+                    }}
+                  >
                     <span className="media-link-type">{t(`media.post.linkTypes.${link.link_type}`, { defaultValue: link.link_type })}</span>
                     <span className="media-link-name">{link.name || link.label || link.name_snapshot}</span>
                     {(link.price_cents ?? link.price_snapshot_cents) != null && (

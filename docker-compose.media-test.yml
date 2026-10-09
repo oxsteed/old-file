@@ -28,6 +28,8 @@ services:
       CLAMAV_TIMEOUT_MS: 15000
       FILE_SCAN_REQUIRE_MALWARE: "true"
       MEDIA_CSAM_MODE: cloudflare
+      MEDIA_PUBLIC_VIDEO_INTERIM: "true"
+      OXSTEED_MEDIA_LAUNCHED: "true"
       MEDIA_VIDEO_WORKER_ENABLED: "1"
       MEDIA_VIDEO_WORKER_POLL_MS: 1000
       LOCAL_UPLOAD_DIR: /app/server/runtime/media-test-private
