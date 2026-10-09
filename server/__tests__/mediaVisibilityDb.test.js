@@ -40,8 +40,10 @@ describeDb('Media block boundaries in PostgreSQL', () => {
       CREATE TEMP TABLE media_community_members (community_id text, user_id text);
       INSERT INTO users (id) VALUES ('viewer'), ('outbound'), ('inbound'), ('allowed'), ('banned');
       UPDATE users SET is_banned = true WHERE id = 'banned';
-      INSERT INTO media_actors (id, owner_user_id, handle, display_name)
-        SELECT id, id, 'local-' || id, 'Local ' || id FROM users WHERE id <> 'viewer';
+      INSERT INTO helper_profiles (id, user_id, profile_slug)
+        SELECT 'helper-' || id, id, 'local-' || id FROM users WHERE id <> 'viewer';
+      INSERT INTO media_actors (id, owner_user_id, handle, display_name, actor_type, verified_kind)
+        SELECT id, id, 'local-' || id, 'Local ' || id, 'helper', 'identity' FROM users WHERE id <> 'viewer';
       INSERT INTO media_posts (id, actor_id, body) SELECT id, id, 'Local update' FROM media_actors;
       INSERT INTO media_communities VALUES ('town', 'local-town', 'Local town', 'Springfield', 'food');
       INSERT INTO media_community_members VALUES ('town', 'viewer');
