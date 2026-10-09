@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { createPost, getCommunities, getDraft, getDrafts, linkAsset, publishPost, searchMediaEntities, updateDraft, uploadPhoto, uploadVideo } from '../../api/media';
+import { createPost, getCommunities, getDraft, getDrafts, getMediaVerification, linkAsset, publishPost, searchMediaEntities, updateDraft, uploadPhoto, uploadVideo } from '../../api/media';
 
 const LINK_TYPES = [
   'restaurant', 'food_item', 'helper', 'business', 'job',
@@ -25,6 +25,8 @@ export default function MediaComposePage() {
   const [mediaFile, setMediaFile] = useState(null);
   const [communities, setCommunities] = useState([]);
   const [communityId, setCommunityId] = useState('');
+  const [publishers, setPublishers] = useState([]);
+  const [publisherKey, setPublisherKey] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [draftId, setDraftId] = useState(() => window.localStorage.getItem(DRAFT_STORAGE_KEY) || '');
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -37,7 +39,19 @@ export default function MediaComposePage() {
 
   useEffect(() => {
     getCommunities().then((data) => setCommunities(data.communities || [])).catch(() => {});
-  }, []);
+    getMediaVerification().then((data) => {
+      const options = [];
+      if (data.helper?.is_verified) options.push({ key: 'helper', type: 'helper', label: t('media.compose.publisherHelper', { defaultValue: 'My helper profile' }) });
+      for (const entity of data.businesses || []) {
+        if (entity.is_verified) options.push({ key: `business:${entity.id}`, type: 'business', id: entity.id, label: entity.business_name });
+      }
+      for (const entity of data.restaurants || []) {
+        if (entity.is_verified) options.push({ key: `restaurant:${entity.id}`, type: 'restaurant', id: entity.id, label: entity.display_name });
+      }
+      setPublishers(options);
+      setPublisherKey((current) => current && options.some((option) => option.key === current) ? current : (options[0]?.key || ''));
+    }).catch(() => {});
+  }, [t]);
 
   useEffect(() => {
     const storedDraftId = window.localStorage.getItem(DRAFT_STORAGE_KEY);
@@ -211,7 +225,13 @@ export default function MediaComposePage() {
     let postId = draftId;
     try {
       if (!postId) {
-        const data = await createPost({ body: body.trim(), links, community_id: communityId || undefined, draft: true });
+        const publisher = publishers.find((option) => option.key === publisherKey);
+        const publisherPayload = publisher?.type === 'business'
+          ? { business_id: publisher.id }
+          : publisher?.type === 'restaurant'
+            ? { restaurant_id: publisher.id }
+            : {};
+        const data = await createPost({ body: body.trim(), links, community_id: communityId || undefined, draft: true, ...publisherPayload });
         postId = data.post.id;
         setDraftId(postId);
         window.localStorage.setItem(DRAFT_STORAGE_KEY, postId);
@@ -349,6 +369,15 @@ export default function MediaComposePage() {
             {communities.map((community) => <option key={community.id} value={community.id}>{community.title}</option>)}
           </select>
         </label>
+        {publishers.length > 0 && (
+          <label className="media-compose-field">
+            <span>{t('media.compose.publisherLabel', { defaultValue: 'Post as' })}</span>
+            <select value={publisherKey} onChange={(event) => setPublisherKey(event.target.value)} disabled={Boolean(draftId)}>
+              {publishers.map((publisher) => <option key={publisher.key} value={publisher.key}>{publisher.label}</option>)}
+            </select>
+            {draftId && <small>{t('media.compose.publisherLocked', { defaultValue: 'The publishing identity is fixed for this draft.' })}</small>}
+          </label>
+        )}
         <label className="media-compose-field">
           <span>{t('media.compose.videoLabel')}</span>
           <input value={externalUrl} onChange={handleExternalUrlChange} placeholder={t('media.compose.videoPlaceholder')} type="url" />

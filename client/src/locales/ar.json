@@ -30441,6 +30441,9 @@
       "emptyDescription": "شارك شيئًا مفيدًا مع مجتمعك المحلي."
     },
     "compose": {
+      "publisherLabel": "النشر باسم",
+      "publisherLocked": "تم تثبيت هوية النشر لهذا المسودّة.",
+      "publisherHelper": "ملف المساعد الخاص بي",
       "title": "منشور جديد",
       "placeholder": "ما الجديد في اقتصادك المحلي؟",
       "linkedOn": "مرتبط على OxSteed",

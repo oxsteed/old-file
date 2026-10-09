@@ -45,7 +45,7 @@ checkout integration, deployment evidence and final completion decisions.
 | Owner editing/deletion | Implemented: owner endpoints and actions exist. | Real authorization/count/source propagation outstanding. | Test owner versus non-owner, quoted/reply counters and source removal. |
 | Two-way blocking and inactive authors | Incomplete: unsafe minimal fallback removed; failure preserves author/block restrictions; fresh actual SQL proof for all surfaces remains outstanding. | Existing PostgreSQL suite must run for candidate. | Execute all real PostgreSQL visibility cases and blocked target/action paths. |
 | Daily/upload/report limits | Implemented: existing rate/count controls. | Concurrent actual API limit proof outstanding. | Test simultaneous post limits and structured upload/report rejection. |
-| Linked entity selection and five-card limit | Implemented: server search and composer selection exist. | Real invalid/removed/entity ownership and currencies outstanding. | Verify all eight link types and authoritative target metadata. |
+| Linked entity selection and five-card limit | Behavior-tested: server search and composer selection exist, and the composer now chooses an explicitly owned verified business or restaurant publisher before creating a draft. | Real invalid/removed/entity ownership and currencies outstanding. | Verify all eight link types and authoritative target metadata. |
 | Public cards versus transaction login | Behavior-tested locally: all formerly intercepted guest card types now navigate to public targets; removed cards remain inert. | Browser dependencies mocked; destination transaction gates outstanding. | Verify actual public pages and login at transaction start. |
 | City/category Spaces | Implemented in current source. | Real channel filters, membership and counts outstanding. | Run actual database/browser city/category/membership matrix. |
 | In-shell notifications and messages | Implemented in current source. | Actual replies/likes/inbox links and account sessions outstanding. | Exercise existing activity systems within Media for each persona. |
@@ -902,3 +902,13 @@ maintained client contract checks pass in commit `37a909f1`. Exact-candidate
 CI run [37871436611](https://github.com/oxsteed/old-file/actions/runs/37871436611)
 is running; its terminal result and authenticated production journeys remain
 open.
+
+Explicit publisher selection batch (2026-10-09): the Media composer now loads
+the signed-in user's verified helper, business, and restaurant identities and
+requires the selected identity to remain fixed after a draft is created. The
+server accepts an explicitly owned verified restaurant or business identity,
+rejects ambiguous publisher input, and preserves the existing helper fallback
+for helper-only accounts. The focused server journey suite passes 38 tests,
+the Media client/accessibility and browser journeys pass 12 tests, and the
+full client `npm run build:ci` passes with 761 emitted assets. Real authenticated
+multi-entity production verification remains open.

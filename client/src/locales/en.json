@@ -30430,6 +30430,9 @@
       "emptyDescription": "Share something useful with your local community."
     },
     "compose": {
+      "publisherLabel": "Post as",
+      "publisherLocked": "The publishing identity is fixed for this draft.",
+      "publisherHelper": "My helper profile",
       "title": "New post",
       "placeholder": "What’s happening in your local economy?",
       "linkedOn": "Linked on OxSteed",

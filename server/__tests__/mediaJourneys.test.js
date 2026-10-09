@@ -138,6 +138,42 @@ describe('Media user journeys', () => {
     }));
   });
 
+  test('creates a draft for the explicitly selected verified restaurant entity', async () => {
+    const actor = {
+      id: 'restaurant-actor', owner_user_id: 'restaurant-owner', actor_type: 'restaurant',
+      restaurant_id: 44, business_id: 12, verified_kind: 'restaurant',
+      handle: 'corner-cafe', display_name: 'Corner Cafe', avatar_url: null,
+    };
+    const post = {
+      id: 'draft-restaurant', actor_id: actor.id, body: 'Today\'s special',
+      visibility: 'unlisted', processing_status: 'draft', csam_status: 'not_required',
+    };
+    pool.query.mockImplementation(async (sql, params) => {
+      if (sql.includes('FROM food_restaurants') && sql.includes('owner_user_id')) {
+        expect(params).toEqual(['44', 'restaurant-owner']);
+        return { rows: [{ id: 44, display_name: 'Corner Cafe', slug: 'corner-cafe', logo_url: null, business_id: 12, is_verified: true }] };
+      }
+      if (sql.includes('SELECT * FROM media_actors WHERE restaurant_id')) return { rows: [] };
+      if (sql.includes('INSERT INTO media_actors')) return { rows: [actor] };
+      if (sql.includes('COUNT(*) AS c')) return { rows: [{ c: '0' }] };
+      if (sql.includes('INSERT INTO media_posts')) return { rows: [post] };
+      if (sql.includes('SELECT * FROM media_post_links')) return { rows: [] };
+      if (sql.includes('SELECT * FROM media_post_assets')) return { rows: [] };
+      return { rows: [], rowCount: 1 };
+    });
+    const res = response();
+
+    await media.createPost({
+      user: { id: 'restaurant-owner' },
+      body: { body: "Today's special", restaurant_id: '44', draft: true },
+    }, res);
+
+    expect(res.status).toHaveBeenCalledWith(201);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ draft: true, post: expect.objectContaining({ id: 'draft-restaurant' }) }));
+    const actorInsert = pool.query.mock.calls.find(([sql]) => sql.includes('INSERT INTO media_actors'));
+    expect(actorInsert[1]).toEqual(['restaurant-owner', 44, 12, 'corner-cafe', 'Corner Cafe', null]);
+  });
+
   test('keeps like notifications distinct per liker while remaining retry-safe', async () => {
     pool.connect.mockResolvedValue({
       query: (...args) => pool.query(...args),

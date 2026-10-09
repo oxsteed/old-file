@@ -30430,6 +30430,9 @@
       "emptyDescription": "Pataje yon bagay ki itil ak kominote lokal ou a."
     },
     "compose": {
+      "publisherLabel": "Pibliye kòm",
+      "publisherLocked": "Idantite piblikasyon an fikse pou bouyon sa a.",
+      "publisherHelper": "Pwofil èd mwen",
       "title": "Nouvo pòs",
       "placeholder": "Kisa k ap pase nan ekonomi lokal ou a?",
       "linkedOn": "Lyen sou OxSteed",

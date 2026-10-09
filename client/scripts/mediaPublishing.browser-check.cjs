@@ -11,6 +11,7 @@ const mocks = {
   '../../context/AuthContext': `export const useAuth = () => ({ user: null });`,
   '../../api/media': `const call = (name, args) => { window.calls.push({ name, args }); };
     export const getCommunities = async () => ({ communities: [] });
+    export const getMediaVerification = async () => ({ helper: { is_verified: true }, businesses: [], restaurants: [] });
     export const getDrafts = async () => ({ drafts: window.draft ? [window.draft] : [] });
     export const getDraft = async () => ({ draft: { ...window.draft, processing_status: 'ready' } });
     export const searchMediaEntities = async () => ({ entities: [] });

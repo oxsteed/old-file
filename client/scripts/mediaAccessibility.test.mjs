@@ -64,3 +64,11 @@ test('Media search keeps account navigation inside the Media shell', () => {
 test('Media cards prefer authoritative live entity names over saved labels', () => {
   assert.match(postCard, /link\.name \|\| link\.label \|\| link\.name_snapshot/);
 });
+
+test('Media composer lets verified owners choose the represented publisher entity', () => {
+  assert.match(compose, /getMediaVerification/);
+  assert.match(compose, /restaurant_id: publisher\.id/);
+  assert.match(compose, /business_id: publisher\.id/);
+  assert.match(compose, /publisherLabel/);
+  assert.match(compose, /disabled={Boolean\(draftId\)}/);
+});

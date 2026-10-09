@@ -30430,6 +30430,9 @@
       "emptyDescription": "Comparte algo útil con tu comunidad local."
     },
     "compose": {
+      "publisherLabel": "Publicar como",
+      "publisherLocked": "La identidad de publicación queda fijada para este borrador.",
+      "publisherHelper": "Mi perfil de ayudante",
       "title": "Nueva publicación",
       "placeholder": "¿Qué ocurre en tu economía local?",
       "linkedOn": "Vinculado en OxSteed",

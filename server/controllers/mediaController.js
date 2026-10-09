@@ -994,9 +994,14 @@ async function getQuotes(req, res) {
 async function createPost(req, res) {
   try {
     const userId = req.user.id;
-    const businessId = req.body?.business_id ? parseInt(req.body.business_id, 10) : null;
+    const businessId = req.body?.business_id ? String(req.body.business_id).trim() : null;
+    const restaurantId = req.body?.restaurant_id ? String(req.body.restaurant_id).trim() : null;
     const { body, parent_id, quoted_post_id, links, community_id } = req.body;
     const isDraft = req.body?.draft === true;
+
+    if (businessId && restaurantId) {
+      return res.status(400).json({ error: 'Choose one publishing entity.', code: 'media_publisher_ambiguous' });
+    }
 
     if (isDraft && (parent_id || quoted_post_id)) {
       return res.status(400).json({ error: 'Replies and quote posts cannot be saved as drafts', code: 'media_draft_target_invalid' });
@@ -1008,7 +1013,7 @@ async function createPost(req, res) {
       const { rows: biz } = await pool.query(
         `SELECT id, business_name, profile_slug, logo_url, is_business_verified
            FROM businesses
-          WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL
+          WHERE id::text = $1 AND user_id = $2 AND deleted_at IS NULL
             AND is_business_verified = TRUE`,
         [businessId, userId]
       );
@@ -1028,6 +1033,33 @@ async function createPost(req, res) {
           `INSERT INTO media_actors (actor_type, owner_user_id, business_id, handle, display_name, avatar_url, verified_kind)
            VALUES ('business', $1, $2, $3, $4, $5, 'business') RETURNING *`,
           [userId, businessId, biz[0].profile_slug || `business-${businessId}`, biz[0].business_name, biz[0].logo_url]
+        );
+        actor = created[0];
+      }
+    } else if (restaurantId) {
+      const { rows: restaurants } = await pool.query(
+        `SELECT id, display_name, slug, logo_url, business_id, is_verified
+           FROM food_restaurants
+          WHERE id::text = $1 AND owner_user_id = $2
+            AND status <> 'suspended' AND is_verified = TRUE`,
+        [restaurantId, userId]
+      );
+      const restaurant = restaurants[0];
+      if (!restaurant) return res.status(403).json({ error: 'Not authorized for this restaurant', code: 'media_publisher_not_verified' });
+      const { rows: actors } = await pool.query(
+        `SELECT * FROM media_actors WHERE restaurant_id = $1 AND actor_type = 'restaurant'`,
+        [restaurant.id]
+      );
+      if (actors[0]) {
+        if (String(actors[0].owner_user_id) !== String(userId)) {
+          return res.status(403).json({ error: 'The Media actor is not owned by this restaurant owner', code: 'media_post_forbidden' });
+        }
+        actor = actors[0];
+      } else {
+        const { rows: created } = await pool.query(
+          `INSERT INTO media_actors (actor_type, owner_user_id, restaurant_id, business_id, handle, display_name, avatar_url, verified_kind)
+           VALUES ('restaurant', $1, $2, $3, $4, $5, $6, 'restaurant') RETURNING *`,
+          [userId, restaurant.id, restaurant.business_id || null, restaurant.slug || `restaurant-${restaurant.id}`, restaurant.display_name, restaurant.logo_url]
         );
         actor = created[0];
       }

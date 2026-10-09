@@ -30430,6 +30430,9 @@
       "emptyDescription": "Partagez quelque chose d’utile avec votre communauté locale."
     },
     "compose": {
+      "publisherLabel": "Publier en tant que",
+      "publisherLocked": "L’identité de publication est fixée pour ce brouillon.",
+      "publisherHelper": "Mon profil d’aide",
       "title": "Nouvelle publication",
       "placeholder": "Quoi de neuf dans votre économie locale ?",
       "linkedOn": "Lié sur OxSteed",
