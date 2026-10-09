@@ -7,9 +7,10 @@ import test from 'node:test';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const source = fs.readFileSync(path.join(root, 'src/pages/media/MediaNotificationsPage.jsx'), 'utf8');
 
-test('Media notification rows are keyboard operable', () => {
+test('Media notification rows are native accessible actions inside a list', () => {
   assert.match(source, /role="listitem"/);
-  assert.match(source, /tabIndex="0"/);
+  assert.match(source, /<button\s+type="button"/);
   assert.match(source, /aria-label=\{notification\.title\}/);
-  assert.match(source, /event\.key === 'Enter' \|\| event\.key === ' '/);
+  assert.match(source, /aria-describedby=\{notification\.body \? bodyId : undefined\}/);
+  assert.doesNotMatch(source, /event\.key === 'Enter' \|\| event\.key === ' '/);
 });

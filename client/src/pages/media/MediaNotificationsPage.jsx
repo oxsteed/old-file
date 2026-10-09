@@ -87,35 +87,34 @@ export default function MediaNotificationsPage() {
         <div className="media-notification-list" role="list">
           {notifications.map((notification) => {
             const unread = !notification.is_read && !notification.read_at;
+            const bodyId = `media-notification-body-${notification.id}`;
+            const activateNotification = () => {
+              if (unread) markAsRead(notification.id);
+              if (notification.action_url) navigate(notification.action_url);
+            };
             return (
-              <article
+              <div
                 key={notification.id}
-                className={`media-notification-row${unread ? ' unread' : ''}`}
                 role="listitem"
-                tabIndex="0"
-                aria-label={notification.title}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter' || event.key === ' ') {
-                    event.preventDefault();
-                    if (unread) markAsRead(notification.id);
-                    if (notification.action_url) navigate(notification.action_url);
-                  }
-                }}
-                onClick={() => {
-                  if (unread) markAsRead(notification.id);
-                  if (notification.action_url) navigate(notification.action_url);
-                }}
               >
-                <span className="media-notification-icon" aria-hidden="true">
-                  {ICONS[notification.type] || '🔔'}
-                </span>
-                <div className="media-notification-body">
-                  <h2>{notification.title}</h2>
-                  {notification.body && <p>{notification.body}</p>}
-                  <time dateTime={notification.created_at}>{notificationTime(notification.created_at, i18n.language)}</time>
-                </div>
-                {unread && <span className="media-notification-dot" aria-label={t('media.notifications.unreadLabel')} />}
-              </article>
+                <button
+                  type="button"
+                  className={`media-notification-row${unread ? ' unread' : ''}`}
+                  aria-label={notification.title}
+                  aria-describedby={notification.body ? bodyId : undefined}
+                  onClick={activateNotification}
+                >
+                  <span className="media-notification-icon" aria-hidden="true">
+                    {ICONS[notification.type] || '🔔'}
+                  </span>
+                  <span className="media-notification-body">
+                    <span className="media-notification-title">{notification.title}</span>
+                    {notification.body && <span className="media-notification-description" id={bodyId}>{notification.body}</span>}
+                    <time dateTime={notification.created_at}>{notificationTime(notification.created_at, i18n.language)}</time>
+                  </span>
+                  {unread && <span className="media-notification-dot" aria-label={t('media.notifications.unreadLabel')} />}
+                </button>
+              </div>
             );
           })}
         </div>
