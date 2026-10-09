@@ -1,10 +1,26 @@
 # OxSteed Media execution and verification plan
 
-The user approved execution on 2026-10-08. The goal is active. Use one agent,
-retain all existing work, and finish MVP, v2 and v3 in the same effort. The
-authoritative requirements and evidence matrix are in
+The user approved execution on 2026-10-08. The goal is active. Up to four
+agents may work in parallel, with the primary agent coordinating integration,
+non-overlapping file ownership and release evidence. Retain all existing work
+and finish MVP, v2 and v3 in the same effort. The authoritative requirements
+and evidence matrix are in
 `docs/oxsteed-media-completion-goal.md`; earlier narrative entries there are
 historical observations, not current completion claims.
+
+## Parallel batch rules
+
+- Split work into independent, reviewable batches. Agents may inspect and
+  implement separate workstreams concurrently, but they must not edit the same
+  files or migrations without coordination.
+- Each batch still gets focused checks, one coherent commit and one push. Keep
+  unrelated scratch files untracked and reconcile the shared checkout before
+  staging.
+- CI runs asynchronously. Do not wait for an earlier CI check before sending
+  the next ready batch. Record each run against its commit and address failures
+  in the next corrective batch; never describe an unfinished run as passing.
+- The primary agent owns final integration, deployment checks, requirement
+  evidence and the decision that the combined goal is complete.
 
 ## Batch 1: repeatable verification baseline
 
@@ -76,9 +92,11 @@ refund/dispute handling.
 ## Release verification
 
 Run focused behavioral tests after each subsystem; run the full client build once
-per integrated batch. Push code and evidence together. Check GitHub billing and
-deployment access once at each release checkpoint. Continue independent work
-when unavailable; do not substitute a previous commit's green CI for this one.
+per integrated batch. Push code and evidence together. Start CI for each pushed
+batch, but allow the next ready batch to proceed without waiting for that run
+to finish. Check GitHub billing and deployment access once at each release
+checkpoint. Continue independent work when unavailable; do not substitute a
+previous commit's green CI for an unfinished or different commit.
 
 For the final candidate, execute full client/server suites, real database
 journeys, migration rehearsal, desktop/mobile browser matrix, five languages,

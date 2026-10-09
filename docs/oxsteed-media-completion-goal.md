@@ -10,6 +10,13 @@ exists; **behavior-tested** means the specified behavior actually ran;
 partial implementations and missing verification. No row below is marked
 verified live for the new candidate. A historical test count is not proof.
 
+Execution directive (2026-10-08): up to four agents may work in parallel on
+non-overlapping batches. Each batch must run focused checks, produce one
+coherent commit and push, and record its CI run. A ready batch may be pushed
+without waiting for an earlier CI run to finish; unfinished CI remains
+explicitly unverified until it completes. The primary agent coordinates shared
+checkout integration, deployment evidence and final completion decisions.
+
 ### Current requirement-level work and evidence
 
 | Requirement | State and implementation / behavioral evidence | Deployment / dependency | Next exact action |
@@ -68,7 +75,7 @@ verified live for the new candidate. A historical test count is not proof.
 | Atomic accounting/precision/fees/isolation | Incomplete for marketplace: shared rail safeguards exist, transitions are not fully atomic with payment. | Real isolated conservation/races/currency cases required. | Add transactional marketplace service and accounting behavior suites. |
 | Migration upgrade and repeat application | Implemented: new 742, 743, 744 and 746 filenames follow inspected predecessors; 746 adds creator payment reservation/transaction links and delivery metadata. | Actual 746 migration execution is pending hosted CI/deployment. | Rehearse against disposable upgraded schema and repeat without data changes. |
 | Cloudflare interim and deferred Thorn | Implemented: retained explicit interim status; no synthetic vendor clearance. | Real runtime/public-delivery proof outstanding. | Keep honest policy disclosures and future vendor switch tests. |
-| Passing exact-candidate CI | Behavior-verified: candidate `95e844cb` passed CI run `37842488994`; the full server/client job and the PostgreSQL migration rehearsal both passed. | Hosted CI is available again; authenticated production behavior is still separate evidence. | Keep the run linked to the batch and require a new passing run before each later push. |
+| Passing exact-candidate CI | Behavior-verified: candidate `95e844cb` passed CI run `37842488994`; the full server/client job and the PostgreSQL migration rehearsal both passed. | Hosted CI is available again; authenticated production behavior is still separate evidence. | Link every pushed batch to its own CI run; later ready batches may proceed while earlier runs are still in progress. |
 | Exact deployed release/readiness/schema/assets | Behavior-verified live after the candidate checkpoint: `/ready` and `/health` returned 200; `/ready` reported release `content-94eb0730a824dca6`, migrations `747/747`, no pending/unexpected migrations, healthy database/Redis/Credit/realtime/workers; Media feed and capabilities returned 200. | Coolify release metadata does not expose the git SHA, so exact commit-to-image identity remains unavailable. | Obtain release SHA or reproducible asset identity from deployment metadata and verify authenticated journeys. |
 | Authenticated production/real-device matrix | Incomplete. | Signed-in helper/business/restaurant/admin and real device access outstanding. | Capture full non-financial production journeys; reconcile finance read-only. |
 
