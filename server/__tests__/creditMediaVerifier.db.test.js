@@ -220,6 +220,99 @@ describeDatabase('section 5 media credit verifier', () => {
     return rows[0].n;
   }
 
+  async function createCreatorActor(ownerUserId) {
+    const actorId = crypto.randomUUID();
+    await pool.query(
+      `INSERT INTO media_actors (id, actor_type, owner_user_id, handle, display_name, verified_kind)
+       VALUES ($1, 'user', $2, $3, 'Verifier Creator', 'identity')`,
+      [actorId, ownerUserId, `verifier-actor-${tag()}`]
+    );
+    return actorId;
+  }
+
+  async function seedDeliveredGig({
+    gigId,
+    ownerUserId,
+    creatorUserId,
+    amountCents,
+    currencyCode = 'USD',
+  }) {
+    const id = gigId || crypto.randomUUID();
+    const ownerActorId = await createCreatorActor(ownerUserId);
+    const creatorActorId = await createCreatorActor(creatorUserId);
+    await pool.query(
+      `INSERT INTO media_creator_gigs
+         (id, owner_user_id, owner_actor_id, title, brief, budget_cents, currency_code, status, award_amount_cents)
+       VALUES ($1, $2, $3, 'Verifier gig', 'Verifier brief', $4, $5, 'awarded', $4)`,
+      [id, ownerUserId, ownerActorId, amountCents, currencyCode]
+    );
+    await pool.query(
+      `INSERT INTO media_creator_applications
+         (gig_id, applicant_user_id, applicant_actor_id, pitch, proposed_cents, status)
+       VALUES ($1, $2, $3, 'Verifier pitch', $4, 'delivered')`,
+      [id, creatorUserId, creatorActorId, amountCents]
+    );
+    return id;
+  }
+
+  async function seedDeliveredSponsorship({
+    sponsorshipId,
+    sponsorUserId,
+    creatorUserId,
+    amountCents,
+    currencyCode = 'USD',
+  }) {
+    const id = sponsorshipId || crypto.randomUUID();
+    const creatorActorId = await createCreatorActor(creatorUserId);
+    await pool.query(
+      `INSERT INTO media_creator_sponsorships
+         (id, sponsor_user_id, creator_actor_id, brief, amount_cents, currency_code, status, idempotency_key)
+       VALUES ($1, $2, $3, 'Verifier sponsorship brief', $4, $5, 'delivered', $6)`,
+      [id, sponsorUserId, creatorActorId, amountCents, currencyCode, `verifier-sponsor-${id}`]
+    );
+    return id;
+  }
+
+  async function seedPendingTip({
+    tipId,
+    fromUserId,
+    creatorUserId,
+    amountCents,
+    currencyCode = 'USD',
+  }) {
+    const id = tipId || crypto.randomUUID();
+    const creatorActorId = await createCreatorActor(creatorUserId);
+    await pool.query(
+      `INSERT INTO media_creator_tips
+         (id, from_user_id, creator_actor_id, amount_cents, currency_code, status, idempotency_key)
+       VALUES ($1, $2, $3, $4, $5, 'pending_credit', $6)`,
+      [id, fromUserId, creatorActorId, amountCents, currencyCode, `verifier-tip-${id}`]
+    );
+    return id;
+  }
+
+  async function seedPendingBoost({
+    boostId,
+    purchaserUserId,
+    amountCents,
+    currencyCode = 'USD',
+  }) {
+    const id = boostId || crypto.randomUUID();
+    const actorId = await createCreatorActor(purchaserUserId);
+    const { rows: [post] } = await pool.query(
+      `INSERT INTO media_posts (actor_id, body, visibility, processing_status, csam_status)
+       VALUES ($1, 'Verifier boost post', 'public', 'ready', 'passed') RETURNING id`,
+      [actorId]
+    );
+    await pool.query(
+      `INSERT INTO media_post_boosts
+         (id, post_id, purchaser_user_id, amount_cents, currency_code, status, idempotency_key)
+       VALUES ($1, $2, $3, $4, $5, 'pending_credit', $6)`,
+      [id, post.id, purchaserUserId, amountCents, currencyCode, `verifier-boost-${id}`]
+    );
+    return id;
+  }
+
   beforeAll(async () => {
     adminId = await createUser('admin', `admin-${tag()}`);
     await getTreasury();
@@ -243,7 +336,7 @@ describeDatabase('section 5 media credit verifier', () => {
     const totalBefore = before[treasury].balance + before[buyer.walletId].balance + before[creator.walletId].balance;
 
     const client = await pool.connect();
-    const gigRef = `verifier-gig-${tag()}`;
+    const gigRef = crypto.randomUUID();
     try {
       await client.query('BEGIN');
       const reservation = await reserveFunds(client, {
@@ -260,6 +353,13 @@ describeDatabase('section 5 media credit verifier', () => {
       const afterReserve = await balances([buyer.walletId]);
       expect(afterReserve[buyer.walletId].reserved).toBe(20000n);
       expect(afterReserve[buyer.walletId].balance).toBe(before[buyer.walletId].balance);
+
+      await seedDeliveredGig({
+        gigId: gigRef,
+        ownerUserId: buyer.customerId,
+        creatorUserId: creator.customerId,
+        amountCents: 20000,
+      });
 
       // Settlement moves funds buyer -> creator through a balanced journal tx.
       const settled = await creditService.settleCreatorCredit({
@@ -307,7 +407,11 @@ describeDatabase('section 5 media credit verifier', () => {
     const totalBefore = before[treasury].balance + before[buyer.walletId].balance
       + before[creator.walletId].balance + revenueBefore[revenueId].balance;
 
-    const tipRef = `verifier-tip-${tag()}`;
+    const tipRef = await seedPendingTip({
+      fromUserId: buyer.customerId,
+      creatorUserId: creator.customerId,
+      amountCents: 1500,
+    });
     const tip = await creditService.settleCreatorCredit({
       senderCustomerId: buyer.customerId,
       recipientCustomerId: creator.customerId,
@@ -321,7 +425,10 @@ describeDatabase('section 5 media credit verifier', () => {
     });
     expect(tip.transaction.status).toBe('posted');
 
-    const boostRef = `verifier-boost-${tag()}`;
+    const boostRef = await seedPendingBoost({
+      purchaserUserId: buyer.customerId,
+      amountCents: 3000,
+    });
     const boost = await creditService.chargeCreatorBoost({
       senderCustomerId: buyer.customerId,
       amountCents: 3000,
@@ -353,7 +460,11 @@ describeDatabase('section 5 media credit verifier', () => {
     const buyer = await createWallet('USD', 100000);
     const creator = await createWallet('USD', 0);
     const key = `verifier-replay-${tag()}`;
-    const gigRef = `verifier-gig-${tag()}`;
+    const gigRef = await seedDeliveredGig({
+      ownerUserId: buyer.customerId,
+      creatorUserId: creator.customerId,
+      amountCents: 5000,
+    });
 
     const first = await creditService.settleCreatorCredit({
       senderCustomerId: buyer.customerId,
@@ -391,7 +502,11 @@ describeDatabase('section 5 media credit verifier', () => {
     const buyer = await createWallet('USD', 100000);
     const creator = await createWallet('USD', 0);
     const key = `verifier-conflict-${tag()}`;
-    const gigRef = `verifier-gig-${tag()}`;
+    const gigRef = await seedDeliveredGig({
+      ownerUserId: buyer.customerId,
+      creatorUserId: creator.customerId,
+      amountCents: 5000,
+    });
 
     await creditService.settleCreatorCredit({
       senderCustomerId: buyer.customerId,
@@ -426,7 +541,11 @@ describeDatabase('section 5 media credit verifier', () => {
     const buyer = await createWallet('USD', 100000);
     const creator = await createWallet('USD', 0);
     const key = `verifier-race-${tag()}`;
-    const gigRef = `verifier-gig-${tag()}`;
+    const gigRef = await seedDeliveredGig({
+      ownerUserId: buyer.customerId,
+      creatorUserId: creator.customerId,
+      amountCents: 4000,
+    });
 
     const attempts = await Promise.allSettled(
       Array.from({ length: 8 }, () => creditService.settleCreatorCredit({
@@ -511,6 +630,10 @@ describeDatabase('section 5 media credit verifier', () => {
     const revenueId = await getRevenueAccount('USD');
     const before = await balances([revenueId]);
     const key = `verifier-boost-idem-${tag()}`;
+    const boostRef = await seedPendingBoost({
+      purchaserUserId: buyer.customerId,
+      amountCents: 2500,
+    });
 
     const first = await creditService.chargeCreatorBoost({
       senderCustomerId: buyer.customerId,
@@ -518,7 +641,7 @@ describeDatabase('section 5 media credit verifier', () => {
       currencyCode: 'USD',
       idempotencyKey: key,
       actorUserId: buyer.customerId,
-      referenceId: `verifier-boost-${tag()}`,
+      referenceId: boostRef,
       description: 'Verifier boost idempotency',
     });
     const second = await creditService.chargeCreatorBoost({
@@ -527,7 +650,7 @@ describeDatabase('section 5 media credit verifier', () => {
       currencyCode: 'USD',
       idempotencyKey: key,
       actorUserId: buyer.customerId,
-      referenceId: `verifier-boost-${tag()}`,
+      referenceId: boostRef,
       description: 'Verifier boost idempotency',
     });
     expect(second.replayed).toBe(true);
@@ -584,7 +707,11 @@ describeDatabase('section 5 media credit verifier', () => {
   test('dispute compensation is capped, balanced, and posted once', async () => {
     const buyer = await createWallet('USD', 100000);
     const creator = await createWallet('USD', 0);
-    const gigRef = `verifier-gig-${tag()}`;
+    const gigRef = await seedDeliveredGig({
+      ownerUserId: buyer.customerId,
+      creatorUserId: creator.customerId,
+      amountCents: 8000,
+    });
     const settled = await creditService.settleCreatorCredit({
       senderCustomerId: buyer.customerId,
       recipientCustomerId: creator.customerId,
@@ -664,7 +791,11 @@ describeDatabase('section 5 media credit verifier', () => {
     );
     const subBankId = Number(subBank.id);
 
-    const gigRef = `verifier-gig-${tag()}`;
+    const gigRef = await seedDeliveredGig({
+      ownerUserId: buyer.customerId,
+      creatorUserId: creator.customerId,
+      amountCents: 6000,
+    });
     await creditService.settleCreatorCredit({
       senderCustomerId: buyer.customerId,
       recipientCustomerId: creator.customerId,
@@ -676,13 +807,17 @@ describeDatabase('section 5 media credit verifier', () => {
       referenceId: gigRef,
       description: 'Verifier isolation settlement',
     });
+    const boostRef = await seedPendingBoost({
+      purchaserUserId: buyer.customerId,
+      amountCents: 2000,
+    });
     await creditService.chargeCreatorBoost({
       senderCustomerId: buyer.customerId,
       amountCents: 2000,
       currencyCode: 'USD',
       idempotencyKey: `verifier-isolation-boost-${tag()}`,
       actorUserId: buyer.customerId,
-      referenceId: `verifier-boost-${tag()}`,
+      referenceId: boostRef,
       description: 'Verifier isolation boost',
     });
 
@@ -701,6 +836,12 @@ describeDatabase('section 5 media credit verifier', () => {
     const buyer = await createWallet('USD', 100000);
     const creator = await createWallet('USD', 0);
     const key = `verifier-currency-${tag()}`;
+    const tipRef = await seedPendingTip({
+      fromUserId: buyer.customerId,
+      creatorUserId: creator.customerId,
+      amountCents: 1000,
+      currencyCode: 'EUR',
+    });
     // Buyer has no EUR wallet and no EUR balance; a EUR settlement must
     // fail rather than touch the USD wallet.
     await expect(creditService.settleCreatorCredit({
@@ -711,7 +852,7 @@ describeDatabase('section 5 media credit verifier', () => {
       idempotencyKey: key,
       actorUserId: buyer.customerId,
       referenceType: 'media_creator_tip',
-      referenceId: `verifier-tip-${tag()}`,
+      referenceId: tipRef,
       description: 'Verifier currency boundary',
     })).rejects.toThrow();
     expect(await transactionCount(key)).toBe(0);
@@ -766,6 +907,11 @@ describeDatabase('section 5 media credit verifier', () => {
     }
 
     // Rail clear: the same settlement now succeeds.
+    const tipRef = await seedPendingTip({
+      fromUserId: buyer.customerId,
+      creatorUserId: creator.customerId,
+      amountCents: 1000,
+    });
     const cleared = await creditService.settleCreatorCredit({
       senderCustomerId: buyer.customerId,
       recipientCustomerId: creator.customerId,
@@ -774,7 +920,7 @@ describeDatabase('section 5 media credit verifier', () => {
       idempotencyKey: freezeKey,
       actorUserId: buyer.customerId,
       referenceType: 'media_creator_tip',
-      referenceId: `verifier-tip-${tag()}`,
+      referenceId: tipRef,
       description: 'Verifier post-freeze settlement',
     });
     expect(cleared.transaction.status).toBe('posted');
@@ -787,7 +933,7 @@ describeDatabase('section 5 media credit verifier', () => {
   test('sponsorship acceptance reserves and cancellation releases', async () => {
     const sponsor = await createWallet('USD', 100000);
     const client = await pool.connect();
-    const sponsorRef = `verifier-sponsor-${tag()}`;
+    const sponsorRef = crypto.randomUUID();
     try {
       await client.query('BEGIN');
       const reservation = await reserveFunds(client, {
@@ -802,6 +948,12 @@ describeDatabase('section 5 media credit verifier', () => {
 
       // Settlement on approval.
       const creator = await createWallet('USD', 0);
+      await seedDeliveredSponsorship({
+        sponsorshipId: sponsorRef,
+        sponsorUserId: sponsor.customerId,
+        creatorUserId: creator.customerId,
+        amountCents: 15000,
+      });
       const settled = await creditService.settleCreatorCredit({
         senderCustomerId: sponsor.customerId,
         recipientCustomerId: creator.customerId,

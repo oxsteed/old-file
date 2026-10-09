@@ -426,14 +426,7 @@ describeDatabase('media discovery and integrations', () => {
 
   // ── 9. Restaurant copy CSAM revocation ───────────────────────────────
   describe('restaurant copy csam revocation', () => {
-    // DEFECT (server/services/csamCheckService.js:264): recordFlagged calls
-    // auditService.logAdminAction with adminId: null inside its transaction.
-    // admin_audit_log.admin_id is NOT NULL, so the INSERT fails and the
-    // whole transaction rolls back: the source flag AND the federated-copy
-    // removal are both lost. A vendor-flagged video's public copies stay up.
-    // This test documents the failure; it must be rewritten to assert
-    // removal once the defect is fixed.
-    test('flagging source media currently fails its audit write (DEFECT)', async () => {
+    test('flagging source media revokes every federated copy', async () => {
       const { recordFlagged } = require('../services/csamCheckService');
       // Build the chain: business -> restaurant -> restaurant_media.
       const { rows: biz } = await pool.query(
@@ -472,14 +465,20 @@ describeDatabase('media discovery and integrations', () => {
         [actors.bob.id, `unrelated post ${tag}`]
       );
 
-      await expect(recordFlagged(mediaIds[0], 'passed')).rejects.toThrow();
-      // Nothing was revoked: the rollback undid the copy removal.
+      await recordFlagged(mediaIds[0], 'passed');
+
+      const { rows: [source] } = await pool.query(
+        `SELECT csam_status FROM restaurant_media WHERE id = $1`,
+        [mediaIds[0]]
+      );
+      expect(source.csam_status).toBe('flagged');
+
       const { rows: after } = await pool.query(
         `SELECT id, visibility FROM media_posts WHERE id = ANY($1::uuid[])`,
         [[...copyIds, other[0].id]]
       );
       const byId = Object.fromEntries(after.map((r) => [r.id, r.visibility]));
-      for (const copyId of copyIds) expect(byId[copyId]).toBe('public');
+      for (const copyId of copyIds) expect(byId[copyId]).toBe('removed');
       expect(byId[other[0].id]).toBe('public');
     });
   });
