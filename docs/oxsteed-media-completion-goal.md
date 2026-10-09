@@ -838,3 +838,12 @@ upload tabs and validation, upload progress/status mapping, video embeds,
 removed-link behavior, restaurant Media cards, and payment idempotency keys.
 These are local behavior checks; real-device keyboard/RTL and authenticated
 deployed activity remain open.
+
+Easy-to-medium publishing batch (2026-10-09): three maintained discovery
+browser journeys passed for stale-response protection, deduplicated pagination,
+explicit device-location permission, and Following/city URL restoration. Two
+publishing browser journeys passed for draft recovery after upload failure,
+replacement uploads, guest linked-card navigation, and inert removed targets.
+The focused server safety, publisher-verification, draft-attachment, contract,
+and access suites passed 87 tests. Real PostgreSQL, private storage, ClamAV,
+FFmpeg, and authenticated production execution remain outstanding.
