@@ -530,7 +530,12 @@ async function getFeed(req, res) {
     // next page when the result set ends exactly on the requested limit.
     const queryLimit = limit + 1;
     const params = [queryLimit, asOf];
-    let localityBoost = feedContext.localitySql(location, params);
+    // localitySql appends four location values before the viewer is added to
+    // this parameter list, so reserve the exact viewer placeholder up front.
+    // This lets linked-entity locality candidates apply reciprocal blocking
+    // without changing the established parameter order.
+    const localityViewerParam = viewerUserId ? params.length + 5 : null;
+    let localityBoost = feedContext.localitySql(location, params, localityViewerParam);
     let where = `p.visibility = 'public' AND p.deleted_at IS NULL AND p.parent_id IS NULL AND p.created_at <= $2::timestamptz
       AND p.processing_status = 'ready' AND ${publicMediaSql('p', 'a')}
       AND EXISTS (SELECT 1 FROM users au WHERE au.id = a.owner_user_id

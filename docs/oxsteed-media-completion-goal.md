@@ -155,6 +155,12 @@ cannot silently improve a post's rank. A maintained SQL assertion covers the
 target-owner clauses and the hosted PostgreSQL fixture covers the resulting
 zero boost; the fixture remains skipped locally.
 
+Nearby-link visibility checkpoint (2026-10-09): the same reciprocal owner-block
+predicate now applies to linked restaurant, dish, helper, business, job, rental
+and logistics candidates inside locality scoring. A blocked entity therefore
+cannot improve either link count or nearby placement. Focused ranking/context
+checks pass; the real locality fixture remains part of hosted verification.
+
 Creator settlement replay checkpoint (2026-10-09): creator gig, sponsorship,
 tip, and boost settlement retries now recover an already-posted matching
 Credit journal transaction before applying daily transfer limits, rail state,
