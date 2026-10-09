@@ -20,7 +20,13 @@ describeDb('Media block boundaries in PostgreSQL', () => {
     await db.connect();
     await db.query(`
       CREATE TEMP TABLE users (id text PRIMARY KEY, city text, state text, deleted_at timestamptz, is_active boolean DEFAULT true, is_banned boolean DEFAULT false, is_verified boolean DEFAULT true);
-      CREATE TEMP TABLE media_actors (id text PRIMARY KEY, owner_user_id text, handle text, display_name text, avatar_url text, verified_kind text, actor_type text);
+      CREATE TEMP TABLE media_actors (id text PRIMARY KEY, owner_user_id text, business_id text, restaurant_id text, handle text, display_name text, avatar_url text, verified_kind text, actor_type text);
+      -- Shadow every entity table referenced by the public publisher policy so
+      -- this disposable text-id fixture never compares a temporary text user
+      -- id with a production UUID column from the surrounding database.
+      CREATE TEMP TABLE helper_profiles (id text PRIMARY KEY, user_id text, profile_slug text, service_lat numeric, service_lng numeric, service_city text, service_state text);
+      CREATE TEMP TABLE businesses (id text PRIMARY KEY, user_id text, deleted_at timestamptz, is_active boolean DEFAULT true, is_business_verified boolean DEFAULT true, service_lat numeric, service_lng numeric, service_city text, service_state text, address_city text, address_state text, business_name text, profile_slug text);
+      CREATE TEMP TABLE food_restaurants (id text PRIMARY KEY, owner_user_id text, status text DEFAULT 'active', is_verified boolean DEFAULT true, latitude numeric, longitude numeric, address_city text, address_state text, display_name text, slug text, business_id text);
       CREATE TEMP TABLE user_blocks (blocker_id text, blocked_id text);
       CREATE TEMP TABLE media_posts (id text PRIMARY KEY, actor_id text, body text, parent_id text, quoted_post_id text, community_id text, deleted_at timestamptz,
         visibility text DEFAULT 'public', processing_status text DEFAULT 'ready', csam_status text DEFAULT 'passed', created_at timestamptz DEFAULT now());
