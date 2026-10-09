@@ -486,6 +486,32 @@ describe('reservation enforcement', () => {
     })).rejects.toMatchObject({ status: 409, code: 'credit_insufficient_funds' });
   });
 
+  test('replays a concurrent active reservation without double-counting reserved funds', async () => {
+    mockQuery.mockImplementation((sql) => {
+      const s = String(sql);
+      if (s.includes('FROM oxsteed_credit_accounts') && s.includes('FOR UPDATE')) {
+        return { rows: [{ id: 101, balance_cents: 10000, reserved_cents: 1000, status: 'active' }] };
+      }
+      if (s.includes('INSERT INTO oxsteed_credit_reservations')) return { rows: [] };
+      if (s.includes('FROM oxsteed_credit_reservations') && s.includes("status = 'active'")) {
+        return { rows: [{ id: 'res-existing', account_id: 101, reservation_type: 'media_creator_gig', reference_type: 'media_creator_gig', reference_id: 'gig-1', amount_cents: 900, status: 'active' }] };
+      }
+      return { rows: [] };
+    });
+
+    const result = await reserveFunds({ query: mockQuery }, {
+      accountId: 101,
+      reservationType: 'media_creator_gig',
+      referenceType: 'media_creator_gig',
+      referenceId: 'gig-1',
+      amountCents: 900,
+    });
+
+    expect(result).toEqual(expect.objectContaining({ replayed: true }));
+    expect(result.reservation).toEqual(expect.objectContaining({ id: 'res-existing', amountCents: 900 }));
+    expect(mockQuery.mock.calls.some(([sql]) => String(sql).includes('reserved_cents = reserved_cents +'))).toBe(false);
+  });
+
   test('a failed settlement payout releases its reservation', async () => {
     const SETTLEMENT_ID = 'ssssssss-ssss-4sss-ssss-ssssssssssss';
     mockQuery.mockImplementation((sql, params = []) => {

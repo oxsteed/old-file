@@ -72,40 +72,41 @@ async function reserveFunds(client, { accountId, reservationType, referenceType,
       requestedCents: String(amount),
     });
   }
-  try {
-    const { rows } = await client.query(
-      `INSERT INTO oxsteed_credit_reservations
-         (account_id, reservation_type, reference_type, reference_id, amount_cents)
-       VALUES ($1, $2, $3, $4, $5)
-       RETURNING *`,
-      [account.id, normalizedType, normalizedReferenceType, normalizedReferenceId, amount]
+  const { rows } = await client.query(
+    `INSERT INTO oxsteed_credit_reservations
+       (account_id, reservation_type, reference_type, reference_id, amount_cents)
+     VALUES ($1, $2, $3, $4, $5)
+     ON CONFLICT (reference_type, reference_id) WHERE status = 'active' DO NOTHING
+     RETURNING *`,
+    [account.id, normalizedType, normalizedReferenceType, normalizedReferenceId, amount]
+  );
+  if (!rows[0]) {
+    // The partial unique index serializes concurrent requests for the same
+    // business reference without aborting the caller's transaction. A
+    // matching row is an idempotent replay; any mismatch is a conflict.
+    const { rows: existingRows } = await client.query(
+      `SELECT * FROM oxsteed_credit_reservations
+        WHERE reference_type = $1 AND reference_id = $2 AND status = 'active'
+        ORDER BY created_at DESC
+        LIMIT 1
+        FOR UPDATE`,
+      [normalizedReferenceType, normalizedReferenceId]
     );
-    await client.query(
-      `UPDATE oxsteed_credit_accounts
-          SET reserved_cents = reserved_cents + $1, updated_at = NOW()
-        WHERE id = $2`,
-      [amount, account.id]
-    );
-    return { reservation: formatReservation(rows[0]), replayed: false };
-  } catch (error) {
-    if (error && error.code === '23505') {
-      // Unique active reference: a live reservation already exists for
-      // this business reference. Re-fetch and replay it idempotently.
-      const { rows } = await client.query(
-        `SELECT * FROM oxsteed_credit_reservations
-          WHERE reference_type = $1 AND reference_id = $2 AND status = 'active'
-          ORDER BY created_at DESC
-          LIMIT 1
-          FOR UPDATE`,
-        [normalizedReferenceType, normalizedReferenceId]
-      );
-      if (rows[0] && Number(rows[0].amount_cents) === amount && String(rows[0].account_id) === String(account.id)) {
-        return { reservation: formatReservation(rows[0]), replayed: true };
-      }
-      throw new AppError('An active reservation already exists for this reference', 409, 'credit_reservation_conflict');
+    const existing = existingRows[0];
+    if (existing
+      && Number(existing.amount_cents) === amount
+      && String(existing.account_id) === String(account.id)) {
+      return { reservation: formatReservation(existing), replayed: true };
     }
-    throw error;
+    throw new AppError('An active reservation already exists for this reference', 409, 'credit_reservation_conflict');
   }
+  await client.query(
+    `UPDATE oxsteed_credit_accounts
+        SET reserved_cents = reserved_cents + $1, updated_at = NOW()
+      WHERE id = $2`,
+    [amount, account.id]
+  );
+  return { reservation: formatReservation(rows[0]), replayed: false };
 }
 
 /**
