@@ -131,6 +131,28 @@ describe('OxSteed Media launch contracts', () => {
     expect(client.query.mock.calls.some(([sql]) => sql.includes('DELETE FROM media_post_links'))).toBe(true);
   });
 
+  test('rejects an unavailable linked target before replacing draft cards', async () => {
+    const client = { query: jest.fn(), release: jest.fn() };
+    pool.connect = jest.fn().mockResolvedValue(client);
+    client.query
+      .mockResolvedValueOnce({})
+      .mockResolvedValueOnce({ rows: [{ id: 'draft-invalid-link', visibility: 'unlisted', processing_status: 'draft' }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({});
+    const res = resMock();
+
+    await media.updateDraft({
+      params: { id: 'draft-invalid-link' },
+      user: { id: 'user-1' },
+      body: { body: 'Keep this draft', links: [{ link_type: 'restaurant', target_id: 'removed-restaurant' }] },
+    }, res);
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ code: 'media_link_target_unavailable' }));
+    expect(client.query.mock.calls.some(([sql]) => sql.includes('DELETE FROM media_post_links'))).toBe(false);
+    expect(client.query.mock.calls.at(-1)[0]).toBe('ROLLBACK');
+  });
+
   test('supports Relevant reply ranking without a deployment flag', async () => {
     pool.query
       .mockResolvedValueOnce({ rows: [{ id: 'post-1' }] })
