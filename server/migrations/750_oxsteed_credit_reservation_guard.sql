@@ -1,18 +1,9 @@
--- Migration 750: extend the reserved-balance guard to non-hold reservations.
+-- Migration 750: include marketplace reservations in reserved balance guards.
 --
--- Migration 464 asserted reserved_cents = SUM(active holds) at commit time.
--- Migration 640 later introduced oxsteed_credit_reservations (non-hold
--- reservations for withdrawals and settlement payouts) and the application
--- treats reserved_cents = SUM(active holds) + SUM(active reservations).
--- Marketplace code that creates a reservation and increments reserved_cents
--- in the same transaction was failing the stale 464 invariant at commit.
---
--- This migration replaces the guard function so the expected total is
--- holds + active reservations per account, recreates the existing
--- constraint triggers against the updated function, and attaches the same
--- deferred guard to oxsteed_credit_reservations so direct SQL on that
--- table is checked too. Only customer_wallet accounts are checked, exactly
--- as in migration 464. Migration 464 itself is not modified.
+-- Migration 464 predates oxsteed_credit_reservations and only reconciled
+-- customer wallets against media/partner holds. Marketplace reservations use
+-- the same reserved_cents column, so the deferred guard must include both
+-- sources and run after reservation rows change as well.
 
 CREATE OR REPLACE FUNCTION validate_oxsteed_credit_reservation_total()
 RETURNS trigger
@@ -39,18 +30,18 @@ BEGIN
     RETURN NULL;
   END IF;
 
-  SELECT COALESCE(SUM(h.amount_cents), 0)
+  SELECT COALESCE((SELECT SUM(h.amount_cents)
+                    FROM oxsteed_credit_holds h
+                   WHERE h.account_id = account_id_to_check
+                     AND h.status = 'active'), 0)
        + COALESCE((SELECT SUM(r.amount_cents)
-                     FROM oxsteed_credit_reservations r
-                    WHERE r.account_id = account_id_to_check
-                      AND r.status = 'active'), 0)
-    INTO expected_reserved
-    FROM oxsteed_credit_holds h
-   WHERE h.account_id = account_id_to_check
-     AND h.status = 'active';
+                    FROM oxsteed_credit_reservations r
+                   WHERE r.account_id = account_id_to_check
+                     AND r.status = 'active'), 0)
+    INTO expected_reserved;
 
   IF recorded_reserved::NUMERIC IS DISTINCT FROM expected_reserved THEN
-    RAISE EXCEPTION 'OxSteed Credit reserved balance must equal active hold plus active reservation total'
+    RAISE EXCEPTION 'OxSteed Credit reserved balance must equal active hold and reservation total'
       USING ERRCODE = '23514';
   END IF;
 
@@ -58,10 +49,7 @@ BEGIN
 END;
 $$;
 
--- Recreate the existing guards against the updated function (idempotent).
-
 DROP TRIGGER IF EXISTS oxsteed_credit_account_reservation_guard ON oxsteed_credit_accounts;
-
 CREATE CONSTRAINT TRIGGER oxsteed_credit_account_reservation_guard
   AFTER INSERT OR UPDATE OR DELETE
   ON oxsteed_credit_accounts
@@ -70,7 +58,6 @@ CREATE CONSTRAINT TRIGGER oxsteed_credit_account_reservation_guard
   EXECUTE FUNCTION validate_oxsteed_credit_reservation_total();
 
 DROP TRIGGER IF EXISTS oxsteed_credit_hold_reservation_guard ON oxsteed_credit_holds;
-
 CREATE CONSTRAINT TRIGGER oxsteed_credit_hold_reservation_guard
   AFTER INSERT OR UPDATE OR DELETE
   ON oxsteed_credit_holds
@@ -78,11 +65,8 @@ CREATE CONSTRAINT TRIGGER oxsteed_credit_hold_reservation_guard
   FOR EACH ROW
   EXECUTE FUNCTION validate_oxsteed_credit_reservation_total();
 
--- Attach the same deferred guard to the reservations table.
-
-DROP TRIGGER IF EXISTS oxsteed_credit_reservation_reservation_guard ON oxsteed_credit_reservations;
-
-CREATE CONSTRAINT TRIGGER oxsteed_credit_reservation_reservation_guard
+DROP TRIGGER IF EXISTS oxsteed_credit_reservation_total_guard ON oxsteed_credit_reservations;
+CREATE CONSTRAINT TRIGGER oxsteed_credit_reservation_total_guard
   AFTER INSERT OR UPDATE OR DELETE
   ON oxsteed_credit_reservations
   DEFERRABLE INITIALLY DEFERRED
