@@ -56,7 +56,7 @@ row stays incomplete until that dependency is verified.
 | Reporting and automatic moderation | Behavior-tested locally: report reason/note validation now runs the hourly cap, duplicate check, and insert inside a per-reporter advisory-locked transaction; duplicate and cap responses are covered by 46 focused access/contract tests. | Real concurrent PostgreSQL, repeat/limit, DMCA, and administrator proof remain outstanding. | Execute concurrent report submissions in the disposable harness and verify moderation outcomes. |
 | Owner editing/deletion | Behavior-tested locally: owner deletion now locks the post, updates reply/quote counters, and commits the visibility change atomically; owner-scoped denial and counter refresh are covered by the focused contract suite. | Real PostgreSQL authorization/count/source-propagation and deployed proof remain outstanding. | Execute owner versus non-owner, quoted/reply counter, and federated-source removal cases in the isolated harness. |
 | Two-way blocking and inactive authors | Behavior-tested in the maintained PostgreSQL suite: both block directions hide actors/posts and now stop like, bookmark, repost, view, and report actions before any write; inactive and banned author predicates remain enforced. Linked helper, business, restaurant, job, rental and logistics cards now apply the same two-way owner-block predicate while retaining an inert snapshot. | The 15-case SQL suite is skipped on this Windows host; hosted database and deployed proof remain outstanding. | Execute all visibility/action cases in the disposable harness, including inactive authors and blocked links/replies. |
-| Daily/upload/report limits | Implemented: existing rate/count controls. | Concurrent actual API limit proof outstanding. | Test simultaneous post limits and structured upload/report rejection. |
+| Daily/upload/report limits | Behavior-tested locally: the 10-post daily cap is now checked inside an advisory-locked insert, so concurrent compose requests cannot race past the limit; upload and report caps remain enforced by their existing paths. | Concurrent actual API limit proof outstanding. | Run simultaneous post, upload and report requests in the disposable harness. |
 | Linked entity selection and five-card limit | Behavior-tested: server search and composer selection exist, entity search and hydration apply two-way owner blocking, draft/public link writes now resolve live targets and replace client labels/prices with authoritative snapshots, and blocked targets preserve a plain snapshot label. | Real invalid/removed/entity ownership and currencies outstanding. | Verify all eight link types and authoritative target metadata. |
 | Public cards versus transaction login | Behavior-tested locally: all formerly intercepted guest card types now navigate to public targets; removed cards remain inert. | Browser dependencies mocked; destination transaction gates outstanding. | Verify actual public pages and login at transaction start. |
 | City/category Spaces | Implemented in current source. | Real channel filters, membership and counts outstanding. | Run actual database/browser city/category/membership matrix. |
@@ -174,6 +174,12 @@ undeleted and clear under the same safety policy used by public delivery; a
 deliverable also requires the creator actor to remain verified. A focused unsafe
 tip regression and the integrated Media suite pass 216 tests. Isolated Credit
 accounting and authenticated deployment evidence remain open.
+
+Daily-quota checkpoint (2026-10-09): post creation now takes a PostgreSQL
+transaction advisory lock keyed to the actor while counting the rolling
+24-hour posts and inserting the new row. The maintained contract test confirms
+the cap is part of the insert statement, closing the read-then-insert race;
+real concurrent API execution remains a disposable-harness requirement.
 
 Creator settlement replay checkpoint (2026-10-09): creator gig, sponsorship,
 tip, and boost settlement retries now recover an already-posted matching

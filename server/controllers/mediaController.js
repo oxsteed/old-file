@@ -1133,16 +1133,6 @@ async function createPost(req, res) {
       return res.status(400).json({ error: 'Post body too long (max 2000)' });
     }
 
-    // Rate limit: 10 posts/day.
-    const { rows: count } = await pool.query(
-      `SELECT COUNT(*) AS c FROM media_posts
-        WHERE actor_id = $1 AND created_at > NOW() - INTERVAL '1 day'`,
-      [actor.id]
-    );
-    if (parseInt(count[0].c, 10) >= POSTS_PER_DAY) {
-      return res.status(429).json({ error: 'Daily post limit reached' });
-    }
-
     const requestedLinks = Array.isArray(links) ? links : [];
     if (links != null && !Array.isArray(links)) {
       return res.status(400).json({ error: 'Linked entities must be an array.', code: 'media_links_invalid' });
@@ -1171,16 +1161,30 @@ async function createPost(req, res) {
       }
     }
 
+    // Serialize the quota check with the insert. A read-then-insert check can
+    // overshoot the daily cap when two compose requests arrive together.
     const { rows } = await pool.query(
-      `INSERT INTO media_posts
+      `WITH media_post_quota_lock AS (
+             SELECT pg_advisory_xact_lock(hashtextextended($1::text, 0))
+         ), media_post_quota AS (
+           SELECT COUNT(*)::int AS count
+             FROM media_posts existing
+             CROSS JOIN media_post_quota_lock
+            WHERE existing.actor_id = $1
+              AND existing.created_at > NOW() - INTERVAL '1 day'
+         )
+       INSERT INTO media_posts
          (actor_id, body, parent_id, quoted_post_id, community_id, root_id, visibility, processing_status)
-       VALUES ($1, $2, $3, $4, $5,
+       SELECT $1, $2, $3, $4, $5,
          CASE WHEN $3::uuid IS NOT NULL THEN (SELECT COALESCE(root_id, id) FROM media_posts WHERE id = $3::uuid) END,
          CASE WHEN $6 THEN 'unlisted' ELSE 'public' END,
-         CASE WHEN $6 THEN 'draft' ELSE 'ready' END)
+         CASE WHEN $6 THEN 'draft' ELSE 'ready' END
+         FROM media_post_quota
+        WHERE media_post_quota.count < $7
        RETURNING *`,
-      [actor.id, body.trim(), parent_id || null, quoted_post_id || null, community_id || null, isDraft]
+      [actor.id, body.trim(), parent_id || null, quoted_post_id || null, community_id || null, isDraft, POSTS_PER_DAY]
     );
+    if (!rows[0]) return res.status(429).json({ error: 'Daily post limit reached', code: 'media_daily_post_limit' });
     const post = rows[0];
 
     // Attach links with snapshots.
