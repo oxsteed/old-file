@@ -95,3 +95,10 @@ test('Media legal dialog restores focus to the link that opened it', () => {
   assert.match(footer, /trigger\?\.focus\?\.\(\)/);
   assert.match(footer, /onClick=\{closeLegal\}/);
 });
+
+test('Media boost dialog supports Escape and restores focus after closing', () => {
+  assert.match(postCard, /const boostTriggerRef = useRef\(null\)/);
+  assert.match(postCard, /event\.key === 'Escape'/);
+  assert.match(postCard, /previousFocus\?\.focus\?\.\(\)/);
+  assert.match(postCard, /aria-modal="true"/);
+});

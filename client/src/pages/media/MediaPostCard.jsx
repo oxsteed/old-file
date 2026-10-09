@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
@@ -77,6 +77,24 @@ export default function MediaPostCard({ post, onUpdate, onBookmarkChange }) {
   const [boostIdempotencyKey, setBoostIdempotencyKey] = useState('');
   const [boosting, setBoosting] = useState(false);
   const [boostMessage, setBoostMessage] = useState('');
+  const boostTriggerRef = useRef(null);
+  const boostDialogRef = useRef(null);
+
+  useEffect(() => {
+    if (!boostOpen) return undefined;
+    const previousFocus = typeof document !== 'undefined' ? document.activeElement : null;
+    const closeOnEscape = (event) => {
+      if (event.key === 'Escape') setBoostOpen(false);
+    };
+    document.addEventListener('keydown', closeOnEscape);
+    const focusDialog = () => boostDialogRef.current?.querySelector('input, button')?.focus();
+    const focusHandle = window.requestAnimationFrame(focusDialog);
+    return () => {
+      document.removeEventListener('keydown', closeOnEscape);
+      window.cancelAnimationFrame(focusHandle);
+      window.requestAnimationFrame(() => previousFocus?.focus?.());
+    };
+  }, [boostOpen]);
 
   // Feed refreshes and route transitions can reuse a card instance. Reconcile
   // the server's viewer-specific action state whenever the post payload is
@@ -317,7 +335,7 @@ export default function MediaPostCard({ post, onUpdate, onBookmarkChange }) {
             ↗️ {t('media.post.share')} {formatCount(shareCount)}
           </button>
           {user && String(post.owner_user_id) === String(user.id) && post.visibility === 'public' && (
-            <button type="button" onClick={() => { setBoostAmount(''); setBoostMessage(''); setBoostIdempotencyKey(`media-boost-${post.id}-${Date.now()}-${Math.random().toString(16).slice(2)}`); setBoostOpen(true); }} className="media-action" aria-label={t('media.post.boost')}>
+            <button ref={boostTriggerRef} type="button" onClick={() => { setBoostAmount(''); setBoostMessage(''); setBoostIdempotencyKey(`media-boost-${post.id}-${Date.now()}-${Math.random().toString(16).slice(2)}`); setBoostOpen(true); }} className="media-action" aria-label={t('media.post.boost')}>
               ✨ {t('media.post.boost')}
             </button>
           )}
@@ -339,7 +357,7 @@ export default function MediaPostCard({ post, onUpdate, onBookmarkChange }) {
         {actionMessage && <p className="media-action-status" role="status" aria-live="polite">{actionMessage}</p>}
       </div>
       {boostOpen && <div className="media-verification-dialog" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setBoostOpen(false); }}>
-        <form className="media-verification-form" onSubmit={handleBoost} role="dialog" aria-modal="true" aria-labelledby={`media-boost-title-${post.id}`}>
+        <form ref={boostDialogRef} className="media-verification-form" onSubmit={handleBoost} role="dialog" aria-modal="true" aria-labelledby={`media-boost-title-${post.id}`}>
           <button type="button" className="media-dialog-close" onClick={() => setBoostOpen(false)} aria-label={t('media.shell.close')}><span aria-hidden="true">×</span></button>
           <h2 id={`media-boost-title-${post.id}`}>{t('media.post.boost')}</h2>
           {boostMessage ? <p role="status">{boostMessage}</p> : <>
