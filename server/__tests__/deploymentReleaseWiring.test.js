@@ -106,6 +106,17 @@ describe('deployment release identity wiring', () => {
     expect(workflow).toContain('set CI_DATABASE_URL secret for active-job, Credit schema, and Direct catalog checks');
   });
 
+  test('runs the disposable Media safety and upload harness in CI', () => {
+    const workflow = fs.readFileSync(workflowPath, 'utf8');
+
+    expect(workflow).toContain('media-isolated:');
+    expect(workflow).toContain('name: Disposable Media safety and upload harness');
+    expect(workflow).toContain('docker-compose.credit-test.yml --file docker-compose.media-test.yml');
+    expect(workflow).toContain('psql -v ON_ERROR_STOP=1 -U oxsteed -d oxsteed_db < scripts/credit-isolated-seed.sql');
+    expect(workflow).toContain('node /app/server/scripts/verify-media-isolated.js');
+    expect(workflow).toContain('down --volumes --remove-orphans');
+  });
+
   test('does not run duplicate post-deploy checks from GitHub Actions', () => {
     const workflow = fs.readFileSync(workflowPath, 'utf8');
 

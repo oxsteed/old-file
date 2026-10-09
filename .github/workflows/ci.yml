@@ -140,6 +140,60 @@ jobs:
             echo "Skipping live database verification (set CI_DATABASE_URL secret for active-job, Credit schema, and Direct catalog checks)."
           fi
 
+  media-isolated:
+    name: Disposable Media safety and upload harness
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Run Media harness with PostgreSQL, Redis, ClamAV, and FFmpeg
+        env:
+          COMPOSE_PROJECT: oxsteed-media-ci-${{ github.run_id }}-${{ github.run_attempt }}
+        run: |
+          set -Eeuo pipefail
+          env_file="$RUNNER_TEMP/oxsteed-media.env"
+          cat >"$env_file" <<EOF
+          CREDIT_TEST_PROJECT=oxsteed-credit-test-ci-${{ github.run_id }}-${{ github.run_attempt }}
+          CREDIT_TEST_POSTGRES_VOLUME=oxsteed-media-ci-${{ github.run_id }}-${{ github.run_attempt }}-postgres
+          CREDIT_TEST_REDIS_VOLUME=oxsteed-media-ci-${{ github.run_id }}-${{ github.run_attempt }}-redis
+          CREDIT_TEST_DB_PASSWORD=$(openssl rand -hex 24)
+          CREDIT_TEST_JWT_SECRET=$(openssl rand -hex 32)
+          CREDIT_TEST_ENCRYPTION_KEY=$(openssl rand -hex 32)
+          CREDIT_TEST_LEDGER_SECRET=$(openssl rand -hex 32)
+          EOF
+          chmod 600 "$env_file"
+          set -a
+          # The generated file contains only CI-scoped identifiers and random hex.
+          source "$env_file"
+          set +a
+
+          compose=(docker compose --env-file "$env_file" --project-name "$COMPOSE_PROJECT" \
+            --file docker-compose.credit-test.yml --file docker-compose.media-test.yml)
+          cleanup() {
+            "${compose[@]}" down --volumes --remove-orphans || true
+          }
+          trap cleanup EXIT
+
+          "${compose[@]}" up -d --build
+          ready=0
+          for attempt in $(seq 1 180); do
+            if "${compose[@]}" exec -T app curl -fsS http://127.0.0.1:5000/ready >/dev/null; then
+              ready=1
+              break
+            fi
+            sleep 2
+          done
+          test "$ready" = 1
+
+          "${compose[@]}" exec -T -e "PGPASSWORD=$CREDIT_TEST_DB_PASSWORD" postgres \
+            psql -v ON_ERROR_STOP=1 -U oxsteed -d oxsteed_db < scripts/credit-isolated-seed.sql
+          "${compose[@]}" exec -T app node /app/server/scripts/verify-media-isolated.js
+
   migration-rehearsal:
     name: PostgreSQL migration rehearsal
     runs-on: ubuntu-24.04
