@@ -105,7 +105,7 @@ describeDatabase('media publish: safety predicates', () => {
       admin_id UUID, action VARCHAR(80) NOT NULL, target_type VARCHAR(40), target_id TEXT,
       target_key TEXT, description TEXT, ip_address INET, user_agent TEXT,
       before_state JSONB, after_state JSONB, created_at TIMESTAMPTZ DEFAULT now())`);
-    for (const number of [709, 731, 732, 733, 735, 736, 742, 743, 744]) {
+    for (const number of [709, 731, 732, 733, 735, 736, 742, 743, 744, 754]) {
       const dir = path.resolve(__dirname, '../migrations');
       const file = fs.readdirSync(dir).find((name) => name.startsWith(`${number}_`));
       await db.query(fs.readFileSync(path.join(dir, file), 'utf8'));

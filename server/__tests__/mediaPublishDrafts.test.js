@@ -79,7 +79,7 @@ describeDatabase('media publish: durable private drafts', () => {
       is_active boolean DEFAULT true, is_business_verified boolean DEFAULT false)`);
     await db.query(`CREATE TABLE food_restaurants (id bigint PRIMARY KEY, business_id bigint, owner_user_id UUID,
       slug text, status text DEFAULT 'active', is_verified boolean DEFAULT false)`);
-    for (const number of [709, 731, 732, 733, 735, 736, 742, 743, 744]) {
+    for (const number of [709, 731, 732, 733, 735, 736, 742, 743, 744, 754]) {
       const dir = path.resolve(__dirname, '../migrations');
       const file = fs.readdirSync(dir).find((name) => name.startsWith(`${number}_`));
       await db.query(fs.readFileSync(path.join(dir, file), 'utf8'));
