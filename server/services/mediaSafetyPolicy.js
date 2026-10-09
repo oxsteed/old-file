@@ -12,7 +12,16 @@ function vendorCertified() {
   return String(process.env.MEDIA_CSAM_CERTIFIED || '').trim().toLowerCase() === 'true';
 }
 
+// Emile's override: allow public video without a CSAM vendor verdict.
+// He controls this switch and turns it off once a CSAM vendor is certified.
+// Everything else (Didit, virus scan, quarantine, rate limits, flags,
+// auto-hide, takedowns, Cloudflare match path) keeps working.
+function publicVideoWithoutCsam() {
+  return String(process.env.MEDIA_PUBLIC_VIDEO_WITHOUT_CSAM || '').trim().toLowerCase() === 'true';
+}
+
 function acceptedVideoStatuses() {
+  if (publicVideoWithoutCsam()) return ['passed', 'cloudflare_deferred', 'public_without_csam'];
   if (mode() === 'cloudflare') return ['passed', 'cloudflare_deferred'];
   if (mode() === 'vendor' && vendorCertified()) return ['passed'];
   return [];
@@ -21,7 +30,9 @@ function acceptedVideoStatuses() {
 function videoAllowed() { return acceptedVideoStatuses().length > 0; }
 function videoVerdictAllowed(status) { return acceptedVideoStatuses().includes(status); }
 function postVerdictAllowed(status) {
-  return status === 'passed' || (mode() === 'cloudflare' && status === 'cloudflare_deferred');
+  return status === 'passed'
+    || status === 'public_without_csam'
+    || (mode() === 'cloudflare' && status === 'cloudflare_deferred');
 }
 
 function assetReady(asset) {
@@ -41,7 +52,10 @@ function videoVerdictSql(column) {
 
 // Apply to every public read as well as publishing, including share previews.
 function publicPostSql(alias = 'p') {
-  const postStatuses = mode() === 'cloudflare' ? "'passed', 'cloudflare_deferred'" : "'passed'";
+  const override = publicVideoWithoutCsam();
+  const postStatuses = override
+    ? "'passed', 'cloudflare_deferred', 'public_without_csam'"
+    : mode() === 'cloudflare' ? "'passed', 'cloudflare_deferred'" : "'passed'";
   return `EXISTS (
     SELECT 1 FROM media_actors public_author
      JOIN users public_author_user ON public_author_user.id = public_author.owner_user_id
@@ -69,4 +83,4 @@ function publicPostSql(alias = 'p') {
   )`;
 }
 
-module.exports = { mode, vendorCertified, videoAllowed, videoVerdictAllowed, postVerdictAllowed, assetReady, videoVerdictSql, publicPostSql };
+module.exports = { mode, vendorCertified, publicVideoWithoutCsam, videoAllowed, videoVerdictAllowed, postVerdictAllowed, assetReady, videoVerdictSql, publicPostSql };
