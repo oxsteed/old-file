@@ -28,6 +28,12 @@ const mediaError = sendMediaError;
 function publicMediaSql(postAlias = 'p', actorAlias = 'a') {
   return `${mediaSafety.publicPostSql(postAlias)} AND (${verifiedActorSql(actorAlias)})`;
 }
+function publicActor(actor) {
+  if (!actor || actor.current_actor_verified !== false) return actor;
+  // Keep a discoverable profile shell after revocation, but never present the
+  // historical actor badge as if the underlying verification were current.
+  return { ...actor, verified_kind: 'none' };
+}
 // All Media link types are enabled under the combined MVP/v2/v3 delivery
 // strategy. Each type still has to resolve to a currently public target before
 // it contributes to feed ranking or becomes clickable.
@@ -1873,13 +1879,14 @@ async function searchMedia(req, res) {
       'media_actors'
     );
     const { rows: actors } = await pool.query(
-      `SELECT id, actor_type, handle, display_name, avatar_url, verified_kind
+      `SELECT id, actor_type, handle, display_name, avatar_url, verified_kind,
+              ${verifiedActorSql('media_actors')} AS current_actor_verified
          FROM media_actors
         WHERE ${actorWhere}
         ORDER BY display_name ASC LIMIT $2`,
       actorParams
     );
-    res.json({ posts: hydrated, actors });
+    res.json({ posts: hydrated, actors: actors.map(publicActor) });
   } catch (err) {
     logger.error('media.searchMedia error', { message: err.message });
     mediaError(res, err, 'Failed to search Media');
@@ -1923,7 +1930,7 @@ async function getActor(req, res) {
     const actorParams = [req.params.handle];
     const actorWhere = addViewerBlockFilter('a.handle = $1', actorParams, req.user?.id, 'a');
     const { rows } = await pool.query(
-      `SELECT a.*,
+      `SELECT a.*, ${verifiedActorSql('a')} AS current_actor_verified,
               (SELECT COUNT(*)::int FROM media_follows mf WHERE mf.actor_id = a.id) AS follower_count
          FROM media_actors a WHERE ${actorWhere}`,
       actorParams
@@ -1953,7 +1960,7 @@ async function getActor(req, res) {
     );
     const hydrated = [];
     for (const p of posts) hydrated.push(await hydratePost(p, req.user?.id || null));
-    res.json({ actor: { ...rows[0], following }, posts: hydrated });
+    res.json({ actor: { ...publicActor(rows[0]), following }, posts: hydrated });
   } catch (err) {
     logger.error('media.getActor error', { message: err.message });
     mediaError(res, err, 'Failed to load actor');

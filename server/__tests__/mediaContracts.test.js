@@ -205,6 +205,34 @@ describe('OxSteed Media launch contracts', () => {
     expect(repostRes.json).toHaveBeenCalledWith({ reposted: true, repost_count: 3 });
   });
 
+  test('does not display a stale verified badge after actor verification is revoked', async () => {
+    pool.query.mockImplementation(async (sql) => {
+      if (sql.includes('FROM media_posts p')) return { rows: [] };
+      if (sql.includes('FROM media_actors')) return {
+        rows: [{ id: 'actor-1', actor_type: 'helper', handle: 'helper-1', display_name: 'Helper One', verified_kind: 'identity', current_actor_verified: false }],
+      };
+      return { rows: [] };
+    });
+    const searchRes = resMock();
+    await media.searchMedia({ query: { q: 'helper' } }, searchRes);
+    expect(searchRes.json).toHaveBeenCalledWith(expect.objectContaining({
+      actors: [expect.objectContaining({ id: 'actor-1', verified_kind: 'none' })],
+    }));
+    expect(pool.query.mock.calls.find(([sql]) => sql.includes('current_actor_verified'))[0]).toContain('current_actor_verified');
+
+    pool.query.mockReset().mockImplementation(async (sql) => {
+      if (sql.includes('SELECT a.*')) return {
+        rows: [{ id: 'actor-1', actor_type: 'helper', handle: 'helper-1', display_name: 'Helper One', verified_kind: 'identity', current_actor_verified: false }],
+      };
+      return { rows: [] };
+    });
+    const actorRes = resMock();
+    await media.getActor({ params: { handle: 'helper-1' } }, actorRes);
+    expect(actorRes.json).toHaveBeenCalledWith(expect.objectContaining({
+      actor: expect.objectContaining({ id: 'actor-1', verified_kind: 'none' }),
+    }));
+  });
+
   test('recomputes the count when a concurrent-safe toggle removes an action', async () => {
     const client = { query: (...args) => pool.query(...args), release: jest.fn() };
     pool.connect = jest.fn().mockResolvedValue(client);
