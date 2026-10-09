@@ -131,9 +131,13 @@ export default function MediaPostCard({ post, onUpdate, onBookmarkChange }) {
     setActionPending('like'); setActionMessage('');
     try {
       const r = await toggleLike(post.id);
-      setLiked(r.liked);
-      if (Number.isFinite(Number(r.like_count))) setLikeCount(Number(r.like_count));
-      else setLikeCount(c => Math.max(0, c + (r.liked ? 1 : -1)));
+      const nextLiked = Boolean(r.liked);
+      const nextLikeCount = Number.isFinite(Number(r.like_count))
+        ? Number(r.like_count)
+        : Math.max(0, likeCount + (nextLiked ? 1 : -1));
+      setLiked(nextLiked);
+      setLikeCount(nextLikeCount);
+      onUpdate?.(current => ({ ...current, liked: nextLiked, like_count: nextLikeCount }));
     } catch (err) {
       setActionMessage(err.response?.data?.error || t('media.post.actionError', { defaultValue: 'That action could not be completed. Try again.' }));
     } finally { setActionPending(''); }
@@ -166,9 +170,13 @@ export default function MediaPostCard({ post, onUpdate, onBookmarkChange }) {
     setActionPending('repost'); setActionMessage('');
     try {
       const r = await toggleRepost(post.id);
-      setReposted(r.reposted);
-      if (Number.isFinite(Number(r.repost_count))) setRepostCount(Number(r.repost_count));
-      else setRepostCount(c => Math.max(0, c + (r.reposted ? 1 : -1)));
+      const nextReposted = Boolean(r.reposted);
+      const nextRepostCount = Number.isFinite(Number(r.repost_count))
+        ? Number(r.repost_count)
+        : Math.max(0, repostCount + (nextReposted ? 1 : -1));
+      setReposted(nextReposted);
+      setRepostCount(nextRepostCount);
+      onUpdate?.(current => ({ ...current, reposted: nextReposted, repost_count: nextRepostCount }));
     } catch (err) {
       setActionMessage(err.response?.data?.error || t('media.post.actionError', { defaultValue: 'That action could not be completed. Try again.' }));
     } finally { setActionPending(''); }
@@ -190,7 +198,11 @@ export default function MediaPostCard({ post, onUpdate, onBookmarkChange }) {
       }
       if (shared) {
         const result = await recordShare(post.id);
-        if (Number.isFinite(Number(result.share_count))) setShareCount(Number(result.share_count));
+        const nextShareCount = Number.isFinite(Number(result.share_count))
+          ? Number(result.share_count)
+          : shareCount;
+        setShareCount(nextShareCount);
+        onUpdate?.(current => ({ ...current, share_count: nextShareCount }));
       }
     } catch (err) {
       if (err?.name !== 'AbortError') setActionMessage(err.response?.data?.error || t('media.post.actionError', { defaultValue: 'That action could not be completed. Try again.' }));

@@ -1255,3 +1255,11 @@ and shutdown checks. Coolify still supplies no git SHA, image digest, or
 deployment ID, so exact candidate-to-image identity and authenticated
 production journeys remain incomplete. The public routes have recovered from
 the preceding rollout gap; the current CI run remains asynchronous.
+
+Single-user action-state checkpoint (2026-10-09): like, repost, and share
+handlers now reconcile their server-confirmed personal state and authoritative
+counts through the owning feed/detail callback, matching the existing
+bookmark behavior. The focused action contract passes 2 tests, and the full
+client CI build passes localization, typecheck, production bundling, and
+verification of 761 emitted assets. Database concurrency, authenticated live
+action behavior, and the candidate CI run remain open for the next layer.
