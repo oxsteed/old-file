@@ -216,7 +216,7 @@ async function approvePost(req, res) {
     await client.query('BEGIN');
     const { rows } = await client.query(
       `SELECT p.id, p.visibility, p.processing_status, p.csam_status,
-              u.is_verified, a.actor_type,
+              u.is_verified AS is_verified, a.actor_type,
               ${verifiedActorSql('a')} AS current_actor_verified
          FROM media_posts p
          JOIN media_actors a ON a.id = p.actor_id

@@ -120,6 +120,8 @@ describe('Media approval preserves safety evidence', () => {
   test('publishes cleared content without rewriting asset verdicts or completing worker jobs', async () => {
     const res = await approve();
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ approved: true }));
+    const select = client.query.mock.calls.find(([sql]) => sql.includes('SELECT p.id'));
+    expect(select[0]).toContain('u.is_verified AS is_verified');
     const updates = client.query.mock.calls.filter(([sql]) => sql.includes('UPDATE media_'));
     expect(updates).toHaveLength(1);
     expect(updates[0][0]).not.toMatch(/SET.*csam_status|SET.*processing_status/s);

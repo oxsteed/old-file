@@ -135,6 +135,14 @@ while names and prices come from the target rather than caller-supplied labels.
 The update-draft journey and Media contract suites pass locally; full target
 type coverage still requires the disposable database and deployed verification.
 
+Admin video-approval checkpoint (2026-10-09): the administrator safety query
+now aliases the current Didit-backed `users.is_verified` value explicitly
+before evaluating processed video approval. This closes the production gap
+where a real SQL row could lack the property used by the video gate, while the
+existing tests continue to prove that approval never rewrites safety verdicts.
+Focused access and contract checks pass; the real approval path remains part of
+the hosted and authenticated release matrix.
+
 Creator settlement replay checkpoint (2026-10-09): creator gig, sponsorship,
 tip, and boost settlement retries now recover an already-posted matching
 Credit journal transaction before applying daily transfer limits, rail state,
