@@ -556,7 +556,8 @@ async function dualWriteToMedia(client, {
       // Federated actor ownership follows the restaurant, not the customer or
       // staff member who happened to submit the source post.
       await client.query(
-        `UPDATE media_actors SET owner_user_id = $1 WHERE id = $2`,`r`n        [ownerUserId, actorId]
+        `UPDATE media_actors SET owner_user_id = $1 WHERE id = $2`,
+        [ownerUserId, actorId]
       );
     }
 
