@@ -9,6 +9,7 @@ const postCard = fs.readFileSync(path.join(root, 'src/pages/media/MediaPostCard.
 const compose = fs.readFileSync(path.join(root, 'src/pages/media/MediaComposePage.jsx'), 'utf8');
 const search = fs.readFileSync(path.join(root, 'src/pages/media/MediaSearchPage.jsx'), 'utf8');
 const footer = fs.readFileSync(path.join(root, 'src/pages/media/MediaFooter.jsx'), 'utf8');
+const verification = fs.readFileSync(path.join(root, 'src/pages/media/MediaVerificationPage.jsx'), 'utf8');
 
 test('Media video controls expose accessible labels and inline playback', () => {
   assert.match(postCard, /playsInline[^>]+aria-label=\{label\}/);
@@ -101,4 +102,13 @@ test('Media boost dialog supports Escape and restores focus after closing', () =
   assert.match(postCard, /event\.key === 'Escape'/);
   assert.match(postCard, /previousFocus\?\.focus\?\.\(\)/);
   assert.match(postCard, /aria-modal="true"/);
+});
+
+test('Media verification dialog supports Escape and restores focus after closing', () => {
+  assert.match(verification, /const verificationTriggerRef = useRef\(null\)/);
+  assert.match(verification, /const verificationDialogRef = useRef\(null\)/);
+  assert.match(verification, /event\.key === 'Escape'/);
+  assert.match(verification, /previousFocus\?\.focus\?\.\(\)/);
+  assert.match(verification, /ref=\{verificationDialogRef\}/);
+  assert.match(verification, /aria-modal="true"/);
 });

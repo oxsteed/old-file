@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { CheckCircle2, FileCheck2, ShieldCheck, Store, Utensils, UserRound } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -28,6 +28,8 @@ export default function MediaVerificationPage() {
   const [notes, setNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
+  const verificationTriggerRef = useRef(null);
+  const verificationDialogRef = useRef(null);
 
   const returnTo = safeReturnTo(params.get('returnTo'));
   const diditHref = `/verify-identity?returnTo=${encodeURIComponent(returnTo)}`;
@@ -44,12 +46,30 @@ export default function MediaVerificationPage() {
 
   useEffect(() => { load(); }, []);
 
+  useEffect(() => {
+    if (!formEntity) return undefined;
+    const previousFocus = verificationTriggerRef.current
+      || (typeof document !== 'undefined' ? document.activeElement : null);
+    const closeOnEscape = (event) => {
+      if (event.key === 'Escape') setFormEntity(null);
+    };
+    document.addEventListener('keydown', closeOnEscape);
+    const focusDialog = () => verificationDialogRef.current?.querySelector('textarea, button')?.focus();
+    const focusHandle = window.requestAnimationFrame(focusDialog);
+    return () => {
+      document.removeEventListener('keydown', closeOnEscape);
+      window.cancelAnimationFrame(focusHandle);
+      window.requestAnimationFrame(() => previousFocus?.focus?.());
+    };
+  }, [formEntity]);
+
   const entityGroups = useMemo(() => ([
     { key: 'businesses', title: t('media.verification.businessesTitle'), icon: Store, empty: 'noBusiness', setup: '/business-hub' },
     { key: 'restaurants', title: t('media.verification.restaurantsTitle'), icon: Utensils, empty: 'noRestaurant', setup: '/restaurants/merchant' },
   ]), [t]);
 
-  const beginRequest = (entity) => {
+  const beginRequest = (entity, event) => {
+    verificationTriggerRef.current = event?.currentTarget || null;
     setFormEntity(entity);
     setNotes(entity.request_details?.notes || '');
     setSubmitError('');
@@ -120,7 +140,7 @@ export default function MediaVerificationPage() {
                         <span className={`media-verification-status ${status === 'approved' ? 'approved' : ''}`}>{t(`media.verification.status.${status}`, { defaultValue: status })}</span>
                         {item.reviewer_note && <p className="media-verification-review-note">{item.reviewer_note}</p>}
                       </div>
-                      {(status === 'needs_changes' || status === 'rejected' || status === 'unavailable') && <button type="button" className="media-secondary-button" onClick={() => beginRequest(item)}>{status === 'needs_changes' ? t('media.verification.resubmit') : t('media.verification.request')}</button>}
+                      {(status === 'needs_changes' || status === 'rejected' || status === 'unavailable') && <button type="button" className="media-secondary-button" onClick={(event) => beginRequest(item, event)}>{status === 'needs_changes' ? t('media.verification.resubmit') : t('media.verification.request')}</button>}
                     </article>
                   );
                 }) : (
@@ -134,7 +154,7 @@ export default function MediaVerificationPage() {
 
       {formEntity && (
         <div className="media-verification-dialog" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setFormEntity(null); }}>
-          <form className="media-verification-form" onSubmit={submit} role="dialog" aria-modal="true" aria-labelledby="media-verification-form-title">
+          <form ref={verificationDialogRef} className="media-verification-form" onSubmit={submit} role="dialog" aria-modal="true" aria-labelledby="media-verification-form-title">
             <h2 id="media-verification-form-title">{t('media.verification.requestTitle')}</h2>
             <p>{t('media.verification.requestDescription', { name: formEntity.business_name || formEntity.display_name })}</p>
             <label htmlFor="media-verification-notes">{t('media.verification.notesLabel')}</label>

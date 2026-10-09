@@ -62,7 +62,7 @@ row stays incomplete until that dependency is verified.
 | City/category Spaces | Implemented in current source. | Real channel filters, membership and counts outstanding. | Run actual database/browser city/category/membership matrix. |
 | In-shell notifications and messages | Implemented in current source. | Actual replies/likes/inbox links and account sessions outstanding. | Exercise existing activity systems within Media for each persona. |
 | Navbar/account/footer/legal navigation | Implemented in current source. | Signed-in/out, cookies, keyboard and Arabic proof outstanding. | Include navigation and legal dialogs in browser matrix. |
-| Accessibility and five languages | Incomplete: existing catalogs and labels, but full error/keyboard/RTL audit outstanding. Media legal dialogs and paid-boost dialogs now return focus to their trigger, and boost dialogs close on Escape; 14 Media accessibility/notification contract checks, localization parity, and the full 761-asset client build pass locally. | Full keyboard, Arabic/RTL and mobile matrix required for candidate. | Run the maintained browser accessibility matrix in Arabic/RTL and on mobile. |
+| Accessibility and five languages | Incomplete: existing catalogs and labels, but full error/keyboard/RTL audit outstanding. Media legal, verification, and paid-boost dialogs now return focus to their trigger, and the dialogs close on Escape; 15 Media accessibility/notification contract checks, localization parity, and the full 761-asset client build pass locally. | Full keyboard, Arabic/RTL and mobile matrix required for candidate. | Run the maintained browser accessibility matrix in Arabic/RTL and on mobile. |
 | Image-rich share previews | Implemented in prior prerender source. | Current safe assets/localized real share previews outstanding. | Verify guest-safe image metadata in every language after build. |
 | Nearby coordinates and city/state fallback | Behavior-tested locally: entity coordinates from helpers, businesses, restaurants, jobs and linked targets rank nearby; explicit city/state matching remains available, removed entities lose their boost, and reciprocal-blocked linked targets no longer contribute a ranked link boost. | Real PostgreSQL locality and blocked-target ranking cases are specified but skipped on this Windows host. | Execute the locality suite in the isolated PostgreSQL environment and verify deployed entity schemas. |
 | Guest and device location choices | Behavior-tested locally: guests can choose city/state, use device location only after an explicit action, persist a rounded choice, return to profile location, or select all locations. | Real-device permission and deployed session evidence outstanding. | Verify permission denial, Arabic layout and mobile behavior in the release matrix. |
@@ -1127,8 +1127,16 @@ and deployed inactive-author evidence remain open.
 
 Easy-layer resume checkpoint (2026-10-09): after the inactive-author change,
 the maintained discovery, publishing, notification, and accessibility browser
-journeys still pass (8 checks), and the integrated server Media suite remains
+journeys still pass (9 checks), and the integrated server Media suite remains
 green at 218 passing tests with 26 PostgreSQL-only skips. The new candidate is
 `a549689a`; CI run [37877470075](https://github.com/oxsteed/old-file/actions/runs/37877470075)
 is pending. Execution is now moving from the completed static/single-user
 layer into database-backed blocking, locality, and pagination evidence.
+
+Verification-dialog accessibility checkpoint (2026-10-09): the in-shell helper,
+business, and restaurant verification request dialog now records its trigger,
+focuses the first control on open, closes on Escape, and restores focus after
+close. The maintained Media accessibility contract passes 15 tests, all five
+locale catalogs remain aligned, and `npm run build:ci` passes with 761 emitted
+assets. Authenticated Didit/entity-request execution and RTL/mobile live proof
+remain open.
