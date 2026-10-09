@@ -412,6 +412,7 @@ test('requires a currently public and verified post before creating a boost', as
 
   expect(next).toHaveBeenCalledWith(expect.objectContaining({ code: 'media_boost_post_not_ready' }));
   expect(mockQuery.mock.calls[1][0]).toContain('safety_asset');
+  expect(mockQuery.mock.calls[1][0]).toContain('public_author_user.is_active = TRUE');
   expect(mockQuery.mock.calls[1][0]).toContain('is_business_verified = TRUE');
   expect(client.release).toHaveBeenCalled();
 });
@@ -436,6 +437,7 @@ test('rechecks post safety and publisher verification before settling a boost', 
   expect(next).toHaveBeenCalledWith(expect.objectContaining({ code: 'media_boost_not_found' }));
   const settlementQuery = mockQuery.mock.calls.find(([sql]) => String(sql).includes('SELECT b.*, p.visibility, p.processing_status'))?.[0];
   expect(settlementQuery).toContain('safety_asset');
+  expect(settlementQuery).toContain('public_author_user.is_active = TRUE');
   expect(settlementQuery).toContain('is_business_verified = TRUE');
   expect(client.release).toHaveBeenCalled();
 });
@@ -463,6 +465,7 @@ test('rejects an unsafe post target before creating a creator tip', async () => 
   expect(next).toHaveBeenCalledWith(expect.objectContaining({ code: 'media_creator_post_invalid' }));
   const postQuery = mockQuery.mock.calls.find(([sql]) => String(sql).includes('SELECT p.id FROM media_posts p'))?.[0];
   expect(postQuery).toContain('safety_asset');
+  expect(postQuery).toContain('public_author_user.is_active = TRUE');
   expect(client.release).toHaveBeenCalled();
 });
 

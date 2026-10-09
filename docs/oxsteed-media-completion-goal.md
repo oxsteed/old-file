@@ -1124,3 +1124,11 @@ pass 46 tests, and the integrated Media suite passes 218 tests with 26
 PostgreSQL-only cases skipped locally. Exact-candidate CI run
 [37877191009](https://github.com/oxsteed/old-file/actions/runs/37877191009)
 and deployed inactive-author evidence remain open.
+
+Easy-layer resume checkpoint (2026-10-09): after the inactive-author change,
+the maintained discovery, publishing, notification, and accessibility browser
+journeys still pass (8 checks), and the integrated server Media suite remains
+green at 218 passing tests with 26 PostgreSQL-only skips. The new candidate is
+`a549689a`; CI run [37877470075](https://github.com/oxsteed/old-file/actions/runs/37877470075)
+is pending. Execution is now moving from the completed static/single-user
+layer into database-backed blocking, locality, and pagination evidence.
