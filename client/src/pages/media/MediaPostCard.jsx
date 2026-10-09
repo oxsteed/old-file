@@ -259,7 +259,7 @@ export default function MediaPostCard({ post, onUpdate }) {
                 link.available && link.canonical_url ? (
                   <Link key={link.id} to={link.canonical_url} className="media-link-chip">
                     <span className="media-link-type">{t(`media.post.linkTypes.${link.link_type}`, { defaultValue: link.link_type })}</span>
-                    <span className="media-link-name">{link.label || link.name_snapshot}</span>
+                    <span className="media-link-name">{link.name || link.label || link.name_snapshot}</span>
                     {(link.price_cents ?? link.price_snapshot_cents) != null && (
                       <span className="media-link-price">
                         ${(Number(link.price_cents ?? link.price_snapshot_cents) / 100).toFixed(2)}

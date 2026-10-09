@@ -60,3 +60,7 @@ test('Media search keeps account navigation inside the Media shell', () => {
   assert.match(search, /<Link key=\{account\.id\} to=\{`\/media\/@\$\{account\.handle\}`\}/);
   assert.doesNotMatch(search, /<a key=\{account\.id\} href=/);
 });
+
+test('Media cards prefer authoritative live entity names over saved labels', () => {
+  assert.match(postCard, /link\.name \|\| link\.label \|\| link\.name_snapshot/);
+});
