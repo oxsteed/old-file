@@ -1212,3 +1212,11 @@ type using the same reference is rejected as a conflict before any balance
 mutation. The focused Credit governance suite passes 23 tests and the Media
 creator marketplace suite passes 24 tests. Disposable PostgreSQL conservation,
 concurrent settlement, and deployed payment evidence remain outstanding.
+
+Sponsorship deliverable safety checkpoint (2026-10-09): sponsorship delivery
+submission now reuses the shared verified-actor and public-post safety
+predicates used by gig deliverables, so a post with an unsafe verdict, pending
+asset, inactive author, or revoked verification cannot be submitted for paid
+delivery. The focused creator suite passes 25 tests and the integrated Media
+suite passes 223 tests with 26 PostgreSQL-only skips. Disposable accounting,
+authenticated deployment, and exact candidate identity remain outstanding.

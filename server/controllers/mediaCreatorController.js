@@ -684,8 +684,10 @@ async function submitSponsorshipDeliverable(req, res, next) {
     const { rows: posts } = await client.query(
       `SELECT p.id
          FROM media_posts p
+         JOIN media_actors a ON a.id = p.actor_id
         WHERE p.id = $1 AND p.actor_id = $2 AND p.visibility = 'public'
-          AND p.processing_status = 'ready' AND p.deleted_at IS NULL`,
+          AND p.processing_status = 'ready' AND p.deleted_at IS NULL
+          AND (${verifiedActorSql('a')}) AND ${mediaSafety.publicPostSql('p')}`,
       [postId, sponsorship.creator_actor_id]
     );
     if (!posts[0]) throw new AppError('Only a published post owned by the creator can be submitted.', 403, 'media_creator_sponsorship_deliverable_invalid');

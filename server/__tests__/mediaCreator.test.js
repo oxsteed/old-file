@@ -289,7 +289,33 @@ test('accepts only a published ready post as a sponsorship deliverable', async (
   expect(next).not.toHaveBeenCalled();
   expect(res.status).toHaveBeenCalledWith(201);
   expect(res.json).toHaveBeenCalledWith({ sponsorship: expect.objectContaining({ status: 'delivered', delivery_post_id: 'post-1' }) });
-  expect(client.query.mock.calls.some(([sql]) => String(sql).includes("processing_status = 'ready'"))).toBe(true);
+  const postQuery = client.query.mock.calls.find(([sql]) => String(sql).includes('SELECT p.id'))?.[0] || '';
+  expect(postQuery).toContain("processing_status = 'ready'");
+  expect(postQuery).toContain('safety_asset');
+  expect(postQuery).toContain('public_author_user');
+  expect(client.release).toHaveBeenCalled();
+});
+
+test('does not submit an unsafe sponsorship deliverable', async () => {
+  const pool = require('../db');
+  const client = { query: mockQuery, release: jest.fn() };
+  pool.connect.mockResolvedValueOnce(client);
+  mockQuery.mockImplementation(async (sql) => {
+    const query = String(sql);
+    if (query.includes('SELECT s.*, a.owner_user_id AS creator_user_id')) {
+      return { rows: [{ id: 's-1', creator_actor_id: 'actor-1', creator_user_id: 'creator-1', status: 'accepted' }] };
+    }
+    if (query.includes('SELECT p.id')) return { rows: [] };
+    return { rows: [] };
+  });
+  const next = jest.fn();
+  await creator.submitSponsorshipDeliverable({
+    params: { sponsorshipId: 's-1' },
+    user: { id: 'creator-1' },
+    body: { postId: 'post-unsafe' },
+  }, resMock(), next);
+  expect(next).toHaveBeenCalledWith(expect.objectContaining({ code: 'media_creator_sponsorship_deliverable_invalid' }));
+  expect(mockQuery.mock.calls.some(([sql]) => String(sql) === 'COMMIT')).toBe(false);
   expect(client.release).toHaveBeenCalled();
 });
 
