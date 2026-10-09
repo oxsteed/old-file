@@ -251,6 +251,16 @@ async function recordFlagged(mediaId, previousCsamStatus) {
       `UPDATE restaurant_media SET csam_status = 'flagged' WHERE id = $1`,
       [mediaId]
     );
+    // Restaurant Media is federated into OxSteed Media after the source row
+    // is created. A later vendor flag must revoke the copied post in the same
+    // transaction so the source cannot be hidden while its public copy stays
+    // discoverable.
+    await client.query(
+      `UPDATE media_posts
+          SET visibility = 'removed', deleted_at = COALESCE(deleted_at, NOW())
+        WHERE source_restaurant_media_id = $1`,
+      [mediaId]
+    );
     await auditService.logAdminAction({
       adminId: null, // system verdict, not an admin action
       action: 'restaurant_media_csam_flagged',

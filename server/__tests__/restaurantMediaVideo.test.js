@@ -338,10 +338,15 @@ describe('csam gate', () => {
 
     const auditInserts = [];
     const mediaUpdates = [];
+    const federatedUpdates = [];
     mockQuery.mockImplementation(async (sql, params) => {
       const q = String(sql);
       if (q.includes('UPDATE restaurant_media SET csam_status')) {
         mediaUpdates.push({ q, params });
+        return { rows: [], rowCount: 1 };
+      }
+      if (q.includes('UPDATE media_posts') && q.includes('source_restaurant_media_id')) {
+        federatedUpdates.push({ q, params });
         return { rows: [], rowCount: 1 };
       }
       if (q.includes('INSERT INTO admin_audit_log')) {
@@ -361,6 +366,9 @@ describe('csam gate', () => {
       expect(mediaUpdates[0].q).toContain(`csam_status = 'flagged'`);
       // Never published: no processing_status change to 'ready' anywhere.
       expect(mediaUpdates[0].q).not.toContain('ready');
+      expect(federatedUpdates).toHaveLength(1);
+      expect(federatedUpdates[0].q).toContain("visibility = 'removed'");
+      expect(federatedUpdates[0].params).toEqual([MEDIA_UUID]);
       expect(auditInserts).toHaveLength(1);
       const auditParams = auditInserts[0].params;
       expect(auditParams[1]).toBe('restaurant_media_csam_flagged');
