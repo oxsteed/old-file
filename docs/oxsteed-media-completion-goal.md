@@ -873,3 +873,13 @@ tests because this Windows environment has no PostgreSQL service. The client
 verification of 761 emitted assets. Vite dynamic-import and large-chunk notices
 remain advisory. Disposable PostgreSQL/Redis/ClamAV/FFmpeg, hosted CI, and
 authenticated live journeys remain open.
+
+Live rollout check (2026-10-09 01:42 UTC): a short deployment window returned
+404 for the public routes, then recovered to 200 for `/`, `/ready`, `/health`,
+`/api/media/capabilities`, `/api/media/feed?limit=1`, `/media`,
+`/media/notifications`, and `/media/messages`; unauthenticated bookmarks
+returned the expected 401. Readiness reports release
+`content-0a6b6dd815d13503`, 749/749 migrations, and healthy dependencies. The
+rollout gap is classified as transient; exact candidate-to-image identity and
+authenticated production evidence remain open because release metadata still
+does not expose a Git SHA, image digest, or deployment ID.
