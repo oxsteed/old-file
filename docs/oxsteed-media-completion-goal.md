@@ -1327,3 +1327,11 @@ lists now apply the same reciprocal block filter used by Media feeds and actor
 pages, while guests retain the public open-opportunity list. The focused
 creator controller suite adds the blocked-owner contract and remains green;
 Credit settlement, dispute, and deployed marketplace evidence remain open.
+
+Reservation-release integrity checkpoint (2026-10-09): sponsorship and gig
+cancellation, plus rejected gig deliverables, now resolve the active Credit
+reservation by marketplace reference and require its durable ID and amount to
+match before releasing it. A mismatched hold fails closed inside the existing
+transaction. The focused creator suite adds the sponsorship mismatch case and
+passes 28 tests; isolated ledger races and deployed payment evidence remain
+open.

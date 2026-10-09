@@ -419,6 +419,28 @@ test('replays sponsorship cancellation without releasing Credit twice', async ()
   expect(client.release).toHaveBeenCalled();
 });
 
+test('refuses to release a mismatched sponsorship reservation during cancellation', async () => {
+  const pool = require('../db');
+  const client = { query: mockQuery, release: jest.fn() };
+  pool.connect.mockResolvedValueOnce(client);
+  mockQuery.mockImplementation(async (sql) => {
+    const query = String(sql);
+    if (query === 'BEGIN' || query === 'ROLLBACK') return { rows: [] };
+    if (query.includes('SELECT s.*, a.owner_user_id AS creator_user_id')) {
+      return { rows: [{ id: 's-1', status: 'accepted', sponsor_user_id: 'sponsor-1', creator_user_id: 'creator-1', credit_reservation_id: 'reservation-1', amount_cents: 900 }] };
+    }
+    if (query.includes('FROM oxsteed_credit_reservations')) {
+      return { rows: [{ id: 'reservation-other', amount_cents: 900, status: 'active' }] };
+    }
+    return { rows: [] };
+  });
+  const next = jest.fn();
+  await creator.cancelSponsorship({ params: { sponsorshipId: 's-1' }, user: { id: 'sponsor-1' } }, resMock(), next);
+  expect(next).toHaveBeenCalledWith(expect.objectContaining({ code: 'media_creator_reservation_mismatch' }));
+  expect(client.query).toHaveBeenLastCalledWith('ROLLBACK');
+  expect(mockQuery.mock.calls.some(([sql]) => String(sql).includes('UPDATE media_creator_sponsorships'))).toBe(false);
+});
+
 test('replays boost cancellation after the first cancellation', async () => {
   const pool = require('../db');
   const client = { query: mockQuery, release: jest.fn() };

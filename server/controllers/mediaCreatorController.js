@@ -437,8 +437,11 @@ async function reviewDeliverable(req, res, next) {
       );
       requireMutationRow(rejectedApplicationRows, 'The creator application could not be rejected.', 'media_creator_review_transition_failed');
       if (current.credit_reservation_id) {
+        const reservation = requireMatchingReservation(await getActiveReservation(client, {
+          referenceType: 'media_creator_gig', referenceId: current.gig_id,
+        }), current.credit_reservation_id, current.award_amount_cents);
         await releaseReservation(client, {
-          reservationId: current.credit_reservation_id,
+          reservationId: reservation.id,
           reason: 'Rejected Media creator deliverable',
         });
       }
@@ -796,8 +799,11 @@ async function cancelSponsorship(req, res, next) {
       throw new AppError('Sponsorship cannot be cancelled.', 409, 'media_creator_sponsorship_cancel_invalid');
     }
     if (sponsorship.credit_reservation_id) {
+      const reservation = requireMatchingReservation(await getActiveReservation(client, {
+        referenceType: 'media_creator_sponsorship', referenceId: sponsorship.id,
+      }), sponsorship.credit_reservation_id, sponsorship.amount_cents);
       await releaseReservation(client, {
-        reservationId: sponsorship.credit_reservation_id,
+        reservationId: reservation.id,
         reason: 'Media creator sponsorship cancelled',
       });
     }
@@ -828,8 +834,11 @@ async function cancelGig(req, res, next) {
       return res.json({ gig, replayed: true });
     }
     if (gig.credit_reservation_id) {
+      const reservation = requireMatchingReservation(await getActiveReservation(client, {
+        referenceType: 'media_creator_gig', referenceId: gig.id,
+      }), gig.credit_reservation_id, gig.award_amount_cents || gig.budget_cents);
       await releaseReservation(client, {
-        reservationId: gig.credit_reservation_id,
+        reservationId: reservation.id,
         reason: 'Media creator gig cancelled',
       });
     }
