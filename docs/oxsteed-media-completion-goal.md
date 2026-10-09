@@ -21,7 +21,7 @@ checkout integration, deployment evidence and final completion decisions.
 
 | Requirement | State and implementation / behavioral evidence | Deployment / dependency | Next exact action |
 | --- | --- | --- | --- |
-| Reconciled source and retained work | Behavior-tested: writable checkout HEAD `69e842b8` matches the pushed branch; three pre-existing untracked browser scratch files remain preserved. | Runtime release metadata still exposes content identity but no git SHA. | Keep the scratch files untracked and compare release metadata at each deployment checkpoint. |
+| Reconciled source and retained work | Behavior-tested: writable checkout HEAD `4e004995` matches the pushed branch; three pre-existing untracked browser scratch files remain preserved. | Runtime release metadata still exposes content identity but no git SHA. | Keep the scratch files untracked and compare release metadata at each deployment checkpoint. |
 | Repeatable isolated fixtures | Implemented: optional Media compose extension, scoped wrapper, synthetic persona seed and real API/scan/conversion verifier. | Not executed here: Windows host has no reachable Colima/Docker runtime. | Execute `start`, `seed`, `media-test` on Colima and capture repeat/reset evidence. |
 | Required real database proof | Behavior-tested in hosted CI: the disposable Media harness ran against PostgreSQL, Redis, ClamAV, FFmpeg, private storage, and synthetic personas; the earlier full server job was cancelled before its database suite completed. | Local Windows checkout still has no disposable PostgreSQL runtime. Exact-candidate run `37873084185` is still in progress. | Preserve the harness assertion and rerun it for each candidate; record the final exact-candidate result. |
 | Helper Didit-backed identity | Implemented: `users.is_verified` checks at upload and commit; mocked behavior covers revocation at attachment commit. | Authenticated Didit return and production upload outstanding. | Prove webhook → verified helper → compose in isolated/live journeys. |
@@ -50,7 +50,7 @@ checkout integration, deployment evidence and final completion decisions.
 | City/category Spaces | Implemented in current source. | Real channel filters, membership and counts outstanding. | Run actual database/browser city/category/membership matrix. |
 | In-shell notifications and messages | Implemented in current source. | Actual replies/likes/inbox links and account sessions outstanding. | Exercise existing activity systems within Media for each persona. |
 | Navbar/account/footer/legal navigation | Implemented in current source. | Signed-in/out, cookies, keyboard and Arabic proof outstanding. | Include navigation and legal dialogs in browser matrix. |
-| Accessibility and five languages | Incomplete: existing catalogs and labels, but full error/keyboard/RTL audit outstanding. | Build/parity and Arabic/mobile matrix required for candidate. | Run build, localization parity, keyboard and RTL checks per batch. |
+| Accessibility and five languages | Incomplete: existing catalogs and labels, but full error/keyboard/RTL audit outstanding. Media legal dialogs now return focus to the opening link after Escape, backdrop, or close-button dismissal; 14 Media accessibility/notification contract checks, localization parity, and the full 761-asset client build pass locally. | Full keyboard, Arabic/RTL and mobile matrix required for candidate. | Run the maintained browser accessibility matrix in Arabic/RTL and on mobile. |
 | Image-rich share previews | Implemented in prior prerender source. | Current safe assets/localized real share previews outstanding. | Verify guest-safe image metadata in every language after build. |
 | Nearby coordinates and city/state fallback | Behavior-tested locally: entity coordinates from helpers, businesses, restaurants, jobs and linked targets rank nearby; explicit city/state matching remains available and removed entities lose their boost. | Real PostgreSQL locality cases are specified but skipped on this Windows host. | Execute the locality suite in the isolated PostgreSQL environment and verify deployed entity schemas. |
 | Guest and device location choices | Behavior-tested locally: guests can choose city/state, use device location only after an explicit action, persist a rounded choice, return to profile location, or select all locations. | Real-device permission and deployed session evidence outstanding. | Verify permission denial, Arabic layout and mobile behavior in the release matrix. |
@@ -75,7 +75,7 @@ checkout integration, deployment evidence and final completion decisions.
 | Atomic accounting/precision/fees/isolation | Incomplete for marketplace: shared rail safeguards exist, transitions are not fully atomic with payment. Creator settlement and boost retries now resolve a matching committed journal entry before daily limits, sanctions, or balance checks, with account ownership and idempotency semantics preserved; focused replay regressions pass. | Real isolated conservation/races/currency cases required. | Add transactional marketplace service and accounting behavior suites. |
 | Migration upgrade and repeat application | Implemented: new 742, 743, 744 and 746 filenames follow inspected predecessors; 746 adds creator payment reservation/transaction links and delivery metadata. | Actual 746 migration execution is pending hosted CI/deployment. | Rehearse against disposable upgraded schema and repeat without data changes. |
 | Cloudflare interim and deferred Thorn | Implemented: retained explicit interim status; no synthetic vendor clearance. | Real runtime/public-delivery proof outstanding. | Keep honest policy disclosures and future vendor switch tests. |
-| Passing exact-candidate CI | Incomplete for current candidate: the exact current candidate `69e842b8` is pending in [37873754635](https://github.com/oxsteed/old-file/actions/runs/37873754635). | The exact candidate has not completed its server regression and migration jobs yet. | Record the terminal result of `37873754635`; keep the goal open until the run passes or a failure is repaired. |
+| Passing exact-candidate CI | Incomplete for current candidate: the exact current candidate `4e004995` is pending in [37874125718](https://github.com/oxsteed/old-file/actions/runs/37874125718). | The exact candidate has not completed its server regression and migration jobs yet. | Record the terminal result of `37874125718`; keep the goal open until the run passes or a failure is repaired. |
 | Exact deployed release/readiness/schema/assets | Behavior-verified live after the latest rollout: `/ready` and `/health` returned 200; `/ready` reported release `content-ac71aaf48e521400`, migrations `749/749`, no pending/unexpected migrations, healthy database/Redis/Credit/realtime/workers; Media feed, capabilities, notifications, and messages returned 200, while unauthenticated bookmarks returned 401 and an invalid cursor returned the expected 400. | Coolify release metadata does not expose the git SHA, so exact commit-to-image identity remains unavailable. | Obtain release SHA or reproducible asset identity from deployment metadata and verify authenticated journeys. |
 | Authenticated production/real-device matrix | Incomplete. | Signed-in helper/business/restaurant/admin and real device access outstanding. | Capture full non-financial production journeys; reconcile finance read-only. |
 
@@ -103,7 +103,15 @@ and metadata through the shared append-only journal path. Two new governance
 regressions cover customer-to-customer creator settlement and platform-revenue
 boost payment replays; the focused creator/governance run passes 43 tests and
 the broader Media creator/admin/contracts/journeys run passes 54 tests. Code
-is pushed in `69e842b8`; exact-candidate CI run `37873754635` is pending.
+is pushed in `69e842b8`; exact-candidate CI run `37873754635` was superseded
+by the later accessibility candidate `4e004995` in run `37874125718`.
+
+Accessibility checkpoint (2026-10-09): Media legal links continue to open in
+the in-shell dialog, and dismissal now restores keyboard focus to the exact
+link that opened it. The maintained Media accessibility and notification
+contracts pass 14 tests; `npm run verify:i18n` and `npm run build:ci` pass with
+761 emitted assets. Full Arabic/RTL, mobile and real-browser keyboard evidence
+remains open.
 
 Publishing/identity checkpoint: shared entity-specific verification now covers
 ordinary publication, admin approval and creator recognition. Previously created
