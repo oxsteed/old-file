@@ -298,6 +298,25 @@ describe('OxSteed Media launch contracts', () => {
     expect(insert[1][6]).toBe(10);
   });
 
+  test('returns the daily quota error when the guarded post insert has no row', async () => {
+    const actor = {
+      id: 'actor-1', owner_user_id: 'helper-1', actor_type: 'helper', verified_kind: 'identity',
+      handle: 'helper-1', display_name: 'Helper One', avatar_url: null,
+    };
+    pool.query.mockImplementation(async (sql) => {
+      if (sql.includes('SELECT * FROM media_actors WHERE owner_user_id')) return { rows: [actor] };
+      if (sql.includes('helper_profiles hp JOIN users u')) return { rows: [{ id: 'helper-1' }] };
+      if (sql.includes('INSERT INTO media_posts')) return { rows: [] };
+      return { rows: [] };
+    });
+    const res = resMock();
+
+    await media.createPost({ user: { id: 'helper-1' }, body: { body: 'At capacity' } }, res);
+
+    expect(res.status).toHaveBeenCalledWith(429);
+    expect(res.json).toHaveBeenCalledWith({ error: 'Daily post limit reached', code: 'media_daily_post_limit' });
+  });
+
   test('does not let a user attach a photo to someone else\'s post', async () => {
     pool.query.mockResolvedValueOnce({ rows: [] });
     const res = resMock();
