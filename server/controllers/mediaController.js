@@ -1203,12 +1203,12 @@ async function createPost(req, res) {
            SELECT COUNT(*)::int AS count
              FROM media_posts existing
              CROSS JOIN media_post_quota_lock
-            WHERE existing.actor_id = $1
+            WHERE existing.actor_id = $1::uuid
               AND existing.created_at > NOW() - INTERVAL '1 day'
          )
        INSERT INTO media_posts
          (actor_id, body, parent_id, quoted_post_id, community_id, root_id, visibility, processing_status)
-       SELECT $1, $2, $3, $4, $5,
+       SELECT $1::uuid, $2, $3, $4, $5,
          CASE WHEN $3::uuid IS NOT NULL THEN (SELECT COALESCE(root_id, id) FROM media_posts WHERE id = $3::uuid) END,
          CASE WHEN $6 THEN 'unlisted' ELSE 'public' END,
          CASE WHEN $6 THEN 'draft' ELSE 'ready' END

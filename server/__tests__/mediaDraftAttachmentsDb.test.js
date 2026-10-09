@@ -24,6 +24,7 @@ describeDb('Media attachment transactions in PostgreSQL', () => {
   beforeAll(async () => {
     if (!/\/credit_statement_test(?:\?|$)/.test(url)) throw new Error('Use only credit_statement_test');
     setup = new Pool({ connectionString: url });
+    await setup.query('CREATE EXTENSION IF NOT EXISTS citext WITH SCHEMA public');
     await setup.query(`CREATE SCHEMA ${schema}`);
     db = new Pool({ connectionString: url, options: `-c search_path=${schema},public`, max: 5 });
     await db.query(`CREATE TABLE users (id UUID PRIMARY KEY, is_verified boolean DEFAULT true,
@@ -36,6 +37,16 @@ describeDb('Media attachment transactions in PostgreSQL', () => {
       CREATE TABLE food_restaurants (id bigint PRIMARY KEY, business_id bigint, owner_user_id UUID, slug text,
         latitude double precision,longitude double precision,address_city text,address_state text,
         status text DEFAULT 'active', is_verified boolean DEFAULT false)`);
+    // Keep ranking dependencies inside this schema as well. Without these,
+    // an empty local database falls back to chronology or CI joins unrelated
+    // public-schema fixtures, concealing locality and identifier-type errors.
+    await db.query(`CREATE TABLE food_menu_items (id bigint PRIMARY KEY, restaurant_id bigint, is_available boolean DEFAULT true);
+      CREATE TABLE jobs (id UUID PRIMARY KEY, client_id UUID, status text, location_approx_lat numeric,location_approx_lng numeric,location_city text,location_state text);
+      CREATE TABLE tool_rentals (id bigint PRIMARY KEY,user_id UUID,is_available boolean DEFAULT true,location_city text,location_state text);
+      CREATE TABLE direct_catalog_services (id bigint PRIMARY KEY,is_active boolean DEFAULT true,is_published boolean DEFAULT true);
+      CREATE TABLE pooled_orders (id bigint PRIMARY KEY,organizer_user_id UUID,organizer_business_id bigint,status text);
+      CREATE TABLE media_post_boosts (post_id UUID,status text,starts_at timestamptz,ends_at timestamptz);
+      CREATE TABLE user_blocks (blocker_id UUID,blocked_id UUID)`);
     // Actual migration DDL and constraints, isolated from all shared fixtures.
     for (const number of [709, 731, 732, 735, 736, 742, 743, 744]) {
       const dir = path.resolve(__dirname, '../migrations');
@@ -60,6 +71,16 @@ describeDb('Media attachment transactions in PostgreSQL', () => {
   });
   const image = () => ({ postId: post, userId: user, asset: { asset_type: 'image', provider: 'upload',
     storage_key: 'private/synthetic.jpg', content_sha256: 'a'.repeat(64) } });
+
+  test('verified helper creates a private draft with UUID actor parameters', async () => {
+    const response = { status: jest.fn().mockReturnThis(), json: jest.fn() };
+    await media.createPost({ user: { id: user }, body: { body: 'Real PostgreSQL draft', draft: true } }, response);
+    expect(response.status).toHaveBeenCalledWith(201);
+    const created = response.json.mock.calls[0][0].post;
+    expect(created).toMatchObject({ actor_id: actor, visibility: 'unlisted', processing_status: 'draft' });
+    expect((await db.query('SELECT visibility,processing_status FROM media_posts WHERE id=$1', [created.id])).rows[0])
+      .toEqual({ visibility: 'unlisted', processing_status: 'draft' });
+  });
 
   test('simultaneous lost-response retries commit one attachment', async () => {
     const results = await Promise.all([attachments.attach(image()), attachments.attach(image())]);

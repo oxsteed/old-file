@@ -33,7 +33,13 @@ describeDb('Media block boundaries in PostgreSQL', () => {
       CREATE TEMP TABLE media_post_links (id text, post_id text, link_type text, target_id text, name_snapshot text, price_snapshot_cents int, sort_order int);
       CREATE TEMP TABLE media_post_assets (id text, post_id text, sort_order int, asset_type text, processing_status text, csam_status text, renditions jsonb);
       CREATE TEMP TABLE media_likes (post_id text, user_id text);
-      CREATE TEMP TABLE media_bookmarks (post_id text, user_id text);
+      CREATE TEMP TABLE media_bookmarks (post_id text, user_id text, created_at timestamptz DEFAULT now());
+      CREATE TEMP TABLE food_menu_items (id text PRIMARY KEY, restaurant_id text, is_available boolean DEFAULT true);
+      CREATE TEMP TABLE jobs (id text PRIMARY KEY, client_id text, status text, location_approx_lat numeric, location_approx_lng numeric, location_city text, location_state text);
+      CREATE TEMP TABLE tool_rentals (id text PRIMARY KEY, user_id text, is_available boolean DEFAULT true, location_city text, location_state text);
+      CREATE TEMP TABLE direct_catalog_services (id text PRIMARY KEY, is_active boolean DEFAULT true, is_published boolean DEFAULT true);
+      CREATE TEMP TABLE pooled_orders (id text PRIMARY KEY, organizer_user_id text, organizer_business_id text, status text);
+      CREATE TEMP TABLE media_post_boosts (post_id text, status text, starts_at timestamptz, ends_at timestamptz);
       CREATE TEMP TABLE media_reposts (post_id text, actor_id text);
       CREATE TEMP TABLE media_follows (follower_user_id text, actor_id text, created_at timestamptz DEFAULT now());
       CREATE TEMP TABLE media_communities (id text PRIMARY KEY, slug text, title text, geo_scope text, category text);
