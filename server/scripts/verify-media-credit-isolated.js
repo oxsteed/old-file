@@ -113,9 +113,9 @@ async function main() {
     await credit.loadCustomerCredit({ customerId: customer, amountCents: 10000, currencyCode: 'USD',
       idempotencyKey: key('load'), actorUserId: admin, reason: 'Synthetic Media funding',
       referenceType: 'isolated_media_funding', referenceId: key('load-reference') });
-    await credit.settleCreatorCredit({ senderCustomerId: customer, recipientCustomerId: business,
-      amountCents: 3000, currencyCode: 'USD', idempotencyKey: key('business-funding'), actorUserId: customer,
-      referenceType: 'isolated_media_funding', referenceId: key('business-reference') });
+    await credit.loadCustomerCredit({ customerId: business, amountCents: 10000, currencyCode: 'USD',
+      idempotencyKey: key('business-load'), actorUserId: admin, reason: 'Synthetic Media business funding',
+      referenceType: 'isolated_media_funding', referenceId: key('business-load-reference') });
 
     // Award/replay must reserve once. Revisions retain the reservation until
     // approval, whose concurrent retries must all resolve to one settlement.
