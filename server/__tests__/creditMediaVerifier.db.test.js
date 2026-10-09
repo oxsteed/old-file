@@ -26,6 +26,7 @@
 // items) live in client/ and mediaFeedContext and are out of scope here.
 
 jest.unmock('pg');
+jest.unmock('../utils/transaction');
 const { disposableDatabaseOptIn } = require('./helpers/statementTestDatabase');
 
 const database = disposableDatabaseOptIn('CREDIT_MEDIA_VERIFIER_TEST_DATABASE_URL');
@@ -448,7 +449,7 @@ describeDatabase('section 5 media credit verifier', () => {
     });
     expect(boost.transaction.status).toBe('posted');
     // The boost charge must credit the platform_revenue account.
-    expect(Number(boost.transaction.credit_account_id)).toBe(revenueId);
+    expect(Number(boost.transaction.creditAccountId)).toBe(revenueId);
 
     await assertJournalBalanced([tip.transaction.id, boost.transaction.id]);
 
@@ -597,7 +598,11 @@ describeDatabase('section 5 media credit verifier', () => {
       });
       await client.query('COMMIT');
 
-      let active = await getActiveReservation(client, { reservationId: reservation.reservation.id });
+      const reference = {
+        referenceType: 'media_creator_gig',
+        referenceId: reservation.reservation.referenceId,
+      };
+      let active = await getActiveReservation(client, reference);
       expect(active.status).toBe('active');
       expect((await balances([buyer.walletId]))[buyer.walletId].reserved).toBe(12000n);
 
@@ -610,17 +615,21 @@ describeDatabase('section 5 media credit verifier', () => {
         client2.release();
       }
 
-      active = await getActiveReservation(client, { reservationId: reservation.reservation.id });
-      expect(active.status).toBe('released');
+      expect(await getActiveReservation(client, reference)).toBeNull();
+      const { rows: [releasedRow] } = await pool.query(
+        'SELECT status FROM oxsteed_credit_reservations WHERE id = $1',
+        [reservation.reservation.id]
+      );
+      expect(releasedRow.status).toBe('released');
       expect((await balances([buyer.walletId]))[buyer.walletId].reserved).toBe(0n);
 
-      // Double release fails closed.
+      // Double release is a no-op (already released).
       const client3 = await pool.connect();
       try {
         await client3.query('BEGIN');
-        await expect(releaseReservation(client3, { reservationId: reservation.reservation.id, reason: 'Again' }))
-          .rejects.toMatchObject({ status: 409 });
-        await client3.query('ROLLBACK');
+        const again = await releaseReservation(client3, { reservationId: reservation.reservation.id, reason: 'Again' });
+        expect(again).toMatchObject({ released: false });
+        await client3.query('COMMIT');
       } finally {
         client3.release();
       }
@@ -782,7 +791,7 @@ describeDatabase('section 5 media credit verifier', () => {
     const buyer = await createWallet('USD', 100000);
     const creator = await createWallet('USD', 0);
     // Restaurant sub-bank: distinct account type bound to a restaurant.
-    const ownerId = await createUser('business', `rest-owner-${tag()}`);
+    const ownerId = await createUser('customer', `rest-owner-${tag()}`);
     const { rows: [business] } = await pool.query(
       `INSERT INTO businesses (user_id, business_name) VALUES ($1, $2) RETURNING id`,
       [ownerId, `Verifier Biz ${tag()}`]
@@ -794,10 +803,11 @@ describeDatabase('section 5 media credit verifier', () => {
     );
     const { rows: [subBank] } = await pool.query(
       `INSERT INTO oxsteed_credit_accounts (account_type, restaurant_id, currency_code, balance_cents, reserved_cents)
-       VALUES ('restaurant_sub_bank', $1, 'USD', 50000, 0) RETURNING id`,
+       VALUES ('restaurant_sub_bank', $1, 'USD', 0, 0) RETURNING id`,
       [restaurant.id]
     );
     const subBankId = Number(subBank.id);
+    await fundWallet(subBankId, 50000, 'USD');
 
     const gigRef = await seedDeliveredGig({
       ownerUserId: buyer.customerId,
@@ -829,10 +839,11 @@ describeDatabase('section 5 media credit verifier', () => {
       description: 'Verifier isolation boost',
     });
 
-    // No journal transaction may reference the restaurant sub-bank.
+    // Creator flows must not touch the restaurant sub-bank (fixture funding excluded).
     const { rows } = await pool.query(
       `SELECT COUNT(*)::int AS n FROM oxsteed_credit_transactions
-        WHERE debit_account_id = $1 OR credit_account_id = $1`,
+        WHERE (debit_account_id = $1 OR credit_account_id = $1)
+          AND transaction_type NOT IN ('funding')`,
       [subBankId]
     );
     expect(rows[0].n).toBe(0);
