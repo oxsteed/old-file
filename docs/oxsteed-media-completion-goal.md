@@ -21,7 +21,7 @@ checkout integration, deployment evidence and final completion decisions.
 
 | Requirement | State and implementation / behavioral evidence | Deployment / dependency | Next exact action |
 | --- | --- | --- | --- |
-| Reconciled source and retained work | Behavior-tested: writable checkout HEAD `6139d283` matches the pushed branch; three pre-existing untracked browser scratch files remain preserved. | Runtime release metadata still exposes content identity but no git SHA. | Keep the scratch files untracked and compare release metadata at each deployment checkpoint. |
+| Reconciled source and retained work | Behavior-tested: writable checkout HEAD `69e842b8` matches the pushed branch; three pre-existing untracked browser scratch files remain preserved. | Runtime release metadata still exposes content identity but no git SHA. | Keep the scratch files untracked and compare release metadata at each deployment checkpoint. |
 | Repeatable isolated fixtures | Implemented: optional Media compose extension, scoped wrapper, synthetic persona seed and real API/scan/conversion verifier. | Not executed here: Windows host has no reachable Colima/Docker runtime. | Execute `start`, `seed`, `media-test` on Colima and capture repeat/reset evidence. |
 | Required real database proof | Behavior-tested in hosted CI: the disposable Media harness ran against PostgreSQL, Redis, ClamAV, FFmpeg, private storage, and synthetic personas; the earlier full server job was cancelled before its database suite completed. | Local Windows checkout still has no disposable PostgreSQL runtime. Exact-candidate run `37873084185` is still in progress. | Preserve the harness assertion and rerun it for each candidate; record the final exact-candidate result. |
 | Helper Didit-backed identity | Implemented: `users.is_verified` checks at upload and commit; mocked behavior covers revocation at attachment commit. | Authenticated Didit return and production upload outstanding. | Prove webhook → verified helper → compose in isolated/live journeys. |
@@ -72,10 +72,10 @@ checkout integration, deployment evidence and final completion decisions.
 | Boost payment to platform revenue | Implemented and behavior-tested locally: purchaser wallet is charged through the shared settlement rail into `platform_revenue`; self-transfer and replay are rejected. | Real accounting and deployed proof outstanding. | Verify conservation, idempotent retries and platform ledger history in the isolated/live release checks. |
 | Sponsored placement and 24-hour duration | Behavior-tested locally: active settled boosts receive a separate ranked lane inserted at positions 5, 10, and so on; organic ordering remains stable, ranked cursors carry `feed_position`, and cards show a localized sponsored label only during the active window. | Real active-boost database cases and deployed feed proof remain outstanding. | Run isolated expiry/replay/cap cases and verify live placement. |
 | Price/currency disclosure and purchaser history | Behavior-tested locally: boost confirmation returns amount/currency before settlement, and the Media creator shell now lists tip, sponsorship and boost payment history with transaction-linked dispute entry points. | Payment retry/cancellation/refund and authenticated live history proof missing. | Add admin refund review and verify purchaser/creator history against deployed Credit records. |
-| Atomic accounting/precision/fees/isolation | Incomplete for marketplace: shared rail safeguards exist, transitions are not fully atomic with payment. | Real isolated conservation/races/currency cases required. | Add transactional marketplace service and accounting behavior suites. |
+| Atomic accounting/precision/fees/isolation | Incomplete for marketplace: shared rail safeguards exist, transitions are not fully atomic with payment. Creator settlement and boost retries now resolve a matching committed journal entry before daily limits, sanctions, or balance checks, with account ownership and idempotency semantics preserved; focused replay regressions pass. | Real isolated conservation/races/currency cases required. | Add transactional marketplace service and accounting behavior suites. |
 | Migration upgrade and repeat application | Implemented: new 742, 743, 744 and 746 filenames follow inspected predecessors; 746 adds creator payment reservation/transaction links and delivery metadata. | Actual 746 migration execution is pending hosted CI/deployment. | Rehearse against disposable upgraded schema and repeat without data changes. |
 | Cloudflare interim and deferred Thorn | Implemented: retained explicit interim status; no synthetic vendor clearance. | Real runtime/public-delivery proof outstanding. | Keep honest policy disclosures and future vendor switch tests. |
-| Passing exact-candidate CI | Incomplete for current candidate: the exact current candidate `6139d283` is running in `37873401647`. | The exact candidate has not completed its server regression and migration jobs yet. | Record the terminal result of `37873401647`; keep the goal open until the run passes or a failure is repaired. |
+| Passing exact-candidate CI | Incomplete for current candidate: the exact current candidate `69e842b8` is pending in [37873754635](https://github.com/oxsteed/old-file/actions/runs/37873754635). | The exact candidate has not completed its server regression and migration jobs yet. | Record the terminal result of `37873754635`; keep the goal open until the run passes or a failure is repaired. |
 | Exact deployed release/readiness/schema/assets | Behavior-verified live after the latest rollout: `/ready` and `/health` returned 200; `/ready` reported release `content-ac71aaf48e521400`, migrations `749/749`, no pending/unexpected migrations, healthy database/Redis/Credit/realtime/workers; Media feed, capabilities, notifications, and messages returned 200, while unauthenticated bookmarks returned 401 and an invalid cursor returned the expected 400. | Coolify release metadata does not expose the git SHA, so exact commit-to-image identity remains unavailable. | Obtain release SHA or reproducible asset identity from deployment metadata and verify authenticated journeys. |
 | Authenticated production/real-device matrix | Incomplete. | Signed-in helper/business/restaurant/admin and real device access outstanding. | Capture full non-financial production journeys; reconcile finance read-only. |
 
@@ -91,8 +91,19 @@ TypeScript, production bundling and verification of 761 assets. A broader local
 and was stopped; it is not a passing full-suite result. Isolated ClamAV/FFmpeg
 execution, candidate CI and deployed verification remain outstanding. The
 baseline CI check still reports a pre-start billing rejection; canonical `/ready`
-currently reports healthy release `content-ac71aaf48e521400`, which is not proof
+currently reports healthy release `content-5a3ad5ab7517685f`, which is not proof
 that the new changes deployed. No completion claim is made.
+
+Creator settlement replay checkpoint (2026-10-09): creator gig, sponsorship,
+tip, and boost settlement retries now recover an already-posted matching
+Credit journal transaction before applying daily transfer limits, rail state,
+sanctions, or balance checks. The replay still validates the debit/credit
+account owners, transaction type, amount, currency, reference, description,
+and metadata through the shared append-only journal path. Two new governance
+regressions cover customer-to-customer creator settlement and platform-revenue
+boost payment replays; the focused creator/governance run passes 43 tests and
+the broader Media creator/admin/contracts/journeys run passes 54 tests. Code
+is pushed in `69e842b8`; exact-candidate CI run `37873754635` is pending.
 
 Publishing/identity checkpoint: shared entity-specific verification now covers
 ordinary publication, admin approval and creator recognition. Previously created
