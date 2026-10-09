@@ -40,7 +40,7 @@ export const getCommunities = () => api.get('/media/communities').then(r => r.da
 export const getCommunity = (slug) => api.get(`/media/communities/${encodeURIComponent(slug)}`).then(r => r.data);
 export const joinCommunity = (id) => api.post(`/media/communities/${id}/join`).then(r => r.data);
 export const leaveCommunity = (id) => api.delete(`/media/communities/${id}/join`).then(r => r.data);
-export const getActor = (handle) => api.get(`/media/actors/${handle}`).then(r => r.data);
+export const getActor = (handle) => api.get(`/media/actors/${encodeURIComponent(handle)}`).then(r => r.data);
 export const toggleFollow = (actorId) => api.post(`/media/actors/${actorId}/follow`).then(r => r.data);
 export const getMediaVerification = () => api.get('/media/verification').then(r => r.data);
 export const submitMediaVerification = (data) => api.post('/media/verification/requests', data).then(r => r.data);

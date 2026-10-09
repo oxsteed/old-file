@@ -1300,3 +1300,14 @@ transaction, matching settlement's lock boundary. Replays remain idempotent,
 settled boosts are rejected, and a lost transition rolls back. The focused
 creator marketplace suite passes 26 tests. Isolated Credit races, ledger
 conservation, and deployed payment proof remain open.
+
+Public-profile Media integration checkpoint (2026-10-09): helper and business
+public profiles now render a bounded preview of the actor's latest three
+Media posts, with the existing actor endpoint supplying verification, block,
+visibility, follow, and personal-action state. The preview links back into the
+Media shell and fails soft when the optional feed is unavailable; actor handles
+are URL-encoded at the API boundary. The focused profile-preview contract
+passes 2 tests, and the full client CI build passes typecheck, localization,
+production bundling, and verification of 761 emitted assets. Authenticated
+profile sessions, restaurant public-profile coverage, and deployed candidate
+verification remain open.

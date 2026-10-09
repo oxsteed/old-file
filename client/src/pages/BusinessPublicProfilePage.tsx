@@ -12,6 +12,7 @@ import { buildPublicProfileDescription, getPublicSiteUrl } from '../utils/seoDes
 import { businessProfilePath } from '../utils/profileUrls';
 import PublicProfileSummaryCard from '../components/publicProfile/PublicProfileSummaryCard';
 import { buildPublicProfileSummaryModel } from '../utils/profileStudio';
+import MediaProfilePreview from '../components/media/MediaProfilePreview';
 import './BusinessPublicProfilePage.css';
 
 /**
@@ -293,16 +294,9 @@ export default function BusinessPublicProfilePage({ customerSnapshot = null } = 
             )}
           />
 
-          <section className="profile-card" aria-labelledby="business-media-heading">
-            <h2 id="business-media-heading">{t('media.feed.title')}</h2>
-            <p className="profile-empty">{t('media.feed.subtitleShort')}</p>
-            <Link
-              className="cta-button cta-button-secondary"
-              to={`/media/@${encodeURIComponent(business.profile_slug || business.profileSlug || business.id || businessId)}`}
-            >
-              {t('media.feed.title')}
-            </Link>
-          </section>
+          <MediaProfilePreview
+            handle={business.profile_slug || business.profileSlug || `business-${business.id || businessId}`}
+          />
 
           {/* Services */}
           {business.showServices && (
