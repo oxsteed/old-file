@@ -54,6 +54,19 @@ function clearedAsset() {
     processing_status: 'ready', csam_status: 'cloudflare_deferred', renditions: [{ storage_key: 'ready.mp4' }] };
 }
 
+test('MEDIA_PUBLIC_VIDEO_INTERIM is ignored in production unless CSAM is certified', () => {
+  const originalNodeEnv = process.env.NODE_ENV;
+  process.env.NODE_ENV = 'production';
+  process.env.MEDIA_CSAM_CERTIFIED = 'false';
+  process.env.MEDIA_PUBLIC_VIDEO_INTERIM = 'true';
+  expect(policy.interimHarnessAllowed()).toBe(false);
+  expect(policy.publicVideoPublicationEnabled()).toBe(false);
+  process.env.MEDIA_CSAM_CERTIFIED = 'true';
+  expect(policy.interimHarnessAllowed()).toBe(true);
+  if (originalNodeEnv === undefined) delete process.env.NODE_ENV;
+  else process.env.NODE_ENV = originalNodeEnv;
+});
+
 test('new installs default to interim mode; certified installs keep vendor mode; unknown settings fail closed', () => {
   delete process.env.MEDIA_CSAM_MODE;
   delete process.env.MEDIA_PUBLIC_VIDEO_INTERIM;

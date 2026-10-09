@@ -1,11 +1,10 @@
 # OxSteed Media — implementation status
 
 **Audited against:** `docs/archive/oxsteed-media-spec.md` (uploaded product spec, SHA baseline `bd92ad2b`)  
-**Code baseline:** tip of `pr/oxsteed-media-stabilization` (includes PR #489 stabilization + CI fixes)  
-**Audit date:** 2026-10-09  
-**Branch for completion work:** `cursor/oxsteed-media-complete-3a48`
+**Code baseline:** `old-files-claude` + PR #490 (`cursor/oxsteed-media-complete-3a48`; includes stabilization from #489 until that merges)  
+**Audit date:** 2026-10-09 (updated after PR #490 completion pass)
 
-Legend: **Done** | **Partial** | **Missing**
+Legend: **Done** | **Partial** | **Missing** | **Blocked (external)**
 
 ---
 
@@ -13,22 +12,22 @@ Legend: **Done** | **Partial** | **Missing**
 
 | # | Decision | Status | Evidence |
 |---|----------|--------|----------|
-| 1 | Option C marketplace deferred to v3; MVP = discovery shell | **Partial** | Marketplace + Credit flows shipped early: `server/controllers/mediaCreatorController.js`, `740_oxsteed_media_creator_marketplace.sql`, `client/src/pages/media/MediaCreatorPage.jsx` — product-complete but ahead of written phasing |
-| 2 | MVP posters: verified helpers, businesses, restaurants | **Done** | `mediaPublisherPolicy.js`, `mediaController.js` `createPost` |
-| 3 | Public entity links, ~5 cap | **Done** | `MAX_LINKS_PER_POST`, `media_post_links`, compose/detail UI |
-| 4 | Keep restaurant Media tab; dual-write later (v2) | **Done** | `restaurantMediaController.js` `dualWriteToMedia`, `739_oxsteed_media_restaurant_federation.sql` |
-| 5 | Photo/video uploads + scan/transcode/CSAM | **Done** | `mediaAssetController.js`, `mediaTranscodeWorker.js`, `videoTranscodeWorker.js` |
-| 6 | Strong ranking boost for valid local links | **Done** | `mediaController.js` `getFeed`, `mediaFeedContext.js` |
-| 7 | Real city/category Spaces | **Done** | `731_oxsteed_media_spaces.sql`, `734_oxsteed_media_default_spaces.sql`, `MediaCommunitiesPage.jsx` |
-| 8 | Messages tab reuses messenger | **Partial** | `MediaMessagesPage.jsx` embeds `MessagingWorkspace` (same UX as `/messages`, route `/media/messages`) |
-| 9 | Focused Network branch when ready | **Partial** | `networkBranches.js` adds Media when `LAUNCH_VISIBILITY.oxsteedMedia`; default flag **false** (`launchScope.js`) |
-| 10 | Handles = `profile_slug` only | **Partial** | Business/restaurant actors use slugs; reply `user` actors use generated handles (`mediaController.js`) |
-| 11 | Badges: Didit / business verified / restaurant verified | **Done** | `verified_kind` on `media_actors`, `MediaPostCard.jsx` |
-| 12 | Didit for video upload; block **public** video until CSAM vendor certified | **Partial** | Didit gate in `mediaAssetController.js`; public video gated via `mediaSafetyPolicy.js` + `MEDIA_PUBLIC_VIDEO_INTERIM` (default off); certified path `MEDIA_CSAM_CERTIFIED=true` |
-| 13 | Latest at MVP; Relevant later | **Done** | `getReplies` supports both; UI defaults to Latest with Relevant option (v2 criterion met) |
-| 14 | Paid boosts after marketplace (v3+) | **Partial** | Boosts + Credit settlement live (`media_post_boosts`, `MediaPostCard.jsx`) — implemented, phasing note only |
-| 15 | Local economy discovery; nearby linked entities | **Done** | Feed locality + link ranking |
-| 16 | Launch moderation: auto flags + DMCA | **Partial** | Flags/DMCA: `mediaAdminController.js`, `MediaFlags.jsx`; auto-hide on N open flags added in completion branch |
+| 1 | Option C marketplace deferred to v3; MVP = discovery shell | **Partial** | Marketplace + Credit flows shipped early: creator controllers, migrations `740`+, `MediaCreatorPage.jsx` — product-complete but ahead of written phasing |
+| 2 | MVP posters: verified helpers, businesses, restaurants | **Done** | `mediaPublisherPolicy.js`, `createPost` |
+| 3 | Public entity links, ~5 cap | **Done** | `MAX_LINKS_PER_POST`, compose/detail UI |
+| 4 | Keep restaurant Media tab; dual-write later (v2) | **Done** | `restaurantMediaController.js` `dualWriteToMedia` |
+| 5 | Photo/video uploads + scan/transcode/CSAM | **Done** | Asset pipeline + workers |
+| 6 | Strong ranking boost for valid local links | **Done** | Feed locality + link ranking |
+| 7 | Real city/category Spaces | **Done** | Spaces schema + UI |
+| 8 | Messages tab reuses messenger | **Partial** | `MediaMessagesPage.jsx` embeds `MessagingWorkspace` |
+| 9 | Focused Network branch when ready | **Done** | `networkBranches.js`; hidden until `LAUNCH_VISIBILITY.oxsteedMedia` |
+| 10 | Handles = `profile_slug` only | **Partial** | Business/restaurant slugs; reply `user` actors use generated handles |
+| 11 | Badges: Didit / business verified / restaurant verified | **Done** | `verified_kind`, `MediaPostCard.jsx` |
+| 12 | Didit for video upload; block **public** video until CSAM vendor certified | **Partial** | Didit gate; public video blocked unless certified; `MEDIA_PUBLIC_VIDEO_INTERIM` only non-production (or production + certified) |
+| 13 | Latest at MVP; Relevant later | **Done** | Reply sort UI + API |
+| 14 | Paid boosts after marketplace (v3+) | **Partial** | Boosts live — phasing note only |
+| 15 | Local economy discovery; nearby linked entities | **Done** | Feed ranking |
+| 16 | Launch moderation: auto flags + DMCA | **Done** | Flags/DMCA + auto-hide threshold |
 | 17 | Dual-write restaurant items → `media_post_links` | **Done** | `dualWriteToMedia` |
 
 ---
@@ -37,11 +36,11 @@ Legend: **Done** | **Partial** | **Missing**
 
 | Item | Status | Files |
 |------|--------|-------|
-| 0.1 Post detail chrome (avatar, badge, handle, body, media+mute, time, views, 5 actions, reply sort, quotes, composer, linked row) | **Partial** | `MediaPostDetailPage.jsx`, `MediaPostCard.jsx`, `MediaReplyComposer.jsx` — absolute timestamp + reply truncation added in completion branch |
-| 0.2 Quote embed | **Done** | `MediaPostCard.jsx` `quoted` |
-| 0.3 Reply thread + per-reply actions | **Partial** | Replies use `MediaPostCard`; truncation added in completion branch |
-| 0.4 Bottom nav (5 tabs, badges) | **Partial** | `MediaShell.jsx` — notifications/messages badges; Spaces community badge **not** wired (no unread signal in API) |
-| 0.5 Linked on OxSteed cards (~5, snapshot, login-gated CTAs) | **Partial** | Hydration `mediaController.js`; transactional CTA login gate added in completion branch |
+| 0.1 Post detail chrome | **Done** | `MediaPostDetailPage.jsx`, `MediaPostCard.jsx`, `MediaReplyComposer.jsx` |
+| 0.2 Quote embed | **Done** | `MediaPostCard.jsx` |
+| 0.3 Reply thread + per-reply actions | **Done** | Truncation + `MediaPostCard` for replies |
+| 0.4 Bottom nav (5 tabs, badges) | **Done** | `GET /media/badges` (`spaces_unread`), migration `753`, `MediaShell.jsx` |
+| 0.5 Linked on OxSteed cards + guest CTAs | **Done** | `mediaLinkGuestGate.js`, `MediaGuestGate.jsx`, wired on cards + creator/actor/community actions |
 
 ---
 
@@ -49,19 +48,14 @@ Legend: **Done** | **Partial** | **Missing**
 
 | Area | Status | Files |
 |------|--------|-------|
-| Schema `media_*` + `media_post_links` | **Done** | `709_oxsteed_media.sql` + follow-on migrations |
-| `/api/media` + `/api/admin/media` | **Done** | `server/routes/media.js`, `mediaAdmin.js`, `server/index.js` |
-| Client `/media/*` routes | **Partial** | `App.jsx` — route order fix (notifications/messages before `:handle`) in completion branch |
-| Launch flag + API gate | **Partial** | `LAUNCH_VISIBILITY.oxsteedMedia` false; `launchGate.js` + `OXSTEED_MEDIA_LAUNCHED` env |
-| Rate limits / blocks | **Done** | Controllers + `user_blocks` filters in feed |
-| Prerender / OG | **Done** | `prerenderHelperProfile.js` Media paths |
-| i18n `media.*` | **Done** | `client/src/locales/{en,es,fr,ht,ar}.json` |
-| How-it-works `/how-it-works/media` | **Partial** | `experienceGuideModel.js` media area + locale objects in completion branch |
-| Business Hub Media tab | **Partial** | `BusinessMediaTab.jsx`; tab enabled via `LAUNCH_BUSINESS_HUB_TABS` in completion branch |
-| Profile Studio Media | **Done** | `ProfileMediaSection.jsx` |
-| Public profile embed | **Done** | `MediaProfilePreview.jsx` |
-| Creator marketplace + Credit | **Done** | Creator controllers, migrations `740`–`752`, tests |
-| View dedupe 24h | **Partial** | `recordView` — 24h window logic in completion branch |
+| Schema `media_*` | **Done** | `709_oxsteed_media.sql` + follow-ons including `753` |
+| `/api/media` + `/api/admin/media` | **Done** | Routes + `launchGate.js` when not launched |
+| Client `/media/*` routes | **Done** | `App.jsx`, `MediaLaunchGate.jsx`, `getLaunchRedirect` |
+| Launch flag + API gate | **Done** | `oxsteedMedia: false`; hub tab + Network + routes/API 404 when off |
+| i18n `media.*` | **Done** | Five locales incl. `media.guestSignIn.*` |
+| How-it-works `/how-it-works/media` | **Done** | `experienceGuideModel.js` |
+| Business Hub Media tab | **Done** | `isBusinessHubTabLaunched('media')` — hidden until launch |
+| Profile Studio / public embed | **Done** | Hidden when `!oxsteedMedia` |
 
 ---
 
@@ -69,52 +63,35 @@ Legend: **Done** | **Partial** | **Missing**
 
 | # | Criterion | Status |
 |---|-----------|--------|
-| 1 | Post detail §0.1 | **Partial** → polish in completion branch |
-| 2 | Quote-post §0.2 | **Done** |
-| 3 | Reply rows §0.3 | **Partial** → truncation |
-| 4 | Bottom nav §0.4 | **Partial** (Spaces badge gap) |
-| 5 | Quarantine / CSAM / Didit gates | **Partial** (strict public video default off; interim via env for CI) |
-| 6 | Launch flag off → redirect; on → Network | **Partial** → false default + Network entry when on |
-| 7 | Feed local economy ranking | **Done** |
-| 8 | Verified compose + links hydration | **Done** |
-| 9 | Guest view / auth transactional CTAs | **Partial** → link gate |
+| 1–4 | Post detail, quote, replies, bottom nav | **Done** |
+| 5 | Quarantine / CSAM / Didit gates | **Partial** (vendor certification **Blocked (external)**) |
+| 6 | Launch flag off → hidden; on → Network | **Done** |
+| 7–8 | Feed ranking + verified compose | **Done** |
+| 9 | Guest view / auth transactional CTAs | **Done** |
 | 10 | Snapshot-only unavailable chips | **Done** |
-| 11 | Auto-flag + DMCA | **Partial** → auto-hide threshold |
+| 11 | Auto-flag + DMCA | **Done** |
 
-## Section 4 — v2 acceptance
-
-| Item | Status |
-|------|--------|
-| Following tab + follow graph | **Done** |
-| Business Hub Media + Profile Studio + public embed | **Partial** (Hub tab launch) |
-| Restaurant dual-write | **Done** |
-| v2 link types (tool, Direct, logistics) | **Done** |
-| Relevant sort | **Done** |
-| Socket live counts | **Done** |
-| No paid boosts in v2 | **Partial** (boosts exist; Credit-backed, spec phasing) |
-
-## Section 4 — v3 acceptance
+## Section 4 — v2 / v3
 
 | Item | Status |
 |------|--------|
-| Creator marketplace + Credit tipping/gigs/sponsorships | **Done** |
-| Paid boosts after marketplace | **Done** (code) |
-| Certified CSAM → public video | **Blocked** until `MEDIA_CSAM_CERTIFIED=true` + vendor integration (owner/ops) |
-| Stories / advanced ML analytics | **Missing** (out of spec minimum; optional future) |
+| Following, dual-write, v2 links, Relevant sort, sockets | **Done** |
+| Business Hub Media + Studio + embed | **Done** (gated until launch) |
+| Creator marketplace + Credit | **Done** |
+| Certified CSAM → public video | **Blocked (external)** until vendor + `MEDIA_CSAM_CERTIFIED=true` |
+| Stories / advanced ML analytics | **Missing** (out of MVP minimum) |
 
 ---
 
-## Section 6 checklist (spec)
+## Tests added in PR #490 completion
 
-| Checklist item | Status |
-|----------------|--------|
-| Migration family | **Done** (`709`+) |
-| Routes + controllers | **Done** |
-| Client pages | **Done** |
-| Launch + Network | **Partial** (completion branch) |
-| Locales + prerender | **Partial** (how-it-works media) |
-| Hub + Studio | **Partial** |
-| Tests | **Done** (broad coverage under `server/__tests__/media*`) |
+| Area | Test |
+|------|------|
+| Launch gating (client) | `client/src/utils/launchScope.test.mjs` |
+| Guest link CTAs | `client/src/utils/mediaLinkGuestGate.test.mjs` |
+| Spaces badges API | `server/__tests__/mediaShellBadges.test.js` |
+| Production interim env | `server/__tests__/mediaSafetyPolicy.test.js` |
+| Media API launch gate | `server/__tests__/launchGate.test.js` (existing) |
 
 ---
 
@@ -122,13 +99,17 @@ Legend: **Done** | **Partial** | **Missing**
 
 | Item | Action |
 |------|--------|
-| Go-live | Set `LAUNCH_VISIBILITY.oxsteedMedia` / deploy `OXSTEED_MEDIA_LAUNCHED=true` and flip client flag for production bundle |
+| Go-live | Set `LAUNCH_VISIBILITY.oxsteedMedia` in client build + `OXSTEED_MEDIA_LAUNCHED=true` on server |
 | Public video | Do **not** enable until CSAM vendor certified; then `MEDIA_CSAM_CERTIFIED=true`, `MEDIA_CSAM_MODE=vendor` |
-| CI / isolated media tests | Set `MEDIA_PUBLIC_VIDEO_INTERIM=true` for disposable harness only |
+| CI / disposable harness | `MEDIA_PUBLIC_VIDEO_INTERIM=true` (refused in `NODE_ENV=production` unless certified) |
 | CSAM vendor contract | Human licensing per `docs/oxsteed-media-safety-policy.md` |
 
 ---
 
-## Completion branch commits (map)
+## Local test notes (2026-10-09)
 
-See PR description on `cursor/oxsteed-media-complete-3a48` for commit ↔ spec mapping.
+| Symptom | Verdict |
+|---------|---------|
+| `creditMediaVerifier` `credit_total_issuance_limit` on shared DB | **Not a product regression** — disposable DB near default 5M cap; test file raises `OXSTEED_CREDIT_MAX_TOTAL_ISSUANCE_CENTS` when DB URL is set |
+| `prerenderMarketing` / `adminLocaleNamespaces` on Node without full client build | **Environment/setup**, not introduced by #490 — CI runs with production client build |
+| `registerHooks` in bare Node | **Tooling/env** — use `npm run build:ci` in `client/` per AGENTS.md |
