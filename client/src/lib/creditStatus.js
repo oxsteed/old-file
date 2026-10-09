@@ -49,6 +49,7 @@ const TRANSACTION_TYPE_TRANSLATION_KEYS = Object.freeze({
   transfer: 'transactionTransfer',
   adjustment: 'transactionAdjustment',
   settlement: 'transactionSettlement',
+  media_creator_settlement: 'transactionSettlement',
   settlement_reversal: 'transactionSettlementReversal',
   fee: 'transactionFee',
   funding: 'transactionFunding',

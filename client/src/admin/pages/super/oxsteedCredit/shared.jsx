@@ -170,6 +170,7 @@ export const TRANSACTION_TRANSLATION_KEYS = {
   chargeback: 'transactionChargeback',
   fee: 'transactionFee',
   settlement: 'transactionSettlement',
+  media_creator_settlement: 'transactionSettlement',
   settlement_reversal: 'transactionSettlementReversal',
   funding: 'transactionFunding',
   reserve_release: 'transactionReserveRelease',

@@ -40,6 +40,7 @@ function transactionLabel(transaction, t) {
     transfer: t('adminTransactionCustomerTransfer'),
     adjustment: t('adminTransactionAccountAdjustment'),
     settlement: t('adminTransactionPartnerSettlement'),
+    media_creator_settlement: t('adminTransactionPartnerSettlement'),
     settlement_reversal: t('transactionSettlementReversal'),
     fee: t('adminTransactionCreditFee'),
     expiration: t('adminTransactionCreditExpiration'),
