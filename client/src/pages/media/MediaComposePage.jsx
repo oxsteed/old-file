@@ -355,7 +355,7 @@ export default function MediaComposePage() {
           <small>{t('media.compose.videoHint')}</small>
         </label>
         {status && <p className="media-status" role="status" data-processing-status={processingStatus || undefined}>{status}</p>}
-        {error && <div className="media-error" role="alert"><p>{error}</p>{errorCode === 'media_video_didit_required' && <Link className="media-error-action" to="/media/verification?returnTo=/media/compose">{t('media.verification.verifyIdentity')}</Link>}</div>}
+        {error && <div className="media-error" role="alert"><p>{error}</p>{(errorCode === 'media_video_didit_required' || errorCode === 'media_not_verified_poster') && <Link className="media-error-action" to="/media/verification?returnTo=/media/compose">{t(errorCode === 'media_video_didit_required' ? 'media.verification.verifyIdentity' : 'media.verification.request', { defaultValue: errorCode === 'media_video_didit_required' ? 'Verify identity' : 'Request verification' })}</Link>}</div>}
         <button type="submit" disabled={submitting} className="media-post-btn">
           {submitting ? t('media.compose.posting') : t('media.compose.post')}
         </button>

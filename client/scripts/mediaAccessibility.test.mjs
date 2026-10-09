@@ -40,6 +40,12 @@ test('Media composer persists restored draft edits before retrying publication',
   assert.match(compose, /await updateDraft\(postId, \{ body: body\.trim\(\), links, community_id: communityId \|\| null \}\)/);
 });
 
+test('Media composer routes unverified publishers to verification and preserves the draft return path', () => {
+  assert.match(compose, /errorCode === 'media_not_verified_poster'/);
+  assert.match(compose, /\/media\/verification\?returnTo=\/media\/compose/);
+  assert.match(compose, /media\.verification\.request/);
+});
+
 test('Media composer keeps polling private processing drafts until a terminal state', () => {
   assert.match(compose, /refreshProcessingDraft/);
   assert.match(compose, /pollCount > 90/);
