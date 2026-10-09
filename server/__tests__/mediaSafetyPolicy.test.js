@@ -96,6 +96,10 @@ test('public post reads recheck the represented helper, business, or restaurant 
   expect(sql).toContain('b.is_business_verified = TRUE');
   expect(sql).toContain('r.is_verified = TRUE');
   expect(sql).toContain('hu.is_verified = TRUE');
+  expect(sql).toContain('bu.is_active = TRUE');
+  expect(sql).toContain('bu.is_banned = FALSE');
+  expect(sql).toContain('ru.deleted_at IS NULL');
+  expect(sql).toContain('ru.is_active = TRUE');
 });
 
 test.each([

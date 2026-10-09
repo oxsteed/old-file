@@ -1172,3 +1172,11 @@ existing reciprocal-block check. A stale helper link therefore remains a
 snapshot label without a canonical action URL. The integrated Media suite
 passes 221 tests with 26 PostgreSQL-only skips; the next exact action is the
 real link-hydration and locality journey in disposable PostgreSQL.
+
+Entity-owner verification checkpoint (2026-10-09): the shared publisher
+verification predicate now also requires active, unbanned, undeleted owner
+accounts for business and restaurant actors. This closes the same revocation
+path for admin approval and every caller that reuses the predicate. The
+focused safety contract passes 22 tests; the integrated Media suite remains
+green at 221 tests with 26 PostgreSQL-only skips. Live and disposable database
+verification remain outstanding.
