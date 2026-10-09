@@ -42,6 +42,7 @@ async function fixture() {
       import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
       import Compose from './src/pages/media/MediaComposePage.jsx';
       import Card from './src/pages/media/MediaPostCard.jsx';
+      import { MediaGuestGateProvider } from './src/pages/media/MediaGuestGate.jsx';
       window.calls = []; window.translate = (key, options = {}) => options.defaultValue || key;
       window.signedIn = location.search.includes('actions');
       if (location.search.includes('restored')) {
@@ -51,14 +52,16 @@ async function fixture() {
       const post = { id: 'post', display_name: 'Synthetic helper', handle: 'helper', verified_kind: 'identity',
         created_at: new Date().toISOString(), body: 'Local work', like_count: 0, bookmark_count: 0,
         repost_count: 0, reply_count: 0, share_count: 0, view_count: 0, links: [
-          ...['food_item','helper','job','tool_rental','direct_catalog'].map(type => ({ id: type, link_type: type,
-            available: true, canonical_url: '/public/' + type, name_snapshot: type })),
+          ...['restaurant', 'business', 'logistics_campaign'].map(type => ({ id: type, link_type: type,
+            available: true, canonical_url: '/public/' + type, name_snapshot: type, cta: 'View' })),
+          ...['food_item', 'helper', 'job', 'tool_rental', 'direct_catalog'].map(type => ({ id: 'tx-' + type, link_type: type,
+            available: true, canonical_url: '/public/' + type, name_snapshot: type, cta: type === 'food_item' ? 'Order' : type === 'job' ? 'Apply' : type === 'tool_rental' ? 'Rent' : 'Book' })),
           { id: 'removed', link_type: 'business', available: false, name_snapshot: 'Removed business' }
         ] };
       const Destination = () => { const location = useLocation(); return <p data-destination>{location.pathname}</p>; };
       createRoot(document.getElementById('root')).render(<BrowserRouter><Routes>
         <Route path="/media/compose" element={<Compose />} />
-        <Route path="/media/card" element={<Card post={post} />} />
+        <Route path="/media/card" element={<MediaGuestGateProvider><Card post={post} /></MediaGuestGateProvider>} />
         <Route path="*" element={<Destination />} />
       </Routes></BrowserRouter>);` },
     bundle: true, write: false, jsx: 'automatic', loader: { '.css': 'empty' },
@@ -113,12 +116,25 @@ test('guest Linked on OxSteed cards open public pages; removed targets stay iner
   try {
     browser = await chromium.launch({ headless: true, channel: 'chrome' });
     const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
-    for (const type of ['food_item', 'helper', 'job', 'tool_rental', 'direct_catalog']) {
+    for (const type of ['restaurant', 'business', 'logistics_campaign']) {
       await page.goto(`${app.url}/media/card`);
       assert.equal(await page.locator('a').filter({ hasText: 'Removed business' }).count(), 0);
       await page.locator(`a[href="/public/${type}"]`).click();
       await page.locator('[data-destination]').filter({ hasText: `/public/${type}` }).waitFor();
     }
+  } finally { if (browser) await browser.close(); await app.close(); }
+});
+
+test('guest transactional Linked chips open the sign-in gate with a return path', async () => {
+  const app = await fixture(); let browser;
+  try {
+    browser = await chromium.launch({ headless: true, channel: 'chrome' });
+    const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+    await page.goto(`${app.url}/media/card`);
+    await page.locator('a[href="/public/food_item"]').click();
+    await page.locator('#media-guest-sign-in-title').waitFor();
+    assert.equal(await page.locator('a.media-primary-button').getAttribute('href'), '/login');
+    assert.equal(await page.locator('[data-destination]').count(), 0);
   } finally { if (browser) await browser.close(); await app.close(); }
 });
 
