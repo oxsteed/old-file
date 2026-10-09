@@ -17,6 +17,10 @@ export default function MediaFlagsPage() {
   const [workReviewReasons, setWorkReviewReasons] = useState({});
   const [workReviewError, setWorkReviewError] = useState('');
   const [workReviewPending, setWorkReviewPending] = useState(null);
+  const [csamTakedownUrl, setCsamTakedownUrl] = useState('');
+  const [csamTakedownNote, setCsamTakedownNote] = useState('');
+  const [csamTakedownMessage, setCsamTakedownMessage] = useState('');
+  const [csamTakedownPending, setCsamTakedownPending] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -86,6 +90,28 @@ export default function MediaFlagsPage() {
 
   useEffect(() => { load(); }, [status]);
 
+  const handleCsamTakedown = async (event) => {
+    event.preventDefault();
+    const url = csamTakedownUrl.trim();
+    if (!url || csamTakedownPending) return;
+    setCsamTakedownPending(true);
+    setCsamTakedownMessage('');
+    try {
+      await axios.post('/api/admin/media/takedowns/by-url', {
+        public_url: url,
+        note: csamTakedownNote.trim() || undefined,
+      });
+      setCsamTakedownUrl('');
+      setCsamTakedownNote('');
+      setCsamTakedownMessage(t('media.admin.csamTakedownSuccess'));
+      load();
+    } catch (err) {
+      setCsamTakedownMessage(err.response?.data?.error || t('media.admin.csamTakedownError'));
+    } finally {
+      setCsamTakedownPending(false);
+    }
+  };
+
   const handleReview = async (id, action) => {
     try {
       await axios.post(`/api/admin/media/flags/${id}/review`, { action });
@@ -98,6 +124,18 @@ export default function MediaFlagsPage() {
   return (
     <div className="admin-page">
       <h1>Media Flags</h1>
+      <section aria-labelledby="media-admin-csam-takedown-title">
+        <h2 id="media-admin-csam-takedown-title">{t('media.admin.csamTakedownTitle')}</h2>
+        <p>{t('media.admin.csamTakedownHint')}</p>
+        <form className="admin-card" onSubmit={handleCsamTakedown}>
+          <label htmlFor="media-csam-takedown-url">{t('media.admin.csamTakedownUrl')}</label>
+          <input id="media-csam-takedown-url" type="url" required value={csamTakedownUrl} onChange={(event) => setCsamTakedownUrl(event.target.value)} />
+          <label htmlFor="media-csam-takedown-note">{t('media.admin.csamTakedownNote')}</label>
+          <textarea id="media-csam-takedown-note" rows={2} value={csamTakedownNote} onChange={(event) => setCsamTakedownNote(event.target.value)} />
+          <button type="submit" disabled={csamTakedownPending || !csamTakedownUrl.trim()}>{t('media.admin.csamTakedownSubmit')}</button>
+          {csamTakedownMessage && <p role="status">{csamTakedownMessage}</p>}
+        </form>
+      </section>
       <section aria-labelledby="media-admin-work-reviews-title">
         <h2 id="media-admin-work-reviews-title">{t('media.creator.workReviews')}</h2>
         <p>{t('media.creator.adminReviewHint')}</p>

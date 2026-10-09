@@ -30363,6 +30363,15 @@
       },
       "declineWork": "Refuser le travail"
     },
+    "admin": {
+      "csamTakedownTitle": "Retrait après correspondance CSAM Cloudflare",
+      "csamTakedownHint": "Collez l’URL publique complète de l’e-mail CSAM quotidien de Cloudflare. OxSteed met l’élément en quarantaine, retire la publication et enregistre un audit.",
+      "csamTakedownUrl": "URL publique du média",
+      "csamTakedownNote": "Note interne (facultatif)",
+      "csamTakedownSubmit": "Mettre en quarantaine via l’URL",
+      "csamTakedownSuccess": "Média mis en quarantaine et retiré de la vue publique.",
+      "csamTakedownError": "Impossible de mettre cette URL en quarantaine. Vérifiez que l’hôte correspond à MEDIA_CLOUDFLARE_HOST."
+    },
     "actor": {
       "follow": "Suivre",
       "unfollow": "Ne plus suivre",

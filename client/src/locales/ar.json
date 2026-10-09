@@ -30374,6 +30374,15 @@
       },
       "declineWork": "رفض العمل"
     },
+    "admin": {
+      "csamTakedownTitle": "إزالة محتوى بعد تطابق CSAM من Cloudflare",
+      "csamTakedownHint": "الصق عنوان URL العام الكامل من رسالة CSAM اليومية من Cloudflare. يضع OxSteed الوسائط في الحجر الصحي، يزيل المنشور من العرض العام، ويكتب سجل تدقيق.",
+      "csamTakedownUrl": "عنوان URL العام للوسائط",
+      "csamTakedownNote": "ملاحظة داخلية (اختياري)",
+      "csamTakedownSubmit": "حجر صحي عبر الرابط",
+      "csamTakedownSuccess": "تم حجر الوسائط وإزالتها من العرض العام.",
+      "csamTakedownError": "تعذر حجر هذا الرابط. تحقق من أن المضيف يطابق MEDIA_CLOUDFLARE_HOST."
+    },
     "actor": {
       "follow": "متابعة",
       "unfollow": "إلغاء المتابعة",

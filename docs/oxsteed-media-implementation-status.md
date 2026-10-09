@@ -23,7 +23,7 @@ Legend: **Done** | **Partial** | **Missing** | **Blocked (external)**
 | 9 | Focused Network branch when ready | **Done** | `networkBranches.js`; hidden until `LAUNCH_VISIBILITY.oxsteedMedia` |
 | 10 | Handles = `profile_slug` only | **Partial** | Business/restaurant slugs; reply `user` actors use generated handles |
 | 11 | Badges: Didit / business verified / restaurant verified | **Done** | `verified_kind`, `MediaPostCard.jsx` |
-| 12 | Didit for video upload; block **public** video until CSAM vendor certified | **Partial** | Didit gate; public video blocked unless certified; `MEDIA_PUBLIC_VIDEO_INTERIM` only non-production (or production + certified) |
+| 12 | Didit for video upload; CSAM safeguards | **Partial** | Photos: `MEDIA_CSAM_MODE=cloudflare` + Cloudflare CSAM Scanning Tool on cached images (`MEDIA_CLOUDFLARE_HOST`). Video: owner override `MEDIA_PUBLIC_VIDEO_WITHOUT_CSAM` or certified vendor; `published_without_csam` + audit. See `docs/oxsteed-media-csam-cloudflare-runbook.md` |
 | 13 | Latest at MVP; Relevant later | **Done** | Reply sort UI + API |
 | 14 | Paid boosts after marketplace (v3+) | **Partial** | Boosts live — phasing note only |
 | 15 | Local economy discovery; nearby linked entities | **Done** | Feed ranking |
@@ -64,7 +64,7 @@ Legend: **Done** | **Partial** | **Missing** | **Blocked (external)**
 | # | Criterion | Status |
 |---|-----------|--------|
 | 1–4 | Post detail, quote, replies, bottom nav | **Done** |
-| 5 | Quarantine / CSAM / Didit gates | **Partial** (vendor certification **Blocked (external)**) |
+| 5 | Quarantine / CSAM / Didit gates | **Partial** (Cloudflare image scanning operational; upload-time video vendor optional; owner video override documented) |
 | 6 | Launch flag off → hidden; on → Network | **Done** |
 | 7–8 | Feed ranking + verified compose | **Done** |
 | 9 | Guest view / auth transactional CTAs | **Done** |
@@ -78,7 +78,7 @@ Legend: **Done** | **Partial** | **Missing** | **Blocked (external)**
 | Following, dual-write, v2 links, Relevant sort, sockets | **Done** |
 | Business Hub Media + Studio + embed | **Done** (gated until launch) |
 | Creator marketplace + Credit | **Done** |
-| Certified CSAM → public video | **Blocked (external)** until vendor + `MEDIA_CSAM_CERTIFIED=true` |
+| Certified CSAM → public video | **Partial** — `MEDIA_PUBLIC_VIDEO_WITHOUT_CSAM` (owner risk) or future `MEDIA_CSAM_MODE=vendor` |
 | Stories / advanced ML analytics | **Missing** (out of MVP minimum) |
 
 ---
@@ -100,9 +100,10 @@ Legend: **Done** | **Partial** | **Missing** | **Blocked (external)**
 | Item | Action |
 |------|--------|
 | Go-live | Set `LAUNCH_VISIBILITY.oxsteedMedia` in client build + `OXSTEED_MEDIA_LAUNCHED=true` on server |
-| Public video | Do **not** enable until CSAM vendor certified; then `MEDIA_CSAM_CERTIFIED=true`, `MEDIA_CSAM_MODE=vendor` |
-| CI / disposable harness | `MEDIA_PUBLIC_VIDEO_INTERIM=true` (refused in `NODE_ENV=production` unless certified) |
-| CSAM vendor contract | Human licensing per `docs/oxsteed-media-safety-policy.md` |
+| Cloudflare CSAM | Enable zone tool; set `MEDIA_CSAM_MODE=cloudflare`, `MEDIA_CLOUDFLARE_HOST`; follow `docs/oxsteed-media-csam-cloudflare-runbook.md` |
+| Public video without CSAM | Only if accepted: `MEDIA_PUBLIC_VIDEO_WITHOUT_CSAM=true` (startup warning); disable when vendor is live |
+| Certified vendor (later) | `MEDIA_CSAM_MODE=vendor`, `MEDIA_CSAM_CERTIFIED=true` |
+| CI / disposable harness | `MEDIA_PUBLIC_VIDEO_INTERIM=true` (not a production override) |
 
 ---
 

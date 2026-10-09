@@ -30363,6 +30363,15 @@
       },
       "declineWork": "Refize travay la"
     },
+    "admin": {
+      "csamTakedownTitle": "Retire match CSAM Cloudflare",
+      "csamTakedownHint": "Mete URL piblik konplè ki soti nan imèl CSAM chak jou Cloudflare la. OxSteed mete medya a an karantèn, retire pòs la epi ekri yon odit.",
+      "csamTakedownUrl": "URL piblik medya a",
+      "csamTakedownNote": "Nòt entèn (opsyonèl)",
+      "csamTakedownSubmit": "Mete an karantèn ak URL",
+      "csamTakedownSuccess": "Medya a an karantèn epi pa parèt piblikman ankò.",
+      "csamTakedownError": "Nou pa t kapab mete URL sa a an karantèn. Verifye host la matche ak MEDIA_CLOUDFLARE_HOST."
+    },
     "actor": {
       "follow": "Swiv",
       "unfollow": "Sispann swiv",
