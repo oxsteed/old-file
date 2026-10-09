@@ -124,23 +124,6 @@ BEGIN
       RAISE EXCEPTION 'Media boost payment requires a matching pending boost'
         USING ERRCODE = '23514';
     END IF;
-  ELSIF NEW.reference_type IN ('isolated_media_currency', 'isolated_unrelated_transfer')
-        AND NEW.reference_id LIKE 'media-credit-%' THEN
-    -- The disposable Media Credit verifier exercises currency boundaries and
-    -- dispute scoping with synthetic transfers that do not have marketplace
-    -- rows. Keep that harness path explicit and scoped to its generated IDs;
-    -- every production creator reference still has to match its durable row.
-    IF credit_type <> 'customer_wallet'
-       OR NEW.partner_id IS NOT NULL
-       OR NEW.agreement_id IS NOT NULL
-       OR debit_owner IS NULL
-       OR credit_owner IS NULL
-       OR debit_owner IS NOT DISTINCT FROM credit_owner
-       OR NEW.amount_cents <= 0
-       OR NEW.currency_code IS NULL THEN
-      RAISE EXCEPTION 'Isolated Media Credit transfer has invalid wallet boundaries'
-        USING ERRCODE = '23514';
-    END IF;
   ELSE
     RAISE EXCEPTION 'Media creator settlements require a recognized reference'
       USING ERRCODE = '23514';
