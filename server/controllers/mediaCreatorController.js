@@ -41,6 +41,18 @@ function requireTransactionId(transfer) {
   return transactionId;
 }
 
+// A marketplace row stores the reservation it created. Resolve by business
+// reference only as a recovery aid, then fail closed when the active hold does
+// not match that durable link or the agreed amount.
+function requireMatchingReservation(reservation, expectedReservationId, expectedAmountCents) {
+  if (!reservation
+    || String(reservation.id) !== String(expectedReservationId)
+    || Number(reservation.amountCents) !== Number(expectedAmountCents)) {
+    throw new AppError('The Credit reservation does not match this marketplace payment.', 409, 'media_creator_reservation_mismatch');
+  }
+  return reservation;
+}
+
 async function verifiedActor(client, userId, actorId = null) {
   const params = [userId];
   const actorFilter = actorId ? 'AND a.id = $2' : '';
@@ -255,11 +267,13 @@ async function awardApplication(req, res, next) {
         WHERE id = $1 RETURNING *`, [current.id]
     );
     const awardedApplication = requireMutationRow(rows, 'The creator application could not be awarded.', 'media_creator_award_transition_failed');
-    await client.query(
+    const { rows: gigRows } = await client.query(
       `UPDATE media_creator_gigs
           SET status = 'awarded', award_amount_cents = $2, credit_reservation_id = $3, updated_at = NOW()
-        WHERE id = $1`, [current.gig_id, awardAmount, reservationResult.reservation.id]
+        WHERE id = $1 AND status = 'open'
+        RETURNING id, status, award_amount_cents, credit_reservation_id`, [current.gig_id, awardAmount, reservationResult.reservation.id]
     );
+    requireMutationRow(gigRows, 'The creator gig could not be awarded.', 'media_creator_award_transition_failed');
     await client.query(
       `UPDATE media_creator_applications SET status = 'rejected', updated_at = NOW()
         WHERE gig_id = $1 AND id <> $2 AND status IN ('submitted','shortlisted')`, [current.gig_id, current.id]
@@ -337,12 +351,9 @@ async function reviewDeliverable(req, res, next) {
       }
       await creditService.assertCreditRailEnabled(client);
       await creditService.assertCreditRailNotFrozen(client);
-      const reservation = await getActiveReservation(client, {
+      const reservation = requireMatchingReservation(await getActiveReservation(client, {
         referenceType: 'media_creator_gig', referenceId: current.gig_id,
-      });
-      if (!reservation) {
-        throw new AppError('The gig Credit reservation is no longer active.', 409, 'media_creator_reservation_missing');
-      }
+      }), current.credit_reservation_id, current.award_amount_cents);
       await releaseReservation(client, {
         reservationId: reservation.id,
         reason: 'Approved Media creator deliverable',
@@ -436,8 +447,9 @@ async function createTip(req, res, next) {
        VALUES ($1,$2,$3,$4,$5) RETURNING *`,
       [req.user.id, actor.id, req.body?.postId || null, amount, idempotencyKey]
     );
+    const tip = requireMutationRow(rows, 'The creator tip could not be saved.', 'media_creator_tip_transition_failed');
     await client.query('COMMIT');
-    res.status(202).json({ tip: rows[0], next: 'Credit transfer authorization is required before settlement.' });
+    res.status(202).json({ tip, next: 'Credit transfer authorization is required before settlement.' });
   } catch (err) { await client.query('ROLLBACK').catch(() => {}); next(err); }
   finally { client.release(); }
 }
@@ -483,8 +495,9 @@ async function createSponsorship(req, res, next) {
        VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
       [req.user.id, actor.id, req.body?.postId || null, brief, amount, idempotencyKey]
     );
+    const sponsorship = requireMutationRow(rows, 'The creator sponsorship could not be saved.', 'media_creator_sponsorship_transition_failed');
     await client.query('COMMIT');
-    res.status(202).json({ sponsorship: rows[0], next: 'Credit transfer authorization is required before settlement.' });
+    res.status(202).json({ sponsorship, next: 'Credit transfer authorization is required before settlement.' });
   } catch (err) { await client.query('ROLLBACK').catch(() => {}); next(err); }
   finally { client.release(); }
 }
@@ -649,8 +662,9 @@ async function submitSponsorshipDeliverable(req, res, next) {
         WHERE id = $1 AND status IN ('accepted','delivered')
         RETURNING *`, [sponsorship.id, postId, note]
     );
+    const deliveredSponsorship = requireMutationRow(rows, 'The sponsorship deliverable could not be saved.', 'media_creator_sponsorship_transition_failed');
     await client.query('COMMIT');
-    res.status(201).json({ sponsorship: rows[0] });
+    res.status(201).json({ sponsorship: deliveredSponsorship });
   } catch (err) { await client.query('ROLLBACK').catch(() => {}); next(err); }
   finally { client.release(); }
 }
@@ -676,10 +690,9 @@ async function settleSponsorship(req, res, next) {
     if (!currentActor) throw new AppError('Creator verification is no longer active.', 409, 'media_creator_unverified');
     await creditService.assertCreditRailEnabled(client);
     await creditService.assertCreditRailNotFrozen(client);
-    const reservation = await getActiveReservation(client, {
+    const reservation = requireMatchingReservation(await getActiveReservation(client, {
       referenceType: 'media_creator_sponsorship', referenceId: sponsorship.id,
-    });
-    if (!reservation) throw new AppError('The sponsorship Credit reservation is no longer active.', 409, 'media_creator_reservation_missing');
+    }), sponsorship.credit_reservation_id, sponsorship.amount_cents);
     await releaseReservation(client, {
       reservationId: reservation.id,
       reason: 'Approved Media creator sponsorship deliverable',
@@ -743,10 +756,11 @@ async function cancelSponsorship(req, res, next) {
     }
     const { rows: updated } = await client.query(
       `UPDATE media_creator_sponsorships SET status = 'cancelled', updated_at = NOW()
-        WHERE id = $1 RETURNING *`, [sponsorship.id]
+        WHERE id = $1 AND status IN ('pending_credit','accepted','delivered') RETURNING *`, [sponsorship.id]
     );
+    const cancelledSponsorship = requireMutationRow(updated, 'The sponsorship cancellation could not be saved.', 'media_creator_sponsorship_transition_failed');
     await client.query('COMMIT');
-    res.json({ sponsorship: updated[0] });
+    res.json({ sponsorship: cancelledSponsorship });
   } catch (err) { await client.query('ROLLBACK').catch(() => {}); next(err); }
   finally { client.release(); }
 }
@@ -774,14 +788,15 @@ async function cancelGig(req, res, next) {
     }
     const { rows: updated } = await client.query(
       `UPDATE media_creator_gigs SET status = 'cancelled', updated_at = NOW()
-        WHERE id = $1 RETURNING *`, [gig.id]
+        WHERE id = $1 AND status NOT IN ('completed','cancelled') RETURNING *`, [gig.id]
     );
+    const cancelledGig = requireMutationRow(updated, 'The creator gig cancellation could not be saved.', 'media_creator_gig_transition_failed');
     await client.query(
       `UPDATE media_creator_applications SET status = 'rejected', updated_at = NOW()
         WHERE gig_id = $1 AND status IN ('submitted','shortlisted','awarded','delivered')`, [gig.id]
     );
     await client.query('COMMIT');
-    res.json({ gig: updated[0] });
+    res.json({ gig: cancelledGig });
   } catch (err) { await client.query('ROLLBACK').catch(() => {}); next(err); }
   finally { client.release(); }
 }

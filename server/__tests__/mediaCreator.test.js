@@ -158,6 +158,36 @@ test('blocks sponsorship settlement after creator verification is revoked', asyn
   expect(client.release).toHaveBeenCalled();
 });
 
+test('fails closed when a sponsorship active reservation does not match its durable payment link', async () => {
+  const pool = require('../db');
+  const client = { query: mockQuery, release: jest.fn() };
+  pool.connect.mockResolvedValueOnce(client);
+  const credit = require('../services/oxsteedCreditService');
+  const enabled = jest.spyOn(credit, 'assertCreditRailEnabled').mockResolvedValue(undefined);
+  const unfrozen = jest.spyOn(credit, 'assertCreditRailNotFrozen').mockResolvedValue(undefined);
+  mockQuery.mockImplementation(async (sql) => {
+    const query = String(sql);
+    if (query === 'BEGIN' || query === 'COMMIT') return { rows: [] };
+    if (query.includes('SELECT s.*, a.owner_user_id AS creator_user_id')) {
+      return { rows: [{ id: 's-1', creator_actor_id: 'actor-1', creator_user_id: 'creator-1', sponsor_user_id: 'sponsor-1', amount_cents: 900, currency_code: 'USD', status: 'delivered', credit_reservation_id: 'reservation-1' }] };
+    }
+    if (query.includes('SELECT owner_user_id FROM media_actors')) return { rows: [{ owner_user_id: 'creator-1' }] };
+    if (query.includes('FROM media_actors a')) return { rows: [{ id: 'actor-1', owner_user_id: 'creator-1' }] };
+    if (query.includes('FROM oxsteed_credit_reservations')) {
+      return { rows: [{ id: 'different-reservation', account_id: 11, amount_cents: 900, status: 'active' }] };
+    }
+    return { rows: [] };
+  });
+  const next = jest.fn();
+  await creator.settleSponsorship({ params: { sponsorshipId: 's-1' }, user: { id: 'sponsor-1' } }, resMock(), next);
+  expect(next).toHaveBeenCalledWith(expect.objectContaining({ code: 'media_creator_reservation_mismatch' }));
+  expect(mockQuery.mock.calls.some(([sql]) => String(sql).includes('UPDATE oxsteed_credit_accounts'))).toBe(false);
+  expect(mockQuery.mock.calls.some(([sql]) => String(sql).includes('media_creator_sponsorship'))).toBe(true);
+  enabled.mockRestore();
+  unfrozen.mockRestore();
+  expect(client.release).toHaveBeenCalled();
+});
+
 test('accepts only a published ready post as a sponsorship deliverable', async () => {
   const pool = require('../db');
   const client = { query: mockQuery, release: jest.fn() };
