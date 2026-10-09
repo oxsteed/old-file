@@ -42,7 +42,14 @@ function videoVerdictSql(column) {
 // Apply to every public read as well as publishing, including share previews.
 function publicPostSql(alias = 'p') {
   const postStatuses = mode() === 'cloudflare' ? "'passed', 'cloudflare_deferred'" : "'passed'";
-  return `${alias}.csam_status IN (${postStatuses}) AND NOT EXISTS (
+  return `EXISTS (
+    SELECT 1 FROM media_actors public_author
+     JOIN users public_author_user ON public_author_user.id = public_author.owner_user_id
+    WHERE public_author.id = ${alias}.actor_id
+      AND public_author_user.deleted_at IS NULL
+      AND public_author_user.is_active = TRUE
+      AND public_author_user.is_banned = FALSE
+  ) AND ${alias}.csam_status IN (${postStatuses}) AND NOT EXISTS (
     SELECT 1 FROM media_post_assets safety_asset
      WHERE safety_asset.post_id = ${alias}.id AND (
        safety_asset.processing_status <> 'ready'

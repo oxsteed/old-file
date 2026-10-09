@@ -81,6 +81,9 @@ test('public capabilities report the effective policy without credentials', asyn
 
 test('public video visibility follows the Didit-backed users.is_verified flag', () => {
   const sql = policy.publicPostSql('p');
+  expect(sql).toContain('public_author_user.is_active = TRUE');
+  expect(sql).toContain('public_author_user.is_banned = FALSE');
+  expect(sql).toContain('public_author_user.deleted_at IS NULL');
   expect(sql).toContain('safety_user.is_verified = TRUE');
   expect(sql).not.toContain('safety_user.identity_verified');
 });
