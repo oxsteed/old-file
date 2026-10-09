@@ -47,6 +47,45 @@ test('rejects an unknown deliverable review status before it can settle a gig', 
   expect(mockQuery).not.toHaveBeenCalled();
 });
 
+test('rolls back when a rejected deliverable cannot transition its gig state', async () => {
+  const pool = require('../db');
+  const client = { query: mockQuery, release: jest.fn() };
+  pool.connect.mockResolvedValueOnce(client);
+  mockQuery.mockImplementation(async (sql) => {
+    const query = String(sql);
+    if (query === 'BEGIN' || query === 'ROLLBACK') return { rows: [] };
+    if (query.includes('FROM media_creator_deliverables d')) {
+      return { rows: [{
+        id: 'deliverable-1', application_id: 'application-1', status: 'submitted',
+        applicant_user_id: 'creator-1', gig_id: 'gig-1', owner_user_id: 'owner-1',
+        credit_reservation_id: null, award_amount_cents: 900,
+      }] };
+    }
+    if (query.includes('UPDATE media_creator_deliverables')) {
+      return { rows: [{ id: 'deliverable-1', status: 'rejected' }] };
+    }
+    if (query.includes('UPDATE media_creator_applications')) {
+      return { rows: [{ id: 'application-1', status: 'rejected' }] };
+    }
+    if (query.includes('UPDATE media_creator_gigs')) return { rows: [] };
+    return { rows: [] };
+  });
+  const next = jest.fn();
+
+  await creator.reviewDeliverable({
+    params: { deliverableId: 'deliverable-1' },
+    body: { status: 'rejected' },
+    user: { id: 'owner-1' },
+  }, resMock(), next);
+
+  expect(next).toHaveBeenCalledWith(expect.objectContaining({
+    code: 'media_creator_review_transition_failed',
+    status: 503,
+  }));
+  expect(client.query).toHaveBeenLastCalledWith('ROLLBACK');
+  expect(client.release).toHaveBeenCalled();
+});
+
 test('replays an identical submitted gig application without resetting its lifecycle', async () => {
   const pool = require('../db');
   const client = { query: mockQuery, release: jest.fn() };

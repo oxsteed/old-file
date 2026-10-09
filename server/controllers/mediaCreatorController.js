@@ -386,28 +386,40 @@ async function reviewDeliverable(req, res, next) {
     );
     const reviewedDeliverable = requireMutationRow(rows, 'The deliverable review could not be saved.', 'media_creator_review_transition_failed');
     if (status === 'approved') {
-      await client.query(
-        `UPDATE media_creator_applications SET status = 'approved', updated_at = NOW() WHERE id = $1`, [current.application_id]
+      const { rows: approvedApplicationRows } = await client.query(
+        `UPDATE media_creator_applications SET status = 'approved', updated_at = NOW()
+          WHERE id = $1 RETURNING id, status`, [current.application_id]
       );
-      await client.query(
-        `UPDATE media_creator_gigs SET status = 'completed', credit_transaction_id = $2, updated_at = NOW() WHERE id = $1`,
+      requireMutationRow(approvedApplicationRows, 'The creator application could not be approved.', 'media_creator_review_transition_failed');
+      const { rows: completedGigRows } = await client.query(
+        `UPDATE media_creator_gigs SET status = 'completed', credit_transaction_id = $2, updated_at = NOW()
+          WHERE id = $1 RETURNING id, status, credit_transaction_id`,
         [current.gig_id, transactionId]
       );
+      requireMutationRow(completedGigRows, 'The creator gig could not be completed.', 'media_creator_review_transition_failed');
     } else if (status === 'changes_requested') {
-      await client.query(
-        `UPDATE media_creator_applications SET status = 'awarded', updated_at = NOW() WHERE id = $1`, [current.application_id]
+      const { rows: returnedApplicationRows } = await client.query(
+        `UPDATE media_creator_applications SET status = 'awarded', updated_at = NOW()
+          WHERE id = $1 RETURNING id, status`, [current.application_id]
       );
+      requireMutationRow(returnedApplicationRows, 'The creator application could not be returned for changes.', 'media_creator_review_transition_failed');
     } else {
-      await client.query(
-        `UPDATE media_creator_applications SET status = 'rejected', updated_at = NOW() WHERE id = $1`, [current.application_id]
+      const { rows: rejectedApplicationRows } = await client.query(
+        `UPDATE media_creator_applications SET status = 'rejected', updated_at = NOW()
+          WHERE id = $1 RETURNING id, status`, [current.application_id]
       );
+      requireMutationRow(rejectedApplicationRows, 'The creator application could not be rejected.', 'media_creator_review_transition_failed');
       if (current.credit_reservation_id) {
         await releaseReservation(client, {
           reservationId: current.credit_reservation_id,
           reason: 'Rejected Media creator deliverable',
         });
       }
-      await client.query(`UPDATE media_creator_gigs SET status = 'cancelled', updated_at = NOW() WHERE id = $1`, [current.gig_id]);
+      const { rows: cancelledGigRows } = await client.query(
+        `UPDATE media_creator_gigs SET status = 'cancelled', updated_at = NOW()
+          WHERE id = $1 RETURNING id, status`, [current.gig_id]
+      );
+      requireMutationRow(cancelledGigRows, 'The creator gig could not be cancelled.', 'media_creator_review_transition_failed');
     }
     await client.query('COMMIT');
     res.json({ deliverable: reviewedDeliverable, ...(transfer ? { transfer } : {}) });

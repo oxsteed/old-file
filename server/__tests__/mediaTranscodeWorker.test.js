@@ -84,3 +84,28 @@ test('flagged CSAM verdict completes the leased scan without publishing the asse
     else process.env.MEDIA_CSAM_CERTIFIED = previousCertified;
   }
 });
+
+test('keeps a stale worker from resetting a newer CSAM lease', async () => {
+  const previousMode = process.env.MEDIA_CSAM_MODE;
+  const previousCertified = process.env.MEDIA_CSAM_CERTIFIED;
+  process.env.MEDIA_CSAM_MODE = 'vendor';
+  process.env.MEDIA_CSAM_CERTIFIED = 'false';
+  pool.query
+    .mockResolvedValueOnce({ rows: [{ id: 'job', asset_id: 'asset', job_type: 'csam_check', lease_token: 'lease-current' }] })
+    .mockResolvedValueOnce({ rows: [{ id: 'asset', post_id: 'post', csam_status: 'pending', processing_status: 'quarantine',
+      post_csam_status: 'pending', post_processing_status: 'quarantine', visibility: 'unlisted', deleted_at: null }] })
+    .mockResolvedValueOnce({ rowCount: 1, rows: [] });
+
+  try {
+    await worker.runOnce();
+
+    const [resetSql, resetParams] = pool.query.mock.calls[2];
+    expect(resetSql).toContain('AND lease_token = $3');
+    expect(resetParams).toEqual(['job', 'Media safety mode is disabled or vendor is not certified', 'lease-current']);
+  } finally {
+    if (previousMode === undefined) delete process.env.MEDIA_CSAM_MODE;
+    else process.env.MEDIA_CSAM_MODE = previousMode;
+    if (previousCertified === undefined) delete process.env.MEDIA_CSAM_CERTIFIED;
+    else process.env.MEDIA_CSAM_CERTIFIED = previousCertified;
+  }
+});

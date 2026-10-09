@@ -127,8 +127,8 @@ async function processCsam(job) {
     await pool.query(
       `UPDATE media_processing_jobs
           SET status = 'pending', last_error = $2, updated_at = NOW()
-        WHERE id = $1`,
-      [job.id, 'Media safety mode is disabled or vendor is not certified'],
+        WHERE id = $1 AND lease_token = $3`,
+      [job.id, 'Media safety mode is disabled or vendor is not certified', job.lease_token],
     );
     return;
   }
@@ -166,8 +166,10 @@ async function processTranscode(job) {
       || !mediaSafety.postVerdictAllowed(asset.post_csam_status)
       || asset.visibility === 'removed' || asset.deleted_at || asset.post_processing_status === 'blocked') {
     await pool.query(
-      `UPDATE media_processing_jobs SET status = 'pending', updated_at = NOW() WHERE id = $1`,
-      [job.id]
+      `UPDATE media_processing_jobs
+          SET status = 'pending', updated_at = NOW()
+        WHERE id = $1 AND lease_token = $2`,
+      [job.id, job.lease_token]
     );
     return;
   }
