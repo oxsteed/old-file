@@ -568,6 +568,102 @@ describe('reservation enforcement', () => {
   });
 });
 
+describe('creator settlement replay safety', () => {
+  function existingTransaction(overrides = {}) {
+    return {
+      id: 'tx-existing-1',
+      status: 'posted',
+      transaction_type: 'settlement',
+      debit_account_id: 101,
+      credit_account_id: 202,
+      amount_cents: 900,
+      currency_code: 'USD',
+      partner_id: null,
+      agreement_id: null,
+      idempotency_key: 'media-replay-1',
+      correlation_id: null,
+      reference_type: 'media_creator_gig',
+      reference_id: 'gig-1',
+      description: 'Media gig payout',
+      reason: null,
+      actor_type: 'user',
+      actor_user_id: 'sender-1',
+      metadata: { mediaGigId: 'gig-1', creatorPayment: true, recipientCustomerId: 'creator-1' },
+      posted_at: '2026-10-09T00:00:00.000Z',
+      created_at: '2026-10-09T00:00:00.000Z',
+      ...overrides,
+    };
+  }
+
+  test('replays a committed creator settlement before transfer limits or rail checks', async () => {
+    const existing = existingTransaction();
+    mockQuery.mockImplementation((sql) => {
+      const s = String(sql);
+      if (s.includes('FROM oxsteed_credit_transactions WHERE idempotency_key')) return { rows: [existing] };
+      if (s.includes('FROM oxsteed_credit_accounts debit_account')) {
+        return { rows: [{ sender_customer_id: 'sender-1', sender_account_type: 'customer_wallet', recipient_customer_id: 'creator-1', recipient_account_type: 'customer_wallet' }] };
+      }
+      if (s.includes('FROM oxsteed_credit_transaction_entries')) return { rows: [] };
+      throw new Error(`unexpected query: ${s}`);
+    });
+
+    const result = await creditService.settleCreatorCreditInTransaction({ query: mockQuery }, {
+      senderCustomerId: 'sender-1',
+      recipientCustomerId: 'creator-1',
+      amountCents: 900,
+      currencyCode: 'USD',
+      idempotencyKey: 'media-replay-1',
+      actorUserId: 'sender-1',
+      referenceType: 'media_creator_gig',
+      referenceId: 'gig-1',
+      description: 'Media gig payout',
+      metadata: { mediaGigId: 'gig-1' },
+    });
+
+    expect(result.replayed).toBe(true);
+    expect(result.transaction.id).toBe('tx-existing-1');
+    expect(mockQuery.mock.calls.some(([sql]) => String(sql).includes('credit-transfer-limit'))).toBe(false);
+    expect(mockQuery.mock.calls.some(([sql]) => String(sql).includes('feature_flags'))).toBe(false);
+  });
+
+  test('replays a committed boost payment before balance and daily-limit checks', async () => {
+    const existing = existingTransaction({
+      id: 'tx-boost-1',
+      idempotency_key: 'media-boost-replay-1',
+      credit_account_id: 303,
+      reference_type: 'media_post_boost',
+      reference_id: 'boost-1',
+      description: 'OxSteed Media paid post boost',
+      metadata: { mediaBoostId: 'boost-1', postId: 'post-1', mediaBoost: true },
+    });
+    mockQuery.mockImplementation((sql) => {
+      const s = String(sql);
+      if (s.includes('FROM oxsteed_credit_transactions WHERE idempotency_key')) return { rows: [existing] };
+      if (s.includes('FROM oxsteed_credit_accounts debit_account')) {
+        return { rows: [{ sender_customer_id: 'sender-1', sender_account_type: 'customer_wallet', recipient_customer_id: null, recipient_account_type: 'platform_revenue' }] };
+      }
+      if (s.includes('FROM oxsteed_credit_transaction_entries')) return { rows: [] };
+      throw new Error(`unexpected query: ${s}`);
+    });
+
+    const result = await creditService.chargeCreatorBoostInTransaction({ query: mockQuery }, {
+      senderCustomerId: 'sender-1',
+      amountCents: 900,
+      currencyCode: 'USD',
+      idempotencyKey: 'media-boost-replay-1',
+      actorUserId: 'sender-1',
+      referenceType: 'media_post_boost',
+      referenceId: 'boost-1',
+      description: 'OxSteed Media paid post boost',
+      metadata: { mediaBoostId: 'boost-1', postId: 'post-1' },
+    });
+
+    expect(result.replayed).toBe(true);
+    expect(result.transaction.id).toBe('tx-boost-1');
+    expect(mockQuery.mock.calls.some(([sql]) => String(sql).includes('credit-transfer-limit'))).toBe(false);
+  });
+});
+
 describe('reservation-aware reconciliation', () => {
   test('a reservation divergence yields status difference and pages a critical incident', async () => {
     mockQuery.mockImplementation((sql, params = []) => {

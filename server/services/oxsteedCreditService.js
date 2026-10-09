@@ -2549,6 +2549,77 @@ async function transferCreatorCredit(args) {
 }
 
 /**
+ * Creator payment retries must be able to recover a committed journal entry
+ * even when the sender has since reached a daily transfer limit or the rail
+ * is temporarily frozen. Resolve the existing transaction first, but keep
+ * the normal idempotency semantic checks and account ownership checks in the
+ * journal writer.
+ */
+async function replayCreatorSettlementIfPresent(client, {
+  existing,
+  senderCustomerId,
+  recipientCustomerId = null,
+  amountCents,
+  currencyCode,
+  idempotencyKey,
+  actorUserId,
+  referenceType,
+  referenceId,
+  correlationId,
+  requestIp,
+  description,
+  reason = null,
+  metadata = {},
+  recipientAccountType = 'customer_wallet',
+}) {
+  if (!existing) return null;
+
+  const { rows } = await client.query(
+    `SELECT debit_account.customer_id AS sender_customer_id,
+            debit_account.account_type AS sender_account_type,
+            credit_account.customer_id AS recipient_customer_id,
+            credit_account.account_type AS recipient_account_type
+       FROM oxsteed_credit_accounts debit_account
+       JOIN oxsteed_credit_accounts credit_account ON credit_account.id = $2
+      WHERE debit_account.id = $1`,
+    [existing.debit_account_id, existing.credit_account_id]
+  );
+  const accounts = rows[0];
+  const recipientMatches = recipientCustomerId === null
+    ? accounts?.recipient_account_type === recipientAccountType
+      && accounts?.recipient_customer_id === null
+    : String(accounts?.recipient_customer_id) === String(recipientCustomerId)
+      && accounts?.recipient_account_type === recipientAccountType;
+  if (existing.transaction_type !== 'settlement'
+    || String(accounts?.sender_customer_id) !== String(senderCustomerId)
+    || accounts?.sender_account_type !== 'customer_wallet'
+    || !recipientMatches) {
+    throw new AppError('Credit idempotency key was already used for a different settlement', 409, 'credit_idempotency_conflict');
+  }
+
+  return postJournalTransaction(client, {
+    transactionType: 'settlement',
+    debitAccountId: existing.debit_account_id,
+    creditAccountId: existing.credit_account_id,
+    customerId: senderCustomerId,
+    amountCents,
+    currencyCode,
+    idempotencyKey,
+    actorType: 'user',
+    actorUserId,
+    referenceType,
+    referenceId,
+    correlationId,
+    requestIp,
+    description,
+    reason,
+    metadata: { ...normalizeMetadata(metadata), ...(recipientCustomerId === null ? { mediaBoost: true } : { creatorPayment: true, recipientCustomerId }) },
+    bindIdempotencySemantics: true,
+    existingTransaction: existing,
+  });
+}
+
+/**
  * Post a creator-marketplace payout without depending on the public
  * customer-to-customer transfer feature flag. The sender and creator are
  * still customer wallets in the shared append-only journal, but the
@@ -2581,6 +2652,26 @@ async function settleCreatorCreditInTransaction(client, {
   if (!normalizeString(referenceType, 80) || !normalizeString(referenceId, 160)) {
     throw new AppError('Creator settlement reference is required', 400, 'credit_reference_required');
   }
+
+  const existing = await getExistingTransaction(client, normalizedKey);
+  const replay = await replayCreatorSettlementIfPresent(client, {
+    existing,
+    senderCustomerId,
+    recipientCustomerId,
+    amountCents: amount,
+    currencyCode: currency,
+    idempotencyKey: normalizedKey,
+    actorUserId,
+    referenceType,
+    referenceId,
+    correlationId,
+    requestIp,
+    description,
+    reason,
+    metadata,
+  });
+  if (replay) return replay;
+
   await assertCreditRailEnabled(client);
   await assertCreditRailNotFrozen(client);
   const lockKeys = [String(senderCustomerId), String(recipientCustomerId)].sort();
@@ -2643,6 +2734,25 @@ async function chargeCreatorBoostInTransaction(client, {
   const normalizedKey = normalizeString(idempotencyKey, 160);
   if (!normalizedKey) throw new AppError('Idempotency-Key is required for boost payments', 400, 'credit_idempotency_key_required');
   if (!normalizeString(referenceId, 160)) throw new AppError('Boost payment reference is required', 400, 'credit_reference_required');
+
+  const existing = await getExistingTransaction(client, normalizedKey);
+  const replay = await replayCreatorSettlementIfPresent(client, {
+    existing,
+    senderCustomerId,
+    amountCents: amount,
+    currencyCode: currency,
+    idempotencyKey: normalizedKey,
+    actorUserId,
+    referenceType,
+    referenceId,
+    correlationId,
+    requestIp,
+    description,
+    metadata,
+    recipientAccountType: 'platform_revenue',
+  });
+  if (replay) return replay;
+
   await assertCreditRailEnabled(client);
   await assertCreditRailNotFrozen(client);
   await client.query(`SELECT pg_advisory_xact_lock(hashtext($1))`, [`oxsteed-credit-boost:${senderCustomerId}:${currency}`]);
