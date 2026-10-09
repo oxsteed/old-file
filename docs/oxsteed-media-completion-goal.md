@@ -21,9 +21,9 @@ checkout integration, deployment evidence and final completion decisions.
 
 | Requirement | State and implementation / behavioral evidence | Deployment / dependency | Next exact action |
 | --- | --- | --- | --- |
-| Reconciled source and retained work | Behavior-tested: writable checkout HEAD `242cd8d3` matches the pushed branch; three pre-existing untracked browser scratch files remain preserved. | Runtime release metadata still exposes content identity but no git SHA. | Keep the scratch files untracked and compare release metadata at each deployment checkpoint. |
+| Reconciled source and retained work | Behavior-tested: writable checkout HEAD `37a909f1` matches the pushed branch; three pre-existing untracked browser scratch files remain preserved. | Runtime release metadata still exposes content identity but no git SHA. | Keep the scratch files untracked and compare release metadata at each deployment checkpoint. |
 | Repeatable isolated fixtures | Implemented: optional Media compose extension, scoped wrapper, synthetic persona seed and real API/scan/conversion verifier. | Not executed here: Windows host has no reachable Colima/Docker runtime. | Execute `start`, `seed`, `media-test` on Colima and capture repeat/reset evidence. |
-| Required real database proof | Behavior-tested in hosted CI: `mediaVisibilityDb.test.js` and `mediaDraftAttachmentsDb.test.js` both ran without skips against disposable PostgreSQL; the migration rehearsal also applied every migration twice and exercised concurrent recovery. | Local Windows checkout still has no disposable PostgreSQL runtime. | Preserve the CI database assertion and rerun it for each candidate. |
+| Required real database proof | Behavior-tested in hosted CI: the disposable Media harness ran against PostgreSQL, Redis, ClamAV, FFmpeg, private storage, and synthetic personas; the earlier full server job was cancelled before its database suite completed. | Local Windows checkout still has no disposable PostgreSQL runtime. Exact-candidate run `37871436611` is still in progress. | Preserve the harness assertion and rerun it for each candidate; record the final exact-candidate result. |
 | Helper Didit-backed identity | Implemented: `users.is_verified` checks at upload and commit; mocked behavior covers revocation at attachment commit. | Authenticated Didit return and production upload outstanding. | Prove webhook → verified helper → compose in isolated/live journeys. |
 | Business and restaurant verification | Incomplete: request center/admin review exist; source now binds publishing, admin approval and marketplace recognition to the exact represented entity via `mediaPublisherPolicy`; real request/revocation execution remains outstanding. | Current flags and review on deployed candidate unverified. | Execute the added PostgreSQL multiple-entity, revocation, approval and legacy-migration cases. |
 | Verification request and return path | Implemented in prior source: in-shell center, owner submission, admin review and Didit return. | Fresh real API and signed-in deployed evidence outstanding. | Run helper/business/restaurant/admin request and return matrix. |
@@ -75,8 +75,8 @@ checkout integration, deployment evidence and final completion decisions.
 | Atomic accounting/precision/fees/isolation | Incomplete for marketplace: shared rail safeguards exist, transitions are not fully atomic with payment. | Real isolated conservation/races/currency cases required. | Add transactional marketplace service and accounting behavior suites. |
 | Migration upgrade and repeat application | Implemented: new 742, 743, 744 and 746 filenames follow inspected predecessors; 746 adds creator payment reservation/transaction links and delivery metadata. | Actual 746 migration execution is pending hosted CI/deployment. | Rehearse against disposable upgraded schema and repeat without data changes. |
 | Cloudflare interim and deferred Thorn | Implemented: retained explicit interim status; no synthetic vendor clearance. | Real runtime/public-delivery proof outstanding. | Keep honest policy disclosures and future vendor switch tests. |
-| Passing exact-candidate CI | Incomplete for current candidate: earlier candidate `95e844cb` passed CI run `37842488994`, but current candidates `e4d962fa`, `dcd86ba4`, and `242cd8d3` were rejected before job startup by the GitHub billing/spending gate in runs `37869178085`, `37869352956`, and `37869431316`. | No current candidate job or migration rehearsal ran; this is external CI availability evidence, not a passing result. | Rerun CI when the account billing gate clears; keep local focused evidence separate from hosted verification. |
-| Exact deployed release/readiness/schema/assets | Behavior-verified live after the candidate checkpoint: `/ready` and `/health` returned 200; `/ready` reported release `content-94eb0730a824dca6`, migrations `747/747`, no pending/unexpected migrations, healthy database/Redis/Credit/realtime/workers; Media feed and capabilities returned 200. | Coolify release metadata does not expose the git SHA, so exact commit-to-image identity remains unavailable. | Obtain release SHA or reproducible asset identity from deployment metadata and verify authenticated journeys. |
+| Passing exact-candidate CI | Incomplete for current candidate: run `37871122216` was cancelled after the disposable harness passed; the exact current candidate `37a909f1` is running in `37871436611`. | The exact candidate has not completed its server regression and migration jobs yet. | Record the terminal result of `37871436611`; keep the goal open until the run passes or a failure is repaired. |
+| Exact deployed release/readiness/schema/assets | Behavior-verified live after the latest rollout: `/ready` and `/health` returned 200; `/ready` reported release `content-3df5bfb8eba7e8cd`, migrations `749/749`, no pending/unexpected migrations, healthy database/Redis/Credit/realtime/workers; Media feed, capabilities, notifications, and messages returned 200, while unauthenticated bookmarks returned 401 and an invalid cursor returned the expected 400. | Coolify release metadata does not expose the git SHA, so exact commit-to-image identity remains unavailable. | Obtain release SHA or reproducible asset identity from deployment metadata and verify authenticated journeys. |
 | Authenticated production/real-device matrix | Incomplete. | Signed-in helper/business/restaurant/admin and real device access outstanding. | Capture full non-financial production journeys; reconcile finance read-only. |
 
 Current local execution: all 165 Media behavior checks passed in 13 suites;
@@ -883,3 +883,22 @@ returned the expected 401. Readiness reports release
 rollout gap is classified as transient; exact candidate-to-image identity and
 authenticated production evidence remain open because release metadata still
 does not expose a Git SHA, image digest, or deployment ID.
+
+Hosted disposable safety checkpoint (2026-10-09 01:45 UTC): the dedicated
+Media harness in run [37871122216](https://github.com/oxsteed/old-file/actions/runs/37871122216)
+completed successfully before the parent verification job was cancelled. It
+ran the real API/storage/worker verifier with PostgreSQL, Redis, ClamAV,
+FFmpeg, private storage, and synthetic helper, business, restaurant, guest,
+blocked, and administrator personas. The harness covered draft ownership,
+two-way blocking, duplicate photo retry, video Didit gating, ClamAV clean and
+infected decisions, FFmpeg conversion to ready, and public rendition delivery.
+The parent run is not a passing release result because its server regression
+and migration jobs were cancelled.
+
+Linked-card naming checkpoint (2026-10-09): available linked cards now prefer
+the authoritative current entity name returned by the server, while removed
+or unavailable targets retain their saved label and remain inert. Nine
+maintained client contract checks pass in commit `37a909f1`. Exact-candidate
+CI run [37871436611](https://github.com/oxsteed/old-file/actions/runs/37871436611)
+is running; its terminal result and authenticated production journeys remain
+open.
