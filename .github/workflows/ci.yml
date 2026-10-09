@@ -192,7 +192,15 @@ jobs:
 
           "${compose[@]}" exec -T -e "PGPASSWORD=$CREDIT_TEST_DB_PASSWORD" postgres \
             psql -v ON_ERROR_STOP=1 -U oxsteed -d oxsteed_db < scripts/credit-isolated-seed.sql
+          set +e
           "${compose[@]}" exec -T app node /app/server/scripts/verify-media-isolated.js
+          verify_status=$?
+          set -e
+          if [ "$verify_status" -ne 0 ]; then
+            echo 'Media harness app logs:'
+            "${compose[@]}" logs --no-color app || true
+            exit "$verify_status"
+          fi
 
   migration-rehearsal:
     name: PostgreSQL migration rehearsal

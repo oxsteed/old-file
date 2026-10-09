@@ -28,7 +28,8 @@ async function main() {
   }
   async function draft(user, extra = {}) {
     const result = await api('/posts', user, { body: `Synthetic Media check ${randomUUID()}`, draft: true, ...extra }, 'POST');
-    assert.equal(result.status, 201, 'verified publisher must create a private draft');
+    assert.equal(result.status, 201,
+      `verified publisher must create a private draft (received ${result.status}: ${JSON.stringify(result.data)})`);
     postIds.push(result.data.post.id); return result.data.post.id;
   }
   function file(post, bytes, name, type, replace = true) {
