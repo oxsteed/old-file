@@ -9,6 +9,11 @@ export default function MediaBookmarksPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  const handleBookmarkChange = (postId, bookmarked) => {
+    if (bookmarked) return;
+    setPosts((current) => current.filter((post) => String(post.id) !== String(postId)));
+  };
+
   useEffect(() => {
     getBookmarks()
       .then((data) => setPosts(data.posts || []))
@@ -23,7 +28,9 @@ export default function MediaBookmarksPage() {
       </header>
       {loading && <div className="media-skeleton"><div className="skeleton-line" /><div className="skeleton-line" /></div>}
       {error && <p className="media-error" role="alert">{error}</p>}
-      {!loading && !error && posts.map((post) => <MediaPostCard key={post.id} post={post} />)}
+      {!loading && !error && posts.map((post) => (
+        <MediaPostCard key={post.id} post={post} onBookmarkChange={handleBookmarkChange} />
+      ))}
       {!loading && !error && !posts.length && <p className="media-empty">{t('media.bookmarks.empty', { defaultValue: 'Posts you save will appear here.' })}</p>}
     </section>
   );

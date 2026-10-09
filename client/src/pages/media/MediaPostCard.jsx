@@ -54,7 +54,7 @@ function QuotedMedia({ assets, label }) {
   return null;
 }
 
-export default function MediaPostCard({ post, onUpdate }) {
+export default function MediaPostCard({ post, onUpdate, onBookmarkChange }) {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -128,9 +128,14 @@ export default function MediaPostCard({ post, onUpdate }) {
     setActionPending('bookmark'); setActionMessage('');
     try {
       const r = await toggleBookmark(post.id);
-      setBookmarked(r.bookmarked);
-      if (Number.isFinite(Number(r.bookmark_count))) setBookmarkCount(Number(r.bookmark_count));
-      else setBookmarkCount(c => Math.max(0, c + (r.bookmarked ? 1 : -1)));
+      const nextBookmarked = Boolean(r.bookmarked);
+      const nextBookmarkCount = Number.isFinite(Number(r.bookmark_count))
+        ? Number(r.bookmark_count)
+        : Math.max(0, bookmarkCount + (nextBookmarked ? 1 : -1));
+      setBookmarked(nextBookmarked);
+      setBookmarkCount(nextBookmarkCount);
+      onBookmarkChange?.(post.id, nextBookmarked);
+      onUpdate?.(current => ({ ...current, bookmarked: nextBookmarked, bookmark_count: nextBookmarkCount }));
     } catch (err) {
       setActionMessage(err.response?.data?.error || t('media.post.actionError', { defaultValue: 'That action could not be completed. Try again.' }));
     } finally { setActionPending(''); }
