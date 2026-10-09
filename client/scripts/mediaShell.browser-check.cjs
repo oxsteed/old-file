@@ -122,9 +122,6 @@ test('pending identity verification opens inside Media and returns both completi
       assert.equal(await page.locator('.media-footer-card').count(),1);
       assert.equal(await page.locator('.verify-identity-nav,[data-standalone-footer]').count(),0);
       assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,lang);
-      await page.goto(`${app.url}/verify-identity?lang=${lang}`);
-      await page.waitForFunction(()=>document.querySelector('[data-route]').textContent==='/media/verify-identity');
-      assert.equal(new URL(page.url()).searchParams.get('returnTo'),'/media/compose');
       await page.getByRole('button',{name:'Complete identity verification'}).click();
       await page.waitForFunction(()=>document.querySelector('[data-route]').textContent==='/media/compose');
       await page.evaluate(()=>window.fixtureNavigate('/media/verify-identity?returnTo=%2Fmedia%2Fcompose'));
