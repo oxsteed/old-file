@@ -462,7 +462,9 @@ async function getFeed(req, res) {
       return res.status(400).json({ error: 'Unsupported Media feed' });
     }
     const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 20, 1), 50);
-    const before = req.query.before || null;
+    // `before` is retained for existing clients; `cursor` is the canonical
+    // name used by the versioned feed contract and newer clients.
+    const before = req.query.cursor || req.query.before || null;
     const viewerUserId = req.user?.id || null;
     if ((tab === 'following' || tab === 'mine') && !viewerUserId) {
       return res.status(401).json({
@@ -643,7 +645,14 @@ async function getFeed(req, res) {
     }
     const last = visibleRows[visibleRows.length - 1];
     const nextBefore = hasMore && last ? feedContext.encodeCursor(last, context, mode, asOf) : null;
-    res.json({ posts, next_before: nextBefore, has_more: hasMore, tab, location });
+    res.json({
+      posts,
+      next_before: nextBefore,
+      next_cursor: nextBefore,
+      has_more: hasMore,
+      tab,
+      location,
+    });
   } catch (err) {
     if (err.status === 400) return res.status(400).json({ error: 'Refresh the feed with a valid location and cursor', code: err.code });
     logger.error('media.getFeed error', { message: err.message });

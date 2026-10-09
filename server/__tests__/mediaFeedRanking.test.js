@@ -50,6 +50,7 @@ describe('Media ranked feed journey', () => {
     expect(payload.posts.map((post) => post.id)).toEqual(['post-linked-nearby', 'post-plain-away']);
     expect(payload.has_more).toBe(true);
     expect(payload.next_before).toBeTruthy();
+    expect(payload.next_cursor).toBe(payload.next_before);
 
     const firstSql = pool.query.mock.calls.find(([sql]) => sql.includes('SELECT p.*, a.handle'))[0];
     expect(firstSql).toContain('NOT EXISTS (');
@@ -88,6 +89,18 @@ describe('Media ranked feed journey', () => {
     expect(result.json.mock.calls[0][0]).toMatchObject({ posts: [{ id: 'only-post' }], has_more: false, next_before: null });
     const feedCall = pool.query.mock.calls.find(([sql]) => sql.includes('SELECT p.*, a.handle'));
     expect(feedCall[1][0]).toBe(2);
+  });
+
+  test('accepts the canonical cursor query parameter for the next page', async () => {
+    const first = response();
+    await media.getFeed({ query: { limit: '2', location_mode: 'all' } }, first);
+    const cursor = first.json.mock.calls[0][0].next_cursor;
+    pool.query.mockClear();
+    const second = response();
+    await media.getFeed({ query: { limit: '2', location_mode: 'all', cursor } }, second);
+    const feedCall = pool.query.mock.calls.find(([sql]) => sql.includes('SELECT p.*, a.handle'));
+    expect(feedCall[0]).toContain('ORDER BY feed_position ASC');
+    expect(feedCall[1]).toEqual(expect.arrayContaining(['post-plain-away']));
   });
 
   test('uses sponsored lane slots and carries the slot position in the cursor', async () => {
