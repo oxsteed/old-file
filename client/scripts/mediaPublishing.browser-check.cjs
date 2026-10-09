@@ -8,7 +8,7 @@ const { chromium } = require('playwright-core');
 const mocks = {
   'react-i18next': `export const useTranslation = () => ({ t: window.translate,
     i18n: { language: 'en' } });`,
-  '../../context/AuthContext': `export const useAuth = () => ({ user: null });`,
+  '../../context/AuthContext': `export const useAuth = () => ({ user: window.signedIn ? { id: 'viewer' } : null });`,
   '../../api/media': `const call = (name, args) => { window.calls.push({ name, args }); };
     export const getCommunities = async () => ({ communities: [] });
     export const getMediaVerification = async () => ({ helper: { is_verified: true }, businesses: [], restaurants: [] });
@@ -29,7 +29,8 @@ const mocks = {
       if (window.processing) { window.processing = false; throw { response: { data: { code: 'media_safety_pending', processing_status: 'quarantine' } } }; }
       return { post: { id } }; };
     const forbiddenWrite = () => { throw new Error('Guest must not write'); };
-    export const toggleLike = forbiddenWrite, toggleBookmark = forbiddenWrite, toggleRepost = forbiddenWrite,
+    const actionError = () => { throw { response: { data: { error: 'Synthetic action outage' } } }; };
+    export const toggleLike = actionError, toggleBookmark = actionError, toggleRepost = actionError,
       createCreatorBoost = forbiddenWrite, settleCreatorBoost = forbiddenWrite, flagPost = forbiddenWrite;
     export const recordShare = async () => ({ share_count: 1 });`,
 };
@@ -42,6 +43,7 @@ async function fixture() {
       import Compose from './src/pages/media/MediaComposePage.jsx';
       import Card from './src/pages/media/MediaPostCard.jsx';
       window.calls = []; window.translate = (key, options = {}) => options.defaultValue || key;
+      window.signedIn = location.search.includes('actions');
       if (location.search.includes('restored')) {
         window.draft = { id: 'draft', body: 'Retained draft', links: [], assets: [{ id: 'failed' }], processing_status: 'failed' };
         localStorage.setItem('oxsteed.media.compose.draft', 'draft'); window.processing = true;
@@ -117,5 +119,19 @@ test('guest Linked on OxSteed cards open public pages; removed targets stay iner
       await page.locator(`a[href="/public/${type}"]`).click();
       await page.locator('[data-destination]').filter({ hasText: `/public/${type}` }).waitFor();
     }
+  } finally { if (browser) await browser.close(); await app.close(); }
+});
+
+test('signed-in Media actions surface failures and suppress duplicate clicks', async () => {
+  const app = await fixture(); let browser;
+  try {
+    browser = await chromium.launch({ headless: true, channel: 'chrome' });
+    const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+    await page.goto(`${app.url}/media/card?actions`);
+    const like = page.getByRole('button', { name: /Like/ });
+    await like.click();
+    await page.getByRole('status').filter({ hasText: 'Synthetic action outage' }).waitFor();
+    assert.equal(await page.getByRole('status').filter({ hasText: 'Synthetic action outage' }).count(), 1);
+    assert.equal(await page.locator('button[aria-label="Like"]').count(), 1);
   } finally { if (browser) await browser.close(); await app.close(); }
 });
