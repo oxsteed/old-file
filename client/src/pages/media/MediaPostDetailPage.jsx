@@ -222,7 +222,7 @@ export default function MediaPostDetailPage() {
         )}
         {post && !loading && (
           <>
-            <MediaPostCard post={post} onUpdate={setPost} />
+            <MediaPostCard post={post} onUpdate={setPost} showAbsoluteTimestamp truncateBody />
             {user?.id && String(post.owner_user_id) === String(user.id) && (
               <section className="media-owner-controls">
                 <div className="media-owner-actions">
@@ -341,7 +341,7 @@ export default function MediaPostDetailPage() {
                 </label>
               </div>
               {replies.map(reply => (
-                <MediaPostCard key={reply.id} post={reply} />
+                <MediaPostCard key={reply.id} post={reply} truncateBody showAbsoluteTimestamp />
               ))}
               {!replies.length && <p className="media-empty">{t('media.post.noReplies')}</p>}
             </div>

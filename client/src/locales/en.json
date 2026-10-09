@@ -14119,7 +14119,13 @@
         "metaTitle": "Get Started with OxSteed",
         "metaDescription": "Choose the OxSteed path that fits your role."
       },
-      "media": "OxSteed Media"
+      "media": {
+        "title": "OxSteed Media",
+        "description": "Post locally, link restaurants and businesses, reply in threads, and discover nearby economy posts.",
+        "eyebrow": "Local media",
+        "metaTitle": "How OxSteed Media Works",
+        "metaDescription": "See how verified helpers, businesses, and restaurants share posts with Linked on OxSteed cards."
+      }
     },
     "steps": {
       "discover": {
@@ -14333,6 +14339,10 @@
       },
       "openDirect": {
         "title": "Start a Direct request"
+      },
+      "openMedia": {
+        "title": "Open OxSteed Media",
+        "description": "Browse local posts, follow creators, and open linked restaurants or businesses."
       },
       "directQuotes": {
         "title": "View a Direct quote"
@@ -20142,6 +20152,10 @@
     "restaurants": {
       "title": "Local Food Directory",
       "hint": "Franchise-grade tools for independent restaurants"
+    },
+    "media": {
+      "title": "OxSteed Media",
+      "hint": "Local posts, links, and discovery for the OxSteed economy"
     },
     "logistics": {
       "title": "OxSteed Logistics",
@@ -30400,6 +30414,7 @@
       "noReplies": "No replies yet.",
       "verified": "Verified",
       "views": "views",
+      "showMore": "Show more",
       "reply": "Reply",
       "like": "Like",
       "bookmark": "Bookmark",

@@ -14119,7 +14119,13 @@
         "metaTitle": "Kijan pou kòmanse ak OxSteed",
         "metaDescription": "Chwazi chemen OxSteed ki mache ak wòl ou."
       },
-      "media": "OxSteed Media"
+      "media": {
+        "title": "OxSteed Media",
+        "description": "Pibliye lokalman, lyen restoran ak biznis, reponn nan fil yo, epi dekouvri pòs tou pre.",
+        "eyebrow": "Medya lokal",
+        "metaTitle": "Kijan OxSteed Media fonksyone",
+        "metaDescription": "Kijan ede, biznis ak restoran verifye pataje pòs ak lyen sou OxSteed."
+      }
     },
     "steps": {
       "discover": {
@@ -14333,6 +14339,10 @@
       },
       "openDirect": {
         "title": "Kòmanse yon demann Direct"
+      },
+      "openMedia": {
+        "title": "Louvri OxSteed Media",
+        "description": "Gade pòs lokal yo, swiv kreyatè yo, epi louvri restoran oswa biznis ki lyen."
       },
       "directQuotes": {
         "title": "Wè yon devis Direct"
@@ -20142,6 +20152,10 @@
     "restaurants": {
       "title": "Local Food Directory",
       "hint": "Zouti nivo franchiz pou restoran endepandan"
+    },
+    "media": {
+      "title": "OxSteed Media",
+      "hint": "Pòs lokal, lyen, ak dekouvèt pou ekonomi OxSteed la"
     },
     "logistics": {
       "title": "OxSteed Lojistik",
@@ -30400,6 +30414,7 @@
       "noReplies": "Pa gen repons pou kounye a.",
       "verified": "Verifye",
       "views": "vi",
+      "showMore": "Montre plis",
       "reply": "Reponn",
       "like": "Renmen",
       "bookmark": "Anrejistre",

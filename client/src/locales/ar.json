@@ -14130,7 +14130,13 @@
         "metaTitle": "كيف تبدأ مع OxSteed",
         "metaDescription": "اختر مسار OxSteed الذي يناسب دورك."
       },
-      "media": "OxSteed Media"
+      "media": {
+        "title": "OxSteed Media",
+        "description": "انشر محليًا، واربط المطاعم والأعمال، ورد في السلاسل، واكتشف منشورات قريبة.",
+        "eyebrow": "وسائط محلية",
+        "metaTitle": "كيف يعمل OxSteed Media",
+        "metaDescription": "كيف يشارك المساعدون والأعمال والمطاعم الموثّقة منشورات مع روابط على OxSteed."
+      }
     },
     "steps": {
       "discover": {
@@ -14344,6 +14350,10 @@
       },
       "openDirect": {
         "title": "بدء طلب Direct"
+      },
+      "openMedia": {
+        "title": "فتح OxSteed Media",
+        "description": "تصفّح المنشورات المحلية، وتابع المبدعين، وافتح المطاعم أو الأعمال المرتبطة."
       },
       "directQuotes": {
         "title": "عرض عرض سعر Direct"
@@ -20153,6 +20163,10 @@
     "restaurants": {
       "title": "Local Food Directory",
       "hint": "أدوات بمستوى الامتياز للمطاعم المستقلة"
+    },
+    "media": {
+      "title": "OxSteed Media",
+      "hint": "منشورات محلية وروابط واكتشاف لاقتصاد OxSteed"
     },
     "logistics": {
       "title": "أوكسستيد اللوجستية",
@@ -30411,6 +30425,7 @@
       "noReplies": "لا توجد ردود بعد.",
       "verified": "موثّق",
       "views": "مشاهدات",
+      "showMore": "عرض المزيد",
       "reply": "رد",
       "like": "إعجاب",
       "bookmark": "حفظ",

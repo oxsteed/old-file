@@ -57,7 +57,15 @@ function QuotedMedia({ assets, label }) {
   return null;
 }
 
-export default function MediaPostCard({ post, onUpdate, onBookmarkChange }) {
+const TRANSACTIONAL_LINK_TYPES = new Set(['food_item', 'job', 'tool_rental', 'direct_catalog', 'logistics_campaign']);
+
+export default function MediaPostCard({
+  post,
+  onUpdate,
+  onBookmarkChange,
+  showAbsoluteTimestamp = false,
+  truncateBody = false,
+}) {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -84,6 +92,10 @@ export default function MediaPostCard({ post, onUpdate, onBookmarkChange }) {
   const [boostMessage, setBoostMessage] = useState('');
   const boostTriggerRef = useRef(null);
   const boostDialogRef = useRef(null);
+  const [bodyExpanded, setBodyExpanded] = useState(false);
+  const bodyText = post.body || '';
+  const bodyTruncateAt = 280;
+  const shouldTruncateBody = truncateBody && !bodyExpanded && bodyText.length > bodyTruncateAt;
 
   useEffect(() => {
     if (!boostOpen) return undefined;
@@ -270,11 +282,21 @@ export default function MediaPostCard({ post, onUpdate, onBookmarkChange }) {
           <VerifiedBadge kind={post.verified_kind} label={t('media.post.verified')} />
           <span className="media-post-handle">@{post.handle}</span>
           <span className="media-post-time">· {timeAgo(post.created_at, i18n.language)}</span>
+          {showAbsoluteTimestamp && (
+            <time className="media-post-absolute-time" dateTime={post.created_at}>
+              · {new Intl.DateTimeFormat(i18n.language || 'en', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(post.created_at))}
+            </time>
+          )}
           <span className="media-post-views">· {formatCount(viewCount)} {t('media.post.views')}</span>
         </div>
         <Link to={`/media/post/${post.id}`} className="media-post-text">
-          {post.body}
+          {shouldTruncateBody ? `${bodyText.slice(0, bodyTruncateAt)}…` : bodyText}
         </Link>
+        {shouldTruncateBody && (
+          <button type="button" className="media-text-button media-show-more" onClick={() => setBodyExpanded(true)}>
+            {t('media.post.showMore', { defaultValue: 'Show more' })}
+          </button>
+        )}
         {post.assets?.length > 0 && (
           <div className={`media-post-assets media-post-assets-${Math.min(post.assets.length, 4)}`}>
             {post.assets.map((asset) => {
@@ -323,7 +345,17 @@ export default function MediaPostCard({ post, onUpdate, onBookmarkChange }) {
             <div className="media-linked-row">
               {post.links.map(link => (
                 link.available && link.canonical_url ? (
-                  <Link key={link.id} to={link.canonical_url} className="media-link-chip">
+                  <Link
+                    key={link.id}
+                    to={link.canonical_url}
+                    className="media-link-chip"
+                    onClick={(event) => {
+                      if (!user && TRANSACTIONAL_LINK_TYPES.has(link.link_type)) {
+                        event.preventDefault();
+                        navigate('/login', { state: { from: link.canonical_url } });
+                      }
+                    }}
+                  >
                     <span className="media-link-type">{t(`media.post.linkTypes.${link.link_type}`, { defaultValue: link.link_type })}</span>
                     <span className="media-link-name">{link.name || link.label || link.name_snapshot}</span>
                     {(link.price_cents ?? link.price_snapshot_cents) != null && (

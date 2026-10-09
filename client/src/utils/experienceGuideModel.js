@@ -16,6 +16,7 @@ export const EXPERIENCE_AREA_KEYS = Object.freeze([
   'support',
   'consulting',
   'get-started',
+  'media',
 ]);
 
 const BUSINESS_MODES = new Set([
@@ -82,6 +83,15 @@ const AREAS = Object.freeze({
     roles: {
       customer: { steps: ['browse', 'book', 'return'], cards: ['openRentals'] },
       business: { steps: ['browse', 'book', 'return'], cards: ['openRentals'] },
+    },
+    defaultRole: 'customer',
+  },
+  media: {
+    enabled: LAUNCH_VISIBILITY.oxsteedMedia,
+    roles: {
+      customer: { steps: ['discover', 'connect', 'complete'], cards: ['openMedia', 'browseRestaurants', 'postJob'] },
+      helper: { steps: ['discover', 'connect', 'complete'], cards: ['openMedia', 'helperProfile', 'browseJobs'] },
+      business: { steps: ['setup', 'manage', 'grow'], cards: ['openMedia', 'openBusinessHub', 'openMessages'] },
     },
     defaultRole: 'customer',
   },
@@ -176,6 +186,7 @@ const AREA_ROUTES = Object.freeze({
   support: '/support',
   consulting: '/consulting-intake',
   'get-started': '/join',
+  media: '/media',
 });
 
 const ACTION_ROUTES = Object.freeze({
@@ -190,6 +201,7 @@ const ACTION_ROUTES = Object.freeze({
   openSupport: '/support', openBookings: '/my-bookings', openDelivery: '/delivery', openLogistics: '/logistics',
   supportPortal: '/support/agent', supportWorkspace: '/support/agent/workspace', startConsulting: '/consulting-intake',
   joinOxsteed: '/join',
+  openMedia: '/media',
 });
 
 function storageFor(areaKey) {
