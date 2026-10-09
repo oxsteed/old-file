@@ -830,3 +830,11 @@ correctly returned 401. Readiness reports 749/749 migrations and healthy
 database, Redis, Credit, realtime, and workers. Coolify still exposes no git
 SHA, image digest, or deployment ID, so exact candidate-to-image identity and
 authenticated production journeys remain incomplete.
+
+Easy baseline batch (2026-10-09): the maintained Media contract checks passed
+55 tests covering accessible video and action controls, notification rows and
+realtime reconciliation, five-locale parity, Arabic-safe copy constraints,
+upload tabs and validation, upload progress/status mapping, video embeds,
+removed-link behavior, restaurant Media cards, and payment idempotency keys.
+These are local behavior checks; real-device keyboard/RTL and authenticated
+deployed activity remain open.

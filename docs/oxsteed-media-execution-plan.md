@@ -22,36 +22,35 @@ historical observations, not current completion claims.
 - The primary agent owns final integration, deployment checks, requirement
   evidence and the decision that the combined goal is complete.
 
-## Batch 1: repeatable verification baseline
+## Batch 1: baseline, navigation and low-risk interaction polish
 
 - Reconcile the writable checkout, branch, remote, current migrations and live
   release. Preserve unrelated scratch files.
 - Maintain the complete requirements matrix with implementation, behavioral
   execution, exact deployed evidence, dependencies and next action.
-- Use the existing disposable Credit harness plus the optional Media extension:
-  PostgreSQL/PostGIS, Redis, private uploads, real ClamAV and runtime FFmpeg.
-  Run `bash scripts/media-isolated-env.sh start`, then `seed`, then `media-test`
-  on the supported Colima host. `down` removes only that disposable project.
-- Use synthetic helper, business, restaurant, customer, blocked and admin
-  identities from `server/scripts/media-isolated-fixtures.js`. The established
-  Credit seed supplies separate currency wallets and restaurant-wallet isolation.
-  Financial activity stays inside that disposable environment.
-- Require the PostgreSQL suites to execute without skips in CI. Keep browser
-  interaction mocks explicitly distinct from real API/storage/worker proof.
+- Finish the Media shell: navbar/account states, footer and legal links,
+  notifications, messages, Spaces entry, verification links and in-shell route
+  behavior.
+- Finish accessible action labels, keyboard focus, mobile layout, five-language
+  copy, Arabic direction checks and image-rich share-preview presentation.
+- Complete the low-risk interaction contracts for replies, quotes, five actions,
+  views, saved posts, reports, owner edit/delete, two-way blocks, limits and
+  linked-card selection. Keep mocked browser checks separate from real API proof.
 
-Acceptance: the setup executes repeatedly, including fixture reset/replay, and
-the matrix covers the entire combined scope. The scripts existing alone do not
-meet this acceptance condition.
+Acceptance: the maintained browser and contract suites cover the complete shell
+and interaction surface, with no unresolved local accessibility, localization,
+navigation or personal-state defects.
 
-## Batch 2: publishing, safety and everyday journeys
+## Batch 2: publishing and safety
 
-Work in complete paths: current publisher and entity verification → private
-draft → scanned attachment → conversion → ready → publication → public delivery.
-Then finish replies/quotes, five actions, views, saved posts, reports, owner
-editing/deletion, two-way blocks, limits, linked cards, Spaces, in-shell activity,
-accessibility, five-language copy and image-rich share previews. Keep the same
-safety predicates across publication, administration, feed and asset delivery.
-Test lost responses and concurrent publication/replacement, not just happy paths.
+Work in the complete publishing path: current publisher and entity verification
+→ private draft → scanned attachment → conversion → ready → publication → public
+delivery. Finish Didit return and business/restaurant request flows, durable
+draft recovery, previews, progress, retry, replacement, duplicate recovery,
+malware scanning, quarantine, video conversion, moderation, public asset gates
+and admin review. Keep the same safety predicates across publication,
+administration, feed and asset delivery. Test lost responses and concurrent
+publication/replacement, not just happy paths.
 
 Acceptance: real API/database authorization, verified posting, guest browsing,
 upload recovery and worker transitions pass; blocked or unauthorized accounts
