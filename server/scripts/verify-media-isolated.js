@@ -53,6 +53,10 @@ async function main() {
     const replay = await api('/assets/photo-uploads', helper, file(id, photo, 'photo.jpg', 'image/jpeg'), 'POST');
     assert.equal(replay.data.asset.id, upload.data.asset.id, 'lost response retry must reuse the same asset');
     assert.equal((await api(`/posts/${id}/publish`, helper, {}, 'POST')).status, 200);
+    for (const [postId, owner, name] of [[postIds[1], business, 'business.jpg'], [postIds[2], restaurant, 'restaurant.jpg']]) {
+      assert.equal((await api('/assets/photo-uploads', owner, file(postId, photo, name, 'image/jpeg'), 'POST')).status, 201);
+      assert.equal((await api(`/posts/${postId}/publish`, owner, {}, 'POST')).status, 200);
+    }
     assert.equal((await api(`/posts/${id}`, null)).status, 200);
     assert.equal((await api(`/posts/${id}`, blocked)).status, 404, 'both directions of blocking hide public posts');
     assert.equal((await api('/assets/photo-uploads', helper, file(id, photo, 'photo.jpg', 'image/jpeg'), 'POST')).status, 409);
@@ -95,6 +99,23 @@ async function main() {
     assert.equal((await api(`/posts/${ownerPost}`, helper, { body: 'Owner edit' }, 'PATCH')).status, 200);
     assert.equal((await api(`/posts/${ownerPost}`, helper, {}, 'DELETE')).status, 200);
     assert.equal((await api(`/posts/${ownerPost}`, null)).status, 404, 'deleted posts are no longer public');
+
+    const firstPage = await api('/feed?limit=2', null);
+    assert.equal(firstPage.status, 200);
+    assert.equal(firstPage.data.posts.length, 2, 'feed pagination should honor the requested page size');
+    assert(firstPage.data.next_cursor, 'feed should return a cursor when another published post remains');
+    const secondPage = await api(`/feed?limit=2&cursor=${encodeURIComponent(firstPage.data.next_cursor)}`, null);
+    assert.equal(secondPage.status, 200);
+    const pageIds = [...firstPage.data.posts, ...secondPage.data.posts].map(post => String(post.id));
+    assert.equal(new Set(pageIds).size, pageIds.length, 'cursor pages must not repeat a post');
+    const nearby = await api('/feed?limit=3&city=Springfield&state=OH', null);
+    assert.equal(nearby.status, 200);
+    assert.equal(nearby.data.location.city, 'Springfield');
+    assert.equal(nearby.data.location.state, 'OH');
+    const blockedFeed = await api('/feed?limit=3', blocked);
+    assert.equal(blockedFeed.status, 200);
+    assert(blockedFeed.data.posts.every(post => String(post.owner_user_id) !== String(helper)),
+      'blocked authors must be excluded from every feed page');
 
     const videoId = await draft(helper);
     const videoPath = path.join(tmp, 'video.mp4');

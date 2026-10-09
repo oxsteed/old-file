@@ -1272,3 +1272,10 @@ blocking, and public-delivery checks. The harness passes syntax validation;
 the local contract suite passes 29 tests with 16 PostgreSQL-only skips, and
 the deployment wiring contract passes 37 tests. Actual execution remains
 queued for the disposable CI database and exact deployed candidate.
+
+Database discovery checkpoint (2026-10-09): the disposable verifier now
+publishes helper, business, and restaurant fixture posts and checks feed page
+size, cursor deduplication, explicit city/state context, and blocked-author
+exclusion across pages. The feed context, ranking, and follow contract suites
+pass 33 tests locally. The new cases require the hosted PostgreSQL schema and
+remain unverified until the asynchronous Media harness completes.
