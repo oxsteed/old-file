@@ -91,7 +91,7 @@ row stays incomplete until that dependency is verified.
 | Exact deployed release/readiness/schema/assets | Behavior-verified live after the latest rollout: `/ready` and `/health` returned 200; `/ready` reported release `content-ac71aaf48e521400`, migrations `749/749`, no pending/unexpected migrations, healthy database/Redis/Credit/realtime/workers; Media feed, capabilities, notifications, and messages returned 200, while unauthenticated bookmarks returned 401 and an invalid cursor returned the expected 400. | Coolify release metadata does not expose the git SHA, so exact commit-to-image identity remains unavailable. | Obtain release SHA or reproducible asset identity from deployment metadata and verify authenticated journeys. |
 | Authenticated production/real-device matrix | Incomplete. | Signed-in helper/business/restaurant/admin and real device access outstanding. | Capture full non-financial production journeys; reconcile finance read-only. |
 
-Current local execution: 214 Media behavior checks passed in 16 suites;
+Current local execution: 213 Media behavior checks passed in 16 suites;
 26 PostgreSQL cases in two suites skipped because no disposable PostgreSQL is
 available locally. The maintained Media client contract and full `npm run
 build:ci` passed, and four maintained Chromium browser journeys passed, covering
@@ -108,7 +108,7 @@ currently reports healthy release `content-5a3ad5ab7517685f`, which is not proof
 that the new changes deployed. No completion claim is made.
 
 Integrated Media suite checkpoint (2026-10-09): the current writable checkout
-ran all 18 maintained `media*.test.js` files with 214 passing tests and 26
+ran all 18 maintained `media*.test.js` files with 213 passing tests and 26
 database-only skips; no Media suite failed. The skipped PostgreSQL cases cover
 saved-feed reload, block/action boundaries, and other real database journeys
 that require the hosted disposable environment.
@@ -146,7 +146,7 @@ the hosted and authenticated release matrix.
 Link-write rejection checkpoint (2026-10-09): a maintained draft journey now
 proves that a removed or unknown target is rejected before existing cards are
 deleted, with the transaction rolled back. The integrated Media suite passes
-214 checks; target-type and storage-backed execution remain in the hosted
+213 checks; target-type and storage-backed execution remain in the hosted
 database matrix.
 
 Feed-link visibility checkpoint (2026-10-09): ranked link counts now apply the
