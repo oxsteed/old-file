@@ -79,9 +79,10 @@ checkout integration, deployment evidence and final completion decisions.
 | Exact deployed release/readiness/schema/assets | Behavior-verified live after the latest rollout: `/ready` and `/health` returned 200; `/ready` reported release `content-ac71aaf48e521400`, migrations `749/749`, no pending/unexpected migrations, healthy database/Redis/Credit/realtime/workers; Media feed, capabilities, notifications, and messages returned 200, while unauthenticated bookmarks returned 401 and an invalid cursor returned the expected 400. | Coolify release metadata does not expose the git SHA, so exact commit-to-image identity remains unavailable. | Obtain release SHA or reproducible asset identity from deployment metadata and verify authenticated journeys. |
 | Authenticated production/real-device matrix | Incomplete. | Signed-in helper/business/restaurant/admin and real device access outstanding. | Capture full non-financial production journeys; reconcile finance read-only. |
 
-Current local execution: all 165 Media behavior checks passed in 13 suites;
-18 PostgreSQL cases in two suites skipped because no disposable PostgreSQL is
-available locally. Four maintained Chromium browser journeys passed, covering
+Current local execution: 210 Media behavior checks passed in 16 suites;
+24 PostgreSQL cases in two suites skipped because no disposable PostgreSQL is
+available locally. The maintained Media client contract and full `npm run
+build:ci` passed, and four maintained Chromium browser journeys passed, covering
 desktop and 390px composer recovery, guest public-card navigation, tab/location
 races and explicit device-location choices. The CI
 result checker, existing Credit fixture regression, fixture isolation rejection,
@@ -93,6 +94,12 @@ execution, candidate CI and deployed verification remain outstanding. The
 baseline CI check still reports a pre-start billing rejection; canonical `/ready`
 currently reports healthy release `content-5a3ad5ab7517685f`, which is not proof
 that the new changes deployed. No completion claim is made.
+
+Integrated Media suite checkpoint (2026-10-09): the current writable checkout
+ran all 18 maintained `media*.test.js` files with 210 passing tests and 24
+database-only skips; no Media suite failed. The skipped PostgreSQL cases cover
+saved-feed reload, block/action boundaries, and other real database journeys
+that require the hosted disposable environment.
 
 Creator settlement replay checkpoint (2026-10-09): creator gig, sponsorship,
 tip, and boost settlement retries now recover an already-posted matching
