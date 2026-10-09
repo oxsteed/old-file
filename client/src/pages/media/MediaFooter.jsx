@@ -27,7 +27,16 @@ export default function MediaFooter() {
   const { openSettings } = useCookieConsentContext();
   const [openLegal, setOpenLegal] = useState(null);
   const closeButtonRef = useRef(null);
+  const legalTriggerRef = useRef(null);
   const LegalPage = openLegal ? LEGAL_PAGES[openLegal] : null;
+
+  const closeLegal = () => {
+    const trigger = legalTriggerRef.current;
+    setOpenLegal(null);
+    const restoreFocus = () => trigger?.focus?.();
+    if (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function') window.requestAnimationFrame(restoreFocus);
+    else restoreFocus();
+  };
 
   useEffect(() => {
     if (!openLegal) return undefined;
@@ -35,7 +44,7 @@ export default function MediaFooter() {
     document.body.style.overflow = 'hidden';
     closeButtonRef.current?.focus();
     const onKeyDown = (event) => {
-      if (event.key === 'Escape') setOpenLegal(null);
+      if (event.key === 'Escape') closeLegal();
     };
     window.addEventListener('keydown', onKeyDown);
     return () => {
@@ -47,11 +56,12 @@ export default function MediaFooter() {
   const openLegalPage = (event, path) => {
     if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
     event.preventDefault();
+    legalTriggerRef.current = event.currentTarget;
     setOpenLegal(path);
   };
 
   const closeOnBackdrop = (event) => {
-    if (event.target === event.currentTarget) setOpenLegal(null);
+    if (event.target === event.currentTarget) closeLegal();
   };
 
   return (
@@ -91,7 +101,7 @@ export default function MediaFooter() {
                 ref={closeButtonRef}
                 type="button"
                 className="media-legal-close"
-                onClick={() => setOpenLegal(null)}
+                onClick={closeLegal}
                 aria-label={t('media.shell.close')}
               >
                 ×

@@ -8,6 +8,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const postCard = fs.readFileSync(path.join(root, 'src/pages/media/MediaPostCard.jsx'), 'utf8');
 const compose = fs.readFileSync(path.join(root, 'src/pages/media/MediaComposePage.jsx'), 'utf8');
 const search = fs.readFileSync(path.join(root, 'src/pages/media/MediaSearchPage.jsx'), 'utf8');
+const footer = fs.readFileSync(path.join(root, 'src/pages/media/MediaFooter.jsx'), 'utf8');
 
 test('Media video controls expose accessible labels and inline playback', () => {
   assert.match(postCard, /playsInline[^>]+aria-label=\{label\}/);
@@ -85,4 +86,12 @@ test('Media personal actions expose failure feedback and prevent duplicate reque
   assert.match(postCard, /setActionMessage\(err\.response\?\.data\?\.error \|\| t\('media\.post\.actionError'/);
   assert.match(postCard, /aria-live="polite"/);
   assert.match(postCard, /disabled=\{Boolean\(actionPending\)\}/);
+});
+
+test('Media legal dialog restores focus to the link that opened it', () => {
+  assert.match(footer, /const legalTriggerRef = useRef\(null\)/);
+  assert.match(footer, /legalTriggerRef\.current = event\.currentTarget/);
+  assert.match(footer, /const closeLegal = \(\) =>/);
+  assert.match(footer, /trigger\?\.focus\?\.\(\)/);
+  assert.match(footer, /onClick=\{closeLegal\}/);
 });
