@@ -116,6 +116,21 @@ describeDb('Media block boundaries in PostgreSQL', () => {
     }
   });
 
+  test('blocked linked targets do not boost the ranked feed', async () => {
+    await db.query(`INSERT INTO media_post_links (id, post_id, link_type, target_id, name_snapshot, sort_order)
+      VALUES ('blocked-feed-link', 'allowed', 'helper', 'helper-outbound', 'Blocked helper', 0)`);
+    try {
+      const response = res();
+      await media.getFeed({ query: { limit: '10', location_mode: 'all' }, user: { id: 'viewer' } }, response);
+      expect(response.status).not.toHaveBeenCalled();
+      const allowed = response.json.mock.calls[0][0].posts.find((post) => post.id === 'allowed');
+      expect(allowed).toMatchObject({ link_count: '0' });
+      expect(allowed.links).toEqual([expect.objectContaining({ available: false, canonical_url: null })]);
+    } finally {
+      await db.query("DELETE FROM media_post_links WHERE id = 'blocked-feed-link'");
+    }
+  });
+
   test('saved posts exclude both blocked directions and removed posts after reload', async () => {
     await db.query('TRUNCATE media_bookmarks');
     await db.query("INSERT INTO media_bookmarks (post_id, user_id) VALUES ('outbound', 'viewer'), ('inbound', 'viewer'), ('allowed', 'viewer')");

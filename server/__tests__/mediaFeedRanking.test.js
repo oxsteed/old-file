@@ -63,6 +63,9 @@ describe('Media ranked feed journey', () => {
     expect(firstSql).not.toContain('j.deleted_at');
     expect(firstSql).toContain('ROW_NUMBER() OVER');
     expect(firstSql).toContain('ORDER BY feed_position ASC');
+    expect(firstSql).toMatch(/l\.link_type = 'restaurant'[\s\S]*r\.owner_user_id/);
+    expect(firstSql).toMatch(/l\.link_type = 'helper'[\s\S]*u\.id/);
+    expect(firstSql).toContain('po.organizer_user_id');
 
     pool.query.mockClear();
     const second = response();

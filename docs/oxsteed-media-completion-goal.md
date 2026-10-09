@@ -64,7 +64,7 @@ row stays incomplete until that dependency is verified.
 | Navbar/account/footer/legal navigation | Implemented in current source. | Signed-in/out, cookies, keyboard and Arabic proof outstanding. | Include navigation and legal dialogs in browser matrix. |
 | Accessibility and five languages | Incomplete: existing catalogs and labels, but full error/keyboard/RTL audit outstanding. Media legal dialogs now return focus to the opening link after Escape, backdrop, or close-button dismissal; 14 Media accessibility/notification contract checks, localization parity, and the full 761-asset client build pass locally. | Full keyboard, Arabic/RTL and mobile matrix required for candidate. | Run the maintained browser accessibility matrix in Arabic/RTL and on mobile. |
 | Image-rich share previews | Implemented in prior prerender source. | Current safe assets/localized real share previews outstanding. | Verify guest-safe image metadata in every language after build. |
-| Nearby coordinates and city/state fallback | Behavior-tested locally: entity coordinates from helpers, businesses, restaurants, jobs and linked targets rank nearby; explicit city/state matching remains available and removed entities lose their boost. | Real PostgreSQL locality cases are specified but skipped on this Windows host. | Execute the locality suite in the isolated PostgreSQL environment and verify deployed entity schemas. |
+| Nearby coordinates and city/state fallback | Behavior-tested locally: entity coordinates from helpers, businesses, restaurants, jobs and linked targets rank nearby; explicit city/state matching remains available, removed entities lose their boost, and reciprocal-blocked linked targets no longer contribute a ranked link boost. | Real PostgreSQL locality and blocked-target ranking cases are specified but skipped on this Windows host. | Execute the locality suite in the isolated PostgreSQL environment and verify deployed entity schemas. |
 | Guest and device location choices | Behavior-tested locally: guests can choose city/state, use device location only after an explicit action, persist a rounded choice, return to profile location, or select all locations. | Real-device permission and deployed session evidence outstanding. | Verify permission denial, Arabic layout and mobile behavior in the release matrix. |
 | Versioned context-bound feed cursor | Behavior-tested locally: cursor includes version, tab, viewer, location, ranking mode, cutoff and microsecond timestamp; changed context returns a recoverable 400; fallback preserves its chronological mode and cutoff. | Real complete-pagination proof is skipped without PostgreSQL. | Execute isolated ranked and fallback pagination cases, then verify candidate deployment. |
 | Stale tab responses and duplicates | Behavior-tested locally: generation guards discard out-of-order tab/location responses and page appends deduplicate post IDs. | Browser test uses mocked API; production race evidence outstanding. | Verify rapid tab/location changes against the deployed API. |
@@ -91,8 +91,8 @@ row stays incomplete until that dependency is verified.
 | Exact deployed release/readiness/schema/assets | Behavior-verified live after the latest rollout: `/ready` and `/health` returned 200; `/ready` reported release `content-ac71aaf48e521400`, migrations `749/749`, no pending/unexpected migrations, healthy database/Redis/Credit/realtime/workers; Media feed, capabilities, notifications, and messages returned 200, while unauthenticated bookmarks returned 401 and an invalid cursor returned the expected 400. | Coolify release metadata does not expose the git SHA, so exact commit-to-image identity remains unavailable. | Obtain release SHA or reproducible asset identity from deployment metadata and verify authenticated journeys. |
 | Authenticated production/real-device matrix | Incomplete. | Signed-in helper/business/restaurant/admin and real device access outstanding. | Capture full non-financial production journeys; reconcile finance read-only. |
 
-Current local execution: 213 Media behavior checks passed in 16 suites;
-25 PostgreSQL cases in two suites skipped because no disposable PostgreSQL is
+Current local execution: 214 Media behavior checks passed in 16 suites;
+26 PostgreSQL cases in two suites skipped because no disposable PostgreSQL is
 available locally. The maintained Media client contract and full `npm run
 build:ci` passed, and four maintained Chromium browser journeys passed, covering
 desktop and 390px composer recovery, guest public-card navigation, tab/location
@@ -108,7 +108,7 @@ currently reports healthy release `content-5a3ad5ab7517685f`, which is not proof
 that the new changes deployed. No completion claim is made.
 
 Integrated Media suite checkpoint (2026-10-09): the current writable checkout
-ran all 18 maintained `media*.test.js` files with 213 passing tests and 25
+ran all 18 maintained `media*.test.js` files with 214 passing tests and 26
 database-only skips; no Media suite failed. The skipped PostgreSQL cases cover
 saved-feed reload, block/action boundaries, and other real database journeys
 that require the hosted disposable environment.
@@ -146,8 +146,14 @@ the hosted and authenticated release matrix.
 Link-write rejection checkpoint (2026-10-09): a maintained draft journey now
 proves that a removed or unknown target is rejected before existing cards are
 deleted, with the transaction rolled back. The integrated Media suite passes
-213 checks; target-type and storage-backed execution remain in the hosted
+214 checks; target-type and storage-backed execution remain in the hosted
 database matrix.
+
+Feed-link visibility checkpoint (2026-10-09): ranked link counts now apply the
+same reciprocal owner-block predicate as card hydration, so a blocked entity
+cannot silently improve a post's rank. A maintained SQL assertion covers the
+target-owner clauses and the hosted PostgreSQL fixture covers the resulting
+zero boost; the fixture remains skipped locally.
 
 Creator settlement replay checkpoint (2026-10-09): creator gig, sponsorship,
 tip, and boost settlement retries now recover an already-posted matching

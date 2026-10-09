@@ -35,34 +35,41 @@ const MEDIA_LINK_TYPES = new Set([
   'restaurant', 'food_item', 'helper', 'business', 'job',
   'tool_rental', 'direct_catalog', 'logistics_campaign',
 ]);
-const VALID_LINK_COUNT_SQL = `COUNT(l.id) FILTER (WHERE
+function validLinkCountSql(viewerParam = null) {
+  const blocked = (ownerExpression) => viewerParam == null ? '' : `
+       AND NOT EXISTS (
+         SELECT 1 FROM user_blocks ub
+          WHERE (ub.blocker_id = $${viewerParam} AND ub.blocked_id = ${ownerExpression})
+             OR (ub.blocker_id = ${ownerExpression} AND ub.blocked_id = $${viewerParam})
+       )`;
+  return `COUNT(l.id) FILTER (WHERE
     (l.link_type = 'restaurant' AND EXISTS (
       SELECT 1 FROM food_restaurants r
-       WHERE r.id::text = l.target_id AND r.status = 'active'
+       WHERE r.id::text = l.target_id AND r.status = 'active'${blocked('r.owner_user_id')}
     )) OR
     (l.link_type = 'food_item' AND EXISTS (
       SELECT 1 FROM food_menu_items i
       JOIN food_restaurants r ON r.id = i.restaurant_id
        WHERE i.id::text = split_part(l.target_id, ':', 2)
          AND r.id::text = split_part(l.target_id, ':', 1)
-         AND r.status = 'active' AND i.is_available = TRUE
+         AND r.status = 'active' AND i.is_available = TRUE${blocked('r.owner_user_id')}
     )) OR
     (l.link_type = 'helper' AND EXISTS (
       SELECT 1 FROM helper_profiles hp JOIN users u ON u.id = hp.user_id
        WHERE (hp.id::text = l.target_id OR hp.user_id::text = l.target_id OR hp.profile_slug::text = l.target_id)
-         AND u.deleted_at IS NULL AND u.is_active = TRUE AND u.is_banned = FALSE
+         AND u.deleted_at IS NULL AND u.is_active = TRUE AND u.is_banned = FALSE${blocked('u.id')}
     )) OR
     (l.link_type = 'business' AND EXISTS (
       SELECT 1 FROM businesses b
-       WHERE b.id::text = l.target_id AND b.deleted_at IS NULL AND b.is_active = TRUE
+       WHERE b.id::text = l.target_id AND b.deleted_at IS NULL AND b.is_active = TRUE${blocked('b.user_id')}
     )) OR
     (l.link_type = 'job' AND EXISTS (
       SELECT 1 FROM jobs j
-       WHERE j.id::text = l.target_id AND j.status IN ('published', 'matched')
+       WHERE j.id::text = l.target_id AND j.status IN ('published', 'matched')${blocked('j.client_id')}
     )) OR
     (l.link_type = 'tool_rental' AND EXISTS (
       SELECT 1 FROM tool_rentals tr
-       WHERE tr.id::text = l.target_id AND tr.is_available = TRUE
+       WHERE tr.id::text = l.target_id AND tr.is_available = TRUE${blocked('tr.user_id')}
     )) OR
     (l.link_type = 'direct_catalog' AND EXISTS (
       SELECT 1 FROM direct_catalog_services s
@@ -70,9 +77,10 @@ const VALID_LINK_COUNT_SQL = `COUNT(l.id) FILTER (WHERE
     )) OR
     (l.link_type = 'logistics_campaign' AND EXISTS (
       SELECT 1 FROM pooled_orders po
-       WHERE po.id::text = l.target_id AND po.status IN ('open', 'pledging')
+       WHERE po.id::text = l.target_id AND po.status IN ('open', 'pledging')${blocked('po.organizer_user_id')}
     ))
   )`;
+}
 // A paid placement is active only after the Credit settlement transition.
 const ACTIVE_BOOST_SQL = `EXISTS (
   SELECT 1 FROM media_post_boosts active_boost
@@ -592,7 +600,7 @@ async function getFeed(req, res) {
         `WITH base AS (
            SELECT p.*, a.handle, a.display_name, a.avatar_url, a.verified_kind, a.actor_type, a.owner_user_id,
                   to_char(p.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS cursor_created_at,
-                  ${VALID_LINK_COUNT_SQL} AS link_count,
+                  ${validLinkCountSql(viewerParam)} AS link_count,
                   ${localityBoost} AS locality_boost,
                   ${ACTIVE_BOOST_SQL} AS is_sponsored
              FROM media_posts p
