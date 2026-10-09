@@ -221,15 +221,16 @@ describeDatabase('media publish: video conversion journey', () => {
     const job = await newJob(postId, asset.id, 'transcode');
     const claimed = await worker.runOnce();
     expect(claimed && claimed.id).toBe(job.id);
+    const { rows: jobs } = await db.query(
+      'SELECT status, last_error FROM media_processing_jobs WHERE id = $1', [job.id]);
     const { rows } = await db.query(
       'SELECT processing_status, renditions, thumbnail_key FROM media_post_assets WHERE id = $1', [asset.id]);
-    expect(rows[0].processing_status).toBe('ready');
+    // Include the worker's last_error in the failure message for CI diagnosis.
+    expect(`${rows[0].processing_status} / ${jobs[0].last_error || 'no error'}`).toBe('ready / no error');
     const renditions = rows[0].renditions;
     expect(Array.isArray(renditions) && renditions.length).toBeGreaterThan(0);
     expect(renditions[0].storage_key).toBeTruthy();
     expect(rows[0].thumbnail_key).toBeTruthy();
-    const { rows: jobs } = await db.query(
-      'SELECT status FROM media_processing_jobs WHERE id = $1', [job.id]);
     expect(jobs[0].status).toBe('done');
   });
 });

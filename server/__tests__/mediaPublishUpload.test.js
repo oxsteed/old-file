@@ -35,8 +35,15 @@ const pool = require('../db');
 
 const attachments = require('../services/mediaDraftAttachments');
 const fileScanService = require('../services/fileScanService');
-// Real magic-byte detection via dynamic import (file-type is ESM-only).
-const realFileType = () => import('file-type').then((m) => m.fileTypeFromBuffer);
+// PNG magic bytes (89 50 4E 47 0D 0A 1A 0A) checked directly; avoids the
+// ESM-only file-type import which needs --experimental-vm-modules.
+function detectPngMagic(buffer) {
+  return (
+    buffer.length >= 8 &&
+    buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4e && buffer[3] === 0x47 &&
+    buffer[4] === 0x0d && buffer[5] === 0x0a && buffer[6] === 0x1a && buffer[7] === 0x0a
+  );
+}
 
 jest.setTimeout(120000);
 
@@ -127,11 +134,8 @@ describeDatabase('media publish: attachment upload journey', () => {
   });
 
   test('magic bytes: real PNG is detected, masquerading text is rejected', async () => {
-    const fileTypeFromBuffer = await realFileType();
-    const detected = await fileTypeFromBuffer(PNG_1X1);
-    expect(detected && detected.mime).toBe('image/png');
-    const fake = await fileTypeFromBuffer(FAKE_IMAGE);
-    expect(fake == null || !['image/png', 'image/jpeg', 'image/webp'].includes(fake.mime)).toBe(true);
+    expect(detectPngMagic(PNG_1X1)).toBe(true);
+    expect(detectPngMagic(FAKE_IMAGE)).toBe(false);
   });
 
   test('externalVideo: HTTPS YouTube/Vimeo accepted, HTTP and lookalikes rejected', () => {

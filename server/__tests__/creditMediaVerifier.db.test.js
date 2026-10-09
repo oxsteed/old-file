@@ -325,6 +325,14 @@ describeDatabase('section 5 media credit verifier', () => {
     );
   });
 
+  afterAll(async () => {
+    // Restore the rail flag so other suites sharing the database see the default.
+    await pool.query(
+      `UPDATE feature_flags SET is_enabled = FALSE WHERE key = 'oxsteed_credit_enabled'`
+    );
+    await pool.end();
+  });
+
   // ------------------------------------------------------------------
   // 1. Conservation of funds across gigs, sponsorships, tips, boosts
   // ------------------------------------------------------------------
@@ -346,7 +354,7 @@ describeDatabase('section 5 media credit verifier', () => {
         referenceId: gigRef,
         amountCents: 20000,
       });
-      expect(reservation.status).toBe('active');
+      expect(reservation.reservation.status).toBe('active');
       await client.query('COMMIT');
 
       // Award reserved: buyer reserved rises, balances unchanged.
@@ -380,7 +388,7 @@ describeDatabase('section 5 media credit verifier', () => {
       const client2 = await pool.connect();
       try {
         await client2.query('BEGIN');
-        await releaseReservation(client2, { reservationId: reservation.id, reason: 'Gig settled' });
+        await releaseReservation(client2, { reservationId: reservation.reservation.id, reason: 'Gig settled' });
         await client2.query('COMMIT');
       } finally {
         client2.release();
@@ -589,20 +597,20 @@ describeDatabase('section 5 media credit verifier', () => {
       });
       await client.query('COMMIT');
 
-      let active = await getActiveReservation(client, { reservationId: reservation.id });
+      let active = await getActiveReservation(client, { reservationId: reservation.reservation.id });
       expect(active.status).toBe('active');
       expect((await balances([buyer.walletId]))[buyer.walletId].reserved).toBe(12000n);
 
       const client2 = await pool.connect();
       try {
         await client2.query('BEGIN');
-        await releaseReservation(client2, { reservationId: reservation.id, reason: 'Buyer cancelled gig' });
+        await releaseReservation(client2, { reservationId: reservation.reservation.id, reason: 'Buyer cancelled gig' });
         await client2.query('COMMIT');
       } finally {
         client2.release();
       }
 
-      active = await getActiveReservation(client, { reservationId: reservation.id });
+      active = await getActiveReservation(client, { reservationId: reservation.reservation.id });
       expect(active.status).toBe('released');
       expect((await balances([buyer.walletId]))[buyer.walletId].reserved).toBe(0n);
 
@@ -610,7 +618,7 @@ describeDatabase('section 5 media credit verifier', () => {
       const client3 = await pool.connect();
       try {
         await client3.query('BEGIN');
-        await expect(releaseReservation(client3, { reservationId: reservation.id, reason: 'Again' }))
+        await expect(releaseReservation(client3, { reservationId: reservation.reservation.id, reason: 'Again' }))
           .rejects.toMatchObject({ status: 409 });
         await client3.query('ROLLBACK');
       } finally {
@@ -970,7 +978,7 @@ describeDatabase('section 5 media credit verifier', () => {
       const client2 = await pool.connect();
       try {
         await client2.query('BEGIN');
-        await releaseReservation(client2, { reservationId: reservation.id, reason: 'Sponsorship settled' });
+        await releaseReservation(client2, { reservationId: reservation.reservation.id, reason: 'Sponsorship settled' });
         await client2.query('COMMIT');
       } finally {
         client2.release();
