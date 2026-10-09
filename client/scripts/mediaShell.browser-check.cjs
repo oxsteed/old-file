@@ -48,6 +48,8 @@ async function fixture() {
       export const getCreatorPayments = async () => ({payments:[]}), getCreatorWorkReviews=async()=>({workReviews:[]});
       export const getMyCreatorApplications = async () => ({applications:window.marketplace==='creator'&&!window.workDeclined?[{id:'application',gig_id:'gig',gig_title:'Local creator work',status:'awarded',accepted_at:null,proposed_cents:10000,currency_code:'USD'}]:[]});
       export const getFeed = async()=>({posts:[{id:'owned-post',body:'Published creator work'}]});
+      export const getMediaBadges = async () => ({ spaces_unread: 3 });
+      export const markMediaCommunitiesSeen = async () => ({ ok: true, spaces_unread: 0 });
       export const acceptCreatorApplication = async id => {action('accept',[id]);return {application:{accepted_at:'2026-10-09T00:00:00Z'}};};
       export const declineCreatorApplication = async id => {action('decline',[id]);window.workDeclined=true;}, cancelCreatorBoost = async id => ({boost:{status:'cancelled'}});
       export const submitCreatorDeliverable = async(id,data)=>{action('deliver',[id,data]);return {deliverable:{id:'deliverable'}};};
