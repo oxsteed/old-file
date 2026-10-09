@@ -21,7 +21,7 @@ checkout integration, deployment evidence and final completion decisions.
 
 | Requirement | State and implementation / behavioral evidence | Deployment / dependency | Next exact action |
 | --- | --- | --- | --- |
-| Reconciled source and retained work | Behavior-tested: writable checkout HEAD `95e844cb` matches the pushed branch; three pre-existing untracked browser scratch files remain preserved. | Runtime release metadata still exposes content identity but no git SHA. | Keep the scratch files untracked and compare release metadata at each deployment checkpoint. |
+| Reconciled source and retained work | Behavior-tested: writable checkout HEAD `dcd86ba4` matches the pushed branch; three pre-existing untracked browser scratch files remain preserved. | Runtime release metadata still exposes content identity but no git SHA. | Keep the scratch files untracked and compare release metadata at each deployment checkpoint. |
 | Repeatable isolated fixtures | Implemented: optional Media compose extension, scoped wrapper, synthetic persona seed and real API/scan/conversion verifier. | Not executed here: Windows host has no reachable Colima/Docker runtime. | Execute `start`, `seed`, `media-test` on Colima and capture repeat/reset evidence. |
 | Required real database proof | Behavior-tested in hosted CI: `mediaVisibilityDb.test.js` and `mediaDraftAttachmentsDb.test.js` both ran without skips against disposable PostgreSQL; the migration rehearsal also applied every migration twice and exercised concurrent recovery. | Local Windows checkout still has no disposable PostgreSQL runtime. | Preserve the CI database assertion and rerun it for each candidate. |
 | Helper Didit-backed identity | Implemented: `users.is_verified` checks at upload and commit; mocked behavior covers revocation at attachment commit. | Authenticated Didit return and production upload outstanding. | Prove webhook → verified helper → compose in isolated/live journeys. |
@@ -75,7 +75,7 @@ checkout integration, deployment evidence and final completion decisions.
 | Atomic accounting/precision/fees/isolation | Incomplete for marketplace: shared rail safeguards exist, transitions are not fully atomic with payment. | Real isolated conservation/races/currency cases required. | Add transactional marketplace service and accounting behavior suites. |
 | Migration upgrade and repeat application | Implemented: new 742, 743, 744 and 746 filenames follow inspected predecessors; 746 adds creator payment reservation/transaction links and delivery metadata. | Actual 746 migration execution is pending hosted CI/deployment. | Rehearse against disposable upgraded schema and repeat without data changes. |
 | Cloudflare interim and deferred Thorn | Implemented: retained explicit interim status; no synthetic vendor clearance. | Real runtime/public-delivery proof outstanding. | Keep honest policy disclosures and future vendor switch tests. |
-| Passing exact-candidate CI | Behavior-verified: candidate `95e844cb` passed CI run `37842488994`; the full server/client job and the PostgreSQL migration rehearsal both passed. | Hosted CI is available again; authenticated production behavior is still separate evidence. | Link every pushed batch to its own CI run; later ready batches may proceed while earlier runs are still in progress. |
+| Passing exact-candidate CI | Incomplete for current candidate: earlier candidate `95e844cb` passed CI run `37842488994`, but current batches `e4d962fa` and `dcd86ba4` were rejected before job startup by the GitHub billing/spending gate in runs `37869178085` and `37869352956`. | No current candidate job or migration rehearsal ran; this is external CI availability evidence, not a passing result. | Rerun CI when the account billing gate clears; keep local focused evidence separate from hosted verification. |
 | Exact deployed release/readiness/schema/assets | Behavior-verified live after the candidate checkpoint: `/ready` and `/health` returned 200; `/ready` reported release `content-94eb0730a824dca6`, migrations `747/747`, no pending/unexpected migrations, healthy database/Redis/Credit/realtime/workers; Media feed and capabilities returned 200. | Coolify release metadata does not expose the git SHA, so exact commit-to-image identity remains unavailable. | Obtain release SHA or reproducible asset identity from deployment metadata and verify authenticated journeys. |
 | Authenticated production/real-device matrix | Incomplete. | Signed-in helper/business/restaurant/admin and real device access outstanding. | Capture full non-financial production journeys; reconcile finance read-only. |
 
@@ -792,7 +792,7 @@ Restaurant federation batch (2026-10-09): restaurant-origin Media posts now attr
 
 Restaurant federation coverage follow-up (2026-10-09): the maintained federation suite now covers source deduplication, owner-anchored actor creation, historical ownership repair, and source-copy removal behavior. Restaurant Media, upload, and federation suites pass 90 tests combined; the client build remains in progress and live propagation is still open.
 
-Integrated verification update (2026-10-09): after correcting the restaurant federation syntax before release, the focused worker and restaurant suites pass 60 tests, the expanded restaurant Media/upload/federation suites pass 90 tests, and `client/npm run build:ci` passes with typecheck, localization parity, Vite production build, and 760 emitted assets verified. Large-chunk and dynamic-import warnings remain advisory. Live `/ready`, `/health`, `/api/media/capabilities`, `/media`, and empty feed endpoints are healthy; exact commit-to-image identity and authenticated production journeys remain open.
+Integrated verification update (2026-10-09): after correcting the restaurant federation syntax before release, the focused worker and restaurant suites pass 60 tests, the expanded restaurant Media/upload/federation suites pass 90 tests, and `client/npm run build:ci` passes with typecheck, localization parity, Vite production build, and 761 emitted assets verified. Large-chunk and dynamic-import warnings remain advisory. Live `/ready`, `/health`, `/api/media/capabilities`, `/media`, and empty feed endpoints are healthy; exact commit-to-image identity and authenticated production journeys remain open.
 
 Combined Media server verification (2026-10-09): 18 focused Media/restaurant suites passed with 252 tests passing and 8 intentionally skipped; exercised access, contracts, drafts/attachments, feed context/ranking, follows, journeys, namespace, publisher verification, safety, transcode, URL validation, visibility, creator/admin disputes, and restaurant federation. Test logs include expected mocked operational-error paths; no suite failed.
 
@@ -807,3 +807,26 @@ Marketplace fail-closed batch (2026-10-09): deliverable review now accepts only 
 Linked-card availability batch (2026-10-09): unavailable dishes are now excluded from live search, feed link counts, and locality ranking while preserving their snapshot card with `available: false` and no canonical URL. Contract and ranking suites pass 24 tests; guest transaction gates and other entity types remain covered by existing contracts.
 
 Disposable Media CI harness batch (2026-10-09): CI now has a separate `media-isolated` job that builds the production app with disposable PostgreSQL, Redis, ClamAV, and FFmpeg, seeds synthetic fixtures, runs the existing real API/storage/worker verifier, and always removes its scoped volumes and containers. The new deployment wiring contract passes 1 focused test. Docker is unavailable in this Windows shell, so the actual harness remains pending its GitHub Actions run.
+
+Gig deliverable transition batch (2026-10-09): submitting a gig deliverable now
+requires the locked awarded application to transition to `delivered` with a
+returned row; a missing transition rolls back the inserted deliverable and
+returns an operational failure. The creator suite passes 21 tests locally,
+including the rollback regression, with controller syntax and diff checks clean.
+
+Transactional moderation batch (2026-10-09): flag decisions now lock the flag,
+require the flag and removed-post updates to return rows, write the audit event
+through the same transaction, and roll back if post removal or audit logging
+fails. The creator/admin suites pass 28 tests locally with syntax and diff
+checks clean. CI run `37869352956` for `dcd86ba4` was rejected before startup by
+the GitHub account billing/spending gate, so no hosted job evidence exists for
+this batch.
+
+Rollout-gap classification (2026-10-09): the earlier production 404 was a
+transient deployment gap. A fresh probe returned 200 for `/`, `/ready`,
+`/health`, `/api/media/feed?limit=1`, `/api/media/capabilities`,
+`/media/notifications`, and `/media/messages`; unauthenticated bookmarks
+correctly returned 401. Readiness reports 749/749 migrations and healthy
+database, Redis, Credit, realtime, and workers. Coolify still exposes no git
+SHA, image digest, or deployment ID, so exact candidate-to-image identity and
+authenticated production journeys remain incomplete.
