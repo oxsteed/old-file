@@ -1321,3 +1321,9 @@ are discoverable from the restaurant page without replacing the legacy tab.
 The focused profile-preview contract now covers helper, business, and
 restaurant integrations; deployed authenticated and source-copy propagation
 evidence remain open.
+
+Marketplace visibility checkpoint (2026-10-09): signed-in creator opportunity
+lists now apply the same reciprocal block filter used by Media feeds and actor
+pages, while guests retain the public open-opportunity list. The focused
+creator controller suite adds the blocked-owner contract and remains green;
+Credit settlement, dispute, and deployed marketplace evidence remain open.

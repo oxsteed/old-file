@@ -17,6 +17,14 @@ test('lists only the open creator opportunities returned by the API query', asyn
   expect(mockQuery.mock.calls[0][0]).toContain('is_business_verified = TRUE');
 });
 
+test('filters creator opportunities for a signed-in viewer who blocks the owner', async () => {
+  mockQuery.mockResolvedValueOnce({ rows: [] });
+  await creator.listGigs({ query: { limit: '12' }, user: { id: 'viewer-1' } }, resMock(), jest.fn());
+  expect(mockQuery.mock.calls[0][0]).toContain('FROM user_blocks ub');
+  expect(mockQuery.mock.calls[0][0]).toContain('ub.blocker_id = $2');
+  expect(mockQuery.mock.calls[0][1]).toEqual([12, 'viewer-1']);
+});
+
 test('rejects a tip target that is not a currently verified creator actor', async () => {
   mockQuery.mockResolvedValueOnce({ rows: [] });
   const client = { query: mockQuery, release: jest.fn() };

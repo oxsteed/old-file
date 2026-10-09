@@ -81,13 +81,24 @@ async function verifiedCreatorById(client, actorId) {
 async function listGigs(req, res, next) {
   try {
     const limit = Math.min(Math.max(Number(req.query.limit) || 20, 1), 50);
+    const params = [limit];
+    let viewerBlockFilter = '';
+    if (req.user?.id) {
+      params.push(req.user.id);
+      viewerBlockFilter = `
+          AND NOT EXISTS (
+            SELECT 1 FROM user_blocks ub
+             WHERE (ub.blocker_id = $2 AND ub.blocked_id = a.owner_user_id)
+                OR (ub.blocker_id = a.owner_user_id AND ub.blocked_id = $2)
+          )`;
+    }
     const { rows } = await pool.query(
       `SELECT g.*, a.handle AS owner_handle, a.display_name AS owner_name,
               a.avatar_url AS owner_avatar, a.verified_kind
          FROM media_creator_gigs g JOIN media_actors a ON a.id = g.owner_actor_id
         WHERE g.status = 'open'
-          AND (${verifiedActorSql('a')})
-        ORDER BY g.created_at DESC LIMIT $1`, [limit]
+          AND (${verifiedActorSql('a')})${viewerBlockFilter}
+        ORDER BY g.created_at DESC LIMIT $1`, params
     );
     res.json({ gigs: rows });
   } catch (err) { next(err); }
