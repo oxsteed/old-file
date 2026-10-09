@@ -141,6 +141,7 @@ describe('OxSteed Media launch contracts', () => {
     const joinResponse = resMock();
     await media.joinCommunity({ params: { id: 'space-1' }, user: { id: 'user-1' } }, joinResponse);
     expect(joinResponse.json).toHaveBeenCalledWith({ joined: true, member_count: 4 });
+    expect(pool.query.mock.calls[2][0]).toContain('cm_user.is_banned = FALSE');
 
     const leaveResponse = resMock();
     await media.leaveCommunity({ params: { id: 'space-1' }, user: { id: 'user-1' } }, leaveResponse);

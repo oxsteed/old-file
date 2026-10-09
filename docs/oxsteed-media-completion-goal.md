@@ -1234,3 +1234,11 @@ immediately after the action. The focused Media contract suite passes 29 tests,
 the full client build and 761-asset verification pass, and the three preserved
 browser scratch files remain untracked. Real concurrent membership and deployed
 authenticated evidence remain outstanding.
+
+Spaces visibility-count checkpoint (2026-10-09): public Space member totals
+now exclude deleted, inactive, and banned accounts in list, detail, join, and
+leave responses. The integrated Media suite passes 224 tests with 26
+PostgreSQL-only skips; the PostgreSQL count case is ready for the disposable
+harness. A live probe during the current rollout returned 404 for public Media
+routes and APIs, so deployed verification remains explicitly open as a rollout
+gap.

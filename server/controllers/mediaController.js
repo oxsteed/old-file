@@ -1781,7 +1781,10 @@ async function getCommunities(req, res) {
       `SELECT c.*,
               COUNT(DISTINCT p.id)::int AS post_count,
               (SELECT COUNT(*)::int FROM media_community_members cm_count
-                WHERE cm_count.community_id = c.id) AS member_count,
+                JOIN users cm_user ON cm_user.id = cm_count.user_id
+               WHERE cm_count.community_id = c.id
+                 AND cm_user.deleted_at IS NULL AND cm_user.is_active = TRUE
+                 AND cm_user.is_banned = FALSE) AS member_count,
               EXISTS (
                 SELECT 1 FROM media_community_members cm
                  WHERE cm.community_id = c.id AND cm.user_id = $1
@@ -1811,7 +1814,10 @@ async function getCommunity(req, res) {
       `SELECT c.*,
               COUNT(DISTINCT p.id)::int AS post_count,
               (SELECT COUNT(*)::int FROM media_community_members cm_count
-                WHERE cm_count.community_id = c.id) AS member_count,
+                JOIN users cm_user ON cm_user.id = cm_count.user_id
+               WHERE cm_count.community_id = c.id
+                 AND cm_user.deleted_at IS NULL AND cm_user.is_active = TRUE
+                 AND cm_user.is_banned = FALSE) AS member_count,
               EXISTS (
                 SELECT 1 FROM media_community_members cm
                  WHERE cm.community_id = c.id AND cm.user_id = $2
@@ -1860,7 +1866,11 @@ async function joinCommunity(req, res) {
     );
     const { rows: counts } = await pool.query(
       `SELECT COUNT(*)::int AS member_count
-         FROM media_community_members WHERE community_id = $1`, [req.params.id]
+         FROM media_community_members cm_count
+         JOIN users cm_user ON cm_user.id = cm_count.user_id
+        WHERE cm_count.community_id = $1
+          AND cm_user.deleted_at IS NULL AND cm_user.is_active = TRUE
+          AND cm_user.is_banned = FALSE`, [req.params.id]
     );
     res.json({ joined: true, member_count: counts[0]?.member_count || 0 });
   } catch (err) {
@@ -1877,7 +1887,11 @@ async function leaveCommunity(req, res) {
     );
     const { rows: counts } = await pool.query(
       `SELECT COUNT(*)::int AS member_count
-         FROM media_community_members WHERE community_id = $1`, [req.params.id]
+         FROM media_community_members cm_count
+         JOIN users cm_user ON cm_user.id = cm_count.user_id
+        WHERE cm_count.community_id = $1
+          AND cm_user.deleted_at IS NULL AND cm_user.is_active = TRUE
+          AND cm_user.is_banned = FALSE`, [req.params.id]
     );
     res.json({ joined: false, member_count: counts[0]?.member_count || 0 });
   } catch (err) {

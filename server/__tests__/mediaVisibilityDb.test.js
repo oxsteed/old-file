@@ -46,7 +46,7 @@ describeDb('Media block boundaries in PostgreSQL', () => {
         SELECT id, id, 'local-' || id, 'Local ' || id, 'helper', 'identity' FROM users WHERE id <> 'viewer';
       INSERT INTO media_posts (id, actor_id, body) SELECT id, id, 'Local update' FROM media_actors;
       INSERT INTO media_communities VALUES ('town', 'local-town', 'Local town', 'Springfield', 'food');
-      INSERT INTO media_community_members VALUES ('town', 'viewer');
+    INSERT INTO media_community_members VALUES ('town', 'viewer'), ('town', 'banned');
       UPDATE media_posts SET community_id = 'town';
       INSERT INTO user_blocks VALUES ('viewer', 'outbound'), ('inbound', 'viewer');
     `);
