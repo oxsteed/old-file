@@ -1279,3 +1279,10 @@ size, cursor deduplication, explicit city/state context, and blocked-author
 exclusion across pages. The feed context, ranking, and follow contract suites
 pass 33 tests locally. The new cases require the hosted PostgreSQL schema and
 remain unverified until the asynchronous Media harness completes.
+
+Media regression-gate checkpoint (2026-10-09): the client CI build now runs
+the maintained Media action, accessibility, saved-post, and notification
+contracts instead of leaving them as standalone checks. Those contracts pass
+20 tests in total, and the full `build:ci` completes typecheck, production
+bundling, localization parity, and verification of 761 emitted assets. Live
+authenticated and real-device behavior remains a later evidence layer.
