@@ -1194,3 +1194,14 @@ blocking applies to both owners. A removed business therefore leaves only an
 inert snapshot label. The focused Media contract suite passes 28 tests and the
 integrated suite passes 222 tests with 26 PostgreSQL-only skips. Real campaign
 removal and transaction-target verification remain open.
+
+Live deployment checkpoint (2026-10-09): production recovered from the prior
+rollout gap. `/ready` and `/health` returned 200; readiness reports release
+`content-ad9632cab69ddde9`, 749/749 migrations, healthy database, Redis,
+Credit, realtime, workers, traffic, and shutdown checks. Public capabilities
+and the guest feed returned 200 with the Cloudflare interim policy. The
+maintained live Chromium check loaded `MediaStyles-nYK7YO_7.css`,
+`MediaShell-pqol6MAw.js`, and `MediaFeedPage-O15JFr5M.js`, reported no page
+errors, and passed desktop/mobile overflow and navigation checks. The release
+metadata still exposes no git SHA, image digest, or deployment ID, so exact
+candidate-to-image identity and authenticated production journeys remain open.
