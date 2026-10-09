@@ -82,6 +82,21 @@ describeDb('Media block boundaries in PostgreSQL', () => {
     expect(response.json.mock.calls[0][0].posts[0]).toMatchObject({ id: 'allowed', owner_user_id: 'allowed', liked: true, bookmarked: true });
   });
 
+  test('saved posts exclude both blocked directions and removed posts after reload', async () => {
+    await db.query('TRUNCATE media_bookmarks');
+    await db.query("INSERT INTO media_bookmarks (post_id, user_id) VALUES ('outbound', 'viewer'), ('inbound', 'viewer'), ('allowed', 'viewer')");
+    await db.query("UPDATE media_posts SET deleted_at = NOW() WHERE id = 'allowed'");
+    try {
+      const response = res();
+      await media.getBookmarks({ user: { id: 'viewer' } }, response);
+      expect(response.status).not.toHaveBeenCalled();
+      expect(response.json.mock.calls[0][0].posts).toEqual([]);
+    } finally {
+      await db.query("UPDATE media_posts SET deleted_at = NULL WHERE id = 'allowed'");
+      await db.query('TRUNCATE media_bookmarks');
+    }
+  });
+
   test('guests can browse active authors but cannot see banned authors', async () => {
     const response = res();
     await media.searchMedia({ query: { q: 'local' } }, response);
