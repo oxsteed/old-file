@@ -912,3 +912,11 @@ for helper-only accounts. The focused server journey suite passes 38 tests,
 the Media client/accessibility and browser journeys pass 12 tests, and the
 full client `npm run build:ci` passes with 761 emitted assets. Real authenticated
 multi-entity production verification remains open.
+
+Publisher loading race checkpoint (2026-10-09): the composer now waits for the
+verified publisher response before creating a draft, surfaces loading and
+unavailable states, and fails closed if that lookup cannot complete. The
+focused Media client/browser checks pass 13 tests, all five locale catalogs
+pass parity checks, and the integrated client build passes with 761 emitted
+assets. This closes the client-side identity race; authenticated production
+verification and exact candidate CI remain open.

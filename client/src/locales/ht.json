@@ -30433,6 +30433,8 @@
       "publisherLabel": "Pibliye kòm",
       "publisherLocked": "Idantite piblikasyon an fikse pou bouyon sa a.",
       "publisherHelper": "Pwofil èd mwen",
+      "publisherLoading": "Ap chaje idantite piblikasyon verifye yo…",
+      "publisherUnavailable": "Nou pa t kapab chaje idantite piblikasyon verifye yo. Rafrechi paj la epi eseye ankò.",
       "title": "Nouvo pòs",
       "placeholder": "Kisa k ap pase nan ekonomi lokal ou a?",
       "linkedOn": "Lyen sou OxSteed",

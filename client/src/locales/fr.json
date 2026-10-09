@@ -30433,6 +30433,8 @@
       "publisherLabel": "Publier en tant que",
       "publisherLocked": "L’identité de publication est fixée pour ce brouillon.",
       "publisherHelper": "Mon profil d’aide",
+      "publisherLoading": "Chargement des identités de publication vérifiées…",
+      "publisherUnavailable": "Impossible de charger les identités de publication vérifiées. Actualisez la page et réessayez.",
       "title": "Nouvelle publication",
       "placeholder": "Quoi de neuf dans votre économie locale ?",
       "linkedOn": "Lié sur OxSteed",

@@ -27,6 +27,7 @@ export default function MediaComposePage() {
   const [communityId, setCommunityId] = useState('');
   const [publishers, setPublishers] = useState([]);
   const [publisherKey, setPublisherKey] = useState('');
+  const [publisherStatus, setPublisherStatus] = useState('loading');
   const [submitting, setSubmitting] = useState(false);
   const [draftId, setDraftId] = useState(() => window.localStorage.getItem(DRAFT_STORAGE_KEY) || '');
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -39,6 +40,7 @@ export default function MediaComposePage() {
 
   useEffect(() => {
     getCommunities().then((data) => setCommunities(data.communities || [])).catch(() => {});
+    setPublisherStatus('loading');
     getMediaVerification().then((data) => {
       const options = [];
       if (data.helper?.is_verified) options.push({ key: 'helper', type: 'helper', label: t('media.compose.publisherHelper', { defaultValue: 'My helper profile' }) });
@@ -50,7 +52,8 @@ export default function MediaComposePage() {
       }
       setPublishers(options);
       setPublisherKey((current) => current && options.some((option) => option.key === current) ? current : (options[0]?.key || ''));
-    }).catch(() => {});
+      setPublisherStatus('ready');
+    }).catch(() => setPublisherStatus('error'));
   }, [t]);
 
   useEffect(() => {
@@ -212,6 +215,13 @@ export default function MediaComposePage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (publisherStatus !== 'ready') {
+      setError(t(publisherStatus === 'loading' ? 'media.compose.publisherLoading' : 'media.compose.publisherUnavailable', {
+        defaultValue: publisherStatus === 'loading' ? 'Loading verified publishing identities. Try again in a moment.' : 'Verified publishing identities could not be loaded. Refresh and try again.',
+      }));
+      setErrorCode('media_publisher_unavailable');
+      return;
+    }
     if (!body.trim()) {
       setError(t('media.compose.bodyRequired'));
       setErrorCode('');
@@ -369,6 +379,8 @@ export default function MediaComposePage() {
             {communities.map((community) => <option key={community.id} value={community.id}>{community.title}</option>)}
           </select>
         </label>
+        {publisherStatus === 'loading' && <p className="media-status" role="status">{t('media.compose.publisherLoading', { defaultValue: 'Loading verified publishing identities…' })}</p>}
+        {publisherStatus === 'error' && <p className="media-error" role="alert">{t('media.compose.publisherUnavailable', { defaultValue: 'Verified publishing identities could not be loaded. Refresh and try again.' })}</p>}
         {publishers.length > 0 && (
           <label className="media-compose-field">
             <span>{t('media.compose.publisherLabel', { defaultValue: 'Post as' })}</span>

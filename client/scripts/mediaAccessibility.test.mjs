@@ -72,3 +72,10 @@ test('Media composer lets verified owners choose the represented publisher entit
   assert.match(compose, /publisherLabel/);
   assert.match(compose, /disabled={Boolean\(draftId\)}/);
 });
+
+test('Media composer waits for publisher verification before creating a draft', () => {
+  assert.match(compose, /const \[publisherStatus, setPublisherStatus\] = useState\('loading'\)/);
+  assert.match(compose, /if \(publisherStatus !== 'ready'\)/);
+  assert.match(compose, /setPublisherStatus\('error'\)/);
+  assert.match(compose, /media_publisher_unavailable/);
+});

@@ -30444,6 +30444,8 @@
       "publisherLabel": "النشر باسم",
       "publisherLocked": "تم تثبيت هوية النشر لهذا المسودّة.",
       "publisherHelper": "ملف المساعد الخاص بي",
+      "publisherLoading": "جارٍ تحميل هويات النشر الموثّقة…",
+      "publisherUnavailable": "تعذّر تحميل هويات النشر الموثّقة. حدّث الصفحة وحاول مرة أخرى.",
       "title": "منشور جديد",
       "placeholder": "ما الجديد في اقتصادك المحلي؟",
       "linkedOn": "مرتبط على OxSteed",

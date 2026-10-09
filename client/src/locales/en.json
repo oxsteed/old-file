@@ -30433,6 +30433,8 @@
       "publisherLabel": "Post as",
       "publisherLocked": "The publishing identity is fixed for this draft.",
       "publisherHelper": "My helper profile",
+      "publisherLoading": "Loading verified publishing identities…",
+      "publisherUnavailable": "Verified publishing identities could not be loaded. Refresh and try again.",
       "title": "New post",
       "placeholder": "What’s happening in your local economy?",
       "linkedOn": "Linked on OxSteed",

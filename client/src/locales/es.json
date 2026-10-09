@@ -30433,6 +30433,8 @@
       "publisherLabel": "Publicar como",
       "publisherLocked": "La identidad de publicación queda fijada para este borrador.",
       "publisherHelper": "Mi perfil de ayudante",
+      "publisherLoading": "Cargando identidades de publicación verificadas…",
+      "publisherUnavailable": "No se pudieron cargar las identidades de publicación verificadas. Actualiza la página e inténtalo de nuevo.",
       "title": "Nueva publicación",
       "placeholder": "¿Qué ocurre en tu economía local?",
       "linkedOn": "Vinculado en OxSteed",
