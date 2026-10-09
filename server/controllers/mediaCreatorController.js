@@ -3,6 +3,7 @@
 const pool = require('../db');
 const AppError = require('../utils/appError');
 const { verifiedActorSql } = require('../services/mediaPublisherPolicy');
+const mediaSafety = require('../services/mediaSafetyPolicy');
 const creditService = require('../services/oxsteedCreditService');
 const {
   transferCreditInTransaction,
@@ -832,7 +833,14 @@ async function createBoost(req, res, next) {
     await client.query('BEGIN');
     const amount = asPositiveInt(req.body?.amountCents);
     const idempotencyKey = text(req.get('Idempotency-Key') || req.body?.idempotencyKey, 160, 'Idempotency-Key');
-    const { rows: posts } = await client.query(`SELECT id FROM media_posts WHERE id = $1 AND visibility = 'public' AND processing_status = 'ready' AND deleted_at IS NULL`, [req.params.postId]);
+    const { rows: posts } = await client.query(
+      `SELECT p.id
+         FROM media_posts p
+         JOIN media_actors a ON a.id = p.actor_id
+        WHERE p.id = $1 AND p.visibility = 'public' AND p.processing_status = 'ready'
+          AND p.deleted_at IS NULL AND ${mediaSafety.publicPostSql('p')}
+          AND (${verifiedActorSql('a')})`, [req.params.postId]
+    );
     if (!posts[0]) throw new AppError('Only a published, safety-cleared post can be boosted.', 409, 'media_boost_post_not_ready');
     const { rows: existingRows } = await client.query(
       `SELECT * FROM media_post_boosts WHERE purchaser_user_id = $1 AND idempotency_key = $2 FOR UPDATE`,
@@ -864,7 +872,10 @@ async function settleBoost(req, res, next) {
     const { rows } = await client.query(
       `SELECT b.*, p.visibility, p.processing_status
          FROM media_post_boosts b JOIN media_posts p ON p.id = b.post_id
+         JOIN media_actors a ON a.id = p.actor_id
         WHERE b.id = $1 AND b.purchaser_user_id = $2
+          AND p.deleted_at IS NULL AND ${mediaSafety.publicPostSql('p')}
+          AND (${verifiedActorSql('a')})
         FOR UPDATE OF b`, [req.params.boostId, req.user.id]
     );
     const boost = rows[0];

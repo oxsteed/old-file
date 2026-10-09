@@ -81,7 +81,7 @@ row stays incomplete until that dependency is verified.
 | Sponsorship reservation/delivery/payment | Behavior-tested locally: acceptance reserves funds, creators submit a published ready deliverable, settlement requires `delivered`, and cancellation releases an active reservation. | Credit isolated accounting and authenticated live proof outstanding. | Execute sponsorship reserve/settle/release races and verify the deployed journey. |
 | Tips | Implemented and behavior-tested locally: tips use durable payload-bound idempotency and settle through the shared creator settlement rail with verification and self-payment guards. | Real currency/freeze/fee/replay proof missing. | Run isolated accounting replay/failure cases and verify live transaction history. |
 | Cancellation/release/refund/dispute review | Behavior-tested locally: creator payments now expose their latest Credit dispute state, hide duplicate dispute actions while a case is open or under review, and add a Media-scoped administrator queue that routes review, compensation and resolution through the shared audited Credit service. | Real accounting and authenticated administrator proof required. | Run the isolated reserve/release/refund/dispute matrix and verify the deployed Media admin queue. |
-| Boost payment to platform revenue | Implemented and behavior-tested locally: purchaser wallet is charged through the shared settlement rail into `platform_revenue`; self-transfer and replay are rejected. | Real accounting and deployed proof outstanding. | Verify conservation, idempotent retries and platform ledger history in the isolated/live release checks. |
+| Boost payment to platform revenue | Implemented and behavior-tested locally: purchaser wallet is charged through the shared settlement rail into `platform_revenue`; self-transfer and replay are rejected, and both boost creation and settlement recheck current public safety and verified-publisher predicates. | Real accounting and deployed proof outstanding. | Verify conservation, idempotent retries, safety revocation and platform ledger history in the isolated/live release checks. |
 | Sponsored placement and 24-hour duration | Behavior-tested locally: active settled boosts receive a separate ranked lane inserted at positions 5, 10, and so on; organic ordering remains stable, ranked cursors carry `feed_position`, and cards show a localized sponsored label only during the active window. | Real active-boost database cases and deployed feed proof remain outstanding. | Run isolated expiry/replay/cap cases and verify live placement. |
 | Price/currency disclosure and purchaser history | Behavior-tested locally: boost confirmation returns amount/currency before settlement, and the Media creator shell now lists tip, sponsorship and boost payment history with transaction-linked dispute entry points. | Payment retry/cancellation/refund and authenticated live history proof missing. | Add admin refund review and verify purchaser/creator history against deployed Credit records. |
 | Atomic accounting/precision/fees/isolation | Incomplete for marketplace: shared rail safeguards exist, transitions are not fully atomic with payment. Creator settlement and boost retries now resolve a matching committed journal entry before daily limits, sanctions, or balance checks, with account ownership and idempotency semantics preserved; focused replay regressions pass. | Real isolated conservation/races/currency cases required. | Add transactional marketplace service and accounting behavior suites. |
@@ -91,7 +91,7 @@ row stays incomplete until that dependency is verified.
 | Exact deployed release/readiness/schema/assets | Behavior-verified live after the latest rollout: `/ready` and `/health` returned 200; `/ready` reported release `content-ac71aaf48e521400`, migrations `749/749`, no pending/unexpected migrations, healthy database/Redis/Credit/realtime/workers; Media feed, capabilities, notifications, and messages returned 200, while unauthenticated bookmarks returned 401 and an invalid cursor returned the expected 400. | Coolify release metadata does not expose the git SHA, so exact commit-to-image identity remains unavailable. | Obtain release SHA or reproducible asset identity from deployment metadata and verify authenticated journeys. |
 | Authenticated production/real-device matrix | Incomplete. | Signed-in helper/business/restaurant/admin and real device access outstanding. | Capture full non-financial production journeys; reconcile finance read-only. |
 
-Current local execution: 213 Media behavior checks passed in 16 suites;
+Current local execution: 215 Media behavior checks passed in 16 suites;
 26 PostgreSQL cases in two suites skipped because no disposable PostgreSQL is
 available locally. The maintained Media client contract and full `npm run
 build:ci` passed, and four maintained Chromium browser journeys passed, covering
@@ -108,7 +108,7 @@ currently reports healthy release `content-5a3ad5ab7517685f`, which is not proof
 that the new changes deployed. No completion claim is made.
 
 Integrated Media suite checkpoint (2026-10-09): the current writable checkout
-ran all 18 maintained `media*.test.js` files with 213 passing tests and 26
+ran all 18 maintained `media*.test.js` files with 215 passing tests and 26
 database-only skips; no Media suite failed. The skipped PostgreSQL cases cover
 saved-feed reload, block/action boundaries, and other real database journeys
 that require the hosted disposable environment.
@@ -160,6 +160,13 @@ predicate now applies to linked restaurant, dish, helper, business, job, rental
 and logistics candidates inside locality scoring. A blocked entity therefore
 cannot improve either link count or nearby placement. Focused ranking/context
 checks pass; the real locality fixture remains part of hosted verification.
+
+Boost safety checkpoint (2026-10-09): boost creation and settlement now join
+the represented actor and require the shared public-post safety predicate plus
+current helper/business/restaurant verification. Two focused regressions prove
+that a post which is no longer public, ready, safety-cleared or verified cannot
+enter or complete paid placement. The integrated Media suite passes 215 tests;
+isolated Credit conservation, replay and deployed payment evidence remain open.
 
 Creator settlement replay checkpoint (2026-10-09): creator gig, sponsorship,
 tip, and boost settlement retries now recover an already-posted matching
