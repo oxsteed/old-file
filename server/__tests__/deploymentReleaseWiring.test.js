@@ -4,6 +4,22 @@ const path = require('path');
 const repositoryRoot = path.resolve(__dirname, '../..');
 const workflowPath = path.join(repositoryRoot, '.github/workflows/ci.yml');
 
+function repositoryFileIsExecutable(file) {
+  if (process.platform !== 'win32') return Boolean(fs.statSync(file).mode & 0o111);
+  // NTFS checkout modes do not preserve Git's executable bit. Read the index
+  // so the contract is still enforced on Windows without weakening CI.
+  const relative = path.relative(repositoryRoot, file).split(path.sep).join('/');
+  try {
+    const indexEntry = require('child_process').execFileSync('git', ['ls-files', '--stage', '--', relative], {
+      cwd: repositoryRoot,
+      encoding: 'utf8',
+    }).trim().split(/\s+/)[0];
+    return indexEntry === '100755';
+  } catch {
+    return false;
+  }
+}
+
 // The Credit admin UI was split from a single monolith page into one page
 // per working area under client/src/admin/pages/super/oxsteedCredit/.
 // Tests that assert on admin UI source read the concatenated pages so the
@@ -374,7 +390,7 @@ describe('deployment release identity wiring', () => {
     const packageJson = JSON.parse(fs.readFileSync(path.join(repositoryRoot, 'server/package.json'), 'utf8'));
     const restoreScript = fs.readFileSync(restoreVerifier, 'utf8');
 
-    expect(fs.statSync(restoreVerifier).mode & 0o111).toBeTruthy();
+    expect(repositoryFileIsExecutable(restoreVerifier)).toBeTruthy();
     expect(restoreScript).toContain('--exit-on-error');
     expect(restoreScript).toContain('TEMP_DB');
     expect(restoreScript).toContain('oxsteed_credit_settlement_reversals');
@@ -407,10 +423,10 @@ describe('deployment release identity wiring', () => {
     const verifier = fs.readFileSync(backupVerifier, 'utf8');
     const installer = fs.readFileSync(backupInstaller, 'utf8');
 
-    expect(fs.statSync(backupRunner).mode & 0o111).toBeTruthy();
-    expect(fs.statSync(backupMonitor).mode & 0o111).toBeTruthy();
-    expect(fs.statSync(backupVerifier).mode & 0o111).toBeTruthy();
-    expect(fs.statSync(backupInstaller).mode & 0o111).toBeTruthy();
+    expect(repositoryFileIsExecutable(backupRunner)).toBeTruthy();
+    expect(repositoryFileIsExecutable(backupMonitor)).toBeTruthy();
+    expect(repositoryFileIsExecutable(backupVerifier)).toBeTruthy();
+    expect(repositoryFileIsExecutable(backupInstaller)).toBeTruthy();
     expect(backupScript).toContain('coolify-config-and-storage.tgz');
     expect(backupScript).toContain('PG_RESTORE_BIN" --list');
     expect(backupScript).toContain('SHA256SUMS');

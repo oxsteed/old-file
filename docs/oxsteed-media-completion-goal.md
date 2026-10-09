@@ -1242,3 +1242,16 @@ PostgreSQL-only skips; the PostgreSQL count case is ready for the disposable
 harness. A live probe during the current rollout returned 404 for public Media
 routes and APIs, so deployed verification remains explicitly open as a rollout
 gap.
+
+Easy-layer release/readiness checkpoint (2026-10-09): the release, readiness,
+and deployment-wiring contract suite now passes 59 tests on the Windows
+checkout, including portable verification of Git executable bits and host
+metadata paths. The maintained Chromium check passed against the deployed
+Media shell with no page errors or desktop/mobile overflow. Direct HTTP probes
+returned 200 for `/ready`, `/health`, `/media`, capabilities, and the guest
+feed; readiness reported release `content-4d5e5fae0d9643db`, 749/749
+migrations, and healthy database, Redis, Credit, realtime, workers, traffic,
+and shutdown checks. Coolify still supplies no git SHA, image digest, or
+deployment ID, so exact candidate-to-image identity and authenticated
+production journeys remain incomplete. The public routes have recovered from
+the preceding rollout gap; the current CI run remains asynchronous.

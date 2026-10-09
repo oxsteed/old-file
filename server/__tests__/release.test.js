@@ -1,6 +1,7 @@
 'use strict';
 
 const fs = require('fs');
+const path = require('path');
 const { getRelease, getReleaseMetadata } = require('../utils/release');
 const sha = 'a'.repeat(40);
 const digest = `sha256:${'b'.repeat(64)}`;
@@ -62,7 +63,7 @@ test('host provenance is scoped to the running container and does not leak acros
   const record = { schemaVersion: 1, containerId: id, imageId: `sha256:${'d'.repeat(64)}`,
     gitSha: sha, imageDigest: digest, deploymentId: 'deploy123' };
   jest.spyOn(fs, 'readFileSync').mockImplementation((file) => {
-    if (file === `/metadata/${id.slice(0, 12)}.json`) return JSON.stringify(record);
+    if (path.normalize(file) === path.normalize(`/metadata/${id.slice(0, 12)}.json`)) return JSON.stringify(record);
     throw new Error('missing');
   });
   const options = { deploymentMetadataDirectory: '/metadata', hostname: id.slice(0, 12) };
