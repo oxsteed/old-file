@@ -859,3 +859,17 @@ fails closed when actor verification is missing or indeterminate and only
 reports success after the guarded public transition returns a row. The focused
 access and moderation suites pass 33 tests; the change is pushed in
 `9faefa8e`. Hosted CI and authenticated production proof remain outstanding.
+
+Credit reservation integrity batch (2026-10-09): marketplace reservation
+creation now uses a conflict-safe insert so concurrent idempotent retries do
+not abort the transaction or increment `reserved_cents` twice. The focused
+Credit governance suite passes 19 tests and the change is pushed in
+`38e78e13`.
+
+Integrated local verification (2026-10-09): all maintained `media*.test.js`
+ suites ran with 205 tests passing and 18 intentionally skipped database-only
+tests because this Windows environment has no PostgreSQL service. The client
+`npm run build:ci` passed typecheck, localization gates, production build, and
+verification of 761 emitted assets. Vite dynamic-import and large-chunk notices
+remain advisory. Disposable PostgreSQL/Redis/ClamAV/FFmpeg, hosted CI, and
+authenticated live journeys remain open.
