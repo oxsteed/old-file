@@ -293,89 +293,93 @@ const linkViewerBlockPredicate = (ownerExpression, viewerPlaceholder = '$2') => 
                   OR (ub.blocker_id::text = ${ownerExpression}::text AND ub.blocked_id::text = ${viewerPlaceholder}::text)
             ))`;
 
+async function lookupLinkTarget(link, viewerUserId = null, db = pool) {
+  const targetId = String(link.target_id || '');
+  if (link.link_type === 'restaurant') {
+    const { rows } = await db.query(
+      `SELECT display_name AS name FROM food_restaurants
+        WHERE id = $1 AND status = 'active'
+        ${linkViewerBlockPredicate('owner_user_id')}`, [targetId, viewerUserId]
+    );
+    return rows[0] || null;
+  }
+  if (link.link_type === 'food_item') {
+    const [restaurantId, itemId] = targetId.split(':');
+    const { rows } = await db.query(
+      `SELECT i.name, i.price_cents
+         FROM food_menu_items i
+         JOIN food_restaurants r ON r.id = i.restaurant_id
+        WHERE i.id = $1 AND r.id = $2 AND r.status = 'active' AND i.is_available = TRUE
+          ${linkViewerBlockPredicate('r.owner_user_id', '$3')}`,
+      [itemId, restaurantId, viewerUserId]
+    );
+    return rows[0] || null;
+  }
+  if (link.link_type === 'helper') {
+    const { rows } = await db.query(
+      `SELECT TRIM(COALESCE(u.first_name, '') || ' ' || COALESCE(u.last_name, '')) AS name
+         FROM helper_profiles hp
+         JOIN users u ON u.id = hp.user_id
+        WHERE (hp.id::text = $1 OR hp.user_id::text = $1 OR hp.profile_slug::text = $1)
+          AND u.deleted_at IS NULL
+          ${linkViewerBlockPredicate('u.id')}`, [targetId, viewerUserId]
+    );
+    return rows[0] || null;
+  }
+  if (link.link_type === 'business') {
+    const { rows } = await db.query(
+      `SELECT business_name AS name FROM businesses
+        WHERE (id::text = $1 OR profile_slug::text = $1)
+          AND deleted_at IS NULL AND is_active = TRUE
+          ${linkViewerBlockPredicate('user_id')}`, [targetId, viewerUserId]
+    );
+    return rows[0] || null;
+  }
+  if (link.link_type === 'job') {
+    const { rows } = await db.query(
+      `SELECT title AS name FROM jobs
+        WHERE id = $1 AND status IN ('published', 'matched')
+          ${linkViewerBlockPredicate('client_id')}`, [targetId, viewerUserId]
+    );
+    return rows[0] || null;
+  }
+  if (link.link_type === 'tool_rental') {
+    const { rows } = await db.query(
+      `SELECT name, ROUND(COALESCE(daily_rate, hourly_rate) * 100)::int AS price_snapshot_cents
+         FROM tool_rentals
+        WHERE id = $1 AND is_available = TRUE
+          ${linkViewerBlockPredicate('user_id')}`, [targetId, viewerUserId]
+    );
+    return rows[0] || null;
+  }
+  if (link.link_type === 'direct_catalog') {
+    const { rows } = await db.query(
+      `SELECT COALESCE(name_i18n->>'en', slug) AS name, price_cents AS price_snapshot_cents
+         FROM direct_catalog_services
+        WHERE id::text = $1 AND is_active = TRUE AND is_published = TRUE`, [targetId]
+    );
+    return rows[0] || null;
+  }
+  if (link.link_type === 'logistics_campaign') {
+    const { rows } = await db.query(
+      `SELECT title AS name, ROUND(unit_landed_cost_usd * 100)::int AS price_snapshot_cents
+         FROM pooled_orders
+        WHERE id = $1 AND status IN ('open', 'pledging')
+          ${linkViewerBlockPredicate('organizer_user_id')}`, [targetId, viewerUserId]
+    );
+    return rows[0] || null;
+  }
+  return null;
+}
+
 async function hydrateLinks(postId, viewerUserId = null) {
   const { rows } = await pool.query(
     `SELECT * FROM media_post_links WHERE post_id = $1 ORDER BY sort_order`,
     [postId]
   );
   const targetInfo = await Promise.all(rows.map(async (l) => {
-    const targetId = String(l.target_id || '');
     try {
-      if (l.link_type === 'restaurant') {
-        const { rows: targets } = await pool.query(
-          `SELECT display_name AS name FROM food_restaurants
-            WHERE id = $1 AND status = 'active'
-            ${linkViewerBlockPredicate('owner_user_id')}`, [targetId, viewerUserId]
-        );
-        return targets[0] || null;
-      }
-      if (l.link_type === 'food_item') {
-        const [restaurantId, itemId] = targetId.split(':');
-        const { rows: targets } = await pool.query(
-          `SELECT i.name, i.price_cents
-             FROM food_menu_items i
-             JOIN food_restaurants r ON r.id = i.restaurant_id
-            WHERE i.id = $1 AND r.id = $2 AND r.status = 'active' AND i.is_available = TRUE
-              ${linkViewerBlockPredicate('r.owner_user_id', '$3')}`,
-          [itemId, restaurantId, viewerUserId]
-        );
-        return targets[0] || null;
-      }
-      if (l.link_type === 'helper') {
-        const { rows: targets } = await pool.query(
-          `SELECT TRIM(COALESCE(u.first_name, '') || ' ' || COALESCE(u.last_name, '')) AS name
-             FROM helper_profiles hp
-             JOIN users u ON u.id = hp.user_id
-            WHERE (hp.id::text = $1 OR hp.user_id::text = $1 OR hp.profile_slug::text = $1)
-              AND u.deleted_at IS NULL
-              ${linkViewerBlockPredicate('u.id')}`, [targetId, viewerUserId]
-        );
-        return targets[0] || null;
-      }
-      if (l.link_type === 'business') {
-        const { rows: targets } = await pool.query(
-          `SELECT business_name AS name FROM businesses
-            WHERE (id::text = $1 OR profile_slug::text = $1)
-              AND deleted_at IS NULL AND is_active = TRUE
-              ${linkViewerBlockPredicate('user_id')}`, [targetId, viewerUserId]
-        );
-        return targets[0] || null;
-      }
-      if (l.link_type === 'job') {
-        const { rows: targets } = await pool.query(
-          `SELECT title AS name FROM jobs
-            WHERE id = $1 AND status IN ('published', 'matched')
-              ${linkViewerBlockPredicate('client_id')}`, [targetId, viewerUserId]
-        );
-        return targets[0] || null;
-      }
-      if (l.link_type === 'tool_rental') {
-        const { rows: targets } = await pool.query(
-          `SELECT name, ROUND(COALESCE(daily_rate, hourly_rate) * 100)::int AS price_snapshot_cents
-             FROM tool_rentals
-            WHERE id = $1 AND is_available = TRUE
-              ${linkViewerBlockPredicate('user_id')}`, [targetId, viewerUserId]
-        );
-        return targets[0] || null;
-      }
-      if (l.link_type === 'direct_catalog') {
-        const { rows: targets } = await pool.query(
-          `SELECT COALESCE(name_i18n->>'en', slug) AS name, price_cents AS price_snapshot_cents
-             FROM direct_catalog_services
-            WHERE id::text = $1 AND is_active = TRUE AND is_published = TRUE`, [targetId]
-        );
-        return targets[0] || null;
-      }
-      if (l.link_type === 'logistics_campaign') {
-        const { rows: targets } = await pool.query(
-          `SELECT title AS name, ROUND(unit_landed_cost_usd * 100)::int AS price_snapshot_cents
-             FROM pooled_orders
-            WHERE id = $1 AND status IN ('open', 'pledging')
-              ${linkViewerBlockPredicate('organizer_user_id')}`, [targetId, viewerUserId]
-        );
-        return targets[0] || null;
-      }
-      return null;
+      return await lookupLinkTarget(l, viewerUserId);
     } catch (err) {
       logger.warn('media.hydrateLinks target lookup failed', { linkType: l.link_type, message: err.message });
       return null;
@@ -394,6 +398,24 @@ async function hydrateLinks(postId, viewerUserId = null) {
       cta: LINK_CTAS[l.link_type] || 'View',
     };
   });
+}
+
+async function validateMediaLinks(links, db = pool, viewerUserId = null) {
+  const normalized = [];
+  for (const link of links || []) {
+    const target = await lookupLinkTarget(link, viewerUserId, db);
+    if (!target) {
+      throw new AppError('Choose an available OxSteed entity for every linked card.', 400, 'media_link_target_unavailable');
+    }
+    normalized.push({
+      ...link,
+      target_id: String(link.target_id).trim(),
+      label: target.name,
+      name_snapshot: target.name,
+      price_snapshot_cents: target.price_cents ?? target.price_snapshot_cents ?? null,
+    });
+  }
+  return normalized;
 }
 
 async function hydratePost(post, viewerUserId) {
@@ -1108,15 +1130,20 @@ async function createPost(req, res) {
       return res.status(429).json({ error: 'Daily post limit reached' });
     }
 
-    if (links && links.length > MAX_LINKS_PER_POST) {
+    const requestedLinks = Array.isArray(links) ? links : [];
+    if (links != null && !Array.isArray(links)) {
+      return res.status(400).json({ error: 'Linked entities must be an array.', code: 'media_links_invalid' });
+    }
+    if (requestedLinks.length > MAX_LINKS_PER_POST) {
       return res.status(400).json({ error: `Max ${MAX_LINKS_PER_POST} links per post` });
     }
-    if (links && links.some((link) => !link || !MEDIA_LINK_TYPES.has(link.link_type) || !String(link.target_id || '').trim())) {
+    if (requestedLinks.some((link) => !link || !MEDIA_LINK_TYPES.has(link.link_type) || !String(link.target_id || '').trim())) {
       return res.status(400).json({
         error: 'Unsupported or incomplete OxSteed link.',
         code: 'media_link_type_unavailable',
       });
     }
+    const normalizedLinks = await validateMediaLinks(requestedLinks, pool, userId);
     if (community_id) {
       const { rows: communities } = await pool.query(
         `SELECT id FROM media_communities WHERE id = $1`, [community_id]
@@ -1144,9 +1171,9 @@ async function createPost(req, res) {
     const post = rows[0];
 
     // Attach links with snapshots.
-    if (links && links.length) {
-      for (let i = 0; i < links.length; i++) {
-        const l = links[i];
+    if (normalizedLinks.length) {
+      for (let i = 0; i < normalizedLinks.length; i++) {
+        const l = normalizedLinks[i];
         await pool.query(
           `INSERT INTO media_post_links
              (post_id, link_type, target_id, label, name_snapshot, price_snapshot_cents, currency_code, sort_order)
@@ -1210,6 +1237,9 @@ async function createPost(req, res) {
 async function updateDraft(req, res) {
   const body = typeof req.body?.body === 'string' ? req.body.body.trim() : '';
   const links = Array.isArray(req.body?.links) ? req.body.links : [];
+  if (req.body?.links != null && !Array.isArray(req.body.links)) {
+    return res.status(400).json({ error: 'Linked entities must be an array.', code: 'media_links_invalid' });
+  }
   const communityId = req.body?.community_id || null;
   if (!body) return res.status(400).json({ error: 'Post body is required', code: 'media_body_required' });
   if (body.length > 2000) return res.status(400).json({ error: 'Post body too long (max 2000)', code: 'media_body_too_long' });
@@ -1245,14 +1275,15 @@ async function updateDraft(req, res) {
         return res.status(400).json({ error: 'Space not found', code: 'media_space_not_found' });
       }
     }
+    const normalizedLinks = await validateMediaLinks(links, client, req.user.id);
     const { rows: updated } = await client.query(
       `UPDATE media_posts SET body = $1, community_id = $2, edited_at = NOW()
         WHERE id = $3 RETURNING *`,
       [body, communityId, req.params.id]
     );
     await client.query(`DELETE FROM media_post_links WHERE post_id = $1`, [req.params.id]);
-    for (let index = 0; index < links.length; index += 1) {
-      const link = links[index];
+    for (let index = 0; index < normalizedLinks.length; index += 1) {
+      const link = normalizedLinks[index];
       await client.query(
         `INSERT INTO media_post_links
            (post_id, link_type, target_id, label, name_snapshot, price_snapshot_cents, currency_code, sort_order)
@@ -1453,6 +1484,9 @@ async function deletePost(req, res) {
 async function replacePostLinks(req, res) {
   const postId = req.params.id;
   const links = Array.isArray(req.body?.links) ? req.body.links : [];
+  if (req.body?.links != null && !Array.isArray(req.body.links)) {
+    return res.status(400).json({ error: 'Linked entities must be an array.', code: 'media_links_invalid' });
+  }
   if (links.length > MAX_LINKS_PER_POST) {
     return res.status(400).json({ error: `Max ${MAX_LINKS_PER_POST} links per post` });
   }
@@ -1472,9 +1506,10 @@ async function replacePostLinks(req, res) {
       await client.query('ROLLBACK');
       return res.status(403).json({ error: 'You can only edit links on your own post', code: 'media_post_forbidden' });
     }
+    const normalizedLinks = await validateMediaLinks(links, client, req.user.id);
     await client.query(`DELETE FROM media_post_links WHERE post_id = $1`, [postId]);
-    for (let index = 0; index < links.length; index += 1) {
-      const link = links[index];
+    for (let index = 0; index < normalizedLinks.length; index += 1) {
+      const link = normalizedLinks[index];
       await client.query(
         `INSERT INTO media_post_links
            (post_id, link_type, target_id, label, name_snapshot, price_snapshot_cents, currency_code, sort_order)

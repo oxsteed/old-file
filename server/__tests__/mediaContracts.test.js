@@ -100,6 +100,7 @@ describe('OxSteed Media launch contracts', () => {
       .mockResolvedValueOnce({})
       .mockResolvedValueOnce({ rows: [{ id: 'draft-4', visibility: 'unlisted', processing_status: 'failed' }] })
       .mockResolvedValueOnce({ rows: [{ id: 'space-1' }] })
+      .mockResolvedValueOnce({ rows: [{ name: 'Local Cafe' }] }) // authoritative linked restaurant
       .mockResolvedValueOnce({ rows: [{ id: 'draft-4', body: 'Updated copy', visibility: 'unlisted', processing_status: 'failed' }] })
       .mockResolvedValueOnce({})
       .mockResolvedValueOnce({})

@@ -57,7 +57,7 @@ row stays incomplete until that dependency is verified.
 | Owner editing/deletion | Behavior-tested locally: owner deletion now locks the post, updates reply/quote counters, and commits the visibility change atomically; owner-scoped denial and counter refresh are covered by the focused contract suite. | Real PostgreSQL authorization/count/source-propagation and deployed proof remain outstanding. | Execute owner versus non-owner, quoted/reply counter, and federated-source removal cases in the isolated harness. |
 | Two-way blocking and inactive authors | Behavior-tested in the maintained PostgreSQL suite: both block directions hide actors/posts and now stop like, bookmark, repost, view, and report actions before any write; inactive and banned author predicates remain enforced. Linked helper, business, restaurant, job, rental and logistics cards now apply the same two-way owner-block predicate while retaining an inert snapshot. | The 15-case SQL suite is skipped on this Windows host; hosted database and deployed proof remain outstanding. | Execute all visibility/action cases in the disposable harness, including inactive authors and blocked links/replies. |
 | Daily/upload/report limits | Implemented: existing rate/count controls. | Concurrent actual API limit proof outstanding. | Test simultaneous post limits and structured upload/report rejection. |
-| Linked entity selection and five-card limit | Behavior-tested: server search and composer selection exist, entity search and hydration apply two-way owner blocking, the composer chooses an explicitly owned verified business or restaurant publisher before creating a draft, and blocked targets preserve a plain snapshot label. | Real invalid/removed/entity ownership and currencies outstanding. | Verify all eight link types and authoritative target metadata. |
+| Linked entity selection and five-card limit | Behavior-tested: server search and composer selection exist, entity search and hydration apply two-way owner blocking, draft/public link writes now resolve live targets and replace client labels/prices with authoritative snapshots, and blocked targets preserve a plain snapshot label. | Real invalid/removed/entity ownership and currencies outstanding. | Verify all eight link types and authoritative target metadata. |
 | Public cards versus transaction login | Behavior-tested locally: all formerly intercepted guest card types now navigate to public targets; removed cards remain inert. | Browser dependencies mocked; destination transaction gates outstanding. | Verify actual public pages and login at transaction start. |
 | City/category Spaces | Implemented in current source. | Real channel filters, membership and counts outstanding. | Run actual database/browser city/category/membership matrix. |
 | In-shell notifications and messages | Implemented in current source. | Actual replies/likes/inbox links and account sessions outstanding. | Exercise existing activity systems within Media for each persona. |
@@ -127,6 +127,13 @@ restaurants, dishes, helpers, businesses, jobs, rentals and logistics. The
 compose picker cannot reintroduce a blocked target through a fresh search. The
 focused contract and integrated Media suite pass 212 tests; real database and
 deployed search evidence remain open.
+
+Authoritative linked-target checkpoint (2026-10-09): create, draft-update and
+post-link replacement now resolve every selected target against its current
+public entity row before writing. Invalid or removed targets fail the write,
+while names and prices come from the target rather than caller-supplied labels.
+The update-draft journey and Media contract suites pass locally; full target
+type coverage still requires the disposable database and deployed verification.
 
 Creator settlement replay checkpoint (2026-10-09): creator gig, sponsorship,
 tip, and boost settlement retries now recover an already-posted matching
