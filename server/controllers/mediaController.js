@@ -18,6 +18,8 @@ const { sendMediaError } = require('../utils/mediaError');
 
 const MAX_LINKS_PER_POST = 5;
 const POSTS_PER_DAY = 10;
+const MEDIA_REPORT_REASONS = new Set(['spam', 'harassment', 'unsafe', 'copyright']);
+const MAX_MEDIA_REPORT_NOTE_LENGTH = 1000;
 
 const mediaError = sendMediaError;
 // Public Media reads must re-check the represented entity's current
@@ -1550,8 +1552,21 @@ async function recordView(req, res) {
 async function flagPost(req, res) {
   try {
     if (!await visiblePost(req.params.id, req.user.id)) return res.status(404).json({ error: 'Post not found' });
-    const { reason, note } = req.body;
-    if (!reason) return res.status(400).json({ error: 'Reason is required' });
+    const reason = typeof req.body?.reason === 'string' ? req.body.reason.trim().toLowerCase() : '';
+    const note = req.body?.note == null ? null : (typeof req.body.note === 'string' ? req.body.note.trim() : '');
+    if (!MEDIA_REPORT_REASONS.has(reason)) {
+      return res.status(400).json({
+        error: 'Choose a valid report reason.',
+        code: 'media_report_reason_invalid',
+        reasons: [...MEDIA_REPORT_REASONS],
+      });
+    }
+    if (note && note.length > MAX_MEDIA_REPORT_NOTE_LENGTH) {
+      return res.status(400).json({
+        error: `Report notes must be ${MAX_MEDIA_REPORT_NOTE_LENGTH} characters or fewer.`,
+        code: 'media_report_note_too_long',
+      });
+    }
     const { rows: recent } = await pool.query(
       `SELECT COUNT(*)::int AS count FROM media_post_flags
         WHERE user_id = $1 AND created_at > NOW() - INTERVAL '1 hour'`, [req.user.id]

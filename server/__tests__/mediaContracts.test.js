@@ -334,4 +334,50 @@ describe('OxSteed Media launch contracts', () => {
       }),
     }));
   });
+
+  test('rejects arbitrary Media report reasons before creating a moderation row', async () => {
+    pool.query.mockResolvedValueOnce({ rows: [{ id: 'post-report' }] });
+    const res = resMock();
+
+    await media.flagPost({
+      params: { id: 'post-report' },
+      user: { id: 'reporter-1' },
+      body: { reason: 'invented-reason' },
+    }, res);
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ code: 'media_report_reason_invalid' }));
+    expect(pool.query).toHaveBeenCalledTimes(1);
+  });
+
+  test('normalizes valid report input and bounds moderation notes', async () => {
+    pool.query
+      .mockResolvedValueOnce({ rows: [{ id: 'post-report' }] }) // visiblePost
+      .mockResolvedValueOnce({ rows: [{ count: 0 }] }) // hourly limit
+      .mockResolvedValueOnce({ rows: [] }) // duplicate report
+      .mockResolvedValueOnce({ rows: [{ id: 'flag-1' }] }); // insert
+    const res = resMock();
+
+    await media.flagPost({
+      params: { id: 'post-report' },
+      user: { id: 'reporter-1' },
+      body: { reason: '  COPYRIGHT ', note: '  This is my original work.  ' },
+    }, res);
+
+    expect(res.status).toHaveBeenCalledWith(201);
+    expect(res.json).toHaveBeenCalledWith({ ok: true });
+    const insert = pool.query.mock.calls.find(([sql]) => sql.includes('INSERT INTO media_post_flags'));
+    expect(insert[1]).toEqual(['post-report', 'reporter-1', 'copyright', 'This is my original work.']);
+
+    pool.query.mockReset().mockResolvedValueOnce({ rows: [{ id: 'post-report' }] });
+    const tooLong = resMock();
+    await media.flagPost({
+      params: { id: 'post-report' },
+      user: { id: 'reporter-1' },
+      body: { reason: 'spam', note: 'x'.repeat(1001) },
+    }, tooLong);
+    expect(tooLong.status).toHaveBeenCalledWith(400);
+    expect(tooLong.json).toHaveBeenCalledWith(expect.objectContaining({ code: 'media_report_note_too_long' }));
+    expect(pool.query).toHaveBeenCalledTimes(1);
+  });
 });
