@@ -2006,6 +2006,13 @@ async function toggleFollow(req, res) {
         `SELECT a.id, a.owner_user_id, a.display_name
            FROM media_actors a
           WHERE a.id = $1
+            AND EXISTS (
+              SELECT 1 FROM users follow_owner
+               WHERE follow_owner.id = a.owner_user_id
+                 AND follow_owner.deleted_at IS NULL
+                 AND follow_owner.is_active = TRUE
+                 AND follow_owner.is_banned = FALSE
+            )
             AND NOT EXISTS (
               SELECT 1 FROM user_blocks ub
                WHERE (ub.blocker_id = $2 AND ub.blocked_id = a.owner_user_id)

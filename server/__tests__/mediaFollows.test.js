@@ -69,6 +69,20 @@ describe('OxSteed Media follows', () => {
     }));
   });
 
+  test('follow lookup excludes inactive, banned, or deleted actor owners', async () => {
+    pool.query
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] });
+    const res = resMock();
+
+    await media.toggleFollow({ params: { actorId: 'inactive-actor' }, user: { id: 'viewer-1' } }, res);
+
+    expect(pool.query.mock.calls[1][0]).toMatch(/follow_owner\.deleted_at IS NULL/);
+    expect(pool.query.mock.calls[1][0]).toMatch(/follow_owner\.is_active = TRUE/);
+    expect(pool.query.mock.calls[1][0]).toMatch(/follow_owner\.is_banned = FALSE/);
+    expect(res.status).toHaveBeenCalledWith(404);
+  });
+
   test('unfollows an actor without sending a notification', async () => {
     pool.query
       .mockResolvedValueOnce({ rows: [] })

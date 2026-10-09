@@ -91,7 +91,7 @@ row stays incomplete until that dependency is verified.
 | Exact deployed release/readiness/schema/assets | Behavior-verified live after the latest rollout: `/ready` and `/health` returned 200; `/ready` reported release `content-ac71aaf48e521400`, migrations `749/749`, no pending/unexpected migrations, healthy database/Redis/Credit/realtime/workers; Media feed, capabilities, notifications, and messages returned 200, while unauthenticated bookmarks returned 401 and an invalid cursor returned the expected 400. | Coolify release metadata does not expose the git SHA, so exact commit-to-image identity remains unavailable. | Obtain release SHA or reproducible asset identity from deployment metadata and verify authenticated journeys. |
 | Authenticated production/real-device matrix | Incomplete. | Signed-in helper/business/restaurant/admin and real device access outstanding. | Capture full non-financial production journeys; reconcile finance read-only. |
 
-Current local execution: 220 Media behavior checks passed in 16 suites;
+Current local execution: 221 Media behavior checks passed in 16 suites;
 26 PostgreSQL cases in two suites skipped because no disposable PostgreSQL is
 available locally. The maintained Media client contract and full `npm run
 build:ci` passed, and four maintained Chromium browser journeys passed, covering
@@ -1158,3 +1158,10 @@ predicate and reciprocal block filter as linked entity candidates. The focused
 feed-context contract passes 16 tests, and the integrated Media suite passes
 220 tests with 26 PostgreSQL-only skips. The next exact action remains the
 real PostgreSQL locality/blocking journey; no live completion claim is made.
+
+Following-owner safety checkpoint (2026-10-09): follow/unfollow now locks and
+selects only actor accounts that are active, unbanned, and undeleted before
+changing the relationship or sending a notification. The focused follows
+contract passes 7 tests and the integrated Media suite passes 221 tests with
+26 PostgreSQL-only skips. Real concurrent follow/block/count behavior remains
+for the disposable PostgreSQL and deployed checks.
