@@ -35,6 +35,7 @@ beforeEach(() => {
   jest.clearAllMocks();
   process.env.MEDIA_CSAM_MODE = 'cloudflare';
   process.env.MEDIA_CSAM_CERTIFIED = 'false';
+  process.env.MEDIA_PUBLIC_VIDEO_INTERIM = 'true';
 });
 afterEach(async () => {
   if (sourceDir) await fs.rm(sourceDir, { recursive: true, force: true });
@@ -55,7 +56,11 @@ function clearedAsset() {
 
 test('new installs default to interim mode; certified installs keep vendor mode; unknown settings fail closed', () => {
   delete process.env.MEDIA_CSAM_MODE;
+  delete process.env.MEDIA_PUBLIC_VIDEO_INTERIM;
   expect(policy.mode()).toBe('cloudflare');
+  expect(policy.publicVideoPublicationEnabled()).toBe(false);
+  expect(policy.assetReady(clearedAsset())).toBe(false);
+  process.env.MEDIA_PUBLIC_VIDEO_INTERIM = 'true';
   expect(policy.assetReady(clearedAsset())).toBe(true);
   process.env.MEDIA_CSAM_CERTIFIED = 'true';
   expect(policy.mode()).toBe('vendor');

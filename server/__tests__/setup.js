@@ -25,6 +25,8 @@ process.env.STRIPE_WEBHOOK_SECRET = 'whsec_dummy';
 // disabled unless explicitly enabled in its deployment environment.
 process.env.FEATURE_PAYMENTS_ENABLED = 'true';
 process.env.LOG_LEVEL       = 'error'; // suppress info/debug noise in tests
+process.env.OXSTEED_MEDIA_LAUNCHED = 'true';
+process.env.MEDIA_PUBLIC_VIDEO_INTERIM = 'true';
 
 // ── Mock pg pool ─────────────────────────────────────────────────────────────
 // We expose a jest mock so individual tests can override query responses.

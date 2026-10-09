@@ -54,6 +54,19 @@ describe('launchGate middleware', () => {
     expect(res.status).not.toHaveBeenCalled();
   });
 
+  test('blocks OxSteed Media API when not launched', () => {
+    jest.isolateModules(() => {
+      delete process.env.OXSTEED_MEDIA_LAUNCHED;
+      const { launchGate: freshGate } = require('../middleware/launchGate');
+      const gate = freshGate();
+      const req = mockReq({ baseUrl: '/api/media', path: '/feed' });
+      const res = mockRes();
+      const next = jest.fn();
+      gate(req, res, next);
+      expect(res.status).toHaveBeenCalledWith(404);
+    });
+  });
+
   test('LAUNCH_GATE_DISABLED bypasses the gate', () => {
     process.env.LAUNCH_GATE_DISABLED = 'true';
     const gate = launchGate();

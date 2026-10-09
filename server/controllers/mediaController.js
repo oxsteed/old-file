@@ -901,13 +901,44 @@ async function recordUniqueCountedEvent({ postId, viewerUserId, viewerHash, tabl
     if (!posts[0]) throw new AppError('Post not found', 404, 'media_post_not_found');
 
     const actorValue = viewerUserId || null;
-    const { rows: inserted = [] } = await client.query(
-      `INSERT INTO ${table} (post_id, ${actorColumn}, viewer_hash)
-       VALUES ($1, $2, $3)
-       ON CONFLICT (post_id, viewer_hash) DO NOTHING RETURNING 1`,
-      [postId, actorValue, viewerHash]
-    );
-    const recorded = inserted.length > 0;
+    let recorded = false;
+    if (table === 'media_post_views') {
+      const { rows: inserted = [] } = await client.query(
+        `INSERT INTO ${table} (post_id, ${actorColumn}, viewer_hash)
+         VALUES ($1, $2, $3)
+         ON CONFLICT (post_id, viewer_hash) DO NOTHING RETURNING 1`,
+        [postId, actorValue, viewerHash]
+      );
+      if (inserted.length > 0) {
+        recorded = true;
+      } else {
+        const { rows: refreshed = [] } = await client.query(
+          `UPDATE ${table}
+              SET created_at = NOW(), ${actorColumn} = $3
+            WHERE post_id = $1 AND viewer_hash = $2
+              AND created_at < NOW() - INTERVAL '24 hours'
+            RETURNING 1`,
+          [postId, viewerHash, actorValue]
+        );
+        recorded = refreshed.length > 0;
+        if (recorded) {
+          const { rows: bumped } = await client.query(
+            `UPDATE media_posts SET view_count = view_count + 1 WHERE id = $1 RETURNING view_count`,
+            [postId]
+          );
+          await client.query('COMMIT');
+          return { recorded: true, count: Number(bumped[0]?.view_count || 0) };
+        }
+      }
+    } else {
+      const { rows: inserted = [] } = await client.query(
+        `INSERT INTO ${table} (post_id, ${actorColumn}, viewer_hash)
+         VALUES ($1, $2, $3)
+         ON CONFLICT (post_id, viewer_hash) DO NOTHING RETURNING 1`,
+        [postId, actorValue, viewerHash]
+      );
+      recorded = inserted.length > 0;
+    }
     const { rows: counts } = await client.query(
       `UPDATE media_posts SET ${countColumn} = (
           SELECT COUNT(*)::int FROM ${table} WHERE post_id = $1
@@ -1806,6 +1837,22 @@ async function flagPost(req, res) {
        VALUES ($1, $2, $3, $4)`,
       [req.params.id, req.user.id, reason, note || null]
     );
+    const autohideThreshold = Number(process.env.MEDIA_OPEN_FLAG_AUTOHIDE_THRESHOLD || 5);
+    if (Number.isFinite(autohideThreshold) && autohideThreshold > 0) {
+      const { rows: openFlags } = await client.query(
+        `SELECT COUNT(*)::int AS count FROM media_post_flags
+          WHERE post_id = $1 AND status = 'open'`,
+        [req.params.id]
+      );
+      if ((openFlags[0]?.count || 0) >= autohideThreshold) {
+        await client.query(
+          `UPDATE media_posts
+              SET visibility = 'removed', updated_at = NOW()
+            WHERE id = $1 AND visibility <> 'removed'`,
+          [req.params.id]
+        );
+      }
+    }
     await client.query('COMMIT');
     transactionOpen = false;
     res.status(201).json({ ok: true });

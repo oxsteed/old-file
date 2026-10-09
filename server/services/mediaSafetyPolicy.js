@@ -12,7 +12,17 @@ function vendorCertified() {
   return String(process.env.MEDIA_CSAM_CERTIFIED || '').trim().toLowerCase() === 'true';
 }
 
+// Public uploaded video stays blocked until a production CSAM vendor is certified,
+// unless operators explicitly opt into the interim Cloudflare policy for isolated
+// CI/harness environments (MEDIA_PUBLIC_VIDEO_INTERIM=true).
+function publicVideoPublicationEnabled() {
+  if (vendorCertified() && mode() === 'vendor') return true;
+  return String(process.env.MEDIA_PUBLIC_VIDEO_INTERIM || '').trim().toLowerCase() === 'true'
+    && mode() === 'cloudflare';
+}
+
 function acceptedVideoStatuses() {
+  if (!publicVideoPublicationEnabled()) return [];
   if (mode() === 'cloudflare') return ['passed', 'cloudflare_deferred'];
   if (mode() === 'vendor' && vendorCertified()) return ['passed'];
   return [];
@@ -69,4 +79,14 @@ function publicPostSql(alias = 'p') {
   )`;
 }
 
-module.exports = { mode, vendorCertified, videoAllowed, videoVerdictAllowed, postVerdictAllowed, assetReady, videoVerdictSql, publicPostSql };
+module.exports = {
+  mode,
+  vendorCertified,
+  publicVideoPublicationEnabled,
+  videoAllowed,
+  videoVerdictAllowed,
+  postVerdictAllowed,
+  assetReady,
+  videoVerdictSql,
+  publicPostSql,
+};

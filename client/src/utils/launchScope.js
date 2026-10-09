@@ -43,6 +43,7 @@ export const LAUNCH_BUSINESS_HUB_TABS = new Set([
   'invoices',
   'team',
   'hiring',
+  'media',
 ]);
 
 export const LAUNCH_VISIBILITY = Object.freeze({
@@ -58,7 +59,7 @@ export const LAUNCH_VISIBILITY = Object.freeze({
   businessHubRoleMenuWidgets: false,
   businessHubSpecializedTemplates: false,
   businessHubVortexAccess: true,
-  oxsteedMedia: true,
+  oxsteedMedia: false,
   discoverEverything: false,
   footerUtilityPills: true,
   genericQrGenerator: false,

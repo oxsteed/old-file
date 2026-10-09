@@ -17,6 +17,8 @@ const { execFileSync } = require('child_process');
 const UPLOAD_ROOT = fs.mkdtempSync(path.join(os.tmpdir(), 'media-publish-transcode-'));
 process.env.LOCAL_UPLOAD_DIR = UPLOAD_ROOT;
 process.env.MEDIA_CSAM_MODE = 'cloudflare';
+process.env.MEDIA_PUBLIC_VIDEO_INTERIM = 'true';
+process.env.OXSTEED_MEDIA_LAUNCHED = 'true';
 
 const { disposableDatabaseOptIn } = require('./helpers/statementTestDatabase');
 const database = disposableDatabaseOptIn('MEDIA_PUBLISH_TEST_DATABASE_URL');
