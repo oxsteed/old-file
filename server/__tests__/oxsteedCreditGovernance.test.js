@@ -537,6 +537,27 @@ describe('reservation enforcement', () => {
     expect(mockQuery.mock.calls.some(([sql]) => String(sql).includes('reserved_cents = reserved_cents +'))).toBe(false);
   });
 
+  test('rejects a reservation replay when the reservation type changes', async () => {
+    mockQuery.mockImplementation((sql) => {
+      const s = String(sql);
+      if (s.includes('FROM oxsteed_credit_accounts') && s.includes('FOR UPDATE')) {
+        return { rows: [{ id: 101, balance_cents: 10000, reserved_cents: 0, status: 'active' }] };
+      }
+      if (s.includes('FROM oxsteed_credit_reservations') && s.includes("status = 'active'")) {
+        return { rows: [{ id: 'res-type-mismatch', account_id: 101, reservation_type: 'media_creator_sponsorship', reference_type: 'media_creator_gig', reference_id: 'shared-ref', amount_cents: 900, status: 'active' }] };
+      }
+      return { rows: [] };
+    });
+
+    await expect(reserveFunds({ query: mockQuery }, {
+      accountId: 101,
+      reservationType: 'media_creator_gig',
+      referenceType: 'media_creator_gig',
+      referenceId: 'shared-ref',
+      amountCents: 900,
+    })).rejects.toMatchObject({ status: 409, code: 'credit_reservation_conflict' });
+  });
+
   test('a failed settlement payout releases its reservation', async () => {
     const SETTLEMENT_ID = 'ssssssss-ssss-4sss-ssss-ssssssssssss';
     mockQuery.mockImplementation((sql, params = []) => {

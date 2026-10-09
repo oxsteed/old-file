@@ -1205,3 +1205,10 @@ maintained live Chromium check loaded `MediaStyles-nYK7YO_7.css`,
 errors, and passed desktop/mobile overflow and navigation checks. The release
 metadata still exposes no git SHA, image digest, or deployment ID, so exact
 candidate-to-image identity and authenticated production journeys remain open.
+
+Credit reservation idempotency checkpoint (2026-10-09): active reservation
+replays now require the same reservation type, account, and amount; a changed
+type using the same reference is rejected as a conflict before any balance
+mutation. The focused Credit governance suite passes 23 tests and the Media
+creator marketplace suite passes 24 tests. Disposable PostgreSQL conservation,
+concurrent settlement, and deployed payment evidence remain outstanding.

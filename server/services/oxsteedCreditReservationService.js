@@ -79,7 +79,8 @@ async function reserveFunds(client, { accountId, reservationType, referenceType,
   );
   const existingReference = existingReferenceRows[0];
   if (existingReference) {
-    if (Number(existingReference.amount_cents) === amount
+    if (String(existingReference.reservation_type) === normalizedType
+      && Number(existingReference.amount_cents) === amount
       && String(existingReference.account_id) === String(account.id)) {
       return { reservation: formatReservation(existingReference), replayed: true };
     }
@@ -115,6 +116,7 @@ async function reserveFunds(client, { accountId, reservationType, referenceType,
     );
     const existing = existingRows[0];
     if (existing
+      && String(existing.reservation_type) === normalizedType
       && Number(existing.amount_cents) === amount
       && String(existing.account_id) === String(account.id)) {
       return { reservation: formatReservation(existing), replayed: true };
