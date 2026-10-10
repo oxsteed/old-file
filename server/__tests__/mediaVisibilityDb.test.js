@@ -31,7 +31,7 @@ describeDb('Media block boundaries in PostgreSQL', () => {
       CREATE TEMP TABLE media_posts (id text PRIMARY KEY, actor_id text, body text, parent_id text, quoted_post_id text, community_id text, deleted_at timestamptz,
         visibility text DEFAULT 'public', processing_status text DEFAULT 'ready', csam_status text DEFAULT 'passed', created_at timestamptz DEFAULT now());
       CREATE TEMP TABLE media_post_links (id text, post_id text, link_type text, target_id text, name_snapshot text, price_snapshot_cents int, sort_order int);
-      CREATE TEMP TABLE media_post_assets (id text, post_id text, sort_order int, asset_type text, processing_status text, csam_status text, renditions jsonb);
+      CREATE TEMP TABLE media_post_assets (id text, post_id text, sort_order int, asset_type text, processing_status text, csam_status text, renditions jsonb, delivery_revoked_at timestamptz);
       CREATE TEMP TABLE media_likes (post_id text, user_id text);
       CREATE TEMP TABLE media_bookmarks (post_id text, user_id text, created_at timestamptz DEFAULT now());
       CREATE TEMP TABLE food_menu_items (id text PRIMARY KEY, restaurant_id text, is_available boolean DEFAULT true);
