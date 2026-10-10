@@ -96,7 +96,7 @@ test('guests choose and retain locations; device permission is requested only on
     await page.goto(`${app.url}/?guest`);
     await page.waitForFunction(() => window.requests.length === 1);
     assert.equal(await page.evaluate(() => window.geoCalls), 0);
-    await page.locator('.media-location-start button').click();
+    await page.locator('[data-location-trigger]').click();
     assert.equal(await page.getByRole('button', { name: 'media.feed.following', exact: true }).count(), 0);
     await page.getByRole('button', { name: 'media.feed.useDeviceLocation', exact: true }).click();
     await page.waitForFunction(() => window.requests.length === 2);
