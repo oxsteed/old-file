@@ -22,7 +22,7 @@ function storage() {
 test('the guide directory exposes every planned area', () => {
   assert.deepEqual(getExperienceAreaKeys(), EXPERIENCE_AREA_KEYS);
   assert.equal(EXPERIENCE_AREA_KEYS.length, 15);
-  assert.equal(getExperienceArea('media').enabled, false);
+  assert.equal(getExperienceArea('media').enabled, true);
   assert.equal(experienceAreaTranslationKey('restaurant-credit'), 'restaurantCredit');
   assert.equal(experienceAreaTranslationKey('get-started'), 'getStarted');
 });
@@ -57,7 +57,7 @@ test('enabled guide cards resolve only to existing product destinations', () => 
     '/help/runner', '/oxsteed-credit', '/direct', '/direct/view-quote', '/direct/support', '/direct/history',
     '/post-job', '/helpers', '/messages', '/jobs', '/dashboard/edit-profile', '/calendar', '/business-hub',
     '/my-bookings', '/delivery', '/logistics', '/support/agent', '/support/agent/workspace', '/consulting-intake', '/join',
-    '/tool-rentals',
+    '/tool-rentals', '/media',
   ]);
   for (const areaKey of EXPERIENCE_AREA_KEYS) {
     const area = getExperienceArea(areaKey);
