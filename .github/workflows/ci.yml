@@ -123,7 +123,11 @@ jobs:
           OXSTEED_MEDIA_LAUNCHED: 'true'
           MEDIA_PUBLIC_VIDEO_INTERIM: 'true'
         run: |
-          npm test -- --runInBand --forceExit --json --outputFile=statement-test-results.json
+          # Million-row capacity case runs in parallel (own file, own schema).
+          npx jest __tests__/statementExportJobs.millionRow.db.test.js --forceExit --json --outputFile=million-row-results.json &
+          MILLION_PID=$!
+          npm test -- --runInBand --forceExit --json --outputFile=statement-test-results.json --testPathIgnorePatterns=statementExportJobs.millionRow
+          wait $MILLION_PID
           node ../scripts/assert-statement-db-tests.cjs statement-test-results.json
           node ../scripts/assert-media-db-tests.cjs statement-test-results.json
 

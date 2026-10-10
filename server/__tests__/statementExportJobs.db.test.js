@@ -73,17 +73,6 @@ describeDb('R05 isolated durable SQL export pipeline',()=>{
     expect(csv.split('\r\n').filter(line=>line.includes('"2026-08-15'))).toHaveLength(count);
     expect((await service.status(job.id,user)).state).toBe('complete');
   },60000);
-  test('representative 1,000,000-row SQL freeze, streamed private publication and complete manifest',async()=>{
-    await seed(1000000);const job=await queue();const claimed=await service.claim();
-    const started=Date.now(),manifest=await service.process(claimed);
-    expect(manifest).toMatchObject({complete:true,rowCount:1000000,creditsMinor:'1000000',closingMinor:'1000000'});
-    expect(manifest.files[0].rowTo).toBe(1000000);
-    expect(manifest.byteLength).toBeLessThan(512*1024*1024);
-    expect((await service.status(job.id,user)).rowsRendered).toBe(1000000);
-    const hardware={platform:require('os').platform(),arch:require('os').arch(),cpu:require('os').cpus()[0].model,
-      cpuCount:require('os').cpus().length,elapsedMs:Date.now()-started,outputBytes:manifest.byteLength,memory:process.memoryUsage(),dbPoolMax:4};
-    process.stdout.write(`R05_SYNTHETIC_CAPACITY ${JSON.stringify(hardware)}\n`);
-  },600000);
   test('actual HTTP router reaches SQL worker, private manifest/download and rejects a stranger',async()=>{
     await seed(5001);const app=express();app.use(express.json());app.use('/api/statements/exports',createRouter(service));
     app.use((error,_req,res,_next)=>res.status(error.statusCode||error.status||500).json({code:error.code}));
