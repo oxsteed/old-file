@@ -187,7 +187,13 @@ jobs:
           }
           trap cleanup EXIT
 
-          "${compose[@]}" up -d --build
+          if ! "${compose[@]}" up -d --build; then
+            echo 'Media harness compose status:'
+            "${compose[@]}" ps || true
+            echo 'Media harness ClamAV logs:'
+            "${compose[@]}" logs --no-color clamav || true
+            exit 1
+          fi
           ready=0
           for attempt in $(seq 1 180); do
             if "${compose[@]}" exec -T app curl -fsS http://127.0.0.1:5000/ready >/dev/null; then
@@ -196,7 +202,15 @@ jobs:
             fi
             sleep 2
           done
-          test "$ready" = 1
+          if [ "$ready" -ne 1 ]; then
+            echo 'Media harness did not become ready.'
+            "${compose[@]}" ps || true
+            echo 'Media harness ClamAV logs:'
+            "${compose[@]}" logs --no-color clamav || true
+            echo 'Media harness app logs:'
+            "${compose[@]}" logs --no-color app || true
+            exit 1
+          fi
 
           "${compose[@]}" exec -T -e "PGPASSWORD=$CREDIT_TEST_DB_PASSWORD" postgres \
             psql -v ON_ERROR_STOP=1 -U oxsteed -d oxsteed_db < scripts/credit-isolated-seed.sql

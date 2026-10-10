@@ -8,7 +8,7 @@ services:
     volumes:
       - media_test_clamav:/var/lib/clamav
     healthcheck:
-      test: ["CMD", "clamdscan", "--ping=1"]
+      test: ["CMD", "nc", "-z", "127.0.0.1", "3310"]
       interval: 15s
       timeout: 10s
       start_period: 180s

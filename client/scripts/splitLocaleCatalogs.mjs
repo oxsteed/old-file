@@ -1,4 +1,4 @@
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
@@ -39,8 +39,10 @@ for (const language of languages) {
     shards[assignments.get(key)].push([key, value]);
   }
 
-  await Promise.all(shards.map((shard, index) => writeFile(
-    join(outputDirectory, `${language}-${index}.json`),
-    `${JSON.stringify(Object.fromEntries(shard))}\n`,
-  )));
+  await Promise.all(shards.map(async (shard, index) => {
+    const outputPath = join(outputDirectory, `${language}-${index}.json`);
+    const temporaryPath = `${outputPath}.${process.pid}.tmp`;
+    await writeFile(temporaryPath, `${JSON.stringify(Object.fromEntries(shard))}\n`);
+    await rename(temporaryPath, outputPath);
+  }));
 }
