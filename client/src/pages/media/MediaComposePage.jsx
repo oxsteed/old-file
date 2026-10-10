@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { createPost, getCommunities, getDraft, getDrafts, getMediaVerification, linkAsset, publishPost, searchMediaEntities, updateDraft, uploadPhoto, uploadVideo } from '../../api/media';
+import { createPost, deletePost, getCommunities, getDraft, getDrafts, getMediaVerification, linkAsset, publishPost, searchMediaEntities, updateDraft, uploadPhoto, uploadVideo } from '../../api/media';
 
 const LINK_TYPES = [
   'restaurant', 'food_item', 'helper', 'business', 'job',
@@ -22,7 +22,7 @@ export default function MediaComposePage() {
   const [entitySuggestions, setEntitySuggestions] = useState([]);
   const [searchingEntities, setSearchingEntities] = useState(false);
   const [externalUrl, setExternalUrl] = useState('');
-  const [mediaFile, setMediaFile] = useState(null);
+  const [mediaFiles, setMediaFiles] = useState([]);
   const [communities, setCommunities] = useState([]);
   const [communityId, setCommunityId] = useState('');
   const [publishers, setPublishers] = useState([]);
@@ -37,24 +37,30 @@ export default function MediaComposePage() {
   const [processingStatus, setProcessingStatus] = useState('');
   const [error, setError] = useState(null);
   const [errorCode, setErrorCode] = useState('');
+  const [restoredPublisher, setRestoredPublisher] = useState(null);
 
   useEffect(() => {
     getCommunities().then((data) => setCommunities(data.communities || [])).catch(() => {});
     setPublisherStatus('loading');
     getMediaVerification().then((data) => {
       const options = [];
-      if (data.helper?.is_verified) options.push({ key: 'helper', type: 'helper', label: t('media.compose.publisherHelper', { defaultValue: 'My helper profile' }) });
+      if (data.helper?.is_verified) options.push({ key: `helper:${data.helper.media_actor_id || 'self'}`, type: 'helper', actor_id: data.helper.media_actor_id || null, label: t('media.compose.publisherHelper', { defaultValue: 'My helper profile' }) });
       for (const entity of data.businesses || []) {
-        if (entity.is_verified) options.push({ key: `business:${entity.id}`, type: 'business', id: entity.id, label: entity.business_name });
+        if (entity.is_verified) options.push({ key: `business:${entity.id}`, type: 'business', id: entity.id, actor_id: entity.media_actor_id || null, label: entity.business_name });
       }
       for (const entity of data.restaurants || []) {
-        if (entity.is_verified) options.push({ key: `restaurant:${entity.id}`, type: 'restaurant', id: entity.id, label: entity.display_name });
+        if (entity.is_verified) options.push({ key: `restaurant:${entity.id}`, type: 'restaurant', id: entity.id, actor_id: entity.media_actor_id || null, label: entity.display_name });
       }
       setPublishers(options);
-      setPublisherKey((current) => current && options.some((option) => option.key === current) ? current : (options[0]?.key || ''));
+      setPublisherKey((current) => {
+        const restored = restoredPublisher && options.find((option) =>
+          String(option.actor_id || '') === String(restoredPublisher.actor_id || '')
+          && option.type === restoredPublisher.actor_type);
+        return restored?.key || (current && options.some((option) => option.key === current) ? current : (options[0]?.key || ''));
+      });
       setPublisherStatus('ready');
     }).catch(() => setPublisherStatus('error'));
-  }, [t]);
+  }, [restoredPublisher, t]);
 
   useEffect(() => {
     const storedDraftId = window.localStorage.getItem(DRAFT_STORAGE_KEY);
@@ -70,6 +76,7 @@ export default function MediaComposePage() {
       setBody(draft.body || '');
       setLinks(draft.links || []);
       setCommunityId(draft.community_id || '');
+      setRestoredPublisher({ actor_id: draft.actor_id, actor_type: draft.actor_type });
       setAttachedAsset((draft.assets || []).length > 0);
       setProcessingStatus(draft.processing_status || 'draft');
       if (draft.processing_status === 'quarantine' || (draft.assets || []).some((asset) => asset.processing_status === 'quarantine' || asset.csam_status === 'pending')) {
@@ -120,14 +127,14 @@ export default function MediaComposePage() {
   }, [attachedAsset, draftId, processingStatus, t]);
 
   useEffect(() => {
-    if (!mediaFile) {
+    if (!mediaFiles.length) {
       setPreviewUrl('');
       return undefined;
     }
-    const nextUrl = URL.createObjectURL(mediaFile);
+    const nextUrl = URL.createObjectURL(mediaFiles[0]);
     setPreviewUrl(nextUrl);
     return () => URL.revokeObjectURL(nextUrl);
-  }, [mediaFile]);
+  }, [mediaFiles]);
 
   useEffect(() => {
     let cancelled = false;
@@ -187,9 +194,9 @@ export default function MediaComposePage() {
   };
 
   const handleMediaFileChange = (event) => {
-    const nextFile = event.target.files?.[0] || null;
-    setMediaFile(nextFile);
-    if (nextFile) {
+    const nextFiles = Array.from(event.target.files || []).slice(0, 4);
+    setMediaFiles(nextFiles);
+    if (nextFiles.length) {
       // A replacement file must be uploaded even when this draft restored a
       // failed or quarantined asset from a previous session.
       setExternalUrl('');
@@ -203,11 +210,67 @@ export default function MediaComposePage() {
     const nextUrl = event.target.value;
     setExternalUrl(nextUrl);
     if (nextUrl.trim()) {
-      setMediaFile(null);
+      setMediaFiles([]);
       setAttachedAsset(false);
       setProcessingStatus('draft');
     }
   };
+
+  const removeMediaFile = (index) => setMediaFiles((current) => current.filter((_, fileIndex) => fileIndex !== index));
+
+  const publisherPayload = () => {
+    const publisher = publishers.find((option) => option.key === publisherKey);
+    if (!publisher) return {};
+    return {
+      publisher_type: publisher.type,
+      actor_id: publisher.actor_id || undefined,
+      ...(publisher.type === 'business' ? { business_id: publisher.id } : {}),
+      ...(publisher.type === 'restaurant' ? { restaurant_id: publisher.id } : {}),
+    };
+  };
+
+  const saveDraftOnly = async () => {
+    if (!body.trim()) {
+      setError(t('media.compose.bodyRequired'));
+      return;
+    }
+    setSubmitting(true);
+    try {
+      let postId = draftId;
+      if (!postId) {
+        const data = await createPost({ body: body.trim(), links, community_id: communityId || undefined, draft: true, ...publisherPayload() });
+        postId = data.post.id;
+        setDraftId(postId);
+        window.localStorage.setItem(DRAFT_STORAGE_KEY, postId);
+      } else {
+        await updateDraft(postId, { body: body.trim(), links, community_id: communityId || null });
+      }
+      setStatus(t('media.compose.draftSaved', { defaultValue: 'Draft saved.' }));
+    } catch (err) {
+      setError(err.response?.data?.error || t('media.compose.createError'));
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const startNewDraft = () => {
+    setBody(''); setLinks([]); setCommunityId(''); setMediaFiles([]); setExternalUrl('');
+    setDraftId(''); setAttachedAsset(false); setProcessingStatus(''); setStatus(''); setError(null);
+    window.localStorage.removeItem(DRAFT_STORAGE_KEY);
+  };
+
+  const discardDraft = async () => {
+    if (draftId) await deletePost(draftId).catch(() => {});
+    startNewDraft();
+  };
+
+  useEffect(() => {
+    if (!draftId || !body.trim() || submitting) return undefined;
+    const timer = window.setTimeout(() => {
+      updateDraft(draftId, { body: body.trim(), links, community_id: communityId || null }).catch(() => {});
+    }, 1200);
+    return () => window.clearTimeout(timer);
+  }, [body, communityId, draftId, links, submitting]);
 
   const removeLink = (idx) => {
     setLinks(links.filter((_, i) => i !== idx));
@@ -235,13 +298,7 @@ export default function MediaComposePage() {
     let postId = draftId;
     try {
       if (!postId) {
-        const publisher = publishers.find((option) => option.key === publisherKey);
-        const publisherPayload = publisher?.type === 'business'
-          ? { business_id: publisher.id }
-          : publisher?.type === 'restaurant'
-            ? { restaurant_id: publisher.id }
-            : {};
-        const data = await createPost({ body: body.trim(), links, community_id: communityId || undefined, draft: true, ...publisherPayload });
+        const data = await createPost({ body: body.trim(), links, community_id: communityId || undefined, draft: true, ...publisherPayload() });
         postId = data.post.id;
         setDraftId(postId);
         window.localStorage.setItem(DRAFT_STORAGE_KEY, postId);
@@ -257,13 +314,15 @@ export default function MediaComposePage() {
         hasAttachedAsset = true;
         setAttachedAsset(true);
       }
-      if (mediaFile && !hasAttachedAsset) {
+      if (mediaFiles.length && !hasAttachedAsset) {
         setStatus(t('media.compose.uploading', { defaultValue: 'Uploading and checking your media…' }));
         const onUploadProgress = (event) => {
           if (event.total) setUploadProgress(Math.round((event.loaded / event.total) * 100));
         };
-        if (mediaFile.type.startsWith('video/')) await uploadVideo(postId, mediaFile, onUploadProgress, true);
-        else await uploadPhoto(postId, mediaFile, onUploadProgress, true);
+        for (const file of mediaFiles) {
+          if (file.type.startsWith('video/')) await uploadVideo(postId, file, onUploadProgress, false);
+          else await uploadPhoto(postId, file, onUploadProgress, false);
+        }
         hasAttachedAsset = true;
         setAttachedAsset(true);
       }
@@ -367,12 +426,19 @@ export default function MediaComposePage() {
           <span>{t('media.compose.uploadLabel')}</span>
           <input
             type="file"
+            multiple
             accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime"
             onChange={handleMediaFileChange}
           />
-          <small>{t('media.compose.uploadHint')}</small>
-          {previewUrl && mediaFile?.type.startsWith('video/') && <video className="media-compose-preview" src={previewUrl} controls muted playsInline aria-label={t('media.compose.previewAlt')} />}
-          {previewUrl && mediaFile && !mediaFile.type.startsWith('video/') && <img className="media-compose-preview" src={previewUrl} alt={t('media.compose.previewAlt', { defaultValue: 'Selected media preview' })} />}
+          <small>{t('media.compose.uploadHint')} (up to 4 attachments)</small>
+          {mediaFiles.map((file, index) => (
+            <div key={`${file.name}-${index}`} className="media-compose-attachment">
+              <span>{file.name}</span>
+              <button type="button" onClick={() => removeMediaFile(index)}>{t('media.compose.remove')}</button>
+            </div>
+          ))}
+          {previewUrl && mediaFiles[0]?.type.startsWith('video/') && <video className="media-compose-preview" src={previewUrl} controls muted playsInline aria-label={t('media.compose.previewAlt')} />}
+          {previewUrl && mediaFiles[0] && !mediaFiles[0].type.startsWith('video/') && <img className="media-compose-preview" src={previewUrl} alt={t('media.compose.previewAlt', { defaultValue: 'Selected media preview' })} />}
           {uploadProgress > 0 && uploadProgress < 100 && <progress value={uploadProgress} max="100" aria-label={t('media.compose.uploadProgress', { defaultValue: 'Upload progress' })}>{uploadProgress}%</progress>}
         </label>
         <label className="media-compose-field">
@@ -400,9 +466,14 @@ export default function MediaComposePage() {
         </label>
         {status && <p className="media-status" role="status" data-processing-status={processingStatus || undefined}>{status}</p>}
         {error && <div className="media-error" role="alert"><p>{error}</p>{(errorCode === 'media_video_didit_required' || errorCode === 'media_not_verified_poster') && <Link className="media-error-action" to="/media/verification?returnTo=/media/compose">{t(errorCode === 'media_video_didit_required' ? 'media.verification.verifyIdentity' : 'media.verification.request', { defaultValue: errorCode === 'media_video_didit_required' ? 'Verify identity' : 'Request verification' })}</Link>}</div>}
-        <button type="submit" disabled={submitting} className="media-post-btn">
+        <div className="media-compose-actions">
+          <button type="button" disabled={submitting} onClick={saveDraftOnly}>{t('media.compose.saveDraft', { defaultValue: 'Save draft' })}</button>
+          {draftId && <button type="button" disabled={submitting} onClick={discardDraft}>{t('media.compose.discardDraft', { defaultValue: 'Discard draft' })}</button>}
+          <button type="button" disabled={submitting} onClick={startNewDraft}>{t('media.compose.startNew', { defaultValue: 'Start new' })}</button>
+          <button type="submit" disabled={submitting} className="media-post-btn">
           {submitting ? t('media.compose.posting') : t('media.compose.post')}
-        </button>
+          </button>
+        </div>
       </form>
     </div>
   );

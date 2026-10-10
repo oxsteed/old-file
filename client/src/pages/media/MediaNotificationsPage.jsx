@@ -32,27 +32,17 @@ function notificationTime(value, language) {
   }
 }
 
-const MEDIA_NOTIFICATION_TYPES = new Set([
-  'media_reply',
-  'media_like',
-  'media_repost',
-  'media_quote',
-  'media_follow',
-  'media_creator_update',
-]);
-
 export default function MediaNotificationsPage() {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const {
     notifications,
-    unreadCount,
     loading,
     markAsRead,
     markAllAsRead,
     refresh,
-  } = useNotifications();
-  const mediaNotifications = (notifications || []).filter((item) => MEDIA_NOTIFICATION_TYPES.has(item.type));
+  } = useNotifications('media');
+  const mediaNotifications = notifications || [];
   const mediaUnread = mediaNotifications.filter((item) => !item.read_at && !item.is_read).length;
 
   return (

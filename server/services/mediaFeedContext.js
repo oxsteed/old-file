@@ -1,6 +1,7 @@
 'use strict';
 
 const { createHash } = require('crypto');
+const { publicHelperSql, publicBusinessSql, publicRestaurantSql } = require('./mediaEntityVisibility');
 
 // Placement now retains overflow boosted posts in the organic lane. Old
 // ranking cursors must refresh instead of continuing with changed positions.
@@ -99,31 +100,43 @@ function localitySql(location, params, viewerParam = null) {
     SELECT hp.service_lat AS lat,hp.service_lng AS lng,hp.service_city AS city,hp.service_state AS state
       FROM helper_profiles hp
       WHERE a.actor_type='helper' AND hp.user_id=a.owner_user_id
+        AND ${publicHelperSql('hp', 'helper_local_user')}
         AND ${activeOwnerSql('hp.user_id', 'helper_local_owner')}${blocked('hp.user_id')}
     UNION ALL SELECT b.service_lat,b.service_lng,COALESCE(NULLIF(b.service_city,''),b.address_city),
       COALESCE(NULLIF(b.service_state,''),b.address_state) FROM businesses b
-      WHERE a.actor_type='business' AND b.id=a.business_id AND b.is_active AND b.deleted_at IS NULL
+      JOIN users business_local_user ON business_local_user.id = b.user_id
+      WHERE a.actor_type='business' AND b.id=a.business_id
+        AND ${publicBusinessSql('b', 'business_local_user')}
         AND ${activeOwnerSql('b.user_id', 'business_actor_local_owner')}${blocked('b.user_id')}
     UNION ALL SELECT r.latitude,r.longitude,r.address_city,r.address_state FROM food_restaurants r
-      WHERE a.actor_type='restaurant' AND r.id=a.restaurant_id AND r.status='active'
+      JOIN users restaurant_local_user ON restaurant_local_user.id = r.owner_user_id
+      WHERE a.actor_type='restaurant' AND r.id=a.restaurant_id
+        AND ${publicRestaurantSql('r', 'restaurant_local_user')}
         AND ${activeOwnerSql('r.owner_user_id', 'restaurant_actor_local_owner')}${blocked('r.owner_user_id')}
     UNION ALL SELECT r.latitude,r.longitude,r.address_city,r.address_state FROM media_post_links ml
       JOIN food_restaurants r ON r.id::text=ml.target_id
-      WHERE ml.post_id=p.id AND ml.link_type='restaurant' AND r.status='active'
+      JOIN users restaurant_link_user ON restaurant_link_user.id = r.owner_user_id
+      WHERE ml.post_id=p.id AND ml.link_type='restaurant'
+        AND ${publicRestaurantSql('r', 'restaurant_link_user')}
         AND ${activeOwnerSql('r.owner_user_id', 'restaurant_local_owner')}${blocked('r.owner_user_id')}
     UNION ALL SELECT r.latitude,r.longitude,r.address_city,r.address_state FROM media_post_links ml
       JOIN food_menu_items i ON i.id::text=split_part(ml.target_id,':',2)
       JOIN food_restaurants r ON r.id=i.restaurant_id AND r.id::text=split_part(ml.target_id,':',1)
-      WHERE ml.post_id=p.id AND ml.link_type='food_item' AND r.status='active' AND i.is_available=TRUE
+      JOIN users food_item_restaurant_user ON food_item_restaurant_user.id = r.owner_user_id
+      WHERE ml.post_id=p.id AND ml.link_type='food_item' AND i.is_available=TRUE
+        AND ${publicRestaurantSql('r', 'food_item_restaurant_user')}
         AND ${activeOwnerSql('r.owner_user_id', 'food_item_local_owner')}${blocked('r.owner_user_id')}
     UNION ALL SELECT hp.service_lat,hp.service_lng,hp.service_city,hp.service_state FROM media_post_links ml
       JOIN helper_profiles hp ON (hp.id::text=ml.target_id OR hp.user_id::text=ml.target_id OR hp.profile_slug=ml.target_id)
       JOIN users u ON u.id=hp.user_id AND u.is_active AND NOT u.is_banned AND u.deleted_at IS NULL
-      WHERE ml.post_id=p.id AND ml.link_type='helper'${blocked('u.id')}
+      WHERE ml.post_id=p.id AND ml.link_type='helper'
+        AND ${publicHelperSql('hp', 'u')}${blocked('u.id')}
     UNION ALL SELECT b.service_lat,b.service_lng,COALESCE(NULLIF(b.service_city,''),b.address_city),
       COALESCE(NULLIF(b.service_state,''),b.address_state) FROM media_post_links ml
       JOIN businesses b ON b.id::text=ml.target_id AND b.is_active AND b.deleted_at IS NULL
+      JOIN users business_link_user ON business_link_user.id = b.user_id
       WHERE ml.post_id=p.id AND ml.link_type='business'
+        AND ${publicBusinessSql('b', 'business_link_user')}
         AND ${activeOwnerSql('b.user_id', 'business_local_owner')}${blocked('b.user_id')}
       UNION ALL SELECT j.location_approx_lat,j.location_approx_lng,j.location_city,j.location_state FROM media_post_links ml
       JOIN jobs j ON j.id::text=ml.target_id AND j.status IN ('published','matched')

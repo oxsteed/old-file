@@ -13,6 +13,7 @@ const { getSignedDownloadUrl } = require('../utils/storage');
 const { buildCloudflarePublicAssetUrl, photoDeliveryAllowed } = require('../services/mediaCloudflareDelivery');
 const mediaSafety = require('../services/mediaSafetyPolicy');
 const { verifiedActorSql } = require('../services/mediaPublisherPolicy');
+const { publicHelperSql, publicBusinessSql, publicRestaurantSql, publicActorSql } = require('../services/mediaEntityVisibility');
 const feedContext = require('../services/mediaFeedContext');
 const socketService = require('../services/socketService');
 const { sendMediaError } = require('../utils/mediaError');
@@ -22,6 +23,28 @@ const MAX_LINKS_PER_POST = 5;
 const POSTS_PER_DAY = 10;
 const MEDIA_REPORT_REASONS = new Set(['spam', 'harassment', 'unsafe', 'copyright']);
 const MAX_MEDIA_REPORT_NOTE_LENGTH = 1000;
+
+function mediaCursor(value) {
+  if (!value) return null;
+  try {
+    const decoded = JSON.parse(Buffer.from(String(value), 'base64url').toString('utf8'));
+    if (!decoded || decoded.v !== 1 || typeof decoded.created_at !== 'string' || !decoded.id
+      || !Number.isFinite(Date.parse(decoded.created_at))) throw new Error('invalid');
+    return decoded;
+  } catch {
+    throw new AppError('The page cursor is invalid or expired. Refresh and try again.', 400, 'media_cursor_invalid');
+  }
+}
+
+function nextMediaCursor(row, createdAtField = 'created_at') {
+  if (!row) return null;
+  return Buffer.from(JSON.stringify({ v: 1, created_at: row[createdAtField], id: row.id })).toString('base64url');
+}
+
+function pageSize(value, fallback = 20, max = 50) {
+  const parsed = Number.parseInt(value, 10);
+  return Number.isFinite(parsed) ? Math.min(Math.max(parsed, 1), max) : fallback;
+}
 
 const mediaError = sendMediaError;
 function activeMediaOwnerSql(ownerExpression, alias = 'media_link_owner') {
@@ -38,7 +61,7 @@ function publicMediaSql(postAlias = 'p', actorAlias = 'a') {
   // Verified actors publish root/quote posts; ordinary active members can
   // participate in reply threads without receiving a publisher badge.
   return `${mediaSafety.publicPostSql(postAlias)} AND
-    (${postAlias}.parent_id IS NOT NULL OR (${verifiedActorSql(actorAlias)}))`;
+    (${postAlias}.parent_id IS NOT NULL OR ((${verifiedActorSql(actorAlias)}) AND (${publicActorSql(actorAlias)})))`;
 }
 function publicActor(actor) {
   if (!actor || actor.current_actor_verified !== false) return actor;
@@ -64,6 +87,7 @@ function validLinkCountSql(viewerParam = null) {
     (l.link_type = 'restaurant' AND EXISTS (
       SELECT 1 FROM food_restaurants r
        WHERE r.id::text = l.target_id AND r.status = 'active'
+         AND ${publicRestaurantSql('r')}
          AND ${activeMediaOwnerSql('r.owner_user_id', 'restaurant_link_owner')}${blocked('r.owner_user_id')}
     )) OR
     (l.link_type = 'food_item' AND EXISTS (
@@ -71,17 +95,18 @@ function validLinkCountSql(viewerParam = null) {
       JOIN food_restaurants r ON r.id = i.restaurant_id
        WHERE i.id::text = split_part(l.target_id, ':', 2)
          AND r.id::text = split_part(l.target_id, ':', 1)
-         AND r.status = 'active' AND i.is_available = TRUE
+         AND ${publicRestaurantSql('r')} AND i.is_available = TRUE
          AND ${activeMediaOwnerSql('r.owner_user_id', 'food_item_link_owner')}${blocked('r.owner_user_id')}
     )) OR
     (l.link_type = 'helper' AND EXISTS (
       SELECT 1 FROM helper_profiles hp JOIN users u ON u.id = hp.user_id
        WHERE (hp.id::text = l.target_id OR hp.user_id::text = l.target_id OR hp.profile_slug::text = l.target_id)
-         AND u.deleted_at IS NULL AND u.is_active = TRUE AND u.is_banned = FALSE${blocked('u.id')}
+         AND ${publicHelperSql('hp', 'u')}${blocked('u.id')}
     )) OR
     (l.link_type = 'business' AND EXISTS (
       SELECT 1 FROM businesses b
        WHERE b.id::text = l.target_id AND b.deleted_at IS NULL AND b.is_active = TRUE
+         AND ${publicBusinessSql('b')}
          AND ${activeMediaOwnerSql('b.user_id', 'business_link_owner')}${blocked('b.user_id')}
     )) OR
     (l.link_type = 'job' AND EXISTS (
@@ -168,30 +193,45 @@ async function visiblePost(postId, viewerUserId) {
 }
 
 // Who can post at MVP: verified helpers, businesses, restaurants only.
-async function getOrCreateActor(userId) {
-  const { rows } = await pool.query(
-    `SELECT * FROM media_actors WHERE owner_user_id = $1 ORDER BY created_at, id`,
-    [userId]
+async function getOrCreateActor(userId, requested = {}, db = pool) {
+  const requestedType = requested.type || requested.actor_type || null;
+  const requestedActorId = requested.actorId || requested.actor_id || null;
+  const actorParams = [userId];
+  const actorFilters = [];
+  if (requestedType) {
+    if (!['helper', 'business', 'restaurant'].includes(requestedType)) return null;
+    actorParams.push(requestedType);
+    actorFilters.push(`actor_type = $${actorParams.length}`);
+  }
+  if (requestedActorId) {
+    actorParams.push(requestedActorId);
+    actorFilters.push(`id = $${actorParams.length}`);
+  }
+  const { rows } = await db.query(
+    `SELECT * FROM media_actors WHERE owner_user_id = $1
+       ${actorFilters.length ? `AND ${actorFilters.join(' AND ')}` : ''}
+       ORDER BY created_at, id`,
+    actorParams
   );
   for (const existing of rows) {
     if (!['helper', 'business', 'restaurant'].includes(existing.actor_type)) continue;
     // Verification can be revoked after an actor row is created. Recheck the
     // source of truth before allowing a new post or repost.
     if (existing.actor_type === 'helper') {
-      const { rows: verified } = await pool.query(
+      const { rows: verified } = await db.query(
         `SELECT 1 FROM helper_profiles hp JOIN users u ON u.id = hp.user_id
           WHERE hp.user_id = $1 AND u.is_verified = TRUE AND u.is_active = TRUE
             AND u.is_banned = FALSE AND u.deleted_at IS NULL LIMIT 1`, [userId]
       );
       if (!verified[0]) continue;
     } else if (existing.actor_type === 'business') {
-      const { rows: verified } = await pool.query(
+      const { rows: verified } = await db.query(
         `SELECT 1 FROM businesses WHERE user_id = $1 AND id = $2 AND deleted_at IS NULL
           AND is_active = TRUE AND is_business_verified = TRUE LIMIT 1`, [userId, existing.business_id]
       );
       if (!verified[0]) continue;
     } else if (existing.actor_type === 'restaurant') {
-      const { rows: verified } = await pool.query(
+      const { rows: verified } = await db.query(
         `SELECT 1 FROM food_restaurants WHERE owner_user_id = $1 AND id = $2
           AND status != 'suspended' AND is_verified = TRUE LIMIT 1`, [userId, existing.restaurant_id]
       );
@@ -199,13 +239,13 @@ async function getOrCreateActor(userId) {
     }
     const kind = { helper: 'identity', business: 'business', restaurant: 'restaurant' }[existing.actor_type];
     if (existing.verified_kind !== kind) {
-      await pool.query('UPDATE media_actors SET verified_kind=$2,updated_at=NOW() WHERE id=$1', [existing.id, kind]);
+      await db.query('UPDATE media_actors SET verified_kind=$2,updated_at=NOW() WHERE id=$1', [existing.id, kind]);
     }
     return { ...existing, verified_kind: kind };
   }
 
   // Determine actor type from verified profiles.
-  const { rows: helper } = await pool.query(
+  const { rows: helper } = await db.query(
     `SELECT hp.id, hp.profile_slug, u.first_name, u.last_name, u.profile_photo_url,
             u.is_verified
        FROM helper_profiles hp JOIN users u ON u.id = hp.user_id
@@ -213,13 +253,13 @@ async function getOrCreateActor(userId) {
         AND u.is_banned = FALSE AND u.deleted_at IS NULL LIMIT 1`,
     [userId]
   );
-  const { rows: biz } = await pool.query(
+  const { rows: biz } = await db.query(
     `SELECT b.id, b.profile_slug, b.business_name, b.logo_url, b.is_business_verified
        FROM businesses b WHERE b.user_id = $1 AND b.deleted_at IS NULL
         AND b.is_active = TRUE AND b.is_business_verified = TRUE ORDER BY b.id LIMIT 1`,
     [userId]
   );
-  const { rows: rest } = await pool.query(
+  const { rows: rest } = await db.query(
     `SELECT r.id, r.slug, r.business_id, r.display_name, r.logo_url, r.is_verified
        FROM food_restaurants r
       WHERE r.owner_user_id = $1 AND r.status != 'suspended' AND r.is_verified = TRUE ORDER BY r.id LIMIT 1`,
@@ -227,18 +267,18 @@ async function getOrCreateActor(userId) {
   );
 
   let actor = null;
-  if (helper[0]?.is_verified) {
+  if (helper[0]?.is_verified && (!requestedType || requestedType === 'helper')) {
     actor = {
       type: 'helper', handle: helper[0].profile_slug || `helper-${helper[0].id}`,
       name: `${helper[0].first_name || ''} ${helper[0].last_name || ''}`.trim(),
       avatar: helper[0].profile_photo_url, verified: 'identity',
     };
-  } else if (biz[0]?.is_business_verified) {
+  } else if (biz[0]?.is_business_verified && (!requestedType || requestedType === 'business')) {
     actor = {
       type: 'business', handle: biz[0].profile_slug || `business-${biz[0].id}`,
       name: biz[0].business_name, avatar: biz[0].logo_url, verified: 'business', businessId: biz[0].id,
     };
-  } else if (rest[0]?.is_verified) {
+  } else if (rest[0]?.is_verified && (!requestedType || requestedType === 'restaurant')) {
     actor = {
       type: 'restaurant', handle: rest[0].slug || `restaurant-${rest[0].id}`,
       name: rest[0].display_name, avatar: rest[0].logo_url, verified: 'restaurant', restaurantId: rest[0].id, businessId: rest[0].business_id,
@@ -246,7 +286,7 @@ async function getOrCreateActor(userId) {
   }
   if (!actor) return null;
 
-  const { rows: created } = await pool.query(
+  const { rows: created } = await db.query(
     `INSERT INTO media_actors
        (actor_type, owner_user_id, handle, display_name, avatar_url, verified_kind, business_id, restaurant_id)
      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
@@ -333,7 +373,7 @@ async function lookupLinkTarget(link, viewerUserId = null, db = pool) {
   if (link.link_type === 'restaurant') {
     const { rows } = await db.query(
       `SELECT display_name AS name FROM food_restaurants
-        WHERE id = $1 AND status = 'active'
+        WHERE id = $1 AND ${publicRestaurantSql('food_restaurants')}
           AND ${activeMediaOwnerSql('owner_user_id', 'restaurant_target_owner')}
         ${linkViewerBlockPredicate('owner_user_id')}`, [targetId, viewerUserId]
     );
@@ -345,7 +385,7 @@ async function lookupLinkTarget(link, viewerUserId = null, db = pool) {
       `SELECT i.name, i.price_cents
          FROM food_menu_items i
          JOIN food_restaurants r ON r.id = i.restaurant_id
-        WHERE i.id = $1 AND r.id = $2 AND r.status = 'active' AND i.is_available = TRUE
+        WHERE i.id = $1 AND r.id = $2 AND ${publicRestaurantSql('r')} AND i.is_available = TRUE
           AND ${activeMediaOwnerSql('r.owner_user_id', 'food_item_target_owner')}
           ${linkViewerBlockPredicate('r.owner_user_id', '$3')}`,
       [itemId, restaurantId, viewerUserId]
@@ -358,7 +398,7 @@ async function lookupLinkTarget(link, viewerUserId = null, db = pool) {
          FROM helper_profiles hp
          JOIN users u ON u.id = hp.user_id
         WHERE (hp.id::text = $1 OR hp.user_id::text = $1 OR hp.profile_slug::text = $1)
-          AND u.deleted_at IS NULL AND u.is_active = TRUE AND u.is_banned = FALSE
+          AND ${publicHelperSql('hp', 'u')}
           ${linkViewerBlockPredicate('u.id')}`, [targetId, viewerUserId]
     );
     return rows[0] || null;
@@ -367,7 +407,7 @@ async function lookupLinkTarget(link, viewerUserId = null, db = pool) {
     const { rows } = await db.query(
         `SELECT business_name AS name FROM businesses
         WHERE (id::text = $1 OR profile_slug::text = $1)
-          AND deleted_at IS NULL AND is_active = TRUE
+          AND ${publicBusinessSql('businesses')}
           AND ${activeMediaOwnerSql('user_id', 'business_target_owner')}
           ${linkViewerBlockPredicate('user_id')}`, [targetId, viewerUserId]
     );
@@ -463,13 +503,16 @@ async function validateMediaLinks(links, db = pool, viewerUserId = null) {
   return normalized;
 }
 
-async function hydratePost(post, viewerUserId) {
+async function hydratePost(post, viewerUserId, options = {}) {
   const links = await hydrateLinks(post.id, viewerUserId);
   const { rows: assetRows } = await pool.query(
     `SELECT * FROM media_post_assets WHERE post_id = $1 ORDER BY sort_order`,
     [post.id]
   );
   const assets = await Promise.all(assetRows.map(async (asset) => {
+    if (asset.delivery_revoked_at || ['admin_removed', 'dmca_removed', 'safety_blocked'].includes(post.moderation_state)) {
+      return { ...asset, url: null, thumbnail_url: null, delivery_revoked: true };
+    }
     if (post.visibility === 'public' && !mediaSafety.assetReady(asset)) {
       return { ...asset, url: null, thumbnail_url: null };
     }
@@ -526,7 +569,26 @@ async function hydratePost(post, viewerUserId) {
       isSponsored = false;
     }
   }
-  return { ...post, links, assets, liked, bookmarked, reposted, is_sponsored: Boolean(isSponsored) };
+  let quoted = null;
+  let quotedUnavailable = false;
+  if (!options.skipQuote && post.quoted_post_id) {
+    const quoteParams = [post.quoted_post_id];
+    const quoteWhere = addViewerBlockFilter(
+      `p.id = $1 AND p.deleted_at IS NULL AND p.visibility = 'public'
+          AND p.processing_status = 'ready' AND ${publicMediaSql('p', 'a')}`,
+      quoteParams,
+      viewerUserId
+    );
+    const { rows: quoteRows } = await pool.query(
+      `SELECT p.*, a.handle, a.display_name, a.avatar_url, a.verified_kind, a.actor_type, a.owner_user_id
+         FROM media_posts p JOIN media_actors a ON a.id = p.actor_id
+        WHERE ${quoteWhere}`,
+      quoteParams
+    );
+    if (quoteRows[0]) quoted = await hydratePost(quoteRows[0], viewerUserId, { skipQuote: true });
+    else quotedUnavailable = true;
+  }
+  return { ...post, links, assets, liked, bookmarked, reposted, quoted, quoted_unavailable: quotedUnavailable, is_sponsored: Boolean(isSponsored) };
 }
 
 function broadcastMediaPostCounts(postId, counts = {}) {
@@ -743,11 +805,61 @@ async function getFeed(req, res) {
 
     }
 
+    // Reposts are feed entries for followers as well as profile activity. Keep
+    // the original post as the canonical content, but carry the reposter
+    // attribution so clients do not mistake it for a fresh authored post.
+    if (tab === 'following' && viewerUserId && !before) {
+      const repostParams = [viewerUserId, asOf];
+      const repostRows = await pool.query(
+        `SELECT p.*, a.handle, a.display_name, a.avatar_url, a.verified_kind, a.actor_type, a.owner_user_id,
+                mr.created_at AS reposted_at,
+                ra.id AS reposter_id, ra.handle AS reposter_handle, ra.display_name AS reposter_display_name,
+                ra.avatar_url AS reposter_avatar_url, ra.verified_kind AS reposter_verified_kind,
+                ra.actor_type AS reposter_actor_type,
+                to_char(mr.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS cursor_created_at,
+                0::bigint AS link_count, 0::int AS locality_boost
+           FROM media_reposts mr
+           JOIN media_posts p ON p.id = mr.post_id
+           JOIN media_actors a ON a.id = p.actor_id
+           JOIN media_actors ra ON ra.id = mr.actor_id
+          WHERE EXISTS (SELECT 1 FROM media_follows mf
+                         WHERE mf.follower_user_id = $1 AND mf.actor_id = mr.actor_id)
+            AND p.created_at <= $2::timestamptz
+            AND p.actor_id <> mr.actor_id
+            AND p.parent_id IS NULL AND p.deleted_at IS NULL AND p.visibility = 'public'
+            AND p.processing_status = 'ready' AND ${publicMediaSql('p', 'a')}
+            AND (${publicActorSql('ra')})
+            AND NOT EXISTS (SELECT 1 FROM user_blocks ub
+              WHERE (ub.blocker_id = $1 AND ub.blocked_id IN (a.owner_user_id, ra.owner_user_id))
+                 OR (ub.blocker_id IN (a.owner_user_id, ra.owner_user_id) AND ub.blocked_id = $1))
+          ORDER BY mr.created_at DESC, mr.post_id DESC LIMIT 20`,
+        repostParams
+      );
+      const existing = new Set(rows.map((row) => String(row.id)));
+      rows = [...rows, ...repostRows.rows.filter((row) => !existing.has(String(row.id)))];
+      rows.sort((left, right) => Date.parse(right.reposted_at || right.created_at)
+        - Date.parse(left.reposted_at || left.created_at));
+    }
+
     const hasMore = rows.length > limit;
     const visibleRows = hasMore ? rows.slice(0, limit) : rows;
     const posts = [];
     for (const row of visibleRows) {
-      posts.push(await hydratePost(row, viewerUserId));
+      const hydrated = await hydratePost(row, viewerUserId);
+      if (row.reposted_at) {
+        hydrated.is_repost = true;
+        hydrated.reposted_at = row.reposted_at;
+        hydrated.reposter = {
+          id: row.reposter_id,
+          handle: row.reposter_handle,
+          display_name: row.reposter_display_name,
+          avatar_url: row.reposter_avatar_url,
+          verified_kind: row.reposter_verified_kind,
+          actor_type: row.reposter_actor_type,
+        };
+        hydrated.original_post_id = row.id;
+      }
+      posts.push(hydrated);
     }
     const last = visibleRows[visibleRows.length - 1];
     const nextBefore = hasMore && last ? feedContext.encodeCursor(last, context, mode, asOf) : null;
@@ -785,23 +897,6 @@ async function getPost(req, res) {
     if (!rows[0]) return res.status(404).json({ error: 'Post not found' });
     const post = await hydratePost(rows[0], viewerUserId);
 
-    // Quote embed
-    if (post.quoted_post_id) {
-      const quoteParams = [post.quoted_post_id];
-      const quoteWhere = addViewerBlockFilter(
-        `p.id = $1 AND p.deleted_at IS NULL AND p.visibility = 'public'
-            AND p.processing_status = 'ready' AND ${publicMediaSql('p', 'a')}`,
-        quoteParams,
-        viewerUserId
-      );
-      const { rows: q } = await pool.query(
-        `SELECT p.*, a.handle, a.display_name, a.avatar_url, a.verified_kind, a.actor_type, a.owner_user_id
-           FROM media_posts p JOIN media_actors a ON a.id = p.actor_id
-          WHERE ${quoteWhere}`,
-        quoteParams
-      );
-      if (q[0]) post.quoted = await hydratePost(q[0], viewerUserId);
-    }
     res.json({ post });
   } catch (err) {
     logger.error('media.getPost error', { message: err.message });
@@ -993,20 +1088,38 @@ async function getShareImage(req, res) {
 
 async function getDrafts(req, res) {
   try {
+    const query = req.query || {};
+    const limit = pageSize(query.limit, 20);
+    const cursor = mediaCursor(query.cursor);
+    const params = [req.user.id];
+    let after = '';
+    if (cursor) {
+      params.push(cursor.created_at, cursor.id);
+      after = `AND (p.created_at < $${params.length - 1}
+        OR (p.created_at = $${params.length - 1} AND p.id < $${params.length}))`;
+    }
+    params.push(limit + 1);
     const { rows } = await pool.query(
       `SELECT p.*, a.handle, a.display_name, a.avatar_url, a.verified_kind, a.actor_type, a.owner_user_id
          FROM media_posts p
          JOIN media_actors a ON a.id = p.actor_id
         WHERE p.deleted_at IS NULL AND p.visibility = 'unlisted'
           AND p.processing_status IN ('draft', 'quarantine', 'failed', 'blocked', 'ready')
-          AND a.owner_user_id = $1
-        ORDER BY p.created_at DESC
-        LIMIT 20`,
-      [req.user.id]
+          AND a.owner_user_id = $1 ${after}
+        ORDER BY p.created_at DESC, p.id DESC
+        LIMIT $${params.length}`,
+      params
     );
+    const hasMore = rows.length > limit;
+    const page = hasMore ? rows.slice(0, limit) : rows;
     const drafts = [];
-    for (const row of rows) drafts.push(await hydratePost(row, req.user.id));
-    res.json({ drafts });
+    for (const row of page) drafts.push(await hydratePost(row, req.user.id));
+    const response = { drafts };
+    if (query.limit != null || query.cursor) {
+      response.has_more = hasMore;
+      response.next_cursor = hasMore ? nextMediaCursor(page[page.length - 1]) : null;
+    }
+    res.json(response);
   } catch (err) {
     logger.error('media.getDrafts error', { message: err.message });
     mediaError(res, err, 'Failed to load drafts');
@@ -1033,9 +1146,82 @@ async function getDraft(req, res) {
   }
 }
 
+async function getModerationStatus(req, res) {
+  try {
+    const { rows } = await pool.query(
+      `SELECT p.id, p.visibility, p.moderation_state, p.moderation_reason,
+              p.moderation_updated_at, p.processing_status, p.csam_status,
+              (SELECT json_build_object(
+                 'id', ap.id, 'reason', ap.reason, 'status', ap.status,
+                 'review_note', ap.review_note, 'created_at', ap.created_at,
+                 'reviewed_at', ap.reviewed_at
+               ) FROM media_post_appeals ap
+                WHERE ap.post_id = p.id AND ap.appellant_user_id = $2
+                ORDER BY ap.created_at DESC LIMIT 1) AS appeal
+         FROM media_posts p
+         JOIN media_actors a ON a.id = p.actor_id
+        WHERE p.id = $1 AND p.deleted_at IS NULL AND a.owner_user_id = $2`,
+      [req.params.id, req.user.id]
+    );
+    if (!rows[0]) return res.status(404).json({ error: 'Post not found', code: 'media_post_not_found' });
+    return res.json({ moderation: rows[0] });
+  } catch (err) {
+    logger.error('media.getModerationStatus error', { message: err.message });
+    return mediaError(res, err, 'Failed to load moderation status');
+  }
+}
+
+async function createAppeal(req, res) {
+  const reason = typeof req.body?.reason === 'string' ? req.body.reason.trim() : '';
+  if (reason.length < 3 || reason.length > 2000) {
+    return res.status(400).json({ error: 'Explain why this moderation decision should be reviewed.', code: 'media_appeal_reason_invalid' });
+  }
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const { rows: posts } = await client.query(
+      `SELECT p.id, p.moderation_state
+         FROM media_posts p
+         JOIN media_actors a ON a.id = p.actor_id
+        WHERE p.id = $1 AND p.deleted_at IS NULL AND a.owner_user_id = $2
+        FOR UPDATE OF p`, [req.params.id, req.user.id]
+    );
+    if (!posts[0]) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Post not found', code: 'media_post_not_found' });
+    }
+    if (!['report_hold', 'admin_removed'].includes(posts[0].moderation_state)) {
+      await client.query('ROLLBACK');
+      return res.status(409).json({ error: 'This post is not eligible for an appeal.', code: 'media_appeal_not_available' });
+    }
+    const { rows: appeals } = await client.query(
+      `INSERT INTO media_post_appeals (post_id, appellant_user_id, reason)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (post_id, appellant_user_id) WHERE status IN ('open','under_review')
+       DO NOTHING RETURNING id, post_id, reason, status, created_at`,
+      [req.params.id, req.user.id, reason]
+    );
+    if (!appeals[0]) {
+      await client.query('ROLLBACK');
+      return res.status(409).json({ error: 'An appeal is already awaiting review.', code: 'media_appeal_exists' });
+    }
+    await client.query('COMMIT');
+    return res.status(201).json({ appeal: appeals[0] });
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
+    logger.error('media.createAppeal error', { message: err.message });
+    return mediaError(res, err, 'Failed to submit appeal');
+  } finally {
+    client.release();
+  }
+}
+
 async function getBookmarks(req, res) {
   try {
+    const query = req.query || {};
     const params = [req.user.id];
+    const limit = pageSize(query.limit, 50);
+    const cursor = mediaCursor(query.cursor);
     const where = addViewerBlockFilter(
       `p.deleted_at IS NULL AND p.visibility = 'public'
         AND p.processing_status = 'ready' AND ${publicMediaSql('p', 'a')}
@@ -1043,19 +1229,36 @@ async function getBookmarks(req, res) {
       params,
       req.user.id
     );
+    let after = '';
+    if (cursor) {
+      params.push(cursor.created_at, cursor.id);
+      after = `AND (b.created_at < $${params.length - 1}
+        OR (b.created_at = $${params.length - 1} AND b.post_id < $${params.length}))`;
+    }
+    params.push(limit + 1);
+    const limitParam = params.length;
     const { rows } = await pool.query(
-      `SELECT p.*, a.handle, a.display_name, a.avatar_url, a.verified_kind, a.actor_type, a.owner_user_id
+      `SELECT p.*, b.created_at AS bookmark_created_at,
+              a.handle, a.display_name, a.avatar_url, a.verified_kind, a.actor_type, a.owner_user_id
          FROM media_bookmarks b
          JOIN media_posts p ON p.id = b.post_id
          JOIN media_actors a ON a.id = p.actor_id
-        WHERE ${where}
-        ORDER BY b.created_at DESC
-        LIMIT 100`,
+        WHERE ${where} ${after}
+        ORDER BY b.created_at DESC, b.post_id DESC
+        LIMIT $${limitParam}`,
       params
     );
+    const hasMore = rows.length > limit;
+    const page = hasMore ? rows.slice(0, limit) : rows;
     const posts = [];
-    for (const row of rows) posts.push(await hydratePost(row, req.user.id));
-    res.json({ posts });
+    for (const row of page) posts.push(await hydratePost(row, req.user.id));
+    const response = { posts };
+    if (req.query?.limit != null || req.query?.cursor) {
+      response.has_more = hasMore;
+      response.next_cursor = hasMore
+        ? nextMediaCursor({ ...page[page.length - 1], created_at: page[page.length - 1].bookmark_created_at }) : null;
+    }
+    res.json(response);
   } catch (err) {
     logger.error('media.getBookmarks error', { message: err.message });
     mediaError(res, err, 'Failed to load saved posts');
@@ -1077,24 +1280,41 @@ async function getReplies(req, res) {
         p.created_at DESC, p.id DESC`;
     }
     const params = [req.params.id];
+    const limit = pageSize(req.query.limit, 50);
+    const cursor = mediaCursor(req.query.cursor);
     const where = addViewerBlockFilter(
       `p.parent_id = $1 AND p.deleted_at IS NULL AND p.visibility = 'public'
           AND p.processing_status = 'ready' AND ${publicMediaSql('p', 'a')}`,
       params,
       req.user?.id || null
     );
+    let after = '';
+    if (cursor) {
+      params.push(cursor.created_at, cursor.id);
+      after = `AND (p.created_at < $${params.length - 1}
+        OR (p.created_at = $${params.length - 1} AND p.id < $${params.length}))`;
+    }
+    params.push(limit + 1);
+    const limitParam = params.length;
     const { rows } = await pool.query(
       `SELECT p.*, a.handle, a.display_name, a.avatar_url, a.verified_kind, a.actor_type, a.owner_user_id
          FROM media_posts p JOIN media_actors a ON a.id = p.actor_id
-        WHERE ${where}
-        ORDER BY ${orderClause} LIMIT 50`,
+        WHERE ${where} ${after}
+        ORDER BY ${orderClause}, p.id DESC LIMIT $${limitParam}`,
       params
     );
+    const hasMore = rows.length > limit;
+    const page = hasMore ? rows.slice(0, limit) : rows;
     const replies = [];
-    for (const row of rows) {
+    for (const row of page) {
       replies.push(await hydratePost(row, req.user?.id || null));
     }
-    res.json({ replies, sort });
+    const response = { replies, sort };
+    if (req.query?.limit != null || req.query?.cursor) {
+      response.has_more = hasMore;
+      response.next_cursor = hasMore ? nextMediaCursor(page[page.length - 1]) : null;
+    }
+    res.json(response);
   } catch (err) {
     logger.error('media.getReplies error', { message: err.message });
     mediaError(res, err, 'Failed to load replies');
@@ -1105,24 +1325,41 @@ async function getQuotes(req, res) {
   try {
     if (!await visiblePost(req.params.id, req.user?.id)) return res.status(404).json({ error: 'Post not found' });
     const params = [req.params.id];
+    const limit = pageSize(req.query.limit, 50);
+    const cursor = mediaCursor(req.query.cursor);
     const where = addViewerBlockFilter(
       `p.quoted_post_id = $1 AND p.deleted_at IS NULL AND p.visibility = 'public'
           AND p.processing_status = 'ready' AND ${publicMediaSql('p', 'a')}`,
       params,
       req.user?.id || null
     );
+    let after = '';
+    if (cursor) {
+      params.push(cursor.created_at, cursor.id);
+      after = `AND (p.created_at < $${params.length - 1}
+        OR (p.created_at = $${params.length - 1} AND p.id < $${params.length}))`;
+    }
+    params.push(limit + 1);
+    const limitParam = params.length;
     const { rows } = await pool.query(
       `SELECT p.*, a.handle, a.display_name, a.avatar_url, a.verified_kind, a.actor_type, a.owner_user_id
          FROM media_posts p JOIN media_actors a ON a.id = p.actor_id
-        WHERE ${where}
-        ORDER BY p.created_at DESC LIMIT 50`,
+        WHERE ${where} ${after}
+        ORDER BY p.created_at DESC, p.id DESC LIMIT $${limitParam}`,
       params
     );
+    const hasMore = rows.length > limit;
+    const page = hasMore ? rows.slice(0, limit) : rows;
     const quotes = [];
-    for (const row of rows) {
+    for (const row of page) {
       quotes.push(await hydratePost(row, req.user?.id || null));
     }
-    res.json({ quotes });
+    const response = { quotes };
+    if (req.query?.limit != null || req.query?.cursor) {
+      response.has_more = hasMore;
+      response.next_cursor = hasMore ? nextMediaCursor(page[page.length - 1]) : null;
+    }
+    res.json(response);
   } catch (err) {
     logger.error('media.getQuotes error', { message: err.message });
     mediaError(res, err, 'Failed to load quotes');
@@ -1135,6 +1372,9 @@ async function createPost(req, res) {
     const userId = req.user.id;
     const businessId = req.body?.business_id ? String(req.body.business_id).trim() : null;
     const restaurantId = req.body?.restaurant_id ? String(req.body.restaurant_id).trim() : null;
+    const publisher = req.body?.publisher && typeof req.body.publisher === 'object' ? req.body.publisher : {};
+    const publisherType = String(req.body?.publisher_type || publisher.actor_type || publisher.type || '').trim().toLowerCase() || null;
+    const publisherActorId = req.body?.actor_id || req.body?.publisher_actor_id || publisher.actor_id || publisher.id || null;
     const { body, parent_id, quoted_post_id, links, community_id } = req.body;
     const isDraft = req.body?.draft === true;
 
@@ -1142,12 +1382,27 @@ async function createPost(req, res) {
       return res.status(400).json({ error: 'Choose one publishing entity.', code: 'media_publisher_ambiguous' });
     }
 
+    if (publisherType && !['helper', 'business', 'restaurant'].includes(publisherType)) {
+      return res.status(400).json({ error: 'Choose a valid publisher.', code: 'media_publisher_invalid' });
+    }
+    if (publisherType && publisherType !== 'helper' && !publisherActorId && !businessId && !restaurantId) {
+      return res.status(400).json({ error: 'A publisher actor is required.', code: 'media_publisher_actor_required' });
+    }
+
     if (isDraft && (parent_id || quoted_post_id)) {
       return res.status(400).json({ error: 'Replies and quote posts cannot be saved as drafts', code: 'media_draft_target_invalid' });
     }
     
     let actor;
-    if (businessId) {
+    if (publisherActorId || publisherType === 'helper') {
+      actor = await getOrCreateActor(userId, {
+        type: publisherType || null,
+        actorId: publisherActorId || null,
+      });
+      if (!actor && publisherActorId) {
+        return res.status(403).json({ error: 'That publisher is no longer available.', code: 'media_publisher_unavailable' });
+      }
+    } else if (businessId) {
       // Verify user owns/manages this business.
       const { rows: biz } = await pool.query(
         `SELECT id, business_name, profile_slug, logo_url, is_business_verified
@@ -1625,6 +1880,30 @@ async function deletePost(req, res) {
       );
       quoteCount = quoteCounts[0]?.quote_count;
     }
+    const assetResult = await client.query(
+      `SELECT id, storage_key, thumbnail_key, renditions
+         FROM media_post_assets WHERE post_id = $1 FOR UPDATE`, [rows[0].id]
+    );
+    const assets = assetResult?.rows || [];
+    for (const asset of assets) {
+      const renditionKeys = Array.isArray(asset.renditions)
+        ? asset.renditions.map((item) => item?.storage_key).filter(Boolean) : [];
+      const storageKeys = [...new Set([asset.storage_key, asset.thumbnail_key, ...renditionKeys].filter(Boolean))];
+      await client.query(
+        `UPDATE media_post_assets
+            SET delivery_revoked_at = COALESCE(delivery_revoked_at, NOW()),
+                delivery_revoke_reason = COALESCE(delivery_revoke_reason, 'author_deleted')
+          WHERE id = $1`, [asset.id]
+      );
+      if (storageKeys.length) {
+        await client.query(
+          `INSERT INTO media_asset_cleanup_jobs (asset_id, post_id, storage_keys, reason)
+           VALUES ($1, $2, $3::jsonb, 'author_deleted')
+           ON CONFLICT (asset_id, reason) DO NOTHING`,
+          [asset.id, rows[0].id, JSON.stringify(storageKeys)]
+        );
+      }
+    }
     await client.query('COMMIT');
     transactionOpen = false;
     if (rows[0].parent_id) broadcastMediaPostCounts(rows[0].parent_id, { reply_count: parentCount });
@@ -1880,8 +2159,9 @@ async function flagPost(req, res) {
       if ((openFlags[0]?.count || 0) >= autohideThreshold) {
         await client.query(
           `UPDATE media_posts
-              SET visibility = 'removed', updated_at = NOW()
-            WHERE id = $1 AND visibility <> 'removed'`,
+              SET visibility = 'removed', moderation_state = 'report_hold',
+                  moderation_reason = 'report_threshold', moderation_updated_at = NOW()
+            WHERE id = $1 AND moderation_state = 'clear' AND visibility <> 'removed'`,
           [req.params.id]
         );
       }
@@ -2116,7 +2396,7 @@ async function searchMedia(req, res) {
     for (const post of posts) hydrated.push(await hydratePost(post, req.user?.id || null));
     const actorParams = [pattern, limit];
     const actorWhere = addViewerBlockFilter(
-      `handle ILIKE $1 OR display_name ILIKE $1`,
+      `(handle ILIKE $1 OR display_name ILIKE $1) AND (${publicActorSql('media_actors')})`,
       actorParams,
       req.user?.id || null,
       'media_actors'
@@ -2171,7 +2451,7 @@ async function getBusinessPosts(req, res) {
 async function getActor(req, res) {
   try {
     const actorParams = [req.params.handle];
-    const actorWhere = addViewerBlockFilter('a.handle = $1', actorParams, req.user?.id, 'a');
+    const actorWhere = addViewerBlockFilter(`a.handle = $1 AND (${publicActorSql('a')})`, actorParams, req.user?.id, 'a');
     const { rows } = await pool.query(
       `SELECT a.*, ${verifiedActorSql('a')} AS current_actor_verified,
               (SELECT COUNT(*)::int
@@ -2207,9 +2487,68 @@ async function getActor(req, res) {
         ORDER BY p.created_at DESC LIMIT 20`,
       postParams
     );
+    const repostParams = [rows[0].id];
+    let repostWhere = addViewerBlockFilter(
+      `mr.actor_id = $1 AND p.actor_id <> mr.actor_id
+          AND p.deleted_at IS NULL AND p.parent_id IS NULL AND p.visibility = 'public'
+          AND p.processing_status = 'ready' AND ${publicMediaSql('p', 'a')}
+          AND (${publicActorSql('ra')})
+          AND EXISTS (SELECT 1 FROM users reposter_user
+            WHERE reposter_user.id = ra.owner_user_id
+              AND reposter_user.deleted_at IS NULL AND reposter_user.is_active = TRUE
+              AND reposter_user.is_banned = FALSE)`,
+      repostParams,
+      req.user?.id
+    );
+    if (req.user?.id) {
+      const viewerParam = repostParams.length;
+      repostWhere += ` AND NOT EXISTS (
+        SELECT 1 FROM user_blocks repost_blocks
+         WHERE (repost_blocks.blocker_id = $${viewerParam} AND repost_blocks.blocked_id = ra.owner_user_id)
+            OR (repost_blocks.blocker_id = ra.owner_user_id AND repost_blocks.blocked_id = $${viewerParam})
+      )`;
+    }
+    const { rows: reposts } = await pool.query(
+      `SELECT p.*, a.handle, a.display_name, a.avatar_url, a.verified_kind, a.actor_type, a.owner_user_id,
+              mr.created_at AS reposted_at,
+              ra.id AS reposter_id, ra.handle AS reposter_handle, ra.display_name AS reposter_display_name,
+              ra.avatar_url AS reposter_avatar_url, ra.verified_kind AS reposter_verified_kind,
+              ra.actor_type AS reposter_actor_type
+         FROM media_reposts mr
+         JOIN media_posts p ON p.id = mr.post_id
+         JOIN media_actors a ON a.id = p.actor_id
+         JOIN media_actors ra ON ra.id = mr.actor_id
+        WHERE ${repostWhere}
+        ORDER BY mr.created_at DESC LIMIT 20`,
+      repostParams
+    );
     const hydrated = [];
-    for (const p of posts) hydrated.push(await hydratePost(p, req.user?.id || null));
-    res.json({ actor: { ...publicActor(rows[0]), following }, posts: hydrated });
+    for (const p of [...posts, ...reposts].sort((left, right) =>
+      Date.parse(right.reposted_at || right.created_at) - Date.parse(left.reposted_at || left.created_at))) {
+      if (hydrated.some((item) => String(item.id) === String(p.id))) continue;
+      const item = await hydratePost(p, req.user?.id || null);
+      if (p.reposted_at) {
+        item.is_repost = true;
+        item.reposted_at = p.reposted_at;
+        item.reposter = {
+          id: p.reposter_id,
+          handle: p.reposter_handle,
+          display_name: p.reposter_display_name,
+          avatar_url: p.reposter_avatar_url,
+          verified_kind: p.reposter_verified_kind,
+          actor_type: p.reposter_actor_type,
+        };
+        item.original_post_id = p.id;
+      }
+      hydrated.push(item);
+      if (hydrated.length >= 20) break;
+    }
+    res.json({ actor: { ...publicActor(rows[0]), following }, posts: hydrated,
+      next_cursor: hydrated.length === 20 ? Buffer.from(JSON.stringify({
+        v: 1, created_at: hydrated[hydrated.length - 1].reposted_at || hydrated[hydrated.length - 1].created_at,
+        id: hydrated[hydrated.length - 1].id,
+      })).toString('base64url') : null,
+      has_more: hydrated.length === 20 });
   } catch (err) {
     logger.error('media.getActor error', { message: err.message });
     mediaError(res, err, 'Failed to load actor');
@@ -2322,7 +2661,7 @@ async function searchMediaEntities(req, res) {
       ({ rows } = await pool.query(
         `SELECT id::text AS target_id, display_name AS name, NULL::int AS price_snapshot_cents
            FROM food_restaurants
-          WHERE status = 'active' AND display_name ILIKE $1
+          WHERE ${publicRestaurantSql('food_restaurants')} AND display_name ILIKE $1
             AND ${activeMediaOwnerSql('owner_user_id', 'restaurant_search_owner')}
             ${linkViewerBlockPredicate('owner_user_id', '$3')}
           ORDER BY display_name LIMIT $2`, [like, limit, viewerUserId]
@@ -2334,7 +2673,7 @@ async function searchMediaEntities(req, res) {
                 i.price_cents AS price_snapshot_cents
            FROM food_menu_items i
            JOIN food_restaurants r ON r.id = i.restaurant_id
-          WHERE r.status = 'active' AND i.is_available = TRUE AND i.name ILIKE $1
+          WHERE ${publicRestaurantSql('r')} AND i.is_available = TRUE AND i.name ILIKE $1
             AND ${activeMediaOwnerSql('r.owner_user_id', 'food_item_search_owner')}
             ${linkViewerBlockPredicate('r.owner_user_id', '$3')}
           ORDER BY i.name LIMIT $2`, [like, limit, viewerUserId]
@@ -2346,8 +2685,7 @@ async function searchMediaEntities(req, res) {
                 NULL::int AS price_snapshot_cents
            FROM helper_profiles hp
            JOIN users u ON u.id = hp.user_id
-          WHERE u.deleted_at IS NULL AND u.is_active = TRUE
-            AND u.is_verified = TRUE
+          WHERE ${publicHelperSql('hp', 'u')}
             AND (hp.profile_slug ILIKE $1 OR u.first_name ILIKE $1 OR u.last_name ILIKE $1)
             ${linkViewerBlockPredicate('u.id', '$3')}
           ORDER BY name LIMIT $2`, [like, limit, viewerUserId]
@@ -2357,7 +2695,7 @@ async function searchMediaEntities(req, res) {
         `SELECT COALESCE(profile_slug, id::text) AS target_id, business_name AS name,
                 NULL::int AS price_snapshot_cents
            FROM businesses
-          WHERE deleted_at IS NULL AND is_active = TRUE AND is_business_verified = TRUE
+          WHERE ${publicBusinessSql('businesses')}
             AND ${activeMediaOwnerSql('user_id', 'business_search_owner')}
             AND business_name ILIKE $1
             ${linkViewerBlockPredicate('user_id', '$3')}
@@ -2418,6 +2756,7 @@ async function searchMediaEntities(req, res) {
 
 module.exports = {
   getFeed, getPost, getShareImage, getDrafts, getDraft, getBookmarks, getReplies, getQuotes, createPost, updateDraft, publishPost, updatePost, deletePost,
+  getModerationStatus, createAppeal,
   replacePostLinks,
   toggleLike, toggleBookmark, toggleRepost, recordShare, recordView, flagPost,
   getShellBadges, markCommunitiesSeen,

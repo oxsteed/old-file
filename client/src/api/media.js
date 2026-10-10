@@ -4,11 +4,11 @@ export const getFeed = (params = {}) => api.get('/media/feed', { params }).then(
 export const searchMedia = (params = {}) => api.get('/media/search', { params }).then(r => r.data);
 export const searchMediaEntities = (params = {}) => api.get('/media/entities', { params }).then(r => r.data);
 export const getPost = (id) => api.get(`/media/posts/${id}`).then(r => r.data);
-export const getDrafts = () => api.get('/media/posts/drafts').then(r => r.data);
+export const getDrafts = (params = {}) => api.get('/media/posts/drafts', { params }).then(r => r.data);
 export const getDraft = (id) => api.get(`/media/posts/${id}/draft`).then(r => r.data);
-export const getBookmarks = () => api.get('/media/posts/bookmarks').then(r => r.data);
-export const getReplies = (id, sort = 'latest') => api.get(`/media/posts/${id}/replies`, { params: { sort } }).then(r => r.data);
-export const getQuotes = (id) => api.get(`/media/posts/${id}/quotes`).then(r => r.data);
+export const getBookmarks = (params = {}) => api.get('/media/posts/bookmarks', { params }).then(r => r.data);
+export const getReplies = (id, sort = 'latest', params = {}) => api.get(`/media/posts/${id}/replies`, { params: { sort, ...params } }).then(r => r.data);
+export const getQuotes = (id, params = {}) => api.get(`/media/posts/${id}/quotes`, { params }).then(r => r.data);
 export const createPost = (data) => api.post('/media/posts', data).then(r => r.data);
 export const updateDraft = (id, data) => api.patch(`/media/posts/${id}/draft`, data).then(r => r.data);
 export const publishPost = (id) => api.post(`/media/posts/${id}/publish`).then(r => r.data);
@@ -36,6 +36,8 @@ export const toggleRepost = (id) => api.post(`/media/posts/${id}/repost`).then(r
 export const recordShare = (id) => api.post(`/media/posts/${id}/share`).then(r => r.data);
 export const recordView = (id) => api.post(`/media/posts/${id}/view`).then(r => r.data);
 export const flagPost = (id, data) => api.post(`/media/posts/${id}/flags`, data).then(r => r.data);
+export const getModerationStatus = (id) => api.get(`/media/posts/${id}/moderation`).then(r => r.data);
+export const createMediaAppeal = (id, reason) => api.post(`/media/posts/${id}/appeals`, { reason }).then(r => r.data);
 export const getMediaBadges = () => api.get('/media/badges').then(r => r.data);
 export const markMediaCommunitiesSeen = (communityId = null) => api.post('/media/communities/seen', communityId ? { community_id: communityId } : {}).then(r => r.data);
 export const getCommunities = () => api.get('/media/communities').then(r => r.data);

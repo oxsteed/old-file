@@ -105,6 +105,8 @@ function publicPostSql(alias = 'p') {
   ) AND ${alias}.csam_status IN (${postStatuses}) ${photoGateSql} AND NOT EXISTS (
     SELECT 1 FROM media_post_assets safety_asset
      WHERE safety_asset.post_id = ${alias}.id AND (
+       safety_asset.delivery_revoked_at IS NOT NULL
+       OR
        safety_asset.processing_status <> 'ready'
        OR (safety_asset.asset_type <> 'video' AND safety_asset.csam_status NOT IN ('passed', 'not_required'))
        OR (safety_asset.asset_type = 'video' AND (

@@ -18,14 +18,20 @@ async function getCenter(req, res) {
     const userId = req.user.id;
     const [userResult, businessResult, restaurantResult] = await Promise.all([
       pool.query(
-        `SELECT COALESCE(is_verified, FALSE) AS is_verified,
+        `SELECT u.id, COALESCE(u.is_verified, FALSE) AS is_verified,
                 COALESCE(didit_status, 'pending') AS didit_status,
-                didit_verified_at
-           FROM users WHERE id = $1`,
+                didit_verified_at,
+                (SELECT ma.id FROM media_actors ma
+                  WHERE ma.owner_user_id = u.id AND ma.actor_type = 'helper'
+                  ORDER BY ma.created_at ASC LIMIT 1) AS media_actor_id
+           FROM users u WHERE u.id = $1`,
         [userId]
       ),
       pool.query(
         `SELECT b.id::text, b.business_name, COALESCE(b.is_business_verified, FALSE) AS is_verified,
+                (SELECT ma.id FROM media_actors ma
+                  WHERE ma.business_id = b.id AND ma.actor_type = 'business'
+                  ORDER BY ma.created_at ASC LIMIT 1) AS media_actor_id,
                 req.id AS request_id, req.status AS request_status, req.details AS request_details,
                 req.reviewer_note, req.submitted_at, req.reviewed_at
            FROM businesses b
@@ -44,6 +50,9 @@ async function getCenter(req, res) {
       ),
       pool.query(
         `SELECT r.id::text, r.display_name, COALESCE(r.is_verified, FALSE) AS is_verified,
+                (SELECT ma.id FROM media_actors ma
+                  WHERE ma.restaurant_id = r.id AND ma.actor_type = 'restaurant'
+                  ORDER BY ma.created_at ASC LIMIT 1) AS media_actor_id,
                 req.id AS request_id, req.status AS request_status, req.details AS request_details,
                 req.reviewer_note, req.submitted_at, req.reviewed_at
            FROM food_restaurants r

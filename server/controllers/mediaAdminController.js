@@ -98,7 +98,13 @@ async function listFlags(req, res) {
   try {
     const status = req.query.status || 'open';
     const { rows } = await pool.query(
-      `SELECT f.*, p.body AS post_body, a.display_name AS actor_name, a.handle AS actor_handle
+      `SELECT f.*, p.body AS post_body, p.visibility, p.moderation_state, p.moderation_reason,
+              a.display_name AS actor_name, a.handle AS actor_handle,
+              COALESCE((SELECT json_agg(json_build_object(
+                'id', pa.id, 'asset_type', pa.asset_type,
+                'processing_status', pa.processing_status, 'csam_status', pa.csam_status,
+                'delivery_revoked_at', pa.delivery_revoked_at
+              ) ORDER BY pa.sort_order) FROM media_post_assets pa WHERE pa.post_id = p.id), '[]'::json) AS assets
          FROM media_post_flags f
          JOIN media_posts p ON p.id = f.post_id
          JOIN media_actors a ON a.id = p.actor_id
@@ -176,8 +182,34 @@ async function reviewFlag(req, res) {
 
     if (action === 'remove' || action === 'dmca') {
       const { rows: updatedPosts } = await client.query(
-        `UPDATE media_posts SET visibility = 'removed' WHERE id = $1 RETURNING id, visibility`,
-        [flag.post_id]
+        `WITH updated_post AS (
+          UPDATE media_posts
+             SET visibility = 'removed', moderation_state = $2,
+                 moderation_reason = $3, moderation_updated_by = $4,
+                 moderation_updated_at = NOW()
+           WHERE id = $1
+           RETURNING id, visibility, moderation_state
+        ), revoked_assets AS (
+          UPDATE media_post_assets asset
+             SET delivery_revoked_at = COALESCE(asset.delivery_revoked_at, NOW()),
+                 delivery_revoke_reason = COALESCE(asset.delivery_revoke_reason, $2)
+            FROM updated_post
+           WHERE asset.post_id = updated_post.id
+           RETURNING asset.id, asset.post_id, asset.storage_key, asset.thumbnail_key, asset.renditions
+        ), queued_cleanup AS (
+          INSERT INTO media_asset_cleanup_jobs (asset_id, post_id, storage_keys, reason)
+          SELECT id, post_id,
+                 to_jsonb(ARRAY[storage_key, thumbnail_key]::text[])
+                   || COALESCE((SELECT jsonb_agg(rendition->>'storage_key')
+                                  FROM jsonb_array_elements(CASE WHEN jsonb_typeof(renditions) = 'array'
+                                    THEN renditions ELSE '[]'::jsonb END) rendition), '[]'::jsonb),
+                 $2
+            FROM revoked_assets
+          ON CONFLICT (asset_id, reason) DO NOTHING
+          RETURNING 1
+        )
+        SELECT id, visibility, moderation_state FROM updated_post`,
+        [flag.post_id, action === 'dmca' ? 'dmca_removed' : 'admin_removed', takedownReason || action, req.user.id]
       );
       if (!updatedPosts[0]) {
         const error = new Error('The flagged post could not be removed.');
@@ -206,6 +238,97 @@ async function reviewFlag(req, res) {
     await client.query('ROLLBACK').catch(() => {});
     logger.error('mediaAdmin.reviewFlag error', { message: err.message });
     sendMediaError(res, err, 'Failed to review flag');
+  } finally {
+    client.release();
+  }
+}
+
+async function getFlagEvidence(req, res) {
+  try {
+    const { rows } = await pool.query(
+      `SELECT p.id, p.body, p.visibility, p.moderation_state, p.moderation_reason,
+              p.processing_status, p.csam_status, p.created_at,
+              json_build_object('id', a.id, 'handle', a.handle,
+                'display_name', a.display_name, 'actor_type', a.actor_type) AS actor,
+              COALESCE((SELECT json_agg(json_build_object(
+                'id', pa.id, 'asset_type', pa.asset_type, 'provider', pa.provider,
+                'processing_status', pa.processing_status, 'csam_status', pa.csam_status,
+                'published_without_csam', pa.published_without_csam,
+                'delivery_revoked_at', pa.delivery_revoked_at,
+                'storage_key', pa.storage_key, 'thumbnail_key', pa.thumbnail_key,
+                'renditions', pa.renditions
+              ) ORDER BY pa.sort_order) FROM media_post_assets pa WHERE pa.post_id = p.id), '[]'::json) AS assets,
+              COALESCE((SELECT json_agg(f ORDER BY f.created_at DESC)
+                  FROM media_post_flags f WHERE f.post_id = p.id), '[]'::json) AS flags
+         FROM media_posts p JOIN media_actors a ON a.id = p.actor_id
+        WHERE p.id = $1`, [req.params.id]
+    );
+    if (!rows[0]) return res.status(404).json({ error: 'Post not found' });
+    return res.json({ evidence: rows[0] });
+  } catch (err) {
+    logger.error('mediaAdmin.getFlagEvidence error', { message: err.message });
+    return sendMediaError(res, err, 'Failed to load moderation evidence');
+  }
+}
+
+async function restorePost(req, res) {
+  const reason = String(req.body?.reason || '').trim();
+  if (reason.length < 3) return res.status(400).json({ error: 'A moderation restore reason is required', code: 'media_restore_reason_required' });
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const { rows } = await client.query(
+      `SELECT p.*, a.actor_type, ${verifiedActorSql('a')} AS current_actor_verified
+         FROM media_posts p JOIN media_actors a ON a.id = p.actor_id
+        WHERE p.id = $1 AND p.deleted_at IS NULL FOR UPDATE OF p`, [req.params.id]
+    );
+    if (!rows[0]) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Post not found' });
+    }
+    const post = rows[0];
+    if (['dmca_removed', 'safety_blocked'].includes(post.moderation_state)
+        || post.csam_status === 'flagged' || post.processing_status === 'blocked') {
+      await client.query('ROLLBACK');
+      return res.status(409).json({ error: 'This post is protected by a safety or DMCA block and cannot be restored.', code: 'media_restore_safety_blocked' });
+    }
+    const { rows: assets } = await client.query(
+      `SELECT * FROM media_post_assets WHERE post_id = $1 FOR UPDATE`, [req.params.id]
+    );
+    if (post.current_actor_verified !== true || post.processing_status !== 'ready'
+        || !mediaSafety.postVerdictAllowed(post.csam_status)
+        || assets.some((asset) => !mediaSafety.assetReady(asset))) {
+      await client.query('ROLLBACK');
+      return res.status(409).json({ error: 'Current verification and safety checks must pass before restore.', code: 'media_restore_safety_pending' });
+    }
+    await client.query(
+      `UPDATE media_posts
+          SET visibility = 'public', moderation_state = 'clear', moderation_reason = $2,
+              moderation_updated_by = $3, moderation_updated_at = NOW(),
+              admin_override_by = $3, admin_override_at = NOW(), admin_override_reason = $2
+        WHERE id = $1`, [req.params.id, reason, req.user.id]
+    );
+    await client.query(
+      `UPDATE media_post_assets
+          SET delivery_revoked_at = NULL, delivery_revoke_reason = NULL
+        WHERE post_id = $1 AND delivery_revoke_reason = 'admin_removed'`, [req.params.id]
+    );
+    await client.query(
+      `UPDATE media_asset_cleanup_jobs SET status = 'done', updated_at = NOW()
+        WHERE post_id = $1 AND status IN ('pending','failed') AND reason = 'admin_removed'`, [req.params.id]
+    );
+    await auditService.logAdminAction({
+      adminId: req.user.id, action: 'media_post_restored', targetType: 'media_post', targetId: req.params.id,
+      description: 'Administrator restored a Media post after current safety checks.',
+      before: { visibility: post.visibility, moderation_state: post.moderation_state },
+      after: { visibility: 'public', moderation_state: 'clear', reason }, client, throwOnError: true,
+    });
+    await client.query('COMMIT');
+    return res.json({ ok: true, restored: true, moderation_state: 'clear' });
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
+    logger.error('mediaAdmin.restorePost error', { message: err.message });
+    return sendMediaError(res, err, 'Failed to restore post');
   } finally {
     client.release();
   }
@@ -315,8 +438,10 @@ async function takedownByPublicUrl(req, res) {
 
 module.exports = {
   listFlags,
+  getFlagEvidence,
   listPendingPosts,
   reviewFlag,
+  restorePost,
   approvePost,
   takedownByPublicUrl,
   listCreatorDisputes,

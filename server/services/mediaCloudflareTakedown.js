@@ -21,6 +21,7 @@ async function recordCloudflareMatchTakedown({ publicUrl, adminId = null, note =
     await client.query('BEGIN');
     const { rows: assets } = await client.query(
       `SELECT a.id, a.post_id, a.asset_type, a.csam_status, a.processing_status, a.storage_key,
+              a.thumbnail_key, a.renditions,
               p.actor_id, p.visibility
          FROM media_post_assets a
          JOIN media_posts p ON p.id = a.post_id
@@ -47,14 +48,28 @@ async function recordCloudflareMatchTakedown({ publicUrl, adminId = null, note =
     actorId = assetRow.actor_id;
     await client.query(
       `UPDATE media_post_assets
-          SET csam_status = 'flagged', processing_status = 'blocked', csam_mode = 'cloudflare'
+          SET csam_status = 'flagged', processing_status = 'blocked', csam_mode = 'cloudflare',
+              delivery_revoked_at = COALESCE(delivery_revoked_at, NOW()),
+              delivery_revoke_reason = COALESCE(delivery_revoke_reason, 'safety_blocked')
         WHERE id = $1`,
       [assetRow.id]
     );
+    const renditionKeys = Array.isArray(assetRow.renditions)
+      ? assetRow.renditions.map((item) => item?.storage_key).filter(Boolean) : [];
+    const storageKeys = [...new Set([assetRow.storage_key, assetRow.thumbnail_key, ...renditionKeys].filter(Boolean))];
+    if (storageKeys.length) {
+      await client.query(
+        `INSERT INTO media_asset_cleanup_jobs (asset_id, post_id, storage_keys, reason)
+         VALUES ($1, $2, $3::jsonb, 'safety_blocked')
+         ON CONFLICT (asset_id, reason) DO NOTHING`,
+        [assetRow.id, assetRow.post_id, JSON.stringify(storageKeys)]
+      );
+    }
     await client.query(
       `UPDATE media_posts
           SET csam_status = 'flagged', processing_status = 'blocked', visibility = 'removed',
-              deleted_at = COALESCE(deleted_at, NOW()), updated_at = NOW()
+              moderation_state = 'safety_blocked', moderation_reason = 'cloudflare_match',
+              moderation_updated_at = NOW(), deleted_at = COALESCE(deleted_at, NOW())
         WHERE id = $1`,
       [assetRow.post_id]
     );

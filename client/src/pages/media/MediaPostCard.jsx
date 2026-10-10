@@ -355,6 +355,11 @@ export default function MediaPostCard({
             )}
           </div>
         )}
+        {post.quoted_unavailable && (
+          <div className="media-quoted-embed media-quoted-unavailable" role="status">
+            {t('media.post.quotedUnavailable', { defaultValue: 'The quoted post is no longer available.' })}
+          </div>
+        )}
         {post.links && post.links.length > 0 && (
           <div className="media-linked-entities">
             <div className="media-linked-label">{t('media.post.linkedOn')}</div>

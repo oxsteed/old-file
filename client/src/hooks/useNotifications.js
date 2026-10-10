@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import api from '../api/axios';
 import { useSocket } from './useSocket';
 
-export default function useNotifications() {
+export default function useNotifications(scope = null) {
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -12,7 +12,7 @@ export default function useNotifications() {
   const fetchNotifications = useCallback(async () => {
     try {
       setLoading(true);
-      const { data } = await api.get('/notifications');
+      const { data } = await api.get('/notifications', { params: scope ? { scope } : undefined });
       const rows = Array.isArray(data) ? data : (data?.notifications || []);
       knownNotificationIds.current = new Set(
         rows.map((notification) => String(notification?.id || '')).filter(Boolean)
@@ -24,7 +24,7 @@ export default function useNotifications() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [scope]);
 
   const markAsRead = useCallback(async (notificationId) => {
     try {
@@ -40,7 +40,7 @@ export default function useNotifications() {
 
   const markAllAsRead = useCallback(async () => {
     try {
-      await api.put('/notifications/read-all');
+      await api.put('/notifications/read-all', null, { params: scope ? { scope } : undefined });
       setNotifications(prev =>
         prev.map(n => ({ ...n, is_read: true, read_at: n.read_at || new Date().toISOString() }))
       );
@@ -48,7 +48,7 @@ export default function useNotifications() {
     } catch (err) {
       console.error('Failed to mark all as read:', err);
     }
-  }, []);
+  }, [scope]);
 
   const deleteNotification = useCallback(async (notificationId) => {
     try {

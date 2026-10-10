@@ -31,7 +31,7 @@ const DISCOVER = [
 export default function MediaShell({ children }) {
   const { t } = useTranslation();
   const { user, loading, logout } = useAuth();
-  const { unreadCount: notificationUnread } = useNotifications();
+  const { unreadCount: notificationUnread } = useNotifications('media');
   const [messageUnread, setMessageUnread] = useState(0);
   const [spacesUnread, setSpacesUnread] = useState(0);
   const { pathname, search } = useLocation();

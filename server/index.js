@@ -854,6 +854,14 @@ async function startServer() {
       message: err.message,
     });
   }
+  try {
+    const { startMediaAssetCleanupWorker } = require('./services/mediaAssetCleanupWorker');
+    startMediaAssetCleanupWorker();
+  } catch (err) {
+    logger.warn('Media asset cleanup worker failed to start; revoked delivery remains blocked', {
+      message: err.message,
+    });
+  }
 
   // Abandoned checkout / draft recovery pushes. Pure re-engagement; never
   // touches money. A failure here must not affect boot.
@@ -893,6 +901,10 @@ async function terminate(signal, exitCode = 0, cause) {
     try {
       const { stopMediaTranscodeWorker } = require('./services/mediaTranscodeWorker');
       stopMediaTranscodeWorker();
+    } catch { /* worker may never have started */ }
+    try {
+      const { stopMediaAssetCleanupWorker } = require('./services/mediaAssetCleanupWorker');
+      stopMediaAssetCleanupWorker();
     } catch { /* worker may never have started */ }
     try {
       const { stopAbandonedRecoveryWorker } = require('./services/abandonedRecoveryWorker');

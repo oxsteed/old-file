@@ -3,6 +3,7 @@
 const pool = require('../db');
 const AppError = require('../utils/appError');
 const { verifiedActorSql } = require('../services/mediaPublisherPolicy');
+const { getOrCreateActor } = require('./mediaController');
 const mediaSafety = require('../services/mediaSafetyPolicy');
 const creditService = require('../services/oxsteedCreditService');
 const { queueCreatorNotification, deliverCreatorNotification } = require('../services/mediaCreatorNotificationService');
@@ -75,6 +76,13 @@ async function verifiedActor(client, userId, actorId = null) {
   return rows[0] || null;
 }
 
+async function ensureVerifiedActor(client, userId, actorId = null) {
+  const existing = await verifiedActor(client, userId, actorId);
+  if (existing) return existing;
+  const provisioned = await getOrCreateActor(userId, actorId ? { actorId } : {}, client);
+  return provisioned ? verifiedActor(client, userId, provisioned.id) : null;
+}
+
 async function verifiedCreatorById(client, actorId) {
   const { rows } = await client.query(
     `SELECT owner_user_id FROM media_actors WHERE id = $1 AND actor_type IN ('helper','business','restaurant')`,
@@ -138,7 +146,7 @@ async function createGig(req, res, next) {
   try {
     const idempotencyKey = text(req.get('Idempotency-Key') || req.body?.idempotencyKey, 160, 'Idempotency-Key');
     await client.query('BEGIN');
-    const actor = await verifiedActor(client, req.user.id, req.body?.ownerActorId || null);
+    const actor = await ensureVerifiedActor(client, req.user.id, req.body?.ownerActorId || null);
     if (!actor) throw new AppError('A current verified Media business or restaurant actor is required.', 403, 'media_creator_unverified');
     const title = text(req.body?.title, 160, 'Title');
     const brief = text(req.body?.brief, 5000, 'Brief');
@@ -193,7 +201,7 @@ async function applyToGig(req, res, next) {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
-    const actor = await verifiedActor(client, req.user.id, req.body?.actorId || null);
+    const actor = await ensureVerifiedActor(client, req.user.id, req.body?.actorId || null);
     if (!actor) throw new AppError('A current verified helper, business, or restaurant actor is required.', 403, 'media_creator_unverified');
     const pitch = text(req.body?.pitch, 3000, 'Pitch');
     const proposed = asPositiveInt(req.body?.proposedCents);
@@ -247,7 +255,7 @@ async function applyToGig(req, res, next) {
 async function listApplications(req, res, next) {
   try {
     const { rows } = await pool.query(
-      `SELECT ap.*, g.owner_user_id, a.handle AS applicant_handle, a.display_name AS applicant_name,
+      `SELECT ap.*, g.currency_code, g.owner_user_id, a.handle AS applicant_handle, a.display_name AS applicant_name,
               d.id AS deliverable_id, d.post_id AS deliverable_post_id,
               d.status AS deliverable_status
          FROM media_creator_applications ap
@@ -268,6 +276,7 @@ async function listMyApplications(req, res, next) {
   try {
     const { rows } = await pool.query(
       `SELECT ap.*, g.title AS gig_title, g.brief AS gig_brief, g.status AS gig_status,
+              g.currency_code,
               g.owner_user_id, d.id AS deliverable_id, d.post_id AS deliverable_post_id,
               d.status AS deliverable_status
          FROM media_creator_applications ap
