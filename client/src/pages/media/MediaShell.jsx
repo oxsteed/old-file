@@ -142,7 +142,7 @@ function MediaShellContent({ children }) {
             </div> : <div className="media-auth-links"><Link to="/login" state={{ from: `${pathname}${search}` }} className="media-auth-link">{t('nav.signIn')}</Link><Link to="/join" className="media-auth-link media-auth-link-primary"><span className="media-desktop-label">{t('nav.joinOxsteed')}</span><span className="media-mobile-label">{t('media.landing.join')}</span></Link></div>)}
           </div>
         </div>
-        <div className="media-mobile-location-row">{locationButton}{!user && preferences}</div>
+        <div className="media-mobile-location-row">{locationButton}{preferences}</div>
       </header>
       <div className="media-layout">
         <aside className="media-left-rail"><div className="media-rail-sticky">{navigation()}
