@@ -93,8 +93,10 @@ function MediaShellContent({ children }) {
       if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
       const anchor = event.target.closest('a');
       if (!anchor || !shell.contains(anchor)) return;
-      // Skip links already handled by their own modal (legal pages) or expand buttons
+      // Skip links already handled by their own modal (legal pages) or expand buttons.
+      // Footer legal links have their own embedded modal via MediaFooter.
       if (anchor.closest('.media-legal-dialog') || anchor.classList.contains('media-legal-expand')) return;
+      if (anchor.closest('.media-footer-card')) return;
       const href = anchor.getAttribute('href');
       if (!href || !href.startsWith('/') || href.startsWith('//')) return;
       // Skip non-navigating anchors
