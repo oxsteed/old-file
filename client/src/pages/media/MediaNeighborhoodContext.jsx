@@ -47,6 +47,33 @@ export function MediaNeighborhoodProvider({ children, user }) {
   }, []);
   const openLocation = useCallback(initialQuery => { if (typeof initialQuery === 'string') { setQuery(initialQuery); setLookupQuery(initialQuery.trim()); } setError(''); setMatches([]); setBusy(false); setOpen(true); }, []);
 
+  // Silently use device location on first visit only if the browser permission
+  // was already granted (no prompt). The permission dialog itself must only
+  // ever appear from a user gesture (header location button).
+  useEffect(() => {
+    const loc = initialLocation();
+    if (loc.location_mode === 'all' || loc.location_mode === 'custom') return;
+    if (typeof navigator === 'undefined' || !navigator.geolocation) return;
+    const query = navigator.permissions?.query?.bind(navigator.permissions);
+    if (!query) return;
+    let cancelled = false;
+    query({ name: 'geolocation' }).then(status => {
+      if (cancelled || status.state !== 'granted') return;
+      return getSharedBrowserLocation().then(coords => {
+        if (cancelled || !coords) return;
+        const choice = {
+          location_mode: 'custom',
+          latitude: Math.round(coords.lat * 1000) / 1000,
+          longitude: Math.round(coords.lng * 1000) / 1000,
+        };
+        setLocation(choice);
+        setResolvedLocation(choice);
+        try { localStorage.setItem(KEY, JSON.stringify(choice)); } catch { /* Optional. */ }
+      });
+    }).catch(() => { /* Permissions API unavailable; leave it to user action. */ });
+    return () => { cancelled = true; };
+  }, []);
+
   useEffect(() => {
     if (!open) return undefined;
     const trigger = document.activeElement;
