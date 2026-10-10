@@ -336,6 +336,14 @@ export default function App() {
   const isStatusHost = typeof window !== 'undefined'
     && window.location.hostname.toLowerCase() === 'status.oxsteed.com';
 
+  // Hide the AI support launcher on Media pages.
+  function SupportWidgetGate() {
+    const { pathname } = useLocation();
+    const isMediaPage = /^\/media(?:\/|$)/.test(pathname);
+    if (isMediaPage) return null;
+    return <SupportWidget />;
+  }
+
   return (
     <HelmetProvider>
       <LanguageProvider>
@@ -706,7 +714,7 @@ export default function App() {
                   </LaunchScopeRouteGate>
                 </TermsGate>
                 {!isStatusHost && <CookieConsent />}
-                {!isStatusHost && <SupportWidget />}
+                {!isStatusHost && <SupportWidgetGate />}
                 </AuthProvider>
               </RouterAwareErrorBoundary>
             </CookieConsentProvider>
