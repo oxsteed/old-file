@@ -249,15 +249,20 @@ test('Media shell retains account routes on small screens in all five languages 
   }finally{if(browser)await browser.close();await app.close();}
 });
 
-test('guest sign in retains the current Media return path and Join OxSteed label',async()=>{
+test('guest auth links open in the Media modal and preserve the login return path',async()=>{
   const app=await fixture();let browser;
   try{
     browser=await chromium.launch({headless:true,channel:'chrome'});const page=await browser.newPage({viewport:{width:360,height:844}});
     await page.goto(`${app.url}/media?guest&lang=en`);
     assert.equal(await page.locator('.media-auth-links a[href="/join"]').count(),1);
+    await page.locator('.media-auth-links a[href="/join"]').click();
+    await page.locator('.media-link-dialog').waitFor();
+    assert.match(await page.locator('.media-link-iframe').getAttribute('src'), /\/join$/);
+    await page.locator('.media-legal-close').click();
     await page.locator('.media-auth-links a[href="/login"]').click();
-    await page.waitForFunction(()=>document.querySelector('[data-route]').textContent==='/login');
-    assert.equal(await page.locator('[data-return]').textContent(),'/media?guest&lang=en');
+    await page.locator('.media-link-dialog').waitFor();
+    assert.equal(await page.evaluate(()=>document.querySelector('[data-route]').textContent),'/media');
+    assert.equal(await page.locator('.media-link-iframe').getAttribute('src'), '/login?next=%2Fmedia%3Fguest%26lang%3Den');
     assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
   }finally{if(browser)await browser.close();await app.close();}
 });

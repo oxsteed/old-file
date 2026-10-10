@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { Link, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
@@ -63,9 +63,10 @@ export default function Login() {
   const { login, completeTwoFactor } = useAuth();
   const navigate  = useNavigate();
   const location  = useLocation();
+  const [searchParams] = useSearchParams();
   const { t }     = useTranslation();
 
-  const from = resolveAuthReturnPath(location.state?.from);
+  const from = resolveAuthReturnPath(location.state?.from || searchParams.get('next'));
 
   // Button is only enabled when all conditions are met — full name required (≥2 words)
   const canSubmit = email.trim() && password && termsAgreed && isValidFullName(signatureName);
