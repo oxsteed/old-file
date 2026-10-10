@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Bookmark, Briefcase, Image, MapPin, Plus, RefreshCw, ShieldCheck, Store, Users } from 'lucide-react';
+import { Bookmark, Briefcase, Image, Plus, RefreshCw, ShieldCheck, Store, Users } from 'lucide-react';
 import { getFeed } from '../../api/media';
 import { useAuth } from '../../context/AuthContext';
 import MediaPostCard from './MediaPostCard';
@@ -27,7 +27,6 @@ export default function MediaFeedPage() {
   const [error, setError] = useState(null);
   const [before, setBefore] = useState(null);
   const [hasMore, setHasMore] = useState(false);
-  const [locationQuery, setLocationQuery] = useState('');
   const pendingNearby = useRef(false);
   const generation = useRef(0);
   const inFlight = useRef(false);
@@ -100,9 +99,6 @@ export default function MediaFeedPage() {
       </nav>
     </> : <>
       <section className="media-guest-hero"><h1>{t('media.landing.discoverTitle')}</h1><p>{t('media.landing.discoverDescription')}</p></section>
-      <section className="media-reference-card media-location-start"><div><MapPin size={26} aria-hidden="true" /><h2>{t('media.landing.startNeighborhood')}</h2></div><p>{t('media.landing.locationDescription')}</p>
-        <form onSubmit={event => { event.preventDefault(); openLocation(locationQuery); }} className="media-start-location-form"><input className="media-desktop-location-input" aria-label={t('media.landing.cityOrZip')} placeholder={t('media.landing.cityOrZip')} value={locationQuery} onChange={event => setLocationQuery(event.target.value)} maxLength={160}/><button type="submit" className="media-primary-button"><MapPin size={20} aria-hidden="true" />{t('media.feed.chooseLocation')}</button></form>
-      </section>
       <div className="media-guest-action-row"><Link to={composeTo} state={{ from: '/media/compose' }}><Plus size={24} />{t('media.landing.shareUpdate')}</Link><Link to="/media/creator"><Briefcase size={24} /><span className="media-desktop-label">{t('media.creator.title')}</span><span className="media-mobile-label">{t('media.landing.marketplace')}</span></Link></div>
     </>}
     <div className="media-reference-tabs" role="group" aria-label={t('media.landing.feedTabs')}>

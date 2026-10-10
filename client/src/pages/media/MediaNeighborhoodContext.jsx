@@ -47,6 +47,28 @@ export function MediaNeighborhoodProvider({ children, user }) {
   }, []);
   const openLocation = useCallback(initialQuery => { if (typeof initialQuery === 'string') { setQuery(initialQuery); setLookupQuery(initialQuery.trim()); } setError(''); setMatches([]); setBusy(false); setOpen(true); }, []);
 
+  // Auto-prompt for browser geolocation on first visit when no location is set.
+  // The browser only shows the permission prompt if the user hasn't granted/denied yet.
+  useEffect(() => {
+    const loc = initialLocation();
+    // Skip if user already has a location (saved, URL param, or 'all' mode)
+    if (loc.location_mode === 'all' || loc.location_mode === 'custom') return;
+    if (typeof navigator === 'undefined' || !navigator.geolocation) return;
+    let cancelled = false;
+    getSharedBrowserLocation().then(coords => {
+      if (cancelled || !coords) return;
+      const choice = {
+        location_mode: 'custom',
+        latitude: Math.round(coords.lat * 1000) / 1000,
+        longitude: Math.round(coords.lng * 1000) / 1000,
+      };
+      setLocation(choice);
+      setResolvedLocation(choice);
+      try { localStorage.setItem(KEY, JSON.stringify(choice)); } catch { /* Optional. */ }
+    });
+    return () => { cancelled = true; };
+  }, []);
+
   useEffect(() => {
     if (!open) return undefined;
     const trigger = document.activeElement;
