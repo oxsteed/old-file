@@ -101,6 +101,9 @@ function MediaShellContent({ children }) {
       if (href === '#' || anchor.hasAttribute('download')) return;
       // Links within /media navigate normally; only links leaving Media open in the modal
       if (href === '/media' || href.startsWith('/media/') || href.startsWith('/media?')) return;
+      // Authentication and verification flows must leave Media directly so
+      // their router state and return path are preserved.
+      if (['/login', '/join', '/verify-email', '/verify-identity'].some(path => href === path || href.startsWith(`${path}?`))) return;
       event.preventDefault();
       const title = anchor.textContent?.trim().slice(0, 80) || href;
       setModalLink({ url: href, title });
@@ -165,6 +168,7 @@ function MediaShellContent({ children }) {
                 <div className="media-account-preferences">{preferences}</div>
                 <Link to={`/profile/${user.id}`} onClick={() => setAccountOpen(false)}>{t('media.shell.viewProfile')}</Link>
                 <Link to="/dashboard" onClick={() => setAccountOpen(false)}>{t('media.shell.editProfile')}</Link>
+                <Link to="/media?tab=mine" onClick={() => setAccountOpen(false)}>{t('media.landing.myPosts')}</Link>
                 <Link to="/media/creator" onClick={() => setAccountOpen(false)}>{t('media.shell.creatorEarnings')}</Link>
                 <Link to="/settings/notifications" onClick={() => setAccountOpen(false)}>{t('media.shell.notificationSettings')}</Link>
                 <Link to="/support" onClick={() => setAccountOpen(false)}>{t('media.shell.helpSupport')}</Link>

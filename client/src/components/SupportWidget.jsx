@@ -431,7 +431,7 @@ function markProactiveDismissed() {
   return (
     <>
       {/* ── FAB ── */}
-      {(!open || !isMobile) && !isMediaPage && (
+      {(!open || !isMobile) && (
         <button
           onClick={() => { setOpen(true); setMinimized(false); setUnread(0); }}
           aria-label={t('supportWidget.openAssistant')}
