@@ -308,8 +308,14 @@ function markProactiveDismissed() {
 
   // Navigate to escalation page
   const handleEscalate = useCallback(() => {
+    // If already on the escalation page, just close the chat like the X does.
+    if (location.pathname === '/support/escalation') {
+      markProactiveDismissed();
+      setOpen(false);
+      return;
+    }
     navigate('/support/escalation');
-  }, [navigate]);
+  }, [navigate, location.pathname]);
 
   const send = useCallback(async (text, isRetry = false) => {
     if (!text.trim() || loading) return;
