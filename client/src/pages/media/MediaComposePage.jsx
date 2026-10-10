@@ -32,6 +32,7 @@ export default function MediaComposePage() {
   const [draftId, setDraftId] = useState(() => window.localStorage.getItem(DRAFT_STORAGE_KEY) || '');
   const [uploadProgress, setUploadProgress] = useState(0);
   const [attachedAsset, setAttachedAsset] = useState(false);
+  const [replaceNextAsset, setReplaceNextAsset] = useState(false);
   const [previewUrl, setPreviewUrl] = useState('');
   const [status, setStatus] = useState('');
   const [processingStatus, setProcessingStatus] = useState('');
@@ -77,7 +78,9 @@ export default function MediaComposePage() {
       setLinks(draft.links || []);
       setCommunityId(draft.community_id || '');
       setRestoredPublisher({ actor_id: draft.actor_id, actor_type: draft.actor_type });
-      setAttachedAsset((draft.assets || []).length > 0);
+      const restoredHasAssets = (draft.assets || []).length > 0;
+      setAttachedAsset(restoredHasAssets);
+      setReplaceNextAsset(restoredHasAssets);
       setProcessingStatus(draft.processing_status || 'draft');
       if (draft.processing_status === 'quarantine' || (draft.assets || []).some((asset) => asset.processing_status === 'quarantine' || asset.csam_status === 'pending')) {
         setStatus(t('media.compose.processing', { defaultValue: 'Your media is being checked. This draft stays private until it is ready.' }));
@@ -255,7 +258,7 @@ export default function MediaComposePage() {
 
   const startNewDraft = () => {
     setBody(''); setLinks([]); setCommunityId(''); setMediaFiles([]); setExternalUrl('');
-    setDraftId(''); setAttachedAsset(false); setProcessingStatus(''); setStatus(''); setError(null);
+    setDraftId(''); setAttachedAsset(false); setReplaceNextAsset(false); setProcessingStatus(''); setStatus(''); setError(null);
     window.localStorage.removeItem(DRAFT_STORAGE_KEY);
   };
 
@@ -319,12 +322,15 @@ export default function MediaComposePage() {
         const onUploadProgress = (event) => {
           if (event.total) setUploadProgress(Math.round((event.loaded / event.total) * 100));
         };
+        let replaceForUpload = replaceNextAsset;
         for (const file of mediaFiles) {
-          if (file.type.startsWith('video/')) await uploadVideo(postId, file, onUploadProgress, false);
-          else await uploadPhoto(postId, file, onUploadProgress, false);
+          if (file.type.startsWith('video/')) await uploadVideo(postId, file, onUploadProgress, replaceForUpload);
+          else await uploadPhoto(postId, file, onUploadProgress, replaceForUpload);
+          replaceForUpload = false;
         }
         hasAttachedAsset = true;
         setAttachedAsset(true);
+        setReplaceNextAsset(false);
       }
       setStatus(t('media.compose.publishing', { defaultValue: 'Publishing when safety checks are complete…' }));
       const published = await publishPost(postId);
@@ -345,6 +351,7 @@ export default function MediaComposePage() {
           setProcessingStatus(draft.processing_status || 'draft');
         }).catch(() => {});
       } else {
+        if (postId && mediaFiles.length) setReplaceNextAsset(true);
         setStatus(t('media.compose.draftSaved', { defaultValue: 'Your draft is saved. Fix the issue and try again.' }));
       }
       setError(details.error || t('media.compose.createError'));

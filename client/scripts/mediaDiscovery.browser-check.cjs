@@ -10,6 +10,7 @@ async function fixture() {
     'react-i18next': `export const useTranslation = () => ({ t: window.translate });`,
     '../../context/AuthContext': `export const useAuth = () => ({ user: window.viewer });`,
     '../../components/PageMeta': `export default function Meta() { return null; }`,
+    '../../api/geo': `export const suggestLocation = async query => query.trim() ? [{ city: 'Springfield', state: 'OH', display: 'Springfield, Ohio' }] : [];`,
     './MediaPostCard': `import React from 'react'; export default function Card({ post }) { return <p data-post={post.id}>{post.body}</p>; }`,
     '../../api/media': `export const getFeed = params => new Promise((resolve, reject) => {
       window.requests.push({ params, resolve, reject });
@@ -19,11 +20,13 @@ async function fixture() {
     stdin: { resolveDir: path.resolve(__dirname, '..'), loader: 'jsx', contents: `
       import React from 'react'; import { createRoot } from 'react-dom/client';
       import { BrowserRouter } from 'react-router-dom';
+      import { MediaNeighborhoodProvider, useMediaNeighborhood } from './src/pages/media/MediaNeighborhoodContext.jsx';
       import Feed from './src/pages/media/MediaFeedPage.jsx';
       window.requests = []; window.viewer = location.search.includes('guest') ? null : { id: 'synthetic-viewer' };
       window.translate = key => key;
-      createRoot(document.getElementById('root')).render(<BrowserRouter><Feed /></BrowserRouter>);` },
-    bundle: true, write: false, jsx: 'automatic', loader: { '.css': 'empty' },
+      const LocationTrigger = () => { const { openLocation } = useMediaNeighborhood(); return <button type="button" data-location-trigger onClick={() => openLocation()}>media.feed.chooseLocation</button>; };
+      createRoot(document.getElementById('root')).render(<BrowserRouter><MediaNeighborhoodProvider user={window.viewer}><LocationTrigger /><Feed /></MediaNeighborhoodProvider></BrowserRouter>);` },
+    bundle: true, write: false, jsx: 'automatic', define: { 'import.meta.env': '{}' }, loader: { '.css': 'empty' },
     plugins: [{ name: 'discovery-fixture', setup(plugin) {
       plugin.onResolve({ filter: /.*/ }, args => mocks[args.path] ? { path: args.path, namespace: 'fixture' } : undefined);
       plugin.onLoad({ filter: /.*/, namespace: 'fixture' }, args => ({ contents: mocks[args.path], loader: 'jsx', resolveDir: path.resolve(__dirname, '..') }));
@@ -65,15 +68,15 @@ test('older tab/location responses cannot overwrite the current feed; pagination
 
     await page.getByRole('button', { name: 'media.feed.refresh', exact: true }).click();
     await page.waitForFunction(() => window.requests.length === 4);
-    await page.getByRole('button', { name: 'media.feed.chooseLocation', exact: true }).click();
-    await page.getByLabel('media.feed.city', { exact: true }).fill('Springfield');
-    await page.getByLabel('media.feed.state', { exact: true }).fill('OH');
-    await page.getByRole('button', { name: 'media.feed.applyLocation', exact: true }).click();
+    await page.locator('[data-location-trigger]').click();
+    const dialog = page.getByRole('dialog');
+    await dialog.getByLabel('media.landing.cityOrZip', { exact: true }).fill('45502');
+    await dialog.getByRole('button', { name: 'media.feed.chooseLocation', exact: true }).click();
     await page.waitForFunction(() => window.requests.length === 5);
     await settle(page, 4, ['local-post']);
     await page.locator('[data-post="local-post"]').waitFor();
     await settle(page, 3, ['old-location']);
-    await page.getByRole('button', { name: 'Springfield, OH', exact: true }).click();
+    await page.locator('[data-location-trigger]').click();
     assert.equal(await page.locator('[data-post="old-location"]').count(), 0);
     assert.deepEqual(errors, []);
   } finally { if (browser) await browser.close(); await app.close(); }
@@ -93,7 +96,7 @@ test('guests choose and retain locations; device permission is requested only on
     await page.goto(`${app.url}/?guest`);
     await page.waitForFunction(() => window.requests.length === 1);
     assert.equal(await page.evaluate(() => window.geoCalls), 0);
-    await page.getByRole('button', { name: 'media.feed.chooseLocation', exact: true }).click();
+    await page.locator('.media-location-start button').click();
     assert.equal(await page.getByRole('button', { name: 'media.feed.following', exact: true }).count(), 0);
     await page.getByRole('button', { name: 'media.feed.useDeviceLocation', exact: true }).click();
     await page.waitForFunction(() => window.requests.length === 2);
@@ -104,7 +107,7 @@ test('guests choose and retain locations; device permission is requested only on
     await page.waitForFunction(() => window.requests.length === 1);
     assert.equal(await page.evaluate(() => window.geoCalls), 0);
     assert.equal(await page.evaluate(() => window.requests[0].params.latitude), 39.924);
-    await page.getByRole('button', { name: 'media.feed.nearDevice', exact: true }).click();
+    await page.locator('[data-location-trigger]').click();
     await page.getByRole('button', { name: 'media.feed.allLocations', exact: true }).click();
     await page.waitForFunction(() => window.requests.length === 2);
     assert.equal(await page.evaluate(() => window.requests[1].params.latitude), undefined);
@@ -125,12 +128,12 @@ test('restores a Following city feed from a shared Media URL and keeps URL state
     assert.match(await page.evaluate(() => window.location.search), /tab=following/);
     assert.match(await page.evaluate(() => window.location.search), /city=Springfield/);
 
-    await page.getByRole('button', { name: 'media.feed.latest', exact: true }).click();
+    await page.locator('.media-reference-tabs button').filter({ hasText: 'media.feed.latest' }).click();
     await page.waitForFunction(() => window.requests.length === 2);
     assert.equal(await page.evaluate(() => window.requests[1].params.tab), 'home');
     assert.doesNotMatch(await page.evaluate(() => window.location.search), /tab=following/);
 
-    await page.getByRole('button', { name: 'Springfield, OH', exact: true }).click();
+    await page.locator('[data-location-trigger]').click();
     await page.getByRole('button', { name: 'media.feed.allLocations', exact: true }).click();
     await page.waitForFunction(() => window.requests.length === 3);
     assert.equal(await page.evaluate(() => window.location.search), '?location=all');

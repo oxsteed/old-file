@@ -18,6 +18,7 @@ const mocks = {
     export const createPost = async data => { call('create', [data]); window.draft = { ...data, id: 'draft', assets: [] };
       return { post: window.draft }; };
     export const updateDraft = async (id, data) => { call('update', [id, data]); window.draft = { ...window.draft, ...data }; };
+    export const deletePost = async id => { call('delete', [id]); window.draft = null; };
     const upload = async (id, file, progress, replace) => {
       call('upload', [id, file.name, replace]); progress({ loaded: 1, total: 2 });
       if (window.failUpload) { window.failUpload = false; throw { response: { data: { error: 'Synthetic scanner outage', code: 'media_scan_unavailable' } } }; }
@@ -64,7 +65,7 @@ async function fixture() {
         <Route path="/media/card" element={<MediaGuestGateProvider><Card post={post} /></MediaGuestGateProvider>} />
         <Route path="*" element={<Destination />} />
       </Routes></BrowserRouter>);` },
-    bundle: true, write: false, jsx: 'automatic', loader: { '.css': 'empty' },
+    bundle: true, write: false, jsx: 'automatic', define: { 'import.meta.env': '{}' }, loader: { '.css': 'empty' },
     plugins: [{ name: 'media-fixture', setup(plugin) {
       plugin.onResolve({ filter: /.*/ }, args => mocks[args.path] ? { path: args.path, namespace: 'media-test' } : undefined);
       plugin.onLoad({ filter: /.*/, namespace: 'media-test' }, args => ({ contents: mocks[args.path], loader: 'jsx' }));
@@ -102,7 +103,7 @@ test('composer retains edits after upload failure and replaces failed restored a
       assert.equal(calls.filter(c => c.name === 'create').length, restored ? 0 : 1);
       const uploads = calls.filter(c => c.name === 'upload');
       assert.equal(uploads.length, restored ? 1 : 2);
-      assert(uploads.every(c => c.args[0] === 'draft' && c.args[2] === true));
+      assert.deepEqual(uploads.map(c => c.args[2]), restored ? [true] : [false, true]);
       assert.equal(calls.filter(c => c.name === 'update').at(-1).args[1].body, 'Edited after failure');
       assert.equal(await page.evaluate(() => localStorage.getItem('oxsteed.media.compose.draft')), null);
       assert.deepEqual(errors, []);
