@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { getFeed } from '../../api/media';
-import { Briefcase, MapPin, MessageCircle, RefreshCw, ArrowRight } from 'lucide-react';
+import { ArrowRight, Bookmark, Briefcase, MapPin, MessageCircle, Plus, RefreshCw, ShieldCheck, Users } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import './MediaStyles.css';
 import MediaPostCard from './MediaPostCard';
@@ -176,23 +176,19 @@ export default function MediaFeedPage() {
   return (
       <div className="media-feed media-feed-page">
         <PageMeta title={t('media.feed.metaTitle')} description={t('media.feed.metaDescription')} />
-        <header className="media-timeline-header">
-          <div>
-            <h1>{t('media.shell.home')}</h1>
-            <p className="media-feed-intro">{t('media.feed.subtitle')}</p>
-            <button type="button" className="media-location-toggle" aria-expanded={choosingLocation}
-              aria-controls="media-location-choice" onClick={() => setChoosingLocation(value => !value)}>
-              <MapPin size={13} aria-hidden="true" />
-              {resolvedLocation.city ? `${resolvedLocation.city}, ${resolvedLocation.state}` : t(resolvedLocation.latitude !== null && resolvedLocation.latitude !== undefined
-                ? 'media.feed.nearDevice' : resolvedLocation.location_mode === 'all'
-                  ? 'media.feed.allLocations' : 'media.feed.chooseLocation')}
-            </button>
-          </div>
+        <div className="media-location-bar">
+          <button type="button" className="media-location-toggle" aria-expanded={choosingLocation}
+            aria-controls="media-location-choice" onClick={() => setChoosingLocation(value => !value)}>
+            <MapPin size={17} aria-hidden="true" />
+            <span>{resolvedLocation.city ? `${resolvedLocation.city}, ${resolvedLocation.state}` : t(resolvedLocation.latitude !== null && resolvedLocation.latitude !== undefined
+              ? 'media.feed.nearDevice' : resolvedLocation.location_mode === 'all'
+                ? 'media.feed.allLocations' : 'media.feed.chooseLocation')}</span>
+          </button>
           <button type="button" className="media-icon-button" disabled={loading}
             onClick={() => load(null)} aria-label={t('media.feed.refresh')}>
             <RefreshCw size={18} aria-hidden="true" />
           </button>
-        </header>
+        </div>
         {choosingLocation && (
           <section id="media-location-choice" className="media-location-choice" aria-label={t('media.feed.chooseLocation')}>
             <p>{t('media.feed.locationHelp')}</p>
@@ -209,17 +205,40 @@ export default function MediaFeedPage() {
             {locationError && <p role="alert">{locationError}</p>}
           </section>
         )}
+        <section className="media-neighborhood-hero" aria-labelledby="media-neighborhood-title">
+          <p className="media-page-kicker"><Users size={15} aria-hidden="true" />{t('media.feed.heroKicker', { defaultValue: 'OxSteed Media' })}</p>
+          <h1 id="media-neighborhood-title">{t('media.feed.heroTitle', { defaultValue: 'Your neighborhood, connected.' })}</h1>
+          <p>{t('media.feed.heroDescription', { defaultValue: 'Discover people, places, and opportunities nearby.' })}</p>
+          <Link className="media-hero-composer" to="/media/compose">
+            <span>{t('media.feed.prompt', { defaultValue: 'What’s happening nearby?' })}</span>
+            <span className="media-hero-composer-action" aria-hidden="true"><Plus size={23} /></span>
+          </Link>
+        </section>
+        <nav className="media-quick-actions" aria-label={t('media.feed.quickActions', { defaultValue: 'Media quick actions' })}>
+          <Link to={user ? '/media/bookmarks' : '/login'} className="media-quick-action">
+            <Bookmark size={23} strokeWidth={1.8} aria-hidden="true" />
+            <span>{t('media.shell.saved', { defaultValue: 'Saved' })}</span>
+          </Link>
+          <Link to={user ? '/media/verification' : '/login'} className="media-quick-action">
+            <ShieldCheck size={23} strokeWidth={1.8} aria-hidden="true" />
+            <span>{t('media.shell.verification', { defaultValue: 'Verify' })}</span>
+          </Link>
+          <Link to="/media/creator" className="media-quick-action">
+            <Briefcase size={23} strokeWidth={1.8} aria-hidden="true" />
+            <span>{t('media.creator.title', { defaultValue: 'Marketplace' })}</span>
+          </Link>
+        </nav>
         <div className="media-feed-action-grid">
           <Link className="media-composer-prompt" to="/media/compose">
             <span className="media-composer-avatar" aria-hidden="true">
               {user?.profile_photo_url ? <img src={user.profile_photo_url} alt="" /> : <MessageCircle size={20} />}
             </span>
-            <span>{t('media.feed.prompt')}</span>
+            <span>{t('media.feed.subtitle', { defaultValue: 'Share a local update or discover what’s happening around you.' })}</span>
             <ArrowRight size={18} aria-hidden="true" />
           </Link>
           <Link className="media-feed-marketplace-link" to="/media/creator">
             <Briefcase size={19} aria-hidden="true" />
-            <span>{t('media.creator.title')}</span>
+            <span>{t('media.creator.title', { defaultValue: 'Creator marketplace' })}</span>
             <ArrowRight size={17} aria-hidden="true" />
           </Link>
         </div>
