@@ -50,6 +50,14 @@ describeDb('Media attachment transactions in PostgreSQL', () => {
       CREATE TABLE pooled_orders (id bigint PRIMARY KEY,organizer_user_id UUID,organizer_business_id bigint,status text);
       CREATE TABLE media_post_boosts (post_id UUID,status text,starts_at timestamptz,ends_at timestamptz);
       CREATE TABLE user_blocks (blocker_id UUID,blocked_id UUID)`);
+    // Backfill any production columns the hand-built tables lack, so the
+    // test schema stays in sync with migrations automatically.
+    const { backfillAllTables } = require('./mediaTestSchema');
+    await backfillAllTables(db, [
+      'users', 'helper_profiles', 'businesses', 'food_restaurants',
+      'food_menu_items', 'jobs', 'tool_rentals', 'direct_catalog_services',
+      'pooled_orders', 'media_post_boosts', 'user_blocks',
+    ], schema);
     // Actual migration DDL and constraints, isolated from all shared fixtures.
     for (const number of [709, 731, 732, 735, 736, 742, 743, 744, 754, 757]) {
       const dir = path.resolve(__dirname, '../migrations');

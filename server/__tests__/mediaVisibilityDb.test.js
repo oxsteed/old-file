@@ -56,6 +56,16 @@ describeDb('Media block boundaries in PostgreSQL', () => {
       UPDATE media_posts SET community_id = 'town';
       INSERT INTO user_blocks VALUES ('viewer', 'outbound'), ('inbound', 'viewer');
     `);
+    // Backfill any production columns the hand-built TEMP tables lack.
+    // This keeps the test schema in sync with migrations automatically.
+    const { backfillAllTables } = require('./mediaTestSchema');
+    await backfillAllTables(db, [
+      'users', 'media_actors', 'helper_profiles', 'businesses', 'food_restaurants',
+      'user_blocks', 'media_posts', 'media_post_links', 'media_post_assets',
+      'media_likes', 'media_bookmarks', 'food_menu_items', 'jobs', 'tool_rentals',
+      'direct_catalog_services', 'pooled_orders', 'media_post_boosts',
+      'media_reposts', 'media_follows', 'media_communities', 'media_community_members',
+    ]);
     pool.query.mockImplementation((...args) => db.query(...args));
   });
   afterAll(async () => { if (db) await db.end(); });

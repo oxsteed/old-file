@@ -108,6 +108,12 @@ describeDatabase('media publish: safety predicates', () => {
       admin_id UUID, action VARCHAR(80) NOT NULL, target_type VARCHAR(40), target_id TEXT,
       target_key TEXT, description TEXT, ip_address INET, user_agent TEXT,
       before_state JSONB, after_state JSONB, created_at TIMESTAMPTZ DEFAULT now())`);
+    // Backfill any production columns the hand-built tables lack, so the
+    // test schema stays in sync with migrations automatically.
+    const { backfillAllTables } = require('./mediaTestSchema');
+    await backfillAllTables(db, [
+      'users', 'user_blocks', 'helper_profiles', 'businesses', 'food_restaurants',
+    ], schema);
     for (const number of [709, 731, 732, 733, 735, 736, 742, 743, 744, 754, 757]) {
       const dir = path.resolve(__dirname, '../migrations');
       const file = fs.readdirSync(dir).find((name) => name.startsWith(`${number}_`));
