@@ -126,7 +126,7 @@ jobs:
           # Million-row capacity case runs in parallel (own file, own schema).
           npx jest __tests__/statementExportJobs.millionRow.db.test.js --forceExit --json --outputFile=million-row-results.json &
           MILLION_PID=$!
-          npm test -- --runInBand --forceExit --json --outputFile=statement-test-results.json --testPathIgnorePatterns=statementExportJobs.millionRow
+          npm test -- --runInBand --forceExit --detectOpenHandles --json --outputFile=statement-test-results.json --testPathIgnorePatterns=statementExportJobs.millionRow
           wait $MILLION_PID
           node ../scripts/assert-statement-db-tests.cjs statement-test-results.json
           node ../scripts/assert-media-db-tests.cjs statement-test-results.json
