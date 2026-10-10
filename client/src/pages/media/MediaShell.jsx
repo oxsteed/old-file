@@ -6,6 +6,7 @@ import PageShell from '../../components/PageShell';
 import LanguageSelector from '../../components/LanguageSelector';
 import ThemeToggle from '../../components/ThemeToggle';
 import OxSteedIcon from '../../components/OxSteedIcon';
+import PageMeta from '../../components/PageMeta';
 import { useAuth } from '../../context/AuthContext';
 import useNotifications from '../../hooks/useNotifications';
 import api from '../../api/axios';
@@ -46,6 +47,14 @@ function MediaShellContent({ children }) {
   const displayName = user?.display_name || user?.name || [user?.first_name, user?.last_name].filter(Boolean).join(' ') || user?.email || '';
   const verified = user?.is_verified === true || ['approved', 'verified'].includes(user?.didit_status);
   const completed = [Boolean(displayName), Boolean(user?.profile_photo_url), Boolean(user?.city && user?.state), verified].filter(Boolean).length;
+  const mediaMetaTitle = currentPath === '/media/creator' ? t('media.creator.title')
+    : currentPath === '/media/search' ? t('media.search.title')
+      : currentPath === '/media/communities' ? t('media.shell.spaces')
+        : currentPath === '/media/notifications' ? t('media.shell.notifications')
+          : currentPath === '/media/messages' ? t('media.shell.messages')
+            : currentPath === '/media/bookmarks' ? t('media.shell.saved')
+              : currentPath === '/media/compose' ? t('media.compose.title')
+                : t('media.feed.metaTitle');
 
   useEffect(() => {
     if (!accountOpen) return undefined;
@@ -110,6 +119,7 @@ function MediaShellContent({ children }) {
   const preferences = <div className="media-preferences"><LanguageSelector appearance="media" /><ThemeToggle /></div>;
 
   return <MediaGuestGateProvider><PageShell hideNav hideFooter>
+    <PageMeta title={mediaMetaTitle} />
     <div className={`media-shell media-reference-shell ${user ? 'media-signed-in' : 'media-guest'} ${isFeedPage ? 'media-home-shell' : ''}`}>
       <header className="media-app-header">
         <div className="media-app-header-inner">

@@ -107,8 +107,10 @@ function addAdditionalSecurityHeaders(req, res, next) {
     res.set('Pragma', 'no-cache');
   }
 
-  // Permissions policy (Chromium)
-  res.set('Permissions-Policy', 'geolocation=(), microphone=(), camera=(), payment=()');
+  // Permissions policy (Chromium). Media's optional "use my device location"
+  // flow needs same-origin geolocation; keep unrelated sensitive capabilities
+  // disabled.
+  res.set('Permissions-Policy', 'geolocation=(self), microphone=(), camera=(), payment=()');
 
   // STS header if HTTPS
   if (req.protocol === 'https') {
