@@ -34,15 +34,31 @@ export default function MediaShell({ children }) {
   const { unreadCount: notificationUnread } = useNotifications('media');
   const [messageUnread, setMessageUnread] = useState(0);
   const [spacesUnread, setSpacesUnread] = useState(0);
+  const [mediaLocationLabel, setMediaLocationLabel] = useState('Choose a location');
   const { pathname, search } = useLocation();
   const currentPath = pathname.replace(/\/+$/, '') || '/';
   const activeTab = ['/media/compose', '/media/verification', '/media/verify-identity', '/media/creator'].includes(currentPath) ? null
     : TABS.find(tab => tab.path !== '/media' && currentPath.startsWith(tab.path))?.path || '/media';
+  const isFeedPage = currentPath === '/media';
   const displayName = user?.display_name
     || user?.name
     || [user?.first_name, user?.last_name].filter(Boolean).join(' ').trim()
     || user?.email
     || '';
+
+  useEffect(() => {
+    const readLocation = () => {
+      try {
+        const choice = JSON.parse(window.localStorage.getItem('oxsteed.media.location'));
+        if (choice?.location_mode === 'all') return setMediaLocationLabel(t('media.feed.allLocations', { defaultValue: 'All locations' }));
+        if (choice?.city && choice?.state) return setMediaLocationLabel(`${choice.city}, ${choice.state}`);
+      } catch { /* Location is optional and may be unavailable in private browsing. */ }
+      setMediaLocationLabel(t('media.feed.chooseLocation', { defaultValue: 'Choose a location' }));
+    };
+    readLocation();
+    window.addEventListener('oxsteed:media-location-change', readLocation);
+    return () => window.removeEventListener('oxsteed:media-location-change', readLocation);
+  }, [t]);
 
   useEffect(() => {
     let cancelled = false;
@@ -106,6 +122,10 @@ export default function MediaShell({ children }) {
               <span className="media-brand-mark"><OxSteedIcon size={34} /></span>
               <span>OxSteed <span className="media-wordmark-branch">Media</span></span>
             </Link>
+            <Link className="media-header-search" to="/media/search" aria-label={t('media.shell.search', { defaultValue: 'Search Media' })}>
+              <Search size={18} aria-hidden="true" />
+              <span>{t('media.shell.searchPlaceholder', { defaultValue: 'Search' })}</span>
+            </Link>
             <div className="media-header-tools">
               {!loading && (user ? (
                 <div className="media-account-tools">
@@ -138,6 +158,7 @@ export default function MediaShell({ children }) {
               <Link className="media-primary-button media-rail-compose" to="/media/compose">
                 <Plus size={18} aria-hidden="true" />{t('media.feed.compose')}
               </Link>
+              <div className="media-rail-divider" aria-hidden="true" />
               {user && <Link className="media-saved-link" to="/media/bookmarks"><Bookmark size={17} aria-hidden="true" />{t('media.shell.saved', { defaultValue: 'Saved posts' })}</Link>}
               {user && <Link className="media-saved-link" to="/media/verification"><ShieldCheck size={17} aria-hidden="true" />{t('media.shell.verification', { defaultValue: 'Verification' })}</Link>}
               <Link className="media-saved-link" to="/media/creator"><Briefcase size={17} aria-hidden="true" />{t('media.creator.title', { defaultValue: 'Creator marketplace' })}</Link>
@@ -146,22 +167,57 @@ export default function MediaShell({ children }) {
           <div className="media-content">{children}</div>
           <aside className="media-discovery" aria-label={t('media.shell.discover')}>
             <div className="media-rail-sticky">
-              <section className="media-discovery-card">
-                <div className="media-discovery-heading"><MapPin size={18} aria-hidden="true" /><h2>{t('media.shell.discover')}</h2></div>
-                <p>{t('media.shell.discoverDescription')}</p>
-                {DISCOVER.map(({ path, key, Icon }) => (
-                  <Link to={path} className="media-discovery-link" key={path}>
-                    <span className="media-discovery-link-icon"><Icon size={19} aria-hidden="true" /></span>
-                    <span><strong>{t(`media.shell.${key}`)}</strong><small>{t(`media.shell.${key}Description`)}</small></span>
-                    <ArrowUpRight size={17} aria-hidden="true" />
-                  </Link>
-                ))}
-              </section>
-              <section className="media-purpose-card">
-                <ShieldCheck size={23} aria-hidden="true" />
-                <h2>{t('media.shell.purposeTitle')}</h2>
-                <p>{t('media.shell.purposeDescription')}</p>
-              </section>
+              {isFeedPage ? (
+                <>
+                  <section className="media-discovery-card media-neighborhood-card">
+                    <h2>{t('media.feed.neighborhoodTitle', { defaultValue: 'Your neighborhood' })}</h2>
+                    <strong>{mediaLocationLabel}</strong>
+                    <Link to="/media" className="media-discovery-card-link">{t('media.feed.changeLocation', { defaultValue: 'Change location' })}</Link>
+                  </section>
+                  <section className="media-discovery-card media-spaces-card">
+                    <h2>{t('media.feed.suggestedSpaces', { defaultValue: 'Suggested spaces' })}</h2>
+                    {DISCOVER.map(({ path, key, Icon }) => (
+                      <Link to={path} className="media-suggested-space" key={path}>
+                        <span className="media-discovery-link-icon"><Icon size={18} aria-hidden="true" /></span>
+                        <strong>{t(`media.shell.${key}`)}</strong>
+                        <span className="media-space-join">{t('media.feed.join', { defaultValue: 'Join' })}</span>
+                      </Link>
+                    ))}
+                  </section>
+                  <section className="media-discovery-card media-profile-card">
+                    <h2>{user
+                      ? t('media.feed.completeProfile', { defaultValue: 'Complete your profile' })
+                      : t('media.feed.joinCommunity', { defaultValue: 'Join your community' })}</h2>
+                    <p>{user
+                      ? t('media.feed.verifyProfile', { defaultValue: 'Verify your account to build trust nearby.' })
+                      : t('media.feed.joinCommunityDescription', { defaultValue: 'Connect with people and businesses nearby.' })}</p>
+                    {user ? (
+                      <Link to="/media/verification" className="media-discovery-card-link">{t('media.shell.verification', { defaultValue: 'Verify your account' })}</Link>
+                    ) : (
+                      <Link to="/join" className="media-primary-button">{t('nav.joinOxsteed', { defaultValue: 'Join OxSteed' })}</Link>
+                    )}
+                  </section>
+                </>
+              ) : (
+                <>
+                  <section className="media-discovery-card">
+                    <div className="media-discovery-heading"><MapPin size={18} aria-hidden="true" /><h2>{t('media.shell.discover')}</h2></div>
+                    <p>{t('media.shell.discoverDescription')}</p>
+                    {DISCOVER.map(({ path, key, Icon }) => (
+                      <Link to={path} className="media-discovery-link" key={path}>
+                        <span className="media-discovery-link-icon"><Icon size={19} aria-hidden="true" /></span>
+                        <span><strong>{t(`media.shell.${key}`)}</strong><small>{t(`media.shell.${key}Description`)}</small></span>
+                        <ArrowUpRight size={17} aria-hidden="true" />
+                      </Link>
+                    ))}
+                  </section>
+                  <section className="media-purpose-card">
+                    <ShieldCheck size={23} aria-hidden="true" />
+                    <h2>{t('media.shell.purposeTitle')}</h2>
+                    <p>{t('media.shell.purposeDescription')}</p>
+                  </section>
+                </>
+              )}
             </div>
           </aside>
         </div>

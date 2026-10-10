@@ -161,6 +161,7 @@ export default function MediaFeedPage() {
     setLocationError(null);
     setChoosingLocation(false);
     try { localStorage.setItem(LOCATION_KEY, JSON.stringify(choice)); } catch { /* Optional persistence. */ }
+    if (typeof window !== 'undefined') window.dispatchEvent(new Event('oxsteed:media-location-change'));
   };
   const useDeviceLocation = async () => {
     const request = ++locationRequest.current;
@@ -205,6 +206,37 @@ export default function MediaFeedPage() {
             {locationError && <p role="alert">{locationError}</p>}
           </section>
         )}
+        <section className="media-desktop-feed-heading" aria-labelledby="media-desktop-feed-title">
+          <div>
+            <h1 id="media-desktop-feed-title">{user
+              ? t('media.feed.desktopHome', { defaultValue: 'Home' })
+              : t('media.feed.desktopDiscover', { defaultValue: 'Discover what’s nearby' })}</h1>
+            {!user && <p>{t('media.feed.desktopDiscoverDescription', { defaultValue: 'Local people, businesses, and conversations.' })}</p>}
+          </div>
+          <div className="media-desktop-feed-tools">
+            <button type="button" className="media-desktop-location" aria-expanded={choosingLocation}
+              aria-controls="media-location-choice" onClick={() => setChoosingLocation(value => !value)}>
+              <MapPin size={17} aria-hidden="true" />
+              <span>{resolvedLocation.city ? `${resolvedLocation.city}, ${resolvedLocation.state}` : t(resolvedLocation.location_mode === 'all'
+                ? 'media.feed.allLocations' : 'media.feed.chooseLocation')}</span>
+            </button>
+            <button type="button" className="media-icon-button" disabled={loading}
+              onClick={() => load(null)} aria-label={t('media.feed.refresh')}>
+              <RefreshCw size={18} aria-hidden="true" />
+            </button>
+          </div>
+        </section>
+        <Link className="media-desktop-composer" to="/media/compose">
+          <span className="media-composer-avatar" aria-hidden="true">
+            {user?.profile_photo_url ? <img src={user.profile_photo_url} alt="" /> : <MessageCircle size={20} />}
+          </span>
+          <span>{t('media.feed.prompt', { defaultValue: 'What’s happening nearby?' })}</span>
+          <span className="media-desktop-composer-action">{t('media.feed.shareUpdate', { defaultValue: 'Share an update' })}</span>
+        </Link>
+        <div className="media-desktop-action-row">
+          <Link to="/media/compose"><Plus size={18} aria-hidden="true" />{t('media.feed.shareUpdate', { defaultValue: 'Share an update' })}</Link>
+          <Link to="/media/creator"><Briefcase size={18} aria-hidden="true" />{t('media.creator.title', { defaultValue: 'Creator marketplace' })}</Link>
+        </div>
         <section className="media-neighborhood-hero" aria-labelledby="media-neighborhood-title">
           <p className="media-page-kicker"><Users size={15} aria-hidden="true" />{t('media.feed.heroKicker', { defaultValue: 'OxSteed Media' })}</p>
           <h1 id="media-neighborhood-title">{t('media.feed.heroTitle', { defaultValue: 'Your neighborhood, connected.' })}</h1>
