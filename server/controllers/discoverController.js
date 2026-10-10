@@ -15,6 +15,17 @@ const DEFAULT_RADIUS = 60;
 const MAX_RADIUS = 150;
 const MAX_RESULTS = 80;
 const MAX_PATTERNS = 24;
+const BUSINESS_CITY = "COALESCE(NULLIF(b.service_city, ''), NULLIF(b.address_city, ''), hp.service_city)";
+const BUSINESS_STATE = "COALESCE(NULLIF(b.service_state, ''), NULLIF(b.address_state, ''), hp.service_state)";
+const BUSINESS_LAT = 'COALESCE(b.service_lat, hp.service_lat)';
+const BUSINESS_LNG = 'COALESCE(b.service_lng, hp.service_lng)';
+
+function businessLocationFilter(query) {
+  const city = typeof query.city === 'string' ? query.city.trim().toLowerCase().slice(0, 120) : '';
+  const state = typeof query.state === 'string' ? query.state.trim().toLowerCase().slice(0, 120) : '';
+  if (Boolean(city) !== Boolean(state)) throw Object.assign(new Error('Choose a city and state'), { status: 400 });
+  return { city, state };
+}
 
 function daysSinceDate(d) {
   if (!d) return null;
@@ -146,7 +157,7 @@ function alertFingerprint(userId, query, radius, lat, lng) {
 /**
  * Run unified discover search. Returns { results: DiscoverResult[] }.
  */
-async function runDiscoverSearch({ query, lat, lng, radiusMiles = DEFAULT_RADIUS }) {
+async function runDiscoverSearch({ query, lat, lng, radiusMiles = DEFAULT_RADIUS, resultType = null, locality = {} }) {
   const terms = expandSearchTerms(query);
   const patterns = buildPatterns(terms.length ? terms : [normalizeQuery(query).toLowerCase()].filter(Boolean));
   if (!patterns.length) {
@@ -295,7 +306,7 @@ async function runDiscoverSearch({ query, lat, lng, radiusMiles = DEFAULT_RADIUS
          AND u.email_verified = TRUE
          AND u.onboarding_completed = TRUE
          AND j.deleted_at IS NULL
-         AND j.status = ANY($2::text[])
+         AND j.status::text = ANY($2::text[])
          AND (j.expires_at IS NULL OR j.expires_at > NOW())
          AND (
            LOWER(j.title) LIKE ANY($1::text[])
@@ -331,15 +342,20 @@ async function runDiscoverSearch({ query, lat, lng, radiusMiles = DEFAULT_RADIUS
     if (hasGeo) {
       bizParams.push(latN, lngN, radius);
       bizGeo = ` AND (
-        hp.service_lat IS NULL OR hp.service_lng IS NULL OR
+        ${BUSINESS_LAT} IS NULL OR ${BUSINESS_LNG} IS NULL OR
         3958.8 * acos(
           GREATEST(-1.0, LEAST(1.0,
-            sin(radians($${bizParams.length - 2}::float8)) * sin(radians(hp.service_lat::float8)) +
-            cos(radians($${bizParams.length - 2}::float8)) * cos(radians(hp.service_lat::float8)) *
-            cos(radians(hp.service_lng::float8 - $${bizParams.length - 1}::float8))
+            sin(radians($${bizParams.length - 2}::float8)) * sin(radians(${BUSINESS_LAT}::float8)) +
+            cos(radians($${bizParams.length - 2}::float8)) * cos(radians(${BUSINESS_LAT}::float8)) *
+            cos(radians(${BUSINESS_LNG}::float8 - $${bizParams.length - 1}::float8))
           ))
         ) <= $${bizParams.length}
       )`;
+    }
+    let businessCityWhere = '';
+    if (resultType === 'business' && locality.city) {
+      bizParams.push(locality.city, locality.state);
+      businessCityWhere = `AND LOWER(TRIM(${BUSINESS_CITY})) = $${bizParams.length - 1} AND LOWER(TRIM(${BUSINESS_STATE})) = $${bizParams.length}`;
     }
     bizParams.push(8);
     const bizLimitIdx = bizParams.length;
@@ -348,8 +364,8 @@ async function runDiscoverSearch({ query, lat, lng, radiusMiles = DEFAULT_RADIUS
               COALESCE(b.description, hp.profile_headline, '') AS subtitle,
               b.profile_slug,
               b.logo_url AS image_url,
-              hp.service_city, hp.service_state,
-              hp.service_lat::float8 AS lat, hp.service_lng::float8 AS lng,
+              ${BUSINESS_CITY} AS service_city, ${BUSINESS_STATE} AS service_state,
+              ${BUSINESS_LAT}::float8 AS lat, ${BUSINESS_LNG}::float8 AS lng,
               b.updated_at AS freshness_ts,
               (LOWER(b.business_name) LIKE ANY($1::text[])) AS matched_title,
               (LOWER(COALESCE(b.description, '')) LIKE ANY($1::text[])) AS matched_description
@@ -367,6 +383,7 @@ async function runDiscoverSearch({ query, lat, lng, radiusMiles = DEFAULT_RADIUS
            OR LOWER(COALESCE(b.description, '')) LIKE ANY($1::text[])
          )
          ${bizGeo}
+         ${businessCityWhere}
        ORDER BY b.is_primary DESC NULLS LAST, b.created_at DESC
        LIMIT $${bizLimitIdx}`,
       bizParams,
@@ -493,7 +510,8 @@ async function runDiscoverSearch({ query, lat, lng, radiusMiles = DEFAULT_RADIUS
   };
 
   results.sort((a, b) => scoreRow(b) - scoreRow(a));
-  const ranked = results.slice(0, MAX_RESULTS);
+  const ranked = results.filter(result => (!resultType || result.type === resultType)
+    && (resultType !== 'business' || !locality.city || String(result.meta || '').toLowerCase() === `${locality.city}, ${locality.state}`)).slice(0, MAX_RESULTS);
   const contentSignature = fingerprintForResults(ranked.slice(0, 60));
 
   // Cross-links: for tool rows, suggest helpers with overlapping skill/category terms
@@ -533,6 +551,7 @@ async function runDiscoverSearch({ query, lat, lng, radiusMiles = DEFAULT_RADIUS
 
 exports.discoverSearch = async (req, res) => {
   try {
+    const locality = businessLocationFilter(req.query);
     const q = req.query.q || req.query.query || '';
     const lat = req.query.lat;
     const lng = req.query.lng;
@@ -556,11 +575,14 @@ exports.discoverSearch = async (req, res) => {
         hasMore: false,
       });
     }
+    const resultType = ['helper', 'job', 'tool', 'business', 'product'].includes(req.query.type) ? req.query.type : null;
     const { results: ranked, contentSignature } = await runDiscoverSearch({
       query: q,
       lat,
       lng,
       radiusMiles: radius,
+      resultType,
+      locality,
     });
     const page = ranked.slice(offset, offset + limit);
     await logDiscoverQuery({
@@ -583,6 +605,7 @@ exports.discoverSearch = async (req, res) => {
       hasMore: offset + limit < ranked.length,
     });
   } catch (err) {
+    if (err.status === 400) return res.status(400).json({ error: err.message });
     logger.error('[discover] discoverSearch', { err: err.message });
     return res.status(500).json({ error: 'Search temporarily unavailable' });
   }
@@ -593,6 +616,7 @@ exports.discoverSearch = async (req, res) => {
  */
 exports.discoverPopular = async (req, res) => {
   try {
+    const locality = businessLocationFilter(req.query);
     const lat = req.query.lat;
     const lng = req.query.lng;
     const radius = Math.min(MAX_RADIUS, Math.max(5, parseInt(req.query.radius, 10) || DEFAULT_RADIUS));
@@ -713,22 +737,27 @@ exports.discoverPopular = async (req, res) => {
 
     const bizGeo = hasGeo
       ? ` AND (
-        hp.service_lat IS NULL OR hp.service_lng IS NULL OR
+        ${BUSINESS_LAT} IS NULL OR ${BUSINESS_LNG} IS NULL OR
         3958.8 * acos(
           GREATEST(-1.0, LEAST(1.0,
-            sin(radians($1::float8)) * sin(radians(hp.service_lat::float8)) +
-            cos(radians($1::float8)) * cos(radians(hp.service_lat::float8)) *
-            cos(radians(hp.service_lng::float8 - $2::float8))
+            sin(radians($1::float8)) * sin(radians(${BUSINESS_LAT}::float8)) +
+            cos(radians($1::float8)) * cos(radians(${BUSINESS_LAT}::float8)) *
+            cos(radians(${BUSINESS_LNG}::float8 - $2::float8))
           ))
         ) <= $3
       )`
       : '';
     const bp = hasGeo ? [latN, lngN, radius] : [];
+    let businessCityWhere = '';
+    if (req.query.type === 'business' && locality.city) {
+      bp.push(locality.city, locality.state);
+      businessCityWhere = `AND LOWER(TRIM(${BUSINESS_CITY})) = $${bp.length - 1} AND LOWER(TRIM(${BUSINESS_STATE})) = $${bp.length}`;
+    }
     const { rows: biz } = await pool.query(
       `SELECT b.id, b.business_name AS title,
               LEFT(COALESCE(b.description, ''), 100) AS subtitle,
               b.profile_slug,
-              hp.service_lat::float8 AS lat, hp.service_lng::float8 AS lng
+              ${BUSINESS_LAT}::float8 AS lat, ${BUSINESS_LNG}::float8 AS lng
        FROM businesses b
        JOIN users u ON u.id = b.user_id AND u.is_active AND u.deleted_at IS NULL
        LEFT JOIN helper_profiles hp ON hp.user_id = b.user_id
@@ -738,6 +767,7 @@ exports.discoverPopular = async (req, res) => {
          AND (hp.user_id IS NULL OR COALESCE(hp.is_listed, TRUE) = TRUE)
          AND COALESCE(b.is_hidden_by_admin, FALSE) = FALSE
          ${bizGeo}
+         ${businessCityWhere}
        ORDER BY b.updated_at DESC NULLS LAST LIMIT 4`,
       bp,
     );
@@ -761,8 +791,10 @@ exports.discoverPopular = async (req, res) => {
       return 0;
     });
 
-    return res.json({ results: out.slice(0, 16), radiusMiles: radius });
+    const resultType = ['helper', 'job', 'tool', 'business', 'product'].includes(req.query.type) ? req.query.type : null;
+    return res.json({ results: (resultType ? out.filter(result => result.type === resultType) : out).slice(0, 16), radiusMiles: radius });
   } catch (err) {
+    if (err.status === 400) return res.status(400).json({ error: err.message });
     logger.error('[discover] popular', { err: err.message });
     return res.status(500).json({ error: 'Failed to load popular listings' });
   }

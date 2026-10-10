@@ -99,6 +99,7 @@ function localitySql(location, params, viewerParam = null) {
   const candidates = `
     SELECT hp.service_lat AS lat,hp.service_lng AS lng,hp.service_city AS city,hp.service_state AS state
       FROM helper_profiles hp
+      JOIN users helper_local_user ON helper_local_user.id = hp.user_id
       WHERE a.actor_type='helper' AND hp.user_id=a.owner_user_id
         AND ${publicHelperSql('hp', 'helper_local_user')}
         AND ${activeOwnerSql('hp.user_id', 'helper_local_owner')}${blocked('hp.user_id')}

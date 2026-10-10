@@ -1,12 +1,15 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { searchMedia } from '../../api/media';
 import MediaPostCard from './MediaPostCard';
 
 export default function MediaSearchPage() {
   const { t } = useTranslation();
-  const [query, setQuery] = useState('');
+  const [params, setParams] = useSearchParams();
+  const requestedQuery = params.get('q') || '';
+  const [query, setQuery] = useState(requestedQuery);
   const [results, setResults] = useState([]);
   const [accounts, setAccounts] = useState([]);
   const [searched, setSearched] = useState(false);
@@ -16,14 +19,13 @@ export default function MediaSearchPage() {
 
   useEffect(() => () => { generation.current += 1; }, []);
 
-  const handleSearch = async (e) => {
-    e.preventDefault();
-    if (!query.trim()) return;
+  const runSearch = useCallback(async searchQuery => {
+    if (!searchQuery.trim()) return;
     const request = ++generation.current;
     setLoading(true); setError(''); setSearched(false);
     setResults([]); setAccounts([]);
     try {
-      const data = await searchMedia({ q: query.trim(), limit: 50 });
+      const data = await searchMedia({ q: searchQuery.trim(), limit: 50 });
       if (request !== generation.current) return;
       setResults(data.posts || []);
       setAccounts(data.actors || []);
@@ -33,6 +35,20 @@ export default function MediaSearchPage() {
     } finally {
       if (request === generation.current) setLoading(false);
     }
+  }, [t]);
+  useEffect(() => {
+    setQuery(requestedQuery);
+    if (requestedQuery.trim()) void runSearch(requestedQuery);
+    else {
+      generation.current += 1;
+      setResults([]); setAccounts([]); setSearched(false); setLoading(false); setError('');
+    }
+  }, [requestedQuery, runSearch]);
+  const handleSearch = event => {
+    event.preventDefault();
+    if (!query.trim()) return;
+    if (requestedQuery === query.trim()) void runSearch(query);
+    else setParams({ q: query.trim() });
   };
 
   return (

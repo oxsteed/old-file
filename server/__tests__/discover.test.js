@@ -29,6 +29,35 @@ function buildApp() {
 beforeEach(() => resetMocks());
 
 describe('discover search routes', () => {
+  test('business discovery filters before pagination and reports the filtered total', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ id: 1, first_name: 'Local', last_name: 'Helper', freshness_ts: new Date().toISOString() }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ id: 2, title: 'Local business', subtitle: 'Local services', service_city: 'Springfield', service_state: 'OH' }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [], rowCount: 1 });
+    const result = await request(buildApp()).get('/api/discover').query({ q: 'Local', type: 'business', city: 'Springfield', state: 'OH', limit: 5 });
+    expect(result.status).toBe(200);
+    expect(result.body.results).toHaveLength(1);
+    expect(result.body.results[0].type).toBe('business');
+    expect(result.body.total).toBe(1);
+    expect(result.body.hasMore).toBe(false);
+  });
+
+  test('popular business discovery never includes helper cards', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ id: 1, first_name: 'Local', last_name: 'Helper' }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ id: 2, title: 'Local business' }] });
+    const result = await request(buildApp()).get('/api/discover/popular?type=business&city=Springfield&state=OH');
+    expect(result.status).toBe(200);
+    expect(result.body.results.map(item => item.type)).toEqual(['business']);
+    const businessCall = mockQuery.mock.calls.find(([sql]) => sql.includes('SELECT b.id, b.business_name AS title'));
+    expect(businessCall[0]).toContain("LOWER(TRIM(COALESCE(NULLIF(b.service_city, ''), NULLIF(b.address_city, ''), hp.service_city))) = $1");
+    expect(businessCall[1]).toEqual(['springfield', 'oh']);
+  });
   test('GET /api/discover returns typed results and pagination metadata', async () => {
     mockQuery
       .mockResolvedValueOnce({

@@ -1,57 +1,13 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Link, useSearchParams } from 'react-router-dom';
+import { Bookmark, Briefcase, Image, MapPin, Plus, RefreshCw, ShieldCheck, Store, Users } from 'lucide-react';
 import { getFeed } from '../../api/media';
-import { ArrowRight, Bookmark, Briefcase, MapPin, MessageCircle, Plus, RefreshCw, ShieldCheck, Users } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import './MediaStyles.css';
 import MediaPostCard from './MediaPostCard';
-import { Link } from 'react-router-dom';
 import PageMeta from '../../components/PageMeta';
-import { getSharedBrowserLocation } from '../../utils/browserLocation';
-
-const LOCATION_KEY = 'oxsteed.media.location';
-function queryLocation() {
-  if (typeof window === 'undefined') return null;
-  const params = new URLSearchParams(window.location.search);
-  if (params.get('location') === 'all') return { location_mode: 'all' };
-  const city = params.get('city');
-  const state = params.get('state');
-  const normalizedCity = city?.trim();
-  const normalizedState = state?.trim();
-  if (normalizedCity && normalizedState && normalizedCity.length <= 120 && normalizedState.length <= 120) {
-    return { location_mode: 'custom', city: normalizedCity, state: normalizedState };
-  }
-  return null;
-}
-
-function savedLocation() {
-  try {
-    const choice = JSON.parse(localStorage.getItem(LOCATION_KEY));
-    if (choice?.location_mode === 'all') return { location_mode: 'all' };
-    if (choice?.location_mode === 'custom') {
-      if (typeof choice.city === 'string' && choice.city.trim() && choice.city.length <= 120
-        && typeof choice.state === 'string' && choice.state.trim() && choice.state.length <= 120) {
-        return { location_mode: 'custom', city: choice.city, state: choice.state };
-      }
-      if (Number.isFinite(choice.latitude) && Math.abs(choice.latitude) <= 90
-        && Number.isFinite(choice.longitude) && Math.abs(choice.longitude) <= 180) {
-        return { location_mode: 'custom', latitude: choice.latitude, longitude: choice.longitude };
-      }
-    }
-  } catch { /* Location choices are optional when browser storage is unavailable. */ }
-  return { location_mode: 'profile' };
-}
-
-function initialLocation() {
-  return queryLocation() || savedLocation();
-}
-
-function initialTab() {
-  if (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('tab') === 'following') {
-    return 'following';
-  }
-  return 'home';
-}
+import MediaNeighborhoodArt from './MediaNeighborhoodArt';
+import { useMediaNeighborhood } from './MediaNeighborhoodContext';
 
 function mergePosts(current, incoming) {
   const byId = new Map(current.map(post => [post.id, post]));
@@ -62,264 +18,122 @@ function mergePosts(current, incoming) {
 export default function MediaFeedPage() {
   const { t } = useTranslation();
   const { user } = useAuth();
-  const [tab, setTab] = useState(initialTab);
+  const { location, resolvedLocation, setResolvedLocation, openLocation, isLocationOpen, hasLocation } = useMediaNeighborhood();
+  const [params, setParams] = useSearchParams();
+  const requestedTab = params.get('tab');
+  const tab = ['following', 'nearby', 'mine'].includes(requestedTab) && (user || requestedTab === 'nearby') ? requestedTab : 'home';
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [before, setBefore] = useState(null);
-  const [hasMore, setHasMore] = useState(true);
-  const [location, setLocation] = useState(initialLocation);
-  // The API resolves profile-based location choices to the canonical city or
-  // device context. Keep that resolved value for the label and form so a
-  // signed-in viewer can see what "nearby" means without changing the saved
-  // preference from profile to a stale copy of the profile address.
-  const [resolvedLocation, setResolvedLocation] = useState(initialLocation);
-  const [choosingLocation, setChoosingLocation] = useState(false);
-  const [city, setCity] = useState(location.city || '');
-  const [state, setState] = useState(location.state || '');
-  const [locationError, setLocationError] = useState(null);
-  const [locating, setLocating] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
+  const [locationQuery, setLocationQuery] = useState('');
+  const pendingNearby = useRef(false);
   const generation = useRef(0);
   const inFlight = useRef(false);
-  const locationRequest = useRef(0);
-  const activeTab = tab === 'following' && !user ? 'home' : tab;
 
-  // Keep shareable tab and city choices in the Media URL while leaving precise
-  // device coordinates in local storage. This also restores a Following or
-  // city feed when a user returns through a browser bookmark.
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const params = new URLSearchParams(window.location.search);
-    if (tab === 'following') params.set('tab', 'following');
-    else params.delete('tab');
+    const next = new URLSearchParams(params);
     if (location.location_mode === 'all') {
-      params.set('location', 'all');
-      params.delete('city'); params.delete('state');
+      next.set('location', 'all'); next.delete('city'); next.delete('state');
     } else if (location.location_mode === 'custom' && location.city && location.state) {
-      params.delete('location');
-      params.set('city', location.city);
-      params.set('state', location.state);
+      next.delete('location'); next.set('city', location.city); next.set('state', location.state);
     } else {
-      params.delete('location'); params.delete('city'); params.delete('state');
+      next.delete('location'); next.delete('city'); next.delete('state');
     }
-    const next = params.toString();
-    const current = window.location.search.replace(/^\?/, '');
-    if (next !== current) window.history.replaceState(window.history.state, '', `${window.location.pathname}${next ? `?${next}` : ''}${window.location.hash}`);
-  }, [location, tab]);
+    if (next.toString() !== params.toString()) setParams(next, { replace: true });
+  }, [location, params, setParams]);
 
-  const load = useCallback(async (beforeParam) => {
-    if (beforeParam && inFlight.current) return;
+  const load = useCallback(async cursor => {
+    if (cursor && inFlight.current) return;
     const request = ++generation.current;
-    inFlight.current = true;
-    setLoading(true);
-    setError(null);
-    if (!beforeParam) { setPosts([]); setBefore(null); setHasMore(false); }
+    inFlight.current = true; setLoading(true); setError(null);
+    if (!cursor) { setPosts([]); setBefore(null); setHasMore(false); }
     try {
-      const data = await getFeed({ before: beforeParam, limit: 20, tab: activeTab, ...location });
+      const data = await getFeed({ before: cursor, limit: 20, tab, ...location });
       if (request !== generation.current) return;
-      if (beforeParam) {
-        setPosts(p => mergePosts(p, data.posts));
-      } else {
-        setPosts(mergePosts([], data.posts));
-      }
-      if (data.location && typeof data.location === 'object') {
-        const nextResolved = { ...location, ...data.location };
-        setResolvedLocation(nextResolved);
-        if (location.location_mode === 'profile' && data.location.city && data.location.state) {
-          setCity(data.location.city);
-          setState(data.location.state);
-        }
-      }
-      setBefore(data.next_before);
-      setHasMore(data.has_more === true && Boolean(data.next_before));
+      setPosts(current => mergePosts(cursor ? current : [], data.posts || []));
+      if (data.location && typeof data.location === 'object') setResolvedLocation({ ...location, ...data.location });
+      setBefore(data.next_cursor || data.next_before);
+      setHasMore(data.has_more === true && Boolean(data.next_cursor || data.next_before));
     } catch (err) {
       if (request !== generation.current) return;
-      setError(t(err.response?.data?.code === 'media_feed_cursor_invalid'
-        ? 'media.feed.cursorChanged' : 'media.feed.loadError'));
+      setError(t(err.response?.data?.code === 'media_feed_cursor_invalid' ? 'media.feed.cursorChanged'
+        : err.response?.data?.code === 'media_nearby_location_required' ? 'media.landing.nearbyLocationRequired' : 'media.feed.loadError'));
     } finally {
       if (request === generation.current) { inFlight.current = false; setLoading(false); }
     }
-  }, [t, activeTab, location, user?.id]);
+  }, [t, tab, location, user?.id, setResolvedLocation]);
 
+  useEffect(() => { void load(null); return () => { generation.current += 1; }; }, [load]);
   useEffect(() => {
-    load(null);
-    return () => { generation.current += 1; };
-  }, [load]);
-
-  const selectTab = (nextTab) => {
-    if (nextTab === tab) return;
-    generation.current += 1;
-    setTab(nextTab);
+    if (!isLocationOpen && !hasLocation) pendingNearby.current = false;
+    if (!pendingNearby.current || !hasLocation) return;
+    pendingNearby.current = false;
+    const next = new URLSearchParams(params); next.set('tab', 'nearby'); setParams(next);
+  }, [hasLocation, isLocationOpen, params, setParams]);
+  const selectTab = nextTab => {
+    if (nextTab === 'nearby' && !hasLocation) { pendingNearby.current = true; openLocation(); return; }
+    pendingNearby.current = false;
+    const next = new URLSearchParams(params);
+    if (nextTab === 'home') next.delete('tab'); else next.set('tab', nextTab);
+    setParams(next);
   };
+  const composeTo = user ? '/media/compose' : '/login';
+  const refresh = <button type="button" className="media-feed-refresh" disabled={loading} onClick={() => load(null)} aria-label={t('media.feed.refresh')}><RefreshCw size={21} aria-hidden="true" /></button>;
 
-  const chooseLocation = (choice) => {
-    generation.current += 1;
-    locationRequest.current += 1;
-    setLocating(false);
-    setLocation(choice);
-    setResolvedLocation(choice);
-    setLocationError(null);
-    setChoosingLocation(false);
-    try { localStorage.setItem(LOCATION_KEY, JSON.stringify(choice)); } catch { /* Optional persistence. */ }
-    if (typeof window !== 'undefined') window.dispatchEvent(new Event('oxsteed:media-location-change'));
-  };
-  const useDeviceLocation = async () => {
-    const request = ++locationRequest.current;
-    setLocating(true); setLocationError(null);
-    const coords = await getSharedBrowserLocation(true);
-    if (request !== locationRequest.current) return;
-    setLocating(false);
-    if (!coords) { setLocationError(t('media.feed.locationUnavailable')); return; }
-    chooseLocation({ location_mode: 'custom', latitude: Math.round(coords.lat * 1000) / 1000,
-      longitude: Math.round(coords.lng * 1000) / 1000 });
-  };
-
-  return (
-      <div className="media-feed media-feed-page">
-        <PageMeta title={t('media.feed.metaTitle')} description={t('media.feed.metaDescription')} />
-        <div className="media-location-bar">
-          <button type="button" className="media-location-toggle" aria-expanded={choosingLocation}
-            aria-controls="media-location-choice" onClick={() => setChoosingLocation(value => !value)}>
-            <MapPin size={17} aria-hidden="true" />
-            <span>{resolvedLocation.city ? `${resolvedLocation.city}, ${resolvedLocation.state}` : t(resolvedLocation.latitude !== null && resolvedLocation.latitude !== undefined
-              ? 'media.feed.nearDevice' : resolvedLocation.location_mode === 'all'
-                ? 'media.feed.allLocations' : 'media.feed.chooseLocation')}</span>
-          </button>
-          <button type="button" className="media-icon-button" disabled={loading}
-            onClick={() => load(null)} aria-label={t('media.feed.refresh')}>
-            <RefreshCw size={18} aria-hidden="true" />
-          </button>
+  return <div className="media-feed media-feed-page media-reference-feed">
+    <PageMeta title={t('media.feed.metaTitle')} description={t('media.feed.metaDescription')} />
+    {user ? <>
+      <div className="media-desktop-home-title"><h1>{t(tab === 'mine' ? 'media.landing.myPosts' : 'media.shell.home')}</h1>{refresh}</div>
+      <section className="media-mobile-hero"><h1>{t('media.landing.heroTitle')}</h1><p>{t('media.landing.heroDescription')}</p>
+        <Link className="media-mobile-composer" to={composeTo}><span>{t('media.landing.prompt')}</span><span className="media-mobile-compose-plus"><Plus size={25} /></span></Link>
+      </section>
+      <Link className="media-reference-composer" to={composeTo}>
+        <span className="media-composer-avatar">{user.profile_photo_url ? <img src={user.profile_photo_url} alt="" /> : <Users size={22} aria-hidden="true" />}</span>
+        <span>{t('media.landing.prompt')}</span><span className="media-primary-button">{t('media.landing.shareUpdate')}</span>
+      </Link>
+      <nav className="media-reference-shortcuts" aria-label={t('media.landing.quickActions')}>
+        <Link to="/media/bookmarks"><Bookmark size={26} /><span>{t('media.landing.saved')}</span></Link>
+        <Link to="/media/verification"><ShieldCheck size={26} /><span>{t('media.landing.verify')}</span></Link>
+        <Link to="/media?tab=mine"><Image size={26} /><span>{t('media.landing.myPosts')}</span></Link>
+      </nav>
+    </> : <>
+      <section className="media-guest-hero"><h1>{t('media.landing.discoverTitle')}</h1><p>{t('media.landing.discoverDescription')}</p></section>
+      <section className="media-reference-card media-location-start"><div><MapPin size={26} aria-hidden="true" /><h2>{t('media.landing.startNeighborhood')}</h2></div><p>{t('media.landing.locationDescription')}</p>
+        <form onSubmit={event => { event.preventDefault(); openLocation(locationQuery); }} className="media-start-location-form"><input className="media-desktop-location-input" aria-label={t('media.landing.cityOrZip')} placeholder={t('media.landing.cityOrZip')} value={locationQuery} onChange={event => setLocationQuery(event.target.value)} maxLength={160}/><button type="submit" className="media-primary-button"><MapPin size={20} aria-hidden="true" />{t('media.feed.chooseLocation')}</button></form>
+      </section>
+      <div className="media-guest-action-row"><Link to={composeTo} state={{ from: '/media/compose' }}><Plus size={24} />{t('media.landing.shareUpdate')}</Link><Link to="/media/creator"><Briefcase size={24} /><span className="media-desktop-label">{t('media.creator.title')}</span><span className="media-mobile-label">{t('media.landing.marketplace')}</span></Link></div>
+    </>}
+    <div className="media-reference-tabs" role="group" aria-label={t('media.landing.feedTabs')}>
+      <button type="button" className={tab === 'home' ? 'active' : ''} aria-pressed={tab === 'home'} onClick={() => selectTab('home')}><span className={user ? 'media-desktop-label' : ''}>{t('media.feed.latest')}</span>{user && <span className="media-mobile-label">{t('media.landing.forYou')}</span>}</button>
+      {user && <button type="button" className={tab === 'following' ? 'active' : ''} aria-pressed={tab === 'following'} onClick={() => selectTab('following')}>{t('media.feed.following')}</button>}
+      {user && <button type="button" className={`media-nearby-tab ${tab === 'nearby' ? 'active' : ''}`} aria-pressed={tab === 'nearby'} onClick={() => selectTab('nearby')}>{t('media.landing.nearby')}</button>}
+      {tab === 'mine' && <span className="media-mine-label">{t('media.landing.myPosts')}</span>}
+      {!user && refresh}
+    </div>
+    {error && <div className="media-error" role="alert"><p>{error}</p><button type="button" onClick={() => load(null)}>{t('common.retry', { defaultValue: 'Retry' })}</button></div>}
+    {posts.map(post => <MediaPostCard key={post.id} post={post} />)}
+    {loading && <div className="media-skeleton" role="status" aria-label={t('media.landing.loadingFeed')}><div className="skeleton-line" /><div className="skeleton-line" /></div>}
+    {!loading && !error && hasMore && posts.length > 0 && <button type="button" onClick={() => load(before)} className="media-load-more">{t('media.feed.loadMore')}</button>}
+    {!loading && !error && !posts.length && <section className={`media-reference-card media-welcome-card ${!user ? 'media-guest-welcome' : ''}`}>
+      <MediaNeighborhoodArt className="media-welcome-homes" />
+      {!user && <MediaNeighborhoodArt kind="people" className="media-welcome-people" />}
+      <div className="media-welcome-copy">
+        <h2 className="media-desktop-welcome-title">{t(tab === 'following' ? 'media.feed.followingEmptyHeading' : tab === 'mine' ? 'media.landing.noPosts' : 'media.landing.goodThings')}</h2>
+        <h2 className="media-mobile-welcome-title">{t(tab === 'following' ? 'media.feed.followingEmptyHeading' : tab === 'mine' ? 'media.landing.noPosts' : user ? 'media.landing.sayHello' : 'media.landing.goodThings')}</h2>
+        <p>{tab === 'following' ? t('media.feed.followingEmptyDescription') : user
+          ? <><span className="media-desktop-label">{t('media.landing.welcomeDesktopDescription')}</span><span className="media-mobile-label">{t('media.landing.shareNearby', { city: resolvedLocation.city?.replace(/\b\p{L}/gu, letter => letter.toLocaleUpperCase()) || t('media.landing.yourCommunity') })}</span></>
+          : <><span className="media-desktop-label">{t('media.landing.discoverUpdates')}</span><span className="media-mobile-label">{t('media.landing.welcomeGuestPhoneDescription')}</span></>}</p>
+        <div className="media-welcome-actions">
+          <Link className={user ? 'media-primary-button' : 'media-outline-button'} to={user ? composeTo : '/join'}>{user ? <><span className="media-desktop-label">{t('media.landing.shareFirstUpdate')}</span><span className="media-mobile-label">{t('media.landing.shareUpdate')}</span></> : t('nav.joinOxsteed')}</Link>
+          {user ? <button type="button" className="media-explore-nearby" onClick={() => selectTab('nearby')}>{t('media.landing.exploreNearby')}</button> : <Link className="media-welcome-signin" to="/login" state={{ from: '/media' }}>{t('nav.signIn')}</Link>}
         </div>
-        {choosingLocation && (
-          <section id="media-location-choice" className="media-location-choice" aria-label={t('media.feed.chooseLocation')}>
-            <p>{t('media.feed.locationHelp')}</p>
-            <form onSubmit={event => { event.preventDefault(); chooseLocation({ location_mode: 'custom', city: city.trim(), state: state.trim() }); }}>
-              <label>{t('media.feed.city')}<input value={city} onChange={event => setCity(event.target.value)} required pattern=".*\S.*" maxLength={120} /></label>
-              <label>{t('media.feed.state')}<input value={state} onChange={event => setState(event.target.value)} required pattern=".*\S.*" maxLength={120} /></label>
-              <button type="submit">{t('media.feed.applyLocation')}</button>
-            </form>
-            <div className="media-location-actions">
-              <button type="button" disabled={locating} onClick={useDeviceLocation}>{t(locating ? 'media.feed.locating' : 'media.feed.useDeviceLocation')}</button>
-              {user && <button type="button" onClick={() => chooseLocation({ location_mode: 'profile' })}>{t('media.feed.profileLocation')}</button>}
-              <button type="button" onClick={() => chooseLocation({ location_mode: 'all' })}>{t('media.feed.allLocations')}</button>
-            </div>
-            {locationError && <p role="alert">{locationError}</p>}
-          </section>
-        )}
-        <section className="media-desktop-feed-heading" aria-labelledby="media-desktop-feed-title">
-          <div>
-            <h1 id="media-desktop-feed-title">{user
-              ? t('media.feed.desktopHome', { defaultValue: 'Home' })
-              : t('media.feed.desktopDiscover', { defaultValue: 'Discover what’s nearby' })}</h1>
-            {!user && <p>{t('media.feed.desktopDiscoverDescription', { defaultValue: 'Local people, businesses, and conversations.' })}</p>}
-          </div>
-          <div className="media-desktop-feed-tools">
-            <button type="button" className="media-desktop-location" aria-expanded={choosingLocation}
-              aria-controls="media-location-choice" onClick={() => setChoosingLocation(value => !value)}>
-              <MapPin size={17} aria-hidden="true" />
-              <span>{resolvedLocation.city ? `${resolvedLocation.city}, ${resolvedLocation.state}` : t(resolvedLocation.location_mode === 'all'
-                ? 'media.feed.allLocations' : 'media.feed.chooseLocation')}</span>
-            </button>
-            <button type="button" className="media-icon-button" disabled={loading}
-              onClick={() => load(null)} aria-label={t('media.feed.refresh')}>
-              <RefreshCw size={18} aria-hidden="true" />
-            </button>
-          </div>
-        </section>
-        <Link className="media-desktop-composer" to="/media/compose">
-          <span className="media-composer-avatar" aria-hidden="true">
-            {user?.profile_photo_url ? <img src={user.profile_photo_url} alt="" /> : <MessageCircle size={20} />}
-          </span>
-          <span>{t('media.feed.prompt', { defaultValue: 'What’s happening nearby?' })}</span>
-          <span className="media-desktop-composer-action">{t('media.feed.shareUpdate', { defaultValue: 'Share an update' })}</span>
-        </Link>
-        <div className="media-desktop-action-row">
-          <Link to="/media/compose"><Plus size={18} aria-hidden="true" />{t('media.feed.shareUpdate', { defaultValue: 'Share an update' })}</Link>
-          <Link to="/media/creator"><Briefcase size={18} aria-hidden="true" />{t('media.creator.title', { defaultValue: 'Creator marketplace' })}</Link>
-        </div>
-        <section className="media-neighborhood-hero" aria-labelledby="media-neighborhood-title">
-          <p className="media-page-kicker"><Users size={15} aria-hidden="true" />{t('media.feed.heroKicker', { defaultValue: 'OxSteed Media' })}</p>
-          <h1 id="media-neighborhood-title">{t('media.feed.heroTitle', { defaultValue: 'Your neighborhood, connected.' })}</h1>
-          <p>{t('media.feed.heroDescription', { defaultValue: 'Discover people, places, and opportunities nearby.' })}</p>
-          <Link className="media-hero-composer" to="/media/compose">
-            <span>{t('media.feed.prompt', { defaultValue: 'What’s happening nearby?' })}</span>
-            <span className="media-hero-composer-action" aria-hidden="true"><Plus size={23} /></span>
-          </Link>
-        </section>
-        <nav className="media-quick-actions" aria-label={t('media.feed.quickActions', { defaultValue: 'Media quick actions' })}>
-          <Link to={user ? '/media/bookmarks' : '/login'} className="media-quick-action">
-            <Bookmark size={23} strokeWidth={1.8} aria-hidden="true" />
-            <span>{t('media.shell.saved', { defaultValue: 'Saved' })}</span>
-          </Link>
-          <Link to={user ? '/media/verification' : '/login'} className="media-quick-action">
-            <ShieldCheck size={23} strokeWidth={1.8} aria-hidden="true" />
-            <span>{t('media.shell.verification', { defaultValue: 'Verify' })}</span>
-          </Link>
-          <Link to="/media/creator" className="media-quick-action">
-            <Briefcase size={23} strokeWidth={1.8} aria-hidden="true" />
-            <span>{t('media.creator.title', { defaultValue: 'Marketplace' })}</span>
-          </Link>
-        </nav>
-        <div className="media-feed-action-grid">
-          <Link className="media-composer-prompt" to="/media/compose">
-            <span className="media-composer-avatar" aria-hidden="true">
-              {user?.profile_photo_url ? <img src={user.profile_photo_url} alt="" /> : <MessageCircle size={20} />}
-            </span>
-            <span>{t('media.feed.subtitle', { defaultValue: 'Share a local update or discover what’s happening around you.' })}</span>
-            <ArrowRight size={18} aria-hidden="true" />
-          </Link>
-          <Link className="media-feed-marketplace-link" to="/media/creator">
-            <Briefcase size={19} aria-hidden="true" />
-            <span>{t('media.creator.title', { defaultValue: 'Creator marketplace' })}</span>
-            <ArrowRight size={17} aria-hidden="true" />
-          </Link>
-        </div>
-        <div className="media-feed-toolbar">
-          <button type="button" className={`media-feed-tab ${activeTab === 'home' ? 'active' : ''}`}
-            aria-pressed={activeTab === 'home'} onClick={() => selectTab('home')}>
-            {t('media.feed.latest')}
-          </button>
-          {user && (
-            <button type="button" className={`media-feed-tab ${tab === 'following' ? 'active' : ''}`}
-              aria-pressed={tab === 'following'} onClick={() => selectTab('following')}>
-              {t('media.feed.following')}
-            </button>
-          )}
-        </div>
-        {error && (
-          <div className="media-error" role="alert">
-            <p>{error}</p>
-            <button type="button" onClick={() => load(null)}>{t('common.retry', 'Retry')}</button>
-          </div>
-        )}
-        {posts.map(post => (
-          <MediaPostCard key={post.id} post={post} />
-        ))}
-        {loading && (
-          <div className="media-skeleton">
-            <div className="skeleton-line" />
-            <div className="skeleton-line" />
-          </div>
-        )}
-        {!loading && !error && hasMore && posts.length > 0 && (
-          <button onClick={() => load(before)} className="media-load-more">
-            {t('media.feed.loadMore')}
-          </button>
-        )}
-        {!loading && !error && !posts.length && (
-          <div className="media-feed-empty">
-            <div className="media-empty-illustration" aria-hidden="true">
-              <span className="media-empty-bubble"><MessageCircle size={27} /></span>
-              <span className="media-empty-pin"><MapPin size={21} /></span>
-            </div>
-            <h2>{activeTab === 'following' ? t('media.feed.followingEmptyHeading') : t('media.feed.emptyHeading')}</h2>
-            <p>{activeTab === 'following' ? t('media.feed.followingEmptyDescription') : t('media.feed.emptyDescription')}</p>
-            <div className="media-empty-actions">
-              <Link className="media-primary-button" to="/media/compose">{t('media.feed.compose')}</Link>
-              <Link className="media-text-link" to="/restaurants">{t('media.feed.explore')}<ArrowRight size={16} aria-hidden="true" /></Link>
-            </div>
-          </div>
-        )}
       </div>
-  );
+    </section>}
+    <section className="media-community-discovery"><h2>{t('media.landing.discoverCommunity')}</h2><div className="media-community-discovery-grid">
+      <Link className="media-reference-card media-discovery-tile" to={`/discover?type=business${Number.isFinite(resolvedLocation.latitude) ? `&lat=${resolvedLocation.latitude}&lng=${resolvedLocation.longitude}` : resolvedLocation.city && resolvedLocation.state ? `&city=${encodeURIComponent(resolvedLocation.city)}&state=${encodeURIComponent(resolvedLocation.state)}` : ''}`}><MediaNeighborhoodArt kind="business" className="media-discovery-art" /><div><Store size={29} /><h3>{t('media.landing.localBusinesses')}</h3><p>{t('media.landing.businessesDescription')}</p></div></Link>
+      <Link className="media-reference-card media-discovery-tile" to="/media/communities"><MediaNeighborhoodArt kind="community" className="media-discovery-art" /><div><Users size={29} /><h3>{t('media.landing.communitySpaces')}</h3><p>{t('media.landing.spacesDescription')}</p></div></Link>
+    </div></section>
+  </div>;
 }

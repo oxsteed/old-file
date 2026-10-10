@@ -9,6 +9,86 @@ const { build } = require('esbuild');
 const { chromium } = require('playwright-core');
 const root = path.resolve(__dirname, '..');
 
+test('reference layouts render on phones and desktops with working location, feeds, joining and search', async () => {
+  const app = await fixture(); let browser;
+  const screenshots = fs.mkdtempSync('/tmp/oxsteed-media-design-');
+  try {
+    browser = await chromium.launch({ headless: true, channel: 'chrome' });
+    for (const scenario of [
+      { name: 'signed-phone', width: 434, height: 1246 },
+      { name: 'guest-phone', width: 390, height: 668, guest: true },
+      { name: 'signed-desktop', width: 1312, height: 816 },
+      { name: 'guest-desktop', width: 1312, height: 816, guest: true },
+    ]) {
+      const page = await browser.newPage({ viewport: { width: scenario.width, height: scenario.height } });
+      const errors = []; page.on('pageerror', err => errors.push(err.message));
+      await page.goto(`${app.url}/media?${scenario.guest ? 'guest&' : ''}lang=en`);
+      await page.locator('.media-welcome-card').waitFor();
+      if (scenario.name === 'guest-phone') {
+        const welcome = await page.locator('.media-mobile-welcome-title').boundingBox();
+        const navigation = await page.locator('.media-bottom-nav').boundingBox();
+        assert.ok(welcome.y + welcome.height < navigation.y, 'Guest welcome title must be visible above phone navigation');
+      }
+      await page.screenshot({ path: path.join(screenshots, scenario.name + '.png'), fullPage: false });
+      const overflow = await page.evaluate(() => [...document.querySelectorAll('body *')].filter(el => { const rect=el.getBoundingClientRect();return rect.width && (rect.right>innerWidth+1||rect.left< -1); }).map(el=>({tag:el.tagName,cls:el.className,width:el.getBoundingClientRect().width})).slice(0,12));
+      assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false, JSON.stringify(overflow));
+      assert.deepEqual(errors, []);
+      if (scenario.width < 701 && !scenario.guest) await page.locator('.media-account-trigger').click();
+      const preferences = page.locator(scenario.width > 700 ? '.media-header-tools' : scenario.guest ? '.media-mobile-location-row' : '.media-account-menu');
+      await preferences.locator('.ox-theme-toggle').click();
+      assert.equal(await page.evaluate(() => document.documentElement.classList.contains('dark')), true);
+      await preferences.locator('.ox-theme-toggle').click();
+      await preferences.locator('[aria-haspopup="listbox"]').click();
+      await page.getByRole('option', { name: /Français/ }).click();
+      assert.match(await preferences.locator('[aria-haspopup="listbox"]').textContent(), /fr/i);
+      if (scenario.width < 701 && !scenario.guest) await page.keyboard.press('Escape');
+      const location = page.locator(scenario.width < 701 ? '.media-mobile-location-row .media-global-location' : scenario.guest ? '.media-how-card button' : '.media-header-location .media-global-location');
+      await location.click();
+      const dialog = page.getByRole('dialog'); await dialog.getByRole('textbox').fill('outage');
+      await dialog.locator('button[type="submit"]').click();
+      await dialog.getByRole('alert').waitFor();
+      await dialog.getByRole('textbox').fill('45502');
+      await dialog.locator('button[type="submit"]').click();
+      await dialog.waitFor({ state: 'hidden' });
+      await page.waitForFunction(() => window.feedCalls.some(call => call.city === 'Springfield' && call.state === 'OH'));
+      assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem('oxsteed.media.location')).city), 'Springfield');
+      await page.reload();
+      await page.waitForFunction(() => window.feedCalls.some(call => call.city === 'Springfield' && call.state === 'OH'));
+      const restoredLabel = page.locator(scenario.width < 701 ? '.media-mobile-location-row .media-global-location' : scenario.guest ? '.media-neighborhood-card' : '.media-header-location .media-global-location');
+      if (!scenario.guest || scenario.width < 701) assert.match(await restoredLabel.textContent(), /Springfield/);
+      await page.locator('.media-support-launcher').click();
+      await page.locator('.media-support-panel').waitFor();
+      await page.locator('.media-support-panel').getByRole('button', { name: 'Close chat' }).click();
+      if (!scenario.guest) {
+        if (scenario.width < 701) await page.locator('.media-reference-shortcuts a[href="/media?tab=mine"]').click();
+        else {
+          await page.locator('.media-account-trigger').click();
+          await page.locator('.media-account-menu a[href="/media?tab=mine"]').click();
+          await page.locator('.media-account-menu').waitFor({state:'hidden'});
+        }
+        await page.waitForFunction(() => window.feedCalls.some(call => call.tab === 'mine'));
+        await page.locator('.media-reference-tabs').getByRole('button', { name: 'Following', exact: true }).click();
+        await page.waitForFunction(() => window.feedCalls.some(call => call.tab === 'following'));
+        await page.locator('.media-reference-tabs button').first().click();
+        await page.locator('.media-explore-nearby').click();
+        await page.waitForFunction(() => window.feedCalls.some(call => call.tab === 'nearby'));
+        if (scenario.width > 700) {
+          await page.locator('.media-spaces-card').getByRole('button',{name:'Join',exact:true}).first().click();
+          await page.locator('.media-spaces-card .media-space-join').first().filter({hasText:'Open'}).waitFor();
+          assert.deepEqual(await page.evaluate(() => window.joinCalls), [1]);
+        }
+      }
+      if (scenario.width > 700) {
+        const search = page.locator('.media-header-search input'); await search.fill('neighborhood'); await search.press('Enter');
+        await page.waitForFunction(() => window.requests.some(request => request.kind === 'search' && request.key === 'neighborhood'));
+        assert.equal(await page.locator('.media-search input').inputValue(), 'neighborhood');
+      }
+      await page.close();
+    }
+    console.log('Design screenshots: ' + screenshots);
+  } finally { if (browser) await browser.close(); await app.close(); }
+});
+
 async function fixture() {
   const mocks = {
     'react-i18next': `export const useTranslation = () => ({ t: window.translate, i18n: { language: window.language } });`,
@@ -21,10 +101,13 @@ async function fixture() {
     '../../context/CookieConsentContext': `export const useCookieConsentContext = () => ({ openSettings: () => { window.cookieSettings += 1; } });`,
     '../../components/PageShell': `import React from 'react'; export default ({children}) => <main>{children}</main>;`,
     '../../components/PageMeta': `export default () => null;`,
-    '../../components/LanguageSelector': `import React from 'react'; export default () => <button style={{minHeight:44,width:75}}>US EN</button>;`,
-    '../../components/ThemeToggle': `import React from 'react'; export default () => <button style={{minHeight:44,width:44}}>☾</button>;`,
-    '../../components/OxSteedIcon': `import React from 'react'; export default () => <span>OxS</span>;`,
-    '../../hooks/useNotifications': `export default () => ({ unreadCount: 2 });`,
+    '../context/LanguageContext': `import {useState} from 'react'; export const useLanguage = () => {const [language,setLanguage] = useState(window.language);return {language,setLanguage,availableLanguages:[{code:'en',name:'English',nativeName:'English'},{code:'es',name:'Spanish',nativeName:'Español'},{code:'fr',name:'French',nativeName:'Français'},{code:'ht',name:'Haitian Creole',nativeName:'Kreyòl'},{code:'ar',name:'Arabic',nativeName:'العربية'}]};};`,
+    '../context/ThemeContext': `import {useState} from 'react'; export const useTheme = () => {const [isDark,setDark] = useState(false);return {isDark,toggleTheme:()=>{document.documentElement.classList.toggle('dark');setDark(v=>!v);}};};`,
+    '../hooks/useCapabilities': `export const useCapabilities = () => ({ isAvailable: () => true, loading: false });`,
+    '../api/axios': `export default { get: async()=>({data:{}}), post:async()=>({data:{reply:'Synthetic assistant reply'}}) };`,
+    './SpeechToTextInput': `import React from 'react'; export default () => null;`,
+    '../../api/geo': `export const suggestLocation = async q => { if(q==='outage') throw new Error('Synthetic lookup outage'); return [{city:'Springfield',state:'OH',display:'Springfield, Ohio'}]; };`,
+    '../../hooks/useNotifications': `export default () => ({ unreadCount: window.viewer ? 2 : 0 });`,
     '../../hooks/useMediaPostRealtime': `export default () => {};`,
     '../../api/axios': `export default {get: async () => ({data: []})};`,
     '../../api/media': `const pending = (kind, key) => new Promise((resolve, reject) => window.requests.push({kind,key,resolve,reject}));
@@ -47,7 +130,9 @@ async function fixture() {
       export const getCreatorSponsorships = async () => ({sponsorships:window.marketplace==='buyer'?[{id:'offer',sponsor_user_id:'viewer',creator_user_id:'other',status:'delivered',brief:'Local campaign',amount_cents:1000,currency_code:'USD'}]:[]});
       export const getCreatorPayments = async () => ({payments:[]}), getCreatorWorkReviews=async()=>({workReviews:[]});
       export const getMyCreatorApplications = async () => ({applications:window.marketplace==='creator'&&!window.workDeclined?[{id:'application',gig_id:'gig',gig_title:'Local creator work',status:'awarded',accepted_at:null,proposed_cents:10000,currency_code:'USD'}]:[]});
-      export const getFeed = async()=>({posts:[{id:'owned-post',body:'Published creator work'}]});
+      export const getFeed = async params=>{ window.feedCalls.push(params); return {posts:window.marketplace?[{id:'owned-post',body:'Published creator work'}]:[],location:params.city?{city:params.city,state:params.state,latitude:null,longitude:null}:window.viewer?{city:'Springfield',state:'OH',latitude:null,longitude:null}:{city:'',state:'',latitude:null,longitude:null},has_more:false}; };
+      export const getCommunities = async()=>({communities:[{id:1,slug:'small-business',title:'Springfield Small Business',geo_scope:'Springfield, OH',joined:false},{id:2,slug:'local-events',title:'Local Events',joined:false},{id:3,slug:'community-help',title:'Community Help',joined:false}]});
+      export const joinCommunity = async id=>{window.joinCalls.push(id);return {joined:true};};
       export const getMediaBadges = async () => ({ spaces_unread: 3 });
       export const markMediaCommunitiesSeen = async () => ({ ok: true, spaces_unread: 0 });
       export const acceptCreatorApplication = async id => {action('accept',[id]);return {application:{accepted_at:'2026-10-09T00:00:00Z'}};};
@@ -68,6 +153,7 @@ async function fixture() {
       import React from 'react'; import {createRoot} from 'react-dom/client';
       import {BrowserRouter, Routes, Route, useNavigate, useLocation} from 'react-router-dom';
       import Shell from './src/pages/media/MediaShell.jsx'; import Search from './src/pages/media/MediaSearchPage.jsx';
+      import Feed from './src/pages/media/MediaFeedPage.jsx'; import Support from './src/components/SupportWidget.jsx';
       import Actor from './src/pages/media/MediaActorPage.jsx'; import Detail from './src/pages/media/MediaPostDetailPage.jsx';
       import Verification from './src/pages/media/MediaVerificationPage.jsx'; import Card from './src/pages/media/MediaPostCard.jsx';
       import Creator from './src/pages/media/MediaCreatorPage.jsx'; import Admin from './src/admin/pages/MediaFlags.jsx';
@@ -75,13 +161,13 @@ async function fixture() {
       const post={id:'fixture',owner_user_id:'viewer',visibility:'public',handle:'fixture',display_name:'Fixture helper',body:'Useful local work',created_at:new Date().toISOString(),like_count:0,bookmark_count:0,repost_count:0,reply_count:0,share_count:0,view_count:0};
       function Harness(){ window.fixtureNavigate=useNavigate(); const location=useLocation(); const [cardPost,setCardPost]=React.useState(post);window.fixtureReplacePost=setCardPost;
         return <><output data-route>{location.pathname}</output><output data-return>{location.state?.from || ''}</output><Shell><Routes>
-          <Route path="/media/search" element={<Search/>}/><Route path="/media/:handle" element={<Actor/>}/>
+          <Route path="/media" element={<Feed/>}/><Route path="/media/search" element={<Search/>}/><Route path="/media/:handle" element={<Actor/>}/>
           <Route path="/media/post/:id" element={<Detail/>}/><Route path="/media/verification" element={<Verification/>}/>
           <Route path="/media/verify-identity" element={<ProtectedRoute requireOnboarded={false}><Identity embedded/></ProtectedRoute>}/>
           <Route path="/verify-identity" element={<Identity/>}/>
           <Route path="/media/creator" element={<Creator/>}/><Route path="/media/admin" element={<Admin/>}/>
           <Route path="/media/card" element={<Card post={cardPost} onUpdate={setCardPost}/>}/><Route path="*" element={<h1>Fixture timeline</h1>}/>
-        </Routes></Shell></>; }
+        </Routes></Shell><Support/></>; }
       createRoot(document.getElementById('root')).render(<BrowserRouter><Harness/></BrowserRouter>);`},
     bundle:true,write:false,outfile:'app.js',jsx:'automatic',define:{'import.meta.env':'{}'},
     plugins:[{name:'media-shell-fixture',setup(plugin){
@@ -94,11 +180,13 @@ async function fixture() {
     if (req.url === '/app.js' || req.url === '/app.css') {res.setHeader('Content-Type',req.url.endsWith('css')?'text/css':'text/javascript');res.end(output.contents);return;}
     const params=new URL(req.url,'http://fixture').searchParams, lang=params.get('lang') || 'en';
     const catalog=JSON.parse(fs.readFileSync(path.join(root,'src/locales',lang+'.json'),'utf8'));
+    const commonCatalog=JSON.parse(fs.readFileSync(path.join(root,'src/i18n/locales',lang,'common.json'),'utf8'));
     res.setHeader('Content-Type','text/html; charset=utf-8');
     res.end(`<html lang="${lang}" dir="${lang==='ar'?'rtl':'ltr'}"><head><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="/app.css"><style>
       :root{--color-surface:white;--color-surface-2:#f5f6f8;--color-text:#172033;--color-text-muted:#536176;--color-border:#ddd;--color-primary:#b93d00;--color-primary-bg:#fff0e7;--color-action:#b93d00;--color-on-action:white;}body{margin:0;font-family:Arial,sans-serif}button,input,textarea,select{font:inherit}output{display:none}
-      </style></head><body><div id="root"></div><script>window.requests=[];window.financialCalls=[];window.marketplace=${JSON.stringify(params.get('marketplace'))};window.failBoost=${params.has('payments')};window.language=${JSON.stringify(lang)};window.catalog=${JSON.stringify(catalog).replace(/</g,'\\u003c')};window.viewer=${params.has('guest')?'null':"{id:'viewer',display_name:'Synthetic local helper'}"};window.signouts=0;window.cookieSettings=0;
-      window.translate=(key,options={})=>{const value=key.split('.').reduce((node,part)=>node?.[part],window.catalog);return (typeof value==='string'?value:options.defaultValue||key).replace(/\\{\\{(\\w+)\\}\\}/g,(_,name)=>String(options[name]??''));};</script><script type="module" src="/app.js"></script></body></html>`);
+      </style></head><body><div id="root"></div><script>window.requests=[];window.financialCalls=[];window.feedCalls=[];window.joinCalls=[];window.marketplace=${JSON.stringify(params.get('marketplace'))};window.failBoost=${params.has('payments')};window.language=${JSON.stringify(lang)};window.catalog=${JSON.stringify(catalog).replace(/</g,'\\u003c')};window.viewer=${params.has('guest')?'null':"{id:'viewer',display_name:'Synthetic local helper'}"};window.signouts=0;window.cookieSettings=0;
+      window.commonCatalog=${JSON.stringify(commonCatalog).replace(/</g,'\\u003c')};
+      window.translate=(key,options={})=>{const read=catalog=>key.split('.').reduce((node,part)=>node?.[part],catalog);const value=read(window.catalog)??read(window.commonCatalog);return (typeof value==='string'?value:options.defaultValue||key).replace(/\\{\\{(\\w+)\\}\\}/g,(_,name)=>String(options[name]??''));};</script><script type="module" src="/app.js"></script></body></html>`);
   });
   await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
   return {url:`http://127.0.0.1:${server.address().port}`,close:()=>new Promise(resolve=>server.close(resolve))};
@@ -144,8 +232,9 @@ test('Media shell retains account routes on small screens in all five languages 
       await page.locator('.media-wordmark').waitFor();
       assert.equal(await page.locator('main').count(),1);
       assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,`${lang}/${width} document overflow`);
-      const shortcuts=page.locator(width===360?'.media-mobile-shortcuts':'.media-left-rail');
-      for(const route of ['/media/bookmarks','/media/verification','/media/creator'])assert.equal(await shortcuts.locator(`a[href="${route}"]`).count(),1);
+      const shortcuts=page.locator(width===360?'.media-reference-shortcuts':'.media-left-rail');
+      for(const route of ['/media/bookmarks','/media/verification'])assert.equal(await shortcuts.locator(`a[href="${route}"]`).count(),1);
+      assert.equal(await page.locator('.media-left-rail a[href="/media/creator"]').count(),1);
       const nav=page.locator(width===360?'.media-bottom-nav':'.media-side-nav');
       assert.equal(await nav.locator('a').count(),5);
       for(const route of ['/media/communities','/media/notifications','/media/messages']){
@@ -154,7 +243,7 @@ test('Media shell retains account routes on small screens in all five languages 
         assert.equal(await nav.locator(`a[href="${route}"]`).getAttribute('aria-current'),'page');
       }
       assert.equal(await page.locator('.media-account-name').textContent(),'Synthetic local helper');
-      await page.locator('.media-account-action').click();assert.equal(await page.evaluate(()=>window.signouts),1);
+      await page.locator('.media-account-trigger').click();await page.locator('.media-account-action').click();assert.equal(await page.evaluate(()=>window.signouts),1);
       assert.deepEqual(errors,[]);await page.close();
     }
   }finally{if(browser)await browser.close();await app.close();}
@@ -165,8 +254,8 @@ test('guest sign in retains the current Media return path and Join OxSteed label
   try{
     browser=await chromium.launch({headless:true,channel:'chrome'});const page=await browser.newPage({viewport:{width:360,height:844}});
     await page.goto(`${app.url}/media?guest&lang=en`);
-    assert.equal(await page.getByRole('link',{name:'Join OxSteed',exact:true}).count(),1);
-    await page.getByRole('link',{name:'Sign In',exact:true}).click();
+    assert.equal(await page.locator('.media-auth-links a[href="/join"]').count(),1);
+    await page.locator('.media-auth-links a[href="/login"]').click();
     await page.waitForFunction(()=>document.querySelector('[data-route]').textContent==='/login');
     assert.equal(await page.locator('[data-return]').textContent(),'/media?guest&lang=en');
     assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
@@ -180,9 +269,10 @@ test('legal, verification and boost dialogs contain Tab, close on Escape and res
     for(const scenario of [{path:'/media',trigger:'.media-footer-links a[href="/terms"]'},{path:'/media/verification',trigger:'.media-verification-card button'},{path:'/media/card',trigger:'button[aria-label="Boost post"]'}]){
       await page.goto(app.url+scenario.path);const trigger=page.locator(scenario.trigger);await trigger.click();
       const dialog=page.getByRole('dialog');await dialog.waitFor();
+      await page.waitForFunction(() => document.querySelector('[role="dialog"]')?.contains(document.activeElement));
       const controls=dialog.locator('a[href],button:not(:disabled),input:not(:disabled),textarea:not(:disabled),select:not(:disabled)');
       await controls.first().focus();await page.keyboard.press('Shift+Tab');
-      assert.equal(await controls.last().evaluate(el=>el===document.activeElement),true);
+      assert.equal(await controls.last().evaluate(el=>el===document.activeElement),true,scenario.path+' backward focus trap');
       await page.keyboard.press('Tab');assert.equal(await controls.first().evaluate(el=>el===document.activeElement),true);
       assert.equal(await page.evaluate(()=>document.body.style.overflow),'hidden');
       await page.keyboard.press('Escape');await dialog.waitFor({state:'hidden'});
@@ -197,7 +287,7 @@ test('search errors stay recoverable and older search results never replace the 
   try{
     browser=await chromium.launch({headless:true,channel:'chrome'});const page=await browser.newPage();const errors=[];
     page.on('pageerror',error=>errors.push(error.message));await page.goto(app.url+'/media/search');
-    const search=page.getByRole('searchbox');await search.fill('old');await search.press('Enter');
+    const search=page.locator('.media-search').getByRole('searchbox');await search.fill('old');await search.press('Enter');
     await search.fill('new');await search.press('Enter');
     await resolveRequest(page,'search','new',{posts:[],actors:[{id:2,handle:'new',display_name:'New account'}]});
     await page.getByRole('link',{name:/New account/}).waitFor();

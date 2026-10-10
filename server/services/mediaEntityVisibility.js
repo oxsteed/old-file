@@ -14,7 +14,7 @@ function publicBusinessSql(business = 'b', user = null) {
   return `COALESCE(${business}.is_listed, TRUE) = TRUE
     AND COALESCE(${business}.is_hidden_by_admin, FALSE) = FALSE
     AND ${business}.deleted_at IS NULL AND ${business}.is_active = TRUE
-    AND COALESCE(${business}.is_business_verified, FALSE) = TRUE${owner}`;
+    AND COALESCE(${business}.is_business_verified, FALSE) = TRUE ${owner}`;
 }
 
 function publicRestaurantSql(restaurant = 'r', user = null) {
@@ -22,7 +22,7 @@ function publicRestaurantSql(restaurant = 'r', user = null) {
   return `COALESCE(${restaurant}.discovery_status, 'visible') = 'visible'
     AND COALESCE(${restaurant}.is_hidden_by_admin, FALSE) = FALSE
     AND ${restaurant}.status = 'active'
-    AND COALESCE(${restaurant}.is_verified, FALSE) = TRUE${owner}`;
+    AND COALESCE(${restaurant}.is_verified, FALSE) = TRUE ${owner}`;
 }
 
 function publicActorSql(actor = 'a') {

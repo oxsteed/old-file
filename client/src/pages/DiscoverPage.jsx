@@ -102,6 +102,9 @@ export default function DiscoverPage() {
   const lat = searchParams.get('lat');
   const lng = searchParams.get('lng');
   const radiusParam = searchParams.get('radius');
+  const resultType = ['helper', 'job', 'tool', 'business', 'product'].includes(searchParams.get('type')) ? searchParams.get('type') : null;
+  const city = searchParams.get('city');
+  const state = searchParams.get('state');
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -134,7 +137,7 @@ export default function DiscoverPage() {
   const loadPopular = useCallback(async () => {
     setPopularLoading(true);
     try {
-      const params = { radius: 60 };
+      const params = { radius: 60, ...(resultType ? { type: resultType } : {}), ...(city && state ? { city, state } : {}) };
       if (lat && lng) {
         params.lat = lat;
         params.lng = lng;
@@ -146,7 +149,7 @@ export default function DiscoverPage() {
     } finally {
       setPopularLoading(false);
     }
-  }, [lat, lng]);
+  }, [lat, lng, resultType, city, state]);
 
   const load = useCallback(async (nextOffset = 0, append = false) => {
     if (!q.trim()) {
@@ -160,7 +163,7 @@ export default function DiscoverPage() {
     if (!append) setLoading(true);
     setError(null);
     try {
-      const params = { q: q.trim(), radius, limit, offset: nextOffset };
+      const params = { q: q.trim(), radius, limit, offset: nextOffset, ...(resultType ? { type: resultType } : {}), ...(city && state ? { city, state } : {}) };
       if (lat && lng) {
         params.lat = lat;
         params.lng = lng;
@@ -187,7 +190,7 @@ export default function DiscoverPage() {
     } finally {
       setLoading(false);
     }
-  }, [q, lat, lng, radius, t, limit]);
+  }, [q, lat, lng, radius, t, limit, resultType, city, state]);
 
   useEffect(() => {
     if (!q.trim()) {

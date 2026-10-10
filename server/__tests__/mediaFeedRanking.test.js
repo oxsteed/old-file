@@ -76,6 +76,31 @@ describe('Media ranked feed journey', () => {
     expect(secondCall[1]).toEqual(expect.arrayContaining([3, 'viewer-1', 0, 0, '2026-10-08T11:00:00.000Z', 'post-plain-away']));
   });
 
+  test('Nearby requires a real location and never silently becomes a global feed', async () => {
+    const missing = response();
+    await media.getFeed({ query: { tab: 'nearby', location_mode: 'all' } }, missing);
+    expect(missing.status).toHaveBeenCalledWith(400);
+    expect(missing.json).toHaveBeenCalledWith(expect.objectContaining({ code: 'media_nearby_location_required' }));
+    expect(pool.query).not.toHaveBeenCalled();
+
+    const nearby = response();
+    await media.getFeed({ query: { tab: 'nearby', city: 'Springfield', state: 'OH' }, user: { id: 'viewer-1' } }, nearby);
+    expect(nearby.status).not.toHaveBeenCalled();
+    const [sql, values] = pool.query.mock.calls.find(([query]) => query.includes('WITH base AS'));
+    expect(sql).toMatch(/AND \(GREATEST\([\s\S]+\)\) > 0/);
+    const geographicFilter = sql.slice(sql.indexOf('AND (GREATEST'), sql.indexOf('GROUP BY'));
+    expect(geographicFilter).toContain('nearby.geo_scope');
+    expect(geographicFilter).not.toContain('media_community_members');
+    expect(values).toEqual(expect.arrayContaining(['springfield', 'oh', 'viewer-1']));
+
+    pool.query.mockReset().mockRejectedValue(new Error('Synthetic locality outage'));
+    const unavailable = response();
+    await media.getFeed({ query: { tab: 'nearby', city: 'Springfield', state: 'OH' } }, unavailable);
+    expect(unavailable.status).toHaveBeenCalledWith(500);
+    expect(pool.query).toHaveBeenCalledTimes(1);
+    expect(pool.query.mock.calls[0][0]).not.toContain('0::int AS locality_boost');
+  });
+
   test('does not advertise another page when the result ends on a full page', async () => {
     pool.query.mockReset().mockImplementation(async (sql) => {
       if (sql.includes('SELECT p.*, a.handle')) {

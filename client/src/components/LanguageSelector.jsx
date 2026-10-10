@@ -1,13 +1,13 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useLanguage } from '../context/LanguageContext';
 
-export default function LanguageSelector({ menuAlign = 'end' }) {
+export default function LanguageSelector({ menuAlign = 'end', appearance }) {
   const { language, setLanguage, availableLanguages } = useLanguage();
   const { t } = useTranslation('common');
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
-  const menuId = 'language-selector-menu';
+  const menuId = useId();
 
   const current = availableLanguages.find(l => l.code === language) || availableLanguages[0];
 
@@ -39,16 +39,16 @@ export default function LanguageSelector({ menuAlign = 'end' }) {
           display: 'flex', alignItems: 'center', gap: '0.3rem',
           minHeight: '44px',
           background: 'none',
-          border: '1px solid var(--color-border)',
+          border: appearance === 'media' ? 'none' : '1px solid var(--color-border)',
           borderRadius: '6px',
           padding: '0.25rem 0.5rem',
           cursor: 'pointer',
           color: 'var(--color-text)',
-          fontSize: '0.8rem',
+          fontSize: appearance === 'media' ? '1rem' : '0.8rem',
           fontWeight: 600,
         }}
       >
-        <span style={{ fontSize: '1rem' }}>{current.flag}</span>
+        {appearance === 'media' ? <svg aria-hidden="true" width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><circle cx="12" cy="12" r="9"/><ellipse cx="12" cy="12" rx="4" ry="9"/><path d="M3 12h18"/></svg> : <span style={{ fontSize: '1rem' }}>{current.flag}</span>}
         <span style={{ textTransform: 'uppercase', letterSpacing: '0.04em' }}>{current.code}</span>
         <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor"
           strokeWidth="2.5" strokeLinecap="round"

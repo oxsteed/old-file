@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import React, { useEffect, useRef, useState } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { ArrowUpRight, Bell, Bookmark, Briefcase, Home, Mail, MapPin, Plus, Search, ShieldCheck, Users, Utensils, UserRound } from 'lucide-react';
+import { Bell, Bookmark, Briefcase, ChevronDown, Home, Mail, MapPin, Search, ShieldCheck, Users, UserRound } from 'lucide-react';
 import PageShell from '../../components/PageShell';
 import LanguageSelector from '../../components/LanguageSelector';
 import ThemeToggle from '../../components/ThemeToggle';
@@ -11,8 +11,10 @@ import useNotifications from '../../hooks/useNotifications';
 import api from '../../api/axios';
 import MediaFooter from './MediaFooter';
 import { MediaGuestGateProvider } from './MediaGuestGate';
-import { getMediaBadges, markMediaCommunitiesSeen } from '../../api/media';
+import { getCommunities, getMediaBadges, joinCommunity, markMediaCommunitiesSeen } from '../../api/media';
+import { MediaNeighborhoodProvider, useMediaNeighborhood } from './MediaNeighborhoodContext';
 import './MediaStyles.css';
+import './MediaLanding.css';
 
 const TABS = [
   { path: '/media', key: 'home', Icon: Home },
@@ -22,209 +24,147 @@ const TABS = [
   { path: '/media/messages', key: 'messages', Icon: Mail },
 ];
 
-const DISCOVER = [
-  { path: '/restaurants', key: 'restaurants', Icon: Utensils },
-  { path: '/helpers', key: 'helpers', Icon: UserRound },
-  { path: '/jobs', key: 'jobs', Icon: Briefcase },
-];
-
-export default function MediaShell({ children }) {
+function MediaShellContent({ children }) {
   const { t } = useTranslation();
   const { user, loading, logout } = useAuth();
+  const { label, openLocation, resolvedLocation } = useMediaNeighborhood();
   const { unreadCount: notificationUnread } = useNotifications('media');
   const [messageUnread, setMessageUnread] = useState(0);
   const [spacesUnread, setSpacesUnread] = useState(0);
-  const [mediaLocationLabel, setMediaLocationLabel] = useState('Choose a location');
+  const [communities, setCommunities] = useState([]);
+  const [communityError, setCommunityError] = useState('');
+  const [joining, setJoining] = useState(null);
+  const [accountOpen, setAccountOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const accountRef = useRef(null);
   const { pathname, search } = useLocation();
+  const navigate = useNavigate();
   const currentPath = pathname.replace(/\/+$/, '') || '/';
-  const activeTab = ['/media/compose', '/media/verification', '/media/verify-identity', '/media/creator'].includes(currentPath) ? null
-    : TABS.find(tab => tab.path !== '/media' && currentPath.startsWith(tab.path))?.path || '/media';
   const isFeedPage = currentPath === '/media';
-  const displayName = user?.display_name
-    || user?.name
-    || [user?.first_name, user?.last_name].filter(Boolean).join(' ').trim()
-    || user?.email
-    || '';
+  const activeTab = ['/media/compose', '/media/verification', '/media/verify-identity', '/media/creator'].some(path => currentPath.startsWith(path)) ? null
+    : TABS.find(tab => tab.path !== '/media' && currentPath.startsWith(tab.path))?.path || '/media';
+  const displayName = user?.display_name || user?.name || [user?.first_name, user?.last_name].filter(Boolean).join(' ') || user?.email || '';
+  const verified = user?.is_verified === true || ['approved', 'verified'].includes(user?.didit_status);
+  const completed = [Boolean(displayName), Boolean(user?.profile_photo_url), Boolean(user?.city && user?.state), verified].filter(Boolean).length;
 
   useEffect(() => {
-    const readLocation = () => {
-      try {
-        const choice = JSON.parse(window.localStorage.getItem('oxsteed.media.location'));
-        if (choice?.location_mode === 'all') return setMediaLocationLabel(t('media.feed.allLocations', { defaultValue: 'All locations' }));
-        if (choice?.city && choice?.state) return setMediaLocationLabel(`${choice.city}, ${choice.state}`);
-      } catch { /* Location is optional and may be unavailable in private browsing. */ }
-      setMediaLocationLabel(t('media.feed.chooseLocation', { defaultValue: 'Choose a location' }));
-    };
-    readLocation();
-    window.addEventListener('oxsteed:media-location-change', readLocation);
-    return () => window.removeEventListener('oxsteed:media-location-change', readLocation);
-  }, [t]);
+    if (!accountOpen) return undefined;
+    const close = event => { if (!accountRef.current?.contains(event.target)) setAccountOpen(false); };
+    const key = event => { if (event.key === 'Escape') { setAccountOpen(false); accountRef.current?.querySelector('button')?.focus(); } };
+    document.addEventListener('mousedown', close); document.addEventListener('keydown', key);
+    return () => { document.removeEventListener('mousedown', close); document.removeEventListener('keydown', key); };
+  }, [accountOpen]);
+  useEffect(() => { setAccountOpen(false); }, [pathname, search]);
 
   useEffect(() => {
     let cancelled = false;
-    if (!user) {
-      setMessageUnread(0);
-      return () => { cancelled = true; };
-    }
-    api.get('/messages/conversations', { params: { limit: 100, offset: 0 } })
-      .then(({ data }) => {
-        if (cancelled) return;
-        const conversations = Array.isArray(data) ? data : (data?.conversations || []);
-        setMessageUnread(conversations.reduce((total, conversation) => total + (Number(conversation.unread_count) || 0), 0));
-      })
-      .catch(() => {
-        if (!cancelled) setMessageUnread(0);
-      });
+    setMessageUnread(0);
+    if (user) api.get('/messages/conversations', { params: { limit: 100, offset: 0 } })
+      .then(({ data }) => { if (!cancelled) setMessageUnread((Array.isArray(data) ? data : data?.conversations || []).reduce((total, item) => total + (Number(item.unread_count) || 0), 0)); })
+      .catch(() => {});
     return () => { cancelled = true; };
-  }, [user]);
+  }, [user?.id]);
 
   useEffect(() => {
     let cancelled = false;
-    if (!user) {
-      setSpacesUnread(0);
-      return () => { cancelled = true; };
-    }
-    const badgeRequest = pathname.startsWith('/media/communities')
-      ? markMediaCommunitiesSeen()
-      : getMediaBadges();
-    badgeRequest
-      .then((data) => { if (!cancelled) setSpacesUnread(Number(data?.spaces_unread) || 0); })
-      .catch(() => { if (!cancelled) setSpacesUnread(0); });
+    setSpacesUnread(0);
+    if (user) (pathname.startsWith('/media/communities') ? markMediaCommunitiesSeen() : getMediaBadges())
+      .then(data => { if (!cancelled) setSpacesUnread(Number(data?.spaces_unread) || 0); }).catch(() => {});
     return () => { cancelled = true; };
-  }, [user, pathname]);
+  }, [user?.id, pathname]);
 
-  const navigation = (mobile = false) => (
-    <nav className={mobile ? 'media-bottom-nav' : 'media-side-nav'} aria-label={t('media.shell.navigation')}>
-      {TABS.map(({ path, key, Icon }) => {
-        const unread = key === 'notifications' ? notificationUnread
-          : key === 'messages' ? messageUnread
-            : key === 'spaces' ? spacesUnread
-              : 0;
-        return (
-        <Link key={path} to={path} aria-current={activeTab === path ? 'page' : undefined}
-          className={`media-nav-tab ${activeTab === path ? 'active' : ''}`}>
-          <Icon size={22} strokeWidth={activeTab === path ? 2.4 : 1.8} aria-hidden="true" />
-          <span className="media-nav-label">{t(`media.shell.${key}`)}</span>
-          {unread > 0 && <span className="media-nav-badge" aria-label={t('media.notifications.unread', { count: unread })}>{unread > 99 ? '99+' : unread}</span>}
-        </Link>
-        );
-      })}
-    </nav>
-  );
+  useEffect(() => {
+    let cancelled = false;
+    setCommunities([]); setCommunityError('');
+    if (isFeedPage && user) getCommunities()
+      .then(data => { if (!cancelled) setCommunities(data.communities || []); })
+      .catch(() => { if (!cancelled) setCommunityError(t('media.spaces.loadError')); });
+    return () => { cancelled = true; };
+  }, [isFeedPage, user?.id, t]);
 
-  return (
-    <MediaGuestGateProvider>
-    <PageShell hideNav hideFooter>
-      <div className="media-shell">
-        <header className="media-app-header">
-          <div className="media-app-header-inner">
-            <Link to="/" className="media-wordmark" aria-label={t('media.shell.homepage')}>
-              <span className="media-brand-mark"><OxSteedIcon size={34} /></span>
-              <span>OxSteed <span className="media-wordmark-branch">Media</span></span>
-            </Link>
-            <Link className="media-header-search" to="/media/search" aria-label={t('media.shell.search', { defaultValue: 'Search Media' })}>
-              <Search size={18} aria-hidden="true" />
-              <span>{t('media.shell.searchPlaceholder', { defaultValue: 'Search' })}</span>
-            </Link>
-            <div className="media-header-tools">
-              {!loading && (user ? (
-                <div className="media-account-tools">
-                  <span className="media-account-name" title={displayName}>{displayName}</span>
-                  <button type="button" className="media-account-action" onClick={() => { void logout(); }}>
-                    {t('nav.signOut')}
-                  </button>
-                </div>
-              ) : (
-                <div className="media-auth-links" aria-label={t('media.shell.account')}>
-                  <Link to="/login" state={{ from: `${pathname}${search}` }} className="media-auth-link">{t('nav.signIn')}</Link>
-                  <Link to="/join" className="media-auth-link media-auth-link-primary">{t('nav.joinOxsteed')}</Link>
-                </div>
-              ))}
-              <LanguageSelector />
-              <ThemeToggle />
-            </div>
+  const join = async community => {
+    if (joining !== null) return;
+    setJoining(community.id); setCommunityError('');
+    try {
+      const result = await joinCommunity(community.id);
+      setCommunities(current => current.map(item => item.id === community.id ? { ...item, joined: result.joined === true } : item));
+    } catch { setCommunityError(t('media.spaces.membershipError')); }
+    finally { setJoining(null); }
+  };
+  const suggested = [...communities].sort((a, b) => {
+    const score = item => Boolean(resolvedLocation.city && item.geo_scope?.toLowerCase().includes(resolvedLocation.city.toLowerCase()));
+    return Number(score(b)) - Number(score(a));
+  }).slice(0, 3);
+
+  const navigation = (mobile = false) => <nav className={mobile ? 'media-bottom-nav' : 'media-side-nav'} aria-label={t('media.shell.navigation')}>
+    {TABS.filter(tab => mobile || user || !['notifications', 'messages'].includes(tab.key)).map(({ path, key, Icon }) => {
+      const unread = key === 'notifications' ? notificationUnread : key === 'messages' ? messageUnread : key === 'spaces' ? spacesUnread : 0;
+      return <Link key={path} to={path} aria-current={activeTab === path ? 'page' : undefined} className={`media-nav-tab ${activeTab === path ? 'active' : ''}`}>
+        <Icon size={24} strokeWidth={1.8} aria-hidden="true" />
+        <span className="media-nav-label">{mobile && key === 'notifications' ? t('media.landing.alerts') : mobile && key === 'messages' ? t('media.landing.inbox') : t(`media.shell.${key}`)}</span>
+        {unread > 0 && <span className="media-nav-badge" aria-label={t('media.notifications.unread', { count: unread })}>{unread > 99 ? '99+' : unread}</span>}
+      </Link>;
+    })}
+  </nav>;
+  const locationButton = <button type="button" className="media-global-location" onClick={openLocation}><MapPin size={21} aria-hidden="true" /><span>{label}</span><ChevronDown size={17} aria-hidden="true" /></button>;
+  const preferences = <div className="media-preferences"><LanguageSelector appearance="media" /><ThemeToggle /></div>;
+
+  return <MediaGuestGateProvider><PageShell hideNav hideFooter>
+    <div className={`media-shell media-reference-shell ${user ? 'media-signed-in' : 'media-guest'} ${isFeedPage ? 'media-home-shell' : ''}`}>
+      <header className="media-app-header">
+        <div className="media-app-header-inner">
+          <Link to="/media" className="media-wordmark" aria-label={t('media.shell.homepage')}><span className="media-brand-mark"><OxSteedIcon size={44} /></span><span>OxSteed<span className="media-wordmark-branch"> Media</span></span></Link>
+          {user && <div className="media-header-location">{locationButton}</div>}
+          <form className="media-header-search" role="search" onSubmit={event => { event.preventDefault(); navigate(`/media/search${query.trim() ? `?q=${encodeURIComponent(query.trim())}` : ''}`); }}>
+            <Search size={21} aria-hidden="true" /><input type="search" aria-label={t('media.search.placeholder')} placeholder={t('media.shell.search')} value={query} onChange={event => setQuery(event.target.value)} />
+          </form>
+          <div className="media-header-tools">
+            <div className="media-desktop-preferences">{preferences}</div>
+            {!loading && (user ? <div className="media-account-tools" ref={accountRef}>
+              <button type="button" className="media-account-trigger" aria-expanded={accountOpen} aria-controls="media-account-menu" aria-label={displayName} onClick={() => setAccountOpen(value => !value)}>
+                <span className="media-account-avatar">{user.profile_photo_url ? <img src={user.profile_photo_url} alt="" /> : <UserRound size={23} aria-hidden="true" />}</span><span className="media-account-name">{displayName}</span><ChevronDown size={17} aria-hidden="true" />
+              </button>
+              {accountOpen && <div id="media-account-menu" className="media-account-menu">
+                <div className="media-account-preferences">{preferences}</div>
+                <Link to="/media?tab=mine">{t('media.landing.myPosts')}</Link><Link to="/media/bookmarks">{t('media.shell.saved')}</Link><Link to="/media/verification">{t('media.shell.verification')}</Link>
+                <button className="media-account-action" type="button" onClick={() => { setAccountOpen(false); void logout(); }}>{t('nav.signOut')}</button>
+              </div>}
+            </div> : <div className="media-auth-links"><Link to="/login" state={{ from: `${pathname}${search}` }} className="media-auth-link">{t('nav.signIn')}</Link><Link to="/join" className="media-auth-link media-auth-link-primary"><span className="media-desktop-label">{t('nav.joinOxsteed')}</span><span className="media-mobile-label">{t('media.landing.join')}</span></Link></div>)}
           </div>
-          <nav className="media-mobile-shortcuts" aria-label={t('media.shell.account')}>
-            <Link to="/media/compose"><Plus size={16} aria-hidden="true" />{t('media.feed.compose')}</Link>
-            {user && <Link to="/media/bookmarks"><Bookmark size={16} aria-hidden="true" />{t('media.shell.saved')}</Link>}
-            {user && <Link to="/media/verification"><ShieldCheck size={16} aria-hidden="true" />{t('media.shell.verification')}</Link>}
-            <Link to="/media/creator"><Briefcase size={16} aria-hidden="true" />{t('media.creator.title')}</Link>
-          </nav>
-        </header>
-        <div className="media-layout">
-          <aside className="media-left-rail">
-            <div className="media-rail-sticky">
-              {navigation()}
-              <Link className="media-primary-button media-rail-compose" to="/media/compose">
-                <Plus size={18} aria-hidden="true" />{t('media.feed.compose')}
-              </Link>
-              <div className="media-rail-divider" aria-hidden="true" />
-              {user && <Link className="media-saved-link" to="/media/bookmarks"><Bookmark size={17} aria-hidden="true" />{t('media.shell.saved', { defaultValue: 'Saved posts' })}</Link>}
-              {user && <Link className="media-saved-link" to="/media/verification"><ShieldCheck size={17} aria-hidden="true" />{t('media.shell.verification', { defaultValue: 'Verification' })}</Link>}
-              <Link className="media-saved-link" to="/media/creator"><Briefcase size={17} aria-hidden="true" />{t('media.creator.title', { defaultValue: 'Creator marketplace' })}</Link>
-            </div>
-          </aside>
-          <div className="media-content">{children}</div>
-          <aside className="media-discovery" aria-label={t('media.shell.discover')}>
-            <div className="media-rail-sticky">
-              {isFeedPage ? (
-                <>
-                  <section className="media-discovery-card media-neighborhood-card">
-                    <h2>{t('media.feed.neighborhoodTitle', { defaultValue: 'Your neighborhood' })}</h2>
-                    <strong>{mediaLocationLabel}</strong>
-                    <Link to="/media" className="media-discovery-card-link">{t('media.feed.changeLocation', { defaultValue: 'Change location' })}</Link>
-                  </section>
-                  <section className="media-discovery-card media-spaces-card">
-                    <h2>{t('media.feed.suggestedSpaces', { defaultValue: 'Suggested spaces' })}</h2>
-                    {DISCOVER.map(({ path, key, Icon }) => (
-                      <Link to={path} className="media-suggested-space" key={path}>
-                        <span className="media-discovery-link-icon"><Icon size={18} aria-hidden="true" /></span>
-                        <strong>{t(`media.shell.${key}`)}</strong>
-                        <span className="media-space-join">{t('media.feed.join', { defaultValue: 'Join' })}</span>
-                      </Link>
-                    ))}
-                  </section>
-                  <section className="media-discovery-card media-profile-card">
-                    <h2>{user
-                      ? t('media.feed.completeProfile', { defaultValue: 'Complete your profile' })
-                      : t('media.feed.joinCommunity', { defaultValue: 'Join your community' })}</h2>
-                    <p>{user
-                      ? t('media.feed.verifyProfile', { defaultValue: 'Verify your account to build trust nearby.' })
-                      : t('media.feed.joinCommunityDescription', { defaultValue: 'Connect with people and businesses nearby.' })}</p>
-                    {user ? (
-                      <Link to="/media/verification" className="media-discovery-card-link">{t('media.shell.verification', { defaultValue: 'Verify your account' })}</Link>
-                    ) : (
-                      <Link to="/join" className="media-primary-button">{t('nav.joinOxsteed', { defaultValue: 'Join OxSteed' })}</Link>
-                    )}
-                  </section>
-                </>
-              ) : (
-                <>
-                  <section className="media-discovery-card">
-                    <div className="media-discovery-heading"><MapPin size={18} aria-hidden="true" /><h2>{t('media.shell.discover')}</h2></div>
-                    <p>{t('media.shell.discoverDescription')}</p>
-                    {DISCOVER.map(({ path, key, Icon }) => (
-                      <Link to={path} className="media-discovery-link" key={path}>
-                        <span className="media-discovery-link-icon"><Icon size={19} aria-hidden="true" /></span>
-                        <span><strong>{t(`media.shell.${key}`)}</strong><small>{t(`media.shell.${key}Description`)}</small></span>
-                        <ArrowUpRight size={17} aria-hidden="true" />
-                      </Link>
-                    ))}
-                  </section>
-                  <section className="media-purpose-card">
-                    <ShieldCheck size={23} aria-hidden="true" />
-                    <h2>{t('media.shell.purposeTitle')}</h2>
-                    <p>{t('media.shell.purposeDescription')}</p>
-                  </section>
-                </>
-              )}
-            </div>
-          </aside>
         </div>
-        <MediaFooter />
-        {navigation(true)}
+        <div className="media-mobile-location-row">{locationButton}{!user && preferences}</div>
+      </header>
+      <div className="media-layout">
+        <aside className="media-left-rail"><div className="media-rail-sticky">{navigation()}
+          {user && <><div className="media-rail-divider" /><Link className="media-saved-link" to="/media/bookmarks"><Bookmark size={23} />{t('media.shell.saved')}</Link><Link className="media-saved-link" to="/media/verification"><ShieldCheck size={23} />{t('media.shell.verification')}</Link></>}
+          <Link className="media-saved-link" to="/media/creator"><Briefcase size={23} />{t('media.creator.title')}</Link>
+          {!user && <section className="media-rail-join media-reference-card"><h2>{t('media.landing.joinCommunity')}</h2><p>{t('media.landing.joinDescription')}</p><Link className="media-primary-button" to="/join">{t('media.landing.createAccount')}</Link></section>}
+        </div></aside>
+        <div className="media-content">{children}</div>
+        <aside className="media-discovery" aria-label={t('media.shell.discover')}><div className="media-rail-sticky">
+          {user ? <>
+            <section className="media-reference-card media-neighborhood-card"><h2>{t('media.landing.yourNeighborhood')}</h2><p>{label}</p><button type="button" className="media-discovery-card-link" onClick={openLocation}>{t('media.landing.changeLocation')}</button></section>
+            <section className="media-reference-card media-spaces-card"><h2>{t('media.landing.suggestedSpaces')}</h2>
+              {suggested.map(community => <div className="media-suggested-space" key={community.id}><Link className="media-space-name" to={`/media/communities/${encodeURIComponent(community.slug)}`}><span className="media-space-avatar"><Users size={20} /></span><strong>{community.title}</strong></Link>
+                {community.joined ? <Link className="media-space-join" to={`/media/communities/${encodeURIComponent(community.slug)}`}>{t('media.landing.open')}</Link> : <button type="button" className="media-space-join" disabled={joining !== null} onClick={() => join(community)}>{t(joining === community.id ? 'media.landing.joining' : 'media.landing.join')}</button>}
+              </div>)}
+              {communityError && <p role="alert">{communityError}</p>}
+              {!suggested.length && !communityError && <p>{t('media.landing.spacesEmpty')}</p>}
+              {!suggested.length && <Link to="/media/communities" className="media-discovery-card-link">{t('media.landing.exploreSpaces')}</Link>}
+            </section>
+            <section className="media-reference-card media-profile-card"><h2>{t('media.landing.completeProfile')}</h2><progress max={4} value={completed} aria-label={t('media.landing.completeProfile')} /><Link className="media-discovery-card-link" to="/media/verification">{t(verified ? 'media.landing.reviewVerification' : 'media.landing.verifyAccount')}</Link></section>
+          </> : <>
+            <section className="media-reference-card media-how-card"><h2>{t('media.landing.howItWorks')}</h2><ol><li><button type="button" onClick={openLocation}>{t('media.landing.chooseYourLocation')}</button></li><li><Link to="/media/communities">{t('media.landing.exploreCommunity')}</Link></li><li><Link to="/join">{t('media.landing.joinConversation')}</Link></li></ol></section>
+            <section className="media-reference-card media-creators-card"><h2>{t('media.landing.forCreators')}</h2><p>{t('media.landing.creatorDescription')}</p><Link className="media-outline-button" to="/media/creator">{t('media.landing.exploreMarketplace')}</Link></section>
+          </>}
+        </div></aside>
       </div>
-    </PageShell>
-    </MediaGuestGateProvider>
-  );
+      <MediaFooter />{navigation(true)}
+    </div>
+  </PageShell></MediaGuestGateProvider>;
+}
+
+export default function MediaShell({ children }) {
+  const { user } = useAuth();
+  return <MediaNeighborhoodProvider user={user}><MediaShellContent>{children}</MediaShellContent></MediaNeighborhoodProvider>;
 }

@@ -23,6 +23,7 @@ const express = require('express');
 const request = require('supertest');
 const pool = require('../db');
 const mediaCtrl = require('../controllers/mediaController');
+const discoverCtrl = require('../controllers/discoverController');
 const feedContext = require('../services/mediaFeedContext');
 const socketService = require('../services/socketService');
 
@@ -50,6 +51,8 @@ function buildApp() {
   app.use(express.json());
   app.use(testAuth);
   app.get('/media/feed', mediaCtrl.getFeed);
+  app.get('/discover', discoverCtrl.discoverSearch);
+  app.get('/discover/popular', discoverCtrl.discoverPopular);
   app.get('/media/search', mediaCtrl.searchMedia);
   app.get('/media/communities', mediaCtrl.getCommunities);
   app.get('/media/communities/:slug', mediaCtrl.getCommunity);
@@ -198,6 +201,38 @@ describeDatabase('media discovery and integrations', () => {
 
   // ── 2. Nearby ranking ──────────────────────────────────────────────────
   describe('nearby ranking', () => {
+    test('local business discovery uses the business address without requiring a helper profile', async () => {
+      const owner = await createUser('localBusiness', { verified: true });
+      await pool.query('UPDATE users SET email_verified = TRUE, onboarding_completed = TRUE WHERE id = $1', [owner]);
+      const { rows } = await pool.query(
+        `INSERT INTO businesses (user_id,business_name,is_active,is_business_verified,address_city,address_state)
+         VALUES ($1,$2,TRUE,TRUE,'Springfield','IL'),($1,$3,TRUE,TRUE,'Shelbyville','IL') RETURNING id`,
+        [owner, `Local business ${tag}`, `Distant business ${tag}`]);
+      try {
+        for (const endpoint of ['/discover/popular', `/discover?q=${tag}`]) {
+          const result = await request(app).get(endpoint).query({ type: 'business', city: 'Springfield', state: 'IL' }).expect(200);
+          expect(result.body.results.map(item => item.id)).toContain(String(rows[0].id));
+          expect(result.body.results.map(item => item.id)).not.toContain(String(rows[1].id));
+          expect(result.body.results.every(item => item.type === 'business')).toBe(true);
+        }
+      } finally {
+        // Match this suite's best-effort cleanup: migrated wallet FK/RLS policies
+        // can prevent deleting referenced businesses. The database is disposable.
+        await pool.query('DELETE FROM businesses WHERE user_id = $1', [owner]).catch(() => {});
+      }
+    });
+    test('Nearby excludes distant and locationless posts even from a joined space', async () => {
+      const far = await pool.query(`INSERT INTO media_communities (slug,title,geo_scope,category) VALUES ($1,$2,'shelbyville,il','city') RETURNING id`, [`disc-${tag}-far`, `Far ${tag}`]);
+      await pool.query('INSERT INTO media_community_members (community_id,user_id) VALUES ($1,$2)', [far.rows[0].id, users.alice]);
+      await makePost('pFarJoined', 'bob', { communityId: far.rows[0].id });
+      const result = await request(app).get('/media/feed?tab=nearby&city=springfield&state=il&limit=50').set(as('alice')).expect(200);
+      const ids = result.body.posts.map(post => post.id);
+      expect(ids).toEqual(expect.arrayContaining([posts.p1, posts.p4]));
+      expect(ids).not.toContain(posts.p2);
+      expect(ids).not.toContain(posts.p3);
+      expect(ids).not.toContain(posts.pFarJoined);
+      await request(app).get('/media/feed?tab=nearby&location_mode=all').expect(400);
+    });
     test('feed with city/state returns posts; city without state is rejected', async () => {
       const res = await request(app)
         .get('/media/feed?city=springfield&state=il&limit=10')

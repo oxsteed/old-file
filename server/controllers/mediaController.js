@@ -609,7 +609,7 @@ function broadcastMediaPostCounts(postId, counts = {}) {
 async function getFeed(req, res) {
   try {
     const tab = req.query.tab || 'home';
-    if (!['home', 'following', 'mine'].includes(tab)) {
+    if (!['home', 'following', 'mine', 'nearby'].includes(tab)) {
       return res.status(400).json({ error: 'Unsupported Media feed' });
     }
     const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 20, 1), 50);
@@ -624,6 +624,9 @@ async function getFeed(req, res) {
       });
     }
     const location = await feedContext.resolveLocation(req.query, viewerUserId, pool);
+    if (tab === 'nearby' && !location.city && !Number.isFinite(location.latitude)) {
+      return res.status(400).json({ error: 'Choose a location to view nearby posts', code: 'media_nearby_location_required' });
+    }
     const context = feedContext.contextKey(tab, viewerUserId, location);
     const rankedCursor = feedContext.decodeCursor(before, context);
     const asOf = rankedCursor?.as_of || new Date().toISOString();
@@ -640,6 +643,8 @@ async function getFeed(req, res) {
     // without changing the established parameter order.
     const localityViewerParam = viewerUserId ? params.length + 5 : null;
     let localityBoost = feedContext.localitySql(location, params, localityViewerParam);
+    // Membership can boost Home but must not make a distant space Nearby.
+    let nearbyLocalityBoost = localityBoost;
     let where = `p.visibility = 'public' AND p.deleted_at IS NULL AND p.parent_id IS NULL AND p.created_at <= $2::timestamptz
       AND p.processing_status = 'ready' AND ${publicMediaSql('p', 'a')}
       AND EXISTS (SELECT 1 FROM users au WHERE au.id = a.owner_user_id
@@ -673,12 +678,20 @@ async function getFeed(req, res) {
 
     if (location.city) {
       params.push(location.city, location.state);
+      const nearbyCommunity = `CASE WHEN EXISTS (
+        SELECT 1 FROM media_communities nearby WHERE nearby.id=p.community_id
+          AND LOWER(TRIM(split_part(nearby.geo_scope,',',1)))=$${params.length - 1}
+          AND LOWER(TRIM(split_part(nearby.geo_scope,',',2)))=$${params.length}
+        ) THEN 1 ELSE 0 END`;
+      nearbyLocalityBoost = `GREATEST(${nearbyLocalityBoost}, ${nearbyCommunity})`;
       localityBoost = `GREATEST(${localityBoost}, CASE WHEN EXISTS (
         SELECT 1 FROM media_communities nearby WHERE nearby.id=p.community_id
           AND LOWER(TRIM(split_part(nearby.geo_scope,',',1)))=$${params.length - 1}
           AND LOWER(TRIM(split_part(nearby.geo_scope,',',2)))=$${params.length}
         ) THEN 1 ELSE 0 END)`;
     }
+
+    if (tab === 'nearby') where += ` AND (${nearbyLocalityBoost}) > 0`;
 
     let rankedAfter = '';
     if (rankedCursor?.feed_position) {
@@ -759,7 +772,7 @@ async function getFeed(req, res) {
       // mid-pagination. This keeps the feed available during rolling schema
       // changes and catches provider-specific SQLSTATEs without relaxing any
       // visibility, safety, author, or block predicates in the fallback.
-      if (!err.chronological && before) throw err;
+      if (tab === 'nearby' || (!err.chronological && before)) throw err;
       if (!err.chronological) logger.error('media.getFeed ranked schema fallback', { code: err.code, message: err.message });
       mode = 'chronological';
       const fallbackParams = [queryLimit, asOf];
