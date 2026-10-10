@@ -99,6 +99,8 @@ function MediaShellContent({ children }) {
       if (!href || !href.startsWith('/') || href.startsWith('//')) return;
       // Skip non-navigating anchors
       if (href === '#' || anchor.hasAttribute('download')) return;
+      // Links within /media navigate normally; only links leaving Media open in the modal
+      if (href === '/media' || href.startsWith('/media/') || href.startsWith('/media?')) return;
       event.preventDefault();
       const title = anchor.textContent?.trim().slice(0, 80) || href;
       setModalLink({ url: href, title });
