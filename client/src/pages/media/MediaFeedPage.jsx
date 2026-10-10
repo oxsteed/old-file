@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { getFeed } from '../../api/media';
-import { MapPin, MessageCircle, RefreshCw, ArrowRight } from 'lucide-react';
+import { Briefcase, MapPin, MessageCircle, RefreshCw, ArrowRight } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import './MediaStyles.css';
 import MediaPostCard from './MediaPostCard';
@@ -179,6 +179,7 @@ export default function MediaFeedPage() {
         <header className="media-timeline-header">
           <div>
             <h1>{t('media.shell.home')}</h1>
+            <p className="media-feed-intro">{t('media.feed.subtitle')}</p>
             <button type="button" className="media-location-toggle" aria-expanded={choosingLocation}
               aria-controls="media-location-choice" onClick={() => setChoosingLocation(value => !value)}>
               <MapPin size={13} aria-hidden="true" />
@@ -208,13 +209,20 @@ export default function MediaFeedPage() {
             {locationError && <p role="alert">{locationError}</p>}
           </section>
         )}
-        <Link className="media-composer-prompt" to="/media/compose">
-          <span className="media-composer-avatar" aria-hidden="true">
-            {user?.profile_photo_url ? <img src={user.profile_photo_url} alt="" /> : <MessageCircle size={20} />}
-          </span>
-          <span>{t('media.feed.prompt')}</span>
-          <ArrowRight size={18} aria-hidden="true" />
-        </Link>
+        <div className="media-feed-action-grid">
+          <Link className="media-composer-prompt" to="/media/compose">
+            <span className="media-composer-avatar" aria-hidden="true">
+              {user?.profile_photo_url ? <img src={user.profile_photo_url} alt="" /> : <MessageCircle size={20} />}
+            </span>
+            <span>{t('media.feed.prompt')}</span>
+            <ArrowRight size={18} aria-hidden="true" />
+          </Link>
+          <Link className="media-feed-marketplace-link" to="/media/creator">
+            <Briefcase size={19} aria-hidden="true" />
+            <span>{t('media.creator.title')}</span>
+            <ArrowRight size={17} aria-hidden="true" />
+          </Link>
+        </div>
         <div className="media-feed-toolbar">
           <button type="button" className={`media-feed-tab ${activeTab === 'home' ? 'active' : ''}`}
             aria-pressed={activeTab === 'home'} onClick={() => selectTab('home')}>
@@ -255,7 +263,10 @@ export default function MediaFeedPage() {
             </div>
             <h2>{activeTab === 'following' ? t('media.feed.followingEmptyHeading') : t('media.feed.emptyHeading')}</h2>
             <p>{activeTab === 'following' ? t('media.feed.followingEmptyDescription') : t('media.feed.emptyDescription')}</p>
-            <Link className="media-text-link" to="/restaurants">{t('media.feed.explore')}<ArrowRight size={16} aria-hidden="true" /></Link>
+            <div className="media-empty-actions">
+              <Link className="media-primary-button" to="/media/compose">{t('media.feed.compose')}</Link>
+              <Link className="media-text-link" to="/restaurants">{t('media.feed.explore')}<ArrowRight size={16} aria-hidden="true" /></Link>
+            </div>
           </div>
         )}
       </div>
