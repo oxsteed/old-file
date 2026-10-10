@@ -1,9 +1,13 @@
 'use strict';
 
-// Exercise the real visibility SQL against CI's disposable database. Temporary
-// tables shadow production names only for this connection and disappear on exit.
-jest.mock('../db', () => ({ query: jest.fn() }));
-const { Client } = jest.requireActual('pg');
+// Exercise the real visibility SQL against CI's disposable database.
+// Uses an isolated schema with real UUID types and actual media migrations,
+// following the pattern from mediaDraftAttachmentsDb.test.js.
+jest.mock('../db', () => ({ query: jest.fn(), connect: jest.fn() }));
+const { Pool } = jest.requireActual('pg');
+const { randomUUID } = require('crypto');
+const fs = require('fs');
+const path = require('path');
 const pool = require('../db');
 const media = require('../controllers/mediaController');
 const url = process.env.STATEMENT_TEST_DATABASE_URL;
@@ -13,80 +17,158 @@ if (process.env.STATEMENT_REQUIRE_DB_TESTS === 'true' && !url) {
 const describeDb = url ? describe : describe.skip;
 
 describeDb('Media block boundaries in PostgreSQL', () => {
+  const schema = `media_vis_${randomUUID().replaceAll('-', '')}`;
+  // UUID fixtures for the five test users
+  const viewer = randomUUID();
+  const outbound = randomUUID();
+  const inbound = randomUUID();
+  const allowed = randomUUID();
+  const banned = randomUUID();
+  const userIds = { viewer, outbound, inbound, allowed, banned };
+  // Actor IDs match user IDs (one actor per user, except viewer)
+  // Helper profile IDs
+  const helperIds = {};
   let db;
+  let setup;
+
   beforeAll(async () => {
     if (!/\/credit_statement_test(?:\?|$)/.test(url)) throw new Error('Use only the disposable credit_statement_test database');
-    db = new Client({ connectionString: url });
-    await db.connect();
-    await db.query(`
-      CREATE TEMP TABLE users (id text PRIMARY KEY, city text, state text, deleted_at timestamptz, is_active boolean DEFAULT true, is_banned boolean DEFAULT false, is_verified boolean DEFAULT true);
-      CREATE TEMP TABLE media_actors (id text PRIMARY KEY, owner_user_id text, business_id text, restaurant_id text, handle text, display_name text, avatar_url text, verified_kind text, actor_type text);
-      -- Shadow every entity table referenced by the public publisher policy so
-      -- this disposable text-id fixture never compares a temporary text user
-      -- id with a production UUID column from the surrounding database.
-      CREATE TEMP TABLE helper_profiles (id text PRIMARY KEY, user_id text, profile_slug text, service_lat numeric, service_lng numeric, service_city text, service_state text, is_listed boolean DEFAULT true, is_hidden_by_admin boolean DEFAULT false);
-      CREATE TEMP TABLE businesses (id text PRIMARY KEY, user_id text, deleted_at timestamptz, is_active boolean DEFAULT true, is_business_verified boolean DEFAULT true, service_lat numeric, service_lng numeric, service_city text, service_state text, address_city text, address_state text, business_name text, profile_slug text, is_listed boolean DEFAULT true, is_hidden_by_admin boolean DEFAULT false);
-      CREATE TEMP TABLE food_restaurants (id text PRIMARY KEY, owner_user_id text, status text DEFAULT 'active', is_verified boolean DEFAULT true, latitude numeric, longitude numeric, address_city text, address_state text, display_name text, slug text, business_id text, discovery_status text DEFAULT 'visible', is_hidden_by_admin boolean DEFAULT false, created_at timestamptz DEFAULT now());
-      CREATE TEMP TABLE user_blocks (blocker_id text, blocked_id text);
-      CREATE TEMP TABLE media_posts (id text PRIMARY KEY, actor_id text, body text, parent_id text, quoted_post_id text, community_id text, deleted_at timestamptz,
-        visibility text DEFAULT 'public', processing_status text DEFAULT 'ready', csam_status text DEFAULT 'passed', created_at timestamptz DEFAULT now());
-      CREATE TEMP TABLE media_post_links (id text, post_id text, link_type text, target_id text, name_snapshot text, price_snapshot_cents int, sort_order int);
-      CREATE TEMP TABLE media_post_assets (id text, post_id text, sort_order int, asset_type text, processing_status text, csam_status text, renditions jsonb, delivery_revoked_at timestamptz);
-      CREATE TEMP TABLE media_likes (post_id text, user_id text);
-      CREATE TEMP TABLE media_bookmarks (post_id text, user_id text, created_at timestamptz DEFAULT now());
-      CREATE TEMP TABLE food_menu_items (id text PRIMARY KEY, restaurant_id text, is_available boolean DEFAULT true);
-      CREATE TEMP TABLE jobs (id text PRIMARY KEY, client_id text, status text, location_approx_lat numeric, location_approx_lng numeric, location_city text, location_state text);
-      CREATE TEMP TABLE tool_rentals (id text PRIMARY KEY, user_id text, is_available boolean DEFAULT true, location_city text, location_state text);
-      CREATE TEMP TABLE direct_catalog_services (id text PRIMARY KEY, is_active boolean DEFAULT true, is_published boolean DEFAULT true);
-      CREATE TEMP TABLE pooled_orders (id text PRIMARY KEY, organizer_user_id text, organizer_business_id text, status text);
-      CREATE TEMP TABLE media_post_boosts (post_id text, status text, starts_at timestamptz, ends_at timestamptz);
-      CREATE TEMP TABLE media_reposts (post_id text, actor_id text, created_at timestamptz DEFAULT now());
-      CREATE TEMP TABLE media_follows (follower_user_id text, actor_id text, created_at timestamptz DEFAULT now());
-      CREATE TEMP TABLE media_communities (id text PRIMARY KEY, slug text, title text, geo_scope text, category text);
-      CREATE TEMP TABLE media_community_members (community_id text, user_id text, last_seen_at timestamptz DEFAULT now());
-      INSERT INTO users (id) VALUES ('viewer'), ('outbound'), ('inbound'), ('allowed'), ('banned');
-      UPDATE users SET is_banned = true WHERE id = 'banned';
-      INSERT INTO helper_profiles (id, user_id, profile_slug)
-        SELECT 'helper-' || id, id, 'local-' || id FROM users WHERE id <> 'viewer';
-      INSERT INTO media_actors (id, owner_user_id, handle, display_name, actor_type, verified_kind)
-        SELECT id, id, 'local-' || id, 'Local ' || id, 'helper', 'identity' FROM users WHERE id <> 'viewer';
-      INSERT INTO media_posts (id, actor_id, body) SELECT id, id, 'Local update' FROM media_actors;
-      INSERT INTO media_communities VALUES ('town', 'local-town', 'Local town', 'Springfield', 'food');
-    INSERT INTO media_community_members VALUES ('town', 'viewer'), ('town', 'banned');
-      UPDATE media_posts SET community_id = 'town';
-      INSERT INTO user_blocks VALUES ('viewer', 'outbound'), ('inbound', 'viewer');
-    `);
-    // Backfill any production columns the hand-built TEMP tables lack.
-    // This keeps the test schema in sync with migrations automatically.
+    setup = new Pool({ connectionString: url });
+    await setup.query('CREATE EXTENSION IF NOT EXISTS citext WITH SCHEMA public');
+    await setup.query(`CREATE SCHEMA ${schema}`);
+    db = new Pool({ connectionString: url, options: `-c search_path=${schema},public`, max: 5 });
+
+    // Entity tables with real production types (UUID, bigint).
+    // These are hand-built because they're not media tables; the backfill
+    // below keeps them in sync with production migrations.
+    await db.query(`CREATE TABLE users (id UUID PRIMARY KEY, city text, state text,
+      deleted_at timestamptz, is_active boolean DEFAULT true, is_banned boolean DEFAULT false,
+      is_verified boolean DEFAULT true)`);
+    await db.query(`CREATE TABLE helper_profiles (id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      user_id UUID, profile_slug text, service_lat numeric, service_lng numeric,
+      service_city text, service_state text, is_listed boolean DEFAULT true,
+      is_hidden_by_admin boolean DEFAULT false)`);
+    await db.query(`CREATE TABLE businesses (id bigint PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
+      user_id UUID, deleted_at timestamptz, is_active boolean DEFAULT true,
+      is_business_verified boolean DEFAULT true, service_lat numeric, service_lng numeric,
+      service_city text, service_state text, address_city text, address_state text,
+      business_name text, profile_slug text, is_listed boolean DEFAULT true,
+      is_hidden_by_admin boolean DEFAULT false)`);
+    await db.query(`CREATE TABLE food_restaurants (id bigint PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
+      owner_user_id UUID, business_id bigint, status text DEFAULT 'active',
+      is_verified boolean DEFAULT true, latitude numeric, longitude numeric,
+      address_city text, address_state text, display_name text, slug text,
+      discovery_status text DEFAULT 'visible', is_hidden_by_admin boolean DEFAULT false,
+      created_at timestamptz DEFAULT now())`);
+    await db.query(`CREATE TABLE user_blocks (blocker_id UUID, blocked_id UUID)`);
+    await db.query(`CREATE TABLE food_menu_items (id bigint PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
+      restaurant_id bigint, is_available boolean DEFAULT true)`);
+    await db.query(`CREATE TABLE jobs (id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      client_id UUID, status text, location_approx_lat numeric, location_approx_lng numeric,
+      location_city text, location_state text)`);
+    await db.query(`CREATE TABLE tool_rentals (id bigint PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
+      user_id UUID, is_available boolean DEFAULT true, location_city text, location_state text)`);
+    await db.query(`CREATE TABLE direct_catalog_services (id bigint PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
+      is_active boolean DEFAULT true, is_published boolean DEFAULT true)`);
+    await db.query(`CREATE TABLE pooled_orders (id bigint PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
+      organizer_user_id UUID, organizer_business_id bigint, status text)`);
+
+    // Backfill entity tables with any production columns they lack.
     const { backfillAllTables } = require('./mediaTestSchema');
     await backfillAllTables(db, [
-      'users', 'media_actors', 'helper_profiles', 'businesses', 'food_restaurants',
-      'user_blocks', 'media_posts', 'media_post_links', 'media_post_assets',
-      'media_likes', 'media_bookmarks', 'food_menu_items', 'jobs', 'tool_rentals',
-      'direct_catalog_services', 'pooled_orders', 'media_post_boosts',
-      'media_reposts', 'media_follows', 'media_communities', 'media_community_members',
-    ]);
+      'users', 'helper_profiles', 'businesses', 'food_restaurants', 'user_blocks',
+      'food_menu_items', 'jobs', 'tool_rentals', 'direct_catalog_services', 'pooled_orders',
+    ], schema);
+
+    // Apply actual media migrations for the media tables (no hand-building).
+    // Note: 753_oxsteed_media_community_last_seen (not 753_media_public_video_without_csam).
+    const migrationFiles = [
+      '709_oxsteed_media.sql',
+      '731_',
+      '732_',
+      '735_',
+      '736_',
+      '742_',
+      '743_',
+      '744_',
+      '753_oxsteed_media_community_last_seen.sql',
+      '754_',
+      '757_',
+    ];
+    for (const prefix of migrationFiles) {
+      const dir = path.resolve(__dirname, '../migrations');
+      const file = fs.readdirSync(dir).find((name) => name.startsWith(prefix));
+      if (!file) throw new Error(`Migration ${prefix} not found`);
+      await db.query(fs.readFileSync(path.join(dir, file), 'utf8'));
+    }
+
+    // Fixtures: five users, four with helper profiles and media actors.
+    await db.query(
+      `INSERT INTO users (id) VALUES ($1), ($2), ($3), ($4), ($5)`,
+      [viewer, outbound, inbound, allowed, banned]
+    );
+    await db.query(`UPDATE users SET is_banned = true WHERE id = $1`, [banned]);
+    for (const [name, id] of [['outbound', outbound], ['inbound', inbound], ['allowed', allowed], ['banned', banned]]) {
+      const helperId = randomUUID();
+      helperIds[name] = helperId;
+      await db.query(
+        `INSERT INTO helper_profiles (id, user_id, profile_slug) VALUES ($1, $2, $3)`,
+        [helperId, id, `local-${name}`]
+      );
+      await db.query(
+        `INSERT INTO media_actors (id, owner_user_id, handle, display_name, actor_type, verified_kind)
+         VALUES ($1, $2, $3, $4, 'helper', 'identity')`,
+        [id, id, `local-${name}`, `Local ${name}`]
+      );
+      await db.query(
+        `INSERT INTO media_posts (id, actor_id, body) VALUES ($1, $2, 'Local update')`,
+        [id, id]
+      );
+    }
+    // Community fixtures
+    const townId = randomUUID();
+    await db.query(
+      `INSERT INTO media_communities (id, slug, title, geo_scope, category)
+       VALUES ($1, 'local-town', 'Local town', 'Springfield', 'food')`,
+      [townId]
+    );
+    await db.query(
+      `INSERT INTO media_community_members (community_id, user_id) VALUES ($1, $2), ($1, $3)`,
+      [townId, viewer, banned]
+    );
+    await db.query(`UPDATE media_posts SET community_id = $1`, [townId]);
+    await db.query(
+      `INSERT INTO user_blocks (blocker_id, blocked_id) VALUES ($1, $2), ($3, $1)`,
+      [viewer, outbound, inbound]
+    );
+
+    pool.connect.mockImplementation(() => db.connect());
     pool.query.mockImplementation((...args) => db.query(...args));
   });
-  afterAll(async () => { if (db) await db.end(); });
+
+  afterAll(async () => {
+    if (db) await db.end();
+    if (setup) { await setup.query(`DROP SCHEMA IF EXISTS ${schema} CASCADE`); await setup.end(); }
+  });
 
   function res() { return { status: jest.fn().mockReturnThis(), json: jest.fn().mockReturnThis() }; }
 
   test('search excludes both block directions even when the handle matches', async () => {
     const response = res();
-    await media.searchMedia({ query: { q: 'local' }, user: { id: 'viewer' } }, response);
+    await media.searchMedia({ query: { q: 'local' }, user: { id: viewer } }, response);
     expect(response.status).not.toHaveBeenCalled();
     const data = response.json.mock.calls[0][0];
-    expect(data.actors.map((a) => a.id)).toEqual(['allowed']);
-    expect(data.posts.map((p) => p.id)).toEqual(['allowed']);
+    expect(data.actors.map((a) => a.id)).toEqual([allowed]);
+    expect(data.posts.map((p) => p.id)).toEqual([allowed]);
   });
 
-  test.each(['outbound', 'inbound', 'banned'])('direct actor and post URLs hide %s', async (id) => {
+  test.each([['outbound'], ['inbound'], ['banned']])('direct actor and post URLs hide %s', async (name) => {
+    const id = userIds[name];
     const actorRes = res();
-    await media.getActor({ params: { handle: `local-${id}` }, user: { id: 'viewer' } }, actorRes);
+    await media.getActor({ params: { handle: `local-${name}` }, user: { id: viewer } }, actorRes);
     expect(actorRes.status).toHaveBeenCalledWith(404);
     const postRes = res();
-    await media.getPost({ params: { id }, user: { id: 'viewer' } }, postRes);
+    await media.getPost({ params: { id }, user: { id: viewer } }, postRes);
     expect(postRes.status).toHaveBeenCalledWith(404);
   });
 
@@ -94,8 +176,8 @@ describeDb('Media block boundaries in PostgreSQL', () => {
     ('blocked %s stops before an action write', async (method) => {
       const response = res();
       await media[method]({
-        params: { id: 'outbound' },
-        user: { id: 'viewer' },
+        params: { id: outbound },
+        user: { id: viewer },
         query: {},
         body: { reason: 'spam' },
         ip: '127.0.0.1',
@@ -106,44 +188,63 @@ describeDb('Media block boundaries in PostgreSQL', () => {
     });
 
   test('allowed actor resolves and hydrated action state survives reload', async () => {
-    await db.query("INSERT INTO media_likes VALUES ('allowed', 'viewer'); INSERT INTO media_bookmarks VALUES ('allowed', 'viewer')");
+    await db.query(`INSERT INTO media_likes (post_id, user_id) VALUES ($1, $2)`, [allowed, viewer]);
+    await db.query(`INSERT INTO media_bookmarks (post_id, user_id) VALUES ($1, $2)`, [allowed, viewer]);
     const response = res();
-    await media.getActor({ params: { handle: 'local-allowed' }, user: { id: 'viewer' } }, response);
+    await media.getActor({ params: { handle: 'local-allowed' }, user: { id: viewer } }, response);
     expect(response.status).not.toHaveBeenCalled();
-    expect(response.json.mock.calls[0][0].posts[0]).toMatchObject({ id: 'allowed', owner_user_id: 'allowed', liked: true, bookmarked: true });
+    expect(response.json.mock.calls[0][0].posts[0]).toMatchObject({ id: allowed, owner_user_id: allowed, liked: true, bookmarked: true });
   });
 
   test('an unverified member reply stays public without granting root publication visibility', async () => {
-    await db.query(`INSERT INTO media_actors(id,owner_user_id,handle,display_name,actor_type,verified_kind)
-      VALUES('member','viewer','member-viewer','Member','user','none');
-      UPDATE users SET is_verified=false WHERE id='viewer';
-      INSERT INTO media_posts(id,actor_id,body,parent_id)
-        VALUES('member-reply','member','A useful reply','allowed'),('member-root','member','An ineligible root',NULL)`);
+    const member = randomUUID();
+    const memberReply = randomUUID();
+    const memberRoot = randomUUID();
+    await db.query(
+      `INSERT INTO media_actors (id, owner_user_id, handle, display_name, actor_type, verified_kind)
+       VALUES ($1, $2, 'member-viewer', 'Member', 'user', 'none')`,
+      [member, viewer]
+    );
+    await db.query(`UPDATE users SET is_verified = false WHERE id = $1`, [viewer]);
+    await db.query(
+      `INSERT INTO media_posts (id, actor_id, body, parent_id) VALUES ($1, $2, 'A useful reply', $3), ($4, $2, 'An ineligible root', NULL)`,
+      [memberReply, member, allowed, memberRoot]
+    );
     try {
-      const replies=res();
-      await media.getReplies({ params:{ id:'allowed' },query:{} },replies);
+      const replies = res();
+      await media.getReplies({ params: { id: allowed }, query: {} }, replies);
       expect(replies.status).not.toHaveBeenCalled();
       expect(replies.json.mock.calls[0][0].replies).toEqual(expect.arrayContaining([
-        expect.objectContaining({ id:'member-reply',verified_kind:'none' }),
+        expect.objectContaining({ id: memberReply, verified_kind: 'none' }),
       ]));
-      const detail=res(); await media.getPost({ params:{ id:'member-reply' } },detail);
+      const detail = res();
+      await media.getPost({ params: { id: memberReply } }, detail);
       expect(detail.status).not.toHaveBeenCalled();
-      const root=res(); await media.getPost({ params:{ id:'member-root' } },root);
+      const root = res();
+      await media.getPost({ params: { id: memberRoot } }, root);
       expect(root.status).toHaveBeenCalledWith(404);
-      await db.query("INSERT INTO user_blocks VALUES('allowed','viewer')");
-      const blocked=res(); await media.getReplies({ params:{ id:'allowed' },query:{},user:{ id:'allowed' } },blocked);
-      expect(blocked.json.mock.calls[0][0].replies.some(item=>item.id==='member-reply')).toBe(false);
+      await db.query(`INSERT INTO user_blocks (blocker_id, blocked_id) VALUES ($1, $2)`, [allowed, viewer]);
+      const blocked = res();
+      await media.getReplies({ params: { id: allowed }, query: {}, user: { id: allowed } }, blocked);
+      expect(blocked.json.mock.calls[0][0].replies.some(item => item.id === memberReply)).toBe(false);
     } finally {
-      await db.query("DELETE FROM user_blocks WHERE blocker_id='allowed' AND blocked_id='viewer'; DELETE FROM media_posts WHERE actor_id='member'; DELETE FROM media_actors WHERE id='member'; UPDATE users SET is_verified=true WHERE id='viewer'");
+      await db.query(`DELETE FROM user_blocks WHERE blocker_id = $1 AND blocked_id = $2`, [allowed, viewer]);
+      await db.query(`DELETE FROM media_posts WHERE actor_id = $1`, [member]);
+      await db.query(`DELETE FROM media_actors WHERE id = $1`, [member]);
+      await db.query(`UPDATE users SET is_verified = true WHERE id = $1`, [viewer]);
     }
   });
 
   test('linked cards preserve a snapshot while hiding blocked entity owners', async () => {
-    await db.query(`INSERT INTO media_post_links (id, post_id, link_type, target_id, name_snapshot, sort_order)
-      VALUES ('blocked-helper-link', 'allowed', 'helper', 'helper-outbound', 'Blocked helper', 0)`);
+    const linkId = randomUUID();
+    await db.query(
+      `INSERT INTO media_post_links (id, post_id, link_type, target_id, name_snapshot, sort_order)
+       VALUES ($1, $2, 'helper', $3, 'Blocked helper', 0)`,
+      [linkId, allowed, helperIds['outbound']]
+    );
     try {
       const response = res();
-      await media.getPost({ params: { id: 'allowed' }, user: { id: 'viewer' } }, response);
+      await media.getPost({ params: { id: allowed }, user: { id: viewer } }, response);
       expect(response.status).not.toHaveBeenCalled();
       expect(response.json.mock.calls[0][0].post.links).toEqual([
         expect.objectContaining({
@@ -153,36 +254,43 @@ describeDb('Media block boundaries in PostgreSQL', () => {
         }),
       ]);
     } finally {
-      await db.query("DELETE FROM media_post_links WHERE id = 'blocked-helper-link'");
+      await db.query(`DELETE FROM media_post_links WHERE id = $1`, [linkId]);
     }
   });
 
   test('blocked linked targets do not boost the ranked feed', async () => {
-    await db.query(`INSERT INTO media_post_links (id, post_id, link_type, target_id, name_snapshot, sort_order)
-      VALUES ('blocked-feed-link', 'allowed', 'helper', 'helper-outbound', 'Blocked helper', 0)`);
+    const linkId = randomUUID();
+    await db.query(
+      `INSERT INTO media_post_links (id, post_id, link_type, target_id, name_snapshot, sort_order)
+       VALUES ($1, $2, 'helper', $3, 'Blocked helper', 0)`,
+      [linkId, allowed, helperIds['outbound']]
+    );
     try {
       const response = res();
-      await media.getFeed({ query: { limit: '10', location_mode: 'all' }, user: { id: 'viewer' } }, response);
+      await media.getFeed({ query: { limit: '10', location_mode: 'all' }, user: { id: viewer } }, response);
       expect(response.status).not.toHaveBeenCalled();
-      const allowed = response.json.mock.calls[0][0].posts.find((post) => post.id === 'allowed');
-      expect(allowed).toMatchObject({ link_count: '0' });
-      expect(allowed.links).toEqual([expect.objectContaining({ available: false, canonical_url: null })]);
+      const found = response.json.mock.calls[0][0].posts.find((post) => post.id === allowed);
+      expect(found).toMatchObject({ link_count: '0' });
+      expect(found.links).toEqual([expect.objectContaining({ available: false, canonical_url: null })]);
     } finally {
-      await db.query("DELETE FROM media_post_links WHERE id = 'blocked-feed-link'");
+      await db.query(`DELETE FROM media_post_links WHERE id = $1`, [linkId]);
     }
   });
 
   test('saved posts exclude both blocked directions and removed posts after reload', async () => {
     await db.query('TRUNCATE media_bookmarks');
-    await db.query("INSERT INTO media_bookmarks (post_id, user_id) VALUES ('outbound', 'viewer'), ('inbound', 'viewer'), ('allowed', 'viewer')");
-    await db.query("UPDATE media_posts SET deleted_at = NOW() WHERE id = 'allowed'");
+    await db.query(
+      `INSERT INTO media_bookmarks (post_id, user_id) VALUES ($1, $2), ($3, $2), ($4, $2)`,
+      [outbound, viewer, inbound, allowed]
+    );
+    await db.query(`UPDATE media_posts SET deleted_at = NOW() WHERE id = $1`, [allowed]);
     try {
       const response = res();
-      await media.getBookmarks({ user: { id: 'viewer' } }, response);
+      await media.getBookmarks({ user: { id: viewer } }, response);
       expect(response.status).not.toHaveBeenCalled();
       expect(response.json.mock.calls[0][0].posts).toEqual([]);
     } finally {
-      await db.query("UPDATE media_posts SET deleted_at = NULL WHERE id = 'allowed'");
+      await db.query(`UPDATE media_posts SET deleted_at = NULL WHERE id = $1`, [allowed]);
       await db.query('TRUNCATE media_bookmarks');
     }
   });
@@ -191,31 +299,36 @@ describeDb('Media block boundaries in PostgreSQL', () => {
     const response = res();
     await media.searchMedia({ query: { q: 'local' } }, response);
     expect(response.status).not.toHaveBeenCalled();
-    expect(response.json.mock.calls[0][0].actors.map((a) => a.id).sort()).toEqual(['allowed', 'inbound', 'outbound']);
+    const ids = response.json.mock.calls[0][0].actors.map((a) => a.id).sort();
+    expect(ids).toEqual([allowed, inbound, outbound].sort());
   });
 
   test('Space membership, counts and detail feed use the same visibility rules', async () => {
     const list = res();
-    await media.getCommunities({ user: { id: 'viewer' } }, list);
+    await media.getCommunities({ user: { id: viewer } }, list);
     expect(list.status).not.toHaveBeenCalled();
     expect(list.json.mock.calls[0][0].communities[0]).toMatchObject({ joined: true, post_count: 1, member_count: 1 });
     const detail = res();
-    await media.getCommunity({ params: { slug: 'local-town' }, user: { id: 'viewer' } }, detail);
+    await media.getCommunity({ params: { slug: 'local-town' }, user: { id: viewer } }, detail);
     expect(detail.status).not.toHaveBeenCalled();
     expect(detail.json.mock.calls[0][0].community).toMatchObject({ joined: true, member_count: 1 });
-    expect(detail.json.mock.calls[0][0].posts.map((p) => p.id)).toEqual(['allowed']);
+    expect(detail.json.mock.calls[0][0].posts.map((p) => p.id)).toEqual([allowed]);
   });
 
   test('public SQL admits interim videos only in Cloudflare mode and hides flagged or unprocessed assets', async () => {
     const previousMode = process.env.MEDIA_CSAM_MODE;
     try {
       process.env.MEDIA_CSAM_MODE = 'cloudflare';
-      await db.query("UPDATE media_posts SET csam_status = 'cloudflare_deferred' WHERE id = 'allowed'");
-      await db.query(`INSERT INTO media_post_assets VALUES
-        ('video', 'allowed', 0, 'video', 'ready', 'cloudflare_deferred', '[{"storage_key":"ready.mp4"}]')`);
+      await db.query(`UPDATE media_posts SET csam_status = 'cloudflare_deferred' WHERE id = $1`, [allowed]);
+      const assetId = randomUUID();
+      await db.query(
+        `INSERT INTO media_post_assets (id, post_id, sort_order, asset_type, processing_status, csam_status, renditions)
+         VALUES ($1, $2, 0, 'video', 'ready', 'cloudflare_deferred', $3)`,
+        [assetId, allowed, JSON.stringify([{ storage_key: 'ready.mp4' }])]
+      );
       const read = async () => {
         const result = res();
-        await media.getPost({ params: { id: 'allowed' }, user: { id: 'viewer' } }, result);
+        await media.getPost({ params: { id: allowed }, user: { id: viewer } }, result);
         return result;
       };
       expect((await read()).status).not.toHaveBeenCalled();
@@ -223,15 +336,15 @@ describeDb('Media block boundaries in PostgreSQL', () => {
       expect((await read()).status).toHaveBeenCalledWith(404);
       process.env.MEDIA_CSAM_MODE = 'cloudflare';
       for (const status of ['flagged', 'pending', 'unavailable']) {
-        await db.query('UPDATE media_post_assets SET csam_status = $1', [status]);
+        await db.query('UPDATE media_post_assets SET csam_status = $1 WHERE id = $2', [status, assetId]);
         expect((await read()).status).toHaveBeenCalledWith(404);
       }
-      await db.query("UPDATE media_post_assets SET csam_status = 'cloudflare_deferred', processing_status = 'quarantine'");
+      await db.query(`UPDATE media_post_assets SET csam_status = 'cloudflare_deferred', processing_status = 'quarantine' WHERE id = $1`, [assetId]);
       expect((await read()).status).toHaveBeenCalledWith(404);
-      await db.query("UPDATE media_post_assets SET processing_status = 'ready', renditions = '[]'");
+      await db.query(`UPDATE media_post_assets SET processing_status = 'ready', renditions = '[]' WHERE id = $1`, [assetId]);
       expect((await read()).status).toHaveBeenCalledWith(404);
-      await db.query(`UPDATE media_post_assets SET renditions = '[{"storage_key":"ready.mp4"}]'`);
-      await db.query("UPDATE users SET is_verified = false WHERE id = 'allowed'");
+      await db.query(`UPDATE media_post_assets SET renditions = $1 WHERE id = $2`, [JSON.stringify([{ storage_key: 'ready.mp4' }]), assetId]);
+      await db.query(`UPDATE users SET is_verified = false WHERE id = $1`, [allowed]);
       expect((await read()).status).toHaveBeenCalledWith(404);
     } finally {
       if (previousMode === undefined) delete process.env.MEDIA_CSAM_MODE;
