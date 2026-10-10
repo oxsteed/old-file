@@ -40,7 +40,7 @@ describeDb('Media block boundaries in PostgreSQL', () => {
       CREATE TEMP TABLE direct_catalog_services (id text PRIMARY KEY, is_active boolean DEFAULT true, is_published boolean DEFAULT true);
       CREATE TEMP TABLE pooled_orders (id text PRIMARY KEY, organizer_user_id text, organizer_business_id text, status text);
       CREATE TEMP TABLE media_post_boosts (post_id text, status text, starts_at timestamptz, ends_at timestamptz);
-      CREATE TEMP TABLE media_reposts (post_id text, actor_id text);
+      CREATE TEMP TABLE media_reposts (post_id text, actor_id text, created_at timestamptz DEFAULT now());
       CREATE TEMP TABLE media_follows (follower_user_id text, actor_id text, created_at timestamptz DEFAULT now());
       CREATE TEMP TABLE media_communities (id text PRIMARY KEY, slug text, title text, geo_scope text, category text);
       CREATE TEMP TABLE media_community_members (community_id text, user_id text, last_seen_at timestamptz DEFAULT now());
