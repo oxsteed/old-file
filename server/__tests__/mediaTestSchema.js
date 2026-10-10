@@ -25,13 +25,20 @@ async function getProductionColumns(db, tableName) {
   return rows;
 }
 
-async function getTempColumns(db, tableName, tableSchema = 'pg_temp') {
-  const { rows } = await db.query(
-    `SELECT column_name
-     FROM information_schema.columns
-     WHERE table_schema = $1 AND table_name = $2`,
-    [tableSchema, tableName]
-  );
+async function getTempColumns(db, tableName, tableSchema = null) {
+  const { rows } = tableSchema
+    ? await db.query(
+        `SELECT column_name
+         FROM information_schema.columns
+         WHERE table_schema = $1 AND table_name = $2`,
+        [tableSchema, tableName]
+      )
+    : await db.query(
+        `SELECT column_name
+         FROM information_schema.columns
+         WHERE table_name = $1 AND table_schema LIKE 'pg_temp%'`,
+        [tableName]
+      );
   return new Set(rows.map(r => r.column_name));
 }
 
@@ -40,24 +47,27 @@ function toAddColumnDef(col) {
   let type;
   if (col.data_type === 'uuid' || col.udt_name === 'uuid') type = 'text';
   else if (['character varying', 'character', 'text', 'citext'].includes(col.data_type)) type = 'text';
+  else if (col.data_type === 'USER-DEFINED') type = 'text'; // custom enums/domains -> text
+  else if (col.data_type === 'ARRAY') type = 'text[]';
   else type = col.data_type;
   // Skip defaults that reference sequences or UUID generators; keep it simple.
   // The test fixtures provide explicit values for columns they care about.
   return `ADD COLUMN IF NOT EXISTS "${name}" ${type}`;
 }
 
-async function backfillMissingColumns(db, tableName, tableSchema = 'pg_temp') {
+async function backfillMissingColumns(db, tableName, tableSchema = null) {
   const prodCols = await getProductionColumns(db, tableName);
   if (!prodCols.length) return; // table doesn't exist in production; nothing to mirror
   const tempCols = await getTempColumns(db, tableName, tableSchema);
   const missing = prodCols.filter(c => !tempCols.has(c.column_name));
-  const qualified = tableSchema === 'pg_temp' ? `"${tableName}"` : `"${tableSchema}"."${tableName}"`;
+  // TEMP tables: omit schema, Postgres resolves via search_path within the session
+  const qualified = tableSchema ? `"${tableSchema}"."${tableName}"` : `"${tableName}"`;
   for (const col of missing) {
     await db.query(`ALTER TABLE ${qualified} ${toAddColumnDef(col)}`);
   }
 }
 
-async function backfillAllTables(db, tableNames, tableSchema = 'pg_temp') {
+async function backfillAllTables(db, tableNames, tableSchema = null) {
   for (const name of tableNames) await backfillMissingColumns(db, name, tableSchema);
 }
 
