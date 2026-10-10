@@ -30489,7 +30489,13 @@
       "jobs": "وظائف قريبة",
       "jobsDescription": "ابحث عن عمل وفرص محلية",
       "purposeTitle": "لمجتمعك المحلي",
-      "purposeDescription": "تحديثات من مقدمي خدمات وشركات موثّقين، مرتبطة بما يمكنك طلبه أو حجزه أو استكشافه."
+      "purposeDescription": "تحديثات من مقدمي خدمات وشركات موثّقين، مرتبطة بما يمكنك طلبه أو حجزه أو استكشافه.",
+      "viewProfile": "عرض الملف العام",
+      "editProfile": "تعديل الملف",
+      "creatorEarnings": "أرباح المنشئ",
+      "notificationSettings": "إعدادات الإشعارات",
+      "helpSupport": "المساعدة والدعم",
+      "openFullPage": "فتح الصفحة الكاملة"
     },
     "post": {
       "quotedUnavailable": "المنشور الأصلي غير متاح",

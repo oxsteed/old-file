@@ -30478,7 +30478,13 @@
       "jobs": "Travay toupre",
       "jobsDescription": "Jwenn travay ak opòtinite lokal",
       "purposeTitle": "Fèt pou kominote ou",
-      "purposeDescription": "Nouvèl ki soti nan èd ak biznis verifye, ki konekte ak bagay ou ka kòmande, rezève oswa dekouvri."
+      "purposeDescription": "Nouvèl ki soti nan èd ak biznis verifye, ki konekte ak bagay ou ka kòmande, rezève oswa dekouvri.",
+      "viewProfile": "Wè pwofil piblik",
+      "editProfile": "Modifye pwofil",
+      "creatorEarnings": "Salè kreyatè",
+      "notificationSettings": "Paramèt notifikasyon",
+      "helpSupport": "Èd ak sipò",
+      "openFullPage": "Louvri paj konplè"
     },
     "post": {
       "quotedUnavailable": "Piblikasyon orijinal la pa disponib",

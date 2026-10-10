@@ -30478,7 +30478,13 @@
       "jobs": "Missions à proximité",
       "jobsDescription": "Trouvez du travail près de chez vous",
       "purposeTitle": "Pour votre communauté",
-      "purposeDescription": "Des nouvelles de prestataires et d’entreprises vérifiés, liées à ce que vous pouvez commander, réserver ou découvrir."
+      "purposeDescription": "Des nouvelles de prestataires et d’entreprises vérifiés, liées à ce que vous pouvez commander, réserver ou découvrir.",
+      "viewProfile": "Voir le profil public",
+      "editProfile": "Modifier le profil",
+      "creatorEarnings": "Gains de créateur",
+      "notificationSettings": "Paramètres de notification",
+      "helpSupport": "Aide et support",
+      "openFullPage": "Ouvrir la page complète"
     },
     "post": {
       "quotedUnavailable": "Publication d’origine indisponible",

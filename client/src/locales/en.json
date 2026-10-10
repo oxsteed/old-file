@@ -30478,7 +30478,13 @@
       "jobs": "Jobs nearby",
       "jobsDescription": "Find work and local opportunities",
       "purposeTitle": "Built for your community",
-      "purposeDescription": "Updates from verified helpers and businesses, connected to things you can order, book, or explore."
+      "purposeDescription": "Updates from verified helpers and businesses, connected to things you can order, book, or explore.",
+      "viewProfile": "View public profile",
+      "editProfile": "Edit profile",
+      "creatorEarnings": "Creator earnings",
+      "notificationSettings": "Notification settings",
+      "helpSupport": "Help and support",
+      "openFullPage": "Open full page"
     },
     "post": {
       "quotedUnavailable": "Original post unavailable",

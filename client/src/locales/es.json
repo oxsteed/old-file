@@ -30478,7 +30478,13 @@
       "jobs": "Trabajos cercanos",
       "jobsDescription": "Encuentra trabajo y oportunidades locales",
       "purposeTitle": "Hecho para tu comunidad",
-      "purposeDescription": "Novedades de ayudantes y negocios verificados, conectadas con lo que puedes pedir, reservar o explorar."
+      "purposeDescription": "Novedades de ayudantes y negocios verificados, conectadas con lo que puedes pedir, reservar o explorar.",
+      "viewProfile": "Ver perfil público",
+      "editProfile": "Editar perfil",
+      "creatorEarnings": "Ganancias de creador",
+      "notificationSettings": "Configuración de notificaciones",
+      "helpSupport": "Ayuda y soporte",
+      "openFullPage": "Abrir página completa"
     },
     "post": {
       "quotedUnavailable": "Publicación original no disponible",

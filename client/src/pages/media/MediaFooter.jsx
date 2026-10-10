@@ -100,15 +100,29 @@ export default function MediaFooter() {
                 <span className="media-legal-dialog-kicker">{t('media.feed.title')}</span>
                 <h2 id="media-legal-title">{t(`footer.${LEGAL_LINKS.find(([, path]) => path === openLegal)?.[0]}`)}</h2>
               </div>
-              <button
-                ref={closeButtonRef}
-                type="button"
-                className="media-legal-close"
-                onClick={closeLegal}
-                aria-label={t('media.shell.close')}
-              >
-                ×
-              </button>
+              <div className="media-legal-dialog-actions">
+                <Link
+                  to={openLegal}
+                  className="media-legal-expand"
+                  aria-label={t('media.shell.openFullPage')}
+                  onClick={closeLegal}
+                >
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                    <polyline points="15 3 21 3 21 9" />
+                    <line x1="10" y1="14" x2="21" y2="3" />
+                  </svg>
+                </Link>
+                <button
+                  ref={closeButtonRef}
+                  type="button"
+                  className="media-legal-close"
+                  onClick={closeLegal}
+                  aria-label={t('media.shell.close')}
+                >
+                  ×
+                </button>
+              </div>
             </header>
             <div className="media-legal-dialog-body">
               <Suspense fallback={<div className="media-legal-loading">{t('media.shell.loadingLegal')}</div>}>

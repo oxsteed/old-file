@@ -11,6 +11,7 @@ import { useAuth } from '../../context/AuthContext';
 import useNotifications from '../../hooks/useNotifications';
 import api from '../../api/axios';
 import MediaFooter from './MediaFooter';
+import MediaLinkModal from './MediaLinkModal';
 import { MediaGuestGateProvider } from './MediaGuestGate';
 import { getCommunities, getMediaBadges, joinCommunity, markMediaCommunitiesSeen } from '../../api/media';
 import { MediaNeighborhoodProvider, useMediaNeighborhood } from './MediaNeighborhoodContext';
@@ -37,7 +38,9 @@ function MediaShellContent({ children }) {
   const [joining, setJoining] = useState(null);
   const [accountOpen, setAccountOpen] = useState(false);
   const [query, setQuery] = useState('');
+  const [modalLink, setModalLink] = useState(null);
   const accountRef = useRef(null);
+  const shellRef = useRef(null);
   const { pathname, search } = useLocation();
   const navigate = useNavigate();
   const currentPath = pathname.replace(/\/+$/, '') || '/';
@@ -82,6 +85,28 @@ function MediaShellContent({ children }) {
     return () => { cancelled = true; };
   }, [user?.id, pathname]);
 
+  // Intercept internal link clicks: open in modal instead of navigating
+  useEffect(() => {
+    const shell = shellRef.current;
+    if (!shell) return undefined;
+    const onClick = (event) => {
+      if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+      const anchor = event.target.closest('a');
+      if (!anchor || !shell.contains(anchor)) return;
+      // Skip links already handled by their own modal (legal pages) or expand buttons
+      if (anchor.closest('.media-legal-dialog') || anchor.classList.contains('media-legal-expand')) return;
+      const href = anchor.getAttribute('href');
+      if (!href || !href.startsWith('/') || href.startsWith('//')) return;
+      // Skip non-navigating anchors
+      if (href === '#' || anchor.hasAttribute('download')) return;
+      event.preventDefault();
+      const title = anchor.textContent?.trim().slice(0, 80) || href;
+      setModalLink({ url: href, title });
+    };
+    shell.addEventListener('click', onClick);
+    return () => shell.removeEventListener('click', onClick);
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
     setCommunities([]); setCommunityError('');
@@ -120,7 +145,7 @@ function MediaShellContent({ children }) {
 
   return <MediaGuestGateProvider><PageShell hideNav hideFooter>
     <PageMeta title={mediaMetaTitle} />
-    <div className={`media-shell media-reference-shell ${user ? 'media-signed-in' : 'media-guest'} ${isFeedPage ? 'media-home-shell' : ''}`}>
+    <div ref={shellRef} className={`media-shell media-reference-shell ${user ? 'media-signed-in' : 'media-guest'} ${isFeedPage ? 'media-home-shell' : ''}`}>
       <header className="media-app-header">
         <div className="media-app-header-inner">
           <Link to="/media" className="media-wordmark" aria-label={t('media.shell.homepage')}><span className="media-brand-mark"><OxSteedIcon size={44} /></span><span>OxSteed<span className="media-wordmark-branch"> Media</span></span></Link>
@@ -136,7 +161,11 @@ function MediaShellContent({ children }) {
               </button>
               {accountOpen && <div id="media-account-menu" className="media-account-menu">
                 <div className="media-account-preferences">{preferences}</div>
-                <Link to="/media?tab=mine">{t('media.landing.myPosts')}</Link><Link to="/media/bookmarks">{t('media.shell.saved')}</Link><Link to="/media/verification">{t('media.shell.verification')}</Link>
+                <Link to={`/profile/${user.id}`} onClick={() => setAccountOpen(false)}>{t('media.shell.viewProfile')}</Link>
+                <Link to="/dashboard" onClick={() => setAccountOpen(false)}>{t('media.shell.editProfile')}</Link>
+                <Link to="/media/creator" onClick={() => setAccountOpen(false)}>{t('media.shell.creatorEarnings')}</Link>
+                <Link to="/settings/notifications" onClick={() => setAccountOpen(false)}>{t('media.shell.notificationSettings')}</Link>
+                <Link to="/support" onClick={() => setAccountOpen(false)}>{t('media.shell.helpSupport')}</Link>
                 <button className="media-account-action" type="button" onClick={() => { setAccountOpen(false); void logout(); }}>{t('nav.signOut')}</button>
               </div>}
             </div> : <div className="media-auth-links"><Link to="/login" state={{ from: `${pathname}${search}` }} className="media-auth-link">{t('nav.signIn')}</Link><Link to="/join" className="media-auth-link media-auth-link-primary"><span className="media-desktop-label">{t('nav.joinOxsteed')}</span><span className="media-mobile-label">{t('media.landing.join')}</span></Link></div>)}
@@ -170,6 +199,7 @@ function MediaShellContent({ children }) {
         </div></aside>
       </div>
       <MediaFooter />{navigation(true)}
+      {modalLink && <MediaLinkModal url={modalLink.url} title={modalLink.title} onClose={() => setModalLink(null)} />}
     </div>
   </PageShell></MediaGuestGateProvider>;
 }
