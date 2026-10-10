@@ -103,9 +103,6 @@ function MediaShellContent({ children }) {
       if (href === '#' || anchor.hasAttribute('download')) return;
       // Links within /media navigate normally; only links leaving Media open in the modal
       if (href === '/media' || href.startsWith('/media/') || href.startsWith('/media?')) return;
-      // Authentication and verification flows must leave Media directly so
-      // their router state and return path are preserved.
-      if (['/login', '/join', '/verify-email', '/verify-identity'].some(path => href === path || href.startsWith(`${path}?`))) return;
       event.preventDefault();
       const title = anchor.textContent?.trim().slice(0, 80) || href;
       setModalLink({ url: href, title });
