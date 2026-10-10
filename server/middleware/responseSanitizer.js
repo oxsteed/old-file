@@ -91,8 +91,8 @@ function addAdditionalSecurityHeaders(req, res, next) {
   // Prevent browsers from guessing MIME types
   res.set('X-Content-Type-Options', 'nosniff');
 
-  // Prevent clickjacking
-  res.set('X-Frame-Options', 'DENY');
+  // Prevent clickjacking (SAMEORIGIN allows our own media link-preview modal to frame pages)
+  res.set('X-Frame-Options', 'SAMEORIGIN');
 
   // XSS filter for legacy browsers
   res.set('X-XSS-Protection', '1; mode=block');
