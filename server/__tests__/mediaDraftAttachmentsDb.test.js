@@ -30,13 +30,16 @@ describeDb('Media attachment transactions in PostgreSQL', () => {
     await db.query(`CREATE TABLE users (id UUID PRIMARY KEY, is_verified boolean DEFAULT true,
       city text DEFAULT 'Springfield', state text DEFAULT 'OH',
       deleted_at timestamptz, is_active boolean DEFAULT true, is_banned boolean DEFAULT false)`);
-    await db.query(`CREATE TABLE helper_profiles (id serial PRIMARY KEY,user_id UUID,profile_slug text,service_lat numeric,service_lng numeric,service_city text,service_state text);
+    await db.query(`CREATE TABLE helper_profiles (id serial PRIMARY KEY,user_id UUID,profile_slug text,service_lat numeric,service_lng numeric,service_city text,service_state text,
+      is_listed boolean DEFAULT true, is_hidden_by_admin boolean DEFAULT false);
       CREATE TABLE businesses (id bigint PRIMARY KEY, user_id UUID, profile_slug text,
         business_name text DEFAULT 'Synthetic business', service_lat numeric,service_lng numeric,service_city text,service_state text,address_city text,address_state text,
-        deleted_at timestamptz, is_active boolean DEFAULT true, is_business_verified boolean DEFAULT false);
+        deleted_at timestamptz, is_active boolean DEFAULT true, is_business_verified boolean DEFAULT false,
+        is_listed boolean DEFAULT true, is_hidden_by_admin boolean DEFAULT false);
       CREATE TABLE food_restaurants (id bigint PRIMARY KEY, business_id bigint, owner_user_id UUID, slug text,
         latitude double precision,longitude double precision,address_city text,address_state text,
-        status text DEFAULT 'active', is_verified boolean DEFAULT false)`);
+        status text DEFAULT 'active', is_verified boolean DEFAULT false,
+        discovery_status text DEFAULT 'visible', is_hidden_by_admin boolean DEFAULT false)`);
     // Keep ranking dependencies inside this schema as well. Without these,
     // an empty local database falls back to chronology or CI joins unrelated
     // public-schema fixtures, concealing locality and identifier-type errors.

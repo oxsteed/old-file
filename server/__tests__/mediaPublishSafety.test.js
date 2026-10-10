@@ -95,12 +95,15 @@ describeDatabase('media publish: safety predicates', () => {
       CONSTRAINT uq_user_blocks UNIQUE (blocker_id, blocked_id),
       CONSTRAINT no_self_block CHECK (blocker_id <> blocked_id))`);
     await db.query(`CREATE TABLE helper_profiles (id serial PRIMARY KEY, user_id UUID, profile_slug text,
-      service_lat numeric, service_lng numeric, service_city text, service_state text)`);
+      service_lat numeric, service_lng numeric, service_city text, service_state text,
+      is_listed boolean DEFAULT true, is_hidden_by_admin boolean DEFAULT false)`);
     await db.query(`CREATE TABLE businesses (id bigint PRIMARY KEY, user_id UUID, profile_slug text,
       business_name text DEFAULT 'Synthetic business', deleted_at timestamptz,
-      is_active boolean DEFAULT true, is_business_verified boolean DEFAULT false)`);
+      is_active boolean DEFAULT true, is_business_verified boolean DEFAULT false,
+      is_listed boolean DEFAULT true, is_hidden_by_admin boolean DEFAULT false)`);
     await db.query(`CREATE TABLE food_restaurants (id bigint PRIMARY KEY, business_id bigint, owner_user_id UUID,
-      slug text, status text DEFAULT 'active', is_verified boolean DEFAULT false)`);
+      slug text, status text DEFAULT 'active', is_verified boolean DEFAULT false,
+      discovery_status text DEFAULT 'visible', is_hidden_by_admin boolean DEFAULT false)`);
     await db.query(`CREATE TABLE admin_audit_log (id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       admin_id UUID, action VARCHAR(80) NOT NULL, target_type VARCHAR(40), target_id TEXT,
       target_key TEXT, description TEXT, ip_address INET, user_agent TEXT,
