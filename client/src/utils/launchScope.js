@@ -58,7 +58,7 @@ export const LAUNCH_VISIBILITY = Object.freeze({
   businessHubRoleMenuWidgets: false,
   businessHubSpecializedTemplates: false,
   businessHubVortexAccess: true,
-  oxsteedMedia: false,
+  oxsteedMedia: true,
   discoverEverything: false,
   footerUtilityPills: true,
   genericQrGenerator: false,

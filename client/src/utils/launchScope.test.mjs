@@ -24,15 +24,15 @@ test('launched surfaces are not redirected (footer links stay live)', () => {
   assert.equal(getLaunchRedirect('/products'), null);
 });
 
-test('OxSteed Media routes redirect home while launch flag is off', () => {
-  assert.equal(LAUNCH_VISIBILITY.oxsteedMedia, false);
-  assert.equal(getLaunchRedirect('/media'), '/');
-  assert.equal(getLaunchRedirect('/media/search'), '/');
-  assert.equal(getLaunchRedirect('/media/post/abc'), '/');
+test('OxSteed Media routes remain available after launch', () => {
+  assert.equal(LAUNCH_VISIBILITY.oxsteedMedia, true);
+  assert.equal(getLaunchRedirect('/media'), null);
+  assert.equal(getLaunchRedirect('/media/search'), null);
+  assert.equal(getLaunchRedirect('/media/post/abc'), null);
 });
 
 test('Business Hub media tab follows oxsteedMedia launch flag', () => {
   assert.equal(isBusinessHubTabLaunched('overview'), true);
-  assert.equal(isBusinessHubTabLaunched('media'), LAUNCH_VISIBILITY.oxsteedMedia);
+  assert.equal(isBusinessHubTabLaunched('media'), true);
   assert.equal(LAUNCH_BUSINESS_HUB_TABS.has('media'), false);
 });
