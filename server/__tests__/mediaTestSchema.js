@@ -43,7 +43,7 @@ function toAddColumnDef(col) {
   else type = col.data_type;
   // Skip defaults that reference sequences or UUID generators; keep it simple.
   // The test fixtures provide explicit values for columns they care about.
-  return `ADD COLUMN IF NOT EXISTS ${name} ${type}`;
+  return `ADD COLUMN IF NOT EXISTS "${name}" ${type}`;
 }
 
 async function backfillMissingColumns(db, tableName, tableSchema = 'pg_temp') {
@@ -51,7 +51,7 @@ async function backfillMissingColumns(db, tableName, tableSchema = 'pg_temp') {
   if (!prodCols.length) return; // table doesn't exist in production; nothing to mirror
   const tempCols = await getTempColumns(db, tableName, tableSchema);
   const missing = prodCols.filter(c => !tempCols.has(c.column_name));
-  const qualified = tableSchema === 'pg_temp' ? tableName : `${tableSchema}.${tableName}`;
+  const qualified = tableSchema === 'pg_temp' ? `"${tableName}"` : `"${tableSchema}"."${tableName}"`;
   for (const col of missing) {
     await db.query(`ALTER TABLE ${qualified} ${toAddColumnDef(col)}`);
   }
