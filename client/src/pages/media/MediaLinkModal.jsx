@@ -11,6 +11,7 @@ const AUTH_PAGES = {
 };
 
 // Account and settings pages rendered directly (no iframe), like the legal modal.
+const PROFILE_PAGE = lazy(() => import('../PublicProfile'));
 const EMBEDDED_PAGES = {
   '/dashboard': lazy(() => import('../SmartDashboard')),
   '/settings': lazy(() => import('../SettingsPage')),
@@ -26,7 +27,8 @@ export default function MediaLinkModal({ url, title, onClose }) {
   const [activeUrl, setActiveUrl] = useState(url);
   const destination = new URL(activeUrl, window.location.origin);
   const AuthPage = AUTH_PAGES[destination.pathname];
-  const EmbeddedPage = EMBEDDED_PAGES[destination.pathname];
+  const EmbeddedPage = EMBEDDED_PAGES[destination.pathname]
+    || (destination.pathname.startsWith('/profile/') ? PROFILE_PAGE : null);
   const DirectPage = AuthPage || EmbeddedPage;
   const returnTo = resolveAuthReturnPath(destination.searchParams.get('next'), '/media');
   const authTitle = destination.pathname === '/login' ? t('nav.signIn')
