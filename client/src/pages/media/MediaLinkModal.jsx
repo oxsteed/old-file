@@ -53,13 +53,16 @@ export default function MediaLinkModal({ url, title, onClose }) {
     setActiveUrl(`${target.pathname}${target.search}${target.hash}`);
   };
 
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+
   useEffect(() => {
     triggerRef.current = document.activeElement;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     closeButtonRef.current?.focus();
     const onKeyDown = (event) => {
-      if (event.key === 'Escape') onClose();
+      if (event.key === 'Escape') onCloseRef.current();
       trapMediaDialogFocus(event, dialogRef.current);
     };
     window.addEventListener('keydown', onKeyDown);
@@ -68,7 +71,7 @@ export default function MediaLinkModal({ url, title, onClose }) {
       window.removeEventListener('keydown', onKeyDown);
       triggerRef.current?.focus?.();
     };
-  }, [onClose]);
+  }, []);
 
   const closeOnBackdrop = (event) => {
     if (event.target === event.currentTarget) onClose();
