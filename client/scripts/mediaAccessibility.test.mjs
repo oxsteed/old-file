@@ -31,15 +31,16 @@ test('Media composer exposes processing status to assistive technology', () => {
 });
 
 test('Media composer retries a restored asset when replacement media is selected', () => {
-  assert.match(compose, /const handleMediaFileChange = \(event\)/);
-  assert.match(compose, /setAttachedAsset\(false\)/);
-  assert.match(compose, /onChange=\{handleMediaFileChange\}/);
-  assert.match(compose, /const handleExternalUrlChange = \(event\)/);
+  assert.match(compose, /replaceAssetId/);
+  assert.match(compose, /setReplaceAssetId\(null\)/);
+  assert.match(compose, /uploadFiles\(event\.target\.files, replaceAssetId\)/);
+  assert.match(compose, /replaceAssetId: targetAssetId/);
 });
 
 test('Media composer persists restored draft edits before retrying publication', () => {
   assert.match(compose, /updateDraft/);
-  assert.match(compose, /await updateDraft\(postId, \{ body: body\.trim\(\), links, community_id: communityId \|\| null \}\)/);
+  assert.match(compose, /await updateDraft\(id, payload\(\)\)/);
+  assert.match(compose, /await ensureDraft\(\)/);
 });
 
 test('Media composer routes unverified publishers to verification and preserves the draft return path', () => {
@@ -69,10 +70,10 @@ test('Media cards prefer authoritative live entity names over saved labels', () 
 
 test('Media composer lets verified owners choose the represented publisher entity', () => {
   assert.match(compose, /getMediaVerification/);
-  assert.match(compose, /restaurant_id: publisher\.id/);
-  assert.match(compose, /business_id: publisher\.id/);
+  assert.match(compose, /restaurant_id: selectedPublisher\.entity_id/);
+  assert.match(compose, /business_id: selectedPublisher\.entity_id/);
   assert.match(compose, /publisherLabel/);
-  assert.match(compose, /disabled={Boolean\(draftId\)}/);
+  assert.match(compose, /disabled=\{Boolean\(draftId\)/);
 });
 
 test('Media composer waits for publisher verification before creating a draft', () => {

@@ -32,9 +32,13 @@ describe('OxSteed Media verification paths', () => {
     await verification.getCenter({ user: { id: 'user-1' } }, res);
 
     expect(res.json).toHaveBeenCalledWith({
-      helper: { is_verified: false, didit_status: 'pending' },
+      helper: expect.objectContaining({ is_verified: false, didit_status: 'pending' }),
       businesses: expect.arrayContaining([expect.objectContaining({ id: '12' })]),
       restaurants: expect.arrayContaining([expect.objectContaining({ id: '7', is_verified: true })]),
+      publishers: expect.arrayContaining([
+        expect.objectContaining({ actor_type: 'user', verified: false }),
+        expect.objectContaining({ actor_type: 'restaurant', entity_id: '7', verified: true }),
+      ]),
     });
     expect(pool.query).toHaveBeenCalledTimes(3);
   });

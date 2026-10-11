@@ -150,6 +150,9 @@ describe('Media user journeys', () => {
     };
     pool.query.mockImplementation(async (sql, params) => {
       if (sql.includes('FROM food_restaurants') && sql.includes('owner_user_id')) {
+        if (sql.includes('address_city')) {
+          return { rows: [{ city: null, region: null }] };
+        }
         expect(params).toEqual(['44', 'restaurant-owner']);
         return { rows: [{ id: 44, display_name: 'Corner Cafe', slug: 'corner-cafe', logo_url: null, business_id: 12, is_verified: true }] };
       }

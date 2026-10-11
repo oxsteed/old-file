@@ -59,7 +59,7 @@ describeDb('Media attachment transactions in PostgreSQL', () => {
       'pooled_orders', 'media_post_boosts', 'user_blocks',
     ], schema);
     // Actual migration DDL and constraints, isolated from all shared fixtures.
-    for (const number of [709, 731, 732, 735, 736, 742, 743, 744, 754, 757]) {
+    for (const number of [709, 731, 732, 735, 736, 742, 743, 744, 754, 757, 758]) {
       const dir = path.resolve(__dirname, '../migrations');
       const file = fs.readdirSync(dir).find((name) => name.startsWith(`${number}_`));
       await db.query(fs.readFileSync(path.join(dir, file), 'utf8'));

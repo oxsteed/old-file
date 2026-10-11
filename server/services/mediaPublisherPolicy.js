@@ -8,7 +8,7 @@ function verifiedActorSql(actor = 'a') {
       SELECT 1 FROM users media_user
        WHERE media_user.id = ${actor}.owner_user_id
          AND media_user.is_active = TRUE AND media_user.is_banned = FALSE
-         AND media_user.deleted_at IS NULL)
+         AND media_user.deleted_at IS NULL AND media_user.is_verified = TRUE)
     WHEN ${actor}.actor_type = 'helper' THEN EXISTS (
       SELECT 1 FROM helper_profiles hp JOIN users hu ON hu.id = hp.user_id
        WHERE hp.user_id = ${actor}.owner_user_id AND hu.is_verified = TRUE
