@@ -97,7 +97,7 @@ async function fixture() {
       export const useAuth = () => ({ user: useSyncExternalStore(subscribe,()=>window.viewer), loading:false, isOnboardingComplete:false, setUser,
         login:async payload=>{window.loginCalls=(window.loginCalls||[]).concat(payload); if(window.rejectLogin)throw new Error('Synthetic rejected login'); const result={user:{id:'viewer',display_name:'Signed in helper',email_verified:true,didit_status:'verified'}};setUser(result.user);return result;},
         logout:async()=>{window.signouts+=1;setUser(null);} });`,
-    '../hooks/useAuth': `export {useAuth} from 'fixture-auth'; export default { useAuth };`,
+    '../hooks/useAuth': `export {useAuth} from 'fixture-auth'; import {useAuth as ua} from 'fixture-auth'; export default ua;`,
     '../api/auth': `export const persistSessionPayload = () => {};`,
     '../components/AuthNavbar': `import React from 'react';import {Link} from 'react-router-dom';export default ({cta}) => <nav><Link to={cta.to}>{cta.label}</Link></nav>;`,
     'react-i18next': `export const useTranslation = () => ({ t: window.translate, i18n: { language: window.language } });`,
