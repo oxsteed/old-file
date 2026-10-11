@@ -57,6 +57,27 @@ test('replacement cannot erase an asset moderation verdict', async () => {
   expect(db.query.mock.calls.some(([sql]) => sql.includes('DELETE'))).toBe(false);
 });
 
+test('single replacement preserves its ordering slot while new media appends after reordered assets', async () => {
+  current = [{ id: 'first', sort_order: 0 }, { id: 'replace', sort_order: 2 }, { id: 'last', sort_order: 4 }];
+  await attachments.attach({ ...input(), replaceAssetId: 'replace' });
+  expect(db.query.mock.calls.find(([sql]) => sql.includes('INSERT INTO media_post_assets'))[1].at(-1)).toBe(2);
+  db.query.mockClear();
+  await attachments.attach(input());
+  expect(db.query.mock.calls.find(([sql]) => sql.includes('INSERT INTO media_post_assets'))[1].at(-1)).toBe(5);
+});
+
+test('replacing an attachment with another existing file does not erase either asset', async () => {
+  current = [{ id: 'replace', sort_order: 0 }, { id: 'duplicate', asset_type: 'image', provider: 'upload', content_sha256: 'abc' }];
+  await expect(attachments.attach({ ...input(), replaceAssetId: 'replace' })).rejects.toMatchObject({ code: 'media_asset_duplicate' });
+  expect(db.query.mock.calls.some(([sql]) => sql.includes('DELETE') || sql.includes('INSERT'))).toBe(false);
+});
+
+test('caption metadata cannot be committed to a photo', async () => {
+  await expect(attachments.updateMetadata({ postId: 'draft', assetId: 'image', userId: 'owner', captionStorageKey: 'new.vtt' }))
+    .rejects.toMatchObject({ code: 'media_caption_video_required' });
+  expect(db.query.mock.calls.some(([sql]) => sql.includes('UPDATE media_post_assets'))).toBe(false);
+});
+
 test('a revoked Didit flag is rechecked in the committing transaction', async () => {
   db.query.mockImplementation(async (sql) => ({ rows: sql.includes('SELECT p.id') ? [{ ...owner, is_verified: false }] : [] }));
   await expect(attachments.attach({ ...input(), asset: { ...input().asset, asset_type: 'video' } }))

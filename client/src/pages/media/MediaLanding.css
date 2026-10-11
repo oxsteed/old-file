@@ -187,8 +187,8 @@ html.dark button.media-support-launcher { background: #1b2535 !important; color:
   .media-reference-shell .media-account-trigger > .media-account-name, .media-reference-shell .media-account-trigger > svg { display: none; }
   .media-account-avatar { width: 36px; height: 36px; }
   .media-mobile-location-row { display: flex; justify-content: space-between; align-items: center; min-height: 48px; padding: 2px 18px; border-top: 1px solid var(--media-border); }
-  .media-mobile-location-row .media-global-location { border: 0; padding: 5px 0; font-size: 17px; font-weight: 500; }
-  .media-mobile-location-row .media-preferences { gap: 10px; }
+  .media-mobile-location-row .media-global-location { flex: 1; min-width: 0; margin-inline-end: 10px; border: 0; padding: 5px 0; font-size: 17px; font-weight: 500; }
+  .media-mobile-location-row .media-preferences { flex-shrink: 0; gap: 10px; }
   .media-reference-shell .media-layout, .media-reference-shell.media-guest .media-layout { display: block; min-height: calc(100dvh - 126px); padding: 0; }
   .media-reference-shell .media-left-rail, .media-reference-shell .media-discovery { display: none; }
   .media-reference-shell .media-content { padding-bottom: 0; }

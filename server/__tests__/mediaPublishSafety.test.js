@@ -114,7 +114,7 @@ describeDatabase('media publish: safety predicates', () => {
     await backfillAllTables(db, [
       'users', 'user_blocks', 'helper_profiles', 'businesses', 'food_restaurants',
     ], schema);
-    for (const number of [709, 731, 732, 733, 735, 736, 742, 743, 744, 754, 757]) {
+    for (const number of [709, 731, 732, 733, 735, 736, 742, 743, 744, 754, 757, 758]) {
       const dir = path.resolve(__dirname, '../migrations');
       const file = fs.readdirSync(dir).find((name) => name.startsWith(`${number}_`));
       await db.query(fs.readFileSync(path.join(dir, file), 'utf8'));

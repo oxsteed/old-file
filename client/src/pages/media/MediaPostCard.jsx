@@ -35,7 +35,9 @@ function MediaVideo({ asset, label, mutedLabel, unmutedLabel }) {
   const [muted, setMuted] = useState(true);
   return (
     <div className="media-video-frame">
-      <video src={asset.url} poster={asset.thumbnail_url || undefined} controls muted={muted} playsInline preload="metadata" aria-label={label} />
+      <video src={asset.url} poster={asset.thumbnail_url || undefined} controls muted={muted} playsInline preload="metadata" aria-label={label} crossOrigin={asset.caption_url ? 'anonymous' : undefined}>
+        {asset.caption_url && <track kind="captions" src={asset.caption_url} srcLang={asset.caption_language || 'en'} label={asset.caption_language || 'en'} default />}
+      </video>
       <button type="button" className="media-video-mute" aria-label={muted ? mutedLabel : unmutedLabel} onClick={() => setMuted((value) => !value)}>
         {muted ? mutedLabel : unmutedLabel}
         <span className="sr-only">{label}</span>
@@ -44,11 +46,22 @@ function MediaVideo({ asset, label, mutedLabel, unmutedLabel }) {
   );
 }
 
+function WarnedMedia({ warning, children }) {
+  const { t } = useTranslation();
+  const [revealed, setRevealed] = useState(false);
+  if (!warning) return children;
+  return <section className="media-content-warning">
+    <strong>{t('media.post.contentWarning')}</strong><p>{warning}</p>
+    <button type="button" className="media-secondary-button" aria-expanded={revealed} onClick={() => setRevealed(value => !value)}>{t(revealed ? 'media.post.hideMedia' : 'media.post.showMedia')}</button>
+    {revealed && children}
+  </section>;
+}
+
 function QuotedMedia({ assets, label }) {
   const asset = assets?.find((candidate) => candidate?.url || candidate?.external_url);
   if (!asset) return null;
   if (asset.asset_type === 'image' && asset.url) {
-    return <img className="media-quoted-media" src={asset.url} alt={label} loading="lazy" />;
+    return <img className="media-quoted-media" src={asset.url} alt={asset.alt_text || label} loading="lazy" />;
   }
   if (asset.asset_type === 'video' && asset.thumbnail_url) {
     return <img className="media-quoted-media" src={asset.thumbnail_url} alt={label} loading="lazy" />;
@@ -304,6 +317,7 @@ export default function MediaPostCard({
           </button>
         )}
         {post.assets?.length > 0 && (
+          <WarnedMedia key={`${post.id}:${post.content_warning || ''}`} warning={post.content_warning}>
           <div className={`media-post-assets media-post-assets-${Math.min(post.assets.length, 4)}`}>
             {post.assets.map((asset) => {
               if (asset.asset_type === 'video_link' && asset.external_url) {
@@ -316,11 +330,12 @@ export default function MediaPostCard({
                 return <MediaVideo key={asset.id} asset={asset} label={t('media.post.videoEmbed')} mutedLabel={t('media.post.unmute')} unmutedLabel={t('media.post.mute')} />;
               }
               if (asset.asset_type === 'image' && asset.url) {
-                return <img key={asset.id} src={asset.url} alt={t('media.post.photoAlt', { name: post.display_name })} loading="lazy" />;
+                return <img key={asset.id} src={asset.url} alt={asset.alt_text || t('media.post.photoAlt', { name: post.display_name })} loading="lazy" />;
               }
               return null;
             })}
           </div>
+          </WarnedMedia>
         )}
         {post.quoted && (
           <div className="media-quoted-embed">
@@ -330,7 +345,9 @@ export default function MediaPostCard({
               <span className="media-post-handle">@{post.quoted.handle}</span>
             </div>
             <p>{post.quoted.body}</p>
-            <QuotedMedia assets={post.quoted.assets} label={t('media.post.videoEmbed')} />
+            <WarnedMedia key={`${post.quoted.id}:${post.quoted.content_warning || ''}`} warning={post.quoted.content_warning}>
+              <QuotedMedia assets={post.quoted.assets} label={t('media.post.videoEmbed')} />
+            </WarnedMedia>
             {post.quoted.links?.length > 0 && (
               <div className="media-quoted-links">
                 <span className="media-linked-label">{t('media.post.linkedOn')}</span>
@@ -379,9 +396,9 @@ export default function MediaPostCard({
                   >
                     <span className="media-link-type">{t(`media.post.linkTypes.${link.link_type}`, { defaultValue: link.link_type })}</span>
                     <span className="media-link-name">{link.name || link.label || link.name_snapshot}</span>
-                    {(link.price_cents ?? link.price_snapshot_cents) != null && (
+                    {(link.price_cents ?? link.price_snapshot_cents) != null && link.currency_code && (
                       <span className="media-link-price">
-                        ${(Number(link.price_cents ?? link.price_snapshot_cents) / 100).toFixed(2)}
+                        {new Intl.NumberFormat(i18n.language, { style: 'currency', currency: link.currency_code }).format(Number(link.price_cents ?? link.price_snapshot_cents) / (10 ** getCreditMinorUnits(link.currency_code)))}
                       </span>
                     )}
                     <span className="media-link-cta">{t(`media.post.cta.${link.link_type}`, { defaultValue: link.cta })}</span>

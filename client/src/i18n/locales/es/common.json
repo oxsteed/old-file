@@ -557,6 +557,9 @@
     },
     "post": {
       "quotedUnavailable": "Publicación original no disponible",
+      "contentWarning": "Advertencia de contenido",
+      "showMedia": "Mostrar contenido multimedia",
+      "hideMedia": "Ocultar contenido multimedia",
       "boostPrice": "Confirma {{amount}} por 24 horas de publicación patrocinada.",
       "boostNotice": "Paga con OxSteed Credit por 24 horas de publicación patrocinada local. Tu publicación mantiene los controles de seguridad y relevancia local."
     }

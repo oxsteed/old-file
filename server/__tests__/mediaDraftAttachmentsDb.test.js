@@ -136,6 +136,48 @@ describeDb('Media attachment transactions in PostgreSQL', () => {
     expect((await db.query('SELECT * FROM media_post_assets WHERE post_id=$1', [post])).rows).toHaveLength(1);
   });
 
+  test('reordered replacement at four-asset capacity keeps its slot without deleting other attachments', async () => {
+    const stored = [];
+    for (let index = 0; index < 4; index += 1) {
+      stored.push((await attachments.attach({ ...image(), asset: { ...image().asset, content_sha256: String(index).repeat(64) } })).asset);
+    }
+    const order = stored.map(asset => asset.id).reverse();
+    await attachments.reorder({ postId: post, userId: user, assetIds: order });
+    const replacement = await attachments.attach({ ...image(), replaceAssetId: order[1], asset: { ...image().asset, content_sha256: 'f'.repeat(64) } });
+    const rows = (await db.query('SELECT id,sort_order FROM media_post_assets WHERE post_id=$1 ORDER BY sort_order', [post])).rows;
+    expect(rows.map(row => row.id)).toEqual([order[0], replacement.asset.id, order[2], order[3]]);
+    expect(rows.map(row => row.sort_order)).toEqual([0,1,2,3]);
+  });
+
+  test('caption updates preserve existing alternative text and reject non-video targets', async () => {
+    const video = await attachments.attach({ ...image(), asset: { ...image().asset, asset_type: 'video' } });
+    await attachments.updateMetadata({ postId: post, userId: user, assetId: video.asset.id, altText: 'Synthetic description' });
+    const captioned = await attachments.updateMetadata({ postId: post, userId: user, assetId: video.asset.id, captionStorageKey: 'private/captions.vtt', captionLanguage: 'fr' });
+    expect(captioned).toMatchObject({ alt_text: 'Synthetic description', caption_storage_key: 'private/captions.vtt', caption_language: 'fr' });
+    const photo = await attachments.attach({ ...image(), asset: { ...image().asset, content_sha256: 'b'.repeat(64) } });
+    await expect(attachments.updateMetadata({ postId: post, userId: user, assetId: photo.asset.id, captionStorageKey: 'private/invalid.vtt' })).rejects.toMatchObject({ code: 'media_caption_video_required' });
+  });
+
+  test('concurrent empty draft creation replays one request and rejects conflicting reuse', async () => {
+    const requestUser = randomUUID();
+    const requestActor = randomUUID();
+    await db.query('INSERT INTO users (id) VALUES ($1)', [requestUser]);
+    await db.query('INSERT INTO helper_profiles (user_id) VALUES ($1)', [requestUser]);
+    await db.query(`INSERT INTO media_actors (id,actor_type,owner_user_id,handle,display_name)
+      VALUES ($1,'helper',$2,$3,'Request helper')`, [requestActor, requestUser, `request-${requestActor}`]);
+    const key = randomUUID();
+    const responses = [0,1].map(() => ({ status: jest.fn().mockReturnThis(), json: jest.fn() }));
+    const input = { body: '', draft: true, client_request_id: key, publisher_type: 'helper', actor_id: requestActor };
+    await Promise.all(responses.map(response => media.createPost({ user: { id: requestUser }, body: input }, response)));
+    expect(responses.map(response => response.status.mock.calls[0][0]).sort()).toEqual([200,201]);
+    const first = responses[0].json.mock.calls[0][0].post;
+    expect(responses[1].json.mock.calls[0][0].post.id).toBe(first.id);
+    const conflict = { status: jest.fn().mockReturnThis(), json: jest.fn() };
+    await media.createPost({ user: { id: requestUser }, body: { ...input, body: 'Changed request' } }, conflict);
+    expect(conflict.status).toHaveBeenCalledWith(409);
+    expect((await db.query('SELECT count(*)::int AS count FROM media_posts WHERE client_request_id=$1', [key])).rows[0].count).toBe(1);
+  });
+
   test('failed video replacement removes jobs and restores publishable state', async () => {
     const video = await attachments.attach({ ...image(), asset: { ...image().asset, asset_type: 'video',
       processing_status: 'quarantine', csam_status: 'pending', content_sha256: 'b'.repeat(64) } });

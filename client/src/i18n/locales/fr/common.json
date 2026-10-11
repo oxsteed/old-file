@@ -557,6 +557,9 @@
     },
     "post": {
       "quotedUnavailable": "Publication d’origine indisponible",
+      "contentWarning": "Avertissement de contenu",
+      "showMedia": "Afficher les médias",
+      "hideMedia": "Masquer les médias",
       "boostPrice": "Confirmez {{amount}} pour 24 heures de placement sponsorisé.",
       "boostNotice": "Payez avec OxSteed Credit pour 24 heures de placement sponsorisé local. Les contrôles de sécurité et de pertinence locale restent applicables."
     }

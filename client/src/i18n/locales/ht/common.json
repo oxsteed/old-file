@@ -557,6 +557,9 @@
     },
     "post": {
       "quotedUnavailable": "Piblikasyon orijinal la pa disponib",
+      "contentWarning": "Avètisman sou kontni",
+      "showMedia": "Montre medya",
+      "hideMedia": "Kache medya",
       "boostPrice": "Konfime {{amount}} pou 24 èdtan plasman patwone.",
       "boostNotice": "Peye avèk OxSteed Credit pou 24 èdtan plasman patwone lokal. Piblikasyon an toujou pase kontwòl sekirite ak enpòtans lokal."
     }

@@ -127,7 +127,9 @@ async function fixture() {
       export const getReplies = (id, sort) => pending('replies', id + ':' + sort);
       export const getQuotes = async () => ({quotes:[]});
       export const recordView = async () => ({});
-      export const getMediaVerification = async () => ({helper:{is_verified:false}, businesses:[{id:1,business_name:'Fixture business',is_verified:false}],restaurants:[]});
+      export const getMediaVerification = async () => ({publishers:[{key:'user:viewer',actor_type:'user',actor_id:'actor',display_name:'Synthetic local member',location:{city:'Springfield',region:'OH'},eligibility:{text:true,photo:true,video:false}}],helper:{is_verified:false}, businesses:[{id:1,business_name:'Fixture business',is_verified:false}],restaurants:[]});
+      export const getDrafts = async () => ({drafts:[]}), getDraft = async()=>({draft:null}), updateDraft = async()=>({post:{}});
+      export const linkAsset=async()=>({}), publishPost=async()=>({}), removeMediaAsset=async()=>({}), reorderMediaAssets=async()=>({}), updateMediaAsset=async()=>({}), uploadMediaCaption=async()=>({}), uploadPhoto=async()=>({}), uploadVideo=async()=>({});
       export const submitMediaVerification = async () => ({});
       export const toggleFollow = async () => ({following:true,follower_count:1});
       export const searchMediaEntities = async () => ({entities:[]});
@@ -163,6 +165,7 @@ async function fixture() {
       import {BrowserRouter, Routes, Route, useNavigate, useLocation} from 'react-router-dom';
       import Shell from './src/pages/media/MediaShell.jsx'; import Search from './src/pages/media/MediaSearchPage.jsx';
       import Feed from './src/pages/media/MediaFeedPage.jsx'; import Support from './src/components/SupportWidget.jsx';
+      import Compose from './src/pages/media/MediaComposePage.jsx';
       import Actor from './src/pages/media/MediaActorPage.jsx'; import Detail from './src/pages/media/MediaPostDetailPage.jsx';
       import Verification from './src/pages/media/MediaVerificationPage.jsx'; import Card from './src/pages/media/MediaPostCard.jsx';
       import Creator from './src/pages/media/MediaCreatorPage.jsx'; import Admin from './src/admin/pages/MediaFlags.jsx';
@@ -171,6 +174,7 @@ async function fixture() {
       function Harness(){ window.fixtureNavigate=useNavigate(); const location=useLocation(); const [cardPost,setCardPost]=React.useState(post);window.fixtureReplacePost=setCardPost;
         return <><output data-route>{location.pathname}</output><output data-return>{location.state?.from || ''}</output><Shell><Routes>
           <Route path="/media" element={<Feed/>}/><Route path="/media/search" element={<Search/>}/><Route path="/media/:handle" element={<Actor/>}/>
+          <Route path="/media/compose" element={<Compose/>}/>
           <Route path="/media/post/:id" element={<Detail/>}/><Route path="/media/verification" element={<Verification/>}/>
           <Route path="/media/verify-identity" element={<ProtectedRoute requireOnboarded={false}><Identity embedded/></ProtectedRoute>}/>
           <Route path="/verify-identity" element={<Identity/>}/>
@@ -195,7 +199,7 @@ async function fixture() {
     // works under that policy, not merely that an iframe URL was assigned.
     res.setHeader('Content-Security-Policy', "frame-src https://js.stripe.com https://hooks.stripe.com https://verify.didit.me; frame-ancestors 'self'");
     res.end(`<html lang="${lang}" dir="${lang==='ar'?'rtl':'ltr'}"><head><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="/app.css"><style>
-      :root{--color-surface:white;--color-surface-2:#f5f6f8;--color-text:#172033;--color-text-muted:#536176;--color-border:#ddd;--color-primary:#b93d00;--color-primary-bg:#fff0e7;--color-action:#b93d00;--color-on-action:white;}body{margin:0;font-family:Arial,sans-serif}button,input,textarea,select{font:inherit}output{display:none}
+      :root{--color-surface:white;--color-surface-2:#f5f6f8;--color-text:#172033;--color-text-muted:#536176;--color-border:#ddd;--color-primary:#b93d00;--color-primary-bg:#fff0e7;--color-action:#b93d00;--color-on-action:white;}html.dark{--color-surface:#1b2535;--color-surface-2:#111827;--color-text:#f4f5f8;--color-text-muted:#c4cad4;--color-border:#435062;--color-primary:#d8642e;--color-primary-bg:#39271f;}body{margin:0;font-family:Arial,sans-serif}button,input,textarea,select{font:inherit}output{display:none}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border-width:0}
       </style></head><body><div id="root"></div><script>window.requests=[];window.financialCalls=[];window.feedCalls=[];window.joinCalls=[];window.marketplace=${JSON.stringify(params.get('marketplace'))};window.failBoost=${params.has('payments')};window.language=${JSON.stringify(lang)};window.catalog=${JSON.stringify(catalog).replace(/</g,'\\u003c')};window.viewer=${params.has('guest')?'null':"{id:'viewer',display_name:'Synthetic local helper'}"};window.signouts=0;window.cookieSettings=0;
       window.commonCatalog=${JSON.stringify(commonCatalog).replace(/</g,'\\u003c')};
       window.translate=(key,options={})=>{const read=catalog=>key.split('.').reduce((node,part)=>node?.[part],catalog);const value=read(window.catalog)??read(window.commonCatalog);return (typeof value==='string'?value:options.defaultValue||key).replace(/\\{\\{(\\w+)\\}\\}/g,(_,name)=>String(options[name]??''));};</script><script type="module" src="/app.js"></script></body></html>`);
@@ -203,6 +207,54 @@ async function fixture() {
   await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
   return {url:`http://127.0.0.1:${server.address().port}`,close:()=>new Promise(resolve=>server.close(resolve))};
 }
+
+test('composer layout fits phones, tablets and desktops in light, dark and Arabic RTL', async () => {
+  const app = await fixture(); let browser;
+  const screenshots = fs.mkdtempSync('/tmp/oxsteed-composer-design-');
+  try {
+    browser = await chromium.launch({ headless: true, channel: 'chrome' });
+    // 683 CSS pixels models a 1366px desktop at 200% browser zoom.
+    for (const width of [320,390,683,768,1366]) {
+      for (const dark of [false,true]) {
+        const lang = dark ? 'ar' : 'en';
+        const page = await browser.newPage({ viewport: { width, height: width === 683 ? 450 : 900 }, deviceScaleFactor: width === 683 ? 2 : 1, reducedMotion: 'reduce' });
+        const errors = []; page.on('pageerror', error => errors.push(error.message));
+        await page.goto(`${app.url}/media/compose?lang=${lang}`);
+        await page.locator('.media-publisher-row strong').filter({ hasText: 'Synthetic local member' }).waitFor({ state: 'attached' });
+        if (dark) await page.evaluate(() => document.documentElement.classList.add('dark'));
+        const overflow = await page.evaluate(() => [...document.querySelectorAll('body *')].map(el => ({ tag: el.tagName, cls: el.className, right: el.getBoundingClientRect().right, left: el.getBoundingClientRect().left, width: el.getBoundingClientRect().width })).filter(rect => rect.width && (rect.right > innerWidth + 1 || rect.left < -1)).slice(0,12));
+        await page.screenshot({ path: path.join(screenshots, `${width}-${lang}-${dark?'dark':'light'}.png`), fullPage: false });
+        assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false, `overflow at ${width}/${lang}: ${JSON.stringify(overflow)}; screenshots ${screenshots}`);
+        assert.deepEqual(errors, []);
+        const identity = await page.locator('.media-publisher-row > div').boundingBox();
+        const selector = await page.locator('.media-publisher-row select').boundingBox();
+        assert.ok(identity.width >= 80, `Publisher identity must remain readable at ${width}/${lang}`);
+        assert.ok(identity.y + identity.height <= selector.y || identity.y >= selector.y + selector.height || identity.x + identity.width <= selector.x || identity.x >= selector.x + selector.width, 'Publisher selector must not cover the displayed identity');
+        assert.equal(await page.locator('.media-destination-options input[type=radio]').count(), 3);
+        if (width < 701) {
+          const actions = await page.locator('.media-compose-actions').boundingBox();
+          const nav = await page.locator('.media-bottom-nav').boundingBox();
+          assert.ok(actions.y + actions.height <= nav.y + 1, 'Actions must stay above mobile navigation');
+          const support = await page.locator('.media-support-launcher').boundingBox();
+          assert.ok(support.y >= actions.y + actions.height || support.y + support.height <= actions.y, 'Support must not cover composer actions');
+        }
+        await page.screenshot({ path: path.join(screenshots, `${width}-${lang}-${dark?'dark':'light'}.png`), fullPage: false });
+        if (width === 320) {
+          await page.locator('textarea').focus();
+          await page.keyboard.press('Tab');
+          assert.equal(await page.locator('.media-emoji-control > button').evaluate(el => el === document.activeElement), true);
+          await page.keyboard.press('Enter');
+          await page.keyboard.press('Tab');
+          await page.keyboard.press('Enter');
+          assert.equal(await page.locator('textarea').inputValue(), '😀');
+          assert.equal(await page.locator('textarea').evaluate(el => el === document.activeElement), true);
+        }
+        await page.close();
+      }
+    }
+    console.log('Composer screenshots: ' + screenshots);
+  } finally { if (browser) await browser.close(); await app.close(); }
+});
 
 async function resolveRequest(page, kind, key, data) {
   await page.waitForFunction(({kind,key})=>window.requests.some(request=>request.kind===kind&&request.key===key),{kind,key});

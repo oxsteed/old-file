@@ -24,7 +24,7 @@ async function requireDraft(db, postId, userId, lock = false) {
 
 async function refreshPostState(db, postId) {
   await db.query(
-    `UPDATE media_posts p SET
+    `UPDATE media_posts p SET updated_at = NOW(),
        csam_status = CASE
          WHEN EXISTS (SELECT 1 FROM media_post_assets a WHERE a.post_id = p.id AND a.csam_status = 'flagged') THEN 'flagged'
          WHEN EXISTS (SELECT 1 FROM media_post_assets a WHERE a.post_id = p.id AND a.csam_status IN ('pending', 'unavailable')) THEN 'pending'
@@ -71,6 +71,9 @@ async function attach({ postId, userId, asset, replace = false, replaceAssetId =
       await db.query('COMMIT');
       return { asset: duplicate, existing: true, removedKeys: [] };
     }
+    if (duplicate && replaceAssetId && String(duplicate.id) !== String(replaceAssetId)) {
+      throw new AppError('That file is already attached to this draft', 409, 'media_asset_duplicate');
+    }
     if (!replace && !replaceAssetId && current.length >= 4) throw new AppError('A post can have up to four attachments', 400, 'media_asset_limit');
     // Failed and running jobs cascade with the old assets. A worker that was
     // already converting must fail its guarded update and clean its outputs.
@@ -79,11 +82,12 @@ async function attach({ postId, userId, asset, replace = false, replaceAssetId =
     const { rows } = await db.query(
       `INSERT INTO media_post_assets
          (post_id, asset_type, provider, storage_key, thumbnail_key, width, height,
-          external_url, external_video_id, processing_status, csam_status, content_sha256)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *`,
+          external_url, external_video_id, processing_status, csam_status, content_sha256, sort_order)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING *`,
       [postId, asset.asset_type, asset.provider, asset.storage_key || null, asset.thumbnail_key || null,
         asset.width || null, asset.height || null, asset.external_url || null, asset.external_video_id || null,
-        asset.processing_status || 'ready', asset.csam_status || 'not_required', asset.content_sha256]);
+        asset.processing_status || 'ready', asset.csam_status || 'not_required', asset.content_sha256,
+        replacedAsset ? replacedAsset.sort_order || 0 : replace ? 0 : Math.max(-1, ...current.map(item => item.sort_order || 0)) + 1]);
     const attached = rows[0];
     if (asset.asset_type === 'video') {
       await db.query(`INSERT INTO media_processing_jobs (post_id, asset_id, job_type)
@@ -131,14 +135,18 @@ async function updateMetadata({ postId, assetId, userId, altText, captionLanguag
   try {
     await db.query('BEGIN');
     await requireDraft(db, postId, userId, true);
+    if (captionStorageKey) {
+      const { rows: targets } = await db.query('SELECT asset_type FROM media_post_assets WHERE id = $1 AND post_id = $2 FOR UPDATE', [assetId, postId]);
+      if (targets[0]?.asset_type !== 'video') throw new AppError('Captions require an uploaded video attachment', 400, 'media_caption_video_required');
+    }
     const { rows } = await db.query(
       `UPDATE media_post_assets
-          SET alt_text = $1,
-              caption_language = CASE WHEN asset_type = 'video' THEN $2 ELSE NULL END,
+          SET alt_text = CASE WHEN $6 THEN $1 ELSE alt_text END,
+              caption_language = CASE WHEN asset_type = 'video' THEN COALESCE($2, caption_language) ELSE NULL END,
               caption_storage_key = CASE WHEN asset_type = 'video' THEN COALESCE($3, caption_storage_key) ELSE NULL END
         WHERE id = $4 AND post_id = $5
         RETURNING *`,
-      [altText || null, captionLanguage || null, captionStorageKey || null, assetId, postId]
+      [altText || null, captionLanguage || null, captionStorageKey || null, assetId, postId, altText !== undefined]
     );
     if (!rows[0]) throw new AppError('Attachment not found', 404, 'media_asset_not_found');
     await db.query('COMMIT');

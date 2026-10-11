@@ -563,6 +563,9 @@
     },
     "post": {
       "quotedUnavailable": "Original post unavailable",
+      "contentWarning": "Content warning",
+      "showMedia": "Show media",
+      "hideMedia": "Hide media",
       "boostPrice": "Confirm {{amount}} for 24 hours of sponsored placement.",
       "boostNotice": "Pay with OxSteed Credit for 24 hours of local sponsored placement. Your post keeps the same safety and local relevance checks."
     }

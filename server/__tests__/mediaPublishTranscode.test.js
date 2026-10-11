@@ -40,7 +40,7 @@ test('media publish transcode tests require an explicit disposable database opt-
 
 function makeTestVideo() {
   const out = path.join(os.tmpdir(), `media-publish-src-${randomUUID()}.mp4`);
-  execFileSync('/usr/bin/ffmpeg', ['-y', '-v', 'error', '-f', 'lavfi',
+  execFileSync(process.env.FFMPEG_PATH || 'ffmpeg', ['-y', '-v', 'error', '-f', 'lavfi',
     '-i', 'testsrc=duration=1:size=160x120:rate=10',
     '-pix_fmt', 'yuv420p', '-c:v', 'libx264', out]);
   return out;
@@ -101,7 +101,7 @@ describeDatabase('media publish: video conversion journey', () => {
       is_active boolean DEFAULT true, is_business_verified boolean DEFAULT false)`);
     await db.query(`CREATE TABLE food_restaurants (id bigint PRIMARY KEY, business_id bigint, owner_user_id UUID,
       slug text, status text DEFAULT 'active', is_verified boolean DEFAULT false)`);
-    for (const number of [709, 731, 732, 733, 735, 736, 742, 743, 744, 754]) {
+    for (const number of [709, 731, 732, 733, 735, 736, 742, 743, 744, 754, 758]) {
       const dir = path.resolve(__dirname, '../migrations');
       const file = fs.readdirSync(dir).find((name) => name.startsWith(`${number}_`));
       await db.query(fs.readFileSync(path.join(dir, file), 'utf8'));

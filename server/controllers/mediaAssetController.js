@@ -328,13 +328,16 @@ async function uploadCaption(req, res) {
       return res.status(400).json({ error: 'Use a valid caption language code.', code: 'media_caption_language_invalid' });
     }
     await attachments.requireDraft(pool, req.params.postId, req.user.id);
+    const { rows: targets } = await pool.query('SELECT asset_type, caption_storage_key FROM media_post_assets WHERE id = $1 AND post_id = $2', [req.params.assetId, req.params.postId]);
+    if (targets[0]?.asset_type !== 'video') return res.status(400).json({ error: 'Captions require an uploaded video attachment.', code: 'media_caption_video_required' });
     storageKey = await uploadFile(req.file.buffer, 'media/captions', 'captions.vtt', 'text/vtt');
     const asset = await attachments.updateMetadata({
       postId: req.params.postId, assetId: req.params.assetId, userId: req.user.id,
-      altText: typeof req.body?.alt_text === 'string' ? req.body.alt_text.trim().slice(0, 1000) : '',
+      altText: typeof req.body?.alt_text === 'string' ? req.body.alt_text.trim().slice(0, 1000) : undefined,
       captionLanguage: language, captionStorageKey: storageKey,
     });
     storageKey = null;
+    if (targets[0]?.caption_storage_key) await cleanupUncommitted([targets[0].caption_storage_key]);
     return res.status(201).json({ asset });
   } catch (err) {
     if (storageKey) await cleanupUncommitted([storageKey]);

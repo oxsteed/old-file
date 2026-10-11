@@ -39,7 +39,8 @@ test('Media composer retries a restored asset when replacement media is selected
 
 test('Media composer persists restored draft edits before retrying publication', () => {
   assert.match(compose, /updateDraft/);
-  assert.match(compose, /await updateDraft\(id, payload\(\)\)/);
+  assert.match(compose, /await updateDraft\(id, snapshot\)/);
+  assert.match(compose, /const id = await saveDraft\(\)/);
   assert.match(compose, /await ensureDraft\(\)/);
 });
 
@@ -78,7 +79,7 @@ test('Media composer lets verified owners choose the represented publisher entit
 
 test('Media composer waits for publisher verification before creating a draft', () => {
   assert.match(compose, /const \[publisherStatus, setPublisherStatus\] = useState\('loading'\)/);
-  assert.match(compose, /if \(publisherStatus !== 'ready'\)/);
+  assert.match(compose, /publisherStatus !== 'ready'/);
   assert.match(compose, /setPublisherStatus\('error'\)/);
   assert.match(compose, /media_publisher_unavailable/);
 });
