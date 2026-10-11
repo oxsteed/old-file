@@ -14,3 +14,6 @@ export const calculateRouteMatrix = (payload) =>
 
 export const suggestLocation = (query) =>
   api.get('/geo/suggest', { params: { q: query } }).then((response) => response.data || []);
+
+export const reverseGeocode = (lat, lng) =>
+  api.get('/geo/reverse', { params: { lat, lng } }).then((response) => response.data || { city: '', state: '', display: '' });

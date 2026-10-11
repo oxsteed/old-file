@@ -1,7 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { MapPin, X } from 'lucide-react';
-import { suggestLocation } from '../../api/geo';
+import { suggestLocation, reverseGeocode } from '../../api/geo';
 import { getSharedBrowserLocation } from '../../utils/browserLocation';
 import { trapMediaDialogFocus } from './mediaDialogFocus';
 
@@ -59,12 +59,21 @@ export function MediaNeighborhoodProvider({ children, user }) {
     let cancelled = false;
     query({ name: 'geolocation' }).then(status => {
       if (cancelled || status.state !== 'granted') return;
-      return getSharedBrowserLocation().then(coords => {
+      return getSharedBrowserLocation().then(async coords => {
         if (cancelled || !coords) return;
+        const lat = Math.round(coords.lat * 1000) / 1000;
+        const lng = Math.round(coords.lng * 1000) / 1000;
+        let city = '', state = '';
+        try {
+          const geo = await reverseGeocode(lat, lng);
+          if (cancelled) return;
+          city = geo.city || ''; state = geo.state || '';
+        } catch { /* Keep coordinates; label falls back to generic. */ }
         const choice = {
           location_mode: 'custom',
-          latitude: Math.round(coords.lat * 1000) / 1000,
-          longitude: Math.round(coords.lng * 1000) / 1000,
+          latitude: lat,
+          longitude: lng,
+          ...(city ? { city, state } : {}),
         };
         setLocation(choice);
         setResolvedLocation(choice);
@@ -109,7 +118,17 @@ export function MediaNeighborhoodProvider({ children, user }) {
     setBusy(true); setError('');
     const coords = await getSharedBrowserLocation(true);
     if (id !== request.current) return;
-    if (coords) chooseLocation({ location_mode: 'custom', latitude: Math.round(coords.lat * 1000) / 1000, longitude: Math.round(coords.lng * 1000) / 1000 });
+    if (coords) {
+      const lat = Math.round(coords.lat * 1000) / 1000;
+      const lng = Math.round(coords.lng * 1000) / 1000;
+      let city = '', state = '';
+      try {
+        const geo = await reverseGeocode(lat, lng);
+        if (id !== request.current) return;
+        city = geo.city || ''; state = geo.state || '';
+      } catch { /* Keep coordinates; label falls back to generic. */ }
+      chooseLocation({ location_mode: 'custom', latitude: lat, longitude: lng, ...(city ? { city, state } : {}) });
+    }
     else { setBusy(false); setError(t('media.feed.locationUnavailable')); }
   };
 
