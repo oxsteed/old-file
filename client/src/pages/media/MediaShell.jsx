@@ -177,7 +177,7 @@ function MediaShellContent({ children }) {
               {accountOpen && <div id="media-account-menu" className="media-account-menu">
                 <div className="media-account-preferences">{preferences}</div>
                 <Link to={`/profile/${user.id}`} onClick={() => setAccountOpen(false)}>{t('media.shell.viewProfile')}</Link>
-                <Link to="/dashboard" onClick={() => setAccountOpen(false)}>{t('media.shell.editProfile')}</Link>
+                <Link to="/settings" onClick={() => setAccountOpen(false)}>{t('media.shell.editProfile')}</Link>
                 <Link to="/media?tab=mine" onClick={() => setAccountOpen(false)}>{t('media.landing.myPosts')}</Link>
                 <Link to="/media/creator" onClick={() => setAccountOpen(false)}>{t('media.shell.creatorEarnings')}</Link>
                 <Link to="/settings/notifications" onClick={() => setAccountOpen(false)}>{t('media.shell.notificationSettings')}</Link>
