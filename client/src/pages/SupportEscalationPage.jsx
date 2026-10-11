@@ -124,8 +124,7 @@ function PublicGuestSupport({ t, handoff }) {
   useEffect(() => {
     if (!token || !conversationId) return undefined;
     const poll = window.setInterval(() => load().catch(() => {}), 5000);
-    const clock = window.setInterval(() => setNow(Date.now()), 1000);
-    return () => { window.clearInterval(poll); window.clearInterval(clock); };
+    return () => { window.clearInterval(poll); };
   }, [token, conversationId, load]);
 
   useEffect(() => {
