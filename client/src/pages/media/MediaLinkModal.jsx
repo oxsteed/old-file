@@ -17,6 +17,7 @@ const EMBEDDED_PAGES = {
   '/settings': lazy(() => import('../SettingsPage')),
   '/settings/notifications': lazy(() => import('../Settings/Notifications')),
   '/support': lazy(() => import('../SupportEscalationPage')),
+  '/discover': lazy(() => import('../DiscoverPage')),
 };
 
 // Returns true if the modal can render this path directly (no iframe needed).
