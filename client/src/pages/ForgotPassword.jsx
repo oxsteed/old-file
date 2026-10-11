@@ -6,7 +6,7 @@ import toast from 'react-hot-toast';
 import { ArrowLeft, Mail } from 'lucide-react';
 import Footer from '../components/Footer';
 
-export default function ForgotPasswordPage() {
+export default function ForgotPasswordPage({ embedded = false } = {}) {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
@@ -27,7 +27,7 @@ export default function ForgotPasswordPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[var(--color-bg)] text-[var(--color-text)] flex flex-col">
+    <div className={`${embedded ? 'media-auth-content' : 'min-h-screen'} bg-[var(--color-bg)] text-[var(--color-text)] flex flex-col`}>
       <main className="flex-1 flex items-center justify-center px-4">
       <div className="w-full max-w-md space-y-6">
         <div className="text-center">
@@ -87,7 +87,7 @@ export default function ForgotPasswordPage() {
         </div>
       </div>
       </main>
-      <Footer />
+      {!embedded && <Footer />}
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Bell, Bookmark, Briefcase, ChevronDown, Home, Mail, MapPin, Search, ShieldCheck, Users, UserRound } from 'lucide-react';
@@ -41,7 +41,10 @@ function MediaShellContent({ children }) {
   const [modalLink, setModalLink] = useState(null);
   const accountRef = useRef(null);
   const shellRef = useRef(null);
-  const { pathname, search } = useLocation();
+  const { pathname, search, hash, key: locationKey } = useLocation();
+  const closeLinkModal = useCallback(() => setModalLink(null), []);
+  // A successful login may navigate to this same URL with a new history key.
+  useEffect(closeLinkModal, [locationKey, closeLinkModal]);
   const navigate = useNavigate();
   const currentPath = pathname.replace(/\/+$/, '') || '/';
   const isFeedPage = currentPath === '/media';
@@ -100,22 +103,23 @@ function MediaShellContent({ children }) {
       const href = anchor.getAttribute('href');
       if (!href || !href.startsWith('/') || href.startsWith('//')) return;
       // Skip non-navigating anchors
-      if (href === '#' || anchor.hasAttribute('download')) return;
+      if (href === '#' || anchor.hasAttribute('download') || anchor.target) return;
       // Links within /media navigate normally; only links leaving Media open in the modal
       if (href === '/media' || href.startsWith('/media/') || href.startsWith('/media?')) return;
       event.preventDefault();
       const title = anchor.textContent?.trim().slice(0, 80) || href;
-      // The iframe cannot receive React Router location.state. Preserve the
-      // current Media location for login through the URL instead.
-      const authPath = href.split('?')[0];
-      const modalUrl = authPath === '/login' && !new URLSearchParams(href.split('?')[1] || '').has('next')
-        ? `${href}${href.includes('?') ? '&' : '?'}next=${encodeURIComponent(`${pathname}${search}`)}`
-        : href;
+      // Keep the return destination when switching auth forms or expanding
+      // the dialog to a full page, including after Media navigation.
+      const target = new URL(href, window.location.origin);
+      if (['/login', '/join', '/forgot-password'].includes(target.pathname) && !target.searchParams.has('next')) {
+        target.searchParams.set('next', `${pathname}${search}${hash}`);
+      }
+      const modalUrl = `${target.pathname}${target.search}${target.hash}`;
       setModalLink({ url: modalUrl, title });
     };
     shell.addEventListener('click', onClick);
     return () => shell.removeEventListener('click', onClick);
-  }, []);
+  }, [pathname, search, hash]);
 
   useEffect(() => {
     let cancelled = false;
@@ -210,7 +214,7 @@ function MediaShellContent({ children }) {
         </div></aside>
       </div>
       <MediaFooter />{navigation(true)}
-      {modalLink && <MediaLinkModal url={modalLink.url} title={modalLink.title} onClose={() => setModalLink(null)} />}
+      {modalLink && <MediaLinkModal key={modalLink.url} url={modalLink.url} title={modalLink.title} onClose={closeLinkModal} />}
     </div>
   </PageShell></MediaGuestGateProvider>;
 }

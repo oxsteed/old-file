@@ -48,7 +48,7 @@ function FeatureItem({ icon, title, sub }) {
   );
 }
 
-export default function Login() {
+export default function Login({ embedded = false, returnTo } = {}) {
   const [email, setEmail]               = useState('');
   const [password, setPassword]         = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -66,7 +66,7 @@ export default function Login() {
   const [searchParams] = useSearchParams();
   const { t }     = useTranslation();
 
-  const from = resolveAuthReturnPath(location.state?.from || searchParams.get('next'));
+  const from = resolveAuthReturnPath(returnTo || location.state?.from || searchParams.get('next'));
 
   // Button is only enabled when all conditions are met — full name required (≥2 words)
   const canSubmit = email.trim() && password && termsAgreed && isValidFullName(signatureName);
@@ -86,7 +86,7 @@ export default function Login() {
 
     if (loggedInUser?.email_verified && !diditGateSatisfied(loggedInUser)) {
       toast.success(t('login.verifyIdentityToast'));
-      navigate('/verify-identity', { replace: true });
+      navigate(embedded ? `/media/verify-identity?returnTo=${encodeURIComponent(from)}` : '/verify-identity', { replace: true });
       return;
     }
 
@@ -191,7 +191,7 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen bg-[var(--color-bg)] text-[var(--color-text)] flex flex-col">
+    <div className={`${embedded ? 'media-auth-content' : 'min-h-screen'} bg-[var(--color-bg)] text-[var(--color-text)] flex flex-col`}>
 
       <AuthNavbar
         cta={{
@@ -526,7 +526,7 @@ export default function Login() {
         </div>
       </div>
 
-      <Footer />
+      {!embedded && <Footer />}
     </div>
   );
 }

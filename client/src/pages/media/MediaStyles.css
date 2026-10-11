@@ -664,6 +664,8 @@ div.media-support-panel { z-index: 150; }
 .media-link-dialog-body { display: flex; min-height: 60vh; padding: 0; }
 .media-link-iframe { flex: 1; width: 100%; min-height: 60vh; border: 0; background: var(--color-surface); }
 .media-link-dialog { max-height: calc(100dvh - 24px); }
+.media-auth-dialog-body { display: block; }
+.media-auth-content { width: 100%; min-width: 0; }
 .media-link-dialog .media-link-dialog-body,
 .media-link-dialog .media-link-iframe { min-height: 0; flex: 1; }
 @media (max-width: 768px) {

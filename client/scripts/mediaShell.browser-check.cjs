@@ -91,10 +91,18 @@ test('reference layouts render on phones and desktops with working location, fee
 
 async function fixture() {
   const mocks = {
+    'fixture-auth': `import {useSyncExternalStore} from 'react';
+      const subscribe = listener => { window.addEventListener('fixture-auth',listener); return () => window.removeEventListener('fixture-auth',listener); };
+      const setUser = user => { window.viewer=user; window.dispatchEvent(new Event('fixture-auth')); };
+      export const useAuth = () => ({ user: useSyncExternalStore(subscribe,()=>window.viewer), loading:false, isOnboardingComplete:false, setUser,
+        login:async payload=>{window.loginCalls=(window.loginCalls||[]).concat(payload); if(window.rejectLogin)throw new Error('Synthetic rejected login'); const result={user:{id:'viewer',display_name:'Signed in helper',email_verified:true,didit_status:'verified'}};setUser(result.user);return result;},
+        logout:async()=>{window.signouts+=1;setUser(null);} });`,
+    '../hooks/useAuth': `export {useAuth} from 'fixture-auth';`,
+    '../api/auth': `export const persistSessionPayload = () => {};`,
+    '../components/AuthNavbar': `import React from 'react';import {Link} from 'react-router-dom';export default ({cta}) => <nav><Link to={cta.to}>{cta.label}</Link></nav>;`,
     'react-i18next': `export const useTranslation = () => ({ t: window.translate, i18n: { language: window.language } });`,
-    '../../context/AuthContext': `export const useAuth = () => ({ user: window.viewer, loading: false,
-      logout: async () => { window.signouts += 1; } });`,
-    '../context/AuthContext': `export const useAuth = () => ({ user: window.viewer, loading: false, isOnboardingComplete: false });`,
+    '../../context/AuthContext': `export {useAuth} from 'fixture-auth';`,
+    '../context/AuthContext': `export {useAuth} from 'fixture-auth';`,
     '../components/PageMeta': `export default () => null;`,
     '../components/Footer': `import React from 'react'; export default () => <footer data-standalone-footer>Standalone footer</footer>;`,
     '../components/registration': `import React from 'react'; export const DiditPanel = ({onVerified,onBack}) => <><button onClick={onVerified}>Complete identity verification</button><button onClick={onBack}>Return to composer</button></>;`,
@@ -105,6 +113,7 @@ async function fixture() {
     '../context/ThemeContext': `import {useState} from 'react'; export const useTheme = () => {const [isDark,setDark] = useState(false);return {isDark,toggleTheme:()=>{document.documentElement.classList.toggle('dark');setDark(v=>!v);}};};`,
     '../hooks/useCapabilities': `export const useCapabilities = () => ({ isAvailable: () => true, loading: false });`,
     '../api/axios': `export default { get: async()=>({data:{}}), post:async()=>({data:{reply:'Synthetic assistant reply'}}) };`,
+    './axios': `export default {get:async()=>({data:[]}),post:async()=>({data:{}})};`,
     './SpeechToTextInput': `import React from 'react'; export default () => null;`,
     '../../api/geo': `export const suggestLocation = async q => { if(q==='outage') throw new Error('Synthetic lookup outage'); return [{city:'Springfield',state:'OH',display:'Springfield, Ohio'}]; };`,
     '../../hooks/useNotifications': `export default () => ({ unreadCount: window.viewer ? 2 : 0 });`,
@@ -182,6 +191,9 @@ async function fixture() {
     const catalog=JSON.parse(fs.readFileSync(path.join(root,'src/locales',lang+'.json'),'utf8'));
     const commonCatalog=JSON.parse(fs.readFileSync(path.join(root,'src/i18n/locales',lang,'common.json'),'utf8'));
     res.setHeader('Content-Type','text/html; charset=utf-8');
+    // Production blocks same-origin frames. Tests must prove the real form
+    // works under that policy, not merely that an iframe URL was assigned.
+    res.setHeader('Content-Security-Policy', "frame-src https://js.stripe.com https://hooks.stripe.com https://verify.didit.me; frame-ancestors 'self'");
     res.end(`<html lang="${lang}" dir="${lang==='ar'?'rtl':'ltr'}"><head><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="/app.css"><style>
       :root{--color-surface:white;--color-surface-2:#f5f6f8;--color-text:#172033;--color-text-muted:#536176;--color-border:#ddd;--color-primary:#b93d00;--color-primary-bg:#fff0e7;--color-action:#b93d00;--color-on-action:white;}body{margin:0;font-family:Arial,sans-serif}button,input,textarea,select{font:inherit}output{display:none}
       </style></head><body><div id="root"></div><script>window.requests=[];window.financialCalls=[];window.feedCalls=[];window.joinCalls=[];window.marketplace=${JSON.stringify(params.get('marketplace'))};window.failBoost=${params.has('payments')};window.language=${JSON.stringify(lang)};window.catalog=${JSON.stringify(catalog).replace(/</g,'\\u003c')};window.viewer=${params.has('guest')?'null':"{id:'viewer',display_name:'Synthetic local helper'}"};window.signouts=0;window.cookieSettings=0;
@@ -249,20 +261,51 @@ test('Media shell retains account routes on small screens in all five languages 
   }finally{if(browser)await browser.close();await app.close();}
 });
 
-test('guest auth links open in the Media modal and preserve the login return path',async()=>{
+test('real auth forms work under production frame policy and share the Media session',async()=>{
   const app=await fixture();let browser;
   try{
     browser=await chromium.launch({headless:true,channel:'chrome'});const page=await browser.newPage({viewport:{width:360,height:844}});
+    const errors=[];page.on('pageerror',error=>{errors.push(error.message);console.error(error.message);});
     await page.goto(`${app.url}/media?guest&lang=en`);
     assert.equal(await page.locator('.media-auth-links a[href="/join"]').count(),1);
     await page.locator('.media-auth-links a[href="/join"]').click();
     await page.locator('.media-link-dialog').waitFor();
-    assert.match(await page.locator('.media-link-iframe').getAttribute('src'), /\/join$/);
+    await page.locator('.media-auth-content input[type="email"]').waitFor();
+    assert.equal(await page.locator('.media-link-iframe').count(),0);
     await page.locator('.media-legal-close').click();
+    // The shell stays mounted during Media navigation; the return destination
+    // must reflect the new page rather than the page where it first mounted.
+    await page.evaluate(()=>window.fixtureNavigate('/media/search?guest&lang=en#results'));
     await page.locator('.media-auth-links a[href="/login"]').click();
     await page.locator('.media-link-dialog').waitFor();
-    assert.equal(await page.evaluate(()=>document.querySelector('[data-route]').textContent),'/media');
-    assert.equal(await page.locator('.media-link-iframe').getAttribute('src'), '/login?next=%2Fmedia%3Fguest%26lang%3Den');
+    assert.equal(await page.evaluate(()=>document.querySelector('[data-route]').textContent),'/media/search');
+    const dialog=page.locator('.media-link-dialog');
+    await dialog.locator('#email').fill('synthetic@example.test');
+    assert.equal(await dialog.locator('iframe').count(),0);
+    assert.equal(await dialog.locator('.media-legal-expand').getAttribute('href'), '/login?next=%2Fmedia%2Fsearch%3Fguest%26lang%3Den%23results');
+    await page.keyboard.press('Escape');
+    await dialog.waitFor({state:'hidden'});
+    assert.equal(await page.evaluate(()=>document.activeElement?.getAttribute('href')), '/login');
+    await page.locator('.media-auth-links a[href="/login"]').click();
+    await dialog.locator('a[href="/forgot-password"]').click();
+    await dialog.locator('a[href="/login"]').click();
+    await dialog.locator('#password').waitFor();
+    await dialog.locator('#email').fill('synthetic@example.test');
+    await dialog.locator('#password').fill('synthetic-test-only');
+    await dialog.locator('#terms-agree').check();
+    await dialog.locator('#signature-name').fill('Synthetic Helper');
+    await page.evaluate(()=>{window.rejectLogin=true;});
+    await dialog.locator('button[type="submit"]').click();
+    await page.waitForFunction(()=>window.loginCalls?.length===1);
+    await dialog.locator('button[type="submit"]:enabled').waitFor();
+    assert.equal(await dialog.count(),1);
+    await page.evaluate(()=>{window.rejectLogin=false;});
+    await dialog.locator('button[type="submit"]').click();
+    await dialog.waitFor({state:'hidden'});
+    assert.match(await page.locator('.media-account-name').textContent(), /Signed in helper/);
+    assert.equal(new URL(page.url()).pathname + new URL(page.url()).search + new URL(page.url()).hash,'/media/search?guest&lang=en#results');
+    assert.equal(await page.evaluate(()=>document.body.style.overflow),'');
+    assert.deepEqual(errors,[]);
     assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
   }finally{if(browser)await browser.close();await app.close();}
 });
@@ -293,6 +336,7 @@ test('search errors stay recoverable and older search results never replace the 
     browser=await chromium.launch({headless:true,channel:'chrome'});const page=await browser.newPage();const errors=[];
     page.on('pageerror',error=>errors.push(error.message));await page.goto(app.url+'/media/search');
     const search=page.locator('.media-search').getByRole('searchbox');await search.fill('old');await search.press('Enter');
+    await page.waitForFunction(()=>window.requests.some(r=>r.kind==='search'&&r.key==='old'));
     await search.fill('new');await search.press('Enter');
     await resolveRequest(page,'search','new',{posts:[],actors:[{id:2,handle:'new',display_name:'New account'}]});
     await page.getByRole('link',{name:/New account/}).waitFor();

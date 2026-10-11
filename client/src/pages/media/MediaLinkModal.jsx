@@ -1,13 +1,39 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { trapMediaDialogFocus } from './mediaDialogFocus';
+import { resolveAuthReturnPath } from '../../utils/authReturnPath';
+
+const AUTH_PAGES = {
+  '/login': lazy(() => import('../Login')),
+  '/join': lazy(() => import('../JoinPage')),
+  '/forgot-password': lazy(() => import('../ForgotPassword')),
+};
 
 export default function MediaLinkModal({ url, title, onClose }) {
   const { t } = useTranslation();
   const closeButtonRef = useRef(null);
   const triggerRef = useRef(null);
   const dialogRef = useRef(null);
+  const [activeUrl, setActiveUrl] = useState(url);
+  const destination = new URL(activeUrl, window.location.origin);
+  const AuthPage = AUTH_PAGES[destination.pathname];
+  const returnTo = resolveAuthReturnPath(destination.searchParams.get('next'), '/media');
+  const authTitle = destination.pathname === '/login' ? t('nav.signIn')
+    : destination.pathname === '/join' ? t('nav.joinOxsteed') : t('forgotPassword.title');
+
+  // Keep transitions between sign-in, registration and password recovery in
+  // the same dialog and AuthContext. No second application in an iframe.
+  const followAuthLink = event => {
+    if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    const anchor = event.target.closest('a');
+    if (!anchor || anchor.target || anchor.hasAttribute('download')) return;
+    const target = new URL(anchor.href, window.location.origin);
+    if (target.origin !== window.location.origin || !AUTH_PAGES[target.pathname]) return;
+    event.preventDefault();
+    if (!target.searchParams.has('next')) target.searchParams.set('next', returnTo);
+    setActiveUrl(`${target.pathname}${target.search}${target.hash}`);
+  };
 
   useEffect(() => {
     triggerRef.current = document.activeElement;
@@ -36,11 +62,11 @@ export default function MediaLinkModal({ url, title, onClose }) {
         <header className="media-legal-dialog-header">
           <div>
             <span className="media-legal-dialog-kicker">{t('media.feed.title')}</span>
-            <h2 id="media-link-title">{title || url}</h2>
+            <h2 id="media-link-title">{AuthPage ? authTitle : title || url}</h2>
           </div>
           <div className="media-legal-dialog-actions">
             <Link
-              to={url}
+              to={activeUrl}
               className="media-legal-expand"
               aria-label={t('media.shell.openFullPage')}
               onClick={onClose}
@@ -62,13 +88,15 @@ export default function MediaLinkModal({ url, title, onClose }) {
             </button>
           </div>
         </header>
-        <div className="media-legal-dialog-body media-link-dialog-body">
-          <iframe
-            src={url}
+        <div className={`media-legal-dialog-body media-link-dialog-body${AuthPage ? ' media-auth-dialog-body' : ''}`} onClickCapture={AuthPage ? followAuthLink : undefined}>
+          {AuthPage ? <Suspense fallback={<div className="media-legal-loading" role="status">{t('common.loading')}</div>}>
+            <AuthPage embedded returnTo={returnTo} embeddedSearch={destination.search} />
+          </Suspense> : <iframe
+            src={activeUrl}
             title={title || url}
             className="media-link-iframe"
             sandbox="allow-same-origin allow-scripts allow-forms allow-popups"
-          />
+          />}
         </div>
       </section>
     </div>

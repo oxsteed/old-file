@@ -74,11 +74,12 @@ function clearJoinDraft() {
   }
 }
 
-export default function JoinPage() {
+export default function JoinPage({ embedded = false, embeddedSearch } = {}) {
   const navigate = useNavigate();
   const { user, setUser } = useAuth();
   const { t } = useTranslation();
-  const [searchParams] = useSearchParams();
+  const [pageSearchParams] = useSearchParams();
+  const searchParams = embedded ? new URLSearchParams(embeddedSearch) : pageSearchParams;
   const referralRef = searchParams.get('ref') || undefined;
   // Allow direct deep-linking with /join?mode=helper to pre-select a mode.
   const presetMode = searchParams.get('mode');
@@ -317,12 +318,12 @@ export default function JoinPage() {
   );
 
   return (
-    <div className="min-h-screen bg-[var(--color-bg)] text-[var(--color-text)] flex flex-col">
-      <PageMeta
+    <div className={`${embedded ? 'media-auth-content' : 'min-h-screen'} bg-[var(--color-bg)] text-[var(--color-text)] flex flex-col`}>
+      {!embedded && <PageMeta
         title={t('join.heroTitle')}
         description={t('join.heroSubtitle')}
         url="https://oxsteed.com/join"
-      />
+      />}
       <AuthNavbar
         links={[
           { to: '/how-it-works', label: t('nav.howItWorks'), hideOnSmall: true },
@@ -579,7 +580,7 @@ export default function JoinPage() {
         </div>
       </div>
 
-      <Footer />
+      {!embedded && <Footer />}
     </div>
   );
 }
