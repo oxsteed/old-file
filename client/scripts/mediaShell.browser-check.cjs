@@ -115,7 +115,7 @@ async function fixture() {
     '../api/axios': `export default { get: async()=>({data:{}}), post:async()=>({data:{reply:'Synthetic assistant reply'}}) };`,
     './axios': `export default {get:async()=>({data:[]}),post:async()=>({data:{}})};`,
     './SpeechToTextInput': `import React from 'react'; export default () => null;`,
-    '../../api/geo': `export const suggestLocation = async q => { if(q==='outage') throw new Error('Synthetic lookup outage'); return [{city:'Springfield',state:'OH',display:'Springfield, Ohio'}]; }; export const getNearbyPlaces = async () => ({ places: [] });`,
+    '../../api/geo': `export const suggestLocation = async q => { if(q==='outage') throw new Error('Synthetic lookup outage'); return [{city:'Springfield',state:'OH',display:'Springfield, Ohio'}]; }; export const getNearbyPlaces = async () => ({ places: [] }); export const reverseGeocode = async () => ({ city: 'Springfield', state: 'OH', display: 'Springfield, Ohio' });`,
     '../../hooks/useNotifications': `export default () => ({ unreadCount: window.viewer ? 2 : 0 });`,
     '../../hooks/useMediaPostRealtime': `export default () => {};`,
     '../../api/axios': `export default {get: async () => ({data: []})};`,

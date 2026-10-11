@@ -10,7 +10,7 @@ async function fixture() {
     'react-i18next': `export const useTranslation = () => ({ t: window.translate });`,
     '../../context/AuthContext': `export const useAuth = () => ({ user: window.viewer });`,
     '../../components/PageMeta': `export default function Meta() { return null; }`,
-    '../../api/geo': `export const suggestLocation = async query => query.trim() ? [{ city: 'Springfield', state: 'OH', display: 'Springfield, Ohio' }] : [];`,
+    '../../api/geo': `export const suggestLocation = async query => query.trim() ? [{ city: 'Springfield', state: 'OH', display: 'Springfield, Ohio' }] : []; export const reverseGeocode = async () => ({ city: 'Springfield', state: 'OH', display: 'Springfield, Ohio' });`,
     './MediaPostCard': `import React from 'react'; export default function Card({ post }) { return <p data-post={post.id}>{post.body}</p>; }`,
     '../../api/media': `export const getFeed = params => new Promise((resolve, reject) => {
       window.requests.push({ params, resolve, reject });
@@ -102,11 +102,12 @@ test('guests choose and retain locations; device permission is requested only on
     await page.waitForFunction(() => window.requests.length === 2);
     assert.equal(await page.evaluate(() => window.geoCalls), 1);
     assert.deepEqual(await page.evaluate(() => window.requests[1].params),
-      { before: null, limit: 20, tab: 'home', location_mode: 'custom', latitude: 39.924, longitude: -83.811 });
+      { before: null, limit: 20, tab: 'home', location_mode: 'custom', latitude: 39.924, longitude: -83.811, city: 'Springfield', state: 'OH' });
     await page.reload();
     await page.waitForFunction(() => window.requests.length === 1);
     assert.equal(await page.evaluate(() => window.geoCalls), 0);
-    assert.equal(await page.evaluate(() => window.requests[0].params.latitude), 39.924);
+    assert.equal(await page.evaluate(() => window.requests[0].params.city), 'Springfield');
+    assert.equal(await page.evaluate(() => window.requests[0].params.state), 'OH');
     await page.locator('[data-location-trigger]').click();
     await page.getByRole('button', { name: 'media.feed.allLocations', exact: true }).click();
     await page.waitForFunction(() => window.requests.length === 2);
