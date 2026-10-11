@@ -59,8 +59,10 @@ function activeMediaOwnerSql(ownerExpression, alias = 'media_link_owner') {
 // verification, not only the historical post safety verdict. This keeps
 // revoked helpers, businesses, and restaurants out of every public surface.
 function publicMediaSql(postAlias = 'p', actorAlias = 'a') {
+  // Verified actors publish root/quote posts; ordinary active members can
+  // participate in reply threads without receiving a publisher badge.
   return `${mediaSafety.publicPostSql(postAlias)} AND
-    ((${verifiedActorSql(actorAlias)}) AND (${publicActorSql(actorAlias)}))`;
+    (${postAlias}.parent_id IS NOT NULL OR ((${verifiedActorSql(actorAlias)}) AND (${publicActorSql(actorAlias)})))`;
 }
 function publicActor(actor) {
   if (!actor || actor.current_actor_verified !== false) return actor;
