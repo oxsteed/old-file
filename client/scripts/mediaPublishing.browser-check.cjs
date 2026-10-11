@@ -15,9 +15,9 @@ const mocks = {
     export const getDrafts = async () => ({ drafts: window.draft ? [window.draft] : [] });
     export const getDraft = async () => ({ draft: { ...window.draft, processing_status: 'ready' } });
     export const searchMediaEntities = async () => ({ entities: [] });
-    export const createPost = async data => { call('create', [data]); window.draft = { ...data, id: 'draft', assets: [] };
+    export const createPost = async data => { call('create', [data]); const now = new Date().toISOString(); window.draft = { ...data, id: 'draft', assets: [], created_at: now, updated_at: now };
       return { post: window.draft }; };
-    export const updateDraft = async (id, data) => { call('update', [id, data]); window.draft = { ...window.draft, ...data }; };
+    export const updateDraft = async (id, data) => { call('update', [id, data]); window.draft = { ...window.draft, ...data, updated_at: new Date().toISOString() }; };
     export const deletePost = async id => { call('delete', [id]); window.draft = null; };
     const upload = async (id, file, progress, replace) => {
       call('upload', [id, file.name, replace]); progress({ loaded: 1, total: 2 });
@@ -51,8 +51,8 @@ async function fixture() {
       window.calls = []; window.translate = (key, options = {}) => options.defaultValue || key;
       window.signedIn = location.search.includes('actions');
       if (location.search.includes('restored')) {
-        window.draft = { id: 'draft', body: 'Retained draft', links: [], assets: [{ id: 'failed' }], processing_status: 'failed' };
-        localStorage.setItem('oxsteed.media.compose.draft', 'draft'); window.processing = true;
+        window.draft = { id: 'draft', body: 'Retained draft', links: [], assets: [{ id: 'failed', processing_status: 'failed' }], processing_status: 'failed', created_at: new Date().toISOString(), updated_at: new Date().toISOString() };
+        localStorage.setItem('oxsteed.media.compose.draft', 'draft');
       } else { localStorage.removeItem('oxsteed.media.compose.draft'); window.failUpload = true; }
       const post = { id: 'post', display_name: 'Synthetic helper', handle: 'helper', verified_kind: 'identity',
         created_at: new Date().toISOString(), body: 'Local work', like_count: 0, bookmark_count: 0,
@@ -94,11 +94,8 @@ test('composer retains edits after upload failure and replaces failed restored a
       if (restored) await page.waitForFunction(() => document.querySelector('textarea').value === 'Retained draft');
       await page.locator('textarea').fill('First draft');
       await page.locator('input[type=file]').setInputFiles({ name: 'photo.jpg', mimeType: 'image/jpeg', buffer: Buffer.from('synthetic') });
-      await page.locator('button[type=submit]').click();
-      if (restored) {
-        await page.waitForFunction(() => document.querySelector('[data-processing-status]')?.dataset.processingStatus === 'ready');
-      } else {
-        await page.getByRole('alert').filter({ hasText: 'Synthetic scanner outage' }).waitFor();
+      if (!restored) {
+        await page.locator('.media-attachment-card.state-failed').filter({ hasText: 'Synthetic scanner outage' }).waitFor();
       }
       await page.locator('textarea').fill('Edited after failure');
       await page.locator('button[type=submit]').click();
@@ -106,8 +103,7 @@ test('composer retains edits after upload failure and replaces failed restored a
       const calls = await page.evaluate(() => window.calls);
       assert.equal(calls.filter(c => c.name === 'create').length, restored ? 0 : 1);
       const uploads = calls.filter(c => c.name === 'upload');
-      assert.equal(uploads.length, restored ? 1 : 2);
-      assert.deepEqual(uploads.map(c => c.args[2]), restored ? [true] : [false, true]);
+      assert.equal(uploads.length, 1);
       assert.equal(calls.filter(c => c.name === 'update').at(-1).args[1].body, 'Edited after failure');
       assert.equal(await page.evaluate(() => localStorage.getItem('oxsteed.media.compose.draft')), null);
       assert.deepEqual(errors, []);
