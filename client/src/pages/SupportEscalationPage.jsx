@@ -469,6 +469,52 @@ function localizeWaitingState(waiting) {
   };
 }
 
+const PageFrame = ({ children }) => (
+  <div
+    className="min-h-[calc(100vh-140px)] support-escalation-frame"
+  >
+    <div className="max-w-6xl mx-auto px-4 py-8 md:py-10">{children}</div>
+  </div>
+);
+
+const Hero = ({ eyebrow, title, body, right }) => (
+  <section
+    className="rounded-[28px] border p-6 md:p-8 shadow-2xl mb-6 support-escalation-hero"
+  >
+    <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1.25fr)_320px] gap-6 items-start">
+      <div>
+        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[11px] font-bold uppercase tracking-[0.12em] mb-4 text-orange-300 bg-orange-500/10 border border-orange-500/20">
+          <Sparkles size={13} />
+          {eyebrow}
+        </div>
+        <h1 className="text-3xl md:text-5xl font-bold tracking-tight text-white mb-3">{title}</h1>
+        <p className="text-slate-300 text-base md:text-lg leading-7 max-w-3xl">{body}</p>
+      </div>
+      {right}
+    </div>
+  </section>
+);
+
+const SideCard = ({ icon: Icon, title, children, tint = 'text-slate-300' }) => (
+  <div className="rounded-3xl border p-5 support-escalation-side-card">
+    <div className={`flex items-center gap-2 text-xs font-bold uppercase tracking-[0.1em] mb-3 ${tint}`}>
+      <Icon size={14} />
+      {title}
+    </div>
+    {children}
+  </div>
+);
+
+const StatPill = ({ icon: Icon, label, value }) => (
+  <div className="rounded-2xl border px-4 py-3 support-escalation-stat">
+    <div className="flex items-center gap-2 text-slate-400 text-[11px] font-bold uppercase tracking-[0.08em]">
+      <Icon size={13} />
+      {label}
+    </div>
+    <div className="text-white font-bold text-xl mt-1">{value}</div>
+  </div>
+);
+
 export default function SupportEscalationPage() {
   const { t } = useTranslation();
   const { user, loading } = useAuth();
@@ -961,52 +1007,6 @@ function AuthenticatedSupportEscalationPage({ user, handoff }) {
   const emptyConversationText = connectionState === 'queued'
     ? t('support.escalation.queuedDescription', { defaultValue: 'Send your issue now. It will be waiting for the specialist who accepts your conversation.' })
     : t('support.escalation.readyDescription', { defaultValue: 'Send the first message so the specialist sees the issue context immediately.' });
-
-  const PageFrame = ({ children }) => (
-    <div
-      className="min-h-[calc(100vh-140px)] support-escalation-frame"
-    >
-      <div className="max-w-6xl mx-auto px-4 py-8 md:py-10">{children}</div>
-    </div>
-  );
-
-  const Hero = ({ eyebrow, title, body, right }) => (
-    <section
-      className="rounded-[28px] border p-6 md:p-8 shadow-2xl mb-6 support-escalation-hero"
-    >
-      <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1.25fr)_320px] gap-6 items-start">
-        <div>
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[11px] font-bold uppercase tracking-[0.12em] mb-4 text-orange-300 bg-orange-500/10 border border-orange-500/20">
-            <Sparkles size={13} />
-            {eyebrow}
-          </div>
-          <h1 className="text-3xl md:text-5xl font-bold tracking-tight text-white mb-3">{title}</h1>
-          <p className="text-slate-300 text-base md:text-lg leading-7 max-w-3xl">{body}</p>
-        </div>
-        {right}
-      </div>
-    </section>
-  );
-
-  const SideCard = ({ icon: Icon, title, children, tint = 'text-slate-300' }) => (
-    <div className="rounded-3xl border p-5 support-escalation-side-card">
-      <div className={`flex items-center gap-2 text-xs font-bold uppercase tracking-[0.1em] mb-3 ${tint}`}>
-        <Icon size={14} />
-        {title}
-      </div>
-      {children}
-    </div>
-  );
-
-  const StatPill = ({ icon: Icon, label, value }) => (
-    <div className="rounded-2xl border px-4 py-3 support-escalation-stat">
-      <div className="flex items-center gap-2 text-slate-400 text-[11px] font-bold uppercase tracking-[0.08em]">
-        <Icon size={13} />
-        {label}
-      </div>
-      <div className="text-white font-bold text-xl mt-1">{value}</div>
-    </div>
-  );
 
   return (
     <>
