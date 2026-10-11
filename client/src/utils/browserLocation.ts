@@ -19,7 +19,7 @@ export function getSharedBrowserLocation(refresh = false): Promise<BrowserCoordi
     navigator.geolocation.getCurrentPosition(
       ({ coords }) => resolve({ lat: coords.latitude, lng: coords.longitude }),
       () => resolve(null),
-      { timeout: 5000, maximumAge: 600000, enableHighAccuracy: false },
+      { timeout: 15000, maximumAge: 600000, enableHighAccuracy: false },
     );
   });
 
