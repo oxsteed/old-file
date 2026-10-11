@@ -11,7 +11,7 @@ import { useAuth } from '../../context/AuthContext';
 import useNotifications from '../../hooks/useNotifications';
 import api from '../../api/axios';
 import MediaFooter from './MediaFooter';
-import MediaLinkModal from './MediaLinkModal';
+import MediaLinkModal, { canEmbedMediaLink } from './MediaLinkModal';
 import { MediaGuestGateProvider } from './MediaGuestGate';
 import { getCommunities, getMediaBadges, joinCommunity, markMediaCommunitiesSeen } from '../../api/media';
 import { MediaNeighborhoodProvider, useMediaNeighborhood } from './MediaNeighborhoodContext';
@@ -105,13 +105,15 @@ function MediaShellContent({ children }) {
       if (!href || !href.startsWith('/') || href.startsWith('//')) return;
       // Skip non-navigating anchors
       if (href === '#' || anchor.hasAttribute('download') || anchor.target) return;
-      // Links within /media navigate normally; only links leaving Media open in the modal
+      // Links within /media navigate normally; only embeddable pages open in the modal.
+      // Anything else navigates normally (no iframe).
       if (href === '/media' || href.startsWith('/media/') || href.startsWith('/media?')) return;
+      const target = new URL(href, window.location.origin);
+      if (!canEmbedMediaLink(target.pathname)) return;
       event.preventDefault();
       const title = anchor.textContent?.trim().slice(0, 80) || href;
       // Keep the return destination when switching auth forms or expanding
       // the dialog to a full page, including after Media navigation.
-      const target = new URL(href, window.location.origin);
       if (['/login', '/join', '/forgot-password'].includes(target.pathname) && !target.searchParams.has('next')) {
         target.searchParams.set('next', `${pathname}${search}${hash}`);
       }

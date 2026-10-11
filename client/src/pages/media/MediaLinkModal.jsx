@@ -19,6 +19,11 @@ const EMBEDDED_PAGES = {
   '/support': lazy(() => import('../SupportEscalationPage')),
 };
 
+// Returns true if the modal can render this path directly (no iframe needed).
+export function canEmbedMediaLink(pathname) {
+  return Boolean(AUTH_PAGES[pathname] || EMBEDDED_PAGES[pathname] || pathname.startsWith('/profile/'));
+}
+
 export default function MediaLinkModal({ url, title, onClose }) {
   const { t } = useTranslation();
   const closeButtonRef = useRef(null);
@@ -101,14 +106,9 @@ export default function MediaLinkModal({ url, title, onClose }) {
           </div>
         </header>
         <div className={`media-legal-dialog-body media-link-dialog-body${DirectPage ? ' media-auth-dialog-body' : ''}`} onClickCapture={AuthPage ? followAuthLink : undefined}>
-          {DirectPage ? <Suspense fallback={<div className="media-legal-loading" role="status">{t('common.loading')}</div>}>
+          <Suspense fallback={<div className="media-legal-loading" role="status">{t('common.loading')}</div>}>
             {AuthPage ? <AuthPage embedded returnTo={returnTo} embeddedSearch={destination.search} /> : <EmbeddedPage />}
-          </Suspense> : <iframe
-            src={activeUrl}
-            title={title || url}
-            className="media-link-iframe"
-            sandbox="allow-same-origin allow-scripts allow-forms allow-popups"
-          />}
+          </Suspense>
         </div>
       </section>
     </div>
