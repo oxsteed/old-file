@@ -74,6 +74,8 @@ export default function MediaComposePage() {
   const [replaceAssetId, setReplaceAssetId] = useState(null);
   const [dragActive, setDragActive] = useState(false);
   const [loadedDraft, setLoadedDraft] = useState(null);
+  const [processingNotice, setProcessingNotice] = useState('');
+  const [processingStatus, setProcessingStatus] = useState('');
   const fileInputRef = useRef(null);
   const bodyRef = useRef(null);
   const publishersRef = useRef([]);
@@ -85,6 +87,7 @@ export default function MediaComposePage() {
   const locationLabel = [loadedDraft?.location_city || selectedPublisher?.location?.city, loadedDraft?.location_region || selectedPublisher?.location?.region].filter(Boolean).join(', ');
   const pendingUpload = uploads.some(item => item.state === 'uploading');
   const attachmentCount = assets.length + uploads.filter(item => item.state === 'uploading').length;
+  const pollingProcessing = assets.some(asset => ['scanning', 'processing', 'waiting'].includes(assetState(asset)));
 
   const payload = useCallback(() => ({
     body,
@@ -181,7 +184,58 @@ export default function MediaComposePage() {
     return () => window.removeEventListener('beforeunload', warn);
   }, [dirty, pendingUpload]);
 
+  useEffect(() => {
+    if (!draftId || !pollingProcessing) {
+      if (!pollingProcessing) {
+        setProcessingNotice('');
+        setProcessingStatus('');
+      }
+      return undefined;
+    }
+    let cancelled = false;
+    let pollCount = 0;
+    let timer;
+    const refreshProcessingDraft = async () => {
+      pollCount += 1;
+      if (pollCount > 90) {
+        setProcessingNotice(t('media.compose.processingDelayed'));
+        setProcessingStatus('delayed');
+        window.clearInterval(timer);
+        return;
+      }
+      try {
+        const data = await getDraft(draftId);
+        if (cancelled || !data.draft) return;
+        const nextAssets = data.draft.assets || [];
+        setAssets(nextAssets);
+        setLoadedDraft(data.draft);
+        const stillProcessing = nextAssets.some(item => ['scanning', 'processing', 'waiting'].includes(assetState(item)));
+        if (!stillProcessing) {
+          setProcessingNotice(t('media.compose.processingReady'));
+          setProcessingStatus('ready');
+          window.clearInterval(timer);
+        } else if (nextAssets.some(item => ['failed', 'blocked'].includes(assetState(item)))) {
+          setProcessingStatus('failed');
+          window.clearInterval(timer);
+        }
+      } catch {
+        // Keep the current private-draft status visible through transient polls.
+      }
+    };
+    timer = window.setInterval(refreshProcessingDraft, 4000);
+    refreshProcessingDraft();
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [draftId, pollingProcessing, t]);
+
   const ensureDraft = useCallback(async () => {
+    if (publisherStatus !== 'ready') {
+      setError(t(publisherStatus === 'loading' ? 'media.compose.publisherLoading' : 'media.compose.publisherUnavailable'));
+      setErrorCode('media_publisher_unavailable');
+      throw new Error('media_publisher_unavailable');
+    }
     if (draftId) return draftId;
     if (creatingRef.current) return creatingRef.current;
     if (!creationPayloadRef.current) creationPayloadRef.current = { ...payload(), draft: true, client_request_id: requestIdRef.current, ...publisherPayload() };
@@ -202,7 +256,7 @@ export default function MediaComposePage() {
       throw err;
     }).finally(() => { creatingRef.current = null; });
     return creatingRef.current;
-  }, [draftId, payload, publisherPayload, refreshDrafts]);
+  }, [draftId, payload, publisherPayload, publisherStatus, refreshDrafts, t]);
 
   const saveDraft = useCallback(async ({ createIfNeeded = true } = {}) => {
     setError(''); setErrorCode('');
@@ -342,6 +396,11 @@ export default function MediaComposePage() {
 
   const submit = async event => {
     event.preventDefault(); setError(''); setErrorCode('');
+    if (publisherStatus !== 'ready') {
+      setError(t(publisherStatus === 'loading' ? 'media.compose.publisherLoading' : 'media.compose.publisherUnavailable'));
+      setErrorCode('media_publisher_unavailable');
+      return;
+    }
     if (!body.trim() && !assets.length && !links.length) { setError(t('media.compose.contentRequired')); bodyRef.current?.focus(); return; }
     if (pendingUpload) { setError(t('media.compose.uploadsPending')); return; }
     if (destination === 'nearby' && !locationLabel) { setError(t('media.compose.locationRequired')); return; }
@@ -418,7 +477,8 @@ export default function MediaComposePage() {
 
           <section className="media-compose-section media-warning-section"><label><input type="checkbox" checked={contentWarningEnabled} onChange={event => { setContentWarningEnabled(event.target.checked); setDirty(true); }} /><span><strong>{t('media.compose.contentWarning')}</strong><small>{t('media.compose.contentWarningHint')}</small></span></label>{contentWarningEnabled && <input value={contentWarning} maxLength={240} onChange={event => change(setContentWarning)(event.target.value)} placeholder={t('media.compose.contentWarningPlaceholder')} />}</section>
           {publisherStatus === 'error' && <div className="media-compose-error" role="alert">{t('media.compose.publisherUnavailable')}</div>}
-          {error && <div className="media-compose-error" role="alert"><AlertTriangle size={18} /><span>{error}</span>{saveState === 'error' && <button type="button" onClick={() => saveDraft()}>{t('media.compose.retry')}</button>}{['media_video_didit_required', 'media_nearby_location_required'].includes(errorCode) && <Link to="/media/verification?returnTo=/media/compose">{t('media.compose.resolve')}</Link>}</div>}
+          {processingNotice && <p className="media-status" role="status" data-processing-status={processingStatus || undefined}>{processingNotice}</p>}
+          {error && <div className="media-compose-error" role="alert"><AlertTriangle size={18} /><span>{error}</span>{saveState === 'error' && <button type="button" onClick={() => saveDraft()}>{t('media.compose.retry')}</button>}{(errorCode === 'media_video_didit_required' || errorCode === 'media_not_verified_poster') && <Link to="/media/verification?returnTo=/media/compose">{t(errorCode === 'media_video_didit_required' ? 'media.compose.resolve' : 'media.verification.request', { defaultValue: errorCode === 'media_video_didit_required' ? 'Resolve verification' : 'Request verification' })}</Link>}{errorCode === 'media_nearby_location_required' && <Link to="/media/verification?returnTo=/media/compose">{t('media.compose.resolve')}</Link>}</div>}
 
           <footer className="media-compose-actions"><span className={`media-save-state state-${saveState}`} aria-live="polite">{saveState === 'saving' ? <LoaderCircle className="media-spin" size={15} /> : saveState === 'saved' ? <Check size={15} /> : saveState === 'offline' || saveState === 'error' ? <AlertTriangle size={15} /> : <Save size={15} />}{stateText}</span><div><button type="button" className="media-secondary-button" onClick={() => saveDraft()} disabled={submitting || pendingUpload}>{t('media.compose.saveDraft')}</button>{draftId && <button type="button" className="media-text-button media-danger-button" onClick={discard} disabled={submitting}>{t('media.compose.discardDraft')}</button>}<button type="button" className="media-text-button" onClick={startNew} disabled={submitting}>{t('media.compose.startNew')}</button><button type="submit" className="media-primary-button" disabled={submitting || pendingUpload || publisherStatus !== 'ready'}>{submitting ? <LoaderCircle className="media-spin" size={17} /> : null}{submitting ? t('media.compose.posting') : t('media.compose.publishPost')}<ChevronRight size={18} /></button></div></footer>
         </form>
