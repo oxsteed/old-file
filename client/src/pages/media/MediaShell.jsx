@@ -165,7 +165,7 @@ function MediaShellContent({ children }) {
     <div ref={shellRef} className={`media-shell media-reference-shell ${user ? 'media-signed-in' : 'media-guest'} ${isFeedPage ? 'media-home-shell' : ''} ${isComposePage ? 'media-compose-shell' : ''}`}>
       <header className="media-app-header">
         <div className="media-app-header-inner">
-          <Link to="/media" className="media-wordmark" aria-label={t('media.shell.homepage')}><span className="media-brand-mark"><OxSteedIcon size={44} /></span><span>OxSteed<span className="media-wordmark-branch"> Media</span></span></Link>
+          <Link to="/" className="media-wordmark" aria-label={t('media.shell.homepage')}><span className="media-brand-mark"><OxSteedIcon size={44} /></span><span>OxSteed<span className="media-wordmark-branch"> Media</span></span></Link>
           {user && <div className="media-header-location">{locationButton}</div>}
           <form className="media-header-search" role="search" onSubmit={event => { event.preventDefault(); navigate(`/media/search${query.trim() ? `?q=${encodeURIComponent(query.trim())}` : ''}`); }}>
             <Search size={21} aria-hidden="true" /><input type="search" aria-label={t('media.search.placeholder')} placeholder={t('media.shell.search')} value={query} onChange={event => setQuery(event.target.value)} />
