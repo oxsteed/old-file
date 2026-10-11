@@ -26,6 +26,10 @@ const mocks = {
     };
     export const uploadPhoto = upload, uploadVideo = upload;
     export const linkAsset = async (...args) => call('link', args);
+    export const removeMediaAsset = async (...args) => call('remove', args);
+    export const reorderMediaAssets = async (...args) => call('reorder', args);
+    export const updateMediaAsset = async (...args) => call('updateAsset', args);
+    export const uploadMediaCaption = async (...args) => call('caption', args);
     export const publishPost = async id => { call('publish', [id]);
       if (window.processing) { window.processing = false; throw { response: { data: { code: 'media_safety_pending', processing_status: 'quarantine' } } }; }
       return { post: { id } }; };
