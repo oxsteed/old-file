@@ -10,6 +10,14 @@ const AUTH_PAGES = {
   '/forgot-password': lazy(() => import('../ForgotPassword')),
 };
 
+// Account and settings pages rendered directly (no iframe), like the legal modal.
+const EMBEDDED_PAGES = {
+  '/dashboard': lazy(() => import('../SmartDashboard')),
+  '/settings': lazy(() => import('../SettingsPage')),
+  '/settings/notifications': lazy(() => import('../Settings/Notifications')),
+  '/support': lazy(() => import('../SupportEscalationPage')),
+};
+
 export default function MediaLinkModal({ url, title, onClose }) {
   const { t } = useTranslation();
   const closeButtonRef = useRef(null);
@@ -18,6 +26,8 @@ export default function MediaLinkModal({ url, title, onClose }) {
   const [activeUrl, setActiveUrl] = useState(url);
   const destination = new URL(activeUrl, window.location.origin);
   const AuthPage = AUTH_PAGES[destination.pathname];
+  const EmbeddedPage = EMBEDDED_PAGES[destination.pathname];
+  const DirectPage = AuthPage || EmbeddedPage;
   const returnTo = resolveAuthReturnPath(destination.searchParams.get('next'), '/media');
   const authTitle = destination.pathname === '/login' ? t('nav.signIn')
     : destination.pathname === '/join' ? t('nav.joinOxsteed') : t('forgotPassword.title');
@@ -88,9 +98,9 @@ export default function MediaLinkModal({ url, title, onClose }) {
             </button>
           </div>
         </header>
-        <div className={`media-legal-dialog-body media-link-dialog-body${AuthPage ? ' media-auth-dialog-body' : ''}`} onClickCapture={AuthPage ? followAuthLink : undefined}>
-          {AuthPage ? <Suspense fallback={<div className="media-legal-loading" role="status">{t('common.loading')}</div>}>
-            <AuthPage embedded returnTo={returnTo} embeddedSearch={destination.search} />
+        <div className={`media-legal-dialog-body media-link-dialog-body${DirectPage ? ' media-auth-dialog-body' : ''}`} onClickCapture={AuthPage ? followAuthLink : undefined}>
+          {DirectPage ? <Suspense fallback={<div className="media-legal-loading" role="status">{t('common.loading')}</div>}>
+            {AuthPage ? <AuthPage embedded returnTo={returnTo} embeddedSearch={destination.search} /> : <EmbeddedPage />}
           </Suspense> : <iframe
             src={activeUrl}
             title={title || url}
