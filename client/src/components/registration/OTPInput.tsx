@@ -10,9 +10,12 @@ interface Props {
   onChange: (val: string[]) => void;
   onComplete?: (code: string) => void;
   disabled?: boolean;
+  className?: string;
+  describedBy?: string;
+  invalid?: boolean;
 }
 
-export default function OTPInput({ value, onChange, onComplete, disabled }: Props) {
+export default function OTPInput({ value, onChange, onComplete, disabled, className, describedBy, invalid }: Props) {
   const { t } = useTranslation();
   const inputRef = useRef<HTMLInputElement>(null);
   const displayValue = value.join('');
@@ -44,6 +47,7 @@ export default function OTPInput({ value, onChange, onComplete, disabled }: Prop
       ref={inputRef}
       type="text"
       inputMode="numeric"
+      autoComplete="one-time-code"
       maxLength={6}
       value={displayValue}
       disabled={disabled}
@@ -51,7 +55,9 @@ export default function OTPInput({ value, onChange, onComplete, disabled }: Prop
       onPaste={handlePaste}
       placeholder="000000"
       autoFocus
-      className="w-full h-11 text-center text-xl font-semibold tracking-[0.4em] border border-gray-700 rounded-lg bg-gray-800/50 text-white placeholder-gray-600 caret-orange-500 transition-all focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 disabled:opacity-50"
+      className={className || 'w-full h-11 text-center text-xl font-semibold tracking-[0.4em] border border-gray-700 rounded-lg bg-gray-800/50 text-white placeholder-gray-600 caret-orange-500 transition-all focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 disabled:opacity-50'}
+      aria-invalid={invalid || undefined}
+      aria-describedby={describedBy}
       aria-label={t('register.otpInputAria')}
     />
   );

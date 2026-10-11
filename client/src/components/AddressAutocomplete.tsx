@@ -26,6 +26,8 @@ interface Props {
   name?: string;
   placeholder?: string;
   ariaLabel?: string;
+  ariaInvalid?: boolean;
+  ariaDescribedBy?: string;
   autoComplete?: string;
   inputClassName?: string;
   inputStyle?: CSSProperties;
@@ -47,6 +49,8 @@ export default function AddressAutocomplete({
   name,
   placeholder,
   ariaLabel,
+  ariaInvalid,
+  ariaDescribedBy,
   autoComplete = 'street-address',
   inputClassName = '',
   inputStyle,
@@ -162,6 +166,8 @@ export default function AddressAutocomplete({
         onKeyDown={handleKeyDown}
         placeholder={resolvedPlaceholder}
         aria-label={ariaLabel}
+        aria-invalid={ariaInvalid || undefined}
+        aria-describedby={ariaDescribedBy}
         aria-autocomplete="list"
         aria-controls={open ? listId : undefined}
         aria-expanded={open}

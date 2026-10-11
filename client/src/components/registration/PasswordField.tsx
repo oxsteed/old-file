@@ -7,6 +7,9 @@ interface Props {
   value: string;
   onChange: (val: string) => void;
   error?: string;
+  signupPolicy?: boolean;
+  inputClassName?: string;
+  labelClassName?: string;
 }
 
 export function scorePassword(pw: string): number {
@@ -25,7 +28,7 @@ const LEVEL_COLORS = [
   'bg-green-500',   // Strong
 ];
 
-export default function PasswordField({ value, onChange, error }: Props) {
+export default function PasswordField({ value, onChange, error, signupPolicy = false, inputClassName, labelClassName }: Props) {
   const { t } = useTranslation();
   const [show, setShow] = useState(false);
   const [focused, setFocused] = useState(false);
@@ -47,7 +50,7 @@ export default function PasswordField({ value, onChange, error }: Props) {
 
   return (
     <div className="flex flex-col gap-1">
-      <label htmlFor="password" className="text-[11px] font-semibold tracking-wide uppercase text-gray-400">
+      <label htmlFor="password" className={labelClassName || 'text-[11px] font-semibold tracking-wide uppercase text-gray-400'}>
         {t('register.passwordLabel')}
       </label>
 
@@ -67,8 +70,9 @@ export default function PasswordField({ value, onChange, error }: Props) {
           autoComplete="new-password"
           required
           aria-invalid={!!error}
-          aria-describedby={error ? 'err-password' : undefined}
-          className={`w-full py-3 ps-10 pe-12 bg-gray-800/50 border rounded-lg text-white text-sm placeholder-gray-500 transition-all focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 ${
+          maxLength={signupPolicy ? 128 : undefined}
+          aria-describedby={[signupPolicy && 'signup-password-help', error && 'err-password'].filter(Boolean).join(' ') || undefined}
+          className={inputClassName || `w-full py-3 ps-10 pe-12 bg-gray-800/50 border rounded-lg text-white text-sm placeholder-gray-500 transition-all focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 ${
             error ? 'border-red-500 bg-red-900/20' : 'border-gray-700 hover:border-gray-600'
           }`}
         />
@@ -83,7 +87,8 @@ export default function PasswordField({ value, onChange, error }: Props) {
       </div>
 
       {/* Strength meter - shows on focus */}
-      {(focused || value.length > 0) && (
+      {signupPolicy && <p id="signup-password-help" className="signup-help">{t('signupUpgrade.passwordHelp')}</p>}
+      {!signupPolicy && (focused || value.length > 0) && (
         <div className="flex flex-col gap-1.5 mt-1">
           {/* Bars */}
           <div className="flex gap-1">

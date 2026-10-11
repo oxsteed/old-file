@@ -222,6 +222,10 @@ export function hasPostalCode(code) {
   return code != null && code in POSTAL_RULES;
 }
 
+export function requiresPostalCode(code) {
+  return Boolean(POSTAL_RULES[code]?.regex);
+}
+
 export function getDefaultCurrency(code) {
   return COUNTRY_META[code]?.currency || 'USD';
 }

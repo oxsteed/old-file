@@ -16,6 +16,7 @@ const { encrypt, decrypt, hashIP } = require('../utils/encryption');
 const { getEffectiveTier, isTrialActive, trialDaysLeft, trialDefaults } = require('../utils/trial');
 const { validate, rules } = require('../utils/validate');
 const countriesUtil = require('../utils/countries');
+const { isSignupPasswordValid } = require('../utils/signupValidation');
 const logger = require('../utils/logger');
 const tokenRevocationService = require('../services/tokenRevocationService');
 const { AppError } = require('../middleware/errorHandler');
@@ -32,6 +33,26 @@ const SUPPORTED_LANGUAGE_CODES = new Set(['en', 'es', 'fr', 'ht', 'ar']);
 // H10: minimum interval between OTP sends for the same account (users and
 // pending_registrations). Stops OTP email/SMS bombing via re-request.
 const OTP_RESEND_COOLDOWN_MS = 60 * 1000;
+
+function registrationMetadata(pending, sentAt, otpExpires) {
+  const sent = sentAt || pending.otp_last_sent_at;
+  return {
+    registrationExpiresAt: pending.expires_at || null,
+    otpExpiresAt: otpExpires || pending.otp_expires_at || null,
+    resendAvailableAt: sent ? new Date(new Date(sent).getTime() + OTP_RESEND_COOLDOWN_MS).toISOString() : null,
+  };
+}
+
+function registrationLockResponse(res, until, error = 'Account locked') {
+  return res.status(429).json({ error, code: 'otp_locked', lockoutUntil: until,
+    retryAfterMs: Math.max(0, new Date(until).getTime() - Date.now()) });
+}
+
+function normalizedRegistrationRegion(country, value) {
+  const regions = countriesUtil.getRegions(country);
+  const codeBased = Array.isArray(regions) && regions.every(region => /^[A-Z]{2,3}$/.test(region));
+  return codeBased ? String(value || '').trim().toUpperCase() : String(value || '').trim();
+}
 
 // ── H8d: refresh-token cookie transport ──────────────────────────────────────
 // Web clients receive the refresh token as an httpOnly + Secure + SameSite
@@ -994,6 +1015,7 @@ async function startRegistration(req, res) {
     if ((defaultMode ?? default_mode) !== undefined && (defaultMode ?? default_mode) !== null && modePref === null) {
       return res.status(400).json({
         error: 'validation_failed',
+        code: 'validation_failed',
         fields: { defaultMode: `Must be one of: ${SELF_SELECTABLE_MODES.join(', ')}` },
       });
     }
@@ -1045,19 +1067,20 @@ async function startRegistration(req, res) {
         ? [rules.required, rules.maxLen(20), rules.postalFor(countryCode), rules.noScript]
         : [rules.maxLen(20), rules.postalFor(countryCode), rules.noScript],
     });
-    if (errs) return res.status(400).json({ error: 'validation_failed', fields: errs });
-
-    if (!normalized.ageConfirmed) return res.status(400).json({ error: 'Age confirmation required' });
+    const signupErrors = errs || {};
+    if (!isSignupPasswordValid(password)) signupErrors.password = 'Use 8–128 characters and at least two of uppercase letters, numbers, and symbols';
+    if (normalized.ageConfirmed !== true) signupErrors.ageConfirmed = 'Age confirmation required';
+    if (Object.keys(signupErrors).length) return res.status(400).json({ error: 'validation_failed', code: 'validation_failed', fields: signupErrors });
     const phoneClean = normalized.phone.replace(/\D/g, '');
     // International phone numbers can be 7–15 digits per E.164. Keep the old
     // 10/11-digit US auto-prefix only when country is US.
     if (phoneClean.length < 7 || phoneClean.length > 15) {
-      return res.status(400).json({ error: 'Invalid phone number' });
+      return res.status(400).json({ error: 'Invalid phone number', code: 'validation_failed', fields: { phone: 'Invalid phone number' } });
     }
     let formattedPhone;
     if (countryCode === 'US') {
       if (phoneClean.length !== 10 && phoneClean.length !== 11) {
-        return res.status(400).json({ error: 'Invalid phone number' });
+        return res.status(400).json({ error: 'Invalid phone number', code: 'validation_failed', fields: { phone: 'Invalid phone number' } });
       }
       formattedPhone = phoneClean.length === 11 ? '+' + phoneClean : '+1' + phoneClean;
     } else {
@@ -1069,7 +1092,7 @@ async function startRegistration(req, res) {
         : (dial ? `+${dial}${phoneClean}` : '+' + phoneClean);
     }
     const existing = await pool.query('SELECT id FROM users WHERE email = $1', [normalized.email]);
-    if (existing.rows.length > 0) return res.status(409).json({ error: 'Email already registered' });
+    if (existing.rows.length > 0) return res.status(409).json({ error: 'Email already registered', code: 'email_registered' });
     const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
     const token = crypto.randomBytes(32).toString('hex');
     const normalizedState = stateTrim || null;
@@ -1083,8 +1106,9 @@ async function startRegistration(req, res) {
        ON CONFLICT (email) DO UPDATE SET
          token = $1, password_hash = $3, first_name = $4, last_name = $5, phone = $6, zip_code = $7,
          address_line1 = $8, city = $9, state = $10, country = $11,
-         age_confirmed = $12, role = $13, referral_ref = $14, default_mode = $15, updated_at = NOW()
-       RETURNING id`,
+         age_confirmed = $12, role = $13, referral_ref = $14, default_mode = $15, updated_at = NOW(),
+         expires_at = NOW() + interval '30 minutes', otp_code = NULL, otp_expires_at = NULL
+       RETURNING id, expires_at`,
       [
         token, normalized.email, passwordHash, normalized.firstName, normalized.lastName, formattedPhone, normalizedZip,
         normalized.addressLine1, normalized.city, normalizedState, normalized.country,
@@ -1092,27 +1116,36 @@ async function startRegistration(req, res) {
       ],
     );
     if (insertRows.length === 0) {
-      return res.status(500).json({ error: 'Failed to save registration' });
+      return res.status(500).json({ error: 'Failed to save registration', code: 'registration_failed' });
     }
-    res.json({ token, message: 'Basic info validated' });
+    res.json({ token, message: 'Basic info validated', registrationExpiresAt: insertRows[0].expires_at || null });
   } catch (err) {
     if (err?.code === '22001') {
-      return res.status(400).json({ error: 'One or more registration fields are too long' });
+      return res.status(400).json({ error: 'One or more registration fields are too long', code: 'validation_failed' });
     }
     logger.error('Start registration error', { err });
-    res.status(500).json({ error: 'Registration failed' });
+    res.status(500).json({ error: 'Registration failed', code: 'registration_failed' });
   }
 }
 
 async function acceptTerms(req, res) {
   try {
     const { token } = req.body;
-    if (!token) return res.status(400).json({ error: 'Token required' });
+    if (!token) return res.status(400).json({ error: 'Token required', code: 'registration_token_required' });
     const { rows } = await pool.query(
       'SELECT * FROM pending_registrations WHERE token = $1 AND expires_at > NOW()', [token]
     );
-    if (rows.length === 0) return res.status(404).json({ error: 'Invalid or expired registration' });
+    if (rows.length === 0) return res.status(404).json({ error: 'Invalid or expired registration', code: 'registration_expired' });
     const pending = rows[0];
+    if (pending.otp_locked_until && new Date(pending.otp_locked_until).getTime() > Date.now()) {
+      return registrationLockResponse(res, pending.otp_locked_until);
+    }
+    const remainingCooldown = pending.otp_last_sent_at
+      ? new Date(pending.otp_last_sent_at).getTime() + OTP_RESEND_COOLDOWN_MS - Date.now() : 0;
+    if (remainingCooldown > 0) {
+      return res.status(429).json({ error: 'Please wait before requesting another code.', code: 'resend_cooldown',
+        retryAfterMs: remainingCooldown, ...registrationMetadata(pending) });
+    }
     const termsVersion = TERMS_CONFIG?.terms_of_service?.version || '2026-03-20';
     const rawIp = req.ip || req.headers['x-forwarded-for'] || 'unknown';
     // Legacy schemas still define terms_acceptance_ip as VARCHAR(45).
@@ -1121,44 +1154,46 @@ async function acceptTerms(req, res) {
     const otp = crypto.randomInt(100000, 1000000).toString();
     const otpHash = crypto.createHash('sha256').update(otp).digest('hex');
     const otpExpires = new Date(Date.now() + 15 * 60 * 1000);
+    const sentAt = new Date();
     await pool.query(
       `UPDATE pending_registrations
           SET terms_accepted_at = NOW(), terms_version = $2, terms_acceptance_ip = $3,
               terms_acceptance_ua = $4, otp_code = $5, otp_expires_at = $6,
-              otp_attempts = 0, otp_last_sent_at = NOW()
+              otp_attempts = COALESCE(otp_attempts, 0), otp_last_sent_at = NOW()
         WHERE token = $1`,
       [token, termsVersion, ip, userAgent, otpHash, otpExpires]
     );
     await sendOTPEmail(pending.email, otp, resolveRequestLanguage(req));
-    res.json({ message: 'Terms accepted, OTP sent' });
+    res.json({ message: 'Terms accepted, OTP sent', ...registrationMetadata(pending, sentAt, otpExpires) });
   } catch (err) {
     logger.error('Accept terms error', { err });
-    res.status(500).json({ error: 'Failed to accept terms' });
+    res.status(500).json({ error: 'Failed to accept terms', code: 'otp_send_failed' });
   }
 }
 
 async function verifyRegistrationOTP(req, res) {
   try {
     const { token, otp } = req.body;
-    if (!token || !otp) return res.status(400).json({ error: 'Token and OTP required' });
+    if (!token || !otp) return res.status(400).json({ error: 'Token and OTP required', code: 'otp_required' });
     const { rows } = await pool.query(
       'SELECT * FROM pending_registrations WHERE token = $1 AND expires_at > NOW()', [token]
     );
-    if (rows.length === 0) return res.status(404).json({ error: 'Invalid or expired registration' });
+    if (rows.length === 0) return res.status(404).json({ error: 'Invalid or expired registration', code: 'registration_expired' });
     const pending = rows[0];
     if (pending.otp_locked_until && new Date(pending.otp_locked_until) > new Date()) {
-      return res.status(429).json({ error: 'Too many attempts. Try again later.', lockoutUntil: pending.otp_locked_until });
+      return registrationLockResponse(res, pending.otp_locked_until, 'Too many attempts. Try again later.');
     }
     const hashedOTP = crypto.createHash('sha256').update(otp).digest('hex');
-    if (pending.otp_code !== hashedOTP || new Date(pending.otp_expires_at) < new Date()) {
-      const newAttempts = pending.otp_attempts + 1;
+    if (pending.otp_code !== hashedOTP || !pending.otp_expires_at || new Date(pending.otp_expires_at) <= new Date()) {
+      const expired = !pending.otp_expires_at || new Date(pending.otp_expires_at).getTime() < Date.now();
+      const newAttempts = (pending.otp_attempts || 0) + 1;
       if (newAttempts >= 3) {
         const { rows: lockRows } = await pool.query(
-          "UPDATE pending_registrations SET otp_attempts = $2, otp_locked_until = NOW() + interval '1 hour' WHERE token = $1 RETURNING id",
+          "UPDATE pending_registrations SET otp_attempts = $2, otp_locked_until = NOW() + interval '1 hour' WHERE token = $1 RETURNING id, otp_locked_until",
           [token, newAttempts]
         );
         if (lockRows.length > 0) {
-          return res.status(429).json({ error: 'Too many failed attempts. Locked for 1 hour.' });
+          return registrationLockResponse(res, lockRows[0].otp_locked_until || new Date(Date.now() + 3600000).toISOString(), 'Too many failed attempts. Locked for 1 hour.');
         }
       }
       const { rows: updateRows } = await pool.query(
@@ -1166,9 +1201,10 @@ async function verifyRegistrationOTP(req, res) {
         [token, newAttempts]
       );
       if (updateRows.length === 0) {
-        return res.status(404).json({ error: 'Registration token expired' });
+        return res.status(404).json({ error: 'Registration token expired', code: 'registration_expired' });
       }
-      return res.status(400).json({ error: 'Invalid or expired OTP', attemptsRemaining: 3 - newAttempts });
+      return res.status(400).json({ error: 'Invalid or expired OTP', code: expired ? 'otp_expired' : 'otp_invalid',
+        attemptsRemaining: 3 - newAttempts, ...registrationMetadata(pending) });
     }
     const referralCode = crypto.randomBytes(6).toString('hex');
     const { trial_started_at, trial_ends_at } = await trialDefaults();
@@ -1188,9 +1224,7 @@ async function verifyRegistrationOTP(req, res) {
     // Re-apply the same casing rule used at signup, to be consistent across
     // legacy rows that may have been written before migration 117 ran.
     const rawState = (pending.state || '').trim();
-    const stateU = rawState
-      ? (countriesUtil.hasRegions(countryU) ? rawState.toUpperCase() : rawState)
-      : null;
+    const stateU = rawState ? normalizedRegistrationRegion(countryU, rawState) : null;
     const preferredCurrency = countriesUtil.getDefaultCurrency(countryU);
 
     // Carry the user's chosen mode through; derive role from it via the
@@ -1327,7 +1361,7 @@ async function verifyRegistrationOTP(req, res) {
     res.status(201).json({ user: formatAuthUser(user), ...tokens });
   } catch (err) {
     logger.error('Verify registration OTP error', { err });
-    res.status(500).json({ error: 'Verification failed' });
+    res.status(500).json({ error: 'Verification failed', code: 'verification_failed' });
   }
 }
 
@@ -1337,21 +1371,24 @@ async function resendRegistrationOTP(req, res) {
     const { rows } = await pool.query(
       'SELECT * FROM pending_registrations WHERE token = $1 AND expires_at > NOW()', [token]
     );
-    if (rows.length === 0) return res.status(404).json({ error: 'Invalid or expired registration' });
+    if (rows.length === 0) return res.status(404).json({ error: 'Invalid or expired registration', code: 'registration_expired' });
     const pending = rows[0];
     // H10: an active OTP lockout survives re-requests; requesting a new code
     // must not clear it (previously otp_attempts was reset to 0 here).
     if (pending.otp_locked_until && new Date(pending.otp_locked_until) > new Date()) {
-      return res.status(429).json({ error: 'Account locked' });
+      return registrationLockResponse(res, pending.otp_locked_until);
     }
     // H10: per-registration send cooldown.
     if (pending.otp_last_sent_at
         && Date.now() - new Date(pending.otp_last_sent_at).getTime() < OTP_RESEND_COOLDOWN_MS) {
-      return res.status(429).json({ error: 'Please wait before requesting another code.' });
+      return res.status(429).json({ error: 'Please wait before requesting another code.', code: 'resend_cooldown',
+        retryAfterMs: OTP_RESEND_COOLDOWN_MS - (Date.now() - new Date(pending.otp_last_sent_at).getTime()),
+        ...registrationMetadata(pending) });
     }
     const otp = crypto.randomInt(100000, 1000000).toString();
     const otpHash = crypto.createHash('sha256').update(otp).digest('hex');
     const otpExpires = new Date(Date.now() + 15 * 60 * 1000);
+    const sentAt = new Date();
     await pool.query(
       `UPDATE pending_registrations
           SET otp_code = $2, otp_expires_at = $3, otp_attempts = 0,
@@ -1360,10 +1397,10 @@ async function resendRegistrationOTP(req, res) {
       [token, otpHash, otpExpires]
     );
     await sendOTPEmail(pending.email, otp, resolveRequestLanguage(req));
-    res.json({ message: 'OTP resent' });
+    res.json({ message: 'OTP resent', ...registrationMetadata(pending, sentAt, otpExpires) });
   } catch (err) {
     logger.error('Resend OTP error', { err });
-    res.status(500).json({ error: 'Failed to resend OTP' });
+    res.status(500).json({ error: 'Failed to resend OTP', code: 'otp_send_failed' });
   }
 }
 
