@@ -26,6 +26,7 @@ const PHOTO_MAX_BYTES = 10 * 1024 * 1024;
 const PHOTO_MIMES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 const PHOTO_EXTENSIONS = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' };
 const VIDEO_MAX_BYTES = 200 * 1024 * 1024;
+const CAPTION_MAX_BYTES = 2 * 1024 * 1024;
 const VIDEO_MIMES = new Set(['video/mp4', 'video/webm', 'video/quicktime']);
 const mediaPhotoUpload = multer({
   storage: multer.memoryStorage(),
@@ -38,6 +39,7 @@ const mediaVideoUpload = multer({
   }),
   limits: { fileSize: VIDEO_MAX_BYTES, files: 1 },
 }).single('file');
+const mediaCaptionUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: CAPTION_MAX_BYTES, files: 1 } }).single('file');
 
 function mapUploadError(err, mediaType) {
   if (!err) return null;
@@ -64,6 +66,14 @@ function mediaPhotoUploadHandler(req, res, next) {
 function mediaVideoUploadHandler(req, res, next) {
   mediaVideoUpload(req, res, (err) => {
     if (err) return next(mapUploadError(err, 'video'));
+    return next();
+  });
+}
+
+function mediaCaptionUploadHandler(req, res, next) {
+  mediaCaptionUpload(req, res, (err) => {
+    if (err?.code === 'LIMIT_FILE_SIZE') return next(new AppError('Caption file is too large (max 2MB).', 413, 'media_caption_too_large'));
+    if (err) return next(new AppError('Attach one WebVTT caption file.', 400, 'media_caption_invalid'));
     return next();
   });
 }
@@ -106,9 +116,10 @@ async function cleanupUncommitted(keys) {
   // COMMIT can succeed before the connection drops. Preserve any durable
   // references, and defer cleanup altogether if the DB cannot confirm them.
   try {
-    const { rows } = await pool.query(`SELECT storage_key, thumbnail_key FROM media_post_assets
-      WHERE storage_key = ANY($1::text[]) OR thumbnail_key = ANY($1::text[])`, [keys]);
-    const referenced = new Set(rows.flatMap((asset) => [asset.storage_key, asset.thumbnail_key]));
+    const { rows } = await pool.query(`SELECT storage_key, thumbnail_key, caption_storage_key FROM media_post_assets
+      WHERE storage_key = ANY($1::text[]) OR thumbnail_key = ANY($1::text[])
+         OR caption_storage_key = ANY($1::text[])`, [keys]);
+    const referenced = new Set(rows.flatMap((asset) => [asset.storage_key, asset.thumbnail_key, asset.caption_storage_key]));
     await cleanup(keys.filter((key) => !referenced.has(key)));
   } catch {
     logger.warn('media upload cleanup deferred until persistence can be checked');
@@ -116,6 +127,7 @@ async function cleanupUncommitted(keys) {
 }
 
 function replaceRequested(req) { return req.body?.replace_assets === true || req.body?.replace_assets === 'true'; }
+function replaceAssetId(req) { return String(req.body?.replace_asset_id || '').trim() || null; }
 function digest(buffer) { return createHash('sha256').update(buffer).digest('hex'); }
 
 async function uploadPhoto(req, res) {
@@ -158,7 +170,7 @@ async function uploadPhoto(req, res) {
       storedKeys.push(storageKey);
       const thumbnailKey = await uploadFile(thumbnail.data, 'media/photos', 'thumb.jpg', 'image/jpeg');
       storedKeys.push(thumbnailKey);
-      const result = await attachments.attach({ postId, userId: req.user.id, replace: replaceRequested(req),
+      const result = await attachments.attach({ postId, userId: req.user.id, replace: replaceRequested(req), replaceAssetId: replaceAssetId(req),
         asset: { asset_type: 'image', provider: 'upload', storage_key: storageKey, thumbnail_key: thumbnailKey,
           width: thumbnail.info.width, height: thumbnail.info.height, content_sha256: digest(file.buffer) } });
       committed = true;
@@ -223,7 +235,7 @@ async function videoUpload(req, res) {
     }
 
     storedKey = await uploadFile(fileBuffer, 'media/videos', `original${path.extname(req.file.originalname || '') || '.bin'}`, detected.mime);
-    const result = await attachments.attach({ postId: post_id, userId, replace: replaceRequested(req),
+    const result = await attachments.attach({ postId: post_id, userId, replace: replaceRequested(req), replaceAssetId: replaceAssetId(req),
       asset: { asset_type: 'video', provider: 'upload', storage_key: storedKey,
         processing_status: 'quarantine', csam_status: 'pending', content_sha256: digest(fileBuffer) } });
     committed = true;
@@ -252,13 +264,82 @@ async function linkAsset(req, res) {
     const { post_id, external_url } = req.body || {};
     if (!post_id || !external_url) return res.status(400).json({ error: 'post_id and external_url required' });
     const video = attachments.externalVideo(external_url);
-    const result = await attachments.attach({ postId: post_id, userId: req.user.id, replace: replaceRequested(req),
+    const result = await attachments.attach({ postId: post_id, userId: req.user.id, replace: replaceRequested(req), replaceAssetId: replaceAssetId(req),
       asset: { asset_type: 'video_link', ...video, content_sha256: digest(Buffer.from(video.external_url)) } });
     await cleanup(result.removedKeys);
     return res.status(result.existing ? 200 : 201).json({ asset: result.asset, existing: result.existing });
   } catch (err) {
     logger.error('media.linkAsset error', { message: err.message });
     return uploadFailure(res, err, 'Failed to attach video link');
+  }
+}
+
+async function removeAsset(req, res) {
+  try {
+    const result = await attachments.remove({ postId: req.params.postId, assetId: req.params.assetId, userId: req.user.id });
+    await cleanup(result.removedKeys);
+    return res.json({ removed: true, asset_id: result.asset.id });
+  } catch (err) {
+    logger.error('media.removeAsset error', { message: err.message });
+    return uploadFailure(res, err, 'Failed to remove attachment');
+  }
+}
+
+async function updateAsset(req, res) {
+  try {
+    const altText = typeof req.body?.alt_text === 'string' ? req.body.alt_text.trim() : '';
+    const captionLanguage = typeof req.body?.caption_language === 'string' ? req.body.caption_language.trim() : '';
+    if (altText.length > 1000) return res.status(400).json({ error: 'Alternative text is too long.', code: 'media_alt_text_too_long' });
+    if (captionLanguage && !/^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$/.test(captionLanguage)) {
+      return res.status(400).json({ error: 'Use a valid caption language code.', code: 'media_caption_language_invalid' });
+    }
+    const asset = await attachments.updateMetadata({
+      postId: req.params.postId, assetId: req.params.assetId, userId: req.user.id,
+      altText, captionLanguage,
+    });
+    return res.json({ asset });
+  } catch (err) {
+    logger.error('media.updateAsset error', { message: err.message });
+    return uploadFailure(res, err, 'Failed to update attachment');
+  }
+}
+
+async function reorderAssets(req, res) {
+  try {
+    const assetIds = Array.isArray(req.body?.asset_ids) ? req.body.asset_ids.filter(Boolean) : [];
+    const order = await attachments.reorder({ postId: req.params.postId, assetIds, userId: req.user.id });
+    return res.json({ asset_ids: order });
+  } catch (err) {
+    logger.error('media.reorderAssets error', { message: err.message });
+    return uploadFailure(res, err, 'Failed to reorder attachments');
+  }
+}
+
+async function uploadCaption(req, res) {
+  let storageKey = null;
+  try {
+    if (!req.file?.buffer?.length) return res.status(400).json({ error: 'A WebVTT caption file is required.', code: 'media_caption_required' });
+    const text = req.file.buffer.toString('utf8');
+    if (!/^\uFEFF?WEBVTT(?:[ \t].*)?(?:\r?\n|$)/.test(text) || text.includes('\u0000')) {
+      return res.status(400).json({ error: 'Only valid WebVTT captions are accepted.', code: 'media_caption_invalid' });
+    }
+    const language = String(req.body?.caption_language || 'en').trim();
+    if (!/^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$/.test(language)) {
+      return res.status(400).json({ error: 'Use a valid caption language code.', code: 'media_caption_language_invalid' });
+    }
+    await attachments.requireDraft(pool, req.params.postId, req.user.id);
+    storageKey = await uploadFile(req.file.buffer, 'media/captions', 'captions.vtt', 'text/vtt');
+    const asset = await attachments.updateMetadata({
+      postId: req.params.postId, assetId: req.params.assetId, userId: req.user.id,
+      altText: typeof req.body?.alt_text === 'string' ? req.body.alt_text.trim().slice(0, 1000) : '',
+      captionLanguage: language, captionStorageKey: storageKey,
+    });
+    storageKey = null;
+    return res.status(201).json({ asset });
+  } catch (err) {
+    if (storageKey) await cleanupUncommitted([storageKey]);
+    logger.error('media.uploadCaption error', { message: err.message });
+    return uploadFailure(res, err, 'Failed to attach captions');
   }
 }
 
@@ -271,4 +352,9 @@ module.exports = {
   mediaVideoUploadHandler,
   requireVideoIdentity,
   linkAsset,
+  removeAsset,
+  updateAsset,
+  reorderAssets,
+  uploadCaption,
+  mediaCaptionUploadHandler,
 };

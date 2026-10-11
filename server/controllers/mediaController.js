@@ -1,8 +1,9 @@
 'use strict';
 
 // OxSteed Media: X-shaped local content branch.
-// MVP: verified helpers/businesses/restaurants post; photo uploads public,
-// video uploads require Didit + the configured interim/vendor safety policy.
+// Active members can publish as themselves. Represented helpers, businesses,
+// and restaurants remain verification-gated; video uploads require Didit plus
+// the configured interim/vendor safety policy.
 
 const pool = require('../db');
 const crypto = require('crypto');
@@ -58,10 +59,8 @@ function activeMediaOwnerSql(ownerExpression, alias = 'media_link_owner') {
 // verification, not only the historical post safety verdict. This keeps
 // revoked helpers, businesses, and restaurants out of every public surface.
 function publicMediaSql(postAlias = 'p', actorAlias = 'a') {
-  // Verified actors publish root/quote posts; ordinary active members can
-  // participate in reply threads without receiving a publisher badge.
   return `${mediaSafety.publicPostSql(postAlias)} AND
-    (${postAlias}.parent_id IS NOT NULL OR ((${verifiedActorSql(actorAlias)}) AND (${publicActorSql(actorAlias)})))`;
+    ((${verifiedActorSql(actorAlias)}) AND (${publicActorSql(actorAlias)}))`;
 }
 function publicActor(actor) {
   if (!actor || actor.current_actor_verified !== false) return actor;
@@ -192,10 +191,12 @@ async function visiblePost(postId, viewerUserId) {
   return !!rows[0];
 }
 
-// Who can post at MVP: verified helpers, businesses, restaurants only.
+// Personal actors are available to every active member. Represented entity
+// actors continue to require their authoritative verification state.
 async function getOrCreateActor(userId, requested = {}, db = pool) {
   const requestedType = requested.type || requested.actor_type || null;
   const requestedActorId = requested.actorId || requested.actor_id || null;
+  if (requestedType === 'user') return getOrCreateReplyActor(userId, db);
   const actorParams = [userId];
   const actorFilters = [];
   if (requestedType) {
@@ -308,22 +309,23 @@ async function getOrCreateActor(userId, requested = {}, db = pool) {
 // Everyone may reply at launch, even when they are not an approved poster.
 // Keep those replies attached to the same identity surface without granting
 // the account a verified posting actor.
-async function getOrCreateReplyActor(userId) {
-  const { rows: existing } = await pool.query(
+async function getOrCreateReplyActor(userId, db = pool) {
+  const { rows: existing } = await db.query(
     `SELECT * FROM media_actors WHERE owner_user_id = $1 AND actor_type = 'user' LIMIT 1`,
     [userId]
   );
   if (existing[0]) return existing[0];
 
-  const { rows: users } = await pool.query(
+  const { rows: users } = await db.query(
     `SELECT id, first_name, last_name, email, profile_photo_url
-       FROM users WHERE id = $1 AND deleted_at IS NULL LIMIT 1`,
+       FROM users WHERE id = $1 AND deleted_at IS NULL
+        AND is_active = TRUE AND is_banned = FALSE LIMIT 1`,
     [userId]
   );
   if (!users[0]) return null;
   const user = users[0];
   const displayName = `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.email || 'OxSteed member';
-  const { rows: created } = await pool.query(
+  const { rows: created } = await db.query(
     `INSERT INTO media_actors
        (actor_type, owner_user_id, handle, display_name, avatar_url, verified_kind)
      VALUES ('user', $1, $2, $3, $4, 'none')
@@ -333,6 +335,53 @@ async function getOrCreateReplyActor(userId) {
     [userId, `user-${userId}`, displayName, user.profile_photo_url || null]
   );
   return created[0];
+}
+
+function normalizeContentWarning(value) {
+  const warning = typeof value === 'string' ? value.trim() : '';
+  if (warning.length > 240) throw new AppError('Content warning is too long.', 400, 'media_content_warning_too_long');
+  return warning || null;
+}
+
+async function resolvePublisherLocation(actor, db = pool) {
+  if (!actor) return { city: null, region: null };
+  let result;
+  if (actor.actor_type === 'helper') {
+    result = await db.query(
+      `SELECT COALESCE(NULLIF(BTRIM(hp.service_city), ''), NULLIF(BTRIM(u.city), '')) AS city,
+              COALESCE(NULLIF(BTRIM(hp.service_state), ''), NULLIF(BTRIM(u.state), '')) AS region
+         FROM users u LEFT JOIN helper_profiles hp ON hp.user_id = u.id
+        WHERE u.id = $1 LIMIT 1`, [actor.owner_user_id]
+    );
+  } else if (actor.actor_type === 'business') {
+    result = await db.query(
+      `SELECT COALESCE(NULLIF(BTRIM(b.service_city), ''), NULLIF(BTRIM(b.address_city), ''), NULLIF(BTRIM(u.city), '')) AS city,
+              COALESCE(NULLIF(BTRIM(b.service_state), ''), NULLIF(BTRIM(b.address_state), ''), NULLIF(BTRIM(u.state), '')) AS region
+         FROM businesses b JOIN users u ON u.id = b.user_id
+        WHERE b.id = $1 AND b.user_id = $2 LIMIT 1`, [actor.business_id, actor.owner_user_id]
+    );
+  } else if (actor.actor_type === 'restaurant') {
+    result = await db.query(
+      `SELECT COALESCE(NULLIF(BTRIM(r.address_city), ''), NULLIF(BTRIM(u.city), '')) AS city,
+              COALESCE(NULLIF(BTRIM(r.address_state), ''), NULLIF(BTRIM(u.state), '')) AS region
+         FROM food_restaurants r JOIN users u ON u.id = r.owner_user_id
+        WHERE r.id = $1 AND r.owner_user_id = $2 LIMIT 1`, [actor.restaurant_id, actor.owner_user_id]
+    );
+  } else {
+    result = await db.query(
+      `SELECT NULLIF(BTRIM(city), '') AS city, NULLIF(BTRIM(state), '') AS region
+         FROM users WHERE id = $1 LIMIT 1`, [actor.owner_user_id]
+    );
+  }
+  const location = result.rows[0] || {};
+  return {
+    city: location.city ? String(location.city).slice(0, 120) : null,
+    region: location.region ? String(location.region).slice(0, 120) : null,
+  };
+}
+
+function mediaCreationHash(value) {
+  return crypto.createHash('sha256').update(JSON.stringify(value)).digest('hex');
 }
 
 const LINK_URL_BUILDERS = {
@@ -372,7 +421,7 @@ async function lookupLinkTarget(link, viewerUserId = null, db = pool) {
   const targetId = String(link.target_id || '');
   if (link.link_type === 'restaurant') {
     const { rows } = await db.query(
-      `SELECT display_name AS name FROM food_restaurants
+      `SELECT display_name AS name, currency_code, logo_url AS thumbnail_url FROM food_restaurants
         WHERE id = $1 AND ${publicRestaurantSql('food_restaurants')}
           AND ${activeMediaOwnerSql('owner_user_id', 'restaurant_target_owner')}
         ${linkViewerBlockPredicate('owner_user_id')}`, [targetId, viewerUserId]
@@ -382,7 +431,7 @@ async function lookupLinkTarget(link, viewerUserId = null, db = pool) {
   if (link.link_type === 'food_item') {
     const [restaurantId, itemId] = targetId.split(':');
     const { rows } = await db.query(
-      `SELECT i.name, i.price_cents
+      `SELECT i.name, i.price_cents, i.currency_code, i.image_url AS thumbnail_url
          FROM food_menu_items i
          JOIN food_restaurants r ON r.id = i.restaurant_id
         WHERE i.id = $1 AND r.id = $2 AND ${publicRestaurantSql('r')} AND i.is_available = TRUE
@@ -394,7 +443,8 @@ async function lookupLinkTarget(link, viewerUserId = null, db = pool) {
   }
   if (link.link_type === 'helper') {
     const { rows } = await db.query(
-      `SELECT TRIM(COALESCE(u.first_name, '') || ' ' || COALESCE(u.last_name, '')) AS name
+      `SELECT TRIM(COALESCE(u.first_name, '') || ' ' || COALESCE(u.last_name, '')) AS name,
+              u.profile_photo_url AS thumbnail_url
          FROM helper_profiles hp
          JOIN users u ON u.id = hp.user_id
         WHERE (hp.id::text = $1 OR hp.user_id::text = $1 OR hp.profile_slug::text = $1)
@@ -405,7 +455,7 @@ async function lookupLinkTarget(link, viewerUserId = null, db = pool) {
   }
   if (link.link_type === 'business') {
     const { rows } = await db.query(
-        `SELECT business_name AS name FROM businesses
+        `SELECT business_name AS name, currency_code FROM businesses
         WHERE (id::text = $1 OR profile_slug::text = $1)
           AND ${publicBusinessSql('businesses')}
           AND ${activeMediaOwnerSql('user_id', 'business_target_owner')}
@@ -415,7 +465,7 @@ async function lookupLinkTarget(link, viewerUserId = null, db = pool) {
   }
   if (link.link_type === 'job') {
     const { rows } = await db.query(
-      `SELECT j.title AS name FROM jobs j
+      `SELECT j.title AS name, j.currency_code FROM jobs j
         WHERE j.id = $1 AND j.status IN ('published', 'matched')
           AND ${activeMediaOwnerSql('j.client_id', 'job_target_owner')}
           ${linkViewerBlockPredicate('j.client_id')}`, [targetId, viewerUserId]
@@ -424,7 +474,8 @@ async function lookupLinkTarget(link, viewerUserId = null, db = pool) {
   }
   if (link.link_type === 'tool_rental') {
     const { rows } = await db.query(
-      `SELECT tr.name, ROUND(COALESCE(tr.daily_rate, tr.hourly_rate) * 100)::int AS price_snapshot_cents
+      `SELECT tr.name, ROUND(COALESCE(tr.daily_rate, tr.hourly_rate) * 100)::int AS price_snapshot_cents,
+              'USD'::char(3) AS currency_code
          FROM tool_rentals tr
         WHERE tr.id = $1 AND tr.is_available = TRUE
           AND ${activeMediaOwnerSql('tr.user_id', 'rental_target_owner')}
@@ -434,7 +485,7 @@ async function lookupLinkTarget(link, viewerUserId = null, db = pool) {
   }
   if (link.link_type === 'direct_catalog') {
     const { rows } = await db.query(
-      `SELECT COALESCE(name_i18n->>'en', slug) AS name, price_cents AS price_snapshot_cents
+      `SELECT COALESCE(name_i18n->>'en', slug) AS name, price_cents AS price_snapshot_cents, currency_code
          FROM direct_catalog_services
         WHERE id::text = $1 AND is_active = TRUE AND is_published = TRUE`, [targetId]
     );
@@ -442,7 +493,8 @@ async function lookupLinkTarget(link, viewerUserId = null, db = pool) {
   }
   if (link.link_type === 'logistics_campaign') {
     const { rows } = await db.query(
-      `SELECT po.title, ROUND(po.unit_landed_cost_usd * 100)::int AS price_snapshot_cents
+      `SELECT po.title, ROUND(po.unit_landed_cost_usd * 100)::int AS price_snapshot_cents,
+              'USD'::char(3) AS currency_code
          FROM pooled_orders po
          JOIN businesses b ON b.id = po.organizer_business_id
           AND b.deleted_at IS NULL AND b.is_active = TRUE
@@ -478,6 +530,8 @@ async function hydrateLinks(postId, viewerUserId = null) {
       ...l,
       name: target?.name || l.name_snapshot,
       price_cents: target?.price_cents ?? l.price_snapshot_cents ?? null,
+      currency_code: target?.currency_code || l.currency_code || null,
+      thumbnail_url: target?.thumbnail_url || null,
       available: !!target,
       canonical_url,
       cta: LINK_CTAS[l.link_type] || 'View',
@@ -498,6 +552,7 @@ async function validateMediaLinks(links, db = pool, viewerUserId = null) {
       label: target.name,
       name_snapshot: target.name,
       price_snapshot_cents: target.price_cents ?? target.price_snapshot_cents ?? null,
+      currency_code: target.currency_code || link.currency_code || null,
     });
   }
   return normalized;
@@ -522,12 +577,17 @@ async function hydratePost(post, viewerUserId, options = {}) {
         ? asset.renditions[0].storage_key : asset.storage_key;
       const cloudflareUrl = post.visibility === 'public' && asset.asset_type === 'image' && photoDeliveryAllowed()
         ? buildCloudflarePublicAssetUrl(renditionKey) : null;
+      let captionUrl = null;
+      if (asset.caption_storage_key) {
+        try { captionUrl = await getSignedDownloadUrl(asset.caption_storage_key); } catch { captionUrl = null; }
+      }
       return {
         ...asset,
         url: cloudflareUrl || await getSignedDownloadUrl(renditionKey),
         thumbnail_url: asset.thumbnail_key
           ? (buildCloudflarePublicAssetUrl(asset.thumbnail_key) || await getSignedDownloadUrl(asset.thumbnail_key))
           : null,
+        caption_url: captionUrl,
       };
     } catch (err) {
       logger.warn('media asset URL signing failed', { assetId: asset.id, message: err.message });
@@ -1108,8 +1168,8 @@ async function getDrafts(req, res) {
     let after = '';
     if (cursor) {
       params.push(cursor.created_at, cursor.id);
-      after = `AND (p.created_at < $${params.length - 1}
-        OR (p.created_at = $${params.length - 1} AND p.id < $${params.length}))`;
+      after = `AND (p.updated_at < $${params.length - 1}
+        OR (p.updated_at = $${params.length - 1} AND p.id < $${params.length}))`;
     }
     params.push(limit + 1);
     const { rows } = await pool.query(
@@ -1119,7 +1179,7 @@ async function getDrafts(req, res) {
         WHERE p.deleted_at IS NULL AND p.visibility = 'unlisted'
           AND p.processing_status IN ('draft', 'quarantine', 'failed', 'blocked', 'ready')
           AND a.owner_user_id = $1 ${after}
-        ORDER BY p.created_at DESC, p.id DESC
+        ORDER BY p.updated_at DESC, p.id DESC
         LIMIT $${params.length}`,
       params
     );
@@ -1130,7 +1190,7 @@ async function getDrafts(req, res) {
     const response = { drafts };
     if (query.limit != null || query.cursor) {
       response.has_more = hasMore;
-      response.next_cursor = hasMore ? nextMediaCursor(page[page.length - 1]) : null;
+      response.next_cursor = hasMore ? nextMediaCursor(page[page.length - 1], 'updated_at') : null;
     }
     res.json(response);
   } catch (err) {
@@ -1390,15 +1450,26 @@ async function createPost(req, res) {
     const publisherActorId = req.body?.actor_id || req.body?.publisher_actor_id || publisher.actor_id || publisher.id || null;
     const { body, parent_id, quoted_post_id, links, community_id } = req.body;
     const isDraft = req.body?.draft === true;
+    const normalizedBody = typeof body === 'string' ? body.trim() : '';
+    const contentWarning = normalizeContentWarning(req.body?.content_warning);
+    const clientRequestId = String(req.body?.client_request_id || '').trim() || null;
+    const destination = String(req.body?.destination || (community_id ? 'space' : 'main')).trim().toLowerCase();
+
+    if (clientRequestId && !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(clientRequestId)) {
+      return res.status(400).json({ error: 'client_request_id must be a UUID.', code: 'media_client_request_invalid' });
+    }
+    if (!['main', 'nearby', 'space'].includes(destination) || (destination === 'space' && !community_id)) {
+      return res.status(400).json({ error: 'Choose a valid post destination.', code: 'media_destination_invalid' });
+    }
 
     if (businessId && restaurantId) {
       return res.status(400).json({ error: 'Choose one publishing entity.', code: 'media_publisher_ambiguous' });
     }
 
-    if (publisherType && !['helper', 'business', 'restaurant'].includes(publisherType)) {
+    if (publisherType && !['user', 'helper', 'business', 'restaurant'].includes(publisherType)) {
       return res.status(400).json({ error: 'Choose a valid publisher.', code: 'media_publisher_invalid' });
     }
-    if (publisherType && publisherType !== 'helper' && !publisherActorId && !businessId && !restaurantId) {
+    if (publisherType && !['user', 'helper'].includes(publisherType) && !publisherActorId && !businessId && !restaurantId) {
       return res.status(400).json({ error: 'A publisher actor is required.', code: 'media_publisher_actor_required' });
     }
 
@@ -1407,7 +1478,7 @@ async function createPost(req, res) {
     }
     
     let actor;
-    if (publisherActorId || publisherType === 'helper') {
+    if (publisherActorId || publisherType === 'helper' || publisherType === 'user') {
       actor = await getOrCreateActor(userId, {
         type: publisherType || null,
         actorId: publisherActorId || null,
@@ -1474,17 +1545,17 @@ async function createPost(req, res) {
       actor = await getOrCreateActor(userId);
       if (!actor && parent_id) actor = await getOrCreateReplyActor(userId);
     }
-    if (!actor || (!parent_id && actor.verified_kind === 'none')) {
+    if (!actor || (!parent_id && actor.actor_type !== 'user' && actor.verified_kind === 'none')) {
       return res.status(403).json({
-        error: 'Only verified helpers, businesses, and restaurants can post.',
+        error: 'That publishing identity is not eligible to post.',
         code: 'media_not_verified_poster',
       });
     }
 
-    if (!body || !body.trim()) {
-      return res.status(400).json({ error: 'Post body is required' });
+    if (!isDraft && !normalizedBody && !(Array.isArray(links) && links.length)) {
+      return res.status(400).json({ error: 'Add text or a linked OxSteed listing.', code: 'media_post_empty' });
     }
-    if (body.length > 2000) {
+    if (normalizedBody.length > 2000) {
       return res.status(400).json({ error: 'Post body too long (max 2000)' });
     }
 
@@ -1516,11 +1587,48 @@ async function createPost(req, res) {
       }
     }
 
+    const location = await resolvePublisherLocation(actor);
+    const creationHash = clientRequestId ? mediaCreationHash({
+      actor_id: actor.id,
+      body: normalizedBody,
+      parent_id: parent_id || null,
+      quoted_post_id: quoted_post_id || null,
+      community_id: community_id || null,
+      destination,
+      content_warning: contentWarning,
+      draft: isDraft,
+      links: normalizedLinks.map((link) => ({
+        link_type: link.link_type,
+        target_id: String(link.target_id),
+        price_snapshot_cents: link.price_snapshot_cents ?? null,
+        currency_code: link.currency_code || null,
+      })),
+    }) : null;
+
     client = await pool.connect();
     await client.query('BEGIN');
     // A lock inside the insert statement still uses the snapshot taken before
     // waiting. Acquire it separately so the quota sees the previous commit.
     await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1::text, 0))', [actor.id]);
+    if (clientRequestId) {
+      const { rows: replayRows } = await client.query(
+        `SELECT * FROM media_posts
+          WHERE actor_id = $1 AND client_request_id = $2
+          FOR UPDATE`, [actor.id, clientRequestId]
+      );
+      if (replayRows[0]) {
+        if (replayRows[0].deleted_at || replayRows[0].creation_request_hash !== creationHash) {
+          await client.query('ROLLBACK');
+          return res.status(409).json({
+            error: 'That draft request ID was already used for different content.',
+            code: 'media_client_request_conflict',
+          });
+        }
+        await client.query('COMMIT');
+        const replayed = await hydratePost(replayRows[0], userId);
+        return res.status(200).json({ post: replayed, draft: replayRows[0].visibility === 'unlisted', replayed: true });
+      }
+    }
     if (parent_id || quoted_post_id) {
       const targetIds = [...new Set([parent_id, quoted_post_id].filter(Boolean))].sort();
       const targetParams = [targetIds];
@@ -1546,15 +1654,18 @@ async function createPost(req, res) {
               AND existing.created_at > NOW() - INTERVAL '1 day'
          )
        INSERT INTO media_posts
-         (actor_id, body, parent_id, quoted_post_id, community_id, root_id, visibility, processing_status)
+         (actor_id, body, parent_id, quoted_post_id, community_id, root_id, visibility, processing_status,
+          client_request_id, creation_request_hash, location_city, location_region, destination, content_warning, updated_at)
        SELECT $1::uuid, $2, $3, $4, $5,
          CASE WHEN $3::uuid IS NOT NULL THEN (SELECT COALESCE(root_id, id) FROM media_posts WHERE id = $3::uuid) END,
          CASE WHEN $6 THEN 'unlisted' ELSE 'public' END,
-         CASE WHEN $6 THEN 'draft' ELSE 'ready' END
+         CASE WHEN $6 THEN 'draft' ELSE 'ready' END,
+         $8::uuid, $9, $10, $11, $12, $13, NOW()
          FROM media_post_quota
         WHERE media_post_quota.count < $7
        RETURNING *`,
-      [actor.id, body.trim(), parent_id || null, quoted_post_id || null, community_id || null, isDraft, POSTS_PER_DAY]
+      [actor.id, normalizedBody, parent_id || null, quoted_post_id || null, community_id || null, isDraft, POSTS_PER_DAY,
+        clientRequestId, creationHash, location.city, location.region, destination, contentWarning]
     );
     if (!rows[0]) {
       await client.query('ROLLBACK');
@@ -1637,11 +1748,16 @@ async function createPost(req, res) {
 async function updateDraft(req, res) {
   const body = typeof req.body?.body === 'string' ? req.body.body.trim() : '';
   const links = Array.isArray(req.body?.links) ? req.body.links : [];
+  let contentWarning;
+  try { contentWarning = normalizeContentWarning(req.body?.content_warning); } catch (error) { return mediaError(res, error, 'Failed to update draft'); }
   if (req.body?.links != null && !Array.isArray(req.body.links)) {
     return res.status(400).json({ error: 'Linked entities must be an array.', code: 'media_links_invalid' });
   }
   const communityId = req.body?.community_id || null;
-  if (!body) return res.status(400).json({ error: 'Post body is required', code: 'media_body_required' });
+  const destination = String(req.body?.destination || (communityId ? 'space' : 'main')).trim().toLowerCase();
+  if (!['main', 'nearby', 'space'].includes(destination) || (destination === 'space' && !communityId)) {
+    return res.status(400).json({ error: 'Choose a valid post destination.', code: 'media_destination_invalid' });
+  }
   if (body.length > 2000) return res.status(400).json({ error: 'Post body too long (max 2000)', code: 'media_body_too_long' });
   if (links.length > MAX_LINKS_PER_POST) {
     return res.status(400).json({ error: `Max ${MAX_LINKS_PER_POST} links per post`, code: 'media_links_limit' });
@@ -1677,9 +1793,11 @@ async function updateDraft(req, res) {
     }
     const normalizedLinks = await validateMediaLinks(links, client, req.user.id);
     const { rows: updated } = await client.query(
-      `UPDATE media_posts SET body = $1, community_id = $2, edited_at = NOW()
-        WHERE id = $3 RETURNING *`,
-      [body, communityId, req.params.id]
+      `UPDATE media_posts
+          SET body = $1, community_id = $2, destination = $3, content_warning = $4,
+              edited_at = NOW(), updated_at = NOW()
+        WHERE id = $5 RETURNING *`,
+      [body, communityId, destination, contentWarning, req.params.id]
     );
     await client.query(`DELETE FROM media_post_links WHERE post_id = $1`, [req.params.id]);
     for (let index = 0; index < normalizedLinks.length; index += 1) {
@@ -1749,6 +1867,24 @@ async function publishPost(req, res) {
          FROM media_post_assets WHERE post_id = $1 ORDER BY sort_order, created_at FOR UPDATE`,
       [req.params.id]
     );
+    const { rows: linkCountRows } = await client.query(
+      `SELECT COUNT(*)::int AS count FROM media_post_links WHERE post_id = $1`,
+      [req.params.id]
+    );
+    if (!String(owned[0].body || '').trim() && assets.length === 0 && Number(linkCountRows[0]?.count || 0) === 0) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({
+        error: 'Add text, an attachment, or a linked OxSteed listing before publishing.',
+        code: 'media_post_empty',
+      });
+    }
+    if (owned[0].destination === 'nearby' && (!owned[0].location_city || !owned[0].location_region)) {
+      await client.query('ROLLBACK');
+      return res.status(409).json({
+        error: 'Add a city and region to the selected publisher profile before posting Nearby.',
+        code: 'media_nearby_location_required',
+      });
+    }
     const unsafe = assets.find((asset) => !mediaSafety.assetReady(asset));
     const hasVideo = assets.some((asset) => asset.asset_type === 'video');
     if (unsafe || !mediaSafety.postVerdictAllowed(owned[0].csam_status)
@@ -1776,7 +1912,7 @@ async function publishPost(req, res) {
     }
     const { rows: published } = await client.query(
       `UPDATE media_posts
-          SET visibility = 'public', processing_status = 'ready', edited_at = NOW()
+          SET visibility = 'public', processing_status = 'ready', edited_at = NOW(), updated_at = NOW()
         WHERE id = $1
         RETURNING *`,
       [req.params.id]
@@ -2672,7 +2808,8 @@ async function searchMediaEntities(req, res) {
     let rows;
     if (type === 'restaurant') {
       ({ rows } = await pool.query(
-        `SELECT id::text AS target_id, display_name AS name, NULL::int AS price_snapshot_cents
+        `SELECT id::text AS target_id, display_name AS name, NULL::int AS price_snapshot_cents,
+                currency_code, logo_url AS thumbnail_url
            FROM food_restaurants
           WHERE ${publicRestaurantSql('food_restaurants')} AND display_name ILIKE $1
             AND ${activeMediaOwnerSql('owner_user_id', 'restaurant_search_owner')}
@@ -2683,7 +2820,7 @@ async function searchMediaEntities(req, res) {
       ({ rows } = await pool.query(
         `SELECT (r.id::text || ':' || i.id::text) AS target_id,
                 i.name || ' · ' || r.display_name AS name,
-                i.price_cents AS price_snapshot_cents
+                i.price_cents AS price_snapshot_cents, i.currency_code, i.image_url AS thumbnail_url
            FROM food_menu_items i
            JOIN food_restaurants r ON r.id = i.restaurant_id
           WHERE ${publicRestaurantSql('r')} AND i.is_available = TRUE AND i.name ILIKE $1
@@ -2695,7 +2832,8 @@ async function searchMediaEntities(req, res) {
       ({ rows } = await pool.query(
         `SELECT COALESCE(hp.profile_slug, hp.id::text) AS target_id,
                 TRIM(COALESCE(u.first_name, '') || ' ' || COALESCE(u.last_name, '')) AS name,
-                NULL::int AS price_snapshot_cents
+                NULL::int AS price_snapshot_cents, NULL::char(3) AS currency_code,
+                u.profile_photo_url AS thumbnail_url
            FROM helper_profiles hp
            JOIN users u ON u.id = hp.user_id
           WHERE ${publicHelperSql('hp', 'u')}
@@ -2706,7 +2844,7 @@ async function searchMediaEntities(req, res) {
     } else if (type === 'business') {
       ({ rows } = await pool.query(
         `SELECT COALESCE(profile_slug, id::text) AS target_id, business_name AS name,
-                NULL::int AS price_snapshot_cents
+                NULL::int AS price_snapshot_cents, currency_code, NULL::text AS thumbnail_url
            FROM businesses
           WHERE ${publicBusinessSql('businesses')}
             AND ${activeMediaOwnerSql('user_id', 'business_search_owner')}
@@ -2716,7 +2854,8 @@ async function searchMediaEntities(req, res) {
       ));
     } else if (type === 'job') {
       ({ rows } = await pool.query(
-        `SELECT id::text AS target_id, title AS name, NULL::int AS price_snapshot_cents
+        `SELECT id::text AS target_id, title AS name, NULL::int AS price_snapshot_cents,
+                currency_code, NULL::text AS thumbnail_url
            FROM jobs j
           WHERE j.status IN ('published', 'matched') AND j.title ILIKE $1
             AND ${activeMediaOwnerSql('j.client_id', 'job_search_owner')}
@@ -2726,7 +2865,8 @@ async function searchMediaEntities(req, res) {
     } else if (type === 'tool_rental') {
       ({ rows } = await pool.query(
         `SELECT id::text AS target_id, name,
-                ROUND(COALESCE(daily_rate, hourly_rate) * 100)::int AS price_snapshot_cents
+                ROUND(COALESCE(daily_rate, hourly_rate) * 100)::int AS price_snapshot_cents,
+                'USD'::char(3) AS currency_code, NULL::text AS thumbnail_url
            FROM tool_rentals tr
           WHERE tr.is_available = TRUE AND tr.name ILIKE $1
             AND ${activeMediaOwnerSql('tr.user_id', 'rental_search_owner')}
@@ -2737,7 +2877,7 @@ async function searchMediaEntities(req, res) {
       ({ rows } = await pool.query(
         `SELECT id::text AS target_id,
                 COALESCE(name_i18n->>'en', slug) AS name,
-                price_cents AS price_snapshot_cents
+                price_cents AS price_snapshot_cents, currency_code, NULL::text AS thumbnail_url
            FROM direct_catalog_services
           WHERE is_active = TRUE AND is_published = TRUE
             AND (COALESCE(name_i18n->>'en', '') ILIKE $1 OR slug ILIKE $1)
@@ -2746,7 +2886,8 @@ async function searchMediaEntities(req, res) {
     } else if (type === 'logistics_campaign') {
       ({ rows } = await pool.query(
         `SELECT id::text AS target_id, title AS name,
-                ROUND(unit_landed_cost_usd * 100)::int AS price_snapshot_cents
+                ROUND(unit_landed_cost_usd * 100)::int AS price_snapshot_cents,
+                'USD'::char(3) AS currency_code, NULL::text AS thumbnail_url
            FROM pooled_orders po
            JOIN businesses b ON b.id = po.organizer_business_id
             AND b.deleted_at IS NULL AND b.is_active = TRUE

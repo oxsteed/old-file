@@ -15,20 +15,41 @@ export const publishPost = (id) => api.post(`/media/posts/${id}/publish`).then(r
 export const updatePost = (id, data) => api.patch(`/media/posts/${id}`, data).then(r => r.data);
 export const deletePost = (id) => api.delete(`/media/posts/${id}`).then(r => r.data);
 export const replacePostLinks = (id, links) => api.put(`/media/posts/${id}/links`, { links }).then(r => r.data);
-export const linkAsset = (postId, external_url, replace = false) => api.post('/media/assets/link', { post_id: postId, external_url, replace_assets: replace }).then(r => r.data);
-export const uploadPhoto = (postId, file, onUploadProgress, replace = false) => {
-  const form = new FormData();
-  form.append('post_id', postId);
-  form.append('replace_assets', String(replace));
-  form.append('file', file);
-  return api.post('/media/assets/photo-uploads', form, { onUploadProgress }).then(r => r.data);
+export const linkAsset = (postId, external_url, options = {}) => {
+  const legacyReplace = typeof options === 'boolean' ? options : false;
+  return api.post('/media/assets/link', {
+    post_id: postId,
+    external_url,
+    replace_assets: legacyReplace || options.replaceAll === true,
+    replace_asset_id: typeof options === 'object' ? options.replaceAssetId : undefined,
+  }).then(r => r.data);
 };
-export const uploadVideo = (postId, file, onUploadProgress, replace = false) => {
+export const uploadPhoto = (postId, file, onUploadProgress, options = {}) => {
+  const legacyReplace = typeof options === 'boolean' ? options : false;
   const form = new FormData();
   form.append('post_id', postId);
-  form.append('replace_assets', String(replace));
+  form.append('replace_assets', String(legacyReplace || options.replaceAll === true));
+  if (typeof options === 'object' && options.replaceAssetId) form.append('replace_asset_id', options.replaceAssetId);
   form.append('file', file);
-  return api.post('/media/assets/video-uploads', form, { onUploadProgress }).then(r => r.data);
+  return api.post('/media/assets/photo-uploads', form, { onUploadProgress, signal: typeof options === 'object' ? options.signal : undefined }).then(r => r.data);
+};
+export const uploadVideo = (postId, file, onUploadProgress, options = {}) => {
+  const legacyReplace = typeof options === 'boolean' ? options : false;
+  const form = new FormData();
+  form.append('post_id', postId);
+  form.append('replace_assets', String(legacyReplace || options.replaceAll === true));
+  if (typeof options === 'object' && options.replaceAssetId) form.append('replace_asset_id', options.replaceAssetId);
+  form.append('file', file);
+  return api.post('/media/assets/video-uploads', form, { onUploadProgress, signal: typeof options === 'object' ? options.signal : undefined }).then(r => r.data);
+};
+export const removeMediaAsset = (postId, assetId) => api.delete(`/media/posts/${postId}/assets/${assetId}`).then(r => r.data);
+export const updateMediaAsset = (postId, assetId, data) => api.patch(`/media/posts/${postId}/assets/${assetId}`, data).then(r => r.data);
+export const reorderMediaAssets = (postId, assetIds) => api.put(`/media/posts/${postId}/assets/order`, { asset_ids: assetIds }).then(r => r.data);
+export const uploadMediaCaption = (postId, assetId, file, captionLanguage = 'en') => {
+  const form = new FormData();
+  form.append('file', file);
+  form.append('caption_language', captionLanguage);
+  return api.post(`/media/posts/${postId}/assets/${assetId}/captions`, form).then(r => r.data);
 };
 export const toggleLike = (id) => api.post(`/media/posts/${id}/like`).then(r => r.data);
 export const toggleBookmark = (id) => api.post(`/media/posts/${id}/bookmark`).then(r => r.data);

@@ -4,6 +4,11 @@
 // verified business or restaurant the owner happens to have.
 function verifiedActorSql(actor = 'a') {
   return `CASE
+    WHEN ${actor}.actor_type = 'user' THEN EXISTS (
+      SELECT 1 FROM users media_user
+       WHERE media_user.id = ${actor}.owner_user_id
+         AND media_user.is_active = TRUE AND media_user.is_banned = FALSE
+         AND media_user.deleted_at IS NULL)
     WHEN ${actor}.actor_type = 'helper' THEN EXISTS (
       SELECT 1 FROM helper_profiles hp JOIN users hu ON hu.id = hp.user_id
        WHERE hp.user_id = ${actor}.owner_user_id AND hu.is_verified = TRUE

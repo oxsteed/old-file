@@ -48,6 +48,7 @@ function MediaShellContent({ children }) {
   const navigate = useNavigate();
   const currentPath = pathname.replace(/\/+$/, '') || '/';
   const isFeedPage = currentPath === '/media';
+  const isComposePage = currentPath === '/media/compose';
   const activeTab = ['/media/compose', '/media/verification', '/media/verify-identity', '/media/creator'].some(path => currentPath.startsWith(path)) ? null
     : TABS.find(tab => tab.path !== '/media' && currentPath.startsWith(tab.path))?.path || '/media';
   const displayName = user?.display_name || user?.name || [user?.first_name, user?.last_name].filter(Boolean).join(' ') || user?.email || '';
@@ -159,7 +160,7 @@ function MediaShellContent({ children }) {
 
   return <MediaGuestGateProvider><PageShell hideNav hideFooter>
     <PageMeta title={mediaMetaTitle} />
-    <div ref={shellRef} className={`media-shell media-reference-shell ${user ? 'media-signed-in' : 'media-guest'} ${isFeedPage ? 'media-home-shell' : ''}`}>
+    <div ref={shellRef} className={`media-shell media-reference-shell ${user ? 'media-signed-in' : 'media-guest'} ${isFeedPage ? 'media-home-shell' : ''} ${isComposePage ? 'media-compose-shell' : ''}`}>
       <header className="media-app-header">
         <div className="media-app-header-inner">
           <Link to="/media" className="media-wordmark" aria-label={t('media.shell.homepage')}><span className="media-brand-mark"><OxSteedIcon size={44} /></span><span>OxSteed<span className="media-wordmark-branch"> Media</span></span></Link>
@@ -206,7 +207,8 @@ function MediaShellContent({ children }) {
               {!suggested.length && !communityError && <p>{t('media.landing.spacesEmpty')}</p>}
               {!suggested.length && <Link to="/media/communities" className="media-discovery-card-link">{t('media.landing.exploreSpaces')}</Link>}
             </section>
-            <section className="media-reference-card media-profile-card"><h2>{t('media.landing.completeProfile')}</h2><progress max={4} value={completed} aria-label={t('media.landing.completeProfile')} /><Link className="media-discovery-card-link" to="/media/verification">{t(verified ? 'media.landing.reviewVerification' : 'media.landing.verifyAccount')}</Link></section>
+            {isComposePage ? <section className="media-reference-card media-profile-card"><h2>{t('media.compose.videoVerificationPanel')}</h2><p>{t(verified ? 'media.compose.videoVerificationReady' : 'media.compose.videoVerificationRequired')}</p><Link className="media-outline-button" to="/media/verification?returnTo=/media/compose">{t(verified ? 'media.landing.reviewVerification' : 'media.landing.verifyAccount')}</Link></section>
+              : <section className="media-reference-card media-profile-card"><h2>{t('media.landing.completeProfile')}</h2><progress max={4} value={completed} aria-label={t('media.landing.completeProfile')} /><Link className="media-discovery-card-link" to="/media/verification">{t(verified ? 'media.landing.reviewVerification' : 'media.landing.verifyAccount')}</Link></section>}
           </> : <>
             <section className="media-reference-card media-how-card"><h2>{t('media.landing.howItWorks')}</h2><ol><li><button type="button" onClick={openLocation}>{t('media.landing.chooseYourLocation')}</button></li><li><Link to="/media/communities">{t('media.landing.exploreCommunity')}</Link></li><li><Link to="/join">{t('media.landing.joinConversation')}</Link></li></ol></section>
             <section className="media-reference-card media-creators-card"><h2>{t('media.landing.forCreators')}</h2><p>{t('media.landing.creatorDescription')}</p><Link className="media-outline-button" to="/media/creator">{t('media.landing.exploreMarketplace')}</Link></section>

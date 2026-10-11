@@ -41,10 +41,11 @@ async function refreshPostState(db, postId) {
 
 function storageKeys(asset) {
   return [asset.storage_key, asset.thumbnail_key,
+    asset.caption_storage_key,
     ...(Array.isArray(asset.renditions) ? asset.renditions.map((r) => r.storage_key) : [])].filter(Boolean);
 }
 
-async function attach({ postId, userId, asset, replace = false }) {
+async function attach({ postId, userId, asset, replace = false, replaceAssetId = null }) {
   const db = await pool.connect();
   try {
     await db.query('BEGIN');
@@ -58,16 +59,23 @@ async function attach({ postId, userId, asset, replace = false }) {
     }
     // The server computes this digest, never trusts a client-supplied clearance
     // or key. Retrying a lost upload response returns the durable attachment.
+    const replacedAsset = replaceAssetId ? current.find((a) => String(a.id) === String(replaceAssetId)) : null;
+    if (replaceAssetId && !replacedAsset) {
+      throw new AppError('The attachment to replace is no longer available', 404, 'media_asset_not_found');
+    }
     const duplicate = current.find((a) => asset.content_sha256 && a.content_sha256 === asset.content_sha256
       && a.asset_type === asset.asset_type && a.provider === asset.provider);
-    if (duplicate && (!replace || (current.length === 1 && duplicate.processing_status !== 'failed'))) {
+    if (duplicate && (!replace && !replaceAssetId
+      || (replaceAssetId && String(duplicate.id) === String(replaceAssetId) && duplicate.processing_status !== 'failed')
+      || (replace && current.length === 1 && duplicate.processing_status !== 'failed'))) {
       await db.query('COMMIT');
       return { asset: duplicate, existing: true, removedKeys: [] };
     }
-    if (!replace && current.length >= 4) throw new AppError('A post can have up to four attachments', 400, 'media_asset_limit');
+    if (!replace && !replaceAssetId && current.length >= 4) throw new AppError('A post can have up to four attachments', 400, 'media_asset_limit');
     // Failed and running jobs cascade with the old assets. A worker that was
     // already converting must fail its guarded update and clean its outputs.
     if (replace) await db.query('DELETE FROM media_post_assets WHERE post_id = $1', [postId]);
+    else if (replaceAssetId) await db.query('DELETE FROM media_post_assets WHERE id = $1 AND post_id = $2', [replaceAssetId, postId]);
     const { rows } = await db.query(
       `INSERT INTO media_post_assets
          (post_id, asset_type, provider, storage_key, thumbnail_key, width, height,
@@ -83,7 +91,84 @@ async function attach({ postId, userId, asset, replace = false }) {
     }
     await refreshPostState(db, postId);
     await db.query('COMMIT');
-    return { asset: attached, existing: false, removedKeys: replace ? current.flatMap(storageKeys) : [] };
+    return {
+      asset: attached,
+      existing: false,
+      removedKeys: replace ? current.flatMap(storageKeys) : (replacedAsset ? storageKeys(replacedAsset) : []),
+    };
+  } catch (error) {
+    await db.query('ROLLBACK').catch(() => {});
+    throw error;
+  } finally { db.release(); }
+}
+
+async function remove({ postId, assetId, userId }) {
+  const db = await pool.connect();
+  try {
+    await db.query('BEGIN');
+    await requireDraft(db, postId, userId, true);
+    const { rows } = await db.query(
+      `SELECT * FROM media_post_assets WHERE id = $1 AND post_id = $2 FOR UPDATE`,
+      [assetId, postId]
+    );
+    const asset = rows[0];
+    if (!asset) throw new AppError('Attachment not found', 404, 'media_asset_not_found');
+    if (asset.csam_status === 'flagged' || asset.processing_status === 'blocked') {
+      throw new AppError('Blocked media must remain available for moderation review', 409, 'media_asset_removal_blocked');
+    }
+    await db.query('DELETE FROM media_post_assets WHERE id = $1', [assetId]);
+    await refreshPostState(db, postId);
+    await db.query('COMMIT');
+    return { asset, removedKeys: storageKeys(asset) };
+  } catch (error) {
+    await db.query('ROLLBACK').catch(() => {});
+    throw error;
+  } finally { db.release(); }
+}
+
+async function updateMetadata({ postId, assetId, userId, altText, captionLanguage, captionStorageKey }) {
+  const db = await pool.connect();
+  try {
+    await db.query('BEGIN');
+    await requireDraft(db, postId, userId, true);
+    const { rows } = await db.query(
+      `UPDATE media_post_assets
+          SET alt_text = $1,
+              caption_language = CASE WHEN asset_type = 'video' THEN $2 ELSE NULL END,
+              caption_storage_key = CASE WHEN asset_type = 'video' THEN COALESCE($3, caption_storage_key) ELSE NULL END
+        WHERE id = $4 AND post_id = $5
+        RETURNING *`,
+      [altText || null, captionLanguage || null, captionStorageKey || null, assetId, postId]
+    );
+    if (!rows[0]) throw new AppError('Attachment not found', 404, 'media_asset_not_found');
+    await db.query('COMMIT');
+    return rows[0];
+  } catch (error) {
+    await db.query('ROLLBACK').catch(() => {});
+    throw error;
+  } finally { db.release(); }
+}
+
+async function reorder({ postId, assetIds, userId }) {
+  const db = await pool.connect();
+  try {
+    await db.query('BEGIN');
+    await requireDraft(db, postId, userId, true);
+    const { rows } = await db.query(
+      `SELECT id FROM media_post_assets WHERE post_id = $1 ORDER BY sort_order, created_at FOR UPDATE`,
+      [postId]
+    );
+    const currentIds = rows.map((row) => String(row.id));
+    const requested = assetIds.map(String);
+    if (requested.length !== currentIds.length || new Set(requested).size !== requested.length
+        || requested.some((id) => !currentIds.includes(id))) {
+      throw new AppError('Attachment order must include every current attachment exactly once', 409, 'media_asset_order_conflict');
+    }
+    for (let index = 0; index < requested.length; index += 1) {
+      await db.query('UPDATE media_post_assets SET sort_order = $1 WHERE id = $2 AND post_id = $3', [index, requested[index], postId]);
+    }
+    await db.query('COMMIT');
+    return requested;
   } catch (error) {
     await db.query('ROLLBACK').catch(() => {});
     throw error;
@@ -111,4 +196,4 @@ function externalVideo(input) {
   throw new AppError('Use a valid HTTPS YouTube or Vimeo video link', 400, 'media_video_link_invalid');
 }
 
-module.exports = { requireDraft, attach, refreshPostState, externalVideo };
+module.exports = { requireDraft, attach, remove, updateMetadata, reorder, refreshPostState, externalVideo, storageKeys };

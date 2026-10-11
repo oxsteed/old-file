@@ -27,6 +27,12 @@ function publicRestaurantSql(restaurant = 'r', user = null) {
 
 function publicActorSql(actor = 'a') {
   return `CASE
+    WHEN ${actor}.actor_type = 'user' THEN EXISTS (
+      SELECT 1 FROM users media_public_user
+      WHERE media_public_user.id = ${actor}.owner_user_id
+        AND media_public_user.deleted_at IS NULL
+        AND media_public_user.is_active = TRUE
+        AND media_public_user.is_banned = FALSE)
     WHEN ${actor}.actor_type = 'helper' THEN EXISTS (
       SELECT 1 FROM helper_profiles media_public_hp
       JOIN users media_public_hu ON media_public_hu.id = media_public_hp.user_id

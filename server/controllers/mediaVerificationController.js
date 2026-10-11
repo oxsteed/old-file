@@ -18,9 +18,13 @@ async function getCenter(req, res) {
     const userId = req.user.id;
     const [userResult, businessResult, restaurantResult] = await Promise.all([
       pool.query(
-        `SELECT u.id, COALESCE(u.is_verified, FALSE) AS is_verified,
+        `SELECT u.id, u.first_name, u.last_name, u.email, u.profile_photo_url,
+                u.city, u.state, COALESCE(u.is_verified, FALSE) AS is_verified,
                 COALESCE(didit_status, 'pending') AS didit_status,
                 didit_verified_at,
+                (SELECT ma.id FROM media_actors ma
+                  WHERE ma.owner_user_id = u.id AND ma.actor_type = 'user'
+                  ORDER BY ma.created_at ASC LIMIT 1) AS personal_media_actor_id,
                 (SELECT ma.id FROM media_actors ma
                   WHERE ma.owner_user_id = u.id AND ma.actor_type = 'helper'
                   ORDER BY ma.created_at ASC LIMIT 1) AS media_actor_id
@@ -28,7 +32,8 @@ async function getCenter(req, res) {
         [userId]
       ),
       pool.query(
-        `SELECT b.id::text, b.business_name, COALESCE(b.is_business_verified, FALSE) AS is_verified,
+        `SELECT b.id::text, b.business_name, b.logo_url, b.service_city, b.service_state,
+                COALESCE(b.is_business_verified, FALSE) AS is_verified,
                 (SELECT ma.id FROM media_actors ma
                   WHERE ma.business_id = b.id AND ma.actor_type = 'business'
                   ORDER BY ma.created_at ASC LIMIT 1) AS media_actor_id,
@@ -49,7 +54,8 @@ async function getCenter(req, res) {
         [userId]
       ),
       pool.query(
-        `SELECT r.id::text, r.display_name, COALESCE(r.is_verified, FALSE) AS is_verified,
+        `SELECT r.id::text, r.display_name, r.logo_url, r.address_city, r.address_state,
+                COALESCE(r.is_verified, FALSE) AS is_verified,
                 (SELECT ma.id FROM media_actors ma
                   WHERE ma.restaurant_id = r.id AND ma.actor_type = 'restaurant'
                   ORDER BY ma.created_at ASC LIMIT 1) AS media_actor_id,
@@ -71,10 +77,50 @@ async function getCenter(req, res) {
       ),
     ]);
 
+    const member = userResult.rows[0] || { is_verified: false, didit_status: 'pending', didit_verified_at: null };
+    const memberName = `${member.first_name || ''} ${member.last_name || ''}`.trim() || member.email || 'OxSteed member';
+    const publishers = [{
+      key: `user:${member.personal_media_actor_id || member.id}`,
+      actor_id: member.personal_media_actor_id || null,
+      actor_type: 'user',
+      display_name: memberName,
+      avatar_url: member.profile_photo_url || null,
+      verified: member.is_verified === true,
+      eligibility: { text: true, photo: true, video: member.is_verified === true },
+      location: { city: member.city || null, region: member.state || null },
+    }];
+    if (member.is_verified) publishers.push({
+      key: `helper:${member.media_actor_id || member.id}`,
+      actor_id: member.media_actor_id || null,
+      actor_type: 'helper',
+      display_name: memberName,
+      avatar_url: member.profile_photo_url || null,
+      verified: true,
+      eligibility: { text: true, photo: true, video: true },
+      location: { city: member.city || null, region: member.state || null },
+    });
+    for (const business of businessResult.rows.filter((item) => item.is_verified)) publishers.push({
+      key: `business:${business.id}`,
+      actor_id: business.media_actor_id || null,
+      actor_type: 'business', entity_id: business.id,
+      display_name: business.business_name, avatar_url: business.logo_url || null,
+      verified: true, eligibility: { text: true, photo: true, video: member.is_verified === true },
+      location: { city: business.service_city || null, region: business.service_state || null },
+    });
+    for (const restaurant of restaurantResult.rows.filter((item) => item.is_verified)) publishers.push({
+      key: `restaurant:${restaurant.id}`,
+      actor_id: restaurant.media_actor_id || null,
+      actor_type: 'restaurant', entity_id: restaurant.id,
+      display_name: restaurant.display_name, avatar_url: restaurant.logo_url || null,
+      verified: true, eligibility: { text: true, photo: true, video: member.is_verified === true },
+      location: { city: restaurant.address_city || null, region: restaurant.address_state || null },
+    });
+
     return res.json({
-      helper: userResult.rows[0] || { is_verified: false, didit_status: 'pending', didit_verified_at: null },
+      helper: member,
       businesses: businessResult.rows,
       restaurants: restaurantResult.rows,
+      publishers,
     });
   } catch (err) {
     logger.error('mediaVerification.getCenter error', { message: err.message, userId: req.user?.id });
