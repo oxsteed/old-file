@@ -2209,6 +2209,8 @@
     "metaDesc": "Trouvez des missions dans votre région publiées par des particuliers et des entreprises. Faites des offres sur des missions correspondant à vos compétences et votre disponibilité."
   },
   "settings": {
+    "accountDeleteHasBalance": "Vous avez encore un solde, une retenue ou un versement en attente. Retirez ou utilisez votre solde restant et attendez la fin des versements en attente avant de supprimer votre compte, ou contactez support@oxsteed.com.",
+    "accountDeleteSubscriptionRetry": "Nous n'avons pas pu annuler votre abonnement pour le moment, votre compte n'a donc pas été supprimé. Réessayez dans quelques minutes.",
     "title": "Paramètres",
     "tabProfile": "Profil",
     "tabSecurity": "Sécurité",

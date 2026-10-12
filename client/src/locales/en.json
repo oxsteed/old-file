@@ -2209,6 +2209,8 @@
     "metaDesc": "Find jobs in your area posted by homeowners and businesses. Bid on work that matches your skills and schedule."
   },
   "settings": {
+    "accountDeleteHasBalance": "You still have a balance, hold, or pending payout. Withdraw or use your remaining balance and let pending payouts finish before deleting your account, or contact support@oxsteed.com.",
+    "accountDeleteSubscriptionRetry": "We could not cancel your subscription right now, so your account was not deleted. Please try again in a few minutes.",
     "title": "Settings",
     "tabProfile": "Profile",
     "tabSecurity": "Security",

@@ -2209,6 +2209,8 @@
     "metaDesc": "Encuentra trabajos en tu área publicados por propietarios y empresas. Haz ofertas en trabajos que coincidan con tus habilidades y horario."
   },
   "settings": {
+    "accountDeleteHasBalance": "Todavía tienes un saldo, una retención o un pago pendiente. Retira o usa tu saldo restante y espera a que terminen los pagos pendientes antes de eliminar tu cuenta, o escribe a support@oxsteed.com.",
+    "accountDeleteSubscriptionRetry": "No pudimos cancelar tu suscripción en este momento, así que tu cuenta no se eliminó. Inténtalo de nuevo en unos minutos.",
     "title": "Configuración",
     "tabProfile": "Perfil",
     "tabSecurity": "Seguridad",

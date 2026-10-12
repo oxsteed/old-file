@@ -2296,6 +2296,8 @@
     "metaDesc": "Jwenn travay nan zòn ou pibliye pa pwopriyetè kay ak biznis. Fè òf sou travay ki matche ak ladrès ak orè ou."
   },
   "settings": {
+    "accountDeleteHasBalance": "Ou toujou gen yon balans, yon kenbe oswa yon peman ki an atant. Retire oswa itilize rès balans ou epi kite peman ki an atant yo fini anvan ou efase kont ou, oswa kontakte support@oxsteed.com.",
+    "accountDeleteSubscriptionRetry": "Nou pa t ka anile abònman ou kounye a, kidonk kont ou pa t efase. Tanpri eseye ankò nan kèk minit.",
     "title": "Paramèt",
     "tabProfile": "Pwofil",
     "tabSecurity": "Sekirite",
