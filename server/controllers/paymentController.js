@@ -1,9 +1,6 @@
 const pool = require('../db');
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const {
-  calculateTier3Fees
-} = require('../utils/feeCalculator');
-const {
   validate,
   rules
 } = require('../utils/validate');
