@@ -69,6 +69,8 @@ const {
   setAccessTokenCookie,
   setRefreshTokenCookie,
   clearRefreshTokenCookie,
+  isCookieSecure,
+  bodyTokens,
 } = require('../utils/authCookies');
 
 function parseCookies(req) {
@@ -91,6 +93,17 @@ function parseCookies(req) {
 
 // Refresh token source: explicit body value first (native/mobile + existing
 // web sessions), httpOnly cookie second (current web sessions).
+async function currentSessionIdFromRequest(req) {
+  const token = getRefreshTokenFromRequest(req);
+  if (!token) return null;
+  const hashed = crypto.createHash('sha256').update(token).digest('hex');
+  const { rows } = await pool.query(
+    'SELECT id FROM sessions WHERE refresh_token = $1 AND user_id = $2 AND is_valid = true AND is_revoked = false',
+    [hashed, req.user.id]
+  );
+  return rows[0]?.id || null;
+}
+
 function getRefreshTokenFromRequest(req) {
   return req.body?.refreshToken || parseCookies(req)[REFRESH_COOKIE_NAME] || null;
 }
@@ -508,8 +521,7 @@ async function login(req, res, next) {
       success: true,
       message: 'Login successful',
       user: formatAuthUser(user),
-      accessToken: tokens.accessToken,
-      refreshToken: tokens.refreshToken
+      ...bodyTokens(req, tokens)
     });
   } catch (err) {
     next(err);
@@ -683,8 +695,7 @@ async function loginWith2FA(req, res, next) {
       success: true,
       message: 'Login successful',
       user: formatAuthUser(fullRows[0]),
-      accessToken: tokens.accessToken,
-      refreshToken: tokens.refreshToken
+      ...bodyTokens(req, tokens)
     });
   } catch (err) {
     logger.error('Login 2FA error', { error: err.message, stack: err.stack });
@@ -800,7 +811,7 @@ async function refreshToken(req, res, next) {
 
     const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
     const { rows: sessionRows } = await pool.query(
-      'SELECT s.user_id, s.is_valid, s.is_revoked FROM sessions s WHERE s.refresh_token = $1',
+      'SELECT s.user_id, s.is_valid, s.is_revoked, s.expires_at FROM sessions s WHERE s.refresh_token = $1',
       [hashedToken]
     );
     if (!sessionRows[0]) {
@@ -821,6 +832,9 @@ async function refreshToken(req, res, next) {
       throw new AppError('This browser session has expired. Please sign in again.', 401, 'token_reuse');
     }
     if (!sessionRows[0].is_valid) {
+      throw new AppError('Your session has expired. Please log in again.', 401, 'token_expired');
+    }
+    if (sessionRows[0].expires_at && new Date(sessionRows[0].expires_at) <= new Date()) {
       throw new AppError('Your session has expired. Please log in again.', 401, 'token_expired');
     }
 
@@ -855,12 +869,19 @@ async function refreshToken(req, res, next) {
     const user = userRows[0];
     const tokens = generateTokens(user);
     const hashedRefresh = crypto.createHash('sha256').update(tokens.refreshToken).digest('hex');
-    await pool.query(
-      "INSERT INTO sessions (user_id, refresh_token, expires_at) VALUES ($1, $2, NOW() + interval '7 days')",
-      [user.id, hashedRefresh]
+    // Review P1-112: the rotated session inherits the original absolute
+    // expiry, so a 30-day "remember me" session stays 30 days (and a 7-day
+    // one cannot be extended forever by refreshing).
+    const inheritedExpiry = sessionRows[0].expires_at ? new Date(sessionRows[0].expires_at) : null;
+    const { rows: newSessionRows } = await pool.query(
+      `INSERT INTO sessions (user_id, refresh_token, expires_at)
+       VALUES ($1, $2, COALESCE($3::timestamptz, NOW() + interval '7 days'))
+       RETURNING expires_at`,
+      [user.id, hashedRefresh, inheritedExpiry]
     );
+    const newExpiry = newSessionRows?.[0]?.expires_at ? new Date(newSessionRows[0].expires_at) : inheritedExpiry;
     // H8d: rotate the httpOnly refresh cookie alongside the session.
-    setRefreshTokenCookie(res, tokens.refreshToken);
+    setRefreshTokenCookie(res, tokens.refreshToken, newExpiry ? { maxAgeMs: Math.max(0, newExpiry.getTime() - Date.now()) } : {});
     // Set access token cookie (parity with login).
     const isProdRefresh = process.env.NODE_ENV === 'production';
     res.cookie('oxsteed_access', tokens.accessToken, {
@@ -873,8 +894,7 @@ async function refreshToken(req, res, next) {
     res.json({
       success: true,
       user: formatAuthUser(user),
-      accessToken: tokens.accessToken,
-      refreshToken: tokens.refreshToken
+      ...bodyTokens(req, tokens)
     });
   } catch (err) {
     next(err);
@@ -892,11 +912,20 @@ async function logout(req, res) {
     if (token) {
       const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
       const { rows: invalidateRows } = await pool.query(
-        'UPDATE sessions SET is_valid = false, is_revoked = true WHERE refresh_token = $1 RETURNING id',
+        'UPDATE sessions SET is_valid = false, is_revoked = true WHERE refresh_token = $1 RETURNING id, user_id',
         [hashedToken]
       );
       if (invalidateRows.length > 0) {
         didInvalidateSession = true;
+        // Review P1-116: cookie-only logout ends every session for the user,
+        // matching the bearer-token path below.
+        if (invalidateRows[0].user_id) {
+          userId = invalidateRows[0].user_id;
+          await pool.query(
+            'UPDATE sessions SET is_valid = false, is_revoked = true WHERE user_id = $1 AND is_valid = true',
+            [userId]
+          );
+        }
         // Revoke the refresh token immediately
         const tokenId = crypto.createHash('sha256').update(token).digest('hex');
         await tokenRevocationService.revokeRefreshToken(tokenId);
@@ -945,7 +974,7 @@ async function logout(req, res) {
     // Audit fix: also clear the access token cookie.
     res.setHeader('Set-Cookie', [
       res.getHeader('Set-Cookie'),
-      'oxsteed_access=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0'
+      `oxsteed_access=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0${isCookieSecure() ? '; Secure' : ''}`
     ].filter(Boolean).flat());
 
     res.json({ message: 'Logged out' });
@@ -1825,9 +1854,12 @@ async function changePassword(req, res) {
 
     // Audit fix: also invalidate all sessions (except the current one, which
     // stays valid so the user isn't logged out of the session they just used).
+    // Review P1-115: identify the current session from its refresh token
+    // (nothing sets req.sessionId) so the user is not logged out here.
+    const currentSessionId = await currentSessionIdFromRequest(req);
     await pool.query(
       'UPDATE sessions SET is_valid = false, is_revoked = true WHERE user_id = $1 AND id != $2',
-      [req.user.id, req.sessionId || '00000000-0000-0000-0000-000000000000']
+      [req.user.id, currentSessionId || req.sessionId || '00000000-0000-0000-0000-000000000000']
     );
 
     // Security: password change revokes passkeys too. A planted passkey
@@ -2182,8 +2214,7 @@ async function switchRole(req, res) {
     return res.json({
       success: true,
       user: formatAuthUser(updatedUser),
-      accessToken: tokens.accessToken,
-      refreshToken: tokens.refreshToken,
+      ...bodyTokens(req, tokens),
     });
   } catch (err) {
     try { await client.query('ROLLBACK'); } catch (_) { /* ignore */ }
