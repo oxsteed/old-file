@@ -41,6 +41,7 @@ function PayForm({ info }) {
   const [email, setEmail] = useState('');
   const [formError, setFormError] = useState('');
   const [starting, setStarting] = useState(false);
+  const [creditPaid, setCreditPaid] = useState(null);
   const checkoutRequestRef = useRef(null);
 
   const amountCents = isFixed ? info.amount_cents : (() => {
@@ -48,8 +49,17 @@ function PayForm({ info }) {
     return Number.isFinite(parsed) ? Math.round(parsed * 100) : null;
   })();
 
-  const handlePay = async (event) => {
-    event.preventDefault();
+  // P1-302: payer-facing, localized messages for the known refusal codes.
+  const checkoutErrorMessage = (err) => {
+    const code = err?.response?.data?.code;
+    if (code === 'recipient_unavailable') return t('qrPay.recipientUnavailable');
+    if (code === 'qr_public_url_missing') return t('qrPay.temporarilyUnavailable');
+    if (code === 'feature_disabled') return t('qrPay.creditUnavailable');
+    const message = err?.response?.data?.error || err?.response?.data?.message;
+    return message || t('qrPay.checkoutError', { defaultValue: 'Could not start checkout. Please try again.' });
+  };
+
+  const submitPayment = async (method) => {
     setFormError('');
 
     let cents = amountCents;
@@ -70,7 +80,8 @@ function PayForm({ info }) {
       const payload = {};
       if (!isFixed && cents != null) payload.amount_cents = cents;
       if (trimmedEmail) payload.payer_email = trimmedEmail;
-      const fingerprint = `${info.code}|${cents}|${trimmedEmail.toLowerCase()}`;
+      if (method === 'credit') payload.payment_method = 'credit';
+      const fingerprint = `${info.code}|${method}|${cents}|${trimmedEmail.toLowerCase()}`;
       if (checkoutRequestRef.current?.fingerprint !== fingerprint) {
         const requestId = typeof crypto?.randomUUID === 'function'
           ? crypto.randomUUID()
@@ -80,15 +91,37 @@ function PayForm({ info }) {
       const { data } = await api.post(`/qr-payments/pay/${info.code}/checkout`, payload, {
         headers: { 'Idempotency-Key': checkoutRequestRef.current.requestId },
       });
+      if (method === 'credit') {
+        // P1-303: Credit settles immediately; no Stripe redirect.
+        if (data?.status !== 'paid') throw new Error('credit payment not settled');
+        setCreditPaid({ amount_cents: cents });
+        setStarting(false);
+        return;
+      }
       const url = data?.url;
       if (!url) throw new Error('missing checkout url');
       window.location.href = url;
     } catch (err) {
-      const message = err?.response?.data?.error || err?.response?.data?.message;
-      setFormError(message || t('qrPay.checkoutError', { defaultValue: 'Could not start checkout. Please try again.' }));
+      setFormError(checkoutErrorMessage(err));
       setStarting(false);
     }
   };
+
+  const handlePay = (event) => {
+    event.preventDefault();
+    submitPayment('card');
+  };
+
+  if (creditPaid) {
+    return (
+      <div className="pbq-state" role="status">
+        <CheckCircle2 size={56} className="pbq-success-icon" aria-hidden="true" />
+        <h2>{t('qrPay.successTitle', { defaultValue: 'Payment successful' })}</h2>
+        <p>{t('qrPay.creditPaidBody', { amount: formatMoney(creditPaid.amount_cents, info.currency, i18n.language), name: info.recipient_name })}</p>
+        <Link to="/" className="pbq-btn pbq-btn-secondary">{t('qrPay.backHome', { defaultValue: 'Back to home' })}</Link>
+      </div>
+    );
+  }
 
   return (
     <form onSubmit={handlePay} className="pbq-form" noValidate>
@@ -167,6 +200,12 @@ function PayForm({ info }) {
             : t('qrPay.payButton', { defaultValue: 'Pay' })}
       </button>
 
+      {info.credit_enabled && (
+        <button type="button" className="pbq-btn pbq-btn-secondary" disabled={starting} onClick={() => submitPayment('credit')}>
+          {t('qrPay.payWithCredit')}
+        </button>
+      )}
+
       <p className="pbq-secure-note">
         <Lock size={13} aria-hidden="true" />
         {t('qrPay.secureNote', { defaultValue: 'Secure payment powered by Stripe. You do not need an account.' })}
@@ -179,8 +218,12 @@ function SuccessView({ code }) {
   const { t, i18n } = useTranslation();
   const { user } = useAuth();
   const [searchParams] = useSearchParams();
-  const [status, setStatus] = useState('polling'); // polling | succeeded | pending
+  const [status, setStatus] = useState('polling'); // polling | succeeded | pending | expired
   const [receipt, setReceipt] = useState(null);
+  // P1-298: bumping the round restarts polling from the "still confirming"
+  // state, so the page is no longer a dead end. The server reconciles a
+  // pending row directly with Stripe on every receipt read.
+  const [round, setRound] = useState(0);
 
   const sessionId = searchParams.get('session_id');
 
@@ -200,12 +243,11 @@ function SuccessView({ code }) {
       try {
         const data = await fetchReceipt();
         if (cancelled) return;
-        if (data?.status === 'succeeded') {
-          setReceipt(data);
-          setStatus('succeeded');
+        setReceipt(data);
+        if (data?.status === 'succeeded' || data?.status === 'expired') {
+          setStatus(data.status);
           return;
         }
-        setReceipt(data);
       } catch {
         // Keep polling on transient errors; the timeout below ends it.
       }
@@ -222,12 +264,22 @@ function SuccessView({ code }) {
       setStatus('pending');
       return undefined;
     }
+    setStatus('polling');
     poll();
     return () => {
       cancelled = true;
       if (timer) window.clearTimeout(timer);
     };
-  }, [fetchReceipt, sessionId]);
+  }, [fetchReceipt, sessionId, round]);
+
+  const details = receipt ? (
+    <dl className="pbq-receipt">
+      <div><dt>{t('qrPay.receiptAmount')}</dt><dd>{formatMoney(receipt.amount_cents, receipt.currency, i18n.language)}</dd></div>
+      {receipt.recipient_name && <div><dt>{t('qrPay.receiptTo')}</dt><dd>{receipt.recipient_name}</dd></div>}
+      {receipt.label && <div><dt>{t('qrPay.receiptFor')}</dt><dd>{receipt.label}</dd></div>}
+      {receipt.created_at && <div><dt>{t('qrPay.receiptDate')}</dt><dd>{new Date(receipt.created_at).toLocaleString(i18n.language)}</dd></div>}
+    </dl>
+  ) : null;
 
   if (status === 'polling') {
     return (
@@ -249,7 +301,7 @@ function SuccessView({ code }) {
             defaultValue: 'Your payment of {{amount}} was received. Thank you!',
           })}
         </p>
-        {receipt.label && <p className="pbq-for-label">{receipt.label}</p>}
+        {details}
         <div className="pbq-success-actions">
           {user && (
             <Link to="/my-bookings" className="pbq-btn pbq-btn-primary">
@@ -264,14 +316,33 @@ function SuccessView({ code }) {
     );
   }
 
+  if (status === 'expired') {
+    return (
+      <div className="pbq-state">
+        <AlertCircle size={48} aria-hidden="true" />
+        <h2>{t('qrPay.expiredTitle')}</h2>
+        <p>{t('qrPay.expiredBody')}</p>
+        <Link to={`/pay/${code}`} className="pbq-btn pbq-btn-primary">{t('qrPay.tryAgain')}</Link>
+      </div>
+    );
+  }
+
   return (
     <div className="pbq-state">
       <Clock3 size={48} aria-hidden="true" />
       <h2>{t('qrPay.successPending', { defaultValue: 'Confirming your payment...' })}</h2>
-      <p>{t('qrPay.successTimeout', { defaultValue: 'We are still confirming your payment. Check your email for the receipt.' })}</p>
-      <Link to="/" className="pbq-btn pbq-btn-secondary">
-        {t('qrPay.backHome', { defaultValue: 'Back to home' })}
-      </Link>
+      <p>{t('qrPay.stillConfirmingBody')}</p>
+      {details}
+      <div className="pbq-success-actions">
+        {sessionId && (
+          <button type="button" className="pbq-btn pbq-btn-primary" onClick={() => setRound((n) => n + 1)}>
+            {t('qrPay.checkAgain')}
+          </button>
+        )}
+        <Link to="/" className="pbq-btn pbq-btn-secondary">
+          {t('qrPay.backHome', { defaultValue: 'Back to home' })}
+        </Link>
+      </div>
     </div>
   );
 }

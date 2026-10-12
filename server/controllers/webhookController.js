@@ -1604,19 +1604,27 @@ async function applyQrPaymentSucceeded(session) {
     });
     return 0;
   }
-  const { rowCount } = await db.query(
+  const { rows: updatedQr = [], rowCount } = await db.query(
     `UPDATE qr_payments
         SET status = 'succeeded',
             succeeded_at = NOW(),
             stripe_payment_intent_id = COALESCE($2, stripe_payment_intent_id)
       WHERE stripe_checkout_session_id = $1
         AND status <> 'succeeded'
-        AND amount_cents = $3`,
+        AND amount_cents = $3
+      RETURNING id, qr_code_id, amount_cents`,
     [session.id, paymentIntentId, session.amount_total]
   );
   if (rowCount === 0) {
     logger.warn('[webhook] QR payment amount mismatch or already succeeded; not marking succeeded', {
       sessionId: session.id, amountTotal: session.amount_total,
+    });
+  }
+  // P1-301: tell the payee. Only the transition that flipped the row
+  // notifies, and the idempotency key makes replays a no-op.
+  for (const row of updatedQr) {
+    await require('../services/qrPaymentNotifications').notifyQrPayee(row).catch((err) => {
+      logger.warn('[webhook] QR payee notification failed', { qrPaymentId: row.id, error: err.message });
     });
   }
   return rowCount;
