@@ -739,14 +739,14 @@ div.media-support-panel { z-index: 150; }
 /* Composer: durable drafts and private upload state are visible at every step. */
 .media-reference-shell.media-compose-shell .media-layout { grid-template-columns: 210px minmax(0, 820px) 250px; max-width: 1360px; }
 .media-compose-shell .media-content { border: 0; }
-.media-compose-page { min-width: 0; padding: 24px 0 56px; }
+.media-compose-page { min-width: 0; padding: 28px 0 56px; }
 .media-compose-page-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 18px; }
 .media-compose-page-heading h1 { margin: 0; color: var(--color-text); font-size: clamp(25px, 3vw, 34px); line-height: 1.15; }
 .media-compose-page-heading > div > p:last-child { margin: 7px 0 0; color: var(--color-text-muted); font-size: 14px; }
-.media-compose-workspace { display: grid; grid-template-columns: 218px minmax(0, 1fr); gap: 16px; align-items: start; }
-.media-drafts-panel, .media-compose-card { border: 1px solid var(--color-border); border-radius: 18px; background: var(--color-surface); box-shadow: 0 14px 40px rgb(15 23 42 / 5%); }
+.media-compose-workspace { display: grid; grid-template-columns: 196px minmax(0, 1fr); gap: 14px; align-items: start; }
+.media-drafts-panel, .media-compose-card { border: 1px solid var(--color-border); border-radius: 22px; background: var(--color-surface); box-shadow: 0 18px 42px rgb(15 23 42 / 8%); }
 .media-drafts-panel { position: sticky; top: 88px; max-height: calc(100dvh - 112px); overflow: hidden; }
-.media-drafts-heading { padding: 14px; border-bottom: 1px solid var(--color-border); }
+.media-drafts-heading { padding: 16px; border-bottom: 1px solid var(--color-border); }
 .media-drafts-heading, .media-drafts-heading > div, .media-drafts-heading > button { display: flex; align-items: center; gap: 8px; }
 .media-drafts-heading { justify-content: space-between; }
 .media-drafts-heading h2 { margin: 0; font-size: 15px; }
@@ -768,7 +768,7 @@ div.media-support-panel { z-index: 150; }
 .media-content-warning { padding: 16px; margin-block: 12px; border: 1px solid var(--color-border); border-radius: 12px; background: var(--color-surface-2); }
 .media-content-warning p { margin-block: 8px; }
 .media-content-warning .media-post-assets { margin-top: 12px; }
-.media-publisher-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto minmax(150px, auto); align-items: center; gap: 11px; padding: 16px 18px; border-bottom: 1px solid var(--color-border); }
+.media-publisher-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto minmax(150px, auto); align-items: center; gap: 12px; padding: 18px 20px; border-bottom: 1px solid var(--color-border); }
 .media-publisher-avatar { display: grid; place-items: center; width: 42px; height: 42px; overflow: hidden; border-radius: 50%; background: var(--color-surface-2); color: var(--color-text-muted); }
 .media-publisher-avatar img { width: 100%; height: 100%; object-fit: cover; }
 .media-publisher-row > div > span, .media-publisher-row > div > strong, .media-publisher-row > div > small { display: flex; align-items: center; gap: 4px; }
@@ -779,7 +779,7 @@ div.media-support-panel { z-index: 150; }
 .media-publisher-row select, .media-compose-select select { min-height: 42px; padding: 8px 32px 8px 10px; border: 1px solid var(--color-border); border-radius: 10px; }
 .media-publisher-row select { grid-column: 4; min-width: 0; width: 100%; max-width: 240px; }
 .media-publisher-row > div { min-width: 0; overflow-wrap: anywhere; }
-.media-compose-editor { margin: 16px 18px; overflow: visible; border: 1px solid var(--color-border); border-radius: 14px; }
+.media-compose-editor { margin: 18px 20px; overflow: visible; border: 1px solid var(--color-border); border-radius: 16px; background: color-mix(in srgb, var(--color-surface-2) 46%, transparent); }
 .media-compose-editor textarea { width: 100%; min-height: 132px; padding: 15px; border: 0; border-radius: 14px 14px 0 0; background: transparent; color: var(--color-text); font: inherit; font-size: 16px; line-height: 1.55; resize: vertical; }
 .media-compose-editor textarea:focus { outline: 2px solid var(--color-primary); outline-offset: -2px; }
 .media-editor-toolbar { position: relative; display: flex; align-items: center; gap: 4px; padding: 7px 10px; border-top: 1px solid var(--color-border); }
@@ -789,7 +789,7 @@ div.media-support-panel { z-index: 150; }
 .media-emoji-control { position: relative; }
 .media-emoji-picker { position: absolute; z-index: 20; inset-inline-start: 0; top: calc(100% + 8px); display: grid; grid-template-columns: repeat(4, 42px); gap: 3px; padding: 8px; border: 1px solid var(--color-border); border-radius: 12px; background: var(--color-surface); box-shadow: 0 12px 30px rgb(15 23 42 / 18%); }
 .media-emoji-picker button { font-size: 20px; }
-.media-compose-section { padding: 18px; border-top: 1px solid var(--color-border); }
+.media-compose-section { padding: 20px; border-top: 1px solid var(--color-border); }
 .media-compose-section-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
 .media-compose-section-heading h2 { margin: 0; font-size: 15px; }
 .media-compose-section-heading p { margin: 4px 0 0; color: var(--color-text-muted); font-size: 11px; line-height: 1.5; }
@@ -855,7 +855,7 @@ div.media-support-panel { z-index: 150; }
 .media-compose-error { display: flex; align-items: center; gap: 9px; margin: 0 18px 14px; padding: 11px 12px; border-radius: 10px; background: var(--color-error-bg); color: var(--color-error); font-size: 12px; }
 .media-compose-error span { flex: 1; }
 .media-compose-error a { color: inherit; font-weight: 750; }
-.media-compose-actions { position: sticky; z-index: 8; bottom: 0; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 13px 18px; border-top: 1px solid var(--color-border); border-radius: 0 0 18px 18px; background: color-mix(in srgb, var(--color-surface) 94%, transparent); backdrop-filter: blur(14px); }
+.media-compose-actions { position: sticky; z-index: 8; bottom: 0; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 15px 20px; border-top: 1px solid var(--color-border); border-radius: 0 0 22px 22px; background: color-mix(in srgb, var(--color-surface) 94%, transparent); backdrop-filter: blur(14px); }
 .media-compose-actions > div { display: flex; align-items: center; justify-content: flex-end; gap: 5px; }
 .media-compose-actions .media-primary-button { border: 0; cursor: pointer; }
 .media-compose-actions button:disabled { opacity: .55; cursor: not-allowed; }
