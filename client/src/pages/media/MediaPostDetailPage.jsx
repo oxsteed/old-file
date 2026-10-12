@@ -6,6 +6,7 @@ import { createPost, deletePost, getPost, getQuotes, getReplies, recordView, rep
 import './MediaStyles.css';
 import MediaPostCard from './MediaPostCard';
 import MediaReplyComposer from './MediaReplyComposer';
+import MediaModerationPanel from './MediaModerationPanel';
 import PageMeta from '../../components/PageMeta';
 import { useMediaGuestGate } from './MediaGuestGate';
 
@@ -14,6 +15,9 @@ export default function MediaPostDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const [moderationUnavailable, setModerationUnavailable] = useState(false);
+  const markModerationUnavailable = useCallback(() => setModerationUnavailable(true), []);
+  useEffect(() => { setModerationUnavailable(false); }, [id]);
   const { requireLogin } = useMediaGuestGate();
   const [post, setPost] = useState(null);
   const [replies, setReplies] = useState([]);
@@ -217,7 +221,10 @@ export default function MediaPostDetailPage() {
             <button type="button" onClick={load}>{t('common.retry', 'Retry')}</button>
           </div>
         )}
-        {!loading && !error && !post && (
+        {!loading && !error && !post && user?.id && !moderationUnavailable && (
+          <MediaModerationPanel postId={id} onUnavailable={markModerationUnavailable} />
+        )}
+        {!loading && !error && !post && (!user?.id || moderationUnavailable) && (
           <div className="media-empty-state">
             <p>{t('media.post.notFound')}</p>
           </div>

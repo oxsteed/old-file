@@ -30413,6 +30413,25 @@
     "refundUnavailableHint": "Kòmand sa a pa nan yon eta peman ki ka ranbouse kounye a."
   },
   "media": {
+    "moderation": {
+      "appealStatus": {
+        "rejected": "Yo pa t aksepte apèl ou a.",
+        "accepted": "Yo aksepte apèl ou a.",
+        "under_review": "Y ap revize apèl ou a.",
+        "open": "Apèl la voye. N ap revize l byento."
+      },
+      "appealFailed": "Nou pa t ka voye apèl ou a. Eseye ankò.",
+      "appealExists": "Gen yon apèl pou piblikasyon sa a k ap tann revizyon deja.",
+      "reasonRequired": "Ajoute yon ti eksplikasyon.",
+      "appealSubmit": "Voye apèl la",
+      "appealLabel": "Di nou poukisa nou ta dwe revize desizyon sa a",
+      "otherBody": "Se ou sèl ki ka wè piblikasyon sa a egziste.",
+      "otherTitle": "Piblikasyon sa a pa piblik",
+      "removedBody": "Ekip nou an retire piblikasyon sa a paske li pa t respekte règ kominote a.",
+      "removedTitle": "Yo retire piblikasyon w lan",
+      "heldBody": "Plizyè moun siyale piblikasyon sa a, kidonk li kache pou lòt moun pandan ekip nou an ap revize l.",
+      "heldTitle": "Piblikasyon w lan sispann pou revizyon"
+    },
     "landing": {
       "heroTitle": "Katye ou, konekte.",
       "heroDescription": "Dekouvri moun, kote ak opòtinite toupre ou.",
@@ -30805,6 +30824,11 @@
       "emptyDescription": "Pataje yon bagay ki itil ak kominote lokal ou a."
     },
     "compose": {
+      "uploadStalled": "Telechajman an sispann reponn. Tcheke koneksyon ou epi eseye ankò.",
+      "uploadCancelled": "Telechajman an anile.",
+      "cancelUpload": "Anile",
+      "videoUnavailable": "Piblikasyon videyo pa disponib kounye a. Retire videyo a oswa pibliye foto pito.",
+      "processingDelayedRemove": "Verifikasyon medya yo ap pran plis tan pase sa nou te prevwa. Si sa pa regle, retire videyo a epi pibliye ak foto oswa tèks.",
       "verificationRequired": "Verifikasyon obligatwa",
       "notVerified": "Pa verifye",
       "saveDraft": "Anrejistre bouyon",

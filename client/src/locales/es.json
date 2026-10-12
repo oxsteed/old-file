@@ -30413,6 +30413,25 @@
     "refundUnavailableHint": "Este pedido no se encuentra actualmente en un estado de pago reembolsable."
   },
   "media": {
+    "moderation": {
+      "appealStatus": {
+        "rejected": "Tu apelación no fue aceptada.",
+        "accepted": "Tu apelación fue aceptada.",
+        "under_review": "Tu apelación está en revisión.",
+        "open": "Apelación enviada. La revisaremos pronto."
+      },
+      "appealFailed": "No se pudo enviar tu apelación. Inténtalo de nuevo.",
+      "appealExists": "Ya hay una apelación pendiente de revisión para esta publicación.",
+      "reasonRequired": "Agrega una breve explicación.",
+      "appealSubmit": "Enviar apelación",
+      "appealLabel": "Cuéntanos por qué debemos revisar esta decisión",
+      "otherBody": "Solo tú puedes ver que esta publicación existe.",
+      "otherTitle": "Esta publicación no es pública",
+      "removedBody": "Nuestro equipo eliminó esta publicación por incumplir las normas de la comunidad.",
+      "removedTitle": "Se eliminó tu publicación",
+      "heldBody": "Varias personas denunciaron esta publicación, así que está oculta para los demás mientras nuestro equipo la revisa.",
+      "heldTitle": "Tu publicación está en revisión"
+    },
     "landing": {
       "heroTitle": "Tu vecindario, conectado.",
       "heroDescription": "Descubre personas, lugares y oportunidades cerca de ti.",
@@ -30805,6 +30824,11 @@
       "emptyDescription": "Comparte algo útil con tu comunidad local."
     },
     "compose": {
+      "uploadStalled": "La carga dejó de responder. Revisa tu conexión e inténtalo de nuevo.",
+      "uploadCancelled": "Carga cancelada.",
+      "cancelUpload": "Cancelar",
+      "videoUnavailable": "Las publicaciones con video no están disponibles en este momento. Quita el video o publica fotos.",
+      "processingDelayedRemove": "La revisión de los archivos está tardando más de lo esperado. Si no se resuelve, quita el video y publica con fotos o texto.",
       "verificationRequired": "Verificación requerida",
       "notVerified": "Sin verificar",
       "saveDraft": "Guardar borrador",

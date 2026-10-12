@@ -48,10 +48,14 @@ function normalizeComposerDestination(value) {
   return ['main', 'nearby', 'space'].includes(destination) ? destination : 'main';
 }
 
+const UPLOAD_STALL_MS = 60_000;
+
 function assetState(asset) {
   if (asset.processing_status === 'blocked' || asset.csam_status === 'flagged') return 'blocked';
   if (asset.processing_status === 'failed') return 'failed';
-  if (asset.csam_status === 'unavailable' || asset.processing_status === 'waiting_configuration') return 'waiting';
+  // P1-288: the server never writes processing_status 'waiting_configuration';
+  // only an unavailable CSAM check means "waiting".
+  if (asset.csam_status === 'unavailable') return 'waiting';
   if (asset.processing_status === 'quarantine' || asset.csam_status === 'pending') return 'scanning';
   if (asset.processing_status && asset.processing_status !== 'ready') return 'processing';
   return 'ready';
@@ -119,6 +123,10 @@ export default function MediaComposePage() {
   const sessionRef = useRef(0);
   const [transitioning, setTransitioning] = useState(false);
   const uploadBusyRef = useRef(false);
+  // P1-286: one AbortController per in-flight upload, plus a stall watchdog,
+  // so a hung XHR can be cancelled (or self-aborts) instead of wedging the
+  // composer with Publish disabled.
+  const uploadControllersRef = useRef(new Map());
   const assetRevisionRef = useRef(0);
   const [attachmentBusy, setAttachmentBusy] = useState(false);
   const metadataRef = useRef(new Map());
@@ -267,7 +275,7 @@ export default function MediaComposePage() {
     const refreshProcessingDraft = async () => {
       pollCount += 1;
       if (pollCount > 90) {
-        setProcessingNotice(t('media.compose.processingDelayed'));
+        setProcessingNotice(t('media.compose.processingDelayedRemove'));
         setProcessingStatus('delayed');
         window.clearInterval(timer);
         return;
@@ -398,14 +406,42 @@ export default function MediaComposePage() {
           const digest = await globalThis.crypto.subtle.digest('SHA-256', await file.arrayBuffer());
           fileDigest = [...new Uint8Array(digest)].map(value => value.toString(16).padStart(2, '0')).join('');
         }
-        const progress = event => setUploads(current => current.map(item => item.id === localId ? { ...item, progress: event.total ? Math.round(event.loaded / event.total * 100) : item.progress } : item));
-        const options = targetAssetId && index === 0 ? { replaceAssetId: targetAssetId } : {};
-        const result = file.type.startsWith('video/') ? await uploadVideo(id, file, progress, options) : await uploadPhoto(id, file, progress, options);
+        const controller = new AbortController();
+        let stalled = false;
+        let watchdog;
+        const armWatchdog = () => {
+          window.clearTimeout(watchdog);
+          watchdog = window.setTimeout(() => { stalled = true; controller.abort(); }, UPLOAD_STALL_MS);
+        };
+        uploadControllersRef.current.set(localId, controller);
+        armWatchdog();
+        const progress = event => {
+          armWatchdog();
+          setUploads(current => current.map(item => item.id === localId ? { ...item, progress: event.total ? Math.round(event.loaded / event.total * 100) : item.progress } : item));
+        };
+        const options = { ...(targetAssetId && index === 0 ? { replaceAssetId: targetAssetId } : {}), signal: controller.signal };
+        let result;
+        try {
+          result = file.type.startsWith('video/') ? await uploadVideo(id, file, progress, options) : await uploadPhoto(id, file, progress, options);
+        } catch (uploadErr) {
+          if (controller.signal.aborted) uploadErr.uploadAbortReason = stalled ? 'stalled' : 'cancelled';
+          throw uploadErr;
+        } finally {
+          window.clearTimeout(watchdog);
+          uploadControllersRef.current.delete(localId);
+        }
         setAssets(current => [...current.filter(asset => asset.id !== result.asset.id && !(targetAssetId && index === 0 && asset.id === targetAssetId)), result.asset].sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0)));
         setUploads(current => current.filter(item => item.id !== localId));
         setSaveState(dirtyRef.current ? 'idle' : 'saved');
       } catch (err) {
-        setUploads(current => current.map(item => item.id === localId ? { ...item, state: 'failed', error: err.response?.data?.error || t('media.compose.uploadFailed') } : item));
+        const failure = err.uploadAbortReason === 'stalled'
+          ? t('media.compose.uploadStalled')
+          : err.uploadAbortReason === 'cancelled'
+            ? t('media.compose.uploadCancelled')
+            : err.response?.data?.code === 'media_video_unavailable'
+              ? t('media.compose.videoUnavailable')
+              : err.response?.data?.error || t('media.compose.uploadFailed');
+        setUploads(current => current.map(item => item.id === localId ? { ...item, state: 'failed', error: failure } : item));
         if (id) try {
           const data = await getDraft(id);
           const durable = data.draft?.assets || [];
@@ -621,7 +657,7 @@ export default function MediaComposePage() {
             <p className="media-safety-note"><ShieldCheck size={15} />{t('media.compose.safetyNote')}</p>
             {(assets.length > 0 || uploads.length > 0) && <div className="media-attachment-list" aria-live="polite">
               {assets.map((asset, index) => { const Icon = attachmentIcon(asset); const state = assetState(asset); return <article key={asset.id} className={`media-attachment-card state-${state}`}><div className="media-attachment-preview">{asset.asset_type === 'image' && (asset.thumbnail_url || asset.url) ? <img src={asset.thumbnail_url || asset.url} alt="" /> : <Icon size={24} />}</div><div className="media-attachment-details"><strong>{asset.asset_type === 'video_link' ? asset.provider : t(`media.compose.assetTypes.${asset.asset_type}`)}</strong><span className="media-asset-state">{state === 'ready' && <Check size={14} />}{state === 'blocked' && <AlertTriangle size={14} />}{['scanning', 'processing'].includes(state) && <Loader2 className="media-spin" size={14} />}{t(`media.compose.assetStates.${state}`)}</span>{asset.asset_type === 'image' && <label>{t('media.compose.altText')}<input value={asset.alt_text || ''} maxLength={1000} onChange={event => { const value = event.target.value; metadataRef.current.set(asset.id, value); setAssets(current => current.map(item => item.id === asset.id ? { ...item, alt_text: value } : item)); setDirty(true); setSaveState('idle'); }} onBlur={event => void updateAltText(asset, event.target.value)} placeholder={t('media.compose.altTextPlaceholder')} /></label>}{asset.asset_type === 'video' && <label className="media-caption-upload">{t('media.compose.captionTrack')}<input type="file" accept="text/vtt,.vtt" onChange={event => void attachCaption(asset, event.target.files?.[0])} /><small>{asset.caption_storage_key ? t('media.compose.captionAttached') : t('media.compose.captionHint')}</small></label>}</div><div className="media-attachment-actions"><button type="button" disabled={index === 0} onClick={() => moveAsset(asset.id, -1)} aria-label={t('media.compose.moveEarlier')}><ArrowUp size={16} /></button><button type="button" disabled={index === assets.length - 1} onClick={() => moveAsset(asset.id, 1)} aria-label={t('media.compose.moveLater')}><ArrowDown size={16} /></button><button type="button" disabled={state === 'blocked'} onClick={() => { setReplaceAssetId(asset.id); fileInputRef.current?.click(); }} aria-label={t('media.compose.replaceAttachment')}><RefreshCw size={16} /></button><button type="button" disabled={state === 'blocked'} onClick={() => removeAsset(asset)} aria-label={t('media.compose.remove')}><Trash2 size={16} /></button></div></article>; })}
-              {uploads.map(upload => <article key={upload.id} className={`media-attachment-card state-${upload.state}`}><div className="media-attachment-preview"><Loader2 className={upload.state === 'uploading' ? 'media-spin' : ''} size={24} /></div><div className="media-attachment-details"><strong>{upload.name}</strong><span>{upload.state === 'uploading' ? `${upload.progress}%` : upload.error}</span><progress max="100" value={upload.progress} /></div>{upload.state === 'failed' && <button type="button" onClick={() => void uploadFiles([upload.file], upload.replaceAssetId, upload.id)}>{t('media.compose.retry')}</button>}{upload.state === 'failed' && <button type="button" aria-label={t('media.compose.remove')} onClick={() => setUploads(current => current.filter(item => item.id !== upload.id))}><Trash2 size={16} /></button>}</article>)}
+              {uploads.map(upload => <article key={upload.id} className={`media-attachment-card state-${upload.state}`}><div className="media-attachment-preview"><Loader2 className={upload.state === 'uploading' ? 'media-spin' : ''} size={24} /></div><div className="media-attachment-details"><strong>{upload.name}</strong><span>{upload.state === 'uploading' ? `${upload.progress}%` : upload.error}</span><progress max="100" value={upload.progress} /></div>{upload.state === 'uploading' && <button type="button" onClick={() => uploadControllersRef.current.get(upload.id)?.abort()}>{t('media.compose.cancelUpload')}</button>}{upload.state === 'failed' && <button type="button" onClick={() => void uploadFiles([upload.file], upload.replaceAssetId, upload.id)}>{t('media.compose.retry')}</button>}{upload.state === 'failed' && <button type="button" aria-label={t('media.compose.remove')} onClick={() => setUploads(current => current.filter(item => item.id !== upload.id))}><Trash2 size={16} /></button>}</article>)}
             </div>}
             <div className="media-external-video"><Link2 size={18} /><label><span>{t('media.compose.videoLabel')}</span><input type="url" value={externalUrl} onChange={event => setExternalUrl(event.target.value)} placeholder={t('media.compose.videoPlaceholder')} /></label><button type="button" onClick={addExternalVideo} disabled={!externalUrl.trim() || attachmentCount >= 4}>{t('media.compose.attach')}</button></div>
             {!canVideo && <p className="media-inline-guidance"><ShieldCheck size={16} />{t('media.compose.videoVerification')} <Link to="/media/verification?returnTo=/media/compose">{t('media.compose.verifyNow')}</Link></p>}

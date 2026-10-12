@@ -2265,6 +2265,7 @@ async function recordView(req, res) {
 async function flagPost(req, res) {
   let client;
   let transactionOpen = false;
+  let autoHidden = null;
   try {
     if (!await visiblePost(req.params.id, req.user.id)) return res.status(404).json({ error: 'Post not found' });
     const reason = typeof req.body?.reason === 'string' ? req.body.reason.trim().toLowerCase() : '';
@@ -2323,17 +2324,34 @@ async function flagPost(req, res) {
         [req.params.id]
       );
       if ((openFlags[0]?.count || 0) >= autohideThreshold) {
-        await client.query(
-          `UPDATE media_posts
+        const { rows: held } = await client.query(
+          `UPDATE media_posts p
               SET visibility = 'removed', moderation_state = 'report_hold',
                   moderation_reason = 'report_threshold', moderation_updated_at = NOW()
-            WHERE id = $1 AND moderation_state = 'clear' AND visibility <> 'removed'`,
+             FROM media_actors a
+            WHERE p.id = $1 AND a.id = p.actor_id
+              AND p.moderation_state = 'clear' AND p.visibility <> 'removed'
+            RETURNING p.id, a.owner_user_id`,
           [req.params.id]
         );
+        autoHidden = held?.[0] || null;
       }
     }
     await client.query('COMMIT');
     transactionOpen = false;
+    // P1-287: the author learns the post is on hold and where to appeal.
+    // Only the transition that hid it notifies; the reporter is never named.
+    if (autoHidden?.owner_user_id) {
+      require('../services/notificationService').sendNotification({
+        userId: autoHidden.owner_user_id,
+        type: 'media_moderation',
+        title: 'Your post is on hold for review',
+        body: 'Several people reported your post, so it is hidden while we review it. You can see the status and appeal from the post.',
+        data: { mediaPostId: String(autoHidden.id) },
+        action_url: `/media/post/${autoHidden.id}`,
+        idempotencyKey: `media-report-hold:${autoHidden.id}`,
+      }).catch((notifyErr) => logger.warn('media.flagPost author notification failed', { message: notifyErr.message }));
+    }
     res.status(201).json({ ok: true });
   } catch (err) {
     if (transactionOpen && client) await client.query('ROLLBACK').catch(() => {});

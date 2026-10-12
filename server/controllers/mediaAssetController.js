@@ -20,6 +20,7 @@ const { uploadFile, getSignedDownloadUrl, deleteFile } = require('../utils/stora
 const { stripExif } = require('../utils/stripExif');
 const AppError = require('../utils/appError');
 const mediaSafety = require('../services/mediaSafetyPolicy');
+const mediaTranscodeWorker = require('../services/mediaTranscodeWorker');
 const { sendMediaError } = require('../utils/mediaError');
 
 const PHOTO_MAX_BYTES = 10 * 1024 * 1024;
@@ -204,6 +205,17 @@ async function videoUpload(req, res) {
       return res.status(403).json({
         error: 'Identity verification required to upload video.',
         code: 'media_video_didit_required',
+      });
+    }
+
+    // P1-285: refuse up front when no safety path can ever clear a video
+    // (no accepted verdict in the current safety mode, or the transcode
+    // worker is switched off). Accepting it would park the draft in
+    // media_safety_pending forever.
+    if (!mediaSafety.videoAllowed() || !mediaTranscodeWorker.workerEnabled()) {
+      return res.status(503).json({
+        error: 'Video posts are not available right now. Remove the video or post photos instead.',
+        code: 'media_video_unavailable',
       });
     }
 
