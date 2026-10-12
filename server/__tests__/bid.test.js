@@ -184,7 +184,7 @@ describe('PUT /api/bids/:id', () => {
 
   test('updates and returns the bid', async () => {
     mockAuth(
-      { rows: [{ id: 20, helper_id: HELPER_ID, status: 'pending' }] },
+      { rows: [{ id: 20, helper_id: HELPER_ID, status: 'pending', job_status: 'published' }] },
       { rows: [{ id: 20, amount: 200, status: 'pending' }] }
     );
     const res = await auth(request(buildApp()).put('/api/bids/20').send({ amount: 200 }));
