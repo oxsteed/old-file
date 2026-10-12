@@ -4,7 +4,7 @@ const { uploadFile, getPublicUrl } = require('../utils/storage');
 const logger = require('../utils/logger');
 const { fuzzCoords } = require('../models/jobModel');
 const { withTransaction, withJobTransaction } = require('../utils/transaction');
-const { captureAuthorizedPaymentWithClient } = require('../services/paymentCaptureService');
+const { captureAuthorizedPaymentWithClient, reconcileJobAuthorizationFromStripe } = require('../services/paymentCaptureService');
 const { AppError } = require('../middleware/errorHandler');
 const { envFlagEnabled } = require('../middleware/featureFlags');
 const { cancelJobTransaction, finalizeJobCancellation } = require('../services/jobCancellationService');
@@ -1034,6 +1034,27 @@ exports.completeJob = async (req, res, next) => {
            FROM payments WHERE job_id = $1 AND status = 'authorized' FOR UPDATE`,
           [id],
         );
+        // Review P3-791: never complete an escrow job silently without its
+        // capture. If the Connect webhook never marked the payment
+        // authorized, reconcile from Stripe; otherwise refuse loudly.
+        if (!payRows[0]) {
+          const { rows: settled } = await client.query(
+            `SELECT id FROM payments WHERE job_id = $1 AND status IN ('captured', 'released') LIMIT 1`,
+            [id],
+          );
+          if (!settled[0]) {
+            const reconciled = await reconcileJobAuthorizationFromStripe(client, id);
+            if (!reconciled) {
+              logger.error('Escrow job completion blocked: no authorized payment', { jobId: id });
+              throw new AppError(
+                'The payment for this job is not authorized yet, so it cannot be completed. Try again shortly or contact support.',
+                409,
+                'payment_not_authorized'
+              );
+            }
+            payRows.push(reconciled);
+          }
+        }
         if (payRows[0]) {
           const dispute = await client.query(
             `SELECT id FROM disputes WHERE job_id = $1 AND status IN ('open', 'in_progress')`,
