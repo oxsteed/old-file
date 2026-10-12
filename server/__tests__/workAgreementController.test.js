@@ -4,6 +4,7 @@ const express = require('express');
 const request = require('supertest');
 const { mockQuery, resetMocks } = require('./setup');
 const { errorHandler } = require('../middleware/errorHandler');
+const { routeQueries } = require('./helpers/sqlRouter');
 
 const wa = require('../controllers/workAgreementController');
 
@@ -238,16 +239,23 @@ describe('change orders', () => {
       .send({});
     expect(noSig.status).toBe(400);
 
-    // counterparty approves with signature
-    mockQuery
-      .mockResolvedValueOnce({ rows: [agreementRow({ status: 'active' })] })
-      .mockResolvedValueOnce({ rows: [coRow()] })
-      .mockResolvedValueOnce({ rows: [coRow({ status: 'approved' })] });
+    // counterparty approves with signature: decision + job money in one transaction
+    const calls = routeQueries(mockQuery, [
+      [/FROM work_agreements/, { rows: [agreementRow({ status: 'active' })] }],
+      [/FROM work_agreement_change_orders WHERE id = \$1::uuid AND agreement_id = \$2::uuid FOR UPDATE/, { rows: [coRow()] }],
+      [/UPDATE work_agreement_change_orders\s+SET status = \$2/, { rows: [coRow({ status: 'approved' })] }],
+      [/SELECT \* FROM jobs WHERE id = \$1 FOR UPDATE/, { rows: [{ id: JOB_ID, client_id: CUSTOMER_ID, job_value_cents: 10000, version: 3, revision: 1, metadata: {} }] }],
+      [/FROM payments WHERE job_id/, { rows: [] }],
+      [/SELECT version, revision FROM jobs/, { rows: [{ version: 4, revision: 1 }] }],
+    ]);
     const ok = await request(buildApp(CUSTOMER_ID))
       .post(`/api/work-agreements/${AGREEMENT_ID}/change-orders/co-1/approve`)
       .send({ signatureData: SIG });
     expect(ok.status).toBe(200);
     expect(ok.body.changeOrder.status).toBe('approved');
+    expect(ok.body.changeOrder.payment_adjustment).toMatchObject({ from_value_cents: 10000, to_value_cents: 12500 });
+    expect(calls.some((c) => /INSERT INTO job_revisions/.test(c.sql))).toBe(true);
+    expect(calls.some((c) => /INSERT INTO job_event_outbox/.test(c.sql))).toBe(true);
   });
 });
 

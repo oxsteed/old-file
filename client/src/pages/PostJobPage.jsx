@@ -13,6 +13,7 @@ import { useTranslation } from 'react-i18next';
 import { useCapabilities } from '../hooks/useCapabilities';
 import AddressAutocomplete from '../components/AddressAutocomplete';
 import PriceGuidance from '../components/PriceGuidance';
+import { SCHEMA_LIMITS, postJobFieldErrors } from '../utils/jobEditModel';
 import { notifyMoneyMoment } from '../utils/pwaInstall';
 import { notifyPushMoment } from '../utils/pushPrompt';
 
@@ -1043,9 +1044,9 @@ export default function PostJobPage() {
   function validateStep(n) {
     const errs = {};
     if (n === 1) {
-      if (!form.title.trim() || form.title.trim().length < 10)    errs.title       = t('postJob.titleValidation');
+      if (!form.title.trim() || form.title.trim().length < SCHEMA_LIMITS.titleMin) errs.title       = t('postJob.titleValidation');
       if (!form.categoryId)                                        errs.categoryId  = t('postJob.categoryValidation');
-      if (!form.description.trim() || form.description.trim().length < 50) errs.description = t('postJob.descriptionValidation');
+      if (!form.description.trim() || form.description.trim().length < SCHEMA_LIMITS.descriptionMin) errs.description = t('postJob.descriptionValidation');
       if (!form.locationCity.trim())                               errs.locationCity    = t('postJob.cityValidation');
       if (!form.locationCountry.trim())                            errs.locationCountry = t('postJob.countryValidation');
     }
@@ -1125,7 +1126,8 @@ export default function PostJobPage() {
     } catch (err) {
       // Extract field-level validation errors first
       if (err?.response?.data?.fields) {
-        setErrors(err.response.data.fields);
+        // The server returns stable codes per field (shared job schema).
+        setErrors(postJobFieldErrors(err.response.data.fields, t));
       } else {
         // Fallback to error message
         const msg = err?.response?.data?.error || err?.message || t('postJob.errorToast');
@@ -1292,10 +1294,10 @@ export default function PostJobPage() {
                   <input
                     id="pjw-title" type="text" className={`pjw-input${errors.title?' has-error':''}`}
                     placeholder={t('postJob.jobTitleExample')}
-                    maxLength={80} value={form.title}
+                    maxLength={SCHEMA_LIMITS.titleMax} value={form.title}
                     onChange={e => set({ title: e.target.value })}
                   />
-                  <div className="pjw-char-count">{form.title.length}/80</div>
+                  <div className="pjw-char-count">{form.title.length}/{SCHEMA_LIMITS.titleMax}</div>
                   {errors.title && <div className="pjw-field-error">{errors.title}</div>}
                 </div>
 
@@ -1319,12 +1321,12 @@ export default function PostJobPage() {
                   </label>
                   <textarea
                     id="pjw-desc" className={`pjw-textarea${errors.description?' has-error':''}`}
-                    rows={5} maxLength={1000}
+                    rows={5} maxLength={SCHEMA_LIMITS.descriptionMax}
                     placeholder={t('postJob.jobDescExample')}
                     value={form.description}
                     onChange={e => set({ description: e.target.value })}
                   />
-                  <div className="pjw-char-count">{form.description.length}/1000</div>
+                  <div className="pjw-char-count">{form.description.length}/{SCHEMA_LIMITS.descriptionMax}</div>
                   {errors.description && <div className="pjw-field-error">{errors.description}</div>}
                 </div>
 

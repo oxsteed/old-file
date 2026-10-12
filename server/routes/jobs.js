@@ -3,12 +3,13 @@ const { authenticate } = require('../middleware/auth');
 const requireEmailVerified = require('../middleware/requireEmailVerified');
 const upload  = require('../middleware/upload');
 const validateFileUpload = require('../middleware/validateFileUpload');
-const { generalLimiter } = require('../middleware/rateLimiter');
+const { generalLimiter, jobEditLimiter } = require('../middleware/rateLimiter');
+const { rejectImpersonated } = require('../middleware/rejectImpersonated');
 const checkRestrictions = require('../middleware/checkRestrictions');
 const { errorHandler } = require('../middleware/errorHandler');
 
 const {
-  createJob, getJobs, getJob, getPublicJob, updateJob,
+  createJob, getJobs, getJob, getPublicJob, updateJob, patchJob, getJobRevisions,
   cancelJob, assignHelper, startJob, completeJob, closeJob, getMyJobs,
 } = require('../controllers/jobController');
 
@@ -53,7 +54,13 @@ router.get('/public/:id',  generalLimiter, getPublicJob);
 router.get('/:id',         authenticate, generalLimiter, getJob);
 
 // ── Protected parameterized ───────────────────────────────────────────────────
-router.put('/:id',           authenticate, updateJob);
+// Edits: PATCH is JSON Merge Patch with a required If-Match/expected_version;
+// PUT keeps the legacy partial-update contract. Impersonated sessions and
+// restricted posters cannot edit. See docs/job-editing.md.
+const jobEditGuards = [authenticate, rejectImpersonated, jobEditLimiter, checkRestrictions('job_posting')];
+router.patch('/:id',         ...jobEditGuards, patchJob);
+router.put('/:id',           ...jobEditGuards, updateJob);
+router.get('/:id/revisions', authenticate, generalLimiter, getJobRevisions);
 router.post('/:id/cancel',    authenticate, cancelJob);
 router.post('/:id/start',    authenticate, startJob);
 router.post('/:id/complete', authenticate, completeJob);

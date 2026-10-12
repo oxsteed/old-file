@@ -28,6 +28,8 @@ const { releaseExpiredInventoryReservations } = require('../services/restaurantI
 const { cleanupExpiredWalletOperations } = require('../services/foodWalletOperationsService');
 const { startOxsteedCreditHoldExpiryJob } = require('../jobs/oxsteedCreditHoldExpiry');
 const { startDirectSlotHoldExpiryJob } = require('../jobs/directSlotHoldExpiry');
+const { startJobEventOutboxJob } = require('../jobs/jobEventOutbox');
+const { startJobRevisionMaintenanceJob } = require('../jobs/jobRevisionMaintenance');
 const { startOxsteedCreditEntitlementExpiryJob } = require('../jobs/oxsteedCreditEntitlementExpiry');
 const { startOxsteedCreditReconciliationJob } = require('../jobs/oxsteedCreditReconciliation');
 const { startOxsteedCreditTopupExpiryJob } = require('../jobs/oxsteedCreditTopupExpiry');
@@ -109,6 +111,8 @@ class BackgroundWorkers {
       startOxsteedCreditWorkerWatchdog();
       startRestaurantWalletWatchdog();
       startMessageNotificationOutboxJob();
+      startJobEventOutboxJob();
+      startJobRevisionMaintenanceJob();
       startMarketplaceRefundReconciliationJob();
       startPaymentRefundReconciliationJob();
       startExternalRefundReconciliationJob();

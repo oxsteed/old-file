@@ -2,6 +2,8 @@ const router          = require('express').Router();
 const { requireAdmin, requireSuperAdmin, requirePermission } = require('../middleware/adminAuth');
 const { loadAssignedRegions, requireRegionAccessForUser } = require('../middleware/regionAuth');
 const superCtrl       = require('../controllers/superAdminController');
+const adminJobEditCtrl = require('../controllers/adminJobEditController');
+const { rejectImpersonated } = require('../middleware/rejectImpersonated');
 const investigationCtrl = require('../controllers/investigationController');
 const superUserCtrl   = require('../controllers/superAdminUserController');
 const regionCtrl      = require('../controllers/adminRegionController');
@@ -78,6 +80,10 @@ router.get('/moderation-queue',  requireAdmin, requirePermission('moderate_conte
 router.get('/jobs',                    requireAdmin, requirePermission('manage_operations'),      superCtrl.getJobs);
 router.get('/jobs/:jobId',             requireAdmin, requirePermission('manage_operations'),      superCtrl.getJobDetail);
 router.post('/jobs/:jobId/action',     requireAdmin, requirePermission('manage_operations'),      superCtrl.forceJobAction);
+// Job edit tooling: reason required, revision history, rollback (docs/job-editing.md)
+router.patch('/jobs/:jobId',           requireAdmin, requirePermission('manage_operations'), rejectImpersonated, adminJobEditCtrl.editJob);
+router.get('/jobs/:jobId/revisions',   requireAdmin, requirePermission('manage_operations'),      adminJobEditCtrl.listRevisions);
+router.post('/jobs/:jobId/revisions/:revisionId/rollback', requireAdmin, requirePermission('manage_operations'), rejectImpersonated, adminJobEditCtrl.rollbackRevision);
 // Hard delete - delegatable via delete_jobs grant
 router.delete('/jobs/:jobId',          requireAdmin, requirePermission('delete_jobs'), superCtrl.deleteJob);
 

@@ -252,17 +252,8 @@ exports.setFinancials = async (jobId, agreedAmountDollars, isBrokerMediated, cli
 
 // --- Transition Status ---
 // Enforces valid state machine transitions
-const VALID_TRANSITIONS = {
-  draft:        ['published', 'cancelled'],
-  published:    ['matched', 'cancelled'],
-  matched:      ['negotiating', 'published', 'cancelled'],
-  negotiating:  ['accepted', 'matched', 'cancelled'],
-  accepted:     ['in_progress', 'cancelled'],
-  in_progress:  ['completed', 'cancelled'],
-  completed:    ['closed'],
-  cancelled:    [],
-  closed:       [],
-};
+// Shared lifecycle rules (services/jobStatusPolicy.js, docs/job-status-transitions.md).
+const VALID_TRANSITIONS = require('../services/jobStatusPolicy').TRANSITIONS;
 
 exports.transitionStatus = async (jobId, newStatus, userId) => {
   const job = await exports.findById(jobId, userId);

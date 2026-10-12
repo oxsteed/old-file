@@ -3,6 +3,8 @@ const logger = require('../utils/logger');
 const { withTransaction } = require('../utils/transaction');
 const { AppError } = require('../middleware/errorHandler');
 const { sendNotification } = require('../services/notificationService');
+const jobStatusPolicy = require('../services/jobStatusPolicy');
+const { bidJobSnapshot } = require('../services/jobEditService');
 
 function canViewBid(user, bid) {
   if (!user || !bid) return false;
@@ -55,12 +57,25 @@ exports.createBid = async (req, res, next) => {
     if (job.rows[0].client_id === req.user.id) {
       throw new AppError('Cannot bid on your own job', 400, 'self_bid_not_allowed');
     }
-    if (!['published', 'matched'].includes(job.rows[0].status)) {
+    if (!jobStatusPolicy.isBiddable(job.rows[0].status)) {
       throw new AppError('Job is not accepting bids', 400, 'job_not_accepting_bids');
     }
 
     // Create bid (duplicate check inside transaction to prevent race condition)
     const result = await withTransaction(pool, async (client) => {
+      // Lock order jobs → bids. FOR SHARE blocks a concurrent edit until this
+      // bid commits, so the snapshot below matches the terms the helper saw.
+      const lockedJob = await client.query('SELECT * FROM jobs WHERE id = $1 FOR SHARE', [job_id]);
+      const jobRow = lockedJob.rows[0];
+      if (!jobRow || jobRow.deleted_at || !jobStatusPolicy.isBiddable(jobRow.status)) {
+        throw new AppError('Job is not accepting bids', 400, 'job_not_accepting_bids');
+      }
+      const expectedRevision = req.body.job_revision;
+      if (expectedRevision !== undefined && expectedRevision !== null && Number(expectedRevision) !== Number(jobRow.revision)) {
+        throw new AppError('The job changed while you were writing your bid. Review the latest details.', 409,
+          'job_changed', { job_revision: 'version_conflict' });
+      }
+
       // FOR UPDATE locks any matching row so two concurrent createBid() calls
       // from the same helper cannot both insert.
       const existing = await client.query(
@@ -71,9 +86,12 @@ exports.createBid = async (req, res, next) => {
         throw new AppError('You already placed a bid on this job', 409, 'bid_already_exists');
       }
 
+      const amountCents = Math.round(Number(amount) * 100);
       const bidResult = await client.query(
-        'INSERT INTO bids (job_id, helper_id, amount, message, eta_hours) VALUES ($1, $2, $3, $4, $5) RETURNING *',
-        [job_id, req.user.id, amount, message !== undefined ? message.trim() : message, estimated_hours]
+        `INSERT INTO bids (job_id, helper_id, amount, amount_cents, message, eta_hours, job_version, job_revision, job_snapshot)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb) RETURNING *`,
+        [job_id, req.user.id, amountCents / 100, amountCents, message !== undefined ? message.trim() : message, estimated_hours,
+          jobRow.version ?? null, jobRow.revision ?? null, JSON.stringify(bidJobSnapshot(jobRow))]
       );
 
       // Job status intentionally NOT changed here - jobs remain 'published'
@@ -140,8 +158,9 @@ exports.getJobBids = async (req, res, next) => {
     const offsetIdx = baseParams.length + 2;
 
     const result = await pool.query(
-      `SELECT b.id, b.job_id, b.helper_id, b.amount, b.message, b.status,
-              b.eta_hours, b.created_at, b.updated_at,
+      `SELECT b.id, b.job_id, b.helper_id, b.amount, b.amount_cents, b.message, b.status,
+              b.eta_hours, b.created_at, b.updated_at, b.expires_at,
+              b.job_revision, b.needs_reconfirm, b.reconfirm_requested_at, b.reconfirmed_at,
               u.first_name as helper_name, hp.profile_photo_url as helper_avatar,
               hp.avg_rating as helper_rating,
               (SELECT COUNT(*) FROM jobs WHERE assigned_helper_id = b.helper_id AND status = 'completed') as jobs_completed
@@ -174,6 +193,12 @@ exports.getBid = async (req, res, next) => {
               b.eta_hours,
               b.created_at,
               b.updated_at,
+              b.expires_at,
+              b.job_revision,
+              b.needs_reconfirm,
+              b.reconfirm_requested_at,
+              b.reconfirmed_at,
+              j.revision AS job_current_revision,
               j.client_id,
               j.title AS job_title,
               j.category_name AS job_category,
@@ -263,62 +288,139 @@ exports.getMyBids = async (req, res, next) => {
 };
 
 // Update bid
-exports.updateBid = async (req, res, next) => {
-  try {
-    const { amount, message, eta_hours } = req.body;
-    const bidId = req.params.id;
-    const userId = req.user.id;
+function validateBidRevision({ amount, message, eta_hours }) {
+  const fields = {};
+  if (amount !== undefined && amount !== null && amount !== '') {
+    const n = Number(amount);
+    if (!Number.isFinite(n) || n <= 0) fields.amount = 'Amount must be a positive number';
+    else if (n > 10_000_000) fields.amount = 'Amount is too large';
+  }
+  if (message !== undefined && message !== null && typeof message === 'string') {
+    if (message.trim().length === 0) fields.message = 'Message cannot be empty';
+    else if (message.length > 2000) fields.message = 'Message must be 2000 characters or fewer';
+  }
+  if (eta_hours !== undefined && eta_hours !== null && eta_hours !== '') {
+    const eh = Number(eta_hours);
+    if (!Number.isFinite(eh) || eh <= 0 || eh > 480) fields.eta_hours = 'Estimated hours must be between 0 and 480';
+  }
+  if (Object.keys(fields).length) throw new AppError('Validation failed', 400, 'validation_failed', fields);
+}
 
-    const { rows: bidRows } = await pool.query(
-      'SELECT id, helper_id, status FROM bids WHERE id = $1',
+/**
+ * Update a pending bid. When the job changed materially since the bid was
+ * placed (needs_reconfirm), any update re-binds the bid to the current job
+ * revision, i.e. the helper reconfirms. `requireReconfirm` is used by the
+ * explicit reconfirm endpoint.
+ */
+async function reviseBid(req, { requireReconfirm }) {
+  const { amount, message, eta_hours } = req.body || {};
+  validateBidRevision({ amount, message, eta_hours });
+  const bidId = req.params.id;
+  const userId = req.user.id;
+
+  return withTransaction(pool, async (client) => {
+    const { rows: refRows } = await client.query('SELECT job_id FROM bids WHERE id = $1', [bidId]);
+    if (!refRows[0]) throw new AppError('Bid not found', 404, 'bid_not_found');
+    // Lock order jobs → bids.
+    const { rows: jobRows } = await client.query('SELECT * FROM jobs WHERE id = $1 FOR SHARE', [refRows[0].job_id]);
+    const job = jobRows[0];
+    const { rows: bidRows } = await client.query(
+      'SELECT id, helper_id, status, job_revision, needs_reconfirm, expires_at FROM bids WHERE id = $1 FOR UPDATE',
       [bidId]
     );
-
-    if (!bidRows[0]) {
-      throw new AppError('Bid not found', 404, 'bid_not_found');
-    }
-
     const bid = bidRows[0];
-
-    if (bid.helper_id !== userId) {
+    if (!bid || !job) throw new AppError('Bid not found', 404, 'bid_not_found');
+    if (String(bid.helper_id) !== String(userId)) {
       throw new AppError('Not authorized to update this bid', 403, 'forbidden');
     }
-
     if (bid.status !== 'pending') {
       throw new AppError(`Bid cannot be updated in '${bid.status}' state. Only pending bids can be updated.`, 400, 'invalid_bid_state');
     }
+    const stale = Boolean(bid.needs_reconfirm)
+      || (bid.job_revision != null && job.revision != null && Number(bid.job_revision) < Number(job.revision));
+    if (requireReconfirm && !stale) {
+      throw new AppError('This bid already matches the latest job details.', 409, 'bid_already_current');
+    }
+    if (stale && (job.deleted_at || !jobStatusPolicy.isBiddable(job.status))) {
+      throw new AppError('Job is not accepting bids', 409, 'job_not_accepting_bids');
+    }
+    if (bid.expires_at && new Date(bid.expires_at).getTime() < Date.now()) {
+      throw new AppError('This bid has expired.', 409, 'bid_expired');
+    }
+    // Reconfirming binds the bid to the terms the helper actually reviewed: if
+    // the job changed again after they loaded it, make them look again.
+    const seenRevision = req.body?.job_revision;
+    if (stale && seenRevision !== undefined && seenRevision !== null && seenRevision !== ''
+        && Number(seenRevision) !== Number(job.revision)) {
+      throw new AppError('The job changed again. Review the latest details first.', 409, 'job_changed',
+        { job_revision: 'version_conflict' });
+    }
+    const amountCents = amount !== undefined && amount !== null && amount !== '' ? Math.round(Number(amount) * 100) : null;
+    const { rows } = await client.query(
+      `UPDATE bids
+          SET amount_cents = COALESCE($1, amount_cents),
+              message = COALESCE($2, message),
+              eta_hours = COALESCE($3, eta_hours),
+              job_version = CASE WHEN $5 THEN $6 ELSE job_version END,
+              job_revision = CASE WHEN $5 THEN $7 ELSE job_revision END,
+              job_snapshot = CASE WHEN $5 THEN $8::jsonb ELSE job_snapshot END,
+              needs_reconfirm = CASE WHEN $5 THEN FALSE ELSE needs_reconfirm END,
+              reconfirmed_at = CASE WHEN $5 THEN NOW() ELSE reconfirmed_at END,
+              expires_at = CASE WHEN $5 THEN GREATEST(expires_at, NOW() + INTERVAL '72 hours') ELSE expires_at END,
+              updated_at = NOW()
+        WHERE id = $4 AND status = 'pending'
+        RETURNING *`,
+      [amountCents, message !== undefined && message !== null ? String(message).trim() : null, eta_hours ?? null, bidId,
+        stale, job.version ?? null, job.revision ?? null, JSON.stringify(bidJobSnapshot(job))]
+    );
+    if (!rows.length) {
+      throw new AppError('Bid state changed during update - status is no longer pending', 409, 'state_conflict');
+    }
+    return { bid: rows[0], reconfirmed: stale, job };
+  }, requireReconfirm ? 'reconfirm_bid' : 'update_bid');
+}
 
-    const result = await withTransaction(pool, async (client) => {
-      const { rows } = await client.query(
-        `UPDATE bids
-         SET
-           amount = COALESCE($1, amount),
-           message = COALESCE($2, message),
-           eta_hours = COALESCE($3, eta_hours),
-           updated_at = NOW()
-         WHERE id = $4 AND status = 'pending'
-         RETURNING *`,
-        [amount, message, eta_hours, bidId]
-      );
-
-      if (!rows.length) {
-        throw new AppError('Bid state changed during update - status is no longer pending', 409, 'state_conflict');
-      }
-
-      return rows[0];
-    }, 'update_bid');
-
+// Update bid (helper only, pending bids only)
+exports.updateBid = async (req, res, next) => {
+  try {
+    const { amount, message, eta_hours } = req.body || {};
+    const result = await reviseBid(req, { requireReconfirm: false });
     logger.info('Bid updated', {
-      bidId,
-      userId,
+      bidId: req.params.id,
+      userId: req.user.id,
+      reconfirmed: result.reconfirmed,
       fieldsUpdated: [
         amount !== undefined && 'amount',
         message !== undefined && 'message',
         eta_hours !== undefined && 'eta_hours'
       ].filter(Boolean)
     });
+    res.json(result.bid);
+  } catch (err) {
+    next(err);
+  }
+};
 
-    res.json(result);
+// POST /api/bids/:id/reconfirm — helper accepts the job's latest revision,
+// optionally adjusting amount/message/eta at the same time.
+exports.reconfirmBid = async (req, res, next) => {
+  try {
+    const result = await reviseBid(req, { requireReconfirm: true });
+    logger.info('Bid reconfirmed', { bidId: req.params.id, userId: req.user.id, jobRevision: result.bid.job_revision });
+    res.json({ bid: result.bid, reconfirmed: true });
+    try {
+      await sendNotification({
+        userId: result.job.client_id,
+        type: 'bid_reconfirmed',
+        title: 'A helper reconfirmed their bid',
+        body: `A bid on "${String(result.job.title || '').slice(0, 120)}" now matches your latest changes.`,
+        data: { job_id: result.job.id, bid_id: result.bid.id, revision: result.bid.job_revision },
+        action_url: `/jobs/${result.job.id}`,
+        idempotencyKey: `bid-reconfirm:${result.bid.id}:${result.bid.job_revision}`,
+      });
+    } catch (notifErr) {
+      logger.warn('Failed to send bid reconfirm notification', { error: notifErr.message });
+    }
   } catch (err) {
     next(err);
   }
