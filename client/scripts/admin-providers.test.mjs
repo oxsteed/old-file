@@ -11,19 +11,25 @@ test('admin providers render the real two-factor page and shared footer', async 
         import React from 'react';
         import { renderToString } from 'react-dom/server';
         import { MemoryRouter } from 'react-router-dom';
+        import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
         import AdminProviders from './src/admin/AdminProviders';
         import TwoFactorSetup from './src/pages/Settings/TwoFactorSetup';
         import { AuthProvider } from './src/context/AuthContext';
         import { LanguageProvider } from './src/context/LanguageContext';
         import { ThemeProvider } from './src/context/ThemeContext';
+        // AdminApp supplies this provider in production. Include it in both
+        // fixtures so the negative case isolates the missing consent provider.
+        const WithQueries = ({ children }) => (
+          <QueryClientProvider client={new QueryClient()}>{children}</QueryClientProvider>
+        );
         export const renderMissingConsent = () => renderToString(
           <LanguageProvider><ThemeProvider><AuthProvider><MemoryRouter>
-            <TwoFactorSetup adminSetup />
+            <WithQueries><TwoFactorSetup adminSetup /></WithQueries>
           </MemoryRouter></AuthProvider></ThemeProvider></LanguageProvider>
         );
         export const render = () => renderToString(
           <AdminProviders><MemoryRouter initialEntries={['/admin/2fa-setup']}>
-            <TwoFactorSetup adminSetup />
+            <WithQueries><TwoFactorSetup adminSetup /></WithQueries>
           </MemoryRouter></AdminProviders>
         );`,
       resolveDir: fileURLToPath(new URL('..', import.meta.url)),
