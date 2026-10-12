@@ -1036,7 +1036,7 @@ exports.completeJob = async (req, res, next) => {
         );
         if (payRows[0]) {
           const dispute = await client.query(
-            `SELECT id FROM disputes WHERE job_id = $1 AND status IN ('open', 'in_progress')`,
+            `SELECT id FROM disputes WHERE job_id = $1 AND status IN ('open', 'under_review', 'in_progress')`,
             [id],
           );
           if (dispute.rows[0]) {
@@ -1221,7 +1221,7 @@ exports.closeJob = async (req, res, next) => {
     // Check for open/in_progress disputes
     const { rows: disputeRows } = await pool.query(`
       SELECT id FROM disputes
-      WHERE job_id = $1 AND status IN ('open', 'in_progress')
+      WHERE job_id = $1 AND status IN ('open', 'under_review', 'in_progress')
     `, [id]);
 
     if (disputeRows.length > 0) {

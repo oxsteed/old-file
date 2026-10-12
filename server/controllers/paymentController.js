@@ -606,7 +606,7 @@ exports.capturePayment = async (req, res, next) => {
       }
 
       // ── CHECK FOR OPEN DISPUTES ──────────────────────────────────────────
-      const dispute = await client.query('SELECT id FROM disputes WHERE job_id = $1 AND status IN ($2, $3)', [job_id, 'open', 'in_progress']);
+      const dispute = await client.query('SELECT id FROM disputes WHERE job_id = $1 AND status IN ($2, $3, $4)', [job_id, 'open', 'under_review', 'in_progress']);
       if (dispute.rows[0]) {
         await client.query('ROLLBACK');
         throw new AppError('Cannot capture payment while a dispute is open. Dispute must be resolved first.', 409, 'dispute_open');
