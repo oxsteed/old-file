@@ -278,7 +278,9 @@ function JobDetailContent() {
       fetchJob(id);
       toast.success(t('jobDetail.jobStarted'));
     } catch (err) {
-      const errorMsg = getErrorMessage(err);
+      const errorMsg = err?.response?.data?.code === 'customer_confirmation_required'
+        ? t('jobDetail.customerConfirmsEscrow')
+        : getErrorMessage(err);
       toast.error(errorMsg);
       // Handle auth errors - redirect to login
       if (err.code === 'AUTH_EXPIRED' || err.code === 'NO_TOKEN') {

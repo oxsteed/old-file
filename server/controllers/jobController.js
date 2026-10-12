@@ -1028,7 +1028,24 @@ exports.completeJob = async (req, res, next) => {
     const result = await withJobTransaction(pool, async (client) => {
       // Tier-3 escrow: when the customer marks complete, capture authorized funds in the same transaction
       // so helpers get paid without a separate "Capture" step (and we roll back if Stripe fails).
-      if (job.client_id === req.user.id && isTier3EscrowJob(job)) {
+      // Review P1-138: a helper-first completion used to flip the job to
+      // `completed` while the escrow payment stayed `authorized` (capture only
+      // ran on the client path), so closeJob 409'd forever. The customer's
+      // confirmation is what releases escrow, so the helper must wait for it.
+      if (String(job.client_id) !== String(req.user.id) && isTier3EscrowJob(job)) {
+        const { rows: held } = await client.query(
+          `SELECT id FROM payments WHERE job_id = $1 AND status = 'authorized' LIMIT 1`,
+          [id],
+        );
+        if (held[0]) {
+          throw new AppError(
+            'The customer confirms completion on escrow jobs; that releases your payment.',
+            409,
+            'customer_confirmation_required'
+          );
+        }
+      }
+      if (String(job.client_id) === String(req.user.id) && isTier3EscrowJob(job)) {
         const { rows: payRows } = await client.query(
           `SELECT id, amount, stripe_payment_intent_id, stripe_account_id, status
            FROM payments WHERE job_id = $1 AND status = 'authorized' FOR UPDATE`,
