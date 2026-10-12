@@ -72,6 +72,7 @@ describe('review W9: OxSteed Credit settlement and maker-checker fixes', () => {
   test('P1-250: daily cap check takes a per-proposer lock', () => {
     const src = fs.readFileSync(path.join(__dirname, '../controllers/agentCreditAdjustmentController.js'), 'utf8');
     expect(src).toMatch(/agent-credit-adjustment-cap:\$\{proposedBy\}/);
+    expect(src).toMatch(/WITH cap_lock AS \(SELECT pg_advisory_xact_lock/);
   });
 
   test('P1-249: replay skips the sweep while the rail is frozen', async () => {
