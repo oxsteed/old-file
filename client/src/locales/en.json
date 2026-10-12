@@ -9117,6 +9117,8 @@
       "escalationPanelAria": "Support escalation options"
     },
     "messenger": {
+      "agreementOpenRecords": "Open the signed work agreement for this job",
+      "agreementCreateRecords": "Create a signed work agreement for this job",
       "quoteFinishOnJob": "Finish hiring on the job page",
       "message": "Message",
       "messageName": "Message {{name}}",
@@ -30225,6 +30227,14 @@
     "finalCtaSubtitle": "Free to create. Share it anywhere and start getting paid today."
   },
   "workAgreement": {
+    "completeError": "Could not confirm completion.",
+    "jobLinkSummary": "Job: {{job}} · Payment: {{payment}}",
+    "noPayment": "none recorded",
+    "disputeOpen": "A dispute is open on this job",
+    "completeTitle": "Work finished?",
+    "awaitingCounterparty": "You confirmed. Waiting for the other party to confirm.",
+    "completeBody": "Both of you confirm before the agreement is marked complete.",
+    "confirmComplete": "Confirm complete",
     "signHere": "Draw your signature here",
     "signHint": "Draw your signature with mouse or finger",
     "clearSignature": "Clear",

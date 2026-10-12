@@ -9117,6 +9117,8 @@
       "escalationPanelAria": "خيارات تصعيد الدعم"
     },
     "messenger": {
+      "agreementOpenRecords": "افتح اتفاقية العمل الموقعة لهذه المهمة",
+      "agreementCreateRecords": "أنشئ اتفاقية عمل موقعة لهذه المهمة",
       "quoteFinishOnJob": "أكمل التوظيف في صفحة المهمة",
       "message": "رسالة",
       "messageName": "مراسلة {{name}}",
@@ -30236,6 +30238,14 @@
     "finalCtaSubtitle": "مجاناً. شاركه في أي مكان وابدأ القبض اليوم."
   },
   "workAgreement": {
+    "completeError": "تعذّر تأكيد الإنجاز.",
+    "jobLinkSummary": "المهمة: {{job}} · الدفع: {{payment}}",
+    "noPayment": "لا يوجد سجل",
+    "disputeOpen": "يوجد نزاع مفتوح على هذه المهمة",
+    "completeTitle": "هل انتهى العمل؟",
+    "awaitingCounterparty": "لقد أكدت. بانتظار تأكيد الطرف الآخر.",
+    "completeBody": "يجب أن يؤكد كلاكما قبل وضع علامة الإنجاز على الاتفاقية.",
+    "confirmComplete": "تأكيد الإنجاز",
     "signHere": "ارسم توقيعك هنا",
     "signHint": "ارسم توقيعك بالفأرة أو الإصبع",
     "clearSignature": "مسح",

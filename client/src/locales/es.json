@@ -9117,6 +9117,8 @@
       "escalationPanelAria": "Opciones de escalada a soporte"
     },
     "messenger": {
+      "agreementOpenRecords": "Abrir el acuerdo de trabajo firmado de este trabajo",
+      "agreementCreateRecords": "Crear un acuerdo de trabajo firmado para este trabajo",
       "quoteFinishOnJob": "Termina la contratación en la página del trabajo",
       "message": "Mensaje",
       "messageName": "Mensaje a {{name}}",
@@ -30225,6 +30227,14 @@
     "finalCtaSubtitle": "Gratis de crear. Compártelo donde sea y empieza a cobrar hoy."
   },
   "workAgreement": {
+    "completeError": "No se pudo confirmar la finalización.",
+    "jobLinkSummary": "Trabajo: {{job}} · Pago: {{payment}}",
+    "noPayment": "ninguno registrado",
+    "disputeOpen": "Hay una disputa abierta en este trabajo",
+    "completeTitle": "¿Trabajo terminado?",
+    "awaitingCounterparty": "Confirmaste. Esperando la confirmación de la otra parte.",
+    "completeBody": "Ambos deben confirmar antes de marcar el acuerdo como completado.",
+    "confirmComplete": "Confirmar finalización",
     "signHere": "Dibuja tu firma aquí",
     "signHint": "Dibuja tu firma con el mouse o el dedo",
     "clearSignature": "Borrar",
