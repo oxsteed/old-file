@@ -8,6 +8,7 @@ if (!process.env.STRIPE_SECRET_KEY) {
 }
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const db = require('../db');
+const chargebackEvidence = require('../services/chargebackEvidenceService');
 const { recalculateBadges } = require('./verificationController');
 const { withTransaction } = require('../utils/transaction');
 const {
@@ -1090,6 +1091,10 @@ exports.stripeWebhook = async (req, res, next) => {
         // throw here marks the webhook failed so Stripe retries (the
         // ingestion is idempotent on the Stripe dispute id).
         await ingestStripeChargeback({ eventType: event.type, dispute });
+        // P3-814: track the evidence deadline and stage evidence at Stripe.
+        // A throw marks the webhook failed so Stripe retries (idempotent on
+        // the dispute id).
+        await chargebackEvidence.handleDisputeWebhook(dispute, event.account || null);
         break;
       }
 
@@ -1122,6 +1127,7 @@ exports.stripeWebhook = async (req, res, next) => {
         // Phase 8: OxSteed Credit chargeback ingestion (see
         // charge.dispute.created above for the contract).
         await ingestStripeChargeback({ eventType: event.type, dispute });
+        await chargebackEvidence.upsertFromStripe(dispute, event.account || null);
         break;
       }
 
