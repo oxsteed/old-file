@@ -16,6 +16,10 @@ const EVENT_TYPES = Object.freeze({
   CHANGE_ORDER_APPLIED: 'job.change_order_applied',
   PAYMENT_REAUTHORIZED: 'job.payment_reauthorized',
   PAYMENT_REAUTH_FAILED: 'job.payment_reauth_failed',
+  PAYMENT_HOLD_EXPIRING: 'job.payment_hold_expiring',
+  PAYMENT_CHARGED_NOW: 'job.payment_charged_now',
+  RAIL_SWITCH_REQUESTED: 'job.rail_switch_requested',
+  RAIL_SWITCH_RESOLVED: 'job.rail_switch_resolved',
 });
 
 // Debounce windows (seconds) before an event is delivered.
@@ -26,6 +30,10 @@ const DEFAULT_DELAYS = Object.freeze({
   [EVENT_TYPES.CHANGE_ORDER_APPLIED]: 0,
   [EVENT_TYPES.PAYMENT_REAUTHORIZED]: 0,
   [EVENT_TYPES.PAYMENT_REAUTH_FAILED]: 0,
+  [EVENT_TYPES.PAYMENT_HOLD_EXPIRING]: 0,
+  [EVENT_TYPES.PAYMENT_CHARGED_NOW]: 0,
+  [EVENT_TYPES.RAIL_SWITCH_REQUESTED]: 0,
+  [EVENT_TYPES.RAIL_SWITCH_RESOLVED]: 0,
 });
 
 async function enqueueJobEvent(client, { jobId, eventType, payload = {}, coalesce = true, delaySeconds = null }) {

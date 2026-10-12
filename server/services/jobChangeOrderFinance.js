@@ -20,7 +20,28 @@
 
 const { AppError } = require('../middleware/errorHandler');
 const logger = require('../utils/logger');
-const { setFinancials } = require('../models/jobModel');
+const { setFinancials, setFinancialsMinor } = require('../models/jobModel');
+const { currencyExponent } = require('../validation/money');
+const flags = require('./paymentLayerFlags');
+
+/** Credit holds a job can carry: escrow collateral, or the payment itself. */
+const CREDIT_HOLD_KINDS = Object.freeze({
+  collateral: { metaKey: 'creditCollateralHoldId', keyKey: 'creditCollateralKey', referenceType: 'job_escrow_collateral' },
+  payment: { metaKey: 'creditPaymentHoldId', keyKey: 'creditPaymentKey', referenceType: 'job_payment' },
+});
+
+function jobCurrency(job) {
+  return String(job?.settlement_currency || job?.currency_code || 'USD').trim().toUpperCase();
+}
+
+/** Price the job in minor units of its currency (country fees when enabled). */
+async function setJobPrice(client, job, valueMinor) {
+  const currency = jobCurrency(job);
+  if (currencyExponent(currency) === 2 && !flags.isEnabled('COUNTRY_FEES') && currency === 'USD') {
+    return setFinancials(job.id, valueMinor / 100, Boolean(job.is_broker_mediated), client);
+  }
+  return setFinancialsMinor(job.id, valueMinor, { currency, country: job.location_country_code, rail: job.payment_rail, isBrokerMediated: Boolean(job.is_broker_mediated) }, client);
+}
 const { spendWithCredit } = require('./creditSpendAdapter');
 const { enqueueJobEvent, EVENT_TYPES } = require('./jobEventOutbox');
 
@@ -73,30 +94,37 @@ async function releaseCollateralHold(client, holdId, jobId, reason) {
  * amountCents, inside the caller's transaction. Returns { holdId } (undefined
  * when there was no active hold to replace).
  */
-async function replaceCreditCollateral(client, { job, amountCents, reason, idempotencyKey, isImpersonated = false, metadata = {}, helperId = null }) {
+async function replaceCreditCollateral(client, { job, amountCents, reason, idempotencyKey, isImpersonated = false, metadata = {}, helperId = null, kind = 'collateral' }) {
+  const spec = CREDIT_HOLD_KINDS[kind] || CREDIT_HOLD_KINDS.collateral;
   const jobMeta = parseJson(job.metadata);
-  if (!jobMeta.creditCollateralHoldId) return { holdId: undefined };
-  const { released } = await releaseCollateralHold(client, jobMeta.creditCollateralHoldId, job.id, reason);
+  const oldHoldId = jobMeta[spec.metaKey];
+  if (!oldHoldId) return { holdId: undefined };
+  const { released } = await releaseCollateralHold(client, oldHoldId, job.id, reason);
   if (!released) return { holdId: undefined };
-  const collateral = await spendWithCredit({
+  const currency = kind === 'payment' ? jobCurrency(job) : 'USD';
+  const hold = await spendWithCredit({
     client,
     participantRef: { type: 'helper', subjectId: String(helperId || job.assigned_helper_id) },
     customerId: String(job.client_id),
     amountCents,
-    currency: 'USD',
+    currency,
     surface: 'jobs',
     mode: 'hold',
-    referenceType: 'job_escrow_collateral',
+    referenceType: spec.referenceType,
     referenceId: String(job.id),
-    idempotencyKey,
+    idempotencyKey: kind === 'payment' ? idempotencyKey.replace('job_escrow_collateral', 'job_payment') : idempotencyKey,
     isImpersonated,
-    metadata: { ...metadata, replacesHoldId: String(jobMeta.creditCollateralHoldId) },
+    metadata: { ...metadata, replacesHoldId: String(oldHoldId) },
   });
+  const newHoldId = hold.hold?.id || null;
   await client.query(
     `UPDATE jobs SET metadata = COALESCE(metadata, '{}'::jsonb) || $2::jsonb WHERE id = $1`,
-    [job.id, JSON.stringify({ creditCollateralHoldId: collateral.hold?.id || null, creditCollateralKey: collateral.idempotencyKey })]
+    [job.id, JSON.stringify({ [spec.metaKey]: newHoldId, [spec.keyKey]: hold.idempotencyKey })]
   );
-  return { holdId: collateral.hold?.id || null };
+  if (kind === 'payment') {
+    await require('./paymentRails/creditRail').supersedePaymentHold(client, { jobId: job.id, oldHoldId, newHoldId, amountMinor: amountCents, currency });
+  }
+  return { holdId: newHoldId };
 }
 
 /**
@@ -139,14 +167,14 @@ async function applyApprovedChangeOrder(client, { agreement, changeOrder, actorI
 
   const platformPriced = job.job_value != null || job.job_value_cents != null;
   if (platformPriced) {
-    await setFinancials(job.id, newValueCents / 100, Boolean(job.is_broker_mediated), client);
+    await setJobPrice(client, job, newValueCents);
   } else {
     await client.query('UPDATE jobs SET job_value_cents = $2, updated_at = NOW() WHERE id = $1', [job.id, newValueCents]);
   }
 
   // Card payment (Stripe manual capture).
   const { rows: payRows } = await client.query(
-    `SELECT id, amount, status, metadata, capture_amount_cents, pending_increase_cents
+    `SELECT id, amount, currency, status, metadata, capture_amount_cents, pending_increase_cents
        FROM payments WHERE job_id = $1 AND status IN ('pending', 'authorized')
       ORDER BY id DESC LIMIT 1 FOR UPDATE`,
     [job.id]
@@ -155,7 +183,8 @@ async function applyApprovedChangeOrder(client, { agreement, changeOrder, actorI
   if (payment) {
     const meta = parseJson(payment.metadata);
     const appliedCredit = cents(meta.appliedCreditCents) || 0;
-    const authorizedCents = cents(meta.authorized_amount_cents) ?? Math.round(Number(payment.amount) * 100);
+    const scale = 10 ** currencyExponent(payment.currency);
+    const authorizedCents = cents(meta.authorized_amount_cents) ?? Math.round(Number(payment.amount) * scale);
     const targetCents = Math.max(0, newValueCents - appliedCredit);
     const nextMeta = { ...meta, authorized_amount_cents: authorizedCents, last_change_order_id: changeOrder.id };
     if (payment.status === 'pending') {
@@ -172,7 +201,7 @@ async function applyApprovedChangeOrder(client, { agreement, changeOrder, actorI
         `UPDATE payments SET amount = $2, capture_amount_cents = $3, pending_increase_cents = 0,
                 metadata = $4::jsonb, updated_at = NOW()
           WHERE id = $1`,
-        [payment.id, targetCents / 100, targetCents, JSON.stringify(nextMeta)]
+        [payment.id, targetCents / scale, targetCents, JSON.stringify(nextMeta)]
       );
     } else {
       adjustment.payment_action = 'reauthorization_required';
@@ -190,11 +219,13 @@ async function applyApprovedChangeOrder(client, { agreement, changeOrder, actorI
   // the approval: the old hold stays in place (savepoint) and the customer is
   // asked to add Credit and re-authorize (jobPaymentReauthorizationService).
   const jobMeta = parseJson(job.metadata);
-  if (jobMeta.creditCollateralHoldId) {
+  const creditKind = jobMeta.creditPaymentHoldId ? 'payment' : jobMeta.creditCollateralHoldId ? 'collateral' : null;
+  if (creditKind) {
     await client.query('SAVEPOINT change_order_credit');
     try {
       const { holdId } = await replaceCreditCollateral(client, {
         job,
+        kind: creditKind,
         amountCents: newValueCents,
         reason: `Replaced by approved change order ${changeOrder.id}`,
         idempotencyKey: `credit-spend:jobs:job_escrow_collateral:${job.id}:co:${changeOrder.id}`,
@@ -207,7 +238,7 @@ async function applyApprovedChangeOrder(client, { agreement, changeOrder, actorI
         adjustment.credit_action = 'hold_replaced';
         adjustment.credit_hold_id = holdId;
         await client.query(
-          `UPDATE jobs SET metadata = COALESCE(metadata, '{}'::jsonb) - 'creditAdjustmentRequired' - 'creditAdjustmentAmountCents' - 'creditAdjustmentChangeOrderId' WHERE id = $1`,
+          `UPDATE jobs SET metadata = COALESCE(metadata, '{}'::jsonb) - 'creditAdjustmentRequired' - 'creditAdjustmentAmountCents' - 'creditAdjustmentChangeOrderId' - 'creditAdjustmentKind' WHERE id = $1`,
           [job.id]
         );
       }
@@ -217,7 +248,7 @@ async function applyApprovedChangeOrder(client, { agreement, changeOrder, actorI
       adjustment.credit_action = 'credit_reauthorization_required';
       await client.query(
         `UPDATE jobs SET metadata = COALESCE(metadata, '{}'::jsonb) || $2::jsonb WHERE id = $1`,
-        [job.id, JSON.stringify({ creditAdjustmentRequired: true, creditAdjustmentAmountCents: newValueCents, creditAdjustmentChangeOrderId: changeOrder.id })]
+        [job.id, JSON.stringify({ creditAdjustmentRequired: true, creditAdjustmentAmountCents: newValueCents, creditAdjustmentChangeOrderId: changeOrder.id, creditAdjustmentKind: creditKind })]
       );
     }
   }
@@ -265,4 +296,4 @@ async function applyApprovedChangeOrder(client, { agreement, changeOrder, actorI
   return { job, adjustment, newValueCents };
 }
 
-module.exports = { applyApprovedChangeOrder, replaceCreditCollateral };
+module.exports = { applyApprovedChangeOrder, replaceCreditCollateral, releaseCollateralHold, setJobPrice };

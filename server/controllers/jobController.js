@@ -16,6 +16,10 @@ const jobStatusPolicy = require('../services/jobStatusPolicy');
 const jobSchema = require('../validation/jobSchema');
 const { enqueueJobEvent, EVENT_TYPES } = require('../services/jobEventOutbox');
 const { getClientRequestId } = require('../utils/idempotency');
+const paymentRails = require('../services/paymentRails');
+const paymentFlags = require('../services/paymentLayerFlags');
+const { normalizeCountryCode, isValidTimeZone, defaultCurrencyFor } = require('../validation/countries');
+const { normalizeCurrency } = require('../validation/money');
 const {
   translateRecordForRequest,
   translateRecordsForRequest,
@@ -135,7 +139,18 @@ exports.createJob = async (req, res, next) => {
       : (canonicalInput.budget_max_cents ?? (resolvedBudgetType === 'fixed' ? budgetMinCents : null));
     const resolvedBudgetMin = budgetMinCents === null ? null : budgetMinCents / 100;
     const resolvedBudgetMax = budgetMaxCents === null ? null : budgetMaxCents / 100;
-    const resolvedCurrencyCode = String(currency_code || 'USD').trim().toUpperCase().slice(0, 3);
+    // ISO country code (always derived; additive) + job time zone and local
+    // currency (payment layers; flags default off → today's behaviour).
+    const locationCountryCode = normalizeCountryCode(String(req.body.location_country_code || location_country || ''));
+    const jobTimeZone = paymentFlags.isEnabled('JOB_TIMEZONES')
+      ? [req.body.timezone, req.user.timezone].find((zone) => isValidTimeZone(zone)) || null
+      : null;
+    const resolvedCurrencyCode = currency_code
+      ? String(currency_code).trim().toUpperCase().slice(0, 3)
+      : (paymentFlags.isEnabled('PAYMENT_RAILS') && locationCountryCode ? defaultCurrencyFor(locationCountryCode) : 'USD');
+    if (currency_code && paymentFlags.isEnabled('PAYMENT_RAILS') && !normalizeCurrency(resolvedCurrencyCode)) {
+      throw new AppError('Unsupported currency', 400, 'validation_failed', { currency_code: 'currency_unsupported' });
+    }
     const isUrgent           = (urgency === 'asap') || (priority === 'urgent');
 
     // ── Fuzz public coords ───────────────────────────────────────────────────────────────────────────
@@ -192,6 +207,7 @@ exports.createJob = async (req, res, next) => {
           preferred_helper_id, preferred_helper_name,
           private_notes,
           currency_code, budget_min_cents, budget_max_cents,
+          location_country_code, timezone,
           status, expires_at
        )
        VALUES (
@@ -202,6 +218,7 @@ exports.createJob = async (req, res, next) => {
           $21,$22,$23,$24,$25,
           $26,$27,$28,$29,$30,$31,$32,
           $33,$34,$35,
+          $36,$37,
           'published', now() + interval '30 days'
        )
        RETURNING *`,
@@ -220,6 +237,7 @@ exports.createJob = async (req, res, next) => {
         preferred_helper_id || null, preferred_helper_name || null,
         private_notes || null,
         resolvedCurrencyCode, budgetMinCents, budgetMaxCents,
+        locationCountryCode, jobTimeZone,
       ]
     );
     if (inserted[0]?.id && ['published', 'matched'].includes(inserted[0].status)) {
@@ -726,7 +744,10 @@ exports.assignHelper = async (req, res, next) => {
     // scheduled_start / scheduled_end are optional ISO strings provided by the
     // BidAcceptanceModal when the customer picks an exact time slot.
     // payment_method is required: 'oxsteed' or 'off_platform'
-    const { bid_id, scheduled_start, scheduled_end, payment_method } = req.body;
+    const { bid_id, scheduled_start, scheduled_end } = req.body;
+    // payment_rail (stripe | credit | offline) when the rail engine is on;
+    // otherwise the legacy payment_method (oxsteed | off_platform).
+    const { rail: requestedRail, paymentMethod: payment_method } = paymentRails.paymentMethodForRequest(req.body);
     // Optional optimistic-concurrency guard: the job version the customer saw.
     const jobPrecondition = readPrecondition({
       get: (name) => (req.get ? req.get(name) : undefined),
@@ -747,7 +768,7 @@ exports.assignHelper = async (req, res, next) => {
       });
     }
 
-    if (payment_method === 'oxsteed' && !platformJobPaymentsEnabled()) {
+    if (payment_method === 'oxsteed' && requestedRail !== 'credit' && !platformJobPaymentsEnabled()) {
       throw new AppError(
         'Protected OxSteed job payments are coming soon. Use direct customer-helper payment for now.',
         503,
@@ -939,6 +960,17 @@ exports.assignHelper = async (req, res, next) => {
         throw new AppError('Job not found or cannot be assigned', 409, 'state_conflict');
       }
 
+      // 4a. Record (and, with the rail engine on, enforce) the payment rail.
+      const railResult = await paymentRails.applyAcceptance(client, {
+        job: jobResult.rows[0],
+        bid: acceptedBid,
+        customerId: req.user.id,
+        paymentMethod: payment_method,
+        requestedRail,
+        body: req.body,
+        isImpersonated: Boolean(req.impersonated),
+      });
+
       // 5. Auto-create a calendar appointment for the accepted job.
       //    Uses ON CONFLICT DO NOTHING (via idx_appointments_job_unique) so
       //    retrying assignHelper never produces duplicate calendar events.
@@ -1032,8 +1064,12 @@ exports.assignHelper = async (req, res, next) => {
             amount: 'Valid bid amount required'
           });
         }
-        const { setFinancials } = require('../models/jobModel');
-        await setFinancials(jobResult.rows[0].id, Number(acceptedBid.amount), false, client);
+        if (!railResult.skipLegacyFinancials) {
+          const { setFinancials } = require('../models/jobModel');
+          await setFinancials(jobResult.rows[0].id, Number(acceptedBid.amount), false, client);
+        }
+      }
+      if (payment_method === 'oxsteed' && !railResult.skipLegacyCollateral) {
 
         // Phase 5 — Credit Everywhere (locked decision #2): hybrid jobs.
         // Hold the customer's Credit as escrow collateral via the shared
@@ -1046,7 +1082,7 @@ exports.assignHelper = async (req, res, next) => {
           participantRef: { type: 'helper', subjectId: String(bid.helper_id) },
           customerId: req.user.id,
           amountCents: acceptedBid.amount_cents ?? Math.round(Number(acceptedBid.amount) * 100),
-          currency: 'USD',
+          currency: railResult.currency || 'USD',
           surface: 'jobs',
           mode: 'hold',
           referenceType: 'job_escrow_collateral',
@@ -1062,7 +1098,8 @@ exports.assignHelper = async (req, res, next) => {
         );
       }
 
-      return { job: jobResult.rows[0], bid: acceptedBid };
+      const { rows: finalJobRows } = await client.query('SELECT * FROM jobs WHERE id = $1', [jobResult.rows[0].id]);
+      return { job: finalJobRows[0] || jobResult.rows[0], bid: acceptedBid };
     }, 'assign_helper');
 
     const acceptedEtag = jobEtag(result.job);
@@ -1171,7 +1208,7 @@ exports.completeJob = async (req, res, next) => {
 
     // First, verify the job exists and user has permission (outside transaction for early validation)
     const { rows: jobRows } = await pool.query(`
-      SELECT id, client_id, assigned_helper_id, status, job_type, job_type_label, transaction_mode, metadata
+      SELECT id, client_id, assigned_helper_id, status, job_type, job_type_label, transaction_mode, metadata, payment_rail
       FROM jobs
       WHERE id = $1 AND (client_id = $2 OR assigned_helper_id = $2)
       AND status = 'in_progress'
@@ -1192,7 +1229,8 @@ exports.completeJob = async (req, res, next) => {
       // so helpers get paid without a separate "Capture" step (and we roll back if Stripe fails).
       if (job.client_id === req.user.id && isTier3EscrowJob(job)) {
         const { rows: payRows } = await client.query(
-          `SELECT id, amount, stripe_payment_intent_id, stripe_account_id, status, capture_amount_cents, pending_increase_cents
+          `SELECT id, amount, stripe_payment_intent_id, stripe_account_id, status, capture_amount_cents, pending_increase_cents,
+                  charge_model, destination_account_id, currency, metadata
            FROM payments WHERE job_id = $1 AND status = 'authorized' FOR UPDATE`,
           [id],
         );
@@ -1211,6 +1249,22 @@ exports.completeJob = async (req, res, next) => {
           }
           await captureAuthorizedPaymentWithClient(client, payRows[0]);
         }
+      }
+
+      // Credit rail: the Credit hold is the payment. The customer's
+      // completion releases it to the helper (helper-marked completion is
+      // released by the auto-release worker after the review window).
+      await paymentRails.assertCompletable(client, job);
+      if (job.client_id === req.user.id && paymentRails.railOf(job) === 'credit') {
+        const dispute = await client.query(
+          `SELECT id FROM disputes WHERE job_id = $1 AND status IN ('open', 'in_progress')`,
+          [id],
+        );
+        if (dispute.rows[0]) {
+          throw new AppError('Cannot complete job while a payment dispute is open. Resolve the dispute first.', 409, 'dispute_open');
+        }
+        const { rows: fullJob } = await client.query('SELECT * FROM jobs WHERE id = $1 FOR UPDATE', [id]);
+        await paymentRails.onComplete(client, fullJob[0], { actorUserId: req.user.id });
       }
 
       const { rows } = await client.query(`

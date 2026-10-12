@@ -2,6 +2,7 @@ const pool = require('../db');
 const logger = require('../utils/logger');
 const { withTransaction } = require('../utils/transaction');
 const { AppError } = require('../middleware/errorHandler');
+const money = require('../validation/money');
 const { sendNotification } = require('../services/notificationService');
 const jobStatusPolicy = require('../services/jobStatusPolicy');
 const { bidJobSnapshot } = require('../services/jobEditService');
@@ -13,6 +14,23 @@ function canViewBid(user, bid) {
 }
 
 // Create a bid on a job
+function bidCurrencyFor(job) {
+  return money.normalizeCurrency(job?.settlement_currency) || money.normalizeCurrency(job?.currency_code) || 'USD';
+}
+
+function assertBidCurrency(requested, jobCurrency) {
+  if (requested === undefined || requested === null || requested === '') return;
+  if (money.normalizeCurrency(String(requested)) !== jobCurrency) {
+    throw new AppError('Bids must be in the job currency', 409, 'bid_currency_mismatch', { currency_code: 'bid_currency_mismatch' });
+  }
+}
+
+/** USD keeps the historical rounding; other currencies use their exponent. */
+function amountToMinor(amount, currency) {
+  if (currency === 'USD') return Math.round(Number(amount) * 100);
+  return money.toMinor(String(amount), currency) ?? Math.round(Number(amount) * (10 ** money.currencyExponent(currency)));
+}
+
 exports.createBid = async (req, res, next) => {
   try {
     const { job_id, amount, message, eta_hours } = req.body;
@@ -86,12 +104,16 @@ exports.createBid = async (req, res, next) => {
         throw new AppError('You already placed a bid on this job', 409, 'bid_already_exists');
       }
 
-      const amountCents = Math.round(Number(amount) * 100);
+      // Bids must be in the job's currency (decision #11); the amount is
+      // stored in that currency's minor units.
+      const jobCurrency = bidCurrencyFor(jobRow);
+      assertBidCurrency(req.body.currency_code, jobCurrency);
+      const amountCents = amountToMinor(amount, jobCurrency);
       const bidResult = await client.query(
-        `INSERT INTO bids (job_id, helper_id, amount, amount_cents, message, eta_hours, job_version, job_revision, job_snapshot)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb) RETURNING *`,
-        [job_id, req.user.id, amountCents / 100, amountCents, message !== undefined ? message.trim() : message, estimated_hours,
-          jobRow.version ?? null, jobRow.revision ?? null, JSON.stringify(bidJobSnapshot(jobRow))]
+        `INSERT INTO bids (job_id, helper_id, amount, amount_cents, message, eta_hours, job_version, job_revision, job_snapshot, currency_code)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10) RETURNING *`,
+        [job_id, req.user.id, amountCents / (10 ** money.currencyExponent(jobCurrency)), amountCents, message !== undefined ? message.trim() : message, estimated_hours,
+          jobRow.version ?? null, jobRow.revision ?? null, JSON.stringify(bidJobSnapshot(jobRow)), jobCurrency]
       );
 
       // Job status intentionally NOT changed here - jobs remain 'published'
@@ -355,7 +377,9 @@ async function reviseBid(req, { requireReconfirm }) {
       throw new AppError('The job changed again. Review the latest details first.', 409, 'job_changed',
         { job_revision: 'version_conflict' });
     }
-    const amountCents = amount !== undefined && amount !== null && amount !== '' ? Math.round(Number(amount) * 100) : null;
+    const jobCurrency = bidCurrencyFor(job);
+    assertBidCurrency(req.body?.currency_code, jobCurrency);
+    const amountCents = amount !== undefined && amount !== null && amount !== '' ? amountToMinor(amount, jobCurrency) : null;
     const { rows } = await client.query(
       `UPDATE bids
           SET amount_cents = COALESCE($1, amount_cents),

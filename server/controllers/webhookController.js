@@ -29,6 +29,7 @@ const { applyChargeRefund, verifiedChargeRefundTotal } = require('../services/pa
 const stripeWebhookContract = require('../config/stripeWebhookContract');
 const businessInvoiceStripeConnectService = require('../services/businessInvoiceStripeConnectService');
 const jobPaymentReauth = require('../services/jobPaymentReauthorizationService');
+const paymentRailWebhooks = require('../services/paymentRails/webhooks');
 
 function extractFoodOrderId(metadata) {
   const raw = metadata?.food_order_id
@@ -824,9 +825,16 @@ exports.stripeWebhook = async (req, res, next) => {
         if (await jobPaymentReauth.applyReauthorizationWebhook(event.type, pi)) break;
         const jobId = pi.metadata?.job_id;
         if (jobId) {
+          // authorization_expires_at drives hold-expiry re-authorization
+          // (decision #17): Stripe card authorizations lapse after the
+          // country window (default 7 days).
           const { rows: payRows } = await db.query(
-            `UPDATE payments SET status = 'authorized', payment_hold_status = 'held',
-             updated_at = NOW() WHERE stripe_payment_intent_id = $1 AND status != 'captured'
+            `UPDATE payments p SET status = 'authorized', payment_hold_status = 'held',
+               authorized_at = COALESCE(p.authorized_at, NOW()),
+               authorization_expires_at = NOW() + make_interval(days => COALESCE(
+                 (SELECT card_auth_window_days FROM payment_country_policies WHERE country_code = p.fee_country), 7)),
+               updated_at = NOW()
+             WHERE stripe_payment_intent_id = $1 AND status != 'captured'
              RETURNING id, payer_id, metadata`,
             [pi.id]
           );
@@ -862,6 +870,13 @@ exports.stripeWebhook = async (req, res, next) => {
           break;
         }
         const pi = event.data.object;
+        // Change-order re-authorization on a platform-held (charge-now) payment.
+        if (await jobPaymentReauth.applyReauthorizationWebhook(event.type, pi)) break;
+        // Charge-now + platform hold (local methods, jobs > 5 days out): the
+        // money is held for the job, not released to the helper yet.
+        if (await paymentRailWebhooks.applyPlatformHoldSucceeded(pi)) break;
+        // Tips: processing cost only (decision #9).
+        if (await paymentRailWebhooks.applyTipIntent(event.type, pi)) break;
         if (pi?.metadata?.business_invoice_payment === 'true') {
           await withTransaction(db, (client) => businessInvoiceStripeConnectService
             .applyBusinessInvoicePaymentFromWebhook(client, pi));
@@ -947,6 +962,7 @@ exports.stripeWebhook = async (req, res, next) => {
         // A declined change-order re-authorization leaves the original
         // authorization untouched; the customer can retry.
         if (await jobPaymentReauth.applyReauthorizationWebhook(event.type, pi)) break;
+        if (await paymentRailWebhooks.applyTipIntent(event.type, pi)) break;
         const jobId = pi.metadata?.job_id;
         const failureMsg = pi.last_payment_error?.message || 'Payment failed';
         let foodOrderId = extractFoodOrderId(pi.metadata);
@@ -1031,6 +1047,7 @@ exports.stripeWebhook = async (req, res, next) => {
         }
         const pi = event.data.object;
         if (await jobPaymentReauth.applyReauthorizationWebhook(event.type, pi)) break;
+        if (await paymentRailWebhooks.applyTipIntent(event.type, pi)) break;
         await withTransaction(db, (client) => applyStripePaymentIntent(client, pi));
         // Audit fix: clear job escrow on cancel, same as payment_failed.
         // Otherwise the job stays in escrow with no payment behind it.

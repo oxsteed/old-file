@@ -1,5 +1,7 @@
 'use strict';
 
+const { normalizeCountryCode } = require('../validation/countries');
+
 /**
  * Posted-job editing: one transactional path for owner edits, admin edits,
  * and admin rollbacks.
@@ -262,6 +264,9 @@ async function applyJobEditInner({
       }
       if (changes.required_skills) push('skill_ids = ?::int[]', skillIdsLiteral(patch.required_skills));
       if (changes.urgency) push('is_urgent = ?', patch.urgency === 'asap');
+      if (changes.location_country) {
+        push('location_country_code = ?', normalizeCountryCode(String(patch.location_country || '')));
+      }
       if (changes.scheduled_start_at && !changes.scheduled_precision && patch.scheduled_start_at !== null) {
         push('scheduled_precision = ?', patch.scheduled_precision || current.scheduled_precision || 'datetime');
       }

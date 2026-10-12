@@ -33,12 +33,18 @@ const pool = require('../db');
 const logger = require('../utils/logger');
 const { AppError } = require('../middleware/errorHandler');
 const { withTransaction } = require('../utils/transaction');
-const { calculateTier3Fees } = require('../utils/feeCalculator');
 const { enqueueJobEvent, EVENT_TYPES } = require('./jobEventOutbox');
+const chargeModel = require('./stripeChargeModel');
+const railPolicy = require('./paymentRailPolicy');
+const { currencyExponent } = require('../validation/money');
 
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 
 const CARD_FLAGS = new Set(['reauthorization_required', 'intent_reprice_required']);
+// jobs.metadata.paymentHoldRenewalRequired: the card authorization lapses
+// soon (Stripe ~7 days, per-country window) and should be replaced
+// (decision #17). Unlike the flags above it does not block completion —
+// the current authorization is still capturable until it expires.
 const CONFIRMABLE = new Set(['requires_payment_method', 'requires_confirmation', 'requires_action']);
 const MAX_PAYMENT_CENTS = 5_000_000;
 
@@ -61,13 +67,25 @@ function parseJson(value) {
 
 function authorizedCentsOf(payment) {
   const meta = parseJson(payment.metadata);
-  return cents(meta.authorized_amount_cents) ?? Math.round(Number(payment.amount) * 100);
+  return cents(meta.authorized_amount_cents) ?? Math.round(Number(payment.amount) * (10 ** currencyExponent(payment.currency)));
+}
+
+function majorOf(minor, payment) {
+  return minor / (10 ** currencyExponent(payment?.currency));
+}
+
+/** Fees for a payment amount: country schedule when it was charged under one. */
+async function feesFor(client, payment, amount) {
+  const policy = payment?.fee_country ? await railPolicy.getCountryPolicy(client, payment.fee_country) : null;
+  const fees = railPolicy.computeFees({ amountMinor: amount, currency: String(payment?.currency || 'USD').toUpperCase(), policy });
+  return { platform_fee_cents: fees.platform_fee_minor, application_fee_cents: fees.application_fee_minor };
 }
 
 /** What the customer still has to fund, or null when nothing is required. */
 function requirementFrom(job, payment) {
   const meta = parseJson(job?.metadata);
-  const card = CARD_FLAGS.has(meta.paymentAdjustmentRequired) ? meta.paymentAdjustmentRequired : null;
+  const card = CARD_FLAGS.has(meta.paymentAdjustmentRequired) ? meta.paymentAdjustmentRequired
+    : meta.paymentHoldRenewalRequired === true ? 'hold_expiring' : null;
   const credit = meta.creditAdjustmentRequired === true;
   if (!card && !credit) return null;
   const out = { card, credit, change_order_id: meta.paymentAdjustmentChangeOrderId || meta.creditAdjustmentChangeOrderId || null };
@@ -107,17 +125,15 @@ function assertCustomer(job, user) {
 
 function clearCardFlagSql() {
   return `UPDATE jobs
-             SET metadata = (COALESCE(metadata, '{}'::jsonb) - 'paymentAdjustmentRequired' - 'paymentAdjustmentChangeOrderId')
+             SET metadata = (COALESCE(metadata, '{}'::jsonb) - 'paymentAdjustmentRequired' - 'paymentAdjustmentChangeOrderId' - 'paymentHoldRenewalRequired' - 'paymentHoldExpiresAt')
                             || jsonb_build_object('paymentReauthorizedAt', NOW()),
                  updated_at = NOW()
            WHERE id = $1`;
 }
 
-async function cancelIntentQuietly(intentId, stripeAccount, idempotencyKey) {
-  if (!intentId || !stripeAccount || typeof stripe.paymentIntents.cancel !== 'function') return false;
+async function cancelIntentQuietly(intentId, stripeAccount, idempotencyKey, model = 'direct') {
   try {
-    await stripe.paymentIntents.cancel(intentId, {}, { stripeAccount, idempotencyKey });
-    return true;
+    return await chargeModel.releaseIntent(stripe, { intentId, model, stripeAccount, idempotencyKey });
   } catch (err) {
     // Already canceled/captured or not cancelable: nothing else to release.
     logger.warn('job_payment_reauth.cancel_intent_failed', { intentId, error: err.message });
@@ -151,7 +167,7 @@ async function getReauthorizationState(jobId, user) {
   const isAdmin = ['admin', 'super_admin'].includes(user?.role);
   if (!isCustomer && !isHelper && !isAdmin) throw new AppError('Job not found', 404, 'job_not_found');
   const { rows: payRows } = await pool.query(
-    `SELECT id, amount, status, metadata, capture_amount_cents, pending_increase_cents
+    `SELECT id, amount, currency, status, metadata, capture_amount_cents, pending_increase_cents, charge_model
        FROM payments WHERE job_id = $1 AND status IN ('pending', 'authorized') ORDER BY id DESC LIMIT 1`,
     [jobId]
   );
@@ -194,10 +210,11 @@ async function startCardReauthorization({ jobId, user }) {
     if (!Number.isInteger(target) || target < 50 || target > MAX_PAYMENT_CENTS) {
       throw new AppError('The new amount cannot be authorized online. Contact support.', 409, 'payment_reauthorization_amount_invalid');
     }
-    const fees = calculateTier3Fees(target);
+    const fees = await feesFor(client, payment, target);
+    const model = chargeModel.modelOf(payment);
 
     if (requirement.card === 'intent_reprice_required') {
-      const intent = await stripe.paymentIntents.retrieve(payment.stripe_payment_intent_id, { stripeAccount: payment.stripe_account_id });
+      const intent = await stripe.paymentIntents.retrieve(payment.stripe_payment_intent_id, chargeModel.requestOptions(payment));
       if (!CONFIRMABLE.has(intent.status)) {
         // Authorized in Stripe before the webhook arrived: treat as a replacement.
         await client.query(
@@ -206,19 +223,19 @@ async function startCardReauthorization({ jobId, user }) {
         );
         await client.query(
           `UPDATE payments SET status = 'authorized', capture_amount_cents = $2, pending_increase_cents = GREATEST(0, $3 - $2), updated_at = NOW() WHERE id = $1`,
-          [payment.id, cents(intent.amount), target]
+          [payment.id, cents(chargeModel.fundedAmount(intent, model)) || cents(intent.amount), target]
         );
         return { retry: true };
       }
       const attempt = await nextAttemptNumber(client, jobId);
       await stripe.paymentIntents.update(payment.stripe_payment_intent_id,
-        { amount: target, application_fee_amount: fees.application_fee_cents },
-        { stripeAccount: payment.stripe_account_id, idempotencyKey: `job-payment-reprice:${jobId}:${attempt}` });
+        model === 'platform_hold' ? { amount: target } : { amount: target, application_fee_amount: fees.application_fee_cents },
+        chargeModel.requestOptions(payment, { idempotencyKey: `job-payment-reprice:${jobId}:${attempt}` }));
       const meta = { ...parseJson(payment.metadata), authorized_amount_cents: target, discounted_amount_cents: target };
       await client.query(
         `UPDATE payments SET amount = $2, platform_fee = $3, capture_amount_cents = $4, pending_increase_cents = 0,
                 metadata = $5::jsonb, updated_at = NOW() WHERE id = $1`,
-        [payment.id, target / 100, fees.platform_fee_cents / 100, target, JSON.stringify(meta)]
+        [payment.id, majorOf(target, payment), majorOf(fees.platform_fee_cents, payment), target, JSON.stringify(meta)]
       );
       const { rows } = await client.query(
         `INSERT INTO job_payment_reauthorizations
@@ -245,11 +262,11 @@ async function startCardReauthorization({ jobId, user }) {
     if (open) {
       const fresh = new Date(open.expires_at) > new Date();
       if (fresh && cents(open.amount_cents) === target && String(open.payment_id) === String(payment.id)) {
-        const intent = await stripe.paymentIntents.retrieve(open.stripe_payment_intent_id, { stripeAccount: open.stripe_account_id });
+        const intent = await stripe.paymentIntents.retrieve(open.stripe_payment_intent_id, chargeModel.requestOptions(open));
         if (CONFIRMABLE.has(intent.status)) {
           return { result: { status: 'requires_confirmation', attempt: view(open), client_secret: intent.client_secret, payment_intent_id: intent.id, stripe_account_id: open.stripe_account_id } };
         }
-        if (intent.status === 'requires_capture') {
+        if (chargeModel.isFunded(intent, chargeModel.modelOf(open))) {
           const finalized = await finalizeAuthorizedInTransaction(client, open, intent, { job, payment });
           return { result: { status: 'authorized', attempt: view(finalized.attempt) }, cancelAfter: finalized.cancelAfter };
         }
@@ -258,16 +275,16 @@ async function startCardReauthorization({ jobId, user }) {
         `UPDATE job_payment_reauthorizations SET status = $2, failure_code = $3, updated_at = NOW() WHERE id = $1`,
         [open.id, fresh ? 'canceled' : 'expired', fresh ? 'superseded' : 'expired']
       );
-      await cancelIntentQuietly(open.stripe_payment_intent_id, open.stripe_account_id, `job-payment-reauth-cancel:${open.id}`);
+      await cancelIntentQuietly(open.stripe_payment_intent_id, open.stripe_account_id, `job-payment-reauth-cancel:${open.id}`, chargeModel.modelOf(open) === 'platform_hold' ? 'destination' : chargeModel.modelOf(open));
     }
 
     const attempt = await nextAttemptNumber(client, jobId);
-    const intent = await stripe.paymentIntents.create({
-      amount: target,
-      currency: 'usd',
-      payment_method_types: ['card'],
-      capture_method: 'manual',
-      application_fee_amount: fees.application_fee_cents,
+    const built = chargeModel.intentParams({
+      model,
+      amountMinor: target,
+      currency: payment.currency || 'USD',
+      applicationFeeMinor: fees.application_fee_cents,
+      helperAccountId: payment.stripe_account_id || payment.destination_account_id,
       metadata: {
         job_id: String(jobId),
         client_id: String(job.client_id),
@@ -277,19 +294,21 @@ async function startCardReauthorization({ jobId, user }) {
         job_reauthorization: 'true',
         reauthorization_attempt: String(attempt),
         replaces_payment_intent_id: String(payment.stripe_payment_intent_id || ''),
+        reauthorization_reason: requirement.card,
       },
-    }, { stripeAccount: payment.stripe_account_id, idempotencyKey: `job-payment-reauth:${jobId}:${attempt}` });
+    });
+    const intent = await stripe.paymentIntents.create(built.params, { ...built.options, idempotencyKey: `job-payment-reauth:${jobId}:${attempt}` });
     const { rows } = await client.query(
       `INSERT INTO job_payment_reauthorizations
          (job_id, payment_id, change_order_id, requested_by, method, kind, status, attempt, amount_cents,
-          previous_authorized_cents, stripe_payment_intent_id, stripe_account_id, previous_payment_intent_id, expires_at)
+          previous_authorized_cents, stripe_payment_intent_id, stripe_account_id, previous_payment_intent_id, expires_at, charge_model)
        VALUES ($1, $2, $3, $4, 'card', 'replacement', 'pending', $5, $6, $7, $8, $9, $10,
-               NOW() + ($11::numeric * INTERVAL '1 hour'))
+               NOW() + ($11::numeric * INTERVAL '1 hour'), $12)
        RETURNING *`,
       [jobId, payment.id, requirement.change_order_id, user.id, attempt, target, requirement.authorized_cents,
-        intent.id, payment.stripe_account_id, payment.stripe_payment_intent_id, ttlHours()]
+        intent.id, model === 'direct' ? payment.stripe_account_id : null, payment.stripe_payment_intent_id, ttlHours(), model]
     );
-    return { result: { status: 'requires_confirmation', attempt: view(rows[0]), client_secret: intent.client_secret, payment_intent_id: intent.id, stripe_account_id: payment.stripe_account_id } };
+    return { result: { status: 'requires_confirmation', attempt: view(rows[0]), client_secret: intent.client_secret, payment_intent_id: intent.id, stripe_account_id: model === 'direct' ? payment.stripe_account_id : null } };
   }, 'job_payment_reauth_start');
 
   if (outcome.retry) return startCardReauthorization({ jobId, user });
@@ -307,7 +326,8 @@ async function finalizeAuthorizedInTransaction(client, attempt, intent, { job, p
   const { rows: attemptRows } = await client.query('SELECT * FROM job_payment_reauthorizations WHERE id = $1 FOR UPDATE', [attempt.id]);
   const current = attemptRows[0];
   if (!current || current.status === 'authorized') return { attempt: current, cancelAfter: null };
-  const capturable = cents(intent.amount_capturable) ?? cents(intent.amount);
+  const model = chargeModel.modelOf(current);
+  const capturable = cents(chargeModel.fundedAmount(intent, model));
   const usable = current.status === 'pending'
     && lockedPayment && String(lockedPayment.id) === String(current.payment_id)
     && lockedPayment.status === 'authorized'
@@ -318,10 +338,11 @@ async function finalizeAuthorizedInTransaction(client, attempt, intent, { job, p
       `UPDATE job_payment_reauthorizations SET status = 'canceled', failure_code = COALESCE(failure_code, 'not_applicable'), updated_at = NOW() WHERE id = $1`,
       [current.id]
     );
-    return { attempt: { ...current, status: 'canceled' }, cancelAfter: { intentId: intent.id, account: current.stripe_account_id, attemptId: current.id, key: `job-payment-reauth-cancel:${current.id}` } };
+    return { attempt: { ...current, status: 'canceled' }, cancelAfter: { intentId: intent.id, account: current.stripe_account_id, attemptId: current.id, key: `job-payment-reauth-cancel:${current.id}`, model } };
   }
   const amount = cents(current.amount_cents);
-  const fees = calculateTier3Fees(amount);
+  const fees = await feesFor(client, lockedPayment, amount);
+  const windowDays = await authWindowDays(client, lockedPayment);
   const meta = parseJson(lockedPayment.metadata);
   const superseded = Array.isArray(meta.superseded_payment_intent_ids) ? meta.superseded_payment_intent_ids : [];
   const nextMeta = {
@@ -335,9 +356,11 @@ async function finalizeAuthorizedInTransaction(client, attempt, intent, { job, p
     `UPDATE payments
         SET stripe_payment_intent_id = $2, amount = $3, platform_fee = $4, capture_amount_cents = $5,
             pending_increase_cents = 0, status = 'authorized', payment_hold_status = 'held',
-            metadata = $6::jsonb, updated_at = NOW()
+            metadata = $6::jsonb, authorization_expires_at = $7, updated_at = NOW()
       WHERE id = $1`,
-    [lockedPayment.id, intent.id, amount / 100, fees.platform_fee_cents / 100, amount, JSON.stringify(nextMeta)]
+    [lockedPayment.id, intent.id, majorOf(amount, lockedPayment), majorOf(fees.platform_fee_cents, lockedPayment), amount,
+      JSON.stringify({ ...nextMeta, platform_fee_cents: fees.platform_fee_cents }),
+      model === 'platform_hold' ? null : new Date(Date.now() + windowDays * 86_400_000)]
   );
   const { rows: updated } = await client.query(
     `UPDATE job_payment_reauthorizations
@@ -354,13 +377,18 @@ async function finalizeAuthorizedInTransaction(client, attempt, intent, { job, p
   logger.info('job_payment_reauth.authorized', { jobId: lockedJob.id, attemptId: current.id, amount });
   return {
     attempt: updated[0],
-    cancelAfter: { intentId: lockedPayment.stripe_payment_intent_id, account: lockedPayment.stripe_account_id, attemptId: current.id, key: `job-payment-reauth-release:${current.id}`, previous: true },
+    cancelAfter: { intentId: lockedPayment.stripe_payment_intent_id, account: lockedPayment.stripe_account_id, attemptId: current.id, key: `job-payment-reauth-release:${current.id}`, previous: true, model: chargeModel.modelOf(lockedPayment) },
   };
+}
+
+async function authWindowDays(client, payment) {
+  const policy = payment?.fee_country ? await railPolicy.getCountryPolicy(client, payment.fee_country) : null;
+  return Number(policy?.card_auth_window_days) || 7;
 }
 
 async function runCancelAfter(cancelAfter) {
   if (!cancelAfter?.intentId) return;
-  const ok = await cancelIntentQuietly(cancelAfter.intentId, cancelAfter.account, cancelAfter.key);
+  const ok = await cancelIntentQuietly(cancelAfter.intentId, cancelAfter.account, cancelAfter.key, cancelAfter.model || 'direct');
   if (ok && cancelAfter.previous) {
     await pool.query(
       'UPDATE job_payment_reauthorizations SET previous_intent_canceled_at = NOW(), updated_at = NOW() WHERE id = $1',
@@ -393,8 +421,8 @@ async function confirmCardReauthorization({ jobId, user, attemptId }) {
   assertCustomer({ client_id: attempt.client_id }, user);
   if (attempt.status !== 'pending') return { status: attempt.status, attempt: view(attempt) };
   if (attempt.method !== 'card' || !attempt.stripe_payment_intent_id) throw new AppError('Nothing to confirm', 409, 'payment_reauthorization_not_required');
-  const intent = await stripe.paymentIntents.retrieve(attempt.stripe_payment_intent_id, { stripeAccount: attempt.stripe_account_id });
-  if (intent.status === 'requires_capture') {
+  const intent = await stripe.paymentIntents.retrieve(attempt.stripe_payment_intent_id, chargeModel.requestOptions(attempt));
+  if (chargeModel.isFunded(intent, chargeModel.modelOf(attempt))) {
     const finalized = await withTransaction(pool, async (client) => {
       const job = await lockJob(client, jobId);
       return finalizeAuthorizedInTransaction(client, attempt, intent, { job });
@@ -429,13 +457,13 @@ async function authorizeWithCredit({ jobId, user, isImpersonated = false }) {
     const amount = cents(meta.creditAdjustmentAmountCents) ?? cents(job.job_value_cents);
     const attempt = await nextAttemptNumber(client, jobId);
     const { holdId } = await replaceCreditCollateral(client, {
-      job, amountCents: amount, reason: `Credit re-authorization ${attempt}`,
+      job, amountCents: amount, kind: meta.creditAdjustmentKind === 'payment' || meta.creditPaymentHoldId ? 'payment' : 'collateral', reason: `Credit re-authorization ${attempt}`,
       idempotencyKey: `credit-spend:jobs:job_escrow_collateral:${job.id}:reauth:${attempt}`,
       isImpersonated, metadata: { reauthorizationAttempt: String(attempt) },
     });
     await client.query(
       `UPDATE jobs
-          SET metadata = (COALESCE(metadata, '{}'::jsonb) - 'creditAdjustmentRequired' - 'creditAdjustmentAmountCents' - 'creditAdjustmentChangeOrderId')
+          SET metadata = (COALESCE(metadata, '{}'::jsonb) - 'creditAdjustmentRequired' - 'creditAdjustmentAmountCents' - 'creditAdjustmentChangeOrderId' - 'creditAdjustmentKind')
                          || jsonb_build_object('creditReauthorizedAt', NOW()),
               updated_at = NOW()
         WHERE id = $1`,
@@ -468,7 +496,10 @@ async function applyReauthorizationWebhook(type, intent) {
     logger.warn('job_payment_reauth.webhook_unknown_intent', { intentId: intent.id, type });
     return true;
   }
-  if (type === 'payment_intent.amount_capturable_updated') {
+  const funded = type === 'payment_intent.amount_capturable_updated'
+    || (type === 'payment_intent.succeeded' && chargeModel.modelOf(attempt) === 'platform_hold');
+  if (type === 'payment_intent.succeeded' && !funded) return attempt.status !== 'authorized';
+  if (funded) {
     if (attempt.status === 'authorized') return true;
     const finalized = await withTransaction(pool, async (client) => {
       await lockJob(client, attempt.job_id);
@@ -518,7 +549,7 @@ async function expireStaleReauthorizations(limit = 100) {
     [Math.max(1, Math.min(Number(limit) || 100, 500))]
   );
   for (const attempt of rows) {
-    await cancelIntentQuietly(attempt.stripe_payment_intent_id, attempt.stripe_account_id, `job-payment-reauth-cancel:${attempt.id}`);
+    await cancelIntentQuietly(attempt.stripe_payment_intent_id, attempt.stripe_account_id, `job-payment-reauth-cancel:${attempt.id}`, chargeModel.modelOf(attempt) === 'platform_hold' ? 'destination' : chargeModel.modelOf(attempt));
     try {
       const { rows: jobRows } = await pool.query('SELECT status FROM jobs WHERE id = $1', [attempt.job_id]);
       if (!jobRows[0] || ['cancelled', 'completed', 'closed'].includes(String(jobRows[0].status))) continue;
@@ -541,7 +572,7 @@ async function supersedeOpenAttempts(client, jobId, reason = 'superseded') {
     [jobId, reason]
   );
   for (const attempt of rows) {
-    await cancelIntentQuietly(attempt.stripe_payment_intent_id, attempt.stripe_account_id, `job-payment-reauth-cancel:${attempt.id}`);
+    await cancelIntentQuietly(attempt.stripe_payment_intent_id, attempt.stripe_account_id, `job-payment-reauth-cancel:${attempt.id}`, chargeModel.modelOf(attempt) === 'platform_hold' ? 'destination' : chargeModel.modelOf(attempt));
   }
   return rows.length;
 }
