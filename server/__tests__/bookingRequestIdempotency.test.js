@@ -83,11 +83,13 @@ test('replays a schedule request without creating a second booking or timeline m
   };
 
   mockQuery
+    .mockResolvedValueOnce({ rows: [] }) // helper allow_booking lookup (P1-204)
     .mockResolvedValueOnce({ rows: [] }) // first request key lookup
     .mockResolvedValueOnce({ rows: [booking] }) // booking insert
     .mockResolvedValueOnce({ rows: [message] }) // timeline message insert
     .mockResolvedValueOnce({ rows: [] }) // conversation timestamp
     .mockResolvedValueOnce({ rows: [] }) // message notification outbox
+    .mockResolvedValueOnce({ rows: [] }) // helper allow_booking lookup (retry)
     .mockResolvedValueOnce({ rows: [booking] }) // retry key lookup
     .mockResolvedValueOnce({ rows: [] }) // timeline message conflict
     .mockResolvedValueOnce({ rows: [message] }); // original timeline message

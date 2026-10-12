@@ -204,7 +204,8 @@ exports.createBookingRequest = async (req, res) => {
     }
 
     const helperResult = await pool.query(
-      `SELECT u.id, u.is_active, COALESCE(hp.is_hidden_by_admin, FALSE) AS is_hidden_by_admin
+      `SELECT u.id, u.is_active, COALESCE(hp.is_hidden_by_admin, FALSE) AS is_hidden_by_admin,
+              COALESCE(hp.allow_booking, TRUE) AS allow_booking
          FROM users u
          LEFT JOIN helper_profiles hp ON hp.user_id = u.id
         WHERE u.id = $1`,
@@ -215,6 +216,11 @@ exports.createBookingRequest = async (req, res) => {
     }
     if (!helperResult.rows[0].is_active || helperResult.rows[0].is_hidden_by_admin) {
       return sendError(res, 400, 'Helper is not accepting bookings', 'HELPER_INACTIVE');
+    }
+    // Review P1-204: the helper's "allow booking" privacy switch is enforced
+    // (business bookings follow the business's own listing state instead).
+    if (!business && helperResult.rows[0].allow_booking === false) {
+      return sendError(res, 403, 'This helper is not taking bookings right now', 'BOOKING_DISABLED');
     }
 
     // A scheduled request commits to a concrete time: verify it is truly free
