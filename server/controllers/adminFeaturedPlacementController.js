@@ -75,6 +75,23 @@ function normalizeNote(value) {
   return note === '' ? null : note;
 }
 
+// P1-316/P1-318: status transitions are enforced on the server, not only by
+// which buttons the admin UI shows. A guarded UPDATE that matched nothing is
+// either a missing row (404) or an illegal transition (409).
+async function throwMissingOrConflict(id, target) {
+  const { rows } = await pool.query(
+    'SELECT status FROM business_featured_placement_requests WHERE id = $1',
+    [id]
+  );
+  if (!rows.length) throw new AppError('Featured placement request not found', 404, 'not_found');
+  throw new AppError(
+    `Cannot move a ${rows[0].status} request to ${target}`,
+    409,
+    'invalid_status_transition',
+    { status: rows[0].status }
+  );
+}
+
 function adminId(req) {
   return req.user && req.user.id ? req.user.id : null;
 }
@@ -204,11 +221,11 @@ exports.contactRequest = async (req, res) => {
   const { rows } = await pool.query(
     `UPDATE business_featured_placement_requests
         SET status = 'contacted', updated_at = NOW()
-      WHERE id = $1
+      WHERE id = $1 AND status IN ('requested', 'contacted')
       RETURNING id, status`,
     [id]
   );
-  if (!rows.length) throw new AppError('Featured placement request not found', 404, 'not_found');
+  if (!rows.length) await throwMissingOrConflict(id, 'contacted');
 
   logger.info('admin featured placement contacted', { request_id: id, admin_id: adminId(req) });
   res.json({ id, status: rows[0].status });
@@ -230,11 +247,11 @@ exports.declineRequest = async (req, res) => {
             decided_at = NOW(),
             decision_note = $3,
             updated_at = NOW()
-      WHERE id = $1
+      WHERE id = $1 AND status IN ('requested', 'contacted')
       RETURNING id, status`,
     [id, adminId(req), note]
   );
-  if (!rows.length) throw new AppError('Featured placement request not found', 404, 'not_found');
+  if (!rows.length) await throwMissingOrConflict(id, 'declined');
 
   logger.info('admin featured placement declined', { request_id: id, admin_id: adminId(req) });
   res.json({ id, status: rows[0].status });
@@ -290,6 +307,16 @@ exports.approveRequest = async (req, res) => {
       throw new AppError('Restaurant does not belong to the requesting business', 400, 'validation_failed');
     }
 
+    // P1-318: approve only open requests, or re-approve/renew an approved one.
+    if (!['requested', 'contacted', 'approved'].includes(request.status)) {
+      throw new AppError(
+        `Cannot approve a ${request.status} request`,
+        409,
+        'invalid_status_transition',
+        { status: request.status }
+      );
+    }
+
     const effectivelyFeatured =
       restaurant.is_featured &&
       (restaurant.featured_until == null || new Date(restaurant.featured_until) > new Date());
@@ -297,6 +324,22 @@ exports.approveRequest = async (req, res) => {
       request.status === 'approved' && Number(request.featured_restaurant_id) === Number(restaurantId);
     if (effectivelyFeatured && !sameRequestReapprove) {
       throw new AppError('Restaurant is already featured', 409, 'already_featured');
+    }
+
+    // P1-313: one request carries one placement. Moving it to another
+    // restaurant of the same business un-features the previous one in the same
+    // transaction so it can't stay featured with nothing pointing at it.
+    const previousRestaurantId = request.featured_restaurant_id != null
+      ? Number(request.featured_restaurant_id)
+      : null;
+    if (previousRestaurantId && previousRestaurantId !== Number(restaurantId)) {
+      await client.query(
+        `UPDATE food_restaurants
+            SET is_featured = FALSE,
+                featured_until = NULL
+          WHERE id = $1`,
+        [previousRestaurantId]
+      );
     }
 
     const { rows: updated } = await client.query(
@@ -351,8 +394,8 @@ exports.approveRequest = async (req, res) => {
 
 /**
  * POST /api/admin/featured-placements/:id/revoke
- * Ends an active feature: clears the flag and expiry, closes the request.
- * 404 when nothing is currently featured under the request.
+ * Ends an active or expired feature: clears the flag and expiry, closes the
+ * request. 404 when the request never carried a placement.
  */
 exports.revokeRequest = async (req, res) => {
   const id = parseRequestId(req.params.id);
@@ -363,7 +406,7 @@ exports.revokeRequest = async (req, res) => {
     await client.query('BEGIN');
 
     const { rows: reqRows } = await client.query(
-      `SELECT id, featured_restaurant_id
+      `SELECT id, status, featured_restaurant_id
          FROM business_featured_placement_requests
         WHERE id = $1
         FOR UPDATE`,
@@ -374,30 +417,23 @@ exports.revokeRequest = async (req, res) => {
     }
     const request = reqRows[0];
 
-    let restaurantId = request.featured_restaurant_id != null ? Number(request.featured_restaurant_id) : null;
+    // P1-314: revoke also ends an expired placement. Previously it required
+    // an effective feature, so after featured_until passed the request sat in
+    // 'approved' forever with a stale is_featured flag and no admin exit.
+    if (request.status !== 'approved' || request.featured_restaurant_id == null) {
+      throw new AppError('Nothing is featured under this request', 404, 'not_found');
+    }
+    const restaurantId = request.featured_restaurant_id != null ? Number(request.featured_restaurant_id) : null;
+
     if (restaurantId) {
-      const { rows: restRows } = await client.query(
-        `SELECT id FROM food_restaurants
-          WHERE id = $1
-            AND is_featured
-            AND (featured_until IS NULL OR featured_until > NOW())
-          FOR UPDATE`,
+      await client.query(
+        `UPDATE food_restaurants
+            SET is_featured = FALSE,
+                featured_until = NULL
+          WHERE id = $1`,
         [restaurantId]
       );
-      if (!restRows.length) restaurantId = null;
     }
-
-    if (!restaurantId) {
-      throw new AppError('Nothing is currently featured under this request', 404, 'not_found');
-    }
-
-    await client.query(
-      `UPDATE food_restaurants
-          SET is_featured = FALSE,
-              featured_until = NULL
-        WHERE id = $1`,
-      [restaurantId]
-    );
     await client.query(
       `UPDATE business_featured_placement_requests
           SET status = 'closed',

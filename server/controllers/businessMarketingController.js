@@ -120,6 +120,36 @@ exports.deletePromoCode = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
+// GET /:businessId/featured-placement-requests: the business's own request
+// status so the promote page can show where it stands (P1-312).
+exports.getFeaturedPlacementRequest = async (req, res, next) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT r.id, r.status, r.created_at, r.updated_at, r.decided_at,
+              r.featured_restaurant_id,
+              fr.display_name AS featured_restaurant_name,
+              fr.featured_until,
+              (fr.is_featured AND (fr.featured_until IS NULL OR fr.featured_until > NOW())) AS is_live
+         FROM business_featured_placement_requests r
+         LEFT JOIN food_restaurants fr ON fr.id = r.featured_restaurant_id
+        WHERE r.business_id = $1`,
+      [req.params.businessId]
+    );
+    const row = rows[0];
+    if (!row) return res.json({ request: null });
+    const expired = row.status === 'approved' && !row.is_live;
+    res.json({
+      request: {
+        id: Number(row.id),
+        status: expired ? 'expired' : row.status,
+        featured_restaurant_name: row.featured_restaurant_name || null,
+        featured_until: row.status === 'approved' ? row.featured_until : null,
+        updated_at: row.updated_at,
+      },
+    });
+  } catch (err) { next(err); }
+};
+
 exports.requestFeaturedPlacement = async (req, res, next) => {
   const { businessId } = req.params;
   const {
@@ -141,8 +171,17 @@ exports.requestFeaturedPlacement = async (req, res, next) => {
          zip = COALESCE(EXCLUDED.zip, business_featured_placement_requests.zip),
          note = COALESCE(EXCLUDED.note, business_featured_placement_requests.note),
          source = EXCLUDED.source,
+         -- P1-312: a declined or closed request re-enters the review queue,
+         -- and so does an approved one whose placement has lapsed.
          status = CASE
-           WHEN business_featured_placement_requests.status = 'closed' THEN 'requested'
+           WHEN business_featured_placement_requests.status IN ('closed', 'declined') THEN 'requested'
+           WHEN business_featured_placement_requests.status = 'approved'
+            AND NOT EXISTS (
+              SELECT 1 FROM food_restaurants fr
+               WHERE fr.id = business_featured_placement_requests.featured_restaurant_id
+                 AND fr.is_featured
+                 AND (fr.featured_until IS NULL OR fr.featured_until > NOW())
+            ) THEN 'requested'
            ELSE business_featured_placement_requests.status
          END,
          updated_at = NOW()

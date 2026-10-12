@@ -20816,6 +20816,15 @@
       "help": "Le suivi est stocké localement dans votre navigateur pour pouvoir tester sans risque."
     },
     "toolkit": {
+      "featuredStatus": {
+        "closed": "Votre mise en avant a été arrêtée. Vous pouvez demander un nouvel examen.",
+        "declined": "Votre dernière demande n'a pas été approuvée. Vous pouvez demander un nouvel examen.",
+        "expired": "Votre mise en avant est terminée. Vous pouvez demander un nouvel examen.",
+        "approved": "Mis en avant : {{restaurant}} jusqu'au {{date}}.",
+        "contacted": "Notre équipe examine votre demande et pourrait vous contacter.",
+        "requested": "Votre demande est en attente d'examen."
+      },
+      "featuredHelpNoFee": "Demandez un examen de mise en avant pour votre entreprise. OxSteed tient compte de votre catégorie, de la qualité de votre profil, de votre zone de service et de votre réputation récente avant d'approuver. La mise en avant est gratuite.",
       "title": "Boîte à outils",
       "heading": "Cinq outils à fort impact, prêts à l'emploi.",
       "body": "Ce sont les éléments que la plupart des prestataires ne prennent jamais le temps de construire. Chacun rapporte du travail pendant des années une fois mis en place.",
@@ -29871,6 +29880,10 @@
   },
   "featuredPlacements": {
     "admin": {
+      "approveMovesPlacement": "Cela déplace la mise en avant. Le restaurant actuellement mis en avant pour cette demande ne le sera plus.",
+      "placementExpired": "Mise en avant expirée",
+      "renewTitle": "Renouveler la mise en avant",
+      "renew": "Renouveler",
       "eyebrow": "Découverte",
       "title": "Examen des mises en avant",
       "subtitle": "Les commerces demandent une mise en avant pour leurs restaurants. Approuvez une demande pour mettre un restaurant en avant sur la page d'accueil pendant une durée déterminée.",

@@ -119,13 +119,18 @@ function DecisionDialog({ modal, busy, onChange, onClose, onConfirm }) {
                   {(modal.restaurants || []).map((r) => (
                     <option key={r.id} value={r.id}>
                       {r.name || r.id}
-                      {r.is_featured ? ` ${t('featuredPlacements.admin.alreadyFeatured')}` : ''}
+                      {isLive(r) ? ` ${t('featuredPlacements.admin.alreadyFeatured')}` : ''}
                     </option>
                   ))}
                 </select>
                 <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
               </div>
             </label>
+            {modal.previousRestaurantId && modal.restaurantId && modal.previousRestaurantId !== String(modal.restaurantId) && (
+              <p role="note" className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
+                {t('featuredPlacements.admin.approveMovesPlacement')}
+              </p>
+            )}
             <div className="grid grid-cols-2 gap-4">
               <label className="block text-sm font-medium text-gray-300">
                 {t('featuredPlacements.admin.rankLabel')} <span className="text-orange-300">*</span>
@@ -185,8 +190,20 @@ function DecisionDialog({ modal, busy, onChange, onClose, onConfirm }) {
   );
 }
 
+// P1-314: a placement is live only while featured_until is in the future;
+// the stale is_featured flag alone kept offering Revoke on expired features.
+function isLive(r) {
+  return Boolean(r?.is_featured) && (!r.featured_until || new Date(r.featured_until).getTime() > Date.now());
+}
+
 function currentlyFeatured(restaurants) {
-  return (restaurants || []).filter((r) => r.is_featured);
+  return (restaurants || []).filter(isLive);
+}
+
+function isExpiredPlacement(request) {
+  if (request?.status !== 'approved' || request.featured_restaurant_id == null) return false;
+  const placed = (request.restaurants || []).find((r) => String(r.id) === String(request.featured_restaurant_id));
+  return !isLive(placed);
 }
 
 export default function FeaturedPlacementReview() {
@@ -243,18 +260,21 @@ export default function FeaturedPlacementReview() {
     }
   };
 
-  const openApprove = (request) => {
+  const openApprove = (request, { renew = false } = {}) => {
     const restaurants = request.restaurants || [];
-    const preselect = currentlyFeatured(restaurants)[0] || restaurants[0];
+    const placed = restaurants.find((r) => String(r.id) === String(request.featured_restaurant_id));
+    const preselect = placed || currentlyFeatured(restaurants)[0] || restaurants[0];
     setModal({
       kind: 'approve',
+      renew,
+      previousRestaurantId: request.featured_restaurant_id != null ? String(request.featured_restaurant_id) : null,
       request,
       restaurants,
       restaurantId: preselect ? String(preselect.id) : '',
       rank: '10',
       days: '30',
-      title: t('featuredPlacements.admin.approveTitle'),
-      confirmLabel: t('featuredPlacements.admin.approve'),
+      title: renew ? t('featuredPlacements.admin.renewTitle') : t('featuredPlacements.admin.approveTitle'),
+      confirmLabel: renew ? t('featuredPlacements.admin.renew') : t('featuredPlacements.admin.approve'),
       description: t('featuredPlacements.admin.approveDescription', { business: request.business_name || t('featuredPlacements.admin.unknownBusiness') }),
     });
   };
@@ -272,6 +292,8 @@ export default function FeaturedPlacementReview() {
 
   const openRevoke = (request) => {
     const live = currentlyFeatured(request.restaurants);
+    const placed = (request.restaurants || []).filter((r) => String(r.id) === String(request.featured_restaurant_id));
+    const named = live.length ? live : placed;
     setModal({
       kind: 'revoke',
       request,
@@ -279,7 +301,7 @@ export default function FeaturedPlacementReview() {
       confirmLabel: t('featuredPlacements.admin.revoke'),
       description: t('featuredPlacements.admin.revokeDescription', {
         business: request.business_name || t('featuredPlacements.admin.unknownBusiness'),
-        restaurant: live.map((r) => r.name || r.id).join(', '),
+        restaurant: named.map((r) => r.name || r.id).join(', '),
       }),
     });
   };
@@ -318,21 +340,23 @@ export default function FeaturedPlacementReview() {
       case 'contacted':
         return ['approve', 'decline'];
       case 'approved':
-        return currentlyFeatured(request.restaurants).length > 0 ? ['revoke'] : [];
+        // Live or expired, an approved placement can be renewed (the server's
+        // same-request re-approval) or revoked (P1-314).
+        return request.featured_restaurant_id != null ? ['renew', 'revoke'] : [];
       default:
         return [];
     }
   };
 
   const actionButtonClass = (kind) => {
-    if (kind === 'approve') return 'rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-500';
+    if (kind === 'approve' || kind === 'renew') return 'rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-500';
     if (kind === 'contact') return 'rounded-lg border border-violet-500/30 px-3 py-2 text-xs font-semibold text-violet-300 hover:bg-violet-500/10';
     if (kind === 'decline') return 'rounded-lg border border-red-500/30 px-3 py-2 text-xs font-semibold text-red-300 hover:bg-red-500/10';
     return 'rounded-lg border border-amber-500/30 px-3 py-2 text-xs font-semibold text-amber-300 hover:bg-amber-500/10';
   };
 
   const actionIcon = (kind) => {
-    if (kind === 'approve') return <CheckCircle2 className="h-3.5 w-3.5" />;
+    if (kind === 'approve' || kind === 'renew') return <CheckCircle2 className="h-3.5 w-3.5" />;
     if (kind === 'contact') return <Megaphone className="h-3.5 w-3.5" />;
     if (kind === 'decline') return <XCircle className="h-3.5 w-3.5" />;
     return <Undo2 className="h-3.5 w-3.5" />;
@@ -340,6 +364,7 @@ export default function FeaturedPlacementReview() {
 
   const openAction = (kind, request) => {
     if (kind === 'approve') return openApprove(request);
+    if (kind === 'renew') return openApprove(request, { renew: true });
     if (kind === 'decline') return openDecline(request);
     if (kind === 'revoke') return openRevoke(request);
     return runAction(request.id, 'contact');
@@ -493,6 +518,11 @@ export default function FeaturedPlacementReview() {
                             <p className="mt-1 text-xs leading-5 text-gray-400">
                               <span className="font-semibold text-gray-300">{t('featuredPlacements.admin.decisionNoteLabel')}</span>{' '}
                               {request.decision_note}
+                            </p>
+                          )}
+                          {isExpiredPlacement(request) && (
+                            <p className="mt-2 inline-flex items-center gap-1.5 rounded-full border border-gray-600 bg-gray-800/60 px-2.5 py-1 text-[11px] font-semibold text-gray-300">
+                              {t('featuredPlacements.admin.placementExpired')}
                             </p>
                           )}
                           {live.length > 0 && (

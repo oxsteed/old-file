@@ -20816,6 +20816,15 @@
       "help": "Tracking is stored locally in your browser so you can experiment safely."
     },
     "toolkit": {
+      "featuredStatus": {
+        "closed": "Your featured placement was ended. You can request another review.",
+        "declined": "Your last request wasn't approved. You can request another review.",
+        "expired": "Your featured placement has ended. You can request another review.",
+        "approved": "Featured: {{restaurant}} until {{date}}.",
+        "contacted": "Our team is reviewing your request and may contact you.",
+        "requested": "Your request is waiting for review."
+      },
+      "featuredHelpNoFee": "Request a featured placement review for your business. OxSteed looks at your category, profile quality, service area and recent reputation before approving. There is no fee for featured placement.",
       "title": "Toolkit",
       "heading": "Five high-leverage tools, ready to use.",
       "body": "These are the assets most providers never get around to building. Each one earns work for years after you set it up once.",
@@ -29871,6 +29880,10 @@
   },
   "featuredPlacements": {
     "admin": {
+      "approveMovesPlacement": "This moves the placement. The restaurant featured now under this request will stop being featured.",
+      "placementExpired": "Placement expired",
+      "renewTitle": "Renew featured placement",
+      "renew": "Renew",
       "eyebrow": "Discovery",
       "title": "Featured placement review",
       "subtitle": "Businesses request featured placement for their restaurants. Approve a request to feature a restaurant on the home page shelf for a fixed duration.",

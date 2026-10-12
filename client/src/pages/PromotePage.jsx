@@ -1091,6 +1091,17 @@ function safeToolkitUrl(value) {
 function ToolkitTab({ target, qrSrc, tone, seoChecks, setSeoChecks, onTrackedClick }) {
   const { t } = useTranslation();
   const [requestingPlacement, setRequestingPlacement] = useState(false);
+  // P1-312: the business's own request status (requested, contacted,
+  // approved, expired, declined, closed) so it is never left guessing.
+  const [placementRequest, setPlacementRequest] = useState(null);
+  useEffect(() => {
+    if (!target.businessId) { setPlacementRequest(null); return undefined; }
+    let cancelled = false;
+    api.get(`/businesses/${target.businessId}/featured-placement-requests`)
+      .then(({ data }) => { if (!cancelled) setPlacementRequest(data?.request || null); })
+      .catch(() => { if (!cancelled) setPlacementRequest(null); });
+    return () => { cancelled = true; };
+  }, [target.businessId]);
   // Email signature ---------------------------------------------------------
   const sigName = target.providerName;
   const sigTitle = target.serviceText;
@@ -1166,12 +1177,18 @@ function ToolkitTab({ target, qrSrc, tone, seoChecks, setSeoChecks, onTrackedCli
 
     try {
       setRequestingPlacement(true);
-      await api.post(`/businesses/${target.businessId}/featured-placement-requests`, {
+      const { data } = await api.post(`/businesses/${target.businessId}/featured-placement-requests`, {
         category: target.serviceText,
         note: `Featured placement requested from Growth Center for ${target.providerName}.`,
         source: 'promote_page',
       });
-      toast.success(t('promotePage.toolkit.featuredSent', { defaultValue: 'Featured placement request sent' }));
+      const nextStatus = data?.status || 'requested';
+      setPlacementRequest((prev) => ({ ...(prev || {}), id: data?.id, status: nextStatus }));
+      if (nextStatus === 'requested') {
+        toast.success(t('promotePage.toolkit.featuredSent', { defaultValue: 'Featured placement request sent' }));
+      } else {
+        toast(t(`promotePage.toolkit.featuredStatus.${nextStatus}`));
+      }
       onTrackedClick('featured_placement', 'request');
     } catch (error) {
       toast.error(error.response?.data?.error || t('promotePage.toolkit.featuredFailed', { defaultValue: 'Failed to request featured placement' }));
@@ -1333,8 +1350,16 @@ function ToolkitTab({ target, qrSrc, tone, seoChecks, setSeoChecks, onTrackedCli
             <span>{t('promotePage.toolkit.featuredBody', { defaultValue: 'Promoted card at the top of search results in your category and ZIP.' })}</span>
           </div>
           <p className="promote-help">
-            {t('promotePage.toolkit.featuredHelp', { defaultValue: 'Request a pilot boost review for your business. OxSteed will use your category, profile quality, service area, and recent reputation before approving paid placement.' })}
+            {t('promotePage.toolkit.featuredHelpNoFee')}
           </p>
+          {placementRequest?.status && (
+            <p className="promote-help" role="status" aria-live="polite">
+              {t(`promotePage.toolkit.featuredStatus.${placementRequest.status}`, {
+                restaurant: placementRequest.featured_restaurant_name || '',
+                date: placementRequest.featured_until ? new Date(placementRequest.featured_until).toLocaleDateString() : '',
+              })}
+            </p>
+          )}
           <div className="promote-tool-actions">
             <button
               type="button"
@@ -1348,7 +1373,7 @@ function ToolkitTab({ target, qrSrc, tone, seoChecks, setSeoChecks, onTrackedCli
               <button
                 type="button"
                 className="promote-btn secondary"
-                onClick={() => toast('Use the Studio tab to select a business page first.')}
+                onClick={() => toast(t('promotePage.toolkit.chooseBusinessPageFirst', { defaultValue: 'Choose a business page in the Studio tab before requesting featured placement.' }))}
               >
                 {t('promotePage.toolkit.chooseBusinessPage', { defaultValue: 'Choose business page' })}
               </button>

@@ -20816,6 +20816,15 @@
       "help": "Swivi a sere lokalman nan navigatè ou pou ou ka teste san danje."
     },
     "toolkit": {
+      "featuredStatus": {
+        "closed": "Yo te fini peryòd ou te an premye a. Ou ka mande yon lòt revizyon.",
+        "declined": "Dènye demann ou an pa t apwouve. Ou ka mande yon lòt revizyon.",
+        "expired": "Peryòd ou te an premye a fini. Ou ka mande yon lòt revizyon.",
+        "approved": "An premye: {{restaurant}} jiska {{date}}.",
+        "contacted": "Ekip nou an ap revize demann ou an epi li ka kontakte w.",
+        "requested": "Demann ou an ap tann revizyon."
+      },
+      "featuredHelpNoFee": "Mande yon revizyon pou biznis ou parèt an premye. OxSteed gade kategori w, kalite pwofil ou, zòn sèvis ou ak repitasyon w dènyèman anvan li apwouve. Pa gen frè pou parèt an premye.",
       "title": "Twous zouti",
       "heading": "Senk zouti ki bay gwo rezilta, pare pou itilize.",
       "body": "Sa yo se byen ke pifò founisè pa janm pran tan pou yo konstwi. Chak youn pote travay pandan plizyè ane apre ou mete l kanpe yon sèl fwa.",
@@ -29871,6 +29880,10 @@
   },
   "featuredPlacements": {
     "admin": {
+      "approveMovesPlacement": "Sa a deplase plas la. Restoran ki an premye kounye a anba demann sa a ap sispann an premye.",
+      "placementExpired": "Plas la ekspire",
+      "renewTitle": "Renouvle plas an premye a",
+      "renew": "Renouvle",
       "eyebrow": "Dekouvèt",
       "title": "Revizyon plas an vedèt",
       "subtitle": "Biznis yo mande plas an vedèt pou restoran yo. Apwouve yon demann pou mete yon restoran an vedèt sou paj akèy la pou yon dire fiks.",

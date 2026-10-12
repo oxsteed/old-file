@@ -18,6 +18,7 @@ function buildApp() {
   app.delete('/api/businesses/:businessId/broadcasts/:id', ctrl.deleteBroadcast);
   app.post('/api/businesses/:businessId/promo-codes', ctrl.createPromoCode);
   app.post('/api/businesses/:businessId/featured-placement-requests', ctrl.requestFeaturedPlacement);
+  app.get('/api/businesses/:businessId/featured-placement-requests', ctrl.getFeaturedPlacementRequest);
   app.use(errorHandler);
   return app;
 }
@@ -101,5 +102,28 @@ describe('business marketing actions', () => {
       'Ready to pilot',
       'promote_page',
     ]);
+  });
+
+  test('P1-312: re-request reopens declined, closed and lapsed approved requests', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [{ id: 3, business_id: 12, status: 'requested' }] });
+    await request(buildApp()).post('/api/businesses/12/featured-placement-requests').send({});
+    const [sql] = mockQuery.mock.calls[0];
+    expect(sql).toContain("status IN ('closed', 'declined') THEN 'requested'");
+    expect(sql).toMatch(/status = 'approved'\s+AND NOT EXISTS/);
+  });
+
+  test('P1-312: the business can read its request status; a lapsed approval reads as expired', async () => {
+    mockQuery.mockResolvedValueOnce({
+      rows: [{ id: 3, status: 'approved', is_live: false, featured_restaurant_name: 'Ox', featured_until: '2026-01-01T00:00:00Z', updated_at: 'x' }],
+    });
+    const res = await request(buildApp()).get('/api/businesses/12/featured-placement-requests');
+    expect(res.status).toBe(200);
+    expect(res.body.request).toMatchObject({ id: 3, status: 'expired', featured_restaurant_name: 'Ox' });
+  });
+
+  test('P1-312: no request yet returns null', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [] });
+    const res = await request(buildApp()).get('/api/businesses/12/featured-placement-requests');
+    expect(res.body).toEqual({ request: null });
   });
 });

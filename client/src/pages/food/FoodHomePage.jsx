@@ -199,7 +199,7 @@ export default function FoodHomePage() {
       });
       if (reset && isFirstLoad.current && !params.q && !params.cuisine && !params.lat && !params.lng) {
         isFirstLoad.current = false;
-        // The featured shelf shows admin/paid featured placements. When
+        // The featured shelf shows admin-approved featured placements (no fee). When
         // nothing is currently featured, fall back to top-rated so the
         // shelf is never empty while restaurants exist.
         const fallback = rows.length > 0

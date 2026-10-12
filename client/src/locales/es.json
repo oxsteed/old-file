@@ -20816,6 +20816,15 @@
       "help": "El seguimiento se guarda localmente en tu navegador para que puedas experimentar con seguridad."
     },
     "toolkit": {
+      "featuredStatus": {
+        "closed": "Se finalizó tu ubicación destacada. Puedes solicitar otra revisión.",
+        "declined": "Tu última solicitud no fue aprobada. Puedes solicitar otra revisión.",
+        "expired": "Tu ubicación destacada terminó. Puedes solicitar otra revisión.",
+        "approved": "Destacado: {{restaurant}} hasta el {{date}}.",
+        "contacted": "Nuestro equipo está revisando tu solicitud y podría contactarte.",
+        "requested": "Tu solicitud está pendiente de revisión."
+      },
+      "featuredHelpNoFee": "Solicita una revisión de ubicación destacada para tu negocio. OxSteed revisa tu categoría, la calidad de tu perfil, tu zona de servicio y tu reputación reciente antes de aprobarla. La ubicación destacada no tiene costo.",
       "title": "Kit de herramientas",
       "heading": "Cinco herramientas de alto impacto, listas para usar.",
       "body": "Estos son los activos que la mayoría nunca llega a construir. Cada uno genera trabajo durante años después de configurarlo una vez.",
@@ -29871,6 +29880,10 @@
   },
   "featuredPlacements": {
     "admin": {
+      "approveMovesPlacement": "Esto traslada la ubicación. El restaurante destacado ahora con esta solicitud dejará de estar destacado.",
+      "placementExpired": "Ubicación vencida",
+      "renewTitle": "Renovar ubicación destacada",
+      "renew": "Renovar",
       "eyebrow": "Descubrimiento",
       "title": "Revisión de ubicaciones destacadas",
       "subtitle": "Los negocios solicitan ubicación destacada para sus restaurantes. Aprueba una solicitud para destacar un restaurante en la página principal por un tiempo determinado.",
