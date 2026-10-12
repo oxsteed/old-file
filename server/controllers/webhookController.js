@@ -29,6 +29,7 @@ const { applyChargeRefund, verifiedChargeRefundTotal } = require('../services/pa
 const stripeWebhookContract = require('../config/stripeWebhookContract');
 const businessInvoiceStripeConnectService = require('../services/businessInvoiceStripeConnectService');
 const creditLedger = require('../services/referralCreditLedger');
+const { toLocalSubscriptionStatus } = require('../utils/subscriptionStatus');
 
 function extractFoodOrderId(metadata) {
   const raw = metadata?.food_order_id
@@ -601,7 +602,7 @@ exports.stripeWebhook = async (req, res, next) => {
             `INSERT INTO subscriptions (user_id, plan_id, stripe_subscription_id, stripe_customer_id, status, current_period_start, current_period_end)
              VALUES ($1, $2, $3, $4, $5, to_timestamp($6), to_timestamp($7))
              ON CONFLICT (stripe_subscription_id) DO UPDATE SET status = $5`,
-            [userId, planId, subscriptionId, stripeObjectId(session.customer), sub.status,
+            [userId, planId, subscriptionId, stripeObjectId(session.customer), toLocalSubscriptionStatus(sub.status),
              period.start, period.end]
           );
           // Get plan tier
@@ -635,9 +636,15 @@ exports.stripeWebhook = async (req, res, next) => {
         if (existing.length > 0) break; // Already handled by checkout.session.completed
 
         // Look up the user via their Stripe customer ID
+        // Review P2-572: users has no stripe_customer_id column; resolve the
+        // owner from subscription metadata, then from an earlier subscription
+        // row for the same Stripe customer.
         const { rows: userRows } = await db.query(
-          'SELECT id FROM users WHERE stripe_customer_id = $1 LIMIT 1',
-          [stripeObjectId(sub.customer)]
+          `SELECT id FROM users WHERE id::text = $1
+           UNION ALL
+           SELECT user_id AS id FROM subscriptions WHERE stripe_customer_id = $2
+           LIMIT 1`,
+          [String(sub.metadata?.user_id || sub.metadata?.userId || ''), stripeObjectId(sub.customer)]
         );
         if (!userRows.length) {
           logger.warn('[webhook] customer.subscription.created: no user found for Stripe customer', {
@@ -662,20 +669,22 @@ exports.stripeWebhook = async (req, res, next) => {
               status, current_period_start, current_period_end)
            VALUES ($1, $2, $3, $4, $5, to_timestamp($6), to_timestamp($7))
            ON CONFLICT (stripe_subscription_id) DO NOTHING`,
-          [userRows[0].id, planId, sub.id, stripeObjectId(sub.customer), sub.status,
+          [userRows[0].id, planId, sub.id, stripeObjectId(sub.customer), toLocalSubscriptionStatus(sub.status),
            period.start, period.end]
         );
 
-        if (planId) {
+        // Only a paying/trialing subscription grants the tier; incomplete
+        // ones wait for customer.subscription.updated.
+        if (planId && ['active', 'trialing'].includes(toLocalSubscriptionStatus(sub.status))) {
           const { rows: planMeta } = await db.query(
             'SELECT COALESCE(tier, slug) AS tier_slug, slug FROM plans WHERE id = $1', [planId]
           );
           const planSlug = planMeta[0]?.slug || planMeta[0]?.tier_slug || 'pro';
           const userTier = planSlug === 'basic' ? 'basic' : planSlug === 'broker' ? 'broker' : 'pro';
           await db.query(
-            `UPDATE users SET tier = $1, subscription_status = 'active', tier_selected = TRUE
+            `UPDATE users SET tier = $1, subscription_status = $3, tier_selected = TRUE
              WHERE id = $2`,
-            [userTier, userRows[0].id]
+            [userTier, userRows[0].id, toLocalSubscriptionStatus(sub.status)]
           );
           await recalculateBadges(userRows[0].id);
         }
@@ -688,7 +697,7 @@ exports.stripeWebhook = async (req, res, next) => {
           `UPDATE subscriptions SET status = $1, current_period_start = to_timestamp($2),
            current_period_end = to_timestamp($3), cancel_at_period_end = $4, updated_at = NOW()
            WHERE stripe_subscription_id = $5`,
-          [sub.status, period.start, period.end,
+          [toLocalSubscriptionStatus(sub.status), period.start, period.end,
            sub.cancel_at_period_end, sub.id]
         );
         const { rows } = await db.query(
@@ -697,7 +706,7 @@ exports.stripeWebhook = async (req, res, next) => {
         if (rows.length) {
           await db.query(
             'UPDATE users SET subscription_status = $1 WHERE id = $2',
-            [sub.status, rows[0].user_id]
+            [toLocalSubscriptionStatus(sub.status), rows[0].user_id]
           );
           await recalculateBadges(rows[0].user_id);
         }
@@ -751,7 +760,7 @@ exports.stripeWebhook = async (req, res, next) => {
                cancel_at_period_end  = $4,
                updated_at            = NOW()
            WHERE stripe_subscription_id = $5`,
-          [sub.status, period.start, period.end,
+          [toLocalSubscriptionStatus(sub.status), period.start, period.end,
            sub.cancel_at_period_end, subId]
         );
 
