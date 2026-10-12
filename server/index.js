@@ -218,6 +218,8 @@ function resolveTrustProxyHops() {
   return parsed;
 }
 app.set('trust proxy', resolveTrustProxyHops());
+// Review P3-1107: reject requests that bypass the CDN, where XFF is forgeable.
+app.use(require('./middleware/originLock').createOriginLock());
 const PORT = process.env.PORT || 5000;
 const canonicalHostRedirect = require('./middleware/canonicalHost');
 app.use(canonicalHostRedirect);

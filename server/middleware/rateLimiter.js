@@ -454,6 +454,18 @@ const userUploadLimiter = rateLimit({
   message: { error: 'Too many uploads. Please wait a few minutes and try again.', code: 'upload_rate_limited' },
 });
 
+// Review P2-654: unauthenticated public intake forms, 10 per hour per caller
+// and business, Redis-backed.
+const publicIntakeLimiter = rateLimit({
+  ...createStoreOption('rl:public_intake:'),
+  windowMs: 60 * 60 * 1000,
+  max: 10,
+  keyGenerator: (req) => `${req.params?.businessId || 'none'}:${req.user?.id ? `u:${req.user.id}` : `ip:${req.ip}`}`,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests sent. Please try again later.', code: 'intake_rate_limited' },
+});
+
 // Payments limiter: 20 per hour per user
 // Protects PaymentIntent creation/capture from abuse and accidental retries.
 const paymentsLimiter = rateLimit({
@@ -705,6 +717,7 @@ module.exports = {
   profileChatLimiter,
   userChatLimiter,
   userUploadLimiter,
+  publicIntakeLimiter,
   discoverLimiter,
   discoverAuthLimiter,
   geoLimiter,
