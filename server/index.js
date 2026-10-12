@@ -646,7 +646,7 @@ const monitoringRoutes = require('./routes/monitoring');
 const countryConfigRoutes = require('./routes/countryConfig');
 app.use('/api/calendar', calendarRoutes);
 app.use('/api/bookings', bookingsRoutes);
-app.use('/api/maintenance-requests', maintenanceRequestsRoutes);
+app.use('/api/maintenance-requests', launchGate(), maintenanceRequestsRoutes);
 app.use('/api/property-operations', propertyOperationsRoutes);
 app.use('/api/trades-operations', tradesOperationsRoutes);
 app.use('/api/beauty-operations', beautyOperationsRoutes);

@@ -78,3 +78,18 @@ describe('launchGate middleware', () => {
     expect(res.status).not.toHaveBeenCalled();
   });
 });
+
+describe('maintenance intake gate (P1-210)', () => {
+  test('public intake is gated while owners keep their existing requests', () => {
+    const gate = launchGate();
+    const blockedRes = mockRes();
+    const nextBlocked = jest.fn();
+    gate(mockReq({ baseUrl: '/api/maintenance-requests', path: '/public/12' }), blockedRes, nextBlocked);
+    expect(nextBlocked).not.toHaveBeenCalled();
+    expect(blockedRes.statusCode).toBe(404);
+
+    const nextAllowed = jest.fn();
+    gate(mockReq({ baseUrl: '/api/maintenance-requests', path: '/my' }), mockRes(), nextAllowed);
+    expect(nextAllowed).toHaveBeenCalled();
+  });
+});
