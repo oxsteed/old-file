@@ -4440,6 +4440,9 @@
     "whatHappensNextBody": "Once your job is live, helpers who match the location, category, and requirements can send bids. You can compare offers, ask follow-up questions, and hire when you are ready."
   },
   "jobDetail": {
+    "signWorkAgreement": "Review and sign the work agreement",
+    "viewWorkAgreement": "View work agreement",
+    "createWorkAgreement": "Create a work agreement",
     "draftStatus": "Draft",
     "matchedStatus": "Matched",
     "negotiatingStatus": "Negotiating",
@@ -30218,6 +30221,22 @@
     "finalCtaSubtitle": "Free to create. Share it anywhere and start getting paid today."
   },
   "workAgreement": {
+    "scopeLabel": "Scope of work",
+    "priceLabel": "Agreed price",
+    "timelineLabel": "Timeline",
+    "extraTermsLabel": "Other terms",
+    "termTitle": "Title",
+    "noWarrantyTerms": "No written warranty terms were added.",
+    "claimNote": "Note (optional)",
+    "claimWithdraw": "Mark resolved",
+    "claimResolve": "Resolved",
+    "claimDeny": "Decline claim",
+    "claimResolveError": "Could not update the claim.",
+    "claimStatus_filed": "Filed",
+    "claimStatus_under_review": "Under review",
+    "claimStatus_resolved": "Resolved",
+    "claimStatus_denied": "Declined",
+    "coAwaitingOther": "Waiting for the other party to decide.",
     "signHere": "Draw your signature here",
     "signHint": "Draw your signature with mouse or finger",
     "clearSignature": "Clear",

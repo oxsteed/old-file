@@ -4440,6 +4440,9 @@
     "whatHappensNextBody": "Une fois l’annonce publiée, les prestataires correspondant au lieu, à la catégorie et aux exigences peuvent envoyer des offres. Comparez-les, posez des questions et engagez quelqu’un lorsque vous êtes prêt."
   },
   "jobDetail": {
+    "signWorkAgreement": "Relire et signer l’accord de travail",
+    "viewWorkAgreement": "Voir l’accord de travail",
+    "createWorkAgreement": "Créer un accord de travail",
     "draftStatus": "Brouillon",
     "matchedStatus": "Mise en relation",
     "negotiatingStatus": "En négociation",
@@ -30218,6 +30221,22 @@
     "finalCtaSubtitle": "Création gratuite. Partagez-le partout et commencez à être payé dès aujourd’hui."
   },
   "workAgreement": {
+    "scopeLabel": "Description des travaux",
+    "priceLabel": "Prix convenu",
+    "timelineLabel": "Calendrier",
+    "extraTermsLabel": "Autres conditions",
+    "termTitle": "Titre",
+    "noWarrantyTerms": "Aucune condition de garantie écrite n’a été ajoutée.",
+    "claimNote": "Note (facultatif)",
+    "claimWithdraw": "Marquer comme résolu",
+    "claimResolve": "Résolu",
+    "claimDeny": "Refuser la réclamation",
+    "claimResolveError": "Impossible de mettre à jour la réclamation.",
+    "claimStatus_filed": "Déposée",
+    "claimStatus_under_review": "En cours d’examen",
+    "claimStatus_resolved": "Résolue",
+    "claimStatus_denied": "Refusée",
+    "coAwaitingOther": "En attente de la décision de l’autre partie.",
     "signHere": "Dessinez votre signature ici",
     "signHint": "Dessinez votre signature à la souris ou au doigt",
     "clearSignature": "Effacer",

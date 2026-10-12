@@ -13,6 +13,7 @@
 
 const db = require('../db');
 const logger = require('../utils/logger');
+const { sendNotification } = require('../services/notificationService');
 
 const MAX_SIGNATURE_CHARS = 2000000;
 const MIN_SIGNATURE_CHARS = 100;
@@ -73,6 +74,53 @@ async function maybeActivate(client, agreementId, versionId) {
   return false;
 }
 
+// Text fields that make up an agreement version's content. Free text is
+// trimmed and capped; priceCents must be integer cents.
+const CONTENT_TEXT_FIELDS = ['title', 'scope', 'timeline', 'terms', 'warrantyTerms', 'reimbursementTerms'];
+const MAX_CONTENT_FIELD_CHARS = 20000;
+
+function normalizeContent(input, fallback = {}) {
+  const src = input && typeof input === 'object' && !Array.isArray(input) ? input : {};
+  const out = {};
+  for (const key of CONTENT_TEXT_FIELDS) {
+    const v = src[key] !== undefined ? src[key] : fallback[key];
+    if (v !== undefined && v !== null && String(v).trim()) out[key] = String(v).trim().slice(0, MAX_CONTENT_FIELD_CHARS);
+  }
+  const price = src.priceCents !== undefined ? src.priceCents : fallback.priceCents;
+  if (price !== undefined && price !== null && price !== '') {
+    const n = Number(price);
+    if (!Number.isInteger(n) || n < 0 || n > 100000000) return { error: 'priceCents must be a non-negative integer.' };
+    out.priceCents = n;
+  }
+  const wm = src.warrantyMonths !== undefined ? src.warrantyMonths : fallback.warrantyMonths;
+  if (wm !== undefined && wm !== null) out.warrantyMonths = Number(wm);
+  if (!out.scope && !out.title) return { error: 'The agreement needs a scope of work.' };
+  return { content: out };
+}
+
+function jobPriceCents(job) {
+  const n = Number(job.final_price_cents ?? job.job_value_cents ?? job.budget_max_cents ?? job.budget_min_cents);
+  return Number.isInteger(n) && n >= 0 ? n : undefined;
+}
+
+// Tell the other party there is something to sign. Best effort: the
+// agreement itself is already committed.
+async function notifyCounterparty(agreement, actorId) {
+  const otherId = String(agreement.helper_id) === String(actorId) ? agreement.customer_id : agreement.helper_id;
+  if (!otherId) return;
+  try {
+    await sendNotification({
+      userId: otherId,
+      type: 'work_agreement_signature_requested',
+      data: { agreement_id: agreement.id, job_id: agreement.job_id },
+      action_url: `/agreements/${agreement.id}`,
+      idempotencyKey: `wa-sign:${agreement.id}:${agreement.updated_at ? new Date(agreement.updated_at).getTime() : Date.now()}`,
+    });
+  } catch (err) {
+    logger.warn('work agreement counterparty notification failed', { agreementId: agreement.id, error: err.message });
+  }
+}
+
 // ─── Agreements ─────────────────────────────────────────────────────────────
 
 // POST /api/work-agreements — create from a job. Caller must be the job's
@@ -82,10 +130,11 @@ exports.createAgreement = async (req, res) => {
     const userId = req.user.id;
     const { jobId, content, warrantyMonths, warrantyTerms, reimbursementTerms } = req.body || {};
     if (!jobId) return res.status(400).json({ error: 'jobId is required.' });
-    if (!content || typeof content !== 'object') return res.status(400).json({ error: 'content is required.' });
 
     const { rows: [job] } = await db.query(
-      'SELECT id, client_id, assigned_helper_id FROM jobs WHERE id = $1::uuid',
+      `SELECT id, client_id, assigned_helper_id, title, description,
+              final_price_cents, job_value_cents, budget_min_cents, budget_max_cents
+         FROM jobs WHERE id = $1::uuid`,
       [jobId]
     );
     if (!job) return res.status(404).json({ error: 'Job not found.' });
@@ -95,9 +144,25 @@ exports.createAgreement = async (req, res) => {
     if (String(userId) !== String(helperId) && String(userId) !== String(customerId)) {
       return res.status(403).json({ error: 'Only the job helper or customer can create this agreement.' });
     }
+    // Two distinct parties are required: activation needs both signer roles.
+    if (String(helperId) === String(customerId)) {
+      return res.status(400).json({ error: 'An agreement needs two different parties.' });
+    }
 
     const wm = warrantyMonths === undefined ? 6 : Number(warrantyMonths);
     if (!Number.isInteger(wm) || wm < 0 || wm > 60) return res.status(400).json({ error: 'warrantyMonths must be 0-60.' });
+
+    // Version 1 content: what the parties sign. Built from the caller's
+    // (optionally AI-drafted) terms, falling back to the job itself.
+    const normalized = normalizeContent(content, {
+      title: job.title,
+      scope: job.description || job.title,
+      priceCents: jobPriceCents(job),
+      warrantyMonths: wm,
+      warrantyTerms,
+      reimbursementTerms,
+    });
+    if (normalized.error) return res.status(400).json({ error: normalized.error });
 
     const client = await db.connect();
     try {
@@ -110,11 +175,12 @@ exports.createAgreement = async (req, res) => {
       const { rows: [version] } = await client.query(
         `INSERT INTO work_agreement_versions (agreement_id, version_number, content, created_by)
          VALUES ($1::uuid, 1, $2::jsonb, $3::uuid) RETURNING *`,
-        [agreement.id, JSON.stringify(content), userId]
+        [agreement.id, JSON.stringify(normalized.content), userId]
       );
       await client.query('COMMIT');
       logger.info('work agreement created', { agreementId: agreement.id, jobId, userId });
-      return res.status(201).json({ agreement, version });
+      await notifyCounterparty(agreement, userId);
+      return res.status(201).json({ id: agreement.id, agreement, version });
     } catch (e) {
       await client.query('ROLLBACK');
       throw e;
@@ -135,18 +201,41 @@ exports.getAgreement = async (req, res) => {
     if (!isParty(agreement, req.user.id)) return res.status(403).json({ error: 'Not a party to this agreement.' });
 
     const version = await currentVersion(agreement.id);
-    const { rows: signatures } = await db.query(
-      `SELECT id, signer_id, signer_role, signed_at FROM work_agreement_signatures
-        WHERE version_id = $1::uuid ORDER BY signed_at ASC`,
-      [version.id]
-    );
-    const { rows: changeOrders } = await db.query(
-      `SELECT * FROM work_agreement_change_orders WHERE agreement_id = $1::uuid ORDER BY created_at DESC LIMIT 100`,
-      [agreement.id]
-    );
-    const myRole = String(agreement.helper_id) === String(req.user.id) ? 'helper'
-      : String(agreement.customer_id) === String(req.user.id) ? 'customer' : null;
-    return res.json({ agreement, version, currentVersion: version, signatures, changeOrders, myRole });
+    const [signatures, changeOrders, versions, evidence, documents, warrantyClaims] = await Promise.all([
+      version
+        ? db.query(
+          `SELECT id, signer_id, signer_role, signed_at, signature_data FROM work_agreement_signatures
+            WHERE version_id = $1::uuid ORDER BY signed_at ASC`,
+          [version.id]
+        ).then((r) => r.rows)
+        : [],
+      db.query(
+        `SELECT * FROM work_agreement_change_orders WHERE agreement_id = $1::uuid ORDER BY created_at DESC LIMIT 100`,
+        [agreement.id]
+      ).then((r) => r.rows),
+      db.query(
+        `SELECT id, version_number, content, created_by, created_at FROM work_agreement_versions
+          WHERE agreement_id = $1::uuid ORDER BY version_number DESC LIMIT 100`,
+        [agreement.id]
+      ).then((r) => r.rows),
+      db.query(
+        'SELECT * FROM work_agreement_evidence WHERE agreement_id = $1::uuid ORDER BY created_at ASC LIMIT 500',
+        [agreement.id]
+      ).then((r) => r.rows),
+      db.query(
+        'SELECT * FROM work_agreement_documents WHERE agreement_id = $1::uuid ORDER BY created_at ASC LIMIT 500',
+        [agreement.id]
+      ).then((r) => r.rows),
+      db.query(
+        'SELECT * FROM work_agreement_warranty_claims WHERE agreement_id = $1::uuid ORDER BY created_at DESC LIMIT 200',
+        [agreement.id]
+      ).then((r) => r.rows),
+    ]);
+    const myRole = partyRole(agreement, req.user.id);
+    return res.json({
+      agreement, version, currentVersion: version, signatures, changeOrders,
+      versions, evidence, documents, warrantyClaims, myRole,
+    });
   } catch (err) {
     logger.error('work agreement detail error', { err, userId: req.user?.id });
     return res.status(500).json({ error: 'Could not load agreement.' });
@@ -184,10 +273,39 @@ exports.createVersion = async (req, res) => {
     }
     const { content } = req.body || {};
     if (!content || typeof content !== 'object') return res.status(400).json({ error: 'content is required.' });
+    const normalized = normalizeContent(content);
+    if (normalized.error) return res.status(400).json({ error: normalized.error });
 
     const client = await db.connect();
     try {
       await client.query('BEGIN');
+      // Serialize versioning per agreement (UNIQUE agreement_id+version_number).
+      const { rows: [locked] } = await client.query(
+        'SELECT status FROM work_agreements WHERE id = $1::uuid FOR UPDATE',
+        [agreement.id]
+      );
+      if (!locked || ['completed', 'closed'].includes(locked.status)) {
+        await client.query('ROLLBACK');
+        return res.status(409).json({ error: 'Cannot version a completed or closed agreement.' });
+      }
+      // An unsigned proposal from the same party is replaced, not stacked:
+      // one party cannot keep resetting the counterparty's signature.
+      const { rows: [latest] } = await client.query(
+        `SELECT v.id, v.created_by,
+                (SELECT COUNT(*)::int FROM work_agreement_signatures s WHERE s.version_id = v.id) AS sig_count
+           FROM work_agreement_versions v WHERE v.agreement_id = $1::uuid
+          ORDER BY v.version_number DESC LIMIT 1`,
+        [agreement.id]
+      );
+      if (latest && String(latest.created_by) === String(req.user.id) && Number(latest.sig_count) === 0) {
+        const { rows: [replaced] } = await client.query(
+          `UPDATE work_agreement_versions SET content = $2::jsonb WHERE id = $1::uuid RETURNING *`,
+          [latest.id, JSON.stringify(normalized.content)]
+        );
+        await client.query('COMMIT');
+        await notifyCounterparty({ ...agreement, updated_at: new Date() }, req.user.id);
+        return res.status(200).json({ version: replaced, replaced: true });
+      }
       const { rows: [maxRow] } = await client.query(
         'SELECT COALESCE(MAX(version_number), 0)::int AS m FROM work_agreement_versions WHERE agreement_id = $1::uuid',
         [agreement.id]
@@ -196,7 +314,7 @@ exports.createVersion = async (req, res) => {
       const { rows: [version] } = await client.query(
         `INSERT INTO work_agreement_versions (agreement_id, version_number, content, created_by)
          VALUES ($1::uuid, $2, $3::jsonb, $4::uuid) RETURNING *`,
-        [agreement.id, next, JSON.stringify(content), req.user.id]
+        [agreement.id, next, JSON.stringify(normalized.content), req.user.id]
       );
       await client.query(
         `UPDATE work_agreements SET status = 'pending_signatures', updated_at = now() WHERE id = $1::uuid`,
@@ -204,6 +322,7 @@ exports.createVersion = async (req, res) => {
       );
       await client.query('COMMIT');
       logger.info('work agreement versioned', { agreementId: agreement.id, version: next, userId: req.user.id });
+      await notifyCounterparty({ ...agreement, updated_at: new Date() }, req.user.id);
       return res.status(201).json({ version });
     } catch (e) {
       await client.query('ROLLBACK');
@@ -225,7 +344,8 @@ exports.completeAgreement = async (req, res) => {
     if (!isParty(agreement, req.user.id)) return res.status(403).json({ error: 'Not a party to this agreement.' });
     if (agreement.status !== 'active') return res.status(409).json({ error: 'Only an active agreement can be completed.' });
     const { rows: [updated] } = await db.query(
-      `UPDATE work_agreements SET status = 'completed', updated_at = now() WHERE id = $1::uuid RETURNING *`,
+      `UPDATE work_agreements SET status = 'completed', completed_at = COALESCE(completed_at, now()), updated_at = now()
+        WHERE id = $1::uuid AND status = 'active' RETURNING *`,
       [agreement.id]
     );
     return res.json({ agreement: updated });
@@ -473,6 +593,18 @@ exports.fileWarrantyClaim = async (req, res) => {
     if (!description || String(description).trim().length < 10 || String(description).length > 10000) {
       return res.status(400).json({ error: 'Description must be 10-10000 characters.' });
     }
+    // Claims are only meaningful against signed work, inside the agreed window.
+    if (!['active', 'completed'].includes(agreement.status)) {
+      return res.status(409).json({ error: 'Warranty claims require a signed agreement.', code: 'agreement_not_signed' });
+    }
+    if (agreement.status === 'completed' && agreement.completed_at) {
+      const months = Number(agreement.warranty_months) || 0;
+      const end = new Date(agreement.completed_at);
+      end.setMonth(end.getMonth() + months);
+      if (Date.now() > end.getTime()) {
+        return res.status(409).json({ error: 'The warranty period for this agreement has ended.', code: 'warranty_expired' });
+      }
+    }
     const { rows: [claim] } = await db.query(
       `INSERT INTO work_agreement_warranty_claims (agreement_id, description, filed_by)
        VALUES ($1::uuid, $2, $3::uuid) RETURNING *`,
@@ -513,6 +645,16 @@ exports.resolveWarrantyClaim = async (req, res) => {
     if (!['resolved', 'denied'].includes(decision)) {
       return res.status(400).json({ error: 'Decision must be resolved or denied.' });
     }
+    // The party who filed may withdraw (record as resolved) but may not deny
+    // their own claim; a denial must come from the other party.
+    const { rows: [existing] } = await db.query(
+      'SELECT filed_by FROM work_agreement_warranty_claims WHERE id = $1::uuid AND agreement_id = $2::uuid',
+      [req.params.claimId, agreement.id]
+    );
+    if (!existing) return res.status(404).json({ error: 'Claim not found or already decided.' });
+    if (decision === 'denied' && String(existing.filed_by) === String(req.user.id)) {
+      return res.status(403).json({ error: 'The other party must respond to your claim.', code: 'filer_cannot_deny' });
+    }
     const { rows: [claim] } = await db.query(
       `UPDATE work_agreement_warranty_claims
           SET status = $2, resolved_by = $3::uuid, resolved_at = now(),
@@ -539,13 +681,15 @@ exports.draftAgreement = async (req, res) => {
 
     // Load job details for the draft context.
     const { rows: [job] } = await db.query(
-      `SELECT id, title, description, budget_cents, currency, location_text,
-              helper_id, customer_id
+      `SELECT id, title, description, currency_code,
+              COALESCE(final_price_cents, job_value_cents, budget_max_cents, budget_min_cents) AS budget_cents,
+              NULLIF(CONCAT_WS(', ', location_city, location_state), '') AS location_text,
+              assigned_helper_id, client_id
          FROM jobs WHERE id = $1::uuid LIMIT 1`,
       [jobId]
     );
     if (!job) return res.status(404).json({ error: 'Job not found.' });
-    if (String(job.helper_id) !== String(req.user.id) && String(job.customer_id) !== String(req.user.id)) {
+    if (String(job.assigned_helper_id) !== String(req.user.id) && String(job.client_id) !== String(req.user.id)) {
       return res.status(403).json({ error: 'Not a party to this job.' });
     }
 
@@ -567,7 +711,7 @@ exports.draftAgreement = async (req, res) => {
 
 Job title: ${job.title || 'Untitled'}
 Job description: ${job.description || 'No description provided'}
-Budget: ${job.budget_cents ? (job.budget_cents / 100).toFixed(2) : 'not specified'} ${job.currency || 'USD'}
+Budget: ${job.budget_cents ? (job.budget_cents / 100).toFixed(2) : 'not specified'} ${job.currency_code || 'USD'}
 Location: ${job.location_text || 'not specified'}
 
 Keep it fair to both helper and customer. OxSteed is the records keeper only, not a party. No em dashes.`;

@@ -4527,6 +4527,9 @@
     "whatHappensNextBody": "Lè travay la an dirèk, moun ki mache ak kote, kategori, ak kondisyon yo ka voye òf. Ou ka konpare òf, poze lòt kesyon, epi anboche lè ou pare."
   },
   "jobDetail": {
+    "signWorkAgreement": "Revize epi siyen akò travay la",
+    "viewWorkAgreement": "Gade akò travay la",
+    "createWorkAgreement": "Kreye yon akò travay",
     "draftStatus": "Bouyon",
     "matchedStatus": "Korespondans jwenn",
     "negotiatingStatus": "Nan negosyasyon",
@@ -30218,6 +30221,22 @@
     "finalCtaSubtitle": "Gratis pou kreye. Pataje l nenpòt kote epi kòmanse touche jodi a."
   },
   "workAgreement": {
+    "scopeLabel": "Sa travay la gen ladan l",
+    "priceLabel": "Pri nou dakò a",
+    "timelineLabel": "Kalandriye",
+    "extraTermsLabel": "Lòt kondisyon",
+    "termTitle": "Tit",
+    "noWarrantyTerms": "Pa gen kondisyon garanti ki ekri.",
+    "claimNote": "Nòt (si ou vle)",
+    "claimWithdraw": "Make l rezoud",
+    "claimResolve": "Rezoud",
+    "claimDeny": "Refize reklamasyon an",
+    "claimResolveError": "Nou pa t ka mete reklamasyon an ajou.",
+    "claimStatus_filed": "Depoze",
+    "claimStatus_under_review": "Y ap egzamine l",
+    "claimStatus_resolved": "Rezoud",
+    "claimStatus_denied": "Refize",
+    "coAwaitingOther": "N ap tann lòt pati a deside.",
     "signHere": "Desine siyati ou isit la",
     "signHint": "Desine siyati ou ak sourit oswa dwèt",
     "clearSignature": "Efase",
