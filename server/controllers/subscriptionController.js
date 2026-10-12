@@ -215,6 +215,10 @@ exports.createCheckout = async (req, res, next) => {
           locationPriced: locationPricing ? 'true' : 'false'
         },
       },
+    }, {
+      // Review P3-1093: a double-submit within the same 10-minute window for
+      // the same plan/price returns the same Checkout Session.
+      idempotencyKey: `sub-checkout:${userId}:${plan.id}:${stripePrice}:${Math.floor(Date.now() / 600000)}`,
     });
 
     res.json({ url: session.url, sessionId: session.id });

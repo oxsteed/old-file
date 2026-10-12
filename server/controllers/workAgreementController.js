@@ -378,6 +378,41 @@ async function decideChangeOrder(req, res, decision) {
 exports.approveChangeOrder = (req, res) => decideChangeOrder(req, res, 'approved');
 exports.rejectChangeOrder = (req, res) => decideChangeOrder(req, res, 'rejected');
 
+
+// Review P3-912: evidence/documents are either uploaded files (private
+// storage, signed URLs on read) or vetted https links.
+const { normalizeSafeHttpsUrl } = require('../utils/safeExternalUrl');
+const VAULT_SIGNED_URL_TTL_SECONDS = 15 * 60;
+
+async function resolveVaultFile(req, folder) {
+  if (req.file?.buffer?.length) {
+    const { uploadFile } = require('../utils/storage');
+    const storageKey = await uploadFile(req.file.buffer, `private/work-agreements/${folder}`, req.file.originalname, req.file.mimetype);
+    return { storageKey, fileUrl: null, contentType: req.file.mimetype || null, originalName: req.file.originalname };
+  }
+  const fileUrl = normalizeSafeHttpsUrl(req.body?.fileUrl);
+  return fileUrl ? { storageKey: null, fileUrl, contentType: null, originalName: null } : null;
+}
+
+async function presentVaultRow(row) {
+  const out = { ...row };
+  delete out.storage_key;
+  if (row.storage_key) {
+    try {
+      const { getSignedDownloadUrl } = require('../utils/storage');
+      out.file_url = await getSignedDownloadUrl(row.storage_key, VAULT_SIGNED_URL_TTL_SECONDS);
+    } catch (err) {
+      logger.warn('work agreement vault signing failed', { id: row.id, error: err.message });
+      out.file_url = null;
+    }
+    out.is_upload = true;
+  } else {
+    out.file_url = normalizeSafeHttpsUrl(row.file_url);
+    out.is_upload = false;
+  }
+  return out;
+}
+
 // ─── Evidence ───────────────────────────────────────────────────────────────
 
 // POST /api/work-agreements/:id/evidence — { type, fileUrl, description }.
@@ -386,18 +421,22 @@ exports.addEvidence = async (req, res) => {
     const agreement = await loadAgreement(req.params.id);
     if (!agreement) return res.status(404).json({ error: 'Agreement not found.' });
     if (!isParty(agreement, req.user.id)) return res.status(403).json({ error: 'Not a party to this agreement.' });
-    const { type, fileUrl, description } = req.body || {};
+    const { type, description } = req.body || {};
     if (!['before_photo', 'after_photo', 'testing_record'].includes(type)) {
       return res.status(400).json({ error: 'Invalid evidence type.' });
     }
-    if (!fileUrl || String(fileUrl).length > 2048) return res.status(400).json({ error: 'fileUrl is required.' });
+    if ((type === 'before_photo' || type === 'after_photo') && req.file && !String(req.file.mimetype || '').startsWith('image/')) {
+      return res.status(400).json({ error: 'Photos must be images.', code: 'invalid_file_type' });
+    }
+    const file = await resolveVaultFile(req, 'evidence');
+    if (!file) return res.status(400).json({ error: 'Upload a file or provide an https link.', code: 'invalid_file' });
 
     const { rows: [row] } = await db.query(
-      `INSERT INTO work_agreement_evidence (agreement_id, evidence_type, file_url, description, uploaded_by)
-       VALUES ($1::uuid, $2, $3, $4, $5::uuid) RETURNING *`,
-      [agreement.id, type, String(fileUrl), description ? String(description).slice(0, 2000) : null, req.user.id]
+      `INSERT INTO work_agreement_evidence (agreement_id, evidence_type, file_url, storage_key, content_type, description, uploaded_by)
+       VALUES ($1::uuid, $2, $3, $4, $5, $6, $7::uuid) RETURNING *`,
+      [agreement.id, type, file.fileUrl, file.storageKey, file.contentType, description ? String(description).slice(0, 2000) : null, req.user.id]
     );
-    return res.status(201).json({ evidence: row });
+    return res.status(201).json({ evidence: await presentVaultRow(row) });
   } catch (err) {
     logger.error('work agreement evidence error', { err, userId: req.user?.id });
     return res.status(500).json({ error: 'Could not add evidence.' });
@@ -413,7 +452,7 @@ exports.listEvidence = async (req, res) => {
       'SELECT * FROM work_agreement_evidence WHERE agreement_id = $1::uuid ORDER BY created_at ASC',
       [agreement.id]
     );
-    return res.json({ evidence: rows });
+    return res.json({ evidence: await Promise.all(rows.map(presentVaultRow)) });
   } catch (err) {
     logger.error('work agreement evidence list error', { err, userId: req.user?.id });
     return res.status(500).json({ error: 'Could not list evidence.' });
@@ -428,16 +467,17 @@ exports.addDocument = async (req, res) => {
     const agreement = await loadAgreement(req.params.id);
     if (!agreement) return res.status(404).json({ error: 'Agreement not found.' });
     if (!isParty(agreement, req.user.id)) return res.status(403).json({ error: 'Not a party to this agreement.' });
-    const { fileUrl, fileName } = req.body || {};
-    if (!fileUrl || String(fileUrl).length > 2048) return res.status(400).json({ error: 'fileUrl is required.' });
-    if (!fileName || String(fileName).length > 255) return res.status(400).json({ error: 'fileName is required.' });
+    const file = await resolveVaultFile(req, 'documents');
+    if (!file) return res.status(400).json({ error: 'Upload a file or provide an https link.', code: 'invalid_file' });
+    const fileName = String(req.body?.fileName || file.originalName || '').trim();
+    if (!fileName || fileName.length > 255) return res.status(400).json({ error: 'fileName is required.' });
 
     const { rows: [row] } = await db.query(
-      `INSERT INTO work_agreement_documents (agreement_id, file_url, file_name, uploaded_by)
-       VALUES ($1::uuid, $2, $3, $4::uuid) RETURNING *`,
-      [agreement.id, String(fileUrl), String(fileName), req.user.id]
+      `INSERT INTO work_agreement_documents (agreement_id, file_url, storage_key, content_type, file_name, uploaded_by)
+       VALUES ($1::uuid, $2, $3, $4, $5, $6::uuid) RETURNING *`,
+      [agreement.id, file.fileUrl, file.storageKey, file.contentType, fileName, req.user.id]
     );
-    return res.status(201).json({ document: row });
+    return res.status(201).json({ document: await presentVaultRow(row) });
   } catch (err) {
     logger.error('work agreement document error', { err, userId: req.user?.id });
     return res.status(500).json({ error: 'Could not add document.' });
@@ -453,7 +493,7 @@ exports.listDocuments = async (req, res) => {
       'SELECT * FROM work_agreement_documents WHERE agreement_id = $1::uuid ORDER BY created_at ASC',
       [agreement.id]
     );
-    return res.json({ documents: rows });
+    return res.json({ documents: await Promise.all(rows.map(presentVaultRow)) });
   } catch (err) {
     logger.error('work agreement documents list error', { err, userId: req.user?.id });
     return res.status(500).json({ error: 'Could not list documents.' });

@@ -12,7 +12,7 @@ const {
   transcribeAudio,
   getProfileContext,
 } = require('../controllers/chatController');
-const { chatLimiter, profileChatLimiter, authLimiter } = require('../middleware/rateLimiter');
+const { chatLimiter, profileChatLimiter, authLimiter, paymentsLimiter } = require('../middleware/rateLimiter');
 const { authenticate } = require('../middleware/auth');
 const { rejectImpersonated } = require('../middleware/rejectImpersonated');
 const upload = require('../middleware/upload');
@@ -137,10 +137,10 @@ router.post('/quotes/:kind/:id/schedule', chatLimiter, optionalAuth, chatQuotes.
 
 
 // ── In-chat OxSteed Credit payments ──────────────────────────────────────────
-router.post('/payments/oxsteed-credit', chatLimiter, authenticate, rejectImpersonated, chatCreditPay.payWithOxsteedCredit);
+router.post('/payments/oxsteed-credit', chatLimiter, authenticate, paymentsLimiter, rejectImpersonated, chatCreditPay.payWithOxsteedCredit);
 router.post('/payments/request', chatLimiter, authenticate, chatCreditPay.requestPayment);
 router.get('/payments/request/:id', chatLimiter, authenticate, chatCreditPay.getPaymentRequest);
-router.post('/payments/:id/refund', chatLimiter, authenticate, rejectImpersonated, chatCreditPay.refundChatCreditPayment);
+router.post('/payments/:id/refund', chatLimiter, authenticate, paymentsLimiter, rejectImpersonated, chatCreditPay.refundChatCreditPayment);
 router.get('/payments/credit-hint', chatLimiter, authenticate, chatCreditPay.getCreditPayHint);
 
 // ── In-chat proof of payment + agreements ────────────────────────────────────

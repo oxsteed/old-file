@@ -1519,7 +1519,7 @@ export default function Dashboard() {
           )}
 
           {/* Upgrade CTA */}
-          {SHOW_PERSONAL_LIFE_DASHBOARD_WIDGETS && isFreeTier && (
+          {SHOW_PERSONAL_LIFE_DASHBOARD_WIDGETS && LAUNCH_VISIBILITY.subscriptions && isFreeTier && (
             <div className="bg-gradient-to-r from-orange-500/10 via-orange-600/5 to-transparent border border-orange-500/20 rounded-2xl p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div><div className="flex items-center gap-2 mb-1"><IcoZap size={18} cls="text-orange-400"/><h3 className="text-lg font-bold text-white">{t('dashboard.upgrade.title')}</h3></div><p className="text-sm text-gray-400">{t('dashboard.upgrade.subtitle')}</p></div>
               <Link to="/upgrade" className="bg-action hover:bg-action-hover text-on-action font-semibold px-6 py-2.5 rounded-xl transition whitespace-nowrap text-sm">{t('dashboard.upgrade.viewPlans')}</Link>

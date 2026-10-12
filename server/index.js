@@ -591,23 +591,26 @@ app.use('/api/helper-quotes', helperQuotesRoutes);
 const savedSearchesRoutes = require('./routes/savedSearches');
 app.use('/api/saved-searches', savedSearchesRoutes);
 app.use('/api/qr-codes',     qrCodesRoutes);
+// Review P3-940: consulting is unlaunched; every consulting router (payments,
+// purchase, scheduling, ...) carries the same CONSULTING_ENABLED gate.
+const requireConsultingLaunched = require('./middleware/featureFlags').requireFeatureEnabled('Consulting', 'CONSULTING_ENABLED', false);
 // NOTE: specific /api/consulting routers must mount before consultingRoutes,
 // whose GET /:id would otherwise swallow /consultants, /packages, /analytics.
-app.use('/api/consulting',   consultingPaymentRoutes);
+app.use('/api/consulting',   requireConsultingLaunched, consultingPaymentRoutes);
 app.use('/api/quote-requests', quoteRequestsRoutes);
-app.use('/api/consulting',   consultingAllPhasesRoutes);
+app.use('/api/consulting',   requireConsultingLaunched, consultingAllPhasesRoutes);
 app.use('/api/consulting/admin', consultingAdminRoutes);
 app.use('/api/consulting',   consultingRoutes);
 app.use('/api/invoices',     invoiceRoutes);
-app.use('/api/consulting/feedback', consultingFeedbackRoutes);
-app.use('/api/consulting/business-launch', businessLaunchRoutes);
+app.use('/api/consulting/feedback', requireConsultingLaunched, consultingFeedbackRoutes);
+app.use('/api/consulting/business-launch', requireConsultingLaunched, businessLaunchRoutes);
 app.use('/api/franchise', franchiseRoutes);
 app.use('/api/safety',   safetyRoutes);
-app.use('/api/consulting/analytics', consultingAnalyticsRoutes);
+app.use('/api/consulting/analytics', requireConsultingLaunched, consultingAnalyticsRoutes);
 app.use('/api/analytics', siteVisitRoutes);
-app.use('/api/consulting', consultingActionItemsRoutes);
-app.use('/api/consulting/contractor', consultantNetworkRoutes);
-app.use('/api/scheduling', consultantSchedulingRoutes);
+app.use('/api/consulting', requireConsultingLaunched, consultingActionItemsRoutes);
+app.use('/api/consulting/contractor', requireConsultingLaunched, consultantNetworkRoutes);
+app.use('/api/scheduling', requireConsultingLaunched, consultantSchedulingRoutes);
 app.use('/api/helper-settings', helperCancellationPoliciesRoutes);
 // NOTE: /api/role-toggle intentionally removed - see comment near top of file
 

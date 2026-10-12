@@ -262,9 +262,14 @@ const conversationMessageLimiter = rateLimit({
   windowMs: 60 * 1000, // 1 minute
   max: 10,
   keyGenerator: (req) => {
-    const { conversationId } = req.params;
-    const userId = req.user?.id || req.ip;
-    return conversationId ? `conv:${conversationId}:${userId}` : req.ip;
+    // Review P3-1097: routes without :conversationId (support AI message,
+    // QA review, reminders) are keyed by business/route and caller instead
+    // of collapsing every caller behind one bare-IP bucket.
+    const params = req.params || {};
+    const caller = req.user?.id ? `u:${req.user.id}` : `ip:${req.ip}`;
+    if (params.conversationId) return `conv:${params.conversationId}:${caller}`;
+    if (params.businessId) return `biz:${params.businessId}:${caller}`;
+    return `route:${req.baseUrl || ''}${req.route?.path || req.path || ''}:${caller}`;
   },
   standardHeaders: true,
   legacyHeaders: false,
@@ -435,6 +440,18 @@ const userChatLimiter = rateLimit({
     error: 'You are sending messages too quickly. Please wait a moment before sending more.',
     retryAfter: '5 minutes',
   },
+});
+
+// Review P3-916 / P3-912: per-user upload budget (chat attachments, agreement
+// vault). Redis-backed so the budget holds across replicas.
+const userUploadLimiter = rateLimit({
+  ...createStoreOption('rl:user_upload:'),
+  windowMs: 10 * 60 * 1000,
+  max: 30,
+  keyGenerator: (req) => (req.user?.id ? `user:${req.user.id}` : `ip:${req.ip}`),
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many uploads. Please wait a few minutes and try again.', code: 'upload_rate_limited' },
 });
 
 // Payments limiter: 20 per hour per user
@@ -670,6 +687,7 @@ const entityResolveLimiter = rateLimit({
 });
 
 module.exports = {
+  createStoreOption,
   getVerifiedBearerUserId,
   getVerifiedAuthUserId,
   generalLimiter,
@@ -686,6 +704,7 @@ module.exports = {
   channelWebhookLimiter,
   profileChatLimiter,
   userChatLimiter,
+  userUploadLimiter,
   discoverLimiter,
   discoverAuthLimiter,
   geoLimiter,
