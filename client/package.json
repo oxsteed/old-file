@@ -28,7 +28,7 @@
     "test:credit-cards-localization": "node --test scripts/creditCardsLocalization.test.mjs",
     "test:destructive-confirm": "node --test scripts/destructiveConfirmContract.test.mjs",
     "test:language-preference": "node --test scripts/languagePreference.test.mjs",
-    "test:auth-refresh-policy": "node --test scripts/authRefreshPolicy.test.mjs",
+    "test:auth-refresh-policy": "node --test scripts/authRefreshPolicy.test.mjs scripts/authRefreshCoordinator.test.mjs",
     "test:realtime-url": "node --test scripts/realtimeUrl.test.mjs",
     "test:restaurant-discovery": "node --test scripts/restaurantDiscovery.test.mjs",
     "test:restaurant-accessibility": "node --test scripts/restaurantAccessibility.test.mjs",

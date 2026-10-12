@@ -1,5 +1,6 @@
 import api from './axios';
 import { createAdminChallengeHandler } from './adminChallenge.mjs';
+import { withCrossTabRefreshLock } from './authRefreshCoordinator';
 import { isTransientRefreshFailure } from './authRefreshPolicy';
 
 const ACCESS_TOKEN_KEY = 'accessToken';
@@ -83,6 +84,10 @@ const handleAdminChallenge = typeof window === 'undefined'
   : createAdminChallengeHandler(window.location);
 
 async function requestSessionRefresh() {
+  return withCrossTabRefreshLock(performSessionRefresh);
+}
+
+async function performSessionRefresh() {
   let response;
   try {
     // The current HttpOnly cookie is authoritative. A legacy body token can
