@@ -21,6 +21,8 @@ export default function MediaFlagsPage() {
   const [csamTakedownNote, setCsamTakedownNote] = useState('');
   const [csamTakedownMessage, setCsamTakedownMessage] = useState('');
   const [csamTakedownPending, setCsamTakedownPending] = useState(false);
+  const [communitySuggestions, setCommunitySuggestions] = useState([]);
+  const [communitySuggestionNotes, setCommunitySuggestionNotes] = useState({});
 
   const load = async () => {
     setLoading(true);
@@ -44,6 +46,12 @@ export default function MediaFlagsPage() {
       } catch (verificationErr) {
         setVerificationRequests([]);
         setVerificationError(verificationErr.response?.data?.error || 'Verification requests require the verify_users permission.');
+      }
+      try {
+        const suggestions = await axios.get('/api/admin/media/community-suggestions', { params: { status: 'pending' } });
+        setCommunitySuggestions(suggestions.data.suggestions || []);
+      } catch {
+        setCommunitySuggestions([]);
       }
     } catch (err) {
       console.error('Failed to load flags', err);
@@ -121,6 +129,18 @@ export default function MediaFlagsPage() {
     }
   };
 
+  const handleCommunitySuggestionReview = async (id, decision) => {
+    const note = String(communitySuggestionNotes[id] || '').trim();
+    if (note.length < 3) return;
+    try {
+      await axios.post(`/api/admin/media/community-suggestions/${id}/review`, { status: decision, note });
+      setCommunitySuggestionNotes((current) => ({ ...current, [id]: '' }));
+      load();
+    } catch (err) {
+      alert('Failed: ' + (err.response?.data?.error || err.message));
+    }
+  };
+
   return (
     <div className="admin-page">
       <h1>Media Flags</h1>
@@ -174,6 +194,24 @@ export default function MediaFlagsPage() {
               ))}
             </tbody>
           </table>
+        )}
+      </section>
+      <section>
+        <h2>Space suggestions</h2>
+        {!communitySuggestions.length ? <p>No pending Space suggestions.</p> : (
+          communitySuggestions.map((item) => (
+            <article key={item.id} className="admin-card">
+              <h3>{item.title}</h3>
+              <p><strong>{item.geo_scope}</strong> · {item.category} · requested by {item.requester_name || item.requester_email}</p>
+              {item.description && <p>{item.description}</p>}
+              <label htmlFor={`media-space-suggestion-note-${item.id}`}>Review note</label>
+              <textarea id={`media-space-suggestion-note-${item.id}`} rows={2} maxLength={2000} value={communitySuggestionNotes[item.id] || ''} onChange={(event) => setCommunitySuggestionNotes((current) => ({ ...current, [item.id]: event.target.value }))} placeholder="Explain the approval or rejection" />
+              <div className="admin-actions">
+                <button type="button" onClick={() => handleCommunitySuggestionReview(item.id, 'approved')} disabled={(communitySuggestionNotes[item.id] || '').trim().length < 3}>Approve and publish Space</button>
+                <button type="button" onClick={() => handleCommunitySuggestionReview(item.id, 'rejected')} disabled={(communitySuggestionNotes[item.id] || '').trim().length < 3}>Reject</button>
+              </div>
+            </article>
+          ))
         )}
       </section>
       <section>

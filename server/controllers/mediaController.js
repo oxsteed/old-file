@@ -24,6 +24,7 @@ const MAX_LINKS_PER_POST = 5;
 const POSTS_PER_DAY = 10;
 const MEDIA_REPORT_REASONS = new Set(['spam', 'harassment', 'unsafe', 'copyright']);
 const MAX_MEDIA_REPORT_NOTE_LENGTH = 1000;
+const MEDIA_SPACE_CATEGORIES = new Set(['food', 'helpers', 'jobs', 'businesses', 'events', 'mutual_aid', 'general']);
 
 // `main` is the canonical destination. Accept the older composer labels at
 // the API boundary so drafts created by an older client can still be saved or
@@ -1800,7 +1801,7 @@ async function updateDraft(req, res) {
     }
     if (communityId) {
       const { rows: spaces } = await client.query(
-        `SELECT id FROM media_communities WHERE id = $1`, [communityId]
+        `SELECT id FROM media_communities WHERE id = $1 AND status = 'active'`, [communityId]
       );
       if (!spaces[0]) {
         await client.query('ROLLBACK');
@@ -2423,6 +2424,7 @@ async function getCommunities(req, res) {
           AND p.processing_status = 'ready' AND ${mediaSafety.publicPostSql('p')}
           AND p.parent_id IS NULL
           AND EXISTS (SELECT 1 FROM media_actors a WHERE ${authorWhere} AND (${verifiedActorSql('a')}))
+        WHERE c.status = 'active'
         GROUP BY c.id
         ORDER BY c.geo_scope NULLS LAST, c.category NULLS LAST, c.title`,
       params
@@ -2431,6 +2433,62 @@ async function getCommunities(req, res) {
   } catch (err) {
     logger.error('media.getCommunities error', { message: err.message });
     mediaError(res, err, 'Failed to load communities');
+  }
+}
+
+function cleanCommunitySuggestion(value, maxLength) {
+  return typeof value === 'string' ? value.trim().replace(/\s+/g, ' ').slice(0, maxLength) : '';
+}
+
+async function createCommunitySuggestion(req, res) {
+  const title = cleanCommunitySuggestion(req.body?.title || req.body?.name, 120);
+  const geoScope = cleanCommunitySuggestion(req.body?.geo_scope || req.body?.location, 160);
+  const category = cleanCommunitySuggestion(req.body?.category, 80).toLowerCase();
+  const description = cleanCommunitySuggestion(req.body?.description, 1000);
+  if (title.length < 3) return res.status(400).json({ error: 'Space name must be at least 3 characters.', code: 'media_space_title_invalid' });
+  if (geoScope.length < 2) return res.status(400).json({ error: 'Add a city, region, or county for this Space.', code: 'media_space_location_required' });
+  if (!MEDIA_SPACE_CATEGORIES.has(category)) return res.status(400).json({ error: 'Choose a valid Space category.', code: 'media_space_category_invalid' });
+  try {
+    const duplicate = await pool.query(
+      `SELECT id FROM media_communities
+        WHERE status = 'active' AND lower(title) = lower($1) AND lower(COALESCE(geo_scope, '')) = lower($2)
+        LIMIT 1`, [title, geoScope]
+    );
+    if (duplicate.rows[0]) return res.status(409).json({ error: 'An active Space with that name and location already exists.', code: 'media_space_exists' });
+    const pending = await pool.query(
+      `SELECT id FROM media_community_suggestions
+        WHERE requested_by = $1 AND status = 'pending'
+          AND lower(title) = lower($2) AND lower(geo_scope) = lower($3)
+        LIMIT 1`, [req.user.id, title, geoScope]
+    );
+    if (pending.rows[0]) return res.status(409).json({ error: 'You already have a pending suggestion with that name and location.', code: 'media_space_suggestion_exists' });
+    const { rows } = await pool.query(
+      `INSERT INTO media_community_suggestions (requested_by, title, geo_scope, category, description)
+       VALUES ($1, $2, $3, $4, NULLIF($5, ''))
+       RETURNING id, title, geo_scope, category, description, status, created_at, updated_at`,
+      [req.user.id, title, geoScope, category, description]
+    );
+    return res.status(201).json({ suggestion: rows[0] });
+  } catch (err) {
+    logger.error('media.createCommunitySuggestion error', { message: err.message });
+    return mediaError(res, err, 'Failed to submit Space suggestion');
+  }
+}
+
+async function getMyCommunitySuggestions(req, res) {
+  try {
+    const { rows } = await pool.query(
+      `SELECT id, title, geo_scope, category, description, status, review_note,
+              approved_community_id, created_at, updated_at, reviewed_at
+         FROM media_community_suggestions
+        WHERE requested_by = $1
+        ORDER BY created_at DESC
+        LIMIT 50`, [req.user.id]
+    );
+    return res.json({ suggestions: rows });
+  } catch (err) {
+    logger.error('media.getMyCommunitySuggestions error', { message: err.message });
+    return mediaError(res, err, 'Failed to load your Space suggestions');
   }
 }
 
@@ -2456,7 +2514,7 @@ async function getCommunity(req, res) {
           AND p.processing_status = 'ready' AND ${mediaSafety.publicPostSql('p')}
           AND p.parent_id IS NULL
           AND EXISTS (SELECT 1 FROM media_actors a WHERE ${authorWhere} AND (${verifiedActorSql('a')}))
-        WHERE c.slug = $1
+        WHERE c.slug = $1 AND c.status = 'active'
         GROUP BY c.id`,
       params
     );
@@ -2492,7 +2550,7 @@ async function getCommunity(req, res) {
 
 async function joinCommunity(req, res) {
   try {
-    const { rows } = await pool.query(`SELECT id FROM media_communities WHERE id = $1`, [req.params.id]);
+    const { rows } = await pool.query(`SELECT id FROM media_communities WHERE id = $1 AND status = 'active'`, [req.params.id]);
     if (!rows[0]) return res.status(404).json({ error: 'Space not found' });
     await pool.query(
       `INSERT INTO media_community_members (community_id, user_id, last_seen_at)
@@ -2931,6 +2989,7 @@ module.exports = {
   toggleLike, toggleBookmark, toggleRepost, recordShare, recordView, flagPost,
   getShellBadges, markCommunitiesSeen,
   getCommunities, getCommunity, joinCommunity, leaveCommunity, searchMedia,
+  createCommunitySuggestion, getMyCommunitySuggestions,
   getActor, getOrCreateActor, getBusinessPosts, toggleFollow,
   searchMediaEntities,
 };

@@ -18,6 +18,8 @@ router.post('/creator-disputes/:disputeId/review', requirePermission('manage_dis
 router.post('/creator-disputes/:disputeId/resolve', requirePermission('issue_refunds'), ctrl.resolveCreatorDispute);
 
 router.get('/flags', requirePermission('moderate_content'), ctrl.listFlags);
+router.get('/community-suggestions', requirePermission('moderate_content'), ctrl.listCommunitySuggestions);
+router.post('/community-suggestions/:id/review', requirePermission('moderate_content'), ctrl.reviewCommunitySuggestion);
 router.get('/flags/:id/evidence', requirePermission('moderate_content'), ctrl.getFlagEvidence);
 router.get('/posts/pending', requirePermission('moderate_content'), ctrl.listPendingPosts);
 router.post('/flags/:id/review', requirePermission('moderate_content'), ctrl.reviewFlag);

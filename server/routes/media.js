@@ -46,6 +46,8 @@ router.get('/entities', ctrl.searchMediaEntities);
 router.get('/badges', requireAuth, ctrl.getShellBadges);
 router.post('/communities/seen', requireAuth, ctrl.markCommunitiesSeen);
 router.get('/communities', ctrl.getCommunities);
+router.get('/communities/suggestions/mine', requireAuth, ctrl.getMyCommunitySuggestions);
+router.post('/communities/suggestions', requireAuth, ctrl.createCommunitySuggestion);
 router.get('/communities/:slug', ctrl.getCommunity);
 router.post('/communities/:id/join', requireAuth, ctrl.joinCommunity);
 router.delete('/communities/:id/join', requireAuth, ctrl.leaveCommunity);

@@ -62,6 +62,8 @@ export const createMediaAppeal = (id, reason) => api.post(`/media/posts/${id}/ap
 export const getMediaBadges = () => api.get('/media/badges').then(r => r.data);
 export const markMediaCommunitiesSeen = (communityId = null) => api.post('/media/communities/seen', communityId ? { community_id: communityId } : {}).then(r => r.data);
 export const getCommunities = () => api.get('/media/communities').then(r => r.data);
+export const getMyCommunitySuggestions = () => api.get('/media/communities/suggestions/mine').then(r => r.data);
+export const createCommunitySuggestion = (data) => api.post('/media/communities/suggestions', data).then(r => r.data);
 export const getCommunity = (slug) => api.get(`/media/communities/${encodeURIComponent(slug)}`).then(r => r.data);
 export const joinCommunity = (id) => api.post(`/media/communities/${id}/join`).then(r => r.data);
 export const leaveCommunity = (id) => api.delete(`/media/communities/${id}/join`).then(r => r.data);

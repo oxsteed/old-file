@@ -436,6 +436,95 @@ async function takedownByPublicUrl(req, res) {
   }
 }
 
+async function listCommunitySuggestions(req, res) {
+  try {
+    const status = ['pending', 'approved', 'rejected'].includes(req.query.status) ? req.query.status : 'pending';
+    const { rows } = await pool.query(
+      `SELECT s.*, COALESCE(NULLIF(BTRIM(CONCAT_WS(' ', u.first_name, u.last_name)), ''), u.email) AS requester_name,
+              u.email AS requester_email
+         FROM media_community_suggestions s
+         JOIN users u ON u.id = s.requested_by
+        WHERE s.status = $1
+        ORDER BY s.created_at ASC
+        LIMIT 100`, [status]
+    );
+    return res.json({ suggestions: rows });
+  } catch (err) {
+    logger.error('mediaAdmin.listCommunitySuggestions error', { message: err.message });
+    return sendMediaError(res, err, 'Failed to load Space suggestions');
+  }
+}
+
+function communitySlugPart(value) {
+  return String(value || '').normalize('NFKD').replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 70);
+}
+
+async function reviewCommunitySuggestion(req, res) {
+  const decision = req.body?.status;
+  const note = typeof req.body?.note === 'string' ? req.body.note.trim().slice(0, 2000) : '';
+  if (!['approved', 'rejected'].includes(decision)) return res.status(400).json({ error: 'Choose approved or rejected.', code: 'media_space_review_invalid' });
+  if (note.length < 3) return res.status(400).json({ error: 'Add a review note.', code: 'media_space_review_note_required' });
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const { rows } = await client.query(
+      `SELECT * FROM media_community_suggestions WHERE id = $1 FOR UPDATE`, [req.params.id]
+    );
+    if (!rows[0]) {
+      const error = Object.assign(new Error('Space suggestion not found.'), { status: 404, code: 'media_space_suggestion_not_found', isOperational: true });
+      throw error;
+    }
+    const suggestion = rows[0];
+    if (suggestion.status !== 'pending') {
+      const error = Object.assign(new Error('This Space suggestion has already been reviewed.'), { status: 409, code: 'media_space_suggestion_already_reviewed', isOperational: true });
+      throw error;
+    }
+    let community = null;
+    if (decision === 'approved') {
+      const base = [communitySlugPart(suggestion.title), communitySlugPart(suggestion.geo_scope)].filter(Boolean).join('-') || 'space';
+      let slug = base;
+      const conflict = await client.query('SELECT 1 FROM media_communities WHERE slug = $1 LIMIT 1', [slug]);
+      if (conflict.rows[0]) slug = `${base}-${suggestion.id.slice(0, 8)}`;
+      const inserted = await client.query(
+        `INSERT INTO media_communities (slug, title, geo_scope, category, description, created_by, status)
+         VALUES ($1, $2, $3, $4, $5, $6, 'active')
+         RETURNING *`,
+        [slug, suggestion.title, suggestion.geo_scope, suggestion.category, suggestion.description, suggestion.requested_by]
+      );
+      community = inserted.rows[0];
+    }
+    const { rows: updatedRows } = await client.query(
+      `UPDATE media_community_suggestions
+          SET status = $2, reviewed_by = $3, review_note = $4,
+              approved_community_id = $5, reviewed_at = NOW(), updated_at = NOW()
+        WHERE id = $1
+        RETURNING *`,
+      [suggestion.id, decision, req.user.id, note, community?.id || null]
+    );
+    await auditService.logAdminAction({
+      adminId: req.user.id,
+      action: `media_community_suggestion_${decision}`,
+      targetType: 'media_community_suggestion',
+      targetId: suggestion.id,
+      description: note,
+      before: suggestion,
+      after: { suggestion: updatedRows[0], community },
+      req,
+      client,
+      throwOnError: true,
+    });
+    await client.query('COMMIT');
+    return res.json({ suggestion: updatedRows[0], community });
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
+    logger.error('mediaAdmin.reviewCommunitySuggestion error', { message: err.message });
+    return sendMediaError(res, err, 'Failed to review Space suggestion');
+  } finally {
+    client.release();
+  }
+}
+
 module.exports = {
   listFlags,
   getFlagEvidence,
@@ -444,6 +533,8 @@ module.exports = {
   restorePost,
   approvePost,
   takedownByPublicUrl,
+  listCommunitySuggestions,
+  reviewCommunitySuggestion,
   listCreatorDisputes,
   reviewCreatorDispute,
   resolveCreatorDispute,
