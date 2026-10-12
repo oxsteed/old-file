@@ -100,7 +100,10 @@ export default function useJobs() {
   };
 
   const assignHelper = async (bidId, paymentMethod, scheduledStart = null, scheduledEnd = null, expectedJobVersion = null) => {
-    const body = { bid_id: bidId, payment_method: paymentMethod };
+    // paymentMethod is the legacy string, or the rail-engine selection object
+    // ({ payment_rail, offline_ack, fx_quote_id, credit_quote_id, payment_method }).
+    const selection = paymentMethod && typeof paymentMethod === 'object' ? paymentMethod : { payment_method: paymentMethod };
+    const body = { bid_id: bidId, ...selection };
     if (expectedJobVersion !== null && expectedJobVersion !== undefined) body.expected_job_version = expectedJobVersion;
     if (scheduledStart) body.scheduled_start = scheduledStart;
     if (scheduledEnd)   body.scheduled_end   = scheduledEnd;

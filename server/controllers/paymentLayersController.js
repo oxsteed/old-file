@@ -75,10 +75,10 @@ exports.getRailSwitch = wrap(async (req, res) => {
 });
 
 exports.requestRailSwitch = wrap(async (req, res) => {
-  const request = await railSwitch.requestSwitch({
+  const result = await railSwitch.requestSwitch({
     jobId: req.params.id, user: req.user, toRail: req.body?.to_rail, offlineAck: req.body?.offline_ack === true,
   });
-  res.status(201).json({ request });
+  res.status(201).json(result);
 });
 
 exports.respondRailSwitch = wrap(async (req, res) => {

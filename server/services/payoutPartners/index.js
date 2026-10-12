@@ -27,8 +27,15 @@ function stubPartner({ name, countries, requiredEnv, docs }) {
     countries,
     requiredEnv,
     docs,
-    isConfigured() {
+    integrated: false,
+    credentialsPresent() {
       return requiredEnv.every((key) => Boolean(process.env[key]));
+    },
+    // A stub never counts as configured, even with credentials set: it
+    // cannot move money, so the country stays spend-only until a real
+    // adapter replaces it.
+    isConfigured() {
+      return false;
     },
     async submitPayout() {
       throw new AppError(`${name} payouts are not integrated yet`, 503, 'partner_integration_pending', { partner: name });
@@ -58,7 +65,10 @@ function getPartner(name) {
 }
 
 function listPartners() {
-  return [...registry.values()].map((p) => ({ name: p.name, countries: p.countries, configured: p.isConfigured(), requiredEnv: p.requiredEnv || [] }));
+  return [...registry.values()].map((p) => ({
+    name: p.name, countries: p.countries, configured: p.isConfigured(), integrated: p.integrated !== false,
+    credentials_present: typeof p.credentialsPresent === 'function' ? p.credentialsPresent() : null, requiredEnv: p.requiredEnv || [],
+  }));
 }
 
 registerPartner(stubPartner({

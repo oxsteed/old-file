@@ -552,6 +552,7 @@ exports.getJob = async (req, res, next) => {
         j.created_at, j.updated_at, j.expires_at,
         j.started_at, j.completed_at, j.cancelled_at, j.cancellation_reason,
         j.escrow_status,
+        j.payment_rail, j.settlement_currency, j.location_country_code, j.timezone,
         u.first_name || ' ' || u.last_name AS client_name,
         h.first_name || ' ' || h.last_name AS helper_name
       FROM jobs j

@@ -12,8 +12,12 @@ const flags = require('../paymentLayerFlags');
 const railPolicy = require('../paymentRailPolicy');
 const money = require('../../validation/money');
 
+function isLegacy() {
+  return !flags.isEnabled('STRIPE_INTL') && !flags.isEnabled('PLATFORM_HOLD') && !flags.isEnabled('COUNTRY_FEES');
+}
+
 async function planIntent(client, { job, helper, amountMinor, requestedMethodType = null }) {
-  const legacy = !flags.isEnabled('STRIPE_INTL') && !flags.isEnabled('PLATFORM_HOLD') && !flags.isEnabled('COUNTRY_FEES');
+  const legacy = isLegacy();
   const currency = railPolicy.settlementCurrency({ job });
   if (legacy) {
     // Today's behaviour, unchanged: direct USD card charge, US fee schedule.
@@ -62,4 +66,4 @@ async function connectCountryFor(client, user) {
   return country;
 }
 
-module.exports = { planIntent, feesFor, connectCountryFor };
+module.exports = { planIntent, feesFor, connectCountryFor, isLegacy };

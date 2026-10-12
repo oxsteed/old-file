@@ -301,7 +301,7 @@ exports.createPaymentIntent = async (req, res, next) => {
     }
     // Charge model, currency and fees for this job (payment layers). With the
     // international flags off this is today's direct USD charge.
-    const { rows: helperRows } = await pool.query(
+    const { rows: helperRows } = stripeRail.isLegacy() ? { rows: [] } : await pool.query(
       'SELECT id, country, tier, membership_tier, subscription_status, didit_status FROM users WHERE id = $1',
       [job.rows[0].assigned_helper_id]
     );

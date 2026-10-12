@@ -139,6 +139,10 @@ CREATE INDEX IF NOT EXISTS idx_credit_cashout_user ON credit_cashout_requests (u
 CREATE INDEX IF NOT EXISTS idx_credit_cashout_due ON credit_cashout_requests (available_at) WHERE status = 'requested';
 
 -- Bids must be in the job's currency (#11). Missing → job currency.
+-- The column default ('USD') would hide a missing currency from the trigger,
+-- so drop it: the trigger fills in the job currency instead. Writers for
+-- non-2-decimal currencies must set amount_cents (amount is the mirror).
+ALTER TABLE bids ALTER COLUMN currency_code DROP DEFAULT;
 CREATE OR REPLACE FUNCTION bids_currency_and_minor_units() RETURNS trigger
 LANGUAGE plpgsql AS $$
 DECLARE

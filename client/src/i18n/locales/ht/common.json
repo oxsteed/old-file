@@ -809,5 +809,145 @@
       "stripeMissing": "Peman ak kat pa ka chaje kounye a. Eseye pita.",
       "generic": "Sa pa mache. Eseye ankò."
     }
+  },
+  "paymentRail": {
+    "panelTitle": "Peman",
+    "chooseRail": "Chwazi kijan pou peye",
+    "amountLine": "Pri: {{amount}} ({{currency}})",
+    "rails": {
+      "stripe": {
+        "title": "Kat (pwoteje)",
+        "body": "Peye atravè OxSteed. Lajan ou kenbe jiskaske travay la fini."
+      },
+      "credit": {
+        "title": "Kredi OxSteed",
+        "body": "Peye ak balans Kredi OxSteed ou.",
+        "payment": "Kredi ou kenbe epi li peye bay èd la lè travay la fini.",
+        "collateral": "Kredi ou kenbe kòm garanti; travay la chaje sou kat ou."
+      },
+      "offline": {
+        "title": "Peye èd la dirèkteman",
+        "body": "Ou peye èd la andeyò OxSteed."
+      }
+    },
+    "protection": {
+      "3": "Pi gwo pwoteksyon",
+      "2": "Pwoteje pa Kredi OxSteed",
+      "1": "OxSteed pa kouvri l"
+    },
+    "chargedNowHeld": "Paske travay la plis pase 5 jou devan, kat ou chaje kounye a epi OxSteed kenbe lajan an jiskaske travay la fini.",
+    "localMethods": "Disponib tou: {{methods}}",
+    "unavailable": "Pa disponib",
+    "noRails": "Poko gen okenn mwayen peman pou travay sa a.",
+    "quoting": "N ap kalkile estimasyon…",
+    "getEstimate": "Jwenn estimasyon Kredi",
+    "refreshEstimate": "Mete estimasyon an ajou",
+    "quoteFailed": "Nou pa t ka jwenn estimasyon. Eseye ankò.",
+    "creditSameCurrency": "{{amount}} pral kenbe sou Kredi ou.",
+    "fxEstimate": "Anviwon {{amount}} sou Kredi ou pou {{target}}.",
+    "fxFee": "Sa gen ladan frè konvèsyon {{fee}} ({{percent}}%).",
+    "fxRecordCurrency": "Pri a fikse an {{currency}}; montan nan lòt lajan se estimasyon.",
+    "offlineAck": "Mwen konprann peman mwen fè dirèkteman bay èd la pa kouvri pa OxSteed.",
+    "holdExpiringTitle": "Renouvle otorizasyon kat ou",
+    "holdExpiringBody": "Otorizasyon kat ou pou {{amount}} prèt pou ekspire. Renouvle l pou travay la rete finanse.",
+    "holdExpiresAt": "Ekspire {{date}}",
+    "renewHold": "Renouvle otorizasyon pou {{amount}}",
+    "genericError": "Gen yon bagay ki pa mache. Eseye ankò.",
+    "switch": {
+      "title": "Chanje mwayen peman",
+      "current": "Mwayen peman: {{rail}}",
+      "pending": "N ap tann akò pou chanje soti {{from}} pou ale {{to}}.",
+      "accept": "Dakò pou chanje",
+      "decline": "Refize",
+      "choose": "Chanje pou",
+      "lessProtected": "Opsyon sa a gen mwens pwoteksyon pase mwayen peman ou genyen kounye a.",
+      "request": "Mande chanjman",
+      "consentNote": "Lòt moun nan dwe dakò. Ou ka chanje sèlman anvan travay la kòmanse."
+    },
+    "offline": {
+      "title": "Peman dirèk",
+      "notCovered": "Peman sa a se ant ou menm ak lòt moun nan. OxSteed pa kenbe l ni garanti l.",
+      "status": "Kliyan konfime: {{customer}} · Èd konfime: {{helper}}",
+      "yes": "wi",
+      "no": "poko",
+      "confirm": "Konfime peman an fèt",
+      "confirmed": "Peman konfime"
+    },
+    "tips": {
+      "title": "Ajoute yon poubwa",
+      "amount": "Montan poubwa ({{currency}})",
+      "breakdown": "Frè tretman {{cost}} · Èd la resevwa {{helper}}",
+      "noPlatformFee": "OxSteed pa pran okenn frè sou poubwa.",
+      "send": "Voye poubwa",
+      "sent": "Poubwa voye. Mèsi!",
+      "confirmCard": "Konfime poubwa a ak kat ou pou fini.",
+      "status": {
+        "pending": "an atant",
+        "succeeded": "voye",
+        "failed": "echwe",
+        "canceled": "anile"
+      }
+    },
+    "cashout": {
+      "title": "Retire Kredi",
+      "rules": "Pou retire, ou bezwen yon idantite verifye. Lajan ou touche disponib {{days}} jou apre li rive, nan limit chak jou ak chak mwa.",
+      "available": "Disponib pou retire: {{amount}}",
+      "amount": "Montan ({{currency}})",
+      "destination": "Nimewo mobile money oswa kont",
+      "submit": "Mande retrè",
+      "requested": "Retrè mande",
+      "status": {
+        "requested": "mande",
+        "submitted": "ap trete",
+        "paid": "peye",
+        "failed": "echwe",
+        "cancelled": "anile"
+      }
+    },
+    "chat": {
+      "maskedBeforeHire": "Enfòmasyon kontak kache jiskaske yon òf aksepte. Kontinye pale isit la pou w rete pwoteje.",
+      "offPlatformReminder": "Rapèl: peman ki fèt andeyò OxSteed pa pwoteje."
+    },
+    "reasons": {
+      "country_not_supported": "Poko disponib nan peyi sa a.",
+      "country_not_enabled": "Poko disponib nan peyi sa a.",
+      "country_tax_review_pending": "Poko disponib nan peyi sa a.",
+      "rail_disabled_in_country": "Pa ofri nan peyi sa a.",
+      "helper_country_unsupported": "Pa disponib pou peyi èd la.",
+      "international_not_enabled": "Peman entènasyonal ak kat poko disponib.",
+      "credit_rail_not_enabled": "Peman ak Kredi OxSteed poko disponib.",
+      "credit_currency_unsupported": "Kredi OxSteed pa disponib nan lajan sa a.",
+      "credit_payment_not_cleared": "Ou poko ka itilize Kredi OxSteed isit la.",
+      "credit_fx_unavailable": "Konvèsyon lajan pa disponib kounye a.",
+      "credit_fx_quote_expired": "Estimasyon an ekspire. Pran yon lòt.",
+      "credit_fx_quote_required": "Pran yon estimasyon Kredi anvan.",
+      "credit_insufficient_funds": "Ou pa gen ase Kredi.",
+      "offline_requires_subscription": "Èd la bezwen yon abònman pou aksepte peman dirèk.",
+      "offline_requires_verified_helper": "Èd la dwe verifye idantite l pou aksepte peman dirèk.",
+      "offline_first_job_cap": "Premye travay ou isit la dwe peye atravè OxSteed si li depase montan sa a.",
+      "offline_ack_required": "Tanpri konfime peman dirèk pa kouvri.",
+      "payment_rail_unavailable": "Mwayen peman sa a pa disponib.",
+      "rail_switch_after_start": "Ou ka chanje mwayen peman sèlman anvan travay la kòmanse.",
+      "rail_switch_pending": "Gen yon chanjman k ap tann repons deja.",
+      "rail_switch_expired": "Demann sa a ekspire.",
+      "rail_switch_stale": "Travay la chanje. Mande ankò.",
+      "rail_switch_not_pending": "Demann sa a gentan gen repons.",
+      "rail_switch_customer_only": "Se kliyan an sèlman ki ka konfime chanjman sa a.",
+      "rail_switch_needs_counterparty": "Lòt moun nan dwe reponn demann sa a.",
+      "tip_not_allowed": "Ou poko ka bay poubwa pou travay sa a.",
+      "tip_offline_rail": "Bay èd la poubwa a dirèkteman pou travay ki peye andeyò platfòm nan.",
+      "tip_too_large": "Poubwa sa a twò gwo.",
+      "tip_amount_invalid": "Antre yon montan poubwa.",
+      "cashout_unavailable_spend_only": "Retrè pa disponib nan peyi ou. Ou ka depanse Kredi sou OxSteed.",
+      "cashout_identity_required": "Verifye idantite ou pou retire.",
+      "cashout_no_balance": "Ou pa gen Kredi pou retire.",
+      "cashout_nothing_available": "Poko gen anyen disponib pou retire.",
+      "cashout_exceeds_available": "Sa plis pase sa ou ka retire kounye a.",
+      "cashout_amount_invalid": "Antre yon montan.",
+      "cashout_destination_required": "Chwazi ki kote pou voye lajan an.",
+      "bid_currency_mismatch": "Òf yo dwe nan lajan travay la.",
+      "impersonation_blocked": "Sa pa pèmèt nan yon sesyon anpridantite.",
+      "feature_disabled": "Pa disponib."
+    }
   }
 }

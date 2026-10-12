@@ -15,10 +15,13 @@ test('banner model per requirement and viewer', () => {
   assert.deepEqual(bannerModel({ required: true, can_authorize: false, requirement: { card: 'reauthorization_required' } }), { mode: 'waiting' });
   const card = bannerModel({ required: true, can_authorize: true, requirement: { card: 'reauthorization_required', target_cents: 20500, authorized_cents: 18000 },
     latest_attempt: { status: 'pending', failure_code: 'card_declined', expires_at: '2030-01-01T00:00:00Z' } });
-  assert.deepEqual(card, { mode: 'card', targetCents: 20500, authorizedCents: 18000, expiresAt: '2030-01-01T00:00:00Z', notice: 'lastDeclined' });
+  assert.deepEqual(card, { mode: 'card', targetCents: 20500, authorizedCents: 18000, currency: 'USD', expiresAt: '2030-01-01T00:00:00Z', notice: 'lastDeclined' });
   assert.equal(bannerModel({ required: true, can_authorize: true, requirement: { card: 'intent_reprice_required', target_cents: 1 } }).mode, 'reprice');
   assert.deepEqual(bannerModel({ required: true, can_authorize: true, requirement: { credit: true, credit_amount_cents: 900 }, latest_attempt: { status: 'expired' } }),
-    { mode: 'credit', creditCents: 900, notice: 'lastExpired' });
+    { mode: 'credit', creditCents: 900, currency: 'USD', notice: 'lastExpired' });
+  const renew = bannerModel({ required: true, can_authorize: true, requirement: { card: 'hold_expiring', target_cents: 5000, authorized_cents: 5000, currency: 'CAD', hold_expires_at: '2030-01-02T00:00:00Z' } });
+  assert.deepEqual(renew, { mode: 'renew', targetCents: 5000, authorizedCents: 5000, holdExpiresAt: '2030-01-02T00:00:00Z', currency: 'CAD', notice: null });
+  assert.equal(jobNeedsPaymentCheck({ metadata: { paymentHoldRenewalRequired: true } }), true);
 });
 
 test('error codes map to localized keys that exist in every locale and catalog', () => {
@@ -44,4 +47,6 @@ test('error codes map to localized keys that exist in every locale and catalog',
 test('money is formatted per locale', () => {
   assert.equal(formatCents(20500, 'en'), '$205.00');
   assert.equal(formatCents('x', 'en'), '');
+  assert.equal(formatCents(1500, 'en', 'JPY'), '¥1,500');
+  assert.match(formatCents(1234, 'en', 'KWD'), /^KWD\s1\.234$/);
 });

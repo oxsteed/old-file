@@ -88,7 +88,11 @@ function requirementFrom(job, payment) {
     : meta.paymentHoldRenewalRequired === true ? 'hold_expiring' : null;
   const credit = meta.creditAdjustmentRequired === true;
   if (!card && !credit) return null;
-  const out = { card, credit, change_order_id: meta.paymentAdjustmentChangeOrderId || meta.creditAdjustmentChangeOrderId || null };
+  const out = {
+    card, credit, change_order_id: meta.paymentAdjustmentChangeOrderId || meta.creditAdjustmentChangeOrderId || null,
+    currency: String(payment?.currency || job?.settlement_currency || job?.currency_code || 'USD').toUpperCase(),
+    hold_expires_at: card === 'hold_expiring' ? (meta.paymentHoldExpiresAt || null) : null,
+  };
   if (card && payment) {
     const authorized = authorizedCentsOf(payment);
     const increase = cents(payment.pending_increase_cents) || 0;

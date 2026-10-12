@@ -63,7 +63,7 @@ async function getSwitchState(jobId, user) {
   return {
     rail,
     can_switch: SWITCHABLE_STATUSES.has(String(job.status)),
-    pending: view(pending[0]),
+    pending: pending[0] ? { ...view(pending[0]), requested_by_me: String(pending[0].requested_by) === String(user.id) } : null,
     options: options ? options.rails.filter((r) => r.rail !== rail) : [],
     my_role: partyOf(job, user),
   };
