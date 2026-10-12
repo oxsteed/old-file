@@ -35,7 +35,7 @@ router.post('/verify-otp',  authLimiter, verifyOTP);
 router.post('/resend-otp',  authLimiter, resendOTP);
 router.post('/send-otp',    authLimiter, resendOTP);  // alias for frontend
 router.get('/categories',   getCategories);
-router.post('/complete',    completeRegistration);
+router.post('/complete',    authLimiter, completeRegistration);
 router.post('/tier',        authenticate, saveTier);
 router.post('/w9',          authenticate, saveW9);
 router.post('/accept-terms', authenticate, acceptTerms);

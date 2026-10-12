@@ -94,8 +94,48 @@ const authenticatedLimiter = rateLimit({
   },
 });
 
-// Auth rate limiter: 30 attempts per 15 minutes per IP
-// Protects login, register, OTP endpoints from brute-force
+// Login gets its own budget, shared by password, MFA and internal-access login.
+// Routine session requests and signup must not consume sign-in attempts.
+const loginLimiter = rateLimit({
+  ...createStoreOption('rl:login:'),
+  windowMs: 15 * 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    error: 'Too many authentication attempts. Please try again in 15 minutes.',
+    retryAfter: '15 minutes',
+  },
+});
+
+// Session refresh/logout are normal browser activity, not credential attempts.
+// They remain bounded in addition to the global API limit.
+const authSessionLimiter = rateLimit({
+  ...createStoreOption('rl:auth_session:'),
+  windowMs: 15 * 60 * 1000,
+  max: 120,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    error: 'Too many requests. Please try again later.',
+    retryAfter: '15 minutes',
+  },
+});
+
+// Non-authoritative signup lookups have a separate, bounded budget.
+const authLookupLimiter = rateLimit({
+  ...createStoreOption('rl:auth_lookup:'),
+  windowMs: 15 * 60 * 1000,
+  max: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    error: 'Too many requests. Please try again later.',
+    retryAfter: '15 minutes',
+  },
+});
+
+// Registration, OTP and sensitive account changes: 30 per 15 minutes per IP.
 const authLimiter = rateLimit({
   ...createStoreOption('rl:auth:'),
   windowMs: 15 * 60 * 1000,
@@ -598,6 +638,9 @@ module.exports = {
   getVerifiedBearerUserId,
   generalLimiter,
   authenticatedLimiter,
+  loginLimiter,
+  authSessionLimiter,
+  authLookupLimiter,
   authLimiter,
   strictLimiter,
   passwordResetLimiter,

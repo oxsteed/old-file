@@ -29,7 +29,7 @@ const correlationId = require('./middleware/correlationId');
 const { otelRequestContext } = require('./middleware/otelRequestContext');
 const { attachCsrfToken, validateCsrfToken } = require('./middleware/csrf');
 const sanitizeInputs = require('./middleware/sanitize');
-const { generalLimiter, authenticatedLimiter, authLimiter, strictLimiter, channelWebhookLimiter, creditExportLimiter } = require('./middleware/rateLimiter');
+const { generalLimiter, authenticatedLimiter, strictLimiter, channelWebhookLimiter, creditExportLimiter } = require('./middleware/rateLimiter');
 const { webhookRateLimit } = require('./middleware/webhookAuth');
 const { authenticate, requireRole } = require('./middleware/auth');
 const { requireAdmin } = require('./middleware/adminAuth');
@@ -319,7 +319,9 @@ app.post('/api/delivery/webhooks/telematics/:provider', webhookRateLimit, expres
 // Each limiter skips the other's traffic so they don't double-count.
 app.use('/api/', generalLimiter);
 app.use('/api/', authenticatedLimiter);
-app.use('/api/auth', authLimiter);
+// Auth routes apply operation-specific limits once, after body parsing.
+// A shared mount here double-counted login attempts and let session traffic
+// exhaust the sign-in budget.
 app.use('/api/privacy/delete-account', strictLimiter);
 app.use('/api/privacy/export', strictLimiter);
 
