@@ -86,6 +86,7 @@ async function getCenter(req, res) {
       actor_type: 'user',
       display_name: memberName,
       avatar_url: normalizeStoredPublicUrl(member.profile_photo_url || null),
+      available: true,
       verified: member.is_verified === true,
       eligibility: { text: true, photo: true, video: member.is_verified === true },
       location: { city: member.city || null, region: member.state || null },
@@ -96,24 +97,31 @@ async function getCenter(req, res) {
       actor_type: 'helper',
       display_name: memberName,
       avatar_url: normalizeStoredPublicUrl(member.profile_photo_url || null),
+      available: true,
       verified: true,
       eligibility: { text: true, photo: true, video: true },
       location: { city: member.city || null, region: member.state || null },
     });
-    for (const business of businessResult.rows.filter((item) => item.is_verified)) publishers.push({
+    for (const business of businessResult.rows) publishers.push({
       key: `business:${business.id}`,
       actor_id: business.media_actor_id || null,
       actor_type: 'business', entity_id: business.id,
       display_name: business.business_name, avatar_url: normalizeStoredPublicUrl(business.logo_url || null),
-      verified: true, eligibility: { text: true, photo: true, video: member.is_verified === true },
+      verified: business.is_verified === true,
+      available: business.is_verified === true,
+      verification_required: business.is_verified !== true,
+      eligibility: { text: business.is_verified === true, photo: business.is_verified === true, video: business.is_verified === true && member.is_verified === true },
       location: { city: business.service_city || null, region: business.service_state || null },
     });
-    for (const restaurant of restaurantResult.rows.filter((item) => item.is_verified)) publishers.push({
+    for (const restaurant of restaurantResult.rows) publishers.push({
       key: `restaurant:${restaurant.id}`,
       actor_id: restaurant.media_actor_id || null,
       actor_type: 'restaurant', entity_id: restaurant.id,
       display_name: restaurant.display_name, avatar_url: normalizeStoredPublicUrl(restaurant.logo_url || null),
-      verified: true, eligibility: { text: true, photo: true, video: member.is_verified === true },
+      verified: restaurant.is_verified === true,
+      available: restaurant.is_verified === true,
+      verification_required: restaurant.is_verified !== true,
+      eligibility: { text: restaurant.is_verified === true, photo: restaurant.is_verified === true, video: restaurant.is_verified === true && member.is_verified === true },
       location: { city: restaurant.address_city || null, region: restaurant.address_state || null },
     });
 

@@ -282,7 +282,7 @@ export default function MediaComposePage() {
   }, [draftId, pollingProcessing, t]);
 
   const ensureDraft = useCallback(async () => {
-    if (publisherStatus !== 'ready' || !selectedPublisher) {
+    if (publisherStatus !== 'ready' || !selectedPublisher || selectedPublisher.available === false) {
       setError(t(publisherStatus === 'loading' ? 'media.compose.publisherLoading' : 'media.compose.publisherUnavailable'));
       setErrorCode('media_publisher_unavailable');
       throw new Error('media_publisher_unavailable');
@@ -522,7 +522,7 @@ export default function MediaComposePage() {
   const submit = async event => {
     event.preventDefault(); setError(''); setErrorCode('');
     if (submitting || transitioning) return;
-    if (publisherStatus !== 'ready') {
+    if (publisherStatus !== 'ready' || selectedPublisher?.available === false) {
       setError(t(publisherStatus === 'loading' ? 'media.compose.publisherLoading' : 'media.compose.publisherUnavailable'));
       setErrorCode('media_publisher_unavailable');
       return;
@@ -573,7 +573,7 @@ export default function MediaComposePage() {
             <span className="media-publisher-avatar">{selectedPublisher?.avatar_url ? <img src={selectedPublisher.avatar_url} alt="" /> : <CircleUserRound size={27} />}</span>
             <div><span>{t('media.compose.postingAs')}</span><strong>{selectedPublisher?.display_name || t('media.compose.loadingPublisher')}</strong><small><MapPin size={13} />{publisherLocation}</small></div>
             {selectedPublisher?.verified && <ShieldCheck className="media-publisher-verified" size={20} aria-label={t('media.compose.verifiedPublisher')} />}
-            <select aria-label={t('media.compose.publisherLabel')} value={publisherKey} disabled={Boolean(draftId) || Boolean(creationPayloadRef.current) || publisherStatus !== 'ready'} onChange={event => setPublisherKey(event.target.value)}>{!selectedPublisher && <option value={publisherKey}>{t('media.compose.publisherUnavailable')}</option>}{publishers.map(publisher => <option key={publisher.key} value={publisher.key}>{publisher.display_name} · {publisher.actor_type}</option>)}</select>
+            <select aria-label={t('media.compose.publisherLabel')} value={publisherKey} disabled={Boolean(draftId) || Boolean(creationPayloadRef.current) || publisherStatus !== 'ready'} onChange={event => setPublisherKey(event.target.value)}>{!selectedPublisher && <option value={publisherKey}>{t('media.compose.publisherUnavailable')}</option>}{publishers.map(publisher => <option key={publisher.key} value={publisher.key} disabled={publisher.available === false}>{publisher.display_name} · {publisher.actor_type}{publisher.available === false ? ` · ${t('media.compose.verificationRequired', 'verification required')}` : ''}</option>)}</select>
           </section>
 
           <section className="media-compose-editor">
@@ -607,7 +607,7 @@ export default function MediaComposePage() {
           {processingNotice && <p className="media-status" role="status" data-processing-status={processingStatus || undefined}>{processingNotice}</p>}
           {error && <div className="media-compose-error" role="alert"><AlertTriangle size={18} /><span>{error}</span>{saveState === 'error' && <button type="button" onClick={() => saveDraft()}>{t('media.compose.retry')}</button>}{(errorCode === 'media_video_didit_required' || errorCode === 'media_not_verified_poster') && <Link to="/media/verification?returnTo=/media/compose">{t(errorCode === 'media_video_didit_required' ? 'media.compose.resolve' : 'media.verification.request', { defaultValue: errorCode === 'media_video_didit_required' ? 'Resolve verification' : 'Request verification' })}</Link>}{errorCode === 'media_nearby_location_required' && <Link to="/media/verification?returnTo=/media/compose">{t('media.compose.resolve')}</Link>}</div>}
 
-          <footer className="media-compose-actions"><span className={`media-save-state state-${saveState}`} aria-live="polite">{saveState === 'saving' ? <Loader2 className="media-spin" size={15} /> : saveState === 'saved' ? <Check size={15} /> : saveState === 'offline' || saveState === 'error' ? <AlertTriangle size={15} /> : <Save size={15} />}{stateText}</span><div><button type="button" className="media-secondary-button" onClick={() => saveDraft()} disabled={submitting || pendingUpload}>{t('media.compose.saveDraft')}</button>{draftId && <button type="button" className="media-text-button media-danger-button" onClick={discard} disabled={submitting || pendingUpload}>{t('media.compose.discardDraft')}</button>}<button type="button" className="media-text-button" onClick={startNew} disabled={submitting || pendingUpload}>{t('media.compose.startNew')}</button><button type="submit" className="media-primary-button" disabled={submitting || pendingUpload || uploads.length > 0 || !selectedPublisher || publisherStatus !== 'ready'}>{submitting ? <Loader2 className="media-spin" size={17} /> : null}{submitting ? t('media.compose.posting') : t('media.compose.publishPost')}<ChevronRight size={18} /></button></div></footer>
+          <footer className="media-compose-actions"><span className={`media-save-state state-${saveState}`} aria-live="polite">{saveState === 'saving' ? <Loader2 className="media-spin" size={15} /> : saveState === 'saved' ? <Check size={15} /> : saveState === 'offline' || saveState === 'error' ? <AlertTriangle size={15} /> : <Save size={15} />}{stateText}</span><div><button type="button" className="media-secondary-button" onClick={() => saveDraft()} disabled={submitting || pendingUpload}>{t('media.compose.saveDraft')}</button>{draftId && <button type="button" className="media-text-button media-danger-button" onClick={discard} disabled={submitting || pendingUpload}>{t('media.compose.discardDraft')}</button>}<button type="button" className="media-text-button" onClick={startNew} disabled={submitting || pendingUpload}>{t('media.compose.startNew')}</button><button type="submit" className="media-primary-button" disabled={submitting || pendingUpload || uploads.length > 0 || !selectedPublisher || selectedPublisher.available === false || publisherStatus !== 'ready'}>{submitting ? <Loader2 className="media-spin" size={17} /> : null}{submitting ? t('media.compose.posting') : t('media.compose.publishPost')}<ChevronRight size={18} /></button></div></footer>
           </fieldset>
         </form>
       </div>
