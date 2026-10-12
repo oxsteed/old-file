@@ -81,7 +81,7 @@ function parsePayload(payload) {
 
 async function loadJob(jobId) {
   const { rows } = await db.query(
-    `SELECT id, client_id, title, description, category_name, status, revision, version,
+    `SELECT id, client_id, assigned_helper_id, title, description, category_name, status, revision, version,
             location_city, location_state, budget_min_cents, budget_max_cents, deleted_at
        FROM jobs WHERE id = $1`,
     [jobId]
@@ -195,15 +195,46 @@ async function notifyChangeOrderApplied(job, payload) {
       userId,
       type: 'job_change_order_applied',
       title: 'Change order applied',
-      body: payload.payment_action === 'reauthorization_required'
-        ? 'The approved change order raised the job price. The customer needs to authorize the difference.'
+      body: payload.payment_action === 'reauthorization_required' || payload.credit_action === 'credit_reauthorization_required'
+        ? 'The approved change order raised the job price. The customer needs to authorize the new amount before the job can be completed.'
         : 'The approved change order updated the job price.',
-      data: { job_id: job.id, change_order_id: payload.change_order_id, payment_action: payload.payment_action || null },
+      data: { job_id: job.id, change_order_id: payload.change_order_id, payment_action: payload.payment_action || null, credit_action: payload.credit_action || null },
       action_url: `/jobs/${job.id}`,
       idempotencyKey: `job-change-order:${payload.change_order_id}:${userId}`,
     });
     if (result?.success === false) throw new Error(result.error || 'notification failed');
   }
+}
+
+async function notifyPaymentReauthorization(job, eventType, payload) {
+  if (eventType === EVENT_TYPES.PAYMENT_REAUTHORIZED) {
+    for (const userId of [payload.customer_id || job.client_id, payload.helper_id || job.assigned_helper_id].filter(Boolean)) {
+      const result = await sendNotification({
+        userId,
+        type: 'job_payment_reauthorized',
+        title: 'New price authorized',
+        body: 'The new job price from the approved change order is authorized. The job can be completed.',
+        data: { job_id: job.id, attempt_id: payload.attempt_id },
+        action_url: `/jobs/${job.id}`,
+        idempotencyKey: `job-payment-reauthorized:${payload.attempt_id}:${userId}`,
+      });
+      if (result?.success === false) throw new Error(result.error || 'notification failed');
+    }
+    return;
+  }
+  const expired = payload.reason === 'expired';
+  const result = await sendNotification({
+    userId: job.client_id,
+    type: 'job_payment_reauth_failed',
+    title: expired ? 'Payment authorization expired' : 'Card was declined',
+    body: expired
+      ? 'Your authorization request for the new job price expired. Open the job to try again.'
+      : 'Your card was declined for the new job price. Open the job to try another card.',
+    data: { job_id: job.id, attempt_id: payload.attempt_id, reason: payload.reason || null },
+    action_url: `/jobs/${job.id}`,
+    idempotencyKey: `job-payment-reauth-failed:${payload.attempt_id}:${payload.reason}:${payload.failure_code || ''}`,
+  });
+  if (result?.success === false) throw new Error(result.error || 'notification failed');
 }
 
 async function handleEvent(row) {
@@ -223,6 +254,10 @@ async function handleEvent(row) {
       return;
     case EVENT_TYPES.CHANGE_ORDER_APPLIED:
       await notifyChangeOrderApplied(job, payload);
+      return;
+    case EVENT_TYPES.PAYMENT_REAUTHORIZED:
+    case EVENT_TYPES.PAYMENT_REAUTH_FAILED:
+      await notifyPaymentReauthorization(job, row.event_type, payload);
       return;
     default:
       logger.warn('job_event_outbox.unknown_event', { id: row.id, eventType: row.event_type });
@@ -283,6 +318,13 @@ function startJobEventOutboxJob() {
     runJobEventOutbox().catch((error) => {
       logger.error('Job event outbox worker failed', { error: error.message });
     });
+  });
+  // Expire unconfirmed change-order re-authorizations and release their holds.
+  cron.schedule('*/10 * * * *', () => {
+    withFencedJobLock('job-payment-reauth-expiry', async () => {
+      const n = await require('../services/jobPaymentReauthorizationService').expireStaleReauthorizations();
+      if (n) logger.info('Job payment re-authorizations expired', { count: n });
+    }, 120).catch((error) => logger.error('Job payment re-authorization expiry failed', { error: error.message }));
   });
   cron.schedule('17 3 * * *', () => {
     pruneJobEventOutbox().catch((error) => logger.error('Job event outbox prune failed', { error: error.message }));

@@ -5,6 +5,7 @@ const logger = require('../utils/logger');
 const { fuzzCoords } = require('../models/jobModel');
 const { withTransaction, withJobTransaction } = require('../utils/transaction');
 const { captureAuthorizedPaymentWithClient } = require('../services/paymentCaptureService');
+const { assertNoPendingAdjustment } = require('../services/jobPaymentReauthorizationService');
 const { AppError } = require('../middleware/errorHandler');
 const { envFlagEnabled } = require('../middleware/featureFlags');
 const { cancelJobTransaction, finalizeJobCancellation } = require('../services/jobCancellationService');
@@ -986,6 +987,11 @@ exports.assignHelper = async (req, res, next) => {
           [jobRow.location_city, jobRow.location_state].filter(Boolean).join(', ') ||
           null;
 
+        // Savepoint: a failed insert (e.g. the helper already has an
+        // appointment in that slot) would otherwise abort the whole
+        // transaction, and COMMIT would silently roll the hire back while the
+        // API still answered 200.
+        await client.query('SAVEPOINT assign_appointment');
         await client.query(
           `INSERT INTO appointments (
               customer_id, helper_id, job_id,
@@ -1007,8 +1013,10 @@ exports.assignHelper = async (req, res, next) => {
             locationAddress,
           ]
         );
+        await client.query('RELEASE SAVEPOINT assign_appointment');
       } catch (apptErr) {
         // Non-fatal: log but never let appointment creation break bid acceptance
+        await client.query('ROLLBACK TO SAVEPOINT assign_appointment').catch(() => {});
         logger.warn('Failed to auto-create calendar appointment for accepted job', {
           jobId: bid.job_id,
           helperId: bid.helper_id,
@@ -1163,7 +1171,7 @@ exports.completeJob = async (req, res, next) => {
 
     // First, verify the job exists and user has permission (outside transaction for early validation)
     const { rows: jobRows } = await pool.query(`
-      SELECT id, client_id, assigned_helper_id, status, job_type, job_type_label, transaction_mode
+      SELECT id, client_id, assigned_helper_id, status, job_type, job_type_label, transaction_mode, metadata
       FROM jobs
       WHERE id = $1 AND (client_id = $2 OR assigned_helper_id = $2)
       AND status = 'in_progress'
@@ -1174,6 +1182,9 @@ exports.completeJob = async (req, res, next) => {
     }
 
     const job = jobRows[0];
+    // An approved change order raised the price above what is authorized:
+    // the customer must re-authorize before the job closes out.
+    assertNoPendingAdjustment(job);
 
     // Wrap all state changes in a transaction for atomicity
     const result = await withJobTransaction(pool, async (client) => {
@@ -1181,7 +1192,7 @@ exports.completeJob = async (req, res, next) => {
       // so helpers get paid without a separate "Capture" step (and we roll back if Stripe fails).
       if (job.client_id === req.user.id && isTier3EscrowJob(job)) {
         const { rows: payRows } = await client.query(
-          `SELECT id, amount, stripe_payment_intent_id, stripe_account_id, status, capture_amount_cents
+          `SELECT id, amount, stripe_payment_intent_id, stripe_account_id, status, capture_amount_cents, pending_increase_cents
            FROM payments WHERE job_id = $1 AND status = 'authorized' FOR UPDATE`,
           [id],
         );
@@ -1208,6 +1219,8 @@ exports.completeJob = async (req, res, next) => {
           completed_at = now(),
           updated_at = now()
         WHERE id = $1 AND status = 'in_progress'
+          -- A change order approved meanwhile still needs re-authorization.
+          AND NOT (COALESCE(metadata, '{}'::jsonb) ?| ARRAY['paymentAdjustmentRequired', 'creditAdjustmentRequired'])
         RETURNING *
       `, [id]);
 

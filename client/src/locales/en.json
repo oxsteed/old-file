@@ -31060,5 +31060,40 @@
       "location": "Location",
       "notes": "Notes"
     }
+  },
+  "jobPaymentReauth": {
+    "title": "Authorize the new price",
+    "waitingTitle": "Waiting for the customer",
+    "customerBody": "An approved change order raised the job price to {{target}}. You have authorized {{authorized}}. Authorize the new amount so the job can be completed and the helper paid.",
+    "repriceBody": "An approved change order changed the job price to {{target}}. Update the payment amount, then finish paying.",
+    "helperBody": "An approved change order raised the price. The customer needs to authorize the new amount before the job can be completed.",
+    "creditBody": "Your OxSteed Credit doesn’t cover the new price of {{amount}}. Add Credit, then hold it for this job.",
+    "authorizeCard": "Authorize {{amount}}",
+    "updateAmount": "Update payment to {{amount}}",
+    "cardFormLabel": "Card authorization",
+    "cardLabel": "Card details",
+    "cardHelp": "Your bank may ask you to confirm. The earlier authorization is released once this one succeeds.",
+    "confirmCard": "Confirm {{amount}}",
+    "holdCredit": "Hold {{amount}} of Credit",
+    "addCredit": "Add Credit",
+    "processing": "Processing…",
+    "checking": "Checking with your bank…",
+    "authorized": "New price authorized. The job can be completed.",
+    "repriced": "Payment amount updated. Finish paying to secure the job.",
+    "declined": "Your card was declined. Try another card.",
+    "lastDeclined": "Your last card was declined. Try another card.",
+    "lastExpired": "Your last request expired. Start again.",
+    "expiresAt": "Finish by {{date}}.",
+    "cancel": "Cancel",
+    "blockedComplete": "Authorize the new price from the change order before completing this job.",
+    "errors": {
+      "creditInsufficient": "You don’t have enough OxSteed Credit yet. Add Credit and try again.",
+      "impersonation": "Payments are disabled while viewing as another user.",
+      "unavailable": "Card payments are temporarily unavailable. Try again later.",
+      "notRequired": "This was already taken care of.",
+      "amountInvalid": "This amount can’t be authorized online. Contact support.",
+      "stripeMissing": "Card payments can’t load right now. Try again later.",
+      "generic": "That didn’t work. Try again."
+    }
   }
 }

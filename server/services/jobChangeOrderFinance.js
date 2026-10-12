@@ -24,6 +24,10 @@ const { setFinancials } = require('../models/jobModel');
 const { spendWithCredit } = require('./creditSpendAdapter');
 const { enqueueJobEvent, EVENT_TYPES } = require('./jobEventOutbox');
 
+function supersedeOpenAttempts(client, jobId, reason) {
+  return require('./jobPaymentReauthorizationService').supersedeOpenAttempts(client, jobId, reason);
+}
+
 function cents(value) {
   if (value === null || value === undefined || value === '') return null;
   const n = Number(value);
@@ -36,7 +40,7 @@ function parseJson(value) {
   return value;
 }
 
-async function releaseCollateralHold(client, holdId, jobId, changeOrderId) {
+async function releaseCollateralHold(client, holdId, jobId, reason) {
   const { rows } = await client.query('SELECT * FROM oxsteed_credit_holds WHERE id = $1 FOR UPDATE', [holdId]);
   const hold = rows[0];
   if (!hold || hold.status !== 'active') return { released: false, hold };
@@ -48,7 +52,6 @@ async function releaseCollateralHold(client, holdId, jobId, changeOrderId) {
     [hold.amount_cents, hold.account_id]
   );
   if (!reserve.rows[0]) throw new AppError('Credit hold reservation is inconsistent', 409, 'credit_hold_reservation_invalid');
-  const reason = `Replaced by approved change order ${changeOrderId}`;
   await client.query(
     `UPDATE oxsteed_credit_holds
         SET status = 'released', released_at = NOW(), release_actor_type = 'system',
@@ -63,6 +66,37 @@ async function releaseCollateralHold(client, holdId, jobId, changeOrderId) {
     [hold.customer_id, hold.partner_id, String(hold.id), `${reason} (job ${jobId})`]
   );
   return { released: true, hold };
+}
+
+/**
+ * Release the active Credit collateral hold and place a new one for
+ * amountCents, inside the caller's transaction. Returns { holdId } (undefined
+ * when there was no active hold to replace).
+ */
+async function replaceCreditCollateral(client, { job, amountCents, reason, idempotencyKey, isImpersonated = false, metadata = {}, helperId = null }) {
+  const jobMeta = parseJson(job.metadata);
+  if (!jobMeta.creditCollateralHoldId) return { holdId: undefined };
+  const { released } = await releaseCollateralHold(client, jobMeta.creditCollateralHoldId, job.id, reason);
+  if (!released) return { holdId: undefined };
+  const collateral = await spendWithCredit({
+    client,
+    participantRef: { type: 'helper', subjectId: String(helperId || job.assigned_helper_id) },
+    customerId: String(job.client_id),
+    amountCents,
+    currency: 'USD',
+    surface: 'jobs',
+    mode: 'hold',
+    referenceType: 'job_escrow_collateral',
+    referenceId: String(job.id),
+    idempotencyKey,
+    isImpersonated,
+    metadata: { ...metadata, replacesHoldId: String(jobMeta.creditCollateralHoldId) },
+  });
+  await client.query(
+    `UPDATE jobs SET metadata = COALESCE(metadata, '{}'::jsonb) || $2::jsonb WHERE id = $1`,
+    [job.id, JSON.stringify({ creditCollateralHoldId: collateral.hold?.id || null, creditCollateralKey: collateral.idempotencyKey })]
+  );
+  return { holdId: collateral.hold?.id || null };
 }
 
 /**
@@ -152,31 +186,39 @@ async function applyApprovedChangeOrder(client, { agreement, changeOrder, actorI
     adjustment.capture_target_cents = targetCents;
   }
 
-  // OxSteed Credit escrow collateral.
+  // OxSteed Credit escrow collateral. Insufficient Credit no longer blocks
+  // the approval: the old hold stays in place (savepoint) and the customer is
+  // asked to add Credit and re-authorize (jobPaymentReauthorizationService).
   const jobMeta = parseJson(job.metadata);
   if (jobMeta.creditCollateralHoldId) {
-    const { released } = await releaseCollateralHold(client, jobMeta.creditCollateralHoldId, job.id, changeOrder.id);
-    if (released) {
-      const collateral = await spendWithCredit({
-        client,
-        participantRef: { type: 'helper', subjectId: String(agreement.helper_id) },
-        customerId: String(job.client_id),
+    await client.query('SAVEPOINT change_order_credit');
+    try {
+      const { holdId } = await replaceCreditCollateral(client, {
+        job,
         amountCents: newValueCents,
-        currency: 'USD',
-        surface: 'jobs',
-        mode: 'hold',
-        referenceType: 'job_escrow_collateral',
-        referenceId: String(job.id),
+        reason: `Replaced by approved change order ${changeOrder.id}`,
         idempotencyKey: `credit-spend:jobs:job_escrow_collateral:${job.id}:co:${changeOrder.id}`,
         isImpersonated,
-        metadata: { changeOrderId: String(changeOrder.id), replacesHoldId: String(jobMeta.creditCollateralHoldId) },
+        metadata: { changeOrderId: String(changeOrder.id) },
+        helperId: agreement.helper_id,
       });
+      await client.query('RELEASE SAVEPOINT change_order_credit');
+      if (holdId !== undefined) {
+        adjustment.credit_action = 'hold_replaced';
+        adjustment.credit_hold_id = holdId;
+        await client.query(
+          `UPDATE jobs SET metadata = COALESCE(metadata, '{}'::jsonb) - 'creditAdjustmentRequired' - 'creditAdjustmentAmountCents' - 'creditAdjustmentChangeOrderId' WHERE id = $1`,
+          [job.id]
+        );
+      }
+    } catch (err) {
+      if (err?.code !== 'credit_insufficient_funds') throw err;
+      await client.query('ROLLBACK TO SAVEPOINT change_order_credit');
+      adjustment.credit_action = 'credit_reauthorization_required';
       await client.query(
         `UPDATE jobs SET metadata = COALESCE(metadata, '{}'::jsonb) || $2::jsonb WHERE id = $1`,
-        [job.id, JSON.stringify({ creditCollateralHoldId: collateral.hold?.id || null, creditCollateralKey: collateral.idempotencyKey })]
+        [job.id, JSON.stringify({ creditAdjustmentRequired: true, creditAdjustmentAmountCents: newValueCents, creditAdjustmentChangeOrderId: changeOrder.id })]
       );
-      adjustment.credit_action = 'hold_replaced';
-      adjustment.credit_hold_id = collateral.hold?.id || null;
     }
   }
   if (adjustment.payment_action === 'reauthorization_required' || adjustment.payment_action === 'intent_reprice_required') {
@@ -184,6 +226,13 @@ async function applyApprovedChangeOrder(client, { agreement, changeOrder, actorI
       `UPDATE jobs SET metadata = COALESCE(metadata, '{}'::jsonb) || $2::jsonb WHERE id = $1`,
       [job.id, JSON.stringify({ paymentAdjustmentRequired: adjustment.payment_action, paymentAdjustmentChangeOrderId: changeOrder.id })]
     );
+  } else if (adjustment.payment_action === 'capture_reduced') {
+    // A later decrease can make an earlier re-authorization unnecessary.
+    await client.query(
+      `UPDATE jobs SET metadata = COALESCE(metadata, '{}'::jsonb) - 'paymentAdjustmentRequired' - 'paymentAdjustmentChangeOrderId' WHERE id = $1`,
+      [job.id]
+    );
+    await supersedeOpenAttempts(client, job.id, 'superseded');
   }
 
   const { rows: updatedRows } = await client.query('SELECT version, revision FROM jobs WHERE id = $1', [job.id]);
@@ -209,10 +258,11 @@ async function applyApprovedChangeOrder(client, { agreement, changeOrder, actorI
       customer_id: job.client_id,
       helper_id: agreement.helper_id,
       payment_action: adjustment.payment_action,
+      credit_action: adjustment.credit_action,
     },
   });
   logger.info('change_order.applied', { jobId: job.id, changeOrderId: changeOrder.id, ...adjustment });
   return { job, adjustment, newValueCents };
 }
 
-module.exports = { applyApprovedChangeOrder };
+module.exports = { applyApprovedChangeOrder, replaceCreditCollateral };

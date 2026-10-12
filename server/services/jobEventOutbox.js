@@ -14,6 +14,8 @@ const EVENT_TYPES = Object.freeze({
   MATERIAL_CHANGE: 'job.material_change',
   PUBLISHED: 'job.published',
   CHANGE_ORDER_APPLIED: 'job.change_order_applied',
+  PAYMENT_REAUTHORIZED: 'job.payment_reauthorized',
+  PAYMENT_REAUTH_FAILED: 'job.payment_reauth_failed',
 });
 
 // Debounce windows (seconds) before an event is delivered.
@@ -22,6 +24,8 @@ const DEFAULT_DELAYS = Object.freeze({
   [EVENT_TYPES.MATERIAL_CHANGE]: Number(process.env.JOB_MATERIAL_NOTIFY_DEBOUNCE_SECONDS || 120),
   [EVENT_TYPES.PUBLISHED]: 0,
   [EVENT_TYPES.CHANGE_ORDER_APPLIED]: 0,
+  [EVENT_TYPES.PAYMENT_REAUTHORIZED]: 0,
+  [EVENT_TYPES.PAYMENT_REAUTH_FAILED]: 0,
 });
 
 async function enqueueJobEvent(client, { jobId, eventType, payload = {}, coalesce = true, delaySeconds = null }) {

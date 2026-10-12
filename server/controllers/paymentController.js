@@ -272,6 +272,12 @@ exports.createPaymentIntent = async (req, res, next) => {
     if (!job.rows[0].job_value) {
       throw new AppError('No agreed price set for this job', 400, 'missing_job_value');
     }
+    const jobMetadata = typeof job.rows[0].metadata === 'string' ? JSON.parse(job.rows[0].metadata || '{}') : (job.rows[0].metadata || {});
+    if (jobMetadata.paymentAdjustmentRequired) {
+      // An approved change order changed the price; the open intent must be
+      // repriced/re-authorized via /jobs/:id/payment-reauthorization first.
+      throw new AppError('The job price changed. Update the payment amount first.', 409, 'payment_reauthorization_required');
+    }
 
     // SECURITY: Prevent accidental or malicious payments of absurdly large amounts
     // Max single payment: $50,000 (can be overridden only by super_admin if needed)
@@ -608,6 +614,10 @@ exports.capturePayment = async (req, res, next) => {
         throw new AppError('Cannot capture payment while a dispute is open. Dispute must be resolved first.', 409, 'dispute_open');
       }
       const paymentData = payment.rows[0];
+      if (paymentData.status === 'authorized' && Number(paymentData.pending_increase_cents || 0) > 0) {
+        await client.query('ROLLBACK');
+        throw new AppError('The new price from the approved change order must be authorized before payment can be captured.', 409, 'payment_reauthorization_required');
+      }
 
       // A retry after the first request committed is a successful replay, not
       // a missing payment. Return the authoritative terminal state without

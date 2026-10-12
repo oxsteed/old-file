@@ -14,6 +14,7 @@ if (url) {
 }
 process.env.JWT_SECRET = process.env.JWT_SECRET || 'job-edit-db-test-secret-0123456789abcdef';
 process.env.REDIS_URL = '';
+process.env.FEATURE_PAYMENTS_ENABLED = 'true';
 
 jest.unmock('pg');
 // setup.js stubs transactions for mocked-pg tests; this file needs real ones.
@@ -72,6 +73,8 @@ describeDb('job edit foundation on real Postgres', () => {
 
   afterAll(async () => {
     for (const sql of [
+      'DELETE FROM job_payment_reauthorizations WHERE job_id = ANY($1::uuid[])',
+      'DELETE FROM payments WHERE job_id = ANY($1::uuid[])',
       'DELETE FROM job_event_outbox WHERE job_id = ANY($1::uuid[])',
       'DELETE FROM job_revisions WHERE job_id = ANY($1::uuid[])',
       'DELETE FROM appointments WHERE job_id = ANY($1::uuid[])',
@@ -246,5 +249,112 @@ describeDb('job edit foundation on real Postgres', () => {
     expect(out.adjustment).toMatchObject({ from_value_cents: 18000, to_value_cents: 20500 });
     const { rows: [after] } = await pool.query('SELECT job_value_cents FROM jobs WHERE id = $1', [job.id]);
     expect(Number(after.job_value_cents)).toBe(20500);
+  }, 30000);
+
+  test('change-order increase: completion blocked, card re-authorization (decline, retry, 3DS confirm), old hold released', async () => {
+    const stripe = require('stripe').__mockInstance;
+    stripe.paymentIntents.cancel = jest.fn().mockResolvedValue({ status: 'canceled' });
+    const reauth = require('../services/jobPaymentReauthorizationService');
+    const { job, bid } = await makeJob();
+    // Same helper, same default calendar slot as the previous test's hire: the
+    // appointment insert conflicts, and the hire must still commit.
+    const hired = await request(app).post('/api/jobs/assign').set('x-test-actor', customer)
+      .send({ bid_id: bid.id, payment_method: 'off_platform' });
+    expect(hired.status).toBe(200);
+    const { rows: [persisted] } = await pool.query('SELECT status, assigned_helper_id FROM jobs WHERE id = $1', [job.id]);
+    expect(persisted).toMatchObject({ status: 'accepted', assigned_helper_id: helpers[0] });
+    await pool.query('UPDATE jobs SET job_value_cents = 18000 WHERE id = $1', [job.id]);
+    const oldPi = `pi_old_${crypto.randomUUID().slice(0, 8)}`;
+    const newPi = `pi_new_${crypto.randomUUID().slice(0, 8)}`;
+    await pool.query(
+      `INSERT INTO payments (job_id, payer_id, payee_id, stripe_payment_intent_id, amount, platform_fee, status, payment_hold_status, stripe_account_id, metadata)
+       VALUES ($1, $2, $3, $4, 180, 0, 'authorized', 'held', 'acct_test', '{}'::jsonb)`,
+      [job.id, customer, helpers[0], oldPi]
+    );
+    const { withTransaction } = require('../utils/transaction');
+    const { applyApprovedChangeOrder } = require('../services/jobChangeOrderFinance');
+    const out = await withTransaction(pool, (client) => applyApprovedChangeOrder(client, {
+      agreement: { id: null, job_id: job.id, helper_id: helpers[0] },
+      changeOrder: { id: crypto.randomUUID(), price_change_cents: 2500 }, actorId: customer,
+    }));
+    expect(out.adjustment.payment_action).toBe('reauthorization_required');
+
+    await pool.query(`UPDATE jobs SET status = 'in_progress' WHERE id = $1`, [job.id]);
+    const blocked = await request(app).post(`/api/jobs/${job.id}/complete`).set('x-test-actor', customer).send({});
+    expect(blocked.status).toBe(409);
+    expect(blocked.body.code).toBe('payment_reauthorization_required');
+
+    const state = await request(app).get(`/api/jobs/${job.id}/payment-reauthorization`).set('x-test-actor', customer);
+    expect(state.status).toBe(200);
+    expect(state.body).toMatchObject({ required: true, can_authorize: true, requirement: { card: 'reauthorization_required', authorized_cents: 18000, increase_cents: 2500, target_cents: 20500 } });
+    const helperView = await request(app).get(`/api/jobs/${job.id}/payment-reauthorization`).set('x-test-actor', helpers[0]);
+    expect(helperView.body).toMatchObject({ required: true, can_authorize: false });
+    expect(helperView.body.requirement.target_cents).toBeUndefined();
+    const stranger = await request(app).post(`/api/jobs/${job.id}/payment-reauthorization`).set('x-test-actor', helpers[0]).send({});
+    expect(stranger.status).toBe(403);
+
+    stripe.paymentIntents.create.mockResolvedValueOnce({ id: newPi, client_secret: `${newPi}_secret`, status: 'requires_payment_method' });
+    const started = await request(app).post(`/api/jobs/${job.id}/payment-reauthorization`).set('x-test-actor', customer).send({ method: 'card' });
+    expect(started.status).toBe(201);
+    expect(started.body).toMatchObject({ status: 'requires_confirmation', client_secret: `${newPi}_secret`, stripe_account_id: 'acct_test', attempt: { amount_cents: 20500, status: 'pending' } });
+    const createArgs = stripe.paymentIntents.create.mock.calls.at(-1);
+    expect(createArgs[0]).toMatchObject({ amount: 20500, capture_method: 'manual', metadata: { job_reauthorization: 'true', job_id: job.id } });
+    expect(createArgs[1]).toMatchObject({ stripeAccount: 'acct_test', idempotencyKey: `job-payment-reauth:${job.id}:1` });
+
+    // Retry resumes the same attempt instead of creating another hold.
+    stripe.paymentIntents.retrieve.mockResolvedValueOnce({ id: newPi, client_secret: `${newPi}_secret`, status: 'requires_payment_method' });
+    const resumed = await request(app).post(`/api/jobs/${job.id}/payment-reauthorization`).set('x-test-actor', customer).send({});
+    expect(resumed.body.attempt.id).toBe(started.body.attempt.id);
+    expect(stripe.paymentIntents.create).toHaveBeenCalledTimes(1);
+
+    // Decline via webhook: attempt stays open for another card; customer notified via outbox.
+    const pi = { id: newPi, metadata: { job_reauthorization: 'true', job_id: job.id } };
+    await expect(reauth.applyReauthorizationWebhook('payment_intent.payment_failed',
+      { ...pi, last_payment_error: { code: 'card_declined', decline_code: 'insufficient_funds', message: 'Declined' } })).resolves.toBe(true);
+    const { rows: [declined] } = await pool.query('SELECT * FROM job_payment_reauthorizations WHERE id = $1', [started.body.attempt.id]);
+    expect(declined).toMatchObject({ status: 'pending', failure_code: 'insufficient_funds' });
+    const { rows: failedEvents } = await pool.query(`SELECT 1 FROM job_event_outbox WHERE job_id = $1 AND event_type = 'job.payment_reauth_failed'`, [job.id]);
+    expect(failedEvents.length).toBe(1);
+
+    // After 3DS succeeds in the browser, confirm moves the payment onto the new intent.
+    stripe.paymentIntents.retrieve.mockResolvedValueOnce({ ...pi, status: 'requires_capture', amount: 20500, amount_capturable: 20500 });
+    const confirmed = await request(app).post(`/api/jobs/${job.id}/payment-reauthorization/${started.body.attempt.id}/confirm`).set('x-test-actor', customer).send({});
+    expect(confirmed.status).toBe(200);
+    expect(confirmed.body.status).toBe('authorized');
+    const { rows: [payment] } = await pool.query('SELECT * FROM payments WHERE job_id = $1', [job.id]);
+    expect(payment).toMatchObject({ stripe_payment_intent_id: newPi, capture_amount_cents: 20500, pending_increase_cents: 0, status: 'authorized' });
+    expect(Number(payment.amount)).toBe(205);
+    expect(payment.metadata.superseded_payment_intent_ids).toEqual([oldPi]);
+    expect(stripe.paymentIntents.cancel).toHaveBeenCalledWith(oldPi, {}, expect.objectContaining({ stripeAccount: 'acct_test' }));
+    const { rows: [jobAfter] } = await pool.query('SELECT metadata FROM jobs WHERE id = $1', [job.id]);
+    expect(jobAfter.metadata.paymentAdjustmentRequired).toBeUndefined();
+    const { rows: [attemptAfter] } = await pool.query('SELECT * FROM job_payment_reauthorizations WHERE id = $1', [started.body.attempt.id]);
+    expect(attemptAfter.status).toBe('authorized');
+    expect(attemptAfter.previous_intent_canceled_at).not.toBeNull();
+
+    // A late webhook for the same authorization is a no-op.
+    await reauth.applyReauthorizationWebhook('payment_intent.amount_capturable_updated', { ...pi, status: 'requires_capture', amount_capturable: 20500 });
+    const { rows: okEvents } = await pool.query(`SELECT 1 FROM job_event_outbox WHERE job_id = $1 AND event_type = 'job.payment_reauthorized'`, [job.id]);
+    expect(okEvents.length).toBe(1);
+
+    const done = await request(app).post(`/api/jobs/${job.id}/complete`).set('x-test-actor', customer).send({});
+    expect(done.status).toBe(200);
+  }, 30000);
+
+  test('stale re-authorization attempts expire and release their card hold', async () => {
+    const stripe = require('stripe').__mockInstance;
+    stripe.paymentIntents.cancel = jest.fn().mockResolvedValue({ status: 'canceled' });
+    const { job } = await makeJob();
+    const intentId = `pi_stale_${crypto.randomUUID().slice(0, 8)}`;
+    await pool.query(
+      `INSERT INTO job_payment_reauthorizations (job_id, method, kind, status, attempt, amount_cents, stripe_payment_intent_id, stripe_account_id, expires_at)
+       VALUES ($1, 'card', 'replacement', 'pending', 1, 1000, $2, 'acct_test', NOW() - INTERVAL '1 minute')`,
+      [job.id, intentId]
+    );
+    const { expireStaleReauthorizations } = require('../services/jobPaymentReauthorizationService');
+    expect(await expireStaleReauthorizations()).toBeGreaterThanOrEqual(1);
+    const { rows: [row] } = await pool.query('SELECT status FROM job_payment_reauthorizations WHERE stripe_payment_intent_id = $1', [intentId]);
+    expect(row.status).toBe('expired');
+    expect(stripe.paymentIntents.cancel).toHaveBeenCalledWith(intentId, {}, expect.objectContaining({ stripeAccount: 'acct_test' }));
   }, 30000);
 });

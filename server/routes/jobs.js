@@ -3,7 +3,13 @@ const { authenticate } = require('../middleware/auth');
 const requireEmailVerified = require('../middleware/requireEmailVerified');
 const upload  = require('../middleware/upload');
 const validateFileUpload = require('../middleware/validateFileUpload');
-const { generalLimiter, jobEditLimiter } = require('../middleware/rateLimiter');
+const { generalLimiter, jobEditLimiter, paymentsLimiter } = require('../middleware/rateLimiter');
+const { requireFeatureEnabled } = require('../middleware/featureFlags');
+const {
+  getPaymentReauthorization,
+  startPaymentReauthorization,
+  confirmPaymentReauthorization,
+} = require('../controllers/jobPaymentReauthorizationController');
 const { rejectImpersonated } = require('../middleware/rejectImpersonated');
 const checkRestrictions = require('../middleware/checkRestrictions');
 const { errorHandler } = require('../middleware/errorHandler');
@@ -61,6 +67,15 @@ const jobEditGuards = [authenticate, rejectImpersonated, jobEditLimiter, checkRe
 router.patch('/:id',         ...jobEditGuards, patchJob);
 router.put('/:id',           ...jobEditGuards, updateJob);
 router.get('/:id/revisions', authenticate, generalLimiter, getJobRevisions);
+// Change-order re-authorization (customer funds a price increase).
+// See services/jobPaymentReauthorizationService.js.
+const requirePaymentsEnabled = requireFeatureEnabled('Payments', 'FEATURE_PAYMENTS_ENABLED');
+// OxSteed Credit collateral is not a Stripe payment, so only card steps need the payments flag.
+const requireCardPaymentsEnabled = (req, res, next) => (req.body?.method === 'credit' ? next() : requirePaymentsEnabled(req, res, next));
+const reauthGuards = [authenticate, rejectImpersonated, paymentsLimiter];
+router.get('/:id/payment-reauthorization', authenticate, generalLimiter, getPaymentReauthorization);
+router.post('/:id/payment-reauthorization', ...reauthGuards, requireCardPaymentsEnabled, startPaymentReauthorization);
+router.post('/:id/payment-reauthorization/:attemptId/confirm', ...reauthGuards, requirePaymentsEnabled, confirmPaymentReauthorization);
 router.post('/:id/cancel',    authenticate, cancelJob);
 router.post('/:id/start',    authenticate, startJob);
 router.post('/:id/complete', authenticate, completeJob);

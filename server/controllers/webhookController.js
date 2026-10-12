@@ -28,6 +28,7 @@ const { stripeObjectId, invoiceSubscriptionId, subscriptionPeriod } = require('.
 const { applyChargeRefund, verifiedChargeRefundTotal } = require('../services/paymentRefundStateService');
 const stripeWebhookContract = require('../config/stripeWebhookContract');
 const businessInvoiceStripeConnectService = require('../services/businessInvoiceStripeConnectService');
+const jobPaymentReauth = require('../services/jobPaymentReauthorizationService');
 
 function extractFoodOrderId(metadata) {
   const raw = metadata?.food_order_id
@@ -819,6 +820,8 @@ exports.stripeWebhook = async (req, res, next) => {
       case 'payment_intent.amount_capturable_updated': {
         // Authorization succeeded - PaymentIntent is ready to capture after job completion.
         const pi = event.data.object;
+        // Change-order re-authorization: swap the job payment onto this intent.
+        if (await jobPaymentReauth.applyReauthorizationWebhook(event.type, pi)) break;
         const jobId = pi.metadata?.job_id;
         if (jobId) {
           const { rows: payRows } = await db.query(
@@ -941,6 +944,9 @@ exports.stripeWebhook = async (req, res, next) => {
         }
         // Authorization or capture failed.
         const pi = event.data.object;
+        // A declined change-order re-authorization leaves the original
+        // authorization untouched; the customer can retry.
+        if (await jobPaymentReauth.applyReauthorizationWebhook(event.type, pi)) break;
         const jobId = pi.metadata?.job_id;
         const failureMsg = pi.last_payment_error?.message || 'Payment failed';
         let foodOrderId = extractFoodOrderId(pi.metadata);
@@ -977,13 +983,14 @@ exports.stripeWebhook = async (req, res, next) => {
             }
           });
         } else if (jobId) {
-          await db.query(
+          const failedRows = await db.query(
             `UPDATE payments SET status = 'failed', payment_hold_status = 'none',
              updated_at = NOW() WHERE stripe_payment_intent_id = $1`,
             [pi.id]
           );
-          // Re-open escrow on the job so client can retry
-          await db.query(
+          // Re-open escrow on the job so client can retry (unless this intent
+          // no longer backs the job's payment).
+          if (failedRows?.rowCount !== 0) await db.query(
             `UPDATE jobs SET escrow_status = 'none', updated_at = NOW() WHERE id = $1`,
             [jobId]
           );
@@ -1023,20 +1030,25 @@ exports.stripeWebhook = async (req, res, next) => {
           break;
         }
         const pi = event.data.object;
+        if (await jobPaymentReauth.applyReauthorizationWebhook(event.type, pi)) break;
         await withTransaction(db, (client) => applyStripePaymentIntent(client, pi));
         // Audit fix: clear job escrow on cancel, same as payment_failed.
         // Otherwise the job stays in escrow with no payment behind it.
         const jobId = pi.metadata?.job_id;
         if (jobId) {
-          await db.query(
+          const canceled = await db.query(
             `UPDATE payments SET status = 'canceled', payment_hold_status = 'none',
              updated_at = NOW() WHERE stripe_payment_intent_id = $1`,
             [pi.id]
           );
-          await db.query(
-            `UPDATE jobs SET escrow_status = 'none', updated_at = NOW() WHERE id = $1`,
-            [jobId]
-          );
+          // An intent superseded by a change-order re-authorization no longer
+          // backs any payment row: the job's escrow is still funded.
+          if (canceled?.rowCount !== 0) {
+            await db.query(
+              `UPDATE jobs SET escrow_status = 'none', updated_at = NOW() WHERE id = $1`,
+              [jobId]
+            );
+          }
         }
         break;
       }

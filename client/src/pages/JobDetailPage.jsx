@@ -27,6 +27,7 @@ import JobImageViewer from '../components/JobImageViewer';
 import { useJobDetailBids } from '../hooks/useJobDetailBids';
 import { JOB_STATUS_KEYS, jobDetailView, jobList, jobMediaType, matchingHelpersPath, samePartyId } from '../utils/jobDetailModel';
 import { bidNeedingReconfirm, canEditJob } from '../utils/jobEditModel';
+import PaymentReauthorizationBanner from '../components/PaymentReauthorizationBanner';
 import JobRevisionHistory from '../components/JobRevisionHistory';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -340,6 +341,7 @@ function JobDetailContent() {
     const serverCode = err.response?.data?.code;
     if (serverCode === 'bid_needs_reconfirm') return t('jobEdit.acceptNeedsReconfirm');
     if (serverCode === 'bid_expired') return t('jobEdit.acceptBidExpired');
+    if (serverCode === 'payment_reauthorization_required') return t('jobPaymentReauth.blockedComplete');
     if (serverCode === 'precondition_failed' || serverCode === 'version_conflict') {
       fetchJob(id);
       return t('jobEdit.acceptJobChanged');
@@ -527,6 +529,7 @@ function JobDetailContent() {
         </section>
         <div className="jdp-main">
           <PreferredHelperBanner job={job} />
+          {(isOwner || (user && String(job.assigned_helper_id) === String(user.id))) && <PaymentReauthorizationBanner jobId={id} job={job} onResolved={() => fetchJob(id)} />}
           {ownBidToReconfirm && <section className="jdp-card jdp-reconfirm" role="status" aria-labelledby={`${fieldId}-reconfirm`}>
             <h2 id={`${fieldId}-reconfirm`} className="jdp-section-title">{t('jobEdit.reconfirmTitle')}</h2>
             <p>{t('jobEdit.reconfirmHelp')}</p>

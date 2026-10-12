@@ -774,5 +774,40 @@
       "location": "Kote",
       "notes": "Nòt"
     }
+  },
+  "jobPaymentReauth": {
+    "title": "Otorize nouvo pri a",
+    "waitingTitle": "N ap tann kliyan an",
+    "customerBody": "Yon chanjman ki apwouve fè pri travay la monte a {{target}}. Ou te otorize {{authorized}}. Otorize nouvo montan an pou travay la ka fini epi pou yo peye moun k ap ede a.",
+    "repriceBody": "Yon chanjman ki apwouve chanje pri travay la a {{target}}. Mete montan peman an ajou, epi fini peye.",
+    "helperBody": "Yon chanjman ki apwouve fè pri a monte. Kliyan an dwe otorize nouvo montan an anvan travay la ka fini.",
+    "creditBody": "Kredi OxSteed ou pa kouvri nouvo pri {{amount}} an. Ajoute kredi, epi rezève l pou travay sa a.",
+    "authorizeCard": "Otorize {{amount}}",
+    "updateAmount": "Mete peman an a {{amount}}",
+    "cardFormLabel": "Otorizasyon ak kat",
+    "cardLabel": "Enfòmasyon kat la",
+    "cardHelp": "Bank ou ka mande w konfime. Ansyen otorizasyon an ap lage kou sa a reyisi.",
+    "confirmCard": "Konfime {{amount}}",
+    "holdCredit": "Rezève {{amount}} kredi",
+    "addCredit": "Ajoute kredi",
+    "processing": "N ap trete…",
+    "checking": "N ap verifye ak bank ou…",
+    "authorized": "Nouvo pri a otorize. Travay la ka fini.",
+    "repriced": "Montan peman an ajou. Fini peye pou garanti travay la.",
+    "declined": "Yo refize kat ou. Eseye yon lòt kat.",
+    "lastDeclined": "Yo te refize dènye kat ou. Eseye yon lòt kat.",
+    "lastExpired": "Dènye demann ou an ekspire. Rekòmanse.",
+    "expiresAt": "Fini anvan {{date}}.",
+    "cancel": "Anile",
+    "blockedComplete": "Otorize nouvo pri chanjman an anvan ou fini travay sa a.",
+    "errors": {
+      "creditInsufficient": "Ou poko gen ase Kredi OxSteed. Ajoute kredi epi eseye ankò.",
+      "impersonation": "Peman yo bloke pandan w ap gade kòm yon lòt itilizatè.",
+      "unavailable": "Peman ak kat pa disponib pou kounye a. Eseye pita.",
+      "notRequired": "Sa a te deja regle.",
+      "amountInvalid": "Montan sa a pa ka otorize sou entènèt. Kontakte sipò.",
+      "stripeMissing": "Peman ak kat pa ka chaje kounye a. Eseye pita.",
+      "generic": "Sa pa mache. Eseye ankò."
+    }
   }
 }

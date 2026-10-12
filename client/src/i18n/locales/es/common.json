@@ -774,5 +774,40 @@
       "location": "Ubicación",
       "notes": "Notas"
     }
+  },
+  "jobPaymentReauth": {
+    "title": "Autoriza el nuevo precio",
+    "waitingTitle": "Esperando al cliente",
+    "customerBody": "Una orden de cambio aprobada subió el precio del trabajo a {{target}}. Autorizaste {{authorized}}. Autoriza el nuevo monto para poder completar el trabajo y pagarle al ayudante.",
+    "repriceBody": "Una orden de cambio aprobada cambió el precio del trabajo a {{target}}. Actualiza el monto del pago y luego termina de pagar.",
+    "helperBody": "Una orden de cambio aprobada subió el precio. El cliente debe autorizar el nuevo monto antes de poder completar el trabajo.",
+    "creditBody": "Tu Crédito OxSteed no cubre el nuevo precio de {{amount}}. Agrega crédito y luego resérvalo para este trabajo.",
+    "authorizeCard": "Autorizar {{amount}}",
+    "updateAmount": "Actualizar el pago a {{amount}}",
+    "cardFormLabel": "Autorización con tarjeta",
+    "cardLabel": "Datos de la tarjeta",
+    "cardHelp": "Es posible que tu banco te pida confirmar. La autorización anterior se libera cuando esta se complete.",
+    "confirmCard": "Confirmar {{amount}}",
+    "holdCredit": "Reservar {{amount}} de crédito",
+    "addCredit": "Agregar crédito",
+    "processing": "Procesando…",
+    "checking": "Verificando con tu banco…",
+    "authorized": "Nuevo precio autorizado. Ya se puede completar el trabajo.",
+    "repriced": "Monto del pago actualizado. Termina de pagar para asegurar el trabajo.",
+    "declined": "Tu tarjeta fue rechazada. Prueba con otra tarjeta.",
+    "lastDeclined": "Tu última tarjeta fue rechazada. Prueba con otra tarjeta.",
+    "lastExpired": "Tu última solicitud venció. Empieza de nuevo.",
+    "expiresAt": "Termina antes del {{date}}.",
+    "cancel": "Cancelar",
+    "blockedComplete": "Autoriza el nuevo precio de la orden de cambio antes de completar este trabajo.",
+    "errors": {
+      "creditInsufficient": "Aún no tienes suficiente Crédito OxSteed. Agrega crédito e inténtalo de nuevo.",
+      "impersonation": "Los pagos están desactivados mientras ves la cuenta como otro usuario.",
+      "unavailable": "Los pagos con tarjeta no están disponibles por ahora. Inténtalo más tarde.",
+      "notRequired": "Esto ya quedó resuelto.",
+      "amountInvalid": "Este monto no se puede autorizar en línea. Contacta a soporte.",
+      "stripeMissing": "Los pagos con tarjeta no pueden cargarse ahora. Inténtalo más tarde.",
+      "generic": "No funcionó. Inténtalo de nuevo."
+    }
   }
 }

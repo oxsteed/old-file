@@ -178,3 +178,41 @@ All of these are optional.
 - The admin job detail page shows the revision history with rollback.
 - All copy lives in the `jobEdit` namespace in both catalogs (`src/locales`
   and `src/i18n/locales/*/common.json`) for en, es, fr, ht, and ar.
+
+## Change orders that raise the price (customer re-authorization)
+
+Migration 761 adds `job_payment_reauthorizations` (one row per attempt).
+Service: `server/services/jobPaymentReauthorizationService.js`.
+
+When an approved change order needs more money than is held, `jobs.metadata` gets a flag:
+
+| Flag | Cause | Customer action |
+|---|---|---|
+| `paymentAdjustmentRequired: 'reauthorization_required'` | Card already authorized for less | Authorize a replacement manual-capture PaymentIntent for the full new amount on the helper's connected account (Stripe Elements `confirmCardPayment`, so SCA/3-D Secure runs in the browser). |
+| `paymentAdjustmentRequired: 'intent_reprice_required'` | Original intent not yet confirmed | The intent amount and application fee are updated in place; the customer finishes the normal payment step. |
+| `creditAdjustmentRequired: true` | Not enough OxSteed Credit to re-place escrow collateral at the new price | Add Credit, then hold it. Approval no longer fails on insufficient Credit: a savepoint keeps the old hold, and the customer is asked instead. |
+
+While a flag is set (or `payments.pending_increase_cents > 0`), completion, `/payments/capture`, the capture worker and `/payments/intent` return `409 payment_reauthorization_required`.
+
+API (customer; the assigned helper and admins can read the state):
+
+- `GET /api/jobs/:id/payment-reauthorization`: `{ required, requirement, can_authorize, latest_attempt }`
+- `POST /api/jobs/:id/payment-reauthorization` with `{ method: 'card' | 'credit' }`. A card attempt returns `client_secret`, `stripe_account_id`, `publishable_key`. A retry resumes the open attempt instead of creating another hold. Stripe idempotency keys are `job-payment-reauth:<job>:<attempt>`.
+- `POST /api/jobs/:id/payment-reauthorization/:attemptId/confirm`: the browser calls this after `confirmCardPayment`.
+
+Guards: `authenticate`, `rejectImpersonated`, `paymentsLimiter`, and `FEATURE_PAYMENTS_ENABLED` (card steps only).
+
+**On success** (confirm endpoint or the `payment_intent.amount_capturable_updated` webhook, whichever comes first; both are idempotent):
+- The payments row moves onto the new intent: amount, fee and capture ceiling are updated, `pending_increase_cents` becomes 0, and the old intent is recorded in `metadata.superseded_payment_intent_ids`.
+- The flag is cleared, and the old intent is canceled after commit so only one authorization is ever captured.
+- `job.payment_reauthorized` is queued in the outbox, which notifies the customer and the helper.
+
+**Decline:** the attempt stays open with `failure_code` set, and `job.payment_reauth_failed` notifies the customer. The original authorization is untouched.
+
+**Expiry:** open attempts older than `JOB_PAYMENT_REAUTH_TTL_HOURS` (default 24), or on jobs that were cancelled or closed, are expired every 10 minutes by the outbox worker. Their intents are canceled and the customer is notified.
+
+**Webhooks:**
+- A `payment_intent.canceled` or `payment_failed` event for an intent that no longer backs a payments row no longer resets `jobs.escrow_status`.
+- Re-authorization intents carry `metadata.job_reauthorization = 'true'`.
+
+**UI:** `PaymentReauthorizationBanner` on the job page (customer and assigned helper) and the work-agreement page. Strings are in the `jobPaymentReauth` namespace.

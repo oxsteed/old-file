@@ -37,7 +37,7 @@ test('job edit: changed-fields patch, conflict recovery, field errors, and RTL',
   await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));let browser;
   try{
     browser=await chromium.launch({headless:true,channel:'chrome'});const page=await browser.newPage();page.setDefaultTimeout(5000);const errors=[];page.on('pageerror',error=>{errors.push(error.message);console.error('Browser error:',error.message);});
-    await page.goto(`http://127.0.0.1:${server.address().port}/jobs/initial/edit`);await page.waitForFunction(()=>window.configure);
+    await page.goto(`http://127.0.0.1:${server.address().port}/jobs/initial/edit`,{timeout:60_000});await page.waitForFunction(()=>window.configure);
     const configure=async config=>{await page.evaluate(c=>window.configure(c),config);};
     const field=name=>page.locator(`[id$="-${name}"]`).first();
     const lastPatch=()=>page.evaluate(()=>window.calls.filter(c=>c.method==='patch').at(-1));
