@@ -973,9 +973,11 @@ async function respondHelperProfile(req, res, next, adminPreview) {
         totalJobs:         totalJobsCount,
         completionRate,
       },
-      services,
-      gallery,
-      hours,
+      // Review P1-206: hidden sections are withheld by the API (not just the
+      // client), matching the server-enforced business profile.
+      services: (adminPreview || h.show_services) ? services : [],
+      gallery:  (adminPreview || h.show_gallery) ? gallery : [],
+      hours:    (adminPreview || h.show_hours) ? hours : [],
       location: {
         city:          h.service_city  || '',
         state:         h.service_state || '',
@@ -986,9 +988,9 @@ async function respondHelperProfile(req, res, next, adminPreview) {
         serviceLat:    h.service_lat != null ? parseFloat(h.service_lat) : null,
         serviceLng:    h.service_lng != null ? parseFloat(h.service_lng) : null,
       },
-      policies,
+      policies: (adminPreview || h.show_policies) ? policies : [],
       reviews,
-      faqs,
+      faqs:     (adminPreview || h.show_faqs) ? faqs : [],
       visibility: {
         services: !!h.show_services,
         gallery:  !!h.show_gallery,

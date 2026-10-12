@@ -85,6 +85,10 @@ export default function PublicProfile() {
             </div>
             <div className="flex-1">
               <h1 className="text-2xl font-bold">{profile.first_name} {profile.last_name?.[0]}.</h1>
+              {/* Review P1-212: this legacy page links to the canonical profile (booking, chat, pricing). */}
+              <Link to={`/helpers/${profile.id || id}`} className="inline-block mt-2 text-sm font-semibold text-orange-400 hover:text-orange-300 underline underline-offset-2">
+                {t('publicProfile.viewFullProfile')}
+              </Link>
               <p className="text-gray-400 mt-1">
                 {(profile.city && profile.state)
                   ? `${profile.city}, ${profile.state}`

@@ -9676,6 +9676,7 @@
     "step2": "2. Verificación de Identidad"
   },
   "publicProfile": {
+    "viewFullProfile": "Ver perfil completo, reservar o enviar mensaje",
     "loading": "Cargando perfil...",
     "notFound": "Perfil no encontrado.",
     "noRatings": "Sin calificaciones",

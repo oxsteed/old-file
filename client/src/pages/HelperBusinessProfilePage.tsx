@@ -327,13 +327,13 @@ const HelperBusinessProfilePage: React.FC<{ customerSnapshot?: HelperProfileData
             entityLabel: 'helper',
           })}
           image={helper.coverImage || helper.avatar}
-          url={`${getPublicSiteUrl()}/helpers/${id}`}
+          url={`${getPublicSiteUrl()}/helpers/${(data as any)?.helper?.profileSlug || helperUuid}`}
           type="profile"
         />}
         <Navbar />
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 pb-2">
           <ProfileShareControls
-            shareUrl={`${getPublicSiteUrl()}/helpers/${id}`}
+            shareUrl={`${getPublicSiteUrl()}/helpers/${(helper as any).profileSlug || helperUuid}`}
             shareTitle={helper.businessName || helper.ownerName}
           />
         </div>
@@ -356,7 +356,7 @@ const HelperBusinessProfilePage: React.FC<{ customerSnapshot?: HelperProfileData
           entityLabel: 'helper',
         })}
         image={helper.coverImage || helper.avatar}
-        url={`${getPublicSiteUrl()}/helpers/${id}`}
+        url={`${getPublicSiteUrl()}/helpers/${(data as any)?.helper?.profileSlug || helperUuid}`}
         type="profile"
       />}
       {!customerSnapshot && <ProfileJsonLd
@@ -378,18 +378,20 @@ const HelperBusinessProfilePage: React.FC<{ customerSnapshot?: HelperProfileData
         isSaved={!!savedHelperId}
         savingHelper={savingHelper}
         payUrl={payUrl}
-        shareUrl={`${getPublicSiteUrl()}/helpers/${id}`}
+        shareUrl={`${getPublicSiteUrl()}/helpers/${(helper as any).profileSlug || helperUuid}`}
         shareTitle={helper.businessName || helper.ownerName}
       />
 
       {/* Sticky section nav — only tabs whose sections actually render */}
       <SectionNav
         visibleSections={[
+          // Review P1-207: a tab only appears when its section has content
+          // (empty gallery/faq/policy sections render nothing to scroll to).
           ...(visibility?.services ? ['services'] : []),
-          ...(visibility?.gallery ? ['gallery'] : []),
+          ...(visibility?.gallery && (gallery?.length ?? 0) > 0 ? ['gallery'] : []),
           'reviews',
-          ...(visibility?.faqs ? ['faqs'] : []),
-          ...(visibility?.policies ? ['policies'] : []),
+          ...(visibility?.faqs && (faqs?.length ?? 0) > 0 ? ['faqs'] : []),
+          ...(visibility?.policies && (policies?.length ?? 0) > 0 ? ['policies'] : []),
         ]}
       />
 
