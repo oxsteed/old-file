@@ -9,20 +9,20 @@ import { adminDate } from '../lib/formatters';
 
 const RESOLUTION_OPTIONS = [
   {
-    value: 'full_refund',
+    value: 'refund_customer',
     labelKey: 'fullRefund',
     descriptionKey: 'fullRefundDescription',
     color: 'border-green-500 bg-green-950'
   },
   {
-    value: 'partial_refund',
+    value: 'split_resolution',
     labelKey: 'partialRefund',
     descriptionKey: 'partialRefundDescription',
     color: 'border-yellow-500 bg-yellow-950',
     needsAmount: true
   },
   {
-    value: 'release_to_helper',
+    value: 'helper_wins',
     labelKey: 'releaseToHelper',
     descriptionKey: 'releaseToHelperDescription',
     color: 'border-blue-500 bg-blue-950'
@@ -61,7 +61,7 @@ export default function DisputeResolve() {
       setFormError(t('adminDisputeResolve.notesRequired'));
       return;
     }
-    if (resolution === 'partial_refund' && !refundAmt) {
+    if (resolution === 'split_resolution' && !refundAmt) {
       setFormError(t('adminDisputeResolve.refundRequired'));
       return;
     }
@@ -76,7 +76,7 @@ export default function DisputeResolve() {
       await adminApi.post(`/disputes/admin/${disputeId}/resolve`, {
         resolution,
         resolution_notes: notes,
-        ...(resolution === 'partial_refund' && {
+        ...(resolution === 'split_resolution' && {
           refund_amount: parseFloat(refundAmt)
         })
       });
@@ -209,7 +209,7 @@ export default function DisputeResolve() {
             ))}
 
             {/* Partial refund amount */}
-            {resolution === 'partial_refund' && (
+            {resolution === 'split_resolution' && (
               <div>
                 <label className="block text-sm font-medium
                                   text-gray-300 mb-1">

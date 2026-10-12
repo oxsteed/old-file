@@ -4527,6 +4527,8 @@
     "whatHappensNextBody": "Lè travay la an dirèk, moun ki mache ak kote, kategori, ak kondisyon yo ka voye òf. Ou ka konpare òf, poze lòt kesyon, epi anboche lè ou pare."
   },
   "jobDetail": {
+    "openDispute": "Louvri yon diskisyon",
+    "disputeOpened": "Diskisyon an louvri. Nou avèti ekip nou an ak lòt pati a.",
     "draftStatus": "Bouyon",
     "matchedStatus": "Korespondans jwenn",
     "negotiatingStatus": "Nan negosyasyon",
@@ -9306,6 +9308,7 @@
   },
   "disputes": {
     "center": {
+      "openFromJob": "Louvri yon diskisyon nan yon travay",
       "title": "Sant Dispute",
       "noDisputes": "Pa gen dispute ouvè",
       "subtitle": "Wè ak jere dispute aktif ou yo",

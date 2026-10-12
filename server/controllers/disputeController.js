@@ -1,3 +1,4 @@
+const { DISPUTE_VIEW_FROM, disputeViewSelect, partyPredicate, isDisputeParty } = require('../utils/disputeView');
 const db                    = require('../db');
 const { sendNotification }  = require('../services/notificationService');
 const logger                = require('../utils/logger');
@@ -104,8 +105,10 @@ exports.openDispute = async (req, res, next) => {
       : 'Unknown';
     const userEmail = userRows[0]?.email || req.user.email || 'support@oxsteed.com';
 
-    // Determine role from user record
-    const openedByRole = req.user.role === 'helper' ? 'helper' : 'customer';
+    // Role and counterparty come from the job, not the account type (P3-817).
+    const jobParty = jobRows[0];
+    const openedByRole = String(jobParty.assigned_helper_id) === String(userId) ? 'helper' : 'customer';
+    const againstUserId = openedByRole === 'helper' ? jobParty.client_id : jobParty.assigned_helper_id;
 
     // Create dispute atomically with race condition prevention
     const result = await withTransaction(db, async (client) => {
@@ -151,25 +154,28 @@ exports.openDispute = async (req, res, next) => {
         clientRequestId
           ? `INSERT INTO disputes (
                job_id, job_type, opened_by, opened_by_name,
-               opened_by_role, reason, description, status, client_request_id
-             ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+               opened_by_role, reason, description, status, client_request_id,
+               against_user, raised_by, opened_at
+             ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$3,NOW())
              ON CONFLICT (job_id, client_request_id)
              WHERE client_request_id IS NOT NULL DO NOTHING
              RETURNING *`
           : `INSERT INTO disputes (
                job_id, job_type, opened_by, opened_by_name,
-               opened_by_role, reason, description, status
-             ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+               opened_by_role, reason, description, status,
+               against_user, raised_by, opened_at
+             ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$3,NOW())
              RETURNING *`,
         clientRequestId
           ? [
               jobId, job_type || 'standard', userId, userName,
               openedByRole, reason, description.trim(), DISPUTE_STATUSES.OPEN,
-              clientRequestId,
+              clientRequestId, againstUserId || null,
             ]
           : [
               jobId, job_type || 'standard', userId, userName,
               openedByRole, reason, description.trim(), DISPUTE_STATUSES.OPEN,
+              againstUserId || null,
             ],
       );
 
@@ -284,6 +290,16 @@ exports.openDispute = async (req, res, next) => {
             })
           )
         );
+        // P3-817: the other party learns about the dispute immediately.
+        if (againstUserId) {
+          await sendNotification({
+            userId: againstUserId,
+            type: 'dispute_opened_against',
+            data: { job_title: jobParty.title || '', reason },
+            action_url: `/disputes/${dispute.id}`,
+            idempotencyKey: `dispute:${dispute.id}:opened_against`,
+          }).catch((e) => logger.warn('Counterparty dispute notification failed', { error: e.message }));
+        }
       } catch (notifErr) {
         logger.error('Failed to send dispute notification:', notifErr);
         // Don't fail the response if notifications fail
@@ -314,17 +330,10 @@ exports.getDispute = async (req, res, next) => {
     const { disputeId } = req.params;
     const isAdmin = ['admin','super_admin'].includes(req.user.role);
 
-    const { rows } = await db.query(`
-      SELECT
-        d.*,
-        u_op.first_name || ' ' || u_op.last_name AS opener_full_name,
-        u_op.email AS opened_by_email,
-        u_res.first_name || ' ' || u_res.last_name AS resolved_by_name
-      FROM disputes d
-      LEFT JOIN users u_op ON d.opened_by = u_op.id
-      LEFT JOIN users u_res ON d.resolved_by = u_res.id
-      WHERE d.id = $1
-    `, [disputeId]);
+    const { rows } = await db.query(
+      `SELECT ${disputeViewSelect()} ${DISPUTE_VIEW_FROM} WHERE d.id = $1`,
+      [disputeId]
+    );
 
     if (!rows.length) {
       throw new AppError('Dispute not found', 404, 'not_found');
@@ -332,8 +341,8 @@ exports.getDispute = async (req, res, next) => {
 
     const dispute = rows[0];
 
-    // Non-admins can only see their own disputes
-    if (!isAdmin && dispute.opened_by !== userId) {
+    // P3-817: both parties (opener and accused) can see the dispute.
+    if (!isAdmin && !isDisputeParty(dispute, userId)) {
       throw new AppError('Not authorized', 403, 'forbidden');
     }
 
@@ -373,16 +382,13 @@ exports.getMyDisputes = async (req, res, next) => {
   try {
     const userId = req.user.id;
 
-    const { rows } = await db.query(`
-      SELECT
-        d.id, d.status, d.reason, d.resolution,
-        d.created_at, d.resolved_at,
-        d.opened_by_role, d.opened_by_name,
-        d.job_id, d.job_type, d.description
-      FROM disputes d
-      WHERE d.opened_by = $1
-      ORDER BY d.created_at DESC
-    `, [userId]);
+    const { rows } = await db.query(
+      `SELECT ${disputeViewSelect()} ${DISPUTE_VIEW_FROM}
+        WHERE ${partyPredicate('$1')}
+        ORDER BY d.created_at DESC`,
+      [userId]
+    );
+    for (const row of rows) row.is_opener = String(row.opened_by) === String(userId);
 
     res.json({ disputes: rows });
   } catch (err) {
@@ -419,8 +425,10 @@ exports.submitEvidence = async (req, res, next) => {
 
     // Verify dispute exists and user has access
     const { rows: disputeRows } = await db.query(
-      'SELECT * FROM disputes WHERE id = $1 AND status = $2',
-      [disputeId, DISPUTE_STATUSES.OPEN]
+      `SELECT d.*, j.client_id, j.assigned_helper_id
+         FROM disputes d LEFT JOIN jobs j ON j.id = d.job_id
+        WHERE d.id = $1 AND d.status IN ($2, $3)`,
+      [disputeId, DISPUTE_STATUSES.OPEN, DISPUTE_STATUSES.UNDER_REVIEW]
     );
 
     if (!disputeRows.length) {
@@ -429,11 +437,12 @@ exports.submitEvidence = async (req, res, next) => {
 
     const dispute = disputeRows[0];
 
-    if (!isAdmin && dispute.opened_by !== userId) {
+    if (!isAdmin && !isDisputeParty(dispute, userId)) {
       throw new AppError('Not authorized', 403, 'forbidden');
     }
 
-    const submitterRole = isAdmin ? 'admin' : req.user.role === 'helper' ? 'helper' : 'client';
+    const submitterRole = isAdmin ? 'admin'
+      : String(dispute.assigned_helper_id) === String(userId) ? 'helper' : 'client';
     if (clientRequestId) {
       const { rows: existingRows } = await db.query(
         `SELECT * FROM dispute_evidence
@@ -568,7 +577,9 @@ exports.sendDisputeMessage = async (req, res, next) => {
 
     // Verify dispute exists and user has access
     const { rows: disputeRows } = await db.query(
-      'SELECT * FROM disputes WHERE id = $1',
+      `SELECT d.*, j.client_id, j.assigned_helper_id
+         FROM disputes d LEFT JOIN jobs j ON j.id = d.job_id
+        WHERE d.id = $1`,
       [disputeId]
     );
 
@@ -579,12 +590,13 @@ exports.sendDisputeMessage = async (req, res, next) => {
     const dispute = disputeRows[0];
     const isAdmin = ['admin', 'super_admin'].includes(req.user.role);
 
-    if (!isAdmin && dispute.opened_by !== userId) {
+    if (!isAdmin && !isDisputeParty(dispute, userId)) {
       throw new AppError('Not authorized', 403, 'forbidden');
     }
 
     const result = await withTransaction(db, async (client) => {
-      const senderRole = isAdmin ? 'admin' : req.user.role === 'helper' ? 'helper' : 'client';
+      const senderRole = isAdmin ? 'admin'
+        : String(dispute.assigned_helper_id) === String(userId) ? 'helper' : 'client';
       const { rows } = await client.query(
         `INSERT INTO dispute_messages
            (dispute_id, sender_id, sender_role, message, is_admin_only, client_message_id)

@@ -4440,6 +4440,8 @@
     "whatHappensNextBody": "Cuando el trabajo esté activo, los ayudantes que coincidan con la ubicación, categoría y requisitos podrán enviar ofertas. Puedes comparar propuestas, hacer preguntas y contratar cuando estés listo."
   },
   "jobDetail": {
+    "openDispute": "Abrir una disputa",
+    "disputeOpened": "Disputa abierta. Notificamos a nuestro equipo y a la otra parte.",
     "draftStatus": "Borrador",
     "matchedStatus": "Coincidencia encontrada",
     "negotiatingStatus": "En negociación",
@@ -9306,6 +9308,7 @@
   },
   "disputes": {
     "center": {
+      "openFromJob": "Abrir una disputa desde un trabajo",
       "title": "Centro de Disputas",
       "noDisputes": "Sin disputas abiertas",
       "subtitle": "Ver y administrar tus disputas activas",
