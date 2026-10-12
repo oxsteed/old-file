@@ -21399,6 +21399,7 @@
         "details": "What should we know?"
       },
       "hints": {
+        "outsideServiceArea": "This ZIP is outside our usual service areas. You can still send the request and we'll confirm.",
         "selectedServices": "Choose the catalog services you want included. You can add more than one.",
         "workLocation": "City, neighborhood, or full address.",
         "serviceZipCode": "Used to match your quote later.",
@@ -21757,6 +21758,7 @@
         "bankTransfer": "Bank transfer"
       },
       "actions": {
+        "payWithCredit": "Pay with OxSteed Credit",
         "acceptQuote": "Accept quote",
         "decline": "Decline",
         "requestChanges": "Request changes",
@@ -21773,6 +21775,8 @@
         "openLocations": "Open locations"
       },
       "messages": {
+        "creditPaid": "Paid with OxSteed Credit.",
+        "creditPaidPending": "Paid with OxSteed Credit. Your receipt will appear shortly.",
         "scheduleSaved": "Schedule saved.",
         "cancelled": "Request cancelled.",
         "updated": "Request updated.",
@@ -21788,6 +21792,7 @@
         "declineReason": "Why are you declining this quote?"
       },
       "errors": {
+        "creditPay": "Could not pay with OxSteed Credit.",
         "loadRequest": "Failed to load request",
         "load": "Could not load the Direct record.",
         "saveSchedule": "Could not save schedule.",

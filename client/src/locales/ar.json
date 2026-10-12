@@ -21410,6 +21410,7 @@
         "details": "ماذا يجب أن نعرف؟"
       },
       "hints": {
+        "outsideServiceArea": "هذا الرمز البريدي خارج مناطق خدمتنا المعتادة. لا يزال بإمكانك إرسال الطلب وسنؤكد لك.",
         "selectedServices": "اختر خدمات الكتالوج التي تريد تضمينها. يمكنك إضافة أكثر من خدمة.",
         "workLocation": "المدينة أو الحي أو العنوان الكامل.",
         "serviceZipCode": "يُستخدم لمطابقة عرض السعر لاحقًا.",
@@ -21768,6 +21769,7 @@
         "bankTransfer": "تحويل مصرفي"
       },
       "actions": {
+        "payWithCredit": "ادفع باستخدام OxSteed Credit",
         "acceptQuote": "قبول عرض السعر",
         "decline": "رفض",
         "requestChanges": "طلب تعديلات",
@@ -21784,6 +21786,8 @@
         "openLocations": "فتح المواقع"
       },
       "messages": {
+        "creditPaid": "تم الدفع باستخدام OxSteed Credit.",
+        "creditPaidPending": "تم الدفع باستخدام OxSteed Credit. سيظهر إيصالك قريبًا.",
         "scheduleSaved": "تم حفظ الجدول.",
         "cancelled": "تم إلغاء الطلب.",
         "updated": "تم تحديث الطلب.",
@@ -21799,6 +21803,7 @@
         "declineReason": "لماذا ترفض عرض السعر هذا؟"
       },
       "errors": {
+        "creditPay": "تعذّر الدفع باستخدام OxSteed Credit.",
         "loadRequest": "تعذر تحميل الطلب",
         "load": "تعذر تحميل سجل Direct.",
         "saveSchedule": "تعذر حفظ الجدول.",

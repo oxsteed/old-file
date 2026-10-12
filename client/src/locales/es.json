@@ -21399,6 +21399,7 @@
         "details": "¿Qué debemos saber?"
       },
       "hints": {
+        "outsideServiceArea": "Este código postal está fuera de nuestras zonas habituales. Aún puedes enviar la solicitud y te confirmaremos.",
         "selectedServices": "Elija los servicios del catálogo que desea incluir. Puede añadir más de uno.",
         "workLocation": "Ciudad, vecindario o dirección completa.",
         "serviceZipCode": "Se usa para coincidir con su cotización más tarde.",
@@ -21757,6 +21758,7 @@
         "bankTransfer": "Transferencia bancaria"
       },
       "actions": {
+        "payWithCredit": "Pagar con OxSteed Credit",
         "acceptQuote": "Aceptar cotización",
         "decline": "Rechazar",
         "requestChanges": "Solicitar cambios",
@@ -21773,6 +21775,8 @@
         "openLocations": "Abrir ubicaciones"
       },
       "messages": {
+        "creditPaid": "Pagado con OxSteed Credit.",
+        "creditPaidPending": "Pagado con OxSteed Credit. Tu recibo aparecerá en breve.",
         "scheduleSaved": "Horario guardado.",
         "cancelled": "Solicitud cancelada.",
         "updated": "Solicitud actualizada.",
@@ -21788,6 +21792,7 @@
         "declineReason": "¿Por qué rechazas esta cotización?"
       },
       "errors": {
+        "creditPay": "No se pudo pagar con OxSteed Credit.",
         "loadRequest": "No se pudo cargar la solicitud",
         "load": "No se pudo cargar el registro Direct.",
         "saveSchedule": "No se pudo guardar el horario.",

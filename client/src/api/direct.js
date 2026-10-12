@@ -143,6 +143,18 @@ export async function submitDirectProof(id, payload) {
   return response.data;
 }
 
+// Review P1-179: advisory service-area check for the quote form.
+export async function checkDirectServiceAvailability(payload) {
+  const response = await api.post('/direct/service-availability', payload);
+  return response.data;
+}
+
+// Review P1-178: pay an accepted Direct quote with OxSteed Credit.
+export async function payDirectWithCredit(id) {
+  const response = await api.post(`/direct/requests/${id}/pay-credit`, { mode: 'debit' });
+  return response.data;
+}
+
 export async function confirmDirectProof(id, payload) {
   const response = await api.post(`/direct/requests/${id}/proof-confirm`, payload);
   return response.data;

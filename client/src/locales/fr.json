@@ -21399,6 +21399,7 @@
         "details": "Que devons-nous savoir ?"
       },
       "hints": {
+        "outsideServiceArea": "Ce code postal est hors de nos zones habituelles. Vous pouvez quand même envoyer la demande et nous confirmerons.",
         "selectedServices": "Choisissez les services du catalogue à inclure. Vous pouvez en ajouter plusieurs.",
         "workLocation": "Ville, quartier ou adresse complète.",
         "serviceZipCode": "Utilisé pour retrouver votre devis plus tard.",
@@ -21757,6 +21758,7 @@
         "bankTransfer": "Virement bancaire"
       },
       "actions": {
+        "payWithCredit": "Payer avec OxSteed Credit",
         "acceptQuote": "Accepter le devis",
         "decline": "Refuser",
         "requestChanges": "Demander des modifications",
@@ -21773,6 +21775,8 @@
         "openLocations": "Ouvrir les adresses"
       },
       "messages": {
+        "creditPaid": "Payé avec OxSteed Credit.",
+        "creditPaidPending": "Payé avec OxSteed Credit. Votre reçu apparaîtra bientôt.",
         "scheduleSaved": "Créneau enregistré.",
         "cancelled": "Demande annulée.",
         "updated": "Demande mise à jour.",
@@ -21788,6 +21792,7 @@
         "declineReason": "Pourquoi refusez-vous ce devis ?"
       },
       "errors": {
+        "creditPay": "Impossible de payer avec OxSteed Credit.",
         "loadRequest": "Impossible de charger la demande",
         "load": "Impossible de charger le dossier Direct.",
         "saveSchedule": "Impossible d’enregistrer le créneau.",

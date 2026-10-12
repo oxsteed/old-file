@@ -21399,6 +21399,7 @@
         "details": "Kisa nou ta dwe konnen?"
       },
       "hints": {
+        "outsideServiceArea": "Kòd postal sa a deyò zòn nou konn sèvi yo. Ou ka toujou voye demann lan, n ap konfime.",
         "selectedServices": "Chwazi sèvis katalòg ou vle mete yo. Ou ka ajoute plis pase youn.",
         "workLocation": "Vil, katye, oswa adrès konplè.",
         "serviceZipCode": "Yo itilize l pou fè matche ak quote ou a pita.",
@@ -21757,6 +21758,7 @@
         "bankTransfer": "Transfè labank"
       },
       "actions": {
+        "payWithCredit": "Peye ak OxSteed Credit",
         "acceptQuote": "Aksepte quote la",
         "decline": "Refize",
         "requestChanges": "Mande chanjman",
@@ -21773,6 +21775,8 @@
         "openLocations": "Louvri adrès yo"
       },
       "messages": {
+        "creditPaid": "Peye ak OxSteed Credit.",
+        "creditPaidPending": "Peye ak OxSteed Credit. Resi ou ap parèt talè.",
         "scheduleSaved": "Orè a sove.",
         "cancelled": "Demann lan anile.",
         "updated": "Demann lan mete ajou.",
@@ -21788,6 +21792,7 @@
         "declineReason": "Poukisa ou refize quote sa a?"
       },
       "errors": {
+        "creditPay": "Nou pa t ka peye ak OxSteed Credit.",
         "loadRequest": "Nou pa t kapab chaje demann lan",
         "load": "Nou pa t kapab chaje dosye Direct la.",
         "saveSchedule": "Nou pa t kapab sove orè a.",
