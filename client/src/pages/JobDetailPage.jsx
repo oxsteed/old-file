@@ -515,7 +515,7 @@ function JobDetailContent() {
               : <button type="button" className="jdp-btn-primary" onClick={runNextStep} disabled={actionLoading || loading}>{actionLoading ? t('jobDetail.processing') : t(`jobDetail.${actionLabels[action]}`)}</button>}
           </> : <p role="status">{t(`jobDetail.${['loading', 'idle'].includes(bidsStatus) && user && ['published', 'matched', 'negotiating'].includes(job.status) ? 'checkingBids' : 'noNextStep'}`)}</p>}
           {(isOwner || isAssignedHelper) && job.assigned_helper_id && action !== 'messages' && <button type="button" className="jdp-btn-ghost" onClick={openJobChat} disabled={chatOpening}>{t('jobDetail.openJobChat')}</button>}
-          {(isOwner || isAssignedHelper) && job.assigned_helper_id && <div className="jdp-secondary-action">
+          {(isOwner || isAssignedHelper) && job.assigned_helper_id && <div className="jdp-related-actions">
             <Link className="jdp-btn-ghost" to={`/agreements/new?jobId=${encodeURIComponent(id)}`}>{t('jobDetail.createAgreement')}</Link>
             {['accepted', 'in_progress', 'pending_completion', 'completed'].includes(job.status) && <button type="button" className="jdp-btn-ghost" onClick={() => setDisputeOpen(true)}>{t('jobDetail.reportProblem')}</button>}
           </div>}
