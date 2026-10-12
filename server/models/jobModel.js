@@ -252,11 +252,14 @@ exports.setFinancials = async (jobId, agreedAmountDollars, isBrokerMediated, cli
 
 // --- Transition Status ---
 // Enforces valid state machine transitions
+// Review P1-135: bids never move a job out of `published` (bidController keeps
+// it visible while bids arrive), so the real path is published -> accepted.
+// `matched`/`negotiating` remain only as legacy aliases of `published`.
 const VALID_TRANSITIONS = {
   draft:        ['published', 'cancelled'],
-  published:    ['matched', 'cancelled'],
-  matched:      ['negotiating', 'published', 'cancelled'],
-  negotiating:  ['accepted', 'matched', 'cancelled'],
+  published:    ['accepted', 'cancelled'],
+  matched:      ['published', 'accepted', 'cancelled'],
+  negotiating:  ['published', 'accepted', 'cancelled'],
   accepted:     ['in_progress', 'cancelled'],
   in_progress:  ['completed', 'cancelled'],
   completed:    ['closed'],
@@ -412,3 +415,5 @@ exports.getPublicFeed = async ({
     pages: Math.ceil(parseInt(countRows[0].count) / limit),
   };
 };
+
+exports.VALID_TRANSITIONS = VALID_TRANSITIONS;
