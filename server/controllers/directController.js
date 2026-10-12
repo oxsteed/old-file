@@ -428,6 +428,46 @@ async function appendEvent({ quoteRequestId, actorUserId = null, actorRole = 'sy
   );
 }
 
+// Review P1-180: customer-facing schedule/reschedule now enforces the same
+// calendar-block and crew-overlap checks as the admin PATCH path.
+async function checkDirectScheduleWindow(request, startAt, endAt) {
+  if (!startAt || !endAt) return null;
+  const start = new Date(startAt);
+  const end = new Date(endAt);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end <= start) {
+    return { status: 400, body: { error: 'Scheduled end must be after scheduled start', code: 'invalid_schedule' } };
+  }
+  const { rows: blocks } = await db.query(
+    `SELECT id, block_type, title FROM direct_calendar_blocks
+      WHERE block_type IN ('unavailable', 'holiday', 'blackout')
+        AND starts_at < $2 AND ends_at > $1
+        AND (city IS NULL OR LOWER(city) = LOWER(COALESCE($3, '')))
+      LIMIT 1`,
+    [start.toISOString(), end.toISOString(), request.service_city || request.service_location || null]
+  );
+  if (blocks[0]) {
+    return { status: 409, body: { error: 'That time is not available. Please choose another time.', code: 'calendar_blocked' } };
+  }
+  if (request.assigned_to) {
+    const { rows: overlaps } = await db.query(
+      `SELECT qr.id FROM quote_requests qr
+        WHERE qr.id <> $1
+          AND COALESCE(qr.metadata->>'flow', 'direct') = 'direct'
+          AND qr.status NOT IN ('cancelled', 'closed', 'completed')
+          AND qr.scheduled_start_at < $3 AND qr.scheduled_end_at > $2
+          AND (qr.assigned_to = $4::uuid
+               OR EXISTS (SELECT 1 FROM quote_request_crew c WHERE c.quote_request_id = qr.id AND c.user_id = $4::uuid))
+        LIMIT 1`,
+      [request.id, start.toISOString(), end.toISOString(), request.assigned_to]
+    );
+    if (overlaps[0]) {
+      return { status: 409, body: { error: 'That time is already booked. Please choose another time.', code: 'schedule_conflict' } };
+    }
+  }
+  return null;
+}
+exports._checkDirectScheduleWindow = checkDirectScheduleWindow;
+
 function visitIsOver(request) {
   if (DIRECT_TERMINAL_STATUSES.has(request.status)) return false;
   const end = request.scheduled_end_at || request.scheduled_start_at;
@@ -1654,6 +1694,9 @@ exports.scheduleRequest = async (req, res) => {
       metadata: normalizeObject(req.body.metadata),
     };
 
+    const windowError = await checkDirectScheduleWindow(request, updates.scheduledStartAt, updates.scheduledEndAt);
+    if (windowError) return res.status(windowError.status).json(windowError.body);
+
     const updated = await updateRequestRecord(
       request.id,
       updates,
@@ -1743,6 +1786,11 @@ exports.changeRequest = async (req, res) => {
 
       return res.json({ request: await presentRequest(updated, { includeMessages: true, includeEvents: true }) });
     }
+
+    const nextStart = normalizeTimestamp(req.body.scheduledStartAt || req.body.scheduled_start_at || request.scheduled_start_at);
+    const nextEnd = normalizeTimestamp(req.body.scheduledEndAt || req.body.scheduled_end_at || request.scheduled_end_at);
+    const rescheduleError = await checkDirectScheduleWindow(request, nextStart, nextEnd);
+    if (rescheduleError) return res.status(rescheduleError.status).json(rescheduleError.body);
 
     const updated = await updateRequestRecord(
       request.id,
