@@ -28,6 +28,7 @@ const { stripeObjectId, invoiceSubscriptionId, subscriptionPeriod } = require('.
 const { applyChargeRefund, verifiedChargeRefundTotal } = require('../services/paymentRefundStateService');
 const stripeWebhookContract = require('../config/stripeWebhookContract');
 const businessInvoiceStripeConnectService = require('../services/businessInvoiceStripeConnectService');
+const creditLedger = require('../services/referralCreditLedger');
 
 function extractFoodOrderId(metadata) {
   const raw = metadata?.food_order_id
@@ -820,29 +821,33 @@ exports.stripeWebhook = async (req, res, next) => {
         // Authorization succeeded - PaymentIntent is ready to capture after job completion.
         const pi = event.data.object;
         const jobId = pi.metadata?.job_id;
-        if (jobId) {
-          const { rows: payRows } = await db.query(
-            `UPDATE payments SET status = 'authorized', payment_hold_status = 'held',
-             updated_at = NOW() WHERE stripe_payment_intent_id = $1 AND status != 'captured'
-             RETURNING id, payer_id, metadata`,
-            [pi.id]
-          );
-          // Audit fix: deduct referral credit only now that Stripe has
-          // confirmed the payment. The credit amount was stored in metadata
-          // at PI creation time.
-          if (payRows[0]?.metadata?.applied_credit_cents > 0) {
-            await db.query(
-              `INSERT INTO platform_ledger (user_id, type, amount_cents, description, metadata)
-               VALUES ($1, 'credit_applied', $2, 'Referral credit applied to job payment', $3)`,
-              [payRows[0].payer_id, payRows[0].metadata.applied_credit_cents, JSON.stringify({
-                job_id: jobId,
-                payment_id: payRows[0].id,
-              })]
+        // Review P3-789 / P3-889: the authorized status, the referral-credit
+        // deduction and the intent application commit together, and the
+        // deduction is keyed per payment so a retry cannot post it twice.
+        await withTransaction(db, async (client) => {
+          if (jobId) {
+            const { rows: payRows } = await client.query(
+              `UPDATE payments SET status = 'authorized', payment_hold_status = 'held',
+               updated_at = NOW() WHERE stripe_payment_intent_id = $1 AND status != 'captured'
+               RETURNING id, payer_id, metadata`,
+              [pi.id]
             );
+            const pay = payRows[0];
+            const appliedCents = Number(pay?.metadata?.applied_credit_cents ?? pay?.metadata?.appliedCreditCents ?? 0);
+            if (pay && appliedCents > 0) {
+              // No-op when the reservation was made at intent creation.
+              await creditLedger.applyCreditToPayment(client, {
+                userId: pay.payer_id,
+                paymentId: pay.id,
+                amountCents: appliedCents,
+                jobId,
+                paymentIntentId: pi.id,
+              });
+            }
+            logger.info(`[Stripe] PaymentIntent ${pi.id} authorized - job ${jobId} funds held`);
           }
-          logger.info(`[Stripe] PaymentIntent ${pi.id} authorized - job ${jobId} funds held`);
-        }
-        await withTransaction(db, (client) => applyStripePaymentIntent(client, pi));
+          await applyStripePaymentIntent(client, pi);
+        });
         break;
       }
 
@@ -977,11 +982,18 @@ exports.stripeWebhook = async (req, res, next) => {
             }
           });
         } else if (jobId) {
-          await db.query(
-            `UPDATE payments SET status = 'failed', payment_hold_status = 'none',
-             updated_at = NOW() WHERE stripe_payment_intent_id = $1`,
-            [pi.id]
-          );
+          await withTransaction(db, async (client) => {
+            const { rows: endedPayments } = await client.query(
+              `UPDATE payments SET status = 'failed', payment_hold_status = 'none',
+               updated_at = NOW() WHERE stripe_payment_intent_id = $1 AND status <> 'captured'
+               RETURNING id`,
+              [pi.id]
+            );
+            // Return any referral credit reserved for this intent (P2-571).
+            for (const row of endedPayments) {
+              await creditLedger.releaseCreditForPayment(client, { paymentId: row.id, reason: 'payment_intent_failed' });
+            }
+          });
           // Re-open escrow on the job so client can retry
           await db.query(
             `UPDATE jobs SET escrow_status = 'none', updated_at = NOW() WHERE id = $1`,
@@ -1028,11 +1040,18 @@ exports.stripeWebhook = async (req, res, next) => {
         // Otherwise the job stays in escrow with no payment behind it.
         const jobId = pi.metadata?.job_id;
         if (jobId) {
-          await db.query(
-            `UPDATE payments SET status = 'canceled', payment_hold_status = 'none',
-             updated_at = NOW() WHERE stripe_payment_intent_id = $1`,
-            [pi.id]
-          );
+          await withTransaction(db, async (client) => {
+            const { rows: endedPayments } = await client.query(
+              `UPDATE payments SET status = 'canceled', payment_hold_status = 'none',
+               updated_at = NOW() WHERE stripe_payment_intent_id = $1 AND status <> 'captured'
+               RETURNING id`,
+              [pi.id]
+            );
+            // Return any referral credit reserved for this intent (P2-571).
+            for (const row of endedPayments) {
+              await creditLedger.releaseCreditForPayment(client, { paymentId: row.id, reason: 'payment_intent_canceled' });
+            }
+          });
           await db.query(
             `UPDATE jobs SET escrow_status = 'none', updated_at = NOW() WHERE id = $1`,
             [jobId]
