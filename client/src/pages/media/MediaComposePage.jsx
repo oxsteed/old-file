@@ -63,6 +63,13 @@ function attachmentIcon(asset) {
   return Link2;
 }
 
+function publisherVerificationHref(publisher) {
+  const returnTo = encodeURIComponent('/media/compose');
+  return publisher?.actor_type === 'user' || publisher?.actor_type === 'helper'
+    ? `/media/verify-identity?returnTo=${returnTo}`
+    : `/media/verification?returnTo=${returnTo}`;
+}
+
 export default function MediaComposePage() {
   const { t, i18n } = useTranslation();
   const { user } = useAuth();
@@ -568,6 +575,7 @@ export default function MediaComposePage() {
         : saveState === 'error' ? t('media.compose.saveRetry') : t('media.compose.draftPrivate');
   const publisherLocation = locationLabel || t('media.compose.noLocation');
   const canVideo = selectedPublisher?.eligibility?.video === true;
+  const publisherNeedsVerification = selectedPublisher && (selectedPublisher.available === false || selectedPublisher.verified !== true);
 
   return (
     <div className="media-compose-page">
@@ -591,7 +599,14 @@ export default function MediaComposePage() {
             <span className="media-publisher-avatar">{selectedPublisher?.avatar_url ? <img src={selectedPublisher.avatar_url} alt="" /> : <CircleUserRound size={27} />}</span>
             <div><span>{t('media.compose.postingAs')}</span><strong>{selectedPublisher?.display_name || t('media.compose.loadingPublisher')}</strong><small><MapPin size={13} />{publisherLocation}</small></div>
             {selectedPublisher?.verified && <ShieldCheck className="media-publisher-verified" size={20} aria-label={t('media.compose.verifiedPublisher')} />}
-            <select aria-label={t('media.compose.publisherLabel')} value={publisherKey} disabled={Boolean(draftId) || Boolean(creationPayloadRef.current) || publisherStatus !== 'ready'} onChange={event => setPublisherKey(event.target.value)}>{!selectedPublisher && <option value={publisherKey}>{t('media.compose.publisherUnavailable')}</option>}{publishers.map(publisher => <option key={publisher.key} value={publisher.key} disabled={publisher.available === false}>{publisher.display_name} · {publisher.actor_type}{publisher.available === false ? ` · ${t('media.compose.verificationRequired', 'verification required')}` : ''}</option>)}</select>
+            <div className="media-publisher-picker">
+              <select className="media-publisher-select" aria-label={t('media.compose.publisherLabel')} value={publisherKey} disabled={Boolean(draftId) || Boolean(creationPayloadRef.current) || publisherStatus !== 'ready'} onChange={event => setPublisherKey(event.target.value)}>
+                {!selectedPublisher && <option value={publisherKey}>{t('media.compose.publisherUnavailable')}</option>}
+                {publishers.map(publisher => <option key={publisher.key} value={publisher.key}>{publisher.display_name} · {publisher.actor_type}{publisher.verified === true ? ' · verified' : ` · ${t('media.compose.verificationRequired', 'verification required')}`}</option>)}
+              </select>
+              {publisherNeedsVerification && <div className="media-publisher-verification-state" role="status"><span><AlertTriangle size={15} aria-hidden="true" />{selectedPublisher.available === false ? t('media.compose.verificationRequired', 'Verification required') : t('media.compose.notVerified', 'Not verified')}</span><Link to={publisherVerificationHref(selectedPublisher)}>{t('media.verification.request', { defaultValue: 'Request verification' })}</Link></div>}
+              {selectedPublisher?.verified === true && <span className="media-publisher-verified-label"><ShieldCheck size={14} aria-hidden="true" />{t('media.compose.verifiedPublisher', { defaultValue: 'Verified' })}</span>}
+            </div>
           </section>
 
           <section className="media-compose-editor">
