@@ -50,6 +50,7 @@ const { startRestaurantPayoutReconciliationJob } = require('../jobs/restaurantPa
 const { startWebhookRetryJob } = require('../jobs/webhookRetryWorker');
 const { startChargebackEvidenceDeadlineJob } = require('../jobs/chargebackEvidenceDeadline');
 const { startWebhookReceiptRecoveryJob } = require('../jobs/webhookReceiptRecovery');
+const { startBookingDepositSettlementJob } = require('../jobs/bookingDepositSettlement');
 const { startSettingsChangeApplierJob } = require('../jobs/settingsChangeApplier');
 const { startProfileVisibilityScheduler } = require('../jobs/profileVisibilityScheduledActions');
 const { startProfileVisibilityNotificationRetryJob } = require('../jobs/profileVisibilityNotificationRetry');
@@ -119,6 +120,7 @@ class BackgroundWorkers {
       startWebhookRetryJob();
       startChargebackEvidenceDeadlineJob();
       startWebhookReceiptRecoveryJob();
+      startBookingDepositSettlementJob();
       startSettingsChangeApplierJob();
       startProfileVisibilityScheduler();
       startProfileVisibilityNotificationRetryJob();

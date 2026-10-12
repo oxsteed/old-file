@@ -221,6 +221,9 @@ exports.cancelBooking = async (req, res) => {
       });
     }
 
+    // The issue_refunds grant now moves money: refund/void any deposit.
+    require('../services/bookingDepositService').settleTerminalBookingSoon(bookingId, 'agent_cancelled');
+
     logger.info('Agent cancelled booking', {
       bookingId,
       adminId,

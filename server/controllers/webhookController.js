@@ -9,6 +9,7 @@ if (!process.env.STRIPE_SECRET_KEY) {
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const db = require('../db');
 const chargebackEvidence = require('../services/chargebackEvidenceService');
+const bookingDeposits = require('../services/bookingDepositService');
 const { recalculateBadges } = require('./verificationController');
 const { withTransaction } = require('../utils/transaction');
 const {
@@ -873,6 +874,9 @@ exports.stripeWebhook = async (req, res, next) => {
       }
 
       case 'payment_intent.succeeded': {
+        // Booking-request deposits (P3-962): settle even if the native
+        // client never confirms.
+        if (await bookingDeposits.applyBookingIntentWebhook(event.type, event.data.object)) break;
         // OxSteed Credit top-up (fiat money IN). Handled and acknowledged
         // here; PaymentIntents that are not ours fall through to the
         // flows below.
@@ -956,6 +960,9 @@ exports.stripeWebhook = async (req, res, next) => {
       }
 
       case 'payment_intent.payment_failed': {
+        // Booking-request deposits (P3-962): settle even if the native
+        // client never confirms.
+        if (await bookingDeposits.applyBookingIntentWebhook(event.type, event.data.object)) break;
         // OxSteed Credit top-up (fiat money IN) that did not go through.
         if (await topupService.applyCreditTopupWebhookEvent({ type: event.type, object: event.data.object })) {
           break;
@@ -1039,6 +1046,9 @@ exports.stripeWebhook = async (req, res, next) => {
       }
 
       case 'payment_intent.canceled': {
+        // Booking-request deposits (P3-962): settle even if the native
+        // client never confirms.
+        if (await bookingDeposits.applyBookingIntentWebhook(event.type, event.data.object)) break;
         // OxSteed Credit top-up (fiat money IN) that was canceled.
         if (await topupService.applyCreditTopupWebhookEvent({ type: event.type, object: event.data.object })) {
           break;
