@@ -2816,6 +2816,45 @@ exports.bookServiceSlot = async (req, res) => {
         details: body.details,
       },
     });
+    // Review P1-177: instant bookings now notify the customer, the assigned
+    // crew and support like every other Direct transition (best effort).
+    const booked = result.request;
+    const bookedDetails = [
+      ...directRequestSummary(booked),
+      { label: 'Scheduled start', value: result.startsAt || '-' },
+      { label: 'Scheduled end', value: result.endsAt || '-' },
+    ];
+    await notifyDirectCustomer(booked, {
+      subject: `Your OxSteed Direct booking is confirmed (${publicReferenceFromRow(booked) || booked.id})`,
+      eyebrow: 'BOOKING CONFIRMED',
+      title: 'Your visit is booked',
+      intro: 'Thanks for booking with OxSteed Direct. Your visit details are below.',
+      details: bookedDetails,
+      idempotencyKey: `direct:book:customer:${booked.id}`,
+    });
+    if (booked.assigned_to) {
+      const { rows: [assignee] } = await db.query('SELECT email FROM users WHERE id = $1', [booked.assigned_to]).catch(() => ({ rows: [] }));
+      await sendDirectEmail({
+        to: assignee?.email,
+        kind: 'crew',
+        requestId: booked.id,
+        subject: `New Direct booking assigned (${publicReferenceFromRow(booked) || booked.id})`,
+        eyebrow: 'NEW BOOKING',
+        title: 'A Direct visit was booked for you',
+        intro: 'A customer booked an instant Direct slot assigned to you.',
+        details: bookedDetails,
+        idempotencyKey: `direct:book:crew:${booked.id}`,
+      });
+    }
+    await notifyDirectSupport(booked, {
+      subject: `Direct instant booking (${publicReferenceFromRow(booked) || booked.id})`,
+      eyebrow: 'INSTANT BOOKING',
+      title: 'A Direct slot was booked',
+      intro: 'A customer booked an instant Direct slot.',
+      details: bookedDetails,
+      idempotencyKey: `direct:book:support:${booked.id}`,
+    });
+
     return res.status(201).json({
       success: true,
       requestId: String(result.request.id),
