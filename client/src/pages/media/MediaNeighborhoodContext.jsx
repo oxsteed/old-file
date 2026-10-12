@@ -91,7 +91,13 @@ export function MediaNeighborhoodProvider({ children, user }) {
     if (!explicit || sameLocation(previousExplicit, explicit)) return;
     request.current += 1;
     setBusy(false); setError(''); setMatches([]);
-    if (sameLocation(location, explicit)) return;
+    // City URLs cannot encode approximate device coordinates. Updating the
+    // URL for our current city must not discard those coordinates or trigger
+    // another feed request for the same user choice.
+    if (sameLocation(location, explicit) || (
+      location.location_mode === 'custom' && explicit.location_mode === 'custom'
+      && location.city === explicit.city && location.state === explicit.state
+    )) return;
     setLocation(explicit);
     setResolvedLocation(explicit);
     try { localStorage.setItem(KEY, JSON.stringify(explicit)); } catch { /* Optional browser persistence. */ }

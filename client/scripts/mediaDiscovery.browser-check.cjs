@@ -14,7 +14,7 @@ async function fixture() {
     './MediaPostCard': `import React from 'react'; export default function Card({ post }) { return <p data-post={post.id}>{post.body}</p>; }`,
     '../../api/media': `export const getFeed = params => new Promise((resolve, reject) => {
       window.requests.push({ params, resolve, reject });
-    });`,
+    }); export const getMediaVerification = async () => ({ publishers: [] });`,
   };
   const result = await build({
     stdin: { resolveDir: path.resolve(__dirname, '..'), loader: 'jsx', contents: `
@@ -101,6 +101,9 @@ test('guests choose and retain locations; device permission is requested only on
     await page.getByRole('button', { name: 'media.feed.useDeviceLocation', exact: true }).click();
     await page.waitForFunction(() => window.requests.length === 2);
     assert.equal(await page.evaluate(() => window.geoCalls), 1);
+    await page.waitForFunction(() => new URLSearchParams(location.search).get('city') === 'Springfield');
+    await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+    assert.equal(await page.evaluate(() => window.requests.length), 2, 'Location URL synchronization must not trigger a duplicate feed request');
     assert.deepEqual(await page.evaluate(() => window.requests[1].params),
       { before: null, limit: 20, tab: 'home', location_mode: 'custom', latitude: 39.924, longitude: -83.811, city: 'Springfield', state: 'OH' });
     await page.reload();

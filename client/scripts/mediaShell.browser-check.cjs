@@ -226,7 +226,7 @@ test('composer layout fits phones, tablets and desktops in light, dark and Arabi
         await page.screenshot({ path: path.join(screenshots, `${width}-${lang}-${dark?'dark':'light'}.png`), fullPage: false });
         assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false, `overflow at ${width}/${lang}: ${JSON.stringify(overflow)}; screenshots ${screenshots}`);
         assert.deepEqual(errors, []);
-        const identity = await page.locator('.media-publisher-row > div').boundingBox();
+        const identity = await page.locator('.media-publisher-row > div').filter({ has: page.locator('strong') }).boundingBox();
         const selector = await page.locator('.media-publisher-row select').boundingBox();
         assert.ok(identity.width >= 80, `Publisher identity must remain readable at ${width}/${lang}`);
         assert.ok(identity.y + identity.height <= selector.y || identity.y >= selector.y + selector.height || identity.x + identity.width <= selector.x || identity.x >= selector.x + selector.width, 'Publisher selector must not cover the displayed identity');

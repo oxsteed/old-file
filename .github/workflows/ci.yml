@@ -55,7 +55,7 @@ jobs:
         run: node --test scripts/scale/scale-harness.test.cjs
 
       - name: Isolated Credit fixture regression tests
-        run: node --test scripts/credit-isolated-seed.test.cjs scripts/media-credit-isolated.test.cjs
+        run: node --test scripts/credit-isolated-seed.test.cjs scripts/media-credit-isolated.test.cjs scripts/pull-ci-redis.test.cjs
 
       - name: Client smoke tests
         working-directory: client
@@ -157,6 +157,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v7
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+
       - name: Run Media harness with PostgreSQL, Redis, ClamAV, and FFmpeg
         env:
           COMPOSE_PROJECT: oxsteed-media-ci-${{ github.run_id }}-${{ github.run_attempt }}
@@ -168,7 +173,7 @@ jobs:
           CREDIT_TEST_POSTGRES_VOLUME=oxsteed-media-ci-${{ github.run_id }}-${{ github.run_attempt }}-postgres
           CREDIT_TEST_REDIS_VOLUME=oxsteed-media-ci-${{ github.run_id }}-${{ github.run_attempt }}-redis
           CREDIT_TEST_POSTGRES_IMAGE=ghcr.io/cloudnative-pg/postgis:16-3.4
-          CREDIT_TEST_REDIS_IMAGE=public.ecr.aws/docker/library/redis:7
+          CREDIT_TEST_REDIS_IMAGE=oxsteed-ci-redis:7
           CLAMAV_IMAGE=oxsteed-ci-clamav
           CREDIT_TEST_DB_PASSWORD=$(openssl rand -hex 24)
           CREDIT_TEST_JWT_SECRET=$(openssl rand -hex 32)
@@ -180,6 +185,8 @@ jobs:
           # The generated file contains only CI-scoped identifiers and random hex.
           source "$env_file"
           set +a
+
+          node scripts/pull-ci-redis.cjs
 
           docker build --tag "$CLAMAV_IMAGE" \
             --file .github/ci/clamav.Dockerfile .github/ci/clamav
