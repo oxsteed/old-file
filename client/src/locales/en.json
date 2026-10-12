@@ -4440,6 +4440,11 @@
     "whatHappensNextBody": "Once your job is live, helpers who match the location, category, and requirements can send bids. You can compare offers, ask follow-up questions, and hire when you are ready."
   },
   "jobDetail": {
+    "openJobChat": "Message about this job",
+    "openChatFailed": "Couldn't open the job chat. Try again.",
+    "createAgreement": "Create a work agreement",
+    "reportProblem": "Report a problem",
+    "problemReported": "Your report was sent.",
     "draftStatus": "Draft",
     "matchedStatus": "Matched",
     "negotiatingStatus": "Negotiating",

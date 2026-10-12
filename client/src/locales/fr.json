@@ -4440,6 +4440,11 @@
     "whatHappensNextBody": "Une fois l’annonce publiée, les prestataires correspondant au lieu, à la catégorie et aux exigences peuvent envoyer des offres. Comparez-les, posez des questions et engagez quelqu’un lorsque vous êtes prêt."
   },
   "jobDetail": {
+    "openJobChat": "Écrire au sujet de cette mission",
+    "openChatFailed": "Impossible d'ouvrir la discussion de la mission. Réessayez.",
+    "createAgreement": "Créer un accord de travail",
+    "reportProblem": "Signaler un problème",
+    "problemReported": "Votre signalement a été envoyé.",
     "draftStatus": "Brouillon",
     "matchedStatus": "Mise en relation",
     "negotiatingStatus": "En négociation",

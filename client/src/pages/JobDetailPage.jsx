@@ -11,6 +11,7 @@ import Footer from '../components/Footer';
 import PreferredHelperBanner from '../components/PreferredHelperBanner';
 import ReviewModal from '../components/reviews/ReviewModal';
 import BidAcceptanceModal from '../components/BidAcceptanceModal';
+import DisputeSubmissionModal from '../components/DisputeSubmissionModal';
 import JobCancellationConfirmation from '../components/JobCancellationConfirmation';
 import HelperCancellationConfirmation from '../components/HelperCancellationConfirmation';
 import CancellationStats from '../components/CancellationStats';
@@ -137,6 +138,22 @@ function JobDetailContent() {
   const [actionLoading, setActionLoading] = useState(false);
   const [reviewEligible, setReviewEligible] = useState(false);
   const [paymentRecordOpen, setPaymentRecordOpen] = useState(false);
+  const [disputeOpen, setDisputeOpen] = useState(false);
+  const [chatOpening, setChatOpening] = useState(false);
+
+  // P1-136: open (or create) the job-scoped conversation instead of the bare inbox.
+  async function openJobChat() {
+    setChatOpening(true);
+    try {
+      const { data } = await api.post(`/messages/jobs/${id}/conversation`);
+      const base = samePartyId(user?.id, job?.assigned_helper_id) ? '/helper/messages' : '/messages';
+      navigate(data?.id ? `${base}/${data.id}` : base);
+    } catch {
+      toast.error(t('jobDetail.openChatFailed'));
+    } finally {
+      setChatOpening(false);
+    }
+  }
   // Bid acceptance scheduling modal
   const [acceptingBid, setAcceptingBid] = useState(null); // bid object being accepted
   const [helperPolicies, setHelperPolicies] = useState(null); // cancellation policies for helper
@@ -362,7 +379,7 @@ function JobDetailContent() {
     else if (action === 'findHelpers') navigate(matchingHelpersPath(job.required_skills));
     else if (action === 'onboarding') navigate('/dashboard');
     else if (action === 'manageBid') navigate('/my-bids');
-    else if (action === 'messages') navigate('/helper/messages');
+    else if (action === 'messages') void openJobChat();
     else if (action === 'signIn') navigate(`/login?next=${encodeURIComponent(`/jobs/${id}`)}`);
     else if (action === 'start') handleStart();
     else if (action === 'complete') handleComplete();
@@ -495,7 +512,11 @@ function JobDetailContent() {
             {action === 'review' ? <ReviewModal jobId={id} revieweeName={isOwner ? (formatNameForPrivacy(job.helper_name) || t('jobDetail.yourHelper')) : (formatNameForPrivacy(job.client_name) || t('jobDetail.yourCustomer'))} onComplete={() => setReviewEligible(false)} />
               : <button type="button" className="jdp-btn-primary" onClick={runNextStep} disabled={actionLoading || loading}>{actionLoading ? t('jobDetail.processing') : t(`jobDetail.${actionLabels[action]}`)}</button>}
           </> : <p role="status">{t(`jobDetail.${['loading', 'idle'].includes(bidsStatus) && user && ['published', 'matched', 'negotiating'].includes(job.status) ? 'checkingBids' : 'noNextStep'}`)}</p>}
-          {isOwner && job.status === 'accepted' && <Link className="jdp-btn-ghost" to="/messages">{t('jobDetail.openMessages')}</Link>}
+          {(isOwner || isAssignedHelper) && job.assigned_helper_id && action !== 'messages' && <button type="button" className="jdp-btn-ghost" onClick={openJobChat} disabled={chatOpening}>{t('jobDetail.openJobChat')}</button>}
+          {(isOwner || isAssignedHelper) && job.assigned_helper_id && <div className="jdp-secondary-action">
+            <Link className="jdp-btn-ghost" to={`/agreements/new?jobId=${encodeURIComponent(id)}`}>{t('jobDetail.createAgreement')}</Link>
+            {['accepted', 'in_progress', 'pending_completion', 'completed'].includes(job.status) && <button type="button" className="jdp-btn-ghost" onClick={() => setDisputeOpen(true)}>{t('jobDetail.reportProblem')}</button>}
+          </div>}
           {(view.canCancelBeforeAcceptance || view.canCancelAfterAcceptance) && <div className="jdp-secondary-action">
             <button type="button" className="jdp-btn-danger" onClick={() => view.canCancelBeforeAcceptance ? setShowCancelModal(true) : setShowJobCancellationModal(true)} disabled={actionLoading || loading || (view.canCancelAfterAcceptance && !acceptedBid)}>{t('jobDetail.cancelJob')}</button>
             {view.canCancelAfterAcceptance && !acceptedBid && bidsStatus === 'error' && <button type="button" className="jdp-btn-ghost" onClick={loadBids}>{t('jobDetail.retryBids')}</button>}
@@ -614,6 +635,7 @@ function JobDetailContent() {
       )}
 
       {/* ── Job Cancellation Modals (role-aware Phase 2) ────────────── */}
+      {disputeOpen && <DisputeSubmissionModal jobId={id} isOpen={disputeOpen} onClose={() => setDisputeOpen(false)} onSuccess={() => { setDisputeOpen(false); toast.success(t('jobDetail.problemReported')); }} />}
       {showJobCancellationModal && job && acceptedBid && isOwner && (
         /* Customer sees: helper name+avatar, blocked time, fee, acknowledge */
         <JobCancellationConfirmation

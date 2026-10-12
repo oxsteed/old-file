@@ -4440,6 +4440,11 @@
     "whatHappensNextBody": "بعد نشر العمل، يمكن للأشخاص المطابقين للموقع والفئة والمتطلبات إرسال عروض. يمكنك مقارنة العروض وطرح الأسئلة والتوظيف عندما تكون جاهزًا."
   },
   "jobDetail": {
+    "openJobChat": "راسل بخصوص هذه المهمة",
+    "openChatFailed": "تعذّر فتح محادثة المهمة. حاول مرة أخرى.",
+    "createAgreement": "إنشاء اتفاقية عمل",
+    "reportProblem": "الإبلاغ عن مشكلة",
+    "problemReported": "تم إرسال بلاغك.",
     "draftStatus": "مسودة",
     "matchedStatus": "تمت المطابقة",
     "negotiatingStatus": "قيد التفاوض",

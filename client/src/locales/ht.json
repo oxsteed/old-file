@@ -4527,6 +4527,11 @@
     "whatHappensNextBody": "Lè travay la an dirèk, moun ki mache ak kote, kategori, ak kondisyon yo ka voye òf. Ou ka konpare òf, poze lòt kesyon, epi anboche lè ou pare."
   },
   "jobDetail": {
+    "openJobChat": "Voye mesaj sou travay sa a",
+    "openChatFailed": "Nou pa t ka louvri chat travay la. Eseye ankò.",
+    "createAgreement": "Kreye yon akò travay",
+    "reportProblem": "Rapòte yon pwoblèm",
+    "problemReported": "Rapò ou a voye.",
     "draftStatus": "Bouyon",
     "matchedStatus": "Korespondans jwenn",
     "negotiatingStatus": "Nan negosyasyon",
