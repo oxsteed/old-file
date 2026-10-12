@@ -565,6 +565,14 @@ exports.stripeWebhook = async (req, res, next) => {
       return res.json({ received: true });
     }
 
+    // Review P1-297: connected-account checkout events are QR scan-to-pay
+    // sessions. Anything else on this destination is acknowledged and ignored.
+    if (destination === 'connect' && String(event.type).startsWith('checkout.session.')) {
+      await handleConnectedCheckoutEvent(event);
+      await markWebhookEventProcessed(receiptId);
+      return res.json({ received: true });
+    }
+
     switch (event.type) {
       case 'checkout.session.completed': {
         const session = event.data.object;
@@ -1591,5 +1599,40 @@ async function applyQrPaymentSucceeded(session) {
   return rowCount;
 }
 exports.applyQrPaymentSucceeded = applyQrPaymentSucceeded;
+
+// Closes a pending QR payment whose Checkout Session expired or whose async
+// payment failed. Never touches a row that already succeeded.
+async function applyQrPaymentClosed(session, status) {
+  const { rowCount } = await db.query(
+    `UPDATE qr_payments SET status = $2
+      WHERE stripe_checkout_session_id = $1 AND status = 'pending'`,
+    [session.id, status]
+  );
+  return rowCount;
+}
+exports.applyQrPaymentClosed = applyQrPaymentClosed;
+
+async function handleConnectedCheckoutEvent(event) {
+  const session = event.data?.object || {};
+  if (session.metadata?.qr_payment !== 'true') {
+    logger.info('[webhook] Ignoring non-QR connected-account checkout event', { eventId: event.id, eventType: event.type });
+    return 'ignored';
+  }
+  switch (event.type) {
+    case 'checkout.session.completed':
+    case 'checkout.session.async_payment_succeeded':
+      await applyQrPaymentSucceeded(session);
+      return 'succeeded';
+    case 'checkout.session.async_payment_failed':
+      await applyQrPaymentClosed(session, 'failed');
+      return 'failed';
+    case 'checkout.session.expired':
+      await applyQrPaymentClosed(session, 'expired');
+      return 'expired';
+    default:
+      return 'ignored';
+  }
+}
+exports.handleConnectedCheckoutEvent = handleConnectedCheckoutEvent;
 // Test seam: exported so the lost-dispute financial path can be unit-tested.
 exports.recordLostDisputeFinancials = recordLostDisputeFinancials;
