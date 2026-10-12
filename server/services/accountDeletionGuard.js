@@ -17,7 +17,7 @@
 const pool = require('../db');
 const logger = require('../utils/logger');
 
-const LIVE_SUBSCRIPTION_STATUSES = ['active', 'trialing', 'past_due', 'incomplete', 'unpaid'];
+const LIVE_SUBSCRIPTION_STATUSES = ['active', 'trialing', 'past_due', 'paused'];
 
 function getStripe() {
   return require('stripe')(process.env.STRIPE_SECRET_KEY);
@@ -80,7 +80,7 @@ async function findFinancialBlockers(userId, db = pool) {
 async function cancelSubscriptionsForDeletion(userId, { db = pool, stripe } = {}) {
   const { rows } = await db.query(
     `SELECT id, stripe_subscription_id FROM subscriptions
-      WHERE user_id = $1 AND status = ANY($2::text[])`,
+      WHERE user_id = $1 AND status::text = ANY($2::text[])`,
     [userId, LIVE_SUBSCRIPTION_STATUSES]
   );
   let client = stripe;
