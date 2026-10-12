@@ -158,3 +158,16 @@ describe('P2-616 payout methods cannot be self-verified', () => {
     expect(r.json.mock.calls[0][0]).toMatchObject({ success: true });
   });
 });
+
+describe('P3-942 subscription checkout gate', () => {
+  test('new subscription purchases are refused while SUBSCRIPTIONS_ENABLED is off', async () => {
+    delete process.env.SUBSCRIPTIONS_ENABLED;
+    let router;
+    jest.isolateModules(() => { router = require('../routes/subscription'); });
+    const layer = router.stack.find((l) => l.route?.path === '/checkout' && l.route.methods.post);
+    const gate = layer.route.stack[1].handle;
+    const r = res(); const next = jest.fn();
+    await gate({ user: { id: USER_ID } }, r, next);
+    expect(next).toHaveBeenCalledWith(expect.objectContaining({ statusCode: 503, code: 'feature_disabled' }));
+  });
+});
