@@ -486,13 +486,13 @@ function JobDetailContent() {
               : <button type="button" className="jdp-btn-primary" onClick={runNextStep} disabled={actionLoading || loading}>{actionLoading ? t('jobDetail.processing') : t(`jobDetail.${actionLabels[action]}`)}</button>}
           </> : <p role="status">{t(`jobDetail.${['loading', 'idle'].includes(bidsStatus) && user && ['published', 'matched', 'negotiating'].includes(job.status) ? 'checkingBids' : 'noNextStep'}`)}</p>}
           {isOwner && job.status === 'accepted' && <Link className="jdp-btn-ghost" to="/messages">{t('jobDetail.openMessages')}</Link>}
-          {/* P3-818: either party to an assigned job can open a dispute. */}
-          {(isOwner || isAssignedHelper) && job.assigned_helper_id && DISPUTABLE_JOB_STATUSES.includes(job.status) && <div className="jdp-secondary-action">
-            <button type="button" className="jdp-btn-ghost" onClick={() => setDisputeModalOpen(true)}>{t('jobDetail.openDispute')}</button>
-          </div>}
           {(view.canCancelBeforeAcceptance || view.canCancelAfterAcceptance) && <div className="jdp-secondary-action">
             <button type="button" className="jdp-btn-danger" onClick={() => view.canCancelBeforeAcceptance ? setShowCancelModal(true) : setShowJobCancellationModal(true)} disabled={actionLoading || loading || (view.canCancelAfterAcceptance && !acceptedBid)}>{t('jobDetail.cancelJob')}</button>
             {view.canCancelAfterAcceptance && !acceptedBid && bidsStatus === 'error' && <button type="button" className="jdp-btn-ghost" onClick={loadBids}>{t('jobDetail.retryBids')}</button>}
+          </div>}
+          {/* P3-818: either party to an assigned job can open a dispute. */}
+          {(isOwner || isAssignedHelper) && job.assigned_helper_id && DISPUTABLE_JOB_STATUSES.includes(job.status) && <div className="jdp-secondary-action jdp-dispute-action">
+            <button type="button" className="jdp-btn-ghost" onClick={() => setDisputeModalOpen(true)}>{t('jobDetail.openDispute')}</button>
           </div>}
         </section>
         <div className="jdp-main">
