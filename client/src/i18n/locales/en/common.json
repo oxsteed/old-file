@@ -421,6 +421,7 @@
   },
   "updated": "Updated",
   "loading": "Loading…",
+  "settings": { "profile": { "previewPhoto": "Preview profile photo" } },
   "media": {
     "landing": {
       "heroTitle": "Your neighborhood, connected.",
@@ -494,8 +495,19 @@
       "useDeviceLocation": "Use my device location",
       "locating": "Finding your location…",
       "locationUnavailable": "Device location is unavailable. Enter a city and state or region instead.",
+      "locationPermissionDenied": "Location access was denied. Allow it for this site in your browser or system settings, then try again. You can also enter a city or ZIP code.",
+      "locationPositionUnavailable": "Your device could not determine a location. Check system location services or your network, then try again, or enter a city or ZIP code.",
+      "locationTimeout": "Location lookup took too long. Try again or enter a city or ZIP code instead.",
+      "locationUnsupported": "This browser does not support device location. Enter a city or ZIP code instead.",
       "profileLocation": "Use my profile location",
       "cursorChanged": "Your feed context changed. Refresh to start again."
+    },
+    "spaces": {
+      "suggestionSubmitted": "Space suggestion submitted for review.",
+      "suggestionError": "We could not submit that suggestion.",
+      "suggest": "Suggest a Space",
+      "suggestTitle": "Suggest a Space",
+      "suggestHint": "Tell us what local conversation is missing. An administrator reviews suggestions before they become public."
     },
     "search": {
       "loading": "Searching Media…",
@@ -505,6 +517,8 @@
       "loadError": "Could not load this account. Try again."
     },
     "compose": {
+      "verificationRequired": "Verification required",
+      "notVerified": "Not verified",
       "saveDraft": "Save draft",
       "discardDraft": "Discard draft",
       "startNew": "Start new draft",

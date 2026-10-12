@@ -1,19 +1,26 @@
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { MapPin, X } from 'lucide-react';
 import { suggestLocation, reverseGeocode } from '../../api/geo';
 import { getMediaVerification } from '../../api/media';
-import { getSharedBrowserLocation } from '../../utils/browserLocation';
+import { getSharedBrowserLocationResult } from '../../utils/browserLocation';
 import { trapMediaDialogFocus } from './mediaDialogFocus';
 
 const Context = createContext(null);
 const KEY = 'oxsteed.media.location';
-function initialLocation() {
-  const params = new URLSearchParams(window.location.search);
+function locationFromSearch(search) {
+  const params = new URLSearchParams(search);
   if (params.get('location') === 'all') return { location_mode: 'all' };
   if (params.get('city')?.trim() && params.get('state')?.trim()) {
-    return { location_mode: 'custom', city: params.get('city').slice(0, 120), state: params.get('state').slice(0, 120) };
+    return { location_mode: 'custom', city: params.get('city').trim().slice(0, 120), state: params.get('state').trim().slice(0, 120) };
   }
+  return null;
+}
+
+function initialLocation(search = window.location.search) {
+  const explicit = locationFromSearch(search);
+  if (explicit) return explicit;
   try {
     const saved = JSON.parse(localStorage.getItem(KEY));
     if (saved?.location_mode === 'all') return saved;
@@ -23,10 +30,20 @@ function initialLocation() {
   return { location_mode: 'profile' };
 }
 
+function sameLocation(left, right) {
+  return left?.location_mode === right?.location_mode
+    && left?.city === right?.city
+    && left?.state === right?.state
+    && left?.latitude === right?.latitude
+    && left?.longitude === right?.longitude;
+}
+
 export function MediaNeighborhoodProvider({ children, user }) {
   const { t } = useTranslation();
-  const [location, setLocation] = useState(initialLocation);
-  const [resolvedLocation, setResolvedLocation] = useState(initialLocation);
+  const { pathname, search, hash } = useLocation();
+  const navigate = useNavigate();
+  const [location, setLocation] = useState(() => initialLocation(search));
+  const [resolvedLocation, setResolvedLocation] = useState(() => initialLocation(search));
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [lookupQuery, setLookupQuery] = useState('');
@@ -36,20 +53,49 @@ export function MediaNeighborhoodProvider({ children, user }) {
   const request = useRef(0);
   const dialog = useRef(null);
   const input = useRef(null);
-  const hasLocation = Boolean(resolvedLocation.city || Number.isFinite(resolvedLocation.latitude));
-  const displayCity = resolvedLocation.city?.replace(/\b\p{L}/gu, letter => letter.toLocaleUpperCase());
-  const displayState = resolvedLocation.state?.length === 2 ? resolvedLocation.state.toUpperCase() : resolvedLocation.state;
-  const label = resolvedLocation.city ? [displayCity, displayState].filter(Boolean).join(', ')
-    : t(resolvedLocation.location_mode === 'all' ? 'media.feed.allLocations' : hasLocation ? 'media.feed.nearDevice' : 'media.feed.chooseLocation');
+  const previousSearch = useRef(search);
+  const profileCity = typeof user?.city === 'string' ? user.city.trim() : '';
+  const profileState = typeof user?.state === 'string' ? user.state.trim() : '';
+  const displayLocation = resolvedLocation.location_mode === 'profile' && !resolvedLocation.city && profileCity
+    ? { ...resolvedLocation, city: profileCity, ...(profileState ? { state: profileState } : {}) }
+    : resolvedLocation;
+  const hasLocation = Boolean(displayLocation.city || Number.isFinite(displayLocation.latitude));
+  const displayCity = displayLocation.city?.replace(/\b\p{L}/gu, letter => letter.toLocaleUpperCase());
+  const displayState = displayLocation.state?.length === 2 ? displayLocation.state.toUpperCase() : displayLocation.state;
+  const label = displayLocation.city ? [displayCity, displayState].filter(Boolean).join(', ')
+    : t(displayLocation.location_mode === 'all' ? 'media.feed.allLocations' : hasLocation ? 'media.feed.nearDevice' : 'media.feed.chooseLocation');
   const chooseLocation = useCallback(choice => {
     request.current += 1;
     setLocation(choice); setResolvedLocation(choice); setOpen(false); setBusy(false); setError(''); setMatches([]);
     try { localStorage.setItem(KEY, JSON.stringify(choice)); } catch { /* Optional browser persistence. */ }
-  }, []);
-  const openLocation = useCallback(initialQuery => { if (typeof initialQuery === 'string') { setQuery(initialQuery); setLookupQuery(initialQuery.trim()); } setError(''); setMatches([]); setBusy(false); setOpen(true); }, []);
+    const params = new URLSearchParams(search);
+    params.delete('location'); params.delete('city'); params.delete('state');
+    if (choice.location_mode === 'all') params.set('location', 'all');
+    else if (choice.location_mode === 'custom' && choice.city && choice.state) {
+      params.set('city', choice.city); params.set('state', choice.state);
+    }
+    const nextSearch = params.toString();
+    if (nextSearch !== search.replace(/^\?/, '')) navigate({ pathname, search: nextSearch ? `?${nextSearch}` : '', hash }, { replace: true });
+  }, [pathname, search, hash, navigate]);
+  const chooseLocationRef = useRef(chooseLocation);
+  chooseLocationRef.current = chooseLocation;
+  const openLocation = useCallback(initialQuery => { request.current += 1; if (typeof initialQuery === 'string') { setQuery(initialQuery); setLookupQuery(initialQuery.trim()); } setError(''); setMatches([]); setBusy(false); setOpen(true); }, []);
 
-  const profileCity = typeof user?.city === 'string' ? user.city.trim() : '';
-  const profileState = typeof user?.state === 'string' ? user.state.trim() : '';
+  // Location links can be opened or changed without remounting the Media
+  // shell. Treat explicit URL parameters as authoritative in that case.
+  useEffect(() => {
+    if (previousSearch.current === search) return;
+    const previousExplicit = locationFromSearch(previousSearch.current);
+    previousSearch.current = search;
+    const explicit = locationFromSearch(search);
+    if (!explicit || sameLocation(previousExplicit, explicit)) return;
+    request.current += 1;
+    setBusy(false); setError(''); setMatches([]);
+    if (sameLocation(location, explicit)) return;
+    setLocation(explicit);
+    setResolvedLocation(explicit);
+    try { localStorage.setItem(KEY, JSON.stringify(explicit)); } catch { /* Optional browser persistence. */ }
+  }, [search, location]);
 
   // Profile mode is a valid location choice even when it has not been
   // persisted with a city snapshot yet. Resolve it from the signed-in user's
@@ -63,7 +109,7 @@ export function MediaNeighborhoodProvider({ children, user }) {
     setResolvedLocation(current => (
       current.location_mode === 'profile' && current.city === city && current.state === state
         ? current
-        : { ...current, location_mode: 'profile', city, state }
+        : { location_mode: 'profile', city, state }
     ));
   }, [location.location_mode, profileCity, profileState]);
 
@@ -80,7 +126,7 @@ export function MediaNeighborhoodProvider({ children, user }) {
       const city = typeof personal?.location?.city === 'string' ? personal.location.city.trim() : '';
       const state = typeof personal?.location?.region === 'string' ? personal.location.region.trim() : '';
       if (!city || !state) return;
-      setResolvedLocation(current => ({ ...current, location_mode: 'profile', city, state }));
+      setResolvedLocation(current => current.location_mode === 'profile' ? { location_mode: 'profile', city, state } : current);
     }).catch(() => {});
     return () => { cancelled = true; };
   }, [location.location_mode, profileCity, profileState, user?.id]);
@@ -95,27 +141,26 @@ export function MediaNeighborhoodProvider({ children, user }) {
     const query = navigator.permissions?.query?.bind(navigator.permissions);
     if (!query) return;
     let cancelled = false;
+    const id = request.current;
     query({ name: 'geolocation' }).then(status => {
-      if (cancelled || status.state !== 'granted') return;
-      return getSharedBrowserLocation().then(async coords => {
-        if (cancelled || !coords) return;
-        const lat = Math.round(coords.lat * 1000) / 1000;
-        const lng = Math.round(coords.lng * 1000) / 1000;
+      if (cancelled || id !== request.current || status.state !== 'granted') return;
+      return getSharedBrowserLocationResult().then(async result => {
+        if (cancelled || id !== request.current || !result.coords) return;
+        const lat = Math.round(result.coords.lat * 1000) / 1000;
+        const lng = Math.round(result.coords.lng * 1000) / 1000;
         let city = '', state = '';
         try {
           const geo = await reverseGeocode(lat, lng);
-          if (cancelled) return;
           city = geo.city || ''; state = geo.state || '';
         } catch { /* Keep coordinates; label falls back to generic. */ }
+        if (cancelled || id !== request.current) return;
         const choice = {
           location_mode: 'custom',
           latitude: lat,
           longitude: lng,
           ...(city ? { city, state } : {}),
         };
-        setLocation(choice);
-        setResolvedLocation(choice);
-        try { localStorage.setItem(KEY, JSON.stringify(choice)); } catch { /* Optional. */ }
+        chooseLocationRef.current(choice);
       });
     }).catch(() => { /* Permissions API unavailable; leave it to user action. */ });
     return () => { cancelled = true; };
@@ -154,20 +199,30 @@ export function MediaNeighborhoodProvider({ children, user }) {
   const deviceLocation = async () => {
     const id = ++request.current;
     setBusy(true); setError('');
-    const coords = await getSharedBrowserLocation(true);
+    const result = await getSharedBrowserLocationResult(true);
     if (id !== request.current) return;
-    if (coords) {
-      const lat = Math.round(coords.lat * 1000) / 1000;
-      const lng = Math.round(coords.lng * 1000) / 1000;
+    if (result.coords) {
+      const lat = Math.round(result.coords.lat * 1000) / 1000;
+      const lng = Math.round(result.coords.lng * 1000) / 1000;
       let city = '', state = '';
       try {
         const geo = await reverseGeocode(lat, lng);
         if (id !== request.current) return;
         city = geo.city || ''; state = geo.state || '';
       } catch { /* Keep coordinates; label falls back to generic. */ }
+      if (id !== request.current) return;
       chooseLocation({ location_mode: 'custom', latitude: lat, longitude: lng, ...(city ? { city, state } : {}) });
     }
-    else { setBusy(false); setError(t('media.feed.locationUnavailable')); }
+    else {
+      setBusy(false);
+      const messageKey = {
+        permission_denied: 'media.feed.locationPermissionDenied',
+        position_unavailable: 'media.feed.locationPositionUnavailable',
+        timeout: 'media.feed.locationTimeout',
+        unsupported: 'media.feed.locationUnsupported',
+      }[result.error] || 'media.feed.locationUnavailable';
+      setError(t(messageKey));
+    }
   };
 
   return <Context.Provider value={{ location, resolvedLocation, setResolvedLocation, chooseLocation, openLocation, isLocationOpen: open, hasLocation, label }}>

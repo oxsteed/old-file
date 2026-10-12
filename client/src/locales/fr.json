@@ -2316,6 +2316,7 @@
       "photoTitle": "Photo de profil",
       "photoHint": "JPG ou PNG, jusqu'à 5 Mo. Affichée aux clients sur votre profil.",
       "photoAlt": "Photo de profil",
+      "previewPhoto": "Afficher la photo de profil",
       "uploadPhoto": "Ajouter une photo",
       "changePhoto": "Changer la photo",
       "removePhoto": "Supprimer",
@@ -30663,6 +30664,10 @@
       "useDeviceLocation": "Utiliser la position de mon appareil",
       "locating": "Recherche de votre position…",
       "locationUnavailable": "La position de votre appareil est indisponible. Indiquez une ville et un état ou une région.",
+      "locationPermissionDenied": "L’accès à la position a été refusé. Autorisez-le pour ce site dans les réglages du navigateur ou du système, puis réessayez. Vous pouvez aussi indiquer une ville ou un code postal.",
+      "locationPositionUnavailable": "Votre appareil n’a pas pu déterminer une position. Vérifiez les services de localisation du système ou votre réseau, puis réessayez, ou indiquez une ville ou un code postal.",
+      "locationTimeout": "La recherche de position a pris trop de temps. Réessayez ou indiquez une ville ou un code postal.",
+      "locationUnsupported": "Ce navigateur ne prend pas en charge la localisation de l’appareil. Indiquez une ville ou un code postal.",
       "profileLocation": "Utiliser le lieu de mon profil",
       "cursorChanged": "Le contexte du fil a changé. Actualisez pour recommencer.",
       "refresh": "Actualiser le fil",
@@ -30686,6 +30691,11 @@
       "followingEmptyDescription": "Suivez des comptes locaux vérifiés pour voir leurs actualités dans ce fil."
     },
     "spaces": {
+      "suggestionSubmitted": "Suggestion d’espace envoyée pour examen.",
+      "suggestionError": "Nous n’avons pas pu envoyer cette suggestion.",
+      "suggest": "Suggérer un espace",
+      "suggestTitle": "Suggérer un espace",
+      "suggestHint": "Indiquez quelle conversation locale manque. Un administrateur examine les suggestions avant leur publication.",
       "description": "Des canaux locaux réels par ville et catégorie.",
       "loading": "Chargement des espaces…",
       "loadError": "Impossible de charger l’espace.",
@@ -30703,6 +30713,8 @@
       "emptyDescription": "Partagez quelque chose d’utile avec votre communauté locale."
     },
     "compose": {
+      "verificationRequired": "Vérification requise",
+      "notVerified": "Non vérifié",
       "saveDraft": "Enregistrer le brouillon",
       "discardDraft": "Supprimer le brouillon",
       "startNew": "Nouveau brouillon",

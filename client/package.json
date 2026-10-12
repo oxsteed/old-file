@@ -7,7 +7,7 @@
     "test:signup-validation": "node --test scripts/signupValidation.test.mjs",
     "test:media-payment-idempotency": "node --test scripts/mediaPaymentIdempotency.test.mjs",
     "test:media-actions": "node --test scripts/mediaActions.test.mjs",
-    "test:media-accessibility": "node --test scripts/mediaAccessibility.test.mjs",
+    "test:media-accessibility": "node --test scripts/mediaAccessibility.test.mjs scripts/browserLocation.test.mjs",
     "test:media-bookmarks": "node --test scripts/mediaBookmarks.test.mjs",
     "test:media-notifications": "node --test scripts/mediaNotificationsAccessibility.test.mjs scripts/mediaNotificationsRealtime.test.mjs",
     "predev": "node scripts/splitLocaleCatalogs.mjs",

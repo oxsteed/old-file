@@ -162,6 +162,9 @@ html.dark button.media-support-launcher { background: #1b2535 !important; color:
   .media-reference-shell .media-wordmark { font-size: 19px; }
   .media-reference-shell .media-app-header-inner { gap: 12px; padding-inline: 22px; }
   .media-reference-shell .media-header-location { display: none; }
+  .media-reference-shell .media-mobile-location-row { display: flex; justify-content: space-between; align-items: center; min-height: 48px; padding: 2px 22px; border-top: 1px solid var(--media-border); }
+  .media-reference-shell .media-mobile-location-row .media-global-location { flex: 1; min-width: 0; border: 0; padding: 5px 0; font-size: 16px; font-weight: 500; }
+  .media-reference-shell .media-mobile-location-row .media-preferences { display: none; }
   .media-reference-shell .media-left-rail > .media-rail-sticky { padding-inline: 16px; }
   .media-reference-card h2 { font-size: 18px; }
   .media-reference-composer { min-height: 112px; }

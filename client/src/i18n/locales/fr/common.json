@@ -421,6 +421,7 @@
   },
   "updated": "Mis à jour",
   "loading": "Loading…",
+  "settings": { "profile": { "previewPhoto": "Afficher la photo de profil" } },
   "media": {
     "landing": {
       "heroTitle": "Votre quartier, connecté.",
@@ -494,8 +495,19 @@
       "useDeviceLocation": "Utiliser la position de mon appareil",
       "locating": "Recherche de votre position…",
       "locationUnavailable": "La position de votre appareil est indisponible. Indiquez une ville et un état ou une région.",
+      "locationPermissionDenied": "L’accès à la position a été refusé. Autorisez-le pour ce site dans les réglages du navigateur ou du système, puis réessayez. Vous pouvez aussi indiquer une ville ou un code postal.",
+      "locationPositionUnavailable": "Votre appareil n’a pas pu déterminer une position. Vérifiez les services de localisation du système ou votre réseau, puis réessayez, ou indiquez une ville ou un code postal.",
+      "locationTimeout": "La recherche de position a pris trop de temps. Réessayez ou indiquez une ville ou un code postal.",
+      "locationUnsupported": "Ce navigateur ne prend pas en charge la localisation de l’appareil. Indiquez une ville ou un code postal.",
       "profileLocation": "Utiliser le lieu de mon profil",
       "cursorChanged": "Le contexte du fil a changé. Actualisez pour recommencer."
+    },
+    "spaces": {
+      "suggestionSubmitted": "Suggestion d’espace envoyée pour examen.",
+      "suggestionError": "Nous n’avons pas pu envoyer cette suggestion.",
+      "suggest": "Suggérer un espace",
+      "suggestTitle": "Suggérer un espace",
+      "suggestHint": "Indiquez quelle conversation locale manque. Un administrateur examine les suggestions avant leur publication."
     },
     "search": {
       "loading": "Recherche dans Media…",
@@ -505,6 +517,8 @@
       "loadError": "Impossible de charger ce compte. Réessayez."
     },
     "compose": {
+      "verificationRequired": "Vérification requise",
+      "notVerified": "Non vérifié",
       "saveDraft": "Enregistrer le brouillon",
       "discardDraft": "Supprimer le brouillon",
       "startNew": "Nouveau brouillon",

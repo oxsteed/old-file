@@ -2316,6 +2316,7 @@
       "photoTitle": "Foto de perfil",
       "photoHint": "JPG o PNG, hasta 5 MB. Se muestra a los clientes en tu perfil.",
       "photoAlt": "Foto de perfil",
+      "previewPhoto": "Ver foto de perfil",
       "uploadPhoto": "Subir foto",
       "changePhoto": "Cambiar foto",
       "removePhoto": "Quitar",
@@ -30663,6 +30664,10 @@
       "useDeviceLocation": "Usar la ubicación de mi dispositivo",
       "locating": "Buscando tu ubicación…",
       "locationUnavailable": "La ubicación del dispositivo no está disponible. Introduce una ciudad y un estado o región.",
+      "locationPermissionDenied": "Se denegó el acceso a la ubicación. Permítelo para este sitio en la configuración del navegador o del sistema y vuelve a intentarlo. También puedes introducir una ciudad o código postal.",
+      "locationPositionUnavailable": "Tu dispositivo no pudo determinar una ubicación. Comprueba los servicios de ubicación del sistema o la red y vuelve a intentarlo, o introduce una ciudad o código postal.",
+      "locationTimeout": "La búsqueda de ubicación tardó demasiado. Vuelve a intentarlo o introduce una ciudad o código postal.",
+      "locationUnsupported": "Este navegador no admite la ubicación del dispositivo. Introduce una ciudad o código postal.",
       "profileLocation": "Usar la ubicación de mi perfil",
       "cursorChanged": "El contexto del feed cambió. Actualiza para empezar de nuevo.",
       "refresh": "Actualizar publicaciones",
@@ -30686,6 +30691,11 @@
       "followingEmptyDescription": "Sigue cuentas locales verificadas para ver sus novedades en este feed."
     },
     "spaces": {
+      "suggestionSubmitted": "Sugerencia de espacio enviada para revisión.",
+      "suggestionError": "No pudimos enviar esa sugerencia.",
+      "suggest": "Sugerir un espacio",
+      "suggestTitle": "Sugerir un espacio",
+      "suggestHint": "Cuéntanos qué conversación local falta. Un administrador revisa las sugerencias antes de que se hagan públicas.",
       "description": "Canales locales reales por ciudad y categoría.",
       "loading": "Cargando Espacios…",
       "loadError": "No se pudo cargar el Espacio.",
@@ -30703,6 +30713,8 @@
       "emptyDescription": "Comparte algo útil con tu comunidad local."
     },
     "compose": {
+      "verificationRequired": "Verificación requerida",
+      "notVerified": "Sin verificar",
       "saveDraft": "Guardar borrador",
       "discardDraft": "Descartar borrador",
       "startNew": "Nuevo borrador",

@@ -166,7 +166,7 @@ function MediaShellContent({ children }) {
       <header className="media-app-header">
         <div className="media-app-header-inner">
           <Link to="/" className="media-wordmark" aria-label={t('media.shell.homepage')}><span className="media-brand-mark"><OxSteedIcon size={44} /></span><span>OxSteed<span className="media-wordmark-branch"> Media</span></span></Link>
-          {user && <div className="media-header-location">{locationButton}</div>}
+          <div className="media-header-location">{locationButton}</div>
           <form className="media-header-search" role="search" onSubmit={event => { event.preventDefault(); navigate(`/media/search${query.trim() ? `?q=${encodeURIComponent(query.trim())}` : ''}`); }}>
             <Search size={21} aria-hidden="true" /><input type="search" aria-label={t('media.search.placeholder')} placeholder={t('media.shell.search')} value={query} onChange={event => setQuery(event.target.value)} />
           </form>

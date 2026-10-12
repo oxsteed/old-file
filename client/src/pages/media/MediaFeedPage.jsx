@@ -31,18 +31,6 @@ export default function MediaFeedPage() {
   const generation = useRef(0);
   const inFlight = useRef(false);
 
-  useEffect(() => {
-    const next = new URLSearchParams(params);
-    if (location.location_mode === 'all') {
-      next.set('location', 'all'); next.delete('city'); next.delete('state');
-    } else if (location.location_mode === 'custom' && location.city && location.state) {
-      next.delete('location'); next.set('city', location.city); next.set('state', location.state);
-    } else {
-      next.delete('location'); next.delete('city'); next.delete('state');
-    }
-    if (next.toString() !== params.toString()) setParams(next, { replace: true });
-  }, [location, params, setParams]);
-
   const load = useCallback(async cursor => {
     if (cursor && inFlight.current) return;
     const request = ++generation.current;

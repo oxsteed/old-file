@@ -6,10 +6,10 @@ const scriptDirectory = dirname(fileURLToPath(import.meta.url));
 const localeDirectory = join(scriptDirectory, '../src/locales');
 const outputDirectory = join(localeDirectory, 'generated');
 const languages = ['en', 'es', 'fr', 'ht', 'ar'];
-// 512 KiB per shard: the Arabic catalog is the largest in UTF-8 bytes and
-// sits near the old 450 KiB ceiling at rest. The guard still catches
-// runaway catalog growth; raise deliberately, not casually.
-const maxShardBytes = 512 * 1024;
+// Arabic needs about 513 KiB per shard after the Media recovery translations.
+// Allow 16 KiB of headroom above the previous 512 KiB cap while retaining a
+// bounded three-shard budget in every supported language.
+const maxShardBytes = 528 * 1024;
 const shardCount = 3;
 
 await mkdir(outputDirectory, { recursive: true });

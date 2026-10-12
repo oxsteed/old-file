@@ -2403,6 +2403,7 @@
       "photoTitle": "Foto pwofil",
       "photoHint": "JPG oswa PNG, jiska 5 MB. Kliyan yo wè li sou pwofil ou.",
       "photoAlt": "Foto pwofil",
+      "previewPhoto": "Gade foto pwofil la",
       "uploadPhoto": "Mete foto",
       "changePhoto": "Chanje foto",
       "removePhoto": "Retire",
@@ -30663,6 +30664,10 @@
       "useDeviceLocation": "Sèvi ak kote aparèy mwen an",
       "locating": "N ap chèche kote ou ye…",
       "locationUnavailable": "Kote aparèy la pa disponib. Antre yon vil ak yon eta oswa rejyon pito.",
+      "locationPermissionDenied": "Yo refize aksè ak kote a. Pèmèt li pou sit sa a nan paramèt navigatè a oswa sistèm nan, epi eseye ankò. Ou ka antre yon vil oswa kòd postal tou.",
+      "locationPositionUnavailable": "Aparèy ou pa t kapab jwenn yon kote. Tcheke sèvis kote sistèm nan oswa rezo ou, epi eseye ankò, oswa antre yon vil oswa kòd postal.",
+      "locationTimeout": "Rechèch kote a pran twòp tan. Eseye ankò oswa antre yon vil oswa kòd postal.",
+      "locationUnsupported": "Navigatè sa a pa sipòte kote aparèy la. Antre yon vil oswa kòd postal.",
       "profileLocation": "Sèvi ak kote pwofil mwen an",
       "cursorChanged": "Kontèks fil ou a chanje. Rafrechi pou rekòmanse.",
       "refresh": "Rafrechi fil la",
@@ -30686,6 +30691,11 @@
       "followingEmptyDescription": "Swiv kont lokal verifye pou wè nouvèl yo nan fil sa a."
     },
     "spaces": {
+      "suggestionSubmitted": "Nou voye sijesyon espas la pou revizyon.",
+      "suggestionError": "Nou pa t kapab voye sijesyon sa a.",
+      "suggest": "Sijere yon espas",
+      "suggestTitle": "Sijere yon espas",
+      "suggestHint": "Di nou ki konvèsasyon lokal ki manke. Yon administratè revize sijesyon yo anvan yo vin piblik.",
       "description": "Chanèl lokal reyèl selon vil ak kategori.",
       "loading": "Espas yo ap chaje…",
       "loadError": "Nou pa ka chaje Espas la.",
@@ -30703,6 +30713,8 @@
       "emptyDescription": "Pataje yon bagay ki itil ak kominote lokal ou a."
     },
     "compose": {
+      "verificationRequired": "Verifikasyon obligatwa",
+      "notVerified": "Pa verifye",
       "saveDraft": "Anrejistre bouyon",
       "discardDraft": "Efase bouyon",
       "startNew": "Nouvo bouyon",

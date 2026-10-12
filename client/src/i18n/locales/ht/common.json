@@ -421,6 +421,7 @@
   },
   "updated": "Mete ajou",
   "loading": "Loading…",
+  "settings": { "profile": { "previewPhoto": "Gade foto pwofil la" } },
   "media": {
     "landing": {
       "heroTitle": "Katye ou, konekte.",
@@ -494,8 +495,19 @@
       "useDeviceLocation": "Sèvi ak kote aparèy mwen an",
       "locating": "N ap chèche kote ou ye…",
       "locationUnavailable": "Kote aparèy la pa disponib. Antre yon vil ak yon eta oswa rejyon pito.",
+      "locationPermissionDenied": "Yo refize aksè ak kote a. Pèmèt li pou sit sa a nan paramèt navigatè a oswa sistèm nan, epi eseye ankò. Ou ka antre yon vil oswa kòd postal tou.",
+      "locationPositionUnavailable": "Aparèy ou pa t kapab jwenn yon kote. Tcheke sèvis kote sistèm nan oswa rezo ou, epi eseye ankò, oswa antre yon vil oswa kòd postal.",
+      "locationTimeout": "Rechèch kote a pran twòp tan. Eseye ankò oswa antre yon vil oswa kòd postal.",
+      "locationUnsupported": "Navigatè sa a pa sipòte kote aparèy la. Antre yon vil oswa kòd postal.",
       "profileLocation": "Sèvi ak kote pwofil mwen an",
       "cursorChanged": "Kontèks fil ou a chanje. Rafrechi pou rekòmanse."
+    },
+    "spaces": {
+      "suggestionSubmitted": "Nou voye sijesyon espas la pou revizyon.",
+      "suggestionError": "Nou pa t kapab voye sijesyon sa a.",
+      "suggest": "Sijere yon espas",
+      "suggestTitle": "Sijere yon espas",
+      "suggestHint": "Di nou ki konvèsasyon lokal ki manke. Yon administratè revize sijesyon yo anvan yo vin piblik."
     },
     "search": {
       "loading": "N ap chèche nan Media…",
@@ -505,6 +517,8 @@
       "loadError": "Nou pa t ka chaje kont sa a. Eseye ankò."
     },
     "compose": {
+      "verificationRequired": "Verifikasyon obligatwa",
+      "notVerified": "Pa verifye",
       "saveDraft": "Anrejistre bouyon",
       "discardDraft": "Efase bouyon",
       "startNew": "Nouvo bouyon",
