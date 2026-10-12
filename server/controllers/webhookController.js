@@ -427,6 +427,24 @@ async function syncConnectAccountState(account) {
   });
 }
 
+// Review P3-888: when a claim is refused, distinguish a finished receipt
+// (true duplicate -> 200) from one still 'processing' (in flight, or left
+// behind by a crash). For the latter answer non-2xx so the provider keeps
+// retrying; the 15-minute reclaim then reprocesses it instead of the event
+// being acknowledged and silently dropped.
+async function receiptInFlight(provider, eventId) {
+  const { rows } = await db.query(
+    'SELECT status FROM webhook_event_receipts WHERE provider = $1 AND event_id = $2',
+    [provider, String(eventId)]
+  );
+  return rows[0]?.status === 'processing';
+}
+
+function respondInFlight(res) {
+  res.set('Retry-After', '60');
+  return res.status(409).json({ received: false, code: 'webhook_in_flight' });
+}
+
 async function beginWebhookEvent(provider, event) {
   if (!event?.id) return { shouldProcess: true };
 
@@ -464,6 +482,9 @@ async function beginWebhookEvent(provider, event) {
   );
 
   const receiptId = rows[0]?.id;
+  if (rows.length === 0) {
+    return { shouldProcess: false, receiptId: null, inFlight: await receiptInFlight(provider, event.id) };
+  }
   if (!receiptId || !objectId || eventCreated === null) {
     return { shouldProcess: rows.length > 0, receiptId };
   }
@@ -553,6 +574,10 @@ exports.stripeWebhook = async (req, res, next) => {
   try {
     const receipt = await beginWebhookEvent('stripe', event);
     receiptId = receipt.receiptId;
+    if (!receipt.shouldProcess && receipt.inFlight) {
+      logger.warn('Stripe webhook still in flight; asking the provider to retry', { eventId: event.id, eventType: event.type });
+      return respondInFlight(res);
+    }
     if (!receipt.shouldProcess) {
       logger.info('Duplicate Stripe webhook ignored', { eventId: event.id, eventType: event.type });
       return res.json({ received: true, duplicate: true, stale: receipt.stale === true });
@@ -1282,7 +1307,10 @@ async function beginDiditWebhookEvent(body) {
     [String(eventId), eventType, body.session_id ? String(body.session_id) : null, eventCreated]
   );
 
-  return { shouldProcess: rows.length > 0, receiptId: rows[0]?.id || null };
+  if (rows.length === 0) {
+    return { shouldProcess: false, receiptId: null, inFlight: await receiptInFlight('didit', eventId) };
+  }
+  return { shouldProcess: true, receiptId: rows[0]?.id || null };
 }
 
 // Didit identity webhook handler (v3 API)
@@ -1351,6 +1379,10 @@ exports.diditWebhook = async (req, res, next) => {
     }
 
     const event = await beginDiditWebhookEvent(body);
+    if (!event.shouldProcess && event.inFlight) {
+      logger.warn('[Didit] Webhook still in flight; asking the provider to retry', { eventId: body.event_id || body.id });
+      return respondInFlight(res);
+    }
     if (!event.shouldProcess) {
       logger.info('[Didit] Duplicate webhook ignored', { eventId: body.event_id || body.id });
       return res.json({ received: true, duplicate: true });
