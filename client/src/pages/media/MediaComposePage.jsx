@@ -22,7 +22,12 @@ const REQUEST_STORAGE_KEY = 'oxsteed.media.compose.request';
 function readPendingCreation(key) {
   try {
     const value = JSON.parse(window.localStorage.getItem(key));
-    return value?.draft === true && value.client_request_id ? value : null;
+    if (value?.draft !== true || !value.client_request_id) return null;
+    const destination = normalizeComposerDestination(value.destination);
+    return {
+      ...value,
+      destination: destination === 'space' && !value.community_id ? 'main' : destination,
+    };
   } catch { return null; }
 }
 
@@ -34,6 +39,13 @@ function newRequestId() {
   bytes[8] = (bytes[8] & 0x3f) | 0x80;
   const hex = [...bytes].map(value => value.toString(16).padStart(2, '0')).join('');
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+}
+
+function normalizeComposerDestination(value) {
+  const aliases = { feed: 'main', main_feed: 'main', home: 'main', community: 'space' };
+  const normalized = String(value || '').trim().toLowerCase();
+  const destination = aliases[normalized] || normalized;
+  return ['main', 'nearby', 'space'].includes(destination) ? destination : 'main';
 }
 
 function assetState(asset) {
@@ -62,7 +74,7 @@ export default function MediaComposePage() {
   const [links, setLinks] = useState(recoveredCreation.current?.links || []);
   const [contentWarningEnabled, setContentWarningEnabled] = useState(Boolean(recoveredCreation.current?.content_warning));
   const [contentWarning, setContentWarning] = useState(recoveredCreation.current?.content_warning || '');
-  const [destination, setDestination] = useState(recoveredCreation.current?.destination || 'main');
+  const [destination, setDestination] = useState(normalizeComposerDestination(recoveredCreation.current?.destination));
   const [communityId, setCommunityId] = useState(recoveredCreation.current?.community_id || '');
   const [communities, setCommunities] = useState([]);
   const [publishers, setPublishers] = useState([]);
@@ -116,7 +128,7 @@ export default function MediaComposePage() {
     body,
     links,
     community_id: destination === 'space' ? communityId || null : null,
-    destination,
+    destination: normalizeComposerDestination(destination),
     content_warning: contentWarningEnabled ? contentWarning : null,
   }), [body, links, communityId, destination, contentWarningEnabled, contentWarning]);
   const latestPayloadRef = useRef(payload());
@@ -144,7 +156,7 @@ export default function MediaComposePage() {
     setBody(draft.body || '');
     setLinks(draft.links || []);
     setAssets(draft.assets || []);
-    setDestination(draft.destination || (draft.community_id ? 'space' : 'main'));
+    setDestination(normalizeComposerDestination(draft.destination || (draft.community_id ? 'space' : 'main')));
     setCommunityId(draft.community_id || '');
     setContentWarningEnabled(Boolean(draft.content_warning));
     setContentWarning(draft.content_warning || '');
@@ -287,6 +299,11 @@ export default function MediaComposePage() {
       setErrorCode('media_publisher_unavailable');
       throw new Error('media_publisher_unavailable');
     }
+    if (destination === 'space' && !communityId) {
+      setError(t('media.compose.selectSpace'));
+      setErrorCode('media_space_required');
+      throw new Error('media_space_required');
+    }
     if (draftIdRef.current) return draftIdRef.current;
     if (creatingRef.current) return creatingRef.current;
     if (!creationPayloadRef.current) creationPayloadRef.current = { ...payload(), draft: true, client_request_id: requestIdRef.current, ...publisherPayload() };
@@ -308,7 +325,7 @@ export default function MediaComposePage() {
       throw err;
     }).finally(() => { creatingRef.current = null; });
     return creatingRef.current;
-  }, [draftStorageKey, requestStorageKey, payload, publisherPayload, publisherStatus, selectedPublisher, t]);
+  }, [communityId, destination, draftStorageKey, requestStorageKey, payload, publisherPayload, publisherStatus, selectedPublisher, t]);
 
   const saveDraft = useCallback(({ createIfNeeded = true } = {}) => {
     const session = sessionRef.current;
@@ -529,6 +546,7 @@ export default function MediaComposePage() {
     }
     if (!body.trim() && !assets.length && !links.length) { setError(t('media.compose.contentRequired')); bodyRef.current?.focus(); return; }
     if (pendingUpload || uploads.length) { setError(t('media.compose.uploadsPending')); return; }
+    if (destination === 'space' && !communityId) { setError(t('media.compose.selectSpace')); setErrorCode('media_space_required'); return; }
     if (destination === 'nearby' && !locationLabel) { setError(t('media.compose.locationRequired')); return; }
     setSubmitting(true);
     try {

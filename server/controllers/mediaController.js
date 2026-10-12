@@ -25,6 +25,20 @@ const POSTS_PER_DAY = 10;
 const MEDIA_REPORT_REASONS = new Set(['spam', 'harassment', 'unsafe', 'copyright']);
 const MAX_MEDIA_REPORT_NOTE_LENGTH = 1000;
 
+// `main` is the canonical destination. Accept the older composer labels at
+// the API boundary so drafts created by an older client can still be saved or
+// published after the destination cards were introduced.
+function normalizePostDestination(value, communityId = null) {
+  const raw = String(value || (communityId ? 'space' : 'main')).trim().toLowerCase();
+  const aliases = {
+    feed: 'main',
+    main_feed: 'main',
+    home: 'main',
+    community: 'space',
+  };
+  return aliases[raw] || raw;
+}
+
 function mediaCursor(value) {
   if (!value) return null;
   try {
@@ -1455,7 +1469,7 @@ async function createPost(req, res) {
     const normalizedBody = typeof body === 'string' ? body.trim() : '';
     const contentWarning = normalizeContentWarning(req.body?.content_warning);
     const clientRequestId = String(req.body?.client_request_id || '').trim() || null;
-    const destination = String(req.body?.destination || (community_id ? 'space' : 'main')).trim().toLowerCase();
+    const destination = normalizePostDestination(req.body?.destination, community_id);
 
     if (clientRequestId && !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(clientRequestId)) {
       return res.status(400).json({ error: 'client_request_id must be a UUID.', code: 'media_client_request_invalid' });
@@ -1756,7 +1770,7 @@ async function updateDraft(req, res) {
     return res.status(400).json({ error: 'Linked entities must be an array.', code: 'media_links_invalid' });
   }
   const communityId = req.body?.community_id || null;
-  const destination = String(req.body?.destination || (communityId ? 'space' : 'main')).trim().toLowerCase();
+  const destination = normalizePostDestination(req.body?.destination, communityId);
   if (!['main', 'nearby', 'space'].includes(destination) || (destination === 'space' && !communityId)) {
     return res.status(400).json({ error: 'Choose a valid post destination.', code: 'media_destination_invalid' });
   }
