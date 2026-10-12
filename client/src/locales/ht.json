@@ -12129,6 +12129,7 @@
     "date": "Dat"
   },
   "scheduling": {
+    "paymentRequired": "Peye sesyon sa a anvan ou rezève yon lè.",
     "selectTime": "Chwazi Tan Sesyon ou",
     "step1": "Etap 1 sou 3: Chwazi yon dat",
     "step2": "Etap 2 sou 3: Chwazi yon tan",
@@ -12226,6 +12227,11 @@
     "ratingStars": "{{count}} etwal"
   },
   "payment": {
+    "consultingCardStart": "Peye ak kat",
+    "consultingCardPay": "Peye kounye a",
+    "consultingCardProcessing": "Ap trete…",
+    "consultingCardPaid": "Nou resevwa peman an. Kounye a ou ka rezève sesyon ou.",
+    "consultingCardFailed": "Peman ak kat la echwe",
     "purchaseConsulting": "Achte Pakèt Konsiltasyon",
     "selectPackage": "Chwazi Pakèt",
     "hours": "èd",
@@ -26814,6 +26820,17 @@
     "requiresBusinessOnly": "Achtè biznis sèlman"
   },
   "adminConsultingPayments": {
+    "markPaid": "Make peye",
+    "markPaidMethod": "Metòd",
+    "markPaidReference": "Referans (opsyonèl)",
+    "markPaidConfirm": "Konfime peman",
+    "markPaidDone": "Fakti make peye",
+    "markPaidFailed": "Nou pa t ka make fakti a peye",
+    "method_bank_transfer": "Transfè bankè",
+    "method_check": "Chèk",
+    "method_cash": "Lajan kach",
+    "method_card_terminal": "Tèminal kat",
+    "method_other": "Lòt",
     "toastNameRequired": "Non pakè a obligatwa",
     "toastPricePositive": "Pri a dwe pi gran pase zewo",
     "toastSessionsWhole": "Kantite sesyon an dwe yon nonm antye omwen 1",

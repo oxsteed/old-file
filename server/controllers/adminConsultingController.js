@@ -648,6 +648,74 @@ exports.listPurchases = async (req, res) => {
  * List all admin invoices
  * GET /api/consulting/admin/invoices
  */
+// Review P3-1070: admins reconcile off-platform payments by marking an
+// invoice paid. Linked purchases and scheduled sessions are settled in the
+// same transaction so bookings (P3-1069) see the payment.
+const INVOICE_PAID_METHODS = new Set(['bank_transfer', 'check', 'cash', 'card_terminal', 'other']);
+exports.markInvoicePaid = async (req, res) => {
+  const invoiceId = Number(req.params.invoiceId);
+  const method = String(req.body?.method || '');
+  const reference = req.body?.reference ? String(req.body.reference).trim().slice(0, 200) : null;
+  if (!Number.isInteger(invoiceId) || invoiceId <= 0) return res.status(400).json({ error: 'Invalid invoice id' });
+  if (!INVOICE_PAID_METHODS.has(method)) return res.status(400).json({ error: 'Invalid payment method', code: 'invalid_method' });
+  let client;
+  try {
+    client = await db.connect();
+    await client.query('BEGIN');
+    const { rows } = await client.query(
+      `UPDATE consulting_invoices
+       SET status = 'paid', paid_at = NOW(), paid_method = $2, paid_reference = $3, paid_by = $4, updated_at = NOW()
+       WHERE id = $1 AND status IN ('sent', 'overdue')
+       RETURNING *`,
+      [invoiceId, method, reference, req.user?.id || null]
+    );
+    if (!rows.length) {
+      await client.query('ROLLBACK');
+      const { rows: cur } = await db.query('SELECT status FROM consulting_invoices WHERE id = $1', [invoiceId]);
+      if (!cur.length) return res.status(404).json({ error: 'Invoice not found' });
+      return res.status(409).json({ error: `Invoice is ${cur[0].status}`, code: 'invalid_invoice_status', status: cur[0].status });
+    }
+    const invoice = rows[0];
+    if (invoice.purchase_id) {
+      await client.query(
+        `UPDATE consulting_purchases SET status = 'completed', updated_at = NOW()
+         WHERE id = $1 AND status = 'pending'`,
+        [invoice.purchase_id]
+      );
+    }
+    if (invoice.session_scheduled_id && !invoice.consulting_payment_id) {
+      const { rows: pay } = await client.query(
+        `INSERT INTO consulting_payments (session_scheduled_id, amount_cents, service_tier, status, payment_method)
+         VALUES ($1, $2, COALESCE($3, 'off_platform'), 'completed', $4)
+         RETURNING id`,
+        [invoice.session_scheduled_id, invoice.amount_cents, invoice.service_tier, `off_platform_${method}`]
+      );
+      await client.query('UPDATE consulting_invoices SET consulting_payment_id = $2 WHERE id = $1', [invoice.id, pay[0].id]);
+      invoice.consulting_payment_id = pay[0].id;
+    }
+    await client.query('COMMIT');
+    try {
+      await logAdminAction({
+        adminId: req.user?.id,
+        action: 'consulting_invoice_marked_paid',
+        targetType: 'consulting_invoice',
+        targetId: String(invoice.id),
+        before: { status: 'sent' },
+        after: { status: 'paid', method, reference },
+      });
+    } catch (auditErr) {
+      logger.warn('markInvoicePaid audit failed', { error: auditErr.message });
+    }
+    return res.json(invoice);
+  } catch (err) {
+    if (client) await client.query('ROLLBACK').catch(() => {});
+    logger.error('markInvoicePaid error', { error: err.message });
+    return res.status(500).json({ error: 'Failed to mark invoice paid' });
+  } finally {
+    if (client) client.release();
+  }
+};
+
 exports.listInvoices = async (req, res) => {
   try {
     const result = await db.query(`

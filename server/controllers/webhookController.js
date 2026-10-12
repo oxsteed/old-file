@@ -858,6 +858,11 @@ exports.stripeWebhook = async (req, res, next) => {
         if (await restaurantTopupService.applyRestaurantTopupWebhookEvent({ type: event.type, object: event.data.object })) {
           break;
         }
+        // Review P3-1067: consulting session payments.
+        if (await require('../services/consultingPaymentService')
+          .applyConsultingPaymentWebhookEvent({ type: event.type, object: event.data.object })) {
+          break;
+        }
         const pi = event.data.object;
         if (pi?.metadata?.business_invoice_payment === 'true') {
           await withTransaction(db, (client) => businessInvoiceStripeConnectService
@@ -1020,6 +1025,10 @@ exports.stripeWebhook = async (req, res, next) => {
         // Restaurant customer top-up (fiat money IN, migration 663) that was
         // canceled.
         if (await restaurantTopupService.applyRestaurantTopupWebhookEvent({ type: event.type, object: event.data.object })) {
+          break;
+        }
+        if (await require('../services/consultingPaymentService')
+          .applyConsultingPaymentWebhookEvent({ type: event.type, object: event.data.object })) {
           break;
         }
         const pi = event.data.object;

@@ -12129,6 +12129,7 @@
     "date": "تاريخ"
   },
   "scheduling": {
+    "paymentRequired": "ادفع ثمن هذه الجلسة قبل حجز موعد.",
     "selectTime": "اختر وقت جلستك",
     "step1": "الخطوة 1 من 3: اختيار تاريخ",
     "step2": "الخطوة 2 من 3: اختيار الوقت",
@@ -12226,6 +12227,11 @@
     "ratingStars": "{{count}} نجوم"
   },
   "payment": {
+    "consultingCardStart": "الدفع بالبطاقة",
+    "consultingCardPay": "ادفع الآن",
+    "consultingCardProcessing": "جارٍ المعالجة…",
+    "consultingCardPaid": "تم استلام الدفعة. يمكنك الآن حجز جلستك.",
+    "consultingCardFailed": "فشل الدفع بالبطاقة",
     "purchaseConsulting": "شراء حزمة الاستشارات",
     "selectPackage": "حدد الحزمة",
     "hours": "ساعات",
@@ -26825,6 +26831,17 @@
     "requiresBusinessOnly": "مشترون تجاريون فقط"
   },
   "adminConsultingPayments": {
+    "markPaid": "تعليم كمدفوعة",
+    "markPaidMethod": "الطريقة",
+    "markPaidReference": "المرجع (اختياري)",
+    "markPaidConfirm": "تأكيد الدفع",
+    "markPaidDone": "تم تعليم الفاتورة كمدفوعة",
+    "markPaidFailed": "تعذر تعليم الفاتورة كمدفوعة",
+    "method_bank_transfer": "تحويل بنكي",
+    "method_check": "شيك",
+    "method_cash": "نقدًا",
+    "method_card_terminal": "جهاز البطاقات",
+    "method_other": "أخرى",
     "toastNameRequired": "اسم الباقة مطلوب",
     "toastPricePositive": "يجب أن يكون السعر أكبر من صفر",
     "toastSessionsWhole": "يجب أن يكون عدد الجلسات عددًا صحيحًا لا يقل عن 1",

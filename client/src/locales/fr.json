@@ -12129,6 +12129,7 @@
     "date": "Date"
   },
   "scheduling": {
+    "paymentRequired": "Payez cette séance avant de réserver un créneau.",
     "selectTime": "Choisissez votre heure de session",
     "step1": "Étape 1 sur 3 : Sélectionnez une date",
     "step2": "Étape 2 sur 3 : Sélectionnez une heure",
@@ -12226,6 +12227,11 @@
     "ratingStars": "{{count}} étoiles"
   },
   "payment": {
+    "consultingCardStart": "Payer par carte",
+    "consultingCardPay": "Payer maintenant",
+    "consultingCardProcessing": "Traitement…",
+    "consultingCardPaid": "Paiement reçu. Vous pouvez maintenant réserver votre séance.",
+    "consultingCardFailed": "Le paiement par carte a échoué",
     "purchaseConsulting": "Acheter un forfait de consultation",
     "selectPackage": "Sélectionner un forfait",
     "hours": "heures",
@@ -26814,6 +26820,17 @@
     "requiresBusinessOnly": "Acheteurs professionnels uniquement"
   },
   "adminConsultingPayments": {
+    "markPaid": "Marquer payée",
+    "markPaidMethod": "Méthode",
+    "markPaidReference": "Référence (facultatif)",
+    "markPaidConfirm": "Confirmer le paiement",
+    "markPaidDone": "Facture marquée payée",
+    "markPaidFailed": "Impossible de marquer la facture payée",
+    "method_bank_transfer": "Virement bancaire",
+    "method_check": "Chèque",
+    "method_cash": "Espèces",
+    "method_card_terminal": "Terminal de paiement",
+    "method_other": "Autre",
     "toastNameRequired": "Le nom du forfait est requis",
     "toastPricePositive": "Le prix doit être supérieur à zéro",
     "toastSessionsWhole": "Le nombre de séances doit être un nombre entier d'au moins 1",

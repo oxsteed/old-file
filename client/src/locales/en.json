@@ -12129,6 +12129,7 @@
     "date": "Date"
   },
   "scheduling": {
+    "paymentRequired": "Pay for this session before booking a time.",
     "selectTime": "Choose Your Session Time",
     "step1": "Step 1 of 3: Select a date",
     "step2": "Step 2 of 3: Select a time",
@@ -12226,6 +12227,11 @@
     "ratingStars": "{{count}} stars"
   },
   "payment": {
+    "consultingCardStart": "Pay by card",
+    "consultingCardPay": "Pay now",
+    "consultingCardProcessing": "Processing…",
+    "consultingCardPaid": "Payment received. You can now book your session.",
+    "consultingCardFailed": "Card payment failed",
     "purchaseConsulting": "Purchase Consulting Package",
     "selectPackage": "Select Package",
     "hours": "hours",
@@ -26814,6 +26820,17 @@
     "requiresBusinessOnly": "Business Buyers Only"
   },
   "adminConsultingPayments": {
+    "markPaid": "Mark paid",
+    "markPaidMethod": "Method",
+    "markPaidReference": "Reference (optional)",
+    "markPaidConfirm": "Confirm payment",
+    "markPaidDone": "Invoice marked paid",
+    "markPaidFailed": "Could not mark invoice paid",
+    "method_bank_transfer": "Bank transfer",
+    "method_check": "Check",
+    "method_cash": "Cash",
+    "method_card_terminal": "Card terminal",
+    "method_other": "Other",
     "toastNameRequired": "Package name is required",
     "toastPricePositive": "Price must be greater than zero",
     "toastSessionsWhole": "Session count must be a whole number of at least 1",

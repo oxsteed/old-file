@@ -1,4 +1,5 @@
 const db = require('../db');
+const { isScheduledSessionPaid } = require('../services/consultingPaymentService');
 const { sendEmail } = require('../utils/email');
 const logger = require('../utils/logger');
 const platformApprovalSvc = require('../services/modePlatformApprovalService');
@@ -270,6 +271,16 @@ exports.bookTimeSlot = async (req, res) => {
           current_status: consultantCheck.current_status,
         });
       }
+    }
+
+    // Review P3-1069: every consulting package is paid; the slot is only
+    // booked once the session has a completed payment (Stripe or an
+    // admin-recorded off-platform payment). Admins may book on credit.
+    if (!isAdmin && !(await isScheduledSessionPaid(session.id))) {
+      return res.status(402).json({
+        error: 'payment_required',
+        message: 'Pay for this consulting session before booking a time slot.',
+      });
     }
 
     // Calculate end time

@@ -12129,6 +12129,7 @@
     "date": "Fecha"
   },
   "scheduling": {
+    "paymentRequired": "Paga esta sesión antes de reservar un horario.",
     "selectTime": "Elige Tu Hora de Sesión",
     "step1": "Paso 1 de 3: Selecciona una fecha",
     "step2": "Paso 2 de 3: Selecciona una hora",
@@ -12226,6 +12227,11 @@
     "ratingStars": "{{count}} estrellas"
   },
   "payment": {
+    "consultingCardStart": "Pagar con tarjeta",
+    "consultingCardPay": "Pagar ahora",
+    "consultingCardProcessing": "Procesando…",
+    "consultingCardPaid": "Pago recibido. Ya puedes reservar tu sesión.",
+    "consultingCardFailed": "El pago con tarjeta falló",
     "purchaseConsulting": "Comprar Paquete de Consultoría",
     "selectPackage": "Seleccionar Paquete",
     "hours": "horas",
@@ -26814,6 +26820,17 @@
     "requiresBusinessOnly": "Solo compradores comerciales"
   },
   "adminConsultingPayments": {
+    "markPaid": "Marcar como pagada",
+    "markPaidMethod": "Método",
+    "markPaidReference": "Referencia (opcional)",
+    "markPaidConfirm": "Confirmar pago",
+    "markPaidDone": "Factura marcada como pagada",
+    "markPaidFailed": "No se pudo marcar la factura como pagada",
+    "method_bank_transfer": "Transferencia bancaria",
+    "method_check": "Cheque",
+    "method_cash": "Efectivo",
+    "method_card_terminal": "Terminal de tarjeta",
+    "method_other": "Otro",
     "toastNameRequired": "El nombre del paquete es obligatorio",
     "toastPricePositive": "El precio debe ser mayor que cero",
     "toastSessionsWhole": "El número de sesiones debe ser un número entero de al menos 1",

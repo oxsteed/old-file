@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import consultingPaymentApi from '../api/consultingPayment';
+import ConsultingCardPay from './ConsultingCardPay';
 import DirectPaymentRecordModal from './DirectPaymentRecordModal';
 import { X } from 'lucide-react';
 
@@ -149,6 +150,17 @@ export default function ConsultingPaymentModal({ sessionId, isOpen, onClose, onS
               </div>
             )}
           </div>
+
+          {selectedPkg && (
+            <div style={{ marginTop: '1.5rem' }}>
+              <ConsultingCardPay
+                key={selectedPkg.id}
+                sessionId={sessionId}
+                packageId={selectedPkg.id}
+                onPaid={(data) => { onSuccess?.(data); onClose?.(); }}
+              />
+            </div>
+          )}
 
           <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end', marginTop: '1.5rem' }}>
             <button
