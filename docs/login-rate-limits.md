@@ -25,6 +25,13 @@ Login completion hydrates the shared user context without resubmitting the
 server's successful response as a second, invalid credential request. This also
 keeps passkey login in the same authenticated context.
 
+Session refresh tries the current HttpOnly cookie first. A legacy browser token
+is submitted only when the server explicitly returns `401/no_token`, and is
+removed after a successful login or rotation. Expired, revoked, reused or
+temporarily unavailable cookie sessions never fall back to a stale body token.
+This prevents old browser storage from repeatedly triggering reuse detection
+and revoking fresh sessions. Server-side reuse detection remains unchanged.
+
 The global API limits still apply. Account-level password lockouts, OTP cooldowns,
 passkey throttling, password-recovery limits, CAPTCHA, and authentication checks
 are unchanged. Successful requests are still counted; this change does not allow
@@ -38,6 +45,10 @@ Regression coverage: `server/__tests__/loginRateLimit.test.js` exercises the rea
 router and in-memory limiter with synthetic traffic, including exhaustion,
 isolation, MFA, IP separation, and recovery/mutation protections. Controller and
 session-security suites separately verify authentication and account lockouts.
+`client/scripts/loginSession.browser-check.cjs` exercises the real Login,
+AuthProvider, protected route and Axios client against synthetic cookie sessions:
+password/passkey handoff, stale-token cleanup, repeated access-expiry reloads,
+one-time legacy migration, and fail-closed reuse rejection.
 
 No production account, credential, database, or deployment configuration changes
 are required. The fixes take effect when the updated API/client are deployed;

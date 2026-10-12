@@ -6,6 +6,7 @@ import toast from 'react-hot-toast';
 import { Eye, EyeOff, ArrowRight, MapPin, Briefcase, ShieldCheck, KeyRound } from 'lucide-react';
 import { startAuthentication } from '@simplewebauthn/browser';
 import { userPasskeyAPI } from '../api/twoFactor';
+import { persistSessionPayload } from '../api/auth';
 import Footer from '../components/Footer';
 import AuthNavbar from '../components/AuthNavbar';
 import { resolveAuthReturnPath } from '../utils/authReturnPath';
@@ -83,6 +84,7 @@ export default function Login({ embedded = false, returnTo } = {}) {
     // returns the same trusted user payload; hydrate context without submitting
     // the response as another credential request (which always fails validation).
     if (result?.user) {
+      persistSessionPayload(result);
       setUser(result.user);
     }
 

@@ -10,15 +10,18 @@ function setStoredAccessToken(_token) {
   // The access token is set as an httpOnly cookie by the server on
   // login/2FA/refresh. We intentionally do NOT store it in localStorage
   // to prevent XSS theft. The cookie is sent automatically with requests.
-  // This helper is kept as a no-op for API compatibility.
+  // Remove pre-cookie credentials after a successful session handoff.
+  localStorage.removeItem(ACCESS_TOKEN_KEY);
 }
 
 // H8d: the refresh token is no longer persisted to localStorage on web. The
 // server sets it as an httpOnly + Secure + SameSite cookie on login/refresh,
-// so XSS cannot steal it. This helper is kept as a no-op for API
-// compatibility; native clients receive the token in the JSON body as before.
+// so XSS cannot steal it. Native clients receive the token in the JSON body
+// as before; this web helper only removes superseded legacy credentials.
 function setStoredRefreshToken(_token) {
-  // Intentionally not stored: refresh travels via the httpOnly cookie.
+  // Never leave a legacy token shadowing the freshly rotated cookie. Reusing
+  // that invalidated token would trigger the server's session-reuse protection.
+  localStorage.removeItem(REFRESH_TOKEN_KEY);
 }
 
 function setStoredUser(user) {
@@ -57,8 +60,8 @@ export function getAccessToken() {
 
 // Returns a locally stored refresh token if one exists (pre-migration
 // sessions). New sessions rely on the httpOnly cookie, which JS cannot read;
-// the refresh interceptor sends the cookie automatically via withCredentials
-// and only includes the body token when one is stored.
+// the refresh interceptor sends the cookie automatically via withCredentials.
+// A stored body token is a one-time fallback only for the explicit no_token code.
 export function getRefreshToken() {
   return localStorage.getItem(REFRESH_TOKEN_KEY);
 }
@@ -78,6 +81,25 @@ let refreshPromise = null;
 const handleAdminChallenge = typeof window === 'undefined'
   ? () => {}
   : createAdminChallengeHandler(window.location);
+
+async function requestSessionRefresh() {
+  let response;
+  try {
+    // The current HttpOnly cookie is authoritative. A legacy body token can
+    // otherwise shadow it and revoke a perfectly valid newly signed-in session.
+    response = await api.post('/auth/refresh', {});
+  } catch (error) {
+    const legacyToken = getRefreshToken();
+    // Migrate an old browser only when the server explicitly has no cookie.
+    // Never fall back after expiry, reuse, revocation, throttling or an outage.
+    if (error.response?.status !== 401 || error.response?.data?.code !== 'no_token' || !legacyToken) {
+      throw error;
+    }
+    response = await api.post('/auth/refresh', { refreshToken: legacyToken });
+  }
+  persistSessionPayload(response.data);
+  return response;
+}
 
 api.interceptors.response.use(
   (response) => response,
@@ -99,23 +121,12 @@ api.interceptors.response.use(
       return Promise.reject(error);
     }
 
-    const refreshToken = getRefreshToken();
-    if (!refreshToken) {
-      // H8d: no stored token — the httpOnly cookie (sent automatically via
-      // withCredentials) is the refresh credential for current web sessions.
-      // Keep the local session; the refresh attempt below will clear it on a
-      // genuine 401.
-    }
-
     originalRequest._retry = true;
 
     try {
       refreshPromise =
         refreshPromise ||
-        // withCredentials sends the httpOnly refresh cookie automatically.
-        // Include the body token only when a legacy stored token exists
-        // (native/mobile clients and pre-migration web sessions).
-        api.post('/auth/refresh', refreshToken ? { refreshToken } : {});
+        requestSessionRefresh();
 
       const response = await refreshPromise;
       const newAccessToken = response.data?.accessToken;
@@ -176,6 +187,7 @@ export const authAPI = {
   },
 
   refresh: async (refreshToken) => {
+    if (!refreshToken) return requestSessionRefresh();
     const response = await api.post('/auth/refresh', { refreshToken });
     persistSessionPayload(response.data);
     return response;
