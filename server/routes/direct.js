@@ -100,7 +100,8 @@ router.post('/account/locations', authenticate, ctrl.saveLocation);
 router.patch('/account/locations/:locationId', authenticate, ctrl.saveLocation);
 router.delete('/account/locations/:locationId', authenticate, ctrl.deleteLocation);
 
-router.post('/requests', generalLimiter, limitDirectPhotoAttachments, quoteCtrl.createQuoteRequest);
+// Review P1-173: signed-in customers own the requests they create (optionalAuth sets req.user).
+router.post('/requests', generalLimiter, optionalAuth, limitDirectPhotoAttachments, quoteCtrl.createQuoteRequest);
 router.get('/requests/:id', authenticate, ctrl.getRequestDetail);
 router.get('/requests/:id/messages', authenticate, ctrl.getRequestMessages);
 router.post('/requests/:id/messages', authenticate, requireDg1StepUp, ctrl.addMessage);
