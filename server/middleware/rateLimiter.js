@@ -58,14 +58,51 @@ function getVerifiedBearerUserId(req) {
   return userId;
 }
 
+// Normal web sessions use HttpOnly cookies, not Authorization headers. Match
+// authenticate's token precedence so valid web sessions get the per-user budget,
+// while an invalid cookie cannot fall back to a different Bearer identity.
+// Signature verification is mandatory: cookie presence alone grants nothing.
+function getVerifiedAuthUserId(req) {
+  if (req._verifiedAuthUser !== undefined) return req._verifiedAuthUser;
+  let cookieToken = null;
+  const cookieHeader = req.headers.cookie;
+  if (typeof cookieHeader === 'string') {
+    const match = cookieHeader.match(/(?:^|;\s*)oxsteed_access=([^;]+)/);
+    if (match) {
+      try { cookieToken = decodeURIComponent(match[1]); } catch { cookieToken = match[1]; }
+    }
+  }
+  const header = req.headers.authorization;
+  const bearerToken = typeof header === 'string' && header.startsWith('Bearer ')
+    ? header.slice('Bearer '.length) : null;
+  // Decode only selects the token; the selected token is verified below.
+  let useBearer = false;
+  if (bearerToken) {
+    try { useBearer = !!jwt.decode(bearerToken)?.isImpersonated; } catch { /* malformed token */ }
+  }
+  const token = useBearer ? bearerToken : cookieToken || bearerToken;
+  let userId = null;
+  if (token) {
+    try {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET, { algorithms: ['HS256'] });
+      if (decoded && decoded.id != null && !decoded.isMfaToken && decoded.type !== 'refresh') {
+        userId = decoded.id;
+      }
+    } catch {
+      // Expired, malformed, wrongly signed, MFA and refresh tokens stay anonymous.
+    }
+  }
+  req._verifiedAuthUser = userId;
+  return userId;
+}
+
 // General API rate limiter: 200 requests per 15 minutes per IP (unauthenticated only)
 const generalLimiter = rateLimit({
   ...createStoreOption('rl:general:'),
   windowMs: 15 * 60 * 1000,
   max: 200,
-  // Skip only requests with a VERIFIED Bearer token - those are handled by
-  // authenticatedLimiter. Garbage or invalid tokens stay in this bucket.
-  skip: (req) => getVerifiedBearerUserId(req) !== null,
+  // Cookie and native Bearer sessions share the verified per-user budget.
+  skip: (req) => getVerifiedAuthUserId(req) !== null,
   standardHeaders: true,
   legacyHeaders: false,
   message: {
@@ -81,11 +118,9 @@ const authenticatedLimiter = rateLimit({
   ...createStoreOption('rl:auth_user:'),
   windowMs: 15 * 60 * 1000,
   max: 500,
-  // Applies only to requests with a verified token. Requests without one, or
-  // with an invalid one, are limited by generalLimiter instead (no IP fallback
-  // bucket here - the skip guarantees the cached id is non-null).
-  skip: (req) => getVerifiedBearerUserId(req) === null,
-  keyGenerator: (req) => `user:${getVerifiedBearerUserId(req)}`,
+  // No-token/invalid-token requests remain in the anonymous IP bucket.
+  skip: (req) => getVerifiedAuthUserId(req) === null,
+  keyGenerator: (req) => `user:${getVerifiedAuthUserId(req)}`,
   standardHeaders: true,
   legacyHeaders: false,
   message: {
@@ -636,6 +671,7 @@ const entityResolveLimiter = rateLimit({
 
 module.exports = {
   getVerifiedBearerUserId,
+  getVerifiedAuthUserId,
   generalLimiter,
   authenticatedLimiter,
   loginLimiter,

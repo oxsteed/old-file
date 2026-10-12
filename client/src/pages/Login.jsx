@@ -60,7 +60,7 @@ export default function Login({ embedded = false, returnTo } = {}) {
   const [loading, setLoading]           = useState(false);
   const [passkeyLoading, setPasskeyLoading] = useState(false);
 
-  const { login, completeTwoFactor } = useAuth();
+  const { login, completeTwoFactor, setUser } = useAuth();
   const navigate  = useNavigate();
   const location  = useLocation();
   const [searchParams] = useSearchParams();
@@ -79,9 +79,11 @@ export default function Login({ embedded = false, returnTo } = {}) {
       return;
     }
 
-    // Persist the session (tokens are in httpOnly cookies; hydrate AuthContext).
-    if (result?.accessToken) {
-      login(result);
+    // login/completeTwoFactor already established the session. Passkey login
+    // returns the same trusted user payload; hydrate context without submitting
+    // the response as another credential request (which always fails validation).
+    if (result?.user) {
+      setUser(result.user);
     }
 
     if (loggedInUser?.email_verified && !diditGateSatisfied(loggedInUser)) {

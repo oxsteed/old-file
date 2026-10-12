@@ -13,6 +13,18 @@ budgets separate across instances; the existing memory fallback remains availabl
 - Registration, OTP, and sensitive account mutations retain their 30-request cap.
 - Routine profile reads use the existing general/authenticated API limits.
 
+The global API boundary verifies both HttpOnly `oxsteed_access` cookies and
+native Bearer access tokens. Signed-in browser traffic uses the 500-request
+per-user budget instead of consuming the anonymous 200-request IP budget.
+Cookie precedence and impersonation selection match authentication middleware;
+malformed, expired, wrong-signature, MFA and refresh tokens remain anonymous.
+This budget classification is not authorization: route authentication still
+enforces revocation, active-account, ownership and identity checks.
+
+Login completion hydrates the shared user context without resubmitting the
+server's successful response as a second, invalid credential request. This also
+keeps passkey login in the same authenticated context.
+
 The global API limits still apply. Account-level password lockouts, OTP cooldowns,
 passkey throttling, password-recovery limits, CAPTCHA, and authentication checks
 are unchanged. Successful requests are still counted; this change does not allow
@@ -27,6 +39,6 @@ router and in-memory limiter with synthetic traffic, including exhaustion,
 isolation, MFA, IP separation, and recovery/mutation protections. Controller and
 session-security suites separately verify authentication and account lockouts.
 
-No frontend, production account, credential, database, or deployment configuration
-changes are required. The fix takes effect when the updated API is deployed;
+No production account, credential, database, or deployment configuration changes
+are required. The fixes take effect when the updated API/client are deployed;
 existing account lockouts must still expire normally.
