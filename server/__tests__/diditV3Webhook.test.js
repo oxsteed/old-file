@@ -61,6 +61,7 @@ function postSignedDidit(payload) {
 
 beforeEach(() => {
   resetMocks();
+  Object.values(diditEntityLink).forEach((fn) => fn.mockClear());
   jest.spyOn(logger, 'error').mockImplementation(() => {});
   jest.spyOn(logger, 'warn').mockImplementation(() => {});
   jest.spyOn(logger, 'info').mockImplementation(() => {});
