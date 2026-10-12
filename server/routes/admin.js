@@ -15,6 +15,7 @@ const profileVisCtrl  = require('../controllers/profileVisibilityController');
 const profileVisApprCtrl = require('../controllers/profileVisibilityApprovalsController');
 const convAdminCtrl   = require('../controllers/conversationsAdminController');
 const paymentsCtrl    = require('../controllers/paymentsAdminController');
+const paymentDisputeAdminCtrl = require('../controllers/paymentDisputeAdminController');
 const adminMsgCtrl    = require('../controllers/adminMessageController');
 const adminPhoneVerificationCtrl = require('../controllers/adminPhoneVerificationController');
 const adminOperationsCtrl = require('../controllers/adminOperationsController');
@@ -143,6 +144,9 @@ router.post('/planned-needs/:id/:action',            requireAdmin, requirePermis
 
 // Payments list (read-only)
 router.get('/payments', requireAdmin, requirePermission('view_financials'), paymentsCtrl.listPayments);
+// Review P3-821: main-app refund/payment disputes get an admin lifecycle.
+router.get('/payment-disputes', requireAdmin, requirePermission('manage_disputes'), paymentDisputeAdminCtrl.listPaymentDisputes);
+router.post('/payment-disputes/:id/decision', requireAdmin, requirePermission('manage_disputes'), paymentDisputeAdminCtrl.decidePaymentDispute);
 
 // Users - read + write actions (ban/unban logged; admins cannot ban other admins)
 router.get('/users',            requireAdmin, requirePermission('manage_users'), superCtrl.getUsers);

@@ -28,4 +28,8 @@ exports.disputeNotifications = {
     title: t('Your Credit dispute was decided', 'Se decidió tu disputa de Crédito', 'Votre litige Crédit a été tranché', 'Yo deside sou diskisyon Kredi ou', 'تم البت في نزاع الرصيد الخاص بك'),
     body: t('A decision was made on your OxSteed Credit dispute. Check your wallet for any compensation.', 'Se tomó una decisión sobre tu disputa de Crédito OxSteed. Revisa tu billetera por cualquier compensación.', 'Une décision a été prise sur votre litige Crédit OxSteed. Consultez votre portefeuille pour toute compensation.', 'Yo pran yon desizyon sou diskisyon Kredi OxSteed ou. Gade pòtfèy ou pou nenpòt konpansasyon.', 'تم اتخاذ قرار بشأن نزاع رصيد OxSteed. راجع محفظتك لأي تعويض.'),
   },
+  payment_dispute_updated: {
+    title: t('Your refund request was updated', 'Tu solicitud de reembolso se actualizó', 'Votre demande de remboursement a été mise à jour', 'Demann ranbousman ou a mete ajou', 'تم تحديث طلب الاسترداد الخاص بك'),
+    body: t('Our team made a decision on your refund request. Open your support tickets for details.', 'Nuestro equipo tomó una decisión sobre tu solicitud de reembolso. Abre tus tickets de soporte para ver los detalles.', 'Notre équipe a pris une décision sur votre demande de remboursement. Ouvrez vos tickets d’assistance pour les détails.', 'Ekip nou an pran yon desizyon sou demann ranbousman ou. Louvri tikè sipò ou yo pou detay.', 'اتخذ فريقنا قرارًا بشأن طلب الاسترداد. افتح تذاكر الدعم للتفاصيل.'),
+  },
 };
