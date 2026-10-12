@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useId } from 'react';
 import { createPortal } from 'react-dom';
 import { Link, useNavigate } from 'react-router-dom';
 import PrefetchLink from './PrefetchLink';
@@ -7,16 +7,14 @@ import { redeemVortexToken } from '../api/businesses';
 import { previewVortexCode, redeemVortexCode } from '../api/vortex';
 import { useCookieConsentContext } from '../context/CookieConsentContext';
 import { useTranslation } from 'react-i18next';
-import { LAUNCH_VISIBILITY } from '../utils/launchScope';
-import { canUseQrGenerator } from '../utils/modeAccess';
+import { footerNavigation } from '../utils/footerNavigation';
+import { useSupportWorkspaceAccess } from '../hooks/useSupportWorkspaceAccess';
 import './Footer.css';
 
-const SHOW_FOOTER_UTILITY_PILLS = LAUNCH_VISIBILITY.footerUtilityPills;
 const OXSTEED_MAIN_PHONE = '+1 (937) 408-5169';
 
 export default function Footer() {
   const { user } = useAuth();
-  const navigate = useNavigate();
   const year = new Date().getFullYear();
   const [vortexOpen, setVortexOpen] = useState(false);
   const [vortexPrefill, setVortexPrefill] = useState('');
@@ -39,7 +37,9 @@ export default function Footer() {
   // update the same showSettings state that <CookieConsent> is listening to.
   const { openSettings } = useCookieConsentContext();
   const { t } = useTranslation();
-  const showQrGenerator = canUseQrGenerator(user);
+  const footerId = useId();
+  const showSupportWorkspace = useSupportWorkspaceAccess(user);
+  const groups = footerNavigation(user, { showSupportWorkspace });
 
   return (
     <>
@@ -60,42 +60,28 @@ export default function Footer() {
               </svg>
               OxSteed
             </Link>
-            <p className="site-footer__tagline">
-              {t('footer.tagline')}
-            </p>
-            <p className="site-footer__subtagline">
-              {t('footer.subtagline')}
-            </p>
+            <p className="site-footer__tagline">{t('footer.compactTagline')}</p>
+            <div className="site-footer__contact">
+              <a href="mailto:support@oxsteed.com" className="site-footer__contact-link">
+                <bdi>support@oxsteed.com</bdi>
+              </a>
+              <a
+                href="tel:+19374085169"
+                aria-label={t('footer.callOxSteed', { defaultValue: 'Call OxSteed at {{phone}}', phone: OXSTEED_MAIN_PHONE })}
+                className="site-footer__contact-link"
+              >
+                <bdi dir="ltr">{OXSTEED_MAIN_PHONE}</bdi>
+              </a>
+            </div>
           </div>
 
           <div className="site-footer__link-grid">
-            <div className="site-footer__group">
-              <span className="site-footer__heading">
-                {t('footer.company')}
-              </span>
-              <FooterLink to="/how-it-works">{t('footer.howOxsteedWorks')}</FooterLink>
-              <FooterLink to="/about">{t('footer.about')}</FooterLink>
-              <FooterLink to="/careers">{t('footer.careers')}</FooterLink>
-            </div>
-            <div className="site-footer__group">
-              <span className="site-footer__heading">
-                {t('footer.platform')}
-              </span>
-              <FooterLink to="/direct">{t('footer.direct')}</FooterLink>
-              <FooterLink to="/products">{t('footer.products')}</FooterLink>
-              <FooterLink to="/delivery">{t('footer.delivery')}</FooterLink>
-              {LAUNCH_VISIBILITY.oxsteedMedia && (
-                <FooterLink to="/media">{t('footer.media')}</FooterLink>
-              )}
-              <FooterLink to="/consulting-intake">{t('footer.consultingIntake')}</FooterLink>
-              <span className="site-footer__heading site-footer__heading--nested">
-                {t('footer.resource')}
-              </span>
-              <FooterLink to="/learn">{t('nav.learnToDiy')}</FooterLink>
-              {showQrGenerator && (
-                <FooterLink to="/qr-generator">{t('footer.qrGenerator')}</FooterLink>
-              )}
-            </div>
+            {groups.map(group => (
+              <nav key={group.id} className="site-footer__group" aria-labelledby={`${footerId}-${group.id}`}>
+                <h2 id={`${footerId}-${group.id}`} className="site-footer__heading">{t(group.labelKey)}</h2>
+                {group.links.map(item => <FooterLink key={item.to} to={item.to}>{t(item.labelKey)}</FooterLink>)}
+              </nav>
+            ))}
           </div>
         </div>
 
@@ -108,6 +94,7 @@ export default function Footer() {
             <FooterLink to="/do-not-sell">{t('footer.doNotSell')}</FooterLink>
             <FooterLink to="/accessibility">{t('footer.accessibility')}</FooterLink>
             <button
+              type="button"
               onClick={openSettings}
               aria-label={t('footer.manageCookies')}
               className="site-footer__cookie-button"
@@ -115,54 +102,10 @@ export default function Footer() {
               {t('footer.manageCookies')}
             </button>
           </nav>
-
-          {SHOW_FOOTER_UTILITY_PILLS && (
-          <div className="site-footer__pills">
-            <button
-              type="button"
-              onClick={() => navigate('/vortex')}
-              className="site-footer__pill"
-            >
-              {t('footer.vortex')}
-            </button>
-            {user && (
-              <Link
-                to="/support/agent"
-                className="site-footer__pill"
-              >
-                {t('nav.supportWorkspace')}
-              </Link>
-            )}
-            <button
-              type="button"
-              onClick={() => navigate('/direct/request-quote')}
-              className="site-footer__pill"
-              title={t('footer.consultingTooltip')}
-            >
-              {t('footer.consulting')}
-            </button>
-          </div>
-          )}
         </div>
 
         <div className="site-footer__bottom">
           <p className="site-footer__copyright">&copy; {year} OxSteed LLC</p>
-          <p className="site-footer__contact">
-            <a
-              href="mailto:support@oxsteed.com"
-              className="site-footer__contact-link"
-            >
-              support@oxsteed.com
-            </a>
-            <span className="site-footer__contact-separator" aria-hidden="true">/</span>
-            <a
-              href="tel:+19374085169"
-              aria-label={t('footer.callOxSteed', { defaultValue: 'Call OxSteed at {{phone}}', phone: OXSTEED_MAIN_PHONE })}
-              className="site-footer__contact-link"
-            >
-              {OXSTEED_MAIN_PHONE}
-            </a>
-          </p>
         </div>
       </div>
 

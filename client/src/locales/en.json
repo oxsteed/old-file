@@ -1225,6 +1225,10 @@
     "errorStart": "Could not start verification"
   },
   "footer": {
+    "explore": "Explore",
+    "help": "Help",
+    "compactTagline": "Local help, food, and business services.",
+    "teamAccess": "Team access (Vortex)",
     "networkTagline": "OxSteed network",
     "platform": "Platform",
     "company": "Company",

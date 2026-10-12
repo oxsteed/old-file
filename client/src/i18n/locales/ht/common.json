@@ -1,4 +1,10 @@
 {
+  "footer": {
+    "explore": "Eksplore",
+    "help": "Èd",
+    "compactTagline": "Èd lokal, manje ak sèvis pou biznis.",
+    "teamAccess": "Aksè ekip (Vortex)"
+  },
 "nav": {
   "findHelp": "Jwenn èd",
   "myJobs": "Travay mwen yo",

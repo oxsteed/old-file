@@ -1,4 +1,10 @@
 {
+  "footer": {
+    "explore": "Explorer",
+    "help": "Aide",
+    "compactTagline": "Aide locale, restauration et services aux entreprises.",
+    "teamAccess": "Accès à l’équipe (Vortex)"
+  },
 "nav": {
   "findHelp": "Trouver de l’aide",
   "myJobs": "Mes demandes",

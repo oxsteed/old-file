@@ -31,10 +31,11 @@ test('mode navbar renders responsive priorities, accessible disclosures and work
   const bundle = await build({
     stdin: { contents: `import React from 'react'; import {createRoot} from 'react-dom/client';
       import {BrowserRouter,useNavigate} from 'react-router-dom';
+      import {QueryClient,QueryClientProvider} from '@tanstack/react-query';
       import {createInstance} from 'i18next'; import {I18nextProvider} from 'react-i18next';
       import Navbar from './src/components/Navbar.jsx';
       import {AuthContext} from '../context/AuthContext'; import {LanguageContext} from '../context/LanguageContext'; import {ThemeContext} from '../context/ThemeContext';
-      const i18n=createInstance(); await i18n.init({lng:'en',fallbackLng:'en',resources:${JSON.stringify(catalogs)},interpolation:{escapeValue:false}});
+      const queryClient=new QueryClient(); const i18n=createInstance(); await i18n.init({lng:'en',fallbackLng:'en',resources:${JSON.stringify(catalogs)},interpolation:{escapeValue:false}});
       window.fixtureBusinesses=${JSON.stringify(businesses)}; window.unreadCount=1;
       const events=new Map(); window.fixtureSocket={on:(name,fn)=>{if(!events.has(name))events.set(name,new Set());events.get(name).add(fn);},off:(name,fn)=>events.get(name)?.delete(fn)};
       window.emitUnread=()=>events.get('messages:read')?.forEach(fn=>fn());
@@ -48,7 +49,7 @@ test('mode navbar renders responsive priorities, accessible disclosures and work
           <ThemeContext.Provider value={{isDark:config.theme!=='light',toggleTheme:()=>{}}}><Navbar key={config.userId||1}/><main><button id="outside">Outside navigation</button></main></ThemeContext.Provider>
           </LanguageContext.Provider></AuthContext.Provider></I18nextProvider>;
       }
-      createRoot(document.getElementById('root')).render(<BrowserRouter><Harness/></BrowserRouter>);`, resolveDir: root, loader: 'jsx' },
+      createRoot(document.getElementById('root')).render(<QueryClientProvider client={queryClient}><BrowserRouter><Harness/></BrowserRouter></QueryClientProvider>);`, resolveDir: root, loader: 'jsx' },
     bundle: true, write: false, jsx: 'automatic', format: 'esm', loader: { '.css': 'empty' }, define: { 'import.meta.env': '{}' },
     plugins: [{ name: 'navbar-fixture-dependencies', setup(plugin) {
       plugin.onResolve({ filter: /.*/ }, args => mocks[args.path] ? { path: args.path, namespace: 'navbar-fixture' } : undefined);

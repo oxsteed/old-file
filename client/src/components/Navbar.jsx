@@ -13,6 +13,7 @@ import { MODE_CATALOG, routeForMode } from '../utils/modeRouter';
 import { navbarMode, navbarNavigation, navbarLinkActive, navbarWorkspacePath } from '../utils/navbarNavigation';
 import { readLastBusinessHubId } from '../utils/businessProfileForm';
 import { useNavDisclosure } from '../hooks/useNavDisclosure';
+import { useSupportWorkspaceAccess } from '../hooks/useSupportWorkspaceAccess';
 import { LAUNCH_VISIBILITY } from '../utils/launchScope';
 import { canUseQrGenerator } from '../utils/modeAccess';
 import { useSocket } from '../hooks/useSocket';
@@ -170,7 +171,7 @@ export default function Navbar() {
   const currentMode = navbarMode(user);
   const { open: mobileOpen, setOpen: setMobileOpen, containerRef: mobileRef, triggerRef: mobileTriggerRef, panelId: mobilePanelId } = useNavDisclosure(currentMode);
   const [resourcesMenuOpen, setResourcesMenuOpen] = useState(false);
-  const [showSupportWorkspaceNav, setShowSupportWorkspaceNav] = useState(false);
+  const showSupportWorkspaceNav = useSupportWorkspaceAccess(user);
   const resourcesMenuRef = useRef(null);
   const dashboardPath = routeForMode(currentMode);
   const workspacePath = navbarWorkspacePath(location.pathname, readLastBusinessHubId());
@@ -224,27 +225,6 @@ export default function Navbar() {
       document.removeEventListener('visibilitychange', onVisibility);
     };
   }, [refreshUnreadCounts, socket, user]);
-
-  useEffect(() => {
-    if (!user) {
-      setShowSupportWorkspaceNav(false);
-      return;
-    }
-    let cancelled = false;
-    (async () => {
-      try {
-        const { data } = await api.get('/support/agent/me');
-        if (cancelled) return;
-        const list = Array.isArray(data?.data) ? data.data : [];
-        setShowSupportWorkspaceNav(list.length > 0);
-      } catch {
-        if (!cancelled) setShowSupportWorkspaceNav(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [user]);
 
   useEffect(() => { setResourcesMenuOpen(false); }, [location.pathname, location.search, currentMode]);
 

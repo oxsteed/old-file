@@ -1312,6 +1312,10 @@
     "errorStart": "Pa kapab kòmanse verifikasyon"
   },
   "footer": {
+    "explore": "Eksplore",
+    "help": "Èd",
+    "compactTagline": "Èd lokal, manje ak sèvis pou biznis.",
+    "teamAccess": "Aksè ekip (Vortex)",
     "networkTagline": "Rezo OxSteed",
     "platform": "Platfòm",
     "company": "Konpayi",

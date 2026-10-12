@@ -1225,6 +1225,10 @@
     "errorStart": "تعذر بدء التحقق"
   },
   "footer": {
+    "explore": "استكشف",
+    "help": "المساعدة",
+    "compactTagline": "مساعدة محلية وطعام وخدمات للأعمال.",
+    "teamAccess": "دخول الفريق (Vortex)",
     "networkTagline": "شبكة أوكسستيد",
     "platform": "المنصة",
     "company": "الشركة",

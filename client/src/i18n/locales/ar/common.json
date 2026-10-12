@@ -1,4 +1,10 @@
 {
+  "footer": {
+    "explore": "استكشف",
+    "help": "المساعدة",
+    "compactTagline": "مساعدة محلية وطعام وخدمات للأعمال.",
+    "teamAccess": "دخول الفريق (Vortex)"
+  },
 "nav": {
   "findHelp": "العثور على مساعدة",
   "myJobs": "طلباتي",
