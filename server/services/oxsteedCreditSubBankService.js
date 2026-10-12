@@ -459,8 +459,17 @@ async function replayDualPostingBackfill(pool, { limit = 100 } = {}) {
   if (!(await isCreditRailEnabled(pool))) {
     return { replayed: 0, failed: 0, skipped: 'rail_disabled' };
   }
+  // Review P1-249: a frozen rail would fail every row and burn all retry
+  // attempts during one sweep. Skip the sweep until the freeze clears.
+  try {
+    await assertCreditRailNotFrozen(pool);
+  } catch (err) {
+    if (err && err.code === 'credit_rail_frozen') return { replayed: 0, failed: 0, parked: 0, skipped: 'rail_frozen' };
+    throw err;
+  }
   const bound = Math.min(500, Math.max(1, Number(limit) || 100));
   let replayed = 0;
+  let deferred = 0;
   let failed = 0;
   let parked = 0;
   await withTransaction(pool, async (client) => {
@@ -474,6 +483,22 @@ async function replayDualPostingBackfill(pool, { limit = 100 } = {}) {
       [bound]
     );
     for (const row of rows) {
+      // Review P1-255: a refund must not post before its redemption has
+      // been replayed, or the sub-bank is credited without ever having
+      // been debited. Leave it pending (no attempt burned) until then.
+      const originalDebitEntryId = row.metadata && row.metadata.originalDebitEntryId;
+      if (row.entry_type === 'refund' && originalDebitEntryId !== undefined && originalDebitEntryId !== null && String(originalDebitEntryId) !== '') {
+        const { rows: originals } = await client.query(
+          `SELECT status FROM credit_dual_posting_backfill
+            WHERE ledger_entry_id::text = $1::text AND status <> 'processed'
+            LIMIT 1`,
+          [String(originalDebitEntryId)]
+        );
+        if (originals.length) {
+          deferred += 1;
+          continue;
+        }
+      }
       try {
         await postFoodWalletDualEntry(client, {
           ledgerEntryId: row.ledger_entry_id,
@@ -519,8 +544,40 @@ async function replayDualPostingBackfill(pool, { limit = 100 } = {}) {
       }
     }
   }, 'dual-posting-backfill-replay');
-  if (replayed) logger.info('[SubBank] dual-posting backfill replayed', { replayed, failed, parked });
-  return { replayed, failed, parked };
+  if (replayed) logger.info('[SubBank] dual-posting backfill replayed', { replayed, failed, parked, deferred });
+  return { replayed, failed, parked, deferred };
+}
+
+/** Review P1-249: operator view of rows parked as 'failed'. */
+async function listParkedDualPostingBackfill(pool, { limit = 100 } = {}) {
+  const bound = Math.min(500, Math.max(1, Number(limit) || 100));
+  const { rows } = await pool.query(
+    `SELECT id, ledger_entry_id, restaurant_id, entry_type, reference_type, amount_cents,
+            currency_code, attempts, last_error, created_at
+       FROM credit_dual_posting_backfill
+      WHERE status = 'failed'
+      ORDER BY created_at ASC
+      LIMIT $1`,
+    [bound]
+  );
+  return rows;
+}
+
+/** Review P1-249: put parked rows back in the queue with fresh attempts. */
+async function requeueParkedDualPostingBackfill(pool, { ids = null } = {}) {
+  const params = [];
+  let filter = '';
+  if (Array.isArray(ids) && ids.length) {
+    params.push(ids.map(String));
+    filter = ` AND id::text = ANY($1::text[])`;
+  }
+  const { rowCount } = await pool.query(
+    `UPDATE credit_dual_posting_backfill
+        SET status = 'pending', attempts = 0
+      WHERE status = 'failed'${filter}`,
+    params
+  );
+  return { requeued: rowCount || 0 };
 }
 
 module.exports = {
@@ -535,6 +592,8 @@ module.exports = {
   dualPostingIdempotencyKey,
   postFoodWalletDualEntry,
   replayDualPostingBackfill,
+  listParkedDualPostingBackfill,
+  requeueParkedDualPostingBackfill,
   insertDualPostingBackfill,
   getRestaurantWalletOutstanding,
 };

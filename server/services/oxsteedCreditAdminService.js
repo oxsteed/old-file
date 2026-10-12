@@ -1586,7 +1586,7 @@ const SETTLEMENT_TRANSITIONS = {
   voided: new Set(),
 };
 
-async function transitionSettlement({ settlementId, targetStatus, expectedStatus, actorUserId, reason, paymentReference, correlationId, requestIp }) {
+async function transitionSettlement({ settlementId, targetStatus, expectedStatus, actorUserId, reason, paymentReference, correlationId, requestIp, fromPayoutConfirmation = false }) {
   const normalizedTarget = normalizeString(targetStatus, 20);
   if (!['pending', 'approved', 'paid', 'disputed', 'voided'].includes(normalizedTarget)) throw new AppError('Invalid settlement status', 400, 'invalid_credit_settlement_status');
   if (expectedStatus !== undefined && expectedStatus !== null && (typeof expectedStatus !== 'string' || !normalizeString(expectedStatus, 20))) throw new AppError('Invalid expected settlement status', 400, 'invalid_credit_settlement_expected_status');
@@ -1622,6 +1622,15 @@ async function transitionSettlement({ settlementId, targetStatus, expectedStatus
       return { settlement: formatSettlement(settlement), replayed: true };
     }
     if (!SETTLEMENT_TRANSITIONS[settlement.status]?.has(normalizedTarget)) throw new AppError(`Cannot move settlement from '${settlement.status}' to '${normalizedTarget}'`, 409, 'credit_settlement_transition_invalid');
+    // Review P1-248/P1-254: a Stripe payout in flight (or already paid out)
+    // owns the settlement's next transition. Voiding/disputing it would strand
+    // the payout reservation and make the transfer webhook fail forever, and a
+    // manual mark-paid would record evidence that contradicts the transfer.
+    if (!fromPayoutConfirmation && ['initiated', 'paid'].includes(settlement.payout_status)
+      && ['paid', 'voided', 'disputed'].includes(normalizedTarget)
+      && settlement.status === 'approved') {
+      throw new AppError(`Settlement has a Stripe payout ${settlement.payout_status === 'paid' ? 'completed' : 'in flight'}; wait for it to settle or fail first`, 409, 'credit_settlement_payout_in_flight', { payoutStatus: settlement.payout_status });
+    }
     requireAdministrativeActor(actorUserId, 'An identified administrator is required to change a Credit settlement', 'credit_settlement_actor_required');
     if (normalizedTarget === 'approved' && !actorUserId) {
       throw new AppError('An identified admin is required to approve a settlement', 400, 'credit_settlement_approver_required');
@@ -2982,6 +2991,7 @@ async function confirmSettlementPayoutFromTransfer(stripeTransferId) {
       reason: SETTLEMENT_PAYOUT_CONFIRM_AUDIT_REASON,
       correlationId: `credit-settlement-payout:${settlement.id}`,
       requestIp: null,
+      fromPayoutConfirmation: true,
     });
   } catch (err) {
     await withTransaction(pool, async (client) => {

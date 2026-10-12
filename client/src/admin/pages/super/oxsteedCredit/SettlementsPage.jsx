@@ -103,7 +103,7 @@ function SettlementControls({
               <td className="px-3 py-3 text-gray-400">{settlement.valueDate ? dateTime(settlement.valueDate) : t('adminUnknownDate')}</td>
               <td className="px-3 py-3 font-semibold text-emerald-300">{money(settlement.netCents, settlement.currencyCode)}</td>
               <td className="px-3 py-3"><Badge status={settlement.status} /><p className="mt-1 break-all text-[10px] text-gray-600">{t('adminPayoutStatus')}: {localizeCreditStatus(settlement.payoutStatus || 'none', t)}</p><p className="mt-1 break-all text-[10px] text-gray-600">{t('adminCreatedBy')} {settlement.createdBy || t('adminSystem')}</p>{settlement.approvedBy && <p className="mt-1 break-all text-[10px] text-sky-300">{t('adminApprovedBy')} {settlement.approvedBy}</p>}</td>
-              <td className="px-3 py-3"><div className="flex flex-wrap gap-2">{settlement.status === 'pending' && <button disabled={busy} onClick={() => transitionSettlement(settlement, 'approved')} className="rounded-lg bg-sky-600 px-2.5 py-2 font-semibold text-white hover:bg-sky-500 disabled:opacity-50">{t('adminApprove')}</button>}{settlement.status === 'approved' && <button disabled={busy} onClick={() => transitionSettlement(settlement, 'paid')} className="rounded-lg bg-emerald-600 px-2.5 py-2 font-semibold text-white hover:bg-emerald-500 disabled:opacity-50">{t('adminMarkPaid')}</button>}{['pending', 'approved'].includes(settlement.status) && <button disabled={busy} onClick={() => transitionSettlement(settlement, 'voided')} className="rounded-lg border border-red-500/30 px-2.5 py-2 font-semibold text-red-300 hover:bg-red-500/10 disabled:opacity-50">{t('adminVoid')}</button>}</div></td>
+              <td className="px-3 py-3"><div className="flex flex-wrap gap-2">{settlement.status === 'pending' && <button disabled={busy} onClick={() => transitionSettlement(settlement, 'approved')} className="rounded-lg bg-sky-600 px-2.5 py-2 font-semibold text-white hover:bg-sky-500 disabled:opacity-50">{t('adminApprove')}</button>}{settlement.status === 'approved' && !['initiated', 'paid'].includes(settlement.payoutStatus) && <button disabled={busy} onClick={() => transitionSettlement(settlement, 'paid')} className="rounded-lg bg-emerald-600 px-2.5 py-2 font-semibold text-white hover:bg-emerald-500 disabled:opacity-50">{t('adminMarkPaid')}</button>}{['pending', 'approved'].includes(settlement.status) && !['initiated', 'paid'].includes(settlement.payoutStatus) && <button disabled={busy} onClick={() => transitionSettlement(settlement, 'voided')} className="rounded-lg border border-red-500/30 px-2.5 py-2 font-semibold text-red-300 hover:bg-red-500/10 disabled:opacity-50">{t('adminVoid')}</button>}</div></td>
             </tr>)}
           </tbody>
         </table>
@@ -251,8 +251,8 @@ export default function OxsteedCreditSettlementsPage() {
     setBusy(true); setNotice(''); setError('');
     try {
       const response = await adminApi.post(`/admin/super/oxsteed-credit/settlements/${settlement.id}/status`, { status, expectedStatus: settlement.status, reason: reason.trim(), paymentReference: paymentReference.trim() || undefined });
-      // Phase 7 (gap 9): approval (status=approved) queues as a pending action
-      // for a second admin; every other transition executes immediately.
+      // Phase 7 (gap 9) + review P1-247: approval and mark-paid queue as a
+      // pending action for a second admin; other transitions execute immediately.
       setNotice(response.status === 202
         ? t('adminMakerCheckerQueued')
         : t('adminSettlementStatusChanged', { partner: settlement.restaurantName || t('adminPartner'), status: localizeCreditStatus(status, t) }));

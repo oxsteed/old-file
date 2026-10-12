@@ -186,6 +186,9 @@ async function findAdjustmentForUpdate(client, id) {
 }
 
 async function assertDailyCap(client, proposedBy, additionalCents) {
+  // Review P1-250: serialize cap checks per proposer so two concurrent
+  // approvals cannot both read the same "used today" total.
+  await client.query(`SELECT pg_advisory_xact_lock(hashtext($1))`, [`agent-credit-adjustment-cap:${proposedBy}`]);
   const { rows } = await client.query(
     `SELECT COALESCE(SUM(ABS(amount_cents)), 0)::bigint AS used_today
        FROM credit_adjustments

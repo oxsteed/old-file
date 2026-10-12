@@ -508,8 +508,33 @@ async function decidePendingAction({ actionId, decidedBy, decision, reason, step
       });
       throw new AppError('Pending action has expired and can no longer be decided', 409, 'credit_pending_action_expired');
     }
+    let breakGlassSelfApproval = false;
     if (String(action.requested_by) === String(decidedBy)) {
-      throw new AppError('The requesting administrator cannot approve their own action', 403, 'credit_self_approval_forbidden');
+      // Review P1-251: an org with a single active super-admin can never get a
+      // second approver. Ops can opt in to a break-glass self-approval (env
+      // CREDIT_SINGLE_ADMIN_BREAK_GLASS=true) that only applies while exactly
+      // one active super-admin exists, needs a reason, and is audited.
+      const breakGlassEnabled = String(process.env.CREDIT_SINGLE_ADMIN_BREAK_GLASS || '').toLowerCase() === 'true';
+      if (breakGlassEnabled && normalizedDecision === 'approved' && normalizedReason) {
+        const { rows: admins } = await client.query(
+          `SELECT COUNT(*)::int AS n FROM users
+            WHERE role = 'super_admin' AND COALESCE(is_active, TRUE) = TRUE AND deleted_at IS NULL`
+        );
+        breakGlassSelfApproval = Number(admins[0]?.n) === 1;
+      }
+      if (!breakGlassSelfApproval) {
+        throw new AppError('The requesting administrator cannot approve their own action', 403, 'credit_self_approval_forbidden');
+      }
+      await insertAudit(client, {
+        actionType: 'credit.pending_action.break_glass_self_approval',
+        actorUserId: decidedBy,
+        resourceType: 'pending_action',
+        resourceId: String(action.id),
+        reason: normalizedReason,
+        correlationId: correlationId || null,
+        requestIp: requestIp || null,
+        metadata: { actionType: action.action_type },
+      });
     }
     if (normalizedDecision === 'rejected' && !normalizedReason) {
       throw new AppError('A reason is required to reject a pending action', 400, 'credit_decision_reason_required');
@@ -593,12 +618,35 @@ async function getPendingAction(actionId) {
   return formatPendingAction(rows[0] || null);
 }
 
+/** Review P1-253: expire undecided actions past their deadline. */
+async function expireStalePendingActions() {
+  const { rows } = await pool.query(
+    `UPDATE oxsteed_credit_pending_actions
+        SET status = 'expired', decided_at = NOW()
+      WHERE status = 'pending' AND expires_at IS NOT NULL AND expires_at < NOW()
+      RETURNING id, action_type`
+  );
+  for (const row of rows) {
+    await insertAudit(pool, {
+      actionType: 'credit.pending_action.expired',
+      actorUserId: null,
+      resourceType: 'pending_action',
+      resourceId: String(row.id),
+      reason: 'Pending action expired before a decision (sweeper)',
+      metadata: { actionType: row.action_type },
+    }).catch(() => {});
+  }
+  return { expired: rows.length };
+}
+
 async function listPendingActions({ status = null, limit = 50, offset = 0 } = {}) {
   const where = [];
   const params = [];
   if (status && PENDING_ACTION_STATUSES.includes(status)) {
     params.push(status);
     where.push(`status = $${params.length}`);
+    // Review P1-253: past-deadline rows are not decidable; don't list them as pending.
+    if (status === 'pending') where.push('(expires_at IS NULL OR expires_at >= NOW())');
   }
   params.push(Math.min(200, Math.max(1, Number(limit) || 50)));
   params.push(Math.max(0, Number(offset) || 0));
@@ -620,5 +668,6 @@ module.exports = {
   decidePendingAction,
   getPendingAction,
   listPendingActions,
+  expireStalePendingActions,
   resolveActionAmountCents,
 };
