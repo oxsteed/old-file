@@ -180,6 +180,7 @@ router.delete('/markets/:marketId/zip-codes', requireAdmin, requirePermission('m
 
 // Full dashboard + charts
 router.get('/super/dashboard',          requireSuperAdmin, superCtrl.getDashboardStats);
+router.post('/super/subscriptions/:id/cancel', requireSuperAdmin, require('../controllers/subscriptionController').adminCancelSubscription);
 router.get('/super/revenue-chart',      requireSuperAdmin, superCtrl.getRevenueChart);
 router.get('/super/dashboard/activity', requireSuperAdmin, superCtrl.getDashboardActivity);
 router.get('/super/dashboard/geo',      requireSuperAdmin, superCtrl.getDashboardGeo);
