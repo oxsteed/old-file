@@ -22,7 +22,8 @@
   cursor: pointer;
   transition: background 120ms ease, border-color 120ms ease;
   text-decoration: none;
-  max-width: 240px;
+  max-width: 200px;
+  min-height: 44px;
 }
 
 .ox-biz-switcher__btn:hover,
@@ -35,7 +36,8 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 160px;
+  max-width: 120px;
+  min-width: 0;
 }
 
 .ox-biz-switcher__avatar {
@@ -55,8 +57,8 @@
 .ox-biz-switcher__menu {
   position: absolute;
   top: calc(100% + 6px);
-  right: 0;
-  min-width: 240px;
+  inset-inline-end: 0;
+  min-width: min(240px, calc(100vw - 2rem));
   max-width: 320px;
   background: var(--card-bg, #fff);
   color: var(--app-text, inherit);
@@ -86,7 +88,8 @@
   color: inherit;
   border: 0;
   font: inherit;
-  text-align: left;
+  text-align: start;
+  min-height: 44px;
   cursor: pointer;
 }
 

@@ -1,4 +1,14 @@
 {
+"nav": {
+  "findHelp": "Trouver de l’aide",
+  "myJobs": "Mes demandes",
+  "orderFood": "Commander à manger",
+  "myWork": "Mon activité",
+  "workspace": "Espace de travail",
+  "businessWorkspace": "Espace professionnel",
+  "foodOrders": "Commandes de repas",
+  "account": "Compte"
+},
 "signupUpgrade": {
   "title": "Créez votre compte",
   "subtitle": "Un compte. Votre choix.",

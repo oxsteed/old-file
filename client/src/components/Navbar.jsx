@@ -9,9 +9,12 @@ import LanguageSelector from './LanguageSelector';
 import BusinessSwitcher from './BusinessSwitcher';
 import ModeSwitcher from './ModeSwitcher';
 import OxSteedNetworkSwitcher from './OxSteedNetworkSwitcher';
-import { routeForMode } from '../utils/modeRouter';
+import { MODE_CATALOG, routeForMode } from '../utils/modeRouter';
+import { navbarMode, navbarNavigation, navbarLinkActive, navbarWorkspacePath } from '../utils/navbarNavigation';
+import { readLastBusinessHubId } from '../utils/businessProfileForm';
+import { useNavDisclosure } from '../hooks/useNavDisclosure';
 import { LAUNCH_VISIBILITY } from '../utils/launchScope';
-import { canUseQrGenerator, navLinksForMode } from '../utils/modeAccess';
+import { canUseQrGenerator } from '../utils/modeAccess';
 import { useSocket } from '../hooks/useSocket';
 import '../styles/BusinessSwitcher.css';
 import { OxSteedIcon } from './OxSteedIcon';
@@ -25,8 +28,38 @@ const SHOW_NETWORK_BRANCH_SWITCHER = LAUNCH_VISIBILITY.networkBranchSwitcher;
 export const NAVBAR_STYLES = `
         .ox-navbar-container { max-width: 1600px; }
         .ox-navbar-container .ox-nav-desktop { gap: 2px !important; }
+        .ox-nav-brand-text { display: flex; flex-direction: column; min-width: 0; }
+        .ox-nav-mobile-mode { display: none; }
+        .ox-nav-mobile-menu { display: none; }
+        .ox-nav-mode-label { display: inline-flex; align-items: center; min-height: 44px; padding: 0.4rem 0.65rem; font-size: var(--text-sm); }
+        .ox-nav-account { position: relative; }
+        .ox-nav-account-trigger { min-height: 44px; }
+        .ox-nav-account-panel {
+          position: absolute; inset-inline-end: 0; top: calc(100% + 6px);
+          display: flex; flex-direction: column; min-width: 12rem; padding: var(--space-2);
+          border: 1px solid var(--color-border); border-radius: var(--radius-md);
+          background: var(--color-surface); box-shadow: 0 10px 40px rgba(0,0,0,0.18); z-index: 60;
+        }
+        .ox-nav-signout {
+          min-height: 44px; padding: 0.5rem 0.75rem; border: 0; border-radius: var(--radius-md);
+          background: transparent; color: var(--color-error); text-align: start; cursor: pointer; font: inherit; font-size: var(--text-sm);
+        }
+        .ox-nav-signout:hover { background: var(--color-error-bg); }
+        .ox-nav-unread { margin-inline-start: 0.25rem; background: var(--color-primary); color: #fff; font-size: 0.65rem; font-weight: 700; padding: 0.1rem 0.4rem; border-radius: var(--radius-full); }
+        .ox-nav-account-section { border-top: 1px solid var(--color-border); padding-top: var(--space-3); margin-top: var(--space-3); display: flex; flex-direction: column; }
+        .ox-nav-section-label { padding: 0.5rem 0.75rem; font-size: var(--text-sm); color: var(--color-text-muted); font-weight: 600; }
+        .ox-navbar :is(a, button):focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+        .ox-nav-mobile-controls { margin-inline-start: auto; }
+        .ox-nav-mobile-controls > button, .ox-nav-mobile-controls .ox-theme-toggle { min-width: 44px; min-height: 44px; }
+        @media (max-width: 480px) {
+          .ox-nav-brand-name { display: none; }
+          .ox-navbar-container .ox-nav-mobile-controls { gap: 4px !important; }
+          .ox-navbar .ox-nav-mobile-mode[title] { max-width: 5.5rem; }
+        }
         @media (max-width: 1360px) {
           .ox-nav-desktop { display: none !important; }
+          .ox-nav-mobile-mode { display: block; font-size: 0.7rem; line-height: 1.3; font-weight: 500; color: var(--color-text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+          .ox-nav-mobile-mode[title] { max-width: 8rem; }
           .ox-nav-mobile-controls { display: flex !important; }
           .ox-nav-mobile-menu {
             display: flex;
@@ -41,6 +74,7 @@ export const NAVBAR_STYLES = `
             overscroll-behavior: contain;
           }
           .ox-nav-mobile-preferences {
+            position: relative;
             display: flex;
             min-width: 0;
             align-items: center;
@@ -51,6 +85,10 @@ export const NAVBAR_STYLES = `
             border-bottom: 1px solid var(--color-border);
           }
           .ox-nav-mobile-preferences > :first-child { min-width: 0; }
+          .ox-nav-mobile-preferences .ox-biz-switcher { position: static; }
+          .ox-nav-mobile-preferences .ox-biz-switcher__menu {
+            inset-inline-start: 0; inset-inline-end: 0; width: auto; max-width: 100%;
+          }
         }
         .ox-nav-join-option {
           display: flex;
@@ -129,16 +167,16 @@ export default function Navbar() {
   const location = useLocation();
   const [unreadNotifs, setUnreadNotifs] = useState(0);
   const [unreadMsgs, setUnreadMsgs] = useState(0);
-  const [mobileOpen, setMobileOpen] = useState(false);
-  const [joinMenuOpen, setJoinMenuOpen] = useState(false);
+  const currentMode = navbarMode(user);
+  const { open: mobileOpen, setOpen: setMobileOpen, containerRef: mobileRef, triggerRef: mobileTriggerRef, panelId: mobilePanelId } = useNavDisclosure(currentMode);
   const [resourcesMenuOpen, setResourcesMenuOpen] = useState(false);
   const [showSupportWorkspaceNav, setShowSupportWorkspaceNav] = useState(false);
-  const joinMenuRef = useRef(null);
   const resourcesMenuRef = useRef(null);
-  const currentMode = user?.default_mode || (isHelper ? 'helper' : 'customer');
   const dashboardPath = routeForMode(currentMode);
-  const navLinks = navLinksForMode(user);
-  const showBusinessHub = !!user && navLinks.showBusinessHub;
+  const workspacePath = navbarWorkspacePath(location.pathname, readLastBusinessHubId());
+  const navigation = navbarNavigation(user, { dashboardPath, workspacePath, showSupportWorkspace: showSupportWorkspaceNav });
+  const showBusinessHub = !!user && navigation.showBusinessSwitcher;
+  const modeLabel = t(MODE_CATALOG[currentMode]?.labelKey || 'modes.customer.label');
 
   const refreshUnreadCounts = useCallback(async () => {
     if (!user) {
@@ -208,28 +246,7 @@ export default function Navbar() {
     };
   }, [user]);
 
-  // Close mobile menu + join dropdown on route change
-  useEffect(() => {
-    setMobileOpen(false);
-    setJoinMenuOpen(false);
-  }, [location.pathname]);
-
-  // Desktop: close "Join OxSteed" menu on outside click / Escape
-  useEffect(() => {
-    if (!joinMenuOpen) return;
-    const onDoc = (e) => {
-      if (joinMenuRef.current && !joinMenuRef.current.contains(e.target)) setJoinMenuOpen(false);
-    };
-    const onKey = (e) => {
-      if (e.key === 'Escape') setJoinMenuOpen(false);
-    };
-    document.addEventListener('mousedown', onDoc);
-    document.addEventListener('keydown', onKey);
-    return () => {
-      document.removeEventListener('mousedown', onDoc);
-      document.removeEventListener('keydown', onKey);
-    };
-  }, [joinMenuOpen]);
+  useEffect(() => { setResourcesMenuOpen(false); }, [location.pathname, location.search, currentMode]);
 
   // Desktop: close "Resources" menu on outside click / Escape
   useEffect(() => {
@@ -249,11 +266,11 @@ export default function Navbar() {
   }, [resourcesMenuOpen]);
 
   const isActive = (path) => location.pathname === path;
-  const isDashboardActive = location.pathname === dashboardPath
-    || (currentMode === 'logistics' && location.pathname.startsWith('/logistics'));
 
   return (
     <nav
+      ref={mobileRef}
+      data-nav-disclosure
       className="ox-navbar"
       aria-label={t('common.aria.mainNavigation')}
       style={{
@@ -276,6 +293,7 @@ export default function Navbar() {
           {/* Logo */}
           <PrefetchLink
             to="/"
+            aria-label="OxSteed"
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -288,7 +306,10 @@ export default function Navbar() {
             }}
           >
             <OxSteedIcon size={28} />
-            <span>OxSteed</span>
+            <span className="ox-nav-brand-text">
+              <span className="ox-nav-brand-name">OxSteed</span>
+              {user && <span className="ox-nav-mobile-mode" title={modeLabel}>{modeLabel}</span>}
+            </span>
           </PrefetchLink>
 
           {/* Desktop nav links */}
@@ -299,32 +320,12 @@ export default function Navbar() {
           }}>
             {user ? (
               <>
-                <NavLink to="/jobs" active={isActive('/jobs')}>{t('nav.browseJobs')}</NavLink>
-                <NavLink to="/restaurants" active={isActive('/restaurants')}>{t('nav.localFoodDirectory')}</NavLink>
-                <NavLink to="/post-job" active={isActive('/post-job')}>{t('nav.postJob')}</NavLink>
-                <NavLink to={isHelper ? '/helper/messages' : '/messages'} active={isActive('/messages') || isActive('/helper/messages')}>
-                  {t('nav.messages')}
-                  {unreadMsgs > 0 && (
-                    <span style={{
-                      marginLeft: '0.25rem',
-                      background: 'var(--color-primary)',
-                      color: '#fff',
-                      fontSize: '0.65rem',
-                      fontWeight: 700,
-                      padding: '0.1rem 0.4rem',
-                      borderRadius: 'var(--radius-full)',
-                      lineHeight: 1.3,
-                    }}>
-                      {unreadMsgs}
-                    </span>
-                  )}
-                </NavLink>
-                <Divider />
-                <NavLink to={dashboardPath} active={isDashboardActive}>{t('nav.dashboard')}</NavLink>
-                <NavLink to="/statements" active={isActive('/statements')}>{t('statementCenter.title', { defaultValue: 'Statement center' })}</NavLink>
-                {showSupportWorkspaceNav && (
-                  <NavLink to="/support/agent" active={isActive('/support/agent')}>{t('nav.supportWorkspace')}</NavLink>
-                )}
+                {navigation.primary.map(item => (
+                  <NavLink key={item.id} to={item.to} active={navbarLinkActive(item, location.pathname)} primary={item.primary}>
+                    {t(item.labelKey)}
+                    {item.id === 'messages' && <UnreadBadge count={unreadMsgs} />}
+                  </NavLink>
+                ))}
 
                 {/* OxSteed Network — branch switcher (major branches live here) */}
                 {SHOW_NETWORK_BRANCH_SWITCHER && (
@@ -408,15 +409,7 @@ export default function Navbar() {
                 </div>
                 )}
 
-                {/* Role badge removed — the ModeSwitcher is now the sole
-                    indicator of the user's account type. */}
-                <button
-                  onClick={logout}
-                  className="ox-btn ox-btn-ghost ox-btn-sm"
-                  style={{ color: 'var(--color-error)' }}
-                >
-                  {t('nav.signOut')}
-                </button>
+                <AccountDisclosure items={navigation.account} mode={currentMode} logout={logout} />
               </>
             ) : (
               <>
@@ -453,11 +446,14 @@ export default function Navbar() {
             alignItems: 'center',
             justifyContent: 'flex-end',
             gap: 'var(--space-2)',
-            marginLeft: 'auto',
+            marginInlineStart: 'auto',
           }}>
             <LanguageSelector menuAlign="start" />
             <ThemeToggle />
             <button
+              ref={mobileTriggerRef}
+              type="button"
+              aria-controls={mobilePanelId}
               onClick={() => setMobileOpen(!mobileOpen)}
               aria-label={mobileOpen ? t('nav.closeMenu') : t('nav.openMenu')}
               aria-expanded={mobileOpen}
@@ -477,7 +473,7 @@ export default function Navbar() {
 
         {/* Mobile menu */}
         {mobileOpen && (
-          <div className="ox-nav-mobile-menu">
+          <div id={mobilePanelId} className="ox-nav-mobile-menu">
             {(user || showBusinessHub) && (
               <div className="ox-nav-mobile-preferences">
                 {user && <ModeSwitcher compact />}
@@ -486,13 +482,21 @@ export default function Navbar() {
             )}
             {user ? (
               <>
-                <MobileNavLink to={dashboardPath} onClick={() => setMobileOpen(false)}>{t('nav.dashboard')}</MobileNavLink>
-                <MobileNavLink to="/statements" onClick={() => setMobileOpen(false)}>{t('statementCenter.title', { defaultValue: 'Statement center' })}</MobileNavLink>
-                {showSupportWorkspaceNav && (
-                  <MobileNavLink to="/support/agent" onClick={() => setMobileOpen(false)}>{t('nav.supportWorkspace')}</MobileNavLink>
-                )}
-                <MobileNavLink to="/jobs" onClick={() => setMobileOpen(false)}>{t('nav.browseJobs')}</MobileNavLink>
-                <MobileNavLink to="/restaurants" onClick={() => setMobileOpen(false)}>{t('nav.localFoodDirectory')}</MobileNavLink>
+                {navigation.primary.map(item => (
+                  <MobileNavLink key={item.id} to={item.to} onClick={() => setMobileOpen(false)} active={navbarLinkActive(item, location.pathname)} primary={item.primary}>
+                    {t(item.labelKey)}
+                    {item.id === 'messages' && <UnreadBadge count={unreadMsgs} />}
+                  </MobileNavLink>
+                ))}
+                <div className="ox-nav-account-section">
+                  <span className="ox-nav-section-label">{t('nav.account')}</span>
+                  {navigation.account.map(item => (
+                    <MobileNavLink key={item.id} to={item.to} onClick={() => setMobileOpen(false)} active={navbarLinkActive(item, location.pathname)}>
+                      {t(item.labelKey)}
+                    </MobileNavLink>
+                  ))}
+                  <button type="button" className="ox-nav-signout" onClick={() => { logout(); setMobileOpen(false); }}>{t('nav.signOut')}</button>
+                </div>
                 {SHOW_LEGACY_NAV_RESOURCES && (
                   <>
                     <MobileNavLink to="/how-it-works" onClick={() => setMobileOpen(false)}>{t('nav.howOxsteedWorks')}</MobileNavLink>
@@ -505,42 +509,7 @@ export default function Navbar() {
                     <OxSteedNetworkSwitcher mobile showSupportWorkspace={showSupportWorkspaceNav} onNavigate={() => setMobileOpen(false)} />
                   </div>
                 )}
-                <MobileNavLink to="/post-job" onClick={() => setMobileOpen(false)}>{t('nav.postJob')}</MobileNavLink>
-                <MobileNavLink to={isHelper ? '/helper/messages' : '/messages'} onClick={() => setMobileOpen(false)}>
-                  {t('nav.messages')} {unreadMsgs > 0 && (
-                    <span style={{
-                      background: 'var(--color-primary)',
-                      color: '#fff',
-                      fontSize: '0.65rem',
-                      fontWeight: 700,
-                      padding: '0.1rem 0.4rem',
-                      borderRadius: 'var(--radius-full)',
-                      marginLeft: '0.25rem',
-                    }}>{unreadMsgs}</span>
-                  )}
-                </MobileNavLink>
                 {SHOW_LEGACY_NAV_RESOURCES && canUseQrGenerator(user) && <MobileNavLink to="/qr-generator" onClick={() => setMobileOpen(false)}>{t('nav.qrGenerator')}</MobileNavLink>}
-                <button
-                  onClick={() => { logout(); setMobileOpen(false); }}
-                  style={{
-                    display: 'block',
-                    width: '100%',
-                    minHeight: '44px',
-                    textAlign: 'left',
-                    padding: '0.5rem 0.75rem',
-                    borderRadius: 'var(--radius-md)',
-                    fontSize: 'var(--text-sm)',
-                    color: 'var(--color-error)',
-                    background: 'none',
-                    border: 'none',
-                    cursor: 'pointer',
-                    transition: 'background var(--transition-fast)',
-                  }}
-                  onMouseEnter={e => e.currentTarget.style.background = 'var(--color-error-bg)'}
-                  onMouseLeave={e => e.currentTarget.style.background = 'none'}
-                >
-                  {t('nav.signOut')}
-                </button>
               </>
             ) : (
               <>
@@ -574,16 +543,19 @@ export default function Navbar() {
   );
 }
 
-function NavLink({ to, children, active }) {
+function NavLink({ to, children, active, primary }) {
   return (
     <PrefetchLink
       to={to}
+      aria-current={active ? 'page' : undefined}
+      className={primary ? 'ox-btn ox-btn-primary ox-nav-primary' : undefined}
       style={{
         fontSize: 'var(--text-sm)',
         fontWeight: active ? 600 : 500,
-        color: active ? 'var(--color-primary)' : 'var(--color-nav-link)',
+        color: primary ? 'var(--color-on-action)' : active ? 'var(--color-primary)' : 'var(--color-nav-link)',
         textDecoration: 'none',
         padding: '0.375rem 0.625rem',
+        minHeight: '44px',
         borderRadius: 'var(--radius-md)',
         transition: 'color var(--transition-fast), background var(--transition-fast)',
         display: 'inline-flex',
@@ -592,14 +564,15 @@ function NavLink({ to, children, active }) {
         whiteSpace: 'nowrap',
       }}
       onMouseEnter={e => {
-        if (!active) {
+        if (primary) e.currentTarget.style.background = 'var(--color-action-hover)';
+        if (!active && !primary) {
           e.currentTarget.style.color = 'var(--color-nav-link-hover)';
           e.currentTarget.style.background = 'var(--color-surface-2)';
         }
       }}
       onMouseLeave={e => {
-        e.currentTarget.style.color = active ? 'var(--color-primary)' : 'var(--color-nav-link)';
-        e.currentTarget.style.background = 'transparent';
+        e.currentTarget.style.color = primary ? 'var(--color-on-action)' : active ? 'var(--color-primary)' : 'var(--color-nav-link)';
+        e.currentTarget.style.background = primary ? 'var(--color-action)' : 'transparent';
       }}
     >
       {children}
@@ -607,7 +580,7 @@ function NavLink({ to, children, active }) {
   );
 }
 
-function MobileNavLink({ to, children, onClick, highlight, primary }) {
+function MobileNavLink({ to, children, onClick, active, primary }) {
   const baseStyle = {
     display: 'flex',
     alignItems: 'center',
@@ -618,10 +591,10 @@ function MobileNavLink({ to, children, onClick, highlight, primary }) {
     fontWeight: primary ? 600 : 500,
     textDecoration: 'none',
     transition: 'background var(--transition-fast), color var(--transition-fast)',
-    color: primary ? 'var(--color-primary-text)' : highlight ? 'var(--color-primary)' : 'var(--color-nav-link)',
-    background: primary ? 'var(--color-primary)' : 'transparent',
-    textAlign: 'right',
-    justifyContent: 'flex-end',
+    color: primary ? 'var(--color-on-action)' : active ? 'var(--color-primary)' : 'var(--color-nav-link)',
+    background: primary ? 'var(--color-action)' : 'transparent',
+    textAlign: 'start',
+    justifyContent: 'flex-start',
     marginTop: primary ? 'var(--space-2)' : 0,
   };
 
@@ -629,14 +602,17 @@ function MobileNavLink({ to, children, onClick, highlight, primary }) {
     <PrefetchLink
       to={to}
       onClick={onClick}
+      aria-current={active ? 'page' : undefined}
+      className={primary ? 'ox-nav-primary' : undefined}
       style={baseStyle}
       onMouseEnter={e => {
+        if (primary) e.currentTarget.style.background = 'var(--color-action-hover)';
         if (!primary) e.currentTarget.style.background = 'var(--color-surface-2)';
         if (!primary) e.currentTarget.style.color = 'var(--color-nav-link-hover)';
       }}
       onMouseLeave={e => {
-        e.currentTarget.style.background = primary ? 'var(--color-primary)' : 'transparent';
-        e.currentTarget.style.color = primary ? 'var(--color-primary-text)' : highlight ? 'var(--color-primary)' : 'var(--color-nav-link)';
+        e.currentTarget.style.background = primary ? 'var(--color-action)' : 'transparent';
+        e.currentTarget.style.color = primary ? 'var(--color-on-action)' : active ? 'var(--color-primary)' : 'var(--color-nav-link)';
       }}
     >
       {children}
@@ -644,13 +620,28 @@ function MobileNavLink({ to, children, onClick, highlight, primary }) {
   );
 }
 
-function Divider() {
+function UnreadBadge({ count }) {
+  if (count <= 0) return null;
+  return <span className="ox-nav-unread">{count}</span>;
+}
+
+function AccountDisclosure({ items, mode, logout }) {
+  const { t } = useTranslation();
+  const location = useLocation();
+  const { open, setOpen, containerRef, triggerRef, panelId } = useNavDisclosure(mode);
   return (
-    <div style={{
-      width: '1px',
-      height: '1rem',
-      background: 'var(--color-border-strong)',
-      flexShrink: 0,
-    }} />
+    <div ref={containerRef} data-nav-disclosure className="ox-nav-account">
+      <button ref={triggerRef} type="button" className="ox-btn ox-btn-ghost ox-btn-sm ox-nav-account-trigger" aria-expanded={open} aria-controls={panelId} onClick={() => setOpen(value => !value)}>
+        {t('nav.account')} <span aria-hidden="true">⌄</span>
+      </button>
+      {open && (
+        <div id={panelId} className="ox-nav-account-panel">
+          {items.map(item => (
+            <NavLink key={item.id} to={item.to} active={navbarLinkActive(item, location.pathname)}>{t(item.labelKey)}</NavLink>
+          ))}
+          <button type="button" className="ox-nav-signout" onClick={logout}>{t('nav.signOut')}</button>
+        </div>
+      )}
+    </div>
   );
 }

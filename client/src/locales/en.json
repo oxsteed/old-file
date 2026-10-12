@@ -397,6 +397,14 @@
     "addServices": "Add services"
   },
   "nav": {
+    "findHelp": "Find Help",
+    "myJobs": "My Jobs",
+    "orderFood": "Order Food",
+    "myWork": "My Work",
+    "workspace": "Workspace",
+    "businessWorkspace": "Business Workspace",
+    "foodOrders": "Food Orders",
+    "account": "Account",
     "browseJobs": "Browse Jobs",
     "postJob": "Post a Job",
     "messages": "Messages",

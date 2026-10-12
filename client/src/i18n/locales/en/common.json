@@ -1,4 +1,14 @@
 {
+"nav": {
+  "findHelp": "Find Help",
+  "myJobs": "My Jobs",
+  "orderFood": "Order Food",
+  "myWork": "My Work",
+  "workspace": "Workspace",
+  "businessWorkspace": "Business Workspace",
+  "foodOrders": "Food Orders",
+  "account": "Account"
+},
 "signupUpgrade": {
   "title": "Create your account",
   "subtitle": "One account. Your choice.",

@@ -397,6 +397,14 @@
     "addServices": "Añadir servicios"
   },
   "nav": {
+    "findHelp": "Buscar ayuda",
+    "myJobs": "Mis trabajos",
+    "orderFood": "Pedir comida",
+    "myWork": "Mi trabajo",
+    "workspace": "Espacio de trabajo",
+    "businessWorkspace": "Espacio del negocio",
+    "foodOrders": "Pedidos de comida",
+    "account": "Cuenta",
     "browseJobs": "Explorar Trabajos",
     "postJob": "Publicar Trabajo",
     "messages": "Mensajes",

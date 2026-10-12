@@ -8,7 +8,7 @@
 // Sits next to <BusinessSwitcher /> in Navbar.jsx and only renders for
 // signed-in users.
 
-import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
@@ -20,14 +20,15 @@ import {
   routeForMode,
 } from '../utils/modeRouter';
 import { LAUNCH_SWITCHER_MODES } from '../utils/launchScope';
+import { navbarMode } from '../utils/navbarNavigation';
+import { useNavDisclosure } from '../hooks/useNavDisclosure';
 
 export default function ModeSwitcher({ compact = false }) {
   const { t } = useTranslation();
   const { user, switchRole } = useAuth();
   const navigate = useNavigate();
-  const menuRef = useRef(null);
-
-  const [open, setOpen] = useState(false);
+  const current = navbarMode(user);
+  const { open, setOpen, containerRef: menuRef, triggerRef, panelId } = useNavDisclosure(current);
   const [memberships, setMemberships] = useState([]);
   const [switching, setSwitching] = useState(null); // mode being switched to, or null
 
@@ -52,28 +53,10 @@ export default function ModeSwitcher({ compact = false }) {
     [user, memberships],
   );
 
-  // Source of truth for "current mode": the user object. No localStorage drift.
-  const current = user?.default_mode ||
-    (['helper', 'helper_pro', 'broker'].includes(user?.role) ? 'helper' : 'customer');
   const visibleModes = useMemo(
     () => availableModes.filter((mode) => LAUNCH_SWITCHER_MODES.has(mode)),
     [availableModes, current],
   );
-
-  // Close on outside click / Escape
-  useEffect(() => {
-    if (!open) return;
-    const onDown = (e) => {
-      if (menuRef.current && !menuRef.current.contains(e.target)) setOpen(false);
-    };
-    const onKey = (e) => { if (e.key === 'Escape') setOpen(false); };
-    document.addEventListener('mousedown', onDown);
-    document.addEventListener('keydown', onKey);
-    return () => {
-      document.removeEventListener('mousedown', onDown);
-      document.removeEventListener('keydown', onKey);
-    };
-  }, [open]);
 
   const handleSwitch = useCallback(async (mode) => {
     if (mode === current || switching) return;
@@ -95,16 +78,17 @@ export default function ModeSwitcher({ compact = false }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [switchRole, navigate, t, switching, current]);
 
-  // Don't render for logged-out users or when there's only one option.
+  // Logged-out users have no mode; a single mode is still a visible label.
   if (!user) return null;
-  if (visibleModes.length <= 1) return null;
 
   const currentMeta = MODE_CATALOG[current] || MODE_CATALOG.customer;
   const currentLabel = t(currentMeta.labelKey, { defaultValue: current });
+  if (visibleModes.length <= 1) return <span className="ox-nav-mode-label">{currentLabel}</span>;
 
   return (
     <div
       ref={menuRef}
+      data-nav-disclosure
       style={{
         position: 'relative',
         display: 'inline-block',
@@ -112,14 +96,15 @@ export default function ModeSwitcher({ compact = false }) {
       }}
     >
       <button
+        ref={triggerRef}
         type="button"
         onClick={() => setOpen(o => !o)}
-        aria-haspopup="menu"
         aria-expanded={open}
-        aria-controls="ox-mode-switcher-menu"
+        aria-controls={panelId}
         className="ox-btn ox-btn-ghost ox-btn-sm"
         style={{
           display: 'inline-flex',
+          minHeight: '44px',
           alignItems: 'center',
           gap: '0.4rem',
           padding: compact ? '0.3rem 0.5rem' : '0.4rem 0.65rem',
@@ -154,8 +139,9 @@ export default function ModeSwitcher({ compact = false }) {
 
       {open && (
         <div
-          id="ox-mode-switcher-menu"
-          role="menu"
+          id={panelId}
+          role="group"
+          aria-label={t('modeSwitcher.switchTo')}
           style={{
             position: 'absolute',
             insetInlineStart: compact ? 0 : 'auto',
@@ -188,12 +174,19 @@ export default function ModeSwitcher({ compact = false }) {
             const meta = MODE_CATALOG[m] || {};
             const isCurrent = m === current;
             return (
-              <div
+              <button
                 key={m}
-                role="menuitem"
+                type="button"
+                disabled={isCurrent || !!switching}
+                aria-current={isCurrent ? 'true' : undefined}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
+                  width: '100%',
+                  minHeight: '44px',
+                  border: 0,
+                  font: 'inherit',
+                  textAlign: 'start',
                   gap: '0.5rem',
                   padding: '0.5rem 0.6rem',
                   borderRadius: 'var(--radius-sm)',
@@ -237,7 +230,7 @@ export default function ModeSwitcher({ compact = false }) {
                     {t(meta.hintKey || `modes.${m}.hint`, { defaultValue: '' })}
                   </div>
                 </div>
-              </div>
+              </button>
             );
           })}
         </div>

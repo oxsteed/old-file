@@ -1,11 +1,12 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
-import { Link, useNavigate, useLocation, useParams } from 'react-router-dom';
+import { useState, useEffect, useCallback } from 'react';
+import { Link, useNavigate, useLocation, useParams, matchPath } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import { listBusinesses, listManagedBusinesses } from '../api/businesses';
 import { getMyBusinesses, setWorkspaceContext } from '../api/vortex';
 import { LAUNCH_VISIBILITY } from '../utils/launchScope';
-import { businessWorkspacePath, BUSINESS_HUB_LAST_ID_LS_KEY } from '../utils/businessProfileForm';
+import { businessWorkspacePath, readLastBusinessHubId, BUSINESS_HUB_LAST_ID_LS_KEY } from '../utils/businessProfileForm';
+import { useNavDisclosure } from '../hooks/useNavDisclosure';
 
 const LS_KEY = BUSINESS_HUB_LAST_ID_LS_KEY;
 
@@ -28,13 +29,13 @@ export default function BusinessSwitcher({ compact = false }) {
   const navigate = useNavigate();
   const location = useLocation();
   const routeParams = useParams();
-  const routeBusinessId = routeParams.businessId ? String(routeParams.businessId) : null;
-  const routeTab = routeParams.tab ? String(routeParams.tab) : null;
+  const workspaceRoute = matchPath('/business/:businessId/workspace/:tab?', location.pathname);
+  const routeBusinessId = routeParams.businessId || workspaceRoute?.params.businessId || null;
+  const routeTab = routeParams.tab || workspaceRoute?.params.tab || null;
 
   const [businesses, setBusinesses] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [open, setOpen] = useState(false);
-  const menuRef = useRef(null);
+  const { open, setOpen, containerRef: menuRef, triggerRef, panelId } = useNavDisclosure(user?.default_mode);
 
   // Don't try to fetch until we have a logged-in user.
   const userId = user && user.id ? user.id : null;
@@ -95,18 +96,8 @@ export default function BusinessSwitcher({ compact = false }) {
     return () => { cancelled = true; };
   }, [userId]);
 
-  // Click-outside to close
-  useEffect(() => {
-    if (!open) return;
-    const onDown = (e) => {
-      if (menuRef.current && !menuRef.current.contains(e.target)) setOpen(false);
-    };
-    document.addEventListener('mousedown', onDown);
-    return () => document.removeEventListener('mousedown', onDown);
-  }, [open]);
-
   const activeId = routeBusinessId
-    || (typeof window !== 'undefined' && localStorage.getItem(LS_KEY))
+    || readLastBusinessHubId()
     || (businesses[0] && String(businesses[0].id))
     || null;
 
@@ -135,6 +126,7 @@ export default function BusinessSwitcher({ compact = false }) {
         to={path}
         className="ox-biz-switcher ox-biz-switcher--single"
         title={b.business_name || t('businessHub.title')}
+        aria-label={b.business_name || t('businessHub.title')}
       >
         <BizAvatar name={b.business_name} />
         {!compact && <span className="ox-biz-switcher__name">{b.business_name}</span>}
@@ -143,14 +135,16 @@ export default function BusinessSwitcher({ compact = false }) {
   }
 
   return (
-    <div className={`ox-biz-switcher ${compact ? 'ox-biz-switcher--compact' : ''}`} ref={menuRef}>
+    <div className={`ox-biz-switcher ${compact ? 'ox-biz-switcher--compact' : ''}`} ref={menuRef} data-nav-disclosure>
       <button
+        ref={triggerRef}
         type="button"
         className="ox-biz-switcher__btn"
         onClick={() => setOpen(o => !o)}
-        aria-haspopup="menu"
+        aria-controls={panelId}
         aria-expanded={open}
-        aria-label={t('businessHub.switchBusiness', { defaultValue: 'Switch business' })}
+        aria-label={`${t('businessHub.switchBusiness', { defaultValue: 'Switch business' })}: ${active?.business_name || t('businessHub.title')}`}
+        title={active?.business_name || t('businessHub.title')}
       >
         <BizAvatar name={active && active.business_name} />
         {!compact && (
@@ -165,14 +159,15 @@ export default function BusinessSwitcher({ compact = false }) {
         )}
       </button>
       {open && (
-        <div className="ox-biz-switcher__menu" role="menu">
+        <div id={panelId} className="ox-biz-switcher__menu" role="group" aria-label={t('businessHub.switchBusiness')}>
           {businesses.map(b => {
             const isActive = String(b.id) === String(activeId);
             return (
               <button
                 key={b.id}
                 type="button"
-                role="menuitem"
+                aria-current={isActive ? 'true' : undefined}
+                title={b.business_name}
                 className={`ox-biz-switcher__item ${isActive ? 'ox-biz-switcher__item--active' : ''}`}
                 onClick={() => switchTo(b.id)}
               >
@@ -191,7 +186,6 @@ export default function BusinessSwitcher({ compact = false }) {
           })}
           {LAUNCH_VISIBILITY.vortexWorkspaceEntry && <Link
             to="/vortex"
-            role="menuitem"
             className="ox-biz-switcher__item ox-biz-switcher__item--vortex"
             onClick={() => setOpen(false)}
           >

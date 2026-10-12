@@ -397,6 +397,14 @@
     "addServices": "إضافة خدمات"
   },
   "nav": {
+    "findHelp": "العثور على مساعدة",
+    "myJobs": "طلباتي",
+    "orderFood": "طلب الطعام",
+    "myWork": "أعمالي",
+    "workspace": "مساحة العمل",
+    "businessWorkspace": "مساحة عمل النشاط التجاري",
+    "foodOrders": "طلبات الطعام",
+    "account": "الحساب",
     "browseJobs": "تصفح الوظائف",
     "postJob": "نشر وظيفة",
     "messages": "الرسائل",

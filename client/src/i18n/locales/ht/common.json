@@ -1,4 +1,14 @@
 {
+"nav": {
+  "findHelp": "Jwenn èd",
+  "myJobs": "Travay mwen yo",
+  "orderFood": "Kòmande manje",
+  "myWork": "Aktivite mwen",
+  "workspace": "Espas travay",
+  "businessWorkspace": "Espas biznis",
+  "foodOrders": "Kòmann manje",
+  "account": "Kont"
+},
 "signupUpgrade": {
   "title": "Kreye kont ou",
   "subtitle": "Yon kont. Se ou ki chwazi.",

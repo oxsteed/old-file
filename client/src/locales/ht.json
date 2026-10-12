@@ -397,6 +397,14 @@
     "addServices": "Ajoute sèvis"
   },
   "nav": {
+    "findHelp": "Jwenn èd",
+    "myJobs": "Travay mwen yo",
+    "orderFood": "Kòmande manje",
+    "myWork": "Aktivite mwen",
+    "workspace": "Espas travay",
+    "businessWorkspace": "Espas biznis",
+    "foodOrders": "Kòmann manje",
+    "account": "Kont",
     "browseJobs": "Chèche Travay",
     "postJob": "Pibliye Travay",
     "messages": "Mesaj",
