@@ -184,6 +184,7 @@ const StatusPage = lazyWithRetry(() => import('./pages/StatusPage'));
 const InventoryHelpCenterPage = lazyWithRetry(() => import('./pages/InventoryHelpCenterPage'));
 const MyJobsPage = lazyWithRetry(() => import('./pages/MyJobsPage'));
 const MyBidsPage = lazyWithRetry(() => import('./pages/MyBidsPage'));
+const HelperPayoutsPage = lazyWithRetry(() => import('./pages/helper/HelperPayoutsPage'));
 const EnforcementPolicyPage = lazyWithRetry(() => import('./pages/EnforcementPolicyPage'));
 const HelperProfileEditPage = lazyWithRetry(() => import('./pages/HelperProfileEditPage'));
 const FeatureGuidePage = lazyWithRetry(() => import('./pages/FeatureGuidePage'));
@@ -552,6 +553,7 @@ export default function App() {
                     <Route path="/post-job"       element={<Guarded><ProtectedRoute><RouteErrorBoundary><PostJobPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/my-jobs"        element={<Guarded><ProtectedRoute><MyJobsPage /></ProtectedRoute></Guarded>} />
                     <Route path="/my-bids"        element={<Guarded><ProtectedRoute><MyBidsPage /></ProtectedRoute></Guarded>} />
+                    <Route path="/helper/payouts" element={<Guarded><ProtectedRoute><RouteErrorBoundary><HelperPayoutsPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/invoices"       element={<Guarded><ProtectedRoute><RouteErrorBoundary><InvoicesPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/consultant-availability" element={<Guarded><ProtectedRoute><RouteErrorBoundary><ConsultantAvailabilityPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/consulting/contractor-dashboard" element={<Guarded><ProtectedRoute><RouteErrorBoundary><ConsultantContractorDashboard /></RouteErrorBoundary></ProtectedRoute></Guarded>} />

@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import api from '../api/axios';
+import AssignedJobsPanel from '../components/jobs/AssignedJobsPanel';
 import { cancelBookingRequest } from '../api/bookings';
 import { useUndo } from '../hooks/useUndo';
 import Navbar from '../components/Navbar';
@@ -260,7 +261,9 @@ export default function MyJobsPage() {
           <div>
             <h1 className="text-2xl font-bold text-white">{t('dashboard.myJobs')}</h1>
             <p className="text-sm text-gray-500 mt-0.5">
-              {activeTab === 'jobs'
+              {activeTab === 'assigned'
+                ? t('myJobs.assignedSubtitle')
+                : activeTab === 'jobs'
                 ? t('myJobs.subtitle', { defaultValue: 'Jobs you have posted' })
                 : t('myJobs.bookingRequests', { defaultValue: 'Your booking requests' })}
             </p>
@@ -308,7 +311,19 @@ export default function MyJobsPage() {
           >
             {t('myJobs.calendar', { defaultValue: 'Calendar' })}
           </button>
+          <button
+            onClick={() => setActiveTab('assigned')}
+            className={`px-4 py-3 text-sm font-semibold transition border-b-2 ${
+              activeTab === 'assigned'
+                ? 'text-white border-orange-500'
+                : 'text-gray-400 border-transparent hover:text-gray-300'
+            }`}
+          >
+            {t('myJobs.assignedTab')}
+          </button>
         </div>
+
+        {activeTab === 'assigned' && <AssignedJobsPanel />}
 
         {/* Status filter tabs - only show for jobs tab */}
         {activeTab === 'jobs' && (

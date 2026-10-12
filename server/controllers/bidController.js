@@ -265,12 +265,33 @@ exports.getMyBids = async (req, res, next) => {
 // Update bid
 exports.updateBid = async (req, res, next) => {
   try {
-    const { amount, message, eta_hours } = req.body;
+    const { amount, message } = req.body;
+    const eta_hours = req.body.eta_hours ?? req.body.estimated_hours;
     const bidId = req.params.id;
     const userId = req.user.id;
 
+    // Review P2-480: the edit path validates exactly like createBid.
+    const fields = {};
+    if (amount !== undefined && amount !== null && amount !== '') {
+      if (isNaN(Number(amount)) || Number(amount) <= 0) fields.amount = 'Amount must be a positive number';
+      else if (Number(amount) > 10_000_000) fields.amount = 'Amount is too large';
+    }
+    if (message !== undefined && message !== null) {
+      if (typeof message !== 'string' || message.trim().length === 0) fields.message = 'Message cannot be empty';
+      else if (message.length > 2000) fields.message = 'Message must be 2000 characters or fewer';
+    }
+    if (eta_hours !== undefined && eta_hours !== null && eta_hours !== '') {
+      const eta = Number(eta_hours);
+      if (!Number.isFinite(eta) || eta <= 0 || eta > 10_000) fields.eta_hours = 'Estimated hours must be between 0 and 10000';
+    }
+    if (Object.keys(fields).length) {
+      throw new AppError('Validation failed', 400, 'validation_failed', fields);
+    }
+
     const { rows: bidRows } = await pool.query(
-      'SELECT id, helper_id, status FROM bids WHERE id = $1',
+      `SELECT b.id, b.helper_id, b.status, b.job_id, j.status AS job_status, j.client_id, j.title
+         FROM bids b JOIN jobs j ON j.id = b.job_id
+        WHERE b.id = $1`,
       [bidId]
     );
 
@@ -287,6 +308,9 @@ exports.updateBid = async (req, res, next) => {
     if (bid.status !== 'pending') {
       throw new AppError(`Bid cannot be updated in '${bid.status}' state. Only pending bids can be updated.`, 400, 'invalid_bid_state');
     }
+    if (!['published', 'matched', 'negotiating'].includes(bid.job_status)) {
+      throw new AppError('Job is not accepting bids', 400, 'job_not_accepting_bids');
+    }
 
     const result = await withTransaction(pool, async (client) => {
       const { rows } = await client.query(
@@ -298,7 +322,12 @@ exports.updateBid = async (req, res, next) => {
            updated_at = NOW()
          WHERE id = $4 AND status = 'pending'
          RETURNING *`,
-        [amount, message, eta_hours, bidId]
+        [
+          amount === undefined || amount === '' ? null : amount,
+          typeof message === 'string' ? message.trim() : null,
+          eta_hours === undefined || eta_hours === '' ? null : eta_hours,
+          bidId,
+        ]
       );
 
       if (!rows.length) {

@@ -27,6 +27,13 @@ let { notifyMatchingSavedSearches } = (() => {
  * misfires on user-entered text ("escrow" in a title, "tier3" in a note)
  * and silently misses real escrows whose labels were never tagged.
  */
+const HELPER_COMPLETION_CONFIRM_HOURS = (() => {
+  const n = Number.parseInt(process.env.HELPER_COMPLETION_CONFIRM_HOURS || '72', 10);
+  return Number.isFinite(n) && n >= 24 && n <= 120 ? n : 72;
+})();
+// Integer-validated above; safe to inline into SQL.
+const HELPER_COMPLETION_CONFIRM_HOURS_SQL = String(HELPER_COMPLETION_CONFIRM_HOURS);
+
 function isTier3EscrowJob(jobRow) {
   return String(jobRow?.transaction_mode || 'direct') === 'guided_protected';
 }
@@ -450,7 +457,8 @@ exports.getJob = async (req, res, next) => {
         j.preferred_helper_id, j.preferred_helper_name,
         j.created_at, j.updated_at, j.expires_at,
         j.started_at, j.completed_at, j.cancelled_at, j.cancellation_reason,
-        j.escrow_status,
+        j.escrow_status, j.accepted_at, j.completion_requested_at,
+        j.completion_requested_at + make_interval(hours => ${HELPER_COMPLETION_CONFIRM_HOURS_SQL}) AS completion_auto_confirm_at,
         u.first_name || ' ' || u.last_name AS client_name,
         h.first_name || ' ' || h.last_name AS helper_name
       FROM jobs j
@@ -1006,13 +1014,195 @@ exports.startJob = async (req, res, next) => {
 };
 
 // Complete a job
+/**
+ * Complete an in_progress job. Shared by the user endpoint and the
+ * helper-completion auto-confirm job (review P2-478). `asClient` decides
+ * whether a Tier-3 escrow authorization is captured in the same transaction.
+ */
+async function completeJobCore({ job, jobId, asClient }) {
+  // Wrap all state changes in a transaction for atomicity
+  return withJobTransaction(pool, async (client) => {
+    // Tier-3 escrow: when the customer marks complete, capture authorized funds in the same transaction
+    // so helpers get paid without a separate "Capture" step (and we roll back if Stripe fails).
+    if (asClient && isTier3EscrowJob(job)) {
+      const { rows: payRows } = await client.query(
+        `SELECT id, amount, stripe_payment_intent_id, stripe_account_id, status
+         FROM payments WHERE job_id = $1 AND status = 'authorized' FOR UPDATE`,
+        [jobId],
+      );
+      if (payRows[0]) {
+        const dispute = await client.query(
+          `SELECT id FROM disputes WHERE job_id = $1 AND status IN ('open', 'under_review', 'in_progress')`,
+          [jobId],
+        );
+        if (dispute.rows[0]) {
+          const err = new AppError(
+            'Cannot complete job while a payment dispute is open. Resolve the dispute first.',
+            409,
+            'dispute_open'
+          );
+          throw err;
+        }
+        await captureAuthorizedPaymentWithClient(client, payRows[0]);
+      }
+    }
+
+    const { rows } = await client.query(`
+      UPDATE jobs SET
+        status = 'completed',
+        completed_at = now(),
+        updated_at = now()
+      WHERE id = $1 AND status = 'in_progress'
+      RETURNING *
+    `, [jobId]);
+
+    if (!rows.length) {
+      throw new AppError('Job state changed during completion', 409, 'state_conflict');
+    }
+
+    // Keep the calendar appointment in sync: → completed
+    await client.query(
+      `UPDATE appointments
+          SET status = 'completed', updated_at = now()
+        WHERE job_id = $1
+          AND status NOT IN ('completed', 'cancelled')`,
+      [jobId]
+    );
+
+    // Increment helper's completed_jobs_count and refresh search_rank_boost
+    // so their discovery rank reflects their track record immediately.
+    if (rows[0].assigned_helper_id) {
+      await client.query(`
+        UPDATE helper_profiles
+        SET completed_jobs_count = COALESCE(completed_jobs_count, 0) + 1,
+            search_rank_boost = LEAST(2.0,
+              1.0
+              + GREATEST(0.0, COALESCE(avg_rating, 0) - 3.5) * 0.15
+              + LEAST(0.30, LN(GREATEST(1, COALESCE(total_reviews, 0)) + 1) * 0.10)
+              + LEAST(0.25, LN(GREATEST(1, COALESCE(completed_jobs_count, 0) + 1) + 1) * 0.08)
+            ),
+            updated_at = now()
+        WHERE user_id = $1
+      `, [rows[0].assigned_helper_id]);
+    }
+
+    return rows[0];
+  }, 'complete_job');
+}
+
+/** Post-commit, non-blocking side effects of a completion. */
+async function afterJobCompleted(result, actorId) {
+  // Phase 5 — Credit Everywhere: release the Credit escrow collateral hold
+  // (non-blocking; the hold is collateral, not the payment).
+  try {
+    const { releaseJobCreditCollateral } = require('../services/jobCreditCollateral');
+    releaseJobCreditCollateral(result.id).catch(() => {});
+  } catch (_) { /* non-fatal */ }
+
+  // Notify both parties to leave a review (non-blocking)
+  try {
+    const jobFull = result;
+    const reviewUrl = `/jobs/${jobFull.id}`;
+    if (jobFull.assigned_helper_id) {
+      await sendNotification({
+        userId: jobFull.assigned_helper_id,
+        type: 'job_completed',
+        title: 'Job Complete — Leave a Review',
+        body: `The job "${jobFull.title || 'your job'}" has been marked complete. Share your experience!`,
+        data: { job_id: jobFull.id },
+        action_url: reviewUrl,
+      });
+    }
+    if (jobFull.client_id && jobFull.client_id !== actorId) {
+      // Only notify client if they didn't trigger the completion themselves
+      await sendNotification({
+        userId: jobFull.client_id,
+        type: 'job_completed',
+        title: 'Job Complete — Leave a Review',
+        body: `"${jobFull.title || 'Your job'}" is marked complete. Rate your helper!`,
+        data: { job_id: jobFull.id },
+        action_url: reviewUrl,
+      });
+    }
+  } catch (notifErr) {
+    logger.warn('Failed to send job completion notifications', { error: notifErr.message });
+  }
+
+  // ── Franchise royalty collection (non-blocking) ────────────────────────
+  // If the job was completed in a franchise territory, credit the franchise
+  // owner's platform_ledger with their agreed royalty_bps of the job value.
+  try {
+    const jobForRoyalty = result;
+    if (jobForRoyalty.job_value && (jobForRoyalty.location_city || jobForRoyalty.location_state)) {
+      const city   = jobForRoyalty.location_city  || null;
+      const region = jobForRoyalty.location_state || null;
+
+      const { rows: franchiseRows } = await pool.query(`
+        SELECT fa.owner_user_id, fa.desired_city, fa.desired_region,
+               fagr.royalty_bps
+        FROM franchise_applications fa
+        JOIN franchise_agreements fagr ON fagr.application_id = fa.id
+        WHERE fa.status = 'launched'
+          AND fagr.royalty_bps > 0
+          AND (
+            ($1::text IS NOT NULL AND LOWER(COALESCE(fa.desired_city,'')) = LOWER($1))
+            OR ($2::text IS NOT NULL AND LOWER(COALESCE(fa.desired_region,'')) = LOWER($2))
+          )
+        LIMIT 1
+      `, [city, region]);
+
+      if (franchiseRows.length > 0) {
+        const { owner_user_id, royalty_bps } = franchiseRows[0];
+        const royaltyCents = Math.round((jobForRoyalty.job_value * 100) * (royalty_bps / 10000));
+        if (royaltyCents > 0 && owner_user_id) {
+          await pool.query(`
+            INSERT INTO platform_ledger
+              (user_id, type, amount_cents, description, metadata, source_type)
+            VALUES ($1, 'franchise_royalty', $2, $3, $4, 'franchise_royalty')
+          `, [
+            owner_user_id,
+            royaltyCents,
+            `Territory royalty — job #${jobForRoyalty.id} in ${city || region}`,
+            JSON.stringify({ job_id: jobForRoyalty.id, royalty_bps, job_value: jobForRoyalty.job_value }),
+          ]);
+          logger.info(`[franchise] Royalty ${royaltyCents}¢ credited to owner ${owner_user_id} for job ${jobForRoyalty.id}`);
+        }
+      }
+    }
+  } catch (royaltyErr) {
+    logger.warn('Failed to collect franchise royalty (non-fatal)', { error: royaltyErr.message });
+  }
+
+  // ── Referral value-event: grant reward on FIRST completed job (non-blocking)
+  // This fires if the customer (client_id) was referred and has now completed
+  // their first job — a stronger signal than mere registration.
+  try {
+    const { rows: referralRows } = await pool.query(`
+      SELECT u.referred_by,
+             (SELECT COUNT(*) FROM jobs
+              WHERE client_id = u.id AND status = 'completed') AS total_completed
+      FROM users u
+      WHERE u.id = $1 AND u.referred_by IS NOT NULL
+    `, [result.client_id]);
+
+    if (referralRows.length > 0 && parseInt(referralRows[0].total_completed) === 1) {
+      // Exactly 1 completed job means this IS the first — grant the conversion reward
+      const { grantReferralReward } = require('./referralController');
+      await grantReferralReward(referralRows[0].referred_by, result.client_id);
+      logger.info(`[referral] Value-event conversion: client ${result.client_id} completed first job, reward → ${referralRows[0].referred_by}`);
+    }
+  } catch (refErr) {
+    logger.warn('Failed to process referral value-event (non-fatal)', { error: refErr.message });
+  }
+}
+
 exports.completeJob = async (req, res, next) => {
   try {
     const { id } = req.params;
 
     // First, verify the job exists and user has permission (outside transaction for early validation)
     const { rows: jobRows } = await pool.query(`
-      SELECT id, client_id, assigned_helper_id, status, job_type, job_type_label, transaction_mode
+      SELECT id, client_id, assigned_helper_id, status, job_type, job_type_label, transaction_mode, title
       FROM jobs
       WHERE id = $1 AND (client_id = $2 OR assigned_helper_id = $2)
       AND status = 'in_progress'
@@ -1023,184 +1213,97 @@ exports.completeJob = async (req, res, next) => {
     }
 
     const job = jobRows[0];
+    const asClient = job.client_id === req.user.id;
 
-    // Wrap all state changes in a transaction for atomicity
-    const result = await withJobTransaction(pool, async (client) => {
-      // Tier-3 escrow: when the customer marks complete, capture authorized funds in the same transaction
-      // so helpers get paid without a separate "Capture" step (and we roll back if Stripe fails).
-      if (job.client_id === req.user.id && isTier3EscrowJob(job)) {
-        const { rows: payRows } = await client.query(
-          `SELECT id, amount, stripe_payment_intent_id, stripe_account_id, status
-           FROM payments WHERE job_id = $1 AND status = 'authorized' FOR UPDATE`,
-          [id],
-        );
-        if (payRows[0]) {
-          const dispute = await client.query(
-            `SELECT id FROM disputes WHERE job_id = $1 AND status IN ('open', 'in_progress')`,
-            [id],
-          );
-          if (dispute.rows[0]) {
-            const err = new AppError(
-              'Cannot complete job while a payment dispute is open. Resolve the dispute first.',
-              409,
-              'dispute_open'
-            );
-            throw err;
-          }
-          await captureAuthorizedPaymentWithClient(client, payRows[0]);
-        }
+    // Review P2-478: a helper may mark the job done. When the customer's
+    // funds are held in Tier-3 escrow, the helper's completion is a request
+    // the customer confirms (capture); if the customer does not respond or
+    // dispute within the confirmation window, it auto-confirms.
+    if (!asClient && isTier3EscrowJob(job)) {
+      const { rows: authorized } = await pool.query(
+        `SELECT id FROM payments WHERE job_id = $1 AND status = 'authorized' LIMIT 1`, [id]);
+      if (authorized.length) {
+        const requested = await requestHelperCompletion({ job, helperId: req.user.id });
+        return res.status(202).json({
+          message: 'Completion requested',
+          pending_confirmation: true,
+          job: requested,
+          auto_confirm_at: requested?.completion_auto_confirm_at || null,
+        });
       }
+    }
 
-      const { rows } = await client.query(`
-        UPDATE jobs SET
-          status = 'completed',
-          completed_at = now(),
-          updated_at = now()
-        WHERE id = $1 AND status = 'in_progress'
-        RETURNING *
-      `, [id]);
-
-      if (!rows.length) {
-        throw new AppError('Job state changed during completion', 409, 'state_conflict');
-      }
-
-      // Keep the calendar appointment in sync: → completed
-      await client.query(
-        `UPDATE appointments
-            SET status = 'completed', updated_at = now()
-          WHERE job_id = $1
-            AND status NOT IN ('completed', 'cancelled')`,
-        [id]
-      );
-
-      // Increment helper's completed_jobs_count and refresh search_rank_boost
-      // so their discovery rank reflects their track record immediately.
-      if (rows[0].assigned_helper_id) {
-        await client.query(`
-          UPDATE helper_profiles
-          SET completed_jobs_count = COALESCE(completed_jobs_count, 0) + 1,
-              search_rank_boost = LEAST(2.0,
-                1.0
-                + GREATEST(0.0, COALESCE(avg_rating, 0) - 3.5) * 0.15
-                + LEAST(0.30, LN(GREATEST(1, COALESCE(total_reviews, 0)) + 1) * 0.10)
-                + LEAST(0.25, LN(GREATEST(1, COALESCE(completed_jobs_count, 0) + 1) + 1) * 0.08)
-              ),
-              updated_at = now()
-          WHERE user_id = $1
-        `, [rows[0].assigned_helper_id]);
-      }
-
-      return rows[0];
-    }, 'complete_job');
-
+    const result = await completeJobCore({ job, jobId: id, asClient });
     res.json({ message: 'Job completed', job: result });
-
-    // Phase 5 — Credit Everywhere: release the Credit escrow collateral hold
-    // (non-blocking; the hold is collateral, not the payment).
-    try {
-      const { releaseJobCreditCollateral } = require('../services/jobCreditCollateral');
-      releaseJobCreditCollateral(result.id).catch(() => {});
-    } catch (_) { /* non-fatal */ }
-
-    // Notify both parties to leave a review (non-blocking)
-    try {
-      const jobFull = result;
-      const reviewUrl = `/jobs/${jobFull.id}`;
-      if (jobFull.assigned_helper_id) {
-        await sendNotification({
-          userId: jobFull.assigned_helper_id,
-          type: 'job_completed',
-          title: 'Job Complete — Leave a Review',
-          body: `The job "${jobFull.title || 'your job'}" has been marked complete. Share your experience!`,
-          data: { job_id: jobFull.id },
-          action_url: reviewUrl,
-        });
-      }
-      if (jobFull.client_id && jobFull.client_id !== req.user.id) {
-        // Only notify client if they didn't trigger the completion themselves
-        await sendNotification({
-          userId: jobFull.client_id,
-          type: 'job_completed',
-          title: 'Job Complete — Leave a Review',
-          body: `"${jobFull.title || 'Your job'}" is marked complete. Rate your helper!`,
-          data: { job_id: jobFull.id },
-          action_url: reviewUrl,
-        });
-      }
-    } catch (notifErr) {
-      logger.warn('Failed to send job completion notifications', { error: notifErr.message });
-    }
-
-    // ── Franchise royalty collection (non-blocking) ────────────────────────
-    // If the job was completed in a franchise territory, credit the franchise
-    // owner's platform_ledger with their agreed royalty_bps of the job value.
-    try {
-      const jobForRoyalty = result;
-      if (jobForRoyalty.job_value && (jobForRoyalty.location_city || jobForRoyalty.location_state)) {
-        const city   = jobForRoyalty.location_city  || null;
-        const region = jobForRoyalty.location_state || null;
-
-        const { rows: franchiseRows } = await pool.query(`
-          SELECT fa.owner_user_id, fa.desired_city, fa.desired_region,
-                 fagr.royalty_bps
-          FROM franchise_applications fa
-          JOIN franchise_agreements fagr ON fagr.application_id = fa.id
-          WHERE fa.status = 'launched'
-            AND fagr.royalty_bps > 0
-            AND (
-              ($1::text IS NOT NULL AND LOWER(COALESCE(fa.desired_city,'')) = LOWER($1))
-              OR ($2::text IS NOT NULL AND LOWER(COALESCE(fa.desired_region,'')) = LOWER($2))
-            )
-          LIMIT 1
-        `, [city, region]);
-
-        if (franchiseRows.length > 0) {
-          const { owner_user_id, royalty_bps } = franchiseRows[0];
-          const royaltyCents = Math.round((jobForRoyalty.job_value * 100) * (royalty_bps / 10000));
-          if (royaltyCents > 0 && owner_user_id) {
-            await pool.query(`
-              INSERT INTO platform_ledger
-                (user_id, type, amount_cents, description, metadata, source_type)
-              VALUES ($1, 'franchise_royalty', $2, $3, $4, 'franchise_royalty')
-            `, [
-              owner_user_id,
-              royaltyCents,
-              `Territory royalty — job #${jobForRoyalty.id} in ${city || region}`,
-              JSON.stringify({ job_id: jobForRoyalty.id, royalty_bps, job_value: jobForRoyalty.job_value }),
-            ]);
-            logger.info(`[franchise] Royalty ${royaltyCents}¢ credited to owner ${owner_user_id} for job ${jobForRoyalty.id}`);
-          }
-        }
-      }
-    } catch (royaltyErr) {
-      logger.warn('Failed to collect franchise royalty (non-fatal)', { error: royaltyErr.message });
-    }
-
-    // ── Referral value-event: grant reward on FIRST completed job (non-blocking)
-    // This fires if the customer (client_id) was referred and has now completed
-    // their first job — a stronger signal than mere registration.
-    try {
-      const { rows: referralRows } = await pool.query(`
-        SELECT u.referred_by,
-               (SELECT COUNT(*) FROM jobs
-                WHERE client_id = u.id AND status = 'completed') AS total_completed
-        FROM users u
-        WHERE u.id = $1 AND u.referred_by IS NOT NULL
-      `, [result.client_id]);
-
-      if (referralRows.length > 0 && parseInt(referralRows[0].total_completed) === 1) {
-        // Exactly 1 completed job means this IS the first — grant the conversion reward
-        const { grantReferralReward } = require('./referralController');
-        await grantReferralReward(referralRows[0].referred_by, result.client_id);
-        logger.info(`[referral] Value-event conversion: client ${result.client_id} completed first job, reward → ${referralRows[0].referred_by}`);
-      }
-    } catch (refErr) {
-      logger.warn('Failed to process referral value-event (non-fatal)', { error: refErr.message });
-    }
+    await afterJobCompleted(result, req.user.id);
   } catch (err) {
     next(err);
   }
 };
+
+
+async function requestHelperCompletion({ job, helperId }) {
+  const { rows } = await pool.query(
+    `UPDATE jobs
+        SET completion_requested_at = COALESCE(completion_requested_at, NOW()),
+            completion_requested_by = COALESCE(completion_requested_by, $2),
+            updated_at = NOW()
+      WHERE id = $1 AND status = 'in_progress' AND assigned_helper_id = $2
+      RETURNING *, completion_requested_at + make_interval(hours => $3) AS completion_auto_confirm_at`,
+    [job.id, helperId, HELPER_COMPLETION_CONFIRM_HOURS]
+  );
+  if (!rows.length) throw new AppError('Job state changed', 409, 'state_conflict');
+  try {
+    await sendNotification({
+      userId: job.client_id,
+      type: 'job_completion_requested',
+      data: { job_id: job.id, title: job.title || '', hours: HELPER_COMPLETION_CONFIRM_HOURS },
+      action_url: `/jobs/${job.id}`,
+      idempotencyKey: `job_completion_requested:${job.id}`,
+    });
+  } catch (notifyErr) {
+    logger.warn('Failed to notify customer of completion request', { jobId: job.id, error: notifyErr.message });
+  }
+  return rows[0];
+}
+
+/**
+ * Auto-confirm helper completion requests whose window passed with no open
+ * dispute. Captures the escrow as the customer's confirmation would.
+ */
+async function autoConfirmHelperCompletions({ limit = 50 } = {}) {
+  const { rows: due } = await pool.query(
+    `SELECT j.id, j.client_id, j.assigned_helper_id, j.status, j.job_type, j.job_type_label,
+            j.transaction_mode, j.title
+       FROM jobs j
+      WHERE j.status = 'in_progress'
+        AND j.completion_requested_at IS NOT NULL
+        AND j.completion_requested_at <= NOW() - make_interval(hours => $1)
+        AND NOT EXISTS (
+          SELECT 1 FROM disputes d
+           WHERE d.job_id = j.id AND d.status IN ('open', 'in_progress', 'under_review'))
+      ORDER BY j.completion_requested_at
+      LIMIT $2`,
+    [HELPER_COMPLETION_CONFIRM_HOURS, limit]
+  );
+  let confirmed = 0;
+  const failures = [];
+  for (const job of due) {
+    try {
+      const result = await completeJobCore({ job, jobId: job.id, asClient: true });
+      confirmed += 1;
+      await afterJobCompleted(result, null);
+    } catch (err) {
+      failures.push({ jobId: job.id, error: err.message });
+      logger.error('Helper completion auto-confirm failed', { jobId: job.id, error: err.message });
+    }
+  }
+  return { due: due.length, confirmed, failures };
+}
+
+exports.completeJobCore = completeJobCore;
+exports.autoConfirmHelperCompletions = autoConfirmHelperCompletions;
+exports.HELPER_COMPLETION_CONFIRM_HOURS = HELPER_COMPLETION_CONFIRM_HOURS;
 
 // Close a job (after completion, enables reviews)
 exports.closeJob = async (req, res, next) => {
@@ -1221,7 +1324,7 @@ exports.closeJob = async (req, res, next) => {
     // Check for open/in_progress disputes
     const { rows: disputeRows } = await pool.query(`
       SELECT id FROM disputes
-      WHERE job_id = $1 AND status IN ('open', 'in_progress')
+      WHERE job_id = $1 AND status IN ('open', 'under_review', 'in_progress')
     `, [id]);
 
     if (disputeRows.length > 0) {
@@ -1283,7 +1386,9 @@ exports.getMyJobs = async (req, res, next) => {
     // By default exclude soft-deleted (cancelled-pre-acceptance) jobs from the
     // dashboard list so customers don't see ghost rows. Pass ?include_deleted=1
     // for archive views.
-    let where = 'WHERE client_id = $1';
+    // Review P2-479: ?role=helper lists jobs assigned to the caller.
+    const asHelper = req.query.role === 'helper';
+    let where = asHelper ? 'WHERE assigned_helper_id = $1' : 'WHERE client_id = $1';
     if (!include_deleted) where += ' AND deleted_at IS NULL';
     if (status) {
       params.push(status);
@@ -1303,7 +1408,8 @@ exports.getMyJobs = async (req, res, next) => {
         requirements, media_urls, bid_count,
         assigned_helper_id, preferred_helper_id, preferred_helper_name,
         scheduled_date, scheduled_time, recurrence,
-        private_notes,
+        ${asHelper ? 'NULL::text AS private_notes' : 'private_notes'},
+        accepted_at, completion_requested_at,
         started_at, completed_at, cancelled_at, cancellation_reason,
         expires_at, created_at, updated_at
       FROM jobs

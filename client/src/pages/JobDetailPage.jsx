@@ -18,6 +18,7 @@ import UserReputationCard from '../components/UserReputationCard';
 import ReportModal from '../components/ReportModal';
 import JobMaterialsPanel from '../components/JobMaterialsPanel';
 import DirectPaymentRecordModal from '../components/DirectPaymentRecordModal';
+import JobAutoExpiryWarning from '../components/JobAutoExpiryWarning';
 import { useTranslation } from 'react-i18next';
 import { analytics } from '../utils/analytics';
 import { detectLocale, formatDate, formatMoney } from '../lib/format';
@@ -239,6 +240,22 @@ function JobDetailContent() {
     }
   }
 
+  async function handleClose() {
+    setActionLoading(true);
+    try {
+      await api.post(`/jobs/${id}/close`);
+      fetchJob(id);
+      toast.success(t('jobDetail.jobClosed'));
+    } catch (err) {
+      const code = err.response?.data?.code;
+      toast.error(code === 'dispute_open' ? t('jobDetail.closeBlockedDispute')
+        : code === 'pending_payments' ? t('jobDetail.closeBlockedPayment')
+        : getErrorMessage(err));
+    } finally {
+      setActionLoading(false);
+    }
+  }
+
   async function handleStart() {
     setActionLoading(true);
     try {
@@ -260,9 +277,9 @@ function JobDetailContent() {
   async function handleComplete() {
     setActionLoading(true);
     try {
-      await completeJob(id);
+      const result = await completeJob(id);
       fetchJob(id);
-      toast.success(t('jobDetail.jobCompleted'));
+      toast.success(t(result?.pending_confirmation ? 'jobDetail.completionRequested' : 'jobDetail.jobCompleted'));
     } catch (err) {
       const errorMsg = getErrorMessage(err);
       toast.error(errorMsg);
@@ -480,10 +497,22 @@ function JobDetailContent() {
             {action === 'review' ? <ReviewModal jobId={id} revieweeName={isOwner ? (formatNameForPrivacy(job.helper_name) || t('jobDetail.yourHelper')) : (formatNameForPrivacy(job.client_name) || t('jobDetail.yourCustomer'))} onComplete={() => setReviewEligible(false)} />
               : <button type="button" className="jdp-btn-primary" onClick={runNextStep} disabled={actionLoading || loading}>{actionLoading ? t('jobDetail.processing') : t(`jobDetail.${actionLabels[action]}`)}</button>}
           </> : <p role="status">{t(`jobDetail.${['loading', 'idle'].includes(bidsStatus) && user && ['published', 'matched', 'negotiating'].includes(job.status) ? 'checkingBids' : 'noNextStep'}`)}</p>}
+          {view.expiryDaysLeft !== null && <JobAutoExpiryWarning status={job.status} acceptedAt={job.accepted_at} daysUntilExpiry={view.expiryDaysLeft} />}
+          {view.completionPending && <p role="status" className="jdp-completion-pending">
+            {isOwner
+              ? t('jobDetail.completionPendingOwner', { date: job.completion_auto_confirm_at ? formatDate(job.completion_auto_confirm_at, { locale: detectLocale() }) : '' })
+              : t('jobDetail.completionPendingHelper')}
+          </p>}
           {isOwner && job.status === 'accepted' && <Link className="jdp-btn-ghost" to="/messages">{t('jobDetail.openMessages')}</Link>}
           {(view.canCancelBeforeAcceptance || view.canCancelAfterAcceptance) && <div className="jdp-secondary-action">
             <button type="button" className="jdp-btn-danger" onClick={() => view.canCancelBeforeAcceptance ? setShowCancelModal(true) : setShowJobCancellationModal(true)} disabled={actionLoading || loading || (view.canCancelAfterAcceptance && !acceptedBid)}>{t('jobDetail.cancelJob')}</button>
             {view.canCancelAfterAcceptance && !acceptedBid && bidsStatus === 'error' && <button type="button" className="jdp-btn-ghost" onClick={loadBids}>{t('jobDetail.retryBids')}</button>}
+          </div>}
+          {view.canHelperComplete && <div className="jdp-secondary-action jdp-helper-complete-action">
+            <button type="button" className="jdp-btn-ghost" onClick={handleComplete} disabled={actionLoading || loading}>{t('jobDetail.helperMarkDone')}</button>
+          </div>}
+          {view.canClose && <div className="jdp-secondary-action jdp-close-action">
+            <button type="button" className="jdp-btn-ghost" onClick={handleClose} disabled={actionLoading || loading}>{t('jobDetail.closeJob')}</button>
           </div>}
         </section>
         <div className="jdp-main">

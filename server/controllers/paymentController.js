@@ -462,6 +462,40 @@ exports.createPaymentIntent = async (req, res, next) => {
     next(err);
   }
 };
+const INSTANT_PAYOUT_MAX_CENTS_PUBLIC = 50000;
+const usdAmount = (list) => (list || [])
+  .filter((b) => String(b.currency).toLowerCase() === 'usd')
+  .reduce((sum, b) => sum + (Number(b.amount) || 0), 0);
+
+// Review P2-481: payout balance for the helper payouts screen.
+exports.getPayoutBalance = async (req, res, next) => {
+  try {
+    const { rows: [account] } = await pool.query('SELECT * FROM connect_accounts WHERE user_id = $1', [req.user.id]);
+    if (!account?.stripe_account_id) {
+      return res.json({ connected: false, payouts_enabled: false });
+    }
+    if (!process.env.STRIPE_SECRET_KEY) {
+      return res.json({ connected: true, payouts_enabled: Boolean(account.payouts_enabled), configured: false });
+    }
+    const balance = await stripe.balance.retrieve({ stripeAccount: account.stripe_account_id });
+    const instant = usdAmount(balance.instant_available);
+    res.json({
+      connected: true,
+      configured: true,
+      payouts_enabled: Boolean(account.payouts_enabled),
+      currency: 'usd',
+      available_cents: usdAmount(balance.available),
+      pending_cents: usdAmount(balance.pending),
+      instant_available_cents: instant,
+      instant_payout_max_cents: INSTANT_PAYOUT_MAX_CENTS_PUBLIC,
+      instant_payout_amount_cents: Math.min(instant, INSTANT_PAYOUT_MAX_CENTS_PUBLIC),
+    });
+  } catch (err) {
+    logger.error('Payout balance lookup failed', { userId: req.user?.id, error: err.message });
+    next(new AppError('Failed to load payout balance', 502, 'payout_balance_failed'));
+  }
+};
+
 exports.requestInstantPayout = async (req, res, next) => {
   try {
     const accountResult = await pool.query('SELECT * FROM connect_accounts WHERE user_id = $1', [req.user.id]);
@@ -482,7 +516,9 @@ exports.requestInstantPayout = async (req, res, next) => {
     const balance = await stripe.balance.retrieve({
       stripeAccount: refreshedAccount.stripe_account_id
     });
-    const available = (balance.available || []).find(b => String(b.currency).toLowerCase() === 'usd');
+    // Review P2-481: instant payouts draw from instant_available, not the
+    // standard available balance (Stripe rejects instant amounts beyond it).
+    const available = (balance.instant_available || []).find(b => String(b.currency).toLowerCase() === 'usd');
     // Audit fix: cap instant payouts at $500 per request. Draining the full
     // available balance in one call is risky if the account is compromised.
     const INSTANT_PAYOUT_MAX_CENTS = 50000;

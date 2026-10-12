@@ -27,6 +27,7 @@ const T = {
     },
   },
   ...require('./localDeliveryNotifications').deliveryNotifications,
+  ...require('./jobLifecycleNotificationTemplates').jobLifecycleNotifications,
   bid_received: {
     title: {
       en: 'New bid on your job',
