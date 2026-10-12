@@ -126,6 +126,8 @@ async function fixture() {
       export const getPost = id => pending('post', id);
       export const getReplies = (id, sort) => pending('replies', id + ':' + sort);
       export const getQuotes = async () => ({quotes:[]});
+      export const getModerationStatus = async () => { throw new Error('not owner'); };
+      export const createMediaAppeal = async () => ({appeal:{status:'open'}});
       export const recordView = async () => ({});
       export const getMediaVerification = async () => ({publishers:[{key:'user:viewer',actor_type:'user',actor_id:'actor',display_name:'Synthetic local member',location:{city:'Springfield',region:'OH'},eligibility:{text:true,photo:true,video:false}}],helper:{is_verified:false}, businesses:[{id:1,business_name:'Fixture business',is_verified:false}],restaurants:[]});
       export const getDrafts = async () => ({drafts:[]}), getDraft = async()=>({draft:null}), updateDraft = async()=>({post:{}});
