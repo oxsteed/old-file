@@ -195,6 +195,23 @@ describe('C5 pay_now card refund', () => {
     expect(posCall[0]).toContain('ON CONFLICT (restaurant_id, idempotency_key)');
   });
 
+  test('card-mode (destination charge) refunds on the platform and reverses the transfer (P1-234)', async () => {
+    stripeMock.refunds.create.mockResolvedValue({ id: 're_2', amount: 1800, charge: 'ch_2' });
+    keyed(async (sql) => {
+      if (sql.includes('INSERT INTO restaurant_pos_payments')) return { rows: [{ id: 8 }], rowCount: 1 };
+      return { rows: [], rowCount: 0 };
+    });
+    const order = { id: 43, stripe_payment_intent_id: 'pi_2', total_cents: 1800, currency_code: 'USD', metadata: { paymentMode: 'card' } };
+    await foodController._refundFoodOrderStripePayment(
+      { query: mockQuery },
+      { order, restaurantId: 3, status: 'cancelled', destinationCharge: true }
+    );
+    expect(stripeMock.refunds.create).toHaveBeenCalledWith(
+      { payment_intent: 'pi_2', reverse_transfer: true, refund_application_fee: true },
+      expect.objectContaining({ stripeAccount: undefined, idempotencyKey: 'food-order:43:refund' })
+    );
+  });
+
   test('a failed Stripe refund surfaces a 502 instead of silently skipping', async () => {
     stripeMock.refunds.create.mockRejectedValue(new Error('card_declined'));
     keyed(async () => ({ rows: [], rowCount: 0 }));
