@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useId, useRef } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, useNavigate, Link, useSearchParams } from 'react-router-dom';
 import useJobs from '../hooks/useJobs';
 import useAuth from '../hooks/useAuth';
 import api from '../api/axios';
@@ -197,6 +197,21 @@ function JobDetailContent() {
       setBidLoading(false);
     }
   }
+
+  // P1-134: a quote accepted in chat lands here as ?acceptBid=<id>; open the normal
+  // acceptance flow so payment + assignment go through the bid path.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const acceptBidParam = searchParams.get('acceptBid');
+  useEffect(() => {
+    if (!acceptBidParam || !Array.isArray(bids) || !samePartyId(user?.id, job?.client_id)) return;
+    const target = bids.find(b => String(b.id) === String(acceptBidParam) && b.status === 'pending');
+    if (!target) return;
+    const next = new URLSearchParams(searchParams);
+    next.delete('acceptBid');
+    setSearchParams(next, { replace: true });
+    void handleAcceptClick(target);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [acceptBidParam, bids, job?.client_id, user?.id]);
 
   // Opens the BidAcceptanceModal (payment method selection step) before calling assignHelper.
   async function handleAcceptClick(bid) {

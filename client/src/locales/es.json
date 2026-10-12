@@ -9111,6 +9111,7 @@
       "escalationPanelAria": "Opciones de escalada a soporte"
     },
     "messenger": {
+      "quoteFinishOnJob": "Termina la contratación en la página del trabajo",
       "message": "Mensaje",
       "messageName": "Mensaje a {{name}}",
       "launcherKicker": "Chat",

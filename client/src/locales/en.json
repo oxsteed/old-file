@@ -9111,6 +9111,7 @@
       "escalationPanelAria": "Support escalation options"
     },
     "messenger": {
+      "quoteFinishOnJob": "Finish hiring on the job page",
       "message": "Message",
       "messageName": "Message {{name}}",
       "launcherKicker": "Chat",

@@ -9111,6 +9111,7 @@
       "escalationPanelAria": "Options d’escalade vers le support"
     },
     "messenger": {
+      "quoteFinishOnJob": "Finalisez l'embauche sur la page de la mission",
       "message": "Message",
       "messageName": "Message à {{name}}",
       "launcherKicker": "Discussion",

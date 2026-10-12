@@ -9111,6 +9111,7 @@
       "escalationPanelAria": "Opsyon eskalad sipò"
     },
     "messenger": {
+      "quoteFinishOnJob": "Fini anboche a sou paj travay la",
       "message": "Mesaj",
       "messageName": "Voye mesaj bay {{name}}",
       "launcherKicker": "Chat",

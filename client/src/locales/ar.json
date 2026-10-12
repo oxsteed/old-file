@@ -9111,6 +9111,7 @@
       "escalationPanelAria": "خيارات تصعيد الدعم"
     },
     "messenger": {
+      "quoteFinishOnJob": "أكمل التوظيف في صفحة المهمة",
       "message": "رسالة",
       "messageName": "مراسلة {{name}}",
       "launcherKicker": "محادثة",
