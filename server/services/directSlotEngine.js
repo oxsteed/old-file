@@ -126,6 +126,9 @@ async function loadCalendarBlocks(from, to, executor = db) {
 async function loadBusyIntervals(userIds, from, to, executor = db) {
   if (!userIds.length) return { jobs: [], holds: [] };
   const terminal = TERMINAL_STATUSES;
+  // Widen the window by the max buffer (240 min) so padded neighbours count.
+  const qFrom = new Date(new Date(from).getTime() - 240 * 60000);
+  const qTo = new Date(new Date(to).getTime() + 240 * 60000);
   const [{ rows: jobs }, { rows: holds }] = await Promise.all([
     executor.query(
       // Review P1-174: every crew member of a multi-crew booking is busy,
@@ -144,7 +147,7 @@ async function loadBusyIntervals(userIds, from, to, executor = db) {
           AND qr.scheduled_start_at < $3
           AND qr.scheduled_end_at > $2
           AND qr.status <> ALL($4::text[])`,
-      [userIds, from.toISOString(), to.toISOString(), terminal]
+      [userIds, qFrom.toISOString(), qTo.toISOString(), terminal]
     ),
     executor.query(
       `SELECT id, reserved_user_id, starts_at, ends_at
@@ -153,15 +156,36 @@ async function loadBusyIntervals(userIds, from, to, executor = db) {
           AND expires_at > CURRENT_TIMESTAMP
           AND starts_at < $3
           AND ends_at > $2`,
-      [userIds, from.toISOString(), to.toISOString()]
+      [userIds, qFrom.toISOString(), qTo.toISOString()]
     ),
   ]);
+  // Review P1-192/P1-194: the member's helper appointments, personal
+  // time-off blocks and business appointments also make them busy, and every
+  // commitment is padded by their booking_buffer_minutes turnaround.
+  const { loadCrossSurfaceBusy, loadBookingBuffers } = require('./crossSurfaceBusy');
+  const [cross, buffers] = await Promise.all([
+    loadCrossSurfaceBusy(userIds, qFrom, qTo, { exclude: ['direct'], executor }),
+    loadBookingBuffers(userIds, executor),
+  ]);
+  const pad = (item) => {
+    const minutes = buffers.get(item.userId) || 0;
+    if (!minutes || String(item.source || '').endsWith('_block')) return item;
+    return {
+      ...item,
+      startsAt: new Date(item.startsAt.getTime() - minutes * 60000),
+      endsAt: new Date(item.endsAt.getTime() + minutes * 60000),
+    };
+  };
   return {
-    jobs: jobs.map((j) => ({
-      userId: String(j.assigned_to),
-      startsAt: new Date(j.scheduled_start_at),
-      endsAt: new Date(j.scheduled_end_at),
-    })),
+    jobs: [
+      ...jobs.map((j) => ({
+        userId: String(j.assigned_to),
+        startsAt: new Date(j.scheduled_start_at),
+        endsAt: new Date(j.scheduled_end_at),
+        source: 'direct',
+      })),
+      ...cross,
+    ].map(pad),
     holds: holds.map((h) => ({
       userId: String(h.reserved_user_id),
       startsAt: new Date(h.starts_at),
