@@ -25,6 +25,7 @@ const { checkAndAlertNewLogin } = require('../services/loginAlertService');
 const { invalidateGuestHistoryAccessCodesForEmail } = require('../services/guestProfileChatVerification');
 const { logSecurityEvent, extractRequestDetails } = require('../services/auditLoggerService');
 const modeRoleUtil = require('../utils/modeRole');
+const { normalizeStoredPublicUrl } = require('../utils/storage');
 const SALT_ROUNDS = 12;
 const TERMS_IP_HASH_MAX_LEN = 45;
 const JWT_SECRET = process.env.JWT_SECRET;
@@ -183,7 +184,7 @@ function formatAuthUser(user) {
     email:                 user.email,
     phone:                 user.phone,
     bio:                   user.bio || null,
-    profile_photo_url:     user.profile_photo_url || null,
+    profile_photo_url:     normalizeStoredPublicUrl(user.profile_photo_url || null),
     role:                  user.role,
     email_verified:        !!user.email_verified,
     is_verified:           !!user.is_verified,

@@ -160,6 +160,7 @@ export default function SettingsPage() {
   const [profile, setProfile] = useState({ first_name: '', last_name: '', phone: '', bio: '', zipcode: '', profile_photo_url: '', address_line1: '', address_line2: '', city: '', state: '', country: 'US' });
   const [profileSnapshot, setProfileSnapshot] = useState(null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [showPhotoPreview, setShowPhotoPreview] = useState(false);
   const [namePrefTouched, setNamePrefTouched] = useState(false);
   const [postalTouched, setPostalTouched] = useState(false);
   const fileInputRef = useRef(null);
@@ -193,6 +194,15 @@ export default function SettingsPage() {
     address_country: 'US',
   });
   const [bizSaving, setBizSaving] = useState(false);
+
+  useEffect(() => {
+    if (!showPhotoPreview) return undefined;
+    const onKeyDown = (event) => {
+      if (event.key === 'Escape') setShowPhotoPreview(false);
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [showPhotoPreview]);
 
   useEffect(() => {
     api.get('/auth/me')
@@ -556,13 +566,19 @@ export default function SettingsPage() {
           <p className="sp-card-subtitle">{t('settings.profile.subtitle')}</p>
 
           <div className="sp-photo-row">
-            <div className="sp-avatar" aria-hidden="true">
+            <button
+              type="button"
+              className="sp-avatar sp-avatar-button"
+              onClick={() => profile.profile_photo_url && setShowPhotoPreview(true)}
+              disabled={!profile.profile_photo_url}
+              aria-label={t('settings.profile.previewPhoto', 'Preview profile photo')}
+            >
               {profile.profile_photo_url ? (
                 <img src={profile.profile_photo_url} alt={t('settings.profile.photoAlt', 'Profile photo')} />
               ) : (
                 <span>{avatarInitials}</span>
               )}
-            </div>
+            </button>
             <div className="sp-photo-meta">
               <div className="sp-photo-title">{t('settings.profile.photoTitle', 'Profile photo')}</div>
               <div className="sp-photo-actions">
@@ -1421,6 +1437,31 @@ export default function SettingsPage() {
         </div>
       </div>
       <Footer />
+      {showPhotoPreview && profile.profile_photo_url && (
+        <div
+          className="sp-photo-preview-backdrop"
+          role="presentation"
+          onClick={() => setShowPhotoPreview(false)}
+        >
+          <div
+            className="sp-photo-preview-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-label={t('settings.profile.previewPhoto', 'Preview profile photo')}
+            onClick={event => event.stopPropagation()}
+          >
+            <button
+              type="button"
+              className="sp-photo-preview-close"
+              onClick={() => setShowPhotoPreview(false)}
+              aria-label={t('common.close', 'Close')}
+            >
+              ×
+            </button>
+            <img src={profile.profile_photo_url} alt={t('settings.profile.photoAlt', 'Profile photo')} />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

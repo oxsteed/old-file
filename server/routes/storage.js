@@ -4,6 +4,7 @@ const path = require('path');
 const { isStatementStorageKey } = require('../utils/statementStorage');
 const {
   LOCAL_STORAGE_ROOT,
+  getObjectStream,
   isPublicKeyAllowed,
   normalizeStorageKey,
   readLocalObjectMeta,
@@ -86,7 +87,33 @@ async function sendLocalFile(req, res, { signed = false } = {}) {
   }
 }
 
-router.get('/public/*', (req, res) => sendLocalFile(req, res, { signed: false }));
+async function sendRemotePublicFile(req, res) {
+  const key = decodeRouteKey(req);
+  if (!key || !isPublicKeyAllowed(key) || isStatementStorageKey(key)) {
+    return res.status(404).json({ error: 'File not found' });
+  }
+
+  const stream = await getObjectStream(key);
+  if (!stream) return res.status(404).json({ error: 'File not found' });
+
+  res.type(path.extname(key) || 'application/octet-stream');
+  res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+  res.setHeader('Content-Disposition', 'inline');
+  stream.on('error', () => {
+    if (!res.headersSent) res.status(404).json({ error: 'File not found' });
+    else res.destroy();
+  });
+  return stream.pipe(res);
+}
+
+router.get('/public/*', (req, res) => {
+  const remoteStorageConfigured = Boolean(
+    process.env.AWS_S3_ENDPOINT || process.env.S3_ENDPOINT,
+  );
+  return remoteStorageConfigured
+    ? sendRemotePublicFile(req, res)
+    : sendLocalFile(req, res, { signed: false });
+});
 router.get('/files/*', (req, res) => sendLocalFile(req, res, { signed: true }));
 
 module.exports = router;

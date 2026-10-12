@@ -604,6 +604,18 @@ html:not(.dark) .sp-sidebar {
   height: 100%;
   object-fit: cover;
 }
+.sp-avatar-button {
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+}
+.sp-avatar-button:disabled {
+  cursor: default;
+}
+.sp-avatar-button:not(:disabled):focus-visible {
+  outline: 3px solid var(--color-primary, #f97316);
+  outline-offset: 3px;
+}
 .sp-avatar-lg {
   width: 88px;
   height: 88px;
@@ -614,6 +626,46 @@ html:not(.dark) .sp-sidebar {
 .sp-photo-title { font-weight: 600; font-size: 0.875rem; margin-bottom: 0.4rem; }
 .sp-photo-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.35rem; }
 .sp-photo-hint { font-size: 0.75rem; color: var(--muted-text, #94a3b8); margin: 0; }
+.sp-photo-preview-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  padding: 1.5rem;
+  background: rgba(2, 6, 23, 0.82);
+}
+.sp-photo-preview-dialog {
+  position: relative;
+  max-width: min(90vw, 720px);
+  max-height: min(90vh, 720px);
+  padding: 0.5rem;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: 1rem;
+  background: var(--surface, #111827);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.45);
+}
+.sp-photo-preview-dialog img {
+  display: block;
+  max-width: min(86vw, 680px);
+  max-height: 82vh;
+  border-radius: 0.7rem;
+  object-fit: contain;
+}
+.sp-photo-preview-close {
+  position: absolute;
+  top: -0.75rem;
+  right: -0.75rem;
+  width: 2.25rem;
+  height: 2.25rem;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  border-radius: 9999px;
+  background: var(--surface, #111827);
+  color: var(--color-text, #fff);
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+}
 .sp-completeness {
   border: 1px solid rgba(148, 163, 184, 0.2);
   border-radius: 0.75rem;

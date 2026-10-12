@@ -233,9 +233,63 @@ function getPublicUrl(key) {
   if (s3) {
     const encodedKey = String(key).split('/').map(encodeURIComponent).join('/');
     if (PUBLIC_BASE_URL) return `${PUBLIC_BASE_URL}/${encodedKey}`;
+    // S3-compatible services such as Cloudflare R2 do not expose the AWS
+    // virtual-host URL below as a public object URL. When a custom public
+    // base is not configured, serve allowlisted public objects through the
+    // app's storage proxy instead of returning a broken URL.
+    if (ENDPOINT && LOCAL_PUBLIC_BASE_URL) {
+      return `${LOCAL_PUBLIC_BASE_URL}/api/storage/public/${encodedKey}`;
+    }
     return `https://${BUCKET}.s3.${REGION}.amazonaws.com/${encodedKey}`;
   }
   return localPublicUrl(key);
+}
+
+function storageHost(value) {
+  try {
+    return new URL(value).hostname.toLowerCase();
+  } catch {
+    return null;
+  }
+}
+
+function knownObjectKeyFromUrl(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return null;
+
+  let parsed;
+  try {
+    parsed = new URL(raw);
+  } catch {
+    return null;
+  }
+
+  const endpointHost = storageHost(ENDPOINT);
+  const appHost = storageHost(LOCAL_PUBLIC_BASE_URL);
+  const bucketHosts = new Set([
+    `${BUCKET}.s3.${REGION}.amazonaws.com`,
+    `${BUCKET}.s3.amazonaws.com`,
+    `${BUCKET}.s3-${REGION}.amazonaws.com`,
+  ]);
+  const host = parsed.hostname.toLowerCase();
+  const pathname = decodeURIComponent(parsed.pathname || '');
+
+  if (appHost && host === appHost && pathname.startsWith('/api/storage/public/')) {
+    return normalizeKey(pathname.slice('/api/storage/public/'.length));
+  }
+
+  // Only rewrite URLs from this app's configured S3-compatible endpoint or
+  // bucket. Never turn an arbitrary external image into a proxy URL.
+  if (host !== endpointHost && !bucketHosts.has(host)) {
+    return null;
+  }
+
+  return normalizeKey(pathname.replace(/^\/+/, ''));
+}
+
+function normalizeStoredPublicUrl(value) {
+  const key = knownObjectKeyFromUrl(value);
+  return key && isPublicKeyAllowed(key) ? getPublicUrl(key) : value;
 }
 
 function verifyLocalDownloadSignature(key, exp, sig) {
@@ -312,6 +366,7 @@ module.exports = {
   getSignedDownloadUrl,
   deleteFile,
   getPublicUrl,
+  normalizeStoredPublicUrl,
   resolveLocalStoragePath,
   getObjectStream,
   downloadObjectToFile,
