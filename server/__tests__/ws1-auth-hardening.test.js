@@ -431,6 +431,7 @@ describe('M1 authController.resetPassword', () => {
 
 describe('H8d refresh token via httpOnly cookie', () => {
   const auth = require('../controllers/authController');
+  const revocation = require('../services/tokenRevocationService');
   const sha256 = (s) => crypto.createHash('sha256').update(s).digest('hex');
 
   const userRow = {
@@ -481,6 +482,45 @@ describe('H8d refresh token via httpOnly cookie', () => {
     const next = jest.fn();
     await auth.refreshToken({ body: {}, headers: {} }, res, next);
     expect(next.mock.calls[0][0].status).toBe(401);
+  });
+
+  test('stale refresh token does not revoke other browser sessions', async () => {
+    revocation.revokeAllUserTokens.mockClear();
+    mockQuery.mockImplementation((sql) => {
+      if (/FROM sessions s WHERE/i.test(sql)) {
+        return Promise.resolve({ rows: [{ user_id: 'u1', is_valid: false, is_revoked: true }] });
+      }
+      return Promise.resolve({ rows: [] });
+    });
+
+    const res = mockRes();
+    const next = jest.fn();
+    await auth.refreshToken(
+      { body: {}, headers: { cookie: 'oxsteed_rt=stale-refresh-token' } }, res, next
+    );
+
+    expect(next).toHaveBeenCalledWith(expect.objectContaining({ code: 'token_reuse', status: 401 }));
+    expect(revocation.revokeAllUserTokens).not.toHaveBeenCalled();
+    expect(mockQuery.mock.calls.some(([sql]) => /WHERE user_id = \$1/i.test(sql))).toBe(false);
+  });
+
+  test('concurrent rotation conflict returns token reuse without a second session', async () => {
+    mockQuery.mockImplementation((sql) => {
+      if (/FROM sessions s WHERE/i.test(sql)) {
+        return Promise.resolve({ rows: [{ user_id: 'u1', is_valid: true, is_revoked: false }] });
+      }
+      if (/UPDATE sessions SET is_valid/i.test(sql)) return Promise.resolve({ rows: [] });
+      return Promise.resolve({ rows: [] });
+    });
+
+    const res = mockRes();
+    const next = jest.fn();
+    await auth.refreshToken(
+      { body: {}, headers: { cookie: 'oxsteed_rt=raced-refresh-token' } }, res, next
+    );
+
+    expect(next).toHaveBeenCalledWith(expect.objectContaining({ code: 'token_reuse', status: 401 }));
+    expect(mockQuery.mock.calls.filter(([sql]) => /INSERT INTO sessions/i.test(sql))).toHaveLength(0);
   });
 });
 

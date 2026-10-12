@@ -806,33 +806,32 @@ async function refreshToken(req, res, next) {
     if (!sessionRows[0]) {
       throw new AppError('Your session has expired. Please log in again.', 401, 'token_expired');
     }
-    // Audit fix: refresh token reuse detection (family kill). If a refresh
-    // token is presented for an already-invalidated session, someone may have
-    // stolen it. Kill all sessions for the user.
+    // Refresh-token reuse detection. A stale token can be left behind in a
+    // second browser tab after a sign-in or token rotation. Treat only the
+    // presented session as compromised: revoking every session for the user
+    // turns a normal multi-tab race into a global logout and can interrupt
+    // unrelated work such as a Media upload. Password changes, account
+    // deletion, and explicit security actions still use the user-wide
+    // revocation service below.
     // Note: check explicitly for false/true, not falsy, to handle mocks
     // that don't return these fields.
     const isInvalid = sessionRows[0].is_valid === false;
     const isRevoked = sessionRows[0].is_revoked === true;
     if (isInvalid || isRevoked) {
-      await pool.query(
-        'UPDATE sessions SET is_valid = false, is_revoked = true WHERE user_id = $1',
-        [sessionRows[0].user_id]
-      );
-      try {
-        await tokenRevocationService.revokeAllUserTokens(String(sessionRows[0].user_id));
-      } catch {}
-      throw new AppError('Session reuse detected. All sessions revoked. Please log in again.', 401, 'token_reuse');
+      throw new AppError('This browser session has expired. Please sign in again.', 401, 'token_reuse');
     }
     if (!sessionRows[0].is_valid) {
       throw new AppError('Your session has expired. Please log in again.', 401, 'token_expired');
     }
 
+    // Consume the token atomically. Two requests that pass the SELECT above
+    // must not both rotate the same credential and create two live sessions.
     const { rows: invalidateRows } = await pool.query(
-      'UPDATE sessions SET is_valid = false, is_revoked = true WHERE refresh_token = $1 RETURNING id',
+      'UPDATE sessions SET is_valid = false, is_revoked = true WHERE refresh_token = $1 AND is_valid = true AND is_revoked = false RETURNING id',
       [hashedToken]
     );
     if (invalidateRows.length === 0) {
-      throw new AppError('Session invalidation failed', 401, 'session_error');
+      throw new AppError('This browser session has expired. Please sign in again.', 401, 'token_reuse');
     }
 
     const { rows: userRows } = await pool.query(
