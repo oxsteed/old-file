@@ -343,7 +343,7 @@ class PayoutController {
         // pending payout may move to processing, so concurrent requests (or a
         // double click) cannot send the same payout twice.
         const payoutResult = await client.query(
-          `SELECT ap.*, pm.stripe_account_id, pm.paypal_email, u.email
+          `SELECT ap.*, pm.stripe_account_id, pm.paypal_email, pm.status AS payout_method_status, u.email
              FROM affiliate_payouts ap
              LEFT JOIN payout_methods pm ON ap.payout_method_id = pm.id
              LEFT JOIN users u ON ap.helper_id = u.id
@@ -376,23 +376,26 @@ class PayoutController {
           return sendError(res, 409, 'Payout is already being processed');
         }
 
-        // Wire the real processor here (Stripe Connect / PayPal) before this
-        // endpoint is enabled in production. Until then PAYOUT_PROCESSOR_ENABLED
-        // stays unset and the guard above keeps this path unreachable.
+        // Review P3-785: move the money before marking the payout completed.
+        // Stripe Connect transfer from the platform balance to the verified
+        // payout method's connected account. Any failure rolls the claim back.
+        const transfer = await sendAffiliatePayoutTransfer(payout, payment_processor);
+
         const updateQuery = `
           UPDATE affiliate_payouts
-          SET status = 'completed', payment_processor = $2, updated_at = NOW()
+          SET status = 'completed', payment_processor = $2, payout_reference = $3,
+              sent_at = NOW(), updated_at = NOW()
           WHERE id = $1
           RETURNING *
         `;
 
-        const result = await client.query(updateQuery, [payout_id, payment_processor]);
+        const result = await client.query(updateQuery, [payout_id, payment_processor, transfer.id]);
 
         // Log transaction
         await client.query(
-          `INSERT INTO payout_transactions (payout_id, transaction_status, idempotency_key)
-           VALUES ($1, 'completed', $2)`,
-          [payout_id, idempotencyKey]
+          `INSERT INTO payout_transactions (payout_id, transaction_status, idempotency_key, external_transaction_id)
+           VALUES ($1, 'completed', $2, $3)`,
+          [payout_id, idempotencyKey, transfer.id]
         );
 
         // H7: transactional audit row; fails closed because a client is passed.
@@ -407,6 +410,7 @@ class PayoutController {
             payment_processor,
             helper_id: payout.helper_id || null,
             net_payout_cents: payout.net_payout_cents || null,
+            stripe_transfer_id: transfer.id,
             idempotency_key: idempotencyKey,
           },
         });
@@ -426,10 +430,46 @@ class PayoutController {
         client.release();
       }
     } catch (err) {
-      logger.error('Failed to process payout', { error: err.message });
+      logger.error('Failed to process payout', { error: err.message, code: err.code });
+      if (err.payoutStatus) return sendError(res, err.payoutStatus, err.message);
       sendError(res, 500, 'Failed to process payout');
     }
   }
 }
+
+function payoutError(message, status) {
+  const err = new Error(message);
+  err.payoutStatus = status;
+  return err;
+}
+
+async function sendAffiliatePayoutTransfer(payout, processor) {
+  if (processor !== 'stripe') {
+    throw payoutError('Only Stripe Connect payouts are supported.', 422);
+  }
+  if (!payout.stripe_account_id) {
+    throw payoutError('The payout method has no connected Stripe account.', 422);
+  }
+  if (!['verified', 'active'].includes(String(payout.payout_method_status || ''))) {
+    throw payoutError('The payout method is not verified.', 409);
+  }
+  const amountCents = Number(payout.net_payout_cents ?? (Number(payout.total_commission_cents || 0) - Number(payout.processor_fee_cents || 0)));
+  if (!Number.isSafeInteger(amountCents) || amountCents <= 0) {
+    throw payoutError('The payout amount is not valid.', 422);
+  }
+  const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+  return stripe.transfers.create(
+    {
+      amount: amountCents,
+      currency: 'usd',
+      destination: payout.stripe_account_id,
+      transfer_group: `affiliate-payout-${payout.id}`,
+      metadata: { affiliate_payout_id: String(payout.id), helper_id: String(payout.helper_id || '') },
+    },
+    { idempotencyKey: `affiliate-payout:${payout.id}` },
+  );
+}
+
+PayoutController._sendAffiliatePayoutTransfer = sendAffiliatePayoutTransfer;
 
 module.exports = PayoutController;

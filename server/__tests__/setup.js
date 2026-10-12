@@ -57,6 +57,8 @@ jest.mock('../utils/email',  () => ({
   sendOTPEmail: jest.fn().mockResolvedValue(true),
   sendPasswordResetEmail: jest.fn().mockResolvedValue(true),
   sendEmail: jest.fn().mockResolvedValue({ success: true, id: 'email-test' }),
+  sendEmailOrThrow: jest.fn().mockResolvedValue({ success: true, id: 'email-test' }),
+  EmailDeliveryError: class EmailDeliveryError extends Error {},
   EMAIL_ADDRESSES: { support: 'support@oxsteed.com' },
 }));
 jest.mock('../utils/sms',    () => ({ sendOTPSMS:   jest.fn().mockResolvedValue(true) }));
