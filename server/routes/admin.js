@@ -16,6 +16,7 @@ const profileVisApprCtrl = require('../controllers/profileVisibilityApprovalsCon
 const convAdminCtrl   = require('../controllers/conversationsAdminController');
 const paymentsCtrl    = require('../controllers/paymentsAdminController');
 const paymentDisputeAdminCtrl = require('../controllers/paymentDisputeAdminController');
+const webhookReceiptAdminCtrl = require('../controllers/webhookReceiptAdminController');
 const adminMsgCtrl    = require('../controllers/adminMessageController');
 const adminPhoneVerificationCtrl = require('../controllers/adminPhoneVerificationController');
 const adminOperationsCtrl = require('../controllers/adminOperationsController');
@@ -184,6 +185,10 @@ router.delete('/markets/:marketId/zip-codes', requireAdmin, requirePermission('m
 
 // Full dashboard + charts
 router.get('/super/dashboard',          requireSuperAdmin, superCtrl.getDashboardStats);
+// Review P3-891: failed webhook receipts — list, replay from Stripe, resolve.
+router.get('/super/webhook-receipts', requireSuperAdmin, webhookReceiptAdminCtrl.list);
+router.post('/super/webhook-receipts/:id/replay', requireSuperAdmin, webhookReceiptAdminCtrl.replay);
+router.post('/super/webhook-receipts/:id/resolve', requireSuperAdmin, webhookReceiptAdminCtrl.resolve);
 router.get('/super/revenue-chart',      requireSuperAdmin, superCtrl.getRevenueChart);
 router.get('/super/dashboard/activity', requireSuperAdmin, superCtrl.getDashboardActivity);
 router.get('/super/dashboard/geo',      requireSuperAdmin, superCtrl.getDashboardGeo);
