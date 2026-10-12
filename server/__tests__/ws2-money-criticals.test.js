@@ -80,7 +80,7 @@ describe('C2 getPayoutStats days validation', () => {
     keyed(async () => ({ rows: [{}], rowCount: 0 }));
     const res = mockRes();
     await PayoutController.getPayoutStats(
-      { user: { helper_id: 9 }, query: { days: '7; DROP TABLE affiliate_payouts' } },
+      { user: { id: 9 }, query: { days: '7; DROP TABLE affiliate_payouts' } },
       res
     );
     expect(mockQuery).toHaveBeenCalled();
@@ -93,11 +93,11 @@ describe('C2 getPayoutStats days validation', () => {
 
   test('non-numeric days falls back to 30; huge values clamp to 3650', async () => {
     keyed(async () => ({ rows: [{}], rowCount: 0 }));
-    await PayoutController.getPayoutStats({ user: { helper_id: 9 }, query: { days: 'abc' } }, mockRes());
+    await PayoutController.getPayoutStats({ user: { id: 9 }, query: { days: 'abc' } }, mockRes());
     expect(mockQuery.mock.calls[0][1]).toEqual([9, 30]);
     resetMocks();
     keyed(async () => ({ rows: [{}], rowCount: 0 }));
-    await PayoutController.getPayoutStats({ user: { helper_id: 9 }, query: { days: '99999' } }, mockRes());
+    await PayoutController.getPayoutStats({ user: { id: 9 }, query: { days: '99999' } }, mockRes());
     expect(mockQuery.mock.calls[0][1]).toEqual([9, 3650]);
   });
 });
@@ -347,14 +347,15 @@ describe('H7 affiliate payout audit', () => {
   test('processing a payout writes an admin_audit_log row', async () => {
     const payout = { id: 'pay-1', status: 'pending', total_commission_cents: 3000, affiliate_program_id: 'prg-1', helper_id: 'u1' };
     keyed(async (sql) => {
-      if (sql.includes('FROM payout_methods')) return { rows: [{ id: 'pm-1', stripe_payment_method_id: 'pm_1', status: 'verified', is_primary: true }], rowCount: 1 };
+      if (sql.includes('FROM connect_accounts')) return { rows: [{ stripe_account_id: 'acct_9', payouts_enabled: true }], rowCount: 1 };
       if (sql.includes('FROM affiliate_payouts ap')) return { rows: [payout], rowCount: 1 };
       if (sql.includes("SET status = 'processing'")) return { rows: [{ ...payout, status: 'processing' }], rowCount: 1 };
-      if (sql.includes('SET status = $1, payout_method')) return { rows: [{ ...payout, status: 'processing' }], rowCount: 1 };
+      if (sql.includes("SET status = 'completed'")) return { rows: [{ ...payout, status: 'completed' }], rowCount: 1 };
       if (sql.includes('UPDATE affiliate_programs')) return { rows: [], rowCount: 1 };
       return { rows: [], rowCount: 0 };
     });
-    stripeMock.payouts.create.mockResolvedValue({ id: 'po_9' });
+    // Review P3-787: payouts are Stripe Connect transfers to the owner's account.
+    stripeMock.transfers = { create: jest.fn().mockResolvedValue({ id: 'tr_9' }) };
     const app = express();
     app.use(express.json());
     app.use((req, _res, next) => { req.user = { id: 'u1' }; next(); });
@@ -365,6 +366,9 @@ describe('H7 affiliate payout audit', () => {
     const auditCall = mockQuery.mock.calls.find(([sql]) => sql.includes('INSERT INTO admin_audit_log'));
     expect(auditCall).toBeTruthy();
     expect(auditCall[1][1]).toBe('affiliate_payout_processed');
+    expect(stripeMock.transfers.create).toHaveBeenCalledWith(
+      expect.objectContaining({ destination: 'acct_9', amount: 3000 }),
+      expect.objectContaining({ idempotencyKey: 'affiliate-payout-pay-1' }));
   });
 });
 
