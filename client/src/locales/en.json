@@ -30927,5 +30927,33 @@
     "managerCreateCodesBody": "Business owners create role-specific codes for the team in the Business Hub. If you manage a team and need to add someone, ask the owner for a code.",
     "managerTeamAccessStep1": "Ask the business owner for a code for the correct role.",
     "managerTroubleshootJoin": "If team members cannot join, ask the business owner for a fresh Vortex code for the correct role."
+  },
+  "helperOnboarding": {
+    "title": "Finish setting up your helper account",
+    "intro": "Complete these steps to appear in search and accept jobs.",
+    "email": "Email verified",
+    "terms": "Terms accepted",
+    "termsHelp": "We have no record of your terms acceptance. Contact support to continue.",
+    "profile": "Profile and contact details",
+    "phone": "Phone",
+    "city": "City",
+    "state": "State",
+    "zip": "ZIP code",
+    "bio": "Short bio (optional)",
+    "saveProfile": "Save profile",
+    "profileSaved": "Profile saved",
+    "identity": "Identity verified",
+    "identityHelp": "Verify your identity to be listed.",
+    "identityPending": "Your identity check is being reviewed.",
+    "verifyNow": "Verify identity",
+    "background": "Background check (optional)",
+    "backgroundConsent": "I consent to a background check",
+    "backgroundSaved": "Background check consent recorded",
+    "backgroundPending": "Background check in progress.",
+    "finalize": "Finish onboarding",
+    "finalized": "You're all set!",
+    "done": "Done",
+    "todo": "To do",
+    "failed": "Something went wrong. Please try again."
   }
 }

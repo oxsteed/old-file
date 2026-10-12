@@ -31012,5 +31012,33 @@
     "managerCreateCodesBody": "Pwopriyetè biznis yo kreye kòd espesyal pou chak wòl pou ekip la nan Business Hub. Si w ap jere yon ekip epi ou bezwen ajoute yon moun, mande pwopriyetè a yon kòd.",
     "managerTeamAccessStep1": "Mande pwopriyetè biznis la yon kòd pou bon wòl la.",
     "managerTroubleshootJoin": "Si manm ekip yo pa ka rantre, mande pwopriyetè biznis la yon nouvo kòd Vortex pou bon wòl la."
+  },
+  "helperOnboarding": {
+    "title": "Fini konfigire kont èd ou a",
+    "intro": "Fini etap sa yo pou parèt nan rechèch epi aksepte travay.",
+    "email": "Imèl verifye",
+    "terms": "Kondisyon aksepte",
+    "termsHelp": "Nou pa gen dosye ou te aksepte kondisyon yo. Kontakte sipò pou kontinye.",
+    "profile": "Pwofil ak enfòmasyon kontak",
+    "phone": "Telefòn",
+    "city": "Vil",
+    "state": "Eta",
+    "zip": "Kòd postal",
+    "bio": "Ti biyografi (opsyonèl)",
+    "saveProfile": "Anrejistre pwofil",
+    "profileSaved": "Pwofil anrejistre",
+    "identity": "Idantite verifye",
+    "identityHelp": "Verifye idantite ou pou yo ka mete ou nan lis la.",
+    "identityPending": "Y ap revize verifikasyon idantite ou.",
+    "verifyNow": "Verifye idantite",
+    "background": "Verifikasyon dosye (opsyonèl)",
+    "backgroundConsent": "Mwen dakò pou yo fè yon verifikasyon dosye",
+    "backgroundSaved": "Konsantman anrejistre",
+    "backgroundPending": "Verifikasyon dosye ap fèt.",
+    "finalize": "Fini enskripsyon",
+    "finalized": "Ou pare!",
+    "done": "Fini",
+    "todo": "Pou fè",
+    "failed": "Yon bagay pa mache. Tanpri eseye ankò."
   }
 }

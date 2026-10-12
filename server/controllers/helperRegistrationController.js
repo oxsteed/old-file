@@ -13,6 +13,7 @@ const { uploadFile, getPublicUrl } = require('../utils/storage');
 const { validate, rules } = require('../utils/validate');
 const countriesUtil = require('../utils/countries');
 const logger = require('../utils/logger');
+const { ONBOARDING_COLUMNS, isIdentityVerified, deriveHelperOnboarding, loadHelperOnboarding } = require('../services/helperOnboarding');
 const TERMS_IP_HASH_MAX_LEN = 45;
 const SUPPORTED_LANGUAGE_CODES = new Set(['en', 'es', 'fr', 'ht', 'ar']);
 
@@ -231,7 +232,8 @@ async function verifyOTP(req, res) {
     const { rows } = await client.query(
       `SELECT id, email, password_hash, first_name, last_name, phone, zip_code,
               address_line1, city, state,
-              otp_code, otp_expires_at, otp_attempts, otp_locked_until, user_id, account_created
+              otp_code, otp_expires_at, otp_attempts, otp_locked_until, user_id, account_created,
+              terms_accepted_at, terms_version, terms_acceptance_ip, terms_acceptance_ua
        FROM pending_registrations
        WHERE token = $1 AND role = 'helper'`,
       [token]
@@ -274,6 +276,13 @@ async function verifyOTP(req, res) {
 
     let userId;
 
+    // Review P2-477: helpers must have recorded consent (via
+    // /registration-terms) before an account is created.
+    if (!(reg.user_id && reg.account_created) && !(reg.terms_accepted_at && reg.terms_version)) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'Terms must be accepted before verifying', code: 'terms_required' });
+    }
+
     if (reg.user_id && reg.account_created) {
       // Account was already created on a previous OTP verify (idempotent re-verify)
       userId = reg.user_id;
@@ -294,14 +303,18 @@ async function verifyOTP(req, res) {
                            city, state, address_line1, country, preferred_currency,
                            role, email_verified, onboarding_status, onboarding_completed,
                            membership_tier, profile_completed, tier_selected, terms_accepted, contact_completed,
+                           terms_accepted_at, terms_version, terms_acceptance_ip, terms_acceptance_ua,
                            trial_started_at, trial_ends_at)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'helper', true, 'onboarding_complete', TRUE,
-                'tier1', TRUE, TRUE, TRUE, TRUE,
-                $12, $13)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'helper', true, 'verified_pending_onboarding', FALSE,
+                'tier1', FALSE, TRUE, TRUE, $12,
+                $13, $14, $15, $16,
+                $17, $18)
         RETURNING id
       `, [reg.email, reg.password_hash, reg.first_name, reg.last_name,
           reg.phone || null, reg.zip_code || null,
           cityU, stateU, addr1, countryU, preferredCurrency,
+          Boolean(reg.phone && reg.zip_code),
+          reg.terms_accepted_at, reg.terms_version, reg.terms_acceptance_ip || null, reg.terms_acceptance_ua || null,
           trial_started_at, trial_ends_at]);
 
       userId = userResult.rows[0].id;
@@ -495,7 +508,8 @@ async function submitOnboardingProfile(req, res) {
         zip_code          = $4,
         profile_completed = true,
         contact_completed = true,
-        onboarding_status = 'onboarding_in_progress'
+        onboarding_status = CASE WHEN onboarding_status = 'verified_pending_onboarding'
+                                 THEN 'onboarding_in_progress' ELSE onboarding_status END
       WHERE id = $5 AND role = 'helper'
     `, [phone, city, state, zip_code, userId]);
 
@@ -520,21 +534,21 @@ async function submitOnboardingProfile(req, res) {
 
 // ── 6. Submit ID Verification ────────────────────────
 async function submitIdVerification(req, res) {
+  // Review P2-594: identity is verified by the Didit flow (/verify-identity)
+  // and its webhook. This endpoint used to reset id_verified to false and
+  // discard the submitted document; now it reports the real state.
   try {
-    const userId = req.user.id;
-    const { id_document_url } = req.body;
-
-    if (!id_document_url)
-      return res.status(400).json({ error: 'ID document URL required' });
-
-    await pool.query(`
-      UPDATE users SET
-        id_verified       = false,
-        onboarding_status = 'onboarding_in_progress'
-      WHERE id = $1 AND role = 'helper'
-    `, [userId]);
-
-    res.json({ message: 'ID submitted for review', onboarding_step: 'id_submitted' });
+    const onboarding = req.helperOnboarding || await loadHelperOnboarding(req.user.id);
+    if (!onboarding) return res.status(404).json({ error: 'Helper not found' });
+    if (onboarding.steps.identityVerified) {
+      return res.json({ message: 'Identity verified', onboarding_step: 'id_verified', identity: 'verified' });
+    }
+    return res.status(202).json({
+      message: 'Complete identity verification to continue',
+      code: 'identity_verification_required',
+      identity: onboarding.steps.identitySubmitted ? 'pending' : 'not_started',
+      verify_url: '/verify-identity',
+    });
   } catch (err) {
     logger.error('submitIdVerification error:', { err });
     res.status(500).json({ error: 'ID verification submission failed' });
@@ -550,14 +564,19 @@ async function submitBackgroundCheck(req, res) {
     if (!background_check_consent)
       return res.status(400).json({ error: 'Background check consent required' });
 
-    await pool.query(`
+    // Review P2-595: never overwrite an existing result; record consent only.
+    const { rows } = await pool.query(`
       UPDATE users SET
-        background_check_passed = false,
-        onboarding_status       = 'onboarding_in_progress'
+        background_check_status = COALESCE(background_check_status, 'consented'),
+        onboarding_status       = CASE WHEN onboarding_status = 'verified_pending_onboarding'
+                                       THEN 'onboarding_in_progress' ELSE onboarding_status END
       WHERE id = $1 AND role = 'helper'
+      RETURNING background_check_status, background_check_passed
     `, [userId]);
+    if (!rows.length) return res.status(404).json({ error: 'Helper not found' });
 
-    res.json({ message: 'Background check submitted', onboarding_step: 'background_submitted' });
+    res.json({ message: 'Background check consent recorded', onboarding_step: 'background_submitted',
+      background_check_status: rows[0].background_check_status });
   } catch (err) {
     logger.error('submitBackgroundCheck error:', { err });
     res.status(500).json({ error: 'Background check submission failed' });
@@ -569,43 +588,33 @@ async function getOnboardingStatus(req, res) {
   try {
     const userId = req.user.id;
     const { rows } = await pool.query(
-      `SELECT u.onboarding_status, u.membership_tier, u.trial_ends_at, u.id_verified,
-              u.background_check_passed, u.profile_completed, u.contact_completed,
-              u.tier_selected, u.w9_completed, u.terms_accepted, u.onboarding_completed,
-              hp.bio_long AS bio
-       FROM users u
-       LEFT JOIN helper_profiles hp ON hp.user_id = u.id
-       WHERE u.id = $1 AND u.role = 'helper'`,
+      `SELECT ${ONBOARDING_COLUMNS}, membership_tier, trial_ends_at, tier_selected, w9_completed
+       FROM users WHERE id = $1 AND role = 'helper'`,
       [userId]
     );
-
     if (!rows.length)
       return res.status(404).json({ error: 'Helper not found' });
 
     const u = rows[0];
-
-    let onboarding_step = 'registered';
-    if (u.onboarding_completed || u.onboarding_status === 'onboarding_complete') {
-      onboarding_step = 'active';
-    } else if (u.w9_completed || u.terms_accepted) {
-      onboarding_step = 'tax_complete';
-    } else if (u.tier_selected) {
-      onboarding_step = 'plan_selected';
-    } else if (u.profile_completed) {
-      onboarding_step = 'profile_complete';
-    } else {
-      onboarding_step = 'email_verified';
-    }
+    const onboarding = deriveHelperOnboarding(u);
+    let onboarding_step = 'email_verified';
+    if (onboarding.complete && u.onboarding_completed) onboarding_step = 'active';
+    else if (onboarding.complete) onboarding_step = 'ready_to_finalize';
+    else if (onboarding.steps.profile) onboarding_step = 'profile_complete';
 
     res.json({
       onboarding_step,
+      steps:                   onboarding.steps,
+      missing:                 onboarding.missing,
       membership_tier:         u.membership_tier,
-      id_verified:             u.id_verified,
-      background_check_passed: u.background_check_passed,
-      profile_complete:        !!u.profile_completed,
+      id_verified:             onboarding.steps.identityVerified,
+      background_check_passed: onboarding.steps.background === 'passed',
+      profile_complete:        onboarding.steps.profile,
+      terms_accepted:          onboarding.steps.terms,
+      onboarding_completed:    Boolean(u.onboarding_completed),
       canBrowseJobs:           true,
-      canApplyToJobs:          hasProAccess(u) || u.onboarding_completed,
-      canAppearInSearch:       hasProAccess(u) && u.onboarding_completed,
+      canApplyToJobs:          Boolean(u.onboarding_completed && onboarding.complete),
+      canAppearInSearch:       Boolean(u.onboarding_completed && onboarding.canAppearInSearch),
     });
   } catch (err) {
     logger.error('getOnboardingStatus error:', { err });
@@ -736,14 +745,14 @@ async function saveTier(req, res) {
     if (normalized === 'tier2') {
       client = await pool.connect();
       const { rows } = await client.query(
-        'SELECT id_verified FROM users WHERE id = $1 AND role = $2 FOR UPDATE',
+        'SELECT id_verified, identity_verified, didit_status FROM users WHERE id = $1 AND role = $2 FOR UPDATE',
         [userId, 'helper']
       );
       if (!rows.length) {
         client.release();
         return res.status(404).json({ error: 'Helper account not found' });
       }
-      if (!rows[0].id_verified) {
+      if (!isIdentityVerified(rows[0])) {
         client.release();
         return res.status(403).json({
           error: 'Onboarding incomplete',
@@ -868,6 +877,34 @@ async function acceptTerms(req, res) {
   }
 }
 
+// Review P2-477: record terms consent on the pending registration (by its
+// opaque token) before OTP verification, without re-sending the OTP.
+async function acceptPendingTerms(req, res) {
+  const { token, accepted } = req.body || {};
+  if (!token || typeof token !== 'string') return res.status(400).json({ error: 'Token required' });
+  if (accepted !== true) return res.status(400).json({ error: 'Terms must be accepted', code: 'terms_required' });
+  try {
+    const termsVersion = TERMS_CONFIG?.terms_of_service?.version || '2026-03-20';
+    const { rows } = await pool.query(
+      `UPDATE pending_registrations
+       SET terms_accepted_at   = NOW(),
+           terms_version       = $2,
+           terms_acceptance_ip = $3,
+           terms_acceptance_ua = $4
+       WHERE token = $1 AND role = 'helper' AND COALESCE(account_created, false) = false
+       RETURNING id`,
+      [token, termsVersion,
+        hashIP(req.ip || 'unknown')?.slice(0, TERMS_IP_HASH_MAX_LEN) || null,
+        String(req.headers['user-agent'] || '').slice(0, 500)]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'No pending registration found' });
+    return res.json({ message: 'Terms accepted', terms_version: termsVersion });
+  } catch (err) {
+    logger.error('acceptPendingTerms error:', { err });
+    return res.status(500).json({ error: 'Failed to accept terms' });
+  }
+}
+
 // ── 15. Finalize helper onboarding ──────────────────────
 // POST /api/helper-registration/finalize
 async function finalizeRegistration(req, res) {
@@ -879,11 +916,15 @@ async function finalizeRegistration(req, res) {
            onboarding_status    = 'onboarding_complete',
            updated_at           = NOW()
        WHERE id = $1 AND role = 'helper'
+         AND email_verified AND profile_completed AND contact_completed
+         AND terms_accepted AND terms_accepted_at IS NOT NULL AND terms_version IS NOT NULL
+         AND (id_verified OR identity_verified OR didit_status = 'verified')
        RETURNING id`,
       [userId]
     );
     if (!rows.length) {
-      return res.status(404).json({ error: 'Helper account not found' });
+      // Review P2-593: prerequisites are re-checked in the UPDATE itself.
+      return res.status(409).json({ error: 'Onboarding prerequisites not met', code: 'onboarding_step_missing' });
     }
     return res.json({ message: 'Helper registration finalized' });
   } catch (err) {
@@ -913,6 +954,7 @@ module.exports = {
   saveTier,
   saveW9,
   acceptTerms,
+  acceptPendingTerms,
   finalizeRegistration,
   savePaymentStep,
 };

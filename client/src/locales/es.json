@@ -31012,5 +31012,33 @@
     "managerCreateCodesBody": "Los propietarios de negocios crean códigos específicos por rol para el equipo en el Business Hub. Si gestionas un equipo y necesitas agregar a alguien, pide un código al propietario.",
     "managerTeamAccessStep1": "Pide al propietario del negocio un código para el rol correcto.",
     "managerTroubleshootJoin": "Si los miembros del equipo no pueden unirse, pida al propietario del negocio un nuevo código Vortex para el rol correcto."
+  },
+  "helperOnboarding": {
+    "title": "Termina de configurar tu cuenta de ayudante",
+    "intro": "Completa estos pasos para aparecer en las búsquedas y aceptar trabajos.",
+    "email": "Correo verificado",
+    "terms": "Términos aceptados",
+    "termsHelp": "No tenemos registro de tu aceptación de los términos. Contacta a soporte para continuar.",
+    "profile": "Perfil y datos de contacto",
+    "phone": "Teléfono",
+    "city": "Ciudad",
+    "state": "Estado",
+    "zip": "Código postal",
+    "bio": "Biografía breve (opcional)",
+    "saveProfile": "Guardar perfil",
+    "profileSaved": "Perfil guardado",
+    "identity": "Identidad verificada",
+    "identityHelp": "Verifica tu identidad para aparecer en el directorio.",
+    "identityPending": "Tu verificación de identidad está en revisión.",
+    "verifyNow": "Verificar identidad",
+    "background": "Verificación de antecedentes (opcional)",
+    "backgroundConsent": "Doy mi consentimiento para una verificación de antecedentes",
+    "backgroundSaved": "Consentimiento registrado",
+    "backgroundPending": "Verificación de antecedentes en curso.",
+    "finalize": "Terminar la incorporación",
+    "finalized": "¡Todo listo!",
+    "done": "Listo",
+    "todo": "Pendiente",
+    "failed": "Algo salió mal. Inténtalo de nuevo."
   }
 }

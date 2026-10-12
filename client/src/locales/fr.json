@@ -31012,5 +31012,33 @@
     "managerCreateCodesBody": "Les propriétaires d’entreprise créent des codes spécifiques à chaque rôle pour l’équipe dans le Business Hub. Si vous gérez une équipe et devez ajouter quelqu’un, demandez un code au propriétaire.",
     "managerTeamAccessStep1": "Demandez au propriétaire de l’entreprise un code pour le bon rôle.",
     "managerTroubleshootJoin": "Si les membres de l’équipe ne peuvent pas rejoindre, demandez au propriétaire un nouveau code Vortex pour le bon rôle."
+  },
+  "helperOnboarding": {
+    "title": "Terminez la configuration de votre compte d'aide",
+    "intro": "Terminez ces étapes pour apparaître dans les recherches et accepter des missions.",
+    "email": "E-mail vérifié",
+    "terms": "Conditions acceptées",
+    "termsHelp": "Nous n'avons aucune trace de votre acceptation des conditions. Contactez le support pour continuer.",
+    "profile": "Profil et coordonnées",
+    "phone": "Téléphone",
+    "city": "Ville",
+    "state": "État",
+    "zip": "Code postal",
+    "bio": "Courte bio (facultatif)",
+    "saveProfile": "Enregistrer le profil",
+    "profileSaved": "Profil enregistré",
+    "identity": "Identité vérifiée",
+    "identityHelp": "Vérifiez votre identité pour être référencé.",
+    "identityPending": "Votre vérification d'identité est en cours d'examen.",
+    "verifyNow": "Vérifier l'identité",
+    "background": "Vérification des antécédents (facultatif)",
+    "backgroundConsent": "Je consens à une vérification des antécédents",
+    "backgroundSaved": "Consentement enregistré",
+    "backgroundPending": "Vérification des antécédents en cours.",
+    "finalize": "Terminer l'inscription",
+    "finalized": "Tout est prêt !",
+    "done": "Terminé",
+    "todo": "À faire",
+    "failed": "Une erreur s'est produite. Veuillez réessayer."
   }
 }
