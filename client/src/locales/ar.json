@@ -19181,6 +19181,8 @@
       }
     },
     "restaurant": {
+      "messageUnreachable": "لا يمكن لهذا المطعم استقبال الرسائل الآن. يرجى المحاولة لاحقًا.",
+      "messageOwnRestaurant": "هذا مطعمك. تصل رسائل العملاء إلى صندوق الوارد الخاص بنشاطك التجاري.",
       "notFound": "لم نعثر على هذا المطعم.",
       "otherItems": "أطباق أخرى",
       "prepTime": "حوالي {{min}} دقيقة للتحضير",
@@ -24784,6 +24786,12 @@
     "updatedAt": "حُدّث {{time}}"
   },
   "superConversations": {
+    "outboxRetryFailed": "تعذّرت إعادة الإشعارات إلى قائمة الانتظار. حاول مرة أخرى.",
+    "outboxRetried": "الإشعارات المُعادة إلى قائمة الانتظار: {{count}}",
+    "outboxRowLabel": "{{attempts}} محاولات · {{error}}",
+    "outboxRetryOne": "إعادة المحاولة",
+    "outboxRetryAll": "إعادة محاولة الكل",
+    "outboxFailedCount": "إشعارات الرسائل غير المُسلَّمة: {{count}}",
     "actionFailed": "فشل الإجراء.",
     "agreementsCount": "الاتفاقيات ({{count}})",
     "auditBanner": "وصول طارئ: تم تسجيل السبب: \"{{reason}}\". نموذج الدردشة السحابية في Telegram (ليس مشفرًا طرفًا لطرف).",

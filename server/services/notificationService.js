@@ -130,9 +130,14 @@ exports.sendNotification = async ({
     // ── 3. Push notification (Expo - native mobile) ───────────
     const pushKey     = `push_${type.replace(':', '_')}`;
     const pushEnabled = prefs[pushKey] !== false && !inQuietHours;
-    if (token && pushEnabled && !notificationRow?.is_push_sent && Expo.isExpoPushToken(token)) {
-      await sendPushNotification(token, finalTitle, finalBody, data, notifId);
-      if (notifId) {
+    // Tracks delivery across channels in this call. notificationRow is the
+    // INSERT..RETURNING snapshot and never sees the UPDATEs below, so checking
+    // it alone let Expo, Web Push and native push all fire for one event.
+    let pushDelivered = !!notificationRow?.is_push_sent;
+    if (token && pushEnabled && !pushDelivered && Expo.isExpoPushToken(token)) {
+      const expoOk = await sendPushNotification(token, finalTitle, finalBody, data, notifId);
+      if (expoOk) pushDelivered = true;
+      if (expoOk && notifId) {
         await db.query(
           `UPDATE notifications SET is_push_sent = true WHERE id = $1`,
           [notifId]
@@ -143,7 +148,7 @@ exports.sendNotification = async ({
     // ── 3b. Web Push (browser, VAPID) ─────────────────────────
     // Master toggle (web_push_enabled) + per-event `push_*` pref.
     const webPushEnabled = prefs.web_push_enabled !== false && !inQuietHours;
-    if (pushEnabled && webPushEnabled && !notificationRow?.is_push_sent && webPushService.isConfigured()) {
+    if (pushEnabled && webPushEnabled && !pushDelivered && webPushService.isConfigured()) {
       try {
         const result = await webPushService.sendToUser(userId, {
           id: notifId,
@@ -153,6 +158,7 @@ exports.sendNotification = async ({
           data,
           action_url,
         });
+        if (result.sent > 0) pushDelivered = true;
         if (result.sent > 0 && notifId) {
           await db.query(
             `UPDATE notifications SET is_push_sent = true WHERE id = $1`,
@@ -167,7 +173,7 @@ exports.sendNotification = async ({
     }
 
     // ── 3c. Native Mobile Push (APNs / FCM) ───────────────────
-    if (pushEnabled && !inQuietHours && !notificationRow?.is_push_sent && mobilePushService.isConfigured()) {
+    if (pushEnabled && !inQuietHours && !pushDelivered && mobilePushService.isConfigured()) {
       try {
         const result = await mobilePushService.sendToUser(userId, {
           notifId,
@@ -177,6 +183,7 @@ exports.sendNotification = async ({
           data,
           action_url,
         });
+        if (result.sent > 0) pushDelivered = true;
         if (result.sent > 0 && notifId) {
           await db.query(
             `UPDATE notifications SET is_push_sent = true WHERE id = $1`,
@@ -290,8 +297,10 @@ async function sendPushNotification(token, title, body, data, notifId) {
         }
       }
     }
+    return tickets.some((ticket) => ticket.status === 'ok');
   } catch (err) {
     logger.error('Send push notification failed', { token: redactPushToken(token), error: err.message });
+    return false;
   }
 }
 

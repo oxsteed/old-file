@@ -19170,6 +19170,8 @@
       }
     },
     "restaurant": {
+      "messageUnreachable": "Restoran sa a pa ka resevwa mesaj kounye a. Tanpri eseye ankò pita.",
+      "messageOwnRestaurant": "Se restoran pa w. Mesaj kliyan yo rive nan bwat resepsyon biznis ou.",
       "notFound": "Nou pa t jwenn restoran sa a.",
       "otherItems": "Lòt manje",
       "prepTime": "Anviwon {{min}} minit preparasyon",
@@ -24773,6 +24775,12 @@
     "updatedAt": "Mete ajou {{time}}"
   },
   "superConversations": {
+    "outboxRetryFailed": "Nou pa t ka remete notifikasyon yo nan liy. Eseye ankò.",
+    "outboxRetried": "Notifikasyon remete nan liy: {{count}}",
+    "outboxRowLabel": "{{attempts}} tantativ · {{error}}",
+    "outboxRetryOne": "Eseye ankò",
+    "outboxRetryAll": "Eseye tout ankò",
+    "outboxFailedCount": "Notifikasyon mesaj ki pa t rive: {{count}}",
     "actionFailed": "Aksyon an echwe.",
     "agreementsCount": "Akò ({{count}})",
     "auditBanner": "Aksè ijans: rezon anrejistre: “{{reason}}”. Modèl chat nwaj Telegram (pa E2EE).",

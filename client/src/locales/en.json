@@ -19170,6 +19170,8 @@
       }
     },
     "restaurant": {
+      "messageUnreachable": "This restaurant can't receive messages right now. Please try again later.",
+      "messageOwnRestaurant": "This is your restaurant. Customer messages arrive in your business inbox.",
       "notFound": "We couldn't find that restaurant.",
       "otherItems": "More items",
       "prepTime": "About {{min}} min prep",
@@ -24773,6 +24775,12 @@
     "updatedAt": "Updated {{time}}"
   },
   "superConversations": {
+    "outboxRetryFailed": "Couldn't requeue the notifications. Try again.",
+    "outboxRetried": "Requeued notifications: {{count}}",
+    "outboxRowLabel": "{{attempts}} attempts · {{error}}",
+    "outboxRetryOne": "Retry",
+    "outboxRetryAll": "Retry all",
+    "outboxFailedCount": "Undelivered message notifications: {{count}}",
     "actionFailed": "Action failed.",
     "agreementsCount": "Agreements ({{count}})",
     "auditBanner": "Break-glass access: reason logged: “{{reason}}”. Telegram cloud-chat model (not E2EE).",

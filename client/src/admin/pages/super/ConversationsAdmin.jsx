@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { useAbortableFetch } from '../../lib/useAbortableFetch';
 import { SuggestDropdown } from '../../../components/SuggestDropdown';
 import '../../lib/suggestDropdownAdmin.css';
+import MessageOutboxFailures from './MessageOutboxFailures';
 
 const STATUS_TABS = [
   { key: 'all', labelKey: 'superConversations.tabAll' },
@@ -428,6 +429,7 @@ export default function ConversationsAdmin() {
               </button>
             </div>
           </div>
+          <MessageOutboxFailures />
 
           {/* Search */}
           <div className="mb-3">

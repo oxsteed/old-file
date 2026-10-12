@@ -19170,6 +19170,8 @@
       }
     },
     "restaurant": {
+      "messageUnreachable": "Este restaurante no puede recibir mensajes en este momento. Inténtalo de nuevo más tarde.",
+      "messageOwnRestaurant": "Este es tu restaurante. Los mensajes de clientes llegan a la bandeja de entrada de tu negocio.",
       "notFound": "No encontramos ese restaurante.",
       "otherItems": "Más platos",
       "prepTime": "Aprox. {{min}} min de preparación",
@@ -24773,6 +24775,12 @@
     "updatedAt": "Actualizado {{time}}"
   },
   "superConversations": {
+    "outboxRetryFailed": "No se pudieron reenviar las notificaciones. Inténtalo de nuevo.",
+    "outboxRetried": "Notificaciones reenviadas a la cola: {{count}}",
+    "outboxRowLabel": "{{attempts}} intentos · {{error}}",
+    "outboxRetryOne": "Reintentar",
+    "outboxRetryAll": "Reintentar todas",
+    "outboxFailedCount": "Notificaciones de mensajes no entregadas: {{count}}",
     "actionFailed": "La acción falló.",
     "agreementsCount": "Acuerdos ({{count}})",
     "auditBanner": "Acceso de emergencia: motivo registrado: “{{reason}}”. Modelo de chat en la nube de Telegram (no E2EE).",

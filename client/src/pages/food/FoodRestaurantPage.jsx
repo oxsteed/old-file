@@ -1022,7 +1022,14 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
       }
     } catch (err) {
       const status = err?.response?.status;
-      if (status === 429) {
+      const code = err?.response?.data?.code;
+      if (code === 'cannot_message_own_restaurant') {
+        setMessageOpen(false);
+        toast.error(t('food.restaurant.messageOwnRestaurant'));
+      } else if (code === 'restaurant_unreachable') {
+        setMessageOpen(false);
+        toast.error(t('food.restaurant.messageUnreachable'));
+      } else if (status === 429) {
         toast.error(err?.response?.data?.error || t('food.restaurant.messageRateLimited'));
       } else {
         toast.error(err?.response?.data?.error?.message || t('food.restaurant.messageError'));

@@ -184,6 +184,7 @@ const restaurantTopupRoutes = require('./routes/restaurantTopups');
 const adminRestaurantTopupRoutes = require('./routes/adminRestaurantTopups');
 const adminRestaurantPayoutRoutes = require('./routes/adminRestaurantPayouts');
 const adminFeaturedPlacementRoutes = require('./routes/adminFeaturedPlacement');
+const adminMessageOutboxRoutes = require('./routes/adminMessageOutbox');
 const adminRestaurantMediaRoutes = require('./routes/adminRestaurantMedia');
 // Team / role / Vortex (per OxSteed team-role spec, migration 245)
 const businessTeamRoutes   = require('./routes/businessTeam');
@@ -702,6 +703,7 @@ app.use('/api/restaurants', restaurantTopupRoutes);
 app.use('/api/admin/restaurant-topups', adminRestaurantTopupRoutes);
 app.use('/api/admin/restaurant-payouts', adminRestaurantPayoutRoutes);
 app.use('/api/admin/featured-placements', adminFeaturedPlacementRoutes);
+app.use('/api/admin/message-notification-outbox', adminMessageOutboxRoutes);
 app.use('/api/admin/restaurant-media', adminRestaurantMediaRoutes);
 app.get('/api/business/:businessId/workspace/mobile-summary', require('./middleware/auth').authenticate, require('./controllers/mobileController').getBusinessMobileSummary);
 app.use('/api/orders', ordersRoutes);

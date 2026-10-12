@@ -67,7 +67,47 @@ async function finishMessageNotification(id, attempts, result, leaseToken) {
       leaseToken || null,
     ]
   );
-  return leaseToken ? (updateResult.rowCount === 1 ? status : 'stale') : status;
+  const outcome = leaseToken ? (updateResult.rowCount === 1 ? status : 'stale') : status;
+  if (outcome === 'failed') {
+    // P1-268: terminal rows are now listed and retryable from the admin
+    // Conversations page; the error log line is the alert hook.
+    logger.error('Message notification dead-lettered', { outboxId: id, attempts, error: String(result?.error || '').slice(0, 300) });
+  }
+  return outcome;
+}
+
+async function listFailedMessageNotifications({ limit = 50, offset = 0 } = {}) {
+  const boundedLimit = Math.max(1, Math.min(Number(limit) || 50, 200));
+  const boundedOffset = Math.max(0, Number(offset) || 0);
+  const [{ rows }, { rows: [count] }] = await Promise.all([
+    db.query(
+      `SELECT id, message_id, conversation_id, recipient_id, attempts, last_error, created_at, updated_at
+         FROM message_notification_outbox
+        WHERE status = 'failed'
+        ORDER BY updated_at DESC, id DESC
+        LIMIT $1 OFFSET $2`,
+      [boundedLimit, boundedOffset]
+    ),
+    db.query(`SELECT COUNT(*)::int AS total FROM message_notification_outbox WHERE status = 'failed'`),
+  ]);
+  return { items: rows || [], total: count?.total || 0, limit: boundedLimit, offset: boundedOffset };
+}
+
+// Moves dead-lettered rows back to pending with a fresh attempt budget. Only
+// 'failed' rows are touched, so a retry can never double-send a sent row or
+// steal a live lease.
+async function retryFailedMessageNotifications(ids) {
+  const list = Array.isArray(ids) ? ids.map(String).filter(Boolean).slice(0, 500) : null;
+  const { rows } = await db.query(
+    `UPDATE message_notification_outbox
+        SET status = 'pending', attempts = 0, next_attempt_at = NOW(),
+            locked_at = NULL, lease_token = NULL, updated_at = NOW()
+      WHERE status = 'failed'
+        AND ($1::text[] IS NULL OR id::text = ANY($1::text[]))
+      RETURNING id`,
+    [list]
+  );
+  return rows.map((r) => r.id);
 }
 
 function normalizePayload(payload) {
@@ -148,6 +188,8 @@ module.exports = {
   MAX_ATTEMPTS,
   claimMessageNotifications,
   finishMessageNotification,
+  listFailedMessageNotifications,
+  retryFailedMessageNotifications,
   normalizePayload,
   processMessageNotificationOutbox,
   runMessageNotificationOutbox,

@@ -58,6 +58,68 @@ exports.subscribe = async (req, res) => {
   }
 };
 
+// ─── POST /api/notifications/webpush/rotate ──────────────────
+// Body: { oldEndpoint, endpoint, keys: { p256dh, auth }, expirationTime }
+// Moves an active subscription to the browser's rotated endpoint. Only an
+// existing active row can be rotated and it keeps its owner, so this can
+// never attach a subscription to a different account.
+exports.rotate = async (req, res) => {
+  try {
+    const { oldEndpoint, endpoint, keys = {}, expirationTime = null } = req.body || {};
+    const { p256dh, auth } = keys;
+    const valid = (v) => typeof v === 'string' && v.length > 0 && v.length <= 2048;
+    if (!valid(oldEndpoint) || !valid(endpoint) || !valid(p256dh) || !valid(auth)) {
+      return res.status(400).json({ error: 'oldEndpoint, endpoint, keys.p256dh, and keys.auth are required.' });
+    }
+    if (!/^https:\/\//.test(endpoint)) {
+      return res.status(400).json({ error: 'invalid endpoint.' });
+    }
+    if (oldEndpoint === endpoint) {
+      const { rowCount } = await db.query(
+        `UPDATE push_subscriptions SET p256dh = $2, auth = $3, expiration_time = $4,
+                failure_count = 0, last_failure_at = NULL, last_used_at = now()
+          WHERE endpoint = $1 AND active = TRUE`,
+        [endpoint, p256dh, auth, expirationTime]
+      );
+      return rowCount ? res.json({ rotated: true }) : res.status(404).json({ error: 'Subscription not found.' });
+    }
+    const client = await db.connect();
+    try {
+      await client.query('BEGIN');
+      const { rows: [old] } = await client.query(
+        `SELECT user_id, device_label, user_agent FROM push_subscriptions
+          WHERE endpoint = $1 AND active = TRUE FOR UPDATE`,
+        [oldEndpoint]
+      );
+      if (!old) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'Subscription not found.' });
+      }
+      await client.query(
+        `INSERT INTO push_subscriptions
+           (user_id, endpoint, p256dh, auth, user_agent, expiration_time, device_label, active, last_used_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, TRUE, now())
+         ON CONFLICT (endpoint) DO UPDATE
+            SET user_id = EXCLUDED.user_id, p256dh = EXCLUDED.p256dh, auth = EXCLUDED.auth,
+                expiration_time = EXCLUDED.expiration_time, active = TRUE,
+                failure_count = 0, last_failure_at = NULL, last_used_at = now()`,
+        [old.user_id, endpoint, p256dh, auth, old.user_agent, expirationTime, old.device_label]
+      );
+      await client.query(`UPDATE push_subscriptions SET active = FALSE WHERE endpoint = $1`, [oldEndpoint]);
+      await client.query('COMMIT');
+      return res.json({ rotated: true });
+    } catch (err) {
+      await client.query('ROLLBACK').catch(() => {});
+      throw err;
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    logger.error('[WebPush] rotate failed', { error: err.message });
+    return res.status(500).json({ error: 'Failed to rotate push subscription.' });
+  }
+};
+
 // ─── DELETE /api/notifications/webpush/subscribe ─────────────
 // Body: { endpoint }
 // Soft-disables - keeps the row for audit, drops it from fan-out.
