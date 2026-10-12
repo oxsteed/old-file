@@ -508,33 +508,11 @@ async function decidePendingAction({ actionId, decidedBy, decision, reason, step
       });
       throw new AppError('Pending action has expired and can no longer be decided', 409, 'credit_pending_action_expired');
     }
-    let breakGlassSelfApproval = false;
     if (String(action.requested_by) === String(decidedBy)) {
-      // Review P1-251: an org with a single active super-admin can never get a
-      // second approver. Ops can opt in to a break-glass self-approval (env
-      // CREDIT_SINGLE_ADMIN_BREAK_GLASS=true) that only applies while exactly
-      // one active super-admin exists, needs a reason, and is audited.
-      const breakGlassEnabled = String(process.env.CREDIT_SINGLE_ADMIN_BREAK_GLASS || '').toLowerCase() === 'true';
-      if (breakGlassEnabled && normalizedDecision === 'approved' && normalizedReason) {
-        const { rows: admins } = await client.query(
-          `SELECT COUNT(*)::int AS n FROM users
-            WHERE role = 'super_admin' AND COALESCE(is_active, TRUE) = TRUE AND deleted_at IS NULL`
-        );
-        breakGlassSelfApproval = Number(admins[0]?.n) === 1;
-      }
-      if (!breakGlassSelfApproval) {
-        throw new AppError('The requesting administrator cannot approve their own action', 403, 'credit_self_approval_forbidden');
-      }
-      await insertAudit(client, {
-        actionType: 'credit.pending_action.break_glass_self_approval',
-        actorUserId: decidedBy,
-        resourceType: 'pending_action',
-        resourceId: String(action.id),
-        reason: normalizedReason,
-        correlationId: correlationId || null,
-        requestIp: requestIp || null,
-        metadata: { actionType: action.action_type },
-      });
+      // Maker-checker is absolute: every decision (including mark-paid and
+      // approvals) needs a second, distinct administrator. There is no
+      // single-admin override.
+      throw new AppError('The requesting administrator cannot approve their own action', 403, 'credit_self_approval_forbidden');
     }
     if (normalizedDecision === 'rejected' && !normalizedReason) {
       throw new AppError('A reason is required to reject a pending action', 400, 'credit_decision_reason_required');

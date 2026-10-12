@@ -16,7 +16,6 @@ function route(handlers) {
 
 describe('review W9: OxSteed Credit settlement and maker-checker fixes', () => {
   beforeEach(() => resetMocks());
-  afterEach(() => { delete process.env.CREDIT_SINGLE_ADMIN_BREAK_GLASS; });
 
   const baseSettlement = {
     id: '11111111-1111-4111-8111-111111111111', status: 'approved', payout_status: 'initiated',
@@ -52,7 +51,7 @@ describe('review W9: OxSteed Credit settlement and maker-checker fixes', () => {
     expect(mockQuery.mock.calls[0][0]).toMatch(/expires_at IS NULL OR expires_at >= NOW\(\)/);
   });
 
-  test('P1-251: self-approval stays forbidden without break-glass', async () => {
+  test('P1-251: self-approval is always forbidden', async () => {
     route([
       [/feature_flags/, { rows: [{ is_enabled: true }] }],
       [/oxsteed_credit_rail_freezes/, { rows: [] }],
@@ -63,10 +62,23 @@ describe('review W9: OxSteed Credit settlement and maker-checker fixes', () => {
       .rejects.toMatchObject({ code: 'credit_self_approval_forbidden' });
   });
 
-  test('P1-251: break-glass needs exactly one active super-admin', () => {
+  test('P1-251: no env setting re-enables self-approval', async () => {
+    process.env.CREDIT_SINGLE_ADMIN_BREAK_GLASS = 'true';
+    try {
+      route([
+        [/feature_flags/, { rows: [{ is_enabled: true }] }],
+        [/oxsteed_credit_rail_freezes/, { rows: [] }],
+        [/FROM users/, { rows: [{ n: 1 }] }],
+        [/FROM oxsteed_credit_pending_actions/, { rows: [{ id: 1, status: 'pending', requested_by: 'u1', action_type: 'credit_settlement_mark_paid', payload: {}, expires_at: null }] }],
+      ]);
+      const { decidePendingAction } = require('../services/oxsteedCreditPendingActionService');
+      await expect(decidePendingAction({ actionId: 1, id: 1, decision: 'approved', decidedBy: 'u1', reason: 'only admin' }))
+        .rejects.toMatchObject({ code: 'credit_self_approval_forbidden' });
+    } finally {
+      delete process.env.CREDIT_SINGLE_ADMIN_BREAK_GLASS;
+    }
     const src = fs.readFileSync(path.join(__dirname, '../services/oxsteedCreditPendingActionService.js'), 'utf8');
-    expect(src).toMatch(/CREDIT_SINGLE_ADMIN_BREAK_GLASS/);
-    expect(src).toMatch(/credit\.pending_action\.break_glass_self_approval/);
+    expect(src).not.toMatch(/BREAK_GLASS|break_glass_self_approval/);
   });
 
   test('P1-250: daily cap check takes a per-proposer lock', () => {
