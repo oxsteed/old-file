@@ -3,6 +3,7 @@
 const pool = require('../db');
 const logger = require('../utils/logger');
 const { sendMediaError } = require('../utils/mediaError');
+const { normalizeStoredPublicUrl } = require('../utils/storage');
 
 const ENTITY_TYPES = new Set(['business', 'restaurant']);
 const ACTIVE_STATUSES = ['submitted', 'in_review'];
@@ -84,7 +85,7 @@ async function getCenter(req, res) {
       actor_id: member.personal_media_actor_id || null,
       actor_type: 'user',
       display_name: memberName,
-      avatar_url: member.profile_photo_url || null,
+      avatar_url: normalizeStoredPublicUrl(member.profile_photo_url || null),
       verified: member.is_verified === true,
       eligibility: { text: true, photo: true, video: member.is_verified === true },
       location: { city: member.city || null, region: member.state || null },
@@ -94,7 +95,7 @@ async function getCenter(req, res) {
       actor_id: member.media_actor_id || null,
       actor_type: 'helper',
       display_name: memberName,
-      avatar_url: member.profile_photo_url || null,
+      avatar_url: normalizeStoredPublicUrl(member.profile_photo_url || null),
       verified: true,
       eligibility: { text: true, photo: true, video: true },
       location: { city: member.city || null, region: member.state || null },
@@ -103,7 +104,7 @@ async function getCenter(req, res) {
       key: `business:${business.id}`,
       actor_id: business.media_actor_id || null,
       actor_type: 'business', entity_id: business.id,
-      display_name: business.business_name, avatar_url: business.logo_url || null,
+      display_name: business.business_name, avatar_url: normalizeStoredPublicUrl(business.logo_url || null),
       verified: true, eligibility: { text: true, photo: true, video: member.is_verified === true },
       location: { city: business.service_city || null, region: business.service_state || null },
     });
@@ -111,7 +112,7 @@ async function getCenter(req, res) {
       key: `restaurant:${restaurant.id}`,
       actor_id: restaurant.media_actor_id || null,
       actor_type: 'restaurant', entity_id: restaurant.id,
-      display_name: restaurant.display_name, avatar_url: restaurant.logo_url || null,
+      display_name: restaurant.display_name, avatar_url: normalizeStoredPublicUrl(restaurant.logo_url || null),
       verified: true, eligibility: { text: true, photo: true, video: member.is_verified === true },
       location: { city: restaurant.address_city || null, region: restaurant.address_state || null },
     });
