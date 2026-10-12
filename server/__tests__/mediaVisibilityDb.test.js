@@ -94,6 +94,7 @@ describeDb('Media block boundaries in PostgreSQL', () => {
       '753_oxsteed_media_community_last_seen.sql',
       '754_',
       '757_',
+      '759_oxsteed_media_space_suggestions.sql',
     ];
     for (const prefix of migrationFiles) {
       const dir = path.resolve(__dirname, '../migrations');
@@ -313,6 +314,22 @@ describeDb('Media block boundaries in PostgreSQL', () => {
     expect(detail.status).not.toHaveBeenCalled();
     expect(detail.json.mock.calls[0][0].community).toMatchObject({ joined: true, member_count: 1 });
     expect(detail.json.mock.calls[0][0].posts.map((p) => p.id)).toEqual([allowed]);
+  });
+
+  test.each(['paused', 'archived'])('a %s Space is excluded from lists and direct detail views', async (status) => {
+    await db.query('UPDATE media_communities SET status = $1 WHERE slug = $2', [status, 'local-town']);
+    try {
+      const list = res();
+      await media.getCommunities({ user: { id: viewer } }, list);
+      expect(list.status).not.toHaveBeenCalled();
+      expect(list.json.mock.calls[0][0].communities).toEqual([]);
+      const detail = res();
+      await media.getCommunity({ params: { slug: 'local-town' }, user: { id: viewer } }, detail);
+      expect(detail.status).toHaveBeenCalledWith(404);
+      expect(detail.json).toHaveBeenCalledWith({ error: 'Space not found' });
+    } finally {
+      await db.query("UPDATE media_communities SET status = 'active' WHERE slug = $1", ['local-town']);
+    }
   });
 
   test('public SQL admits interim videos only in Cloudflare mode and hides flagged or unprocessed assets', async () => {

@@ -24,3 +24,13 @@ CI run `38242193141` failed before the isolated safety harness started because t
 - `docker manifest inspect docker.io/library/redis:7`: succeeded; this checks fallback manifest availability, not the complete isolated harness.
 
 The complete isolated container harness must run on GitHub to establish end-to-end success. Registry availability can still fail after bounded retries; those failures remain visible rather than skipping safety verification.
+
+## Follow-up: Space visibility schema drift
+
+CI run `38244945441` confirms the isolated Media safety harness passed. The server job exposed one remaining failing suite: `mediaVisibilityDb.test.js`. Its controller error was `column c.status does not exist`, not stale fixture rows or an immutability/foreign-key failure. The suite creates a fresh UUID-named schema and applied Media migrations only through 757, omitting the Space lifecycle migration 759 required by current community queries.
+
+Apply the real `759_oxsteed_media_space_suggestions.sql` migration to this isolated fixture. Preserve the original membership/count/detail assertions and add paused/archived Space list/detail regression cases. No broad truncation, production migration rewrite, or visibility-policy fallback is necessary.
+
+Local verification used a newly created `credit_statement_test` database in the separate `oxsteed-postgres-local` container, with synthetic test-only access. The real PostgreSQL visibility suite passed all 19 tests, including both new lifecycle cases. Production databases and credentials were not used.
+
+Combined verification of `mediaVisibilityDb.test.js`, `mediaContracts.test.js`, and `mediaEntityVisibility.test.js`: 3 suites and 51 tests passed. The temporary database and test role were removed after verification; the disposable fixtures can be recreated.
