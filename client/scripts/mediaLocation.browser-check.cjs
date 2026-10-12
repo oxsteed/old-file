@@ -10,7 +10,10 @@ const { chromium } = require('playwright-core');
 test('Media location handles errors, URL navigation, and delayed lookups without overwriting newer choices', async () => {
   const root = path.resolve(__dirname, '..');
   const mocks = {
-    'react-i18next': `export const useTranslation = () => ({ t: key => key.split('.').reduce((value, part) => value?.[part], window.catalog) || key });`,
+    'react-i18next': `export const useTranslation = () => ({ t: (key, values = {}) => {
+      const text = key.split('.').reduce((value, part) => value?.[part], window.catalog) || key;
+      return text.replace(/{{(\\w+)}}/g, (_, name) => values[name] ?? '');
+    } });`,
     '../../api/geo': `export const suggestLocation = () => new Promise((resolve, reject) => window.suggestions.push({ resolve, reject }));
       export const reverseGeocode = () => new Promise((resolve, reject) => window.reversals.push({ resolve, reject }));`,
     '../../api/media': `export const getMediaVerification = async () => ({ publishers: [] });`,
@@ -101,6 +104,40 @@ test('Media location handles errors, URL navigation, and delayed lookups without
     await page.getByRole('button', { name: 'Choose all', exact: true }).click();
     await page.evaluate(() => window.reversals[0].resolve({ city: 'Springfield', state: 'OH' }));
     assert.equal(await page.locator('#label').textContent(), 'All locations');
+
+    // Coordinate-only selections saved by old clients recover on both desktop
+    // and mobile, without asking for permission or inventing the profile city.
+    for (const width of [1366, 390]) {
+      await page.setViewportSize({ width, height: 900 });
+      await page.evaluate(() => localStorage.setItem('oxsteed.media.location', JSON.stringify({
+        location_mode: 'custom', latitude: 39.924, longitude: -83.808,
+      })));
+      await page.goto(base);
+      await page.waitForFunction(() => window.reversals.length === 1);
+      assert.equal(await page.evaluate(() => window.positions.length), 0);
+      await page.evaluate(() => window.reversals[0].resolve({ city: 'Springfield', state: 'OH', approximate: true }));
+      await page.waitForFunction(() => document.querySelector('#label').textContent === 'Near Springfield, OH');
+      await page.reload();
+      await page.waitForFunction(() => document.querySelector('#label').textContent === 'Near Springfield, OH');
+      assert.equal(await page.evaluate(() => window.reversals.length), 0);
+    }
+
+    // A successful device position with no city result is a distinct, visible
+    // lookup error, not a silent success that replaces the working selection.
+    await page.getByRole('button', { name: 'Open location', exact: true }).click();
+    await page.getByRole('button', { name: 'Use my device location', exact: true }).click();
+    await page.evaluate(() => window.positions.at(-1).success({ coords: { latitude: 0, longitude: 0 } }));
+    await page.waitForFunction(() => window.reversals.length === 1);
+    await page.evaluate(() => window.reversals[0].resolve({ city: '', state: '' }));
+    await page.getByRole('alert').waitFor();
+    assert.equal(await page.getByRole('alert').textContent(), catalog.media.feed.locationNameUnavailable);
+    assert.equal(await page.locator('#label').textContent(), 'Near Springfield, OH');
+    await page.getByRole('button', { name: 'Use my device location', exact: true }).click();
+    await page.evaluate(() => window.positions.at(-1).success({ coords: { latitude: 39.924, longitude: -83.808 } }));
+    await page.waitForFunction(() => window.reversals.length === 2);
+    await page.evaluate(() => window.reversals[1].resolve({ city: 'Springfield', state: 'OH', approximate: true }));
+    await page.getByRole('dialog').waitFor({ state: 'hidden' });
+    assert.equal(await page.locator('#label').textContent(), 'Near Springfield, OH');
     assert.deepEqual(errors, []);
   } finally {
     if (browser) await browser.close();

@@ -486,7 +486,9 @@
     },
     "feed": {
       "chooseLocation": "Elegir ubicación",
-      "nearDevice": "Cerca de tu ubicación elegida",
+      "nearDevice": "Ubicación del dispositivo (ciudad no disponible)",
+      "nearCity": "Cerca de {{city}}",
+      "locationNameUnavailable": "Se encontró la ubicación de tu dispositivo, pero no se pudo identificar la ciudad. Reintenta o introduce tu ciudad y región.",
       "allLocations": "Todas las ubicaciones",
       "locationHelp": "Usa una ciudad y un estado o región para encontrar novedades locales. La ubicación del dispositivo solo se solicita cuando la eliges.",
       "city": "Ciudad",

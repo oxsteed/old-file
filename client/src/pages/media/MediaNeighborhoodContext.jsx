@@ -20,14 +20,29 @@ function locationFromSearch(search) {
 
 function initialLocation(search = window.location.search) {
   const explicit = locationFromSearch(search);
-  if (explicit) return explicit;
   try {
     const saved = JSON.parse(localStorage.getItem(KEY));
+    if (explicit) {
+      // Our shareable city URL must not erase the device proximity label on reload.
+      return explicit.location_mode === 'custom' && saved?.location_mode === 'custom'
+        && explicit.city === saved.city && explicit.state === saved.state ? { ...saved, ...explicit } : explicit;
+    }
     if (saved?.location_mode === 'all') return saved;
     if (saved?.location_mode === 'custom' && ((typeof saved.city === 'string' && saved.city.trim() && typeof saved.state === 'string' && saved.state.trim())
       || (Number.isFinite(saved.latitude) && Math.abs(saved.latitude) <= 90 && Number.isFinite(saved.longitude) && Math.abs(saved.longitude) <= 180))) return saved;
   } catch { /* Optional browser persistence. */ }
-  return { location_mode: 'profile' };
+  return explicit || { location_mode: 'profile' };
+}
+
+async function resolveDeviceLocation(lat, lng) {
+  const choice = { location_mode: 'custom', latitude: Math.round(lat * 1000) / 1000, longitude: Math.round(lng * 1000) / 1000 };
+  try {
+    const geo = await reverseGeocode(choice.latitude, choice.longitude);
+    const city = typeof geo?.city === 'string' ? geo.city.trim() : '';
+    const state = typeof geo?.state === 'string' ? geo.state.trim() : '';
+    if (city && state) return { ...choice, city, state, ...(geo.approximate === true ? { approximate: true } : {}) };
+  } catch { /* Retain coordinates, but do not invent a city or use the profile city. */ }
+  return choice;
 }
 
 function sameLocation(left, right) {
@@ -60,9 +75,10 @@ export function MediaNeighborhoodProvider({ children, user }) {
     ? { ...resolvedLocation, city: profileCity, ...(profileState ? { state: profileState } : {}) }
     : resolvedLocation;
   const hasLocation = Boolean(displayLocation.city || Number.isFinite(displayLocation.latitude));
-  const displayCity = displayLocation.city?.replace(/\b\p{L}/gu, letter => letter.toLocaleUpperCase());
+  const displayCity = displayLocation.city?.replace(/(^|[\s-])\p{L}/gu, letter => letter.toLocaleUpperCase());
   const displayState = displayLocation.state?.length === 2 ? displayLocation.state.toUpperCase() : displayLocation.state;
-  const label = displayLocation.city ? [displayCity, displayState].filter(Boolean).join(', ')
+  const cityLabel = [displayCity, displayState].filter(Boolean).join(', ');
+  const label = displayLocation.city ? (displayLocation.approximate ? t('media.feed.nearCity', { city: cityLabel }) : cityLabel)
     : t(displayLocation.location_mode === 'all' ? 'media.feed.allLocations' : hasLocation ? 'media.feed.nearDevice' : 'media.feed.chooseLocation');
   const chooseLocation = useCallback(choice => {
     request.current += 1;
@@ -141,31 +157,29 @@ export function MediaNeighborhoodProvider({ children, user }) {
   // was already granted (no prompt). The permission dialog itself must only
   // ever appear from a user gesture (header location button).
   useEffect(() => {
-    const loc = initialLocation();
-    if (loc.location_mode === 'all' || loc.location_mode === 'custom') return;
+    const loc = initialLocation(search);
+    if (loc.location_mode === 'all') return;
+    let cancelled = false;
+    const id = request.current;
+    if (loc.location_mode === 'custom') {
+      // Repair old coordinate-only selections even without requesting device
+      // permission again. A newer manual/URL choice always wins this lookup.
+      if ((!loc.city || !loc.state) && Number.isFinite(loc.latitude) && Number.isFinite(loc.longitude)) {
+        resolveDeviceLocation(loc.latitude, loc.longitude).then(choice => {
+          if (!cancelled && id === request.current && choice.city) chooseLocationRef.current(choice);
+        });
+      }
+      return () => { cancelled = true; };
+    }
     if (typeof navigator === 'undefined' || !navigator.geolocation) return;
     const query = navigator.permissions?.query?.bind(navigator.permissions);
     if (!query) return;
-    let cancelled = false;
-    const id = request.current;
     query({ name: 'geolocation' }).then(status => {
       if (cancelled || id !== request.current || status.state !== 'granted') return;
       return getSharedBrowserLocationResult().then(async result => {
         if (cancelled || id !== request.current || !result.coords) return;
-        const lat = Math.round(result.coords.lat * 1000) / 1000;
-        const lng = Math.round(result.coords.lng * 1000) / 1000;
-        let city = '', state = '';
-        try {
-          const geo = await reverseGeocode(lat, lng);
-          city = geo.city || ''; state = geo.state || '';
-        } catch { /* Keep coordinates; label falls back to generic. */ }
+        const choice = await resolveDeviceLocation(result.coords.lat, result.coords.lng);
         if (cancelled || id !== request.current) return;
-        const choice = {
-          location_mode: 'custom',
-          latitude: lat,
-          longitude: lng,
-          ...(city ? { city, state } : {}),
-        };
         chooseLocationRef.current(choice);
       });
     }).catch(() => { /* Permissions API unavailable; leave it to user action. */ });
@@ -208,16 +222,14 @@ export function MediaNeighborhoodProvider({ children, user }) {
     const result = await getSharedBrowserLocationResult(true);
     if (id !== request.current) return;
     if (result.coords) {
-      const lat = Math.round(result.coords.lat * 1000) / 1000;
-      const lng = Math.round(result.coords.lng * 1000) / 1000;
-      let city = '', state = '';
-      try {
-        const geo = await reverseGeocode(lat, lng);
-        if (id !== request.current) return;
-        city = geo.city || ''; state = geo.state || '';
-      } catch { /* Keep coordinates; label falls back to generic. */ }
+      const choice = await resolveDeviceLocation(result.coords.lat, result.coords.lng);
       if (id !== request.current) return;
-      chooseLocation({ location_mode: 'custom', latitude: lat, longitude: lng, ...(city ? { city, state } : {}) });
+      if (!choice.city) {
+        setBusy(false);
+        setError(t('media.feed.locationNameUnavailable'));
+        return;
+      }
+      chooseLocation(choice);
     }
     else {
       setBusy(false);

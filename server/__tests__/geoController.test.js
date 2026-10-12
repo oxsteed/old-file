@@ -13,6 +13,39 @@ const geoProvider = require('../services/geoProviderService');
 const routeProvider = require('../services/geoRouteProviderService');
 const controller = require('../controllers/geoController');
 
+test('a named configured-provider result remains authoritative', async () => {
+  const result = { city: 'Dayton', state: 'OH', display: 'Dayton, OH' };
+  geoProvider.reverse.mockResolvedValueOnce(result);
+  const res = response();
+  await controller.reverse({ query: { lat: '39.759', lng: '-84.191' } }, res);
+  expect(res.json).toHaveBeenCalledWith(result);
+});
+
+test('reverse lookup uses the offline approximate city when providers are unavailable', async () => {
+  geoProvider.reverse.mockResolvedValueOnce(null);
+  const res = response();
+  await controller.reverse({ query: { lat: '39.924', lng: '-83.808' } }, res);
+  expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ city: 'Springfield', state: 'OH', approximate: true }));
+});
+
+test('an empty or failing configured provider cannot hide the offline city', async () => {
+  for (const fail of [false, true]) {
+    if (fail) geoProvider.reverse.mockRejectedValueOnce(new Error('Synthetic provider failure'));
+    else geoProvider.reverse.mockResolvedValueOnce({ city: '', state: '', display: '' });
+    const res = response();
+    await controller.reverse({ query: { lat: '48.857', lng: '2.352' } }, res);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ city: 'Paris', state: 'Île-de-France', approximate: true }));
+  }
+});
+
+test('reverse lookup rejects malformed coordinates and leaves remote areas unnamed', async () => {
+  for (const lat of ['39.924junk', '', 'Infinity', '91', '0']) {
+    const res = response();
+    await controller.reverse({ query: { lat, lng: '0' } }, res);
+    expect(res.json).toHaveBeenCalledWith({ city: '', state: '', display: '' });
+  }
+});
+
 function response() {
   return { status: jest.fn().mockReturnThis(), json: jest.fn().mockReturnThis() };
 }

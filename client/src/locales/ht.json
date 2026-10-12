@@ -30655,7 +30655,9 @@
     },
     "feed": {
       "chooseLocation": "Chwazi yon kote",
-      "nearDevice": "Toupre kote ou chwazi a",
+      "nearDevice": "Kote aparèy la ye (vil pa disponib)",
+      "nearCity": "Toupre {{city}}",
+      "locationNameUnavailable": "Nou jwenn kote aparèy ou a ye, men nou pa ka idantifye vil la. Eseye ankò oswa antre vil ak rejyon ou.",
       "allLocations": "Tout kote",
       "locationHelp": "Antre yon vil ak yon eta oswa rejyon pou jwenn nouvèl lokal. Nou mande kote aparèy ou a sèlman lè ou chwazi sa.",
       "city": "Vil",

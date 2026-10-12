@@ -3,6 +3,7 @@ const crypto = require('crypto');
 const logger = require('../utils/logger');
 const redis = require('../utils/redis');
 const metricsService = require('../services/metricsService');
+const { reverse: offlineReverse } = require('../services/offlineCityLocation');
 const {
   nearby: awsNearby,
   reverse: awsReverse,
@@ -185,35 +186,37 @@ function fallbackMatrix(origins, destinations) {
  * Used by the homepage search to label a browser-detected location.
  */
 exports.reverse = async (req, res) => {
+  let lat, lng;
+  const fallback = () => offlineReverse(lat, lng) || { city: '', state: '', display: '' };
   try {
-    const lat = parseFloat(req.query.lat);
-    const lng = parseFloat(req.query.lng);
-    if (isNaN(lat) || isNaN(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+    lat = typeof req.query.lat === 'string' && req.query.lat.trim() ? Number(req.query.lat) : NaN;
+    lng = typeof req.query.lng === 'string' && req.query.lng.trim() ? Number(req.query.lng) : NaN;
+    if (!Number.isFinite(lat) || !Number.isFinite(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
       return res.json({ city: '', state: '', display: '' });
     }
 
     const cacheKey = `rev:${lat.toFixed(4)},${lng.toFixed(4)}`;
     const cached = await sharedCacheGet('reverse', cacheKey, cacheGet, cacheSet);
-    if (cached) return res.json(cached);
+    if (cached?.city && cached?.state) return res.json(cached);
 
     metricsService.incrementCounter('geo.provider_attempt', 1, { provider: 'aws', operation: 'reverse' });
     const awsResult = await awsReverse(lat, lng);
-    if (awsResult) {
+    if (awsResult?.city && awsResult?.state) {
       sharedCacheSet('reverse', cacheKey, awsResult, CACHE_TTL_MS / 1000, cacheSet);
       return res.json(awsResult);
     }
 
     const googleKey = googleMapsKey();
-    if (!googleKey) return res.json({ city: '', state: '', display: '' });
+    if (!googleKey) return res.json(fallback());
 
     metricsService.incrementCounter('geo.provider_attempt', 1, { provider: 'google', operation: 'reverse' });
     const { data } = await axios.get(GEOCODE_BASE, {
-      params: { latlng: `${lat},${lng}`, result_type: 'locality', key: googleKey },
+      params: { latlng: `${lat},${lng}`, key: googleKey },
       timeout: 5000,
     });
 
     if (data.status !== 'OK' || !data.results?.length) {
-      return res.json({ city: '', state: '', display: '' });
+      return res.json(fallback());
     }
 
     const r = data.results[0];
@@ -221,8 +224,9 @@ exports.reverse = async (req, res) => {
     const get  = (type) => components.find(c => c.types.includes(type))?.long_name  || '';
     const getS = (type) => components.find(c => c.types.includes(type))?.short_name || '';
 
-    const city  = get('locality') || get('sublocality') || get('neighborhood') || '';
+    const city  = get('locality') || get('postal_town') || get('sublocality') || get('administrative_area_level_2') || '';
     const state = getS('administrative_area_level_1') || '';
+    if (!city || !state) return res.json(fallback());
     const display = city && state ? `${city}, ${state}` : city || state || '';
 
     const result = { city, state, display };
@@ -230,7 +234,7 @@ exports.reverse = async (req, res) => {
     return res.json(result);
   } catch (err) {
     logger.error('Geo reverse error', { message: err.message });
-    return res.json({ city: '', state: '', display: '' });
+    return res.json(fallback());
   }
 };
 

@@ -30655,7 +30655,9 @@
     },
     "feed": {
       "chooseLocation": "Choose a location",
-      "nearDevice": "Nearby your chosen location",
+      "nearDevice": "Device location (city unavailable)",
+      "nearCity": "Near {{city}}",
+      "locationNameUnavailable": "Your device location was found, but its city could not be identified. Retry or enter your city and region.",
       "allLocations": "All locations",
       "locationHelp": "Use a city and state or region to find local updates. Device location is requested only when you choose it.",
       "city": "City",
