@@ -7,6 +7,7 @@ import Footer from '../../components/Footer';
 import PageMeta from '../../components/PageMeta';
 import { listOxsteedCreditAccounts } from '../../api/oxsteedCredit';
 import { listMyFoodRestaurantWallets } from '../../api/food';
+import { listStatementEntries } from '../../api/statementInvestigation';
 import {
   listArchive, getArchiveDocument, downloadArchiveDocument, getArchiveDownloadLink,
   listStatementScopes,
@@ -19,6 +20,13 @@ import './StatementArchivePage.css';
 // Complete five-locale catalogs are authoritative; English defaults provide
 // a readable fallback if an optional locale chunk cannot be loaded.
 export const ARCHIVE_STRINGS = Object.freeze({
+  entriesTitle: 'Transactions',
+  showEntries: 'Show transactions',
+  entriesLoading: 'Loading transactions…',
+  entriesError: 'Transactions could not be loaded.',
+  entriesEmpty: 'This statement has no transactions.',
+  investigate: 'Review or report',
+  moreEntries: 'Show more',
   title: 'Statement archive',
   description: 'Your issued monthly statements. Originals are immutable; download them again at any time.',
   back: 'Back to statement center',
@@ -158,6 +166,42 @@ export default function StatementArchivePage({ product: productProp = 'oxsteed' 
   const [expanded, setExpanded] = useState({});
   const [downloadState, setDownloadState] = useState({});
   const [linkState, setLinkState] = useState({});
+  // Review P2-550: per-statement transaction list linking to the
+  // investigation view (/statements/:documentId/entries/:entryId).
+  const [entriesState, setEntriesState] = useState({});
+
+  async function loadEntries(documentId, page = 1) {
+    setEntriesState(current => ({ ...current, [documentId]: { ...(current[documentId] || {}), status: 'loading' } }));
+    try {
+      const data = await listStatementEntries(documentId, { page, pageSize: 25 });
+      setEntriesState(current => {
+        const previous = page > 1 ? (current[documentId]?.entries || []) : [];
+        return { ...current, [documentId]: { status: 'ready', entries: [...previous, ...(data.entries || [])], page, total: data.pagination?.total ?? 0 } };
+      });
+    } catch {
+      setEntriesState(current => ({ ...current, [documentId]: { ...(current[documentId] || {}), status: 'error' } }));
+    }
+  }
+
+  function renderEntries(item) {
+    const state = entriesState[item.id];
+    return <section className="sa-entries" aria-label={text('entriesTitle')}>
+      <h3>{text('entriesTitle')}</h3>
+      {!state ? <button type="button" onClick={() => loadEntries(item.id)}>{text('showEntries')}</button>
+        : state.status === 'loading' && !state.entries?.length ? <p role="status">{text('entriesLoading')}</p>
+          : state.status === 'error' && !state.entries?.length ? <p role="alert">{text('entriesError')} <button type="button" onClick={() => loadEntries(item.id)}>{text('retry')}</button></p>
+            : !state.entries.length ? <p>{text('entriesEmpty')}</p>
+              : <>
+                <ul className="sa-entry-list">{state.entries.map(entry => <li key={entry.entryId}>
+                  <span>{dateTime(entry.postedAt)}</span>{' · '}
+                  <span>{entry.description || entry.type}</span>{' · '}
+                  <bdi>{entry.creditCents ? `+${money(entry.creditCents, entry.currencyCode || item.currency)}` : `-${money(entry.debitCents, entry.currencyCode || item.currency)}`}</bdi>{' '}
+                  <Link to={`/statements/${encodeURIComponent(item.id)}/entries/${encodeURIComponent(entry.entryId)}`}>{text('investigate')}</Link>
+                </li>)}</ul>
+                {state.entries.length < state.total && <button type="button" disabled={state.status === 'loading'} onClick={() => loadEntries(item.id, (state.page || 1) + 1)}>{text('moreEntries')}</button>}
+              </>}
+    </section>;
+  }
   const requestRef = useRef(null);
 
   const settlement = STATEMENT_PRODUCTS[product].settlement;
@@ -352,6 +396,7 @@ export default function StatementArchivePage({ product: productProp = 'oxsteed' 
           <th key={key} scope="col">{text(key)}</th>)}</tr></thead>
           <tbody>{artifacts.map(artifact => renderArtifactRow(item, artifact))}</tbody></table>
       </div>}
+      {document.kind !== 'amendment' && renderEntries(item)}
     </div>;
   }
 

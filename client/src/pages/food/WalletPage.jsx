@@ -6,6 +6,7 @@ import Navbar from '../../components/Navbar';
 import Footer from '../../components/Footer';
 import PageMeta from '../../components/PageMeta';
 import WalletRestaurantWallets from './WalletRestaurantWallets';
+import OxsteedCreditTopupPanel from '../../components/credit/OxsteedCreditTopupPanel';
 import {
   getOxsteedCreditAccount,
   getOxsteedCreditAccountDetails,
@@ -141,6 +142,10 @@ export default function WalletPage() {
               </div>
             </div>
           </section>
+
+          {!loading && account && railStatus?.enabled !== false && accountStatus === 'active' && (
+            <OxsteedCreditTopupPanel currency={currency} onCredited={() => load({ quiet: true })} />
+          )}
 
           {accountDetails && (
             <section className="ox-credit-panel ox-credit-details-panel" aria-labelledby="wallet-details-heading">

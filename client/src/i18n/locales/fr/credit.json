@@ -196,7 +196,14 @@
     "next": "Suivant",
     "scopeNote": "Chaque produit, compte et devise a ses propres relevés. Ce sont des registres de comptes de crédit, pas des relevés bancaires.",
     "correctionsUnavailable": "Les corrections comptables en ligne ne sont pas encore disponibles pour les relevés Helper earnings ou Business. Pour demander une vérification, contactez l’assistance et indiquez le compte et la période du relevé.",
-    "contactSupport": "Contacter l’assistance"
+    "contactSupport": "Contacter l’assistance",
+    "entriesTitle": "Transactions",
+    "showEntries": "Afficher les transactions",
+    "entriesLoading": "Chargement des transactions…",
+    "entriesError": "Impossible de charger les transactions.",
+    "entriesEmpty": "Ce relevé ne contient aucune transaction.",
+    "investigate": "Examiner ou signaler",
+    "moreEntries": "Afficher plus"
   },
   "statementInvestigation": {
     "title": "Transaction du relevé",
@@ -938,9 +945,9 @@
   "adminNoOutboundTransfers": "Aucun transfert sortant autorisé",
   "adminCustomerReviews": "Examens du client",
   "adminCreditDisputes": "Litiges de crédit",
-  "adminMediaOnly": "Litiges des cr�ateurs Media",
-  "adminMediaCreatorTip": "Pourboire du cr�ateur Media",
-  "adminMediaCreatorSponsorship": "Parrainage du cr�ateur Media",
+  "adminMediaOnly": "Litiges des créateurs Media",
+  "adminMediaCreatorTip": "Pourboire du créateur Media",
+  "adminMediaCreatorSponsorship": "Parrainage du créateur Media",
   "adminMediaPostBoost": "Boost de publication Media",
   "adminNoCustomerDisputes": "Aucun litige de crédit n'est enregistré pour ce client.",
   "adminOxsteedCreditTransaction": "Transaction OxSteed Credit",
@@ -1951,5 +1958,11 @@
   "adminParticipantTypeProductSeller": "Vendeur de produits",
   "adminParticipantTypeRentalSeller": "Vendeur de locations",
   "adminGuestCreditCaps": "Plafonds de crédit invité (politique fixe)",
-  "adminGuestCreditCapsDescription": "Les invités peuvent dépenser du crédit OxSteed jusqu'à 25 $ par commande, 50 $ par jour et 200 $ à vie par session. Les dépenses des invités sont financées par la trésorerie de la plateforme. Ces plafonds sont fixes et s'appliquent à tous les participants."
+  "adminGuestCreditCapsDescription": "Les invités peuvent dépenser du crédit OxSteed jusqu'à 25 $ par commande, 50 $ par jour et 200 $ à vie par session. Les dépenses des invités sont financées par la trésorerie de la plateforme. Ces plafonds sont fixes et s'appliquent à tous les participants.",
+  "walletTopup": {
+    "title": "Ajouter de l'argent",
+    "intro": "Ajoutez de l'argent à OxSteed Credit par carte. Il est crédité une fois le paiement confirmé.",
+    "credited": "Argent ajouté à votre OxSteed Credit",
+    "invalidAmount": "Saisissez au moins {{min}}."
+  }
 }
