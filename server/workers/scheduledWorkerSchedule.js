@@ -47,6 +47,10 @@ function buildSchedule() {
     // Renew OxSteed Credit subscriptions past period end, daily.
     // No-op unless SUBSCRIPTIONS_CREDIT_ENABLED=true.
     ['renewSubscriptionCredit', renewSubscriptionCredit, 24 * 60 * 60 * 1000, { limit: 100 }],
+    // Review P3-914: delete replaced uploads after their grace period.
+    // No-op unless STORAGE_CLEANUP_ENABLED=true.
+    ['storageDeletionQueue', (options) => require('../services/storageCleanupService').processStorageDeletionQueue(options),
+      15 * 60 * 1000, { limit: 100 }],
   ];
 }
 
