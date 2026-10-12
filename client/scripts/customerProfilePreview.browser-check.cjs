@@ -27,6 +27,7 @@ test('real customer layouts render in an inert sandbox without public-page effec
   const bundle = await build({
     stdin: { resolveDir: root, loader: 'jsx', contents: `
       import React from 'react'; import {createRoot} from 'react-dom/client'; import {I18nextProvider} from 'react-i18next';
+      import {QueryClient, QueryClientProvider} from '@tanstack/react-query';
       import i18n, {LANGUAGES} from './src/i18n';
       import {LanguageContext} from './src/context/LanguageContext'; import {ThemeContext} from './src/context/ThemeContext';
       import Preview from './src/admin/pages/ProfileCustomerPreview';
@@ -34,12 +35,13 @@ test('real customer layouts render in an inert sandbox without public-page effec
       import {normalizeBusinessPublicProfile} from './src/pages/BusinessPublicProfilePage';
       window.sanitize=sanitizeCustomerProfileMarkup; window.normalizeBusiness=normalizeBusinessPublicProfile;
       const root=createRoot(document.getElementById('root'));
+      const queryClient=new QueryClient();
       window.show=async(type,id,content,language='en')=>{
         await i18n.changeLanguage(language);
         const copy=key=>i18n.t('adminProfileVisibility.'+key);
-        root.render(<I18nextProvider i18n={i18n}><LanguageContext.Provider value={{language,availableLanguages:LANGUAGES}}>
+        root.render(<QueryClientProvider client={queryClient}><I18nextProvider i18n={i18n}><LanguageContext.Provider value={{language,availableLanguages:LANGUAGES}}>
           <ThemeContext.Provider value={{isDark:true}}><Preview key={type+id+language} content={content} profileType={type} profileId={id} copy={copy}/></ThemeContext.Provider>
-        </LanguageContext.Provider></I18nextProvider>);
+        </LanguageContext.Provider></I18nextProvider></QueryClientProvider>);
       };
       window.buildSnapshot=(type,id,content)=>buildCustomerProfileDocument({type,id,content,i18n,language:'en',availableLanguages:LANGUAGES,theme:'dark',tab:'menu'});
     ` },

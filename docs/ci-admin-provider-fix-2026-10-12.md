@@ -22,3 +22,12 @@ Verification from `client/`:
 The correction is pushed through the verified default branch `old-files-claude`.
 Local verification is separate from the new GitHub CI run. Deployment is neither
 inspected nor awaited for this correction.
+
+## Follow-up CI correction
+
+The next CI run reached browser regressions and exposed the same missing provider
+in `customerProfilePreview.browser-check.cjs`: its snapshot renderer invokes the
+real navbar/footer while rendering static customer-profile markup. The renderer
+now supplies a per-render `QueryClientProvider`, matching the production app's
+provider boundary; the browser fixture also wraps its live preview page with a
+query client. The focused customer-profile browser test passes locally.

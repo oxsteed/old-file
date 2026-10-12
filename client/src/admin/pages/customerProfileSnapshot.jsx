@@ -1,6 +1,7 @@
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { I18nextProvider } from 'react-i18next';
 import { AuthContext } from '../../context/AuthContext';
 import { ThemeContext } from '../../context/ThemeContext';
@@ -26,8 +27,10 @@ export function renderCustomerProfileMarkup({ type, id, content, i18n, language,
   const validId = type === 'helper' ? /^[a-z0-9-]{1,80}$/i.test(String(id)) : /^[1-9]\d*$/.test(String(id));
   if (!page || !content?.[type] || !validId) throw new Error('Invalid snapshot profile');
   const Component = page.Component;
+  const queryClient = new QueryClient();
   return renderToStaticMarkup(
-    <I18nextProvider i18n={i18n}>
+    <QueryClientProvider client={queryClient}>
+      <I18nextProvider i18n={i18n}>
       <LanguageContext.Provider value={{ language, availableLanguages, setLanguage: noop, syncLanguageFromServer: noop }}>
         <AuthContext.Provider value={{ user: null, loading: false, initialized: true, isHelper: false, logout: noop }}>
           <ThemeContext.Provider value={{ isDark: theme === 'dark', toggleTheme: noop }}>
@@ -40,7 +43,8 @@ export function renderCustomerProfileMarkup({ type, id, content, i18n, language,
           </ThemeContext.Provider>
         </AuthContext.Provider>
       </LanguageContext.Provider>
-    </I18nextProvider>
+      </I18nextProvider>
+    </QueryClientProvider>
   );
 }
 
