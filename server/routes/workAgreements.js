@@ -1,6 +1,9 @@
 const router = require('express').Router();
 const { authenticate } = require('../middleware/auth');
 const wa = require('../controllers/workAgreementController');
+const upload = require('../middleware/upload');
+const validateFileUpload = require('../middleware/validateFileUpload');
+const { userUploadLimiter } = require('../middleware/rateLimiter');
 
 // All routes require auth; the controller enforces party-only access
 // (only the helper or customer on the agreement may act).
@@ -24,11 +27,11 @@ router.post('/:id/change-orders/:coId/approve', authenticate, wa.approveChangeOr
 router.post('/:id/change-orders/:coId/reject', authenticate, wa.rejectChangeOrder);
 
 // Evidence
-router.post('/:id/evidence', authenticate, wa.addEvidence);
+router.post('/:id/evidence', authenticate, userUploadLimiter, upload.single('file'), validateFileUpload, wa.addEvidence);
 router.get('/:id/evidence', authenticate, wa.listEvidence);
 
 // Documents
-router.post('/:id/documents', authenticate, wa.addDocument);
+router.post('/:id/documents', authenticate, userUploadLimiter, upload.single('file'), validateFileUpload, wa.addDocument);
 router.get('/:id/documents', authenticate, wa.listDocuments);
 
 // Warranty claims (recorded only; the platform never adjudicates)

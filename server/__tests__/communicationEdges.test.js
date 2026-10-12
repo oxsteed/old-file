@@ -253,7 +253,7 @@ describe('communication edge idempotency', () => {
     expect(mockQuery.mock.calls[1][0]).toContain('client_message_id');
   });
 
-  test('replays restaurant contact without duplicating the legacy or shared message', async () => {
+  test('refuses restaurant contact when the restaurant has no reachable recipient', async () => {
     const clientMessageId = '00000000-0000-4000-8000-000000000322';
     const restaurant = {
       id: 3,
@@ -277,10 +277,7 @@ describe('communication edge idempotency', () => {
 
     mockQuery
       .mockResolvedValueOnce({ rows: [restaurant] })
-      .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({ rows: [record] })
-      .mockResolvedValueOnce({ rows: [restaurant] })
-      .mockResolvedValueOnce({ rows: [record] });
+      .mockResolvedValueOnce({ rows: [restaurant] });
 
     const app = buildFoodApp();
     const first = await request(app)
@@ -290,10 +287,12 @@ describe('communication edge idempotency', () => {
       .post('/api/food/restaurants/3/messages')
       .send({ message: record.message, clientMessageId });
 
-    expect(first.status).toBe(201);
-    expect(second.status).toBe(200);
-    expect(second.body.message).toEqual(record);
-    expect(mockQuery.mock.calls.filter(([sql]) => /INSERT INTO food_restaurant_customer_messages/.test(sql))).toHaveLength(1);
+    // P1-266: a restaurant with no owner/business has nobody to deliver to, so
+    // the message is refused rather than stored and silently dropped.
+    expect(first.status).toBe(409);
+    expect(first.body.code).toBe('restaurant_unreachable');
+    expect(second.status).toBe(409);
+    expect(mockQuery.mock.calls.filter(([sql]) => /INSERT INTO food_restaurant_customer_messages/.test(sql))).toHaveLength(0);
   });
 
   test('replays a helper reply to a guest inquiry without updating or broadcasting twice', async () => {

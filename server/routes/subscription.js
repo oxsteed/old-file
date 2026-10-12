@@ -3,10 +3,11 @@ const router = express.Router();
 const { authenticate } = require('../middleware/auth');
 const subCtrl = require('../controllers/subscriptionController');
 const db = require('../db');
+const { paymentsLimiter } = require('../middleware/rateLimiter');
 
 // Subscription routes
 router.get('/plans', subCtrl.getPlans);
-router.post('/checkout', authenticate, subCtrl.createCheckout);
+router.post('/checkout', authenticate, paymentsLimiter, subCtrl.createCheckout);
 router.get('/current', authenticate, subCtrl.getSubscription);
 router.get('/badges/:userId', async (req, res, next) => {
   try {
