@@ -47,6 +47,22 @@ export function MediaNeighborhoodProvider({ children, user }) {
   }, []);
   const openLocation = useCallback(initialQuery => { if (typeof initialQuery === 'string') { setQuery(initialQuery); setLookupQuery(initialQuery.trim()); } setError(''); setMatches([]); setBusy(false); setOpen(true); }, []);
 
+  // Profile mode is a valid location choice even when it has not been
+  // persisted with a city snapshot yet. Resolve it from the signed-in user's
+  // approximate profile location so desktop and mobile headers display the
+  // same useful label without using precise device coordinates.
+  useEffect(() => {
+    if (!user || location.location_mode !== 'profile') return;
+    const city = typeof user.city === 'string' ? user.city.trim() : '';
+    const state = typeof user.state === 'string' ? user.state.trim() : '';
+    if (!city || !state) return;
+    setResolvedLocation(current => (
+      current.location_mode === 'profile' && current.city === city && current.state === state
+        ? current
+        : { ...current, location_mode: 'profile', city, state }
+    ));
+  }, [location.location_mode, user?.city, user?.id, user?.state]);
+
   // Silently use device location on first visit only if the browser permission
   // was already granted (no prompt). The permission dialog itself must only
   // ever appear from a user gesture (header location button).
