@@ -30218,6 +30218,9 @@
     "finalCtaSubtitle": "Gratis pou kreye. Pataje l nenpòt kote epi kòmanse touche jodi a."
   },
   "workAgreement": {
+    "fileUnavailable": "Fichye a pa disponib",
+    "chooseFile": "Chwazi yon fichye",
+    "fileUrlOptional": "Oswa kole yon lyen https",
     "signHere": "Desine siyati ou isit la",
     "signHint": "Desine siyati ou ak sourit oswa dwèt",
     "clearSignature": "Efase",

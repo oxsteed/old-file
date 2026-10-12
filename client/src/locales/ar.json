@@ -30229,6 +30229,9 @@
     "finalCtaSubtitle": "مجاناً. شاركه في أي مكان وابدأ القبض اليوم."
   },
   "workAgreement": {
+    "fileUnavailable": "الملف غير متاح",
+    "chooseFile": "اختر ملفًا",
+    "fileUrlOptional": "أو الصق رابط https",
     "signHere": "ارسم توقيعك هنا",
     "signHint": "ارسم توقيعك بالفأرة أو الإصبع",
     "clearSignature": "مسح",

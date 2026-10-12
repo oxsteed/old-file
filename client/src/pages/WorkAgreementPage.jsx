@@ -12,6 +12,7 @@ import SignaturePad from '../components/SignaturePad';
 import '../components/SignaturePad.css';
 import api from '../api/axios';
 import './WorkAgreementPage.css';
+import { safeHttpUrl } from '../utils/safeHref';
 
 function Section({ icon: Icon, title, children, action, id }) {
   return (
@@ -43,9 +44,12 @@ export default function WorkAgreementPage() {
   const [coDesc, setCoDesc] = useState('');
   const [coPrice, setCoPrice] = useState('');
   const [evType, setEvType] = useState('before_photo');
+  const [evFile, setEvFile] = useState(null);
   const [evUrl, setEvUrl] = useState('');
   const [evDesc, setEvDesc] = useState('');
+  const [docFile, setDocFile] = useState(null);
   const [docUrl, setDocUrl] = useState('');
+  const [fileInputKey, setFileInputKey] = useState(0);
   const [docName, setDocName] = useState('');
   const [claimDesc, setClaimDesc] = useState('');
   const [claimOpen, setClaimOpen] = useState(false);
@@ -127,8 +131,15 @@ export default function WorkAgreementPage() {
 
   const addEvidence = async () => {
     try {
-      await api.post(`/api/work-agreements/${id}/evidence`, { type: evType, fileUrl: evUrl.trim(), description: evDesc.trim() });
-      setEvUrl(''); setEvDesc(''); load();
+      // Review P3-912: upload the file itself (stored privately, served via a
+      // short-lived signed URL). A pasted https link stays as a fallback.
+      const form = new FormData();
+      form.append('type', evType);
+      form.append('description', evDesc.trim());
+      if (evFile) form.append('file', evFile);
+      else form.append('fileUrl', evUrl.trim());
+      await api.post(`/api/work-agreements/${id}/evidence`, form);
+      setEvFile(null); setEvUrl(''); setEvDesc(''); setFileInputKey((k) => k + 1); load();
     } catch (e) {
       setError(e.response?.data?.error || t('workAgreement.evidenceError', { defaultValue: 'Could not add evidence.' }));
     }
@@ -136,8 +147,12 @@ export default function WorkAgreementPage() {
 
   const addDocument = async () => {
     try {
-      await api.post(`/api/work-agreements/${id}/documents`, { fileUrl: docUrl.trim(), fileName: docName.trim() });
-      setDocUrl(''); setDocName(''); load();
+      const form = new FormData();
+      form.append('fileName', docName.trim() || docFile?.name || '');
+      if (docFile) form.append('file', docFile);
+      else form.append('fileUrl', docUrl.trim());
+      await api.post(`/api/work-agreements/${id}/documents`, form);
+      setDocFile(null); setDocUrl(''); setDocName(''); setFileInputKey((k) => k + 1); load();
     } catch (e) {
       setError(e.response?.data?.error || t('workAgreement.docError', { defaultValue: 'Could not add the document.' }));
     }
@@ -281,10 +296,12 @@ export default function WorkAgreementPage() {
               <div className="wa-evidence-grid">
                 {(data.evidence || []).map((ev) => (
                   <figure key={ev.id} className="wa-ev">
-                    {ev.evidence_type !== 'testing_record' ? (
-                      <img src={ev.file_url} alt={ev.description || ev.evidence_type} loading="lazy" />
+                    {!safeHttpUrl(ev.file_url) ? (
+                      <span className="wa-muted">{t('workAgreement.fileUnavailable', { defaultValue: 'File unavailable' })}</span>
+                    ) : ev.evidence_type !== 'testing_record' ? (
+                      <img src={safeHttpUrl(ev.file_url)} alt={ev.description || ev.evidence_type} loading="lazy" />
                     ) : (
-                      <a href={ev.file_url} target="_blank" rel="noreferrer" className="wa-ev__doc">{t('workAgreement.testingRecord', { defaultValue: 'Testing record' })}</a>
+                      <a href={safeHttpUrl(ev.file_url)} target="_blank" rel="noopener noreferrer" className="wa-ev__doc">{t('workAgreement.testingRecord', { defaultValue: 'Testing record' })}</a>
                     )}
                     <figcaption><span className="wa-pill">{ev.evidence_type?.replaceAll('_', ' ')}</span> {ev.description}</figcaption>
                   </figure>
@@ -296,9 +313,12 @@ export default function WorkAgreementPage() {
                   <option value="after_photo">{t('workAgreement.afterPhoto', { defaultValue: 'After photo' })}</option>
                   <option value="testing_record">{t('workAgreement.testingRecord', { defaultValue: 'Testing record' })}</option>
                 </select>
-                <input value={evUrl} onChange={(e) => setEvUrl(e.target.value)} placeholder={t('workAgreement.fileUrl', { defaultValue: 'File URL' })} />
+                <input key={`ev-${fileInputKey}`} type="file" accept={evType === 'testing_record' ? 'image/*,application/pdf' : 'image/*'}
+                  onChange={(e) => setEvFile(e.target.files?.[0] || null)} aria-label={t('workAgreement.chooseFile', { defaultValue: 'Choose a file' })} />
+                <input type="url" dir="ltr" value={evUrl} onChange={(e) => setEvUrl(e.target.value)} disabled={!!evFile}
+                  placeholder={t('workAgreement.fileUrlOptional', { defaultValue: 'Or paste an https link' })} />
                 <input value={evDesc} onChange={(e) => setEvDesc(e.target.value)} placeholder={t('workAgreement.description', { defaultValue: 'Description' })} />
-                <button type="button" className="wa-btn" onClick={addEvidence} disabled={!evUrl.trim()}><Upload size={14} aria-hidden="true" /> {t('workAgreement.add', { defaultValue: 'Add' })}</button>
+                <button type="button" className="wa-btn" onClick={addEvidence} disabled={!evFile && !evUrl.trim()}><Upload size={14} aria-hidden="true" /> {t('workAgreement.add', { defaultValue: 'Add' })}</button>
               </div>
             </Section>
 
@@ -306,13 +326,18 @@ export default function WorkAgreementPage() {
               {(data.documents || []).length === 0 && <p className="wa-muted">{t('workAgreement.noDocuments', { defaultValue: 'No outside paperwork uploaded yet.' })}</p>}
               <ul className="wa-docs">
                 {(data.documents || []).map((doc) => (
-                  <li key={doc.id}><a href={doc.file_url} target="_blank" rel="noreferrer">{doc.file_name}</a></li>
+                  <li key={doc.id}>{safeHttpUrl(doc.file_url)
+                    ? <a href={safeHttpUrl(doc.file_url)} target="_blank" rel="noopener noreferrer">{doc.file_name}</a>
+                    : <span>{doc.file_name} <span className="wa-muted">({t('workAgreement.fileUnavailable', { defaultValue: 'File unavailable' })})</span></span>}</li>
                 ))}
               </ul>
               <div className="wa-form wa-form--inline">
-                <input value={docUrl} onChange={(e) => setDocUrl(e.target.value)} placeholder={t('workAgreement.fileUrl', { defaultValue: 'File URL' })} />
+                <input key={`doc-${fileInputKey}`} type="file" accept="application/pdf,image/*"
+                  onChange={(e) => setDocFile(e.target.files?.[0] || null)} aria-label={t('workAgreement.chooseFile', { defaultValue: 'Choose a file' })} />
+                <input type="url" dir="ltr" value={docUrl} onChange={(e) => setDocUrl(e.target.value)} disabled={!!docFile}
+                  placeholder={t('workAgreement.fileUrlOptional', { defaultValue: 'Or paste an https link' })} />
                 <input value={docName} onChange={(e) => setDocName(e.target.value)} placeholder={t('workAgreement.fileName', { defaultValue: 'File name' })} />
-                <button type="button" className="wa-btn" onClick={addDocument} disabled={!docUrl.trim() || !docName.trim()}><Upload size={14} aria-hidden="true" /> {t('workAgreement.add', { defaultValue: 'Add' })}</button>
+                <button type="button" className="wa-btn" onClick={addDocument} disabled={(!docFile && !docUrl.trim()) || (!docFile && !docName.trim())}><Upload size={14} aria-hidden="true" /> {t('workAgreement.add', { defaultValue: 'Add' })}</button>
               </div>
             </Section>
 

@@ -30218,6 +30218,9 @@
     "finalCtaSubtitle": "Création gratuite. Partagez-le partout et commencez à être payé dès aujourd’hui."
   },
   "workAgreement": {
+    "fileUnavailable": "Fichier indisponible",
+    "chooseFile": "Choisir un fichier",
+    "fileUrlOptional": "Ou collez un lien https",
     "signHere": "Dessinez votre signature ici",
     "signHint": "Dessinez votre signature à la souris ou au doigt",
     "clearSignature": "Effacer",
