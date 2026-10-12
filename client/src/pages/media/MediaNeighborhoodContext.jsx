@@ -2,6 +2,7 @@ import React, { createContext, useCallback, useContext, useEffect, useRef, useSt
 import { useTranslation } from 'react-i18next';
 import { MapPin, X } from 'lucide-react';
 import { suggestLocation, reverseGeocode } from '../../api/geo';
+import { getMediaVerification } from '../../api/media';
 import { getSharedBrowserLocation } from '../../utils/browserLocation';
 import { trapMediaDialogFocus } from './mediaDialogFocus';
 
@@ -47,21 +48,42 @@ export function MediaNeighborhoodProvider({ children, user }) {
   }, []);
   const openLocation = useCallback(initialQuery => { if (typeof initialQuery === 'string') { setQuery(initialQuery); setLookupQuery(initialQuery.trim()); } setError(''); setMatches([]); setBusy(false); setOpen(true); }, []);
 
+  const profileCity = typeof user?.city === 'string' ? user.city.trim() : '';
+  const profileState = typeof user?.state === 'string' ? user.state.trim() : '';
+
   // Profile mode is a valid location choice even when it has not been
   // persisted with a city snapshot yet. Resolve it from the signed-in user's
   // approximate profile location so desktop and mobile headers display the
   // same useful label without using precise device coordinates.
   useEffect(() => {
     if (!user || location.location_mode !== 'profile') return;
-    const city = typeof user.city === 'string' ? user.city.trim() : '';
-    const state = typeof user.state === 'string' ? user.state.trim() : '';
+    const city = profileCity;
+    const state = profileState;
     if (!city || !state) return;
     setResolvedLocation(current => (
       current.location_mode === 'profile' && current.city === city && current.state === state
         ? current
         : { ...current, location_mode: 'profile', city, state }
     ));
-  }, [location.location_mode, user?.city, user?.id, user?.state]);
+  }, [location.location_mode, profileCity, profileState]);
+
+  // Some older authenticated sessions do not include the profile address in
+  // /auth/me even though Media has the same authoritative location on the
+  // publisher record. Resolve that fallback once so desktop and mobile use a
+  // real city label instead of the generic nearby placeholder.
+  useEffect(() => {
+    if (!user || location.location_mode !== 'profile' || (profileCity && profileState)) return undefined;
+    let cancelled = false;
+    getMediaVerification().then(data => {
+      if (cancelled) return;
+      const personal = (data.publishers || []).find(publisher => publisher.actor_type === 'user');
+      const city = typeof personal?.location?.city === 'string' ? personal.location.city.trim() : '';
+      const state = typeof personal?.location?.region === 'string' ? personal.location.region.trim() : '';
+      if (!city || !state) return;
+      setResolvedLocation(current => ({ ...current, location_mode: 'profile', city, state }));
+    }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [location.location_mode, profileCity, profileState, user?.id]);
 
   // Silently use device location on first visit only if the browser permission
   // was already granted (no prompt). The permission dialog itself must only
