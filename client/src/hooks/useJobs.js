@@ -1,8 +1,11 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import api from '../api/axios';
 import { withTokenValidation } from '../api/tokenValidator';
 
 export default function useJobs() {
+  const jobRequest = useRef(0);
+  const jobController = useRef(null);
+  useEffect(() => () => { jobRequest.current += 1; jobController.current?.abort(); }, []);
   const [jobs, setJobs] = useState([]);
   const [job, setJob] = useState(null);
   const [myJobs, setMyJobs] = useState([]);
@@ -26,16 +29,23 @@ export default function useJobs() {
   }, []);
 
   const fetchJob = useCallback(async (id) => {
+    const sequence = ++jobRequest.current;
+    jobController.current?.abort();
+    const controller = new AbortController();
+    jobController.current = controller;
     setLoading(true);
     setError(null);
     try {
-      const { data } = await api.get(`/jobs/${id}`);
+      const { data } = await api.get(`/jobs/${id}`, { signal: controller.signal });
+      if (sequence !== jobRequest.current) return;
       setJob(data);
       return data;
     } catch (err) {
-      setError(err.response?.data?.error || 'Failed to fetch job');
+      if (sequence === jobRequest.current && !controller.signal.aborted) {
+        setError(err.response?.data?.error || 'Failed to fetch job');
+      }
     } finally {
-      setLoading(false);
+      if (sequence === jobRequest.current) setLoading(false);
     }
   }, []);
 
