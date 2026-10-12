@@ -118,3 +118,43 @@ describe('P3-941 rail-controlled flags', () => {
     expect(mockQuery).not.toHaveBeenCalled();
   });
 });
+
+describe('P2-482 retired helper completion endpoint', () => {
+  test('POST /complete returns 410 without touching the database', () => {
+    const router = require('../routes/helperRegistration');
+    const layer = router.stack.find((l) => l.route?.path === '/complete' && l.route.methods.post);
+    const handler = layer.route.stack[layer.route.stack.length - 1].handle;
+    const r = res();
+    handler({ body: { email: 'x@example.com' } }, r);
+    expect(r.status).toHaveBeenCalledWith(410);
+    expect(mockQuery).not.toHaveBeenCalled();
+  });
+});
+
+describe('P2-616 payout methods cannot be self-verified', () => {
+  const PayoutController = require('../controllers/PayoutController');
+  const call = async (body, rows) => {
+    if (rows) mockQuery.mockResolvedValueOnce({ rows });
+    mockQuery.mockResolvedValueOnce({ rows: [{ id: 'pm-1' }] });
+    const r = res();
+    await PayoutController.updatePayoutMethod({ params: { method_id: 'pm-1' }, user: { helper_id: 'h-1' }, body }, r);
+    return r;
+  };
+
+  test.each(['verified', 'active'])('owner cannot set status %s', async (status) => {
+    const r = await call({ status });
+    expect(r.status).toHaveBeenCalledWith(400);
+    expect(mockQuery).not.toHaveBeenCalled();
+  });
+
+  test('an unverified method cannot become primary', async () => {
+    const r = await call({ is_primary: true }, [{ id: 'pm-1', status: 'pending' }]);
+    expect(r.status).toHaveBeenCalledWith(409);
+  });
+
+  test('owner can deactivate a method', async () => {
+    const r = await call({ status: 'inactive' }, [{ id: 'pm-1', status: 'verified' }]);
+    expect(r.status).not.toHaveBeenCalled();
+    expect(r.json.mock.calls[0][0]).toMatchObject({ success: true });
+  });
+});
