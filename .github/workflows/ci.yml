@@ -61,6 +61,10 @@ jobs:
         working-directory: client
         run: node --test scripts/*.test.mjs
 
+      - name: Client localization, type, and production build checks
+        working-directory: client
+        run: npm run build:ci
+
       - name: Install Chrome for browser regression tests
         uses: browser-actions/setup-chrome@v2
         with:
@@ -79,10 +83,6 @@ jobs:
           OXSTEED_E2E_SIGNATURE_NAME: ${{ secrets.OXSTEED_E2E_SIGNATURE_NAME }}
           OXSTEED_E2E_2FA_CODE: ${{ secrets.OXSTEED_E2E_2FA_CODE }}
         run: npm run test:admin-authenticated
-
-      - name: Client localization, type, and production build checks
-        working-directory: client
-        run: npm run build:ci
 
       - name: Install server dependencies
         working-directory: server
