@@ -7,7 +7,7 @@
 // X-Origin-Auth). Health checks are exempt. Unset means no lock (local/dev).
 const crypto = require('crypto');
 
-const EXEMPT_PATHS = new Set(['/health', '/healthz', '/readyz', '/api/health', '/api/health/deep']);
+const EXEMPT_PATHS = new Set(['/health', '/healthz', '/ready', '/api/ready', '/readyz', '/api/health', '/api/health/deep']);
 
 function safeEqual(a, b) {
   const x = Buffer.from(String(a));
