@@ -1463,11 +1463,14 @@ exports.getPayouts = async (req, res) => {
     const { status = '' } = req.query;
     const { page, limit, offset } = parseBoundedPagination(req.query, { defaultLimit: 25, maxLimit: 100 });
 
-    // Map frontend tab names to DB payment statuses
+    // Map frontend tab names to DB payment statuses.
+    // P3-1-F19: payments.status is never 'released' (release is tracked in
+    // payment_hold_status); the completed tab read the dead value and always
+    // came back empty.
     const STATUS_MAP = {
       pending:    "p.status IN ('pending','authorized')",
       processing: "p.status = 'captured'",
-      completed:  "p.status = 'released'",
+      completed:  "p.payment_hold_status = 'released'",
       failed:     "p.status IN ('failed','refunded','disputed')",
     };
     const statusClause = STATUS_MAP[status] || 'p.helper_payout > 0';
@@ -1494,9 +1497,9 @@ exports.getPayouts = async (req, res) => {
       SELECT
         SUM(CASE WHEN status IN ('pending','authorized') THEN helper_payout ELSE 0 END) AS pending,
         SUM(CASE WHEN status = 'captured'               THEN helper_payout ELSE 0 END) AS processing,
-        SUM(CASE WHEN status = 'released'               THEN helper_payout ELSE 0 END) AS completed,
+        SUM(CASE WHEN payment_hold_status = 'released'  THEN helper_payout ELSE 0 END) AS completed,
         SUM(CASE WHEN status IN ('failed','refunded','disputed') THEN helper_payout ELSE 0 END) AS failed,
-        SUM(CASE WHEN status = 'released'               THEN helper_payout ELSE 0 END) AS "totalPaid"
+        SUM(CASE WHEN payment_hold_status = 'released'  THEN helper_payout ELSE 0 END) AS "totalPaid"
         FROM payments WHERE helper_payout > 0
     `);
 
@@ -1526,7 +1529,7 @@ exports.retryPayout = async (req, res) => {
     const adminId = req.user.id;
 
     const { rows } = await db.query(
-      `SELECT id, job_id, helper_payout, status, failure_reason
+      `SELECT id, job_id, helper_payout, status, payment_hold_status, failure_reason
        FROM payments
        WHERE id = $1 AND helper_payout > 0`,
       [id]
@@ -1534,7 +1537,8 @@ exports.retryPayout = async (req, res) => {
     if (!rows.length) return res.status(404).json({ error: 'Payout not found.' });
 
     const payout = rows[0];
-    if (payout.status === 'released') {
+    // P3-1-F19: release is tracked in payment_hold_status, not status.
+    if (payout.payment_hold_status === 'released') {
       return res.json({
         retried: false,
         reason: 'Payout already completed.',

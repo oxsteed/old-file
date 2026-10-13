@@ -275,11 +275,14 @@ exports.cancelSubscription = async (req, res, next) => {
       }
 
       // ── CHECK FOR OPEN ESCROW FUNDS (atomic within transaction)
-      // Helpers cannot cancel Tier 3 subscription while they have escrow funds held
+      // Helpers cannot cancel Tier 3 subscription while they have escrow funds held.
+      // P3-1-F11: 'authorized' is a payments.status value, never a
+      // payments.escrow_status value; the written hold values are
+      // 'held' and 'disputed'.
       const { rows: escrowRows } = await client.query(`
         SELECT COUNT(*) as count FROM payments
         WHERE payee_id = $1
-          AND escrow_status IN ('authorized', 'disputed', 'held')
+          AND escrow_status IN ('held', 'disputed')
           AND status IN ('authorized', 'captured')
       `, [userId]);
 

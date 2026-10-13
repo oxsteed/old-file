@@ -20,6 +20,7 @@ jest.mock('../controllers/disputeController', () => ({
 jest.mock('../controllers/disputeAdminController', () => ({
   getAllDisputes: (_req, res) => res.json({ route: 'admin-list' }),
   startReview: (req, res) => res.json({ route: 'admin-review', disputeId: req.params.disputeId }),
+  reopenDispute: (req, res) => res.json({ route: 'admin-reopen', disputeId: req.params.disputeId }),
   resolveDispute: (req, res) => res.json({ route: 'admin-resolve', disputeId: req.params.disputeId }),
 }));
 
@@ -43,4 +44,9 @@ test('admin dispute routes are not swallowed by /:disputeId', async () => {
     .post('/api/disputes/admin/123/review')
     .expect(200)
     .expect({ route: 'admin-review', disputeId: '123' });
+
+  await request(app)
+    .post('/api/disputes/admin/123/reopen')
+    .expect(200)
+    .expect({ route: 'admin-reopen', disputeId: '123' });
 });

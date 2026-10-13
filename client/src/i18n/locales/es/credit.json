@@ -1155,6 +1155,7 @@
   "adminDisputeResolveCustomer": "Resolver a favor del cliente",
   "adminDisputeBusinessDays": "{{count}} días hábiles",
   "adminDisputeSlaBreach": "SLA incumplido",
+  "adminDisputeSlaHoursLeft": "quedan {{count}} h",
   "adminDisputeProvisionalIssued": "{{amount}} provisional emitido",
   "adminDisputeProvisionalTitle": "Crédito provisional (la disputa sigue abierta)",
   "adminDisputeProvisionalAmount": "Monto del crédito provisional en centavos",

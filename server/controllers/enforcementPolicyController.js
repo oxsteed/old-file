@@ -259,7 +259,9 @@ exports.submitAppeal = async (req, res, next) => {
             title: 'New Enforcement Appeal',
             body: `${req.user.first_name} ${req.user.last_name} has appealed their ${enforcement.action_type} restriction`,
             data: { appealId: appeal.id, enforcementId },
-            action_url: `/admin/enforcement-appeals/${appeal.id}`
+            // P3-2-F13: link to the real Appeals tab on /admin/enforcement;
+            // the old /admin/enforcement-appeals/:id route never existed.
+            action_url: `/admin/enforcement?tab=appeals&appealId=${appeal.id}`
           })
         )
       );
@@ -306,6 +308,43 @@ exports.getMyAppeals = async (req, res, next) => {
           (Date.now() - new Date(appeal.reviewed_at)) > (30 * 24 * 60 * 60 * 1000) // 30 days
       }))
     });
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * Admin endpoint: list enforcement appeals
+ * GET /api/enforcement-policy/admin/appeals?status=pending
+ *
+ * P3-2-F13: appeals previously had no admin UI; the admin notification
+ * linked to a client route that does not exist. This endpoint backs the
+ * Appeals tab on /admin/enforcement.
+ */
+exports.listAppeals = async (req, res, next) => {
+  try {
+    const status = String(req.query.status || 'pending').trim().toLowerCase();
+    const allowed = ['pending', 'under_review', 'approved', 'denied', 'all'];
+    if (!allowed.includes(status)) {
+      throw new AppError('Unsupported appeal status', 400, 'validation_failed');
+    }
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit, 10) || 25));
+    const offset = Math.max(0, parseInt(req.query.offset, 10) || 0);
+    const where = status === 'all' ? '' : 'WHERE a.status = $1';
+    const params = status === 'all' ? [limit, offset] : [status, limit, offset];
+    const { rows } = await pool.query(`
+      SELECT a.*, e.action_type, e.reason AS enforcement_reason,
+             u.first_name || ' ' || u.last_name AS user_name, u.email AS user_email,
+             r.first_name || ' ' || r.last_name AS reviewed_by_name
+        FROM enforcement_appeals a
+        JOIN enforcement_actions e ON a.enforcement_id = e.id
+        JOIN users u ON a.user_id = u.id
+        LEFT JOIN users r ON a.reviewed_by = r.id
+        ${where}
+        ORDER BY a.submitted_at DESC
+        LIMIT $${params.length - 1} OFFSET $${params.length}
+    `, params);
+    res.json({ success: true, data: rows });
   } catch (err) {
     next(err);
   }

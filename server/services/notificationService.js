@@ -264,6 +264,9 @@ exports.sendNotification = async ({
       // Account integrity / admin actions — user should receive email by default
       'account_restored', 'account_suspended', 'account_restricted',
       'account_deletion_scheduled', 'admin_warning',
+      // P3-1-F12: payout destination changes are security notices; the user
+      // must hear about them even if they turned off marketing emails.
+      'payout_destination_changed',
       // Direct booking notifications
       'booking_request_new', 'booking_accepted', 'booking_declined',
       'booking_cancelled', 'booking_auto_released',
@@ -280,6 +283,7 @@ exports.sendNotification = async ({
       'account_restricted',
       'account_deletion_scheduled',
       'admin_warning',
+      'payout_destination_changed',
       'oxsteed_credit_transaction', 'oxsteed_credit_card_security',
       'credit_identity_verification_requested', 'credit_identity_verification_approved',
       'credit_identity_verification_rejected', 'credit_sanctions_review_required',

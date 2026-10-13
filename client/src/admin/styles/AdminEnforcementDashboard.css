@@ -440,3 +440,44 @@ html.dark .admin-enforcement-input,
 html.dark .admin-enforcement-textarea {
   background: rgba(79, 70, 229, 0.05);
 }
+
+/* P3-2-F13: appeals review tab */
+.admin-enforcement-tabs {
+  display: flex;
+  gap: 8px;
+  margin: 16px 0;
+}
+.admin-enforcement-tab {
+  padding: 8px 16px;
+  border: 1px solid #374151;
+  border-radius: 8px;
+  background: transparent;
+  color: #9ca3af;
+  font-weight: 600;
+  cursor: pointer;
+}
+.admin-enforcement-tab.active {
+  background: #1f2937;
+  color: #fff;
+  border-color: #4b5563;
+}
+.admin-enforcement-appeal-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+.admin-enforcement-btn-approve {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 8px;
+  background: #059669;
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
+}
+.admin-enforcement-btn-approve:hover {
+  background: #047857;
+}
+.admin-enforcement-item.highlighted {
+  border: 2px solid #f59e0b;
+}

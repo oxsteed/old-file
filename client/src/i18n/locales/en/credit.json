@@ -1153,6 +1153,7 @@
   "adminDisputeResolveCustomer": "Resolve for customer",
   "adminDisputeBusinessDays": "{{count}} business days",
   "adminDisputeSlaBreach": "SLA breach",
+  "adminDisputeSlaHoursLeft": "{{count}}h left",
   "adminDisputeProvisionalIssued": "Provisional {{amount}} issued",
   "adminDisputeProvisionalTitle": "Provisional credit (keeps dispute open)",
   "adminDisputeProvisionalAmount": "Provisional credit amount in cents",

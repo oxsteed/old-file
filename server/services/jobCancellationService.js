@@ -92,7 +92,7 @@ async function cancelJobTransaction({ jobId, actorId, actorKind = 'auto', reason
         const { rows: liveHolds } = await client.query(`
           SELECT id FROM payments
           WHERE job_id = $1 AND status IN ('authorized','captured')
-            AND escrow_status IN ('authorized','held','disputed')
+            AND escrow_status IN ('held','disputed') -- P3-1-F11: 'authorized' lives in payments.status, never here
         `, [jobId]);
         if (liveHolds.length > 0) {
           throw new AppError('Job has a live payment hold', 409, 'pending_payments');
@@ -116,7 +116,7 @@ async function cancelJobTransaction({ jobId, actorId, actorKind = 'auto', reason
         const { rows: payRows } = await client.query(`
           SELECT id FROM payments
           WHERE job_id = $1 AND status IN ('authorized','captured')
-            AND escrow_status IN ('authorized','held','disputed')
+            AND escrow_status IN ('held','disputed') -- P3-1-F11: 'authorized' lives in payments.status, never here
         `, [jobId]);
         if (payRows.length > 0) {
           throw new AppError(

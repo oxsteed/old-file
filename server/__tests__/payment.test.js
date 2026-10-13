@@ -194,7 +194,8 @@ describe('POST /api/payments/capture', () => {
       { rows: [{ id: 5, stripe_payment_intent_id: 'pi_test123', stripe_account_id: 'acct_x', amount: 100, status: 'authorized' }] }, // payment (controller)
       { rows: [] }, // dispute check
       { rows: [] }, // COMMIT (tx)
-      { rows: [{ id: 5, stripe_payment_intent_id: 'pi_test123', stripe_account_id: 'acct_x', amount: 100, status: 'authorized' }] }, // payment (capture service)
+      { rows: [{ id: 5, job_id: 10, stripe_payment_intent_id: 'pi_test123', stripe_account_id: 'acct_x', amount: 100, status: 'authorized' }] }, // payment (capture service)
+      { rows: [] }, // fresh dispute check before Stripe capture (P3-1-F08)
       { rows: [] }, // UPDATE inside withTransaction mock
     );
     const res = await auth(
@@ -224,6 +225,24 @@ describe('POST /api/payments/capture', () => {
     expect(res.body.status).toBe('processing');
     delete process.env.PAYMENT_CAPTURE_ASYNC;
     delete process.env.DEDICATED_WORKER_PROCESS;
+  });
+
+  test('blocks capture when a dispute opens after the API-layer check (P3-1-F08)', async () => {
+    mockAuth(
+      { rows: [{ id: 10, status: 'completed', assigned_helper_id: 2, title: 'Fence repair', client_id: 1 }] }, // job
+      { rows: [] }, // BEGIN (tx)
+      { rows: [{ id: 5, stripe_payment_intent_id: 'pi_test123', stripe_account_id: 'acct_x', amount: 100, status: 'authorized' }] }, // payment (controller)
+      { rows: [] }, // dispute check (API layer: none yet)
+      { rows: [] }, // COMMIT (tx)
+      { rows: [{ id: 5, job_id: 10, stripe_payment_intent_id: 'pi_test123', stripe_account_id: 'acct_x', amount: 100, status: 'authorized' }] }, // payment (capture service)
+      { rows: [{ id: 9 }] }, // fresh dispute check: dispute opened in the gap
+    );
+    const res = await auth(
+      request(buildApp()).post('/api/payments/capture').send({ job_id: 10 })
+    );
+    expect(res.status).toBe(409);
+    expect(res.body.code || res.body.error).toMatch(/dispute/i);
+    expect(stripe.paymentIntents.capture).not.toHaveBeenCalled();
   });
 });
 
