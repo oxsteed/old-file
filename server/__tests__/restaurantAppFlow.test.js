@@ -54,6 +54,7 @@ function buildApp() {
   app.get('/api/restaurants/:restaurantId/kitchen/prep-device-config', appFlow.getPrepDeviceConfig);
   app.patch('/api/restaurants/:restaurantId/kitchen/prep-device-config', appFlow.updatePrepDeviceConfig);
   app.post('/api/restaurants/:restaurantId/devices/pairing-codes', appFlow.createDevicePairingCode);
+  app.post('/api/restaurants/:restaurantId/devices/:deviceId/rotate-token', appFlow.rotateDeviceToken);
   app.get('/api/restaurants/:restaurantId/devices/:deviceId/runtime-config', appFlow.getDeviceRuntimeConfig);
   app.post('/api/restaurants/:restaurantId/devices/:deviceId/heartbeat', appFlow.deviceHeartbeat);
   app.get('/api/restaurants/:restaurantId/devices/:deviceId/kitchen-feed', appFlow.getKitchenFeed);
@@ -483,6 +484,26 @@ describe('restaurant app-flow backend', () => {
     expect(configRes.body.device.location.id).toBe(77);
     expect(configRes.body.contract.routes.runtimeConfig).toBe('/api/restaurants/3/devices/801/runtime-config');
     expect(configRes.body.contract.routes.queueBoard).toBe('/api/restaurants/3/devices/801/queue-board');
+  });
+
+  test('rotates a paired device token for a restaurant manager', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [accessRow()] })
+      .mockResolvedValueOnce({ rows: [{
+        id: 801,
+        restaurant_id: RESTAURANT_ID,
+        app_key: 'display',
+        status: 'paired',
+        device_token_expires_at: new Date(Date.now() + 90 * 86400000).toISOString(),
+      }] });
+
+    const res = await request(buildApp())
+      .post(`/api/restaurants/${RESTAURANT_ID}/devices/801/rotate-token`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.deviceToken).toBeTruthy();
+    expect(res.body.device_token_expires_at).toBeTruthy();
+    expect(mockQuery.mock.calls.some(([sql]) => /device_token_expires_at/.test(sql))).toBe(true);
   });
 
   test('paired display devices poll heartbeat and queue-board without staff auth', async () => {

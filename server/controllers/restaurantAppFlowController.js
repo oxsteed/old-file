@@ -2522,7 +2522,8 @@ async function requireDeviceCredential(req, restaurantId, deviceId) {
       WHERE id = $1
         AND restaurant_id = $2
         AND status = 'paired'
-        AND device_token_hash = $3`,
+        AND device_token_hash = $3
+        AND (device_token_expires_at IS NULL OR device_token_expires_at > NOW())`,
     [deviceId, restaurantId, tokenHash]
   );
   if (!device) throw new AppError('Device credential is invalid', 401, 'invalid_device_credential');
@@ -2791,6 +2792,7 @@ exports.pairDevice = async (req, res, next) => {
               pairing_code = NULL,
               pairing_code_expires_at = NULL,
               device_token_hash = $3,
+              device_token_expires_at = NOW() + INTERVAL '90 days',
               app_version = COALESCE($4, app_version),
               platform = COALESCE($5, platform),
               updated_at = NOW()
@@ -2813,6 +2815,38 @@ exports.pairDevice = async (req, res, next) => {
       contract: deviceRouteContract(device, { restaurantId }),
       deviceToken,
       device_token: deviceToken,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.rotateDeviceToken = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    const deviceId = parsePositiveInt(req.params.deviceId);
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    assertManage(restaurant);
+    if (!deviceId) throw new AppError('Device is required', 400, 'invalid_device_scope');
+    const deviceToken = crypto.randomBytes(32).toString('base64url');
+    const deviceTokenHash = crypto.createHash('sha256').update(deviceToken).digest('hex');
+    const { rows: [device] } = await pool.query(
+      `UPDATE restaurant_app_devices
+          SET device_token_hash = $3,
+              device_token_expires_at = NOW() + INTERVAL '90 days',
+              updated_at = NOW()
+        WHERE id = $1 AND restaurant_id = $2 AND status = 'paired'
+        RETURNING *`,
+      [deviceId, restaurantId, deviceTokenHash]
+    );
+    if (!device) throw new AppError('Paired device not found', 404, 'device_not_found');
+    res.json({
+      device: publicDevice(device),
+      contract: deviceRouteContract(device, { restaurantId }),
+      deviceToken,
+      device_token: deviceToken,
+      deviceTokenExpiresAt: device.device_token_expires_at,
+      device_token_expires_at: device.device_token_expires_at,
     });
   } catch (err) {
     next(err);

@@ -103,6 +103,7 @@ router.patch('/:restaurantId/locations/:locationId', appFlow.updateRestaurantLoc
 
 // Display / kiosk / device pairing
 router.post('/:restaurantId/devices/pairing-codes', authenticatedLimiter, appFlow.createDevicePairingCode);
+router.post('/:restaurantId/devices/:deviceId/rotate-token', strictLimiter, appFlow.rotateDeviceToken);
 router.get('/:restaurantId/devices/:deviceId/config', appFlow.getDeviceConfig);
 router.patch('/:restaurantId/devices/:deviceId', appFlow.updateDeviceConfig);
 
