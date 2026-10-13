@@ -16,6 +16,11 @@ const ALLOWED = {
   '.webm': ['video/webm'],
   '.mp4':  ['video/mp4'],
   '.mov':  ['video/quicktime'],
+  // Review P3-6-F18: the job-post client accepts these phone-camera formats;
+  // the server used to reject them with 400 after the upload completed.
+  '.m4v':  ['video/x-m4v', 'video/mp4'],
+  '.3gp':  ['video/3gpp'],
+  '.3g2':  ['video/3gpp2'],
   '.mp3':  ['audio/mpeg'],
   '.wav':  ['audio/wav', 'audio/x-wav'],
   '.ogg':  ['audio/ogg', 'video/ogg'],

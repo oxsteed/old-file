@@ -24,6 +24,7 @@ const appFlow = require('../controllers/restaurantAppFlowController');
 const food = require('../controllers/foodController');
 const upload = require('../middleware/upload');
 const validateFileUpload = require('../middleware/validateFileUpload');
+const enforceUploadQuota = require('../middleware/uploadQuota');
 const { authenticatedLimiter, strictLimiter, generalLimiter } = require('../middleware/rateLimiter');
 const media = require('../controllers/restaurantMediaController');
 
@@ -66,6 +67,7 @@ router.post(
   authenticate,
   videoMedia.videoUploadLimiter,
   videoMedia.videoUploadHandler,
+  enforceUploadQuota,
   videoMedia.postVideoUpload
 );
 router.post(
@@ -82,7 +84,7 @@ router.use(authenticate);
 // POST /media is bucketed at 10/day per account; the like toggle rides the
 // general limiter; flags mirror Learn's videoFlagLimiter (30/hour).
 router.post('/:restaurantId/media', media.mediaSubmitLimiter, media.postRestaurantMedia);
-router.post('/:restaurantId/media/photo-uploads', media.mediaSubmitLimiter, media.photoUpload, media.postRestaurantMediaPhoto);
+router.post('/:restaurantId/media/photo-uploads', media.mediaSubmitLimiter, media.photoUpload, enforceUploadQuota, media.postRestaurantMediaPhoto);
 router.get('/:restaurantId/media/mine', media.listMyRestaurantMedia);
 router.post('/:restaurantId/media/:mediaId/like', generalLimiter, media.toggleMediaLike);
 router.delete('/:restaurantId/media/:mediaId', media.deleteRestaurantMedia);

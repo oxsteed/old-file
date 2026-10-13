@@ -1,6 +1,6 @@
 const pool = require('../db');
 const { AppError } = require('../middleware/errorHandler');
-const { getPublicUrl } = require('../utils/storage');
+const { toPrivatePhotoRef, withHydratedPhotos, withHydratedPhotosList } = require('../utils/intakeMedia');
 const { uploadFilesOrThrow } = require('../utils/uploadBatch');
 const { notifyIntakeReceived } = require('../utils/intakeNotifications');
 
@@ -214,6 +214,10 @@ exports.getBusinessWorkspace = async (req, res, next) => {
   const client = await pool.connect();
   try {
     const workspace = await loadWorkspace(client, req.business.id);
+    // Review P3-6-F10: intake photos are private; mint signed URLs at read time.
+    if (Array.isArray(workspace.diagnostics)) {
+      workspace.diagnostics = await withHydratedPhotosList(workspace.diagnostics);
+    }
     res.json(workspace);
   } catch (err) {
     next(err);
@@ -286,7 +290,7 @@ exports.createDiagnosticRequest = async (req, res, next) => {
         code: 'trades_diagnostic_media_upload_failed',
         label: 'diagnostic photo',
       });
-      photoUrls = uploads.map((key) => getPublicUrl(key));
+      photoUrls = uploads.map((key) => toPrivatePhotoRef(key));
     }
 
     const urgency = VALID_URGENCY.has(req.body.urgency) ? req.body.urgency : 'normal';
@@ -347,7 +351,7 @@ exports.createDiagnosticRequest = async (req, res, next) => {
       // Notify the business owner: submitted intakes must be observable.
       // Fire-and-forget: the helper never throws and never blocks the response.
       notifyIntakeReceived({ businessId: business.id, intakeId: rows[0].id, area: 'trades' });
-      res.status(201).json({ request: rows[0] });
+      res.status(201).json({ request: await withHydratedPhotos(rows[0]) });
     } catch (err) {
       await client.query('ROLLBACK');
       throw err;
@@ -407,7 +411,7 @@ exports.updateDiagnosticRequest = async (req, res, next) => {
         req.business.id,
       ]
     );
-    res.json({ request: rows[0] });
+    res.json({ request: await withHydratedPhotos(rows[0]) });
   } catch (err) {
     next(err);
   }

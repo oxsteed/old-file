@@ -73,3 +73,46 @@ test('downloadObjectToFile copies local objects to the destination', async () =>
   fs.unlinkSync(localPath);
   fs.unlinkSync(dest);
 });
+
+test('uploadFile returns null instead of throwing for an invalid key (P3-6-F17)', async () => {
+  const storage = require('../utils/storage');
+  // String-key form with a key that normalizes to null: null, not a throw,
+  // so callers' `if (!key)` fallbacks are live.
+  await expect(storage.uploadFile('', Buffer.from('x'), 'text/plain')).resolves.toBeNull();
+  await expect(storage.uploadFile('..', Buffer.from('x'), 'text/plain')).resolves.toBeNull();
+  await expect(storage.uploadFile('../evil.txt', Buffer.from('x'), 'text/plain')).resolves.toBeNull();
+});
+
+test('listObjectsByPrefix reports keys with last-modified times (P3-6-F19)', async () => {
+  const fs = require('fs');
+  const path = require('path');
+  const storage = require('../utils/storage');
+  const key = await storage.uploadFile(Buffer.from('sweeper-bytes'), 'test-sweeper', 'a.txt', 'text/plain');
+  expect(key).toBeTruthy();
+  const objects = await storage.listObjectsByPrefix('test-sweeper');
+  const found = objects.find((o) => o.key === key);
+  expect(found).toBeTruthy();
+  expect(found.lastModified instanceof Date).toBe(true);
+  expect(storage.isPublicKeyAllowed('beauty-intakes/x.jpg')).toBe(false);
+  expect(storage.isPublicKeyAllowed('maintenance-requests/x.jpg')).toBe(false);
+  expect(storage.isPublicKeyAllowed('creative-intakes/x.jpg')).toBe(false);
+  expect(storage.isPublicKeyAllowed('trades-diagnostics/x.jpg')).toBe(false);
+  expect(storage.isPublicKeyAllowed('jobs/x.jpg')).toBe(true);
+  await storage.deleteFile(key);
+});
+
+test('copyObject duplicates a local object under a new key (P3-6-F10)', async () => {
+  const fs = require('fs');
+  const storage = require('../utils/storage');
+  const srcKey = await storage.uploadFile(Buffer.from('publish-me'), 'test-copy', 'src.txt', 'text/plain');
+  const destKey = `jobs/test-job-${Date.now()}/src.txt`;
+  const copied = await storage.copyObject(srcKey, destKey);
+  expect(copied).toBe(destKey);
+  const destPath = storage.resolveLocalStoragePath(destKey);
+  expect(fs.readFileSync(destPath, 'utf8')).toBe('publish-me');
+  // The source is untouched: publishing copies, it never moves.
+  expect(fs.readFileSync(storage.resolveLocalStoragePath(srcKey), 'utf8')).toBe('publish-me');
+  await expect(storage.copyObject('../evil.txt', destKey)).rejects.toThrow('Invalid storage key');
+  await storage.deleteFile(srcKey);
+  await storage.deleteFile(destKey);
+});

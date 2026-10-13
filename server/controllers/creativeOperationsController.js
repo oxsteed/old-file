@@ -1,6 +1,6 @@
 const pool = require('../db');
 const { AppError } = require('../middleware/errorHandler');
-const { getPublicUrl } = require('../utils/storage');
+const { toPrivatePhotoRef, withHydratedPhotos, withHydratedPhotosList } = require('../utils/intakeMedia');
 const { uploadFilesOrThrow } = require('../utils/uploadBatch');
 const { notifyIntakeReceived } = require('../utils/intakeNotifications');
 
@@ -199,6 +199,8 @@ exports.getBusinessWorkspace = async (req, res, next) => {
   const client = await pool.connect();
   try {
     const workspace = await loadWorkspace(client, req.business.id);
+    // Review P3-6-F10: intake photos are private; mint signed URLs at read time.
+    workspace.intakeRequests = await withHydratedPhotosList(workspace.intakeRequests);
     res.json(workspace);
   } catch (err) {
     next(err);
@@ -267,7 +269,7 @@ exports.createIntakeRequest = async (req, res, next) => {
         code: 'creative_intake_media_upload_failed',
         label: 'creative intake photo',
       });
-      photoUrls = uploads.map((key) => getPublicUrl(key));
+      photoUrls = uploads.map((key) => toPrivatePhotoRef(key));
     }
 
     const templateSlug = trimString(req.body.template_slug, 60) || business.active_template || 'creative_studio';
@@ -316,7 +318,7 @@ exports.createIntakeRequest = async (req, res, next) => {
       // Notify the business owner: submitted intakes must be observable.
       // Fire-and-forget: the helper never throws and never blocks the response.
       notifyIntakeReceived({ businessId: business.id, intakeId: rows[0].id, area: 'creative' });
-      res.status(201).json({ request: rows[0] });
+      res.status(201).json({ request: await withHydratedPhotos(rows[0]) });
     } catch (err) {
       await client.query('ROLLBACK');
       throw err;
@@ -359,7 +361,7 @@ exports.updateIntakeRequest = async (req, res, next) => {
       ]
     );
     if (!rows.length) throw new AppError('Creative intake request not found', 404, 'not_found');
-    res.json({ request: rows[0] });
+    res.json({ request: await withHydratedPhotos(rows[0]) });
   } catch (err) {
     next(err);
   }
