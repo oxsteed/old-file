@@ -96,3 +96,6 @@ Validation: focused server suite 100/100 passed; client `npm run build:ci` passe
 
 ## W11 — same continuation branch as PR #505 (in progress)
 Reconciled against audit v2 after PR #505: P2-453 and P2-454 are closed by W10.5, leaving 33 active IDs. Current fixes cover Learn video queue visibility/dedupe/observability, support ticket reopen and guarded transitions, warranty-claim notifications and review state, job-start notifications, and payout-readiness UI gating. Remaining W11 admin and onboarding paths will be completed before opening the W11 PR.
+
+## W12 — same continuation branch as PR #505 (in progress)
+Reconciled the 39 W12 IDs against `resolution-audit-v2-2026-10-13.md`; the audit has no per-ID replacement list for this area, so the handoff IDs remain the source of truth. This pass fixes merchant POS split/merge/refund URL routing, replaces the business-appointment log-only notifier with idempotent participant notifications for create/status/cancel/reschedule, adds idempotent owner notifications for business invoice paid/void transitions, and hardens statement archive rendering when an artifact has no state. Remaining business hub, runner settlement, and statement issuance items stay open for subsequent W12 commits.

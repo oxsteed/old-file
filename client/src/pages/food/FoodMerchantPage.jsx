@@ -699,7 +699,7 @@ function OrdersTab({ t, restaurant }) {
 
   const split = async (order, itemIds) => {
     try {
-      const { data } = await api.post(`/api/food/restaurants/${restaurant.id}/orders/${order.id}/split`, {
+      const { data } = await api.post(`/restaurants/${restaurant.id}/pos/orders/${order.id}/split`, {
         itemIds,
       });
       toast.success(t('food.merchant.splitSuccess', { newOrderId: data.newOrderId }));
@@ -711,7 +711,7 @@ function OrdersTab({ t, restaurant }) {
 
   const merge = async (order, sourceOrderId) => {
     try {
-      await api.post(`/api/food/restaurants/${restaurant.id}/pos/orders/${order.id}/merge`, {
+      await api.post(`/restaurants/${restaurant.id}/pos/orders/${order.id}/merge`, {
         sourceOrderId,
       });
       toast.success(t('food.merchant.mergeSuccess'));
@@ -723,7 +723,7 @@ function OrdersTab({ t, restaurant }) {
 
   const refund = async (order, amountCents, reason) => {
     try {
-      await api.post(`/api/food/restaurants/${restaurant.id}/pos/orders/${order.id}/refund`, {
+      await api.post(`/restaurants/${restaurant.id}/pos/orders/${order.id}/refund`, {
         amount_cents: amountCents,
         reason,
       });
