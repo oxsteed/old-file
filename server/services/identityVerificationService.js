@@ -255,8 +255,19 @@ async function getCustomerVerificationTier(client, customerId) {
       LIMIT 5`,
     [customerId]
   );
+  const now = new Date();
   for (const row of rows) {
-    if (row.status === 'verified' && (!row.expires_at || new Date(row.expires_at) > new Date())) {
+    if (row.status === 'verified' && row.expires_at && new Date(row.expires_at) <= now) {
+      const { rows: expiredRows } = await client.query(
+        `UPDATE oxsteed_credit_identity_verifications
+            SET status = 'expired', updated_at = NOW()
+          WHERE id = $1 AND status = 'verified' AND expires_at <= NOW()
+          RETURNING id`,
+        [row.id]
+      );
+      if (expiredRows[0]) row.status = 'expired';
+    }
+    if (row.status === 'verified' && (!row.expires_at || new Date(row.expires_at) > now)) {
       return { tier: Number(row.tier), status: row.status, verificationId: String(row.id) };
     }
   }
