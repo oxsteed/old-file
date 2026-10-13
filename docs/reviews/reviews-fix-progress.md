@@ -129,3 +129,5 @@ Reconciled the 13 W19 IDs against `resolution-audit-v2-2026-10-13.md`; no matchi
 
 Continued the same branch after W19 for two unresolved W15 notification/auth findings: OTP resend timestamps are now written only after a successful email/SMS delivery, and template-render failures return an explicit failed delivery result so notifications are not reported as successful. Focused auth and notification regressions remain covered by the existing test suites.
 
+The follow-up also adds dedicated authenticated/conversation rate limits to message edits, deletes, reactions, archive/restore, and block removal, closing the W18 messaging-mutation abuse gap without changing message authorization.
+
