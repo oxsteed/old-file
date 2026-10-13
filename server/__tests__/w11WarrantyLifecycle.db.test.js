@@ -29,6 +29,11 @@ describeDb('W11 production warranty SQL and counterpart notifications', () => {
     await db.query(`CREATE TABLE ${schema}.users (id UUID PRIMARY KEY)`);
     await db.query(`CREATE TABLE ${schema}.jobs (id UUID PRIMARY KEY)`);
     await db.query(fs.readFileSync(path.join(__dirname, '../migrations/697_work_agreement_records_room.sql'), 'utf8'));
+    // Apply the production constraint chain so the fixture matches the real
+    // schema: 783 narrowed the warranty-claim CHECK (dropping under_review),
+    // 794 restored it. Without these, the test cannot catch CHECK regressions.
+    await db.query(fs.readFileSync(path.join(__dirname, '../migrations/783_work_agreement_mutual_completion.sql'), 'utf8'));
+    await db.query(fs.readFileSync(path.join(__dirname, '../migrations/794_warranty_claim_under_review.sql'), 'utf8'));
     for (const id of [ids.helper, ids.customer, ids.outsider]) await db.query('INSERT INTO users(id) VALUES($1)', [id]);
     await db.query('INSERT INTO jobs(id) VALUES($1)', [ids.job]);
   });
