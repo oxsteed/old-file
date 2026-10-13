@@ -3,6 +3,7 @@ const logger = require('../utils/logger');
 const socketService = require('../services/socketService');
 const { enqueueMessageNotification, enqueueConversationMessageNotifications } = require('../services/messageNotificationService');
 const { withTransaction } = require('../utils/transaction');
+const { maskEmail } = require('../utils/directQuote');
 
 function getClientRequestId(req) {
   const value = req.get?.('Idempotency-Key')
@@ -311,7 +312,7 @@ async function sendTicketEscalationEmails({ ticketNumber, visitorName, visitorEm
         to: admin.email,
         subject: `[Ticket #${ticketNumber}] New support ticket opened`,
         text: `Hi ${admin.first_name || 'there'},\n\nA new support ticket has been opened via chat escalation.\n\nTicket number: #${ticketNumber}\nVisitor: ${visitorName} (${visitorEmail})\nMessage: ${message}\n\nView in Admin Dashboard: https://app.oxsteed.com/admin/support`,
-      }).catch((err) => { logger.warn('Failed to email admin about new ticket', { message: err.message, admin: admin.email }); })
+      }).catch((err) => { logger.warn('Failed to email admin about new ticket', { message: err.message, admin: maskEmail(admin.email) }); })
     ));
   } catch (emailErr) {
     logger.warn('Failed to send support ticket email notification', { message: emailErr.message });

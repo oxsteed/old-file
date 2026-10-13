@@ -8,6 +8,7 @@ const webPushService    = require('./webPushService');
 const mobilePushService = require('./mobilePushService');
 const { tNotif, tNotifEmail } = require('../utils/i18n');
 const { renderOxSteedEmail } = require('../utils/emailTemplate');
+const { maskEmail } = require('../utils/directQuote');
 
 const expo = new Expo({ accessToken: process.env.EXPO_ACCESS_TOKEN });
 
@@ -393,7 +394,8 @@ async function sendEmailNotification({
       idempotencyKey: idempotencyKey || undefined,
     });
   } catch (err) {
-    logger.error('Send email notification failed', { to, type, error: err.message });
+    // Review P3-852: mask the recipient address in logs (PII).
+    logger.error('Send email notification failed', { to: maskEmail(to), type, error: err.message });
     return { success: false, error: err.message };
   }
 }

@@ -9,6 +9,7 @@ const db            = require('../db');
 const logger        = require('../utils/logger');
 const socketService = require('../services/socketService');
 const { sendEmail } = require('../utils/email');
+const { maskEmail } = require('../utils/directQuote');
 const { AppError } = require('../middleware/errorHandler');
 const { resolveScope, userLocationScopeClause } = require('../utils/scopeFilter');
 const { userMatchesAnyRegion } = require('../middleware/regionAuth');
@@ -74,7 +75,7 @@ async function fetchTicketRow(ticketId) {
               </table>
               <p><a href="https://app.oxsteed.com/admin/support" style="color:#ea580c;">View in Admin Dashboard</a></p>
             </div>`,
-        }).catch((err) => { logger.error('Failed to email admin about new ticket', { err, admin: admin.email }); })
+        }).catch((err) => { logger.error('Failed to email admin about new ticket', { err, admin: maskEmail(admin.email) }); })
       ));
     } catch (err) {
       logger.error('Failed to notify admins by email about new ticket', { err });

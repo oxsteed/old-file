@@ -1,5 +1,7 @@
 const logger = require('../utils/logger');
-const { sendEmail } = require('../utils/email');
+const { sendEmailOrThrow } = require('../utils/email');
+const { renderOxSteedEmail } = require('../utils/emailTemplate');
+const { maskEmail } = require('../utils/directQuote');
 
 const AREAS_OF_HELP = [
   'legal_setup',
@@ -92,29 +94,38 @@ exports.submitConsultingRequest = async (req, res) => {
 
       const sessionId = result.rows[0].id;
 
-      // Send confirmation email
+      // Send confirmation email. Review P3-844/P3-849: the intake is already
+      // persisted, so this stays fire-and-forget, but sendEmailOrThrow makes
+      // a failed send loud instead of a silent drop. Review P3-852: the
+      // recipient address is masked in logs.
       try {
-        await sendEmail({
+        const rendered = renderOxSteedEmail({
+          language: 'en',
+          preheader: 'We received your consulting intake form',
+          eyebrow: 'OXSTEED CONSULTING',
+          title: 'Intake form received',
+          intro: 'Thank you for your interest in OxSteed Business Ascension Consulting!',
+          bodyHtml: '<p style="margin:0 0 16px;color:#334155;font-size:16px;line-height:1.65;">We have received your intake form submission. A consulting specialist will review your request and contact you within 24 business hours to schedule your initial $100 consultation session.</p>',
+          bodyText: 'We have received your intake form submission. A consulting specialist will review your request and contact you within 24 business hours to schedule your initial $100 consultation session.',
+          details: [
+            { label: 'Duration', value: 'Up to 2 hours' },
+            { label: 'Cost', value: '$100' },
+            { label: 'Format', value: 'Virtual (video call)' },
+          ],
+          codeBlocks: [{ label: 'Reference ID', code: String(sessionId), tone: 'blue' }],
+          footerText: 'The OxSteed Team',
+        });
+        await sendEmailOrThrow({
           to: email,
           subject: 'OxSteed Consulting Intake Form Submitted',
-          html: `
-            <h2>Thank you for your interest in OxSteed Business Ascension Consulting!</h2>
-            <p>We have received your intake form submission. A consulting specialist will review your request and contact you within 24 business hours to schedule your initial $100 consultation session.</p>
-            <p><strong>Session Details:</strong></p>
-            <ul>
-              <li>Duration: Up to 2 hours</li>
-              <li>Cost: $100</li>
-              <li>Format: Virtual (video call)</li>
-            </ul>
-            <p>Reference ID: <code>${sessionId}</code></p>
-            <p>Best regards,<br>The OxSteed Team</p>
-          `,
+          html: rendered.html,
+          text: rendered.text,
         });
       } catch (e) {
-        logger.warn('Failed to send consulting confirmation email', { email, sessionId, error: e.message });
+        logger.warn('Failed to send consulting confirmation email', { email: maskEmail(email), sessionId, error: e.message });
       }
 
-      logger.info('Consulting session submitted', { sessionId, email, service_tier });
+      logger.info('Consulting session submitted', { sessionId, email: maskEmail(email), service_tier });
 
       return res.status(201).json({
         id: sessionId,
@@ -125,7 +136,7 @@ exports.submitConsultingRequest = async (req, res) => {
       client.release();
     }
   } catch (err) {
-    logger.error('Error submitting consulting request', { error: err.message, email });
+    logger.error('Error submitting consulting request', { error: err.message, email: maskEmail(email) });
     return res.status(500).json({ error: 'Failed to submit consulting request' });
   }
 };

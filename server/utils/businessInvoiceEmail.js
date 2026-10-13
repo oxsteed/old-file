@@ -2,6 +2,7 @@
 
 const { sendEmail } = require('./email');
 const logger = require('./logger');
+const { maskEmail } = require('./directQuote'); // Review P3-852: PII masking for log fields
 const escapeHtml = require('./escapeHtml');
 const { renderOxSteedEmail, normalizeEmailLanguage } = require('./emailTemplate');
 
@@ -105,7 +106,8 @@ async function sendBusinessInvoiceEmail({
         || `business-invoice:${invoice.id}:${recipientEmail.toLowerCase()}`,
     });
     if (result.success) {
-      logger.info('Business invoice email sent', { invoiceId: invoice.id, recipientEmail, attempt });
+      // Review P3-852: mask the recipient address in logs (PII).
+      logger.info('Business invoice email sent', { invoiceId: invoice.id, recipientEmail: maskEmail(recipientEmail), attempt });
       return { success: true, attempt };
     }
     lastError = result.error;

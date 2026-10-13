@@ -1419,7 +1419,7 @@ exports.guestProfileChatSession = async (req, res, next) => {
       );
       const helperEmail = helperUser.rows[0]?.email;
       if (helperEmail) {
-        const { sendEmail } = require('../utils/email');
+        const { sendEmailOrThrow } = require('../utils/email');
         const siteUrl = process.env.APP_URL || process.env.CLIENT_URL || 'https://oxsteed.com';
         const inboxUrl = `${String(siteUrl).replace(/\/$/, '')}/helper/messages`;
         const bizNote = resolvedBusinessId
@@ -1443,7 +1443,7 @@ exports.guestProfileChatSession = async (req, res, next) => {
           .replace(/</g, '&lt;')
           .replace(/>/g, '&gt;')
           .replace(/\n/g, '<br/>');
-        await sendEmail({
+        await sendEmailOrThrow({
           to: helperEmail,
           subject: `New guest message from ${guestName}`,
           text,
@@ -1473,7 +1473,7 @@ exports.guestProfileChatSession = async (req, res, next) => {
 
     // Send confirmation email to guest
     try {
-      const { sendEmail } = require('../utils/email');
+      const { sendEmailOrThrow } = require('../utils/email');
       const siteUrl = process.env.APP_URL || process.env.CLIENT_URL || 'https://oxsteed.com';
       const returnUrl = `${String(siteUrl).replace(/\/$/, '')}/helpers/${resolvedHelperId}?guest-token=${guestToken}`;
       const helperName = (await pool.query(
@@ -1497,7 +1497,7 @@ exports.guestProfileChatSession = async (req, res, next) => {
       ].join('\n');
 
       const safeHelperName = String(helperFullName).replace(/</g, '&lt;');
-      await sendEmail({
+      await sendEmailOrThrow({
         to: guestEmail,
         subject: `Message delivered to ${helperFullName}`,
         text,

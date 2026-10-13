@@ -5,6 +5,7 @@ const logger = require('../utils/logger');
 const { sendEmail } = require('../utils/email');
 const escapeHtml = require('../utils/escapeHtml');
 const { renderOxSteedEmail } = require('../utils/emailTemplate');
+const { maskEmail } = require('../utils/directQuote');
 
 function reminderTypeFor(startAt) {
   const hoursUntil = (new Date(startAt).getTime() - Date.now()) / (60 * 60 * 1000);
@@ -74,19 +75,26 @@ async function processDirectCalendarReminders() {
           bodyHtml: `<p>Your OxSteed Direct service is scheduled ${lead}.</p><p><strong>Service:</strong> ${safeService}<br /><strong>When:</strong> ${safeWhen}<br /><strong>Location:</strong> ${safeLocation}</p><p>Reference: #${safeRequestId}</p>`,
           footerText: 'OxSteed - local trades marketplace',
         });
-        await sendEmail({
+        // Review P3-844: sendEmail reports delivery failure as { success: false }
+        // without throwing. Only mark 'sent' on a confirmed delivery; anything
+        // else throws into the failure path below so the reminder is retried.
+        const delivery = await sendEmail({
           to: recipient,
           subject: `OxSteed Direct reminder: ${request.service_category || 'scheduled service'}`,
           text: rendered.text,
           html: rendered.html,
           idempotencyKey: `direct-calendar-reminder:${request.id}:${reminderType}:${recipient}`,
         });
+        if (delivery?.success !== true) {
+          throw new Error(delivery?.error || 'email send failed');
+        }
         await db.query('UPDATE direct_calendar_reminder_deliveries SET status = \'sent\', sent_at = NOW(), updated_at = NOW() WHERE id = $1', [deliveryId]);
         sent++;
       } catch (err) {
         failed++;
         await db.query('UPDATE direct_calendar_reminder_deliveries SET status = \'failed\', last_error = $2, updated_at = NOW() WHERE id = $1', [deliveryId, String(err.message || 'send failed').slice(0, 500)]);
-        logger.error('Direct calendar reminder delivery failed', { requestId: request.id, recipient, error: err.message });
+        // Review P3-852: mask the recipient address in logs (PII).
+        logger.error('Direct calendar reminder delivery failed', { requestId: request.id, recipient: maskEmail(recipient), error: err.message });
       }
     }
   }

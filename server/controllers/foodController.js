@@ -10,6 +10,7 @@ const logger = require('../utils/logger');
 const notificationService = require('../services/notificationService');
 const smsNotificationService = require('../services/smsNotificationService');
 const emailService = require('../services/emailService');
+const { maskEmail } = require('../utils/directQuote');
 const { sanitizeMessage } = require('../utils/messageSanitizer');
 const { ensureBusinessConversation, mirrorMessage } = require('../services/businessConversationSync');
 const { createLinkedSupportTicket } = require('../services/supportTicketLinkService');
@@ -1611,7 +1612,10 @@ async function notifyFoodOrderReady(order, restaurant) {
 
     // 3) Guest with only an email.
     if (order.guest_email) {
-      await emailService.send({
+      // Review P3-844: emailService.send throws on provider failure but
+      // returns null when no provider is configured. A null result must fail
+      // loud into the non-blocking catch below, never log as "sent".
+      const emailResult = await emailService.send({
         to: order.guest_email,
         subject: `${title} ${queue}`.trim(),
         html: checkoutCompletionHtml({
@@ -1621,11 +1625,15 @@ async function notifyFoodOrderReady(order, restaurant) {
           actionHref: trackUrl,
         }),
       });
+      if (!emailResult) {
+        throw new Error('Email provider not configured - guest order notification not sent');
+      }
+      // Review P3-852: mask the guest address in logs (PII).
       logger.info('notifyFoodOrderReady sent', {
         orderId: order.id,
         restaurantId: order.restaurant_id,
         channel: 'email',
-        guestEmail: order.guest_email,
+        guestEmail: maskEmail(order.guest_email),
       });
       return;
     }

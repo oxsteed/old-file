@@ -39,6 +39,10 @@ async function processWaiting() {
         AND (live_wait_ended_at IS NULL OR founder_alert_sent_at IS NULL)
       ORDER BY live_wait_started_at LIMIT 25`);
     for (const { id } of rows) {
+      // Review P3-849: the founder alert is a notification, not part of the
+      // conversation tick. It is queued here and sent AFTER the COMMIT below
+      // so a failed alert can never roll back the tick (or vice versa).
+      let founderAlertConversationId = null;
       await client.query('BEGIN');
       try {
         const { rows: conversations } = await client.query(
@@ -78,14 +82,10 @@ async function processWaiting() {
           }
         }
         if (!c.agent_id && now - new Date(c.live_wait_started_at).getTime() >= ALERT_SECONDS * 1000 && !c.founder_alert_sent_at) {
-          const result = await email.sendEmail({
-            to: SUPPORT_ALERT_EMAIL,
-            subject: 'OxSteed: a customer is waiting for live support',
-            text: `A customer has been waiting at least two minutes without an assigned agent.\n\nConversation: ${id}\nOpen https://oxsteed.com/admin/support/chat and go online in Support to help.\nThe customer is offered message and call/text options after five minutes.`,
-            idempotencyKey: `support-founder-${id}`,
-          });
-          if (!result.success) throw new Error(result.error || 'Founder alert delivery failed');
-          await client.query('UPDATE support_conversations SET founder_alert_sent_at = NOW() WHERE id = $1', [id]);
+          // Queue the alert for after COMMIT. founder_alert_sent_at is only
+          // stamped on a confirmed delivery (see below); a failed send stays
+          // NULL so the next worker tick retries it.
+          founderAlertConversationId = id;
         }
         if (!c.agent_id && now >= new Date(c.live_wait_expires_at).getTime()) {
           await client.query('UPDATE support_conversations SET live_wait_ended_at = COALESCE(live_wait_ended_at, NOW()) WHERE id = $1', [id]);
@@ -98,6 +98,29 @@ async function processWaiting() {
           sockets.notifyAgent(c.agent_id, 'ticket:new-assignment', payload);
           sockets.broadcastToAdmins('ticket:assigned', payload);
           sockets.broadcastToTicket(id, 'ticket:assigned', payload);
+        }
+        // Founder alert, deliberately after the COMMIT and non-throwing: an
+        // email-provider failure must never roll back the conversation tick.
+        // The inner catch swallows everything so the outer ROLLBACK path is
+        // unreachable from here.
+        if (founderAlertConversationId) {
+          try {
+            const alertResult = await email.sendEmail({
+              to: SUPPORT_ALERT_EMAIL,
+              subject: 'OxSteed: a customer is waiting for live support',
+              text: `A customer has been waiting at least two minutes without an assigned agent.\n\nConversation: ${founderAlertConversationId}\nOpen https://oxsteed.com/admin/support/chat and go online in Support to help.\nThe customer is offered message and call/text options after five minutes.`,
+              idempotencyKey: `support-founder-${founderAlertConversationId}`,
+            });
+            if (!alertResult.success) {
+              throw new Error(alertResult.error || 'Founder alert delivery failed');
+            }
+            await pool.query('UPDATE support_conversations SET founder_alert_sent_at = NOW() WHERE id = $1', [founderAlertConversationId]);
+          } catch (alertErr) {
+            logger.error('Founder alert delivery failed (will retry next tick)', {
+              conversationId: founderAlertConversationId,
+              error: alertErr.message,
+            });
+          }
         }
       } catch (error) {
         await client.query('ROLLBACK');

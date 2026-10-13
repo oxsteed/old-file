@@ -10,9 +10,21 @@
 //  2. Platform delivery - when no `smtpConfig` is supplied, use the shared
 //     Resend transport. Platform SMTP is intentionally not a second delivery
 //     system; this keeps retry and idempotency semantics consistent.
+//
+// Review P3-849 (two email systems): this file is the service-level API, not
+// a competing delivery system. The actual platform transport lives in
+// utils/email.js (sendEmail / sendEmailOrThrow, Resend). NEW code should:
+//   * use utils/email.js sendEmail / sendEmailOrThrow for platform mail
+//     (branded templates in utils/emailTemplate.js), or
+//   * use emailService.send when the mail must go out through a specific
+//     user's own SMTP credentials (the per-user path above).
+// Do not build new delivery paths on nodemailer directly: the only other
+// direct nodemailer use is the provider-health probe (transporter.verify),
+// which sends nothing.
 
 const nodemailer = require('nodemailer');
 const logger = require('../utils/logger');
+const { maskEmail } = require('../utils/directQuote');
 
 /**
  * Build a nodemailer transporter from an SMTP config object.
@@ -92,7 +104,8 @@ async function send({ to, subject, html, text, from, smtpConfig, idempotencyKey,
     html,
   });
 
-  logger.info('emailService: sent', { messageId: info.messageId, to });
+  // Review P3-852: mask the recipient address in logs (PII).
+  logger.info('emailService: sent', { messageId: info.messageId, to: maskEmail(to) });
   return info;
 }
 

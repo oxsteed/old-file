@@ -1,6 +1,6 @@
 const db = require('../db');
 const { isScheduledSessionPaid } = require('../services/consultingPaymentService');
-const { sendEmail } = require('../utils/email');
+const { sendEmailOrThrow } = require('../utils/email');
 const logger = require('../utils/logger');
 const platformApprovalSvc = require('../services/modePlatformApprovalService');
 
@@ -351,7 +351,7 @@ exports.bookTimeSlot = async (req, res) => {
           ? `${consultant.rows[0].first_name} ${consultant.rows[0].last_name}`
           : 'Your Consultant';
 
-        await sendEmail({
+        await sendEmailOrThrow({
           to: session.email,
           subject: 'Your Consulting Session is Confirmed',
           html: `

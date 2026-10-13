@@ -9,6 +9,7 @@ const {
   maskPaymentIdentifier,
   rentalInvoicePaymentView,
 } = require('../utils/rentalInvoicePayment');
+const { maskEmail } = require('../utils/directQuote');
 
 function bookingDepositAmount(booking) {
   const tool = booking?.agreement_snapshot?.tool;
@@ -260,15 +261,16 @@ const createInvoice = async (req, res) => {
         // Email failed - don't mark as sent
         emailDeliveryStatus = 'failed';
         emailDeliveryError = emailResult.error;
+        // Review P3-852: mask the recipient address in logs (PII).
         logger.warn('Invoice email delivery failed', {
           invoiceId: invoice.id,
-          recipientEmail: recipientEmail || booking.customer_email,
+          recipientEmail: maskEmail(recipientEmail || booking.customer_email),
           error: emailDeliveryError,
         });
       } else {
         logger.info('Invoice email delivered', {
           invoiceId: invoice.id,
-          recipientEmail: recipientEmail || booking.customer_email,
+          recipientEmail: maskEmail(recipientEmail || booking.customer_email),
         });
       }
     }

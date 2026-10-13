@@ -1,5 +1,11 @@
 // Compatibility wrapper for legacy OTP/job-alert callers. Provider setup and
 // delivery now live in smsNotificationService so all SMS uses one Twilio path.
+//
+// Review P3-849 (two SMS stacks): this wrapper is the LEGACY entry point and
+// is kept only so existing callers keep working. NEW code must require
+// services/smsNotificationService directly (sendTransactionalSMS /
+// sendDirectSMS / requestPhoneVerification) instead of adding to this file.
+// Do not create a second Twilio client anywhere else.
 const smsNotificationService = require('../services/smsNotificationService');
 
 async function sendSMS(to, body) {
