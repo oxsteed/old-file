@@ -88,6 +88,7 @@ async function runCustomerReengagement() {
         await sendNotification({
           userId:     c.id,
           type:       'reengagement_nudge',
+          idempotencyKey: `reengagement-nudge:${c.id}:${c.last_job_id}`,
           title:      `👋 ${reengagementTitle}`,
           body:       `${reengagementBody} ${c.last_job_title ? `("${c.last_job_title}")` : ''}`,
           data:       { last_job_id: c.last_job_id },
@@ -105,6 +106,7 @@ async function runCustomerReengagement() {
             : null;
           await sendEmail({
             to:      c.email,
+            idempotencyKey: `reengagement-nudge-email:${c.id}:${c.last_job_id}`,
             subject: `${c.first_name}, ${reengagementTitle}`,
             ...(oneClickUrl ? {
               headers: {

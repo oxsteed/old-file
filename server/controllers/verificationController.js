@@ -145,9 +145,20 @@ exports.checkrWebhook = async (req, res, next) => {
       const candidateId = report.candidate_id;
       const result = report.adjudication || report.status;
 
+      // Status-transition guard (P3-5-F08): only apply the report when its
+      // event is at least as new as the newest report event already applied
+      // to this check. Without this, an older/out-of-order report.completed
+      // (fresh envelope id, within the 24h window) would regress a newer
+      // terminal state and flip users.background_check_status backwards.
       const { rows } = await db.query(
-        'UPDATE background_checks SET checkr_report_id = $1, status = $2, result = $3, completed_at = NOW(), expires_at = NOW() + INTERVAL \'1 year\' WHERE checkr_candidate_id = $4 RETURNING user_id',
-        [reportId, 'complete', result === 'clear' ? 'clear' : 'consider', candidateId]
+        `UPDATE background_checks
+            SET checkr_report_id = $1, status = $2, result = $3, completed_at = NOW(),
+                expires_at = NOW() + INTERVAL '1 year',
+                last_report_event_created_at = GREATEST(COALESCE(last_report_event_created_at, to_timestamp(0)), $5::timestamptz)
+          WHERE checkr_candidate_id = $4
+            AND (last_report_event_created_at IS NULL OR last_report_event_created_at <= $5::timestamptz)
+          RETURNING user_id`,
+        [reportId, 'complete', result === 'clear' ? 'clear' : 'consider', candidateId, new Date(createdMs)]
       );
 
       if (rows.length) {
@@ -303,8 +314,13 @@ exports.identityWebhook = async (req, res, next) => {
     const { type, data } = event;
     const eventId = event.id ? String(event.id) : null;
     let receiptId = null;
+    // Per-session watermark (P3-5-F10): Stripe delivers events per session in
+    // no guaranteed order. last_event_created_at records the newest event
+    // applied; older events are ignored so an out-of-order requires_input
+    // can never overwrite a newer verified state (or vice versa).
+    const created = Number.isFinite(Number(event.created)) ? Number(event.created) : null;
+    const eventCreatedTs = created ? new Date(created * 1000) : null;
     if (eventId) {
-      const created = Number.isFinite(Number(event.created)) ? Number(event.created) : null;
       const receipt = await db.query(
         `INSERT INTO webhook_event_receipts (provider, event_id, event_type, object_type, object_id, event_created, status)
          VALUES ('stripe_identity', $1, $2, 'verification_session', $3, $4, 'processing')
@@ -320,18 +336,19 @@ exports.identityWebhook = async (req, res, next) => {
       const sessionId = data.object.id;
       const verifiedName = data.object.verified_outputs?.first_name + ' ' + data.object.verified_outputs?.last_name;
 
-      await db.query(
-        `UPDATE identity_verifications SET status = 'verified', verified_name = $1, updated_at = NOW()
-         WHERE stripe_verification_session_id = $2`,
-        [verifiedName, sessionId]
+      const { rows: transitioned } = await db.query(
+        `UPDATE identity_verifications
+            SET status = 'verified', verified_name = $1, updated_at = NOW(),
+                last_event_created_at = CASE WHEN $3::timestamptz IS NULL THEN last_event_created_at
+                                            ELSE GREATEST(COALESCE(last_event_created_at, to_timestamp(0)), $3::timestamptz) END
+          WHERE stripe_verification_session_id = $2
+            AND (last_event_created_at IS NULL OR $3::timestamptz IS NULL OR last_event_created_at <= $3::timestamptz)
+          RETURNING user_id`,
+        [verifiedName, sessionId, eventCreatedTs]
       );
-
-      const { rows } = await db.query(
-        'SELECT user_id FROM identity_verifications WHERE stripe_verification_session_id = $1', [sessionId]
-      );
-      if (rows.length) {
+      if (transitioned.length) {
         await db.query(
-          'UPDATE users SET identity_verified = TRUE WHERE id = $1', [rows[0].user_id]
+          'UPDATE users SET identity_verified = TRUE WHERE id = $1', [transitioned[0].user_id]
         );
       }
     }
@@ -340,9 +357,13 @@ exports.identityWebhook = async (req, res, next) => {
       const sessionId = data.object.id;
       const lastError = data.object.last_error?.reason || 'Verification requires additional input';
       await db.query(
-        `UPDATE identity_verifications SET status = 'requires_input', last_error = $1, updated_at = NOW()
-         WHERE stripe_verification_session_id = $2`,
-        [lastError, sessionId]
+        `UPDATE identity_verifications
+            SET status = 'requires_input', last_error = $1, updated_at = NOW(),
+                last_event_created_at = CASE WHEN $3::timestamptz IS NULL THEN last_event_created_at
+                                            ELSE GREATEST(COALESCE(last_event_created_at, to_timestamp(0)), $3::timestamptz) END
+          WHERE stripe_verification_session_id = $2
+            AND (last_event_created_at IS NULL OR $3::timestamptz IS NULL OR last_event_created_at <= $3::timestamptz)`,
+        [lastError, sessionId, eventCreatedTs]
       );
     }
 

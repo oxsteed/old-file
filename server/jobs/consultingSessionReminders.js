@@ -62,6 +62,7 @@ const startConsultingSessionReminders = () => {
 
           await sendEmail({
             to: session.email,
+            idempotencyKey: `consulting-session-reminder:${session.id}:${hoursUntil >= 23 && hoursUntil <= 25 ? '24h' : '1h'}`,
             subject,
             html: `
               <p>Hi ${session.first_name},</p>

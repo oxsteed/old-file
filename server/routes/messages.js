@@ -50,10 +50,13 @@ router.post('/guest-inquiries/:id/messages', userChatLimiter, conversationMessag
 router.get('/conversations', getConversations);
 
 // POST /api/messages/conversations - Create or get existing conversation
-router.post('/conversations', getOrCreateConversation);
+// P3-13-F15: conversation creation is a messaging mutation; give it the same
+// user-level chat limiter as the other mutation routes to bound spam.
+router.post('/conversations', userChatLimiter, getOrCreateConversation);
 
 // POST /api/messages/jobs/:jobId/conversation - job-scoped chat (P1-136)
-router.post('/jobs/:jobId/conversation', getOrCreateJobConversation);
+// Same limiter: it also creates conversations.
+router.post('/jobs/:jobId/conversation', userChatLimiter, getOrCreateJobConversation);
 
 // GET /api/messages/conversations/:conversationId/meta - conversation name, job title, business
 router.get('/conversations/:conversationId/meta', getConversationMeta);

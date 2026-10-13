@@ -905,6 +905,11 @@ Open OxSteed to see more: ${process.env.APP_URL || process.env.CLIENT_URL || 'ht
       const mail = await sendEmail({
         to: a.email,
         subject,
+        // The content-signature dedupe above only skips when the last run
+        // persisted its signature. If the send succeeded but the UPDATE
+        // below failed, the next tick would resend; the key makes that
+        // retry a provider-level no-op.
+        idempotencyKey: `discover-digest:${a.id}:${contentSignature}`,
         text,
         html: `<p>Hi ${a.first_name},</p><p>Updates for your saved search <strong>${a.query}</strong> (≈${a.radius_miles} mi).</p><ul>${results
           .slice(0, 12)

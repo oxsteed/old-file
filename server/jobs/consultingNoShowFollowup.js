@@ -47,6 +47,7 @@ const startConsultingNoShowFollowup = () => {
           // Send no-show follow-up email to customer
           await sendEmail({
             to: session.email,
+            idempotencyKey: `consulting-no-show:${session.id}`,
             subject: 'We Missed You - Your OxSteed Consulting Session',
             html: `
               <p>Hi ${session.first_name},</p>
@@ -66,6 +67,7 @@ const startConsultingNoShowFollowup = () => {
           if (session.consultant_first_name) {
             await sendEmail({
               to: process.env.ADMIN_EMAIL || 'admin@oxsteed.com',
+              idempotencyKey: `consulting-no-show-admin:${session.id}`,
               subject: `No-Show Alert: Consulting Session on ${sessionDateTime.toLocaleDateString('en-US')}`,
               html: `
                 <p>A customer did not show up for their consulting session:</p>

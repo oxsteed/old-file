@@ -2119,7 +2119,7 @@ function BusinessHubInner() {
             )}
 
             {/* ── Products tab ─────────────────────────────────────── */}
-            {tab === 'products' && bizId && canEditBizProfile && (
+            {tab === 'products' && bizId && canEditBizProfile && LAUNCH_VISIBILITY.businessHubProductCommerce && (
               <ProductManagement businessId={bizId} />
             )}
 

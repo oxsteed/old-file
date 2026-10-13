@@ -90,6 +90,66 @@ describe('P3-842 Checkr webhook', () => {
     expect(mockQuery).not.toHaveBeenCalled();
   });
 
+  test('P3-5-F08: an older report.completed cannot regress a newer terminal state', async () => {
+    jest.resetModules();
+    const sendNotification = jest.fn().mockResolvedValue({ success: true });
+    jest.doMock('../services/notificationService', () => ({ sendNotification }));
+    const { mockQuery: q } = require('./setup');
+    const crypto = require('crypto');
+    const controller = require('../controllers/verificationController');
+    process.env.CHECKR_WEBHOOK_SECRET = 'checkr-secret';
+    // Fresh envelope id, created 1h ago (inside the 24h window). The row's
+    // watermark is newer, so the guarded UPDATE transitions zero rows.
+    const body = Buffer.from(JSON.stringify({ id: 'evt-checkr-old', created_at: new Date(Date.now() - 3600000).toISOString(), type: 'report.completed', data: { object: { id: 'rep-old', candidate_id: 'cand-1', adjudication: 'consider' } } }));
+    const sig = crypto.createHmac('sha256', 'checkr-secret').update(body).digest('hex');
+    q.mockImplementation(async (sql) => {
+      if (/INSERT INTO webhook_event_receipts/.test(sql)) return { rows: [{ id: 1 }] };
+      if (/RETURNING user_id/.test(sql)) {
+        expect(sql).toContain('last_report_event_created_at');
+        return { rows: [] }; // status-transition guard blocked the older event
+      }
+      return { rows: [] };
+    });
+    const res = { json: jest.fn() };
+    const next = jest.fn();
+    await controller.checkrWebhook({ headers: { 'x-checkr-signature': sig }, body }, res, next);
+    expect(next).not.toHaveBeenCalled();
+    expect(res.json).toHaveBeenCalledWith({ received: true });
+    expect(sendNotification).not.toHaveBeenCalled();
+    jest.dontMock('../services/notificationService');
+  });
+
+});
+
+describe('P3-5-F10 Stripe Identity per-session watermark', () => {
+  test('an out-of-order requires_input cannot overwrite a newer verified state', async () => {
+    jest.resetModules();
+    const { mockQuery: q } = require('./setup');
+    const stripeMock = require('stripe').__mockInstance;
+    const controller = require('../controllers/verificationController');
+    process.env.STRIPE_IDENTITY_WEBHOOK_SECRET = 'whsec-test';
+    const nowSec = Math.floor(Date.now() / 1000);
+    stripeMock.webhooks.constructEvent.mockReturnValue({
+      id: 'evt-old-1',
+      type: 'identity.verification_session.requires_input',
+      created: nowSec - 600,
+      data: { object: { id: 'vs_123', last_error: { reason: 'document_unverified_other' } } },
+    });
+    q.mockImplementation(async (sql) => {
+      if (/INSERT INTO webhook_event_receipts/.test(sql)) return { rows: [{ id: 9 }] };
+      if (/UPDATE identity_verifications/.test(sql)) {
+        expect(sql).toContain('last_event_created_at');
+        return { rows: [], rowCount: 0 }; // watermark guard blocked the stale event
+      }
+      return { rows: [] };
+    });
+    const res = { json: jest.fn() };
+    const next = jest.fn();
+    await controller.identityWebhook({ headers: { 'stripe-signature': 'sig' }, body: Buffer.from('{}') }, res, next);
+    expect(next).not.toHaveBeenCalled();
+    expect(res.json).toHaveBeenCalledWith({ received: true });
+    jest.dontMock('../services/notificationService');
+  });
 });
 
 describe('email delivery', () => {

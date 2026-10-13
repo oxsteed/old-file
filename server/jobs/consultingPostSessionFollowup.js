@@ -89,6 +89,7 @@ const startConsultingPostSessionFollowup = () => {
           // Send follow-up email to customer
           await sendEmail({
             to: session.email,
+            idempotencyKey: `consulting-post-session:${session.id}`,
             subject: 'Thank You for Your OxSteed Consulting Session',
             html: `
               <p>Hi ${session.first_name},</p>
