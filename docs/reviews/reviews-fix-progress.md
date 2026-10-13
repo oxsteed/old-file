@@ -117,3 +117,7 @@ Reconciled the 38 W16 IDs against `resolution-audit-v2-2026-10-13.md`; no matchi
 
 Reconciled the 33 W17 IDs against `resolution-audit-v2-2026-10-13.md`; no matching ID rows were present in that snapshot, so the handoff list remains authoritative. This batch makes recurring invoice generation transactional and idempotent per billing record, with a database fence and same-day replay protection. Remaining loyalty, receipt, and KYC/AML findings stay open for follow-up batches.
 
+## W18 reconciliation (2026-10-13)
+
+Reconciled the 45 W18 IDs against `resolution-audit-v2-2026-10-13.md`; no matching rows were present in that snapshot, so the handoff list remains authoritative. This batch exposes the previously unwired CCPA/CPRA request intake, expands verified privacy exports with optional messages, payments, and invoices sections, and corrects the payment export key from the nonexistent `payments.user_id` to payer/payee ownership. Remaining audit-trail, tool-rental, and rate-limit inventory stays open for follow-up batches.
+
