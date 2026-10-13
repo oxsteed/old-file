@@ -69,7 +69,7 @@ async function main() {
   await db.query(`UPDATE support_conversations SET live_wait_started_at = now() - interval '121 seconds' WHERE id = $1`, [id]);
   await worker.processWaiting(); await worker.processWaiting();
   assert.equal(sent.length, 2);
-  assert.equal(sent[1].to, 'emilejeanphilippe@oxsteed.com');
+  assert.equal(sent[1].to, process.env.SUPPORT_ALERT_EMAIL || process.env.SUPPORT_EMAIL || 'support@oxsteed.com');
   await db.query(`UPDATE support_conversations SET live_wait_expires_at = now() - interval '1 second' WHERE id = $1`, [id]);
   await worker.processWaiting();
   loaded = await request(controller.loadGuestConversation, {}, id, verified.data.guestToken);

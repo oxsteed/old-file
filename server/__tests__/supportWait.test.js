@@ -50,9 +50,9 @@ test('assigned or closed overrides countdown', () => {
 test('no founder email before two minutes', async () => {
   mockClient(conversation(119)); await processWaiting(); expect(email.sendEmail).not.toHaveBeenCalled();
 });
-test('founder email at two minutes uses stable idempotency key', async () => {
+test('support alert email at two minutes uses stable idempotency key', async () => {
   const client = mockClient(conversation(120)); await processWaiting();
-  expect(email.sendEmail).toHaveBeenCalledWith(expect.objectContaining({ to: 'emilejeanphilippe@oxsteed.com', idempotencyKey: 'support-founder-test' }));
+  expect(email.sendEmail).toHaveBeenCalledWith(expect.objectContaining({ to: 'support@oxsteed.com', idempotencyKey: 'support-founder-test' }));
   expect(client.query).toHaveBeenCalledWith(expect.stringContaining('founder_alert_sent_at = NOW()'), ['test']);
 });
 test('already-sent alert is not repeated', async () => {
