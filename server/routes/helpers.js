@@ -13,13 +13,14 @@ const {
 const { generalLimiter, directoryLimiter } = require('../middleware/rateLimiter');
 const { authenticate } = require('../middleware/auth');
 const { requireAdmin, requirePermission } = require('../middleware/adminAuth');
+const { requireListingEligible } = require('../middleware/helperOnboardingMiddleware');
 
 // ── Admin-only endpoints (must come before /:id wildcards) ────────────────────
 router.post('/:id/remove-credential', requireAdmin, requirePermission('manage_users'), removeCredential);
 
 // ── Authenticated helper-owner endpoints (must come before /:id wildcards) ──
 router.get('/me/listing',       authenticate, getMyListingStatus);
-router.put('/me/listing',       authenticate, toggleListing);
+router.put('/me/listing',       authenticate, requireListingEligible, toggleListing);
 router.get('/me/availability',  authenticate, getMyAvailability);
 router.put('/me/availability',  authenticate, toggleAvailability);
 

@@ -92,7 +92,9 @@ export default function ConsultantScheduleSelector({ consultantId, sessionId, on
         onScheduleConfirmed(response.data);
       }
     } catch (err) {
-      if (err.response?.status === 409) {
+      if (err.response?.status === 402) {
+        toast.error(t('scheduling.paymentRequired'));
+      } else if (err.response?.status === 409) {
         toast.error(t('scheduling.slotUnavailable'));
       } else {
         toast.error(t('common.errorUpdating'));

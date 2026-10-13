@@ -160,3 +160,13 @@ export const getCreditCardHistory = (cardId, offset = 0) =>
   api.get(`/oxsteed-credit/cards/${cardId}/history`, { params: { offset, limit: 25 } }).then(response => response.data);
 export const markCreditCardFound = cardId => api.post(`/oxsteed-credit/cards/${cardId}/found`).then(response => response.data);
 export const requestCreditCardReplacement = cardId => api.post(`/oxsteed-credit/cards/${cardId}/replacement`).then(response => response.data);
+
+// Review P2-549: customer top-up (fiat money IN).
+export const createOxsteedCreditTopup = (payload, idempotencyKey) =>
+  api.post('/oxsteed-credit/topups', payload, { headers: { 'Idempotency-Key': idempotencyKey } }).then((response) => response.data);
+
+export const getOxsteedCreditTopup = (topupId) =>
+  api.get(`/oxsteed-credit/topups/${encodeURIComponent(topupId)}`).then((response) => response.data);
+
+export const issueOxsteedCreditTopupStepup = (payload) =>
+  api.post('/oxsteed-credit/stepup-challenges', payload).then((response) => response.data);

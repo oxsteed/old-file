@@ -10,6 +10,60 @@ const {
   rentalInvoicePaymentView,
 } = require('../utils/rentalInvoicePayment');
 
+function bookingDepositAmount(booking) {
+  const tool = booking?.agreement_snapshot?.tool;
+  if (!tool?.requiresDeposit) return 0;
+  const amount = Number(tool.depositAmount);
+  return Number.isFinite(amount) && amount > 0 ? Math.round(amount * 100) / 100 : 0;
+}
+
+// Review P3-1068: after the rental, the owner returns the deposit or
+// withholds part/all of it with a written reason, visible to the renter.
+const resolveDeposit = async (req, res) => {
+  const bookingId = Number(req.params.bookingId);
+  const action = req.body?.action;
+  const note = typeof req.body?.note === 'string' ? req.body.note.trim().slice(0, 2000) : '';
+  if (!Number.isInteger(bookingId) || bookingId <= 0) return res.status(400).json({ error: 'Invalid booking id' });
+  if (!['return', 'withhold'].includes(action)) return res.status(400).json({ error: 'action must be return or withhold' });
+  try {
+    const { rows } = await db.query(
+      `SELECT id, owner_id, status, deposit_amount, deposit_status FROM tool_rentals_bookings WHERE id = $1`,
+      [bookingId]
+    );
+    const booking = rows[0];
+    if (!booking || String(booking.owner_id) !== String(req.user.id)) return res.status(404).json({ error: 'Booking not found' });
+    if (booking.deposit_status !== 'held') {
+      return res.status(409).json({ error: 'No held deposit to resolve', code: 'deposit_not_held', deposit_status: booking.deposit_status });
+    }
+    if (!['payment_confirmed', 'completed'].includes(booking.status)) {
+      return res.status(409).json({ error: 'Booking is not in a state where the deposit can be resolved' });
+    }
+    const deposit = Number(booking.deposit_amount);
+    let withheld = 0;
+    if (action === 'withhold') {
+      withheld = req.body?.amount === undefined ? deposit : Number(req.body.amount);
+      if (!Number.isFinite(withheld) || withheld <= 0 || withheld > deposit) {
+        return res.status(400).json({ error: 'Withheld amount must be greater than 0 and at most the deposit', code: 'invalid_amount' });
+      }
+      if (note.length < 10) return res.status(400).json({ error: 'Explain why the deposit is withheld', code: 'note_required' });
+      withheld = Math.round(withheld * 100) / 100;
+    }
+    const status = action === 'return' ? 'returned' : (withheld < deposit ? 'partially_withheld' : 'withheld');
+    const { rows: updated } = await db.query(
+      `UPDATE tool_rentals_bookings
+       SET deposit_status = $2, deposit_withheld_amount = $3, deposit_resolution_note = $4, deposit_resolved_at = NOW()
+       WHERE id = $1 AND deposit_status = 'held'
+       RETURNING id, deposit_amount, deposit_status, deposit_withheld_amount, deposit_resolution_note, deposit_resolved_at`,
+      [bookingId, status, action === 'return' ? 0 : withheld, note || null]
+    );
+    if (!updated.length) return res.status(409).json({ error: 'Deposit was already resolved', code: 'deposit_not_held' });
+    return res.json(updated[0]);
+  } catch (err) {
+    logger.error('resolveDeposit error', { err });
+    return res.status(500).json({ error: 'Failed to resolve deposit' });
+  }
+};
+
 const generateInvoiceNumber = async () => {
   const today = new Date();
   const dateStr = today.toISOString().split('T')[0].replace(/-/g, '');
@@ -134,6 +188,12 @@ const createInvoice = async (req, res) => {
     const maskedIdentifier = maskPaymentIdentifier(paymentRow.payment_type, decryptedIdentifier);
     const encryptedIdentifier = encrypt(decryptedIdentifier);
 
+    // Review P3-1068: the deposit snapshotted in the booking agreement is a
+    // separate invoice line collected with the rental.
+    const depositAmount = bookingDepositAmount(booking);
+    const rentalAmount = Number(booking.total_price);
+    const invoiceTotal = Math.round((rentalAmount + depositAmount) * 100) / 100;
+
     // Start transaction
     await client.query('BEGIN');
 
@@ -142,8 +202,9 @@ const createInvoice = async (req, res) => {
     const invoiceResult = await client.query(
       `INSERT INTO tool_rental_invoices
        (booking_id, invoice_number, customer_id, owner_id, tool_id, start_date, end_date, daily_rate, total_amount,
-        payment_type, payment_identifier, payment_identifier_encrypted, owner_payment_method_id, idempotency_key)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+        payment_type, payment_identifier, payment_identifier_encrypted, owner_payment_method_id, idempotency_key,
+        rental_amount, deposit_amount)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
        RETURNING *`,
       [
         bookingId,
@@ -154,16 +215,22 @@ const createInvoice = async (req, res) => {
         booking.start_date,
         booking.end_date,
         booking.daily_rate,
-        booking.total_price,
+        invoiceTotal,
         paymentRow.payment_type,
         maskedIdentifier,
         encryptedIdentifier,
         paymentRow.id,
-        idempotencyKey
+        idempotencyKey,
+        rentalAmount,
+        depositAmount
       ]
     );
 
     const invoice = invoiceResult.rows[0];
+    await client.query(
+      `UPDATE tool_rentals_bookings SET deposit_amount = $2, deposit_status = $3 WHERE id = $1`,
+      [bookingId, depositAmount, depositAmount > 0 ? 'due' : 'none']
+    );
 
     // Handle email delivery if requested
     let emailDeliveryStatus = 'sent';
@@ -416,9 +483,18 @@ const generateInvoicePDF = async (req, res) => {
       y += 25;
     });
 
+    // Review P3-1068: show the refundable deposit as its own line.
+    const depositLine = Number(invoice.deposit_amount || 0);
+    if (depositLine > 0) {
+      doc.fontSize(10).font('Helvetica')
+        .text(`Rental: $${Number(invoice.rental_amount ?? (Number(invoice.total_amount) - depositLine)).toFixed(2)}`, 350, y)
+        .text(`Refundable security deposit (held by owner): $${depositLine.toFixed(2)}`, 50, y + 15, { width: 500 });
+      y += 30;
+    }
+
     // Total
     doc.moveTo(50, y + 10).lineTo(550, y + 10).stroke();
-    doc.fontSize(14).font('Helvetica-Bold').text(`TOTAL: $${invoice.total_amount.toFixed(2)}`, 350, y + 20);
+    doc.fontSize(14).font('Helvetica-Bold').text(`TOTAL: $${Number(invoice.total_amount).toFixed(2)}`, 350, y + 20);
 
     // QR Code section
     doc.fontSize(10).font('Helvetica-Bold').text('PAYMENT INSTRUCTIONS', 50, y + 80);
@@ -505,7 +581,10 @@ const confirmPayment = async (req, res) => {
 
     // Update booking status (immutable after this)
     await client.query(
-      `UPDATE tool_rentals_bookings SET status = 'payment_confirmed', payment_confirmed_at = CURRENT_TIMESTAMP WHERE id = $1`,
+      `UPDATE tool_rentals_bookings SET status = 'payment_confirmed', payment_confirmed_at = CURRENT_TIMESTAMP,
+         deposit_status = CASE WHEN deposit_status = 'due' THEN 'held' ELSE deposit_status END,
+         deposit_received_at = CASE WHEN deposit_status = 'due' THEN CURRENT_TIMESTAMP ELSE deposit_received_at END
+       WHERE id = $1`,
       [invoice.booking_id]
     );
 
@@ -530,4 +609,4 @@ const confirmPayment = async (req, res) => {
   }
 };
 
-module.exports = { createInvoice, getInvoice, generateInvoicePDF, confirmPayment };
+module.exports = { createInvoice, getInvoice, generateInvoicePDF, confirmPayment, resolveDeposit, bookingDepositAmount };
