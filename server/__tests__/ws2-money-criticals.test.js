@@ -368,7 +368,7 @@ describe('H7 affiliate payout audit', () => {
     const payout = { id: 'pay-1', status: 'pending', total_commission_cents: 3000, affiliate_program_id: 'prg-1', helper_id: 'u1' };
     keyed(async (sql) => {
       if (sql.includes('FROM connect_accounts')) return { rows: [{ stripe_account_id: 'acct_9', payouts_enabled: true }], rowCount: 1 };
-      if (sql.includes('FROM users') && sql.includes('didit_status')) return { rows: [{ didit_status: 'verified', didit_verified_at: new Date().toISOString() }], rowCount: 1 };
+      if (sql.includes('FROM users') && sql.includes('didit_status')) return { rows: [{ w9_completed: true, didit_status: 'verified', didit_verified_at: new Date().toISOString() }], rowCount: 1 };
       if (sql.includes('FROM affiliate_payouts ap')) return { rows: [payout], rowCount: 1 };
       if (sql.includes("SET status = 'processing'")) return { rows: [{ ...payout, status: 'processing' }], rowCount: 1 };
       if (sql.includes("SET status = 'completed'")) return { rows: [{ ...payout, status: 'completed' }], rowCount: 1 };

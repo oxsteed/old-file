@@ -6,6 +6,7 @@ const slotEngine = require('../services/bookingSlotEngine');
 const mainAppContracts = require('../models/mainAppContractsModel');
 const { uploadFile, getSignedDownloadUrl } = require('../utils/storage');
 const { scheduleSupportMessageNotifications } = require('../services/supportNotificationService');
+const { isDiditVerificationFresh } = require('../utils/diditGate');
 
 function parseLimit(value, fallback = 4, max = 12) {
   const parsed = Number.parseInt(String(value), 10);
@@ -2919,6 +2920,17 @@ exports.getBillingHub = async (req, res, next) => {
 
 exports.getTaxDocuments = async (req, res, next) => {
   try {
+    const { rows: [taxIdentity] } = await pool.query(
+      `SELECT COALESCE(w9_completed, FALSE) AS w9_completed,
+              didit_status, didit_verified_at
+         FROM users
+        WHERE id = $1
+        LIMIT 1`,
+      [req.user.id]
+    );
+    const taxIdentityReady = !!taxIdentity?.w9_completed
+      && taxIdentity.didit_status === 'verified'
+      && isDiditVerificationFresh(taxIdentity.didit_verified_at);
     const { rows } = await pool.query(
       `WITH earnings AS (
          SELECT EXTRACT(YEAR FROM COALESCE(completed_at, updated_at, created_at))::int AS tax_year,
@@ -2973,8 +2985,8 @@ exports.getTaxDocuments = async (req, res, next) => {
         id: `1099-${year}`,
         title: '1099 Tax Form',
         type: 'form_1099',
-        status: earnedCents >= 60000 ? 'available' : 'not_required',
-        downloadAvailable: earnedCents >= 60000,
+        status: earnedCents < 60000 ? 'not_required' : (taxIdentityReady ? 'available' : 'action_required'),
+        downloadAvailable: earnedCents >= 60000 && taxIdentityReady,
         ...base,
       };
       return [annualSummary, form1099];
@@ -2983,6 +2995,12 @@ exports.getTaxDocuments = async (req, res, next) => {
     res.json({
       contract: { version: 'main-tax-documents-v1', generatedAt: new Date().toISOString(), dataSource: 'production' },
       thresholdCents: 60000,
+      taxIdentity: {
+        ready: taxIdentityReady,
+        w9Completed: !!taxIdentity?.w9_completed,
+        identityVerified: taxIdentity?.didit_status === 'verified'
+          && isDiditVerificationFresh(taxIdentity?.didit_verified_at),
+      },
       documents,
     });
   } catch (err) {

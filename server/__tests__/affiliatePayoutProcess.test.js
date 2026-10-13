@@ -21,7 +21,7 @@ function route(handlers) {
 
 const base = [
   [/FROM affiliate_payouts ap\s+JOIN affiliate_programs/, { rows: [{ id: 7, affiliate_program_id: 3, owner_id: 'owner', status: 'pending', total_commission_cents: 1500 }] }],
-  [/FROM users\s+WHERE id =/, { rows: [{ didit_status: 'verified', didit_verified_at: new Date().toISOString() }] }],
+  [/FROM users\s+WHERE id =/, { rows: [{ w9_completed: true, didit_status: 'verified', didit_verified_at: new Date().toISOString() }] }],
   [/FROM connect_accounts/, { rows: [{ stripe_account_id: 'acct_owner', payouts_enabled: true }] }],
   [/SET status = 'processing'/, { rows: [{ id: 7, total_commission_cents: 1500 }] }],
 ];
@@ -64,11 +64,11 @@ test('requires fresh identity before claiming an affiliate payout', async () => 
   route([
     base[0],
     [/FROM connect_accounts/, { rows: [{ stripe_account_id: 'acct_owner', payouts_enabled: true }] }],
-    [/FROM users/, { rows: [{ didit_status: 'verified', didit_verified_at: '2020-01-01T00:00:00.000Z' }] }],
+    [/FROM users/, { rows: [{ w9_completed: true, didit_status: 'verified', didit_verified_at: '2020-01-01T00:00:00.000Z' }] }],
   ]);
   const next = jest.fn();
   await processPayout({ user: { id: 'admin' }, params: { payoutId: 7 } }, { json: jest.fn() }, next);
-  expect(next.mock.calls[0][0].code).toBe('affiliate_identity_required');
+  expect(next.mock.calls[0][0].code).toBe('affiliate_tax_identity_required');
   expect(mockTransfers.create).not.toHaveBeenCalled();
 });
 

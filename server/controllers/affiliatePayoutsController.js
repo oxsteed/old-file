@@ -330,14 +330,14 @@ async function processPayout(req, res, next) {
     }
 
     const { rows: [owner] } = await pool.query(
-      `SELECT didit_status, didit_verified_at
+      `SELECT w9_completed, didit_status, didit_verified_at
          FROM users
         WHERE id = $1 AND is_active = TRUE
         LIMIT 1`,
       [payout.owner_id]
     );
-    if (owner?.didit_status !== 'verified' || !isDiditVerificationFresh(owner.didit_verified_at)) {
-      throw new AppError('The affiliate must have fresh identity verification before payout', 403, 'affiliate_identity_required');
+    if (!owner?.w9_completed || owner.didit_status !== 'verified' || !isDiditVerificationFresh(owner.didit_verified_at)) {
+      throw new AppError('The affiliate must have current tax identity and identity verification before payout', 403, 'affiliate_tax_identity_required');
     }
     await assertSanctionsClear(pool, {
       subjectType: 'customer',
