@@ -46,7 +46,7 @@ describeDb('chat payment request expiry (P2-10-F01)', () => {
     await db.query(`CREATE TABLE ${schema}.chat_proof_of_payments (id UUID PRIMARY KEY, status TEXT)`);
     await applyMigration('535_chat_oxsteed_credit_payments.sql');
     await applyMigration('536_chat_credit_refunds.sql');
-    await applyMigration('830_chat_payment_request_expiry.sql');
+    await applyMigration('831_chat_payment_request_expiry.sql');
   });
   afterAll(async () => {
     await db.query(`DROP SCHEMA IF EXISTS ${schema} CASCADE`);
@@ -68,7 +68,7 @@ describeDb('chat payment request expiry (P2-10-F01)', () => {
     return (await db.query('SELECT status FROM chat_payment_requests WHERE id = $1', [id])).rows[0].status;
   }
 
-  test('migration 830 adds expires_at and the expired status', async () => {
+  test('migration 831 adds expires_at and the expired status', async () => {
     const { rows } = await db.query(
       `SELECT column_name FROM information_schema.columns
         WHERE table_schema = $1 AND table_name = 'chat_payment_requests' AND column_name = 'expires_at'`,
