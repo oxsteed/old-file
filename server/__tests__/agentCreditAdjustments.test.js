@@ -21,8 +21,12 @@ jest.mock('../services/oxsteedCreditService', () => {
     adjustCustomerCreditInTransaction: jest.fn(),
   };
 });
+jest.mock('../services/fiatComplianceService', () => ({
+  evaluateFundingCompliance: jest.fn().mockResolvedValue({ allowed: true }),
+}));
 
 const creditService = require('../services/oxsteedCreditService');
+const { evaluateFundingCompliance } = require('../services/fiatComplianceService');
 const AppError = require('../utils/appError');
 const controller = require('../controllers/agentCreditAdjustmentController');
 
@@ -115,6 +119,7 @@ beforeEach(() => {
   jest.clearAllMocks();
   creditService.assertCreditRailEnabled.mockResolvedValue(undefined);
   creditService.adjustCustomerCreditInTransaction.mockResolvedValue({ transaction: { id: TXN_UUID } });
+  evaluateFundingCompliance.mockResolvedValue({ allowed: true });
 });
 
 describe('proposeAdjustment validation', () => {
@@ -300,6 +305,12 @@ describe('all amounts require maker-checker approval', () => {
     expect(proposeRes.payload.adjustment.status).toBe('pending');
     expect(proposeRes.payload.adjustment.requiresSecondApproval).toBe(true);
     expect(creditService.adjustCustomerCreditInTransaction).not.toHaveBeenCalled();
+    expect(evaluateFundingCompliance).toHaveBeenCalledWith(expect.objectContaining({
+      customerId: CUSTOMER,
+      amountCents: 4999,
+      fundingMethod: 'agent_credit_adjustment',
+      actorUserId: ADMIN_A,
+    }));
 
     mockQuery.mockReset();
     mockQuery.mockImplementation(async () => ({ rows: [], rowCount: 0 }));
