@@ -183,9 +183,23 @@ test('bounds notification retention and purges only old sent rows', async () => 
 test('bounds cleanup of expired challenge hashes without deleting audit or replay history', async () => {
   db.query.mockResolvedValueOnce({ rows: [{ id: 'expired' }] });
   await expect(purgeExpiredCardChallenges(999999)).resolves.toBe(1);
-  expect(db.query.mock.calls[0][1]).toEqual([5000]);
-  expect(db.query.mock.calls[0][0]).toContain("expires_at < NOW() - INTERVAL '30 days'");
+  expect(db.query.mock.calls[0][1]).toEqual([5000, 30]);
+  expect(db.query.mock.calls[0][0]).toContain("expires_at < NOW() - ($2::integer * INTERVAL '1 day')");
   expect(db.query.mock.calls[0][0]).toContain('DELETE FROM oxsteed_credit_card_security_challenges');
+});
+
+test('challenge purge honors OTP_CHALLENGE_RETENTION_DAYS with bounds', async () => {
+  process.env.OTP_CHALLENGE_RETENTION_DAYS = '45';
+  db.query.mockResolvedValueOnce({ rows: [] });
+  await expect(purgeExpiredCardChallenges(100)).resolves.toBe(0);
+  expect(db.query.mock.calls[0][1]).toEqual([100, 45]);
+  delete process.env.OTP_CHALLENGE_RETENTION_DAYS;
+
+  process.env.OTP_CHALLENGE_RETENTION_DAYS = '99999';
+  db.query.mockResolvedValueOnce({ rows: [] });
+  await expect(purgeExpiredCardChallenges(100)).resolves.toBe(0);
+  expect(db.query.mock.calls[1][1]).toEqual([100, 365]);
+  delete process.env.OTP_CHALLENGE_RETENTION_DAYS;
 });
 
 test('P3-846: claims carry a lease token and a stale worker cannot finish a re-claimed row', async () => {

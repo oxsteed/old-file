@@ -302,6 +302,21 @@ exports.cancelSubscription = async (req, res, next) => {
             WHERE id = $1`,
           [subscription.id]
         );
+        // P3-11-F08: fail-closed audit row for the subscriber-initiated
+        // cancellation; commits or rolls back with the state change.
+        const { logAdminAction } = require('../services/auditService');
+        await logAdminAction({
+          client,
+          adminId: userId,
+          action: 'subscription.cancel_scheduled',
+          targetType: 'subscription',
+          targetId: String(subscription.id),
+          description: 'Subscription cancellation scheduled by subscriber (OxSteed Credit)',
+          before: { cancel_at_period_end: false },
+          after: { cancel_at_period_end: true },
+          req,
+          throwOnError: true,
+        });
         return { ...subscription, localOnly: true };
       }
 
@@ -342,6 +357,22 @@ exports.cancelSubscription = async (req, res, next) => {
       if (!updateRows.length) {
         throw new AppError('Subscription state changed during update', 409, 'status_mismatch');
       }
+
+      // P3-11-F08: fail-closed audit row for the subscriber-initiated
+      // cancellation; commits or rolls back with the state change.
+      const { logAdminAction } = require('../services/auditService');
+      await logAdminAction({
+        client,
+        adminId: userId,
+        action: 'subscription.cancel_scheduled',
+        targetType: 'subscription',
+        targetId: String(subscription.id),
+        description: 'Subscription cancellation scheduled by subscriber (Stripe)',
+        before: { cancel_at_period_end: false },
+        after: { cancel_at_period_end: true },
+        req,
+        throwOnError: true,
+      });
 
       return updateRows[0];
     }, 'update_subscription_cancellation');
@@ -477,6 +508,20 @@ async function createCreditSubscription(req, res, next, plan, userId) {
          RETURNING *`,
         [userId, plan.id, now.toISOString(), periodEnd.toISOString()]
       );
+      // P3-11-F08: fail-closed audit row in the same transaction as the
+      // subscription insert; the write rolls back if the audit fails.
+      const { logAdminAction } = require('../services/auditService');
+      await logAdminAction({
+        client,
+        adminId: userId,
+        action: 'subscription.created',
+        targetType: 'subscription',
+        targetId: String(inserted[0].id),
+        description: `Subscription created with OxSteed Credit for plan ${plan.slug}`,
+        after: { status: 'active', plan_id: plan.id, payment_method: 'oxsteed_credit' },
+        req,
+        throwOnError: true,
+      });
       return { subscription: inserted[0], spend };
     }, 'subscription_credit_checkout');
 

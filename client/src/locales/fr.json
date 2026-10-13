@@ -17370,7 +17370,19 @@
     "contactTitle": "Comment nous contacter",
     "contactIntro": "Si vous avez des questions sur cette page ou souhaitez exercer l'un de vos droits à la vie privée, veuillez nous contacter à :",
     "contactEmailLabel": "E-mail:",
-    "contactMailLabel": "Courrier:"
+    "contactMailLabel": "Courrier:",
+      "formTitle": "Soumettre une demande d’opposition",
+      "formIntro": "Utilisez ce formulaire pour exercer votre droit de vous opposer à la vente ou au partage de vos informations personnelles. Nous répondrons sous 45 jours.",
+      "emailLabel": "Adresse e-mail",
+      "emailPlaceholder": "vous@exemple.com",
+      "notesLabel": "Détails supplémentaires (facultatif)",
+      "notesPlaceholder": "Indiquez tout ce qui peut nous aider à retrouver vos données.",
+      "submitButton": "Envoyer la demande d’opposition",
+      "submittingButton": "Envoi en cours...",
+      "successTitle": "Demande reçue",
+      "successMessage": "Votre demande d’opposition a bien été reçue. Nous répondrons sous 45 jours.",
+      "errorRequired": "Veuillez saisir votre adresse e-mail.",
+      "errorFailed": "Nous n’avons pas pu envoyer votre demande. Veuillez réessayer plus tard."
   },
   "cookiePolicyPage": {
     "title": "Politique de cookies",

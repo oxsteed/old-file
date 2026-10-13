@@ -57,3 +57,40 @@ test('anonymizes users with OxSteed Credit records instead of deleting financial
   expect(anonymizeCall[1]).toEqual([user.id]);
   expect(mockQuery.mock.calls.some(([sql]) => String(sql) === 'COMMIT')).toBe(true);
 });
+
+test('sweeps expired OTP challenges with the configured retention window', async () => {
+  process.env.OTP_CHALLENGE_RETENTION_DAYS = '45';
+  mockQuery.mockResolvedValue({ rows: [], rowCount: 0 });
+
+  await cleanupExpiredSessionData();
+
+  const phonePurge = mockQuery.mock.calls.find(([sql]) =>
+    String(sql).includes('DELETE FROM admin_phone_verification_challenges')
+  );
+  expect(phonePurge).toBeTruthy();
+  expect(phonePurge[1]).toEqual([45]);
+  expect(String(phonePurge[0])).toContain('verified_at IS NOT NULL');
+
+  const guestPurge = mockQuery.mock.calls.find(([sql]) =>
+    String(sql).includes('DELETE FROM guest_profile_chat_verifications')
+  );
+  expect(guestPurge).toBeTruthy();
+  expect(guestPurge[1]).toEqual([45]);
+  expect(String(guestPurge[0])).toContain('consumed_at IS NOT NULL');
+
+  delete process.env.OTP_CHALLENGE_RETENTION_DAYS;
+});
+
+test('OTP challenge retention defaults to 30 days and is bounded', async () => {
+  process.env.OTP_CHALLENGE_RETENTION_DAYS = '99999';
+  mockQuery.mockResolvedValue({ rows: [], rowCount: 0 });
+
+  await cleanupExpiredSessionData();
+
+  const phonePurge = mockQuery.mock.calls.find(([sql]) =>
+    String(sql).includes('DELETE FROM admin_phone_verification_challenges')
+  );
+  expect(phonePurge[1]).toEqual([365]);
+
+  delete process.env.OTP_CHALLENGE_RETENTION_DAYS;
+});

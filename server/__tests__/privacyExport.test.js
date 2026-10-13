@@ -208,3 +208,55 @@ describe('GET /api/privacy/export', () => {
     });
   });
 });
+
+describe('GET /api/privacy/export (extended sections)', () => {
+  test('includes credit, food, subscription, business, helper, and notification sections', async () => {
+    const savedEnv = process.env.NODE_ENV;
+    process.env.NODE_ENV = 'production';
+    try {
+      mockQuery
+        .mockResolvedValueOnce({ rows: [{ id: USER_ID, first_name: 'Export', last_name: 'Tester', email: 'export@example.com', role: 'customer', is_active: true, email_verified: false }] })
+        .mockResolvedValueOnce({ rows: [{ id: 'verification-1' }] })
+        .mockResolvedValueOnce({ rows: [{ id: USER_ID, first_name: 'Export' }] })
+        .mockResolvedValueOnce({ rows: [] })
+        .mockResolvedValueOnce({ rows: [] })
+        .mockResolvedValueOnce({ rows: [] })
+        .mockResolvedValueOnce({ rows: [] })
+        .mockResolvedValueOnce({ rows: [] })
+        .mockResolvedValueOnce({ rows: [] })
+        .mockResolvedValueOnce({ rows: [] })
+        .mockResolvedValueOnce({ rows: [{ id: 1, account_type: 'customer_wallet' }] })
+        .mockResolvedValueOnce({ rows: [{ id: 'tx-1', transaction_type: 'load' }] })
+        .mockResolvedValueOnce({ rows: [{ id: 5, status: 'completed' }] })
+        .mockResolvedValueOnce({ rows: [{ id: 'sub-1', status: 'active' }] })
+        .mockResolvedValueOnce({ rows: [{ id: 7, business_name: 'Acme' }] })
+        .mockResolvedValueOnce({ rows: [{ id: 9, tier: 'pro' }] })
+        .mockResolvedValueOnce({ rows: [{ id: 11, type: 'test' }] })
+        .mockResolvedValueOnce({ rows: [{ id: 'verification-1' }] });
+
+      const response = await request(buildApp())
+        .get('/api/privacy/export')
+        .set('Authorization', authHeader())
+        .set('X-Export-Verification-Token', 'a'.repeat(64))
+        .buffer(true)
+        .parse(binaryParser);
+
+      expect(response.status).toBe(200);
+      expect(response.headers['content-type']).toMatch(/application\/zip/);
+
+      const exportSql = mockQuery.mock.calls.map(([sql]) => String(sql)).join('\n');
+      expect(exportSql).toContain('FROM oxsteed_credit_accounts');
+      expect(exportSql).toContain('FROM oxsteed_credit_transactions');
+      expect(exportSql).toContain('FROM food_orders');
+      expect(exportSql).toContain('FROM subscriptions');
+      expect(exportSql).toContain('FROM businesses');
+      expect(exportSql).toContain('FROM helper_profiles');
+      expect(exportSql).toContain('FROM notifications');
+      // Provider secrets and tax identifiers stay out of the export.
+      expect(exportSql).not.toContain('stripe_subscription_id');
+      expect(exportSql).not.toContain('stripe_customer_id');
+    } finally {
+      process.env.NODE_ENV = savedEnv;
+    }
+  });
+});

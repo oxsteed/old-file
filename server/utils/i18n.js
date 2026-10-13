@@ -210,6 +210,10 @@ const T = {
     title: { en: 'Identity appeal not approved', es: 'Apelación de identidad no aprobada', fr: 'Appel d’identité non approuvé', ht: 'Yo pa apwouve apèl idantite a', ar: 'لم تتم الموافقة على استئناف الهوية' },
     body: { en: 'Your identity verification appeal was not approved.', es: 'Tu apelación de verificación de identidad no fue aprobada.', fr: 'Votre appel de vérification d’identité n’a pas été approuvé.', ht: 'Yo pa apwouve apèl verifikasyon idantite ou a.', ar: 'لم تتم الموافقة على استئناف التحقق من هويتك.' },
   },
+  credit_identity_verification_expired: {
+    title: { en: 'Identity verification expired', es: 'Verificación de identidad vencida', fr: 'Vérification d’identité expirée', ht: 'Verifikasyon idantite ekspire', ar: 'انتهت صلاحية التحقق من الهوية' },
+    body: { en: 'Your identity verification has expired. Submit a new request to restore your verification tier.', es: 'Tu verificación de identidad ha vencido. Envía una nueva solicitud para recuperar tu nivel de verificación.', fr: 'Votre vérification d’identité a expiré. Envoyez une nouvelle demande pour restaurer votre niveau de vérification.', ht: 'Verifikasyon idantite ou ekspire. Voye yon nouvo demann pou repran nivo verifikasyon ou.', ar: 'انتهت صلاحية التحقق من هويتك. أرسل طلبًا جديدًا لاستعادة مستوى التحقق الخاص بك.' },
+  },
   credit_sanctions_review_required: {
     title: { en: 'Compliance review required', es: 'Se requiere una revisión de cumplimiento', fr: 'Vérification de conformité requise', ht: 'Revizyon konformite obligatwa', ar: 'مراجعة الامتثال مطلوبة' },
     body: { en: 'Credit activity is paused while a compliance review is completed.', es: 'La actividad de crédito está pausada mientras se completa una revisión de cumplimiento.', fr: 'L’activité de crédit est suspendue pendant la vérification de conformité.', ht: 'Aktivite kredi a kanpe pandan revizyon konformite a ap fèt.', ar: 'تم إيقاف نشاط الائتمان حتى اكتمال مراجعة الامتثال.' },

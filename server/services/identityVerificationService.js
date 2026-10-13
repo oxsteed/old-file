@@ -55,6 +55,13 @@ const VERIFICATION_REVIEW_SLA_HOURS = Math.max(
   1,
   Number.parseInt(process.env.OXSTEED_CREDIT_IDENTITY_REVIEW_SLA_HOURS || '72', 10) || 72
 );
+// P3-10-F09: appeals are a third human review queue (rejected verification
+// back for a second decision). They get their own SLA, swept by
+// checkVerificationSla alongside verification requests and sanction hits.
+const IDENTITY_APPEAL_REVIEW_SLA_HOURS = Math.max(
+  1,
+  Number.parseInt(process.env.OXSTEED_CREDIT_IDENTITY_APPEAL_SLA_HOURS || '72', 10) || 72
+);
 
 const VERIFIED_TIER_FOR_REQUEST = { 1: 1, 2: 2 };
 
@@ -235,6 +242,7 @@ function formatVerification(row) {
     appealStatus: row.appeal_status || null,
     appealReason: row.appeal_reason || null,
     appealedAt: row.appealed_at || null,
+    appealSlaDueAt: row.appeal_sla_due_at || null,
     appealReviewedAt: row.appeal_reviewed_at || null,
     appealReviewReason: row.appeal_review_reason || null,
     createdAt: row.created_at,
@@ -265,7 +273,19 @@ async function getCustomerVerificationTier(client, customerId) {
           RETURNING id`,
         [row.id]
       );
-      if (expiredRows[0]) row.status = 'expired';
+      if (expiredRows[0]) {
+        row.status = 'expired';
+        // P3-10-F10: the lazy expiry flip was silent. The customer only
+        // learns their tier dropped when a funding attempt fails; notify
+        // them here so they can re-verify before it matters.
+        void sendNotification({
+          userId: customerId,
+          type: 'credit_identity_verification_expired',
+          data: { verificationId: String(row.id), tier: Number(row.tier) },
+          action_url: '/wallet',
+          idempotencyKey: `credit-identity:${row.id}:expired`,
+        });
+      }
     }
     if (row.status === 'verified' && (!row.expires_at || new Date(row.expires_at) > now)) {
       return { tier: Number(row.tier), status: row.status, verificationId: String(row.id) };
@@ -401,11 +421,12 @@ async function requestIdentityVerificationAppeal({ verificationId, customerId, r
     const { rows: updated } = await client.query(
       `UPDATE oxsteed_credit_identity_verifications
           SET appeal_status = 'pending', appeal_reason = $3, appealed_at = NOW(),
+              appeal_sla_due_at = NOW() + ($4 * INTERVAL '1 hour'),
               appeal_reviewed_by = NULL, appeal_reviewed_at = NULL, appeal_review_reason = NULL,
               updated_at = NOW()
         WHERE id = $1 AND customer_id = $2 AND status = 'rejected'
         RETURNING *`,
-      [verificationId, customerId, normalizedReason]
+      [verificationId, customerId, normalizedReason, IDENTITY_APPEAL_REVIEW_SLA_HOURS]
     );
     if (!updated[0]) throw new AppError('Appeal was already submitted', 409, 'credit_identity_appeal_state_conflict');
     await insertAudit(client, {
@@ -450,16 +471,22 @@ async function reviewIdentityVerificationAppeal({ verificationId, decision, acto
       throw new AppError('This identity appeal is not pending', 409, 'credit_identity_appeal_state_conflict');
     }
     const nextStatus = decision === 'approve' ? 'pending' : 'rejected';
+    // P3-10-F09: PG cannot infer a parameter type when the same $n is both
+    // assigned to a varchar column and compared inside a CASE (the pre-fix
+    // query 500'd every appeal decision). Pass the reopen flag as its own
+    // boolean instead of comparing the status text three times.
+    const reopensQueue = decision === 'approve';
     const { rows: updated } = await client.query(
       `UPDATE oxsteed_credit_identity_verifications
-          SET status = $2, tier = CASE WHEN $2 = 'pending' THEN 0 ELSE tier END,
-              expires_at = CASE WHEN $2 = 'pending' THEN NULL ELSE expires_at END,
-              sla_due_at = CASE WHEN $2 = 'pending' THEN NOW() + ($3 * INTERVAL '1 hour') ELSE NULL END,
-              appeal_status = $4, appeal_reviewed_by = $5, appeal_reviewed_at = NOW(),
-              appeal_review_reason = $6, updated_at = NOW()
+          SET status = $2, tier = CASE WHEN $3 THEN 0 ELSE tier END,
+              expires_at = CASE WHEN $3 THEN NULL ELSE expires_at END,
+              sla_due_at = CASE WHEN $3 THEN NOW() + ($4 * INTERVAL '1 hour') ELSE NULL END,
+              appeal_status = $5, appeal_sla_due_at = NULL,
+              appeal_reviewed_by = $6, appeal_reviewed_at = NOW(),
+              appeal_review_reason = $7, updated_at = NOW()
         WHERE id = $1 AND status = 'rejected' AND appeal_status = 'pending'
         RETURNING *`,
-      [verificationId, nextStatus, VERIFICATION_REVIEW_SLA_HOURS, decision === 'approve' ? 'approved' : 'rejected', actorUserId, normalizedReason]
+      [verificationId, nextStatus, reopensQueue, VERIFICATION_REVIEW_SLA_HOURS, decision === 'approve' ? 'approved' : 'rejected', actorUserId, normalizedReason]
     );
     if (!updated[0]) throw new AppError('Appeal was already decided', 409, 'credit_identity_appeal_state_conflict');
     await insertAudit(client, {
@@ -542,6 +569,7 @@ module.exports = {
   TIER2_TOPUP_MAX_CENTS,
   VERIFICATION_TTL_DAYS,
   VERIFICATION_REVIEW_SLA_HOURS,
+  IDENTITY_APPEAL_REVIEW_SLA_HOURS,
   VERIFICATION_PROVIDERS,
   getVerificationProvider,
   getCustomerVerificationTier,

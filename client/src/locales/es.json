@@ -17370,7 +17370,19 @@
     "contactTitle": "Cómo contactarnos",
     "contactIntro": "Si tiene preguntas sobre esta página o desea ejercer alguno de sus derechos de privacidad, contáctenos en:",
     "contactEmailLabel": "Correo:",
-    "contactMailLabel": "Correo postal:"
+    "contactMailLabel": "Correo postal:",
+      "formTitle": "Enviar una solicitud de exclusión",
+      "formIntro": "Usa este formulario para ejercer tu derecho a excluirte de la venta o el intercambio de tu información personal. Responderemos en un plazo de 45 días.",
+      "emailLabel": "Correo electrónico",
+      "emailPlaceholder": "tu@ejemplo.com",
+      "notesLabel": "Detalles adicionales (opcional)",
+      "notesPlaceholder": "Cuéntanos lo que nos ayude a encontrar tus datos.",
+      "submitButton": "Enviar solicitud de exclusión",
+      "submittingButton": "Enviando...",
+      "successTitle": "Solicitud recibida",
+      "successMessage": "Tu solicitud de exclusión fue recibida. Responderemos en un plazo de 45 días.",
+      "errorRequired": "Ingresa tu correo electrónico.",
+      "errorFailed": "No pudimos enviar tu solicitud. Inténtalo de nuevo más tarde."
   },
   "cookiePolicyPage": {
     "title": "Política de cookies",

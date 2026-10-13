@@ -17370,7 +17370,19 @@
     "contactTitle": "Ki jan pou kontakte nou",
     "contactIntro": "Si ou gen kesyon sou paj sa a oswa ou vle itilize yon dwa vi prive, kontakte nou nan:",
     "contactEmailLabel": "Imèl:",
-    "contactMailLabel": "Lèt pòs:"
+    "contactMailLabel": "Lèt pòs:",
+      "formTitle": "Voye yon demann pou pa vann done ou",
+      "formIntro": "Sèvi ak fòmilè sa a pou egzèse dwa ou pou refize vann oswa pataje enfòmasyon pèsonèl ou. N ap reponn nan 45 jou.",
+      "emailLabel": "Adrès imèl",
+      "emailPlaceholder": "ou@egzanp.com",
+      "notesLabel": "Lòt detay (opsyonèl)",
+      "notesPlaceholder": "Di nou sa ki ka ede nou jwenn done ou.",
+      "submitButton": "Voye demann lan",
+      "submittingButton": "Ap voye...",
+      "successTitle": "Demann resevwa",
+      "successMessage": "Nou resevwa demann ou. N ap reponn nan 45 jou.",
+      "errorRequired": "Tanpri antre adrès imèl ou.",
+      "errorFailed": "Nou pa t kapab voye demann ou. Tanpri eseye ankò pita."
   },
   "cookiePolicyPage": {
     "title": "Politik sou Cookies",

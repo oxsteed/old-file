@@ -665,27 +665,46 @@ async function handleVerifiedStripeEvent(event, destination, res, next) {
           const planId = parseInt(session.metadata.planId);
           const sub = await stripe.subscriptions.retrieve(subscriptionId);
           const period = subscriptionPeriod(sub);
-          await db.query(
-            `INSERT INTO subscriptions (user_id, plan_id, stripe_subscription_id, stripe_customer_id, status, current_period_start, current_period_end)
-             VALUES ($1, $2, $3, $4, $5, to_timestamp($6), to_timestamp($7))
-             ON CONFLICT (stripe_subscription_id) DO UPDATE SET status = $5`,
-            [userId, planId, subscriptionId, stripeObjectId(session.customer), toLocalSubscriptionStatus(sub.status),
-             period.start, period.end]
-          );
-          // Get plan tier
-          const { rows: plans } = await db.query(
-            'SELECT COALESCE(tier, slug) AS tier_slug, slug FROM plans WHERE id = $1', [planId]
-          );
-          const planSlug = plans[0]?.slug || plans[0]?.tier_slug || 'pro';
-          const userTier = planSlug === 'basic' ? 'basic' : planSlug === 'broker' ? 'broker' : 'pro';
-          await db.query(
-            `UPDATE users
-             SET tier = $1,
-                 subscription_status = 'active',
-                 tier_selected = TRUE
-             WHERE id = $2`,
-            [userTier, userId]
-          );
+          const newStatus = toLocalSubscriptionStatus(sub.status);
+          // P3-11-F08: the subscription row, the tier grant, and the audit
+          // row commit together; a missing audit row fails the whole event.
+          await withTransaction(db, async (client) => {
+            const { rows: inserted } = await client.query(
+              `INSERT INTO subscriptions (user_id, plan_id, stripe_subscription_id, stripe_customer_id, status, current_period_start, current_period_end)
+               VALUES ($1, $2, $3, $4, $5, to_timestamp($6), to_timestamp($7))
+               ON CONFLICT (stripe_subscription_id) DO UPDATE SET status = $5
+               RETURNING id`,
+              [userId, planId, subscriptionId, stripeObjectId(session.customer), newStatus,
+               period.start, period.end]
+            );
+            // Get plan tier
+            const { rows: plans } = await client.query(
+              'SELECT COALESCE(tier, slug) AS tier_slug, slug FROM plans WHERE id = $1', [planId]
+            );
+            const planSlug = plans[0]?.slug || plans[0]?.tier_slug || 'pro';
+            const userTier = planSlug === 'basic' ? 'basic' : planSlug === 'broker' ? 'broker' : 'pro';
+            await client.query(
+              `UPDATE users
+               SET tier = $1,
+                   subscription_status = 'active',
+                   tier_selected = TRUE
+               WHERE id = $2`,
+              [userTier, userId]
+            );
+            if (inserted[0]) {
+              const { logAdminAction } = require('../services/auditService');
+              await logAdminAction({
+                client,
+                adminId: userId,
+                action: 'subscription.created',
+                targetType: 'subscription',
+                targetId: String(inserted[0].id),
+                description: `Subscription created via Stripe Checkout (plan ${planSlug})`,
+                after: { status: newStatus, plan_id: planId },
+                throwOnError: true,
+              });
+            }
+          }, 'webhook_subscription_created');
           await recalculateBadges(userId);
         }
         break;
@@ -740,15 +759,34 @@ async function handleVerifiedStripeEvent(event, destination, res, next) {
           planId = planRows[0]?.id ?? null;
         }
 
-        await db.query(
-          `INSERT INTO subscriptions
-             (user_id, plan_id, stripe_subscription_id, stripe_customer_id,
-              status, current_period_start, current_period_end)
-           VALUES ($1, $2, $3, $4, $5, to_timestamp($6), to_timestamp($7))
-           ON CONFLICT (stripe_subscription_id) DO NOTHING`,
-          [userRows[0].id, planId, sub.id, stripeObjectId(sub.customer), toLocalSubscriptionStatus(sub.status),
-           period.start, period.end]
-        );
+        await withTransaction(db, async (client) => {
+          const { rows: inserted } = await client.query(
+            `INSERT INTO subscriptions
+               (user_id, plan_id, stripe_subscription_id, stripe_customer_id,
+                status, current_period_start, current_period_end)
+             VALUES ($1, $2, $3, $4, $5, to_timestamp($6), to_timestamp($7))
+             ON CONFLICT (stripe_subscription_id) DO NOTHING
+             RETURNING id`,
+            [userRows[0].id, planId, sub.id, stripeObjectId(sub.customer), toLocalSubscriptionStatus(sub.status),
+             period.start, period.end]
+          );
+
+          if (inserted[0]) {
+            // P3-11-F08: audit the dashboard/API-created subscription in the
+            // same transaction as the row itself.
+            const { logAdminAction } = require('../services/auditService');
+            await logAdminAction({
+              client,
+              adminId: userRows[0].id,
+              action: 'subscription.created',
+              targetType: 'subscription',
+              targetId: String(inserted[0].id),
+              description: 'Subscription created outside Checkout (Stripe dashboard or API)',
+              after: { status: toLocalSubscriptionStatus(sub.status), plan_id: planId },
+              throwOnError: true,
+            });
+          }
+        }, 'webhook_subscription_created_dashboard');
 
         // Only a paying/trialing subscription grants the tier; incomplete
         // ones wait for customer.subscription.updated.
@@ -800,11 +838,35 @@ async function handleVerifiedStripeEvent(event, destination, res, next) {
       }
       case 'customer.subscription.deleted': {
         const sub = event.data.object;
-        await db.query(
-          `UPDATE subscriptions SET status = 'cancelled', cancelled_at = NOW(), updated_at = NOW()
-           WHERE stripe_subscription_id = $1`,
-          [sub.id]
-        );
+        await withTransaction(db, async (client) => {
+          const { rows: existing } = await client.query(
+            `SELECT id, user_id, status FROM subscriptions
+              WHERE stripe_subscription_id = $1 FOR UPDATE`,
+            [sub.id]
+          );
+          const current = existing[0];
+          if (current && current.status !== 'cancelled') {
+            await client.query(
+              `UPDATE subscriptions SET status = 'cancelled', cancelled_at = NOW(), updated_at = NOW()
+               WHERE id = $1`,
+              [current.id]
+            );
+            // P3-11-F08: audit the provider-side cancellation in the same
+            // transaction as the status change.
+            const { logAdminAction } = require('../services/auditService');
+            await logAdminAction({
+              client,
+              adminId: current.user_id,
+              action: 'subscription.cancelled',
+              targetType: 'subscription',
+              targetId: String(current.id),
+              description: 'Subscription cancelled at the payment processor (Stripe webhook)',
+              before: { status: current.status },
+              after: { status: 'cancelled' },
+              throwOnError: true,
+            });
+          }
+        }, 'webhook_subscription_deleted');
         const { rows } = await db.query(
           'SELECT user_id FROM subscriptions WHERE stripe_subscription_id = $1', [sub.id]
         );
@@ -846,17 +908,43 @@ async function handleVerifiedStripeEvent(event, destination, res, next) {
         const sub = await stripe.subscriptions.retrieve(subId);
         const period = subscriptionPeriod(sub);
 
-        await db.query(
-          `UPDATE subscriptions
-           SET status                = $1,
-               current_period_start  = to_timestamp($2),
-               current_period_end    = to_timestamp($3),
-               cancel_at_period_end  = $4,
-               updated_at            = NOW()
-           WHERE stripe_subscription_id = $5`,
-          [toLocalSubscriptionStatus(sub.status), period.start, period.end,
-           sub.cancel_at_period_end, subId]
-        );
+        // P3-11-F08: the renewal write and its audit row commit together;
+        // a missing audit row fails the renewal rather than going unaudited.
+        await withTransaction(db, async (client) => {
+          const { rows: previous } = await client.query(
+            `SELECT id, user_id, status FROM subscriptions
+              WHERE stripe_subscription_id = $1 FOR UPDATE`,
+            [subId]
+          );
+          await client.query(
+            `UPDATE subscriptions
+             SET status                = $1,
+                 current_period_start  = to_timestamp($2),
+                 current_period_end    = to_timestamp($3),
+                 cancel_at_period_end  = $4,
+                 updated_at            = NOW()
+             WHERE stripe_subscription_id = $5`,
+            [toLocalSubscriptionStatus(sub.status), period.start, period.end,
+             sub.cancel_at_period_end, subId]
+          );
+          if (previous[0]) {
+            const { logAdminAction } = require('../services/auditService');
+            await logAdminAction({
+              client,
+              adminId: previous[0].user_id,
+              action: 'subscription.renewed',
+              targetType: 'subscription',
+              targetId: String(previous[0].id),
+              description: 'Subscription renewed (Stripe invoice paid)',
+              before: { status: previous[0].status },
+              after: {
+                status: toLocalSubscriptionStatus(sub.status),
+                current_period_end: new Date(period.end * 1000).toISOString(),
+              },
+              throwOnError: true,
+            });
+          }
+        }, 'webhook_subscription_renewed');
 
         const { rows: subRows } = await db.query(
           'SELECT user_id, plan_id FROM subscriptions WHERE stripe_subscription_id = $1', [subId]

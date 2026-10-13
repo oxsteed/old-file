@@ -19,7 +19,7 @@ async function createCCPARequest(req, res, next) {
     let userId = req.user?.id;
 
     const errs = validate(req.body, {
-      requestType: [rules.required, rules.inList(VALID_REQUEST_TYPES)],
+      requestType: [rules.required, rules.oneOf(VALID_REQUEST_TYPES)],
       email: [rules.required, rules.email, rules.maxLen(254)],
       requestNotes: [rules.maxLen(1000)]
     });

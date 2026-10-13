@@ -373,6 +373,21 @@ router.get('/ccpa-requests',
   }
 );
 
+// Single-request detail. Authenticated users may read their own requests;
+// admins may read any (the handler enforces the split).
+router.get('/ccpa-requests/:requestId',
+  authenticate,
+  ccpaController.getCCPARequest
+);
+
+// Bulk completion for the privacy admin queue. Registered before any
+// :requestId POST route so '/bulk/mark-completed' is never captured as an id.
+router.post('/ccpa-requests/bulk/mark-completed',
+  authenticate,
+  requireAdmin, requirePermission('manage_operations'),
+  ccpaController.bulkMarkCCPACompleted
+);
+
 router.put('/ccpa-requests/:requestId',
   authenticate,
   requireAdmin, requirePermission('manage_operations'),
