@@ -40,7 +40,9 @@ async function getPlansActiveColumn() {
 exports.getPlans = async (req, res, next) => {
   try {
     const activeCol = await getPlansActiveColumn();
-    const whereClause = activeCol ? `WHERE ${activeCol} = TRUE` : '';
+    // Fail closed if a partially migrated catalog has neither active column;
+    // exposing every plan would let retired plans reach checkout.
+    const whereClause = activeCol ? `WHERE ${activeCol} = TRUE` : 'WHERE FALSE';
     const { rows } = await db.query(`
       SELECT
         id, name, slug, amount_cents, currency, interval, features,
@@ -101,7 +103,7 @@ exports.createCheckout = async (req, res, next) => {
     }
 
     const activeCol = await getPlansActiveColumn();
-    const whereClause = activeCol ? `AND ${activeCol} = TRUE` : '';
+    const whereClause = activeCol ? `AND ${activeCol} = TRUE` : 'AND FALSE';
     // Get plan
     const { rows: plans } = await db.query(
       `SELECT * FROM plans WHERE slug = $1 ${whereClause}`,

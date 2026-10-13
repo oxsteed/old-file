@@ -147,7 +147,9 @@ exports.sendNotification = async ({
 
     // ── 3b. Web Push (browser, VAPID) ─────────────────────────
     // Master toggle (web_push_enabled) + per-event `push_*` pref.
-    const webPushEnabled = prefs.web_push_enabled !== false && !inQuietHours;
+    const webPushEnabled = prefs.web_push_enabled !== false
+      && prefs.push_notifications !== false
+      && !inQuietHours;
     if (pushEnabled && webPushEnabled && !pushDelivered && webPushService.isConfigured()) {
       try {
         const result = await webPushService.sendToUser(userId, {
@@ -238,7 +240,9 @@ exports.sendNotification = async ({
       transactionalEmailTypes.add(type);
     }
     const emailAllowed = userEmail && emailTypes.includes(type)
-      && (transactionalEmailTypes.has(type) ? true : !emailPrefOff)
+      && (transactionalEmailTypes.has(type)
+        ? true
+        : !emailPrefOff && prefs.email_notifications !== false)
       && !(unsubscribedAll && !transactionalEmailTypes.has(type));
     if (emailAllowed && !notificationRow?.is_email_sent) {
       // Banned users get the notification email but with no account link

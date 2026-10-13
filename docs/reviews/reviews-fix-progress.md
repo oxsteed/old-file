@@ -99,3 +99,6 @@ Reconciled against audit v2 after PR #505: P2-453 and P2-454 are closed by W10.5
 
 ## W12 — same continuation branch as PR #505 (in progress)
 Reconciled the 39 W12 IDs against `resolution-audit-v2-2026-10-13.md`; the audit has no per-ID replacement list for this area, so the handoff IDs remain the source of truth. This pass fixes merchant POS split/merge/refund URL routing, replaces the business-appointment log-only notifier with idempotent participant notifications for create/status/cancel/reschedule, adds idempotent owner notifications for business invoice paid/void transitions, and hardens statement archive rendering when an artifact has no state. Remaining business hub, runner settlement, and statement issuance items stay open for subsequent W12 commits.
+
+## W13 — same continuation branch as PR #505 (in progress)
+Reconciled the W13 handoff list against audit v2; the audit records the booking-deposit and webhook crash-window items as resolved, so the active W13 work is the remaining subscription, preference, onboarding, payout, favorite, and review items listed in the handoff. This pass makes plan listing fail closed when the active catalog column is absent and makes the existing email and push master toggles effective in the primary notification path. Remaining W13 items stay open for subsequent continuation commits.
