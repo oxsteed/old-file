@@ -1,4 +1,4 @@
--- Migration 795: notification master toggles
+-- Migration 801: notification master toggles
 --
 -- Adds the user-facing master toggles `push_notifications` and
 -- `sms_notifications` to notification_preferences.
