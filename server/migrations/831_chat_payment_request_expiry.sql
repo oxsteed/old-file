@@ -1,4 +1,4 @@
--- 830_chat_payment_request_expiry.sql
+-- 831_chat_payment_request_expiry.sql
 -- Review P2-10-F01 (open-forever half): chat_payment_requests never expired,
 -- so an abandoned request card could be paid or POP-confirmed arbitrarily
 -- far in the future. Add an expires_at TTL (set at creation; default 72h via
