@@ -426,13 +426,10 @@ function businessServiceMissingError() {
   return err;
 }
 
-// Appointment-step failures that must roll the whole accept back (the slot
-// was lost to a race, or the business appointment cannot be created).
-const ACCEPT_ROLLBACK_CODES = new Set([
-  'SCHEDULING_CONFLICT',
-  'HELPER_UNAVAILABLE',
-  'business_service_missing',
-]);
+// Appointment-step failures fail the whole accept: the slot was lost to a
+// race, the business service is missing, or the appointment row could not be
+// written. The booking stays pending and the provider can retry, instead of
+// being accepted with no appointment.
 
 /**
  * Helper-scoped conflict protection: overlapping appointments + the unified
@@ -1046,28 +1043,28 @@ async function acceptBookingRequest({ booking, actorId, actorType = 'helper', ap
         throw err;
       }
       const updated = rows[0];
-      let appointment = null;
-      try {
-        appointment = await confirmOrCreateAppointment(updated, updated.helper_id, {
-          source: appointmentSource,
-          db: client,
-        });
-      } catch (e) {
-        // A race lost between pre-check and insert (or a service deactivated
-        // in between) rolls the whole accept back. Other failures keep the
-        // accept but skip the appointment, as before.
-        if (ACCEPT_ROLLBACK_CODES.has(e.code)) throw e;
-        logger.warn('[bookingLifecycle] appointment confirm/create failed', { error: e.message });
+      // The appointment is the point of the accept: it must be confirmed or
+      // created, never silently skipped. Any failure here (thrown or a null
+      // return) fails the accept loudly so the booking stays pending and the
+      // provider can retry, instead of leaving an accepted booking with no
+      // appointment.
+      const appointment = await confirmOrCreateAppointment(updated, updated.helper_id, {
+        source: appointmentSource,
+        db: client,
+      });
+      if (!appointment?.id) {
+        const err = new Error('The appointment could not be created for this booking. Please try accepting again.');
+        err.code = 'appointment_failed';
+        err.status = 500;
+        throw err;
       }
       await logAudit(updated.id, 'accepted', actorId, actorType, oldStatus, 'accepted', client);
       // Mirror the DB link the confirm step wrote (business or helper side).
-      const linked = appointment?.id
-        ? {
-            ...updated,
-            appointment_id: updated.business_id ? updated.appointment_id : appointment.id,
-            business_appointment_id: updated.business_id ? appointment.id : updated.business_appointment_id,
-          }
-        : updated;
+      const linked = {
+        ...updated,
+        appointment_id: updated.business_id ? updated.appointment_id : appointment.id,
+        business_appointment_id: updated.business_id ? appointment.id : updated.business_appointment_id,
+      };
       return { booking: linked, appointment };
     },
     'acceptBookingRequest',
@@ -1361,24 +1358,24 @@ async function customerAcceptBookingRequest({
         throw err;
       }
       const updated = rows[0];
-      let appointment = null;
-      try {
-        appointment = await confirmOrCreateAppointment(updated, updated.helper_id, {
-          source: appointmentSource,
-          db: client,
-        });
-      } catch (e) {
-        if (ACCEPT_ROLLBACK_CODES.has(e.code)) throw e;
-        logger.warn('[bookingLifecycle] customer-accept appointment failed', { error: e.message });
+      // Same fail-loud rule as the provider accept: the appointment must be
+      // confirmed or created, never silently skipped.
+      const appointment = await confirmOrCreateAppointment(updated, updated.helper_id, {
+        source: appointmentSource,
+        db: client,
+      });
+      if (!appointment?.id) {
+        const err = new Error('The appointment could not be created for this booking. Please try accepting again.');
+        err.code = 'appointment_failed';
+        err.status = 500;
+        throw err;
       }
       await logAudit(updated.id, 'accepted', actorId, actorType, oldStatus, 'accepted', client);
-      const linked = appointment?.id
-        ? {
-            ...updated,
-            appointment_id: updated.business_id ? updated.appointment_id : appointment.id,
-            business_appointment_id: updated.business_id ? appointment.id : updated.business_appointment_id,
-          }
-        : updated;
+      const linked = {
+        ...updated,
+        appointment_id: updated.business_id ? updated.appointment_id : appointment.id,
+        business_appointment_id: updated.business_id ? appointment.id : updated.business_appointment_id,
+      };
       return { booking: linked, appointment };
     },
     'customerAcceptBookingRequest',

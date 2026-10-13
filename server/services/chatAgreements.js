@@ -84,14 +84,21 @@ function buildAgreementShareContent({ marker, title, preface } = {}) {
   return `${head}\n${marker}`;
 }
 
-function canRespondToAgreement(row) {
+function canRespondToAgreement(row, action = null) {
   if (!row) return { ok: false, reason: 'not_found' };
   if (row.superseded_at || String(row.status) === 'superseded') {
     return { ok: false, reason: 'superseded' };
   }
   const status = String(row.status || '').toLowerCase();
+  const act = String(action || '').toLowerCase();
   if (status === 'accepted') return { ok: false, reason: 'already_accepted' };
-  if (status === 'declined') return { ok: false, reason: 'already_declined' };
+  if (status === 'declined') {
+    // A declined agreement is not a dead end for the customer: they may change
+    // their mind and accept (or acknowledge), which also clears a
+    // required_before_schedule gate. Declining again stays a no-op.
+    if (act === 'accept' || act === 'acknowledge') return { ok: true, changeResponse: true };
+    return { ok: false, reason: 'already_declined' };
+  }
   if (!['shared', 'acknowledged'].includes(status)) {
     return { ok: false, reason: 'invalid_status' };
   }
@@ -136,6 +143,10 @@ function toPublicAgreementCard(row, { includeBody = true } = {}) {
     attachment_mime: row.attachment_mime,
     attachment_size: row.attachment_size,
     can_respond: canRespondToAgreement(row).ok,
+    // The customer may change a declined response to accept/acknowledge.
+    // Surfaces the schedule-gate exit on the client.
+    can_change_response:
+      !row.superseded_at && String(row.status || '').toLowerCase() === 'declined',
     created_at: row.created_at,
     sensitive: row.sensitive !== false,
   };
@@ -166,7 +177,14 @@ function scheduleBlockedByAgreements(agreements = []) {
     return a.status !== 'accepted' && a.status !== 'acknowledged';
   });
   return blockers.length
-    ? { blocked: true, agreements: blockers.map((a) => ({ id: a.id, title: a.title, status: a.status })) }
+    ? { blocked: true, agreements: blockers.map((a) => ({
+        id: a.id,
+        title: a.title,
+        status: a.status,
+        // Declined blockers are not terminal: the customer can change their
+        // response to accept/acknowledge and clear the gate.
+        can_change_response: String(a.status || '').toLowerCase() === 'declined',
+      })) }
     : { blocked: false, agreements: [] };
 }
 

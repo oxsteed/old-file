@@ -63,7 +63,14 @@ export function canCustomerRespondToAgreement(agreement, { isAuthenticated = fal
   const status = String(agreement.status || '').toLowerCase();
   if (status === 'superseded' || agreement.superseded_at) return { ok: false, reason: 'superseded' };
   if (status === 'accepted') return { ok: false, reason: 'already_accepted' };
-  if (status === 'declined') return { ok: false, reason: 'already_declined' };
+  if (status === 'declined') {
+    // A declined agreement is not a dead end: the customer may change their
+    // mind and accept (or acknowledge), which clears a required-before-schedule
+    // gate. Declining again is not offered.
+    if (!isAuthenticated && !guestVerified) return { ok: false, reason: 'verify_required' };
+    if (agreement.can_change_response === false) return { ok: false, reason: 'blocked' };
+    return { ok: true, changeResponse: true };
+  }
   if (!['shared', 'acknowledged'].includes(status)) return { ok: false, reason: status };
   if (!isAuthenticated && !guestVerified) return { ok: false, reason: 'verify_required' };
   if (agreement.can_respond === false) return { ok: false, reason: 'blocked' };
