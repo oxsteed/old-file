@@ -10,6 +10,7 @@ const requireRole      = require('../middleware/requireRole');
 const { requireListingEligible } = require('../middleware/helperOnboardingMiddleware');
 const { generalLimiter } = require('../middleware/rateLimiter');
 const validateFileUpload = require('../middleware/validateFileUpload');
+const imageFileFilter = require('../middleware/imageFileFilter');
 const logger     = require('../utils/logger');
 const { invalidateHelperContext } = require('../services/helperContext');
 const availabilityService = require('../services/helperAvailabilityService');
@@ -40,11 +41,7 @@ const coverUpload = multer({
     parts: 12,
     headerPairs: 200,
   },
-  fileFilter: (req, file, cb) => {
-    const allowedMimes = ['image/jpeg', 'image/png', 'image/webp'];
-    if (allowedMimes.includes(file.mimetype)) cb(null, true);
-    else cb(new Error('Invalid file type. Only JPEG, PNG, and WebP are allowed.'));
-  },
+  fileFilter: imageFileFilter,
 });
 
 // ── GET /api/helper-profile/me ────────────────────────────────────────────────

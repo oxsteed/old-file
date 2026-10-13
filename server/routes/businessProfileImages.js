@@ -2,6 +2,7 @@ const express = require('express');
 const multer = require('multer');
 const { requireAuth } = require('../middleware/auth');
 const validateFileUpload = require('../middleware/validateFileUpload');
+const imageFileFilter = require('../middleware/imageFileFilter');
 const profileImageController = require('../controllers/businessProfileImageController');
 
 const router = express.Router();
@@ -18,14 +19,7 @@ const upload = multer({
     parts: 12,
     headerPairs: 200,
   },
-  fileFilter: (req, file, cb) => {
-    const allowedMimes = ['image/jpeg', 'image/png', 'image/webp'];
-    if (allowedMimes.includes(file.mimetype)) {
-      cb(null, true);
-    } else {
-      cb(new Error('Invalid file type. Only JPEG, PNG, and WebP are allowed.'));
-    }
-  }
+  fileFilter: imageFileFilter,
 });
 
 /**
