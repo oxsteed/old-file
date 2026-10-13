@@ -23,7 +23,8 @@ const REPORT_REASON_VALUES = Object.freeze(Object.values(REPORT_REASONS));
 
 // Review targets a report can point at. product_reviews uses UUID ids;
 // business_reviews and food_reviews use BIGINT ids in their own tables,
-// so each type has its own reference column on review_reports.
+// and job reviews live in `reviews` (UUID ids, reviewer_id column), so
+// each type has its own reference column on review_reports.
 const REVIEW_TYPES = Object.freeze({
   product: Object.freeze({
     idColumn: 'review_id',
@@ -45,6 +46,16 @@ const REVIEW_TYPES = Object.freeze({
     reviewerColumn: 'customer_id',
     lookupSql: 'SELECT id, customer_id AS reviewer_id FROM food_reviews WHERE id = $1',
     bumpCountSql: 'UPDATE food_reviews SET report_count = report_count + 1 WHERE id = $1',
+  }),
+  // P2-8-F18: job reviews (helper/customer reviews on jobs) live in the
+  // `reviews` table. Reporting them uses the same polymorphic columns as
+  // the other types (migration 830).
+  job: Object.freeze({
+    idColumn: 'job_review_id',
+    table: 'reviews',
+    reviewerColumn: 'reviewer_id',
+    lookupSql: 'SELECT id, reviewer_id FROM reviews WHERE id = $1',
+    bumpCountSql: 'UPDATE reviews SET report_count = report_count + 1, updated_at = NOW() WHERE id = $1',
   }),
 });
 const REVIEW_TYPE_VALUES = Object.freeze(Object.keys(REVIEW_TYPES));
@@ -209,7 +220,7 @@ exports.getMyReports = async (req, res, next) => {
     const { rows: reports } = await pool.query(
       `SELECT
          r.*,
-         COALESCE(pr.rating, br.rating, fr.rating) AS rating,
+         COALESCE(pr.rating, br.rating, fr.rating, jr.rating) AS rating,
          pr.title AS product_title,
          pr.comment AS product_comment,
          pr.helper_id,
@@ -217,13 +228,16 @@ exports.getMyReports = async (req, res, next) => {
          br.business_id,
          fr.body AS food_body,
          fr.restaurant_id,
-         COALESCE(pr.helper_id, br.customer_id, fr.customer_id) AS reviewer_id,
+         jr.comment AS job_comment,
+         jr.job_id AS job_review_job_id,
+         COALESCE(pr.helper_id, br.customer_id, fr.customer_id, jr.reviewer_id) AS reviewer_id,
          u_rev.first_name || ' ' || u_rev.last_name AS reviewer_name
        FROM review_reports r
        LEFT JOIN product_reviews pr ON r.review_type = 'product' AND r.review_id = pr.id
        LEFT JOIN business_reviews br ON r.review_type = 'business' AND r.business_review_id = br.id
        LEFT JOIN food_reviews fr ON r.review_type = 'food' AND r.food_review_id = fr.id
-       LEFT JOIN users u_rev ON u_rev.id = COALESCE(pr.helper_id, br.customer_id, fr.customer_id)
+       LEFT JOIN reviews jr ON r.review_type = 'job' AND r.job_review_id = jr.id
+       LEFT JOIN users u_rev ON u_rev.id = COALESCE(pr.helper_id, br.customer_id, fr.customer_id, jr.reviewer_id)
        WHERE r.reported_by = $1
        ORDER BY r.submitted_at DESC`,
       [userId]
@@ -255,12 +269,13 @@ exports.listReports = async (req, res, next) => {
     const { rows: reports, rowCount } = await pool.query(
       `SELECT
          r.*,
-         COALESCE(pr.rating, br.rating, fr.rating) AS rating,
+         COALESCE(pr.rating, br.rating, fr.rating, jr.rating) AS rating,
          pr.title AS product_title, pr.comment AS product_comment,
          pr.helper_id, pr.product_id,
          br.testimonial AS business_testimonial, br.business_id,
          fr.body AS food_body, fr.restaurant_id,
-         COALESCE(pr.helper_id, br.customer_id, fr.customer_id) AS reviewer_id,
+         jr.comment AS job_comment, jr.job_id AS job_review_job_id,
+         COALESCE(pr.helper_id, br.customer_id, fr.customer_id, jr.reviewer_id) AS reviewer_id,
          u_rev.first_name || ' ' || u_rev.last_name AS reviewer_name,
          u_reporter.first_name || ' ' || u_reporter.last_name AS reporter_name,
          u_admin.first_name || ' ' || u_admin.last_name AS reviewed_by_name,
@@ -271,7 +286,8 @@ exports.listReports = async (req, res, next) => {
        LEFT JOIN product_reviews pr ON r.review_type = 'product' AND r.review_id = pr.id
        LEFT JOIN business_reviews br ON r.review_type = 'business' AND r.business_review_id = br.id
        LEFT JOIN food_reviews fr ON r.review_type = 'food' AND r.food_review_id = fr.id
-       LEFT JOIN users u_rev ON u_rev.id = COALESCE(pr.helper_id, br.customer_id, fr.customer_id)
+       LEFT JOIN reviews jr ON r.review_type = 'job' AND r.job_review_id = jr.id
+       LEFT JOIN users u_rev ON u_rev.id = COALESCE(pr.helper_id, br.customer_id, fr.customer_id, jr.reviewer_id)
        JOIN users u_reporter ON r.reported_by = u_reporter.id
        LEFT JOIN users u_admin ON r.reviewed_by = u_admin.id
        LEFT JOIN marketplace_products p ON pr.product_id = p.id
@@ -305,12 +321,13 @@ exports.getReportDetail = async (req, res, next) => {
     const { rows: reportRows } = await pool.query(
       `SELECT
          r.*,
-         COALESCE(pr.rating, br.rating, fr.rating) AS rating,
+         COALESCE(pr.rating, br.rating, fr.rating, jr.rating) AS rating,
          pr.title AS product_title, pr.comment AS product_comment,
          pr.helper_id, pr.product_id,
          br.testimonial AS business_testimonial, br.business_id,
          fr.body AS food_body, fr.restaurant_id,
-         COALESCE(pr.helper_id, br.customer_id, fr.customer_id) AS reviewer_id,
+         jr.comment AS job_comment, jr.job_id AS job_review_job_id,
+         COALESCE(pr.helper_id, br.customer_id, fr.customer_id, jr.reviewer_id) AS reviewer_id,
          u_rev.first_name || ' ' || u_rev.last_name AS reviewer_name,
          u_reporter.first_name || ' ' || u_reporter.last_name AS reporter_name,
          u_admin.first_name || ' ' || u_admin.last_name AS reviewed_by_name,
@@ -321,7 +338,8 @@ exports.getReportDetail = async (req, res, next) => {
        LEFT JOIN product_reviews pr ON r.review_type = 'product' AND r.review_id = pr.id
        LEFT JOIN business_reviews br ON r.review_type = 'business' AND r.business_review_id = br.id
        LEFT JOIN food_reviews fr ON r.review_type = 'food' AND r.food_review_id = fr.id
-       LEFT JOIN users u_rev ON u_rev.id = COALESCE(pr.helper_id, br.customer_id, fr.customer_id)
+       LEFT JOIN reviews jr ON r.review_type = 'job' AND r.job_review_id = jr.id
+       LEFT JOIN users u_rev ON u_rev.id = COALESCE(pr.helper_id, br.customer_id, fr.customer_id, jr.reviewer_id)
        JOIN users u_reporter ON r.reported_by = u_reporter.id
        LEFT JOIN users u_admin ON r.reviewed_by = u_admin.id
        LEFT JOIN marketplace_products p ON pr.product_id = p.id
@@ -350,6 +368,7 @@ exports.getReportDetail = async (req, res, next) => {
            (m.review_id = $2 AND $1 = 'product')
            OR (m.business_review_id = $2 AND $1 = 'business')
            OR (m.food_review_id = $2 AND $1 = 'food')
+           OR (m.job_review_id = $2 AND $1 = 'job')
          )
        ORDER BY m.created_at DESC`,
       [report.review_type, report[detailCfg.idColumn]]
@@ -418,13 +437,14 @@ exports.resolveReport = async (req, res, next) => {
       // matching reference column is populated.
       const logModeration = (action, reason) => client.query(
         `INSERT INTO review_moderation_log
-           (review_type, review_id, business_review_id, food_review_id, action, reason, performed_by, metadata)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+           (review_type, review_id, business_review_id, food_review_id, job_review_id, action, reason, performed_by, metadata)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
         [
           report.review_type,
           report.review_type === 'product' ? targetReviewId : null,
           report.review_type === 'business' ? targetReviewId : null,
           report.review_type === 'food' ? targetReviewId : null,
+          report.review_type === 'job' ? targetReviewId : null,
           action,
           reason,
           req.user.id,
@@ -466,6 +486,15 @@ exports.resolveReport = async (req, res, next) => {
                WHERE id = $2`,
               [`Removed due to: ${report.reason}`, targetReviewId]
             );
+          } else if (report.review_type === 'job') {
+            // P2-8-F18: job reviews use is_hidden + moderation_reason like
+            // business/food (migration 830).
+            await client.query(
+              `UPDATE reviews
+               SET is_hidden = true, moderation_reason = $1, updated_at = NOW()
+               WHERE id = $2`,
+              [`Removed due to: ${report.reason}`, targetReviewId]
+            );
           } else {
             // food_reviews has no updated_at column; business_reviews does.
             await client.query(
@@ -492,6 +521,14 @@ exports.resolveReport = async (req, res, next) => {
           } else if (report.review_type === 'business') {
             await client.query(
               `UPDATE business_reviews
+               SET is_hidden = true, moderation_reason = $1, updated_at = NOW()
+               WHERE id = $2`,
+              [`Hidden due to: ${report.reason}`, targetReviewId]
+            );
+          } else if (report.review_type === 'job') {
+            // P2-8-F18: job reviews (migration 830).
+            await client.query(
+              `UPDATE reviews
                SET is_hidden = true, moderation_reason = $1, updated_at = NOW()
                WHERE id = $2`,
               [`Hidden due to: ${report.reason}`, targetReviewId]

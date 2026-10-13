@@ -19,6 +19,9 @@ export function statementAccessiblePath(item) {
   if (item.period?.from) query.set('from', item.period.from);
   if (item.period?.to) query.set('to', item.period.to);
   if (item.accountId != null) query.set('accountId', String(item.accountId));
+  // P2-5-F03: the accessible view reads ?restaurantId= (not ?accountId=) to
+  // build the restaurant CSV fallback URL.
+  if (item.restaurantId != null) query.set('restaurantId', String(item.restaurantId));
   if (item.kind === 'amendment') query.set('version', 'amendment');
   return `/statements/${encodeURIComponent(item.id)}/accessible?${query}`;
 }

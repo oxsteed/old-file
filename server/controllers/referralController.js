@@ -20,10 +20,16 @@ const REFEREE_CREDIT_CENTS  = parseInt(process.env.REFERRAL_REFEREE_CREDIT_CENTS
 
 // P2-6-F12: farming guards. Each distinct email used to earn $5 at
 // registration with no purchase/job required and no velocity caps, so one
-// actor with many throwaway emails could farm credit indefinitely. Grants
-// per referrer are now capped per rolling window (env-overridable).
+// actor with many throwaway emails could farm credit indefinitely.
+// - The reward is granted ONLY on the first-completed-job value event
+//   (jobController.afterJobCompleted), matching the program's stated terms
+//   ("signs up and completes their first job"); registration no longer pays.
+// - Grants per referrer are capped per rolling window (env-overridable).
+// - Grants are refused when too many of one referrer's referees signed up
+//   from the same IP in the trailing week (shared-device/IP farming).
 const REFERRAL_MAX_REWARDS_PER_DAY = parseInt(process.env.REFERRAL_MAX_REWARDS_PER_DAY || '10', 10);
 const REFERRAL_MAX_REWARDS_PER_WEEK = parseInt(process.env.REFERRAL_MAX_REWARDS_PER_WEEK || '50', 10);
+const REFERRAL_MAX_REFERRED_PER_IP_PER_WEEK = parseInt(process.env.REFERRAL_MAX_REFERRED_PER_IP_PER_WEEK || '5', 10);
 
 /**
  * Count referrer-side referral rewards posted in the trailing window.
@@ -47,10 +53,36 @@ async function referralVelocityExceeded(client, referrerId) {
 }
 
 /**
+ * P2-6-F12: shared-IP farming check. Returns the offending IP when too many
+ * of this referrer's referees registered from the same signup IP in the
+ * trailing week. Missing IP data fails open (the first-job value event is
+ * the primary guard); the check only fires on positive evidence.
+ */
+async function referralIpFarmingExceeded(client, referrerId, newUserId) {
+  const { rows: [user] } = await client.query(
+    'SELECT terms_acceptance_ip FROM users WHERE id = $1',
+    [newUserId]
+  );
+  const ip = user && typeof user.terms_acceptance_ip === 'string'
+    ? user.terms_acceptance_ip.trim()
+    : '';
+  if (!ip) return null;
+  const { rows: [{ count }] } = await client.query(
+    `SELECT COUNT(*)::int AS count FROM users
+      WHERE referred_by = $1 AND id <> $2
+        AND terms_acceptance_ip = $3
+        AND created_at > NOW() - INTERVAL '7 days'`,
+    [referrerId, newUserId, ip]
+  );
+  return Number(count || 0) >= REFERRAL_MAX_REFERRED_PER_IP_PER_WEEK ? ip : null;
+}
+
+/**
  * grantReferralReward(referrerId, newUserId)
  *
- * Called after a referred user successfully completes registration.
- * Never throws so it can be fire-and-forget from auth, but failures are
+ * Called when a referred user completes their first job (the value event in
+ * jobController.afterJobCompleted) — never at registration.
+ * Never throws so it can be fire-and-forget from callers, but failures are
  * NOT silent: they are recorded as reconciliation exceptions (domain
  * 'credit', reference `referral-reward:<newUserId>`) and retried by the
  * referral-reward-retry worker. Reward postings are idempotent per referred
@@ -69,9 +101,10 @@ exports.grantReferralReward = async function grantReferralReward(referrerId, new
     return false;
   }
 
-  // Review P2-570: one reward per referred user, ever. Registration and the
-  // first-job value event both call this; the idempotency key makes the
-  // second call a no-op, and conversions only count the posting that landed.
+  // Review P2-570: one reward per referred user, ever. The first-job value
+  // event is the only caller; the idempotency key makes duplicate or
+  // concurrent invocations no-ops, and conversions only count the posting
+  // that landed.
   try {
     return await withTransaction(db, async (client) => {
       // P2-6-F12: velocity cap. Farming many throwaway signups against one
@@ -92,6 +125,25 @@ exports.grantReferralReward = async function grantReferralReward(referrerId, new
             referrer_id: String(referrerId),
             new_user_id: String(newUserId),
             window: breachedWindow,
+          },
+          sourceRunId: 'grantReferralReward',
+        });
+        return false;
+      }
+      // P2-6-F12: shared-IP farming check. Many referees for one code from
+      // a single signup IP in a week is a farming pattern, not word of mouth.
+      const farmingIp = await referralIpFarmingExceeded(client, referrerId, newUserId);
+      if (farmingIp) {
+        logger.warn('[referral] shared-IP farming pattern; reward withheld', { referrerId, newUserId, farmingIp });
+        await recordException({
+          domain: 'credit',
+          referenceId: `referral-ip-farm:${referrerId}:${newUserId}`,
+          severity: 'warning',
+          summary: 'Referral reward withheld: shared signup IP across referees',
+          details: {
+            referrer_id: String(referrerId),
+            new_user_id: String(newUserId),
+            signup_ip: farmingIp,
           },
           sourceRunId: 'grantReferralReward',
         });

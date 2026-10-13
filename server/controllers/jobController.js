@@ -1451,22 +1451,28 @@ async function afterJobCompleted(result, actorId) {
   }
 
   // ── Referral value-event: grant reward on FIRST completed job (non-blocking)
-  // This fires if the customer (client_id) was referred and has now completed
-  // their first job — a stronger signal than mere registration.
+  // This fires when a referred user (customer OR helper side) completes their
+  // first job — a stronger signal than mere registration. P2-6-F12: this is
+  // now the ONLY grant path; registration no longer pays.
   try {
-    const { rows: referralRows } = await pool.query(`
-      SELECT u.referred_by,
-             (SELECT COUNT(*) FROM jobs
-              WHERE client_id = u.id AND status = 'completed') AS total_completed
-      FROM users u
-      WHERE u.id = $1 AND u.referred_by IS NOT NULL
-    `, [result.client_id]);
+    const { grantReferralReward } = require('./referralController');
+    const participantIds = [result.client_id, result.assigned_helper_id].filter(Boolean);
+    for (const participantId of participantIds) {
+      const { rows: referralRows } = await pool.query(`
+        SELECT u.referred_by,
+               (SELECT COUNT(*) FROM jobs
+                WHERE (client_id = u.id OR assigned_helper_id = u.id)
+                  AND status = 'completed') AS total_completed
+        FROM users u
+        WHERE u.id = $1 AND u.referred_by IS NOT NULL
+      `, [participantId]);
 
-    if (referralRows.length > 0 && parseInt(referralRows[0].total_completed) === 1) {
-      // Exactly 1 completed job means this IS the first — grant the conversion reward
-      const { grantReferralReward } = require('./referralController');
-      await grantReferralReward(referralRows[0].referred_by, result.client_id);
-      logger.info(`[referral] Value-event conversion: client ${result.client_id} completed first job, reward → ${referralRows[0].referred_by}`);
+      if (referralRows.length > 0 && parseInt(referralRows[0].total_completed, 10) === 1) {
+        // Exactly 1 completed job means this IS the first — grant the conversion reward.
+        // Idempotent per referred user, so concurrent completions cannot double-pay.
+        await grantReferralReward(referralRows[0].referred_by, participantId);
+        logger.info(`[referral] Value-event conversion: user ${participantId} completed first job, reward → ${referralRows[0].referred_by}`);
+      }
     }
   } catch (refErr) {
     logger.warn('Failed to process referral value-event (non-fatal)', { error: refErr.message });

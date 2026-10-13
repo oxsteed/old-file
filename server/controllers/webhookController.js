@@ -1917,6 +1917,7 @@ exports.diditWebhook = async (req, res, next) => {
           await db.query(
             `UPDATE users
              SET identity_verified = TRUE,
+                 id_verified = TRUE,
                  didit_verified_at = NOW(),
                  didit_status = 'verified'
              WHERE id = $1`,
@@ -1951,6 +1952,7 @@ exports.diditWebhook = async (req, res, next) => {
               await db.query(
                 `UPDATE users
                  SET identity_verified = TRUE,
+                     id_verified = TRUE,
                      didit_identity_hash = $1,
                      didit_verified_at = NOW(),
                      didit_status = 'verified'
@@ -2006,6 +2008,7 @@ exports.diditWebhook = async (req, res, next) => {
           await db.query(
             `UPDATE users
              SET identity_verified = TRUE,
+                 id_verified = TRUE,
                  didit_verified_at = NOW(),
                  didit_status = 'verified'
              WHERE id = $1`,

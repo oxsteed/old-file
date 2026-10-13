@@ -326,6 +326,13 @@ const verificationCtrl = require('./controllers/verificationController');
 app.post('/api/verification/webhooks/checkr', webhookRateLimit, express.raw({ type: 'application/json' }), verificationCtrl.checkrWebhook);
 app.post('/api/verification/webhooks/identity', webhookRateLimit, express.raw({ type: 'application/json' }), verificationCtrl.identityWebhook);
 // Backwards-compatible alias. Configure Didit to use /api/webhooks/didit.
+// P3-5-F15: both routes land in the same webhookController.diditWebhook
+// handler, which dedupes on webhook_event_receipts(provider='didit',
+// event_id) with an in-flight guard and a per-session verdict watermark
+// (beginDiditWebhookEvent), so a delivery to each route (or a provider
+// retry) is processed exactly once. The alias stays until the Didit
+// dashboard is confirmed to point at /api/webhooks/didit; removing it
+// earlier would silently drop webhooks.
 app.post('/api/didit/webhook', webhookRateLimit, express.raw({ type: 'application/json' }), diditWebhook);
 
 // Provider-agnostic support channel ingress uses its own bounded limiter and
