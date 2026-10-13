@@ -2439,7 +2439,10 @@
       "manage2fa": "Gérer 2FA",
       "passkeys": "Clés d’accès",
       "passkeysDesc": "Connectez-vous avec Touch ID, Face ID, Windows Hello ou une clé de sécurité",
-      "managePasskeys": "Gérer les clés d’accès"
+      "managePasskeys": "Gérer les clés d’accès",
+      "sessions": "Sessions actives",
+      "sessionsDesc": "Voir les appareils connectés à votre compte et les déconnecter",
+      "manageSessions": "Gérer les sessions"
     },
     "subscription": {
       "title": "Abonnement",
@@ -9557,6 +9560,33 @@
     "passkeyRevokeCancel": "Annuler",
     "passkeysPageTitle": "Clés d’accès",
     "passkeysPageSubtitle": "Gérez les clés d’accès pour vous connecter à votre compte"
+  },
+  "sessions": {
+    "pageTitle": "Sessions actives",
+    "pageSubtitle": "Appareils et navigateurs connectés à votre compte",
+    "loading": "Chargement des sessions...",
+    "loadFailed": "Impossible de charger vos sessions. Veuillez réessayer.",
+    "retry": "Réessayer",
+    "empty": "Aucune autre session active.",
+    "emptyDesc": "Seul cet appareil est connecté.",
+    "thisDevice": "Cet appareil",
+    "lastActive": "Dernière activité : {{date}}",
+    "unknownDevice": "Appareil inconnu",
+    "revoke": "Révoquer",
+    "revokeTitle": "Révoquer cette session ?",
+    "revokeConfirm": "Cet appareil sera déconnecté immédiatement. Continuer ?",
+    "cancel": "Annuler",
+    "confirmRevoke": "Révoquer la session",
+    "revoked": "Session révoquée.",
+    "revokeFailed": "Impossible de révoquer la session. Veuillez réessayer.",
+    "revokeCurrentBlocked": "Vous ne pouvez pas révoquer la session que vous utilisez.",
+    "logoutEverywhere": "Se déconnecter partout ailleurs",
+    "logoutEverywhereTitle": "Se déconnecter de toutes les autres sessions ?",
+    "logoutEverywhereConfirm": "Tous les autres appareils et navigateurs seront déconnectés immédiatement. Cet appareil restera connecté.",
+    "confirmLogoutEverywhere": "Tout déconnecter",
+    "loggedOutEverywhere": "Déconnexion de toutes les autres sessions.",
+    "logoutEverywhereFailed": "Impossible de tout déconnecter. Veuillez réessayer.",
+    "working": "En cours..."
   },
   "homePage": {
     "company": {

@@ -6,7 +6,7 @@ const logger = require('../utils/logger');
 const supportEmployerService = require('../services/supportEmployerService');
 const { withTransaction } = require('../utils/transaction');
 const { sendNotification } = require('../services/notificationService');
-const { validateMediaUrl } = require('../utils/mediaUrlValidation');
+const { normalizeAttachmentReference } = require('../utils/mediaUrlValidation');
 
 async function loadAuthorizedConversation(req, conversationId) {
   const { businessId } = req.params;
@@ -198,20 +198,13 @@ async function addAttachment(req, res) {
     if (normalizedAttachmentName.length > 255) {
       return sendValidationError(res, { attachmentName: 'Must be 255 characters or fewer' });
     }
-    let normalizedAttachmentUrl;
-    try {
-      const rawAttachmentUrl = String(attachmentUrl).trim();
-      if (rawAttachmentUrl.startsWith('/api/storage/')) {
-        if (!/^\/api\/storage\/(?:public|files)\/[^?#]+(?:\?[^#]*)?$/.test(rawAttachmentUrl)) {
-          throw new Error('Attachment URL must reference an OxSteed storage object');
-        }
-        normalizedAttachmentUrl = rawAttachmentUrl;
-      } else {
-        normalizedAttachmentUrl = validateMediaUrl(rawAttachmentUrl, 'attachment URL');
-      }
-    } catch (err) {
-      return sendValidationError(res, { attachmentUrl: err.message || 'Attachment URL is not allowed' });
+    // Review P3-6-F12: one shared normalization policy for caller-supplied
+    // attachment references (see utils/mediaUrlValidation).
+    const attachment = normalizeAttachmentReference(attachmentUrl, attachmentName);
+    if (attachment.error || !attachment.url) {
+      return sendValidationError(res, { attachmentUrl: attachment.error || 'Required' });
     }
+    const normalizedAttachmentUrl = attachment.url;
     const conversation = await loadAuthorizedConversation(req, conversationId);
     if (!conversation) return sendError(res, 403, 'Access denied');
 

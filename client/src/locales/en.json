@@ -2438,7 +2438,10 @@
       "manage2fa": "Manage 2FA",
       "passkeys": "Passkeys",
       "passkeysDesc": "Sign in with Touch ID, Face ID, Windows Hello, or a security key",
-      "managePasskeys": "Manage passkeys"
+      "managePasskeys": "Manage passkeys",
+      "sessions": "Active sessions",
+      "sessionsDesc": "See devices signed in to your account and sign them out",
+      "manageSessions": "Manage sessions"
     },
     "subscription": {
       "title": "Subscription",
@@ -9557,6 +9560,33 @@
     "passkeyRevokeCancel": "Cancel",
     "passkeysPageTitle": "Passkeys",
     "passkeysPageSubtitle": "Manage sign-in passkeys for your account"
+  },
+  "sessions": {
+    "pageTitle": "Active sessions",
+    "pageSubtitle": "Devices and browsers signed in to your account",
+    "loading": "Loading sessions...",
+    "loadFailed": "Could not load your sessions. Please try again.",
+    "retry": "Retry",
+    "empty": "No other active sessions.",
+    "emptyDesc": "Only this device is signed in.",
+    "thisDevice": "This device",
+    "lastActive": "Last active {{date}}",
+    "unknownDevice": "Unknown device",
+    "revoke": "Revoke",
+    "revokeTitle": "Revoke this session?",
+    "revokeConfirm": "That device will be signed out immediately. Continue?",
+    "cancel": "Cancel",
+    "confirmRevoke": "Revoke session",
+    "revoked": "Session revoked.",
+    "revokeFailed": "Could not revoke the session. Please try again.",
+    "revokeCurrentBlocked": "You cannot revoke the session you are using.",
+    "logoutEverywhere": "Log out everywhere else",
+    "logoutEverywhereTitle": "Log out of all other sessions?",
+    "logoutEverywhereConfirm": "Every other device and browser will be signed out immediately. This device stays signed in.",
+    "confirmLogoutEverywhere": "Log out everywhere",
+    "loggedOutEverywhere": "Signed out of all other sessions.",
+    "logoutEverywhereFailed": "Could not sign out everywhere. Please try again.",
+    "working": "Working..."
   },
   "homePage": {
     "company": {

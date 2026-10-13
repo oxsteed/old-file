@@ -2,6 +2,7 @@
 
 const pool = require('../db');
 const logger = require('../utils/logger');
+const { enqueueStorageDeletion } = require('../services/storageCleanupService');
 
 // A transaction-scoped advisory lock prevents duplicate work when multiple
 // application replicas run the same scheduled worker.
@@ -18,6 +19,16 @@ async function cleanupExpiredSupportMessages() {
       return { success: true, skipped: true, redacted: 0, elapsedMs: Date.now() - startedAt };
     }
 
+    // Review P3-6-F15: capture attachment URLs before they are NULLed so the
+    // storage objects can be queued for deletion. resolveKey understands the
+    // signed download URLs stored here.
+    const { rows: expiring } = await client.query(
+      `SELECT id, attachment_url
+         FROM support_conversation_messages
+        WHERE expires_at < CURRENT_TIMESTAMP
+          AND redacted_at IS NULL
+          AND attachment_url IS NOT NULL`
+    );
     const result = await client.query(
       `UPDATE support_conversation_messages
        SET content = '[Message removed under retention policy]',
@@ -32,10 +43,21 @@ async function cleanupExpiredSupportMessages() {
     );
     await client.query('COMMIT');
 
+    // Queue the now-unreferenced attachment objects after the redaction
+    // commits. Enqueueing never throws; a failed enqueue is logged by the
+    // service and the object stays until a later sweep.
+    let queued = 0;
+    for (const row of expiring) {
+      if (await enqueueStorageDeletion(row.attachment_url, 'retention_policy')) {
+        queued += 1;
+      }
+    }
+
     const summary = {
       success: true,
       skipped: false,
       redacted: result.rows.length,
+      attachmentsQueued: queued,
       elapsedMs: Date.now() - startedAt,
     };
     logger.info('Support conversation retention cleanup completed', summary);

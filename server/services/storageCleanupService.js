@@ -16,9 +16,60 @@ function cleanupEnabled() {
 function resolveKey(keyOrUrl) {
   const value = String(keyOrUrl || '').trim();
   if (!value) return null;
-  if (/^https?:\/\//i.test(value)) return storage.knownObjectKeyFromUrl(value);
+  if (/^https?:\/\//i.test(value)) {
+    // Absolute URLs: S3 presigned URLs resolve through the bucket allowlist;
+    // absolute app-host signed download URLs (/api/storage/files/<key>?...)
+    // resolve through the app host check.
+    return storage.knownObjectKeyFromUrl(value) || storageKeyFromAppHostUrl(value);
+  }
   if (value.startsWith('data:')) return null;
+  // Relative signed download URLs minted by getSignedDownloadUrl:
+  // /api/storage/files/<key>?exp=..&sig=..
+  const downloadKey = storageKeyFromRelativeDownloadPath(value);
+  if (downloadKey) return downloadKey;
   return storage.normalizeStorageKey(value);
+}
+
+// App host, mirrored from utils/storage.js (LOCAL_PUBLIC_BASE_URL), used to
+// recognize absolute signed download URLs minted by getSignedDownloadUrl.
+function appHostnames() {
+  const hosts = [];
+  for (const raw of [process.env.APP_URL, process.env.CLIENT_URL]) {
+    try {
+      const host = new URL(String(raw || '').trim().replace(/\/$/, '')).hostname.toLowerCase();
+      if (host) hosts.push(host);
+    } catch { /* not a URL */ }
+  }
+  return hosts;
+}
+
+// Extract the storage key from an absolute app-host download URL such as
+// https://app.example.com/api/storage/files/<key>?exp=..&sig=.. . Returns
+// null for anything else (never resolve keys from untrusted hosts).
+function storageKeyFromAppHostUrl(value) {
+  let url;
+  try { url = new URL(value); } catch { return null; }
+  if (!appHostnames().includes(url.hostname.toLowerCase())) return null;
+  return storageKeyFromDownloadPath(url.pathname);
+}
+
+// Extract the storage key from a relative download path such as
+// /api/storage/files/<key>?exp=..&sig=.. . Returns null when the path is
+// not one of this app's storage download routes.
+function storageKeyFromRelativeDownloadPath(value) {
+  if (!value.startsWith('/')) return null;
+  return storageKeyFromDownloadPath(value.split('?')[0].split('#')[0]);
+}
+
+function storageKeyFromDownloadPath(pathname) {
+  const match = /^\/api\/storage\/(?:files|public)\/(.+)$/.exec(String(pathname || ''));
+  if (!match) return null;
+  try {
+    // Keys are URI-encoded per segment when minted; slashes are preserved.
+    return storage.normalizeStorageKey(decodeURIComponent(match[1]));
+  } catch {
+    return null;
+  }
 }
 
 // Never throws: a failed enqueue must not fail the upload that replaced it.
@@ -43,10 +94,16 @@ async function enqueueStorageDeletion(keyOrUrl, reason, { client = db, graceHour
 
 // Tables and columns that may still point at a queued object. A key that is
 // referenced again (e.g. the owner re-selected it) is dropped from the queue.
+// Covers every profile-media column the upload paths can replace or clear.
 const REFERENCE_CHECKS = [
   ['businesses', 'cover_image_url'],
+  ['businesses', 'cover_photo_url'],
+  ['businesses', 'logo_url'],
   ['helper_profiles', 'cover_image_url'],
   ['helper_profiles', 'cover_photo_url'],
+  ['helper_profiles', 'profile_photo_url'],
+  ['users', 'profile_photo_url'],
+  ['users', 'avatar_url'],
 ];
 
 async function stillReferenced(key) {
