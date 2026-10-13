@@ -1,3 +1,4 @@
+const { rejectImpersonated } = require('../middleware/rejectImpersonated');
 const router = require('express').Router();
 const { authenticate } = require('../middleware/auth');
 const wa = require('../controllers/workAgreementController');
@@ -23,8 +24,9 @@ router.get('/:id/signatures', authenticate, wa.listSignatures);
 
 // Change orders
 router.post('/:id/change-orders', authenticate, wa.proposeChangeOrder);
-router.post('/:id/change-orders/:coId/approve', authenticate, wa.approveChangeOrder);
-router.post('/:id/change-orders/:coId/reject', authenticate, wa.rejectChangeOrder);
+// Approval moves money (job price, card capture, Credit collateral): no impersonation.
+router.post('/:id/change-orders/:coId/approve', authenticate, rejectImpersonated, wa.approveChangeOrder);
+router.post('/:id/change-orders/:coId/reject', authenticate, rejectImpersonated, wa.rejectChangeOrder);
 
 // Evidence
 router.post('/:id/evidence', authenticate, userUploadLimiter, upload.single('file'), validateFileUpload, wa.addEvidence);

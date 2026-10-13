@@ -171,13 +171,32 @@ describe('Stripe webhook replay protection', () => {
       type: 'payment_intent.succeeded',
       data: { object: { id: 'pi_test', metadata: { job_id: '10' } } },
     };
-    mockQuery.mockResolvedValueOnce({ rows: [] });
+    mockQuery
+      .mockResolvedValueOnce({ rows: [] }) // claim refused
+      .mockResolvedValueOnce({ rows: [{ status: 'processed' }] }); // receipt state
 
     const res = await sendEvent(buildApp(), event);
 
     expect(res.status).toBe(200);
     expect(res.body).toMatchObject({ received: true, duplicate: true });
-    expect(mockQuery).toHaveBeenCalledTimes(1);
+    expect(mockQuery).toHaveBeenCalledTimes(2);
+  });
+
+  test('P3-888: a redelivery while the receipt is still processing is not acknowledged', async () => {
+    const event = {
+      id: 'evt_inflight',
+      type: 'payment_intent.succeeded',
+      data: { object: { id: 'pi_test', metadata: { job_id: '10' } } },
+    };
+    mockQuery
+      .mockResolvedValueOnce({ rows: [] }) // claim refused (fresh processing)
+      .mockResolvedValueOnce({ rows: [{ status: 'processing' }] });
+
+    const res = await sendEvent(buildApp(), event);
+
+    expect(res.status).toBe(409);
+    expect(res.body.code).toBe('webhook_in_flight');
+    expect(res.headers['retry-after']).toBe('60');
   });
 
   test('ignores an older event for the same provider object', async () => {

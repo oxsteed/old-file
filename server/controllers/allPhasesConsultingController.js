@@ -222,13 +222,56 @@ exports.getPackages = async (req, res) => {
   }
 };
 
+// Review P3-1071: package purchases are paid through Stripe. This creates a
+// pending purchase plus a PaymentIntent; the payment_intent.succeeded webhook
+// (services/consultingPaymentService) completes it after checking the amount.
 exports.purchasePackage = async (req, res) => {
-  // Audit fix: this endpoint marked packages as completed with NO payment
-  // processing. Disabled until Stripe integration is added. Returns 503.
-  return res.status(503).json({
-    error: 'Package purchases are temporarily unavailable. Please try again later.',
-    code: 'feature_disabled',
-  });
+  const packageId = Number(req.body?.packageId ?? req.body?.package_id);
+  if (!Number.isInteger(packageId) || packageId <= 0) {
+    return res.status(400).json({ error: 'packageId required' });
+  }
+  try {
+    const { rows: pkgs } = await db.query(
+      `SELECT id, COALESCE(base_price, price_cents) AS price_cents, COALESCE(package_name, name) AS name
+       FROM consulting_packages WHERE id = $1 AND COALESCE(is_active, TRUE) = TRUE`,
+      [packageId]
+    );
+    const pkg = pkgs[0];
+    if (!pkg) return res.status(404).json({ error: 'Package not found' });
+    const amount = Number(pkg.price_cents);
+    if (!Number.isInteger(amount) || amount <= 0) return res.status(409).json({ error: 'Package has no price' });
+
+    const { rows: pending } = await db.query(
+      `SELECT id, payment_intent_id FROM consulting_purchases
+       WHERE user_id = $1 AND package_id = $2 AND status = 'pending' AND payment_intent_id IS NOT NULL
+       ORDER BY created_at DESC LIMIT 1`,
+      [req.user.id, packageId]
+    );
+    const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+    if (pending[0]) {
+      const pi = await stripe.paymentIntents.retrieve(pending[0].payment_intent_id);
+      if (['requires_payment_method', 'requires_confirmation', 'requires_action'].includes(pi.status)) {
+        return res.json({ purchaseId: pending[0].id, clientSecret: pi.client_secret, amountCents: amount, resumed: true });
+      }
+    }
+
+    const { rows: created } = await db.query(
+      `INSERT INTO consulting_purchases (user_id, package_id, status, total_cost_cents, purchase_date)
+       VALUES ($1, $2, 'pending', $3, NOW()) RETURNING id`,
+      [req.user.id, packageId, amount]
+    );
+    const purchaseId = created[0].id;
+    const pi = await stripe.paymentIntents.create({
+      amount,
+      currency: 'usd',
+      metadata: { consulting_purchase_id: String(purchaseId), userId: String(req.user.id), packageId: String(packageId) },
+    }, { idempotencyKey: `consulting-purchase-${purchaseId}` });
+    await db.query('UPDATE consulting_purchases SET payment_intent_id = $2, updated_at = NOW() WHERE id = $1', [purchaseId, pi.id]);
+    return res.status(201).json({ purchaseId, clientSecret: pi.client_secret, amountCents: amount });
+  } catch (err) {
+    logger.error('purchasePackage error', { error: err.message });
+    return res.status(500).json({ error: 'Failed to start purchase' });
+  }
 };
 
 // PHASE 5: Client Portal

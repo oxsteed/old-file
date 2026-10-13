@@ -574,6 +574,12 @@ function parseTipCents(value, subtotalCents, field = 'tipCents') {
   return tipCents;
 }
 exports.parseTipCents = parseTipCents;
+// Agent/admin consoles refund card orders through the same idempotency-keyed
+// Stripe path as the kitchen (food-order:<id>:refund), so paths dedupe.
+exports.refundFoodOrderCardPayment = (client, { order, createdByUserId = null, status = 'refunded', destinationCharge = false }) =>
+  refundFoodOrderStripePayment(client, {
+    order, restaurantId: order.restaurant_id, createdByUserId, status, destinationCharge,
+  });
 
 function safeReturnUrl(value) {
   const raw = normalizeString(value, 1000);
@@ -1378,7 +1384,7 @@ async function createFoodCheckoutSession({
 // POS refund row dedupes on (restaurant_id, idempotency_key), so retries and
 // the charge.refunded webhook cannot double-refund. Runs inside the caller's
 // transaction so a failed refund rolls back the status transition.
-async function refundFoodOrderStripePayment(client, { order, restaurantId, createdByUserId = null, status = 'refunded' }) {
+async function refundFoodOrderStripePayment(client, { order, restaurantId, createdByUserId = null, status = 'refunded', destinationCharge = false }) {
   if (!hasRestaurantStripeCheckout()) {
     throw new AppError('Stripe payments are not configured', 503, 'stripe_not_configured');
   }
@@ -1389,10 +1395,18 @@ async function refundFoodOrderStripePayment(client, { order, restaurantId, creat
   );
   let refund;
   try {
+    // Destination charges (card mode) live on the platform account: reverse
+    // the transfer and the application fee so the restaurant's share comes
+    // back with the customer's money.
+    const refundParams = { payment_intent: order.stripe_payment_intent_id };
+    if (destinationCharge && !connectedAccountId) {
+      refundParams.reverse_transfer = true;
+      refundParams.refund_application_fee = true;
+    }
     refund = await stripe.refunds.create(
-      { payment_intent: order.stripe_payment_intent_id },
+      refundParams,
       {
-        stripeAccount: connectedAccountId || undefined,
+        stripeAccount: (destinationCharge ? null : connectedAccountId) || undefined,
         idempotencyKey: `food-order:${order.id}:refund`,
       }
     );
@@ -3357,6 +3371,13 @@ exports.createOrder = async (req, res, next) => {
 
       if (paymentContract.canonical === 'oxsteed_credit') {
         if (total <= 0) {
+          if (created.payment_status !== 'paid') {
+            await client.query(
+              `UPDATE food_orders SET payment_status = 'paid', updated_at = NOW() WHERE id = $1`,
+              [created.id]
+            );
+            created.payment_status = 'paid';
+          }
           oxsteedCreditPayment = buildOxsteedCreditPaymentResponse({
             status: 'paid',
             amountCents: 0,
@@ -3399,13 +3420,17 @@ exports.createOrder = async (req, res, next) => {
             },
           });
           const creditTransactionId = creditResult.purchase?.transaction?.id || null;
+          // The debit has posted (same transaction): the order is paid,
+          // for guests as much as for signed-in customers.
           await client.query(
             `UPDATE food_orders
                 SET metadata = COALESCE(metadata, '{}'::jsonb) || $1::jsonb,
+                    payment_status = 'paid',
                     updated_at = NOW()
               WHERE id = $2`,
             [JSON.stringify({ oxsteedCreditTransactionId: creditTransactionId }), created.id]
           );
+          created.payment_status = 'paid';
           created.metadata = {
             ...(created.metadata || {}),
             oxsteedCreditTransactionId: creditTransactionId,
@@ -3807,11 +3832,15 @@ exports.listRestaurantOrders = async (req, res, next) => {
     } else if (scope === 'active') {
       // Merchant operations must not hide an unfinished order after midnight.
       filters.push(`fo.status IN ('received','accepted','preparing','ready')`);
+      // Review P1-236: unpaid pay_now checkouts are not kitchen work yet.
+      filters.push(`NOT (COALESCE(fo.metadata->>'paymentMode', '') = 'pay_now' AND fo.payment_status = 'requires_payment')`);
     } else if (scope === 'history') {
       filters.push(`fo.status IN ('completed','cancelled','refunded')`);
     } else if (req.query.active === '1' || req.query.active === 'true') {
       // Kitchen-display polling feed: only today's in-flight orders.
       filters.push(`fo.status IN ('received','accepted','preparing','ready')`);
+      // Review P1-236: unpaid pay_now checkouts are not kitchen work yet.
+      filters.push(`NOT (COALESCE(fo.metadata->>'paymentMode', '') = 'pay_now' AND fo.payment_status = 'requires_payment')`);
       filters.push(`(fo.created_at AT TIME ZONE COALESCE(
         (SELECT fr.timezone FROM food_restaurants fr WHERE fr.id = fo.restaurant_id), 'UTC'
       ))::date = (CURRENT_TIMESTAMP AT TIME ZONE COALESCE(
@@ -4045,7 +4074,7 @@ exports.updateOrderStatus = async (req, res, next) => {
                 handed_off_by = CASE WHEN $1 = 'completed' THEN COALESCE(fo.handed_off_by, $5) ELSE fo.handed_off_by END,
                 payment_status = CASE
                   WHEN $1 IN ('cancelled', 'refunded')
-                    AND COALESCE(fo.metadata->>'paymentMode', '') IN ('wallet_credit', 'oxsteed_credit', 'pay_now')
+                    AND COALESCE(fo.metadata->>'paymentMode', fo.metadata->>'payment_mode', '') IN ('wallet_credit', 'oxsteed_credit', 'pay_now', 'card')
                     AND fo.payment_status = 'paid'
                     THEN 'refunded'
                   ELSE fo.payment_status
@@ -4054,6 +4083,10 @@ exports.updateOrderStatus = async (req, res, next) => {
            FROM current
           WHERE fo.id = current.id
             AND current.status = ANY($4::text[])
+            -- Review P1-236: the kitchen cannot start an unpaid pay_now order.
+            AND NOT ($1 IN ('accepted','preparing','ready','completed')
+                     AND COALESCE(current.metadata->>'paymentMode', '') = 'pay_now'
+                     AND current.payment_status = 'requires_payment')
             AND ($1 <> 'completed' OR current.fulfillment_type <> 'delivery'
                  OR EXISTS (SELECT 1 FROM restaurant_runner_tasks WHERE food_order_id = current.id AND status = 'Completed' AND handoff_at IS NOT NULL))
             AND (
@@ -4085,11 +4118,16 @@ exports.updateOrderStatus = async (req, res, next) => {
       );
       if (!order) {
         const { rows: existing } = await client.query(
-          `SELECT status, kitchen_stage, fulfillment_type
+          `SELECT status, kitchen_stage, fulfillment_type, payment_status, metadata
              FROM food_orders WHERE id = $1 AND restaurant_id = $2`,
           [orderId, restaurantId]
         );
         if (!existing[0]) throw new AppError('Order not found', 404, 'order_not_found');
+        if (['accepted', 'preparing', 'ready', 'completed'].includes(status)
+          && existing[0].payment_status === 'requires_payment'
+          && existing[0].metadata?.paymentMode === 'pay_now') {
+          throw new AppError('This order has not been paid yet', 409, 'order_payment_pending');
+        }
         if (status === 'completed' && existing[0].fulfillment_type === 'delivery') {
           throw new AppError(
             'Complete delivery orders through Runner handoff or proof submission',
@@ -4219,7 +4257,10 @@ exports.updateOrderStatus = async (req, res, next) => {
         });
       }
 
-      if (['cancelled', 'refunded'].includes(status) && paymentMode === 'oxsteed_credit' && order.customer_id && Number(order.total_cents || 0) > 0) {
+      // Guest Credit orders (no customer_id) are refunded too: the refund is
+      // keyed on the order's original Credit purchase, not on a user.
+      if (['cancelled', 'refunded'].includes(status) && paymentMode === 'oxsteed_credit'
+        && previousPaymentStatus === 'paid' && Number(order.total_cents || 0) > 0) {
         const refundResult = await refundCreditForReferenceInTransaction(client, {
           referenceType: 'food_order',
           referenceId: String(order.id),
@@ -4250,8 +4291,10 @@ exports.updateOrderStatus = async (req, res, next) => {
       // refunding a paid card order must refund the charge, not just flip the
       // status. The refund is idempotency-keyed per order so retries and the
       // charge.refunded webhook cannot double-refund.
+      // Card mode (Stripe Elements destination charge) is refunded the same
+      // way; the transfer to the restaurant is reversed with it.
       if (['cancelled', 'refunded'].includes(status)
-        && paymentMode === 'pay_now'
+        && ['pay_now', 'card'].includes(paymentMode)
         && previousPaymentStatus === 'paid'
         && order.stripe_payment_intent_id) {
         const cardRefund = await refundFoodOrderStripePayment(client, {
@@ -4259,9 +4302,10 @@ exports.updateOrderStatus = async (req, res, next) => {
           restaurantId,
           createdByUserId: req.user?.id || null,
           status,
+          destinationCharge: paymentMode === 'card',
         });
         payment = {
-          mode: 'pay_now',
+          mode: paymentMode,
           status: 'refunded',
           amountCents: Number(order.total_cents || 0),
           amount: Number(order.total_cents || 0) / 100,
@@ -4328,37 +4372,6 @@ exports.updateOrderStatus = async (req, res, next) => {
       payment: transitionResult.payment || null,
       replayed: Boolean(transitionResult.replayed),
     });
-  } catch (err) {
-    next(err);
-  }
-};
-
-exports.updateOrderPayment = async (req, res, next) => {
-  try {
-    const restaurantId = parsePositiveInt(req.params.restaurantId);
-    const orderId = parsePositiveInt(req.params.orderId);
-    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    await assertRestaurantPermission(restaurant, ['orders.manage', 'credit.manage', 'pos.manage']);
-    const paymentStatus = normalizeString(req.body.paymentStatus || req.body.payment_status, 24);
-    if (!VALID_PAYMENT_STATUS.has(paymentStatus)) {
-      throw new AppError('Validation failed', 400, 'validation_failed', {
-        paymentStatus: 'Must be one of unpaid, requires_payment, paid, failed, refunded',
-      });
-    }
-    const { rows: [order] } = await pool.query(
-      `SELECT id FROM food_orders WHERE id = $1 AND restaurant_id = $2`,
-      [orderId, restaurantId]
-    );
-    if (!order) throw new AppError('Order not found', 404, 'order_not_found');
-    throw new AppError(
-      'Record payments and refunds through the ledger-backed POS payment endpoints',
-      409,
-      'payment_transaction_required',
-      {
-        createPaymentPath: `/api/restaurants/${restaurantId}/pos/orders/${orderId}/payments`,
-        paymentStatusPath: `/api/restaurants/${restaurantId}/pos/payments/:paymentId`,
-      }
-    );
   } catch (err) {
     next(err);
   }

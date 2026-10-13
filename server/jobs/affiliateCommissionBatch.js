@@ -1,12 +1,25 @@
 const pool = require('../db');
 const logger = require('../utils/logger');
+const { withFencedJobLock } = require('./jobLockingService');
 
 /**
  * Process affiliate commissions batch job
  * Runs daily to calculate pending commissions from completed orders
  * Moves commissions from pending → confirmed status
  */
+const JOB_NAME = 'affiliate-commission-batch';
+
+// Review P3-870: one runner at a time across restarts and replicas (the
+// post-boot run used to overlap the daily run); the unique index from
+// migration 771 is the backstop.
 async function processAffiliateCommissionBatch() {
+  return withFencedJobLock(JOB_NAME, async (fence) => {
+    fence.assertActive();
+    await runAffiliateCommissionBatch();
+  }, 900);
+}
+
+async function runAffiliateCommissionBatch() {
   try {
     logger.info('Starting affiliate commission batch job');
 
@@ -50,6 +63,7 @@ async function processAffiliateCommissionBatch() {
         AND NOT EXISTS (
           SELECT 1 FROM affiliate_commissions ac
           WHERE ac.order_id = oi.order_id AND ac.product_id = oi.product_id
+            AND ac.status <> 'void'
         )
       ORDER BY mo.created_at DESC
       LIMIT 1000
@@ -63,11 +77,11 @@ async function processAffiliateCommissionBatch() {
 
         // Create commission record
         if (row.affiliate_program_id) {
-          await pool.query(
+          const inserted = await pool.query(
             `INSERT INTO affiliate_commissions
              (order_id, affiliate_program_id, product_id, commission_cents, commission_rate, product_sale_amount_cents, status)
              VALUES ($1, $2, $3, $4, $5, $6, $7)
-             ON CONFLICT DO NOTHING`,
+             ON CONFLICT (order_id, product_id) WHERE status <> 'void' AND legacy_duplicate = FALSE DO NOTHING`,
             [
               row.order_id,
               row.affiliate_program_id,
@@ -79,8 +93,8 @@ async function processAffiliateCommissionBatch() {
             ]
           );
 
-          // Track conversion
-          if (row.affiliate_link_id) {
+          // Track conversion only for the run that actually created the row.
+          if (row.affiliate_link_id && inserted.rowCount > 0) {
             await pool.query(
               `UPDATE affiliate_links_log
                SET conversions = conversions + 1, confirmed_conversions = confirmed_conversions + 1
@@ -167,6 +181,8 @@ function startAffiliateCommissionBatchJob() {
 }
 
 module.exports = {
+  JOB_NAME,
   processAffiliateCommissionBatch,
+  runAffiliateCommissionBatch,
   startAffiliateCommissionBatchJob
 };

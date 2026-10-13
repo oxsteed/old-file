@@ -428,6 +428,52 @@ async function appendEvent({ quoteRequestId, actorUserId = null, actorRole = 'sy
   );
 }
 
+// Review P1-180: customer-facing schedule/reschedule now enforces the same
+// calendar-block and crew-overlap checks as the admin PATCH path.
+async function checkDirectScheduleWindow(request, startAt, endAt) {
+  if (!startAt || !endAt) return null;
+  const start = new Date(startAt);
+  const end = new Date(endAt);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end <= start) {
+    return { status: 400, body: { error: 'Scheduled end must be after scheduled start', code: 'invalid_schedule' } };
+  }
+  const { rows: blocks } = await db.query(
+    `SELECT id, block_type, title FROM direct_calendar_blocks
+      WHERE block_type IN ('unavailable', 'holiday', 'blackout')
+        AND starts_at < $2 AND ends_at > $1
+        AND (city IS NULL OR LOWER(city) = LOWER(COALESCE($3, '')))
+      LIMIT 1`,
+    [start.toISOString(), end.toISOString(), request.service_city || request.service_location || null]
+  );
+  if (blocks[0]) {
+    return { status: 409, body: { error: 'That time is not available. Please choose another time.', code: 'calendar_blocked' } };
+  }
+  if (request.assigned_to) {
+    const { rows: overlaps } = await db.query(
+      `SELECT qr.id FROM quote_requests qr
+        WHERE qr.id <> $1
+          AND COALESCE(qr.metadata->>'flow', 'direct') = 'direct'
+          AND qr.status NOT IN ('cancelled', 'closed', 'completed')
+          AND qr.scheduled_start_at < $3 AND qr.scheduled_end_at > $2
+          AND (qr.assigned_to = $4::uuid
+               OR EXISTS (SELECT 1 FROM quote_request_crew c WHERE c.quote_request_id = qr.id AND c.user_id = $4::uuid))
+        LIMIT 1`,
+      [request.id, start.toISOString(), end.toISOString(), request.assigned_to]
+    );
+    if (overlaps[0]) {
+      return { status: 409, body: { error: 'That time is already booked. Please choose another time.', code: 'schedule_conflict' } };
+    }
+  }
+  return null;
+}
+exports._checkDirectScheduleWindow = checkDirectScheduleWindow;
+
+function visitIsOver(request) {
+  if (DIRECT_TERMINAL_STATUSES.has(request.status)) return false;
+  const end = request.scheduled_end_at || request.scheduled_start_at;
+  return !end || new Date(end).getTime() <= Date.now();
+}
+
 async function loadRequestOr404(id) {
   const result = await db.query('SELECT * FROM quote_requests WHERE id = $1', [id]);
   return result.rows[0] || null;
@@ -1542,6 +1588,31 @@ exports.acceptRequest = async (req, res) => {
   }
 };
 
+// Review P1-176: cancelling a paid Direct request must give the money back.
+// Credit payments are refunded automatically against the original spend;
+// off-platform (proof) payments cannot be pulled back by OxSteed, so the
+// request is flagged refundRequired and support is alerted to settle it.
+const DIRECT_PAID_STATUSES = new Set(['paid', 'confirmed', 'partially_paid']);
+async function refundDirectPaymentOnCancel(request, actor, reason) {
+  if (!DIRECT_PAID_STATUSES.has(request.payment_status)) return {};
+  if (request.payment_method === 'oxsteed_credit') {
+    const creditService = require('../services/oxsteedCreditService');
+    await withTransaction(db, (client) => creditService.refundCreditForReferenceInTransaction(client, {
+      referenceType: 'direct_quote',
+      referenceId: String(request.id),
+      amountCents: Number(request.quote_amount_cents),
+      idempotencyKey: `direct:cancel-refund:${request.id}`,
+      actorUserId: actor?.id || null,
+      actorType: 'system',
+      reason: reason || 'Direct request cancelled',
+      metadata: { quotePublicReference: request.public_reference || null },
+    }));
+    return { paymentStatus: 'refunded', metadata: { refundedAt: new Date().toISOString(), refundMethod: 'oxsteed_credit' } };
+  }
+  return { metadata: { refundRequired: true, refundRequiredAt: new Date().toISOString() } };
+}
+exports._refundDirectPaymentOnCancel = refundDirectPaymentOnCancel;
+
 exports.rejectRequest = async (req, res) => {
   try {
     const request = await loadRequestOr404(req.params.id);
@@ -1553,16 +1624,29 @@ exports.rejectRequest = async (req, res) => {
     }
 
     const reason = cleanText(req.body.reason || req.body.message || '', 500);
+    const refund = await refundDirectPaymentOnCancel(request, req.user, reason);
     const updated = await updateRequestRecord(
       request.id,
       {
         status: 'cancelled',
         closedAt: new Date().toISOString(),
-        metadata: { declinedReason: reason || null, declinedAt: new Date().toISOString() },
+        ...(refund.paymentStatus ? { paymentStatus: refund.paymentStatus } : {}),
+        metadata: { declinedReason: reason || null, declinedAt: new Date().toISOString(), ...(refund.metadata || {}) },
       },
       { eventType: 'request_rejected', title: 'Request rejected', details: reason || 'The request was declined.' },
       req.user
     );
+
+    if (refund.metadata?.refundRequired && isAdmin(req.user)) {
+      await notifyDirectSupport(updated, {
+        subject: `Refund needed: cancelled paid Direct request (${publicReferenceFromRow(updated) || updated.id})`,
+        eyebrow: 'REFUND NEEDED',
+        title: 'A paid Direct request was cancelled',
+        intro: 'The customer paid off-platform. Arrange the refund and record it on the request.',
+        details: directRequestSummary(updated),
+        idempotencyKey: `direct:refund-needed:${request.id}`,
+      });
+    }
 
     if (!isAdmin(req.user)) {
       await notifyDirectSupport(updated, {
@@ -1610,6 +1694,9 @@ exports.scheduleRequest = async (req, res) => {
       metadata: normalizeObject(req.body.metadata),
     };
 
+    const windowError = await checkDirectScheduleWindow(request, updates.scheduledStartAt, updates.scheduledEndAt);
+    if (windowError) return res.status(windowError.status).json(windowError.body);
+
     const updated = await updateRequestRecord(
       request.id,
       updates,
@@ -1654,19 +1741,34 @@ exports.changeRequest = async (req, res) => {
       if (DIRECT_TERMINAL_STATUSES.has(request.status)) {
         return res.status(400).json({ error: 'This request can no longer be cancelled' });
       }
+      const cancelReason = cleanText(req.body.reason || req.body.note || '', 500) || null;
+      const refund = await refundDirectPaymentOnCancel(request, req.user, cancelReason);
       const updated = await updateRequestRecord(
         request.id,
         {
           status: 'cancelled',
           closedAt: new Date().toISOString(),
+          ...(refund.paymentStatus ? { paymentStatus: refund.paymentStatus } : {}),
           metadata: {
-            changeReason: cleanText(req.body.reason || req.body.note || '', 500) || null,
+            changeReason: cancelReason,
             changeAction: 'cancel',
+            ...(refund.metadata || {}),
           },
         },
         { eventType: 'request_cancelled', title: 'Request cancelled', details: cleanText(req.body.reason || req.body.note || 'Customer requested cancellation.', 500) },
         req.user
       );
+
+      if (refund.metadata?.refundRequired) {
+        await notifyDirectSupport(updated, {
+          subject: `Refund needed: cancelled paid Direct request (${publicReferenceFromRow(updated) || updated.id})`,
+          eyebrow: 'REFUND NEEDED',
+          title: 'A paid Direct request was cancelled',
+          intro: 'The customer paid off-platform. Arrange the refund and record it on the request.',
+          details: directRequestSummary(updated),
+          idempotencyKey: `direct:refund-needed:${request.id}`,
+        });
+      }
 
       if (isAdmin(req.user)) {
         await notifyDirectCustomer(updated, {
@@ -1684,6 +1786,11 @@ exports.changeRequest = async (req, res) => {
 
       return res.json({ request: await presentRequest(updated, { includeMessages: true, includeEvents: true }) });
     }
+
+    const nextStart = normalizeTimestamp(req.body.scheduledStartAt || req.body.scheduled_start_at || request.scheduled_start_at);
+    const nextEnd = normalizeTimestamp(req.body.scheduledEndAt || req.body.scheduled_end_at || request.scheduled_end_at);
+    const rescheduleError = await checkDirectScheduleWindow(request, nextStart, nextEnd);
+    if (rescheduleError) return res.status(rescheduleError.status).json(rescheduleError.body);
 
     const updated = await updateRequestRecord(
       request.id,
@@ -1814,7 +1921,12 @@ exports.confirmProof = async (req, res) => {
       request.id,
       {
         paymentStatus: 'confirmed',
-        completedAt: request.completed_at || new Date().toISOString(),
+        // Review P1-183: completion follows the visit, not the payment. A
+        // visit whose window is over completes now; a future visit is
+        // completed by the Direct sweep once its end time passes.
+        ...(visitIsOver(request)
+          ? { status: 'completed', completedAt: request.completed_at || new Date().toISOString() }
+          : {}),
         metadata: {
           proofConfirmedAt: new Date().toISOString(),
           proofConfirmedByUserId: String(req.user.id),
@@ -2752,6 +2864,45 @@ exports.bookServiceSlot = async (req, res) => {
         details: body.details,
       },
     });
+    // Review P1-177: instant bookings now notify the customer, the assigned
+    // crew and support like every other Direct transition (best effort).
+    const booked = result.request;
+    const bookedDetails = [
+      ...directRequestSummary(booked),
+      { label: 'Scheduled start', value: result.startsAt || '-' },
+      { label: 'Scheduled end', value: result.endsAt || '-' },
+    ];
+    await notifyDirectCustomer(booked, {
+      subject: `Your OxSteed Direct booking is confirmed (${publicReferenceFromRow(booked) || booked.id})`,
+      eyebrow: 'BOOKING CONFIRMED',
+      title: 'Your visit is booked',
+      intro: 'Thanks for booking with OxSteed Direct. Your visit details are below.',
+      details: bookedDetails,
+      idempotencyKey: `direct:book:customer:${booked.id}`,
+    });
+    if (booked.assigned_to) {
+      const { rows: [assignee] } = await db.query('SELECT email FROM users WHERE id = $1', [booked.assigned_to]).catch(() => ({ rows: [] }));
+      await sendDirectEmail({
+        to: assignee?.email,
+        kind: 'crew',
+        requestId: booked.id,
+        subject: `New Direct booking assigned (${publicReferenceFromRow(booked) || booked.id})`,
+        eyebrow: 'NEW BOOKING',
+        title: 'A Direct visit was booked for you',
+        intro: 'A customer booked an instant Direct slot assigned to you.',
+        details: bookedDetails,
+        idempotencyKey: `direct:book:crew:${booked.id}`,
+      });
+    }
+    await notifyDirectSupport(booked, {
+      subject: `Direct instant booking (${publicReferenceFromRow(booked) || booked.id})`,
+      eyebrow: 'INSTANT BOOKING',
+      title: 'A Direct slot was booked',
+      intro: 'A customer booked an instant Direct slot.',
+      details: bookedDetails,
+      idempotencyKey: `direct:book:support:${booked.id}`,
+    });
+
     return res.status(201).json({
       success: true,
       requestId: String(result.request.id),
@@ -2807,8 +2958,7 @@ exports.putAdminServiceAssigneePool = async (req, res) => {
  * POST /api/direct/requests/:id/pay-credit
  *
  * The customer pays the quoted amount via the shared Credit spend adapter
- * (surface=direct). Mode is debit for fixed-price quotes, hold when the
- * final amount is uncertain (caller passes mode=hold explicitly).
+ * (surface=direct). Debit only: Direct quotes are fixed-price.
  *
  * The Direct provider is resolved as a business participant: we look up the
  * business owned by the assigned crew member. Fail closed when no business
@@ -2844,7 +2994,12 @@ exports.payQuoteWithCredit = async (req, res) => {
       });
     }
 
-    const mode = req.body?.mode === 'hold' ? 'hold' : 'debit';
+    // Review P1-181: Direct only supports debit (the adapter rejects hold for
+    // this surface and 'held' is not a valid payment_status).
+    if (req.body?.mode === 'hold') {
+      return res.status(400).json({ error: 'Direct quotes are paid in full with Credit', code: 'credit_hold_unsupported' });
+    }
+    const mode = 'debit';
     const { spendWithCredit } = require('../services/creditSpendAdapter');
     const result = await spendWithCredit({
       participantRef: { type: 'business', subjectId: String(bizRows[0].id) },
@@ -2859,18 +3014,30 @@ exports.payQuoteWithCredit = async (req, res) => {
       metadata: { quotePublicReference: request.public_reference },
     });
 
-    await updateRequestRecord(
-      request.id,
-      {
-        paymentStatus: mode === 'hold' ? 'held' : 'paid',
-        paymentMethod: 'oxsteed_credit',
-        paymentReference: result.idempotencyKey,
-      },
-      { eventType: 'payment_credit', title: 'Paid with OxSteed Credit', details: `Credit ${mode} of ${amountCents}c` },
-      req.user
-    );
+    // The debit has committed; recording it on the request must not turn into
+    // a reported failure. Retry, and if it still fails, answer success with
+    // recordPending so the customer is not told to pay again (a retry is
+    // idempotent and re-runs this update).
+    let recorded = false;
+    for (let attempt = 0; attempt < 3 && !recorded; attempt += 1) {
+      try {
+        await updateRequestRecord(
+          request.id,
+          {
+            paymentStatus: 'paid',
+            paymentMethod: 'oxsteed_credit',
+            paymentReference: result.idempotencyKey,
+          },
+          { eventType: 'payment_credit', title: 'Paid with OxSteed Credit', details: `Credit debit of ${amountCents}c` },
+          req.user
+        );
+        recorded = true;
+      } catch (updateErr) {
+        logger.error('payQuoteWithCredit record update failed after debit', { error: updateErr.message, id: request.id, attempt });
+      }
+    }
 
-    return res.json({ ok: true, mode: result.mode, paymentReference: result.idempotencyKey });
+    return res.json({ ok: true, mode: result.mode, paymentReference: result.idempotencyKey, recordPending: !recorded });
   } catch (err) {
     logger.error('payQuoteWithCredit error', { error: err.message, id: req.params.id });
     return res.status(err.statusCode || 500).json({ error: err.message || 'Failed to pay with Credit', code: err.code });

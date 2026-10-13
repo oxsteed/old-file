@@ -15,6 +15,51 @@ const PACKAGE_TIERS = [
 
 const NS = 'adminConsultingPayments';
 
+// Review P3-1070: reconcile an off-platform payment against an invoice.
+const MARK_PAID_METHODS = ['bank_transfer', 'check', 'cash', 'card_terminal', 'other'];
+function MarkInvoicePaid({ invoice, onDone }) {
+  const { t } = useTranslation();
+  const [open, setOpen] = useState(false);
+  const [method, setMethod] = useState('bank_transfer');
+  const [reference, setReference] = useState('');
+  const [saving, setSaving] = useState(false);
+  if (!['sent', 'overdue'].includes(invoice.status)) return null;
+  const submit = async (e) => {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      await axios.patch(`/consulting/admin/invoices/${invoice.id}/mark-paid`, { method, reference: reference || undefined });
+      toast.success(t(`${NS}.markPaidDone`));
+      setOpen(false);
+      onDone?.();
+    } catch (err) {
+      toast.error(err?.response?.data?.error || t(`${NS}.markPaidFailed`));
+    } finally {
+      setSaving(false);
+    }
+  };
+  if (!open) {
+    return (
+      <button type="button" onClick={() => setOpen(true)} style={{ marginInlineStart: '0.4rem', padding: '0.3rem 0.6rem', borderRadius: '5px', border: '1px solid #10B981', background: 'none', color: '#10B981', fontSize: '0.78rem', cursor: 'pointer', fontWeight: 600 }}>
+        {t(`${NS}.markPaid`)}
+      </button>
+    );
+  }
+  return (
+    <form onSubmit={submit} style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', marginTop: '0.4rem' }}>
+      <label style={{ fontSize: '0.78rem' }}>
+        {t(`${NS}.markPaidMethod`)}{' '}
+        <select value={method} onChange={(e) => setMethod(e.target.value)}>
+          {MARK_PAID_METHODS.map((m) => <option key={m} value={m}>{t(`${NS}.method_${m}`)}</option>)}
+        </select>
+      </label>
+      <input aria-label={t(`${NS}.markPaidReference`)} placeholder={t(`${NS}.markPaidReference`)} value={reference} maxLength={200} onChange={(e) => setReference(e.target.value)} style={{ fontSize: '0.78rem' }} />
+      <button type="submit" disabled={saving} style={{ fontSize: '0.78rem' }}>{t(`${NS}.markPaidConfirm`)}</button>
+      <button type="button" onClick={() => setOpen(false)} style={{ fontSize: '0.78rem' }}>{t(`${NS}.cancel`)}</button>
+    </form>
+  );
+}
+
 const TIER_I18N = {
   initial: { labelKey: 'tierInitialLabel', descKey: 'tierInitialDesc' },
   foundation: { labelKey: 'tierFoundationLabel', descKey: 'tierFoundationDesc' },
@@ -458,6 +503,7 @@ export default function ConsultingPayments() {
                         >
                           {t(`${NS}.download`)}
                         </button>
+                        <MarkInvoicePaid invoice={inv} onDone={reload} />
                       </td>
                     </tr>
                   ))}

@@ -4,10 +4,12 @@ const requireBusinessAccess = require('../middleware/requireBusinessAccess');
 const { generalLimiter } = require('../middleware/rateLimiter');
 const controller = require('../controllers/continuityOperationsController');
 
+const { publicIntakeLimiter } = require('../middleware/rateLimiter');
+const { stripPrivilegedIntakeFields } = require('../middleware/publicIntake');
 const router = express.Router();
 
 router.get('/public/:businessId', controller.getPublicWorkspace);
-router.post('/public/:businessId/intakes', generalLimiter, controller.createIntakeRequest);
+router.post('/public/:businessId/intakes', publicIntakeLimiter, generalLimiter, stripPrivilegedIntakeFields, controller.createIntakeRequest);
 
 router.get('/business/:businessId', authenticate, requireBusinessAccess.member(), controller.getBusinessWorkspace);
 router.put('/business/:businessId/settings', authenticate, requireBusinessAccess.manager(), controller.updateSettings);

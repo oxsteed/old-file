@@ -53,6 +53,10 @@ interface Booking {
   daily_rate?: number;
   first_name?: string;
   last_name?: string;
+  deposit_amount?: number | string;
+  deposit_status?: 'none' | 'due' | 'held' | 'returned' | 'partially_withheld' | 'withheld';
+  deposit_withheld_amount?: number | string | null;
+  deposit_resolution_note?: string | null;
 }
 
 const MyBookingsPage = () => {
@@ -104,6 +108,27 @@ const MyBookingsPage = () => {
       loadBookings();
     } catch (err) {
       toast.error(t('toolRentals.statusUpdateFailed') || 'Failed to update status');
+    }
+  };
+
+  // Review P3-1068: deposit return / withhold.
+  const handleResolveDeposit = async (booking: Booking, action: 'return' | 'withhold') => {
+    let body: { action: string; amount?: number; note?: string } = { action };
+    if (action === 'withhold') {
+      const amountText = window.prompt(t('toolRentals.depositWithholdAmount'), String(booking.deposit_amount ?? ''));
+      if (amountText === null) return;
+      const note = window.prompt(t('toolRentals.depositWithholdReason'));
+      if (note === null) return;
+      body = { action, amount: Number(amountText), note };
+    } else if (!window.confirm(t('toolRentals.depositReturnConfirm'))) {
+      return;
+    }
+    try {
+      await toolRentalsApi.resolveDeposit(booking.id, body);
+      toast.success(t('toolRentals.depositResolved'));
+      loadBookings();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.error || t('toolRentals.depositResolveFailed'));
     }
   };
 
@@ -243,6 +268,29 @@ const MyBookingsPage = () => {
           >
             {t('toolRentals.decline') || 'Decline'}
           </button>
+        </div>
+      )}
+
+      {Number(booking.deposit_amount || 0) > 0 && booking.deposit_status && booking.deposit_status !== 'none' && (
+        <div className="booking-card-deposit" data-testid="booking-deposit">
+          <span>
+            {t('toolRentals.depositLine', { amount: Number(booking.deposit_amount).toFixed(2) })}
+            {' · '}
+            {t(`toolRentals.depositStatus_${booking.deposit_status}`)}
+          </span>
+          {booking.deposit_withheld_amount != null && Number(booking.deposit_withheld_amount) > 0 && (
+            <p>{t('toolRentals.depositWithheldDetail', { amount: Number(booking.deposit_withheld_amount).toFixed(2), reason: booking.deposit_resolution_note || '' })}</p>
+          )}
+          {isOwner && booking.deposit_status === 'held' && (
+            <div className="booking-card-actions">
+              <button onClick={() => handleResolveDeposit(booking, 'return')} className="booking-action-btn booking-action-approve">
+                {t('toolRentals.depositReturn')}
+              </button>
+              <button onClick={() => handleResolveDeposit(booking, 'withhold')} className="booking-action-btn booking-action-decline">
+                {t('toolRentals.depositWithhold')}
+              </button>
+            </div>
+          )}
         </div>
       )}
 

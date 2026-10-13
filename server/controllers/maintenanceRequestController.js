@@ -80,14 +80,16 @@ async function getBusinessOrThrow(businessId, requireActive = true) {
   const { rows } = await pool.query(
     `SELECT b.id, b.user_id AS owner_id, b.business_name, b.address_street,
             b.address_city, b.address_state, b.address_zip, b.address_country,
-            b.is_active, b.active_template, hp.active_template AS helper_active_template
+            b.is_active, b.active_template, hp.active_template AS helper_active_template,
+            b.is_listed, b.is_hidden_by_admin
      FROM businesses b
      LEFT JOIN helper_profiles hp ON hp.user_id = b.user_id
      WHERE b.id = $1`,
     [businessId]
   );
   const business = rows[0];
-  if (!business || (requireActive && business.is_active === false)) {
+  // Review P1-210: unlisted or admin-hidden businesses don't take public intake.
+  if (!business || (requireActive && (business.is_active === false || business.is_listed === false || business.is_hidden_by_admin === true))) {
     throw new AppError('Business not found', 404, 'not_found');
   }
   return business;

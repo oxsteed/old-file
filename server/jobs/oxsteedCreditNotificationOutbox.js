@@ -99,8 +99,12 @@ function buildNotification(payload) {
   };
 }
 
+// Review P3-846: same stale-worker fencing migration 592 gave the message and
+// support outboxes. A worker must present the lease token from its claim to
+// finish a row, so a timed-out worker cannot overwrite a later retry.
 async function claimCreditNotifications(limit = 50) {
   const boundedLimit = Math.max(1, Math.min(Number(limit) || 50, 200));
+  const leaseToken = require('crypto').randomUUID();
   const result = await db.query(
     `WITH candidates AS (
        SELECT id
@@ -113,30 +117,34 @@ async function claimCreditNotifications(limit = 50) {
      )
      UPDATE oxsteed_credit_notification_outbox outbox
      SET status = 'sending', attempts = outbox.attempts + 1,
-         locked_at = NOW(), updated_at = NOW()
+         locked_at = NOW(), lease_token = $3, updated_at = NOW()
      FROM candidates
      WHERE outbox.id = candidates.id
       RETURNING outbox.id, outbox.user_id, outbox.transaction_id, outbox.hold_id,
-                outbox.event_type, outbox.payload, outbox.attempts`,
-    [boundedLimit, STALE_LOCK_MINUTES]
+                outbox.event_type, outbox.payload, outbox.attempts, outbox.lease_token`,
+    [boundedLimit, STALE_LOCK_MINUTES, leaseToken]
   );
   return result.rows || [];
 }
 
-async function finishCreditNotification(id, attempts, result) {
+async function finishCreditNotification(id, attempts, result, leaseToken = null) {
   const succeeded = result?.success !== false;
   const terminal = !succeeded && attempts >= MAX_ATTEMPTS;
   const status = succeeded ? 'sent' : terminal ? 'failed' : 'pending';
   const retryMinutes = Math.min(60, 2 ** Math.max(0, attempts - 1));
-  await db.query(
+  const update = await db.query(
     `UPDATE oxsteed_credit_notification_outbox
      SET status = $1::varchar(20),
          sent_at = CASE WHEN $5::boolean THEN NOW() ELSE sent_at END,
          locked_at = NULL,
+         lease_token = NULL,
          last_error = $2,
          next_attempt_at = CASE WHEN $6::boolean THEN NOW() + ($3::integer * INTERVAL '1 minute') ELSE next_attempt_at END,
          updated_at = NOW()
-     WHERE id = $4`,
+     WHERE id = $4
+       AND status = 'sending'
+       AND ($7::text IS NULL OR lease_token = $7::text)
+     RETURNING id`,
     [
       status,
       succeeded ? null : String(result?.error || 'Credit notification delivery failed').slice(0, 2000),
@@ -144,8 +152,13 @@ async function finishCreditNotification(id, attempts, result) {
       id,
       succeeded,
       status === 'pending',
+      leaseToken,
     ]
   );
+  if (leaseToken && update && Array.isArray(update.rows) && update.rows.length === 0) {
+    logger.warn('Credit notification lease lost; a newer worker owns the row', { id });
+    return 'lease_lost';
+  }
   return status;
 }
 
@@ -190,16 +203,16 @@ async function processOxsteedCreditNotificationOutbox(limit = 50, replacementsEn
         idempotencyKey: `credit-outbox:${row.id}`,
         ...buildNotification(payload),
       });
-      const status = await finishCreditNotification(row.id, Number(row.attempts || 0), notification);
+      const status = await finishCreditNotification(row.id, Number(row.attempts || 0), notification, row.lease_token);
       if (status === 'sent') sent += 1;
-      else if (status === 'pending') retried += 1;
+      else if (status === 'pending' || status === 'lease_lost') retried += 1;
       else {
         failed += 1;
         await recordTerminalCreditNotificationFailure(row, notification);
       }
     } catch (error) {
-      const status = await finishCreditNotification(row.id, Number(row.attempts || 0), { success: false, error: error.message });
-      if (status === 'pending') retried += 1;
+      const status = await finishCreditNotification(row.id, Number(row.attempts || 0), { success: false, error: error.message }, row.lease_token);
+      if (status === 'pending' || status === 'lease_lost') retried += 1;
       else {
         failed += 1;
         await recordTerminalCreditNotificationFailure(row, { success: false, error: error.message });

@@ -336,10 +336,25 @@ export default function FoodHomePage() {
   // Typeahead items for the shared SuggestDropdown: loaded restaurant names
   // (with cuisine meta) plus the cuisine tags present in the current market.
   // The dropdown ranks title-prefix matches first on its own.
+  // Review P1-224: the loaded list is only the first page, so look up
+  // matching names server-side as the user types and merge them in.
+  const [remoteSuggest, setRemoteSuggest] = useState([]);
+  useEffect(() => {
+    const term = query.trim();
+    if (term.length < 2) { setRemoteSuggest([]); return undefined; }
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      listFoodRestaurantsPage({ q: term, limit: 10 })
+        .then((page) => { if (!cancelled) setRemoteSuggest(page.restaurants || []); })
+        .catch(() => { if (!cancelled) setRemoteSuggest([]); });
+    }, 250);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [query]);
+
   const suggestItems = useMemo(() => {
     const seen = new Set();
     const items = [];
-    for (const r of restaurants) {
+    for (const r of [...remoteSuggest, ...restaurants]) {
       const title = r.display_name || '';
       const key = title.toLowerCase();
       if (!title || seen.has(key)) continue;
@@ -362,7 +377,7 @@ export default function FoodHomePage() {
       });
     }
     return items;
-  }, [restaurants, cuisinesFromData]);
+  }, [remoteSuggest, restaurants, cuisinesFromData]);
 
   // Picking a restaurant suggestion jumps to its page; picking a cuisine
   // applies the cuisine filter directly and clears the text query.

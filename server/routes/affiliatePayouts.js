@@ -1,6 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const { requireAuth } = require('../middleware/auth');
+const { requireAdmin, requirePermission } = require('../middleware/adminAuth');
+const { strictLimiter } = require('../middleware/rateLimiter');
 const { requireFeatureEnabled } = require('../middleware/featureFlags');
 const affiliatePayoutsController = require('../controllers/affiliatePayoutsController');
 const AffiliateAnalyticsController = require('../controllers/AffiliateAnalyticsController');
@@ -15,7 +17,15 @@ router.get('/stats/all', requireAuth, affiliatePayoutsController.getAffiliateSta
 // ── Payouts ───────────────────────────────────────────────────────────────
 router.get('/schedule', requireAuth, affiliatePayoutsController.getPayoutsSchedule);
 router.post('/calculate', requireAuth, affiliatePayoutsController.calculateAndCreatePayout);
-router.post('/:payoutId/process', requireAuth, affiliatePayoutsController.processPayout);
+// Review P3-787: processing moves real money, so it is an admin action with
+// the financials grant, rate-limited and audited.
+router.post(
+  '/:payoutId/process',
+  requireAdmin,
+  requirePermission('view_financials'),
+  strictLimiter,
+  affiliatePayoutsController.processPayout
+);
 
 // ── Programs ──────────────────────────────────────────────────────────────
 router.post('/', requireAuth, affiliatePayoutsController.createAffiliateProgram);

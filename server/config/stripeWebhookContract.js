@@ -22,7 +22,13 @@ module.exports = Object.freeze({
   }),
   connect: Object.freeze({
     path: '/api/webhooks/stripe/connect', secretEnv: 'STRIPE_CONNECT_WEBHOOK_SECRET',
-    events: Object.freeze([...paymentEvents, 'account.updated']),
+    // Review P1-297: QR scan-to-pay sessions are direct charges on the
+    // connected account, so their checkout events arrive only here.
+    events: Object.freeze([
+      ...paymentEvents, 'account.updated',
+      'checkout.session.completed', 'checkout.session.async_payment_succeeded',
+      'checkout.session.async_payment_failed', 'checkout.session.expired',
+    ]),
   }),
   identity: Object.freeze({
     path: '/api/verification/webhooks/identity', secretEnv: 'STRIPE_IDENTITY_WEBHOOK_SECRET',

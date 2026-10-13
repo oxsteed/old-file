@@ -509,6 +509,9 @@ async function decidePendingAction({ actionId, decidedBy, decision, reason, step
       throw new AppError('Pending action has expired and can no longer be decided', 409, 'credit_pending_action_expired');
     }
     if (String(action.requested_by) === String(decidedBy)) {
+      // Maker-checker is absolute: every decision (including mark-paid and
+      // approvals) needs a second, distinct administrator. There is no
+      // single-admin override.
       throw new AppError('The requesting administrator cannot approve their own action', 403, 'credit_self_approval_forbidden');
     }
     if (normalizedDecision === 'rejected' && !normalizedReason) {
@@ -593,12 +596,35 @@ async function getPendingAction(actionId) {
   return formatPendingAction(rows[0] || null);
 }
 
+/** Review P1-253: expire undecided actions past their deadline. */
+async function expireStalePendingActions() {
+  const { rows } = await pool.query(
+    `UPDATE oxsteed_credit_pending_actions
+        SET status = 'expired', decided_at = NOW()
+      WHERE status = 'pending' AND expires_at IS NOT NULL AND expires_at < NOW()
+      RETURNING id, action_type`
+  );
+  for (const row of rows) {
+    await insertAudit(pool, {
+      actionType: 'credit.pending_action.expired',
+      actorUserId: null,
+      resourceType: 'pending_action',
+      resourceId: String(row.id),
+      reason: 'Pending action expired before a decision (sweeper)',
+      metadata: { actionType: row.action_type },
+    }).catch(() => {});
+  }
+  return { expired: rows.length };
+}
+
 async function listPendingActions({ status = null, limit = 50, offset = 0 } = {}) {
   const where = [];
   const params = [];
   if (status && PENDING_ACTION_STATUSES.includes(status)) {
     params.push(status);
     where.push(`status = $${params.length}`);
+    // Review P1-253: past-deadline rows are not decidable; don't list them as pending.
+    if (status === 'pending') where.push('(expires_at IS NULL OR expires_at >= NOW())');
   }
   params.push(Math.min(200, Math.max(1, Number(limit) || 50)));
   params.push(Math.max(0, Number(offset) || 0));
@@ -620,5 +646,6 @@ module.exports = {
   decidePendingAction,
   getPendingAction,
   listPendingActions,
+  expireStalePendingActions,
   resolveActionAmountCents,
 };

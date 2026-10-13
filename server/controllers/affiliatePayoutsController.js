@@ -215,7 +215,7 @@ async function calculateAndCreatePayout(req, res, next) {
         `SELECT SUM(commission_cents) as total_cents, COUNT(*) as count
          FROM affiliate_commissions
          WHERE affiliate_program_id = $1
-         AND status = $2
+         AND status IN ($2, 'confirmed') AND payout_id IS NULL
          AND created_at >= $3 AND created_at < $4`,
         [programId, 'pending', new Date(periodStart), new Date(periodEnd)]
       );
@@ -252,7 +252,7 @@ async function calculateAndCreatePayout(req, res, next) {
       await client.query(
         `UPDATE affiliate_commissions
          SET payout_id = $1, status = $2
-         WHERE affiliate_program_id = $3 AND status = $4
+         WHERE affiliate_program_id = $3 AND status IN ($4, 'confirmed') AND payout_id IS NULL
          AND created_at >= $5 AND created_at < $6`,
         [payoutId, 'confirmed', programId, 'pending', new Date(periodStart), new Date(periodEnd)]
       );
@@ -281,145 +281,143 @@ async function calculateAndCreatePayout(req, res, next) {
   }
 }
 
+/**
+ * Review P3-787: affiliate payouts are an admin money move.
+ *
+ * - Only an admin with the financials grant can process (route guard).
+ * - Money goes to the program owner's Stripe Connect account through a
+ *   transfer (the platform-balance `payouts.create` call could never reach a
+ *   user and was always rejected).
+ * - Transfers settle synchronously, so the payout ends `completed` (and its
+ *   commissions `paid`) or `failed` (commissions re-queued to `pending`).
+ * - A payout stuck `processing` (crash after Stripe) can be re-run; the
+ *   per-payout idempotency key returns the original transfer.
+ */
+const STALE_PROCESSING_MINUTES = 10;
+
 async function processPayout(req, res, next) {
   try {
-    const userId = req.user?.id;
+    const adminId = req.user?.id;
     const { payoutId } = req.params;
-    const { payout_method = 'stripe_direct' } = req.body;
-
-    if (!userId) {
+    if (!adminId) {
       throw new AppError('Authentication required', 401, 'no_auth');
-    }
-    if (payout_method !== 'stripe_direct') {
-      throw new AppError('Unsupported payout method', 400, 'invalid_payout_method');
     }
     if (!stripe) {
       throw new AppError('Payout processing is not configured', 503, 'stripe_not_configured');
     }
 
-    // Audit fix: the payout destination must come from the user's verified
-    // stored payout method, never from caller-supplied input. This closes
-    // the vector where a caller could redirect a payout to any Stripe
-    // destination.
-    const { rows: [payoutMethod] } = await pool.query(
-      `SELECT * FROM payout_methods
-        WHERE helper_id = $1
-          AND status IN ('verified', 'active')
-          AND is_primary = true
-        ORDER BY updated_at DESC
-        LIMIT 1`,
-      [userId]
+    const { rows: [payout] } = await pool.query(
+      `SELECT ap.*, aprg.helper_id AS owner_id
+         FROM affiliate_payouts ap
+         JOIN affiliate_programs aprg ON ap.affiliate_program_id = aprg.id
+        WHERE ap.id = $1`,
+      [payoutId]
     );
-    if (!payoutMethod) {
-      throw new AppError('No verified payout method on file', 400, 'no_payout_method');
-    }
-    const payment_method_id = payoutMethod.stripe_payment_method_id
-      || payoutMethod.stripe_connect_account_id
-      || payoutMethod.id;
-    if (!payment_method_id) {
-      throw new AppError('Payout method has no usable destination', 400, 'invalid_payout_method');
-    }
-
-    // Get payout
-    const payout = await pool.query(
-      `SELECT ap.*, aprg.helper_id FROM affiliate_payouts ap
-       JOIN affiliate_programs aprg ON ap.affiliate_program_id = aprg.id
-       WHERE ap.id = $1 AND aprg.helper_id = $2`,
-      [payoutId, userId]
-    );
-
-    if (!payout.rows.length) {
+    if (!payout) {
       throw new AppError('Payout not found', 404, 'payout_not_found');
     }
 
-    if (payout.rows[0].status !== 'pending') {
-      throw new AppError('Payout already processed or cancelled', 400, 'invalid_payout_state');
+    const { rows: [connect] } = await pool.query(
+      `SELECT stripe_account_id, payouts_enabled FROM connect_accounts
+        WHERE user_id = $1 AND stripe_account_id IS NOT NULL
+        ORDER BY updated_at DESC NULLS LAST LIMIT 1`,
+      [payout.owner_id]
+    );
+    if (!connect?.stripe_account_id || connect.payouts_enabled === false) {
+      throw new AppError('The affiliate has no payout-ready Stripe account', 400, 'no_payout_account');
     }
 
-    // Claim the row before calling Stripe so concurrent requests cannot send
-    // the same commission twice. The processor key makes a retry safe too.
+    // Claim: pending, or processing that has been stuck long enough to be a
+    // crashed attempt (the idempotency key makes the re-run safe).
     const claim = await pool.query(
       `UPDATE affiliate_payouts
-       SET status = 'processing', updated_at = CURRENT_TIMESTAMP
-       WHERE id = $1 AND status = 'pending'
-       RETURNING *`,
-      [payoutId]
+          SET status = 'processing', updated_at = CURRENT_TIMESTAMP
+        WHERE id = $1
+          AND (status = 'pending'
+               OR (status = 'processing' AND updated_at < NOW() - make_interval(mins => $2)))
+        RETURNING *`,
+      [payoutId, STALE_PROCESSING_MINUTES]
     );
     if (!claim.rows.length) {
-      throw new AppError('Payout is already being processed', 409, 'payout_in_progress');
+      throw new AppError('Payout already processed or in progress', 409, 'invalid_payout_state');
     }
-    payout.rows[0] = { ...payout.rows[0], ...claim.rows[0] };
+    const amountCents = Number(claim.rows[0].total_commission_cents);
 
-    let payoutReference;
+    let transfer;
     try {
-      const stripePayout = await stripe.payouts.create({
-        amount: payout.rows[0].total_commission_cents,
+      transfer = await stripe.transfers.create({
+        amount: amountCents,
         currency: 'usd',
-        destination: payment_method_id,
-        metadata: {
-          payoutId: payoutId.toString()
-        }
+        destination: connect.stripe_account_id,
+        transfer_group: `affiliate_payout_${payoutId}`,
+        metadata: { affiliate_payout_id: String(payoutId), affiliate_program_id: String(payout.affiliate_program_id) },
       }, {
-        idempotencyKey: `affiliate-payout-${payoutId}`
+        idempotencyKey: `affiliate-payout-${payoutId}`,
       });
-      payoutReference = stripePayout.id;
     } catch (stripeError) {
-      // Only processor failures are terminal. Persistence failures after a
-      // successful Stripe call must remain processing for reconciliation.
-      logger.error('Stripe payout failed', { error: stripeError.message });
-
-      await pool.query(
-        `UPDATE affiliate_payouts SET status = $1, failed_reason = $2 WHERE id = $3`,
-        ['failed', stripeError.message, payoutId]
-      );
-
+      logger.error('Affiliate transfer failed', { payoutId, error: stripeError.message });
+      // Terminal failure: re-queue the commissions so a new payout can pick them up.
+      await withTransaction(pool, async (client) => {
+        await client.query(
+          `UPDATE affiliate_payouts SET status = 'failed', failed_reason = $1, updated_at = CURRENT_TIMESTAMP
+            WHERE id = $2`,
+          [String(stripeError.message || 'transfer_failed').slice(0, 500), payoutId]
+        );
+        await client.query(
+          `UPDATE affiliate_commissions SET status = 'pending', payout_id = NULL
+            WHERE payout_id = $1 AND status = 'confirmed'`,
+          [payoutId]
+        );
+        await client.query(
+          `UPDATE affiliate_programs SET pending_cents = GREATEST(pending_cents - $1, 0),
+                  total_commission_cents = GREATEST(total_commission_cents - $1, 0)
+            WHERE id = $2`,
+          [amountCents, payout.affiliate_program_id]
+        );
+      }, 'affiliate_payout_failed');
       throw new AppError('Failed to process payout through payment processor', 502, 'stripe_error');
     }
 
-    // Update payout record. If this or the balance update fails, leave the
-    // claimed row processing so an operator/reconciliation job can retry it.
-    const updated = await pool.query(
-      `UPDATE affiliate_payouts
-       SET status = $1, payout_method = $2, payout_reference = $3, payment_method_id = $4, sent_at = CURRENT_TIMESTAMP
-       WHERE id = $5
-       RETURNING *`,
-      ['processing', payout_method, payoutReference, payment_method_id, payoutId]
-    );
+    const updated = await withTransaction(pool, async (client) => {
+      const { rows } = await client.query(
+        `UPDATE affiliate_payouts
+            SET status = 'completed', payout_method = 'stripe_connect_transfer', payout_reference = $1,
+                payment_processor = 'stripe', sent_at = COALESCE(sent_at, CURRENT_TIMESTAMP),
+                received_at = CURRENT_TIMESTAMP, net_payout_cents = $2, updated_at = CURRENT_TIMESTAMP
+          WHERE id = $3 AND status = 'processing'
+          RETURNING *`,
+        [transfer.id, amountCents, payoutId]
+      );
+      if (!rows.length) return null;
+      await client.query(
+        `UPDATE affiliate_commissions SET status = 'paid', paid_at = CURRENT_TIMESTAMP
+          WHERE payout_id = $1 AND status = 'confirmed'`,
+        [payoutId]
+      );
+      await client.query(
+        `UPDATE affiliate_programs
+            SET pending_cents = GREATEST(pending_cents - $1, 0),
+                total_paid_cents = total_paid_cents + $1
+          WHERE id = $2`,
+        [amountCents, payout.affiliate_program_id]
+      );
+      await logAdminAction({
+        client,
+        adminId,
+        action: 'affiliate_payout_processed',
+        targetType: 'affiliate_payout',
+        targetId: payoutId,
+        description: `Affiliate payout ${payoutId} transferred via Stripe (${transfer.id})`,
+        before: { status: payout.status },
+        after: { status: 'completed', transferId: transfer.id, amountCents, destination: connect.stripe_account_id },
+        req,
+        throwOnError: true,
+      });
+      return rows[0];
+    }, 'affiliate_payout_completed');
 
-    // Update program pending amount
-    await pool.query(
-      `UPDATE affiliate_programs
-       SET pending_cents = pending_cents - $1
-       WHERE id = (SELECT affiliate_program_id FROM affiliate_payouts WHERE id = $2)`,
-      [payout.rows[0].total_commission_cents, payoutId]
-    );
-
-    logger.info('Payout processed', { payoutId, reference: payoutReference });
-
-    // H7: every real money movement gets a durable audit row. The actor here
-    // is the payout owner (not an admin), recorded as-is. Fails closed: an
-    // unlogged payout stays 'processing' for reconciliation.
-    await logAdminAction({
-      adminId: userId,
-      action: 'affiliate_payout_processed',
-      targetType: 'affiliate_payout',
-      targetId: payoutId,
-      description: `Affiliate payout ${payoutId} sent via Stripe (${payoutReference})`,
-      before: { status: 'pending' },
-      after: {
-        status: 'processing',
-        payoutReference,
-        payoutMethod: payout_method,
-        amountCents: payout.rows[0].total_commission_cents,
-      },
-      req,
-      throwOnError: true,
-    });
-
-    res.json({
-      success: true,
-      data: updated.rows[0]
-    });
+    logger.info('Affiliate payout transferred', { payoutId, transferId: transfer.id });
+    res.json({ success: true, data: updated });
   } catch (error) {
     next(error);
   }

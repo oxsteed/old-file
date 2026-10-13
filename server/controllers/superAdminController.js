@@ -2416,7 +2416,18 @@ exports.rollbackSetting = async (req, res) => {
   } finally { client?.release(); }
 };
 
+// Review P3-941: rail-controlling flags change only through their dedicated,
+// super-admin, audited, lock-draining endpoints.
+const RAIL_CONTROLLED_FLAGS = new Set(['oxsteed_credit_enabled']);
+exports.RAIL_CONTROLLED_FLAGS = RAIL_CONTROLLED_FLAGS;
+
 exports.updateFeatureFlag = async (req, res) => {
+  if (RAIL_CONTROLLED_FLAGS.has(String(req.params?.key || '').toLowerCase())) {
+    return res.status(409).json({
+      error: 'This flag is controlled by the OxSteed Credit rail. Use the rail controls.',
+      code: 'flag_rail_controlled',
+    });
+  }
   const { enabled } = req.body;
   const newEnabled = parseStrictBoolean(enabled);
   if (newEnabled === null) return res.status(400).json({ error: 'Feature flags must be true or false.', code: 'invalid_feature_flag_value' });
@@ -2454,6 +2465,9 @@ exports.updateFeatureFlag = async (req, res) => {
 };
 
 exports.rollbackFeatureFlag = async (req, res) => {
+  if (RAIL_CONTROLLED_FLAGS.has(String(req.params?.key || '').toLowerCase())) {
+    return res.status(409).json({ error: 'This flag is controlled by the OxSteed Credit rail. Use the rail controls.', code: 'flag_rail_controlled' });
+  }
   let client;
   try {
     client = await db.connect();

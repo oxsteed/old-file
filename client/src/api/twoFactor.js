@@ -32,7 +32,7 @@ export const userPasskeyAPI = {
   verifyRegistration: (response, deviceName, password) => api.post('/passkeys/registration/verify', { response, deviceName, password }),
   revokePasskey: (id) => api.delete(`/passkeys/${id}`),
   authenticationOptions: (email) => api.post('/passkeys/authentication/options', { email }),
-  verifyAuthentication: (token, response) => api.post('/passkeys/authentication/verify', { token, response }),
+  verifyAuthentication: (token, response, agreement = {}) => api.post('/passkeys/authentication/verify', { token, response, ...agreement }),
 };
 
 export default twoFactorAPI;

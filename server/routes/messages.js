@@ -16,6 +16,7 @@ const {
   markGuestInquiryRead,
   replyGuestInquiryMessage,
   getOrCreateConversation,
+  getOrCreateJobConversation,
   getConversationMeta,
   getMessages,
   searchMessages,
@@ -50,6 +51,9 @@ router.get('/conversations', getConversations);
 
 // POST /api/messages/conversations - Create or get existing conversation
 router.post('/conversations', getOrCreateConversation);
+
+// POST /api/messages/jobs/:jobId/conversation - job-scoped chat (P1-136)
+router.post('/jobs/:jobId/conversation', getOrCreateJobConversation);
 
 // GET /api/messages/conversations/:conversationId/meta - conversation name, job title, business
 router.get('/conversations/:conversationId/meta', getConversationMeta);

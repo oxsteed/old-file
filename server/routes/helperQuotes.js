@@ -13,6 +13,7 @@ const express  = require('express');
 const router   = express.Router();
 const pool     = require('../db');
 const { authenticate } = require('../middleware/auth');
+const { assertCanQuoteJob, bidFromAcceptedQuote } = require('../services/jobQuoteBridge');
 
 // ── Create / send a quote ────────────────────────────────────────────────────
 router.post('/', authenticate, async (req, res, next) => {
@@ -43,6 +44,10 @@ router.post('/', authenticate, async (req, res, next) => {
   validUntil.setDate(validUntil.getDate() + (parseInt(valid_days) || 7));
 
   try {
+    // Review P1-134: the job must exist, be open, and not belong to the
+    // quoting helper.
+    const gate = await assertCanQuoteJob(job_id, helperId);
+    if (!gate.ok) return res.status(gate.status).json({ error: gate.error, code: gate.code });
     const row = await pool.query(`
       INSERT INTO helper_quotes
         (job_id, helper_id, line_items, tax_rate, subtotal_cents, tax_cents, total_cents,
@@ -159,10 +164,14 @@ router.patch('/:id/status', authenticate, async (req, res, next) => {
 
     const updated = await pool.query(`
       UPDATE helper_quotes SET status = $1, updated_at = NOW()
-      WHERE id = $2 RETURNING *
+      WHERE id = $2 AND status = 'sent' RETURNING *
     `, [status, req.params.id]);
+    if (!updated.rows[0]) return res.status(409).json({ error: 'Quote already responded' });
 
-    res.json(updated.rows[0]);
+    // Review P1-134: an accepted quote becomes the helper's bid; the client
+    // then assigns through the normal bid acceptance.
+    const bidId = status === 'accepted' ? await bidFromAcceptedQuote(updated.rows[0]) : null;
+    res.json({ ...updated.rows[0], bid_id: bidId, next_step: bidId ? 'accept_bid' : null });
   } catch (err) { next(err); }
 });
 

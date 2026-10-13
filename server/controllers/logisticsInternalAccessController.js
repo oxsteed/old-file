@@ -1,5 +1,5 @@
 const bcrypt = require('bcrypt');
-const { setSessionCookies } = require('../utils/authCookies');
+const { setSessionCookies, bodyTokens } = require('../utils/authCookies');
 const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const pool = require('../db');
@@ -653,8 +653,7 @@ exports.loginWithInternalAccess = async (req, res, next) => {
       success: true,
       message: 'Login successful',
       user: formatAuthUser(user),
-      accessToken: tokens.accessToken,
-      refreshToken: tokens.refreshToken,
+      ...bodyTokens(req, tokens),
     });
   } catch (error) {
     logger.error('Internal access login failed', { error: error.message });

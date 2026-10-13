@@ -196,7 +196,14 @@
     "next": "Siguiente",
     "scopeNote": "Cada producto, cuenta y moneda tiene sus propios estados de cuenta. Estos son registros de cuentas de crédito, no estados de cuenta bancarios.",
     "correctionsUnavailable": "Las correcciones contables en línea aún no están disponibles para los estados de Ayudantes ni de Empresas. Para solicitar una revisión, contacta a Soporte e incluye la cuenta y el período del estado.",
-    "contactSupport": "Contactar a soporte"
+    "contactSupport": "Contactar a soporte",
+    "entriesTitle": "Transacciones",
+    "showEntries": "Mostrar transacciones",
+    "entriesLoading": "Cargando transacciones…",
+    "entriesError": "No se pudieron cargar las transacciones.",
+    "entriesEmpty": "Este estado de cuenta no tiene transacciones.",
+    "investigate": "Revisar o reportar",
+    "moreEntries": "Mostrar más"
   },
   "statementInvestigation": {
     "title": "Transacción del estado de cuenta",
@@ -941,7 +948,7 @@
   "adminMediaOnly": "Disputas de creadores de Media",
   "adminMediaCreatorTip": "Propina del creador de Media",
   "adminMediaCreatorSponsorship": "Patrocinio del creador de Media",
-  "adminMediaPostBoost": "Impulso de publicaci�n de Media",
+  "adminMediaPostBoost": "Impulso de publicación de Media",
   "adminNoCustomerDisputes": "No hay disputas de crédito registradas para este cliente.",
   "adminOxsteedCreditTransaction": "Transacción de crédito de OxSteed",
   "adminTransactionReference": "Transacción {{id}} · Abierta {{date}}",
@@ -1951,5 +1958,11 @@
   "adminParticipantTypeProductSeller": "Vendedor de productos",
   "adminParticipantTypeRentalSeller": "Vendedor de alquileres",
   "adminGuestCreditCaps": "Límites de crédito para invitados (política fija)",
-  "adminGuestCreditCapsDescription": "Los invitados pueden gastar Crédito OxSteed hasta $25 por pedido, $50 por día y $200 de por vida por sesión. El gasto de invitados se financia desde la tesorería de la plataforma. Estos límites son fijos y se aplican a todos los participantes."
+  "adminGuestCreditCapsDescription": "Los invitados pueden gastar Crédito OxSteed hasta $25 por pedido, $50 por día y $200 de por vida por sesión. El gasto de invitados se financia desde la tesorería de la plataforma. Estos límites son fijos y se aplican a todos los participantes.",
+  "walletTopup": {
+    "title": "Agregar dinero",
+    "intro": "Agrega dinero a OxSteed Credit con tarjeta. Se acredita cuando se confirma el pago.",
+    "credited": "Dinero agregado a tu OxSteed Credit",
+    "invalidAmount": "Ingresa al menos {{min}}."
+  }
 }

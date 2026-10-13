@@ -187,3 +187,18 @@ test('bounds cleanup of expired challenge hashes without deleting audit or repla
   expect(db.query.mock.calls[0][0]).toContain("expires_at < NOW() - INTERVAL '30 days'");
   expect(db.query.mock.calls[0][0]).toContain('DELETE FROM oxsteed_credit_card_security_challenges');
 });
+
+test('P3-846: claims carry a lease token and a stale worker cannot finish a re-claimed row', async () => {
+  db.query
+    .mockResolvedValueOnce({ rows: [{ id: 'event-9', user_id: 'user-9', attempts: 1, lease_token: 'lease-old', payload: {
+      transactionId: 'tx-9', transactionType: 'purchase', direction: 'debit', amountCents: 100, currencyCode: 'USD',
+    } }] })
+    .mockResolvedValueOnce({ rows: [] }); // fenced UPDATE matched nothing: lease lost
+  sendNotification.mockResolvedValueOnce({ success: true });
+
+  await expect(processOxsteedCreditNotificationOutbox(10, false)).resolves.toEqual({ claimed: 1, sent: 0, retried: 1, failed: 0 });
+  expect(db.query.mock.calls[0][0]).toContain('lease_token = $3');
+  expect(db.query.mock.calls[0][1][2]).toEqual(expect.any(String));
+  expect(db.query.mock.calls[1][0]).toContain('lease_token = $7::text');
+  expect(db.query.mock.calls[1][1][6]).toBe('lease-old');
+});

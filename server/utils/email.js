@@ -257,8 +257,13 @@ if (RESEND_API_KEY && RESEND_API_KEY.startsWith('re_')) {
 
 async function sendEmail({ to, subject, text, html, from, fromName, idempotencyKey, headers }) {
   if (!emailConfigured) {
-    logger.debug('Email not sent - Resend not configured', { to });
-    return { success: false, error: 'Email not configured' };
+    // Review P3-844: in production a missing provider is an outage, not noise.
+    if (process.env.NODE_ENV === 'production') {
+      logger.error('Email not sent - Resend not configured', { subject: String(subject || '').slice(0, 120) });
+    } else {
+      logger.debug('Email not sent - Resend not configured', { to });
+    }
+    return { success: false, error: 'Email not configured', code: 'email_not_configured' };
   }
 
   const senderEmail = from || FROM_EMAIL;
@@ -476,8 +481,28 @@ async function sendSecurityAlertEmail(email, alertType, details, language = FALL
   });
 }
 
+class EmailDeliveryError extends Error {
+  constructor(message, code) {
+    super(message);
+    this.name = 'EmailDeliveryError';
+    this.code = code || 'email_delivery_failed';
+  }
+}
+
+// Review P3-844: sendEmail reports failure as { success: false } and many
+// callers never looked. Callers that need to know (and already catch) use this.
+async function sendEmailOrThrow(options) {
+  const result = await sendEmail(options);
+  if (!result || result.success !== true) {
+    throw new EmailDeliveryError(result?.error || 'Email send failed', result?.code);
+  }
+  return result;
+}
+
 module.exports = {
   sendEmail,
+  sendEmailOrThrow,
+  EmailDeliveryError,
   sendWelcomeEmail,
   sendOTPEmail,
   sendPasswordResetEmail,

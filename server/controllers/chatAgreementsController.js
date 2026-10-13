@@ -450,7 +450,21 @@ exports.getAgreement = async (req, res, next) => {
     if (!row) return bad(res, 404, 'Agreement not found', 'not_found');
     const access = await assertCanViewAgreement(req, row);
     if (!access.ok) return bad(res, 403, 'Not allowed to view this agreement', 'forbidden');
-    return res.json(toPublicAgreementCard(row));
+    const card = toPublicAgreementCard(row);
+    // Review P1-163: chat agreements and the job records room are separate
+    // systems; point job-thread parties at the signed records-room agreement.
+    const jobId = access.conv?.job_id;
+    if (jobId && req.user?.id) {
+      const { rows: [wa] } = await pool.query(
+        `SELECT id FROM work_agreements
+          WHERE job_id = $1 AND (helper_id = $2 OR customer_id = $2)
+          ORDER BY created_at DESC LIMIT 1`,
+        [jobId, req.user.id]
+      );
+      card.jobId = jobId;
+      card.recordsRoomAgreementId = wa?.id || null;
+    }
+    return res.json(card);
   } catch (err) {
     next(err);
   }

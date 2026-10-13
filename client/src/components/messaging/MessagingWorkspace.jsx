@@ -676,7 +676,7 @@ export default function MessagingWorkspace({ role = 'auto', businessId = null, e
               <summary>{t('messages.shell.moreActions')}</summary>
               <div className="messages-more-menu" role="menu">
                 {showHelperInbox && (
-                  <Link to="/dashboard/edit-profile" role="menuitem">{t('messages.improveProfile')}</Link>
+                  <Link to="/dashboard?tab=editprofile" role="menuitem">{t('messages.improveProfile')}</Link>
                 )}
                 <Link to="/helpers" role="menuitem">{t('messages.findHelpers')}</Link>
                 <Link to="/post-job" role="menuitem">{t('messages.postJob')}</Link>
@@ -983,7 +983,7 @@ function EmptyHelperInbox({ t }) {
         <h2>{t('messages.helperEmpty.title')}</h2>
         <p>{t('messages.helperEmpty.text')}</p>
         <div className="messages-empty-actions">
-          <Link to="/dashboard/edit-profile">{t('messages.improveProfile')}</Link>
+          <Link to="/dashboard?tab=editprofile">{t('messages.improveProfile')}</Link>
           <Link to="/jobs">{t('messages.findJobs')}</Link>
           <Link to="/support/escalation">{t('messages.contactSupport')}</Link>
         </div>

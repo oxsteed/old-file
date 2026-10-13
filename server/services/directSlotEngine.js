@@ -126,18 +126,28 @@ async function loadCalendarBlocks(from, to, executor = db) {
 async function loadBusyIntervals(userIds, from, to, executor = db) {
   if (!userIds.length) return { jobs: [], holds: [] };
   const terminal = TERMINAL_STATUSES;
+  // Widen the window by the max buffer (240 min) so padded neighbours count.
+  const qFrom = new Date(new Date(from).getTime() - 240 * 60000);
+  const qTo = new Date(new Date(to).getTime() + 240 * 60000);
   const [{ rows: jobs }, { rows: holds }] = await Promise.all([
     executor.query(
-      `SELECT id, assigned_to, scheduled_start_at, scheduled_end_at, status
-         FROM quote_requests
-        WHERE COALESCE(metadata->>'flow', 'direct') = 'direct'
-          AND assigned_to = ANY($1::uuid[])
-          AND scheduled_start_at IS NOT NULL
-          AND scheduled_end_at IS NOT NULL
-          AND scheduled_start_at < $3
-          AND scheduled_end_at > $2
-          AND status <> ALL($4::text[])`,
-      [userIds, from.toISOString(), to.toISOString(), terminal]
+      // Review P1-174: every crew member of a multi-crew booking is busy,
+      // not only assigned_to (crew rows live in quote_request_crew).
+      `SELECT qr.id, crew_member.user_id AS assigned_to, qr.scheduled_start_at, qr.scheduled_end_at, qr.status
+         FROM quote_requests qr
+         CROSS JOIN LATERAL (
+           SELECT qr.assigned_to AS user_id
+           UNION
+           SELECT qrc.user_id FROM quote_request_crew qrc WHERE qrc.quote_request_id = qr.id
+         ) crew_member
+        WHERE COALESCE(qr.metadata->>'flow', 'direct') = 'direct'
+          AND crew_member.user_id = ANY($1::uuid[])
+          AND qr.scheduled_start_at IS NOT NULL
+          AND qr.scheduled_end_at IS NOT NULL
+          AND qr.scheduled_start_at < $3
+          AND qr.scheduled_end_at > $2
+          AND qr.status <> ALL($4::text[])`,
+      [userIds, qFrom.toISOString(), qTo.toISOString(), terminal]
     ),
     executor.query(
       `SELECT id, reserved_user_id, starts_at, ends_at
@@ -146,15 +156,36 @@ async function loadBusyIntervals(userIds, from, to, executor = db) {
           AND expires_at > CURRENT_TIMESTAMP
           AND starts_at < $3
           AND ends_at > $2`,
-      [userIds, from.toISOString(), to.toISOString()]
+      [userIds, qFrom.toISOString(), qTo.toISOString()]
     ),
   ]);
+  // Review P1-192/P1-194: the member's helper appointments, personal
+  // time-off blocks and business appointments also make them busy, and every
+  // commitment is padded by their booking_buffer_minutes turnaround.
+  const { loadCrossSurfaceBusy, loadBookingBuffers } = require('./crossSurfaceBusy');
+  const [cross, buffers] = await Promise.all([
+    loadCrossSurfaceBusy(userIds, qFrom, qTo, { exclude: ['direct'], executor }),
+    loadBookingBuffers(userIds, executor),
+  ]);
+  const pad = (item) => {
+    const minutes = buffers.get(item.userId) || 0;
+    if (!minutes || String(item.source || '').endsWith('_block')) return item;
+    return {
+      ...item,
+      startsAt: new Date(item.startsAt.getTime() - minutes * 60000),
+      endsAt: new Date(item.endsAt.getTime() + minutes * 60000),
+    };
+  };
   return {
-    jobs: jobs.map((j) => ({
-      userId: String(j.assigned_to),
-      startsAt: new Date(j.scheduled_start_at),
-      endsAt: new Date(j.scheduled_end_at),
-    })),
+    jobs: [
+      ...jobs.map((j) => ({
+        userId: String(j.assigned_to),
+        startsAt: new Date(j.scheduled_start_at),
+        endsAt: new Date(j.scheduled_end_at),
+        source: 'direct',
+      })),
+      ...cross,
+    ].map(pad),
     holds: holds.map((h) => ({
       userId: String(h.reserved_user_id),
       startsAt: new Date(h.starts_at),
@@ -187,17 +218,16 @@ function freeMembersForSlot(members, busy, slotStart, slotEnd) {
   return members.filter((m) => !occupied.has(m.id));
 }
 
-function pickLeastLoaded(freeMembers, busy, slotStart, slotEnd) {
-  if (!freeMembers.length) return null;
-  const load = new Map(freeMembers.map((m) => [m.id, 0]));
-  for (const item of [...busy.jobs, ...busy.holds]) {
-    if (load.has(item.userId)) load.set(item.userId, (load.get(item.userId) || 0) + 1);
+// Review P1-175: pick the N least-loaded free members (jobs + holds count as load).
+function pickCrew(freeMembers, busy, n) {
+  const load = new Map(freeMembers.map((m) => [String(m.id), 0]));
+  for (const item of [...(busy.jobs || []), ...(busy.holds || [])]) {
+    if (load.has(item.userId)) load.set(item.userId, load.get(item.userId) + 1);
   }
   return [...freeMembers].sort((a, b) => {
-    const loadDiff = (load.get(a.id) || 0) - (load.get(b.id) || 0);
-    if (loadDiff !== 0) return loadDiff;
-    return a.name.localeCompare(b.name);
-  })[0];
+    const diff = load.get(String(a.id)) - load.get(String(b.id));
+    return diff !== 0 ? diff : String(a.name || '').localeCompare(String(b.name || ''));
+  }).slice(0, n);
 }
 
 /**
@@ -463,12 +493,7 @@ async function createHold({
     // Crew-aware: reserve the full required crew, not just one member.
     // Sort by load and take the N least-loaded free members.
     const requiredCrew = Number(serviceRow.required_crew_size) || 1;
-    const sortedFree = [...free].sort((a, b) => {
-      const loadA = (busy.jobs || []).filter((j) => String(j.assigned_to) === String(a.id)).length;
-      const loadB = (busy.jobs || []).filter((j) => String(j.assigned_to) === String(b.id)).length;
-      return loadA - loadB;
-    });
-    const crew = sortedFree.slice(0, requiredCrew);
+    const crew = pickCrew(free, busy, requiredCrew);
     if (crew.length < requiredCrew) {
       const err = new Error('Not enough free crew for this slot');
       err.statusCode = 409;
@@ -669,8 +694,10 @@ async function bookServiceSlot({
         crew = []; // Hold crew no longer fully free
       }
     }
+    const requiredCrew = Number(service.required_crew_size) || 1;
     if (!crew.length && !reservedUserIds.length) {
-      crew = [pickLeastLoaded(free, busy, start, end)].filter(Boolean);
+      crew = pickCrew(free, busy, requiredCrew);
+      if (crew.length < requiredCrew) crew = [];
     }
     if (!crew.length) {
       const err = new Error('No free assignee for this slot');
@@ -753,6 +780,15 @@ async function bookServiceSlot({
         JSON.stringify(metadata),
       ]
     );
+
+    // Review P1-174: persist the whole crew, not just crew[0].
+    await client.query(
+      `INSERT INTO quote_request_crew (quote_request_id, user_id)
+       SELECT $1, unnest($2::uuid[])
+       ON CONFLICT DO NOTHING`,
+      [inserted[0].id, crew.map((m) => m.id)]
+    );
+    inserted[0].crew_user_ids = crew.map((m) => String(m.id));
 
     // Link catalog service if junction exists
     try {
@@ -871,4 +907,6 @@ module.exports = {
   loadServiceRow,
   resolveEligibleAssignees,
   loadAssigneePool,
+  loadBusyIntervals,
+  pickCrew,
 };

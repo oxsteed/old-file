@@ -196,7 +196,14 @@
     "next": "Apre",
     "scopeNote": "Chak pwodwi, kont ak lajan gen pwòp relve pa yo. Sa yo se dosye kont kredi, se pa relve labank.",
     "correctionsUnavailable": "Koreksyon kontab sou entènèt poko disponib pou relve Revni èd yo oswa relve Biznis yo. Pou mande yon revizyon, kontakte Sipò epi bay kont lan ak peryòd relve a.",
-    "contactSupport": "Kontakte Sipò"
+    "contactSupport": "Kontakte Sipò",
+    "entriesTitle": "Tranzaksyon",
+    "showEntries": "Montre tranzaksyon yo",
+    "entriesLoading": "Ap chaje tranzaksyon yo…",
+    "entriesError": "Nou pa t ka chaje tranzaksyon yo.",
+    "entriesEmpty": "Deklarasyon sa a pa gen tranzaksyon.",
+    "investigate": "Revize oswa rapòte",
+    "moreEntries": "Montre plis"
   },
   "statementInvestigation": {
     "title": "Tranzaksyon relve a",
@@ -938,10 +945,10 @@
   "adminNoOutboundTransfers": "Pa gen transfè k ap soti ki otorize",
   "adminCustomerReviews": "Revizyon kliyan",
   "adminCreditDisputes": "Diskisyon kredi",
-  "adminMediaOnly": "Diskisyon kreyat� Media",
-  "adminMediaCreatorTip": "Kons�y kreyat� Media",
-  "adminMediaCreatorSponsorship": "Spons� kreyat� Media",
-  "adminMediaPostBoost": "Pwomosyon p�s Media",
+  "adminMediaOnly": "Diskisyon kreyatè Media",
+  "adminMediaCreatorTip": "Konsèy kreyatè Media",
+  "adminMediaCreatorSponsorship": "Sponsò kreyatè Media",
+  "adminMediaPostBoost": "Pwomosyon pòs Media",
   "adminNoCustomerDisputes": "Pa gen diskisyon kredi ki anrejistre pou kliyan sa a.",
   "adminOxsteedCreditTransaction": "Tranzaksyon kredi OxSteed",
   "adminTransactionReference": "Tranzaksyon {{id}} · Louvri {{date}}",
@@ -1951,5 +1958,11 @@
   "adminParticipantTypeProductSeller": "Vandè pwodwi",
   "adminParticipantTypeRentalSeller": "Vandè lokasyon",
   "adminGuestCreditCaps": "Limit kredi pou vizitè (politik fiks)",
-  "adminGuestCreditCapsDescription": "Vizitè yo ka depanse Kredi OxSteed jiska $25 pa kòmann, $50 pa jou, ak $200 pou tout lavi pa sesyon. Depans vizitè yo finanse apati de trezò platfòm nan. Limit sa yo fiks epi yo aplike pou tout patisipan yo."
+  "adminGuestCreditCapsDescription": "Vizitè yo ka depanse Kredi OxSteed jiska $25 pa kòmann, $50 pa jou, ak $200 pou tout lavi pa sesyon. Depans vizitè yo finanse apati de trezò platfòm nan. Limit sa yo fiks epi yo aplike pou tout patisipan yo.",
+  "walletTopup": {
+    "title": "Ajoute lajan",
+    "intro": "Ajoute lajan nan OxSteed Credit ak yon kat. Li antre lè peman an konfime.",
+    "credited": "Lajan ajoute nan OxSteed Credit ou",
+    "invalidAmount": "Antre omwen {{min}}."
+  }
 }

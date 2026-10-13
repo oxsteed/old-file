@@ -162,7 +162,7 @@ describe('Didit v3 webhook unhappy paths', () => {
   });
 
   test('acknowledges unknown verification statuses without throwing', async () => {
-    mockQuery.mockResolvedValueOnce({ rows: [{ id: 42 }], rowCount: 1 });
+    mockQuery.mockResolvedValueOnce({ rows: [{ id: 42 }], rowCount: 1 }).mockResolvedValueOnce({ rows: [{ event_id: 'wm' }], rowCount: 1 });
     const payload = {
       event_id: 'didit-unknown-status',
       session_id: 'didit-unknown-session',
@@ -183,7 +183,7 @@ describe('Didit v3 webhook unhappy paths', () => {
   });
 
   test('handles a declined verification whose warnings are not an array', async () => {
-    mockQuery.mockResolvedValueOnce({ rows: [{ id: 7 }], rowCount: 1 });
+    mockQuery.mockResolvedValueOnce({ rows: [{ id: 7 }], rowCount: 1 }).mockResolvedValueOnce({ rows: [{ event_id: 'wm' }], rowCount: 1 });
     const payload = {
       event_id: 'didit-declined-warnings',
       session_id: 'didit-declined-session',
@@ -207,6 +207,7 @@ describe('Didit v3 webhook unhappy paths', () => {
   test('marks an approved verification verified and awards the badge', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [{ id: 11 }], rowCount: 1 })
+      .mockResolvedValueOnce({ rows: [{ event_id: 'wm' }], rowCount: 1 })
       .mockResolvedValueOnce({ rows: [{ user_id: 'user-1' }], rowCount: 1 })
       .mockResolvedValueOnce({ rows: [], rowCount: 0 });
     const payload = {
@@ -253,6 +254,7 @@ describe('Didit v3 webhook unhappy paths', () => {
     );
     mockQuery
       .mockResolvedValueOnce({ rows: [{ id: 9 }], rowCount: 1 })
+      .mockResolvedValueOnce({ rows: [{ event_id: 'wm' }], rowCount: 1 })
       .mockResolvedValueOnce({ rows: [{ user_id: 'user-1' }], rowCount: 1 })
       .mockResolvedValueOnce({ rows: [], rowCount: 0 })
       .mockRejectedValueOnce(uniqueViolation);

@@ -11,6 +11,8 @@ const CRON_EXPRESSION = '*/5 * * * *';
 const CRON_TIMEZONE = 'UTC';
 const JOB_NAME = 'payment-refund-reconciliation';
 const BATCH_SIZE = 50;
+// 5-minute cadence: 48 attempts is about four hours of retries.
+const MAX_RECONCILIATION_ATTEMPTS = Number(process.env.PAYMENT_REFUND_MAX_RECONCILIATION_ATTEMPTS || 48);
 
 async function runPaymentRefundReconciliation({ limit = BATCH_SIZE } = {}) {
   const boundedLimit = Math.min(BATCH_SIZE, Math.max(1, Number(limit) || BATCH_SIZE));
@@ -58,18 +60,24 @@ async function runPaymentRefundReconciliation({ limit = BATCH_SIZE } = {}) {
         result.failed += 1;
         const attempts = (Number(row.reconciliation_attempts) || 0) + 1;
         const errorMessage = String(error.message || 'Reconciliation failed').slice(0, 1000);
+        // P3-788: reconciliation is no longer endless. After the cap the
+        // attempt is terminal 'failed' and an operator exception is raised.
+        const terminal = attempts >= MAX_RECONCILIATION_ATTEMPTS;
         await fence.db.query(
           `UPDATE payment_refund_attempts
-              SET last_error = $2, updated_at = CURRENT_TIMESTAMP
+              SET last_error = $2, updated_at = CURRENT_TIMESTAMP,
+                  status = CASE WHEN $3 THEN 'failed' ELSE status END
             WHERE id = $1 AND status = 'pending'`,
-          [row.id, errorMessage]
+          [row.id, errorMessage, terminal]
         );
         logger.warn('Payment refund reconciliation attempt failed', { refundId: row.id, error: error.message });
         await recordException({
           domain: 'payment_refund',
           referenceId: row.id,
-          severity: attempts >= 3 ? 'critical' : 'warning',
-          summary: `Payment refund reconciliation attempt failed for attempt ${row.id}`,
+          severity: terminal || attempts >= 3 ? 'critical' : 'warning',
+          summary: terminal
+            ? `Payment refund attempt ${row.id} failed permanently after ${attempts} tries; manual action required`
+            : `Payment refund reconciliation attempt failed for attempt ${row.id}`,
           details: { error: errorMessage, attempts },
           sourceRunId: JOB_NAME,
         });

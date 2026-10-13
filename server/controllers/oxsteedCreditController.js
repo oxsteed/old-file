@@ -2224,7 +2224,9 @@ async function transitionAdminSettlement(req, res, next) {
     // Phase 7 (gap 9): only the pending -> approved transition moves money
     // (it releases the settlement for payout), so only it needs a checker.
     // Rejections and other non-money transitions stay single-admin.
-    if (targetStatus === 'approved') {
+    // Review P1-247: a manual mark-paid records money leaving the platform,
+    // so it needs a checker exactly like approval does.
+    if (targetStatus === 'approved' || targetStatus === 'paid') {
       const result = await requestMoneyMovement(req, 'credit_settlement_approval', {
         settlementId,
         targetStatus,
