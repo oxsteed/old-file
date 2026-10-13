@@ -8,6 +8,7 @@ const pool   = require('../db');
 const logger = require('../utils/logger');
 const { canManageBusinessFinance } = require('../utils/businessOwnership');
 const { sendBusinessInvoiceEmail } = require('../utils/businessInvoiceEmail');
+const { sendNotification } = require('../services/notificationService');
 const {
   round2,
   PUBLIC_VIEW_STATUSES,
@@ -262,6 +263,7 @@ async function markInvoicePaid(req, res) {
       RETURNING *
     `, [newPaidTotal, newStatus, req.params.invoiceId, access.id, access.owner_id]);
 
+    await notifyInvoiceOwner(access.owner_id, inv, 'business_invoice_paid');
     return res.json({ invoice: inv });
   } catch (err) {
     logger.error('markInvoicePaid error', { err: err.message });
@@ -855,10 +857,28 @@ async function voidInvoice(req, res) {
       RETURNING *
     `, [voidNote, req.params.invoiceId, access.id]);
 
+    await notifyInvoiceOwner(access.owner_id, inv, 'business_invoice_voided');
     return res.json({ invoice: inv });
   } catch (err) {
     logger.error('voidInvoice error', { err: err.message });
     return res.status(500).json({ error: 'Failed to void invoice' });
+  }
+}
+
+async function notifyInvoiceOwner(ownerId, invoice, type) {
+  if (!ownerId || !invoice?.id) return;
+  try {
+    await sendNotification({
+      userId: ownerId,
+      type,
+      title: type === 'business_invoice_paid' ? 'Invoice marked paid' : 'Invoice voided',
+      body: `${invoice.invoice_number || `Invoice ${invoice.id}`} is now ${type === 'business_invoice_paid' ? 'paid' : 'voided'}.`,
+      data: { invoice_id: String(invoice.id), business_id: String(invoice.business_id || '') },
+      action_url: `/businesses/${invoice.business_id}/invoices/${invoice.id}`,
+      idempotencyKey: `business-invoice:${invoice.id}:${type}:${invoice.updated_at || invoice.status}`,
+    });
+  } catch (error) {
+    logger.warn('Invoice notification failed', { invoiceId: invoice.id, type, error: error.message });
   }
 }
 

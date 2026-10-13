@@ -349,7 +349,11 @@ export default function StatementArchivePage({ product: productProp = 'oxsteed' 
       <td>{artifact.kind === 'original' ? text('kindOriginal') : text('kindRendition')}</td>
       <td>{artifact.label || '–'}</td>
       <td>{artifact.language}</td>
-      <td>{text(`state${artifact.state[0].toUpperCase()}${artifact.state.slice(1)}`, { defaultValue: artifact.state })}</td>
+      {(() => {
+        const artifactState = String(artifact?.state || 'unknown');
+        const labelKey = `state${artifactState.charAt(0).toUpperCase()}${artifactState.slice(1)}`;
+        return <td>{text(labelKey, { defaultValue: artifactState })}</td>;
+      })()}
       <td>{formatBytes(artifact.byteLength)}</td>
       <td><div className="sa-row-actions">
         <button type="button" disabled={busy || artifact.state !== 'ready'} onClick={() => downloadItem(item, artifact)}>

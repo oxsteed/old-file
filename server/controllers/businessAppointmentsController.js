@@ -5,6 +5,7 @@ const pool = require('../db');
 const { AppError } = require('../utils/apiError');
 const logger = require('../utils/logger');
 const { withTransaction } = require('../utils/transaction');
+const { sendNotification } = require('../services/notificationService');
 
 // Shared appointment-window guards (audit M11): capacity per service, no
 // staff double-booking across services, and no booking over the staff
@@ -115,6 +116,7 @@ async function createAppointment(req, res, next) {
 
     // Set up reminders
     await setupReminderSchedule(appointment.id, start_time);
+    await notifyAppointmentParticipants(appointment, 'appointment_created');
 
     res.status(201).json(appointment);
   } catch (error) {
@@ -148,6 +150,7 @@ async function getAppointment(req, res, next) {
       return next(new AppError('Appointment not found', 404));
     }
 
+    await notifyAppointmentParticipants(result.rows[0], 'appointment_status_changed');
     res.json(result.rows[0]);
   } catch (error) {
     logger.error('Error getting appointment', { error });
@@ -281,7 +284,7 @@ async function cancelAppointment(req, res, next) {
     }
 
     // Send cancellation notification
-    await sendNotification(appointmentId, 'cancellation_notice');
+    await notifyAppointmentParticipants(result.rows[0], 'appointment_cancelled');
 
     res.json(result.rows[0]);
   } catch (error) {
@@ -356,6 +359,7 @@ async function rescheduleAppointment(req, res, next) {
       return updateResult.rows[0];
     });
 
+    await notifyAppointmentParticipants(updated, 'appointment_rescheduled');
     res.json(updated);
   } catch (error) {
     // DB-level backstop (ba_no_staff_double_booking exclusion) fired.
@@ -415,9 +419,30 @@ async function setupReminderSchedule(appointmentId, startTime) {
   }
 }
 
-async function sendNotification(appointmentId, notificationType) {
-  // Placeholder - integrate with notification service
-  logger.info('Sending notification', { appointmentId, notificationType });
+async function notifyAppointmentParticipants(appointment, notificationType) {
+  const appointmentId = appointment?.id;
+  if (!appointmentId) return;
+  try {
+    const { rows } = await pool.query(
+      `SELECT ba.customer_id, b.user_id AS business_owner_id
+         FROM business_appointments ba
+         JOIN businesses b ON b.id = ba.business_id
+        WHERE ba.id = $1`,
+      [appointmentId]
+    );
+    const recipientIds = [...new Set(rows.flatMap((row) => [row.customer_id, row.business_owner_id]).filter(Boolean).map(String))];
+    await Promise.allSettled(recipientIds.map((userId) => sendNotification({
+      userId,
+      type: notificationType,
+      title: 'Appointment update',
+      body: `Appointment ${notificationType.replace(/^appointment_/, '').replace(/_/g, ' ')}.`,
+      data: { appointment_id: String(appointmentId), business_id: String(appointment.business_id || '') },
+      action_url: `/businesses/${appointment.business_id}/calendar`,
+      idempotencyKey: `business-appointment:${appointmentId}:${notificationType}:${appointment.updated_at || appointment.status || 'created'}`,
+    })));
+  } catch (error) {
+    logger.warn('Appointment notification failed', { appointmentId, notificationType, error: error.message });
+  }
 }
 
 module.exports = {
