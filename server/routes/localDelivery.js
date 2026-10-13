@@ -71,6 +71,8 @@ router.get('/jobs/:id/tracking/scans', requireAuth, trackingController.listScans
 router.get('/jobs/:id/tracking/status', requireAuth, trackingController.getStatus);
 router.post('/tracking/devices', requireAuth, trackingController.registerDevice);
 router.get('/tracking/devices', requireAuth, trackingController.listDevices);
+router.patch('/tracking/devices/:deviceId', requireAuth, trackingController.updateDevice);
+router.delete('/tracking/devices/:deviceId', requireAuth, trackingController.updateDevice);
 
 // ── Delivery tracking: operations API (integration plan) ──
 router.get('/internal/jobs/:id/tracking/exact', requireAuth, requireOperationsWorkspace, trackingOpsController.getExactTracking);

@@ -135,3 +135,5 @@ Refresh-token follow-up: refresh rotation now re-checks the account's active and
 
 Rate-limit follow-up: money-moving invoice, mobile payment, affiliate payout, restaurant wallet-payout, Direct credit, delivery checkout, marketplace cancellation, admin/agent refund, subscription portal, and API-product subscription routes now use the strict abuse limiter before authentication. Discover search now keys its authenticated bucket from the same verified cookie-or-Bearer identity used by the rest of the limiter system, and internal-access configuration is bounded.
 
+Delivery-device follow-up: driver tracking devices now support owner pause and revoke actions, operations can manage fleet devices, and revocation/pausing transitions active assignments with an audit event. Revoked devices cannot be reactivated by their former owner; they must be re-registered by operations.
+

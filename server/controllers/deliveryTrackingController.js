@@ -524,6 +524,24 @@ async function listDevices(req, res) {
   }
 }
 
+async function updateDevice(req, res) {
+  try {
+    const requestedStatus = req.method === 'DELETE' ? 'revoked' : String(req.body?.status || '').toLowerCase();
+    if (!['active', 'paused', 'revoked'].includes(requestedStatus)) {
+      throw trackingError('tracking_device_status_invalid', 'status must be active, paused, or revoked');
+    }
+    const device = await trackingService.setDeviceStatus({
+      deviceId: req.params.deviceId,
+      actorUserId: req.user.id,
+      status: requestedStatus,
+      allowOperations: isOps(req.user),
+    });
+    res.json({ device });
+  } catch (err) {
+    sendServiceError(res, err);
+  }
+}
+
 module.exports = {
   assertDriverAccess,
   grantConsent,
@@ -538,4 +556,5 @@ module.exports = {
   getStatus,
   registerDevice,
   listDevices,
+  updateDevice,
 };
