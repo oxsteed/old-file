@@ -38,6 +38,8 @@ function creditStatusLabel(value, t) {
 export default function WalletPage() {
   const { t } = useTranslation('credit');
   const [account, setAccount] = useState(null);
+  const [accounts, setAccounts] = useState([]);
+  const [selectedCurrency, setSelectedCurrency] = useState('USD');
   const [accountDetails, setAccountDetails] = useState(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [railStatus, setRailStatus] = useState(null);
@@ -47,7 +49,7 @@ export default function WalletPage() {
   const [refreshing, setRefreshing] = useState(false);
   const loadRequestRef = useRef(0);
 
-  const load = useCallback(async ({ quiet = false } = {}) => {
+  const load = useCallback(async ({ quiet = false, currencyCode } = {}) => {
     const requestId = ++loadRequestRef.current;
     const isCurrentRequest = () => requestId === loadRequestRef.current;
     if (quiet) setRefreshing(true);
@@ -55,12 +57,17 @@ export default function WalletPage() {
     if (isCurrentRequest()) setLoadError(null);
     try {
       const existingAccounts = await listOxsteedCreditAccounts().catch(() => []);
-      const preferredCurrency = existingAccounts[0]?.currencyCode || 'USD';
+      const preferredCurrency = currencyCode
+        || existingAccounts.find((item) => item.currencyCode === selectedCurrency)?.currencyCode
+        || existingAccounts[0]?.currencyCode
+        || 'USD';
       const [accountResult, railResult] = await Promise.all([
         getOxsteedCreditAccount({ currencyCode: preferredCurrency }).catch(() => null),
         getOxsteedCreditStatus().catch(() => null),
       ]);
       if (!isCurrentRequest()) return;
+      setAccounts(Array.isArray(existingAccounts) ? existingAccounts : []);
+      setSelectedCurrency(accountResult?.currencyCode || preferredCurrency);
       setAccount(accountResult);
       setRailStatus(railResult);
       getOxsteedCreditAccountDetails({ currencyCode: preferredCurrency }).then((details) => {
@@ -78,12 +85,18 @@ export default function WalletPage() {
         setRefreshing(false);
       }
     }
-  }, [t]);
+  }, [t, selectedCurrency]);
 
   useEffect(() => {
     load();
     return () => { loadRequestRef.current += 1; };
   }, [load]);
+
+  const changeCurrency = (event) => {
+    const currencyCode = event.target.value;
+    setSelectedCurrency(currencyCode);
+    load({ quiet: true, currencyCode });
+  };
 
   const currency = account?.currencyCode || 'USD';
   const accountStatus = account?.status || 'active';
@@ -107,6 +120,9 @@ export default function WalletPage() {
               <p>{t('walletDescription')}</p>
             </div>
             <div className="ox-credit-hero-actions">
+              {accounts.length > 1 && (
+                <label className="ox-credit-currency-picker">{t('currency')}<select value={selectedCurrency} onChange={changeCurrency} disabled={loading || refreshing}>{[...new Set(accounts.map((item) => item.currencyCode).filter(Boolean))].sort().map((code) => <option key={code} value={code}>{code}</option>)}</select></label>
+              )}
               <button type="button" className="ox-credit-refresh" onClick={() => load({ quiet: true })} disabled={loading || refreshing}>
                 <RefreshCw size={16} className={refreshing ? 'ox-credit-spin' : ''} /> {t('refresh')}
               </button>

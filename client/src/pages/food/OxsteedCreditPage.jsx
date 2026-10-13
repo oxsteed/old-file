@@ -45,6 +45,7 @@ import {
 } from '../../api/oxsteedCredit';
 import toast from 'react-hot-toast';
 import './OxsteedCreditPage.css';
+import { listArchive, downloadArchiveDocument } from '../../api/creditStatements';
 import { formatCreditMinorUnits, getCreditMinorUnits, parseCreditMajorAmount } from '../../lib/creditCurrency';
 import { formatCreditDateTime } from '../../lib/creditDateTime';
 import { safeCreditErrorMessage } from '../../lib/creditErrors';
@@ -146,6 +147,11 @@ export default function OxsteedCreditPage() {
   const [statement, setStatement] = useState(null);
   const [statementPeriods, setStatementPeriods] = useState([]);
   const [statementPeriodsOpen, setStatementPeriodsOpen] = useState(false);
+  // Issued monthly documents by "year-month": when a closed month has an
+  // issued original, View/Download serve the immutable document (with its
+  // amendment state) instead of re-rendering the live interim report.
+  const [issuedStatements, setIssuedStatements] = useState({});
+  const [issuedStatementsLoading, setIssuedStatementsLoading] = useState(false);
   const [viewingPeriod, setViewingPeriod] = useState(null);
   const [disputes, setDisputes] = useState([]);
   const [disputePagination, setDisputePagination] = useState(null);
@@ -276,7 +282,60 @@ export default function OxsteedCreditPage() {
   const changeCurrency = (event) => {
     const currencyCode = event.target.value;
     setSelectedCurrency(currencyCode);
+    setIssuedStatements({});
     load({ quiet: true, currencyCode });
+  };
+
+  // Issued-document index for the Monthly statements panel: one archive
+  // lookup per panel open (not per row), keyed by year-month so each row
+  // can show whether an immutable original exists and its amendment state.
+  const loadIssuedStatements = useCallback(async (currencyCode) => {
+    setIssuedStatementsLoading(true);
+    try {
+      const result = await listArchive({ product: 'oxsteed', currency: currencyCode, perPage: 100 });
+      const index = {};
+      for (const item of (result?.items || [])) {
+        const from = String(item?.period?.from || '');
+        const match = /^(\d{4})-(\d{2})-01$/.exec(from);
+        if (!match) continue;
+        index[`${Number(match[1])}-${Number(match[2])}`] = {
+          documentId: item.id,
+          corrected: Boolean(item.corrected),
+          superseded: Boolean(item.superseded),
+        };
+      }
+      setIssuedStatements(index);
+    } catch {
+      // Non-critical: rows without an issued document keep the interim view.
+      setIssuedStatements({});
+    } finally {
+      setIssuedStatementsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (statementPeriodsOpen) loadIssuedStatements(selectedCurrency);
+  }, [statementPeriodsOpen, selectedCurrency, loadIssuedStatements]);
+
+  const downloadIssuedStatement = async (issued, period) => {
+    setDownloading(true);
+    try {
+      const response = await downloadArchiveDocument(issued.documentId);
+      const blob = response.data instanceof Blob ? response.data : new Blob([response.data], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = `oxsteed-credit-statement-${period.year}-${String(period.month).padStart(2, '0')}.pdf`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(url);
+      toast.success(t('statementDownloaded'));
+    } catch (error) {
+      toast.error(safeCreditErrorMessage(error, t('errorLoad')));
+    } finally {
+      setDownloading(false);
+    }
   };
 
   const refreshPartnerDirectory = async ({ append = false, offset = 0, search = partnerSearch, orderType = partnerOrderType } = {}) => {
@@ -746,6 +805,7 @@ export default function OxsteedCreditPage() {
               <p>{t('creditDescription')}</p>
             </div>
             <div className="ox-credit-hero-actions">
+              <Link to="/wallet" className="ox-credit-refresh"><ArrowDownLeft size={16} aria-hidden="true" /> {t('backToWallet')}</Link>
               <Link to={`/oxsteed-credit/statements?currencyCode=${encodeURIComponent(selectedCurrency)}`} className="ox-credit-refresh"><Receipt size={16} aria-hidden="true" /> {t('statements.link', { defaultValue: 'Statements' })}</Link>
               <Link to="/oxsteed-credit/cards" className="ox-credit-refresh"><WalletCards size={16} /> My Cards</Link>
               <label className="ox-credit-currency-picker">{t('currency')}<select value={selectedCurrency} onChange={changeCurrency} disabled={loading || refreshing}>{[...new Set(['USD', ...(railStatus?.supportedCurrencies || []), ...accounts.map((item) => item.currencyCode).filter(Boolean)])].sort().map((code) => <option key={code} value={code}>{code}</option>)}</select></label>
@@ -823,15 +883,39 @@ export default function OxsteedCreditPage() {
                       return Object.keys(byYear).sort((a, b) => Number(b) - Number(a)).map((year) => (
                         <div key={year} className="ox-credit-statement-year">
                           <strong className="ox-credit-statement-year-label">{year}</strong>
-                          {byYear[year].map((period) => (
-                            <div key={`${period.year}-${period.month}`} className="ox-credit-statement-row">
-                              <span>{new Date(period.year, period.month - 1, 1).toLocaleDateString(t.lng || undefined, { month: 'long' })} · {t('transactionsInMonth', { count: period.transactionCount })}</span>
-                              <div className="ox-credit-statement-actions">
-                                <button type="button" className="ox-credit-detail-link" onClick={() => viewPeriodStatement(period)}>{t('viewStatement')}</button>
-                                <button type="button" className="ox-credit-download" onClick={() => downloadPeriodStatement(period)} disabled={downloading}><Download size={14} /> {t('downloadCsv')}</button>
+                          {byYear[year].map((period) => {
+                            // An issued original exists for this month: View
+                            // opens the immutable document (with amendment
+                            // state) and Download serves it, instead of
+                            // re-rendering the live interim report.
+                            const issued = issuedStatements[`${period.year}-${period.month}`];
+                            return (
+                              <div key={`${period.year}-${period.month}`} className="ox-credit-statement-row">
+                                <span>{new Date(period.year, period.month - 1, 1).toLocaleDateString(t.lng || undefined, { month: 'long' })} · {t('transactionsInMonth', { count: period.transactionCount })}</span>
+                                {issued && (
+                                  <span className={`ox-credit-statement-badge${issued.corrected || issued.superseded ? ' amended' : ''}`}>
+                                    {issued.corrected || issued.superseded ? t('statementAmended') : t('statementIssued')}
+                                  </span>
+                                )}
+                                <div className="ox-credit-statement-actions">
+                                  {issued ? (
+                                    <>
+                                      <Link
+                                        className="ox-credit-detail-link"
+                                        to={`/oxsteed-credit/statements/archive?currency=${encodeURIComponent(selectedCurrency)}&year=${period.year}&month=${period.month}`}
+                                      >{t('viewStatement')}</Link>
+                                      <button type="button" className="ox-credit-download" onClick={() => downloadIssuedStatement(issued, period)} disabled={downloading}><Download size={14} /> {t('downloadIssued')}</button>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <button type="button" className="ox-credit-detail-link" onClick={() => viewPeriodStatement(period)}>{t('viewStatement')}</button>
+                                      <button type="button" className="ox-credit-download" onClick={() => downloadPeriodStatement(period)} disabled={downloading}><Download size={14} /> {t('downloadCsv')}</button>
+                                    </>
+                                  )}
+                                </div>
                               </div>
-                            </div>
-                          ))}
+                            );
+                          })}
                         </div>
                       ));
                     })()}

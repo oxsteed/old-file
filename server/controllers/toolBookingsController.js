@@ -223,20 +223,37 @@ const updateBookingStatus = async (req, res, next) => {
       throw new AppError('Unauthorized', 403, 'forbidden');
     }
 
-    const validStatuses = ['cancelled', 'completed'];
+    const validStatuses = ['cancelled', 'completed', 'returned'];
     if (!validStatuses.includes(status)) {
-      throw new AppError('Invalid status transition', 400, 'validation_failed', { status: 'Must be cancelled or completed' });
+      throw new AppError('Invalid status transition', 400, 'validation_failed', { status: 'Must be cancelled, returned or completed' });
     }
-    if (status === 'cancelled' && !['pending', 'invoice_sent'].includes(booking.status)) {
+    // P3-12-F07: cancellation stays possible after payment is confirmed.
+    // Payments are collected off-platform, so a post-payment cancellation
+    // marks the booking cancelled and the parties settle any refund
+    // directly; the status history records that money may be owed back.
+    if (status === 'cancelled' && !['pending', 'invoice_sent', 'payment_confirmed'].includes(booking.status)) {
       throw new AppError('Booking can no longer be cancelled', 409, 'state_conflict');
     }
-    if (status === 'completed' && (!isOwner || booking.status !== 'payment_confirmed')) {
-      throw new AppError('Booking cannot be completed in its current state', 409, 'state_conflict');
+    // P3-12-F13: return/handover step. The renter confirms the tool was
+    // handed back (optionally noting its condition) or the owner confirms
+    // receipt; completion requires the handover first.
+    if (status === 'returned') {
+      if (booking.status !== 'payment_confirmed') {
+        throw new AppError('The tool can only be returned once payment is confirmed', 409, 'state_conflict');
+      }
+    }
+    if (status === 'completed' && (!isOwner || booking.status !== 'returned')) {
+      throw new AppError('The booking must be marked returned (tool handed back) before it can be completed', 409, 'state_conflict');
     }
 
+    const returnNote = typeof req.body?.returnNote === 'string' ? req.body.returnNote.trim().slice(0, 2000) : null;
     const result = await db.query(
-      'UPDATE tool_rentals_bookings SET status = $1 WHERE id = $2 RETURNING *',
-      [status, bookingId]
+      `UPDATE tool_rentals_bookings
+          SET status = $1,
+              returned_at = CASE WHEN $1 = 'returned' THEN NOW() ELSE returned_at END,
+              return_condition_note = CASE WHEN $1 = 'returned' THEN $3 ELSE return_condition_note END
+        WHERE id = $2 RETURNING *`,
+      [status, bookingId, returnNote]
     );
 
     const updatedBooking = result.rows[0];

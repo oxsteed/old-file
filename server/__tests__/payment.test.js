@@ -2,12 +2,18 @@
 
 const { mockQuery, resetMocks } = require('./setup');
 
-jest.mock('../utils/feeCalculator', () => ({
-  calculateTier3Fees: jest.fn().mockReturnValue({
-    application_fee_cents: 710,
-    platform_fee_cents:    710,
-  }),
-}));
+jest.mock('../utils/feeCalculator', () => {
+  const actual = jest.requireActual('../utils/feeCalculator');
+  return {
+    calculateTier3Fees: jest.fn().mockReturnValue({
+      application_fee_cents: 710,
+      platform_fee_cents:    710,
+    }),
+    // P2-6-F09: the controller funds referral discounts from the platform
+    // fee via this helper; exercise the real implementation here.
+    applyPlatformFundedDiscount: actual.applyPlatformFundedDiscount,
+  };
+});
 
 // Exercise controller retries without spending the shared five-link daily quota.
 // Production limiter behavior remains covered by its dedicated middleware tests.
@@ -158,6 +164,37 @@ describe('POST /api/payments/intent', () => {
     expect(res.body).toHaveProperty('client_secret');
     expect(res.body).toHaveProperty('payment_intent_id', 'pi_test123');
     expect(stripe.paymentIntents.create.mock.calls[0][0].receipt_email).toBe('c@test.com');
+  });
+
+  test('P2-6-F09: referral discount is funded by the platform fee, not the helper', async () => {
+    stripe.accounts.retrieve.mockResolvedValueOnce({
+      id: 'acct_x', charges_enabled: true, payouts_enabled: true, details_submitted: true,
+    });
+    stripe.paymentIntents.create.mockResolvedValueOnce({
+      id: 'pi_discount',
+      client_secret: 'secret_discount',
+    });
+    mockAuth(
+      { rows: [{ id: 11, client_id: 1, job_value: 100, assigned_helper_id: 2, title: 'Job' }] },
+      { rows: [{ stripe_account_id: 'acct_x', charges_enabled: true, payouts_enabled: true, onboarding_complete: true }] },
+      { rowCount: 0 },
+      { rows: [] },                 // advisory lock
+      { rows: [{ balance_cents: 500 }] }, // $5 referral credit
+      { rows: [] },                 // existing payment check
+      { rows: [{ attempt_count: 0 }] },
+      { rows: [{ id: 2 }] }
+    );
+    const res = await auth(
+      request(buildApp()).post('/api/payments/intent').send({ job_id: 11 })
+    );
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveProperty('applied_credit_cents', 500);
+    const createArgs = stripe.paymentIntents.create.mock.calls[0][0];
+    // Customer charged $95; the $7.10 mocked fee minus the $5 discount = $2.10 application fee.
+    expect(createArgs.amount).toBe(9500);
+    expect(createArgs.application_fee_amount).toBe(210);
+    expect(createArgs.metadata.platform_fee_cents).toBe('210');
+    expect(createArgs.metadata.gross_platform_fee_cents).toBe('710');
   });
 });
 

@@ -105,6 +105,22 @@ function issuanceGraceElapsed(periodTo, now = new Date(), graceHours = policy.IS
   return nowMs >= monthEnd + Number(graceHours) * 60 * 60 * 1000;
 }
 
+/**
+ * Fail-closed guard for on-demand (operator) issuance runs: a run may not be
+ * created until the same ISSUANCE_GRACE_HOURS the background scheduler honors
+ * have elapsed past period end. Issuing earlier would freeze statements
+ * before late-posting ledger entries settle. Throws AppError 409 otherwise.
+ */
+function assertIssuanceGraceElapsed(periodTo, now = new Date()) {
+  if (!issuanceGraceElapsed(periodTo, now)) {
+    throw new AppError(
+      `The ${policy.ISSUANCE_GRACE_HOURS}-hour issuance grace window has not elapsed for this period; wait until late postings settle before issuing`,
+      409,
+      'statement_run_grace_not_elapsed'
+    );
+  }
+}
+
 async function resolveStatementLanguage(customerId) {
   try {
     const { rows: [row] } = await pool.query(
@@ -852,6 +868,7 @@ module.exports = {
   PRODUCT_ACTION_URLS,
   latestClosedMonthPeriod,
   issuanceGraceElapsed,
+  assertIssuanceGraceElapsed,
   isRetryableError,
   NON_RETRYABLE_CODES,
 };

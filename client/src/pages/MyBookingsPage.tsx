@@ -11,6 +11,7 @@ import { prefillBookingDraft } from '../components/booking/BookingFlow';
 import { Calendar, MapPin, User, DollarSign, AlertCircle, Loader, FileText, Flag, Clock, CheckCircle, XCircle, Briefcase, Wrench } from 'lucide-react';
 import toast from 'react-hot-toast';
 import InvoiceModal from '../components/InvoiceModal';
+import TermsAcceptanceModal from '../components/TermsAcceptanceModal';
 import UserReportModal from '../components/UserReportModal';
 import './MyBookingsPage.css';
 
@@ -47,12 +48,14 @@ interface Booking {
   start_date: string;
   end_date: string;
   total_price: number;
-  status: 'pending' | 'invoice_sent' | 'payment_confirmed' | 'cancelled' | 'completed';
+  status: 'pending' | 'invoice_sent' | 'payment_confirmed' | 'returned' | 'cancelled' | 'completed';
   created_at: string;
   name?: string;
   daily_rate?: number;
   first_name?: string;
   last_name?: string;
+  return_condition_note?: string | null;
+  returned_at?: string | null;
   deposit_amount?: number | string;
   deposit_status?: 'none' | 'due' | 'held' | 'returned' | 'partially_withheld' | 'withheld';
   deposit_withheld_amount?: number | string | null;
@@ -72,6 +75,8 @@ const MyBookingsPage = () => {
   const [error, setError] = useState<string | null>(null);
   const [invoiceModalOpen, setInvoiceModalOpen] = useState(false);
   const [invoiceBookingId, setInvoiceBookingId] = useState<number | null>(null);
+  const [termsModalOpen, setTermsModalOpen] = useState(false);
+  const [termsBookingId, setTermsBookingId] = useState<number | null>(null);
   const [reportModalOpen, setReportModalOpen] = useState(false);
   const [reportBookingId, setReportBookingId] = useState<number | null>(null);
   const [reportOwnerId, setReportOwnerId] = useState<number | string | null>(null);
@@ -101,14 +106,45 @@ const MyBookingsPage = () => {
     }
   }, [t]);
 
-  const handleStatusUpdate = async (bookingId: number, newStatus: string) => {
+  // P3-12-F09: the owner must accept the per-booking rental terms before
+  // sending the first invoice. The acceptance is recorded server-side in
+  // tool_rental_terms_acceptance (owner role); the invoice endpoint also
+  // enforces it so the modal cannot be bypassed.
+  const handleSendInvoice = async (booking: Booking) => {
     try {
-      await toolRentalsApi.updateBookingStatus(bookingId, newStatus);
+      const { data } = await api.get(`/tool-rentals/bookings/${booking.id}/terms-status`);
+      if (data?.ownerAccepted) {
+        setInvoiceBookingId(booking.id);
+        setInvoiceModalOpen(true);
+        return;
+      }
+    } catch {
+      // If the status check fails, still route through the terms modal:
+      // the server enforces acceptance before the invoice is created.
+    }
+    setTermsBookingId(booking.id);
+    setTermsModalOpen(true);
+  };
+
+  const handleStatusUpdate = async (bookingId: number, newStatus: string, extra: Record<string, unknown> = {}) => {
+    try {
+      await toolRentalsApi.updateBookingStatus(bookingId, newStatus, extra);
       toast.success(t('toolRentals.statusUpdated') || 'Status updated');
       loadBookings();
     } catch (err) {
       toast.error(t('toolRentals.statusUpdateFailed') || 'Failed to update status');
     }
+  };
+
+  // P3-12-F13: the renter confirms the tool was handed back, optionally
+  // noting its condition; the owner confirms receipt the same way.
+  const handleConfirmReturn = async (booking: Booking) => {
+    const note = window.prompt(
+      t('toolRentals.returnConditionPrompt') || 'How is the tool condition on return? (optional)',
+      ''
+    );
+    if (note === null) return;
+    await handleStatusUpdate(booking.id, 'returned', note.trim() ? { returnNote: note.trim() } : {});
   };
 
   // Review P3-1068: deposit return / withhold.
@@ -181,6 +217,7 @@ const MyBookingsPage = () => {
       confirmed: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100',
       invoice_sent: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-100',
       payment_confirmed: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-100',
+      returned: 'bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-100',
       cancelled: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100',
       completed: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100',
     };
@@ -193,6 +230,7 @@ const MyBookingsPage = () => {
       confirmed: t('toolRentals.confirmed') || 'Confirmed',
       invoice_sent: t('toolRentals.invoiceSent') || 'Invoice sent',
       payment_confirmed: t('toolRentals.paymentConfirmed') || 'Payment confirmed',
+      returned: t('toolRentals.returned') || 'Returned',
       cancelled: t('toolRentals.cancelled') || 'Cancelled',
       completed: t('toolRentals.completed') || 'Completed',
     };
@@ -253,10 +291,7 @@ const MyBookingsPage = () => {
       {isOwner && booking.status === 'pending' && (
         <div className="booking-card-actions">
           <button
-            onClick={() => {
-              setInvoiceBookingId(booking.id);
-              setInvoiceModalOpen(true);
-            }}
+            onClick={() => handleSendInvoice(booking)}
             className="booking-action-btn booking-action-invoice"
           >
             <FileText className="w-4 h-4" />
@@ -297,10 +332,44 @@ const MyBookingsPage = () => {
       {isOwner && booking.status === 'payment_confirmed' && (
         <div className="booking-card-actions">
           <button
+            onClick={() => handleConfirmReturn(booking)}
+            className="booking-action-btn booking-action-approve"
+          >
+            {t('toolRentals.confirmReturnReceived') || 'Confirm return received'}
+          </button>
+          <button
+            onClick={() => handleStatusUpdate(booking.id, 'cancelled')}
+            className="booking-action-btn booking-action-cancel"
+          >
+            {t('toolRentals.cancelBooking') || 'Cancel Booking'}
+          </button>
+        </div>
+      )}
+
+      {isOwner && booking.status === 'returned' && (
+        <div className="booking-card-actions">
+          <button
             onClick={() => handleStatusUpdate(booking.id, 'completed')}
             className="booking-action-btn booking-action-approve"
           >
             {t('toolRentals.markCompleted') || 'Mark completed'}
+          </button>
+        </div>
+      )}
+
+      {!isOwner && booking.status === 'payment_confirmed' && (
+        <div className="booking-card-actions">
+          <button
+            onClick={() => handleConfirmReturn(booking)}
+            className="booking-action-btn booking-action-approve"
+          >
+            {t('toolRentals.confirmReturn') || 'Confirm return'}
+          </button>
+          <button
+            onClick={() => handleStatusUpdate(booking.id, 'cancelled')}
+            className="booking-action-btn booking-action-cancel"
+          >
+            {t('toolRentals.cancelBooking') || 'Cancel Booking'}
           </button>
         </div>
       )}
@@ -314,6 +383,12 @@ const MyBookingsPage = () => {
             {t('toolRentals.cancelBooking') || 'Cancel Booking'}
           </button>
         </div>
+      )}
+
+      {booking.status === 'returned' && booking.return_condition_note && (
+        <p className="booking-card-note">
+          {t('toolRentals.returnConditionLabel') || 'Return condition:'} {booking.return_condition_note}
+        </p>
       )}
 
       {!isOwner && booking.status !== 'cancelled' && booking.status !== 'completed' && (
@@ -591,6 +666,24 @@ const MyBookingsPage = () => {
             setInvoiceModalOpen(false);
             setInvoiceBookingId(null);
             loadBookings();
+          }}
+        />
+      )}
+
+      {termsModalOpen && termsBookingId && (
+        <TermsAcceptanceModal
+          isOpen={termsModalOpen}
+          onClose={() => {
+            setTermsModalOpen(false);
+            setTermsBookingId(null);
+          }}
+          bookingId={termsBookingId}
+          userRole="owner"
+          onAccepted={() => {
+            setTermsModalOpen(false);
+            setInvoiceBookingId(termsBookingId);
+            setTermsBookingId(null);
+            setInvoiceModalOpen(true);
           }}
         />
       )}

@@ -1153,6 +1153,20 @@ async function startRegistration(req, res) {
     if (phoneClean.length < 7 || phoneClean.length > 15) {
       return res.status(400).json({ error: 'Invalid phone number', code: 'validation_failed', fields: { phone: 'Invalid phone number' } });
     }
+    // P2-6-F08: validate the referral code now, not silently at OTP verify
+    // time. A typo'd or unknown code is a 400 so the user can fix it before
+    // creating the account.
+    if (normalized.ref) {
+      const { rows: codeRows } = await pool.query(
+        'SELECT id FROM users WHERE referral_code = $1', [normalized.ref]);
+      if (!codeRows.length) {
+        return res.status(400).json({
+          error: 'This referral code is not valid. Check the code and try again.',
+          code: 'invalid_referral_code',
+          fields: { ref: 'Unknown referral code' },
+        });
+      }
+    }
     let formattedPhone;
     if (countryCode === 'US') {
       if (phoneClean.length !== 10 && phoneClean.length !== 11) {

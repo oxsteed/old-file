@@ -112,7 +112,14 @@ exports.createCheckout = async (req, res, next) => {
     if (!plans.length) throw new AppError('Plan not found', 404, 'not_found');
     const plan = plans[0];
 
-    // Atomic check for existing subscription (prevents race conditions)
+    // Best-effort pre-check for an existing subscription. A SELECT ... FOR
+    // UPDATE cannot serialize concurrent checkouts on its own: it locks
+    // nothing when no rows exist, and the lock releases at commit, long
+    // before the Stripe webhook inserts the row. This is only a fast
+    // rejection for the obvious case. The real duplicate guard is the
+    // per-user advisory lock plus the pre-insert check in the webhook
+    // handlers, backstopped by the partial unique index
+    // (migration 826, P2-6-F07).
     try {
       await withTransaction(db, async (client) => {
         const { rows: existing } = await client.query(
@@ -476,7 +483,12 @@ async function createCreditSubscription(req, res, next, plan, userId) {
     else periodEnd.setMonth(periodEnd.getMonth() + 1);
 
     const result = await withTransaction(db, async (client) => {
-      // Double-check no active subscription (race-safe, mirrors Stripe path).
+      // P2-6-F07: SELECT ... FOR UPDATE locks nothing when no rows exist, so
+      // serialize per user with an advisory lock before the check. The
+      // partial unique index (migration 826) is the final backstop; a 23505
+      // here rolls back the whole transaction including the debit below, so
+      // a lost race can never double-bill.
+      await client.query(`SELECT pg_advisory_xact_lock(hashtextextended($1, 0))`, [`subscription-user:${userId}`]);
       const { rows: existing } = await client.query(
         `SELECT id FROM subscriptions WHERE user_id = $1 AND status IN ('active', 'trialing') FOR UPDATE`,
         [userId]

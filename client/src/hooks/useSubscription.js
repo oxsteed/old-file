@@ -30,18 +30,31 @@ export default function useSubscription() {
     }
   }, []);
 
-  const createCheckout = useCallback(async (planSlug) => {
+  const createCheckout = useCallback(async (planSlug, { paymentMethod } = {}) => {
     try {
       if (!planSlug) {
         setError('Please select a plan');
-        return;
+        return { ok: false };
       }
-      const { data } = await api.post('/subscription/checkout', { planSlug });
-      window.location.href = data.url;
+      const { data } = await api.post('/subscription/checkout', { planSlug, paymentMethod });
+      // Stripe checkout returns a redirect URL...
+      if (data?.url) {
+        window.location.href = data.url;
+        return { ok: true, redirected: true };
+      }
+      // ...but the OxSteed Credit checkout completes in place with no URL
+      // (P2-6-F14). Never navigate to `undefined`; refresh and report.
+      if (data?.ok || data?.paymentMethod === 'oxsteed_credit' || data?.subscription) {
+        await fetchSubscription();
+        return { ok: true, redirected: false, subscription: data?.subscription ?? null };
+      }
+      setError('Checkout did not return a payment page. Please try again.');
+      return { ok: false };
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to create checkout');
+      return { ok: false };
     }
-  }, []);
+  }, [fetchSubscription]);
 
   const cancelSubscription = useCallback(async () => {
     try {
