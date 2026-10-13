@@ -141,3 +141,5 @@ Restaurant-device follow-up: paired restaurant credentials now expire after 90 d
 
 Session-chain follow-up: refresh rotation now records the consumed session id in both session-chain lineage columns when those nullable columns exist, preserving the existing absolute-deadline behavior and allowing refresh ancestry to be audited.
 
+Impersonation follow-up: impersonation requests now honor the target user's token-revocation marker in addition to the existing per-impersonation JTI and database ended-at checks, so account security actions terminate delegated sessions too.
+
