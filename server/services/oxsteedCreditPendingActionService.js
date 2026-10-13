@@ -390,6 +390,9 @@ async function requestPendingAction({ actionType, payload, requestedBy, idempote
   if (!key) throw new AppError('An Idempotency-Key is required to request a pending action', 400, 'credit_pending_action_idempotency_required');
 
   const storedPayload = { ...(payload || {}), idempotencyKey: key };
+  // The amount is recorded in the audit trail for traceability. There is no
+  // threshold bypass: every money movement requires a distinct checker.
+  const amountCents = await resolveActionAmountCents(normalizedType, storedPayload);
   const expiresAt = new Date(Date.now() + PENDING_ACTION_TTL_HOURS * 3600 * 1000).toISOString();
   try {
     const result = await withTransaction(pool, async (client) => {

@@ -441,8 +441,8 @@ class PayoutController {
           await client.query(
             `UPDATE payout_methods
                 SET status = 'verified', verified_at = COALESCE(verified_at, NOW()), updated_at = NOW()
-              WHERE stripe_account_id = $1 AND status = 'pending'`,
-            [payout.stripe_account_id]
+              WHERE id = $2 AND stripe_account_id = $1 AND status = 'pending'`,
+            [payout.stripe_account_id, payout.payout_method_id]
           );
           payout.payout_method_status = 'verified';
         }
