@@ -155,3 +155,5 @@ Tier-3 payment follow-up: successful job-payment webhooks now emit a localized, 
 
 Calendar notification follow-up: failed calendar reminders now retain bounded retry metadata and are retried with exponential backoff. Operators can list failures and requeue one through authenticated, permission-gated admin endpoints. Migration 787 is idempotent.
 
+Refund notification follow-up: successful and failed Tier-3 refund/void settlements now notify the payer with localized, idempotent `refund` or `refund_failed` events, including reconciliation retries. Focused refund reconciliation tests pass.
+

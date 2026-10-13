@@ -109,6 +109,32 @@ const T = {
       ar: 'اكتمل دفع مهمتك بنجاح.',
     },
   },
+  refund: {
+    title: {
+      en: 'Refund processed', fr: 'Remboursement traité', es: 'Reembolso procesado',
+      ht: 'Ranbousman trete', ar: 'تمت معالجة الاسترداد',
+    },
+    body: {
+      en: 'Your payment refund has been processed.',
+      fr: 'Le remboursement de votre paiement a été traité.',
+      es: 'Se procesó el reembolso de tu pago.',
+      ht: 'Ranbousman peman ou a trete.',
+      ar: 'تمت معالجة استرداد دفعتك.',
+    },
+  },
+  refund_failed: {
+    title: {
+      en: 'Refund needs attention', fr: 'Remboursement à vérifier', es: 'Reembolso requiere atención',
+      ht: 'Ranbousman bezwen atansyon', ar: 'يحتاج الاسترداد إلى مراجعة',
+    },
+    body: {
+      en: 'Your payment refund could not be completed automatically. Please review the job or contact support.',
+      fr: 'Votre remboursement n’a pas pu être effectué automatiquement. Consultez la mission ou contactez le support.',
+      es: 'No se pudo completar automáticamente el reembolso. Revisa el trabajo o contacta con soporte.',
+      ht: 'Ranbousman peman ou pa t ka fini otomatikman. Revize travay la oswa kontakte sipò.',
+      ar: 'تعذر إكمال استرداد دفعتك تلقائيًا. راجع المهمة أو اتصل بالدعم.',
+    },
+  },
   oxsteed_credit_transaction: {
     title: {
       en: 'OxSteed Credit activity',
@@ -770,6 +796,12 @@ const EMAIL_TEMPLATES = {
       es: 'Ver trabajo',
       ht: 'Gade travay la',
       ar: 'عرض المهمة',
+    },
+    refund: {
+      en: 'View Job', fr: 'Voir la mission', es: 'Ver trabajo', ht: 'Gade travay la', ar: 'عرض المهمة',
+    },
+    refund_failed: {
+      en: 'Review Refund', fr: 'Vérifier le remboursement', es: 'Revisar reembolso', ht: 'Revize ranbousman', ar: 'مراجعة الاسترداد',
     },
     subscription_renewed: {
       en: 'View Billing',
