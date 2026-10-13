@@ -2215,6 +2215,18 @@ html.dark .fd-merchant-step { color: #e2e8f0; }
   grid-template-rows: auto 1fr;
   min-height: calc(100vh - 64px);
 }
+.fd-pos-sync-banner {
+  padding: 0.5rem 1rem;
+  background: #fef3c7;
+  color: #92400e;
+  border-bottom: 1px solid #fcd34d;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+.fd-btn-secondary.fd-active {
+  border-color: #16a34a;
+  color: #16a34a;
+}
 .fd-pos-header {
   display: flex;
   align-items: center;

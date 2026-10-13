@@ -19852,7 +19852,9 @@
       "payment": "Peman",
       "items": "Atik",
       "total": "Total",
-      "printReceipt": "Enprime resi"
+      "printReceipt": "Enprime resi",
+      "runnerNearby": "Livrezè a pre",
+      "runnerUpdatedAgo": "pozisyon mete ajou {{seconds}}s de sa"
     },
     "payment": {
       "paid": "Peye",
@@ -20400,7 +20402,8 @@
       "confirmPay": "Konfime peman",
       "clear": "Efase",
       "cardTerminalRequired": "Peman kat yo mande yon tèminal PDV konekte. Itilize aplikasyon PDV a pou touche kat.",
-      "amountGiven": "Kob resevwa"
+      "amountGiven": "Kob resevwa",
+      "syncDegraded": "Senkronizasyon an degrade: {{failed}} echwe, {{pending}} annatant, {{outbox}} poko voye"
     },
     "inv": {
       "title": "Envantè",
@@ -20519,7 +20522,32 @@
       "issueType_other": "Lòt",
       "submit": "Soumèt",
       "noTasks": "Pa gen livrezon ankò",
-      "issueSeverity": "Gravite"
+      "issueSeverity": "Gravite",
+      "proofRequired": "Yo bezwen prèv livrezon anvan yo fini travay sa a",
+      "shareLocation": "Pataje pozisyon an dirèk",
+      "stopSharing": "Sispann pataje",
+      "geoUnsupported": "Aparèy sa a pa sipòte pataj pozisyon",
+      "geoDenied": "Yo refize pèmisyon pozisyon an",
+      "settlements": "Règleman peman",
+      "noSettlements": "Pa gen règleman peman pou kounye a",
+      "cashCollected": "Lajan kach yo kolekte",
+      "cashRemitted": "Lajan kach yo remèt",
+      "approve": "Apwouve",
+      "markPaid": "Make kòm peye",
+      "recordRemittance": "Anrejistre remèt lajan",
+      "settlementApproved": "Règleman peman an apwouve",
+      "settlementPaid": "Règleman peman an make kòm peye",
+      "remittanceRecorded": "Remèt lajan an anrejistre",
+      "paymentReferencePrompt": "Referans peman",
+      "remitPrompt": "Lajan kach yo remèt (espere {{amount}})",
+      "settlement_pending": "Annatant",
+      "settlement_approved": "Apwouve",
+      "settlement_paid": "Peye",
+      "settlement_disputed": "An diskisyon",
+      "settlement_voided": "Anile",
+      "createSettlement": "Kreye règleman peman",
+      "settlementCreated": "Règleman peman kreye",
+      "cashCollectedPrompt": "Lajan kach livrezè a kolekte (montan)"
     },
     "ownerHome": {
       "allClear": "Tout bagay anfòm. Anyen pa bezwen atansyon ou kounye a.",

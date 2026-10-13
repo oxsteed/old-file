@@ -19852,7 +19852,9 @@
       "payment": "Payment",
       "items": "Items",
       "total": "Total",
-      "printReceipt": "Print Receipt"
+      "printReceipt": "Print Receipt",
+      "runnerNearby": "Runner nearby",
+      "runnerUpdatedAgo": "location updated {{seconds}}s ago"
     },
     "payment": {
       "paid": "Paid",
@@ -20400,7 +20402,8 @@
       "confirmPay": "Confirm payment",
       "clear": "Clear",
       "cardTerminalRequired": "Card payments require a connected POS terminal. Use the POS app for card checkout.",
-      "amountGiven": "Amount given"
+      "amountGiven": "Amount given",
+      "syncDegraded": "Sync degraded: {{failed}} failed, {{pending}} pending, {{outbox}} unsent"
     },
     "inv": {
       "title": "Inventory",
@@ -20519,7 +20522,32 @@
       "issueType_other": "Other",
       "submit": "Submit",
       "noTasks": "No deliveries yet",
-      "issueSeverity": "Severity"
+      "issueSeverity": "Severity",
+      "proofRequired": "Proof of delivery is required before completing this task",
+      "shareLocation": "Share live location",
+      "stopSharing": "Stop sharing",
+      "geoUnsupported": "Location sharing is not supported on this device",
+      "geoDenied": "Location permission was denied",
+      "settlements": "Settlements",
+      "noSettlements": "No settlements yet",
+      "cashCollected": "Cash collected",
+      "cashRemitted": "Cash remitted",
+      "approve": "Approve",
+      "markPaid": "Mark paid",
+      "recordRemittance": "Record remittance",
+      "settlementApproved": "Settlement approved",
+      "settlementPaid": "Settlement marked paid",
+      "remittanceRecorded": "Remittance recorded",
+      "paymentReferencePrompt": "Payment reference",
+      "remitPrompt": "Cash remitted (expected {{amount}})",
+      "settlement_pending": "Pending",
+      "settlement_approved": "Approved",
+      "settlement_paid": "Paid",
+      "settlement_disputed": "Disputed",
+      "settlement_voided": "Voided",
+      "createSettlement": "Create settlement",
+      "settlementCreated": "Settlement created",
+      "cashCollectedPrompt": "Cash collected by the runner (amount)"
     },
     "ownerHome": {
       "allClear": "All clear. Nothing needs your attention right now.",

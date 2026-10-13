@@ -19852,7 +19852,9 @@
       "payment": "Paiement",
       "items": "Articles",
       "total": "Total",
-      "printReceipt": "Imprimer le reçu"
+      "printReceipt": "Imprimer le reçu",
+      "runnerNearby": "Livreur à proximité",
+      "runnerUpdatedAgo": "position mise à jour il y a {{seconds}} s"
     },
     "payment": {
       "paid": "Payée",
@@ -20400,7 +20402,8 @@
       "confirmPay": "Confirmer le paiement",
       "clear": "Effacer",
       "cardTerminalRequired": "Les paiements par carte nécessitent un terminal PDV connecté. Utilisez l'app PDV pour encaisser par carte.",
-      "amountGiven": "Montant reçu"
+      "amountGiven": "Montant reçu",
+      "syncDegraded": "Synchronisation dégradée : {{failed}} en échec, {{pending}} en attente, {{outbox}} non envoyées"
     },
     "inv": {
       "title": "Inventaire",
@@ -20519,7 +20522,32 @@
       "issueType_other": "Autre",
       "submit": "Soumettre",
       "noTasks": "Aucune livraison pour l'instant",
-      "issueSeverity": "Gravité"
+      "issueSeverity": "Gravité",
+      "proofRequired": "Une preuve de livraison est requise avant de terminer cette tâche",
+      "shareLocation": "Partager la position en direct",
+      "stopSharing": "Arrêter le partage",
+      "geoUnsupported": "Le partage de position n'est pas pris en charge sur cet appareil",
+      "geoDenied": "L'autorisation de localisation a été refusée",
+      "settlements": "Règlements",
+      "noSettlements": "Aucun règlement pour le moment",
+      "cashCollected": "Espèces collectées",
+      "cashRemitted": "Espèces remises",
+      "approve": "Approuver",
+      "markPaid": "Marquer comme payé",
+      "recordRemittance": "Enregistrer la remise",
+      "settlementApproved": "Règlement approuvé",
+      "settlementPaid": "Règlement marqué comme payé",
+      "remittanceRecorded": "Remise enregistrée",
+      "paymentReferencePrompt": "Référence de paiement",
+      "remitPrompt": "Espèces remises (attendu {{amount}})",
+      "settlement_pending": "En attente",
+      "settlement_approved": "Approuvé",
+      "settlement_paid": "Payé",
+      "settlement_disputed": "Contesté",
+      "settlement_voided": "Annulé",
+      "createSettlement": "Créer un règlement",
+      "settlementCreated": "Règlement créé",
+      "cashCollectedPrompt": "Espèces collectées par le livreur (montant)"
     },
     "ownerHome": {
       "allClear": "Tout est en ordre. Rien ne requiert votre attention pour le moment.",

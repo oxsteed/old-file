@@ -3287,7 +3287,37 @@ exports.closeShift = async (req, res, next) => {
                     FROM restaurant_pos_drawer_events de
                    WHERE de.shift_id = $1
                      AND de.event_type IN ('cash_out','cash_drop','payout')
-                ), 0)::int AS drawer_cash_out_cents
+                ), 0)::int AS drawer_cash_out_cents,
+                -- Cash that left the drawer as refunds: refunds linked to a cash
+                -- payment via metadata->>'originalPaymentId', plus generic
+                -- ledger refunds on orders whose settled payments were cash
+                -- (capped at the cash paid per order).
+                COALESCE((
+                  SELECT SUM(
+                           CASE
+                             WHEN op.payment_type = 'cash' THEN p.amount_cents
+                             WHEN p.metadata->>'originalPaymentId' IS NULL
+                               THEN LEAST(p.amount_cents, cashpaid.cash_paid_cents)
+                             ELSE 0
+                           END
+                         )
+                    FROM restaurant_pos_payments p
+                    LEFT JOIN restaurant_pos_payments op
+                      ON op.id::text = p.metadata->>'originalPaymentId'
+                    LEFT JOIN LATERAL (
+                      SELECT COALESCE(SUM(q.amount_cents), 0)::int AS cash_paid_cents
+                        FROM restaurant_pos_payments q
+                       WHERE q.food_order_id = p.food_order_id
+                         AND q.payment_type = 'cash'
+                         AND q.status IN ('recorded','captured')
+                    ) cashpaid ON TRUE
+                   WHERE p.shift_id = $1
+                     AND p.payment_type = 'refund'
+                     AND p.status IN ('recorded','captured','refunded')
+                     AND (op.payment_type = 'cash'
+                          OR (p.metadata->>'originalPaymentId' IS NULL
+                              AND cashpaid.cash_paid_cents > 0))
+                ), 0)::int AS cash_refunds_cents
            FROM restaurant_pos_payments p
           WHERE p.shift_id = $1`,
         [shiftId]
@@ -3301,13 +3331,17 @@ exports.closeShift = async (req, res, next) => {
       const expectedCashCents = Number(currentShift.opening_cash_cents || 0)
         + Number(summary.cash_payments_cents || 0)
         + Number(summary.drawer_cash_in_cents || 0)
-        - Number(summary.drawer_cash_out_cents || 0);
+        - Number(summary.drawer_cash_out_cents || 0)
+        // Cash refunds reduce the drawer; they were previously ignored, which
+        // inflated the expected cash and produced phantom over/short gaps.
+        - Number(summary.cash_refunds_cents || 0);
       const cashOverShortCents = closingCashCents - expectedCashCents;
       const closeSummary = {
         ...safeJson(req.body.metadata),
         expectedCashCents,
         closingCashCents,
         cashOverShortCents,
+        cashRefundsCents: Number(summary.cash_refunds_cents || 0),
         settledPaymentsCents: Number(summary.settled_payments_cents || 0),
         refundsCents: Number(summary.refunds_cents || 0),
         paidOrderCount: Number(summary.paid_order_count || 0),
@@ -4616,8 +4650,11 @@ exports.recordPosPayment = async (req, res, next) => {
       if (['voided', 'refunded'].includes(order.pos_ticket_state) || order.status === 'cancelled') {
         throw new AppError('This ticket cannot accept payments', 409, 'ticket_not_payable');
       }
-      if (shiftId || !MANAGE_ROLES.has(restaurant.effective_role)) {
-        await requireOpenPosShift(client, restaurantId, shiftId, req.user.id, MANAGE_ROLES.has(restaurant.effective_role));
+      // Managers may record payments without an open shift. Non-managers are
+      // already rejected by assertManage above, so the old
+      // `!MANAGE_ROLES.has(...)` disjunct here was dead.
+      if (shiftId) {
+        await requireOpenPosShift(client, restaurantId, shiftId, req.user.id, true);
       }
       const { rows: [ledger] } = await client.query(
         `SELECT COALESCE(SUM(amount_cents) FILTER (
@@ -4717,6 +4754,38 @@ exports.recordPosPayment = async (req, res, next) => {
           paymentContract,
         });
         if (oxsteedCreditRefund) return oxsteedCreditRefund;
+        // A generic (ledger-only) refund must never silently cover a
+        // processor-backed card payment: the ledger would say "refunded"
+        // while the customer's card was never actually refunded through
+        // Stripe Terminal. Fail closed and route the operator to the card
+        // refund endpoint.
+        const { rows: [processorCard] } = await client.query(
+          `SELECT COALESCE(SUM(p.amount_cents), 0)::int AS captured_cents,
+                  COALESCE((
+                    SELECT SUM(r.amount_cents)
+                      FROM restaurant_pos_payments r
+                     WHERE r.restaurant_id = p.restaurant_id
+                       AND r.food_order_id = p.food_order_id
+                       AND r.payment_type = 'refund'
+                       AND r.status IN ('pending','recorded','captured','refunded')
+                       AND r.metadata->>'originalPaymentId' = p.id::text
+                  ), 0)::int AS refunded_cents
+             FROM restaurant_pos_payments p
+            WHERE p.restaurant_id = $1
+              AND p.food_order_id = $2
+              AND p.payment_type = 'card'
+              AND p.provider_payment_intent_id IS NOT NULL
+              AND p.status IN ('recorded','captured')`,
+          [restaurantId, orderId]
+        );
+        if (processorCard
+          && Number(processorCard.captured_cents || 0) - Number(processorCard.refunded_cents || 0) > 0) {
+          throw new AppError(
+            'This order has processor-backed card payments. Refund them through the card refund endpoint, not the generic refund.',
+            409,
+            'card_payment_requires_processor_refund'
+          );
+        }
       }
 
       if (paymentType === 'wallet_credit') {
@@ -7263,9 +7332,12 @@ exports.updateRunnerDispatch = async (req, res, next) => {
                   WHEN $6::timestamptz IS NOT NULL AND $6::timestamptz > NOW() THEN $6::timestamptz
                   ELSE delivery_eta_at
                 END,
-                handoff_at = CASE WHEN $7 = TRUE THEN NOW() ELSE handoff_at END,
+                -- handoff_at is intentionally left untouched here: markHandoff
+                -- requests are rejected above (409 runner_proof_required) so
+                -- customer handoff can only be recorded via task completion or
+                -- proof submission. The old CASE WHEN $7 branch was dead.
                 updated_at = NOW()
-          WHERE restaurant_id = $8 AND id = $9
+          WHERE restaurant_id = $7 AND id = $8
           RETURNING *`,
         [
           release,
@@ -7274,7 +7346,6 @@ exports.updateRunnerDispatch = async (req, res, next) => {
           normalizeString(req.body.routeWindow || req.body.route_window, 80),
           req.body.pickupEtaAt || req.body.pickup_eta_at || null,
           req.body.deliveryEtaAt || req.body.delivery_eta_at || null,
-          markHandoff,
           restaurantId,
           taskId,
         ]
@@ -7676,21 +7747,59 @@ exports.upsertRunnerSettlement = async (req, res, next) => {
         if (newCash !== oldCash) {
           throw new AppError('Paid settlement financials are frozen', 409, 'settlement_frozen');
         }
+        const newRemitted = Number(
+          req.body.cashRemittedCents ?? req.body.cash_remitted_cents ?? existingSettlement.cash_remitted_cents ?? 0
+        );
+        const oldRemitted = Number(existingSettlement.cash_remitted_cents || 0);
+        if (Number.isFinite(newRemitted) && newRemitted !== oldRemitted) {
+          throw new AppError('Paid settlement financials are frozen', 409, 'settlement_frozen');
+        }
       }
       // Require payment reference for paid settlements with non-zero amounts.
       const paymentReference = normalizeString(req.body.paymentReference || req.body.payment_reference, 200);
+      // P2-4-F08: remittance reconciliation. cash_collected_cents is the
+      // runner's self-report; cash_remitted_cents is manager-recorded (what
+      // the runner actually handed back to the drawer). Only a manager may
+      // record remittance.
+      const cashRemittedCents = parseCents(
+        req.body.cashRemittedCents ?? req.body.cash_remitted_cents,
+        'cashRemittedCents',
+        0
+      );
+      if (cashRemittedCents > 0 && !canManage) {
+        throw new AppError('Only a manager can record cash remittance', 403, 'forbidden');
+      }
       const totalCents = Number(task.delivery_fee_cents || 0) + Number(task.tip_cents || 0) + Number(cashCollectedCents || 0);
       if (status === 'paid' && totalCents > 0 && !paymentReference && !existingSettlement?.payment_reference) {
         throw new AppError('Payment reference is required for paid settlements', 400, 'payment_reference_required');
       }
+      // Fail closed: a settlement may only be marked paid once the manager
+      // has recorded remittance covering the reported cash collection.
+      const effectiveCashCollected = existingSettlement?.status === 'paid'
+        ? Number(existingSettlement.cash_collected_cents || 0)
+        : Number(cashCollectedCents || 0);
+      const effectiveCashRemitted = cashRemittedCents > 0
+        ? cashRemittedCents
+        : Number(existingSettlement?.cash_remitted_cents || 0);
+      if (status === 'paid' && effectiveCashCollected > 0 && effectiveCashRemitted < effectiveCashCollected) {
+        throw new AppError(
+          'Cash remittance must cover the reported cash collection before the settlement can be marked paid',
+          409,
+          'cash_remittance_required'
+        );
+      }
       const { rows: [updated] } = await client.query(
         `INSERT INTO restaurant_runner_settlements
          (restaurant_id, task_id, food_order_id, runner_user_id, delivery_fee_cents, tip_cents,
-          cash_collected_cents, status, note, approved_by, approved_at, paid_at, payment_reference, metadata)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,
-               CASE WHEN $8 = 'approved' THEN NOW() ELSE NULL END,
-               CASE WHEN $8 = 'paid' THEN NOW() ELSE NULL END,
-               $12, $11)
+          cash_collected_cents, cash_remitted_cents, remitted_at, remitted_by,
+          status, note, approved_by, approved_at, paid_at, payment_reference, metadata)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,
+               CASE WHEN $8 > 0 THEN NOW() ELSE NULL END,
+               CASE WHEN $8 > 0 THEN $9 ELSE NULL END,
+               $10,$11,$12,
+               CASE WHEN $10 = 'approved' THEN NOW() ELSE NULL END,
+               CASE WHEN $10 = 'paid' THEN NOW() ELSE NULL END,
+               $14, $13)
        ON CONFLICT (restaurant_id, task_id) WHERE task_id IS NOT NULL
        DO UPDATE SET food_order_id = EXCLUDED.food_order_id,
                      runner_user_id = EXCLUDED.runner_user_id,
@@ -7698,6 +7807,9 @@ exports.upsertRunnerSettlement = async (req, res, next) => {
                      delivery_fee_cents = CASE WHEN restaurant_runner_settlements.status = 'paid' THEN restaurant_runner_settlements.delivery_fee_cents ELSE EXCLUDED.delivery_fee_cents END,
                      tip_cents = CASE WHEN restaurant_runner_settlements.status = 'paid' THEN restaurant_runner_settlements.tip_cents ELSE EXCLUDED.tip_cents END,
                      cash_collected_cents = CASE WHEN restaurant_runner_settlements.status = 'paid' THEN restaurant_runner_settlements.cash_collected_cents ELSE EXCLUDED.cash_collected_cents END,
+                     cash_remitted_cents = CASE WHEN restaurant_runner_settlements.status = 'paid' THEN restaurant_runner_settlements.cash_remitted_cents ELSE EXCLUDED.cash_remitted_cents END,
+                     remitted_at = CASE WHEN restaurant_runner_settlements.status = 'paid' THEN restaurant_runner_settlements.remitted_at ELSE EXCLUDED.remitted_at END,
+                     remitted_by = CASE WHEN restaurant_runner_settlements.status = 'paid' THEN restaurant_runner_settlements.remitted_by ELSE EXCLUDED.remitted_by END,
                      status = EXCLUDED.status,
                      note = EXCLUDED.note,
                      approved_by = COALESCE(EXCLUDED.approved_by, restaurant_runner_settlements.approved_by),
@@ -7714,6 +7826,8 @@ exports.upsertRunnerSettlement = async (req, res, next) => {
           Number(task.delivery_fee_cents || 0),
           Number(task.tip_cents || 0),
           cashCollectedCents,
+          effectiveCashRemitted,
+          req.user.id,
           status,
           normalizeString(req.body.note, 1000),
           ['approved', 'paid'].includes(status) ? req.user.id : null,

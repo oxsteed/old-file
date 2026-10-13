@@ -39,6 +39,18 @@ function asBool(value, fallback = false) {
   return fallback;
 }
 
+// Delivery proof must be an attested method, not an arbitrary string. The
+// runner page posts `method` (older clients post `proof_type`); both are
+// accepted and normalized to the allowlist.
+const RUNNER_PROOF_METHODS = new Set(['photo', 'signature', 'customer_name', 'delivery', 'note']);
+
+function normalizeProofMethod(value) {
+  const raw = normalizeString(value, 40);
+  if (!raw) return null;
+  const canonical = raw.toLowerCase().replace(/[\s-]+/g, '_');
+  return RUNNER_PROOF_METHODS.has(canonical) ? canonical : null;
+}
+
 function parseAmount(value, field = 'amount') {
   if (value === undefined || value === null || value === '') return 0;
   const n = Number(value);
@@ -432,14 +444,26 @@ exports.logProof = async (req, res, next) => {
     // M14: logProof completes the task, so it must obey the transition map
     // (only 'En route' -> 'Completed' is legal), not a wider allowlist.
     assertLegalRunnerCompletion(task.status);
+    // Proof is self-attested, so require both a known method and a written
+    // note. An unknown method or an empty note is a formally bypassable
+    // proof and is rejected.
+    const proofMethod = normalizeProofMethod(req.body.method ?? req.body.proof_type);
+    if (!proofMethod) {
+      throw new AppError('Validation failed', 400, 'validation_failed', {
+        method: `Proof method must be one of: ${[...RUNNER_PROOF_METHODS].join(', ')}`,
+      });
+    }
+    const proofNote = normalizeString(req.body.note, 2000);
+    if (!proofNote) {
+      throw new AppError('A proof note is required when logging delivery proof', 400, 'proof_note_required');
+    }
     const result = await withTransaction(pool, async (client) => {
       const { rows: [proof] } = await client.query(
         `INSERT INTO restaurant_runner_proofs
            (restaurant_id, task_id, method, note, created_by)
          VALUES ($1,$2,$3,$4,$5)
          RETURNING *`,
-        [restaurantId, taskId, normalizeString(req.body.method, 40) || 'Photo / signature',
-          normalizeString(req.body.note, 2000), req.user.id]
+        [restaurantId, taskId, proofMethod, proofNote, req.user.id]
       );
       const { rows: [updatedTask] } = await client.query(
         `UPDATE restaurant_runner_tasks

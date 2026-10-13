@@ -882,12 +882,19 @@ async function syncDeliveryRunnerTaskForOrderStatus(client, { order, createdBy }
                 WHEN $3 = 'Cancelled' AND status <> 'Completed' THEN 'Cancelled'
                 ELSE status
               END,
+              -- cash_collection_required was frozen at task creation. If the
+              -- order has since been marked paid, the runner must no longer be
+              -- asked to collect cash.
+              cash_collection_required = CASE
+                WHEN $4 = 'paid' THEN FALSE
+                ELSE cash_collection_required
+              END,
               updated_at = NOW()
         WHERE restaurant_id = $1
           AND food_order_id = $2
           AND task_type = 'Delivery'
         RETURNING *`,
-      [order.restaurant_id, order.id, runnerStatus]
+      [order.restaurant_id, order.id, runnerStatus, order.payment_status]
     );
     return updatedTask || runnerTask;
   } catch (err) {
@@ -1224,6 +1231,13 @@ function publicTrackedOrder(order) {
     restaurant_name: order.restaurant_name,
     prep_time_min: order.prep_time_min,
     has_review: order.has_review,
+    runner_location: order.runner_location
+      ? {
+        latitude: Number(order.runner_location.latitude),
+        longitude: Number(order.runner_location.longitude),
+        capturedAt: order.runner_location.capturedAt,
+      }
+      : null,
     items: Array.isArray(order.items)
       ? order.items.map((item) => ({
         id: item.id,
@@ -5651,6 +5665,29 @@ exports.getTrackedOrder = async (req, res, next) => {
     let order = rows[0];
     if (!order) throw new AppError('Order not found', 404, 'order_not_found');
     order = await syncFoodOrderPaymentStatus(order);
+    // Live runner location: the latest ping is only surfaced while the
+    // delivery is actually en route and the ping is fresh (10 minutes).
+    // Location tracking is write-only on the server otherwise.
+    const { rows: [runnerLocation] } = await pool.query(
+      `SELECT p.latitude, p.longitude, p.captured_at
+         FROM restaurant_runner_location_pings p
+         JOIN restaurant_runner_tasks t
+           ON t.id = p.task_id AND t.restaurant_id = p.restaurant_id
+        WHERE t.food_order_id = $1
+          AND t.task_type = 'Delivery'
+          AND t.status = 'En route'
+          AND p.captured_at > NOW() - INTERVAL '10 minutes'
+        ORDER BY p.captured_at DESC
+        LIMIT 1`,
+      [order.id]
+    );
+    if (runnerLocation) {
+      order.runner_location = {
+        latitude: Number(runnerLocation.latitude),
+        longitude: Number(runnerLocation.longitude),
+        capturedAt: runnerLocation.captured_at,
+      };
+    }
     res.json({ order: publicTrackedOrder(order) });
   } catch (err) {
     next(err);

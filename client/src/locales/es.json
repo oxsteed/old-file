@@ -19852,7 +19852,9 @@
       "payment": "Pago",
       "items": "Artículos",
       "total": "Total",
-      "printReceipt": "Imprimir recibo"
+      "printReceipt": "Imprimir recibo",
+      "runnerNearby": "Repartidor cerca",
+      "runnerUpdatedAgo": "ubicación actualizada hace {{seconds}} s"
     },
     "payment": {
       "paid": "Pagado",
@@ -20400,7 +20402,8 @@
       "confirmPay": "Confirmar pago",
       "clear": "Borrar",
       "cardTerminalRequired": "Los pagos con tarjeta requieren un terminal POS conectado. Usa la app POS para cobrar con tarjeta.",
-      "amountGiven": "Importe recibido"
+      "amountGiven": "Importe recibido",
+      "syncDegraded": "Sincronización degradada: {{failed}} fallidas, {{pending}} pendientes, {{outbox}} sin enviar"
     },
     "inv": {
       "title": "Inventario",
@@ -20519,7 +20522,32 @@
       "issueType_other": "Otro",
       "submit": "Enviar",
       "noTasks": "Sin entregas aún",
-      "issueSeverity": "Gravedad"
+      "issueSeverity": "Gravedad",
+      "proofRequired": "Se requiere una prueba de entrega antes de completar esta tarea",
+      "shareLocation": "Compartir ubicación en vivo",
+      "stopSharing": "Dejar de compartir",
+      "geoUnsupported": "Este dispositivo no admite compartir la ubicación",
+      "geoDenied": "Se denegó el permiso de ubicación",
+      "settlements": "Liquidaciones",
+      "noSettlements": "Aún no hay liquidaciones",
+      "cashCollected": "Efectivo cobrado",
+      "cashRemitted": "Efectivo entregado",
+      "approve": "Aprobar",
+      "markPaid": "Marcar como pagado",
+      "recordRemittance": "Registrar entrega",
+      "settlementApproved": "Liquidación aprobada",
+      "settlementPaid": "Liquidación marcada como pagada",
+      "remittanceRecorded": "Entrega registrada",
+      "paymentReferencePrompt": "Referencia de pago",
+      "remitPrompt": "Efectivo entregado (esperado {{amount}})",
+      "settlement_pending": "Pendiente",
+      "settlement_approved": "Aprobada",
+      "settlement_paid": "Pagada",
+      "settlement_disputed": "En disputa",
+      "settlement_voided": "Anulada",
+      "createSettlement": "Crear liquidación",
+      "settlementCreated": "Liquidación creada",
+      "cashCollectedPrompt": "Efectivo cobrado por el repartidor (monto)"
     },
     "ownerHome": {
       "allClear": "Todo en orden. Nada requiere tu atención ahora mismo.",

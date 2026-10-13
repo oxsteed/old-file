@@ -19863,7 +19863,9 @@
       "payment": "الدفع",
       "items": "الأصناف",
       "total": "الإجمالي",
-      "printReceipt": "طباعة الإيصال"
+      "printReceipt": "طباعة الإيصال",
+      "runnerNearby": "الساعي قريب",
+      "runnerUpdatedAgo": "تم تحديث الموقع قبل {{seconds}} ث"
     },
     "payment": {
       "paid": "مدفوع",
@@ -20411,7 +20413,8 @@
       "confirmPay": "تأكيد الدفع",
       "clear": "مسح",
       "cardTerminalRequired": "تتطلب مدفوعات البطاقات طرفية نقاط بيع متصلة. استخدم تطبيق نقاط البيع للدفع بالبطاقة.",
-      "amountGiven": "المبلغ المستلم"
+      "amountGiven": "المبلغ المستلم",
+      "syncDegraded": "المزامنة متدهورة: {{failed}} فاشلة، {{pending}} معلقة، {{outbox}} غير مرسلة"
     },
     "inv": {
       "title": "المخزون",
@@ -20530,7 +20533,32 @@
       "issueType_other": "أخرى",
       "submit": "إرسال",
       "noTasks": "لا توجد عمليات توصيل بعد",
-      "issueSeverity": "الخطورة"
+      "issueSeverity": "الخطورة",
+      "proofRequired": "يلزم إثبات التسليم قبل إتمام هذه المهمة",
+      "shareLocation": "مشاركة الموقع المباشر",
+      "stopSharing": "إيقاف المشاركة",
+      "geoUnsupported": "مشاركة الموقع غير مدعومة على هذا الجهاز",
+      "geoDenied": "تم رفض إذن الموقع",
+      "settlements": "التسويات",
+      "noSettlements": "لا توجد تسويات بعد",
+      "cashCollected": "النقد المُحصَّل",
+      "cashRemitted": "النقد المُسلَّم",
+      "approve": "اعتماد",
+      "markPaid": "تعيين كمدفوع",
+      "recordRemittance": "تسجيل التسليم",
+      "settlementApproved": "تم اعتماد التسوية",
+      "settlementPaid": "تم تعيين التسوية كمدفوعة",
+      "remittanceRecorded": "تم تسجيل التسليم",
+      "paymentReferencePrompt": "مرجع الدفع",
+      "remitPrompt": "النقد المُسلَّم (المتوقع {{amount}})",
+      "settlement_pending": "قيد الانتظار",
+      "settlement_approved": "معتمدة",
+      "settlement_paid": "مدفوعة",
+      "settlement_disputed": "متنازع عليها",
+      "settlement_voided": "ملغاة",
+      "createSettlement": "إنشاء تسوية",
+      "settlementCreated": "تم إنشاء التسوية",
+      "cashCollectedPrompt": "النقد الذي حصّله الساعي (المبلغ)"
     },
     "ownerHome": {
       "allClear": "كل شيء على ما يرام. لا شيء يحتاج إلى انتباهك الآن.",
