@@ -7,7 +7,7 @@ jest.mock('../services/crossSurfaceBusy', () => ({
   loadCrossSurfaceBusy: jest.fn(async () => []),
   loadBookingBuffers: jest.fn(async () => new Map()),
 }));
-const { computeServiceSlots, expireHolds, createHold, resolveEligibleAssignees } = require('../services/directSlotEngine');
+const { computeServiceSlots, expireHolds, createHold, resolveEligibleAssignees, filterBookingAllowed, loadMemberTemplates, freeMembersForSlot } = require('../services/directSlotEngine');
 const db = require('../db');
 
 beforeEach(() => resetMocks());
@@ -84,6 +84,7 @@ describe('directSlotEngine', () => {
           role: 'helper',
         }],
       })
+      .mockResolvedValueOnce({ rows: [] }) // filterBookingAllowed: nobody opted out
       .mockResolvedValueOnce({
         rows: [{
           id: 1,
@@ -102,7 +103,10 @@ describe('directSlotEngine', () => {
           status: 'scheduled',
         }],
       })
-      .mockResolvedValueOnce({ rows: [] });
+      .mockResolvedValueOnce({ rows: [] }) // busy holds
+      .mockResolvedValueOnce({ rows: [] }) // member templates: none configured
+      .mockResolvedValueOnce({ rows: [] }) // template overrides
+      .mockResolvedValueOnce({ rows: [] }); // member timezones
 
     const result = await computeServiceSlots({
       serviceId: 'svc-1',
@@ -143,8 +147,9 @@ describe('directSlotEngine', () => {
 
     // createHold uses pool.connect() → same mockQuery sequence:
     // BEGIN, expireHolds DELETE, loadServiceRow, loadAssignee roles, assignees,
-    // resolveEligibleAssignees, loadCalendarBlocks, loadBusy jobs, holds,
-    // (slot match found), loadAssignee again, resolve again, busy again,
+    // resolveEligibleAssignees, filterBookingAllowed, loadCalendarBlocks,
+    // loadBusy jobs, holds, member templates (slot match found), loadAssignee
+    // again, resolve again, filterBookingAllowed, busy again, member templates,
     // advisory lock, busyAfter → occupied → 409
     mockQuery
       .mockResolvedValueOnce({ rows: [], rowCount: 0 }) // BEGIN
@@ -171,6 +176,7 @@ describe('directSlotEngine', () => {
       .mockResolvedValueOnce({
         rows: [{ id: userId, first_name: 'Eli', last_name: 'Electric', email: 'eli@ox.test', role: 'helper' }],
       })
+      .mockResolvedValueOnce({ rows: [] }) // filterBookingAllowed: nobody opted out
       .mockResolvedValueOnce({
         rows: [{
           id: 1,
@@ -182,6 +188,9 @@ describe('directSlotEngine', () => {
       })
       .mockResolvedValueOnce({ rows: [] }) // busy jobs (slot scan)
       .mockResolvedValueOnce({ rows: [] }) // busy holds (slot scan)
+      .mockResolvedValueOnce({ rows: [] }) // member templates (slot scan)
+      .mockResolvedValueOnce({ rows: [] }) // template overrides (slot scan)
+      .mockResolvedValueOnce({ rows: [] }) // member timezones (slot scan)
       // Bookable gate: second loadServiceRow
       .mockResolvedValueOnce({
         rows: [{
@@ -206,8 +215,12 @@ describe('directSlotEngine', () => {
       .mockResolvedValueOnce({
         rows: [{ id: userId, first_name: 'Eli', last_name: 'Electric', email: 'eli@ox.test', role: 'helper' }],
       })
+      .mockResolvedValueOnce({ rows: [] }) // filterBookingAllowed: nobody opted out
       .mockResolvedValueOnce({ rows: [] }) // busy jobs before lock
       .mockResolvedValueOnce({ rows: [] }) // busy holds before lock
+      .mockResolvedValueOnce({ rows: [] }) // member templates before lock
+      .mockResolvedValueOnce({ rows: [] }) // template overrides before lock
+      .mockResolvedValueOnce({ rows: [] }) // member timezones before lock
       .mockResolvedValueOnce({ rows: [{ pg_advisory_xact_lock: 1 }] }) // lock
       .mockResolvedValueOnce({ rows: [] }) // busyAfter jobs
       .mockResolvedValueOnce({
@@ -268,6 +281,101 @@ describe('directSlotEngine', () => {
     expect(members).toEqual([]);
     const [sql] = mockQuery.mock.calls[0];
     expect(sql).toMatch(/direct_service_assignees/);
+  });
+
+  // Review P1-6-F03: helpers who switched booking off never enter dispatch.
+  test('filterBookingAllowed drops opted-out helpers, keeps everyone else', async () => {
+    const optedOut = '00000000-0000-4000-8000-0000000000a1';
+    const noRow = '00000000-0000-4000-8000-0000000000a2';
+    const allowed = '00000000-0000-4000-8000-0000000000a3';
+    mockQuery.mockResolvedValueOnce({ rows: [{ user_id: optedOut }] });
+    const members = [
+      { id: optedOut, name: 'Off' },
+      { id: noRow, name: 'NoRow' },
+      { id: allowed, name: 'On' },
+    ];
+    const kept = await filterBookingAllowed(members, db);
+    expect(kept.map((m) => m.id).sort()).toEqual([allowed, noRow].sort());
+    const [sql] = mockQuery.mock.calls[0];
+    expect(sql).toMatch(/helper_profiles/);
+    expect(sql).toMatch(/allow_booking/);
+  });
+
+  test('filterBookingAllowed is a no-op when nobody opted out', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [] });
+    const members = [{ id: '00000000-0000-4000-8000-0000000000a1', name: 'A' }];
+    const kept = await filterBookingAllowed(members, db);
+    expect(kept).toHaveLength(1);
+  });
+
+  // Review P1-5-F03: crew availability templates bound dispatch.
+  describe('member availability templates', () => {
+    // Monday 2030-01-07 (UTC); member works Mon 09:00-17:00 in UTC.
+    const MEMBER = '00000000-0000-4000-8000-0000000000b1';
+    const OTHER = '00000000-0000-4000-8000-0000000000b2';
+    const mondayAt = (h, m = 0) => new Date(Date.UTC(2030, 0, 7, h, m, 0));
+    const sundayAt = (h) => new Date(Date.UTC(2030, 0, 6, h, 0, 0));
+
+    function templateMap(overrides) {
+      return new Map([[
+        MEMBER,
+        {
+          byDay: new Map([[1, [{ start: 540, end: 1020 }]]]),
+          overrides: overrides || new Map(),
+          timeZone: 'UTC',
+        },
+      ]]);
+    }
+
+    const busy = { jobs: [], holds: [] };
+    const members = [
+      { id: MEMBER, name: 'Templated' },
+      { id: OTHER, name: 'NoTemplate' },
+    ];
+
+    test('member with a template is only free inside it', () => {
+      const templates = templateMap();
+      const freeIn = freeMembersForSlot(members, busy, mondayAt(10), mondayAt(12), templates);
+      expect(freeIn.map((m) => m.id).sort()).toEqual([MEMBER, OTHER].sort());
+      const freeOut = freeMembersForSlot(members, busy, mondayAt(18), mondayAt(19), templates);
+      expect(freeOut.map((m) => m.id)).toEqual([OTHER]);
+      const freeSunday = freeMembersForSlot(members, busy, sundayAt(10), sundayAt(12), templates);
+      expect(freeSunday.map((m) => m.id)).toEqual([OTHER]);
+    });
+
+    test('whole-day blocked override removes the member', () => {
+      const templates = templateMap(new Map([['2030-01-07', [{ isBlocked: true, start: null, end: null }]]]));
+      const free = freeMembersForSlot(members, busy, mondayAt(10), mondayAt(12), templates);
+      expect(free.map((m) => m.id)).toEqual([OTHER]);
+    });
+
+    test('opening override adds availability outside the template', () => {
+      const templates = templateMap(new Map([['2030-01-06', [{ isBlocked: false, start: 600, end: 720 }]]]));
+      const free = freeMembersForSlot(members, busy, sundayAt(10), sundayAt(12), templates);
+      expect(free.map((m) => m.id).sort()).toEqual([MEMBER, OTHER].sort());
+    });
+
+    test('no templates map means no filtering (back-compat)', () => {
+      const free = freeMembersForSlot(members, busy, sundayAt(10), sundayAt(12));
+      expect(free.map((m) => m.id).sort()).toEqual([MEMBER, OTHER].sort());
+    });
+
+    test('loadMemberTemplates builds the per-member template map', async () => {
+      mockQuery.mockImplementation(async (sql) => {
+        if (/FROM helper_availability_overrides/.test(sql)) return { rows: [] };
+        if (/FROM helper_availability/.test(sql)) {
+          return { rows: [{ user_id: MEMBER, day_of_week: 1, start_min: 540, end_min: 1020 }] };
+        }
+        if (/FROM users/.test(sql)) return { rows: [{ user_id: MEMBER, timezone: 'UTC' }] };
+        return { rows: [] };
+      });
+      const map = await loadMemberTemplates([MEMBER, OTHER], mondayAt(0), mondayAt(23), db);
+      expect(map.has(MEMBER)).toBe(true);
+      expect(map.has(OTHER)).toBe(false);
+      const entry = map.get(MEMBER);
+      expect(entry.byDay.get(1)).toEqual([{ start: 540, end: 1020 }]);
+      expect(entry.timeZone).toBe('UTC');
+    });
   });
 
 });

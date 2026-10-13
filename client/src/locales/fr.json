@@ -6940,7 +6940,9 @@
       "fields": {
         "start": "Début",
         "end": "Fin",
-        "role": "Rôle"
+        "role": "Rôle",
+        "staff": "Membre de l’équipe",
+        "staffPlaceholder": "Sélectionnez un membre de l’équipe"
       },
       "emptyShifts": "Aucun shift planifié pour l’instant.",
       "emptyTime": "Aucun pointage pour l’instant. Utilisez « Pointer » pour commencer.",
@@ -6961,7 +6963,8 @@
       "toastClockedIn": "Pointage d’entrée effectué !",
       "toastClockInFail": "Impossible de pointer",
       "toastClockedOut": "Pointage de sortie effectué !",
-      "toastClockOutFail": "Impossible de pointer la sortie"
+      "toastClockOutFail": "Impossible de pointer la sortie",
+      "toastStaffRequired": "Veuillez sélectionner un membre de l’équipe"
     },
     "integrations": {
       "title": "Intégrations et paramètres",

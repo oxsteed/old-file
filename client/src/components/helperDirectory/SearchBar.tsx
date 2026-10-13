@@ -40,7 +40,7 @@ const SearchBar: React.FC<SearchBarProps> = ({
   // localStorage recent searches when the input is focused and empty.
   // Review P1-223: live skill suggestions from the server typeahead, merged
   // after the local tiles/categories.
-  const [remoteSkills, setRemoteSkills] = useState<{ name: string }[]>([]);
+  const [remoteSkills, setRemoteSkills] = useState<{ name: string; category?: string }[]>([]);
   useEffect(() => {
     const term = (value || '').trim();
     if (term.length < 2) { setRemoteSkills([]); return undefined; }
@@ -54,7 +54,7 @@ const SearchBar: React.FC<SearchBarProps> = ({
   }, [value]);
 
   const suggestItems = useMemo(() => {
-    const items: { id: string; title: string; icon?: React.ReactNode }[] = [];
+    const items: { id: string; title: string; meta?: string; icon?: React.ReactNode }[] = [];
     for (const tile of tiles || []) {
       items.push({
         id: `tile:${tile.id}`,
@@ -70,7 +70,13 @@ const SearchBar: React.FC<SearchBarProps> = ({
       const name = String(skill?.name || '');
       if (!name || seen.has(name.toLowerCase())) continue;
       seen.add(name.toLowerCase());
-      items.push({ id: `skill:${name}`, title: name });
+      items.push({
+        id: `skill:${name}`,
+        title: name,
+        // Review P1-7-F02: surface the skill category so same-named skills
+        // across categories stay distinguishable in the typeahead.
+        meta: skill?.category ? String(skill.category) : undefined,
+      });
     }
     return items;
   }, [tiles, categories, remoteSkills]);
@@ -92,6 +98,9 @@ const SearchBar: React.FC<SearchBarProps> = ({
           recentsKey="oxsteed_helper_recent_searches"
           placeholder={resolvedPlaceholder}
           ariaLabel={t('helpersDir.searchAria')}
+          // Review P1-7-F02: room for the live server suggestions alongside
+          // the local tiles/categories (the dropdown default is 6).
+          maxResults={8}
         />
       </div>
       {value && (

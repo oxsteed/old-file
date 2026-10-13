@@ -8,6 +8,13 @@
 const crypto = require('crypto');
 const db = require('../db');
 const { generatePublicReference } = require('../utils/directQuote');
+const {
+  zonedParts,
+  zonedDateStr,
+  zonedDayStartUTC,
+  addDaysISO,
+  resolveTimeZone,
+} = require('./helperAvailabilityService');
 
 const DISPATCH_ROLES = ['helper', 'helper_pro', 'broker', 'admin', 'super_admin'];
 const TERMINAL_STATUSES = ['cancelled', 'closed', 'completed'];
@@ -194,6 +201,171 @@ async function loadBusyIntervals(userIds, from, to, executor = db) {
   };
 }
 
+// Review P1-5-F03 (templates): a crew member who configured a weekly
+// availability template (helper_availability + helper_availability_overrides)
+// is only offered for slots inside their template. Members with no template
+// stay eligible (fail-open: preserves today's behavior for crews that never
+// configured one).
+async function loadMemberTemplates(userIds, from, to, executor = db) {
+  const ids = [...new Set((userIds || []).filter(Boolean).map(String))];
+  if (!ids.length) return new Map();
+  const fromDate = new Date(from).toISOString().slice(0, 10);
+  const toDate = new Date(to).toISOString().slice(0, 10);
+  const [{ rows: tplRows }, { rows: ovRows }, { rows: tzRows }] = await Promise.all([
+    executor.query(
+      `SELECT helper_id::text AS user_id, day_of_week,
+              EXTRACT(HOUR FROM start_time)::int * 60 + EXTRACT(MINUTE FROM start_time)::int AS start_min,
+              EXTRACT(HOUR FROM end_time)::int * 60 + EXTRACT(MINUTE FROM end_time)::int AS end_min
+         FROM helper_availability
+        WHERE helper_id = ANY($1::uuid[]) AND is_active = TRUE`,
+      [ids]
+    ),
+    executor.query(
+      `SELECT helper_id::text AS user_id, override_date::text AS override_date, is_blocked,
+              CASE WHEN start_time IS NULL THEN NULL
+                   ELSE EXTRACT(HOUR FROM start_time)::int * 60 + EXTRACT(MINUTE FROM start_time)::int END AS start_min,
+              CASE WHEN end_time IS NULL THEN NULL
+                   ELSE EXTRACT(HOUR FROM end_time)::int * 60 + EXTRACT(MINUTE FROM end_time)::int END AS end_min
+         FROM helper_availability_overrides
+        WHERE helper_id = ANY($1::uuid[])
+          AND override_date BETWEEN ($2::date - INTERVAL '1 day') AND ($3::date + INTERVAL '1 day')`,
+      [ids, fromDate, toDate]
+    ),
+    executor.query(
+      `SELECT id::text AS user_id, timezone FROM users WHERE id = ANY($1::uuid[])`,
+      [ids]
+    ),
+  ]);
+  const map = new Map();
+  const entry = (uid) => {
+    let e = map.get(uid);
+    if (!e) {
+      e = { byDay: new Map(), overrides: new Map(), timeZone: null };
+      map.set(uid, e);
+    }
+    return e;
+  };
+  for (const r of tzRows) {
+    if (r.timezone) entry(String(r.user_id)).timeZone = r.timezone;
+  }
+  for (const r of tplRows) {
+    const e = entry(String(r.user_id));
+    const dow = Number(r.day_of_week);
+    if (!e.byDay.has(dow)) e.byDay.set(dow, []);
+    e.byDay.get(dow).push({ start: Number(r.start_min), end: Number(r.end_min) });
+  }
+  for (const r of ovRows) {
+    const e = entry(String(r.user_id));
+    const d = String(r.override_date);
+    if (!e.overrides.has(d)) e.overrides.set(d, []);
+    e.overrides.get(d).push({
+      isBlocked: r.is_blocked === true,
+      start: r.start_min == null ? null : Number(r.start_min),
+      end: r.end_min == null ? null : Number(r.end_min),
+    });
+  }
+  // Only members who actually configured template windows constrain
+  // dispatch; everyone else stays eligible.
+  for (const [uid, e] of [...map.entries()]) {
+    if (![...e.byDay.values()].some((w) => w.length)) map.delete(uid);
+  }
+  return map;
+}
+
+function mergeWindows(windows) {
+  const sorted = [...windows]
+    .filter((w) => w && w.end > w.start)
+    .sort((a, b) => a.start - b.start || a.end - b.end);
+  const merged = [];
+  for (const w of sorted) {
+    const last = merged[merged.length - 1];
+    if (last && w.start <= last.end) last.end = Math.max(last.end, w.end);
+    else merged.push({ start: w.start, end: w.end });
+  }
+  return merged;
+}
+
+function subtractWindows(windows, cuts) {
+  let out = mergeWindows(windows);
+  for (const c of mergeWindows(cuts)) {
+    const next = [];
+    for (const w of out) {
+      if (c.end <= w.start || c.start >= w.end) { next.push(w); continue; }
+      if (c.start > w.start) next.push({ start: w.start, end: c.start });
+      if (c.end < w.end) next.push({ start: c.end, end: w.end });
+    }
+    out = next;
+  }
+  return out;
+}
+
+// Weekday of a zoned YYYY-MM-DD date (mid-day anchor avoids DST edges).
+function zonedWeekday(dateStr, tz) {
+  return new Date(zonedDayStartUTC(dateStr, tz) + 12 * 3600000).getUTCDay();
+}
+
+// Template windows available on one zoned date: weekly template minus
+// blocked overrides plus special openings.
+function availableWindowsForDate(tpl, dateStr) {
+  const tz = resolveTimeZone(tpl.timeZone);
+  const dow = zonedWeekday(dateStr, tz);
+  let wins = (tpl.byDay.get(dow) || []).map((w) => ({ start: w.start, end: w.end }));
+  const ovs = tpl.overrides.get(dateStr) || [];
+  const blocked = ovs
+    .filter((o) => o.isBlocked)
+    .map((o) => ({ start: o.start == null ? 0 : o.start, end: o.end == null ? 1440 : o.end }));
+  const openings = ovs
+    .filter((o) => !o.isBlocked)
+    .map((o) => ({ start: o.start == null ? 0 : o.start, end: o.end == null ? 1440 : o.end }));
+  wins = subtractWindows(wins, blocked);
+  return mergeWindows([...wins, ...openings]);
+}
+
+// True when every zoned-date segment of the slot sits inside the member's
+// available template windows.
+function memberCoversSlot(tpl, slotStart, slotEnd) {
+  const tz = resolveTimeZone(tpl.timeZone);
+  const start = new Date(slotStart);
+  const end = new Date(slotEnd);
+  let cursor = new Date(start);
+  let guard = 0;
+  while (cursor < end) {
+    if (guard++ >= 8) return false; // fail closed on pathological spans
+    const dateStr = zonedDateStr(cursor, tz);
+    const dayEndMs = zonedDayStartUTC(addDaysISO(dateStr, 1), tz);
+    const segEndMs = Math.min(dayEndMs, end.getTime());
+    const p0 = zonedParts(cursor, tz);
+    const segStartMin = p0.hour * 60 + p0.minute;
+    const segEndMin = segEndMs >= dayEndMs ? 1440 : (() => {
+      const p1 = zonedParts(new Date(segEndMs), tz);
+      return p1.hour * 60 + p1.minute;
+    })();
+    const wins = availableWindowsForDate(tpl, dateStr);
+    const covered = wins.some((w) => w.start <= segStartMin && w.end >= segEndMin);
+    if (!covered) return false;
+    cursor = new Date(segEndMs);
+  }
+  return true;
+}
+
+// Review P1-6-F03: a helper who switched booking off (helper_profiles.
+// allow_booking = false) is never dispatched through Direct. Members
+// without a helper_profiles row default to allowed, matching the other
+// booking surfaces.
+async function filterBookingAllowed(members, executor = db) {
+  const ids = [...new Set((members || []).map((m) => String(m.id)).filter(Boolean))];
+  if (!ids.length) return members || [];
+  const { rows } = await executor.query(
+    `SELECT user_id::text AS user_id
+       FROM helper_profiles
+      WHERE user_id = ANY($1::uuid[]) AND COALESCE(allow_booking, TRUE) = FALSE`,
+    [ids]
+  );
+  const blocked = new Set(rows.map((r) => String(r.user_id)));
+  if (!blocked.size) return members;
+  return members.filter((m) => !blocked.has(String(m.id)));
+}
+
 function isCalendarOpen(slotStart, slotEnd, blocks) {
   const availability = blocks.filter((b) => b.blockType === 'availability');
   if (!availability.length) return false;
@@ -208,14 +380,21 @@ function isCalendarOpen(slotStart, slotEnd, blocks) {
   return !blocked;
 }
 
-function freeMembersForSlot(members, busy, slotStart, slotEnd) {
+function freeMembersForSlot(members, busy, slotStart, slotEnd, templates) {
   const occupied = new Set();
   for (const item of [...busy.jobs, ...busy.holds]) {
     if (overlaps(slotStart, slotEnd, item.startsAt, item.endsAt)) {
       occupied.add(item.userId);
     }
   }
-  return members.filter((m) => !occupied.has(m.id));
+  return members.filter((m) => {
+    if (occupied.has(m.id)) return false;
+    // Review P1-5-F03: crew with a configured availability template are
+    // only free inside it; members without one stay eligible.
+    const tpl = templates ? templates.get(String(m.id)) : undefined;
+    if (tpl && !memberCoversSlot(tpl, slotStart, slotEnd)) return false;
+    return true;
+  });
 }
 
 // Review P1-175: pick the N least-loaded free members (jobs + holds count as load).
@@ -263,7 +442,9 @@ async function computeServiceSlots({
   }
 
   const pool = await loadAssigneePool(serviceId, executor);
-  const members = await resolveEligibleAssignees(serviceId, pool, executor);
+  let members = await resolveEligibleAssignees(serviceId, pool, executor);
+  // Review P1-6-F03: helpers who switched booking off never enter dispatch.
+  members = await filterBookingAllowed(members, executor);
   const slotMinutes = Number(service.booking_slot_minutes) || DEFAULT_SLOT_MINUTES;
   const requiredCrew = Number(service.required_crew_size) || 1;
 
@@ -280,6 +461,9 @@ async function computeServiceSlots({
 
   const blocks = await loadCalendarBlocks(fromDate, toDateExclusive, executor);
   const busy = await loadBusyIntervals(members.map((m) => m.id), fromDate, toDateExclusive, executor);
+  // Review P1-5-F03: crew availability templates bound the slots a member
+  // can take.
+  const templates = await loadMemberTemplates(members.map((m) => m.id), fromDate, toDateExclusive, executor);
 
   const availabilityWindows = blocks
     .filter((b) => b.blockType === 'availability')
@@ -303,7 +487,7 @@ async function computeServiceSlots({
         slotStart >= fromDate
         && isCalendarOpen(slotStart, slotEnd, blocks)
       ) {
-        const free = freeMembersForSlot(members, busy, slotStart, slotEnd);
+        const free = freeMembersForSlot(members, busy, slotStart, slotEnd, templates);
         if (free.length >= requiredCrew) {
           slots.push({
             start: slotStart.toISOString(),
@@ -396,8 +580,12 @@ async function loadPoolSizes(serviceIds, executor = db) {
     }
     params.push(DISPATCH_ROLES);
     const { rows } = await executor.query(
+      // Review P1-6-F03: helpers who switched booking off do not count
+      // toward bookable pool size.
       `SELECT id, role FROM users
+        LEFT JOIN helper_profiles hp ON hp.user_id = users.id
         WHERE is_active = TRUE AND deleted_at IS NULL
+          AND COALESCE(hp.allow_booking, TRUE) = TRUE
           AND role = ANY($${params.length}::text[])
           AND (${clauses.join(' OR ')})`,
       params
@@ -482,14 +670,19 @@ async function createHold({
     }
 
     const pool = await loadAssigneePool(serviceId, client);
-    const members = await resolveEligibleAssignees(serviceId, pool, client);
+    const allMembers = await resolveEligibleAssignees(serviceId, pool, client);
+    // Review P1-6-F03: helpers who switched booking off never enter dispatch.
+    const members = await filterBookingAllowed(allMembers, client);
     const busy = await loadBusyIntervals(
       members.map((m) => m.id),
       start,
       end,
       client
     );
-    const free = freeMembersForSlot(members, busy, start, end);
+    // Review P1-5-F03: crew availability templates bound the crew a hold
+    // can reserve.
+    const templates = await loadMemberTemplates(members.map((m) => m.id), start, end, client);
+    const free = freeMembersForSlot(members, busy, start, end, templates);
     // Crew-aware: reserve the full required crew, not just one member.
     // Sort by load and take the N least-loaded free members.
     const requiredCrew = Number(serviceRow.required_crew_size) || 1;
@@ -511,7 +704,7 @@ async function createHold({
     }
 
     const busyAfter = await loadBusyIntervals(crew.map((m) => m.id), start, end, client);
-    if (freeMembersForSlot(crew, busyAfter, start, end).length < requiredCrew) {
+    if (freeMembersForSlot(crew, busyAfter, start, end, templates).length < requiredCrew) {
       const err = new Error('Crew was just reserved');
       err.statusCode = 409;
       err.code = 'capacity_exhausted';
@@ -622,7 +815,9 @@ async function bookServiceSlot({
 
     const { deriveServiceCapability } = require('./directCapability');
     const pool = await loadAssigneePool(serviceId, client);
-    const members = await resolveEligibleAssignees(serviceId, pool, client);
+    const allMembers = await resolveEligibleAssignees(serviceId, pool, client);
+    // Review P1-6-F03: helpers who switched booking off never enter dispatch.
+    const members = await filterBookingAllowed(allMembers, client);
     const offerability = await hasOfferableSlots(serviceId, client);
     const capability = deriveServiceCapability(service, {
       lifecycle_status: service.category_lifecycle_status,
@@ -683,7 +878,10 @@ async function bookServiceSlot({
       throw err;
     }
 
-    const free = freeMembersForSlot(members, busy, start, end);
+    // Review P1-5-F03: crew availability templates bound the crew a booking
+    // can take; P1-6-F03 already filtered booking-disabled members above.
+    const templates = await loadMemberTemplates(members.map((m) => m.id), start, end, client);
+    const free = freeMembersForSlot(members, busy, start, end, templates);
     // Crew-aware: if a hold reserved a crew, use the whole crew.
     let crew = [];
     if (reservedUserIds.length) {
@@ -715,7 +913,7 @@ async function bookServiceSlot({
 
     // Re-check after lock
     const busyAfter = await loadBusyIntervals(crew.map((m) => m.id), start, end, client);
-    if (freeMembersForSlot(crew, busyAfter, start, end).length < crew.length) {
+    if (freeMembersForSlot(crew, busyAfter, start, end, templates).length < crew.length) {
       const err = new Error('Selected assignee was just booked');
       err.statusCode = 409;
       err.code = 'capacity_exhausted';
@@ -908,5 +1106,8 @@ module.exports = {
   resolveEligibleAssignees,
   loadAssigneePool,
   loadBusyIntervals,
+  loadMemberTemplates,
+  filterBookingAllowed,
+  freeMembersForSlot,
   pickCrew,
 };

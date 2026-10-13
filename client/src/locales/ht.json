@@ -6463,7 +6463,9 @@
       "fields": {
         "start": "Kòmansman",
         "end": "Fini",
-        "role": "Wòl"
+        "role": "Wòl",
+        "staff": "Manm ekip la",
+        "staffPlaceholder": "Chwazi yon manm ekip"
       },
       "emptyShifts": "Pa gen shift pwograme ankò.",
       "emptyTime": "Pa gen antre tan ankò. Sèvi ak «Kòmanse tan» pou kòmanse.",
@@ -6484,7 +6486,8 @@
       "toastClockedIn": "Tan kòmanse!",
       "toastClockInFail": "Nou pa t kapab kòmanse tan",
       "toastClockedOut": "Tan fini!",
-      "toastClockOutFail": "Nou pa t kapab fini tan"
+      "toastClockOutFail": "Nou pa t kapab fini tan",
+      "toastStaffRequired": "Tanpri chwazi yon manm ekip"
     },
     "integrations": {
       "title": "Entegrasyon ak paramèt",

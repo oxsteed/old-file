@@ -608,6 +608,14 @@ async function createAiBookingFromAction(action, helperId, threadId, realCustome
   if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end <= start) return { ok: false, reason: 'invalid_time' };
   if (start.getTime() - Date.now() < 15 * 60 * 1000) return { ok: false, reason: 'too_soon' };
 
+  // Review P1-6-F03: the profile AI must not book a helper who switched
+  // booking off. Query errors propagate to the outer handler below.
+  const { rows: [pref] } = await pool.query(
+    'SELECT COALESCE(allow_booking, TRUE) AS allow_booking FROM helper_profiles WHERE user_id = $1',
+    [helperId]
+  );
+  if (pref && pref.allow_booking === false) return { ok: false, reason: 'booking_disabled' };
+
   const customerId = realCustomerId || AI_PLACEHOLDER_CUSTOMER_ID;
   const duration = Math.max(15, Math.min(480, parseInt(action.estimated_duration_minutes, 10) || 60));
   const notes = action.customer_notes != null ? String(action.customer_notes).slice(0, 2000) : null;
