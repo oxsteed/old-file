@@ -37,7 +37,7 @@ async function acceptedJob({ daysAgo, helper, client, withHold = false }) {
   if (withHold) {
     await pool.query(
       `INSERT INTO payments (job_id, payer_id, payee_id, amount, status, escrow_status)
-       VALUES ($1, $2, $3, 100, 'authorized', 'authorized')`, [job.id, client, helper]);
+       VALUES ($1, $2, $3, 100, 'authorized', 'held')`, [job.id, client, helper]);
   }
   return job.id;
 }

@@ -3,11 +3,13 @@
 jest.mock('../db', () => ({ query: jest.fn(), connect: jest.fn() }));
 jest.mock('../services/auditService', () => ({ logAdminAction: jest.fn().mockResolvedValue(undefined) }));
 jest.mock('../services/oxsteedCreditService', () => ({ listCreditDisputes: jest.fn() }));
+jest.mock('../services/oxsteedCreditPendingActionService', () => ({ requestPendingAction: jest.fn() }));
 jest.mock('../services/oxsteedCreditDisputeService', () => ({ resolveDisputeWithCompensation: jest.fn() }));
 
 const pool = require('../db');
 const { listCreditDisputes } = require('../services/oxsteedCreditService');
 const { resolveDisputeWithCompensation } = require('../services/oxsteedCreditDisputeService');
+const { requestPendingAction } = require('../services/oxsteedCreditPendingActionService');
 const admin = require('../controllers/mediaAdminController');
 
 function response() {
@@ -79,12 +81,9 @@ describe('Media creator dispute administration', () => {
     expect(res.json).toHaveBeenCalledWith({ dispute: { id: 'd-1', status: 'in_review' } });
   });
 
-  test('resolves only a Media dispute and forwards compensation to the shared Credit rail', async () => {
+  test('queues a Media compensation resolution for checker approval without moving money', async () => {
     pool.query.mockResolvedValue({ rows: [{ id: 'd-1', reference_type: 'media_creator_sponsorship' }] });
-    resolveDisputeWithCompensation.mockResolvedValue({
-      dispute: { id: 'd-1', status: 'resolved_customer' },
-      compensation: { amountCents: 2500 },
-    });
+    requestPendingAction.mockResolvedValue({ pendingAction: { id: 'pa-1', status: 'pending' } });
     const res = response();
 
     await admin.resolveCreatorDispute({
@@ -92,14 +91,18 @@ describe('Media creator dispute administration', () => {
       body: { status: 'resolved_customer', reason: 'Approved partial compensation.', compensationCents: 2500 },
       user: { id: 'admin-1' },
       ip: '127.0.0.1',
-      get: () => null,
+      get: key => key === 'Idempotency-Key' ? 'media-resolution-test' : null,
     }, res, jest.fn());
 
-    expect(resolveDisputeWithCompensation).toHaveBeenCalledWith(expect.objectContaining({
-      disputeId: 'd-1', adminId: 'admin-1', decision: 'resolved_customer',
-      reason: 'Approved partial compensation.', compensationCents: 2500,
+    expect(requestPendingAction).toHaveBeenCalledWith(expect.objectContaining({
+      actionType: 'credit_dispute_resolve', requestedBy: 'admin-1',
+      idempotencyKey: 'media-resolution-test',
+      payload: { disputeId: 'd-1', decision: 'resolved_customer',
+        reason: 'Approved partial compensation.', compensationCents: 2500 },
     }));
-    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ compensation: { amountCents: 2500 } }));
+    expect(resolveDisputeWithCompensation).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(202);
+    expect(res.json).toHaveBeenCalledWith({ pendingAction: { id: 'pa-1', status: 'pending' }, replayed: false });
   });
 
   test('does not pass a non-Media dispute to the resolver', async () => {

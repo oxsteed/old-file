@@ -98,7 +98,7 @@ describeDb('scheduling write path feeds the slot engine (P1-5-F02, P1-6-F03, P1-
       require_payment_upfront BOOLEAN DEFAULT TRUE)`);
     await db.query(`CREATE TABLE ${schema}.helper_profiles (
       user_id UUID PRIMARY KEY, booking_buffer_minutes INTEGER DEFAULT 0,
-      allow_booking BOOLEAN DEFAULT TRUE)`);
+      allow_booking BOOLEAN DEFAULT TRUE, allow_scheduling BOOLEAN DEFAULT TRUE)`);
     await db.query(`CREATE TABLE ${schema}.appointments (
       helper_id UUID, scheduled_start_time TIMESTAMPTZ,
       scheduled_end_time TIMESTAMPTZ, status TEXT)`);

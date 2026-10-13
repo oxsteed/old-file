@@ -55,6 +55,16 @@ function baseDb(allowBooking, allowScheduling) {
 }
 
 describe('appointmentController.createAppointment booking gate (P1-6-F03)', () => {
+  test('returns a controlled error when the helper lookup fails', async () => {
+    mockQuery.mockRejectedValueOnce(new Error('synthetic helper lookup failure'));
+    const res = mockRes();
+    const next = jest.fn();
+    await expect(createAppointment(validReq(), res, next)).resolves.toBeDefined();
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ code: 'INTERNAL_ERROR' }));
+    expect(next).not.toHaveBeenCalled();
+  });
+
   test('403s when the helper switched booking off', async () => {
     baseDb(false);
     const next = jest.fn();

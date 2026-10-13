@@ -1,6 +1,7 @@
 'use strict';
 
 const { mockQuery, resetMocks } = require('./setup');
+const { currentConsentRows } = require('./helpers/currentConsents');
 
 jest.mock('../utils/feeCalculator', () => {
   const actual = jest.requireActual('../utils/feeCalculator');
@@ -55,6 +56,10 @@ function mockAuth(...extras) {
   extras.forEach(e => mockQuery.mockResolvedValueOnce(e));
 }
 
+function mockPaymentAuth(...extras) {
+  mockAuth({ rows: currentConsentRows() }, ...extras);
+}
+
 // Pull the stripe mock instance for asserting calls
 const stripe = require('stripe')();
 const paymentController = require('../controllers/paymentController');
@@ -69,14 +74,14 @@ beforeEach(() => {
 // ── POST /api/payments/intent ─────────────────────────────────────────────────
 describe('POST /api/payments/intent', () => {
   test('returns 400 when job_id is missing', async () => {
-    mockAuth();
+    mockPaymentAuth();
     const res = await auth(request(buildApp()).post('/api/payments/intent').send({}));
     expect(res.status).toBe(400);
     expect(res.body.fields).toHaveProperty('job_id');
   });
 
   test('returns 404 when job does not exist', async () => {
-    mockAuth({ rows: [] });
+    mockPaymentAuth({ rows: [] });
     const res = await auth(
       request(buildApp()).post('/api/payments/intent').send({ job_id: 999 })
     );
@@ -84,7 +89,7 @@ describe('POST /api/payments/intent', () => {
   });
 
   test('returns 403 when user is not the job owner', async () => {
-    mockAuth({ rows: [{ id: 10, client_id: 99, job_value: 100, assigned_helper_id: 2 }] });
+    mockPaymentAuth({ rows: [{ id: 10, client_id: 99, job_value: 100, assigned_helper_id: 2 }] });
     const res = await auth(
       request(buildApp()).post('/api/payments/intent').send({ job_id: 10 })
     );
@@ -92,7 +97,7 @@ describe('POST /api/payments/intent', () => {
   });
 
   test('returns 400 when no agreed price set', async () => {
-    mockAuth({ rows: [{ id: 10, client_id: 1, job_value: null, assigned_helper_id: 2 }] });
+    mockPaymentAuth({ rows: [{ id: 10, client_id: 1, job_value: null, assigned_helper_id: 2 }] });
     const res = await auth(
       request(buildApp()).post('/api/payments/intent').send({ job_id: 10 })
     );
@@ -101,7 +106,7 @@ describe('POST /api/payments/intent', () => {
   });
 
   test('returns 400 when helper payment account not ready', async () => {
-    mockAuth(
+    mockPaymentAuth(
       { rows: [{ id: 10, client_id: 1, job_value: 100, assigned_helper_id: 2 }] }, // job
       { rows: [{ stripe_account_id: 'acct_x', charges_enabled: false }] }           // connect
     );
@@ -127,12 +132,12 @@ describe('POST /api/payments/intent', () => {
       { rows: [{ id: 1 }] },        // INSERT payment RETURNING id
     ];
     // First intent: live retrieve populates the TTL cache.
-    mockAuth(jobRow, connectRow, { rowCount: 0 }, ...txTail);
+    mockPaymentAuth(jobRow, connectRow, { rowCount: 0 }, ...txTail);
     const first = await auth(request(buildApp()).post('/api/payments/intent').send({ job_id: 10 }));
     expect(first.status).toBe(200);
     expect(stripe.accounts.retrieve).toHaveBeenCalledTimes(1);
     // Second intent: served from cache, no live retrieve and no status-sync writes.
-    mockAuth(jobRow, connectRow, ...txTail);
+    mockPaymentAuth(jobRow, connectRow, ...txTail);
     const second = await auth(request(buildApp()).post('/api/payments/intent').send({ job_id: 10 }));
     expect(second.status).toBe(200);
     expect(stripe.accounts.retrieve).toHaveBeenCalledTimes(1);
@@ -147,7 +152,7 @@ describe('POST /api/payments/intent', () => {
       id: 'pi_test123',
       client_secret: 'pi_test123_secret_abc',
     });
-    mockAuth(
+    mockPaymentAuth(
       { rows: [{ id: 10, client_id: 1, job_value: 100, assigned_helper_id: 2, title: 'Job' }] }, // job
       { rows: [{ stripe_account_id: 'acct_x', charges_enabled: true, payouts_enabled: true, onboarding_complete: true }] }, // connect
       { rowCount: 0 },                                                                             // sync helper_profiles from connect_accounts
@@ -174,7 +179,7 @@ describe('POST /api/payments/intent', () => {
       id: 'pi_discount',
       client_secret: 'secret_discount',
     });
-    mockAuth(
+    mockPaymentAuth(
       { rows: [{ id: 11, client_id: 1, job_value: 100, assigned_helper_id: 2, title: 'Job' }] },
       { rows: [{ stripe_account_id: 'acct_x', charges_enabled: true, payouts_enabled: true, onboarding_complete: true }] },
       { rowCount: 0 },
@@ -201,7 +206,7 @@ describe('POST /api/payments/intent', () => {
 // ── POST /api/payments/capture ────────────────────────────────────────────────
 describe('POST /api/payments/capture', () => {
   test('returns 400 when job is not completed', async () => {
-    mockAuth({ rows: [{ id: 10, status: 'published' }] });
+    mockPaymentAuth({ rows: [{ id: 10, status: 'published' }] });
     const res = await auth(
       request(buildApp()).post('/api/payments/capture').send({ job_id: 10 })
     );
@@ -210,7 +215,7 @@ describe('POST /api/payments/capture', () => {
   });
 
   test('returns 404 when no authorized payment found', async () => {
-    mockAuth(
+    mockPaymentAuth(
       { rows: [{ id: 10, status: 'completed', assigned_helper_id: 2, title: 'Job', client_id: 1 }] },
       { rows: [] } // no payment
     );
@@ -225,7 +230,7 @@ describe('POST /api/payments/capture', () => {
       charges: { data: [{ id: 'ch_test1' }] },
       amount_received: 10000,
     });
-    mockAuth(
+    mockPaymentAuth(
       { rows: [{ id: 10, status: 'completed', assigned_helper_id: 2, title: 'Fence repair', client_id: 1 }] }, // job
       { rows: [] }, // BEGIN (tx)
       { rows: [{ id: 5, stripe_payment_intent_id: 'pi_test123', stripe_account_id: 'acct_x', amount: 100, status: 'authorized' }] }, // payment (controller)
@@ -248,7 +253,7 @@ describe('POST /api/payments/capture', () => {
   test('queues capture and returns 202 when PAYMENT_CAPTURE_ASYNC=true and a worker process runs', async () => {
     process.env.PAYMENT_CAPTURE_ASYNC = 'true';
     process.env.DEDICATED_WORKER_PROCESS = 'true';
-    mockAuth(
+    mockPaymentAuth(
       { rows: [{ id: 10, status: 'completed', assigned_helper_id: 2, title: 'Fence repair', client_id: 1 }] },
       { rows: [] }, // BEGIN (tx)
       { rows: [{ id: 5, stripe_payment_intent_id: 'pi_test123', stripe_account_id: 'acct_x', amount: 100, status: 'authorized' }] },
@@ -265,7 +270,7 @@ describe('POST /api/payments/capture', () => {
   });
 
   test('blocks capture when a dispute opens after the API-layer check (P3-1-F08)', async () => {
-    mockAuth(
+    mockPaymentAuth(
       { rows: [{ id: 10, status: 'completed', assigned_helper_id: 2, title: 'Fence repair', client_id: 1 }] }, // job
       { rows: [] }, // BEGIN (tx)
       { rows: [{ id: 5, stripe_payment_intent_id: 'pi_test123', stripe_account_id: 'acct_x', amount: 100, status: 'authorized' }] }, // payment (controller)
@@ -286,7 +291,7 @@ describe('POST /api/payments/capture', () => {
 // ── GET /api/payments/me ──────────────────────────────────────────────────────
 describe('GET /api/payments/me', () => {
   test('returns user payment history', async () => {
-    mockAuth({ rows: [{ id: 5, amount: 100, status: 'captured' }] });
+    mockPaymentAuth({ rows: [{ id: 5, amount: 100, status: 'captured' }] });
     const res = await auth(request(buildApp()).get('/api/payments/me'));
     expect(res.status).toBe(200);
   });

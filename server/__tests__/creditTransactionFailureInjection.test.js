@@ -49,6 +49,9 @@ test('rolls back partner reserve setup when the journal post fails', async () =>
     const statement = String(sql);
     if (statement === 'BEGIN' || statement === 'ROLLBACK') return { rows: [] };
     if (statement.includes('FROM oxsteed_credit_partner_funding_records')) return { rows: [] };
+    if (statement.includes('FROM oxsteed_credit_sanctions_screenings')) {
+      return { rows: [{ result: 'clear', screened_at: new Date().toISOString(), subject_type: 'partner', subject_id: '41' }] };
+    }
     if (statement.includes('FROM oxsteed_credit_partners')) return { rows: [{ id: 41, settlement_currency_code: 'USD', status: 'active' }] };
     if (statement.includes('INSERT INTO oxsteed_credit_partner_ledgers')) return { rows: [] };
     if (statement.includes('SELECT l.id AS ledger_id')) {

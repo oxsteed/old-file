@@ -24,7 +24,7 @@ describe('weekly summary job', () => {
     const summaryQuery = db.query.mock.calls[0][0];
     expect(summaryQuery).toContain('SUM(COALESCE(p.helper_payout, 0))');
     expect(summaryQuery).toContain('p.status IN (\'captured\', \'released\')');
-    expect(summaryQuery).toContain("CASE WHEN p.status = 'released' THEN p.released_at ELSE p.captured_at END");
+    expect(summaryQuery).toContain("CASE WHEN p.payment_hold_status = 'released' THEN p.released_at ELSE p.captured_at END");
     expect(summaryQuery).toContain('hp.completed_jobs_count AS completed_jobs');
     expect(summaryQuery).not.toContain('hp.earnings_mtd');
     expect(summaryQuery).not.toContain('hp.completed_jobs,');

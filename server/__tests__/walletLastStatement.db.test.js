@@ -4,11 +4,16 @@
 // monthly document, not a live journal computation.
 jest.unmock('pg');
 const { disposableDatabaseOptIn } = require('./helpers/statementTestDatabase');
+const crypto = require('crypto');
+const schema = `wallet_statement_${crypto.randomBytes(6).toString('hex')}`;
 const database = disposableDatabaseOptIn('WALLET_LAST_STATEMENT_TEST_DATABASE_URL');
-if (database) process.env.DATABASE_URL = database;
+if (database) {
+  const target = new URL(database);
+  target.searchParams.set('options', `-c search_path=${schema}`);
+  process.env.DATABASE_URL = target.toString();
+}
 process.env.JWT_SECRET = process.env.JWT_SECRET || 'wallet-last-statement-test-secret';
 const describeDatabase = database ? describe : describe.skip;
-const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const pool = require('../db');
@@ -30,6 +35,7 @@ describeDatabase('wallet last statement prefers the issued document', () => {
   let counterpartyId;
 
   beforeAll(async () => {
+    await pool.query(`CREATE SCHEMA ${schema}`);
     // Minimal local tables (the full 001/421 chain needs PostGIS, which the
     // local test postgres does not provide). Column sets mirror exactly the
     // columns getCustomerCreditAccountDetails reads.
@@ -80,7 +86,10 @@ describeDatabase('wallet last statement prefers the issued document', () => {
        VALUES ('platform_treasury', NULL, 'USD') RETURNING id`)).rows[0].id;
   });
 
-  afterAll(async () => { await pool.end(); });
+  afterAll(async () => {
+    try { await pool.query(`DROP SCHEMA IF EXISTS ${schema} CASCADE`); }
+    finally { await pool.end(); }
+  });
 
   async function postJournalEntry({ balanceAfterCents, postedAt }) {
     const txId = crypto.randomUUID();

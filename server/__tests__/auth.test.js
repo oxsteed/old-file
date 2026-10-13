@@ -147,7 +147,7 @@ describe('POST /api/auth/register/start', () => {
       });
 
     expect(res.status).toBe(200);
-    const insertArgs = mockQuery.mock.calls[2][1];
+    const insertArgs = mockQuery.mock.calls.find(([sql]) => /INSERT INTO pending_registrations/.test(sql))[1];
     expect(insertArgs[1]).toBe('customer@example.com');
     expect(insertArgs[3]).toBe('Customer');
     expect(insertArgs[4]).toBe('User');
@@ -183,6 +183,7 @@ describe('POST /api/auth/register/start', () => {
   test('accepts a known referral code and stores it', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [{ id: 'referrer-1' }] }) // referral code lookup
+      .mockResolvedValueOnce({ rows: [{ value: 'true' }] }) // registration kill switch
       .mockResolvedValueOnce({ rows: [] }) // check existing email
       .mockResolvedValueOnce({ rows: [{ id: 125 }] }); // insert/update pending registration
 
@@ -204,7 +205,7 @@ describe('POST /api/auth/register/start', () => {
       });
 
     expect(res.status).toBe(200);
-    const insertArgs = mockQuery.mock.calls[2][1];
+    const insertArgs = mockQuery.mock.calls.find(([sql]) => /INSERT INTO pending_registrations/.test(sql))[1];
     expect(insertArgs[13]).toBe('good-code');
   });
 
@@ -232,7 +233,7 @@ describe('POST /api/auth/register/start', () => {
       });
 
     expect(res.status).toBe(200);
-    const insertArgs = mockQuery.mock.calls[2][1];
+    const insertArgs = mockQuery.mock.calls.find(([sql]) => /INSERT INTO pending_registrations/.test(sql))[1];
     expect(insertArgs[9]).toBe('Île-de-France');
     expect(insertArgs[14]).toBe('restaurant_staff');
   });
@@ -260,7 +261,7 @@ describe('POST /api/auth/register/start', () => {
       });
 
     expect(res.status).toBe(200);
-    const insertArgs = mockQuery.mock.calls[2][1];
+    const insertArgs = mockQuery.mock.calls.find(([sql]) => /INSERT INTO pending_registrations/.test(sql))[1];
     expect(insertArgs[6]).toBeNull();
     expect(insertArgs[9]).toBeNull();
     expect(insertArgs[10]).toBe('HT');

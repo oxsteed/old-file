@@ -17,7 +17,8 @@ test('creates a payout method owned by the signed-in user', async () => {
   mockQuery.mockResolvedValue({ rows: [{ id: 'm1' }] });
   const r = res();
   await P.createPayoutMethod({ user: { id: 'u1' }, body: { method_type: 'bank_account' } }, r);
-  expect(mockQuery.mock.calls[0][1][0]).toBe('u1');
+  const insert = mockQuery.mock.calls.find(([sql]) => /INSERT INTO payout_methods/.test(sql));
+  expect(insert[1][0]).toBe('u1');
   expect(r.status).toHaveBeenCalledWith(201);
 });
 

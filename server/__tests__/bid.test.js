@@ -1,6 +1,7 @@
 'use strict';
 
 const { mockQuery, resetMocks } = require('./setup');
+const { currentConsentRows } = require('./helpers/currentConsents');
 const { routeQueries } = require('./helpers/sqlRouter');
 
 // helperOnboardingMiddleware requires DB + tier checks - mock it to pass
@@ -43,12 +44,16 @@ function mockAuth(...extras) {
   extras.forEach(e => mockQuery.mockResolvedValueOnce(e));
 }
 
+function mockBidAuth(...extras) {
+  mockAuth({ rows: currentConsentRows() }, ...extras);
+}
+
 beforeEach(() => resetMocks());
 
 // ── POST /api/bids ────────────────────────────────────────────────────────────
 describe('POST /api/bids', () => {
   test('returns 404 when job does not exist', async () => {
-    mockAuth({ rows: [] }); // job query → not found
+    mockBidAuth({ rows: [] }); // job query → not found
     const res = await auth(
       request(buildApp()).post('/api/bids').send({ job_id: 999, amount: 150, message: 'I can do this' })
     );
@@ -57,7 +62,7 @@ describe('POST /api/bids', () => {
 
   test('returns 400 when bidding on own job', async () => {
     // Job's client_id matches the helper's user id
-    mockAuth({ rows: [{ id: 10, client_id: HELPER_ID, status: 'published' }] });
+    mockBidAuth({ rows: [{ id: 10, client_id: HELPER_ID, status: 'published' }] });
     const res = await auth(
       request(buildApp()).post('/api/bids').send({ job_id: 10, amount: 150, message: 'I own this' })
     );
@@ -66,7 +71,7 @@ describe('POST /api/bids', () => {
   });
 
   test('returns 400 when job is not accepting bids', async () => {
-    mockAuth({ rows: [{ id: 10, client_id: 1, status: 'completed' }] });
+    mockBidAuth({ rows: [{ id: 10, client_id: 1, status: 'completed' }] });
     const res = await auth(
       request(buildApp()).post('/api/bids').send({ job_id: 10, amount: 150, message: 'Too late' })
     );
@@ -77,6 +82,7 @@ describe('POST /api/bids', () => {
   const JOB = { id: '10', client_id: 1, status: 'published', version: 3, revision: 2, title: 'Fix the fence', description: 'x'.repeat(60) };
   const routesFor = (extra = []) => [
     [/FROM users u/, { rows: [MOCK_HELPER] }],
+    [/FROM user_consents/, { rows: currentConsentRows() }],
     [/SELECT id, client_id, status, deleted_at FROM jobs/, { rows: [JOB] }],
     [/SELECT \* FROM jobs WHERE id = \$1 FOR SHARE/, { rows: [JOB] }],
     ...extra,
@@ -126,6 +132,7 @@ describe('POST /api/bids', () => {
     const negotiating = { ...JOB, status: 'negotiating' };
     routeQueries(mockQuery, [
       [/FROM users u/, { rows: [MOCK_HELPER] }],
+      [/FROM user_consents/, { rows: currentConsentRows() }],
       [/SELECT id, client_id, status, deleted_at FROM jobs/, { rows: [negotiating] }],
       [/FOR SHARE/, { rows: [negotiating] }],
       [/INSERT INTO bids/, { rows: [{ id: 21, status: 'pending' }] }],

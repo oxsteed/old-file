@@ -248,7 +248,7 @@ ddescribe('ledger_transaction_id UUID round-trip (P0 #3)', () => {
 
     // The reversal leg gets the same UUID treatment on the compensating entry.
     const transfer = {
-      id: 'tr_test_ledger_uuid',
+      id: `tr_test_ledger_uuid_${payout.id}`,
       amount: 2000,
       currency: 'usd',
       destination: 'acct_test_ledger_uuid',

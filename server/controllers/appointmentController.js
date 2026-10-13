@@ -433,7 +433,7 @@ exports.createAppointment = async (req, res, next) => {
     if (err.code === 'HELPER_UNAVAILABLE') {
       return sendError(res, 409, 'Helper is unavailable during the requested time', 'HELPER_UNAVAILABLE');
     }
-    logger.error('Failed to create appointment', { customerId: customer_id, helperId: helper_id, error: err.message });
+    logger.error('Failed to create appointment', { customerId: req.user?.id, helperId: req.body?.helper_id, error: err.message });
     return sendError(res, 500, 'Failed to create appointment', 'INTERNAL_ERROR');
   }
 };
