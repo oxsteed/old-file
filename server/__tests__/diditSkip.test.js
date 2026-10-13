@@ -30,8 +30,8 @@ describe('skipVerification', () => {
     expect(res.status).toHaveBeenCalledWith(403);
   });
 
-  test('updates to skipped when enforcement off and DIDIT_ALLOW_USER_SKIP not false', async () => {
-    delete process.env.DIDIT_ALLOW_USER_SKIP;
+  test('updates to skipped only when DIDIT_ALLOW_USER_SKIP is explicitly true', async () => {
+    process.env.DIDIT_ALLOW_USER_SKIP = 'true';
     pool.query
       .mockResolvedValueOnce({
         rows: [{ didit_enforcement_required: false, didit_status: 'pending' }],
