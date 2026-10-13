@@ -137,7 +137,7 @@ beforeEach(() => {
 });
 
 describe('agent food refund route wiring', () => {
-  test('the refund route carries grant middleware (requirePermission + controller)', () => {
+  test('the refund route carries grant middleware (strictLimiter + requirePermission + controller)', () => {
     const router = require('../routes/agentFoodRefundActions');
     const routes = router.stack
       .filter((l) => l.route)
@@ -148,8 +148,8 @@ describe('agent food refund route wiring', () => {
       }));
     const refund = routes.find((l) => l.path === '/food-orders/:id/refund' && l.method === 'post');
     expect(refund).toBeDefined();
-    // requirePermission('issue_refunds') + controller
-    expect(refund.chainLength).toBe(2);
+    // strictLimiter + requirePermission('issue_refunds') + controller
+    expect(refund.chainLength).toBe(3);
   });
 });
 

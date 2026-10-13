@@ -48,6 +48,7 @@ function mockResolvedParticipant(overrides = {}) {
       participant_type: 'restaurant',
       status: 'active',
       didit_verified: true,
+      didit_verified_at: new Date().toISOString(),
       allowed_surfaces: ['food_online', 'chat', 'pos', 'jobs'],
       ...overrides.participant,
     },

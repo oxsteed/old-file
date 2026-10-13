@@ -25,7 +25,7 @@ function buildApp(role) {
     onboarding_status: 'onboarding_complete',
     onboarding_completed: true,
     is_active: true,
-    didit_status: 'verified',
+    didit_status: 'verified', didit_verified_at: new Date().toISOString(),
     didit_enforcement_required: false,
   };
 

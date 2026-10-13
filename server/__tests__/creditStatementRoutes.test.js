@@ -21,7 +21,7 @@ let user;
 beforeEach(() => {
   resetMocks(); jest.clearAllMocks();
   user = { id: OWNER, role: 'customer', default_mode: 'customer', email: 'synthetic@example.invalid',
-    is_active: true, email_verified: true, id_verified: true, didit_status: 'verified', totp_enabled: true };
+    is_active: true, email_verified: true, id_verified: true, didit_status: 'verified', didit_verified_at: new Date().toISOString(), totp_enabled: true };
   mockQuery.mockImplementation(async () => ({ rows: [user] }));
   revocations.isRevoked.mockResolvedValue(false);
   getStatement.mockResolvedValue({ id: 'fixture', period: { from: '2026-09-01', to: '2026-09-30' } });
