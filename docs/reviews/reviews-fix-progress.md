@@ -173,3 +173,5 @@ Digest follow-up: the queued daily/weekly email digest is now registered in the 
 W15 scheduler follow-up: email digests now use canonical notification bodies and ISO week delivery windows; planned-need notifications carry stable idempotency keys; recurring job spawning is wrapped in the fenced scheduler lock; passkey challenge cleanup is registered and uses PostgreSQL-compatible bounded deletion.
 
 W15 webhook follow-up: payment-release notifications now fire only on the first captured transition with a stable key; processed webhook receipts and ordering watermarks receive bounded cleanup; support channel event IDs reject payload-hash reuse; provider webhook secret configuration emits startup warnings when absent.
+
+W15 freshness follow-up: Didit now requires the signed payload timestamp to match the freshness header, preventing header/body replay substitution; telematics webhooks reject stale explicit provider timestamps before signature processing. Added regression coverage for both paths.

@@ -226,6 +226,19 @@ describe('telematics webhook receiver', () => {
     expect(mockQuery).toHaveBeenCalledTimes(1);
   });
 
+  test('stale provider timestamp -> 401 before signature verification', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [CONNECTION_ROW] });
+    const res = mockRes();
+    const requestWithStaleTimestamp = webhookReq(goodSignature());
+    requestWithStaleTimestamp.headers['x-timestamp'] = String(Math.floor(Date.now() / 1000) - 301);
+
+    await webhookController.receiveWebhook(requestWithStaleTimestamp, res);
+
+    expect(res.status).toHaveBeenCalledWith(401);
+    expect(bodyOf(res).code).toBe('telematics_stale_webhook');
+    expect(mockQuery).toHaveBeenCalledTimes(1);
+  });
+
   test('good signature -> normalized point + provider receipt persisted, cursor advanced', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [CONNECTION_ROW] }) // active connections
