@@ -415,6 +415,54 @@ exports.createPortalSession = async (req, res, next) => {
   }
 };
 
+// P3-9-F11: in-app subscription invoice/receipt view. Subscription receipts
+// were unverifiable from code (no receipt_email in the subscription checkout,
+// receipt delivery depended on Stripe-dashboard email settings). This lists
+// the customer's Stripe invoices with hosted URLs and PDF links so receipts
+// are always viewable in-app.
+exports.listSubscriptionInvoices = async (req, res, next) => {
+  try {
+    const { rows } = await db.query(
+      `SELECT stripe_customer_id
+       FROM subscriptions
+       WHERE user_id = $1
+         AND stripe_customer_id IS NOT NULL
+       ORDER BY created_at DESC
+       LIMIT 1`,
+      [req.user.id]
+    );
+    const stripeCustomerId = rows[0]?.stripe_customer_id || null;
+    if (!stripeCustomerId) {
+      return res.json({ invoices: [] });
+    }
+    const limit = Math.min(parseInt(req.query.limit, 10) || 12, 50);
+    const stripeInvoices = await stripe.invoices.list({
+      customer: stripeCustomerId,
+      limit,
+    });
+    res.json({
+      invoices: (stripeInvoices.data || []).map((invoice) => ({
+        id: invoice.id,
+        number: invoice.number,
+        amountDue: invoice.amount_due,
+        amountPaid: invoice.amount_paid,
+        currency: String(invoice.currency || 'usd').toUpperCase(),
+        status: invoice.status,
+        created: invoice.created,
+        periodStart: invoice.period_start,
+        periodEnd: invoice.period_end,
+        hostedInvoiceUrl: invoice.hosted_invoice_url,
+        invoicePdf: invoice.invoice_pdf,
+        description: Array.isArray(invoice.lines?.data) && invoice.lines.data[0]?.description
+          ? invoice.lines.data[0].description
+          : null,
+      })),
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
 /**
  * Phase 5 — Credit Everywhere: create a subscription paid with OxSteed Credit.
  *

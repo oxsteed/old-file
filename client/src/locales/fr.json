@@ -2224,7 +2224,13 @@
     "protectionDesc": "Lorsque vous utilisez la Protection OxSteed, l'application enregistre le paiement, l'accord et le suivi des litiges au même endroit. Le crédit restaurant et le paiement direct entre utilisateurs sont les chemins actifs au lancement, donc l'accent est mis sur des enregistrements clairs, des confirmations et la prise en charge du support.",
     "protectionNote": "* La Protection OxSteed nécessite une vérification d'identité pour les clients et une vérification d'identité + une vérification des antécédents pour les prestataires. Les paiements de lancement ne nécessitent pas de configuration de compte Stripe.",
     "proFeatures": "Caractéristiques professionnelles",
-    "legacyProcessorFee": "Frais de l'ancien processeur (backend uniquement)"
+    "legacyProcessorFee": "Frais de l'ancien processeur (backend uniquement)",
+    "receiptsTitle": "Recus",
+    "receiptsSubtitle": "Vos factures d'abonnement, toujours disponibles ici.",
+    "receiptsLoading": "Chargement des recus...",
+    "receiptsEmpty": "Aucune facture pour le moment. Votre premier recu apparaitra ici apres le paiement.",
+    "receiptFallbackLabel": "Facture",
+    "viewReceipt": "Voir le recu"
   },
   "businessAppointments": {
     "title": "Calendrier des rendez-vous",
@@ -8499,7 +8505,13 @@
     "showOnceTitle": "Votre nouveau code d’accès",
     "showOnceDesc": "Copiez ce code maintenant. Par sécurité, il ne sera plus affiché.",
     "showOnceDismiss": "Je l’ai copié",
-    "codeHiddenTitle": "Masqué par sécurité. Renouvelez pour émettre un nouveau code."
+    "codeHiddenTitle": "Masqué par sécurité. Renouvelez pour émettre un nouveau code.",
+    "lineItemType": "Type de ligne",
+    "lineItemTypeItem": "Article",
+    "lineItemTypeDiscount": "Remise",
+    "lineItemTypeFee": "Frais",
+    "discountTotal": "Remises",
+    "feeTotal": "Frais"
   },
   "plans": {
     "free": "Gratuit",
@@ -17389,18 +17401,18 @@
     "contactIntro": "Si vous avez des questions sur cette page ou souhaitez exercer l'un de vos droits à la vie privée, veuillez nous contacter à :",
     "contactEmailLabel": "E-mail:",
     "contactMailLabel": "Courrier:",
-      "formTitle": "Soumettre une demande d’opposition",
-      "formIntro": "Utilisez ce formulaire pour exercer votre droit de vous opposer à la vente ou au partage de vos informations personnelles. Nous répondrons sous 45 jours.",
-      "emailLabel": "Adresse e-mail",
-      "emailPlaceholder": "vous@exemple.com",
-      "notesLabel": "Détails supplémentaires (facultatif)",
-      "notesPlaceholder": "Indiquez tout ce qui peut nous aider à retrouver vos données.",
-      "submitButton": "Envoyer la demande d’opposition",
-      "submittingButton": "Envoi en cours...",
-      "successTitle": "Demande reçue",
-      "successMessage": "Votre demande d’opposition a bien été reçue. Nous répondrons sous 45 jours.",
-      "errorRequired": "Veuillez saisir votre adresse e-mail.",
-      "errorFailed": "Nous n’avons pas pu envoyer votre demande. Veuillez réessayer plus tard."
+    "formTitle": "Soumettre une demande d’opposition",
+    "formIntro": "Utilisez ce formulaire pour exercer votre droit de vous opposer à la vente ou au partage de vos informations personnelles. Nous répondrons sous 45 jours.",
+    "emailLabel": "Adresse e-mail",
+    "emailPlaceholder": "vous@exemple.com",
+    "notesLabel": "Détails supplémentaires (facultatif)",
+    "notesPlaceholder": "Indiquez tout ce qui peut nous aider à retrouver vos données.",
+    "submitButton": "Envoyer la demande d’opposition",
+    "submittingButton": "Envoi en cours...",
+    "successTitle": "Demande reçue",
+    "successMessage": "Votre demande d’opposition a bien été reçue. Nous répondrons sous 45 jours.",
+    "errorRequired": "Veuillez saisir votre adresse e-mail.",
+    "errorFailed": "Nous n’avons pas pu envoyer votre demande. Veuillez réessayer plus tard."
   },
   "cookiePolicyPage": {
     "title": "Politique de cookies",
@@ -19722,7 +19734,13 @@
       "creditSheetStripeUnavailable": "Les paiements par carte ne sont pas disponibles pour le moment.",
       "useNewCard": "Utiliser une nouvelle carte",
       "guestCredit": "Crédit invité",
-      "guestCreditSub": "Payez avec le crédit OxSteed en tant qu'invité (jusqu'à 25 $/commande)"
+      "guestCreditSub": "Payez avec le crédit OxSteed en tant qu'invité (jusqu'à 25 $/commande)",
+      "loyaltyPoints": "Points de fidelite",
+      "loyaltyPlaceholder": "Points a utiliser",
+      "loyaltyUseMax": "Tout utiliser",
+      "loyaltyBalanceHint": "{{balance}} points disponibles. Minimum {{min}} points a utiliser.",
+      "loyaltyLoading": "Chargement de votre solde de points...",
+      "loyaltyDiscount": "Fidelite ({{points}} pts)"
     },
     "order": {
       "specialInstructions": "Instructions spéciales (facultatif)",

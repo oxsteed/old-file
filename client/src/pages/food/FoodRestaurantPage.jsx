@@ -20,6 +20,7 @@ import {
   createRestaurantTopupIntent,
   getFoodRestaurant,
   getMyFoodRestaurantWallet,
+  getLoyaltyBalance,
   getRestaurantTopup,
   getRestaurantTopupEligibility,
   issueRestaurantTopupStepupChallenge,
@@ -247,6 +248,11 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
   const [addressLine1, setAddressLine1] = useState('');
   const [addressLine2, setAddressLine2] = useState('');
   const [promoCode, setPromoCode] = useState('');
+  // P3-9-F01: loyalty points redemption. Balance is fetched for the signed-in
+  // customer; the requested points ride along in the quote and order payloads
+  // (the server re-validates and clamps them).
+  const [loyaltyBalance, setLoyaltyBalance] = useState(null);
+  const [loyaltyPointsText, setLoyaltyPointsText] = useState('');
   const [deliverySlot, setDeliverySlot] = useState('asap');
   const [tipPreset, setTipPreset] = useState('none'); // 'none' | 10 | 15 | 20 | 'custom'
   const [customTipText, setCustomTipText] = useState('');
@@ -950,6 +956,11 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
         if (promoCode.trim()) {
           payload.discountCode = promoCode.trim();
         }
+        // P3-9-F01: loyalty redemption is validated server-side; the quote
+        // must reflect it so the displayed total matches the placed order.
+        if (loyaltyPointsToRedeem > 0) {
+          payload.loyaltyPointsToRedeem = loyaltyPointsToRedeem;
+        }
         if (fulfillmentType === 'delivery') {
           payload.deliveryAddress = {
             line1: addressLine1.trim(),
@@ -968,7 +979,29 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
       }
     }, 450);
     return () => clearTimeout(timer);
-  }, [cartOpen, cartItems.length, restaurantId, cartStep, deliveryMode, addressLine1, addressLine2, apiPaymentMode, tipCents, promoCode, orderItemsPayload, restaurant]);
+  }, [cartOpen, cartItems.length, restaurantId, cartStep, deliveryMode, addressLine1, addressLine2, apiPaymentMode, tipCents, promoCode, loyaltyPointsToRedeem, orderItemsPayload, restaurant]);
+
+  // P3-9-F01: fetch the signed-in customer's loyalty balance for this
+  // restaurant when the checkout opens so points can be viewed and redeemed.
+  useEffect(() => {
+    if (!cartOpen || !user || !restaurantId) {
+      setLoyaltyBalance(null);
+      return undefined;
+    }
+    let cancelled = false;
+    getLoyaltyBalance(restaurantId)
+      .then((balance) => { if (!cancelled) setLoyaltyBalance(balance); })
+      .catch(() => { if (!cancelled) setLoyaltyBalance(null); });
+    return () => { cancelled = true; };
+  }, [cartOpen, user, restaurantId]);
+
+  // Points the customer asked to redeem, clamped to a sane integer. The
+  // server re-validates against the live balance and the order subtotal.
+  const loyaltyPointsToRedeem = useMemo(() => {
+    const requested = Math.floor(Number(loyaltyPointsText) || 0);
+    if (requested <= 0 || !loyaltyBalance) return 0;
+    return Math.min(requested, Math.max(0, loyaltyBalance.pointsBalance));
+  }, [loyaltyPointsText, loyaltyBalance]);
 
   const openLoginGate = () => {
     navigate('/login', { state: { from: location } });
@@ -1087,6 +1120,8 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
           paymentMode,
           // CC4: promo codes are validated server-side for every payment mode.
           discountCode: promoCode.trim() ? promoCode.trim() : undefined,
+          // P3-9-F01: loyalty points redemption (validated server-side).
+          loyaltyPointsToRedeem: loyaltyPointsToRedeem > 0 ? loyaltyPointsToRedeem : undefined,
           items: orderItemsPayload,
           // The server re-prices everything; send the customer-chosen tip and
           // time slot so the debited total matches the quoted total.
@@ -1841,7 +1876,18 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
       { key: 'subtotal', label: t('food.restaurant.subtotal'), amount: quoted(quote?.subtotalCents) ?? subtotalCents },
     ];
     const discount = quoted(quote?.discountCents);
-    if (discount > 0) rows.push({ key: 'discount', label: t('food.restaurant.quoteDiscount'), amount: -discount, tone: 'green' });
+    // P3-9-F01: the quoted discount bundles promo + loyalty redemption;
+    // show the loyalty line separately so the customer sees what their
+    // points bought.
+    const loyaltyDiscount = quoted(quote?.loyaltyDiscountCents) || 0;
+    const promoDiscount = Math.max(0, (discount || 0) - loyaltyDiscount);
+    if (promoDiscount > 0) rows.push({ key: 'discount', label: t('food.restaurant.quoteDiscount'), amount: -promoDiscount, tone: 'green' });
+    if (loyaltyDiscount > 0) rows.push({
+      key: 'loyalty',
+      label: t('food.restaurant.loyaltyDiscount', { points: quoted(quote?.loyaltyRedeemedPoints) || 0 }),
+      amount: -loyaltyDiscount,
+      tone: 'green',
+    });
     const tax = quoted(quote?.taxCents);
     if (tax > 0) rows.push({ key: 'tax', label: t('food.restaurant.quoteTax'), amount: tax });
     const serviceFee = quoted(quote?.serviceFeeCents);
@@ -2814,6 +2860,43 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
                         style={{ ...inputStyle, marginBottom: 20, textTransform: 'uppercase' }}
                       />
                     </>
+                    {/* P3-9-F01: loyalty points. Signed-in customers see their
+                        balance for this restaurant and can redeem points for
+                        a discount (validated server-side). */}
+                    {user && (
+                      <>
+                        <p style={{ ...sectionLabel, color: '#64748b' }}>
+                          {t('food.restaurant.loyaltyPoints')}{' '}
+                          <span style={{ textTransform: 'none', fontWeight: 400, color: '#94a3b8' }}>({t('food.restaurant.optional')})</span>
+                        </p>
+                        <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 20 }}>
+                          <input
+                            value={loyaltyPointsText}
+                            onChange={(e) => setLoyaltyPointsText(e.target.value.replace(/[^0-9]/g, '').slice(0, 7))}
+                            placeholder={t('food.restaurant.loyaltyPlaceholder')}
+                            inputMode="numeric"
+                            aria-label={t('food.restaurant.loyaltyPoints')}
+                            style={{ ...inputStyle, marginBottom: 0, flex: 1 }}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setLoyaltyPointsText(loyaltyBalance ? String(Math.max(0, loyaltyBalance.pointsBalance)) : '')}
+                            disabled={!loyaltyBalance || loyaltyBalance.pointsBalance < (loyaltyBalance.minRedeemPoints || 100)}
+                            style={{ height: 40, padding: '0 14px', borderRadius: 10, border: '1.5px solid #e2e8f0', background: '#fff', color: '#475569', fontSize: 13, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}
+                          >
+                            {t('food.restaurant.loyaltyUseMax')}
+                          </button>
+                        </div>
+                        <p style={{ fontSize: 12, color: '#64748b', marginTop: -14, marginBottom: 20, lineHeight: 1.5 }}>
+                          {loyaltyBalance
+                            ? t('food.restaurant.loyaltyBalanceHint', {
+                                balance: loyaltyBalance.pointsBalance,
+                                min: loyaltyBalance.minRedeemPoints,
+                              })
+                            : t('food.restaurant.loyaltyLoading')}
+                        </p>
+                      </>
+                    )}
                     <p style={{ ...sectionLabel, color: '#64748b' }}>{t('food.restaurant.tip')}</p>
                     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: tipPreset === 'custom' ? 8 : 20 }}>
                       {[

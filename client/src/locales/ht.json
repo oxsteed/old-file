@@ -2322,7 +2322,13 @@
     "protectionDesc": "Lè ou sèvi ak Pwoteksyon OxSteed, app la anrejistre pèman an, akò a, ak tras dispit la nan yon sèl plas. Kredi restoran ak pèman dirèk ant itilizatè yo se wout aktif pou lansman, kidonk konsantrasyon an se sou dosye klè, konfimasyon, ak sipò.",
     "protectionNote": "* Pwoteksyon OxSteed mande verifikasyon ID pou kliyan ak verifikasyon ID + verifikasyon dosye kriminèl pou pwofesyonèl yo. Pèman pou lansman yo pa mande konfigirasyon kont Stripe.",
     "proFeatures": "Karakteristik pwofesyonèl",
-    "legacyProcessorFee": "Frè ansyen pwosesè a (backend sèlman)"
+    "legacyProcessorFee": "Frè ansyen pwosesè a (backend sèlman)",
+    "receiptsTitle": "Resi",
+    "receiptsSubtitle": "Fakti abònman ou yo, toujou disponib isit la.",
+    "receiptsLoading": "Ap chaje resi yo...",
+    "receiptsEmpty": "Poko gen fakti. Premye resi ou ap paret isit la apre peman.",
+    "receiptFallbackLabel": "Fakti",
+    "viewReceipt": "Wè resi a"
   },
   "businessAppointments": {
     "title": "Kalandriye randevou",
@@ -8597,7 +8603,13 @@
     "showOnceTitle": "Nouvo kòd aksè ou",
     "showOnceDesc": "Kopye kòd sa a kounye a. Pou sekirite, li pap parèt ankò.",
     "showOnceDismiss": "Mwen kopye li",
-    "codeHiddenTitle": "Kache pou sekirite. Chanje pou bay yon nouvo kòd."
+    "codeHiddenTitle": "Kache pou sekirite. Chanje pou bay yon nouvo kòd.",
+    "lineItemType": "Kalite liy",
+    "lineItemTypeItem": "Atik",
+    "lineItemTypeDiscount": "Rabè",
+    "lineItemTypeFee": "Frè",
+    "discountTotal": "Rabè",
+    "feeTotal": "Frè"
   },
   "plans": {
     "free": "Gratis",
@@ -17389,18 +17401,18 @@
     "contactIntro": "Si ou gen kesyon sou paj sa a oswa ou vle itilize yon dwa vi prive, kontakte nou nan:",
     "contactEmailLabel": "Imèl:",
     "contactMailLabel": "Lèt pòs:",
-      "formTitle": "Voye yon demann pou pa vann done ou",
-      "formIntro": "Sèvi ak fòmilè sa a pou egzèse dwa ou pou refize vann oswa pataje enfòmasyon pèsonèl ou. N ap reponn nan 45 jou.",
-      "emailLabel": "Adrès imèl",
-      "emailPlaceholder": "ou@egzanp.com",
-      "notesLabel": "Lòt detay (opsyonèl)",
-      "notesPlaceholder": "Di nou sa ki ka ede nou jwenn done ou.",
-      "submitButton": "Voye demann lan",
-      "submittingButton": "Ap voye...",
-      "successTitle": "Demann resevwa",
-      "successMessage": "Nou resevwa demann ou. N ap reponn nan 45 jou.",
-      "errorRequired": "Tanpri antre adrès imèl ou.",
-      "errorFailed": "Nou pa t kapab voye demann ou. Tanpri eseye ankò pita."
+    "formTitle": "Voye yon demann pou pa vann done ou",
+    "formIntro": "Sèvi ak fòmilè sa a pou egzèse dwa ou pou refize vann oswa pataje enfòmasyon pèsonèl ou. N ap reponn nan 45 jou.",
+    "emailLabel": "Adrès imèl",
+    "emailPlaceholder": "ou@egzanp.com",
+    "notesLabel": "Lòt detay (opsyonèl)",
+    "notesPlaceholder": "Di nou sa ki ka ede nou jwenn done ou.",
+    "submitButton": "Voye demann lan",
+    "submittingButton": "Ap voye...",
+    "successTitle": "Demann resevwa",
+    "successMessage": "Nou resevwa demann ou. N ap reponn nan 45 jou.",
+    "errorRequired": "Tanpri antre adrès imèl ou.",
+    "errorFailed": "Nou pa t kapab voye demann ou. Tanpri eseye ankò pita."
   },
   "cookiePolicyPage": {
     "title": "Politik sou Cookies",
@@ -19722,7 +19734,13 @@
       "creditSheetStripeUnavailable": "Peman ak kat pa disponib kounye a.",
       "useNewCard": "Sèvi ak yon nouvo kat",
       "guestCredit": "Kredi vizitè",
-      "guestCreditSub": "Peye ak Kredi OxSteed kòm vizitè (jiska $25/kòmann)"
+      "guestCreditSub": "Peye ak Kredi OxSteed kòm vizitè (jiska $25/kòmann)",
+      "loyaltyPoints": "Pwen fidelite",
+      "loyaltyPlaceholder": "Pwen pou itilize",
+      "loyaltyUseMax": "Itilize tout",
+      "loyaltyBalanceHint": "{{balance}} pwen disponib. Minimom {{min}} pwen pou itilize.",
+      "loyaltyLoading": "Ap chaje balans pwen ou...",
+      "loyaltyDiscount": "Fidelite ({{points}} pwen)"
     },
     "order": {
       "specialInstructions": "Enstriksyon espesyal (si w vle)",

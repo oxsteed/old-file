@@ -42,8 +42,9 @@ function _cachePut(map, key, value) {
  *
  *   new            -> never booked / purchased
  *   returning      -> 1-4 prior orders/appointments (any status)
- *   vip            -> 5+ prior orders/appointments OR row in customer_loyalty_segments at tier 'vip'
- *   loyalty_tier_* -> custom tier from customer_loyalty_segments (when migration 224 applied)
+ *   vip            -> 5+ prior orders/appointments OR loyalty_tier 'vip'
+ *   loyalty_tier_* -> custom tier from customer_business_profile.loyalty_tier
+ *                     (kept live by the food order-completion writer)
  */
 async function getCustomerSegment({ userId, businessId }) {
   if (!userId || !businessId) return 'new';
@@ -52,15 +53,17 @@ async function getCustomerSegment({ userId, businessId }) {
   if (hit) return hit;
 
   try {
-    // 1) Check customer_loyalty_segments first (richer schema if present)
+    // 1) Check customer_business_profile first (richer schema; the
+    // customer_loyalty_segments table referenced here previously was never
+    // created by any migration, so this read always missed).
     const loyalty = await pool.query(
-      `SELECT tier FROM customer_loyalty_segments
-        WHERE business_id = $1 AND user_id = $2
+      `SELECT loyalty_tier FROM customer_business_profile
+        WHERE business_id = $1 AND customer_id = $2
         LIMIT 1`,
       [businessId, userId]
     ).catch(() => ({ rows: [] }));
-    if (loyalty.rows[0] && loyalty.rows[0].tier) {
-      return _cachePut(segmentCache, key, `loyalty_tier_${loyalty.rows[0].tier}`);
+    if (loyalty.rows[0] && loyalty.rows[0].loyalty_tier) {
+      return _cachePut(segmentCache, key, `loyalty_tier_${loyalty.rows[0].loyalty_tier}`);
     }
 
     // 2) Count prior interactions across appointments + orders

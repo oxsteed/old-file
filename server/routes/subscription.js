@@ -31,5 +31,7 @@ router.get('/badges/:userId', async (req, res, next) => {
 });
 router.post('/cancel', authenticate, subCtrl.cancelSubscription);
 router.post('/portal', strictLimiter, authenticate, subCtrl.createPortalSession);
+// P3-9-F11: in-app subscription invoice/receipt view.
+router.get('/invoices', authenticate, subCtrl.listSubscriptionInvoices);
 
 module.exports = router;

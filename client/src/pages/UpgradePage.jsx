@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import useSubscription from '../hooks/useSubscription';
 import { useAuth } from '../hooks/useAuth';
+import api from '../api/axios';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import { formatDate, formatMoney } from '../lib/format';
@@ -64,9 +65,24 @@ export default function UpgradePage() {
   const navigate = useNavigate();
   const { subscription, loading, error } = useSubscription();
   const [billing, setBilling] = useState('monthly');
+  // P3-9-F11: in-app subscription invoices/receipts.
+  const [receipts, setReceipts] = useState([]);
+  const [receiptsLoading, setReceiptsLoading] = useState(false);
 
   const isSubscribed = subscription && (subscription.status === 'active' || subscription.status === 'trialing');
   const isHelper = user?.role === 'helper';
+
+  // P3-9-F11: load subscription invoices/receipts for the in-app receipt view.
+  useEffect(() => {
+    if (!isSubscribed) return;
+    let cancelled = false;
+    setReceiptsLoading(true);
+    api.get('/subscription/invoices')
+      .then(({ data }) => { if (!cancelled) setReceipts(data?.invoices || []); })
+      .catch(() => { if (!cancelled) setReceipts([]); })
+      .finally(() => { if (!cancelled) setReceiptsLoading(false); });
+    return () => { cancelled = true; };
+  }, [isSubscribed]);
 
   const proMonthly = 14.99;
   const proYearly = 79.99;
@@ -154,6 +170,64 @@ export default function UpgradePage() {
                   View history
                 </Link>
               </div>
+            </div>
+
+            {/* P3-9-F11: in-app subscription invoices/receipts. Receipts were
+                previously only available via Stripe email (dashboard setting);
+                they are now always viewable here. */}
+            <div className="bg-gray-900/60 border border-gray-700/40 rounded-2xl p-6 mt-6 text-left">
+              <h3 className="text-white font-bold text-sm mb-1">{t('upgrade.receiptsTitle')}</h3>
+              <p className="text-gray-500 text-xs mb-4">{t('upgrade.receiptsSubtitle')}</p>
+              {receiptsLoading ? (
+                <p className="text-gray-500 text-sm">{t('upgrade.receiptsLoading')}</p>
+              ) : receipts.length === 0 ? (
+                <p className="text-gray-500 text-sm">{t('upgrade.receiptsEmpty')}</p>
+              ) : (
+                <ul className="divide-y divide-gray-800">
+                  {receipts.map((inv) => {
+                    const amount = (Number(inv.amountPaid || inv.amountDue || 0) / 100).toFixed(2);
+                    const date = inv.created
+                      ? new Date(inv.created * 1000).toLocaleDateString()
+                      : '';
+                    return (
+                      <li key={inv.id} className="py-3 flex items-center justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-white text-sm font-semibold truncate">
+                            {inv.number || t('upgrade.receiptFallbackLabel')}
+                          </p>
+                          <p className="text-gray-500 text-xs">
+                            {date}{inv.status ? ` · ${inv.status}` : ''}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-3 flex-shrink-0">
+                          <span className="text-gray-300 text-sm font-semibold">
+                            {inv.currency} {amount}
+                          </span>
+                          {inv.hostedInvoiceUrl ? (
+                            <a
+                              href={inv.hostedInvoiceUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-orange-400 hover:text-orange-300 text-xs font-semibold"
+                            >
+                              {t('upgrade.viewReceipt')}
+                            </a>
+                          ) : inv.invoicePdf ? (
+                            <a
+                              href={inv.invoicePdf}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-orange-400 hover:text-orange-300 text-xs font-semibold"
+                            >
+                              {t('upgrade.viewReceipt')}
+                            </a>
+                          ) : null}
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
             </div>
 
             <div className="text-center mt-6">

@@ -93,6 +93,16 @@ export const listFoodPromotions = (restaurantId) =>
 export const quoteFoodOrder = (restaurantId, payload) =>
   api.post(`/food/restaurants/${restaurantId}/orders/quote`, payload).then((r) => r.data?.quote || null);
 
+// P3-9-F01: the customer's loyalty point balance for one restaurant. Shown in
+// checkout so points can be viewed and redeemed.
+export const getLoyaltyBalance = (restaurantId) =>
+  api.get(`/food/customer/loyalty/${restaurantId}`).then((r) => ({
+    pointsBalance: Number(r.data?.pointsBalance || 0),
+    lifetimePoints: Number(r.data?.lifetimePoints || 0),
+    minRedeemPoints: Number(r.data?.minRedeemPoints || 100),
+    centsPerPoint: Number(r.data?.centsPerPoint || 1),
+  }));
+
 // In-checkout card payment: creates a Stripe PaymentIntent on the
 // restaurant's connected account. The client confirms it with Elements, then
 // places the order with paymentMode 'card' and the payment intent id.
