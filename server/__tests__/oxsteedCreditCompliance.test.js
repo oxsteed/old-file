@@ -287,6 +287,39 @@ describe('sanctions screening', () => {
     expect(result.cleared).toBe(true);
   });
 
+  test('P3-10-F20 (by design): a cleared hit older than the TTL is re-screened and blocks again', async () => {
+    const staleCleared = screeningRow({
+      result: 'hit',
+      hit_context: 'manual_review_required',
+      screened_at: new Date(Date.now() - 25 * 60 * 60 * 1000).toISOString(),
+      cleared_at: new Date(Date.now() - 25 * 60 * 60 * 1000).toISOString(),
+      cleared_by: ACTOR_ID,
+      clear_reason: 'False positive confirmed',
+    });
+    const freshHit = screeningRow({
+      id: '55555555-5555-4555-8555-555555555555',
+      result: 'hit',
+      hit_context: 'manual_review_required',
+      screened_at: new Date().toISOString(),
+      cleared_at: null,
+    });
+    mockQuery.mockImplementation(async (text) => {
+      const sql = String(text);
+      if (sql.includes('FROM oxsteed_credit_sanctions_screenings') && sql.includes('ORDER BY screened_at')) {
+        return { rows: [staleCleared] };
+      }
+      if (sql.includes('INSERT INTO oxsteed_credit_sanctions_screenings')) return { rows: [freshHit] };
+      return { rows: [], rowCount: 0 };
+    });
+    await expect(assertSanctionsClear(fakeClient(), {
+      subjectType: 'customer',
+      subjectId: CUSTOMER_ID,
+    })).rejects.toMatchObject({ code: 'credit_sanctions_match', status: 403 });
+    // The stale clearance was not honored: a fresh manual_review hit was
+    // persisted instead, so the per-customer daily clearance burden holds.
+    expect(mockQuery.mock.calls.some(([sql]) => String(sql).includes('INSERT INTO oxsteed_credit_sanctions_screenings'))).toBe(true);
+  });
+
   test('a provider error fails closed with 503 and raises an incident', async () => {
     const provider = SCREENING_PROVIDERS.manual_review;
     const original = provider.screenSubject;
