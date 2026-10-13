@@ -5,12 +5,16 @@ jest.mock('../db', () => ({ query: jest.fn() }));
 jest.mock('../services/chatTransactionService', () => ({
   withChatTransaction: jest.fn(),
 }));
-jest.mock('../utils/logger', () => ({ info: jest.fn(), error: jest.fn() }));
+jest.mock('../utils/logger', () => ({ info: jest.fn(), error: jest.fn(), warn: jest.fn() }));
+jest.mock('../services/socketService', () => ({ broadcastGuestChatMessage: jest.fn() }));
+jest.mock('../services/notificationService', () => ({ sendNotification: jest.fn().mockResolvedValue({}) }));
 
 const cron = require('node-cron');
 const db = require('../db');
 const { withChatTransaction } = require('../services/chatTransactionService');
-const { startGuestChatSessionTimeoutJob } = require('../jobs/guestChatSessionTimeout');
+const { startGuestChatSessionTimeoutJob, runGuestChatSessionTimeoutPass, fallbackMessage } = require('../jobs/guestChatSessionTimeout');
+const { broadcastGuestChatMessage } = require('../services/socketService');
+const { sendNotification } = require('../services/notificationService');
 
 describe('guest chat session timeout job', () => {
   beforeEach(() => {
@@ -50,5 +54,43 @@ describe('guest chat session timeout job', () => {
       sql.includes('INSERT INTO chat_monitoring_log')
     );
     expect(monitoringCall[1][1]).toBe('ai_fallback_triggered_timeout');
+  });
+
+  test('posts a localized system_ai fallback, activates AI support and notifies the helper (P1-264)', async () => {
+    db.query.mockResolvedValue({ rows: [{ id: 'session-2', guest_name: 'Guest' }] });
+    const client = {
+      query: jest.fn(async (sql) => {
+        if (sql.includes('FOR UPDATE')) {
+          return { rows: [{ session_status: 'waiting_for_helper', helper_response_deadline: new Date(Date.now() - 1000), verification_status: 'verified' }] };
+        }
+        if (sql.includes('LEFT JOIN users h')) return { rows: [{ helper_id: 'helper-1', helper_first_name: 'Rosa', guest_language: 'es' }] };
+        if (sql.includes('INSERT INTO guest_profile_chat_messages')) return { rows: [{ id: 77, created_at: new Date() }] };
+        return { rows: [] };
+      }),
+    };
+    withChatTransaction.mockImplementation(async (callback) => callback(client));
+    await runGuestChatSessionTimeoutPass();
+
+    const insert = client.query.mock.calls.find(([sql]) => sql.includes('INSERT INTO guest_profile_chat_messages'));
+    expect(insert[0]).toContain("'system_ai'");
+    expect(insert[1][1]).toMatch(/^Rosa aún no ha respondido/);
+    const activate = client.query.mock.calls.find(([sql]) => sql.includes("SET session_status = 'ai_support_active'"));
+    expect(activate).toBeDefined();
+    expect(broadcastGuestChatMessage).toHaveBeenCalledWith('session-2', expect.objectContaining({ senderType: 'system_ai', messageId: 77 }));
+    expect(sendNotification).toHaveBeenCalledWith(expect.objectContaining({ userId: 'helper-1', idempotencyKey: 'guest-chat-fallback:session-2' }));
+  });
+
+  test('skips sessions a helper already claimed', async () => {
+    db.query.mockResolvedValue({ rows: [{ id: 's3' }] });
+    const client = { query: jest.fn().mockResolvedValue({ rows: [{ session_status: 'helper_assigned', verification_status: 'verified' }] }) };
+    withChatTransaction.mockImplementation(async (callback) => callback(client));
+    await runGuestChatSessionTimeoutPass();
+    expect(broadcastGuestChatMessage).not.toHaveBeenCalled();
+    expect(sendNotification).not.toHaveBeenCalled();
+  });
+
+  test('fallback text falls back to English and a generic name', () => {
+    expect(fallbackMessage('xx', '')).toMatch(/^The helper hasn't replied yet/);
+    expect(fallbackMessage('ar', 'Ali')).toContain('Ali');
   });
 });

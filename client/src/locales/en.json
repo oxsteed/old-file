@@ -19246,6 +19246,8 @@
       }
     },
     "restaurant": {
+      "messageUnreachable": "This restaurant can't receive messages right now. Please try again later.",
+      "messageOwnRestaurant": "This is your restaurant. Customer messages arrive in your business inbox.",
       "notFound": "We couldn't find that restaurant.",
       "otherItems": "More items",
       "prepTime": "About {{min}} min prep",
@@ -20890,6 +20892,15 @@
       "help": "Tracking is stored locally in your browser so you can experiment safely."
     },
     "toolkit": {
+      "featuredStatus": {
+        "closed": "Your featured placement was ended. You can request another review.",
+        "declined": "Your last request wasn't approved. You can request another review.",
+        "expired": "Your featured placement has ended. You can request another review.",
+        "approved": "Featured: {{restaurant}} until {{date}}.",
+        "contacted": "Our team is reviewing your request and may contact you.",
+        "requested": "Your request is waiting for review."
+      },
+      "featuredHelpNoFee": "Request a featured placement review for your business. OxSteed looks at your category, profile quality, service area and recent reputation before approving. There is no fee for featured placement.",
       "title": "Toolkit",
       "heading": "Five high-leverage tools, ready to use.",
       "body": "These are the assets most providers never get around to building. Each one earns work for years after you set it up once.",
@@ -23464,6 +23475,20 @@
     }
   },
   "qrPay": {
+    "tryAgain": "Try again",
+    "expiredBody": "This checkout wasn't completed, so you weren't charged.",
+    "expiredTitle": "Checkout expired",
+    "checkAgain": "Check again",
+    "stillConfirmingBody": "Your bank is still confirming this payment. You won't be charged twice. Check again in a moment.",
+    "receiptDate": "Started",
+    "receiptFor": "For",
+    "receiptTo": "Paid to",
+    "receiptAmount": "Amount",
+    "creditPaidBody": "You paid {{amount}} to {{name}} with OxSteed Credit.",
+    "payWithCredit": "Pay with OxSteed Credit",
+    "creditUnavailable": "Paying with OxSteed Credit isn't available yet.",
+    "temporarilyUnavailable": "QR payments are temporarily unavailable. Please try again later.",
+    "recipientUnavailable": "This person can't accept card payments right now. Please try again later or pay them another way.",
     "setupTitle": "Get paid with QR codes",
     "viewMyBookings": "View my bookings",
     "setupSubtitle": "Create QR codes your customers can scan to pay you directly. No app needed on their side.",
@@ -24854,6 +24879,12 @@
     "updatedAt": "Updated {{time}}"
   },
   "superConversations": {
+    "outboxRetryFailed": "Couldn't requeue the notifications. Try again.",
+    "outboxRetried": "Requeued notifications: {{count}}",
+    "outboxRowLabel": "{{attempts}} attempts · {{error}}",
+    "outboxRetryOne": "Retry",
+    "outboxRetryAll": "Retry all",
+    "outboxFailedCount": "Undelivered message notifications: {{count}}",
     "actionFailed": "Action failed.",
     "agreementsCount": "Agreements ({{count}})",
     "auditBanner": "Break-glass access: reason logged: “{{reason}}”. Telegram cloud-chat model (not E2EE).",
@@ -29955,6 +29986,10 @@
   },
   "featuredPlacements": {
     "admin": {
+      "approveMovesPlacement": "This moves the placement. The restaurant featured now under this request will stop being featured.",
+      "placementExpired": "Placement expired",
+      "renewTitle": "Renew featured placement",
+      "renew": "Renew",
       "eyebrow": "Discovery",
       "title": "Featured placement review",
       "subtitle": "Businesses request featured placement for their restaurants. Approve a request to feature a restaurant on the home page shelf for a fixed duration.",
@@ -30497,6 +30532,25 @@
     "refundUnavailableHint": "This order is not currently in a refundable payment state."
   },
   "media": {
+    "moderation": {
+      "appealStatus": {
+        "rejected": "Your appeal was not accepted.",
+        "accepted": "Your appeal was accepted.",
+        "under_review": "Your appeal is being reviewed.",
+        "open": "Appeal sent. We'll review it soon."
+      },
+      "appealFailed": "Couldn't send your appeal. Try again.",
+      "appealExists": "An appeal for this post is already waiting for review.",
+      "reasonRequired": "Add a short explanation.",
+      "appealSubmit": "Send appeal",
+      "appealLabel": "Tell us why this decision should be reviewed",
+      "otherBody": "Only you can see that this post exists.",
+      "otherTitle": "This post isn't public",
+      "removedBody": "Our team removed this post for breaking the community guidelines.",
+      "removedTitle": "Your post was removed",
+      "heldBody": "Several people reported this post, so it's hidden from others while our team reviews it.",
+      "heldTitle": "Your post is on hold for review"
+    },
     "landing": {
       "heroTitle": "Your neighborhood, connected.",
       "heroDescription": "Discover people, places, and opportunities nearby.",
@@ -30889,6 +30943,11 @@
       "emptyDescription": "Share something useful with your local community."
     },
     "compose": {
+      "uploadStalled": "The upload stopped responding. Check your connection and retry.",
+      "uploadCancelled": "Upload cancelled.",
+      "cancelUpload": "Cancel",
+      "videoUnavailable": "Video posts aren't available right now. Remove the video or post photos instead.",
+      "processingDelayedRemove": "Media checks are taking longer than expected. If this doesn't clear, remove the video and publish with photos or text.",
       "verificationRequired": "Verification required",
       "notVerified": "Not verified",
       "saveDraft": "Save draft",

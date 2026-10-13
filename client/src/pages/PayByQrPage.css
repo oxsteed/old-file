@@ -275,3 +275,20 @@
     transition: none;
   }
 }
+
+/* P1-298: payment details on the success and still-confirming states. */
+.pbq-receipt {
+  width: 100%;
+  margin: 12px 0 4px;
+  display: grid;
+  gap: 6px;
+  text-align: start;
+  font-size: 14px;
+}
+.pbq-receipt > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+.pbq-receipt dt { color: #64748b; }
+.pbq-receipt dd { margin: 0; font-weight: 600; text-align: end; overflow-wrap: anywhere; }

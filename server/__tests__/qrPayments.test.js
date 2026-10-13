@@ -1,9 +1,12 @@
 'use strict';
 
+process.env.PUBLIC_APP_URL = process.env.PUBLIC_APP_URL || 'https://oxsteed.test';
+
 const express = require('express');
 const request = require('supertest');
 const { mockQuery, resetMocks } = require('./setup');
 
+jest.mock('../services/qrPaymentNotifications', () => ({ notifyQrPayee: jest.fn().mockResolvedValue({}) }));
 jest.mock('../middleware/auth', () => ({
   authenticate: (req, _res, next) => {
     req.user = { id: 'owner-1', role: 'helper' };
@@ -15,6 +18,7 @@ const stripeFactory = require('stripe');
 const mockStripe = stripeFactory.__mockInstance;
 
 const qrPaymentsRoutes = require('../routes/qrPayments');
+const { notifyQrPayee } = require('../services/qrPaymentNotifications');
 const webhookController = require('../controllers/webhookController');
 
 function buildApp() {
@@ -44,6 +48,8 @@ const CODE_ROW = {
 
 beforeEach(() => {
   resetMocks();
+  notifyQrPayee.mockClear();
+  mockStripe.checkout.sessions.retrieve.mockReset();
   mockStripe.checkout.sessions.create.mockReset();
   mockStripe.checkout.sessions.create.mockResolvedValue({
     id: 'cs_test_1',
@@ -323,7 +329,9 @@ describe('POST /api/qr-payments/pay/:code/checkout', () => {
       .set('Idempotency-Key', 'qr-connect-required-1')
       .send({});
     expect(res.status).toBe(409);
-    expect(res.body.code).toBe('connect_required');
+    // P1-302: payer-facing code and wording.
+    expect(res.body.code).toBe('recipient_unavailable');
+    expect(res.body.error).not.toMatch(/Connect your Stripe/);
     expect(mockStripe.checkout.sessions.create).not.toHaveBeenCalled();
   });
 });
@@ -353,7 +361,8 @@ describe('GET /api/qr-payments/pay/:code/receipt', () => {
       '/api/qr-payments/pay/AbCdEfGhIjKl/receipt?session_id=cs_test_1'
     );
     expect(res.status).toBe(200);
-    expect(res.body).toEqual({ status: 'succeeded', amount_cents: 2500, currency: 'usd', label: 'Lawn mowing' });
+    expect(res.body).toMatchObject({ status: 'succeeded', amount_cents: 2500, currency: 'usd', label: 'Lawn mowing' });
+    expect(mockStripe.checkout.sessions.retrieve).not.toHaveBeenCalled();
   });
 
   test('defaults receipt currency to USD when the code has none', async () => {
@@ -366,6 +375,63 @@ describe('GET /api/qr-payments/pay/:code/receipt', () => {
     );
     expect(res.status).toBe(200);
     expect(res.body.currency).toBe('USD');
+  });
+});
+
+describe('receipt reconciliation (P1-298)', () => {
+  test('a pending row is reconciled from Stripe on the connected account', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ status: 'pending', amount_cents: 2500, currency: 'usd', label: 'Lawn mowing', owner_user_id: 'owner-1', first_name: 'Emile', last_name: 'Laurent' }] })
+      .mockResolvedValueOnce({ rows: [CONNECT_ROW] }) // connect account
+      .mockResolvedValueOnce({ rowCount: 1, rows: [{ id: 'qp-1', qr_code_id: 'qr-code-1', amount_cents: 2500 }] }) // apply succeeded
+      .mockResolvedValueOnce({ rows: [{ status: 'succeeded' }] }); // re-read
+    mockStripe.checkout.sessions.retrieve.mockResolvedValueOnce({ id: 'cs_test_1', payment_status: 'paid', amount_total: 2500, payment_intent: 'pi_1' });
+    const res = await request(buildApp()).get('/api/qr-payments/pay/AbCdEfGhIjKl/receipt?session_id=cs_test_1');
+    expect(res.status).toBe(200);
+    expect(res.body.status).toBe('succeeded');
+    expect(res.body.recipient_name).toBe('Emile L.');
+    expect(mockStripe.checkout.sessions.retrieve).toHaveBeenCalledWith('cs_test_1', { stripeAccount: 'acct_123' });
+    expect(notifyQrPayee).toHaveBeenCalledWith(expect.objectContaining({ id: 'qp-1' }));
+  });
+
+  test('an expired Stripe session marks the row expired', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ status: 'pending', amount_cents: 2500, currency: 'usd', label: 'L', owner_user_id: 'owner-1', first_name: 'E' }] })
+      .mockResolvedValueOnce({ rows: [CONNECT_ROW] })
+      .mockResolvedValueOnce({ rowCount: 1, rows: [] });
+    mockStripe.checkout.sessions.retrieve.mockResolvedValueOnce({ id: 'cs_x', payment_status: 'unpaid', status: 'expired' });
+    const res = await request(buildApp()).get('/api/qr-payments/pay/AbCdEfGhIjKl/receipt?session_id=cs_x');
+    expect(res.body.status).toBe('expired');
+    expect(mockQuery.mock.calls[2][0]).toMatch(/SET status = 'expired'/);
+  });
+});
+
+describe('PUBLIC_APP_URL guard (P1-299)', () => {
+  test('code creation and checkout return 503 without an absolute public URL', async () => {
+    const saved = process.env.PUBLIC_APP_URL;
+    const savedApp = process.env.APP_URL;
+    const savedClient = process.env.CLIENT_URL;
+    process.env.PUBLIC_APP_URL = '';
+    delete process.env.APP_URL;
+    delete process.env.CLIENT_URL;
+    try {
+      const res = await request(buildApp()).post('/api/qr-payments/codes').send({ label: 'x' });
+      expect(res.status).toBe(503);
+      expect(res.body.code).toBe('qr_public_url_missing');
+      mockQuery
+        .mockResolvedValueOnce({ rows: [CODE_ROW], rowCount: 1 })
+        .mockResolvedValueOnce({ rows: [CONNECT_ROW], rowCount: 1 });
+      const pay = await request(buildApp())
+        .post('/api/qr-payments/pay/AbCdEfGhIjKl/checkout')
+        .set('Idempotency-Key', 'qr-no-url-1')
+        .send({});
+      expect(pay.status).toBe(503);
+      expect(mockStripe.checkout.sessions.create).not.toHaveBeenCalled();
+    } finally {
+      process.env.PUBLIC_APP_URL = saved;
+      if (savedApp !== undefined) process.env.APP_URL = savedApp;
+      if (savedClient !== undefined) process.env.CLIENT_URL = savedClient;
+    }
   });
 });
 
@@ -416,8 +482,8 @@ describe('QR payment webhook completion', () => {
     metadata: { qr_payment: 'true', qr_code_id: 'qr-code-1' },
   };
 
-  test('first delivery flips the payment to succeeded', async () => {
-    mockQuery.mockResolvedValueOnce({ rowCount: 1, rows: [] });
+  test('first delivery flips the payment to succeeded and notifies the payee (P1-301)', async () => {
+    mockQuery.mockResolvedValueOnce({ rowCount: 1, rows: [{ id: 'qp-1', qr_code_id: 'qr-code-1', amount_cents: 5000 }] });
     const updated = await webhookController.applyQrPaymentSucceeded(session);
     expect(updated).toBe(1);
     const [sql, params] = mockQuery.mock.calls[0];
@@ -425,6 +491,7 @@ describe('QR payment webhook completion', () => {
     expect(sql).toMatch(/status <> 'succeeded'/);
     expect(sql).toMatch(/amount_cents = \$3/);
     expect(params).toEqual(['cs_test_1', 'pi_test_1', 5000]);
+    expect(notifyQrPayee).toHaveBeenCalledTimes(1);
   });
 
   test('duplicate delivery is a no-op (idempotent)', async () => {
@@ -432,5 +499,43 @@ describe('QR payment webhook completion', () => {
     mockQuery.mockResolvedValueOnce({ rowCount: 0, rows: [] });
     const updated = await webhookController.applyQrPaymentSucceeded(session);
     expect(updated).toBe(0);
+    expect(notifyQrPayee).not.toHaveBeenCalled();
+  });
+});
+
+describe('Credit payment recording (P1-303)', () => {
+  const creditAdapter = require('../services/creditSpendAdapter');
+  let spy;
+  beforeEach(() => {
+    process.env.QR_CREDIT_ENABLED = 'true';
+    spy = jest.spyOn(creditAdapter, 'spendWithCredit').mockResolvedValue({ idempotencyKey: 'k1' });
+  });
+  afterEach(() => { delete process.env.QR_CREDIT_ENABLED; spy.mockRestore(); });
+
+  test('a fresh credit payment is recorded and notifies the payee', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [CODE_ROW], rowCount: 1 })
+      .mockResolvedValueOnce({ rows: [{ id: 'qp-9', qr_code_id: 'qr-code-1', amount_cents: 2500 }], rowCount: 1 });
+    const res = await request(buildApp())
+      .post('/api/qr-payments/pay/AbCdEfGhIjKl/checkout')
+      .set('Idempotency-Key', 'qr-credit-fresh-1')
+      .send({ payment_method: 'credit' });
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({ status: 'paid', idempotent: false });
+    expect(notifyQrPayee).toHaveBeenCalledWith(expect.objectContaining({ id: 'qp-9' }));
+  });
+
+  test('a conflicting replay reports the recorded row instead of a fresh paid', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [CODE_ROW], rowCount: 1 })
+      .mockResolvedValueOnce({ rows: [], rowCount: 0 })
+      .mockResolvedValueOnce({ rows: [{ status: 'pending', payment_method: 'card' }] });
+    const res = await request(buildApp())
+      .post('/api/qr-payments/pay/AbCdEfGhIjKl/checkout')
+      .set('Idempotency-Key', 'qr-credit-replay-1')
+      .send({ payment_method: 'credit' });
+    expect(res.status).toBe(409);
+    expect(res.body.code).toBe('idempotency_key_conflict');
+    expect(notifyQrPayee).not.toHaveBeenCalled();
   });
 });

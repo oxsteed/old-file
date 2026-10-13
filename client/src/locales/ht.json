@@ -19246,6 +19246,8 @@
       }
     },
     "restaurant": {
+      "messageUnreachable": "Restoran sa a pa ka resevwa mesaj kounye a. Tanpri eseye ankò pita.",
+      "messageOwnRestaurant": "Se restoran pa w. Mesaj kliyan yo rive nan bwat resepsyon biznis ou.",
       "notFound": "Nou pa t jwenn restoran sa a.",
       "otherItems": "Lòt manje",
       "prepTime": "Anviwon {{min}} minit preparasyon",
@@ -20890,6 +20892,15 @@
       "help": "Swivi a sere lokalman nan navigatè ou pou ou ka teste san danje."
     },
     "toolkit": {
+      "featuredStatus": {
+        "closed": "Yo te fini peryòd ou te an premye a. Ou ka mande yon lòt revizyon.",
+        "declined": "Dènye demann ou an pa t apwouve. Ou ka mande yon lòt revizyon.",
+        "expired": "Peryòd ou te an premye a fini. Ou ka mande yon lòt revizyon.",
+        "approved": "An premye: {{restaurant}} jiska {{date}}.",
+        "contacted": "Ekip nou an ap revize demann ou an epi li ka kontakte w.",
+        "requested": "Demann ou an ap tann revizyon."
+      },
+      "featuredHelpNoFee": "Mande yon revizyon pou biznis ou parèt an premye. OxSteed gade kategori w, kalite pwofil ou, zòn sèvis ou ak repitasyon w dènyèman anvan li apwouve. Pa gen frè pou parèt an premye.",
       "title": "Twous zouti",
       "heading": "Senk zouti ki bay gwo rezilta, pare pou itilize.",
       "body": "Sa yo se byen ke pifò founisè pa janm pran tan pou yo konstwi. Chak youn pote travay pandan plizyè ane apre ou mete l kanpe yon sèl fwa.",
@@ -23464,6 +23475,20 @@
     }
   },
   "qrPay": {
+    "tryAgain": "Eseye ankò",
+    "expiredBody": "Peman sa a pa t fini, kidonk yo pa t chaje w.",
+    "expiredTitle": "Peman an ekspire",
+    "checkAgain": "Tcheke ankò",
+    "stillConfirmingBody": "Bank ou toujou ap konfime peman sa a. Yo p ap chaje w de fwa. Tcheke ankò nan yon ti moman.",
+    "receiptDate": "Kòmanse",
+    "receiptFor": "Pou",
+    "receiptTo": "Peye bay",
+    "receiptAmount": "Montan",
+    "creditPaidBody": "Ou peye {{name}} {{amount}} ak OxSteed Credit.",
+    "payWithCredit": "Peye ak OxSteed Credit",
+    "creditUnavailable": "Peye ak OxSteed Credit poko disponib.",
+    "temporarilyUnavailable": "Peman QR pa disponib pou kounye a. Tanpri eseye pita.",
+    "recipientUnavailable": "Moun sa a pa ka aksepte peman ak kat kounye a. Tanpri eseye pita oswa peye l yon lòt fason.",
     "setupTitle": "Resevwa peman ak kòd QR",
     "viewMyBookings": "Wè rezervasyon mwen yo",
     "setupSubtitle": "Kreye kòd QR kliyan ou yo ka eskane pou peye ou dirèkteman. Yo pa bezwen aplikasyon an.",
@@ -24854,6 +24879,12 @@
     "updatedAt": "Mete ajou {{time}}"
   },
   "superConversations": {
+    "outboxRetryFailed": "Nou pa t ka remete notifikasyon yo nan liy. Eseye ankò.",
+    "outboxRetried": "Notifikasyon remete nan liy: {{count}}",
+    "outboxRowLabel": "{{attempts}} tantativ · {{error}}",
+    "outboxRetryOne": "Eseye ankò",
+    "outboxRetryAll": "Eseye tout ankò",
+    "outboxFailedCount": "Notifikasyon mesaj ki pa t rive: {{count}}",
     "actionFailed": "Aksyon an echwe.",
     "agreementsCount": "Akò ({{count}})",
     "auditBanner": "Aksè ijans: rezon anrejistre: “{{reason}}”. Modèl chat nwaj Telegram (pa E2EE).",
@@ -29955,6 +29986,10 @@
   },
   "featuredPlacements": {
     "admin": {
+      "approveMovesPlacement": "Sa a deplase plas la. Restoran ki an premye kounye a anba demann sa a ap sispann an premye.",
+      "placementExpired": "Plas la ekspire",
+      "renewTitle": "Renouvle plas an premye a",
+      "renew": "Renouvle",
       "eyebrow": "Dekouvèt",
       "title": "Revizyon plas an vedèt",
       "subtitle": "Biznis yo mande plas an vedèt pou restoran yo. Apwouve yon demann pou mete yon restoran an vedèt sou paj akèy la pou yon dire fiks.",
@@ -30497,6 +30532,25 @@
     "refundUnavailableHint": "Kòmand sa a pa nan yon eta peman ki ka ranbouse kounye a."
   },
   "media": {
+    "moderation": {
+      "appealStatus": {
+        "rejected": "Yo pa t aksepte apèl ou a.",
+        "accepted": "Yo aksepte apèl ou a.",
+        "under_review": "Y ap revize apèl ou a.",
+        "open": "Apèl la voye. N ap revize l byento."
+      },
+      "appealFailed": "Nou pa t ka voye apèl ou a. Eseye ankò.",
+      "appealExists": "Gen yon apèl pou piblikasyon sa a k ap tann revizyon deja.",
+      "reasonRequired": "Ajoute yon ti eksplikasyon.",
+      "appealSubmit": "Voye apèl la",
+      "appealLabel": "Di nou poukisa nou ta dwe revize desizyon sa a",
+      "otherBody": "Se ou sèl ki ka wè piblikasyon sa a egziste.",
+      "otherTitle": "Piblikasyon sa a pa piblik",
+      "removedBody": "Ekip nou an retire piblikasyon sa a paske li pa t respekte règ kominote a.",
+      "removedTitle": "Yo retire piblikasyon w lan",
+      "heldBody": "Plizyè moun siyale piblikasyon sa a, kidonk li kache pou lòt moun pandan ekip nou an ap revize l.",
+      "heldTitle": "Piblikasyon w lan sispann pou revizyon"
+    },
     "landing": {
       "heroTitle": "Katye ou, konekte.",
       "heroDescription": "Dekouvri moun, kote ak opòtinite toupre ou.",
@@ -30889,6 +30943,11 @@
       "emptyDescription": "Pataje yon bagay ki itil ak kominote lokal ou a."
     },
     "compose": {
+      "uploadStalled": "Telechajman an sispann reponn. Tcheke koneksyon ou epi eseye ankò.",
+      "uploadCancelled": "Telechajman an anile.",
+      "cancelUpload": "Anile",
+      "videoUnavailable": "Piblikasyon videyo pa disponib kounye a. Retire videyo a oswa pibliye foto pito.",
+      "processingDelayedRemove": "Verifikasyon medya yo ap pran plis tan pase sa nou te prevwa. Si sa pa regle, retire videyo a epi pibliye ak foto oswa tèks.",
       "verificationRequired": "Verifikasyon obligatwa",
       "notVerified": "Pa verifye",
       "saveDraft": "Anrejistre bouyon",

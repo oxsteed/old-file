@@ -897,7 +897,8 @@ async function refreshToken(req, res, next) {
     const hashedRefresh = crypto.createHash('sha256').update(tokens.refreshToken).digest('hex');
     const { rows: newSessionRows } = await pool.query(
       `INSERT INTO sessions (user_id, refresh_token, expires_at, absolute_expires_at)
-       VALUES ($1, $2, LEAST(NOW() + interval '7 days', $3::timestamptz), $3::timestamptz)`,
+       VALUES ($1, $2, LEAST(NOW() + interval '7 days', $3::timestamptz), $3::timestamptz)
+       RETURNING expires_at`,
       [user.id, hashedRefresh, absoluteDeadline.toISOString()]
     );
     await recordSessionContext(pool, hashedRefresh, req);

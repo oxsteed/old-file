@@ -82,6 +82,22 @@ function publicBaseUrl() {
   return base.replace(/\/+$/, '');
 }
 
+// P1-299: without an absolute public URL, pay_url is relative (unscannable
+// when printed) and Stripe rejects relative success/cancel URLs. Fail loudly
+// at startup and refuse those requests with a clear 503 instead of a 500.
+function hasAbsolutePublicUrl() {
+  return /^https?:\/\/[^/]+/i.test(publicBaseUrl());
+}
+if (!hasAbsolutePublicUrl() && process.env.NODE_ENV === 'production') {
+  logger.error('qrPayments: PUBLIC_APP_URL (or APP_URL/CLIENT_URL) is not an absolute URL; QR codes and checkout are disabled until it is set');
+}
+function publicUrlMissing(res) {
+  return res.status(503).json({
+    error: 'QR payments are temporarily unavailable. Please try again later.',
+    code: 'qr_public_url_missing',
+  });
+}
+
 function parseAmountCents(value) {
   if (value === null || value === undefined || value === '') return null;
   const n = Number(value);
@@ -106,6 +122,14 @@ async function getConnectAccount(userId) {
     [userId]
   );
   return rows[0] || null;
+}
+
+// P1-302: payer-facing wording; the payer cannot fix the recipient's Stripe setup.
+function recipientUnavailable(res) {
+  return res.status(409).json({
+    error: "This person can't accept card payments right now. Please try again later or pay them another way.",
+    code: 'recipient_unavailable',
+  });
 }
 
 function connectRequired(res) {
@@ -139,6 +163,7 @@ function codeNotFound(res) {
 // ── Create a payment code ────────────────────────────────────────
 router.post('/codes', authenticate, paymentsLimiter, async (req, res, next) => {
   try {
+    if (!hasAbsolutePublicUrl()) return publicUrlMissing(res);
     const label = typeof req.body?.label === 'string' ? req.body.label.trim() : '';
     if (!label) {
       return res.status(400).json({ error: 'A label is required.', code: 'label_required' });
@@ -202,9 +227,9 @@ router.get('/codes', authenticate, async (req, res, next) => {
     const { rows } = await pool.query(
       `SELECT c.id, c.code, c.label, c.amount_cents, c.currency, c.is_active,
               c.created_at, c.deactivated_at,
-              COALESCE(SUM(p.amount_cents) FILTER (WHERE p.status = 'succeeded'), 0)::int
+              COALESCE(SUM(p.amount_cents) FILTER (WHERE p.status IN ('succeeded', 'paid')), 0)::int
                 AS total_received_cents,
-              COUNT(p.id) FILTER (WHERE p.status = 'succeeded')::int AS succeeded_count
+              COUNT(p.id) FILTER (WHERE p.status IN ('succeeded', 'paid'))::int AS succeeded_count
          FROM qr_payment_codes c
          LEFT JOIN qr_payments p ON p.qr_code_id = c.id
         WHERE c.owner_user_id = $1
@@ -385,6 +410,8 @@ router.get('/pay/:code', strictLimiter, async (req, res, next) => {
       currency: code.currency,
       recipient_name: recipientName(code),
       ready: true,
+      // P1-303: lets the pay page offer OxSteed Credit when the rail is on.
+      credit_enabled: qrCreditEnabled(),
     });
   } catch (err) {
     logger.error('qrPayments: pay lookup failed', { error: err.message });
@@ -441,7 +468,8 @@ router.post('/pay/:code/checkout', qrCheckoutLimiter, async (req, res, next) => 
     }
 
     const connect = await getConnectAccount(code.owner_user_id);
-    if (!connect || !connect.charges_enabled) return connectRequired(res);
+    if (!connect || !connect.charges_enabled) return recipientUnavailable(res);
+    if (!hasAbsolutePublicUrl()) return publicUrlMissing(res);
 
     const requestFingerprint = crypto
       .createHash('sha256')
@@ -551,6 +579,29 @@ router.post('/pay/:code/checkout', qrCheckoutLimiter, async (req, res, next) => 
 });
 
 // ── Receipt data for the success page ────────────────────────────
+async function reconcilePendingQrSession(sessionId, ownerUserId) {
+  const connect = await getConnectAccount(ownerUserId);
+  if (!connect?.stripe_account_id) return 'pending';
+  const session = await stripe.checkout.sessions.retrieve(sessionId, { stripeAccount: connect.stripe_account_id });
+  if (session?.payment_status === 'paid') {
+    const { applyQrPaymentSucceeded } = require('../controllers/webhookController');
+    await applyQrPaymentSucceeded(session);
+    const { rows } = await pool.query(
+      'SELECT status FROM qr_payments WHERE stripe_checkout_session_id = $1',
+      [sessionId]
+    );
+    return rows[0]?.status || 'pending';
+  }
+  if (session?.status === 'expired') {
+    await pool.query(
+      `UPDATE qr_payments SET status = 'expired' WHERE stripe_checkout_session_id = $1 AND status = 'pending'`,
+      [sessionId]
+    );
+    return 'expired';
+  }
+  return 'pending';
+}
+
 router.get('/pay/:code/receipt', generalLimiter, async (req, res, next) => {
   try {
     const sessionId = typeof req.query?.session_id === 'string' ? req.query.session_id.trim() : '';
@@ -558,20 +609,34 @@ router.get('/pay/:code/receipt', generalLimiter, async (req, res, next) => {
       return res.status(400).json({ error: 'A session id is required.', code: 'session_required' });
     }
     const { rows } = await pool.query(
-      `SELECT p.status, p.amount_cents, c.label, c.currency
+      `SELECT p.status, p.amount_cents, p.created_at, c.label, c.currency, c.owner_user_id,
+              u.first_name, u.last_name
          FROM qr_payments p
          JOIN qr_payment_codes c ON c.id = p.qr_code_id
+         JOIN users u ON u.id = c.owner_user_id
         WHERE p.stripe_checkout_session_id = $1 AND c.code = $2`,
       [sessionId, req.params.code]
     );
     if (!rows[0]) {
       return res.status(404).json({ error: 'Receipt not found.', code: 'not_found' });
     }
+    let status = rows[0].status;
+    // P1-298: a pending row is reconciled straight from Stripe (the session
+    // lives on the payee's connected account), so a delayed or missing
+    // webhook no longer strands the payer on "still confirming".
+    if (status === 'pending') {
+      status = await reconcilePendingQrSession(sessionId, rows[0].owner_user_id).catch((err) => {
+        logger.warn('qrPayments: receipt reconcile failed', { error: err.message });
+        return 'pending';
+      });
+    }
     return res.json({
-      status: rows[0].status,
+      status,
       amount_cents: rows[0].amount_cents,
       currency: rows[0].currency || 'USD',
       label: rows[0].label,
+      recipient_name: recipientName(rows[0]),
+      created_at: rows[0].created_at,
     });
   } catch (err) {
     logger.error('qrPayments: receipt lookup failed', { error: err.message });
@@ -609,20 +674,45 @@ async function payQrWithCredit(req, res, next, code, { amountCents, payerEmail, 
     });
 
     // Record the Credit payment alongside Stripe rows for unified receipts.
-    await pool.query(
+    // P1-303: the insert is no longer fire-and-forget. A conflict means this
+    // request ID was already recorded; report that row's real state instead
+    // of claiming a fresh 'paid'.
+    const { rows: inserted } = await pool.query(
       `INSERT INTO qr_payments
          (qr_code_id, amount_cents, platform_fee_cents, status, payer_email,
           client_request_id, checkout_url, request_fingerprint, payment_method)
        VALUES ($1, $2, 0, 'paid', $3, $4, $5, $6, 'oxsteed_credit')
-       ON CONFLICT (qr_code_id, client_request_id) DO NOTHING`,
+       ON CONFLICT (qr_code_id, client_request_id) DO NOTHING
+       RETURNING id, qr_code_id, amount_cents`,
       [code.id, amountCents, payerEmail, clientRequestId, null,
        crypto.createHash('sha256').update(`credit:${code.id}:${amountCents}`).digest('hex')]
     );
+    let status = 'paid';
+    let idempotent = false;
+    if (inserted[0]) {
+      await require('../services/qrPaymentNotifications').notifyQrPayee(inserted[0]).catch((err) => {
+        logger.warn('qrPayments: payee notification failed', { error: err.message });
+      });
+    } else {
+      idempotent = true;
+      const { rows: existing } = await pool.query(
+        `SELECT status, payment_method FROM qr_payments WHERE qr_code_id = $1 AND client_request_id = $2`,
+        [code.id, clientRequestId]
+      );
+      if (existing[0] && existing[0].payment_method !== 'oxsteed_credit') {
+        return res.status(409).json({
+          error: 'This checkout request ID was already used for a card payment.',
+          code: 'idempotency_key_conflict',
+        });
+      }
+      status = existing[0]?.status || 'paid';
+    }
 
     return res.json({
       ok: true,
       payment_method: 'oxsteed_credit',
-      status: 'paid',
+      status,
+      idempotent,
       idempotencyKey: result.idempotencyKey,
     });
   } catch (err) {

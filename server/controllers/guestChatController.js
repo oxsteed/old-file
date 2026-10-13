@@ -418,8 +418,10 @@ async function helperClaimSession(req, res, next) {
         throw new AppError('Session not found', 404, 'not_found');
       }
 
-      // Can only claim from ai_support_active state
-      if (session.session_status !== 'ai_support_active') {
+      // Claimable once the helper deadline passed (ai_fallback_pending is the
+      // brief window before the fallback reply posts) or while a takeover is
+      // pending; ai_support_active is the steady state after the fallback.
+      if (!['ai_fallback_pending', 'ai_support_active', 'helper_takeover_requested'].includes(session.session_status)) {
         throw new AppError(`Cannot claim session in state: ${session.session_status}`, 400, 'invalid_state');
       }
 

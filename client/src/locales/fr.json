@@ -19246,6 +19246,8 @@
       }
     },
     "restaurant": {
+      "messageUnreachable": "Ce restaurant ne peut pas recevoir de messages pour le moment. Veuillez réessayer plus tard.",
+      "messageOwnRestaurant": "C'est votre restaurant. Les messages des clients arrivent dans la boîte de réception de votre entreprise.",
       "notFound": "Nous n'avons pas trouvé ce restaurant.",
       "otherItems": "Autres plats",
       "prepTime": "Environ {{min}} min de préparation",
@@ -20890,6 +20892,15 @@
       "help": "Le suivi est stocké localement dans votre navigateur pour pouvoir tester sans risque."
     },
     "toolkit": {
+      "featuredStatus": {
+        "closed": "Votre mise en avant a été arrêtée. Vous pouvez demander un nouvel examen.",
+        "declined": "Votre dernière demande n'a pas été approuvée. Vous pouvez demander un nouvel examen.",
+        "expired": "Votre mise en avant est terminée. Vous pouvez demander un nouvel examen.",
+        "approved": "Mis en avant : {{restaurant}} jusqu'au {{date}}.",
+        "contacted": "Notre équipe examine votre demande et pourrait vous contacter.",
+        "requested": "Votre demande est en attente d'examen."
+      },
+      "featuredHelpNoFee": "Demandez un examen de mise en avant pour votre entreprise. OxSteed tient compte de votre catégorie, de la qualité de votre profil, de votre zone de service et de votre réputation récente avant d'approuver. La mise en avant est gratuite.",
       "title": "Boîte à outils",
       "heading": "Cinq outils à fort impact, prêts à l'emploi.",
       "body": "Ce sont les éléments que la plupart des prestataires ne prennent jamais le temps de construire. Chacun rapporte du travail pendant des années une fois mis en place.",
@@ -23464,6 +23475,20 @@
     }
   },
   "qrPay": {
+    "tryAgain": "Réessayer",
+    "expiredBody": "Ce paiement n'a pas été finalisé, vous n'avez donc pas été débité.",
+    "expiredTitle": "Le paiement a expiré",
+    "checkAgain": "Vérifier à nouveau",
+    "stillConfirmingBody": "Votre banque confirme encore ce paiement. Vous ne serez pas débité deux fois. Vérifiez à nouveau dans un instant.",
+    "receiptDate": "Commencé",
+    "receiptFor": "Objet",
+    "receiptTo": "Payé à",
+    "receiptAmount": "Montant",
+    "creditPaidBody": "Vous avez payé {{amount}} à {{name}} avec OxSteed Credit.",
+    "payWithCredit": "Payer avec OxSteed Credit",
+    "creditUnavailable": "Le paiement avec OxSteed Credit n'est pas encore disponible.",
+    "temporarilyUnavailable": "Les paiements par QR sont temporairement indisponibles. Réessayez plus tard.",
+    "recipientUnavailable": "Cette personne ne peut pas accepter les paiements par carte pour le moment. Réessayez plus tard ou payez-la autrement.",
     "setupTitle": "Recevez des paiements par QR code",
     "viewMyBookings": "Voir mes réservations",
     "setupSubtitle": "Créez des QR codes que vos clients peuvent scanner pour vous payer directement. Aucune application requise de leur côté.",
@@ -24854,6 +24879,12 @@
     "updatedAt": "Mis à jour {{time}}"
   },
   "superConversations": {
+    "outboxRetryFailed": "Impossible de remettre les notifications en file. Réessayez.",
+    "outboxRetried": "Notifications remises en file : {{count}}",
+    "outboxRowLabel": "{{attempts}} tentatives · {{error}}",
+    "outboxRetryOne": "Réessayer",
+    "outboxRetryAll": "Tout réessayer",
+    "outboxFailedCount": "Notifications de messages non distribuées : {{count}}",
     "actionFailed": "L’action a échoué.",
     "agreementsCount": "Accords ({{count}})",
     "auditBanner": "Accès d’urgence : motif enregistré : « {{reason}} ». Modèle de chat cloud Telegram (pas E2EE).",
@@ -29955,6 +29986,10 @@
   },
   "featuredPlacements": {
     "admin": {
+      "approveMovesPlacement": "Cela déplace la mise en avant. Le restaurant actuellement mis en avant pour cette demande ne le sera plus.",
+      "placementExpired": "Mise en avant expirée",
+      "renewTitle": "Renouveler la mise en avant",
+      "renew": "Renouveler",
       "eyebrow": "Découverte",
       "title": "Examen des mises en avant",
       "subtitle": "Les commerces demandent une mise en avant pour leurs restaurants. Approuvez une demande pour mettre un restaurant en avant sur la page d'accueil pendant une durée déterminée.",
@@ -30497,6 +30532,25 @@
     "refundUnavailableHint": "Cette commande n’est pas actuellement dans un état de paiement remboursable."
   },
   "media": {
+    "moderation": {
+      "appealStatus": {
+        "rejected": "Votre appel n'a pas été accepté.",
+        "accepted": "Votre appel a été accepté.",
+        "under_review": "Votre appel est en cours d'examen.",
+        "open": "Appel envoyé. Nous l'examinerons bientôt."
+      },
+      "appealFailed": "Impossible d'envoyer votre appel. Réessayez.",
+      "appealExists": "Un appel pour cette publication est déjà en attente d'examen.",
+      "reasonRequired": "Ajoutez une courte explication.",
+      "appealSubmit": "Envoyer l'appel",
+      "appealLabel": "Expliquez-nous pourquoi cette décision devrait être réexaminée",
+      "otherBody": "Vous seul pouvez voir que cette publication existe.",
+      "otherTitle": "Cette publication n'est pas publique",
+      "removedBody": "Notre équipe a retiré cette publication pour non-respect des règles de la communauté.",
+      "removedTitle": "Votre publication a été retirée",
+      "heldBody": "Plusieurs personnes ont signalé cette publication. Elle est masquée pendant que notre équipe l'examine.",
+      "heldTitle": "Votre publication est suspendue pour examen"
+    },
     "landing": {
       "heroTitle": "Votre quartier, connecté.",
       "heroDescription": "Découvrez les gens, les lieux et les opportunités près de chez vous.",
@@ -30889,6 +30943,11 @@
       "emptyDescription": "Partagez quelque chose d’utile avec votre communauté locale."
     },
     "compose": {
+      "uploadStalled": "Le téléversement ne répond plus. Vérifiez votre connexion et réessayez.",
+      "uploadCancelled": "Téléversement annulé.",
+      "cancelUpload": "Annuler",
+      "videoUnavailable": "Les publications vidéo ne sont pas disponibles pour le moment. Retirez la vidéo ou publiez des photos.",
+      "processingDelayedRemove": "Les vérifications des médias prennent plus de temps que prévu. Si cela ne se débloque pas, retirez la vidéo et publiez avec des photos ou du texte.",
       "verificationRequired": "Vérification requise",
       "notVerified": "Non vérifié",
       "saveDraft": "Enregistrer le brouillon",

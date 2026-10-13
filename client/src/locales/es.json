@@ -19246,6 +19246,8 @@
       }
     },
     "restaurant": {
+      "messageUnreachable": "Este restaurante no puede recibir mensajes en este momento. Inténtalo de nuevo más tarde.",
+      "messageOwnRestaurant": "Este es tu restaurante. Los mensajes de clientes llegan a la bandeja de entrada de tu negocio.",
       "notFound": "No encontramos ese restaurante.",
       "otherItems": "Más platos",
       "prepTime": "Aprox. {{min}} min de preparación",
@@ -20890,6 +20892,15 @@
       "help": "El seguimiento se guarda localmente en tu navegador para que puedas experimentar con seguridad."
     },
     "toolkit": {
+      "featuredStatus": {
+        "closed": "Se finalizó tu ubicación destacada. Puedes solicitar otra revisión.",
+        "declined": "Tu última solicitud no fue aprobada. Puedes solicitar otra revisión.",
+        "expired": "Tu ubicación destacada terminó. Puedes solicitar otra revisión.",
+        "approved": "Destacado: {{restaurant}} hasta el {{date}}.",
+        "contacted": "Nuestro equipo está revisando tu solicitud y podría contactarte.",
+        "requested": "Tu solicitud está pendiente de revisión."
+      },
+      "featuredHelpNoFee": "Solicita una revisión de ubicación destacada para tu negocio. OxSteed revisa tu categoría, la calidad de tu perfil, tu zona de servicio y tu reputación reciente antes de aprobarla. La ubicación destacada no tiene costo.",
       "title": "Kit de herramientas",
       "heading": "Cinco herramientas de alto impacto, listas para usar.",
       "body": "Estos son los activos que la mayoría nunca llega a construir. Cada uno genera trabajo durante años después de configurarlo una vez.",
@@ -23464,6 +23475,20 @@
     }
   },
   "qrPay": {
+    "tryAgain": "Intentar de nuevo",
+    "expiredBody": "Este pago no se completó, así que no se te cobró.",
+    "expiredTitle": "El pago expiró",
+    "checkAgain": "Comprobar de nuevo",
+    "stillConfirmingBody": "Tu banco aún está confirmando este pago. No se te cobrará dos veces. Vuelve a comprobar en un momento.",
+    "receiptDate": "Iniciado",
+    "receiptFor": "Concepto",
+    "receiptTo": "Pagado a",
+    "receiptAmount": "Monto",
+    "creditPaidBody": "Pagaste {{amount}} a {{name}} con OxSteed Credit.",
+    "payWithCredit": "Pagar con OxSteed Credit",
+    "creditUnavailable": "Pagar con OxSteed Credit aún no está disponible.",
+    "temporarilyUnavailable": "Los pagos con QR no están disponibles temporalmente. Inténtalo más tarde.",
+    "recipientUnavailable": "Esta persona no puede aceptar pagos con tarjeta en este momento. Inténtalo más tarde o págale de otra forma.",
     "setupTitle": "Recibe pagos con códigos QR",
     "viewMyBookings": "Ver mis reservas",
     "setupSubtitle": "Crea códigos QR que tus clientes pueden escanear para pagarte directamente. No necesitan la aplicación.",
@@ -24854,6 +24879,12 @@
     "updatedAt": "Actualizado {{time}}"
   },
   "superConversations": {
+    "outboxRetryFailed": "No se pudieron reenviar las notificaciones. Inténtalo de nuevo.",
+    "outboxRetried": "Notificaciones reenviadas a la cola: {{count}}",
+    "outboxRowLabel": "{{attempts}} intentos · {{error}}",
+    "outboxRetryOne": "Reintentar",
+    "outboxRetryAll": "Reintentar todas",
+    "outboxFailedCount": "Notificaciones de mensajes no entregadas: {{count}}",
     "actionFailed": "La acción falló.",
     "agreementsCount": "Acuerdos ({{count}})",
     "auditBanner": "Acceso de emergencia: motivo registrado: “{{reason}}”. Modelo de chat en la nube de Telegram (no E2EE).",
@@ -29955,6 +29986,10 @@
   },
   "featuredPlacements": {
     "admin": {
+      "approveMovesPlacement": "Esto traslada la ubicación. El restaurante destacado ahora con esta solicitud dejará de estar destacado.",
+      "placementExpired": "Ubicación vencida",
+      "renewTitle": "Renovar ubicación destacada",
+      "renew": "Renovar",
       "eyebrow": "Descubrimiento",
       "title": "Revisión de ubicaciones destacadas",
       "subtitle": "Los negocios solicitan ubicación destacada para sus restaurantes. Aprueba una solicitud para destacar un restaurante en la página principal por un tiempo determinado.",
@@ -30497,6 +30532,25 @@
     "refundUnavailableHint": "Este pedido no se encuentra actualmente en un estado de pago reembolsable."
   },
   "media": {
+    "moderation": {
+      "appealStatus": {
+        "rejected": "Tu apelación no fue aceptada.",
+        "accepted": "Tu apelación fue aceptada.",
+        "under_review": "Tu apelación está en revisión.",
+        "open": "Apelación enviada. La revisaremos pronto."
+      },
+      "appealFailed": "No se pudo enviar tu apelación. Inténtalo de nuevo.",
+      "appealExists": "Ya hay una apelación pendiente de revisión para esta publicación.",
+      "reasonRequired": "Agrega una breve explicación.",
+      "appealSubmit": "Enviar apelación",
+      "appealLabel": "Cuéntanos por qué debemos revisar esta decisión",
+      "otherBody": "Solo tú puedes ver que esta publicación existe.",
+      "otherTitle": "Esta publicación no es pública",
+      "removedBody": "Nuestro equipo eliminó esta publicación por incumplir las normas de la comunidad.",
+      "removedTitle": "Se eliminó tu publicación",
+      "heldBody": "Varias personas denunciaron esta publicación, así que está oculta para los demás mientras nuestro equipo la revisa.",
+      "heldTitle": "Tu publicación está en revisión"
+    },
     "landing": {
       "heroTitle": "Tu vecindario, conectado.",
       "heroDescription": "Descubre personas, lugares y oportunidades cerca de ti.",
@@ -30889,6 +30943,11 @@
       "emptyDescription": "Comparte algo útil con tu comunidad local."
     },
     "compose": {
+      "uploadStalled": "La carga dejó de responder. Revisa tu conexión e inténtalo de nuevo.",
+      "uploadCancelled": "Carga cancelada.",
+      "cancelUpload": "Cancelar",
+      "videoUnavailable": "Las publicaciones con video no están disponibles en este momento. Quita el video o publica fotos.",
+      "processingDelayedRemove": "La revisión de los archivos está tardando más de lo esperado. Si no se resuelve, quita el video y publica con fotos o texto.",
       "verificationRequired": "Verificación requerida",
       "notVerified": "Sin verificar",
       "saveDraft": "Guardar borrador",

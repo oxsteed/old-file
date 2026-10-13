@@ -2,6 +2,7 @@ const router      = require('express').Router();
 const { authenticate } = require('../middleware/auth');
 const notifCtrl   = require('../controllers/notificationController');
 const webPushCtrl = require('../controllers/webPushController');
+const { strictLimiter } = require('../middleware/rateLimiter');
 
 router.get('/',                  authenticate, notifCtrl.getNotifications);
 router.post('/mark-read',        authenticate, notifCtrl.markRead);
@@ -22,6 +23,10 @@ router.post('/push-token',       authenticate, notifCtrl.registerPushToken);
 router.get('/webpush/public-key',     webPushCtrl.getPublicKey);
 
 router.post('/webpush/subscribe',     authenticate, webPushCtrl.subscribe);
+// P1-269: called by the service worker on pushsubscriptionchange when no tab
+// is open (no bearer token there). Proof of ownership is the old endpoint,
+// an unguessable capability URL already registered to a user.
+router.post('/webpush/rotate',        strictLimiter, webPushCtrl.rotate);
 router.delete('/webpush/subscribe',   authenticate, webPushCtrl.unsubscribe);
 router.get('/webpush/devices',        authenticate, webPushCtrl.listDevices);
 router.post('/webpush/test',          authenticate, webPushCtrl.sendTest);

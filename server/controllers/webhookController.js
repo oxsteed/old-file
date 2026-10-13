@@ -1,3 +1,4 @@
+const diditEntityLink = require('../services/diditEntityLink');
 const crypto = require('crypto');
 const logger = require('../utils/logger');
 const { AppError } = require('../middleware/errorHandler');
@@ -1470,6 +1471,17 @@ exports._parseDiditEventCreated = parseDiditEventCreated;
 exports._beginDiditWebhookEvent = (body) => beginDiditWebhookEvent(body);
 
 // Didit identity webhook handler (v3 API)
+// P1-331: the live webhook now anchors approvals to the entity ID with a
+// provider='didit', status='verified' identity_verifications row, which is
+// what the credit rail's Didit auto-pass looks for. Best-effort; the users
+// row stays the source of truth.
+async function anchorDiditVerified(userId, sessionId, identityHash) {
+  const personPublicId = await diditEntityLink.linkVerificationToEntity(userId, {
+    sessionId, identityHash, status: 'verified',
+  });
+  if (personPublicId) await diditEntityLink.markHelperIdentityVerified(userId);
+}
+
 exports.diditWebhook = async (req, res, next) => {
   let receiptId = null;
   // Hoisted so the catch block can log the inner error with webhook context
@@ -1561,8 +1573,9 @@ exports.diditWebhook = async (req, res, next) => {
     if (normalizedStatus === 'approved') {
       // Update identity_verifications record
       const { rows } = await db.query(
+        // P1-333: write values allowed by chk_iv_status (migration 671).
         `UPDATE identity_verifications
-         SET status = 'approved',
+         SET status = 'verified',
              verified_name = $1,
              document_type = $2,
              updated_at = NOW()
@@ -1599,6 +1612,7 @@ exports.diditWebhook = async (req, res, next) => {
              WHERE id = $1`,
             [userId]
           );
+          await anchorDiditVerified(userId, session_id, null);
         } else {
           // Check for duplicate identity
           const { rows: existing } = await db.query(
@@ -1613,6 +1627,10 @@ exports.diditWebhook = async (req, res, next) => {
               [userId]
             );
             logger.warn('[Didit] Duplicate identity detected', { userId, existingUserId: existing[0].id });
+            // P1-332: record the duplicate_of link on the entity graph.
+            await diditEntityLink.linkDuplicateIdentity({
+              userId, canonicalUserId: existing[0].id, sessionId: session_id, identityHash,
+            });
           } else {
             // The duplicate check above is not atomic: a concurrent approval
             // for the same identity can win the race and trip the unique index
@@ -1637,11 +1655,19 @@ exports.diditWebhook = async (req, res, next) => {
                   [userId]
                 );
                 logger.warn('[Didit] Duplicate identity detected (concurrent approval)', { userId });
+                const { rows: canon } = await db.query(
+                  `SELECT id FROM users WHERE didit_identity_hash = $1 AND id != $2 LIMIT 1`,
+                  [identityHash, userId]
+                );
+                await diditEntityLink.linkDuplicateIdentity({
+                  userId, canonicalUserId: canon[0]?.id || null, sessionId: session_id, identityHash,
+                });
               } else {
                 throw updateErr;
               }
             }
             if (verified) {
+              await anchorDiditVerified(userId, session_id, identityHash);
               // Award identity badge
               await db.query(
                 `INSERT INTO badges (user_id, type, label)
@@ -1675,6 +1701,7 @@ exports.diditWebhook = async (req, res, next) => {
              WHERE id = $1`,
             [userId]
           );
+          await anchorDiditVerified(userId, session_id, null);
           logger.info('[Didit] Identity approved (via didit_session_id fallback)', { userId });
         } else {
           logger.warn('[Didit] No user found for session', { session_id });
@@ -1692,7 +1719,7 @@ exports.diditWebhook = async (req, res, next) => {
         || 'Verification declined';
       await db.query(
         `UPDATE identity_verifications
-         SET status = 'declined', last_error = $1, updated_at = NOW()
+         SET status = 'failed', last_error = $1, updated_at = NOW()
          WHERE didit_session_id = $2`,
         [reason, session_id]
       );
@@ -1706,12 +1733,16 @@ exports.diditWebhook = async (req, res, next) => {
           `UPDATE users SET didit_status = 'failed' WHERE id = $1`,
           [rows[0].user_id]
         );
+        await diditEntityLink.linkVerificationToEntity(rows[0].user_id, { sessionId: session_id, status: 'failed' });
       } else {
         // Fallback: check users table directly
-        await db.query(
-          `UPDATE users SET didit_status = 'failed' WHERE didit_session_id = $1`,
+        const { rows: failedUsers } = await db.query(
+          `UPDATE users SET didit_status = 'failed' WHERE didit_session_id = $1 RETURNING id`,
           [session_id]
         );
+        for (const u of failedUsers || []) {
+          await diditEntityLink.linkVerificationToEntity(u.id, { sessionId: session_id, status: 'failed' });
+        }
       }
     } else {
       // Unknown statuses (including future Didit event types) are logged and
@@ -1795,19 +1826,27 @@ async function applyQrPaymentSucceeded(session) {
     });
     return 0;
   }
-  const { rowCount } = await db.query(
+  const { rows: updatedQr = [], rowCount } = await db.query(
     `UPDATE qr_payments
         SET status = 'succeeded',
             succeeded_at = NOW(),
             stripe_payment_intent_id = COALESCE($2, stripe_payment_intent_id)
       WHERE stripe_checkout_session_id = $1
         AND status <> 'succeeded'
-        AND amount_cents = $3`,
+        AND amount_cents = $3
+      RETURNING id, qr_code_id, amount_cents`,
     [session.id, paymentIntentId, session.amount_total]
   );
   if (rowCount === 0) {
     logger.warn('[webhook] QR payment amount mismatch or already succeeded; not marking succeeded', {
       sessionId: session.id, amountTotal: session.amount_total,
+    });
+  }
+  // P1-301: tell the payee. Only the transition that flipped the row
+  // notifies, and the idempotency key makes replays a no-op.
+  for (const row of updatedQr) {
+    await require('../services/qrPaymentNotifications').notifyQrPayee(row).catch((err) => {
+      logger.warn('[webhook] QR payee notification failed', { qrPaymentId: row.id, error: err.message });
     });
   }
   return rowCount;

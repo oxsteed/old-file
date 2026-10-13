@@ -239,8 +239,7 @@ describe('revokeRequest', () => {
   test('happy path clears the feature and closes the request', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [] }) // BEGIN
-      .mockResolvedValueOnce({ rows: [{ id: 7, featured_restaurant_id: 101 }] }) // request FOR UPDATE
-      .mockResolvedValueOnce({ rows: [{ id: 101 }] }) // effectively-featured check
+      .mockResolvedValueOnce({ rows: [{ id: 7, status: 'approved', featured_restaurant_id: 101 }] }) // request FOR UPDATE
       .mockResolvedValueOnce({ rows: [] }) // UPDATE food_restaurants
       .mockResolvedValueOnce({ rows: [] }) // UPDATE request
       .mockResolvedValueOnce({ rows: [] }); // COMMIT
@@ -257,16 +256,85 @@ describe('revokeRequest', () => {
     expect(res.json).toHaveBeenCalledWith({ id: 7, status: 'closed', restaurantId: 101 });
   });
 
-  test('404 when nothing is currently featured under the request', async () => {
+  test('P1-314: an expired placement can still be revoked (no effective-feature requirement)', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [] }) // BEGIN
-      .mockResolvedValueOnce({ rows: [{ id: 7, featured_restaurant_id: 101 }] }) // request FOR UPDATE
-      .mockResolvedValueOnce({ rows: [] }) // effectively-featured check: none
+      .mockResolvedValueOnce({ rows: [{ id: 7, status: 'approved', featured_restaurant_id: 101 }] })
+      .mockResolvedValue({ rows: [] });
+    const res = mockRes();
+    await ctrl.revokeRequest({ ...ADMIN_REQ, params: { id: '7' } }, res);
+    const calls = mockQuery.mock.calls.map((c) => c[0]);
+    expect(calls.some((s) => /featured_until > NOW\(\)/.test(s))).toBe(false);
+    expect(res.json).toHaveBeenCalledWith({ id: 7, status: 'closed', restaurantId: 101 });
+  });
+
+  test('404 when the request is not an approved placement', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [] }) // BEGIN
+      .mockResolvedValueOnce({ rows: [{ id: 7, status: 'closed', featured_restaurant_id: 101 }] })
       .mockResolvedValueOnce({ rows: [] }); // ROLLBACK
 
     await expect(
       ctrl.revokeRequest({ ...ADMIN_REQ, params: { id: '7' } }, mockRes())
     ).rejects.toMatchObject({ status: 404 });
+  });
+});
+
+describe('status guards (P1-316, P1-318)', () => {
+  test('decline of an approved request is a 409 and leaves it untouched', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [] }) // guarded UPDATE matched nothing
+      .mockResolvedValueOnce({ rows: [{ status: 'approved' }] });
+    await expect(
+      ctrl.declineRequest({ ...ADMIN_REQ, params: { id: '7' }, body: {} }, mockRes())
+    ).rejects.toMatchObject({ status: 409, code: 'invalid_status_transition' });
+    expect(mockQuery.mock.calls[0][0]).toContain("status IN ('requested', 'contacted')");
+  });
+
+  test('contact cannot flip an approved request back', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ status: 'approved' }] });
+    await expect(
+      ctrl.contactRequest({ ...ADMIN_REQ, params: { id: '7' } }, mockRes())
+    ).rejects.toMatchObject({ status: 409 });
+  });
+
+  test('contact on a missing request is still a 404', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [] }).mockResolvedValueOnce({ rows: [] });
+    await expect(
+      ctrl.contactRequest({ ...ADMIN_REQ, params: { id: '7' } }, mockRes())
+    ).rejects.toMatchObject({ status: 404 });
+  });
+
+  test('approve of a declined request is a 409', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [] }) // BEGIN
+      .mockResolvedValueOnce({ rows: [{ id: 7, business_id: 41, status: 'declined', featured_restaurant_id: null }] })
+      .mockResolvedValueOnce({ rows: [{ id: 101, business_id: 41, is_featured: false, featured_until: null }] })
+      .mockResolvedValue({ rows: [] });
+    await expect(
+      ctrl.approveRequest({ ...ADMIN_REQ, params: { id: '7' }, body: { restaurantId: 101 } }, mockRes())
+    ).rejects.toMatchObject({ status: 409, code: 'invalid_status_transition' });
+  });
+});
+
+describe('approve moves the placement (P1-313)', () => {
+  test('approving a second restaurant un-features the first in the same transaction', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [] }) // BEGIN
+      .mockResolvedValueOnce({ rows: [{ id: 7, business_id: 41, status: 'approved', featured_restaurant_id: 101 }] })
+      .mockResolvedValueOnce({ rows: [{ id: 102, business_id: 41, is_featured: false, featured_until: null }] })
+      .mockResolvedValueOnce({ rows: [] }) // un-feature 101
+      .mockResolvedValueOnce({ rows: [{ id: 102, is_featured: true, featured_rank: 10, featured_until: '2026-11-11T00:00:00Z' }] })
+      .mockResolvedValue({ rows: [] });
+    const res = mockRes();
+    await ctrl.approveRequest({ ...ADMIN_REQ, params: { id: '7' }, body: { restaurantId: 102 } }, res);
+    const unfeature = mockQuery.mock.calls.find(([sql, p]) => /is_featured = FALSE/.test(sql) && p && p[0] === 101);
+    expect(unfeature).toBeDefined();
+    const order = mockQuery.mock.calls.map(([sql]) => sql);
+    expect(order[order.length - 1]).toBe('COMMIT');
+    expect(res.status).toHaveBeenCalledWith(200);
   });
 });
 

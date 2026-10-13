@@ -211,6 +211,29 @@ describe('restaurant message conversation creation', () => {
   });
 });
 
+describe('unreachable recipients (P1-266)', () => {
+  test('the owner messaging their own restaurant gets a 409 and nothing is stored', async () => {
+    const app = buildFoodApp();
+    mockQuery.mockResolvedValueOnce({ rows: [{ ...RESTAURANT, owner_user_id: USER.id }] });
+    const res = await request(app)
+      .post('/api/food/restaurants/3/messages')
+      .send({ message: 'hello', clientMessageId: '00000000-0000-4000-8000-000000000a04' });
+    expect(res.status).toBe(409);
+    expect(res.body.code).toBe('cannot_message_own_restaurant');
+    expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO food_restaurant_customer_messages/.test(sql))).toBe(false);
+  });
+
+  test('a restaurant without an owner is refused rather than silently dropped', async () => {
+    const app = buildFoodApp();
+    mockQuery.mockResolvedValueOnce({ rows: [{ ...RESTAURANT, owner_user_id: null }] });
+    const res = await request(app)
+      .post('/api/food/restaurants/3/messages')
+      .send({ message: 'hello', clientMessageId: '00000000-0000-4000-8000-000000000a05' });
+    expect(res.status).toBe(409);
+    expect(res.body.code).toBe('restaurant_unreachable');
+  });
+});
+
 describe('restaurant message rate limiting', () => {
   test('the real route wires authenticate + profileChatLimiter in front of the handler', () => {
     const layer = foodRoutes.stack.find(

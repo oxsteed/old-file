@@ -392,9 +392,9 @@ export default function QrPaySetupPage() {
                   <span>{formatMoney(code.total_received_cents, code.currency, i18n.language)} {t('qrPay.totalReceived', { defaultValue: 'received' })}</span>
                   <span aria-hidden="true"> · </span>
                   <span>
-                    {code.payment_count === 1
+                    {(code.succeeded_count ?? code.payment_count) === 1
                       ? t('qrPay.paymentCountOne', { defaultValue: '1 payment' })
-                      : t('qrPay.paymentCountOther', { count: code.payment_count || 0, defaultValue: '{{count}} payments' })}
+                      : t('qrPay.paymentCountOther', { count: code.succeeded_count ?? code.payment_count ?? 0, defaultValue: '{{count}} payments' })}
                   </span>
                 </p>
                 <p className="qrp-link">

@@ -243,16 +243,38 @@ self.addEventListener('notificationclick', event => {
 // Some browsers (Safari TP, Edge) fire this when the push subscription
 // is invalidated server-side. We attempt a silent re-subscribe from the SW.
 self.addEventListener('pushsubscriptionchange', event => {
+  // P1-269: when the browser rotates the endpoint, re-register it with the
+  // server even if no tab is open. The old endpoint (an unguessable
+  // capability URL the server already knows) proves ownership, so no auth
+  // token is needed here. Open tabs are still told so their UI re-syncs.
   event.waitUntil((async () => {
     try {
-      const sub = await self.registration.pushManager.getSubscription();
-      if (!sub) return;
-      // The page-side hook is the source of truth for subscribe payloads
-      // (it has the auth token). Just notify open clients to re-sync.
+      const oldSub = event.oldSubscription || null;
+      let sub = event.newSubscription || await self.registration.pushManager.getSubscription();
+      if (!sub && oldSub && oldSub.options && oldSub.options.applicationServerKey) {
+        sub = await self.registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: oldSub.options.applicationServerKey,
+        });
+      }
+      if (sub && oldSub && oldSub.endpoint) {
+        const json = sub.toJSON();
+        await fetch('/api/notifications/webpush/rotate', {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            oldEndpoint: oldSub.endpoint,
+            endpoint: json.endpoint || sub.endpoint,
+            expirationTime: json.expirationTime ?? null,
+            keys: json.keys || {},
+          }),
+        });
+      }
       const allClients = await self.clients.matchAll({ type: 'window' });
       allClients.forEach(c => c.postMessage({ type: 'webpush:resubscribe' }));
     } catch {
-      /* swallow - page will re-subscribe on next load */
+      /* swallow - an open page re-syncs on its next load */
     }
   })());
 });

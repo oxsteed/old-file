@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import QRCodeStyling from 'qr-code-styling';
 import toast from 'react-hot-toast';
+import { notifyMoneyMoment } from '../../utils/pwaInstall';
 import { loadStripe } from '@stripe/stripe-js';
 import { CardElement, Elements, useElements, useStripe } from '@stripe/react-stripe-js';
 import {
@@ -726,6 +727,9 @@ function TopupModal({ restaurantId, restaurantName, currency, onClose, onChanged
         stopPolling();
         idempotencyKeysRef.current.clear('restaurant-topup', { restaurantId, amountCents: cents });
         toast.success(t('restaurantTopups.succeeded'));
+        // P1-270: a completed wallet top-up is a value moment for the PWA
+        // install prompt (documented trigger that was never fired).
+        notifyMoneyMoment('wallet_topup');
         try {
           await onChanged();
         } catch {

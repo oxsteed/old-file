@@ -4,6 +4,7 @@ const cron = require('node-cron');
 const logger = require('../utils/logger');
 const bookingController = require('../controllers/bookingController');
 const cleanupOldMessagesJob = require('../jobs/cleanupOldMessages');
+const guestChatRetention = require('../jobs/guestChatRetentionCleanup');
 const { cleanupExpiredSupportMessages } = require('../jobs/supportConversationRetentionCleanup');
 const { pollTranslationJobs } = require('../modules/jobs/translationJobWorker');
 const { startLocalDeliveryEventWorker } = require('../services/localDeliveryEventWorker');
@@ -198,6 +199,14 @@ class BackgroundWorkers {
           this.log.info('Support message cleanup job completed', result);
         } catch (err) {
           this.log.error('Support message cleanup job failed', { error: err.message });
+        }
+      });
+
+      cron.schedule(guestChatRetention.cronExpression, async () => {
+        try {
+          await guestChatRetention.cleanupGuestChatRetention();
+        } catch (err) {
+          this.log.error('Guest chat retention cleanup failed', { error: err.message });
         }
       });
 

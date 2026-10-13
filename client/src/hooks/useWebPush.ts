@@ -116,17 +116,22 @@ export function useWebPush(): UseWebPushResult {
   }, [refresh]);
 
   // Re-subscribe path - SW broadcasts when the browser rotates the endpoint.
+  // P1-269: push the current subscription to the server (upsert by endpoint)
+  // instead of only flipping local state, so the server never keeps a stale
+  // endpoint while the UI says "subscribed".
   useEffect(() => {
     if (!isSupported) return;
     const handler = (event: MessageEvent) => {
-      if (event.data?.type === 'webpush:resubscribe') {
-        // Best-effort: refresh state. The user may need to re-click subscribe
-        // if the keys can't be silently rotated.
-        navigator.serviceWorker.ready
-          .then(reg => reg.pushManager.getSubscription())
-          .then(sub => setIsSubscribed(!!sub))
-          .catch(() => { /* ignore */ });
-      }
+      if (event.data?.type !== 'webpush:resubscribe') return;
+      navigator.serviceWorker.ready
+        .then(reg => reg.pushManager.getSubscription())
+        .then(async (sub) => {
+          setIsSubscribed(!!sub);
+          if (sub && Notification.permission === 'granted') {
+            await api.post('/notifications/webpush/subscribe', subscriptionToJSON(sub));
+          }
+        })
+        .catch(() => { /* ignore - SW rotate call is the primary path */ });
     };
     navigator.serviceWorker.addEventListener('message', handler);
     return () => navigator.serviceWorker.removeEventListener('message', handler);

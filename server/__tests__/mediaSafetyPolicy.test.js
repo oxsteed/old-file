@@ -146,6 +146,7 @@ test.each([
   [{ clean: true, provider: 'static', skipped: true }, 503],
   [new Error('Scanner unavailable'), 503],
 ])('interim video upload still requires a real clean malware scan %#', async (scan, expected) => {
+  process.env.MEDIA_VIDEO_WORKER_ENABLED = '1';
   sourceDir = await fs.mkdtemp(path.join(os.tmpdir(), 'media-upload-policy-test-'));
   const original = path.join(sourceDir, 'original.mp4');
   await fs.writeFile(original, 'harmless mock upload');
@@ -314,4 +315,24 @@ test.each([
     expect(res.status).toHaveBeenCalledWith(409);
     expect(client.query.mock.calls.some(([sql]) => sql.includes('UPDATE media_posts'))).toBe(false);
   }
+});
+
+test('P1-285: video upload is refused with 503 when the transcode worker is disabled', async () => {
+  const saved = process.env.MEDIA_VIDEO_WORKER_ENABLED;
+  process.env.MEDIA_VIDEO_WORKER_ENABLED = '0';
+  sourceDir = await fs.mkdtemp(path.join(os.tmpdir(), 'media-upload-policy-test-'));
+  const original = path.join(sourceDir, 'original.mp4');
+  await fs.writeFile(original, 'harmless mock upload');
+  pool.query.mockImplementation(async (sql) => ({ rows: sql.includes('is_verified')
+    ? [{ id: 'post', is_verified: true }] : [{ id: 'post' }] }));
+  const res = response();
+  try {
+    await uploads.videoUpload({ user: { id: 'owner' }, body: { post_id: 'post' },
+      file: { path: original, mimetype: 'video/mp4', originalname: 'original.mp4' } }, res);
+  } finally {
+    process.env.MEDIA_VIDEO_WORKER_ENABLED = saved;
+  }
+  expect(res.status).toHaveBeenCalledWith(503);
+  expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ code: 'media_video_unavailable' }));
+  expect(storage.uploadFile).not.toHaveBeenCalled();
 });

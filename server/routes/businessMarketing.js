@@ -14,6 +14,7 @@ router.post  ('/:businessId/promo-codes',             requireAuth, requireBusine
 router.post  ('/:businessId/promo-codes/:codeId/toggle', requireAuth, requireBusinessAccess({ minRole: 'manager' }), ctrl.togglePromoCode);
 router.delete('/:businessId/promo-codes/:codeId',     requireAuth, requireBusinessAccess({ minRole: 'manager' }), ctrl.deletePromoCode);
 
+router.get   ('/:businessId/featured-placement-requests', requireAuth, requireBusinessAccess({ minRole: 'manager' }), ctrl.getFeaturedPlacementRequest);
 router.post  ('/:businessId/featured-placement-requests', requireAuth, requireBusinessAccess({ minRole: 'manager' }), ctrl.requestFeaturedPlacement);
 
 module.exports = router;

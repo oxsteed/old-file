@@ -540,8 +540,10 @@ async function queryPopularRestaurants(limit) {
             COALESCE(fr.rating_count, 0)::int AS review_count,
             COALESCE(fr.estimated_delivery_minutes, fr.prep_time_min, 30)::int AS estimated_delivery_minutes,
             COALESCE(fr.price_level, 'mid') AS price_level,
-            COALESCE(fr.is_featured, FALSE) AS is_featured,
-            COALESCE(fr.featured_rank, 1000)::int AS featured_rank,
+            -- P1-315: same effective-featured predicate as search and the
+            -- FoodHome shelf, so a lapsed placement never ranks first here.
+            (COALESCE(fr.is_featured, FALSE) AND (fr.featured_until IS NULL OR fr.featured_until > NOW())) AS is_featured,
+            CASE WHEN (COALESCE(fr.is_featured, FALSE) AND (fr.featured_until IS NULL OR fr.featured_until > NOW())) THEN COALESCE(fr.featured_rank, 1000) ELSE 1000 END::int AS featured_rank,
             COALESCE(fr.discovery_status, 'visible') AS discovery_status,
             COALESCE(fr.is_accepting_orders_now, TRUE) AS is_accepting_orders_now,
             fr.temporarily_closed_until,
@@ -581,8 +583,8 @@ async function queryPopularRestaurants(limit) {
         AND COALESCE(fr.accepts_online_orders, TRUE) = TRUE
         AND COALESCE(fr.is_accepting_orders_now, TRUE) = TRUE
         AND (fr.temporarily_closed_until IS NULL OR fr.temporarily_closed_until <= NOW())
-      ORDER BY COALESCE(fr.is_featured, FALSE) DESC,
-               COALESCE(fr.featured_rank, 1000) ASC,
+      ORDER BY (COALESCE(fr.is_featured, FALSE) AND (fr.featured_until IS NULL OR fr.featured_until > NOW())) DESC,
+               CASE WHEN (COALESCE(fr.is_featured, FALSE) AND (fr.featured_until IS NULL OR fr.featured_until > NOW())) THEN COALESCE(fr.featured_rank, 1000) ELSE 1000 END ASC,
                COALESCE(fr.avg_rating, 0) DESC,
                COALESCE(fr.rating_count, 0) DESC,
                COALESCE(fr.order_count, 0) DESC,

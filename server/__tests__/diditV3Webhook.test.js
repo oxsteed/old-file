@@ -7,6 +7,12 @@ const crypto = require('crypto');
 const express = require('express');
 const request = require('supertest');
 const { mockQuery, resetMocks } = require('./setup');
+jest.mock('../services/diditEntityLink', () => ({
+  linkVerificationToEntity: jest.fn().mockResolvedValue('OX-P-TEST'),
+  linkDuplicateIdentity: jest.fn().mockResolvedValue('OX-P-TEST'),
+  markHelperIdentityVerified: jest.fn().mockResolvedValue(undefined),
+}));
+const diditEntityLink = require('../services/diditEntityLink');
 const logger = require('../utils/logger');
 const webhookRoutes = require('../routes/webhook');
 
@@ -55,6 +61,7 @@ function postSignedDidit(payload) {
 
 beforeEach(() => {
   resetMocks();
+  Object.values(diditEntityLink).forEach((fn) => fn.mockClear());
   jest.spyOn(logger, 'error').mockImplementation(() => {});
   jest.spyOn(logger, 'warn').mockImplementation(() => {});
   jest.spyOn(logger, 'info').mockImplementation(() => {});
@@ -190,7 +197,7 @@ describe('Didit v3 webhook unhappy paths', () => {
     expect(response.status).toBe(200);
     expect(response.body).toEqual({ received: true });
     const declinedUpdate = mockQuery.mock.calls.find(
-      ([sql]) => typeof sql === 'string' && sql.includes("SET status = 'declined'")
+      ([sql]) => typeof sql === 'string' && sql.includes("SET status = 'failed'")
     );
     expect(declinedUpdate).toBeDefined();
     expect(declinedUpdate[1][0]).toBe('Verification declined');
@@ -231,6 +238,13 @@ describe('Didit v3 webhook unhappy paths', () => {
     );
     expect(badgeInsert).toBeDefined();
     expect(logger.error).not.toHaveBeenCalled();
+    // P1-331: the approval is anchored to the entity ID for the credit auto-pass.
+    expect(diditEntityLink.linkVerificationToEntity).toHaveBeenCalledWith(
+      'user-1', expect.objectContaining({ status: 'verified' })
+    );
+    expect(diditEntityLink.markHelperIdentityVerified).toHaveBeenCalledWith('user-1');
+    // P1-333: only chk_iv_status values are written.
+    expect(mockQuery.mock.calls.some(([sql]) => typeof sql === 'string' && sql.includes("SET status = 'approved'"))).toBe(false);
   });
 
   test('treats a unique-violation race on the identity hash as a duplicate', async () => {
@@ -272,6 +286,11 @@ describe('Didit v3 webhook unhappy paths', () => {
     );
     expect(badgeInsert).toBeUndefined();
     expect(logger.error).not.toHaveBeenCalled();
+    // P1-332: the duplicate is recorded on the entity graph.
+    expect(diditEntityLink.linkDuplicateIdentity).toHaveBeenCalledWith(
+      expect.objectContaining({ userId: 'user-1', sessionId: 'didit-race-session' })
+    );
+    expect(diditEntityLink.linkVerificationToEntity).not.toHaveBeenCalledWith('user-1', expect.objectContaining({ status: 'verified' }));
   });
 
   test('logs the inner error with webhook context when the database fails', async () => {

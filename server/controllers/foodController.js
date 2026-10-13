@@ -6554,6 +6554,15 @@ exports.createRestaurantCustomerMessage = async (req, res, next) => {
       throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
     }
 
+    // P1-266: a message with no reachable recipient used to be accepted with a
+    // 201 and delivered nowhere. Refuse it up front instead.
+    if (restaurant.owner_user_id && String(restaurant.owner_user_id) === String(req.user.id)) {
+      throw new AppError('You cannot message your own restaurant', 409, 'cannot_message_own_restaurant');
+    }
+    if (!restaurant.business_id || !restaurant.owner_user_id) {
+      throw new AppError('This restaurant cannot receive messages right now', 409, 'restaurant_unreachable');
+    }
+
     const cleanSubject = subject || `Question for ${restaurant.display_name}`;
     const chatContent = sanitizeMessage(
       cleanSubject ? `${cleanSubject}\n\n${message}` : message
