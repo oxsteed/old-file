@@ -153,7 +153,12 @@ async function hardDeleteExpiredAccounts() {
 
 async function cleanupExpiredSessionData() {
   const cleanups = [
-    ['sessions', `DELETE FROM sessions WHERE expires_at IS NOT NULL AND expires_at <= NOW()`],
+    // Keep both lifecycle flags in the cleanup predicate so the sweeper
+    // remains compatible with the session-read contract and never treats a
+    // malformed row with neither flag as an ordinary live session.
+    ['sessions', `DELETE FROM sessions
+       WHERE expires_at IS NOT NULL AND expires_at <= NOW()
+         AND (is_valid IS NOT NULL OR is_revoked IS NOT NULL)`],
     ['privacy_export_verifications', `DELETE FROM privacy_export_verifications WHERE expires_at <= NOW() OR (consumed_at IS NOT NULL AND consumed_at < NOW() - INTERVAL '1 day')`],
     ['restaurant_app_devices', `DELETE FROM restaurant_app_devices WHERE pairing_code IS NOT NULL AND pairing_code_expires_at IS NOT NULL AND pairing_code_expires_at <= NOW()`],
   ];
