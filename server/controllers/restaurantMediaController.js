@@ -32,6 +32,8 @@ const fileScanService = require('../services/fileScanService');
 const { uploadFile, getSignedDownloadUrl, deleteFile } = require('../utils/storage');
 const { stripExif } = require('../utils/stripExif');
 
+const MAX_IMAGE_PIXELS = 40_000_000;
+
 // ── Rate limiters ────────────────────────────────────────────────────────────
 // Route-local Redis store option, mirroring server/routes/learn.js. Falls back
 // to in-memory when Redis is unavailable. Exported so routes/*.js can use them
@@ -662,7 +664,7 @@ const photoUpload = multer({
 }).single('file');
 
 function thumbnailPipeline(cleanBuffer, mime) {
-  const pipeline = sharp(cleanBuffer)
+  const pipeline = sharp(cleanBuffer, { limitInputPixels: MAX_IMAGE_PIXELS })
     .resize({ width: PHOTO_THUMBNAIL_WIDTH, withoutEnlargement: true });
   if (mime === 'image/png') return pipeline.png();
   if (mime === 'image/webp') return pipeline.webp({ quality: PHOTO_THUMBNAIL_QUALITY });

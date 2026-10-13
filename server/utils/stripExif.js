@@ -27,6 +27,9 @@ try {
 
 const JPEG_QUALITY = 92;
 const WEBP_QUALITY = 92;
+// Bound decoder work before metadata/orientation processing while allowing
+// normal high-resolution camera uploads.
+const MAX_IMAGE_PIXELS = 40_000_000;
 
 function requireImageBuffer(buffer) {
   if (!Buffer.isBuffer(buffer) || buffer.length === 0) {
@@ -37,8 +40,8 @@ function requireImageBuffer(buffer) {
 async function stripExif(buffer) {
   requireImageBuffer(buffer);
   if (sharp) {
-    const format = (await sharp(buffer).metadata()).format;
-    const pipeline = sharp(buffer).rotate(); // apply EXIF orientation, then drop the tag
+    const format = (await sharp(buffer, { limitInputPixels: MAX_IMAGE_PIXELS }).metadata()).format;
+    const pipeline = sharp(buffer, { limitInputPixels: MAX_IMAGE_PIXELS }).rotate(); // apply EXIF orientation, then drop the tag
     if (format === 'jpeg' || format === 'jpg') {
       return pipeline.jpeg({ quality: JPEG_QUALITY }).toBuffer();
     }
@@ -158,5 +161,6 @@ function stripExifFallback(buffer) {
 module.exports = {
   stripExif,
   stripExifFallback,
+  MAX_IMAGE_PIXELS,
   isSharpAvailable: () => sharp !== null,
 };
