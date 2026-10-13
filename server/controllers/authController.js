@@ -892,6 +892,9 @@ async function refreshToken(req, res, next) {
               preferred_language,
               trial_started_at, trial_ends_at, didit_status, didit_verified_at,
               default_mode,
+              COALESCE(is_active, TRUE) AS is_active,
+              COALESCE(is_suspended, FALSE) AS is_suspended,
+              suspended_until,
               COALESCE(didit_enforcement_required, FALSE) AS didit_enforcement_required
        FROM users WHERE id = $1`,
       [sessionRows[0].user_id]
@@ -900,6 +903,19 @@ async function refreshToken(req, res, next) {
       throw new AppError('User not found', 401, 'user_not_found');
     }
     const user = userRows[0];
+    // A refresh token must not be able to mint a new session after an account
+    // has been deactivated or while an active suspension is in effect. Keep
+    // the default values permissive for older test fixtures and installations
+    // that do not return the optional account-state columns.
+    if (user.is_active === false) {
+      throw new AppError('Your account is inactive. Please contact support.', 403, 'account_inactive');
+    }
+    if (user.is_suspended === true) {
+      const suspensionActive = !user.suspended_until || new Date(user.suspended_until) > new Date();
+      if (suspensionActive) {
+        throw new AppError('Your account is suspended. Please contact support.', 403, 'account_suspended');
+      }
+    }
     const tokens = generateTokens(user);
     const hashedRefresh = crypto.createHash('sha256').update(tokens.refreshToken).digest('hex');
     const { rows: newSessionRows } = await pool.query(

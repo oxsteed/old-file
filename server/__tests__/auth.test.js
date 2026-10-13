@@ -446,6 +446,53 @@ describe('POST /api/auth/refresh', () => {
     expect(insert[0]).toMatch(/LEAST\(NOW\(\) \+ interval '7 days'/);
     expect(insert[1][2]).toBe(new Date(deadline).toISOString());
   });
+
+  test('does not mint a session for an inactive account', async () => {
+    mockQuery.mockReset();
+    mockQuery.mockImplementation(async (sql) => {
+      const t = String(sql);
+      if (t.includes('FROM sessions s WHERE')) {
+        return { rows: [{ user_id: 3, is_valid: true, is_revoked: false,
+          expires_at: new Date(Date.now() + 86400000).toISOString(),
+          absolute_expires_at: new Date(Date.now() + 3 * 86400000).toISOString() }] };
+      }
+      if (t.includes('UPDATE sessions SET is_valid = false')) return { rows: [{ id: 1 }] };
+      if (t.includes('FROM users WHERE id')) {
+        return { rows: [{ id: 3, email: 'inactive@example.com', role: 'customer', is_active: false }] };
+      }
+      return { rows: [] };
+    });
+
+    const res = await request(buildApp()).post('/api/auth/refresh').send({ refreshToken: 'inactive-token' });
+
+    expect(res.status).toBe(403);
+    expect(res.body.code).toBe('account_inactive');
+    expect(mockQuery.mock.calls.some(([sql]) => String(sql).includes('INSERT INTO sessions'))).toBe(false);
+  });
+
+  test('does not mint a session while an account suspension is active', async () => {
+    mockQuery.mockReset();
+    mockQuery.mockImplementation(async (sql) => {
+      const t = String(sql);
+      if (t.includes('FROM sessions s WHERE')) {
+        return { rows: [{ user_id: 3, is_valid: true, is_revoked: false,
+          expires_at: new Date(Date.now() + 86400000).toISOString(),
+          absolute_expires_at: new Date(Date.now() + 3 * 86400000).toISOString() }] };
+      }
+      if (t.includes('UPDATE sessions SET is_valid = false')) return { rows: [{ id: 1 }] };
+      if (t.includes('FROM users WHERE id')) {
+        return { rows: [{ id: 3, email: 'suspended@example.com', role: 'customer', is_active: true,
+          is_suspended: true, suspended_until: new Date(Date.now() + 3600000).toISOString() }] };
+      }
+      return { rows: [] };
+    });
+
+    const res = await request(buildApp()).post('/api/auth/refresh').send({ refreshToken: 'suspended-token' });
+
+    expect(res.status).toBe(403);
+    expect(res.body.code).toBe('account_suspended');
+    expect(mockQuery.mock.calls.some(([sql]) => String(sql).includes('INSERT INTO sessions'))).toBe(false);
+  });
 });
 
 // ── POST /api/auth/logout ─────────────────────────────────────────────────────
