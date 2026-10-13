@@ -119,3 +119,14 @@ the authoritative Jest summary is green. No full W11 PR/CI claim is made.
 
 Rechecked default-branch CI after W10.5 merge: run38386697851 at c790370a succeeded.
 This is remote evidence for the merged base, not for the new W11 commits.
+
+### Restaurant browser fixture CI repair (2026-10-13)
+
+CI run 38461301212 at f35dc0c1 passed locale generation and the client production
+build, then failed its browser step: the restaurant fixture lacked five new
+food API exports for loyalty and favorites. Added empty read responses matching
+the API contracts and kept favorite mutations behind the existing unexpected-write
+guard. No production code changed. The focused command
+`cd client && node --test scripts/restaurantRender.browser-check.cjs` passed
+(1 test), exercising loading, menu search and missing-restaurant recovery.
+Remote verification for this repair remains pending.
