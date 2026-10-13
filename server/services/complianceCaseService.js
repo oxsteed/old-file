@@ -226,7 +226,7 @@ async function getComplianceQueue(client, { limit = 50, offset = 0 } = {}) {
     // T38-F02: totals, not page lengths, so operators can navigate the full queue.
     client.query(
       `SELECT
-         (SELECT COUNT(*)::int FROM oxsteed_credit_identity_verifications WHERE status = 'pending') AS pending_verifications,
+         (SELECT COUNT(*)::int FROM oxsteed_credit_identity_verifications WHERE status = 'pending' OR appeal_status = 'pending') AS pending_verifications,
          (SELECT COUNT(*)::int FROM oxsteed_credit_sanctions_screenings WHERE result = 'hit' AND cleared_at IS NULL) AS pending_sanctions,
          (SELECT COUNT(*)::int FROM oxsteed_credit_compliance_cases WHERE status IN ('open', 'investigating', 'escalated')) AS open_cases`
     ),

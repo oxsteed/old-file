@@ -523,6 +523,7 @@ router.post('/super/oxsteed-credit/reconciliation', requireSuperAdmin, creditAdm
 // Phase 5 compliance queue: identity verifications, sanctions hits, cases.
 router.get('/super/oxsteed-credit/compliance-queue', requireSuperAdmin, oxsteedCreditCtrl.getAdminComplianceQueue);
 router.post('/super/oxsteed-credit/compliance/verifications/:id/decision', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.decideAdminComplianceVerification);
+router.post('/super/oxsteed-credit/compliance/verifications/:id/appeal-decision', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.decideAdminComplianceIdentityAppeal);
 router.post('/super/oxsteed-credit/compliance/sanctions/:id/decision', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.decideAdminComplianceSanction);
 router.post('/super/oxsteed-credit/compliance/cases/:id/transition', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.transitionAdminComplianceCase);
 router.post('/super/oxsteed-credit/stepup-challenges', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.issueAdminStepupChallenge);

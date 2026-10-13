@@ -151,6 +151,42 @@ const T = {
       ar: 'راجع نشاط OxSteed Credit الخاص بك.',
     },
   },
+  credit_identity_verification_requested: {
+    title: { en: 'Identity review requested', es: 'Solicitud de revisión de identidad', fr: 'Demande de vérification d’identité', ht: 'Demann verifikasyon idantite', ar: 'تم طلب مراجعة الهوية' },
+    body: { en: 'Your identity review request is in the compliance queue.', es: 'Tu solicitud de revisión de identidad está en la cola de cumplimiento.', fr: 'Votre demande de vérification d’identité est dans la file de conformité.', ht: 'Demann verifikasyon idantite ou nan ke konformite a.', ar: 'طلب مراجعة هويتك في قائمة الامتثال.' },
+  },
+  credit_identity_verification_approved: {
+    title: { en: 'Identity verification approved', es: 'Verificación de identidad aprobada', fr: 'Vérification d’identité approuvée', ht: 'Verifikasyon idantite apwouve', ar: 'تمت الموافقة على التحقق من الهوية' },
+    body: { en: 'Your identity verification was approved.', es: 'Tu verificación de identidad fue aprobada.', fr: 'Votre vérification d’identité a été approuvée.', ht: 'Yo apwouve verifikasyon idantite ou.', ar: 'تمت الموافقة على التحقق من هويتك.' },
+  },
+  credit_identity_verification_rejected: {
+    title: { en: 'Identity verification needs attention', es: 'La verificación de identidad requiere atención', fr: 'La vérification d’identité nécessite votre attention', ht: 'Verifikasyon idantite bezwen atansyon', ar: 'يحتاج التحقق من الهوية إلى مراجعة' },
+    body: { en: 'Your identity verification was not approved. Review the reason and submit a new request.', es: 'Tu verificación de identidad no fue aprobada. Revisa el motivo y envía una nueva solicitud.', fr: 'Votre vérification d’identité n’a pas été approuvée. Consultez le motif et envoyez une nouvelle demande.', ht: 'Yo pa apwouve verifikasyon idantite ou. Revize rezon an epi voye yon nouvo demann.', ar: 'لم تتم الموافقة على التحقق من هويتك. راجع السبب وأرسل طلبًا جديدًا.' },
+  },
+  credit_identity_verification_appeal_submitted: {
+    title: { en: 'Identity appeal submitted', es: 'Apelación de identidad enviada', fr: 'Appel d’identité envoyé', ht: 'Apèl idantite soumèt', ar: 'تم إرسال استئناف الهوية' },
+    body: { en: 'Your appeal was submitted for compliance review.', es: 'Tu apelación fue enviada para revisión de cumplimiento.', fr: 'Votre appel a été envoyé pour vérification de conformité.', ht: 'Yo soumèt apèl ou pou revizyon konformite.', ar: 'تم إرسال استئنافك لمراجعة الامتثال.' },
+  },
+  credit_identity_verification_appeal_approved: {
+    title: { en: 'Identity appeal accepted', es: 'Apelación de identidad aceptada', fr: 'Appel d’identité accepté', ht: 'Yo aksepte apèl idantite a', ar: 'تم قبول استئناف الهوية' },
+    body: { en: 'Your appeal was accepted and your identity review is back in the compliance queue.', es: 'Tu apelación fue aceptada y tu revisión de identidad volvió a la cola de cumplimiento.', fr: 'Votre appel a été accepté et votre vérification est de nouveau dans la file de conformité.', ht: 'Yo aksepte apèl ou epi yo mete revizyon idantite a nan ke konformite a ankò.', ar: 'تم قبول استئنافك وأعيدت مراجعة هويتك إلى قائمة الامتثال.' },
+  },
+  credit_identity_verification_appeal_rejected: {
+    title: { en: 'Identity appeal not approved', es: 'Apelación de identidad no aprobada', fr: 'Appel d’identité non approuvé', ht: 'Yo pa apwouve apèl idantite a', ar: 'لم تتم الموافقة على استئناف الهوية' },
+    body: { en: 'Your identity verification appeal was not approved.', es: 'Tu apelación de verificación de identidad no fue aprobada.', fr: 'Votre appel de vérification d’identité n’a pas été approuvé.', ht: 'Yo pa apwouve apèl verifikasyon idantite ou a.', ar: 'لم تتم الموافقة على استئناف التحقق من هويتك.' },
+  },
+  credit_sanctions_review_required: {
+    title: { en: 'Compliance review required', es: 'Se requiere una revisión de cumplimiento', fr: 'Vérification de conformité requise', ht: 'Revizyon konformite obligatwa', ar: 'مراجعة الامتثال مطلوبة' },
+    body: { en: 'Credit activity is paused while a compliance review is completed.', es: 'La actividad de crédito está pausada mientras se completa una revisión de cumplimiento.', fr: 'L’activité de crédit est suspendue pendant la vérification de conformité.', ht: 'Aktivite kredi a kanpe pandan revizyon konformite a ap fèt.', ar: 'تم إيقاف نشاط الائتمان حتى اكتمال مراجعة الامتثال.' },
+  },
+  credit_sanctions_cleared: {
+    title: { en: 'Compliance review cleared', es: 'Revisión de cumplimiento aprobada', fr: 'Vérification de conformité levée', ht: 'Revizyon konformite otorize', ar: 'تمت الموافقة على مراجعة الامتثال' },
+    body: { en: 'Your compliance review was cleared. Credit activity may resume if other requirements are met.', es: 'Tu revisión de cumplimiento fue aprobada. La actividad de crédito puede reanudarse si se cumplen los demás requisitos.', fr: 'Votre vérification de conformité a été levée. L’activité de crédit peut reprendre si les autres conditions sont remplies.', ht: 'Yo otorize revizyon konformite ou. Aktivite kredi ka rekòmanse si lòt kondisyon yo ranpli.', ar: 'تمت الموافقة على مراجعة الامتثال. يمكن استئناف نشاط الائتمان إذا استوفيت المتطلبات الأخرى.' },
+  },
+  credit_sanctions_confirmed: {
+    title: { en: 'Compliance review remains open', es: 'La revisión de cumplimiento sigue abierta', fr: 'La vérification de conformité reste ouverte', ht: 'Revizyon konformite a toujou ouvè', ar: 'لا تزال مراجعة الامتثال مفتوحة' },
+    body: { en: 'Your compliance review remains open while the case is investigated.', es: 'Tu revisión de cumplimiento sigue abierta mientras se investiga el caso.', fr: 'Votre vérification de conformité reste ouverte pendant l’enquête.', ht: 'Revizyon konformite ou toujou ouvè pandan y ap envestige ka a.', ar: 'لا تزال مراجعة الامتثال مفتوحة أثناء التحقيق في الحالة.' },
+  },
   // Monthly statement issuance (workstream 1). The body is intentionally free
   // of amounts, balances and digits: the email carries only an
   // authenticated link; figures live behind the login.

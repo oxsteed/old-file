@@ -40,7 +40,11 @@ const {
   SUPPORTED_CREDIT_CURRENCY_META,
 } = require('../services/oxsteedCreditService');
 const { evaluateFundingCompliance } = require('../services/fiatComplianceService');
-const { reviewIdentityVerification } = require('../services/identityVerificationService');
+const {
+  reviewIdentityVerification,
+  requestIdentityVerificationAppeal,
+  reviewIdentityVerificationAppeal,
+} = require('../services/identityVerificationService');
 const { decideSanctionsScreening } = require('../services/sanctionsScreeningService');
 const { getComplianceQueue, transitionComplianceCase } = require('../services/complianceCaseService');
 const { issueStepupChallenge, verifyStepupChallenge, amountRequiresStepup } = require('../services/stepupChallengeService');
@@ -375,6 +379,20 @@ async function requestMyIdentityVerification(req, res, next) {
       customerId: req.user.id,
       requestedTier: req.body?.requestedTier ?? req.body?.requested_tier ?? 2,
       actorUserId: req.user.id,
+      requestIp: req.ip || null,
+    });
+    res.status(result.replayed ? 200 : 201).json(result);
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function appealMyIdentityVerification(req, res, next) {
+  try {
+    const result = await requestIdentityVerificationAppeal({
+      verificationId: req.params.id,
+      customerId: req.user.id,
+      reason: req.body?.reason,
       requestIp: req.ip || null,
     });
     res.status(result.replayed ? 200 : 201).json(result);
@@ -1244,6 +1262,21 @@ async function getAdminComplianceQueue(req, res, next) {
 async function decideAdminComplianceVerification(req, res, next) {
   try {
     const result = await reviewIdentityVerification({
+      verificationId: req.params.id,
+      decision: req.body?.decision,
+      actorUserId: req.user.id,
+      reason: req.body?.reason,
+      requestIp: req.ip || null,
+    });
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function decideAdminComplianceIdentityAppeal(req, res, next) {
+  try {
+    const result = await reviewIdentityVerificationAppeal({
       verificationId: req.params.id,
       decision: req.body?.decision,
       actorUserId: req.user.id,
@@ -2473,6 +2506,7 @@ module.exports = {
   getCustomerEligibility,
   getMyIdentityVerification,
   requestMyIdentityVerification,
+  appealMyIdentityVerification,
   getMyTransactions,
   getMyStatement,
   getMyStatementPeriods,
@@ -2546,6 +2580,7 @@ module.exports = {
   runAdminCreditExternalReconciliation,
   getAdminComplianceQueue,
   decideAdminComplianceVerification,
+  decideAdminComplianceIdentityAppeal,
   decideAdminComplianceSanction,
   transitionAdminComplianceCase,
   issueAdminStepupChallenge,

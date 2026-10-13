@@ -16,6 +16,8 @@ const { mockQuery, resetMocks } = require('./setup');
 const {
   assertIdentityVerificationTier,
   reviewIdentityVerification,
+  requestIdentityVerificationAppeal,
+  reviewIdentityVerificationAppeal,
   TIER1_TOPUP_MAX_CENTS,
   TIER2_TOPUP_MAX_CENTS,
 } = require('../services/identityVerificationService');
@@ -54,6 +56,7 @@ function verificationRow(overrides = {}) {
     expires_at: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
+    appeal_status: null,
     ...overrides,
   };
 }
@@ -151,6 +154,45 @@ describe('identity verification tiers', () => {
     });
     expect(result.verification.status).toBe('rejected');
     expect(result.verification.tier).toBe(0);
+  });
+
+  test('a customer can appeal a rejected verification', async () => {
+    const rejected = verificationRow({ status: 'rejected', tier: 0 });
+    const appealed = verificationRow({ status: 'rejected', tier: 0, appeal_status: 'pending', appeal_reason: 'The document was valid.' });
+    mockQuery.mockImplementation(async (text) => {
+      const sql = String(text);
+      if (sql.includes('WHERE id = $1 AND customer_id = $2 FOR UPDATE')) return { rows: [rejected] };
+      if (sql.includes('UPDATE oxsteed_credit_identity_verifications')) return { rows: [appealed] };
+      if (sql.includes('INSERT INTO oxsteed_credit_audit_events')) return { rows: [] };
+      return { rows: [], rowCount: 0 };
+    });
+    const result = await requestIdentityVerificationAppeal({
+      verificationId: VERIFICATION_ID,
+      customerId: CUSTOMER_ID,
+      reason: 'The document was valid.',
+    });
+    expect(result.verification.appealStatus).toBe('pending');
+    expect(result.replayed).toBe(false);
+  });
+
+  test('admin appeal approval reopens the verification queue', async () => {
+    const pendingAppeal = verificationRow({ status: 'rejected', tier: 0, appeal_status: 'pending' });
+    const reopened = verificationRow({ status: 'pending', tier: 0, appeal_status: 'approved' });
+    mockQuery.mockImplementation(async (text) => {
+      const sql = String(text);
+      if (sql.includes('WHERE id = $1 FOR UPDATE')) return { rows: [pendingAppeal] };
+      if (sql.includes('UPDATE oxsteed_credit_identity_verifications')) return { rows: [reopened] };
+      if (sql.includes('INSERT INTO oxsteed_credit_audit_events')) return { rows: [] };
+      return { rows: [], rowCount: 0 };
+    });
+    const result = await reviewIdentityVerificationAppeal({
+      verificationId: VERIFICATION_ID,
+      decision: 'approve',
+      actorUserId: ACTOR_ID,
+      reason: 'Reopen for a second review',
+    });
+    expect(result.verification.status).toBe('pending');
+    expect(result.verification.appealStatus).toBe('approved');
   });
 });
 

@@ -37,6 +37,7 @@ const pool = require('../db');
 const AppError = require('../utils/appError');
 const { withTransaction } = require('../utils/transaction');
 const { insertAudit } = require('./oxsteedCreditAdminService');
+const { sendNotification } = require('./notificationService');
 
 const TIER1_TOPUP_MAX_CENTS = Math.max(
   1,
@@ -231,6 +232,11 @@ function formatVerification(row) {
     reviewReason: row.review_reason,
     expiresAt: row.expires_at,
     slaDueAt: row.sla_due_at,
+    appealStatus: row.appeal_status || null,
+    appealReason: row.appeal_reason || null,
+    appealedAt: row.appealed_at || null,
+    appealReviewedAt: row.appeal_reviewed_at || null,
+    appealReviewReason: row.appeal_review_reason || null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -272,7 +278,7 @@ async function requestIdentityVerification({ customerId, requestedTier = 2, prov
   const tier = Number(requestedTier);
   if (tier !== 1 && tier !== 2) throw new AppError('Requested tier must be 1 or 2', 400, 'credit_identity_tier_invalid');
   const provider = getVerificationProvider(providerName);
-  return withTransaction(pool, async (client) => {
+  const result = await withTransaction(pool, async (client) => {
     const created = await provider.createVerificationRequest(client, { customerId, requestedTier: tier });
     await insertAudit(client, {
       actionType: 'credit.identity.verification_requested',
@@ -287,6 +293,17 @@ async function requestIdentityVerification({ customerId, requestedTier = 2, prov
     });
     return { ...created, requestedTier: tier };
   }, 'credit_identity_request');
+  if (result?.verificationId && !result.replayed) {
+    void sendNotification({
+      userId: customerId,
+      type: 'credit_identity_verification_requested',
+      body: `Tier ${tier} identity review requested.`,
+      data: { verificationId: String(result.verificationId), requestedTier: tier },
+      action_url: '/wallet',
+      idempotencyKey: `credit-identity:${result.verificationId}:requested`,
+    });
+  }
+  return result;
 }
 
 /**
@@ -302,7 +319,7 @@ async function reviewIdentityVerification({ verificationId, decision, actorUserI
   }
   const normalizedReason = normalizeString(reason, 1000);
   if (!normalizedReason) throw new AppError('A review reason is required', 400, 'credit_identity_reason_required');
-  return withTransaction(pool, async (client) => {
+  const result = await withTransaction(pool, async (client) => {
     const { rows } = await client.query(
       `SELECT * FROM oxsteed_credit_identity_verifications WHERE id = $1 FOR UPDATE`,
       [verificationId]
@@ -340,6 +357,126 @@ async function reviewIdentityVerification({ verificationId, decision, actorUserI
     });
     return { verification: formatVerification(updated[0]), replayed: false };
   }, 'credit_identity_review');
+  if (result?.verification && !result.replayed) {
+    const verification = result.verification;
+    const approved = verification.status === 'verified';
+    void sendNotification({
+      userId: verification.customerId,
+      type: approved ? 'credit_identity_verification_approved' : 'credit_identity_verification_rejected',
+      body: approved
+        ? 'Your identity verification was approved.'
+        : 'Your identity verification was not approved. Review the reason and submit a new request when ready.',
+      data: { verificationId: verification.id, status: verification.status },
+      action_url: '/wallet',
+      idempotencyKey: `credit-identity:${verification.id}:${verification.status}`,
+    });
+  }
+  return result;
+}
+
+async function requestIdentityVerificationAppeal({ verificationId, customerId, reason, requestIp = null }) {
+  if (!verificationId || !customerId) throw new AppError('Verification and customer are required', 400, 'credit_identity_appeal_required');
+  const normalizedReason = normalizeString(reason, 1000);
+  if (!normalizedReason) throw new AppError('An appeal reason is required', 400, 'credit_identity_appeal_reason_required');
+  const result = await withTransaction(pool, async (client) => {
+    const { rows } = await client.query(
+      `SELECT * FROM oxsteed_credit_identity_verifications WHERE id = $1 AND customer_id = $2 FOR UPDATE`,
+      [verificationId, customerId]
+    );
+    const verification = rows[0];
+    if (!verification) throw new AppError('Identity verification not found', 404, 'credit_identity_not_found');
+    if (verification.status !== 'rejected') throw new AppError('Only rejected verifications can be appealed', 409, 'credit_identity_appeal_state_conflict');
+    if (verification.appeal_status === 'pending') return { verification: formatVerification(verification), replayed: true };
+    const { rows: updated } = await client.query(
+      `UPDATE oxsteed_credit_identity_verifications
+          SET appeal_status = 'pending', appeal_reason = $3, appealed_at = NOW(),
+              appeal_reviewed_by = NULL, appeal_reviewed_at = NULL, appeal_review_reason = NULL,
+              updated_at = NOW()
+        WHERE id = $1 AND customer_id = $2 AND status = 'rejected'
+        RETURNING *`,
+      [verificationId, customerId, normalizedReason]
+    );
+    if (!updated[0]) throw new AppError('Appeal was already submitted', 409, 'credit_identity_appeal_state_conflict');
+    await insertAudit(client, {
+      actionType: 'credit.identity.verification_appealed',
+      actorUserId: customerId,
+      customerId,
+      resourceType: 'credit_identity_verification',
+      resourceId: verificationId,
+      reason: normalizedReason,
+      requestIp,
+      beforeState: { status: 'rejected', appealStatus: verification.appeal_status || null },
+      afterState: { status: 'rejected', appealStatus: 'pending' },
+    });
+    return { verification: formatVerification(updated[0]), replayed: false };
+  }, 'credit_identity_appeal');
+  if (!result.replayed) {
+    void sendNotification({
+      userId: customerId,
+      type: 'credit_identity_verification_appeal_submitted',
+      body: 'Your appeal was submitted for compliance review.',
+      data: { verificationId: String(verificationId) },
+      action_url: '/wallet',
+      idempotencyKey: `credit-identity:${verificationId}:appeal-submitted`,
+    });
+  }
+  return result;
+}
+
+async function reviewIdentityVerificationAppeal({ verificationId, decision, actorUserId, reason, requestIp = null }) {
+  if (!verificationId) throw new AppError('Verification id is required', 400, 'credit_identity_appeal_required');
+  if (decision !== 'approve' && decision !== 'reject') throw new AppError("Appeal decision must be 'approve' or 'reject'", 400, 'credit_identity_appeal_decision_invalid');
+  const normalizedReason = normalizeString(reason, 1000);
+  if (!normalizedReason) throw new AppError('An appeal review reason is required', 400, 'credit_identity_appeal_reason_required');
+  const result = await withTransaction(pool, async (client) => {
+    const { rows } = await client.query(
+      `SELECT * FROM oxsteed_credit_identity_verifications WHERE id = $1 FOR UPDATE`,
+      [verificationId]
+    );
+    const verification = rows[0];
+    if (!verification) throw new AppError('Identity verification not found', 404, 'credit_identity_not_found');
+    if (verification.status !== 'rejected' || verification.appeal_status !== 'pending') {
+      throw new AppError('This identity appeal is not pending', 409, 'credit_identity_appeal_state_conflict');
+    }
+    const nextStatus = decision === 'approve' ? 'pending' : 'rejected';
+    const { rows: updated } = await client.query(
+      `UPDATE oxsteed_credit_identity_verifications
+          SET status = $2, tier = CASE WHEN $2 = 'pending' THEN 0 ELSE tier END,
+              expires_at = CASE WHEN $2 = 'pending' THEN NULL ELSE expires_at END,
+              sla_due_at = CASE WHEN $2 = 'pending' THEN NOW() + ($3 * INTERVAL '1 hour') ELSE NULL END,
+              appeal_status = $4, appeal_reviewed_by = $5, appeal_reviewed_at = NOW(),
+              appeal_review_reason = $6, updated_at = NOW()
+        WHERE id = $1 AND status = 'rejected' AND appeal_status = 'pending'
+        RETURNING *`,
+      [verificationId, nextStatus, VERIFICATION_REVIEW_SLA_HOURS, decision === 'approve' ? 'approved' : 'rejected', actorUserId, normalizedReason]
+    );
+    if (!updated[0]) throw new AppError('Appeal was already decided', 409, 'credit_identity_appeal_state_conflict');
+    await insertAudit(client, {
+      actionType: 'credit.identity.verification_appeal_reviewed',
+      actorUserId,
+      customerId: verification.customer_id,
+      resourceType: 'credit_identity_verification',
+      resourceId: verificationId,
+      reason: normalizedReason,
+      requestIp,
+      beforeState: { status: 'rejected', appealStatus: 'pending' },
+      afterState: { status: nextStatus, appealStatus: decision === 'approve' ? 'approved' : 'rejected' },
+    });
+    return { verification: formatVerification(updated[0]), replayed: false };
+  }, 'credit_identity_appeal_review');
+  if (!result.replayed) {
+    void sendNotification({
+      userId: result.verification.customerId,
+      type: decision === 'approve' ? 'credit_identity_verification_appeal_approved' : 'credit_identity_verification_appeal_rejected',
+      body: decision === 'approve'
+        ? 'Your appeal was accepted and your identity review is back in the compliance queue.'
+        : 'Your identity verification appeal was not approved.',
+      data: { verificationId: String(verificationId), decision },
+      action_url: '/wallet',
+      idempotencyKey: `credit-identity:${verificationId}:appeal-${decision}`,
+    });
+  }
+  return result;
 }
 
 /**
@@ -381,7 +518,7 @@ async function listPendingVerifications(client, { limit = 50, offset = 0 } = {})
     `SELECT v.*, u.email AS customer_email
        FROM oxsteed_credit_identity_verifications v
        LEFT JOIN users u ON u.id = v.customer_id
-      WHERE v.status = 'pending'
+      WHERE v.status = 'pending' OR v.appeal_status = 'pending'
       ORDER BY v.created_at ASC
       LIMIT $1 OFFSET $2`,
     [Math.min(Math.max(Number(limit) || 50, 1), 200), Math.max(Number(offset) || 0, 0)]
@@ -399,6 +536,8 @@ module.exports = {
   getCustomerVerificationTier,
   requestIdentityVerification,
   reviewIdentityVerification,
+  requestIdentityVerificationAppeal,
+  reviewIdentityVerificationAppeal,
   assertIdentityVerificationTier,
   listPendingVerifications,
   formatVerification,
