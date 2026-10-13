@@ -1964,5 +1964,42 @@
     "intro": "Ajoute lajan nan OxSteed Credit ak yon kat. Li antre lè peman an konfime.",
     "credited": "Lajan ajoute nan OxSteed Credit ou",
     "invalidAmount": "Antre omwen {{min}}."
+  },
+  "identityVerification": {
+    "eyebrow": "Verifikasyon idantite",
+    "title": "Verifye idantite w",
+    "intro": "Gen aksyon finansman ki mande verifikasyon idantite. Tcheke nivo w anba a oswa mande yon revizyon pou monte limit ou yo.",
+    "loading": "N ap chaje estati verifikasyon an...",
+    "currentTier": "Nivo aktyèl",
+    "tierLabel": "Nivo {{tier}}",
+    "statusLabel": "Estati",
+    "status": {
+      "none": "Poko kòmanse",
+      "pending": "An revizyon",
+      "verified": "Verifye",
+      "rejected": "Pa apwouve",
+      "expired": "Ekspire"
+    },
+    "tierLimit": "Limit rechaj Nivo {{tier}}",
+    "upgradeCopy": "Kont ou verifye nan Nivo 1. Mande Nivo 2 pou monte limit finansman w.",
+    "requestTier2": "Mande Nivo 2",
+    "submitting": "N ap voye...",
+    "pendingTitle": "Verifikasyon an revizyon",
+    "pendingCopy": "Ekip nou an ap revize demann ou an. N ap avèti w lè yo pran yon desizyon.",
+    "requestCopy": "Mande verifikasyon idantite pou debloke limit finansman ki pi wo. Si ou te deja fini verifikasyon idantite Didit la, apwobasyon an otomatik.",
+    "requestedTier": "Nivo yo mande a",
+    "tierOption": "Nivo {{tier}}",
+    "requestVerification": "Mande verifikasyon",
+    "requestSubmitted": "Demann verifikasyon an voye",
+    "requestFailed": "Nou pa t ka voye demann verifikasyon an",
+    "rejectedTitle": "Verifikasyon pa apwouve",
+    "rejectedCopy": "Demann verifikasyon ou an pa t apwouve. Ou ka fè apèl kont desizyon an oswa voye yon nouvo demann.",
+    "rejectedCopyWithReason": "Demann verifikasyon ou an pa t apwouve: {{reason}}",
+    "appealPendingCopy": "Apèl ou an an revizyon. N ap avèti w lè yo pran yon desizyon.",
+    "appealReason": "Rezon apèl la",
+    "appealReasonPlaceholder": "Eksplike poukisa yo ta dwe rekonsidere desizyon an",
+    "submitAppeal": "Voye apèl la",
+    "appealSubmitted": "Apèl la voye",
+    "appealFailed": "Nou pa t ka voye apèl la"
   }
 }

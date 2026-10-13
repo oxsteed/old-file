@@ -3,6 +3,7 @@ const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const logger = require('../utils/logger');
 const { processExternalRefund } = require('../services/externalRefundService');
 const { completeConsultingPaymentFromIntent } = require('../services/consultingPaymentService');
+const { logAdminAction } = require('../services/auditService');
 
 // Get available consulting packages (public, for marketing pages)
 exports.getPackages = async (req, res) => {
@@ -152,6 +153,31 @@ exports.createPaymentIntent = async (req, res) => {
       });
     }
 
+    // P3-11-F10: audit the real-Stripe-charge intent creation. Fail closed:
+    // a dropped audit row surfaces as a 500 rather than leaving an
+    // unaudited payment intent.
+    try {
+      await logAdminAction({
+        adminId: req.user.id,
+        action: 'consulting_payment_intent_created',
+        targetType: 'consulting_payment',
+        targetId: String(paymentRows[0].id),
+        description: `Consulting payment intent created for session ${session.id} (${pkg.base_price} usd)`,
+        before: { status: null },
+        after: {
+          status: 'processing',
+          amount_cents: pkg.base_price,
+          currency: 'usd',
+          service_tier: pkg.service_tier,
+          stripe_payment_intent_id: paymentIntent.id,
+        },
+        throwOnError: true,
+      });
+    } catch (auditErr) {
+      logger.error('Consulting payment intent audit write failed', { paymentId: paymentRows[0].id, error: auditErr.message });
+      return res.status(500).json({ error: 'Payment intent was created but could not be audited; contact support', code: 'consulting_payment_audit_failed' });
+    }
+
     res.json({
       clientSecret: paymentIntent.client_secret,
       payment: paymentRows[0],
@@ -205,6 +231,28 @@ exports.confirmPayment = async (req, res) => {
 
     if (result.status === 'completed') {
       logger.info('Consulting payment completed', { paymentId, sessionScheduledId: result.row.session_scheduled_id });
+      // P3-11-F10: audit the completed charge. Fail closed like the intent
+      // creation above.
+      try {
+        await logAdminAction({
+          adminId: req.user.id,
+          action: 'consulting_payment_completed',
+          targetType: 'consulting_payment',
+          targetId: String(paymentId),
+          description: `Consulting payment ${paymentId} completed (${result.row.amount_cents} usd)`,
+          before: { status: 'processing' },
+          after: {
+            status: 'completed',
+            amount_cents: result.row.amount_cents,
+            currency: 'usd',
+            stripe_payment_intent_id: owned.stripe_payment_intent_id,
+          },
+          throwOnError: true,
+        });
+      } catch (auditErr) {
+        logger.error('Consulting payment completion audit write failed', { paymentId, error: auditErr.message });
+        return res.status(500).json({ error: 'Payment was completed but could not be audited; contact support', code: 'consulting_payment_audit_failed' });
+      }
     }
     res.json(result.row);
   } catch (err) {
@@ -324,6 +372,27 @@ exports.refundPayment = async (req, res) => {
     }
 
     logger.info('Consulting payment refunded', { paymentId, adminId: req.user.id, reason });
+    // P3-11-F10: audit the admin-issued refund (real money out). Fail closed.
+    try {
+      await logAdminAction({
+        adminId: req.user.id,
+        action: 'consulting_payment_refunded',
+        targetType: 'consulting_payment',
+        targetId: String(paymentId),
+        description: `Consulting payment ${paymentId} refunded (${payment.amount_cents} usd): ${reason || 'requested_by_customer'}`,
+        before: { status: 'completed', amount_cents: Number(payment.amount_cents) },
+        after: {
+          status: 'refunded',
+          amount_cents: Number(payment.amount_cents),
+          currency: 'usd',
+          refund_reason: reason || 'requested_by_customer',
+        },
+        throwOnError: true,
+      });
+    } catch (auditErr) {
+      logger.error('Consulting refund audit write failed', { paymentId, error: auditErr.message });
+      return res.status(500).json({ error: 'Refund was issued but could not be audited; contact support', code: 'consulting_payment_audit_failed' });
+    }
     res.json(rows[0]);
   } catch (err) {
     logger.error('Failed to refund payment', { error: err.message });

@@ -12,6 +12,11 @@ test('first grant posts the reward and counts the conversion', async () => {
   const insert = mockQuery.mock.calls.find(([sql]) => /INSERT INTO platform_ledger/.test(sql));
   expect(insert[1]).toContain('referral:referrer:new');
   expect(mockQuery.mock.calls.some(([sql]) => /referral_conversions_count/.test(sql))).toBe(true);
+  // P3-11-F12: the grant writes an audit row attributed to the system actor.
+  const auditInsert = mockQuery.mock.calls.find(([sql]) => /INSERT INTO admin_audit_log/.test(sql));
+  expect(auditInsert).toBeDefined();
+  expect(auditInsert[1][0]).toBe('00000000-0000-0000-0000-000000000000');
+  expect(auditInsert[1][1]).toBe('referral_reward_granted');
 });
 
 test('a second grant (first-job value event) does not pay or count again', async () => {

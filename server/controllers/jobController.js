@@ -1324,7 +1324,7 @@ async function completeJobCore({ job, jobId, asClient, actorUserId = null }) {
           );
           throw err;
         }
-        await captureAuthorizedPaymentWithClient(client, payRows[0]);
+        await captureAuthorizedPaymentWithClient(client, payRows[0], { actorUserId });
       }
     }
 

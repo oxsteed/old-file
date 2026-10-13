@@ -4,8 +4,15 @@ const { AppError } = require('../middleware/errorHandler');
 const { withTransaction } = require('../utils/transaction');
 const creditLedger = require('../services/referralCreditLedger');
 const { recordException } = require('../services/reconciliationExceptions');
+const { logAdminAction } = require('../services/auditService');
 
 const REWARD_TYPE = process.env.REFERRAL_REWARD_TYPE || 'credit';
+
+// P3-11-F12: referral rewards are system-triggered platform money with no
+// human admin. Audit rows use the sentinel system user (migration 812),
+// the same zero-UUID convention migration 055 established for
+// system/migration actions in admin_audit_log.
+const SYSTEM_ACTOR_ID = '00000000-0000-0000-0000-000000000000';
 
 // Reward amounts (cents)
 const REFERRER_CREDIT_CENTS = parseInt(process.env.REFERRAL_REFERRER_CREDIT_CENTS || '500',  10); // $5 default
@@ -63,6 +70,26 @@ exports.grantReferralReward = async function grantReferralReward(referrerId, new
             WHERE id = $1`,
           [referrerId],
         );
+        // P3-11-F12: audit the platform-money grant. Fail closed: the
+        // audit row is written with the transaction client, so a dropped
+        // audit rolls the grant back and the retry worker replays it
+        // (grantReferralReward records failures as reconciliation
+        // exceptions, never silently).
+        await logAdminAction({
+          client,
+          adminId: SYSTEM_ACTOR_ID,
+          action: 'referral_reward_granted',
+          targetType: 'user',
+          targetId: String(referrerId),
+          description: `Referral reward granted to referrer ${referrerId} for new user ${newUserId}`,
+          after: {
+            referrer_id: String(referrerId),
+            new_user_id: String(newUserId),
+            reward_type: REWARD_TYPE,
+            referrer_credit_cents: REFERRER_CREDIT_CENTS,
+            referee_credit_cents: REWARD_TYPE === 'both' ? REFEREE_CREDIT_CENTS : 0,
+          },
+        });
         logger.info('[referral] Reward granted', { referrerId, newUserId, type: REWARD_TYPE });
       }
       return referrerPosted;

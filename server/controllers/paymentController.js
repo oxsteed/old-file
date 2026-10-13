@@ -528,6 +528,27 @@ exports.createPaymentIntent = async (req, res, next) => {
 
       // Referral credit is reserved above and released by the webhook if
       // the intent fails or is cancelled (P2-571).
+      // P3-11-F13: audit the Tier-3 payment-intent creation. The client is
+      // the caller's transaction client, so a dropped audit row rolls the
+      // intent back instead of leaving an unaudited authorization.
+      await logAdminAction({
+        client,
+        adminId: req.user.id,
+        action: 'tier3_payment_intent_created',
+        targetType: 'payment',
+        targetId: String(insertRows[0].id),
+        description: `Tier-3 payment intent created for job ${job_id} (${jobValueCents} ${plan.currency})`,
+        before: { status: null },
+        after: {
+          status: 'pending',
+          amount_cents: jobValueCents,
+          currency: plan.currency,
+          charge_model: plan.model,
+          stripe_payment_intent_id: paymentIntent.id,
+          applied_credit_cents: appliedCreditCents,
+          transaction_mode: 'guided_protected',
+        },
+      });
       return {
         replay: false,
         paymentIntent,
@@ -821,7 +842,8 @@ exports.capturePayment = async (req, res, next) => {
         const result = await captureAuthorizedPayment({
           paymentId: paymentData.id,
           jobId: job_id,
-          amount: paymentData.amount
+          amount: paymentData.amount,
+          actorUserId: req.user?.id,
         });
         return res.status(200).json({
           status: 'captured',

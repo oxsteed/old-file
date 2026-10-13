@@ -27,6 +27,12 @@ const pool = require('../db');
 const logger = require('../utils/logger');
 const { userIdEq } = require('../utils/schemaProbe');
 
+// P3-11-F03: permanent sentinel "system" user (migration 812). Audit FK
+// columns that are NOT NULL cannot be nulled on user deletion, so audit
+// rows are reassigned here instead. The row is inactive and never targeted
+// by this job.
+const AUDIT_SENTINEL_USER_ID = '00000000-0000-0000-0000-000000000000';
+
 async function tableExists(name) {
   const { rows } = await pool.query(
     `SELECT EXISTS (
@@ -249,10 +255,26 @@ async function hardDeleteUser(user) {
       await q(`UPDATE ${table} SET ${column} = NULL WHERE ${column}::text = $1`, [String(userId)]);
     };
 
-    // Null out audit/admin references (preserve audit trail, remove user link)
-    await nullify('admin_user_action_log', 'admin_id');
-    await nullify('admin_user_action_log', 'target_user_id');
-    await nullify('admin_audit_log', 'admin_id');
+    // Null out audit/admin references (preserve audit trail, remove user link).
+    // P3-11-F03: admin_audit_log.admin_id (migration 055) and
+    // admin_user_action_log.admin_id / target_user_id (migration 116) are
+    // NOT NULL, so SET NULL can never succeed there: the 23502 violation
+    // rolls the whole deletion back and the user is retained forever.
+    // Those three columns are reassigned to the permanent sentinel system
+    // user (migration 812) instead, which satisfies both the NOT NULL
+    // constraint and the users(id) foreign keys. Every other reference
+    // stays a plain nullify.
+    const reassignToSentinel = async (table, column) => {
+      if (!(await tableExists(table))) return;
+      await q(
+        `UPDATE ${table} SET ${column} = $2 WHERE ${column}::text = $1`,
+        [String(userId), AUDIT_SENTINEL_USER_ID]
+      );
+    };
+
+    await reassignToSentinel('admin_audit_log', 'admin_id');
+    await reassignToSentinel('admin_user_action_log', 'admin_id');
+    await reassignToSentinel('admin_user_action_log', 'target_user_id');
     await nullify('platform_settings', 'updated_by');
     await nullify('feature_flags', 'updated_by');
     await nullify('content_reports', 'reviewed_by');
@@ -378,4 +400,4 @@ function startScheduledDeletionJob() {
   logger.info('scheduledDeletionJob: registered (daily at 03:00 UTC)');
 }
 
-module.exports = { startScheduledDeletionJob, hardDeleteExpiredAccounts, cleanupExpiredSessionData };
+module.exports = { startScheduledDeletionJob, hardDeleteExpiredAccounts, cleanupExpiredSessionData, hardDeleteUser };
