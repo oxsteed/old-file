@@ -16,7 +16,7 @@ const { sendNotification } = require('../services/notificationService');
 const { spendWithCredit } = require('../services/creditSpendAdapter');
 const reauth = require('../services/jobPaymentReauthorizationService');
 const { applyApprovedChangeOrder } = require('../services/jobChangeOrderFinance');
-const { captureAuthorizedPaymentWithClient, captureAuthorizedPayment } = require('../services/paymentCaptureService');
+const { captureAuthorizedPaymentWithClient, captureAuthorizedPayment, settlePlatformHold } = require('../services/paymentCaptureService');
 const { handleEvent } = require('../jobs/jobEventOutbox');
 const { EVENT_TYPES } = require('../services/jobEventOutbox');
 
@@ -44,6 +44,24 @@ describe('completion and capture are blocked until re-authorized', () => {
     routeQueries(mockQuery, [[/FROM payments WHERE id = \$1/, { rows: [row] }]]);
     await expect(captureAuthorizedPayment({ paymentId: 9, amount: 180 })).rejects.toMatchObject({ code: 'payment_reauthorization_required' });
     expect(stripe.paymentIntents.capture).not.toHaveBeenCalled();
+  });
+});
+
+describe('Tier-3 platform-held settlement', () => {
+  test('fails closed when the helper Connect account cannot receive payouts', async () => {
+    stripe.paymentIntents.retrieve.mockResolvedValueOnce({ id: 'pi_hold', status: 'succeeded', amount_received: 10000, currency: 'usd' });
+    routeQueries(mockQuery, [[/FROM connect_accounts WHERE stripe_account_id/, { rows: [{ payouts_enabled: false }] }]]);
+
+    await expect(settlePlatformHold({ query: mockQuery }, {
+      id: 12,
+      status: 'authorized',
+      stripe_payment_intent_id: 'pi_hold',
+      destination_account_id: 'acct_helper',
+      amount: 100,
+      currency: 'usd',
+      metadata: { platform_fee_cents: 1000 },
+    })).rejects.toMatchObject({ code: 'helper_payouts_not_ready', statusCode: 409 });
+    expect(stripe.transfers?.create).toBeUndefined();
   });
 });
 
