@@ -37,33 +37,44 @@ const DISPUTE_STATUSES = Object.freeze({
   RESOLVED: 'resolved',
   CLOSED: 'closed',
 });
+const DISPUTE_STATUS_VALUES = Object.freeze(Object.values(DISPUTE_STATUSES));
 
 // ─── LIST ALL DISPUTES (Admin) ────────────────────────────────
 exports.getAllDisputes = async (req, res) => {
   try {
     const { status = 'open', page = 1, limit = 20 } = req.query;
-    const offset = (page - 1) * limit;
+    const parsedPage = Math.max(1, Number.parseInt(page, 10) || 1);
+    const parsedLimit = Math.min(100, Math.max(1, Number.parseInt(limit, 10) || 20));
+    const offset = (parsedPage - 1) * parsedLimit;
+    const requestedStatuses = String(status || 'open')
+      .split(',')
+      .map((value) => value.trim().toLowerCase())
+      .filter(Boolean);
+    const statuses = requestedStatuses.includes('all') ? DISPUTE_STATUS_VALUES : requestedStatuses;
+    if (!statuses.length || statuses.some((value) => !DISPUTE_STATUS_VALUES.includes(value))) {
+      return res.status(400).json({ error: `Unsupported dispute status. Use: ${DISPUTE_STATUS_VALUES.join(', ')}, or all.` });
+    }
 
     // P3-820: return the fields the admin list renders (job, parties,
     // amount, evidence deadline, evidence/message counts).
     const { rows } = await db.query(
       `SELECT ${disputeViewSelect()} ${DISPUTE_VIEW_FROM}
-        WHERE d.status = $1
+        WHERE d.status = ANY($1::text[])
         ORDER BY d.created_at DESC
         LIMIT $2 OFFSET $3`,
-      [status, limit, offset]
+      [statuses, parsedLimit, offset]
     );
 
     const countResult = await db.query(
-      'SELECT COUNT(*) FROM disputes WHERE status = $1',
-      [status]
+      'SELECT COUNT(*) FROM disputes WHERE status = ANY($1::text[])',
+      [statuses]
     );
 
     res.json({
       disputes: rows,
       total: parseInt(countResult.rows[0].count),
-      page: parseInt(page),
-      totalPages: Math.ceil(countResult.rows[0].count / limit)
+      page: parsedPage,
+      totalPages: Math.ceil(countResult.rows[0].count / parsedLimit)
     });
   } catch (err) {
     logger.error('Get all disputes error', { err });

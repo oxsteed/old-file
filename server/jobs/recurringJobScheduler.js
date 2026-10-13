@@ -25,7 +25,15 @@ const RECURRENCE_INTERVAL = {
 };
 
 async function spawnRecurringJobs() {
+  const lockKey = "hashtextextended('oxsteed:recurring-jobs', 0)";
+  let lockHeld = false;
   try {
+    const { rows: lockRows } = await db.query(`SELECT pg_try_advisory_lock(${lockKey}) AS acquired`);
+    lockHeld = lockRows[0]?.acquired === true;
+    if (!lockHeld) {
+      logger.info('[recurringJobs] Another scheduler is active; skipping this run');
+      return { skipped: true };
+    }
     // Fetch completed recurring jobs that have no successor yet.
     // We use a LEFT JOIN on jobs with parent_job_id to detect duplicates.
     // Fail open if parent_job_id column doesn't exist.
@@ -131,8 +139,16 @@ async function spawnRecurringJobs() {
         logger.error(`[recurringJobs] Failed to spawn recurring job from ${job.id}`, { error: jobErr.message });
       }
     }
+    return { spawned: jobs.length };
   } catch (err) {
     logger.error('[recurringJobs] Scheduler error', { error: err.message });
+    return { error: err };
+  } finally {
+    if (lockHeld) {
+      await db.query(`SELECT pg_advisory_unlock(${lockKey})`).catch((unlockError) => {
+        logger.error('[recurringJobs] Failed to release scheduler lock', { error: unlockError.message });
+      });
+    }
   }
 }
 
