@@ -4,6 +4,7 @@ const db = require('../db');
 const logger = require('../utils/logger');
 const { sendEmail } = require('../utils/email');
 const escapeHtml = require('../utils/escapeHtml');
+const { renderOxSteedEmail } = require('../utils/emailTemplate');
 
 function reminderTypeFor(startAt) {
   const hoursUntil = (new Date(startAt).getTime() - Date.now()) / (60 * 60 * 1000);
@@ -59,10 +60,26 @@ async function processDirectCalendarReminders() {
       try {
         const when = new Date(request.scheduled_start_at).toLocaleString('en-US', { dateStyle: 'full', timeStyle: 'short' });
         const lead = reminderType === '24_hour' ? 'tomorrow' : 'in about 2 hours';
+        const safeService = escapeHtml(request.service_category || 'Direct service');
+        const safeWhen = escapeHtml(when);
+        const safeLocation = escapeHtml(request.service_location || 'On file');
+        const safeRequestId = escapeHtml(request.id);
+        const bodyText = `Your OxSteed Direct service is scheduled ${lead}.\nService: ${request.service_category || 'Direct service'}\nWhen: ${when}\nLocation: ${request.service_location || 'On file'}\nReference: #${request.id}`;
+        const rendered = renderOxSteedEmail({
+          language: 'en',
+          eyebrow: 'OXSTEED DIRECT',
+          title: 'Scheduled service reminder',
+          intro: `Hi ${request.first_name || 'there'},`,
+          bodyText,
+          bodyHtml: `<p>Your OxSteed Direct service is scheduled ${lead}.</p><p><strong>Service:</strong> ${safeService}<br /><strong>When:</strong> ${safeWhen}<br /><strong>Location:</strong> ${safeLocation}</p><p>Reference: #${safeRequestId}</p>`,
+          footerText: 'OxSteed - local trades marketplace',
+        });
         await sendEmail({
           to: recipient,
           subject: `OxSteed Direct reminder: ${request.service_category || 'scheduled service'}`,
-          html: `<p>Hi ${escapeHtml(request.first_name || 'there')},</p><p>Your OxSteed Direct service is scheduled ${lead}.</p><p><strong>Service:</strong> ${escapeHtml(request.service_category || 'Direct service')}<br /><strong>When:</strong> ${escapeHtml(when)}<br /><strong>Location:</strong> ${escapeHtml(request.service_location || 'On file')}</p><p>Reference: #${escapeHtml(request.id)}</p>`,
+          text: rendered.text,
+          html: rendered.html,
+          idempotencyKey: `direct-calendar-reminder:${request.id}:${reminderType}:${recipient}`,
         });
         await db.query('UPDATE direct_calendar_reminder_deliveries SET status = \'sent\', sent_at = NOW(), updated_at = NOW() WHERE id = $1', [deliveryId]);
         sent++;

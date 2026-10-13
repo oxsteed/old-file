@@ -327,12 +327,14 @@ async function sendWelcomeEmail(user, language = FALLBACK_LANGUAGE) {
     cta: { label: lang === 'fr' ? 'Ouvrir OxSteed' : lang === 'es' ? 'Abrir OxSteed' : lang === 'ht' ? 'Louvri OxSteed' : lang === 'ar' ? 'فتح OxSteed' : 'Open OxSteed', url: '/dashboard' },
     footerText: copy.footer,
   });
+  const createdAt = user.created_at || user.createdAt || new Date().toISOString();
+  const welcomeGeneration = new Date(createdAt).toISOString();
   return sendEmail({
     to: user.email,
     subject,
     text: rendered.text,
     html: rendered.html,
-    idempotencyKey: user.id ? `welcome:${user.id}` : undefined,
+    idempotencyKey: user.id ? `welcome:${user.id}:${welcomeGeneration}` : undefined,
   });
 }
 
