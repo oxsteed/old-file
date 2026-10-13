@@ -968,6 +968,13 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
     })),
     [cartItems]
   );
+  // Points the customer asked to redeem, clamped to a sane integer. The
+  // server re-validates against the live balance and the order subtotal.
+  const loyaltyPointsToRedeem = useMemo(() => {
+    const requested = Math.floor(Number(loyaltyPointsText) || 0);
+    if (requested <= 0 || !loyaltyBalance) return 0;
+    return Math.min(requested, Math.max(0, loyaltyBalance.pointsBalance));
+  }, [loyaltyPointsText, loyaltyBalance]);
   // Authoritative total from the server quote when available; the client
   // estimate is only a fallback (it omits tax and service fees).
   const displayTotalCents = quote && Number.isFinite(Number(quote.totalCents))
@@ -1079,14 +1086,6 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
       .catch(() => { if (!cancelled) setLoyaltyBalance(null); });
     return () => { cancelled = true; };
   }, [cartOpen, user, restaurantId]);
-
-  // Points the customer asked to redeem, clamped to a sane integer. The
-  // server re-validates against the live balance and the order subtotal.
-  const loyaltyPointsToRedeem = useMemo(() => {
-    const requested = Math.floor(Number(loyaltyPointsText) || 0);
-    if (requested <= 0 || !loyaltyBalance) return 0;
-    return Math.min(requested, Math.max(0, loyaltyBalance.pointsBalance));
-  }, [loyaltyPointsText, loyaltyBalance]);
 
   const openLoginGate = () => {
     navigate('/login', { state: { from: location } });

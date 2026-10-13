@@ -57,11 +57,14 @@ const localeLoaders = {
     import('../locales/generated/ar-0.json'),
     import('../locales/generated/ar-1.json'),
     import('../locales/generated/ar-2.json'),
+    import('../locales/generated/ar-3.json'),
     optionalLocaleModule(import('./locales/ar/common.json')),
     optionalLocaleModule(import('./locales/ar/translator.json')),
     optionalLocaleModule(import('./locales/ar/credit.json')),
   ]),
 };
+
+const localeLegacyShardCounts = { ar: 4 };
 
 const legalLocaleLoaders = {
   en: () => Promise.all([
@@ -89,13 +92,13 @@ const legalLocaleLoaders = {
 const localePromises = new Map();
 const legalLocalePromises = new Map();
 
-function getLocaleResources(modules) {
-  const [legacyPartOne, legacyPartTwo, legacyPartThree, common, translator, credit] = modules;
-  const translation = {
-    ...legacyPartOne.default,
-    ...legacyPartTwo.default,
-    ...legacyPartThree.default,
-  };
+function getLocaleResources(modules, legacyShardCount = 3) {
+  const legacyModules = modules.slice(0, legacyShardCount);
+  const [common, translator, credit] = modules.slice(legacyShardCount);
+  const translation = Object.assign(
+    {},
+    ...legacyModules.map((legacyModule) => legacyModule.default),
+  );
   return {
     translation,
     common: common.default,
@@ -120,7 +123,8 @@ function loadLanguageResources(code) {
   const normalizedCode = normalizeInitialLanguage(code);
   if (!localePromises.has(normalizedCode)) {
     const loader = localeLoaders[normalizedCode] || localeLoaders.en;
-    localePromises.set(normalizedCode, loader().then(getLocaleResources));
+    const legacyShardCount = localeLegacyShardCounts[normalizedCode] || 3;
+    localePromises.set(normalizedCode, loader().then((modules) => getLocaleResources(modules, legacyShardCount)));
   }
   return localePromises.get(normalizedCode);
 }
