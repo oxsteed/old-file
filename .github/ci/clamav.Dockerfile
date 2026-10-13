@@ -1,4 +1,7 @@
-FROM public.ecr.aws/docker/library/debian:13-slim
+# CI pre-pulls from ECR Public, falling back to Docker Hub (same official image),
+# and passes the source that answered; see .github/workflows/ci.yml.
+ARG BASE_IMAGE=public.ecr.aws/docker/library/debian:13-slim
+FROM ${BASE_IMAGE}
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV TZ=Etc/UTC

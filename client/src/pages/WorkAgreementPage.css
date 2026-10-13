@@ -71,3 +71,10 @@
 .wa-terms dd { margin: 2px 0 0; margin-inline-start: 0; white-space: pre-wrap; }
 .wa-warranty-terms { display: grid; gap: 6px; padding-block: 4px 8px; }
 .wa-warranty-terms p { margin: 0; white-space: pre-wrap; }
+/* Narrow screens (320px) with long translations: never let text or action rows force horizontal scroll. */
+.wa-page, .wa-new { box-sizing: border-box; max-width: min(56rem, 100%); overflow-wrap: anywhere; }
+.wa-section, .wa-card, .wa-co, .wa-sig, .wa-field, .wa-form > * { min-width: 0; }
+.wa-section__head, .wa-records-note, .wa-timeline li, .wa-sig__meta { flex-wrap: wrap; min-width: 0; }
+.wa-row > *, .wa-header > * { min-width: 0; max-width: 100%; }
+.wa-btn, .wa-primary { max-width: 100%; white-space: normal; text-align: start; overflow-wrap: anywhere; }
+.wa-field input, .wa-field textarea, .wa-form input, .wa-form textarea, .wa-form select { box-sizing: border-box; max-width: 100%; }
