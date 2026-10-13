@@ -33,9 +33,13 @@ function setAccessTokenCookie(res, accessToken) {
   });
 }
 
-function setRefreshTokenCookie(res, refreshToken, { rememberMe = false } = {}) {
+function setRefreshTokenCookie(res, refreshToken, { rememberMe = false, maxAgeMs = null } = {}) {
   if (!res || typeof res.cookie !== 'function' || !refreshToken) return;
-  const maxAge = (rememberMe ? REFRESH_COOKIE_MAX_AGE_REMEMBER_S : REFRESH_COOKIE_MAX_AGE_S) * 1000;
+  const fallback = (rememberMe ? REFRESH_COOKIE_MAX_AGE_REMEMBER_S : REFRESH_COOKIE_MAX_AGE_S) * 1000;
+  // Review P1-112: refresh passes the session's remaining lifetime.
+  const maxAge = Number.isFinite(maxAgeMs) && maxAgeMs > 0
+    ? Math.min(maxAgeMs, REFRESH_COOKIE_MAX_AGE_REMEMBER_S * 1000)
+    : fallback;
   res.cookie(REFRESH_COOKIE_NAME, refreshToken, {
     httpOnly: true,
     secure: isCookieSecure(),
@@ -62,7 +66,28 @@ function setSessionCookies(res, tokens, { rememberMe = false } = {}) {
   setRefreshTokenCookie(res, tokens.refreshToken, { rememberMe });
 }
 
+// Review P1-114: web clients authenticate with the httpOnly cookies and must
+// not receive raw tokens in JSON (where XSS or localStorage could read them).
+// Native apps opt in with `X-OxSteed-Client: ios|android|native`; requests
+// with no Origin and no cookies (non-browser callers) also get the body tokens.
+const NATIVE_CLIENTS = new Set(['ios', 'android', 'native', 'mobile']);
+function wantsBodyTokens(req) {
+  if (!req || typeof req.get !== 'function') return true;
+  const client = String(req.get('X-OxSteed-Client') || '').trim().toLowerCase();
+  if (NATIVE_CLIENTS.has(client)) return true;
+  if (client === 'web') return false;
+  return !req.get('Origin') && !req.get('Cookie');
+}
+
+/** Spread into a session JSON response: tokens for native callers only. */
+function bodyTokens(req, tokens) {
+  if (!tokens || !wantsBodyTokens(req)) return {};
+  return { accessToken: tokens.accessToken, refreshToken: tokens.refreshToken };
+}
+
 module.exports = {
+  wantsBodyTokens,
+  bodyTokens,
   ACCESS_COOKIE_NAME,
   REFRESH_COOKIE_NAME,
   ACCESS_COOKIE_MAX_AGE_MS,

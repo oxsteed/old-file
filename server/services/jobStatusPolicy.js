@@ -26,9 +26,12 @@ const TERMINAL_STATUSES = Object.freeze(['completed', 'cancelled', 'closed']);
 
 const TRANSITIONS = Object.freeze({
   draft: ['published', 'cancelled'],
-  published: ['matched', 'negotiating', 'accepted', 'cancelled'],
-  matched: ['published', 'negotiating', 'accepted', 'cancelled'],
-  negotiating: ['matched', 'accepted', 'cancelled'],
+  // Review P1-135: bids never move a job out of `published`, so the real path
+  // is published -> accepted. `matched`/`negotiating` are legacy aliases that
+  // only fold back to `published` or move forward.
+  published: ['accepted', 'cancelled'],
+  matched: ['published', 'accepted', 'cancelled'],
+  negotiating: ['published', 'accepted', 'cancelled'],
   accepted: ['in_progress', 'cancelled'],
   in_progress: ['completed', 'cancelled'],
   completed: ['closed'],

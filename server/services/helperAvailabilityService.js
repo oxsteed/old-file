@@ -416,6 +416,16 @@ async function getAppointmentsBusy(client, helperId, fromISO, toISO, bufferMin, 
         AND scheduled_end_time   > $2::date`,
     [helperId, lo, hi]
   );
+  // Review P1-192: Direct visits and business appointments for the same
+  // person also block helper slots (and get the same buffer padding).
+  const { loadCrossSurfaceBusy } = require('./crossSurfaceBusy');
+  const cross = await loadCrossSurfaceBusy(
+    [helperId],
+    new Date(`${lo}T00:00:00Z`),
+    new Date(new Date(`${hi}T00:00:00Z`).getTime() + 86400000),
+    { exclude: ['helper'], executor: client }
+  );
+  for (const c of cross) rows.push({ scheduled_start_time: c.startsAt, scheduled_end_time: c.endsAt });
   const byDate = {};
   for (const a of rows) {
     const perDate = blockRangesPerDate({
@@ -621,6 +631,9 @@ async function isSlotFree(helperId, startISO, endISO, client = pool, timeZone = 
       [helperId, start.toISOString(), end.toISOString()]
     );
     if (appts.rows.length > 0) return { free: false, reason: 'conflict' };
+    const { loadCrossSurfaceBusy } = require('./crossSurfaceBusy');
+    const cross = await loadCrossSurfaceBusy([helperId], start, end, { exclude: ['helper'], executor: client });
+    if (cross.length > 0) return { free: false, reason: 'conflict' };
     return { free: true };
   }
 

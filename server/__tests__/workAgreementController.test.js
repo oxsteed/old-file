@@ -181,8 +181,8 @@ describe('versioning', () => {
     expect(res.body.version.version_number).toBe(2);
   });
 
-  test('cannot version a closed agreement', async () => {
-    mockQuery.mockResolvedValueOnce({ rows: [agreementRow({ status: 'closed' })] });
+  test('cannot version a completed agreement', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [agreementRow({ status: 'completed' })] });
     const res = await request(buildApp(HELPER_ID))
       .post(`/api/work-agreements/${AGREEMENT_ID}/versions`)
       .send({ content: { scope: 'x' } });
@@ -290,6 +290,27 @@ describe('warranty claims', () => {
       .post(`/api/work-agreements/${AGREEMENT_ID}/warranty-claims`)
       .send({ description: 'bad' });
     expect(res.status).toBe(400);
+  });
+});
+
+describe('mutual completion (P1-164)', () => {
+  test('first party confirmation leaves the agreement active', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [agreementRow({ status: 'active' })] })
+      .mockResolvedValueOnce({ rows: [agreementRow({ status: 'active', helper_completed_at: new Date() })] });
+    const res = await request(buildApp(HELPER_ID)).post(`/api/work-agreements/${AGREEMENT_ID}/complete`);
+    expect(res.status).toBe(200);
+    expect(res.body.awaitingCounterparty).toBe(true);
+    expect(mockQuery.mock.calls[1][0]).toContain('helper_completed_at');
+    expect(mockQuery.mock.calls[1][1]).toEqual([AGREEMENT_ID, 'helper']);
+  });
+
+  test('signing a completed agreement is refused', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [agreementRow({ status: 'completed' })] });
+    const res = await request(buildApp(HELPER_ID))
+      .post(`/api/work-agreements/${AGREEMENT_ID}/sign`)
+      .send({ versionId: 'v', signatureData: 'A'.repeat(200) });
+    expect(res.status).toBe(409);
   });
 });
 

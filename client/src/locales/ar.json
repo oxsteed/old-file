@@ -4442,6 +4442,12 @@
     "whatHappensNextBody": "بعد نشر العمل، يمكن للأشخاص المطابقين للموقع والفئة والمتطلبات إرسال عروض. يمكنك مقارنة العروض وطرح الأسئلة والتوظيف عندما تكون جاهزًا."
   },
   "jobDetail": {
+    "customerConfirmsEscrow": "في المهام ذات الدفع المحمي، يؤكد العميل الإنجاز، وهذا ما يحرر دفعتك.",
+    "openJobChat": "راسل بخصوص هذه المهمة",
+    "openChatFailed": "تعذّر فتح محادثة المهمة. حاول مرة أخرى.",
+    "createAgreement": "إنشاء اتفاقية عمل",
+    "reportProblem": "الإبلاغ عن مشكلة",
+    "problemReported": "تم إرسال بلاغك.",
     "draftStatus": "مسودة",
     "matchedStatus": "تمت المطابقة",
     "negotiatingStatus": "قيد التفاوض",
@@ -9141,6 +9147,9 @@
       "escalationPanelAria": "خيارات تصعيد الدعم"
     },
     "messenger": {
+      "agreementOpenRecords": "افتح اتفاقية العمل الموقعة لهذه المهمة",
+      "agreementCreateRecords": "أنشئ اتفاقية عمل موقعة لهذه المهمة",
+      "quoteFinishOnJob": "أكمل التوظيف في صفحة المهمة",
       "message": "رسالة",
       "messageName": "مراسلة {{name}}",
       "launcherKicker": "محادثة",
@@ -21467,6 +21476,7 @@
         "details": "ماذا يجب أن نعرف؟"
       },
       "hints": {
+        "outsideServiceArea": "هذا الرمز البريدي خارج مناطق خدمتنا المعتادة. لا يزال بإمكانك إرسال الطلب وسنؤكد لك.",
         "selectedServices": "اختر خدمات الكتالوج التي تريد تضمينها. يمكنك إضافة أكثر من خدمة.",
         "workLocation": "المدينة أو الحي أو العنوان الكامل.",
         "serviceZipCode": "يُستخدم لمطابقة عرض السعر لاحقًا.",
@@ -21825,6 +21835,7 @@
         "bankTransfer": "تحويل مصرفي"
       },
       "actions": {
+        "payWithCredit": "ادفع باستخدام OxSteed Credit",
         "acceptQuote": "قبول عرض السعر",
         "decline": "رفض",
         "requestChanges": "طلب تعديلات",
@@ -21841,6 +21852,8 @@
         "openLocations": "فتح المواقع"
       },
       "messages": {
+        "creditPaid": "تم الدفع باستخدام OxSteed Credit.",
+        "creditPaidPending": "تم الدفع باستخدام OxSteed Credit. سيظهر إيصالك قريبًا.",
         "scheduleSaved": "تم حفظ الجدول.",
         "cancelled": "تم إلغاء الطلب.",
         "updated": "تم تحديث الطلب.",
@@ -21856,6 +21869,7 @@
         "declineReason": "لماذا ترفض عرض السعر هذا؟"
       },
       "errors": {
+        "creditPay": "تعذّر الدفع باستخدام OxSteed Credit.",
         "loadRequest": "تعذر تحميل الطلب",
         "load": "تعذر تحميل سجل Direct.",
         "saveSchedule": "تعذر حفظ الجدول.",
@@ -30306,6 +30320,14 @@
     "finalCtaSubtitle": "مجاناً. شاركه في أي مكان وابدأ القبض اليوم."
   },
   "workAgreement": {
+    "completeError": "تعذّر تأكيد الإنجاز.",
+    "jobLinkSummary": "المهمة: {{job}} · الدفع: {{payment}}",
+    "noPayment": "لا يوجد سجل",
+    "disputeOpen": "يوجد نزاع مفتوح على هذه المهمة",
+    "completeTitle": "هل انتهى العمل؟",
+    "awaitingCounterparty": "لقد أكدت. بانتظار تأكيد الطرف الآخر.",
+    "completeBody": "يجب أن يؤكد كلاكما قبل وضع علامة الإنجاز على الاتفاقية.",
+    "confirmComplete": "تأكيد الإنجاز",
     "signHere": "ارسم توقيعك هنا",
     "signHint": "ارسم توقيعك بالفأرة أو الإصبع",
     "clearSignature": "مسح",

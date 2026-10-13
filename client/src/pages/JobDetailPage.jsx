@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useId, useRef } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, useNavigate, Link, useSearchParams } from 'react-router-dom';
 import useJobs from '../hooks/useJobs';
 import useAuth from '../hooks/useAuth';
 import api from '../api/axios';
@@ -11,12 +11,12 @@ import Footer from '../components/Footer';
 import PreferredHelperBanner from '../components/PreferredHelperBanner';
 import ReviewModal from '../components/reviews/ReviewModal';
 import BidAcceptanceModal from '../components/BidAcceptanceModal';
+import DisputeSubmissionModal from '../components/DisputeSubmissionModal';
 import JobCancellationConfirmation from '../components/JobCancellationConfirmation';
 import HelperCancellationConfirmation from '../components/HelperCancellationConfirmation';
 import CancellationStats from '../components/CancellationStats';
 import UserReputationCard from '../components/UserReputationCard';
 import ReportModal from '../components/ReportModal';
-import DisputeSubmissionModal from '../components/DisputeSubmissionModal';
 import JobMaterialsPanel from '../components/JobMaterialsPanel';
 import DirectPaymentRecordModal from '../components/DirectPaymentRecordModal';
 import JobAutoExpiryWarning from '../components/JobAutoExpiryWarning';
@@ -148,6 +148,21 @@ function JobDetailContent() {
   const [actionLoading, setActionLoading] = useState(false);
   const [reviewEligible, setReviewEligible] = useState(false);
   const [paymentRecordOpen, setPaymentRecordOpen] = useState(false);
+  const [chatOpening, setChatOpening] = useState(false);
+
+  // P1-136: open (or create) the job-scoped conversation instead of the bare inbox.
+  async function openJobChat() {
+    setChatOpening(true);
+    try {
+      const { data } = await api.post(`/messages/jobs/${id}/conversation`);
+      const base = samePartyId(user?.id, job?.assigned_helper_id) ? '/helper/messages' : '/messages';
+      navigate(data?.id ? `${base}/${data.id}` : base);
+    } catch {
+      toast.error(t('jobDetail.openChatFailed'));
+    } finally {
+      setChatOpening(false);
+    }
+  }
   // Bid acceptance scheduling modal
   const [acceptingBid, setAcceptingBid] = useState(null); // bid object being accepted
   const [helperPolicies, setHelperPolicies] = useState(null); // cancellation policies for helper
@@ -238,6 +253,21 @@ function JobDetailContent() {
     }
   }
 
+  // P1-134: a quote accepted in chat lands here as ?acceptBid=<id>; open the normal
+  // acceptance flow so payment + assignment go through the bid path.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const acceptBidParam = searchParams.get('acceptBid');
+  useEffect(() => {
+    if (!acceptBidParam || !Array.isArray(bids) || !samePartyId(user?.id, job?.client_id)) return;
+    const target = bids.find(b => String(b.id) === String(acceptBidParam) && b.status === 'pending');
+    if (!target) return;
+    const next = new URLSearchParams(searchParams);
+    next.delete('acceptBid');
+    setSearchParams(next, { replace: true });
+    void handleAcceptClick(target);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [acceptBidParam, bids, job?.client_id, user?.id]);
+
   // Opens the BidAcceptanceModal (payment method selection step) before calling assignHelper.
   async function handleAcceptClick(bid) {
     setLoadingPolicies(true);
@@ -302,7 +332,9 @@ function JobDetailContent() {
       fetchJob(id);
       toast.success(t('jobDetail.jobStarted'));
     } catch (err) {
-      const errorMsg = getErrorMessage(err);
+      const errorMsg = err?.response?.data?.code === 'customer_confirmation_required'
+        ? t('jobDetail.customerConfirmsEscrow')
+        : getErrorMessage(err);
       toast.error(errorMsg);
       // Handle auth errors - redirect to login
       if (err.code === 'AUTH_EXPIRED' || err.code === 'NO_TOKEN') {
@@ -428,7 +460,7 @@ function JobDetailContent() {
     else if (action === 'findHelpers') navigate(matchingHelpersPath(job.required_skills));
     else if (action === 'onboarding') navigate('/dashboard');
     else if (action === 'manageBid') navigate('/my-bids');
-    else if (action === 'messages') navigate('/helper/messages');
+    else if (action === 'messages') void openJobChat();
     else if (action === 'signIn') navigate(`/login?next=${encodeURIComponent(`/jobs/${id}`)}`);
     else if (action === 'start') handleStart();
     else if (action === 'complete') handleComplete();
@@ -577,6 +609,7 @@ function JobDetailContent() {
               </Link>
             : <Link className="jdp-btn-ghost" to={`/agreements/new?jobId=${encodeURIComponent(id)}`}>{t('jobDetail.createWorkAgreement')}</Link>)}
           {isOwner && canEditJob(job, user) && <Link className="jdp-btn-ghost" to={`/jobs/${id}/edit`}>{t('jobEdit.editJob')}</Link>}
+          {(isOwner || isAssignedHelper) && job.assigned_helper_id && action !== 'messages' && <button type="button" className="jdp-btn-ghost" onClick={openJobChat} disabled={chatOpening}>{t('jobDetail.openJobChat')}</button>}
           {(view.canCancelBeforeAcceptance || view.canCancelAfterAcceptance) && <div className="jdp-secondary-action">
             <button type="button" className="jdp-btn-danger" onClick={() => view.canCancelBeforeAcceptance ? setShowCancelModal(true) : setShowJobCancellationModal(true)} disabled={actionLoading || loading || (view.canCancelAfterAcceptance && !acceptedBid)}>{t('jobDetail.cancelJob')}</button>
             {view.canCancelAfterAcceptance && !acceptedBid && bidsStatus === 'error' && <button type="button" className="jdp-btn-ghost" onClick={loadBids}>{t('jobDetail.retryBids')}</button>}

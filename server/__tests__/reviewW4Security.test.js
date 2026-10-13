@@ -29,7 +29,7 @@ beforeEach(() => resetMocks());
 describe('P1-111 passkey counters', () => {
   function primePasskey(storedCounter) {
     mockQuery
-      .mockResolvedValueOnce({ rows: [{ id: USER_ID, is_active: true, totp_enabled: true, terms_accepted: true }] })
+      .mockResolvedValueOnce({ rows: [{ id: USER_ID, is_active: true, totp_enabled: true, terms_accepted: true, first_name: 'Pat', last_name: 'Lee' }] })
       .mockResolvedValueOnce({ rows: [{ id: 'pk-1', credential_id: 'cred-1', public_key: Buffer.from('k'), counter: storedCounter, transports: [] }] })
       .mockResolvedValueOnce({ rows: [{ challenge: 'c1' }] })
       .mockResolvedValueOnce({ rows: [{ challenge: 'c1' }], rowCount: 1 })
@@ -41,7 +41,7 @@ describe('P1-111 passkey counters', () => {
     primePasskey(0);
     verifyAuthenticationResponse.mockResolvedValueOnce({ verified: true, authenticationInfo: { newCounter: 0 } });
     const r = res();
-    await userPasskeys.verifyAuthentication({ body: { token: token(), response: { id: 'cred-1' } } }, r, jest.fn());
+    await userPasskeys.verifyAuthentication({ body: { token: token(), response: { id: 'cred-1' }, termsAgreed: true, agreementName: 'Pat Lee' } }, r, jest.fn());
     expect(r.status).toHaveBeenCalledWith(200);
     expect(r.json.mock.calls[0][0]).toMatchObject({ requiresTwoFactor: true });
   });
@@ -50,7 +50,7 @@ describe('P1-111 passkey counters', () => {
     primePasskey(5);
     verifyAuthenticationResponse.mockResolvedValueOnce({ verified: true, authenticationInfo: { newCounter: 5 } });
     const r = res();
-    await userPasskeys.verifyAuthentication({ body: { token: token(), response: { id: 'cred-1' } } }, r, jest.fn());
+    await userPasskeys.verifyAuthentication({ body: { token: token(), response: { id: 'cred-1' }, termsAgreed: true, agreementName: 'Pat Lee' } }, r, jest.fn());
     expect(r.status).toHaveBeenCalledWith(401);
   });
 });

@@ -263,7 +263,9 @@ exports.createQuoteRequest = async (req, res) => {
   }
   const metadata = {
     ...inputMetadata,
-    flow: cleanText(req.body.flow || req.body.case_flow || req.body.portal || 'direct', 40) || 'direct',
+    // Review P1-182: the flow is server-owned. A caller-chosen non-'direct'
+    // flow skipped the schedule-overlap trigger (420) and busy-interval loads.
+    flow: 'direct',
     serviceType: cleanText(req.body.service_type || req.body.serviceType || req.body.job_type || '', 120) || undefined,
     preferredDate: cleanText(req.body.preferred_date || req.body.preferredDate || '', 40) || undefined,
     preferredTimeWindow: cleanText(req.body.preferred_time_window || req.body.preferredTimeWindow || '', 80) || undefined,

@@ -234,10 +234,19 @@ exports.getAgreement = async (req, res) => {
         [agreement.id]
       ).then((r) => r.rows),
     ]);
+    // Review P1-160: OxSteed stays the records keeper (no auto-release), but the
+    // agreement now shows the job's payment and dispute state side by side.
+    const { rows: [jobLink] } = await db.query(
+      `SELECT j.status AS job_status,
+              (SELECT p.status FROM payments p WHERE p.job_id = j.id ORDER BY p.created_at DESC LIMIT 1) AS payment_status,
+              EXISTS (SELECT 1 FROM disputes d WHERE d.job_id = j.id AND d.status IN ('open', 'under_review', 'in_progress')) AS dispute_open
+         FROM jobs j WHERE j.id = $1`,
+      [agreement.job_id]
+    );
     const myRole = partyRole(agreement, req.user.id);
     return res.json({
       agreement, version, currentVersion: version, signatures, changeOrders,
-      versions, evidence, documents, warrantyClaims, myRole,
+      versions, evidence, documents, warrantyClaims, myRole, jobLink: jobLink || null,
     });
   } catch (err) {
     logger.error('work agreement detail error', { err, userId: req.user?.id });
@@ -271,8 +280,8 @@ exports.createVersion = async (req, res) => {
     const agreement = await loadAgreement(req.params.id);
     if (!agreement) return res.status(404).json({ error: 'Agreement not found.' });
     if (!isParty(agreement, req.user.id)) return res.status(403).json({ error: 'Not a party to this agreement.' });
-    if (['completed', 'closed'].includes(agreement.status)) {
-      return res.status(409).json({ error: 'Cannot version a completed or closed agreement.' });
+    if (agreement.status === 'completed') {
+      return res.status(409).json({ error: 'Cannot version a completed agreement.' });
     }
     const { content } = req.body || {};
     if (!content || typeof content !== 'object') return res.status(400).json({ error: 'content is required.' });
@@ -339,19 +348,32 @@ exports.createVersion = async (req, res) => {
   }
 };
 
-// POST /api/work-agreements/:id/complete — mark active agreement complete (party only).
+// POST /api/work-agreements/:id/complete — each party confirms completion;
+// the agreement becomes `completed` only once both have (review P1-164).
 exports.completeAgreement = async (req, res) => {
   try {
     const agreement = await loadAgreement(req.params.id);
     if (!agreement) return res.status(404).json({ error: 'Agreement not found.' });
-    if (!isParty(agreement, req.user.id)) return res.status(403).json({ error: 'Not a party to this agreement.' });
+    const role = partyRole(agreement, req.user.id);
+    if (!role) return res.status(403).json({ error: 'Not a party to this agreement.' });
     if (agreement.status !== 'active') return res.status(409).json({ error: 'Only an active agreement can be completed.' });
+    const column = role === 'helper' ? 'helper_completed_at' : 'customer_completed_at';
     const { rows: [updated] } = await db.query(
-      `UPDATE work_agreements SET status = 'completed', completed_at = COALESCE(completed_at, now()), updated_at = now()
-        WHERE id = $1::uuid AND status = 'active' RETURNING *`,
-      [agreement.id]
+      `UPDATE work_agreements
+          SET ${column} = COALESCE(${column}, now()),
+              status = CASE WHEN COALESCE(helper_completed_at, CASE WHEN $2 = 'helper' THEN now() END) IS NOT NULL
+                             AND COALESCE(customer_completed_at, CASE WHEN $2 = 'customer' THEN now() END) IS NOT NULL
+                            THEN 'completed' ELSE status END,
+              completed_at = CASE WHEN COALESCE(helper_completed_at, CASE WHEN $2 = 'helper' THEN now() END) IS NOT NULL
+                                   AND COALESCE(customer_completed_at, CASE WHEN $2 = 'customer' THEN now() END) IS NOT NULL
+                                  THEN COALESCE(completed_at, now()) ELSE completed_at END,
+              updated_at = now()
+        WHERE id = $1::uuid AND status = 'active'
+        RETURNING *`,
+      [agreement.id, role]
     );
-    return res.json({ agreement: updated });
+    if (!updated) return res.status(409).json({ error: 'Only an active agreement can be completed.' });
+    return res.json({ agreement: updated, awaitingCounterparty: updated.status !== 'completed' });
   } catch (err) {
     logger.error('work agreement complete error', { err, userId: req.user?.id });
     return res.status(500).json({ error: 'Could not complete agreement.' });
@@ -369,6 +391,9 @@ exports.signAgreement = async (req, res) => {
     const role = partyRole(agreement, req.user.id);
     if (!role) return res.status(403).json({ error: 'Not a party to this agreement.' });
 
+    if (agreement.status === 'completed') {
+      return res.status(409).json({ error: 'This agreement is already completed.' });
+    }
     const { versionId, signatureData, role: claimedRole } = req.body || {};
     if (claimedRole && claimedRole !== role) return res.status(400).json({ error: 'Role does not match your party.' });
     if (!validSignatureData(signatureData)) {
@@ -716,7 +741,7 @@ exports.resolveWarrantyClaim = async (req, res) => {
       `UPDATE work_agreement_warranty_claims
           SET status = $2, resolved_by = $3::uuid, resolved_at = now(),
               resolution_note = $4
-        WHERE id = $1::uuid AND agreement_id = $5::uuid AND status IN ('filed', 'under_review')
+        WHERE id = $1::uuid AND agreement_id = $5::uuid AND status = 'filed'
         RETURNING *`,
       [req.params.claimId, decision, req.user.id, note ? String(note).slice(0, 5000) : null, agreement.id]
     );

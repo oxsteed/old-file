@@ -427,3 +427,5 @@ exports.getPublicFeed = async ({
     pages: Math.ceil(parseInt(countRows[0].count) / limit),
   };
 };
+
+exports.VALID_TRANSITIONS = VALID_TRANSITIONS;

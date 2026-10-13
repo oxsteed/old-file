@@ -4529,6 +4529,12 @@
     "whatHappensNextBody": "Lè travay la an dirèk, moun ki mache ak kote, kategori, ak kondisyon yo ka voye òf. Ou ka konpare òf, poze lòt kesyon, epi anboche lè ou pare."
   },
   "jobDetail": {
+    "customerConfirmsEscrow": "Sou travay ak peman pwoteje, se kliyan an ki konfime travay la fini, sa lage peman ou.",
+    "openJobChat": "Voye mesaj sou travay sa a",
+    "openChatFailed": "Nou pa t ka louvri chat travay la. Eseye ankò.",
+    "createAgreement": "Kreye yon akò travay",
+    "reportProblem": "Rapòte yon pwoblèm",
+    "problemReported": "Rapò ou a voye.",
     "draftStatus": "Bouyon",
     "matchedStatus": "Korespondans jwenn",
     "negotiatingStatus": "Nan negosyasyon",
@@ -9141,6 +9147,9 @@
       "escalationPanelAria": "Opsyon eskalad sipò"
     },
     "messenger": {
+      "agreementOpenRecords": "Louvri akò travay ki siyen pou travay sa a",
+      "agreementCreateRecords": "Kreye yon akò travay siyen pou travay sa a",
+      "quoteFinishOnJob": "Fini anboche a sou paj travay la",
       "message": "Mesaj",
       "messageName": "Voye mesaj bay {{name}}",
       "launcherKicker": "Chat",
@@ -21456,6 +21465,7 @@
         "details": "Kisa nou ta dwe konnen?"
       },
       "hints": {
+        "outsideServiceArea": "Kòd postal sa a deyò zòn nou konn sèvi yo. Ou ka toujou voye demann lan, n ap konfime.",
         "selectedServices": "Chwazi sèvis katalòg ou vle mete yo. Ou ka ajoute plis pase youn.",
         "workLocation": "Vil, katye, oswa adrès konplè.",
         "serviceZipCode": "Yo itilize l pou fè matche ak quote ou a pita.",
@@ -21814,6 +21824,7 @@
         "bankTransfer": "Transfè labank"
       },
       "actions": {
+        "payWithCredit": "Peye ak OxSteed Credit",
         "acceptQuote": "Aksepte quote la",
         "decline": "Refize",
         "requestChanges": "Mande chanjman",
@@ -21830,6 +21841,8 @@
         "openLocations": "Louvri adrès yo"
       },
       "messages": {
+        "creditPaid": "Peye ak OxSteed Credit.",
+        "creditPaidPending": "Peye ak OxSteed Credit. Resi ou ap parèt talè.",
         "scheduleSaved": "Orè a sove.",
         "cancelled": "Demann lan anile.",
         "updated": "Demann lan mete ajou.",
@@ -21845,6 +21858,7 @@
         "declineReason": "Poukisa ou refize quote sa a?"
       },
       "errors": {
+        "creditPay": "Nou pa t ka peye ak OxSteed Credit.",
         "loadRequest": "Nou pa t kapab chaje demann lan",
         "load": "Nou pa t kapab chaje dosye Direct la.",
         "saveSchedule": "Nou pa t kapab sove orè a.",
@@ -30295,6 +30309,14 @@
     "finalCtaSubtitle": "Gratis pou kreye. Pataje l nenpòt kote epi kòmanse touche jodi a."
   },
   "workAgreement": {
+    "completeError": "Nou pa t ka konfime travay la fini.",
+    "jobLinkSummary": "Travay: {{job}} · Peman: {{payment}}",
+    "noPayment": "pa gen anyen anrejistre",
+    "disputeOpen": "Gen yon diskisyon louvri sou travay sa a",
+    "completeTitle": "Travay la fini?",
+    "awaitingCounterparty": "Ou konfime. N ap tann lòt moun nan konfime.",
+    "completeBody": "Nou toude dwe konfime anvan akò a make fini.",
+    "confirmComplete": "Konfime li fini",
     "signHere": "Desine siyati ou isit la",
     "signHint": "Desine siyati ou ak sourit oswa dwèt",
     "clearSignature": "Efase",

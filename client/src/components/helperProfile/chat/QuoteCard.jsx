@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Check, X, MessageSquare, Calendar, Loader2, AlertTriangle, Wallet } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import api from '../../../api/axios';
 import {
   canCustomerRespond,
@@ -105,6 +106,7 @@ export default function QuoteCard({
 
   const lineItems = Array.isArray(quote?.line_items) ? quote.line_items : [];
 
+  const [jobBid, setJobBid] = useState(null);
   const respond = async (action) => {
     if (readOnly || !kind || !quoteId) return;
     if (!isAuthenticated && !guestVerified) {
@@ -131,6 +133,7 @@ export default function QuoteCard({
         { headers: guestAuthHeaders || undefined },
       );
       pendingResponseRef.current = null;
+      if (data?.jobBid?.jobId) setJobBid(data.jobBid);
       setQuote(data.quote || { ...quote, status: action === 'accept' ? 'accepted' : 'declined' });
       onStatusChange?.(data.quote?.status || (action === 'accept' ? 'accepted' : 'declined'), data);
       if (action === 'accept') onAccepted?.(data);
@@ -194,6 +197,13 @@ export default function QuoteCard({
           {statusLabel}
         </span>
       </header>
+      {jobBid ? (
+        <p className="messenger-quote-card__note" role="status">
+          <Link to={`/jobs/${jobBid.jobId}?acceptBid=${jobBid.bidId}`}>
+            {t('helperProfile.messenger.quoteFinishOnJob')}
+          </Link>
+        </p>
+      ) : null}
 
       {lineItems.length > 0 && (
         <ul className="messenger-quote-card__lines">

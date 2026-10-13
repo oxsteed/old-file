@@ -89,6 +89,20 @@ export default function WorkAgreementPage() {
     }
   };
 
+  // Review P1-164: each party confirms; the agreement completes once both have.
+  const [completing, setCompleting] = useState(false);
+  const confirmComplete = async () => {
+    setCompleting(true);
+    try {
+      await api.post(`/work-agreements/${id}/complete`);
+      load();
+    } catch (e) {
+      setError(e.response?.data?.error || t('workAgreement.completeError', { defaultValue: 'Could not confirm completion.' }));
+    } finally {
+      setCompleting(false);
+    }
+  };
+
   const proposeChangeOrder = async () => {
     if (!coDesc.trim()) return;
     setCoPending({ type: 'propose' });
@@ -193,6 +207,9 @@ export default function WorkAgreementPage() {
   const myRole = data?.myRole;
   const iSigned = myRole && signedRoles.has(myRole);
   const bothSigned = signedRoles.has('helper') && signedRoles.has('customer');
+  const agreementRow = data?.agreement;
+  const iConfirmed = myRole && Boolean(agreementRow?.[`${myRole}_completed_at`]);
+  const jobLink = data?.jobLink;
 
   return (
     <PageShell>
@@ -218,13 +235,39 @@ export default function WorkAgreementPage() {
                   {t('workAgreement.recordsNote', { defaultValue: 'OxSteed keeps the records. You and the other party decide the terms.' })}
                 </p>
               </div>
-              {myRole && !iSigned && version && (
+              {myRole && !iSigned && version && agreement.status !== 'completed' && (
                 <button type="button" className="wa-primary" onClick={() => setSignOpen(true)}>
                   <PenLine size={16} aria-hidden="true" />
                   {t('workAgreement.signCta', { defaultValue: 'Sign this version' })}
                 </button>
               )}
             </header>
+            {jobLink && (
+              <p className="wa-records-note" role="status">
+                {t('workAgreement.jobLinkSummary', {
+                  defaultValue: 'Job: {{job}} · Payment: {{payment}}',
+                  job: jobLink.job_status?.replaceAll('_', ' ') || '—',
+                  payment: jobLink.payment_status?.replaceAll('_', ' ') || t('workAgreement.noPayment', { defaultValue: 'none recorded' }),
+                })}
+                {jobLink.dispute_open ? ` · ${t('workAgreement.disputeOpen', { defaultValue: 'A dispute is open on this job' })}` : ''}
+              </p>
+            )}
+            {agreement.status === 'active' && myRole && (
+              <div className="wa-issue-banner" role="note">
+                <CheckCircle2 size={18} aria-hidden="true" />
+                <div>
+                  <strong>{t('workAgreement.completeTitle', { defaultValue: 'Work finished?' })}</strong>
+                  <p>{iConfirmed
+                    ? t('workAgreement.awaitingCounterparty', { defaultValue: 'You confirmed. Waiting for the other party to confirm.' })
+                    : t('workAgreement.completeBody', { defaultValue: 'Both of you confirm before the agreement is marked complete.' })}</p>
+                </div>
+                {!iConfirmed && (
+                  <button type="button" className="wa-btn" onClick={confirmComplete} disabled={completing}>
+                    {t('workAgreement.confirmComplete', { defaultValue: 'Confirm complete' })}
+                  </button>
+                )}
+              </div>
+            )}
             {agreement.status === 'active' && (
               <div className="wa-issue-banner" role="note">
                 <AlertCircle size={18} aria-hidden="true" />

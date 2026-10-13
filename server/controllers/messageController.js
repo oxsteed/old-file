@@ -402,6 +402,39 @@ const getConversations = async (req, res) => {
 };
 
 // Get or create a conversation
+// Review P1-136: job-scoped chat entry point. Only the job's customer or its
+// assigned helper may open it; the conversation is always keyed to the job.
+const getOrCreateJobConversation = async (req, res) => {
+  try {
+    const userId = String(req.user.id);
+    const { rows: [job] } = await pool.query(
+      'SELECT id, client_id, assigned_helper_id FROM jobs WHERE id = $1',
+      [req.params.jobId]
+    );
+    if (!job) return res.status(404).json({ error: 'Job not found' });
+    if (!job.assigned_helper_id) return res.status(409).json({ error: 'This job has no helper yet', code: 'no_helper' });
+    if (userId !== String(job.client_id) && userId !== String(job.assigned_helper_id)) {
+      return res.status(403).json({ error: 'Not a participant in this job' });
+    }
+    const params = [job.client_id, job.assigned_helper_id, job.id];
+    const inserted = await pool.query(
+      `INSERT INTO conversations (customer_id, helper_id, job_id)
+       VALUES ($1, $2, $3) ON CONFLICT DO NOTHING RETURNING *`,
+      params
+    );
+    if (inserted.rows[0]) return res.status(201).json(inserted.rows[0]);
+    const { rows: [existing] } = await pool.query(
+      'SELECT * FROM conversations WHERE customer_id = $1 AND helper_id = $2 AND job_id = $3 LIMIT 1',
+      params
+    );
+    if (!existing) return res.status(500).json({ error: 'Failed to open job conversation' });
+    return res.json(existing);
+  } catch (error) {
+    logger.error('Error opening job conversation', { err: error.message });
+    return res.status(500).json({ error: 'Failed to open job conversation' });
+  }
+};
+
 const getOrCreateConversation = async (req, res) => {
   try {
     const userId = req.user.id;
@@ -1788,6 +1821,7 @@ const replyGuestInquiryMessage = async (req, res) => {
 };
 
 module.exports = {
+  getOrCreateJobConversation,
   getConversations,
   getGuestInquiries,
   getGuestInquiryById,

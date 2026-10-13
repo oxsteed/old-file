@@ -773,6 +773,15 @@ exports.respondQuote = async (req, res, next) => {
       }
     }
     if (!updated) return bad(res, 409, 'Quote already responded or unavailable', 'conflict');
+    // Review P1-134: a helper quote on a job becomes the helper's bid.
+    let linkedBidId = null;
+    if (kind === 'helper' && action === 'accept' && updated.job_id) {
+      try {
+        linkedBidId = await require('../services/jobQuoteBridge').bidFromAcceptedQuote(updated);
+      } catch (bridgeErr) {
+        logger.warn('chat quote -> bid bridge failed', { quoteId: updated.id, error: bridgeErr.message });
+      }
+    }
     const card = toPublicQuoteCard(kind, updated);
 
     const chatStatus = action === 'accept' ? 'accepted' : action === 'request_changes' ? 'declined' : 'declined';
@@ -834,7 +843,8 @@ exports.respondQuote = async (req, res, next) => {
     return res.json({
       quote: card,
       action,
-      openAvailability: action === 'accept',
+      openAvailability: action === 'accept' && !linkedBidId,
+      jobBid: linkedBidId ? { bidId: linkedBidId, jobId: updated.job_id } : null,
       idempotent: replayed,
     });
   } catch (err) {

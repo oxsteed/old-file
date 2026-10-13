@@ -4442,6 +4442,12 @@
     "whatHappensNextBody": "Once your job is live, helpers who match the location, category, and requirements can send bids. You can compare offers, ask follow-up questions, and hire when you are ready."
   },
   "jobDetail": {
+    "customerConfirmsEscrow": "On protected-payment jobs the customer confirms completion, which releases your payment.",
+    "openJobChat": "Message about this job",
+    "openChatFailed": "Couldn't open the job chat. Try again.",
+    "createAgreement": "Create a work agreement",
+    "reportProblem": "Report a problem",
+    "problemReported": "Your report was sent.",
     "draftStatus": "Draft",
     "matchedStatus": "Matched",
     "negotiatingStatus": "Negotiating",
@@ -9141,6 +9147,9 @@
       "escalationPanelAria": "Support escalation options"
     },
     "messenger": {
+      "agreementOpenRecords": "Open the signed work agreement for this job",
+      "agreementCreateRecords": "Create a signed work agreement for this job",
+      "quoteFinishOnJob": "Finish hiring on the job page",
       "message": "Message",
       "messageName": "Message {{name}}",
       "launcherKicker": "Chat",
@@ -21456,6 +21465,7 @@
         "details": "What should we know?"
       },
       "hints": {
+        "outsideServiceArea": "This ZIP is outside our usual service areas. You can still send the request and we'll confirm.",
         "selectedServices": "Choose the catalog services you want included. You can add more than one.",
         "workLocation": "City, neighborhood, or full address.",
         "serviceZipCode": "Used to match your quote later.",
@@ -21814,6 +21824,7 @@
         "bankTransfer": "Bank transfer"
       },
       "actions": {
+        "payWithCredit": "Pay with OxSteed Credit",
         "acceptQuote": "Accept quote",
         "decline": "Decline",
         "requestChanges": "Request changes",
@@ -21830,6 +21841,8 @@
         "openLocations": "Open locations"
       },
       "messages": {
+        "creditPaid": "Paid with OxSteed Credit.",
+        "creditPaidPending": "Paid with OxSteed Credit. Your receipt will appear shortly.",
         "scheduleSaved": "Schedule saved.",
         "cancelled": "Request cancelled.",
         "updated": "Request updated.",
@@ -21845,6 +21858,7 @@
         "declineReason": "Why are you declining this quote?"
       },
       "errors": {
+        "creditPay": "Could not pay with OxSteed Credit.",
         "loadRequest": "Failed to load request",
         "load": "Could not load the Direct record.",
         "saveSchedule": "Could not save schedule.",
@@ -30295,6 +30309,14 @@
     "finalCtaSubtitle": "Free to create. Share it anywhere and start getting paid today."
   },
   "workAgreement": {
+    "completeError": "Could not confirm completion.",
+    "jobLinkSummary": "Job: {{job}} · Payment: {{payment}}",
+    "noPayment": "none recorded",
+    "disputeOpen": "A dispute is open on this job",
+    "completeTitle": "Work finished?",
+    "awaitingCounterparty": "You confirmed. Waiting for the other party to confirm.",
+    "completeBody": "Both of you confirm before the agreement is marked complete.",
+    "confirmComplete": "Confirm complete",
     "signHere": "Draw your signature here",
     "signHint": "Draw your signature with mouse or finger",
     "clearSignature": "Clear",

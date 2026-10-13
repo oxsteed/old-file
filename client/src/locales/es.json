@@ -4442,6 +4442,12 @@
     "whatHappensNextBody": "Cuando el trabajo esté activo, los ayudantes que coincidan con la ubicación, categoría y requisitos podrán enviar ofertas. Puedes comparar propuestas, hacer preguntas y contratar cuando estés listo."
   },
   "jobDetail": {
+    "customerConfirmsEscrow": "En trabajos con pago protegido, el cliente confirma la finalización y eso libera tu pago.",
+    "openJobChat": "Enviar mensaje sobre este trabajo",
+    "openChatFailed": "No se pudo abrir el chat del trabajo. Inténtalo de nuevo.",
+    "createAgreement": "Crear un acuerdo de trabajo",
+    "reportProblem": "Reportar un problema",
+    "problemReported": "Tu reporte fue enviado.",
     "draftStatus": "Borrador",
     "matchedStatus": "Coincidencia encontrada",
     "negotiatingStatus": "En negociación",
@@ -9141,6 +9147,9 @@
       "escalationPanelAria": "Opciones de escalada a soporte"
     },
     "messenger": {
+      "agreementOpenRecords": "Abrir el acuerdo de trabajo firmado de este trabajo",
+      "agreementCreateRecords": "Crear un acuerdo de trabajo firmado para este trabajo",
+      "quoteFinishOnJob": "Termina la contratación en la página del trabajo",
       "message": "Mensaje",
       "messageName": "Mensaje a {{name}}",
       "launcherKicker": "Chat",
@@ -21456,6 +21465,7 @@
         "details": "¿Qué debemos saber?"
       },
       "hints": {
+        "outsideServiceArea": "Este código postal está fuera de nuestras zonas habituales. Aún puedes enviar la solicitud y te confirmaremos.",
         "selectedServices": "Elija los servicios del catálogo que desea incluir. Puede añadir más de uno.",
         "workLocation": "Ciudad, vecindario o dirección completa.",
         "serviceZipCode": "Se usa para coincidir con su cotización más tarde.",
@@ -21814,6 +21824,7 @@
         "bankTransfer": "Transferencia bancaria"
       },
       "actions": {
+        "payWithCredit": "Pagar con OxSteed Credit",
         "acceptQuote": "Aceptar cotización",
         "decline": "Rechazar",
         "requestChanges": "Solicitar cambios",
@@ -21830,6 +21841,8 @@
         "openLocations": "Abrir ubicaciones"
       },
       "messages": {
+        "creditPaid": "Pagado con OxSteed Credit.",
+        "creditPaidPending": "Pagado con OxSteed Credit. Tu recibo aparecerá en breve.",
         "scheduleSaved": "Horario guardado.",
         "cancelled": "Solicitud cancelada.",
         "updated": "Solicitud actualizada.",
@@ -21845,6 +21858,7 @@
         "declineReason": "¿Por qué rechazas esta cotización?"
       },
       "errors": {
+        "creditPay": "No se pudo pagar con OxSteed Credit.",
         "loadRequest": "No se pudo cargar la solicitud",
         "load": "No se pudo cargar el registro Direct.",
         "saveSchedule": "No se pudo guardar el horario.",
@@ -30295,6 +30309,14 @@
     "finalCtaSubtitle": "Gratis de crear. Compártelo donde sea y empieza a cobrar hoy."
   },
   "workAgreement": {
+    "completeError": "No se pudo confirmar la finalización.",
+    "jobLinkSummary": "Trabajo: {{job}} · Pago: {{payment}}",
+    "noPayment": "ninguno registrado",
+    "disputeOpen": "Hay una disputa abierta en este trabajo",
+    "completeTitle": "¿Trabajo terminado?",
+    "awaitingCounterparty": "Confirmaste. Esperando la confirmación de la otra parte.",
+    "completeBody": "Ambos deben confirmar antes de marcar el acuerdo como completado.",
+    "confirmComplete": "Confirmar finalización",
     "signHere": "Dibuja tu firma aquí",
     "signHint": "Dibuja tu firma con el mouse o el dedo",
     "clearSignature": "Borrar",
