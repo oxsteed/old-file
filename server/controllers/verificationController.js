@@ -115,12 +115,35 @@ exports.checkrWebhook = async (req, res, next) => {
       throw new AppError('Invalid signature', 401, 'no_auth');
     }
 
-    const { type, data } = JSON.parse(rawBody.toString());
+    const envelope = JSON.parse(rawBody.toString());
+    const { type, data } = envelope;
+    const report = data?.object || {};
+    const eventId = envelope.id || envelope.event_id || report.id;
+    const createdRaw = envelope.created_at || envelope.timestamp || report.created_at;
+    const createdMs = Number.isFinite(Number(createdRaw))
+      ? (Number(createdRaw) > 1e12 ? Number(createdRaw) : Number(createdRaw) * 1000)
+      : Date.parse(String(createdRaw || ''));
+    if (!eventId || !Number.isFinite(createdMs)) {
+      throw new AppError('Webhook event envelope is incomplete', 400, 'invalid_format');
+    }
+    if (Math.abs(Date.now() - createdMs) > 24 * 60 * 60 * 1000) {
+      throw new AppError('Webhook event is stale', 400, 'stale_webhook');
+    }
+    const receipt = await db.query(
+      `INSERT INTO webhook_event_receipts (provider, event_id, event_type, object_type, object_id, event_created, status)
+       VALUES ('checkr', $1, $2, 'report', $3, $4, 'processing')
+       ON CONFLICT (provider, event_id) DO NOTHING
+       RETURNING id`,
+      [String(eventId), String(type || 'unknown'), report.id ? String(report.id) : null, Math.floor(createdMs / 1000)]
+    );
+    if (!receipt.rows.length) {
+      return res.json({ received: true, duplicate: true });
+    }
 
     if (type === 'report.completed') {
-      const reportId = data.object.id;
-      const candidateId = data.object.candidate_id;
-      const result = data.object.adjudication || data.object.status;
+      const reportId = report.id;
+      const candidateId = report.candidate_id;
+      const result = report.adjudication || report.status;
 
       const { rows } = await db.query(
         'UPDATE background_checks SET checkr_report_id = $1, status = $2, result = $3, completed_at = NOW(), expires_at = NOW() + INTERVAL \'1 year\' WHERE checkr_candidate_id = $4 RETURNING user_id',
@@ -177,6 +200,12 @@ exports.checkrWebhook = async (req, res, next) => {
         }
       }
     }
+
+    await db.query(
+      `UPDATE webhook_event_receipts SET status = 'processed', processed_at = NOW(), last_seen_at = NOW()
+       WHERE provider = 'checkr' AND event_id = $1`,
+      [String(eventId)]
+    );
 
     res.json({ received: true });
   } catch (err) {
@@ -272,6 +301,20 @@ exports.identityWebhook = async (req, res, next) => {
     }
 
     const { type, data } = event;
+    const eventId = event.id ? String(event.id) : null;
+    let receiptId = null;
+    if (eventId) {
+      const created = Number.isFinite(Number(event.created)) ? Number(event.created) : null;
+      const receipt = await db.query(
+        `INSERT INTO webhook_event_receipts (provider, event_id, event_type, object_type, object_id, event_created, status)
+         VALUES ('stripe_identity', $1, $2, 'verification_session', $3, $4, 'processing')
+         ON CONFLICT (provider, event_id) DO NOTHING
+         RETURNING id`,
+        [eventId, String(type || 'unknown'), data?.object?.id ? String(data.object.id) : null, created]
+      );
+      if (!receipt.rows.length) return res.json({ received: true, duplicate: true });
+      receiptId = receipt.rows[0]?.id || null;
+    }
 
     if (type === 'identity.verification_session.verified') {
       const sessionId = data.object.id;
@@ -300,6 +343,14 @@ exports.identityWebhook = async (req, res, next) => {
         `UPDATE identity_verifications SET status = 'requires_input', last_error = $1, updated_at = NOW()
          WHERE stripe_verification_session_id = $2`,
         [lastError, sessionId]
+      );
+    }
+
+    if (receiptId) {
+      await db.query(
+        `UPDATE webhook_event_receipts SET status = 'processed', processed_at = NOW(), last_seen_at = NOW()
+         WHERE id = $1`,
+        [receiptId]
       );
     }
 

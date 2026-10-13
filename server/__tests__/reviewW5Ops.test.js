@@ -65,7 +65,7 @@ describe('P3-842 Checkr webhook', () => {
     const crypto = require('crypto');
     const controller = require('../controllers/verificationController');
     process.env.CHECKR_WEBHOOK_SECRET = 'checkr-secret';
-    const body = Buffer.from(JSON.stringify({ type: 'report.completed', data: { object: { id: 'rep-1', candidate_id: 'cand-1', adjudication: 'clear' } } }));
+    const body = Buffer.from(JSON.stringify({ id: 'evt-checkr-1', created_at: new Date().toISOString(), type: 'report.completed', data: { object: { id: 'rep-1', candidate_id: 'cand-1', adjudication: 'clear' } } }));
     const sig = crypto.createHmac('sha256', 'checkr-secret').update(body).digest('hex');
     q.mockImplementation(async (sql) => (/RETURNING user_id/.test(sql) ? { rows: [{ user_id: 'u-1' }] } : { rows: [{ preferred_language: 'en' }] }));
     const res = { json: jest.fn() };
@@ -76,6 +76,20 @@ describe('P3-842 Checkr webhook', () => {
     expect(sendNotification).toHaveBeenCalledWith(expect.objectContaining({ userId: 'u-1', type: 'background_check_passed', idempotencyKey: 'checkr-report:rep-1' }));
     jest.dontMock('../services/notificationService');
   });
+
+  test('rejects stale Checkr envelopes before touching report state', async () => {
+    jest.resetModules();
+    const controller = require('../controllers/verificationController');
+    process.env.CHECKR_WEBHOOK_SECRET = 'checkr-secret';
+    const crypto = require('crypto');
+    const body = Buffer.from(JSON.stringify({ id: 'evt-stale', created_at: new Date(Date.now() - 2 * 86400000).toISOString(), type: 'report.completed', data: { object: { id: 'rep-stale' } } }));
+    const sig = crypto.createHmac('sha256', 'checkr-secret').update(body).digest('hex');
+    const next = jest.fn();
+    await controller.checkrWebhook({ headers: { 'x-checkr-signature': sig }, body }, { json: jest.fn() }, next);
+    expect(next).toHaveBeenCalledWith(expect.objectContaining({ code: 'stale_webhook', status: 400 }));
+    expect(mockQuery).not.toHaveBeenCalled();
+  });
+
 });
 
 describe('email delivery', () => {
