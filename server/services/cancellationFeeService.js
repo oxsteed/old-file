@@ -21,6 +21,8 @@
 
 const pool   = require('../db');
 const logger = require('../utils/logger');
+const { isDiditVerificationFresh } = require('../utils/diditGate');
+const { assertSanctionsClear } = require('./sanctionsScreeningService');
 
 let stripe;
 try {
@@ -49,6 +51,41 @@ async function collectCancellationFee({ feeRecordId, customerId, helperId, feeTo
 
   if (!feeRecordId || !feeTotalCents || feeTotalCents <= 0) {
     return; // nothing to do
+  }
+
+  // A cancellation fee can move value to a helper just like any other
+  // payout. Fail closed before charging the customer unless the beneficiary
+  // has a fresh identity, a payout-enabled Connect account, and a clear
+  // sanctions screening.
+  if (feeToHelper > 0) {
+    try {
+      const eligibility = await pool.query(
+        `SELECT u.didit_status, u.didit_verified_at, u.didit_enforcement_required,
+                ca.stripe_account_id, ca.payouts_enabled
+           FROM users u
+           LEFT JOIN connect_accounts ca ON ca.user_id = u.id AND ca.status = 'active'
+          WHERE u.id = $1 AND u.is_active = TRUE
+          LIMIT 1`,
+        [helperId]
+      );
+      const helper = eligibility.rows[0];
+      const identityVerified = helper?.didit_status === 'verified'
+        && isDiditVerificationFresh(helper.didit_verified_at);
+      if (!helper || !identityVerified || !helper.stripe_account_id || helper.payouts_enabled !== true) {
+        await markFeePending(feeRecordId, 'helper_payout_eligibility_required');
+        logger.warn('cancellationFeeService: helper payout eligibility gate blocked collection', { feeRecordId, helperId });
+        return;
+      }
+      await assertSanctionsClear(pool, {
+        subjectType: 'customer',
+        subjectId: helperId,
+        context: { operation: 'cancellation_fee_helper_transfer' },
+      });
+    } catch (err) {
+      await markFeePending(feeRecordId, err.code || 'helper_payout_compliance_required');
+      logger.warn('cancellationFeeService: helper payout compliance gate blocked collection', { feeRecordId, helperId, error: err.message });
+      return;
+    }
   }
 
   // ── 1. Get customer's Stripe customer ID ───────────────────────────────────
@@ -127,7 +164,7 @@ async function collectCancellationFee({ feeRecordId, customerId, helperId, feeTo
   if (feeToHelper > 0) {
     try {
       const connectRow = await pool.query(
-        'SELECT stripe_account_id FROM connect_accounts WHERE user_id = $1 AND status = $2 LIMIT 1',
+        'SELECT stripe_account_id, payouts_enabled FROM connect_accounts WHERE user_id = $1 AND status = $2 AND payouts_enabled = TRUE LIMIT 1',
         [helperId, 'active']
       );
       helperStripeAccountId = connectRow.rows[0]?.stripe_account_id;
