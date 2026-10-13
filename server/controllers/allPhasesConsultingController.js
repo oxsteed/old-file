@@ -1,5 +1,6 @@
 const logger = require('../utils/logger');
 const { sendEmail } = require('../utils/email');
+const { renderOxSteedEmail } = require('../utils/emailTemplate');
 const db = require('../db');
 
 // PHASE 1: Consultant Management
@@ -109,25 +110,36 @@ exports.scheduleSession = async (req, res) => {
       const formattedDate = dateObj.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
       const formattedTime = dateObj.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
 
-      // Send confirmation email to customer
-      sendEmail({
-        to: email,
-        subject: 'Your OxSteed Consulting Session is Scheduled',
-        html: `
-          <p>Hi ${first_name},</p>
-          <p>Your consulting session with OxSteed has been scheduled!</p>
-          <p><strong>Session Details:</strong></p>
-          <ul>
-            <li><strong>Date:</strong> ${formattedDate}</li>
-            <li><strong>Time:</strong> ${formattedTime} (${duration_minutes || 120} minutes)</li>
-            <li><strong>Type:</strong> ${meeting_type || 'zoom'}</li>
-            <li><strong>Meeting Link:</strong> <a href="${meetingUrl}">${meetingUrl}</a></li>
-          </ul>
-          <p>Please click the link above or copy and paste it into your browser 5 minutes before the scheduled time.</p>
-          <p>If you need to reschedule or have any questions, please contact our team.</p>
-          <p>Best regards,<br>The OxSteed Consulting Team</p>
-        `,
-      }).catch(err => logger.warn('Failed to send scheduling confirmation email', { error: err.message, session_id, email }));
+      // Send confirmation email to customer. Non-blocking, but a failed
+      // send is logged loudly: sendEmail resolves { success: false }
+      // instead of throwing (review P3-844), so the result is checked.
+      try {
+        const rendered = renderOxSteedEmail({
+          language: 'en',
+          preheader: 'Your OxSteed consulting session is scheduled',
+          eyebrow: 'OXSTEED CONSULTING',
+          title: 'Your session is scheduled',
+          intro: `Hi ${first_name || 'there'}, your consulting session with OxSteed has been scheduled! Please use the meeting link 5 minutes before the scheduled time. If you need to reschedule or have any questions, please contact our team.`,
+          details: [
+            { label: 'Date', value: formattedDate },
+            { label: 'Time', value: `${formattedTime} (${duration_minutes || 120} minutes)` },
+            { label: 'Type', value: meeting_type || 'zoom' },
+          ],
+          cta: { url: meetingUrl, label: 'Join the meeting' },
+          footerText: 'The OxSteed Consulting Team',
+        });
+        const delivery = await sendEmail({
+          to: email,
+          subject: 'Your OxSteed Consulting Session is Scheduled',
+          html: rendered.html,
+          text: rendered.text,
+        });
+        if (delivery?.success !== true) {
+          logger.warn('Failed to send scheduling confirmation email', { error: delivery?.error || 'unknown', session_id });
+        }
+      } catch (emailErr) {
+        logger.warn('Failed to send scheduling confirmation email', { error: emailErr.message, session_id });
+      }
     }
 
     logger.info('Session scheduled', { session_id, scheduled_date });
