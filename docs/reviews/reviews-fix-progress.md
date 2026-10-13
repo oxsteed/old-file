@@ -137,3 +137,5 @@ Rate-limit follow-up: money-moving invoice, mobile payment, affiliate payout, re
 
 Delivery-device follow-up: driver tracking devices now support owner pause and revoke actions, operations can manage fleet devices, and revocation/pausing transitions active assignments with an audit event. Revoked devices cannot be reactivated by their former owner; they must be re-registered by operations.
 
+Restaurant-device follow-up: paired restaurant credentials now expire after 90 days, pairing assigns the expiry, and an authorized restaurant manager can rotate a paired device token. Expired credentials are rejected before device routes run. Migration 786 adds the nullable expiry column and index for older installations.
+
