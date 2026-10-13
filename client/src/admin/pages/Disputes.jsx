@@ -7,7 +7,7 @@ import { useAbortableFetch } from '../lib/useAbortableFetch';
 import AdminErrorState from '../lib/AdminErrorState';
 import { adminDate } from '../lib/formatters';
 
-const STATUS_TABS = ['open','under_review','resolved'];
+const STATUS_TABS = ['open','under_review','resolved','closed'];
 
 export default function AdminDisputes() {
   const { t } = useTranslation();

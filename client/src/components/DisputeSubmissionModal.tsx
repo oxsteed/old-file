@@ -84,7 +84,12 @@ const DisputeSubmissionModal: React.FC<DisputeSubmissionModalProps> = ({
       onSuccess?.();
       onClose();
     } catch (err: any) {
-      setError(err.response?.data?.error?.message || err.response?.data?.error || err.message || 'Unknown error');
+      // Review P3-2-F09: the 30-day window is enforced server-side; surface
+      // the localized message for that code instead of the raw English text.
+      const code = err.response?.data?.code;
+      setError(code === 'dispute_window_expired'
+        ? t('dispute.windowExpired')
+        : err.response?.data?.error?.message || err.response?.data?.error || err.message || 'Unknown error');
     } finally {
       setIsSubmitting(false);
     }

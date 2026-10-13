@@ -13388,7 +13388,8 @@
       "body": "Nuestro equipo revisará tu disputa dentro de 5 días hábiles. Nos pondremos en contacto si es necesario. Las pruebas ayudan a tomar decisiones justas."
     },
     "submit": "Enviar Disputa",
-    "submitting": "Enviando..."
+    "submitting": "Enviando...",
+    "windowExpired": "El plazo de 30 días para disputas de este trabajo ha terminado. Las disputas deben abrirse dentro de los 30 días posteriores a la finalización del trabajo."
   },
   "enforcementPolicy": {
     "pageTitle": "Política de Cumplimiento",

@@ -1350,6 +1350,17 @@ async function handleVerifiedStripeEvent(event, destination, res, next) {
         break;
       }
 
+      // Review P3-1-F16: instant payouts are created on the connected account;
+      // these events reconcile the local instant_payouts row as Stripe settles.
+      case 'payout.created':
+      case 'payout.updated':
+      case 'payout.paid':
+      case 'payout.failed':
+      case 'payout.canceled': {
+        await applyInstantPayoutWebhookEvent(event);
+        break;
+      }
+
       default:
         logger.info(`Unhandled Stripe event: ${event.type}`);
     }
@@ -1944,6 +1955,38 @@ async function applyQrPaymentClosed(session, status) {
   return rowCount;
 }
 exports.applyQrPaymentClosed = applyQrPaymentClosed;
+
+// Review P3-1-F16: reconcile the local instant_payouts row against the
+// payout.* lifecycle events from the connected account. Never resurrect a
+// terminal row (paid/failed/canceled); a failed payout records Stripe's
+// failure message for support.
+async function applyInstantPayoutWebhookEvent(event) {
+  const payout = event.data?.object || {};
+  const stripePayoutId = payout.id;
+  if (!stripePayoutId) {
+    logger.warn('[webhook] payout event without payout id; ignoring', { eventId: event.id, eventType: event.type });
+    return 0;
+  }
+  const status = String(payout.status || '').toLowerCase();
+  const localStatus = ['paid', 'failed', 'canceled', 'in_transit'].includes(status) ? status : 'pending';
+  const { rowCount } = await db.query(
+    `UPDATE instant_payouts
+        SET status = $2,
+            failure_message = CASE WHEN $2 = 'failed' THEN COALESCE($3, failure_message) ELSE failure_message END,
+            updated_at = NOW()
+      WHERE stripe_payout_id = $1
+        AND status NOT IN ('paid', 'failed', 'canceled')
+      RETURNING id`,
+    [stripePayoutId, localStatus, payout.failure_message ? String(payout.failure_message).slice(0, 500) : null]
+  );
+  if (rowCount === 0) {
+    logger.info('[webhook] payout event for unknown or terminal instant payout; ignoring', {
+      eventId: event.id, eventType: event.type, stripePayoutId, account: event.account || null,
+    });
+  }
+  return rowCount;
+}
+exports.applyInstantPayoutWebhookEvent = applyInstantPayoutWebhookEvent;
 
 async function handleConnectedCheckoutEvent(event) {
   const session = event.data?.object || {};

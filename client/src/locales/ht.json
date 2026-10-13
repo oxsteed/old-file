@@ -13388,7 +13388,8 @@
       "body": "Ekip nou a pral revize dispyt ou nan 5 jou travay. Prèv ede nan desizyon jis."
     },
     "submit": "Soumèt Dispyt",
-    "submitting": "Soumèt..."
+    "submitting": "Soumèt...",
+    "windowExpired": "Delè 30 jou pou kontestasyon travay sa a fèmen. Ou dwe louvri yon dispyt nan 30 jou apre travay la fini."
   },
   "enforcementPolicy": {
     "pageTitle": "Politiki Aplikasyon",

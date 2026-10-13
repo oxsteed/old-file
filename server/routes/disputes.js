@@ -64,9 +64,4 @@ router.post('/:disputeId/messages',
   disputeCtrl.sendDisputeMessage
 );
 
-router.post('/:disputeId/message',
-  authenticate,
-  disputeCtrl.sendDisputeMessage
-);
-
 module.exports = router;

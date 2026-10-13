@@ -51,10 +51,13 @@ function mockAuth(...extras) {
 
 // Pull the stripe mock instance for asserting calls
 const stripe = require('stripe')();
+const paymentController = require('../controllers/paymentController');
 
 beforeEach(() => {
   resetMocks();
   jest.clearAllMocks();
+  // The Connect status TTL cache is module-level; reset it so tests stay isolated.
+  paymentController._clearConnectAccountStatusCache();
 });
 
 // ── POST /api/payments/intent ─────────────────────────────────────────────────
@@ -101,6 +104,33 @@ describe('POST /api/payments/intent', () => {
     );
     expect(res.status).toBe(400);
     expect(res.body.error).toMatch(/not ready/i);
+  });
+
+  test('reuses cached connect status within TTL instead of a live retrieve per intent', async () => {
+    stripe.accounts.retrieve.mockResolvedValue({
+      id: 'acct_x', charges_enabled: true, payouts_enabled: true, details_submitted: true,
+    });
+    stripe.paymentIntents.create.mockResolvedValue({ id: 'pi_cached', client_secret: 'secret_cached' });
+    const jobRow = { rows: [{ id: 10, client_id: 1, job_value: 100, assigned_helper_id: 2, title: 'Job' }] };
+    const connectRow = { rows: [{ stripe_account_id: 'acct_x', charges_enabled: true, payouts_enabled: true, onboarding_complete: true }] };
+    const txTail = [
+      { rows: [] },                 // advisory lock
+      { rows: [{ balance_cents: 0 }] }, // customer credit balance
+      { rows: [] },                 // existing payment check
+      { rows: [{ attempt_count: 0 }] }, // payment attempt count
+      { rows: [{ id: 1 }] },        // INSERT payment RETURNING id
+    ];
+    // First intent: live retrieve populates the TTL cache.
+    mockAuth(jobRow, connectRow, { rowCount: 0 }, ...txTail);
+    const first = await auth(request(buildApp()).post('/api/payments/intent').send({ job_id: 10 }));
+    expect(first.status).toBe(200);
+    expect(stripe.accounts.retrieve).toHaveBeenCalledTimes(1);
+    // Second intent: served from cache, no live retrieve and no status-sync writes.
+    mockAuth(jobRow, connectRow, ...txTail);
+    const second = await auth(request(buildApp()).post('/api/payments/intent').send({ job_id: 10 }));
+    expect(second.status).toBe(200);
+    expect(stripe.accounts.retrieve).toHaveBeenCalledTimes(1);
+    expect(mockQuery.mock.calls.filter(([sql]) => sql.includes('UPDATE connect_accounts'))).toHaveLength(0);
   });
 
   test('creates payment intent and returns client_secret', async () => {
