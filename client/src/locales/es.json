@@ -4144,7 +4144,12 @@
     "listProfilePublicly": "Mostrar mi perfil públicamente",
     "listingStatePublished": "Publicado: los clientes pueden encontrar tu perfil",
     "listingStateDraft": "Borrador: tu perfil está oculto para los clientes",
-    "listingSaved": "Estado de publicación actualizado"
+    "listingSaved": "Estado de publicación actualizado",
+    "assignedMaintenanceTitle": "Mantenimiento asignado",
+    "assignedMaintenanceEmpty": "No tienes solicitudes de mantenimiento asignadas en este momento.",
+    "assignedMaintenanceDetails": "Mostrar detalles",
+    "assignedMaintenanceContact": "Contacto",
+    "assignedMaintenanceScheduled": "Programado"
   },
   "postJob": {
     "title": "Publicar un trabajo",
@@ -8550,6 +8555,10 @@
       "email": {
         "label": "Notificaciones por Correo",
         "description": "Actualizaciones enviadas a tu dirección de correo"
+      },
+      "masters": {
+        "label": "Interruptores principales",
+        "description": "Activa o desactiva un canal completo. Tienen prioridad sobre los interruptores individuales."
       }
     },
     "prefs": {
@@ -8578,7 +8587,11 @@
       "email_subscription": "Actualizaciones de suscripción",
       "email_dispute_update": "Actualización de disputa",
       "email_weekly_summary": "Resumen semanal",
-      "email_new_message": "Nuevos mensajes de chat"
+      "email_new_message": "Nuevos mensajes de chat",
+      "push_notifications": "Notificaciones push",
+      "push_notificationsDesc": "Todas las alertas push en todos los dispositivos (aplicación y navegador).",
+      "sms_notifications": "Notificaciones por SMS",
+      "sms_notificationsDesc": "Mensajes de texto a tu número de teléfono verificado."
     }
   },
   "plannedNeeds": {

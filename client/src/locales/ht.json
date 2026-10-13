@@ -1083,6 +1083,10 @@
       "email": {
         "label": "Notifikasyon pa Imèl",
         "description": "Mizajou voye nan adrès imèl ou"
+      },
+      "masters": {
+        "label": "Bouton prensipal yo",
+        "description": "Limonen oswa etenn yon kanal antye. Yo gen priyorite sou bouton endividyèl yo anba a."
       }
     },
     "prefs": {
@@ -1111,7 +1115,11 @@
       "email_subscription": "Mizajou abònman",
       "email_dispute_update": "Mizajou dispute",
       "email_weekly_summary": "Rezime chak semèn",
-      "email_new_message": "Nouvo mesaj chat"
+      "email_new_message": "Nouvo mesaj chat",
+      "push_notifications": "Notifikasyon push",
+      "push_notificationsDesc": "Tout alèt push sou tout aparèy (aplikasyon ak navigatè).",
+      "sms_notifications": "Notifikasyon pa SMS",
+      "sms_notificationsDesc": "Mesaj tèks sou nimewo telefòn verifye ou a."
     }
   },
   "jobs": {
@@ -4234,7 +4242,12 @@
     "listProfilePublicly": "Mete pwofil mwen an piblik",
     "listingStatePublished": "Pibliye: kliyan yo ka jwenn pwofil ou a",
     "listingStateDraft": "Bouyon: pwofil ou a kache pou kliyan yo",
-    "listingSaved": "Estati piblikasyon an mete ajou"
+    "listingSaved": "Estati piblikasyon an mete ajou",
+    "assignedMaintenanceTitle": "Antretyen asiyen",
+    "assignedMaintenanceEmpty": "Pa gen demann antretyen asiyen ba ou pou kounye a.",
+    "assignedMaintenanceDetails": "Montre detay yo",
+    "assignedMaintenanceContact": "Kontak",
+    "assignedMaintenanceScheduled": "Pwograme"
   },
   "postJob": {
     "title": "Pibliye yon Travay",

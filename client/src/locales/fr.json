@@ -4144,7 +4144,12 @@
     "listProfilePublicly": "Rendre mon profil public",
     "listingStatePublished": "Publié : les clients peuvent trouver votre profil",
     "listingStateDraft": "Brouillon : votre profil est masqué pour les clients",
-    "listingSaved": "Statut de publication mis à jour"
+    "listingSaved": "Statut de publication mis à jour",
+    "assignedMaintenanceTitle": "Maintenance assignée",
+    "assignedMaintenanceEmpty": "Aucune demande de maintenance ne vous est assignée pour le moment.",
+    "assignedMaintenanceDetails": "Afficher les détails",
+    "assignedMaintenanceContact": "Contact",
+    "assignedMaintenanceScheduled": "Planifié"
   },
   "postJob": {
     "title": "Publier une mission",
@@ -8550,6 +8555,10 @@
       "email": {
         "label": "Notifications par Email",
         "description": "Mises à jour envoyées à votre adresse email"
+      },
+      "masters": {
+        "label": "Interrupteurs principaux",
+        "description": "Activez ou désactivez un canal entier. Ils ont priorité sur les interrupteurs individuels ci-dessous."
       }
     },
     "prefs": {
@@ -8578,7 +8587,11 @@
       "email_subscription": "Mises à jour de l'abonnement",
       "email_dispute_update": "Mise à jour du litige",
       "email_weekly_summary": "Résumé hebdomadaire",
-      "email_new_message": "Nouveaux messages de chat"
+      "email_new_message": "Nouveaux messages de chat",
+      "push_notifications": "Notifications push",
+      "push_notificationsDesc": "Toutes les alertes push sur tous les appareils (application et navigateur).",
+      "sms_notifications": "Notifications par SMS",
+      "sms_notificationsDesc": "Messages texte à votre numéro de téléphone vérifié."
     }
   },
   "plannedNeeds": {

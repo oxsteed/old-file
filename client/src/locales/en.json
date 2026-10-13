@@ -4144,7 +4144,12 @@
     "listProfilePublicly": "List my profile publicly",
     "listingStatePublished": "Published: customers can find your profile",
     "listingStateDraft": "Draft: your profile is hidden from customers",
-    "listingSaved": "Listing status updated"
+    "listingSaved": "Listing status updated",
+    "assignedMaintenanceTitle": "Assigned maintenance",
+    "assignedMaintenanceEmpty": "No maintenance requests assigned to you right now.",
+    "assignedMaintenanceDetails": "Show details",
+    "assignedMaintenanceContact": "Contact",
+    "assignedMaintenanceScheduled": "Scheduled"
   },
   "postJob": {
     "title": "Post a Job",
@@ -8550,6 +8555,10 @@
       "email": {
         "label": "Email Notifications",
         "description": "Messages sent to your registered email address."
+      },
+      "masters": {
+        "label": "Master Switches",
+        "description": "Turn an entire channel on or off. These override the individual toggles below."
       }
     },
     "prefs": {
@@ -8578,7 +8587,11 @@
       "email_subscription": "Subscription events",
       "email_dispute_update": "Dispute updates",
       "email_weekly_summary": "Weekly activity summary",
-      "email_new_message": "New chat messages"
+      "email_new_message": "New chat messages",
+      "push_notifications": "Push notifications",
+      "push_notificationsDesc": "All push alerts on every device (app and browser).",
+      "sms_notifications": "SMS notifications",
+      "sms_notificationsDesc": "Text messages to your verified phone number."
     }
   },
   "plannedNeeds": {

@@ -4144,7 +4144,12 @@
     "listProfilePublicly": "إظهار ملفي الشخصي علنًا",
     "listingStatePublished": "منشور: يمكن للعملاء العثور على ملفك الشخصي",
     "listingStateDraft": "مسودة: ملفك الشخصي مخفي عن العملاء",
-    "listingSaved": "تم تحديث حالة النشر"
+    "listingSaved": "تم تحديث حالة النشر",
+    "assignedMaintenanceTitle": "الصيانة المسندة",
+    "assignedMaintenanceEmpty": "لا توجد طلبات صيانة مسندة إليك حالياً.",
+    "assignedMaintenanceDetails": "عرض التفاصيل",
+    "assignedMaintenanceContact": "جهة الاتصال",
+    "assignedMaintenanceScheduled": "مجدول"
   },
   "postJob": {
     "title": "نشر وظيفة",
@@ -8550,6 +8555,10 @@
       "email": {
         "label": "إشعارات البريد الإلكتروني",
         "description": "الرسائل المرسلة إلى عنوان بريدك الإلكتروني المسجل."
+      },
+      "masters": {
+        "label": "المفاتيح الرئيسية",
+        "description": "قم بتشغيل قناة كاملة أو إيقافها. لها الأولوية على المفاتيح الفردية أدناه."
       }
     },
     "prefs": {
@@ -8578,7 +8587,11 @@
       "email_subscription": "أحداث الاشتراك",
       "email_dispute_update": "تحديثات النزاع",
       "email_weekly_summary": "ملخص النشاط الأسبوعي",
-      "email_new_message": "رسائل دردشة جديدة"
+      "email_new_message": "رسائل دردشة جديدة",
+      "push_notifications": "إشعارات الدفع",
+      "push_notificationsDesc": "جميع تنبيهات الدفع على كل الأجهزة (التطبيق والمتصفح).",
+      "sms_notifications": "إشعارات الرسائل النصية",
+      "sms_notificationsDesc": "رسائل نصية إلى رقم هاتفك الموثّق."
     }
   },
   "plannedNeeds": {

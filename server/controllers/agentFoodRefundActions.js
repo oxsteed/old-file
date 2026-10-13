@@ -25,8 +25,10 @@
  * - direct_payment / pay_at_restaurant: NOTHING is returned automatically.
  *   The order is marked refunded with a "manual settlement required"
  *   operator note. No silent partials, no fake money movement.
- * - pay_now (card): rejected. Card refunds ride the existing kitchen
- *   Stripe-refund path; the agent console does not issue them.
+ * - pay_now / card: a real Stripe refund is issued through the shared
+ *   kitchen refund path (refundFoodOrderCardPayment). The order must be
+ *   paid and carry a Stripe payment intent; otherwise the attempt is
+ *   rejected with a clear 422 and nothing is marked refunded.
  *
  * Fail-closed: the order row is updated only AFTER the re-credit succeeds,
  * inside the same transaction. If the re-credit cannot complete, the whole
@@ -101,6 +103,45 @@ function normalizePaymentMode(raw) {
 function readPaymentMode(order) {
   const metadata = order.metadata && typeof order.metadata === 'object' ? order.metadata : {};
   return normalizePaymentMode(metadata.paymentMode || metadata.payment_mode);
+}
+
+/**
+ * Pure eligibility check shared by the refund endpoint and the support
+ * console's Customer 360 view. Mirrors the endpoint's rejection order so the
+ * client only offers the refund button when the server would accept the
+ * attempt:
+ * - already refunded -> not eligible (the endpoint replays a clean non-error)
+ * - unknown payment mode -> 422 refund_payment_mode_unknown
+ * - status outside REFUND_TARGET_STATUS -> 409 refund_invalid_order_status
+ * - restaurant_credit without a customer wallet -> 422 refund_wallet_no_customer
+ * - oxsteed_credit with zero total -> 422 refund_zero_total
+ * - pay_now/card without a captured card payment -> 422 refund_card_not_paid
+ */
+function getFoodOrderRefundEligibility(order) {
+  const status = order?.status;
+  const paymentStatus = order?.payment_status;
+  if (status === 'refunded' || paymentStatus === 'refunded') {
+    return { eligible: false, reason: 'already_refunded' };
+  }
+  const paymentMethod = readPaymentMode(order);
+  if (!paymentMethod) {
+    return { eligible: false, reason: 'refund_payment_mode_unknown' };
+  }
+  if (!REFUND_TARGET_STATUS[status]) {
+    return { eligible: false, reason: 'refund_invalid_order_status' };
+  }
+  if (paymentMethod === 'restaurant_credit' && !order.customer_id) {
+    return { eligible: false, reason: 'refund_wallet_no_customer' };
+  }
+  const totalCents = Math.max(0, Math.round(Number(order.total_cents || 0)));
+  if (paymentMethod === 'oxsteed_credit' && totalCents <= 0) {
+    return { eligible: false, reason: 'refund_zero_total' };
+  }
+  if ((paymentMethod === 'pay_now' || paymentMethod === 'card')
+      && (paymentStatus !== 'paid' || !order.stripe_payment_intent_id)) {
+    return { eligible: false, reason: 'refund_card_not_paid' };
+  }
+  return { eligible: true, reason: null };
 }
 
 async function refundFoodOrder(req, res, next) {
@@ -407,4 +448,10 @@ async function refundFoodOrder(req, res, next) {
   }
 }
 
-module.exports = { refundFoodOrder };
+module.exports = {
+  refundFoodOrder,
+  getFoodOrderRefundEligibility,
+  normalizePaymentMode,
+  PAYMENT_MODE_ALIASES,
+  REFUND_TARGET_STATUS,
+};

@@ -2,6 +2,7 @@ const pool = require('../db');
 const { AppError } = require('../middleware/errorHandler');
 const { getPublicUrl } = require('../utils/storage');
 const { uploadFilesOrThrow } = require('../utils/uploadBatch');
+const { notifyIntakeReceived } = require('../utils/intakeNotifications');
 
 const VALID_STATUS = new Set(['new', 'triaged', 'scheduled', 'diagnosing', 'quoted', 'approved', 'completed', 'declined', 'cancelled']);
 const VALID_WORKFLOW_STAGE = new Set(['intake', 'triage', 'visit_scheduled', 'diagnostic', 'estimate', 'repair', 'closed']);
@@ -343,6 +344,9 @@ exports.createDiagnosticRequest = async (req, res, next) => {
         ]
       );
       await client.query('COMMIT');
+      // Notify the business owner: submitted intakes must be observable.
+      // Fire-and-forget: the helper never throws and never blocks the response.
+      notifyIntakeReceived({ businessId: business.id, intakeId: rows[0].id, area: 'trades' });
       res.status(201).json({ request: rows[0] });
     } catch (err) {
       await client.query('ROLLBACK');

@@ -1040,6 +1040,14 @@ exports.scheduleFromQuote = async (req, res, next) => {
       return bad(res, 409, 'Quote must be accepted before scheduling', 'not_accepted');
     }
 
+    // An accepted quote past its valid_until must not be schedulable at a
+    // stale price: fail closed with 409. The chatQuoteExpiry sweeper flips
+    // such rows to 'expired', but the check here is the enforcement point
+    // (it also covers rows the sweeper has not visited yet).
+    if (isQuoteExpired(quote)) {
+      return bad(res, 409, 'This quote has expired and can no longer be scheduled', 'quote_expired');
+    }
+
     const token = String(req.body?.token || '').trim();
     const userId = req.user?.id;
     let guest = req.guestSession || null;

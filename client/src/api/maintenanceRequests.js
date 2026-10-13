@@ -9,6 +9,10 @@ export const createMaintenanceRequest = (businessId, formData) =>
 export const listBusinessMaintenanceRequests = (businessId, params = {}) =>
   api.get(`/maintenance-requests/business/${businessId}`, { params }).then((r) => r.data);
 
+// Requests assigned to the signed-in helper (their work queue).
+export const listAssignedMaintenanceRequests = () =>
+  api.get('/maintenance-requests/assigned').then((r) => r.data?.requests || []);
+
 export const updateMaintenanceRequest = (requestId, payload) =>
   api.patch(`/maintenance-requests/${requestId}`, payload).then((r) => r.data?.request);
 
