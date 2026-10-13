@@ -8,6 +8,7 @@ const { ownedBusiness, canEditProfile, canManageBusinessFinance } = require('../
 const countriesUtil = require('../utils/countries');
 const { AppError } = require('../middleware/errorHandler');
 const { validateMediaUrl } = require('../utils/mediaUrlValidation');
+const { enqueueStorageDeletion } = require('../services/storageCleanupService');
 const { withTransaction } = require('../utils/transaction');
 const { invalidateHelperContext } = require('../services/helperContext');
 const { resolvePublicDisplayName } = require('../utils/publicDisplayName');
@@ -391,7 +392,7 @@ async function updateBusiness(req, res, next) {
     // that, otherwise fall back to whatever the row already has.
     const { rows: [existingBusiness] } = await pool.query(
       `SELECT address_country, business_kind, industry_category, business_mode,
-              business_type, setup_status, published_at
+              business_type, setup_status, published_at, logo_url, cover_photo_url
          FROM businesses WHERE id = $1`,
       [id]
     );
@@ -523,6 +524,19 @@ async function updateBusiness(req, res, next) {
 
     if (!biz) throw new AppError('Business not found', 404, 'not_found');
 
+    // Review P3-6-F03: queue replaced or cleared logo/cover objects for
+    // deletion instead of orphaning them in storage.
+    if (existingBusiness) {
+      const oldLogo = existingBusiness.logo_url;
+      const oldCover = existingBusiness.cover_photo_url;
+      if ((validLogoUrl && validLogoUrl !== oldLogo) || (logoExplicitNull && oldLogo)) {
+        await enqueueStorageDeletion(oldLogo, logoExplicitNull ? 'business_logo_cleared' : 'business_logo_replaced');
+      }
+      if ((validCoverUrl && validCoverUrl !== oldCover) || (coverExplicitNull && oldCover)) {
+        await enqueueStorageDeletion(oldCover, coverExplicitNull ? 'business_cover_cleared' : 'business_cover_replaced');
+      }
+    }
+
     if (biz.business_mode === 'food') {
       await ensureDraftFoodRestaurantForBusiness(pool, biz, ownerId);
     } else if (biz.business_kind === 'service') {
@@ -570,7 +584,18 @@ async function updateBusiness(req, res, next) {
           Object.assign(biz, sectionVisibilityUpdate);
         }
 
-    return res.json({ business: withBusinessCapabilities(biz) });
+    // Audit fix (P2-3-F13): profile edits can break publish readiness
+    // (blanked name/description/category/city). Re-check and auto-unpublish
+    // instead of leaving a published-but-incomplete business discoverable.
+    const { unpublished: unpublishedByProfileEdit, missing: readinessMissing } =
+      await maybeUnpublishBusinessIfIncomplete(pool, id, { actorUserId: req.user.id, actorRole: 'owner' });
+
+    const response = { business: withBusinessCapabilities(biz) };
+    if (unpublishedByProfileEdit) {
+      response.businessUnpublished = true;
+      response.unpublishMissing = readinessMissing;
+    }
+    return res.json(response);
   } catch (err) {
     next(err);
   }
@@ -581,7 +606,7 @@ async function loadBusinessSetupReadiness(db, businessId) {
     `SELECT b.*,
             (SELECT COUNT(*)::int
                FROM business_services bs
-              WHERE bs.business_id = b.id AND bs.is_active = TRUE) AS service_count,
+              WHERE bs.business_id = b.id AND bs.is_active = TRUE AND bs.deleted_at IS NULL) AS service_count,
             (SELECT fr.id
                FROM food_restaurants fr
               WHERE fr.business_id = b.id
@@ -623,6 +648,66 @@ async function loadBusinessSetupReadiness(db, businessId) {
     checks,
     readyToPublish: checks.every((check) => check.complete),
   };
+}
+
+/**
+ * Audit fix (P2-3-F13): publish readiness goes stale. Publishing 409s when
+ * incomplete, but later mutations (deactivating all services, deleting menu
+ * items, blanking the description, ...) could leave a business published with
+ * nothing to sell. After any readiness-affecting mutation, call this: when a
+ * currently-published business (setup_status = 'active') no longer passes
+ * readiness, it is auto-unpublished (setup_status -> 'paused',
+ * is_listed -> FALSE) and the event is audit-logged. The owner republishes
+ * from the hub once the missing pieces are fixed.
+ *
+ * Returns { unpublished: boolean, missing: string[] }.
+ */
+async function unpublishBusinessIfIncomplete(db, businessId, { actorUserId = null, actorRole = 'owner' } = {}) {
+  const { rows: [biz] } = await db.query(
+    'SELECT id, setup_status, user_id FROM businesses WHERE id = $1',
+    [businessId]
+  );
+  if (!biz || biz.setup_status !== 'active') return { unpublished: false, missing: [] };
+
+  const readiness = await loadBusinessSetupReadiness(db, businessId);
+  if (readiness?.readyToPublish) return { unpublished: false, missing: [] };
+
+  const missing = (readiness?.checks || []).filter((c) => !c.complete).map((c) => c.id);
+  const { rows: [updated] } = await db.query(
+    `UPDATE businesses
+        SET setup_status = 'paused', is_listed = FALSE, updated_at = NOW()
+      WHERE id = $1 AND setup_status = 'active'
+      RETURNING id, setup_status, is_listed`,
+    [businessId]
+  );
+  if (!updated) return { unpublished: false, missing };
+
+  logger.warn('business auto-unpublished: readiness incomplete', { businessId, missing });
+  try {
+    await db.query(
+      `INSERT INTO business_audit_log
+         (business_id, actor_user_id, actor_role, action, target_type, target_id, after_state)
+       VALUES ($1, $2, $3, 'business.auto_unpublished', 'business', $4, $5::jsonb)`,
+      [businessId, actorUserId, actorRole, String(businessId), JSON.stringify({ setup_status: updated.setup_status, is_listed: updated.is_listed, missing })]
+    );
+  } catch (auditErr) {
+    logger.error('business auto-unpublish audit failed', { businessId, error: auditErr.message });
+  }
+  return { unpublished: true, missing };
+}
+
+/**
+ * Best-effort wrapper for mutation hooks: the readiness guard must never
+ * turn a successful mutation into a 500 when its own queries fail. Logs and
+ * reports "not unpublished" instead.
+ */
+async function maybeUnpublishBusinessIfIncomplete(db, businessId, opts = {}) {
+  try {
+    return await unpublishBusinessIfIncomplete(db, businessId, opts);
+  } catch (err) {
+    logger.error('publish-readiness guard failed', { businessId, error: err.message });
+    return { unpublished: false, missing: [] };
+  }
 }
 
 // GET /api/businesses/:id/onboarding
@@ -868,6 +953,19 @@ async function uploadBusinessPhotos(req, res, next) {
     if (Object.keys(updates).length === 0)
       throw new AppError('No files uploaded', 400, 'validation_failed');
 
+    // Review P3-6-F03: read the current logo/cover before replacing so the
+    // old objects can be queued for deletion instead of orphaned.
+    let existingMedia = null;
+    try {
+      const { rows } = await pool.query(
+        'SELECT logo_url, cover_photo_url FROM businesses WHERE id = $1',
+        [id]
+      );
+      existingMedia = rows[0] || null;
+    } catch (readErr) {
+      logger.warn('uploadBusinessPhotos could not read existing media URLs', { err: readErr.message, businessId: id });
+    }
+
     // Access already verified above - update by id only (no user_id guard needed here).
     const setClauses = Object.keys(updates).map((k, i) => `${k} = $${i + 1}`).join(', ');
     const values = [...Object.values(updates), id];
@@ -877,6 +975,15 @@ async function uploadBusinessPhotos(req, res, next) {
        RETURNING id, logo_url, cover_photo_url`,
       values
     );
+
+    if (existingMedia) {
+      if (updates.logo_url && existingMedia.logo_url && existingMedia.logo_url !== updates.logo_url) {
+        await enqueueStorageDeletion(existingMedia.logo_url, 'business_logo_replaced');
+      }
+      if (updates.cover_photo_url && existingMedia.cover_photo_url && existingMedia.cover_photo_url !== updates.cover_photo_url) {
+        await enqueueStorageDeletion(existingMedia.cover_photo_url, 'business_cover_replaced');
+      }
+    }
 
     return res.json({ business: updated, ...updates });
   } catch (err) {
@@ -1626,4 +1733,7 @@ module.exports = {
   getBusinessAnalytics,
   getBusinessTax, refreshTaxEstimates, markTaxPaid,
   listGoals, createGoal, updateGoal, deleteGoal,
+  loadBusinessSetupReadiness,
+  unpublishBusinessIfIncomplete,
+  maybeUnpublishBusinessIfIncomplete,
 };

@@ -17,7 +17,7 @@ async function calculatePrice(req, res, next) {
 
     // Get service
     const serviceResult = await pool.query(
-      'SELECT * FROM business_services WHERE id = $1 AND business_id = $2',
+      'SELECT * FROM business_services WHERE id = $1 AND business_id = $2 AND deleted_at IS NULL',
       [serviceId, businessId]
     );
 

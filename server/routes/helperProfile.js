@@ -16,6 +16,7 @@ const { invalidateHelperContext } = require('../services/helperContext');
 const availabilityService = require('../services/helperAvailabilityService');
 const helperProfileImageController = require('../controllers/helperProfileImageController');
 const { validateMediaUrl } = require('../utils/mediaUrlValidation');
+const { enqueueStorageDeletion } = require('../services/storageCleanupService');
 
 const helperOnly = [authenticate, requireRole('helper', 'helper_pro', 'broker')];
 const BUFFER_MINUTES_MIN = 0;
@@ -286,6 +287,20 @@ router.put('/photo', helperOnly, generalLimiter, async (req, res) => {
     const validProfileUrl = validateMediaUrl(profile_photo_url, 'profile_photo_url');
     const validCoverUrl = validateMediaUrl(cover_photo_url, 'cover_photo_url');
 
+    // Review P3-6-F03: read the current photo URLs before the upsert so any
+    // replaced object can be queued for deletion instead of orphaned.
+    let existingPhotos = null;
+    try {
+      const { rows } = await pool.query(
+        `SELECT profile_photo_url, cover_photo_url, cover_image_url
+           FROM helper_profiles WHERE user_id = $1`,
+        [uid]
+      );
+      existingPhotos = rows[0] || null;
+    } catch (readErr) {
+      logger.warn('[helperProfile] PUT /photo could not read existing photo URLs', { err: readErr.message });
+    }
+
     await pool.query(
       `INSERT INTO helper_profiles (user_id, profile_photo_url, cover_photo_url, cover_image_url)
        VALUES ($1, $2, $3, $3)
@@ -303,6 +318,21 @@ router.put('/photo', helperOnly, generalLimiter, async (req, res) => {
         'UPDATE users SET profile_photo_url = $1, avatar_url = $1 WHERE id = $2',
         [validProfileUrl, uid],
       );
+    }
+
+    // Queue any replaced photo objects for deletion (grace period + a
+    // still-referenced check run by the storage cleanup worker).
+    if (existingPhotos) {
+      if (validProfileUrl && existingPhotos.profile_photo_url && existingPhotos.profile_photo_url !== validProfileUrl) {
+        await enqueueStorageDeletion(existingPhotos.profile_photo_url, 'helper_photo_replaced');
+      }
+      if (validCoverUrl) {
+        for (const oldUrl of [existingPhotos.cover_photo_url, existingPhotos.cover_image_url]) {
+          if (oldUrl && oldUrl !== validCoverUrl) {
+            await enqueueStorageDeletion(oldUrl, 'helper_cover_replaced');
+          }
+        }
+      }
     }
 
     // Invalidate cache on photo change

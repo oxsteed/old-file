@@ -15,6 +15,7 @@ const {
 const { chatLimiter, profileChatLimiter, authLimiter, paymentsLimiter } = require('../middleware/rateLimiter');
 const { authenticate } = require('../middleware/auth');
 const { rejectImpersonated } = require('../middleware/rejectImpersonated');
+const checkRestrictions = require('../middleware/checkRestrictions');
 const upload = require('../middleware/upload');
 const validateFileUpload = require('../middleware/validateFileUpload');
 const logger = require('../utils/logger');
@@ -65,12 +66,17 @@ const optionalAuth = async (req, res, next) => {
     const token = header.split(' ')[1];
     const decoded = jwt.verify(token, process.env.JWT_SECRET, { algorithms: ['HS256'] });
     const { rows } = await pool.query(
-      `SELECT u.id, u.first_name, u.last_name, u.email, u.role, u.is_active
+      `SELECT u.id, u.first_name, u.last_name, u.email, u.role, u.is_active,
+              COALESCE(u.is_suspended, FALSE) AS is_suspended, u.suspended_until
          FROM users u WHERE u.id = $1`,
       [decoded.id]
     );
     const user = rows[0];
-    if (user && user.is_active) req.user = user;
+    // Audit fix (P2-1-F05): a suspended user must not be treated as
+    // authenticated here; that would keep the paid Meta-first provider chain.
+    const suspensionActive = user?.is_suspended
+      && (!user.suspended_until || new Date(user.suspended_until) > new Date());
+    if (user && user.is_active && !suspensionActive) req.user = user;
   } catch {
     // Expired, invalid, or DB error - continue as unauthenticated
   }
@@ -137,7 +143,8 @@ router.post('/quotes/:kind/:id/schedule', chatLimiter, optionalAuth, chatQuotes.
 
 
 // ── In-chat OxSteed Credit payments ──────────────────────────────────────────
-router.post('/payments/oxsteed-credit', chatLimiter, authenticate, paymentsLimiter, rejectImpersonated, chatCreditPay.payWithOxsteedCredit);
+// Review P2-7-F07: in-chat OxSteed Credit payments are a checkout surface.
+router.post('/payments/oxsteed-credit', chatLimiter, authenticate, checkRestrictions('checkout'), paymentsLimiter, rejectImpersonated, chatCreditPay.payWithOxsteedCredit);
 router.post('/payments/request', chatLimiter, authenticate, chatCreditPay.requestPayment);
 router.get('/payments/request/:id', chatLimiter, authenticate, chatCreditPay.getPaymentRequest);
 router.post('/payments/:id/refund', chatLimiter, authenticate, paymentsLimiter, rejectImpersonated, chatCreditPay.refundChatCreditPayment);

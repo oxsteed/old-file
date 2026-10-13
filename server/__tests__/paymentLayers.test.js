@@ -28,7 +28,23 @@ const CA = {
 
 describe('launch flags', () => {
   test('every flag defaults off', () => {
-    expect(Object.values(flags.snapshot()).every((v) => v === false)).toBe(true);
+    // The shared test setup enables FEATURE_PAYMENTS_ENABLED for route
+    // tests; clear it here so the default-off contract is actually tested.
+    const saved = process.env.FEATURE_PAYMENTS_ENABLED;
+    delete process.env.FEATURE_PAYMENTS_ENABLED;
+    try {
+      expect(Object.values(flags.snapshot()).every((v) => v === false)).toBe(true);
+    } finally {
+      if (saved !== undefined) process.env.FEATURE_PAYMENTS_ENABLED = saved;
+    }
+  });
+  test('PLATFORM_PAYMENTS mirrors FEATURE_PAYMENTS_ENABLED for the client', () => {
+    process.env.FEATURE_PAYMENTS_ENABLED = 'true';
+    expect(flags.snapshot().PLATFORM_PAYMENTS).toBe(true);
+    expect(flags.isEnabled('PLATFORM_PAYMENTS')).toBe(true);
+    delete process.env.FEATURE_PAYMENTS_ENABLED;
+    expect(flags.isEnabled('PLATFORM_PAYMENTS')).toBe(false);
+    process.env.FEATURE_PAYMENTS_ENABLED = 'true';
   });
   test('flags read the environment on every call', () => {
     process.env.FEATURE_PAYMENT_RAILS = 'true';

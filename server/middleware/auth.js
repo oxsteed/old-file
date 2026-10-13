@@ -125,6 +125,18 @@ async function authenticate(req, res, next) {
       if (userRevoked) {
         return res.status(401).json({ error: 'Token has been revoked' });
       }
+      // Review P3-14-F07: the impersonating admin's own revocation must also
+      // end the session. Without this, an admin password change,
+      // logout-everywhere, or admin deactivation after the session started
+      // would leave the impersonation token usable for its remaining life.
+      // The user-level marker (revoked:user:<adminId>) is what matters here;
+      // the per-token lookup above just misses for the impersonation token.
+      if (decoded.impersonated_by) {
+        const adminRevoked = await tokenRevocationService.isRevoked(tokenId, decoded.impersonated_by, decoded.iat);
+        if (adminRevoked) {
+          return res.status(401).json({ error: 'Impersonating admin session has been revoked' });
+        }
+      }
       // Audit fix: also check ended_at in the database. The revocation
       // service is a cache; the database is the source of truth. If the
       // session was ended but the revocation didn't propagate, deny.
@@ -214,6 +226,11 @@ async function authenticate(req, res, next) {
           `UPDATE users SET is_suspended = false, suspended_until = NULL, suspended_reason = NULL WHERE id = $1`,
           [user.id]
         ).catch(() => {});
+        // Review P2-1-F03: keep the in-request user truthful too, so code
+        // downstream of authenticate sees the lifted state immediately.
+        user.is_suspended = false;
+        user.suspended_until = null;
+        user.suspended_reason = null;
       }
     }
 
@@ -246,6 +263,26 @@ async function authenticate(req, res, next) {
       !isDiditIdentitySatisfied(user) &&
       !isDiditExempt
     ) {
+      // Review P2-7-F13: a duplicate identity is not "verify again"; it is a
+      // recovery flow. Return the actionable in-app message with locale keys
+      // the client can render, instead of the generic verification-required
+      // body. The error string stays in English for logs/API consumers.
+      if ((user.didit_status || '').toLowerCase() === 'duplicate') {
+        return res.status(403).json({
+          error: 'This identity is already linked to an existing OxSteed account. Please sign in with that account instead.',
+          code: 'DIDIT_DUPLICATE_IDENTITY',
+          didit_status: 'duplicate',
+          didit_enforcement_required: !!user.didit_enforcement_required,
+          message_key: 'didit.duplicateGateMessage',
+          recovery_steps: [
+            { key: 'didit.duplicateRecoverySignIn' },
+            { key: 'didit.duplicateRecoveryReset' },
+            { key: 'didit.duplicateRecoverySupport' },
+          ],
+          sign_in_url: '/login',
+          support_url: '/support',
+        });
+      }
       return res.status(403).json({
         error: 'identity_verification_required',
         code: 'DIDIT_REQUIRED',
@@ -370,12 +407,18 @@ const optionalAuth = async (req, res, next) => {
 
     const { rows } = await pool.query(
         `SELECT u.id, u.first_name, u.last_name, u.email, u.role, u.is_active,
-                u.default_mode, u.logistics_role, u.preferred_language
+                u.default_mode, u.logistics_role, u.preferred_language,
+                COALESCE(u.is_suspended, FALSE) AS is_suspended, u.suspended_until
          FROM users u WHERE u.id = $1`,
       [decoded.id]
     );
     const user = rows[0];
-    if (user && user.is_active) {
+    // Audit fix (P2-1-F05): suspended users get unauthenticated treatment on
+    // public GETs too; otherwise a suspended account keeps owner-gated views
+    // and authenticated behavior on optional-auth routes.
+    const suspensionActive = user?.is_suspended
+      && (!user.suspended_until || new Date(user.suspended_until) > new Date());
+    if (user && user.is_active && !suspensionActive) {
       user.internal_access_route = decoded.internalAccessRoute || null;
       user.internal_access_id = decoded.internalAccessId || null;
       req.user = user;

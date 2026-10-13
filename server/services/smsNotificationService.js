@@ -114,7 +114,8 @@ async function sendSMSIfOptedIn(userId, messageBody, notificationType) {
   try {
     // Check if user has SMS enabled
     const userResult = await pool.query(
-      `SELECT u.phone_number, u.phone_e164, u.phone_verified, np.sms_enabled
+      `SELECT u.phone_number, u.phone_e164, u.phone_verified, np.sms_enabled,
+              np.sms_notifications
        FROM users u
        LEFT JOIN notification_preferences np ON np.user_id = u.id
        WHERE u.id = $1`,
@@ -126,7 +127,7 @@ async function sendSMSIfOptedIn(userId, messageBody, notificationType) {
       return false;
     }
 
-    const { phone_verified, sms_enabled } = userResult.rows[0];
+    const { phone_verified, sms_enabled, sms_notifications } = userResult.rows[0];
     const phone_number = paymentLayerFlags.isEnabled('COUNTRY_SMS')
       ? (userResult.rows[0].phone_e164 || toE164(userResult.rows[0].phone_number) || userResult.rows[0].phone_number)
       : userResult.rows[0].phone_number;
@@ -144,6 +145,14 @@ async function sendSMSIfOptedIn(userId, messageBody, notificationType) {
 
     if (sms_enabled === false) {
       logger.debug('User has SMS disabled', { userId, notificationType });
+      return false;
+    }
+
+    // Master toggle from the notification settings page: when the user turns
+    // off SMS notifications entirely, no SMS is sent regardless of the
+    // per-type opt-ins above.
+    if (sms_notifications === false) {
+      logger.debug('User has SMS notifications master toggle disabled', { userId, notificationType });
       return false;
     }
 
@@ -219,7 +228,8 @@ async function sendTwilioSMS(phoneNumber, messageBody) {
 
     return { sid: message.sid, status: message.status };
   } catch (error) {
-    logger.error('Twilio API error', { error, phoneNumber });
+    // Review P3-852: never log the raw recipient number (PII).
+    logger.error('Twilio API error', { error, maskedPhone: maskPhoneNumber(phoneNumber) });
     throw error;
   }
 }

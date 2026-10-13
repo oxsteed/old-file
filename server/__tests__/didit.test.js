@@ -124,5 +124,8 @@ describe('POST /api/didit/webhook - outcomes', () => {
     const updateCall = mockQuery.mock.calls[2][0];
     expect(updateCall).toMatch(/didit_status = 'verified'/);
     expect(updateCall).toMatch(/is_verified = TRUE/);
+    // Review P2-7-F11: the approval must reconcile all identity models.
+    expect(updateCall).toMatch(/id_verified = TRUE/);
+    expect(updateCall).toMatch(/identity_verified = TRUE/);
   });
 });

@@ -1081,7 +1081,7 @@ exports.assignHelper = async (req, res, next) => {
       }
 
       // Set financials inside the transaction for atomicity.
-      // Validate bid amount is present before accepting.
+      // Validate bid amount is present before accepting a protected payment.
       if (payment_method === 'oxsteed') {
         if (!acceptedBid?.amount || Number(acceptedBid.amount) <= 0) {
           throw new AppError('Bid amount is required to accept', 400, 'validation_failed', {
@@ -1091,6 +1091,20 @@ exports.assignHelper = async (req, res, next) => {
         if (!railResult.skipLegacyFinancials) {
           const { setFinancials } = require('../models/jobModel');
           await setFinancials(jobResult.rows[0].id, Number(acceptedBid.amount), false, client);
+        }
+      } else if (!railResult.skipLegacyFinancials) {
+        // Review P1-2-F11: record the agreed price for every accepted bid,
+        // not just protected payments. Tier-3 escrow funding (POST
+        // /payments/intent) requires jobs.job_value; without it a customer
+        // who accepted a bid off_platform can never fund escrow once
+        // protected payments launch. Pure bookkeeping: no money moves here
+        // and no platform fee is implied for direct customer-helper payment.
+        const agreedCents = acceptedBid?.amount_cents ?? Math.round(Number(acceptedBid?.amount) * 100);
+        if (Number.isSafeInteger(agreedCents) && agreedCents > 0) {
+          await client.query(
+            `UPDATE jobs SET job_value = $1, job_value_cents = $2, updated_at = NOW() WHERE id = $3`,
+            [agreedCents / 100, agreedCents, jobResult.rows[0].id]
+          );
         }
       }
       if (payment_method === 'oxsteed' && !railResult.skipLegacyCollateral) {
@@ -1200,8 +1214,9 @@ exports.startJob = async (req, res, next) => {
         WHERE id = $1
         AND status = 'accepted'
         AND assigned_helper_id IS NOT NULL
+        AND (client_id = $2 OR assigned_helper_id = $2)
         RETURNING *
-      `, [id]);
+      `, [id, req.user.id]);
 
       if (!rows.length) {
         throw new AppError('Job start failed - state changed during processing', 400, 'state_conflict');
@@ -1225,8 +1240,6 @@ exports.startJob = async (req, res, next) => {
       await sendNotification({
         userId: otherPartyId,
         type: 'job_started',
-        title: 'Job started',
-        body: `The job ${result.title ? `"${result.title}" ` : ''}is now in progress.`,
         data: { job_id: result.id },
         action_url: `/jobs/${result.id}`,
         idempotencyKey: `job-started:${result.id}`,
@@ -1249,6 +1262,25 @@ exports.startJob = async (req, res, next) => {
 async function completeJobCore({ job, jobId, asClient, actorUserId = null }) {
   // Wrap all state changes in a transaction for atomicity
   return withJobTransaction(pool, async (client) => {
+    // Review P1-3-F14: the agreement and the job's money are linked through
+    // change orders. A proposed-but-undecided change order means the agreed
+    // price is in flux — completing (and capturing escrow) now could settle
+    // the wrong amount. Fail closed until both parties decide.
+    const { rows: pendingCO } = await client.query(
+      `SELECT co.id FROM work_agreement_change_orders co
+         JOIN work_agreements a ON a.id = co.agreement_id
+        WHERE a.job_id = $1 AND co.status = 'proposed'
+        LIMIT 1`,
+      [jobId]
+    );
+    if (pendingCO[0]) {
+      throw new AppError(
+        'A change order on the work agreement is still undecided. Both parties must approve or reject it before the job can be completed.',
+        409,
+        'change_order_pending'
+      );
+    }
+
     // Tier-3 escrow: when the customer marks complete, capture authorized funds in the same transaction
     // so helpers get paid without a separate "Capture" step (and we roll back if Stripe fails).
     if (asClient && isTier3EscrowJob(job)) {

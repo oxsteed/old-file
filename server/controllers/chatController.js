@@ -608,6 +608,14 @@ async function createAiBookingFromAction(action, helperId, threadId, realCustome
   if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end <= start) return { ok: false, reason: 'invalid_time' };
   if (start.getTime() - Date.now() < 15 * 60 * 1000) return { ok: false, reason: 'too_soon' };
 
+  // Review P1-6-F03: the profile AI must not book a helper who switched
+  // booking off. Query errors propagate to the outer handler below.
+  const { rows: [pref] } = await pool.query(
+    'SELECT COALESCE(allow_booking, TRUE) AS allow_booking FROM helper_profiles WHERE user_id = $1',
+    [helperId]
+  );
+  if (pref && pref.allow_booking === false) return { ok: false, reason: 'booking_disabled' };
+
   const customerId = realCustomerId || AI_PLACEHOLDER_CUSTOMER_ID;
   const duration = Math.max(15, Math.min(480, parseInt(action.estimated_duration_minutes, 10) || 60));
   const notes = action.customer_notes != null ? String(action.customer_notes).slice(0, 2000) : null;
@@ -1419,7 +1427,7 @@ exports.guestProfileChatSession = async (req, res, next) => {
       );
       const helperEmail = helperUser.rows[0]?.email;
       if (helperEmail) {
-        const { sendEmail } = require('../utils/email');
+        const { sendEmailOrThrow } = require('../utils/email');
         const siteUrl = process.env.APP_URL || process.env.CLIENT_URL || 'https://oxsteed.com';
         const inboxUrl = `${String(siteUrl).replace(/\/$/, '')}/helper/messages`;
         const bizNote = resolvedBusinessId
@@ -1443,7 +1451,7 @@ exports.guestProfileChatSession = async (req, res, next) => {
           .replace(/</g, '&lt;')
           .replace(/>/g, '&gt;')
           .replace(/\n/g, '<br/>');
-        await sendEmail({
+        await sendEmailOrThrow({
           to: helperEmail,
           subject: `New guest message from ${guestName}`,
           text,
@@ -1473,7 +1481,7 @@ exports.guestProfileChatSession = async (req, res, next) => {
 
     // Send confirmation email to guest
     try {
-      const { sendEmail } = require('../utils/email');
+      const { sendEmailOrThrow } = require('../utils/email');
       const siteUrl = process.env.APP_URL || process.env.CLIENT_URL || 'https://oxsteed.com';
       const returnUrl = `${String(siteUrl).replace(/\/$/, '')}/helpers/${resolvedHelperId}?guest-token=${guestToken}`;
       const helperName = (await pool.query(
@@ -1497,7 +1505,7 @@ exports.guestProfileChatSession = async (req, res, next) => {
       ].join('\n');
 
       const safeHelperName = String(helperFullName).replace(/</g, '&lt;');
-      await sendEmail({
+      await sendEmailOrThrow({
         to: guestEmail,
         subject: `Message delivered to ${helperFullName}`,
         text,

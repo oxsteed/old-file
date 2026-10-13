@@ -18,6 +18,7 @@ const { AppError } = require('../middleware/errorHandler');
 const { withTransaction } = require('../utils/transaction');
 const flags = require('./paymentLayerFlags');
 const { COUNTRIES } = require('../validation/countries');
+const { enqueueStorageDeletion } = require('./storageCleanupService');
 
 const PRIVATE_FIELDS = Object.freeze([
   'location_address', 'location_lat', 'location_lng', 'location_point', 'location_zip',
@@ -78,6 +79,18 @@ function stripSql(column) {
 
 async function eraseUser(client, userId) {
   const summary = {};
+  // Review P3-6-F03: capture the profile photo before it is cleared so the
+  // storage object can be queued for deletion instead of orphaned.
+  let oldPhotoUrl = null;
+  try {
+    const { rows } = await client.query(
+      'SELECT profile_photo_url FROM users WHERE id = $1',
+      [userId]
+    );
+    oldPhotoUrl = rows[0]?.profile_photo_url || null;
+  } catch (readErr) {
+    logger.warn('privacy_erasure.photo_read_failed', { userId, error: readErr.message });
+  }
   const { rowCount: users } = await client.query(
     `UPDATE users SET first_name = 'Deleted', last_name = 'User', username = NULL, bio = NULL, profile_photo_url = NULL,
             phone = NULL, phone_number = NULL, phone_e164 = NULL, zip_code = NULL,
@@ -87,6 +100,9 @@ async function eraseUser(client, userId) {
     [userId]
   );
   summary.users = users;
+  if (oldPhotoUrl) {
+    await enqueueStorageDeletion(oldPhotoUrl, 'erasure_profile_photo', { client });
+  }
   const { rowCount: jobs } = await client.query(
     `UPDATE jobs SET location_address = NULL, location_lat = NULL, location_lng = NULL, location_zip = NULL,
             private_notes = NULL, notes = NULL

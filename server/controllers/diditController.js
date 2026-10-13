@@ -198,12 +198,20 @@ async function handleWebhook(req, res) {
     }
 
     // ─── VERIFICATION APPROVED, IDENTITY IS UNIQUE ───────
+    // Review P2-7-F11: a Didit approval must reconcile all three identity
+    // models at once (mirrors superAdmin verifyUser): didit_status plus the
+    // legacy gate columns id_verified/identity_verified, so readers of any
+    // model agree. Background columns are intentionally untouched here;
+    // Didit verifies identity, not background checks.
     await pool.query(
       `UPDATE users
        SET didit_identity_hash = $1,
            didit_status = 'verified',
            didit_verified_at = NOW(),
-           is_verified = TRUE
+           is_verified = TRUE,
+           id_verified = TRUE,
+           identity_verified = TRUE,
+           updated_at = NOW()
        WHERE id = $2`,
       [identity_hash, user.id]
     );

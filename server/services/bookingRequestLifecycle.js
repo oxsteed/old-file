@@ -8,6 +8,7 @@
 const pool = require('../db');
 const logger = require('../utils/logger');
 const socketService = require('./socketService');
+const bookingDeposits = require('./bookingDepositService');
 const { withTransaction } = require('../utils/transaction');
 const availabilityService = require('./helperAvailabilityService');
 const {
@@ -55,10 +56,12 @@ async function logAudit(bookingId, action, actorId, actorType, oldStatus, newSta
  * marketplace fallback (auto_post_on_expiry). Moved here from
  * bookingController so read-side expiry (expireIfStale) and the expiry worker
  * share one implementation; the controller keeps the socket/push wrapper.
- * Returns { booking, jobId } or null when not eligible.
+ * Returns { booking, jobId, depositRefundInitiated } or null when not
+ * eligible. A paid deposit on the expired booking is refunded and linked to
+ * the posted job (P3-8-F13) so the customer is never charged twice.
  */
 async function autoPostExpiredBooking(bookingId) {
-  return withTransaction(
+  const result = await withTransaction(
     pool,
     async (client) => {
       const bookingResult = await client.query(
@@ -75,6 +78,16 @@ async function autoPostExpiredBooking(bookingId) {
         return null;
       }
 
+      // Deposit handoff (audit P3-8-F13): the booking is dead, so a paid
+      // deposit must not stay attached to it with no onward record. The
+      // deposit is refunded (see below) and the posted job records the
+      // linkage, so the customer is never charged twice for the same work.
+      const paidDepositCents =
+        booking.payment_status === 'paid' ? Math.max(0, Number(booking.payment_amount_cents) || 0) : 0;
+      const needsDepositSettlement =
+        Boolean(booking.stripe_payment_intent_id) &&
+        ['paid', 'requires_payment', 'processing'].includes(booking.payment_status);
+
       const title = String(booking.service_name || 'Service request').trim().slice(0, 255) || 'Service request';
       const description = [
         booking.description,
@@ -83,6 +96,9 @@ async function autoPostExpiredBooking(bookingId) {
           ? `Requested time: ${booking.requested_start_time}–${booking.requested_end_time}`
           : 'The provider had not published availability; please coordinate a time.',
         booking.service_location ? `Service location: ${booking.service_location}` : null,
+        paidDepositCents > 0
+          ? `A deposit of $${(paidDepositCents / 100).toFixed(2)} was paid on the original booking request and will be refunded to the original payment method.`
+          : null,
       ]
         .filter(Boolean)
         .join('\n\n');
@@ -96,6 +112,17 @@ async function autoPostExpiredBooking(bookingId) {
         [booking.customer_id, title, description || title, title.slice(0, 100), booking.service_location || null],
       );
       const job = jobResult.rows[0];
+
+      if (paidDepositCents > 0) {
+        await client.query(
+          `UPDATE jobs
+              SET source_booking_request_id = $2,
+                  source_booking_deposit_cents = $3,
+                  updated_at = CURRENT_TIMESTAMP
+            WHERE id = $1`,
+          [job.id, booking.id, paidDepositCents],
+        );
+      }
 
       const updatedResult = await client.query(
         `UPDATE booking_requests
@@ -119,12 +146,27 @@ async function autoPostExpiredBooking(bookingId) {
         `INSERT INTO booking_request_audit_log
           (booking_request_id, action, actor_id, actor_type, old_status, new_status, metadata)
          VALUES ($1, 'auto_posted', NULL, 'system', 'pending', 'expired', $2::jsonb)`,
-        [booking.id, JSON.stringify({ jobId: job.id })],
+        [
+          booking.id,
+          JSON.stringify({
+            jobId: job.id,
+            depositCents: paidDepositCents,
+            depositRefundInitiated: needsDepositSettlement,
+          }),
+        ],
       );
-      return { booking: updatedResult.rows[0], jobId: job.id };
+      return { booking: updatedResult.rows[0], jobId: job.id, depositRefundInitiated: needsDepositSettlement };
     },
     'autoPostExpiredBooking',
   );
+
+  // Outside the transaction: explicitly settle the dead booking's deposit
+  // (refund when paid, void when still pending) instead of leaving it for
+  // the sweeper. Fire-and-forget; the sweeper retries on failure.
+  if (result?.depositRefundInitiated) {
+    bookingDeposits.settleTerminalBookingSoon(bookingId, 'auto_posted');
+  }
+  return result;
 }
 
 async function expireIfStale(bookingRow) {
@@ -384,13 +426,10 @@ function businessServiceMissingError() {
   return err;
 }
 
-// Appointment-step failures that must roll the whole accept back (the slot
-// was lost to a race, or the business appointment cannot be created).
-const ACCEPT_ROLLBACK_CODES = new Set([
-  'SCHEDULING_CONFLICT',
-  'HELPER_UNAVAILABLE',
-  'business_service_missing',
-]);
+// Appointment-step failures fail the whole accept: the slot was lost to a
+// race, the business service is missing, or the appointment row could not be
+// written. The booking stays pending and the provider can retry, instead of
+// being accepted with no appointment.
 
 /**
  * Helper-scoped conflict protection: overlapping appointments + the unified
@@ -721,7 +760,7 @@ async function assertBusinessAppointmentWindowFree(db, appointmentId, businessId
   if (!appt) return;
   const { rows } = await db.query(
     `SELECT id FROM business_appointments
-      WHERE business_id = $1 AND id <> $2 AND status <> 'cancelled'
+      WHERE business_id = $1 AND id <> $2 AND status NOT IN ('cancelled', 'no_show')
         AND start_time < $4 AND end_time > $3
         AND (service_id = $5 OR (staff_id IS NOT NULL AND staff_id = $6))
       LIMIT 1`,
@@ -1004,28 +1043,28 @@ async function acceptBookingRequest({ booking, actorId, actorType = 'helper', ap
         throw err;
       }
       const updated = rows[0];
-      let appointment = null;
-      try {
-        appointment = await confirmOrCreateAppointment(updated, updated.helper_id, {
-          source: appointmentSource,
-          db: client,
-        });
-      } catch (e) {
-        // A race lost between pre-check and insert (or a service deactivated
-        // in between) rolls the whole accept back. Other failures keep the
-        // accept but skip the appointment, as before.
-        if (ACCEPT_ROLLBACK_CODES.has(e.code)) throw e;
-        logger.warn('[bookingLifecycle] appointment confirm/create failed', { error: e.message });
+      // The appointment is the point of the accept: it must be confirmed or
+      // created, never silently skipped. Any failure here (thrown or a null
+      // return) fails the accept loudly so the booking stays pending and the
+      // provider can retry, instead of leaving an accepted booking with no
+      // appointment.
+      const appointment = await confirmOrCreateAppointment(updated, updated.helper_id, {
+        source: appointmentSource,
+        db: client,
+      });
+      if (!appointment?.id) {
+        const err = new Error('The appointment could not be created for this booking. Please try accepting again.');
+        err.code = 'appointment_failed';
+        err.status = 500;
+        throw err;
       }
       await logAudit(updated.id, 'accepted', actorId, actorType, oldStatus, 'accepted', client);
       // Mirror the DB link the confirm step wrote (business or helper side).
-      const linked = appointment?.id
-        ? {
-            ...updated,
-            appointment_id: updated.business_id ? updated.appointment_id : appointment.id,
-            business_appointment_id: updated.business_id ? appointment.id : updated.business_appointment_id,
-          }
-        : updated;
+      const linked = {
+        ...updated,
+        appointment_id: updated.business_id ? updated.appointment_id : appointment.id,
+        business_appointment_id: updated.business_id ? appointment.id : updated.business_appointment_id,
+      };
       return { booking: linked, appointment };
     },
     'acceptBookingRequest',
@@ -1319,24 +1358,24 @@ async function customerAcceptBookingRequest({
         throw err;
       }
       const updated = rows[0];
-      let appointment = null;
-      try {
-        appointment = await confirmOrCreateAppointment(updated, updated.helper_id, {
-          source: appointmentSource,
-          db: client,
-        });
-      } catch (e) {
-        if (ACCEPT_ROLLBACK_CODES.has(e.code)) throw e;
-        logger.warn('[bookingLifecycle] customer-accept appointment failed', { error: e.message });
+      // Same fail-loud rule as the provider accept: the appointment must be
+      // confirmed or created, never silently skipped.
+      const appointment = await confirmOrCreateAppointment(updated, updated.helper_id, {
+        source: appointmentSource,
+        db: client,
+      });
+      if (!appointment?.id) {
+        const err = new Error('The appointment could not be created for this booking. Please try accepting again.');
+        err.code = 'appointment_failed';
+        err.status = 500;
+        throw err;
       }
       await logAudit(updated.id, 'accepted', actorId, actorType, oldStatus, 'accepted', client);
-      const linked = appointment?.id
-        ? {
-            ...updated,
-            appointment_id: updated.business_id ? updated.appointment_id : appointment.id,
-            business_appointment_id: updated.business_id ? appointment.id : updated.business_appointment_id,
-          }
-        : updated;
+      const linked = {
+        ...updated,
+        appointment_id: updated.business_id ? updated.appointment_id : appointment.id,
+        business_appointment_id: updated.business_id ? appointment.id : updated.business_appointment_id,
+      };
       return { booking: linked, appointment };
     },
     'customerAcceptBookingRequest',

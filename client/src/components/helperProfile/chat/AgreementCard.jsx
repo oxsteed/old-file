@@ -169,15 +169,21 @@ export default function AgreementCard({
             <button type="button" className="artifact-btn primary" disabled={busy} onClick={() => respond('accept')}>
               <Check size={14} aria-hidden /> {t('helperProfile.messenger.agreementAccept')}
             </button>
-            <button type="button" className="artifact-btn danger" disabled={busy} onClick={() => respond('decline')}>
-              <X size={14} aria-hidden /> {t('helperProfile.messenger.agreementDecline')}
-            </button>
-            <input
-              className="artifact-input"
-              value={reason}
-              onChange={(e) => setReason(e.target.value)}
-              placeholder={t('helperProfile.messenger.agreementDeclineReason')}
-            />
+            {/* A declined agreement can be re-accepted, but declining again is
+                not offered: the decline is already recorded. */}
+            {!respondGate.changeResponse ? (
+              <>
+                <button type="button" className="artifact-btn danger" disabled={busy} onClick={() => respond('decline')}>
+                  <X size={14} aria-hidden /> {t('helperProfile.messenger.agreementDecline')}
+                </button>
+                <input
+                  className="artifact-input"
+                  value={reason}
+                  onChange={(e) => setReason(e.target.value)}
+                  placeholder={t('helperProfile.messenger.agreementDeclineReason')}
+                />
+              </>
+            ) : null}
           </>
         ) : null}
         {!readOnly && !isProvider && respondGate.reason === 'verify_required' ? (

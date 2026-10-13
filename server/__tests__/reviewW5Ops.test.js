@@ -21,7 +21,7 @@ describe('worker topology', () => {
   test('scheduled workers include the previously unwired jobs, once each', () => {
     const { SCHEDULED_WORKERS } = require('../workers/scheduledWorkerSchedule');
     const names = SCHEDULED_WORKERS.map(([n]) => n);
-    for (const name of ['publishDueGuideVideos', 'renewSubscriptionCredit', 'clearStaleAvailableNow', 'refreshEtas', 'storageDeletionQueue', 'emailDigestDaily', 'emailDigestWeekly', 'cleanupExpiredPasskeyChallenges']) {
+    for (const name of ['publishDueGuideVideos', 'renewSubscriptionCredit', 'clearStaleAvailableNow', 'refreshEtas', 'storageDeletionQueue', 'storageOrphanSweep', 'emailDigestDaily', 'emailDigestWeekly', 'cleanupExpiredPasskeyChallenges']) {
       expect(names).toContain(name);
     }
     expect(new Set(names).size).toBe(names.length);
@@ -90,6 +90,66 @@ describe('P3-842 Checkr webhook', () => {
     expect(mockQuery).not.toHaveBeenCalled();
   });
 
+  test('P3-5-F08: an older report.completed cannot regress a newer terminal state', async () => {
+    jest.resetModules();
+    const sendNotification = jest.fn().mockResolvedValue({ success: true });
+    jest.doMock('../services/notificationService', () => ({ sendNotification }));
+    const { mockQuery: q } = require('./setup');
+    const crypto = require('crypto');
+    const controller = require('../controllers/verificationController');
+    process.env.CHECKR_WEBHOOK_SECRET = 'checkr-secret';
+    // Fresh envelope id, created 1h ago (inside the 24h window). The row's
+    // watermark is newer, so the guarded UPDATE transitions zero rows.
+    const body = Buffer.from(JSON.stringify({ id: 'evt-checkr-old', created_at: new Date(Date.now() - 3600000).toISOString(), type: 'report.completed', data: { object: { id: 'rep-old', candidate_id: 'cand-1', adjudication: 'consider' } } }));
+    const sig = crypto.createHmac('sha256', 'checkr-secret').update(body).digest('hex');
+    q.mockImplementation(async (sql) => {
+      if (/INSERT INTO webhook_event_receipts/.test(sql)) return { rows: [{ id: 1 }] };
+      if (/RETURNING user_id/.test(sql)) {
+        expect(sql).toContain('last_report_event_created_at');
+        return { rows: [] }; // status-transition guard blocked the older event
+      }
+      return { rows: [] };
+    });
+    const res = { json: jest.fn() };
+    const next = jest.fn();
+    await controller.checkrWebhook({ headers: { 'x-checkr-signature': sig }, body }, res, next);
+    expect(next).not.toHaveBeenCalled();
+    expect(res.json).toHaveBeenCalledWith({ received: true });
+    expect(sendNotification).not.toHaveBeenCalled();
+    jest.dontMock('../services/notificationService');
+  });
+
+});
+
+describe('P3-5-F10 Stripe Identity per-session watermark', () => {
+  test('an out-of-order requires_input cannot overwrite a newer verified state', async () => {
+    jest.resetModules();
+    const { mockQuery: q } = require('./setup');
+    const stripeMock = require('stripe').__mockInstance;
+    const controller = require('../controllers/verificationController');
+    process.env.STRIPE_IDENTITY_WEBHOOK_SECRET = 'whsec-test';
+    const nowSec = Math.floor(Date.now() / 1000);
+    stripeMock.webhooks.constructEvent.mockReturnValue({
+      id: 'evt-old-1',
+      type: 'identity.verification_session.requires_input',
+      created: nowSec - 600,
+      data: { object: { id: 'vs_123', last_error: { reason: 'document_unverified_other' } } },
+    });
+    q.mockImplementation(async (sql) => {
+      if (/INSERT INTO webhook_event_receipts/.test(sql)) return { rows: [{ id: 9 }] };
+      if (/UPDATE identity_verifications/.test(sql)) {
+        expect(sql).toContain('last_event_created_at');
+        return { rows: [], rowCount: 0 }; // watermark guard blocked the stale event
+      }
+      return { rows: [] };
+    });
+    const res = { json: jest.fn() };
+    const next = jest.fn();
+    await controller.identityWebhook({ headers: { 'stripe-signature': 'sig' }, body: Buffer.from('{}') }, res, next);
+    expect(next).not.toHaveBeenCalled();
+    expect(res.json).toHaveBeenCalledWith({ received: true });
+    jest.dontMock('../services/notificationService');
+  });
 });
 
 describe('email delivery', () => {
@@ -179,12 +239,22 @@ describe('P3-785 affiliate payouts move money', () => {
 });
 
 describe('P3-914 storage deletion queue', () => {
-  test('replaced files are queued by key and not deleted while cleanup is off', async () => {
+  test('replaced files are queued by key and the drain runs by default', async () => {
     const svc = require('../services/storageCleanupService');
     await expect(svc.enqueueStorageDeletion('business-covers/a.jpg', 'business_cover_replaced')).resolves.toBe(true);
     expect(mockQuery.mock.calls[0][1].slice(0, 2)).toEqual(['business-covers/a.jpg', 'business_cover_replaced']);
-    await expect(svc.processStorageDeletionQueue()).resolves.toMatchObject({ skipped: true });
+    // P3-6-F03: the drain is on by default now; only an explicit opt-out pauses it.
+    await expect(svc.processStorageDeletionQueue()).resolves.toMatchObject({ scanned: 0, deleted: 0, failed: 0 });
     await expect(svc.enqueueStorageDeletion('data:image/png;base64,xx', 'x')).resolves.toBe(false);
+  });
+
+  test('drain and orphan sweep pause when STORAGE_CLEANUP_ENABLED=false', async () => {
+    process.env.STORAGE_CLEANUP_ENABLED = 'false';
+    jest.resetModules();
+    const svc = require('../services/storageCleanupService');
+    expect(svc.cleanupEnabled()).toBe(false);
+    await expect(svc.processStorageDeletionQueue()).resolves.toMatchObject({ skipped: true });
+    await expect(svc.sweepOrphanedProfileMedia()).resolves.toMatchObject({ skipped: true });
   });
 
   test('due rows are deleted unless still referenced', async () => {
@@ -203,6 +273,52 @@ describe('P3-914 storage deletion queue', () => {
     await expect(svc.processStorageDeletionQueue()).resolves.toMatchObject({ deleted: 1, kept: 1, failed: 0 });
     expect(deleteFile).toHaveBeenCalledWith('k/old.jpg');
     expect(deleteFile).not.toHaveBeenCalledWith('k/kept.jpg');
+    jest.dontMock('../utils/storage');
+  });
+
+  test('orphan sweep enqueues unreferenced profile-media keys with a long grace period', async () => {
+    jest.resetModules();
+    const listKeysByPrefix = jest.fn(async (prefix) =>
+      prefix === 'helper-covers' ? ['helper-covers/old.jpg', 'helper-covers/kept.jpg'] : [],
+    );
+    const actual = jest.requireActual('../utils/storage');
+    jest.doMock('../utils/storage', () => ({ ...actual, listKeysByPrefix }));
+    const { mockQuery: q } = require('./setup');
+    q.mockImplementation(async (sql, params) => {
+      if (/FROM storage_deletion_queue/.test(sql) && /storage_key = ANY/.test(sql)) return { rows: [] };
+      if (/FROM storage_deletion_queue/.test(sql) && /INSERT/.test(sql)) return { rows: [], rowCount: 1 };
+      if (/LIKE/.test(sql)) return { rows: params[0] === 'helper-covers/kept.jpg' ? [{ 1: 1 }] : [] };
+      return { rows: [], rowCount: 1 };
+    });
+    const svc = require('../services/storageCleanupService');
+    await expect(svc.sweepOrphanedProfileMedia({ limit: 50 })).resolves.toMatchObject({ scanned: 2, queued: 1 });
+    const inserts = q.mock.calls.filter((c) => /INSERT INTO storage_deletion_queue/.test(c[0]));
+    expect(inserts).toHaveLength(1);
+    expect(inserts[0][1][0]).toBe('helper-covers/old.jpg');
+    expect(inserts[0][1][1]).toBe('orphan_sweep');
+    expect(Number(inserts[0][1][2])).toBe(168);
+    expect(listKeysByPrefix).toHaveBeenCalledWith('helper-covers', expect.objectContaining({ limit: 50 }));
+    jest.dontMock('../utils/storage');
+  });
+
+  test('orphan sweep skips keys already queued for deletion', async () => {
+    jest.resetModules();
+    const listKeysByPrefix = jest.fn(async (prefix) =>
+      prefix === 'helper-covers' ? ['helper-covers/old.jpg'] : [],
+    );
+    const actual = jest.requireActual('../utils/storage');
+    jest.doMock('../utils/storage', () => ({ ...actual, listKeysByPrefix }));
+    const { mockQuery: q } = require('./setup');
+    q.mockImplementation(async (sql) => {
+      if (/FROM storage_deletion_queue/.test(sql) && /storage_key = ANY/.test(sql)) {
+        return { rows: [{ storage_key: 'helper-covers/old.jpg' }] };
+      }
+      return { rows: [], rowCount: 1 };
+    });
+    const svc = require('../services/storageCleanupService');
+    await expect(svc.sweepOrphanedProfileMedia({ limit: 50 })).resolves.toMatchObject({ scanned: 1, queued: 0 });
+    const inserts = q.mock.calls.filter((c) => /INSERT INTO storage_deletion_queue/.test(c[0]));
+    expect(inserts).toHaveLength(0);
     jest.dontMock('../utils/storage');
   });
 });

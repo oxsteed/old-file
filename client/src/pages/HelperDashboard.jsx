@@ -26,6 +26,7 @@ import DashboardQuickLinks, { DASHBOARD_QUICK_LINKS } from '../components/Dashbo
 import HelperCapabilitiesCatalog from '../components/HelperCapabilitiesCatalog';
 import HelperOnboardingChecklist from '../components/HelperOnboardingChecklist';
 import QuoteHistoryPanel from '../components/messaging/QuoteHistoryPanel';
+import { listAssignedMaintenanceRequests } from '../api/maintenanceRequests';
 import '../components/messaging/SharedMessengerShell.css';
 import '../styles/HelperDashboard.css';
 
@@ -146,6 +147,9 @@ export default function HelperDashboard() {
   const initialDashboardLoadForUserRef = useRef(null);
   const [verification, setVerification] = useState({backgroundCheck:null,identity:null});
   const [notifications, setNotifications] = useState([]);
+  // Maintenance requests assigned to this helper (their discoverable work queue).
+  const [assignedMaintenance, setAssignedMaintenance] = useState([]);
+  const [assignedMaintenanceLoaded, setAssignedMaintenanceLoaded] = useState(false);
   const [myBids, setMyBids] = useState([]);
   const { jobs: nearbyJobs, status: nearbyStatus, locationSource: nearbyLocationSource, retry: retryNearbyJobs } = useNearbyJobs({
     enabled: initialized && !!user && isOnboardingComplete,
@@ -183,6 +187,18 @@ export default function HelperDashboard() {
     else n.set('tab', tab);
     setSearchParams(n, { replace: true });
   }, [tab, searchParams, setSearchParams]);
+
+  // Assigned maintenance queue: requests assigned to this helper. Loaded once;
+  // the assignment notification is the real-time signal, this is the durable
+  // surface (review P2-9-F06).
+  useEffect(() => {
+    if (!initialized || !user) return;
+    let cancelled = false;
+    listAssignedMaintenanceRequests()
+      .then((rows) => { if (!cancelled) { setAssignedMaintenance(rows || []); setAssignedMaintenanceLoaded(true); } })
+      .catch(() => { if (!cancelled) setAssignedMaintenanceLoaded(true); });
+    return () => { cancelled = true; };
+  }, [initialized, user]);
 
   // Detect "selected Pro during registration but hasn't paid yet"
   const selectedProNoPay = !subscription?.status && user?.effective_tier==='pro' && !!user?.tier_selected;
@@ -1349,6 +1365,47 @@ export default function HelperDashboard() {
               </div>
             )}
 
+          {/* Assigned maintenance queue (review P2-9-F06) */}
+          {assignedMaintenanceLoaded && (
+            <Card className="mb-6">
+              <CardHeader
+                icon={IcoWrench}
+                title={`${t('helperDashboard.assignedMaintenanceTitle')} (${assignedMaintenance.length})`}
+              />
+              {assignedMaintenance.length === 0 ? (
+                <p className="text-sm text-gray-500">{t('helperDashboard.assignedMaintenanceEmpty')}</p>
+              ) : (
+                <ul className="mt-3 space-y-2">
+                  {assignedMaintenance.slice(0, 5).map((req) => (
+                    <li key={req.id} className="rounded-xl border border-gray-800 bg-gray-950/60 px-3 py-2">
+                      <p className="truncate text-sm font-semibold text-white">{req.title}</p>
+                      <p className="truncate text-xs text-gray-500">
+                        {req.business_name || ''}{req.urgency ? ` · ${req.urgency}` : ''}{req.status ? ` · ${req.status}` : ''}
+                      </p>
+                      <details className="mt-1">
+                        <summary className="cursor-pointer text-xs text-orange-300 hover:text-orange-200">
+                          {t('helperDashboard.assignedMaintenanceDetails')}
+                        </summary>
+                        <div className="mt-2 space-y-1 text-xs text-gray-400">
+                          {req.description && <p className="whitespace-pre-wrap">{req.description}</p>}
+                          {req.access_notes && (
+                            <p><span className="text-gray-500">{t('maintenanceRequestPage.fields.accessNotes')}: </span>{req.access_notes}</p>
+                          )}
+                          {(req.contact_name || req.contact_phone) && (
+                            <p><span className="text-gray-500">{t('helperDashboard.assignedMaintenanceContact')}: </span>{[req.contact_name, req.contact_phone].filter(Boolean).join(' · ')}</p>
+                          )}
+                          {req.scheduled_start_at && (
+                            <p><span className="text-gray-500">{t('helperDashboard.assignedMaintenanceScheduled')}: </span>{formatDate(req.scheduled_start_at)}</p>
+                          )}
+                        </div>
+                      </details>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </Card>
+          )}
+
           {/* Financial Pulse Score - upgraded to match customer dashboard */}
           {SHOW_LEGACY_HELPER_LIFE_TABS && !showOnboarding && fp && (() => {
             const score = fp.pulse_score;
@@ -1656,7 +1713,7 @@ export default function HelperDashboard() {
         )}
 
         {/* ═══════ AFFILIATE CTA (earnings tab) ═══════ */}
-        {tab==='earnings'&&(
+        {tab==='earnings'&&LAUNCH_VISIBILITY.affiliateRewards&&(
           <Link to="/affiliate" className="block mb-4 bg-orange-500/10 border border-orange-500/20 rounded-2xl p-4 hover:bg-orange-500/15 transition group">
             <div className="flex items-center justify-between">
               <div>

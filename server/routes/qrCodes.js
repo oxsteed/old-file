@@ -5,6 +5,7 @@ const express = require('express');
 const router = express.Router();
 const { authenticate } = require('../middleware/auth');
 const { generalLimiter } = require('../middleware/rateLimiter');
+const checkRestrictions = require('../middleware/checkRestrictions');
 const { hasProAccess } = require('../utils/trial');
 const {
   createQRCode,
@@ -41,7 +42,8 @@ router.use(generalLimiter);
 
 // One-time watermark removal purchase for a QR export. These routes must be
 // registered before /:id so "export-checkout" is not treated as a QR id.
-router.post('/export-checkout', createQrExportCheckout);
+// Review P2-7-F07: creating a Stripe checkout session is a checkout surface.
+router.post('/export-checkout', checkRestrictions('checkout'), createQrExportCheckout);
 router.post('/export-checkout/verify', verifyQrExportCheckout);
 
 // Create new QR code

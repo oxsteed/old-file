@@ -1,4 +1,6 @@
 const T = {
+  ...require('./learnReviewCopy').learnReviewNotifications,
+  ...require('./reviewW11NotificationTemplates').reviewW11Notifications,
   ...require('./reviewLifecycleNotificationTemplates').reviewLifecycleNotifications,
   ...require('./mediaCreatorNotifications').creatorNotifications,
   ...require('./disputeNotificationTemplates').disputeNotifications,
@@ -44,6 +46,38 @@ const T = {
       fr: 'L’autre partie a créé ou modifié un accord de travail pour votre mission. Relisez-le et signez-le.',
       ht: 'Lòt pati a kreye oswa mete ajou yon akò travay pou travay ou. Revize l epi siyen l.',
       ar: 'أنشأ الطرف الآخر أو حدّث اتفاقية عمل لوظيفتك. راجعها ووقّعها.',
+    },
+  },
+  work_agreement_proposal_signed: {
+    title: {
+      en: 'Work agreement signed by the other party',
+      es: 'La otra parte firmó el acuerdo de trabajo',
+      fr: 'L’autre partie a signé l’accord de travail',
+      ht: 'Lòt pati a siyen akò travay la',
+      ar: 'وقّع الطرف الآخر اتفاقية العمل',
+    },
+    body: {
+      en: 'The other party signed the terms you proposed. Sign within 7 days, or the agreement will activate automatically on your proposed terms.',
+      es: 'La otra parte firmó los términos que propusiste. Firma dentro de 7 días o el acuerdo se activará automáticamente con tus términos propuestos.',
+      fr: 'L’autre partie a signé les conditions que vous avez proposées. Signez sous 7 jours, sinon l’accord s’activera automatiquement selon vos conditions proposées.',
+      ht: 'Lòt pati a siyen kondisyon ou te pwopoze yo. Siyen nan 7 jou, sinon akò a ap aktive otomatikman sou kondisyon ou te pwopoze yo.',
+      ar: 'وقّع الطرف الآخر على الشروط التي اقترحتها. وقّع خلال 7 أيام، وإلا سيتم تفعيل الاتفاقية تلقائيًا وفق شروطك المقترحة.',
+    },
+  },
+  work_agreement_auto_activated: {
+    title: {
+      en: 'Work agreement activated',
+      es: 'Acuerdo de trabajo activado',
+      fr: 'Accord de travail activé',
+      ht: 'Akò travay la aktive',
+      ar: 'تم تفعيل اتفاقية العمل',
+    },
+    body: {
+      en: 'The proposed terms were signed and the response window passed with no changes. The agreement is now active.',
+      es: 'Los términos propuestos fueron firmados y el plazo de respuesta pasó sin cambios. El acuerdo ya está activo.',
+      fr: 'Les conditions proposées ont été signées et le délai de réponse est écoulé sans modification. L’accord est désormais actif.',
+      ht: 'Kondisyon yo te pwopoze yo te siyen epi delè repons lan pase san chanjman. Akò a aktive kounye a.',
+      ar: 'تم توقيع الشروط المقترحة وانتهت مهلة الرد دون تغييرات. الاتفاقية نشطة الآن.',
     },
   },
   bid_received: {
@@ -175,6 +209,10 @@ const T = {
   credit_identity_verification_appeal_rejected: {
     title: { en: 'Identity appeal not approved', es: 'Apelación de identidad no aprobada', fr: 'Appel d’identité non approuvé', ht: 'Yo pa apwouve apèl idantite a', ar: 'لم تتم الموافقة على استئناف الهوية' },
     body: { en: 'Your identity verification appeal was not approved.', es: 'Tu apelación de verificación de identidad no fue aprobada.', fr: 'Votre appel de vérification d’identité n’a pas été approuvé.', ht: 'Yo pa apwouve apèl verifikasyon idantite ou a.', ar: 'لم تتم الموافقة على استئناف التحقق من هويتك.' },
+  },
+  credit_identity_verification_expired: {
+    title: { en: 'Identity verification expired', es: 'Verificación de identidad vencida', fr: 'Vérification d’identité expirée', ht: 'Verifikasyon idantite ekspire', ar: 'انتهت صلاحية التحقق من الهوية' },
+    body: { en: 'Your identity verification has expired. Submit a new request to restore your verification tier.', es: 'Tu verificación de identidad ha vencido. Envía una nueva solicitud para recuperar tu nivel de verificación.', fr: 'Votre vérification d’identité a expiré. Envoyez une nouvelle demande pour restaurer votre niveau de vérification.', ht: 'Verifikasyon idantite ou ekspire. Voye yon nouvo demann pou repran nivo verifikasyon ou.', ar: 'انتهت صلاحية التحقق من هويتك. أرسل طلبًا جديدًا لاستعادة مستوى التحقق الخاص بك.' },
   },
   credit_sanctions_review_required: {
     title: { en: 'Compliance review required', es: 'Se requiere una revisión de cumplimiento', fr: 'Vérification de conformité requise', ht: 'Revizyon konformite obligatwa', ar: 'مراجعة الامتثال مطلوبة' },
@@ -368,6 +406,38 @@ const T = {
       es: 'Tu factura',
       ht: 'Bòdwo ou',
       ar: 'فاتورتك',
+    },
+  },
+  intake_request_received: {
+    title: {
+      en: 'New intake request',
+      fr: 'Nouvelle demande d\u2019admission',
+      es: 'Nueva solicitud de admisión',
+      ht: 'Nouvo demann admisyon',
+      ar: 'طلب استلام جديد',
+    },
+    body: {
+      en: 'A new intake request needs triage. Open your operations tab to review it.',
+      fr: 'Une nouvelle demande d\u2019admission doit \u00eatre tri\u00e9e. Ouvrez votre onglet op\u00e9rations pour l\u2019examiner.',
+      es: 'Una nueva solicitud de admisión necesita clasificación. Abre tu pestaña de operaciones para revisarla.',
+      ht: 'Yon nouvo demann admisyon bezwen triyaj. Louvri onglet operasyon ou a pou verifye li.',
+      ar: 'طلب استلام جديد يحتاج إلى فرز. افتح علامة تبويب العمليات لمراجعته.',
+    },
+  },
+  maintenance_request_assigned: {
+    title: {
+      en: 'Maintenance request assigned to you',
+      fr: 'Demande de maintenance assignée',
+      es: 'Solicitud de mantenimiento asignada',
+      ht: 'Demann antretyen asiyen ba ou',
+      ar: 'تم إسناد طلب صيانة إليك',
+    },
+    body: {
+      en: 'A maintenance request was assigned to you. Open your assigned queue to review it.',
+      fr: 'Une demande de maintenance vous a été assignée. Ouvrez votre file assignée pour l\u2019examiner.',
+      es: 'Se te asignó una solicitud de mantenimiento. Abre tu cola de asignaciones para revisarla.',
+      ht: 'Yo asiyen yon demann antretyen ba ou. Louvri lis asiyen ou a pou verifye li.',
+      ar: 'تم إسناد طلب صيانة إليك. افتح قائمة المهام المسندة لمراجعته.',
     },
   },
   job_recurring_posted: {

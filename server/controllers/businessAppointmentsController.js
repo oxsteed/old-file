@@ -62,6 +62,74 @@ async function assertAppointmentWindowFree(client, { businessId, serviceId, staf
   }
 }
 
+// Reschedule-time booking rules (audit P3-8-F08). The enforceBookingRules
+// middleware only runs on the create route, so the reschedule path must
+// enforce the same window rules itself: service bookable, duration match,
+// min/max advance notice, business blocked times, and no past times.
+// Capacity, staff double-booking, and staff availability blocks are covered
+// by assertAppointmentWindowFree, which runs separately.
+async function assertRescheduleBookingRules(client, { businessId, service, staffId, startTime, endTime }) {
+  if (!service) throw new AppError('Service not found', 404, 'service_not_found');
+  if (service.deleted_at) throw new AppError('Service has been deleted', 410, 'service_deleted');
+  if (service.is_active === false) throw new AppError('Service is inactive', 409, 'service_inactive');
+
+  const start = new Date(startTime);
+  const end = new Date(endTime);
+  const serviceDuration = Number(service.duration_minutes);
+  if (serviceDuration && Math.abs(Math.round((end - start) / 60000) - serviceDuration) > 1) {
+    throw new AppError(
+      `Rescheduled duration must equal service duration (${serviceDuration} min)`,
+      400,
+      'duration_mismatch'
+    );
+  }
+
+  const rulesRes = await client.query(
+    `SELECT min_advance_booking_hours, max_advance_booking_days
+       FROM business_booking_rules WHERE business_id = $1 LIMIT 1`,
+    [businessId]
+  );
+  const rules = rulesRes.rows[0] || {};
+  const minNotice = Math.max(Number(service.min_notice_hours) || 0, Number(rules.min_advance_booking_hours) || 0);
+  const maxAdvanceDays = Number(rules.max_advance_booking_days) || 365;
+  const now = new Date();
+  if (start < now) {
+    throw new AppError('Cannot reschedule to a time in the past', 400, 'past_time');
+  }
+  if (start < new Date(now.getTime() + minNotice * 3600 * 1000)) {
+    throw new AppError(
+      `Rescheduling requires at least ${minNotice}h advance notice`,
+      400,
+      'min_notice_violated'
+    );
+  }
+  if (start > new Date(now.getTime() + maxAdvanceDays * 24 * 3600 * 1000)) {
+    throw new AppError(
+      `Rescheduled time is past the max advance window of ${maxAdvanceDays} days`,
+      400,
+      'max_advance_violated'
+    );
+  }
+
+  // Business blocked times (service-wide or per-staff), mirroring the
+  // middleware's blocked-time check.
+  const blockRes = await client.query(
+    `SELECT 1 FROM business_service_blocked_times
+      WHERE business_id = $1
+        AND (service_id = $2 OR service_id IS NULL)
+        ${staffId ? 'AND (staff_id = $3 OR staff_id IS NULL)' : ''}
+        AND start_time < ${staffId ? '$5' : '$4'}
+        AND end_time   > ${staffId ? '$4' : '$3'}
+      LIMIT 1`,
+    staffId
+      ? [businessId, service.id, String(staffId), start.toISOString(), end.toISOString()]
+      : [businessId, service.id, start.toISOString(), end.toISOString()]
+  );
+  if (blockRes.rows.length) {
+    throw new AppError('This time is blocked', 409, 'time_blocked');
+  }
+}
+
 // Create appointment (booking)
 async function createAppointment(req, res, next) {
   try {
@@ -83,6 +151,8 @@ async function createAppointment(req, res, next) {
     const appointment = await withTransaction(pool, async (client) => {
       // Check service exists and take a row-level claim so concurrent
       // creates for the same service serialize instead of racing.
+      // Audit fix (P2-3-F12): soft-deleted services must not accept new
+      // appointments (matches enforceBookingRules' 410 contract).
       const serviceResult = await client.query(
         'SELECT * FROM business_services WHERE id = $1 AND business_id = $2 FOR UPDATE',
         [service_id, businessId]
@@ -90,6 +160,12 @@ async function createAppointment(req, res, next) {
 
       if (!serviceResult.rows.length) {
         throw new AppError('Service not found', 404);
+      }
+      if (serviceResult.rows[0].deleted_at) {
+        throw new AppError('Service has been deleted', 410, 'service_deleted');
+      }
+      if (serviceResult.rows[0].is_active === false) {
+        throw new AppError('Service is inactive', 409, 'service_inactive');
       }
 
       // Conflict / capacity / staff double-booking / blocked-time guards.
@@ -151,7 +227,9 @@ async function getAppointment(req, res, next) {
       return next(new AppError('Appointment not found', 404));
     }
 
-    await notifyAppointmentParticipants(result.rows[0], 'appointment_status_changed');
+    // Audit fix (P2-3-F04): reading an appointment must not notify
+    // participants. Lifecycle notifications fire on create, status change
+    // (incl. no-show), cancel, and reschedule only.
     res.json(result.rows[0]);
   } catch (error) {
     logger.error('Error getting appointment', { error });
@@ -255,10 +333,28 @@ async function updateAppointmentStatus(req, res, next) {
       if (!allowedTransitions[current.status]?.includes(status)) {
         throw new AppError(`Cannot change appointment from ${current.status} to ${status}`, 409, 'invalid_status_transition');
       }
+      // The hub Cancel buttons drive this endpoint with status='cancelled',
+      // so a cancellation through here must record the same audit fields as
+      // the dedicated cancel path (cancelled_at / cancelled_by).
+      const setFragments = ['status = $1', 'updated_at = NOW()'];
+      const params = [status, appointmentId, businessId, current.status];
+      if (status === 'cancelled') {
+        setFragments.push('cancelled_at = NOW()');
+        const cancelledBy = ['customer', 'business', 'system'].includes(req.body?.cancelled_by)
+          ? req.body.cancelled_by
+          : 'business';
+        params.push(cancelledBy);
+        setFragments.push(`cancelled_by = $${params.length}`);
+        const reason = req.body?.cancellation_reason || req.body?.reason || null;
+        if (reason) {
+          params.push(String(reason).slice(0, 500));
+          setFragments.push(`cancellation_reason = $${params.length}`);
+        }
+      }
       const result = await client.query(
-        `UPDATE business_appointments SET status = $1, updated_at = NOW()
+        `UPDATE business_appointments SET ${setFragments.join(', ')}
          WHERE id = $2 AND business_id = $3 AND status = $4 RETURNING *`,
-        [status, appointmentId, businessId, current.status]
+        params
       );
       if (!result.rows.length) throw new AppError('Appointment status changed; please refresh', 409, 'stale_appointment');
       return result.rows[0];
@@ -287,26 +383,43 @@ async function updateAppointmentStatus(req, res, next) {
 async function cancelAppointment(req, res, next) {
   try {
     const { businessId, appointmentId } = req.params;
-    const { reason, cancelled_by = 'business' } = req.body;
+    const { reason, cancelled_by } = req.body;
+    // cancelled_by is CHECK-constrained to customer/business/system; coerce
+    // anything else to the default instead of 500ing on the constraint.
+    const cancelledBy = ['customer', 'business', 'system'].includes(cancelled_by) ? cancelled_by : 'business';
+    const cancelReason = reason ? String(reason).slice(0, 500) : null;
 
-    const result = await pool.query(
-      `UPDATE business_appointments
-       SET status = 'cancelled', cancellation_reason = $1, cancelled_by = $2, cancelled_at = NOW()
-       WHERE id = $3 AND business_id = $4
-       RETURNING *`,
-      [reason || null, cancelled_by, appointmentId, businessId]
-    );
-
-    if (!result.rows.length) {
-      return next(new AppError('Appointment not found', 404));
-    }
+    // Terminal states are locked, matching updateAppointmentStatus's
+    // transition table: a completed or no-show appointment cannot be
+    // cancelled through this path either.
+    const cancellableFrom = ['pending', 'confirmed', 'in_progress'];
+    const appointment = await withTransaction(pool, async (client) => {
+      const currentResult = await client.query(
+        'SELECT * FROM business_appointments WHERE id = $1 AND business_id = $2 FOR UPDATE',
+        [appointmentId, businessId]
+      );
+      if (!currentResult.rows.length) throw new AppError('Appointment not found', 404);
+      const current = currentResult.rows[0];
+      if (!cancellableFrom.includes(current.status)) {
+        throw new AppError(`Cannot cancel appointment with status ${current.status}`, 409, 'invalid_status_transition');
+      }
+      const result = await client.query(
+        `UPDATE business_appointments
+         SET status = 'cancelled', cancellation_reason = $1, cancelled_by = $2, cancelled_at = NOW(), updated_at = NOW()
+         WHERE id = $3 AND business_id = $4
+         RETURNING *`,
+        [cancelReason, cancelledBy, appointmentId, businessId]
+      );
+      return result.rows[0];
+    }, 'cancel_appointment');
 
     // Send cancellation notification
-    await notifyAppointmentParticipants(result.rows[0], 'appointment_cancelled');
+    await notifyAppointmentParticipants(appointment, 'appointment_cancelled');
 
-    res.json(result.rows[0]);
+    res.json(appointment);
   } catch (error) {
     logger.error('Error cancelling appointment', { error });
+    if (error.status) return next(error);
     next(new AppError('Failed to cancel appointment', 500));
   }
 }
@@ -337,14 +450,40 @@ async function rescheduleAppointment(req, res, next) {
       }
 
       const orig = origResult.rows[0];
-      if (orig.status === 'cancelled') {
-        throw new AppError('Cannot reschedule a cancelled appointment', 409);
+      // Terminal states are locked: a cancelled, completed, or no-show
+      // appointment is history and cannot be moved to a new window.
+      if (['cancelled', 'completed', 'no_show'].includes(orig.status)) {
+        throw new AppError(
+          `Cannot reschedule an appointment with status ${orig.status}`,
+          409,
+          'invalid_status_transition'
+        );
       }
 
-      await client.query(
-        'SELECT id FROM business_services WHERE id = $1 AND business_id = $2 FOR UPDATE',
+      const { rows: svcRows } = await client.query(
+        `SELECT id, duration_minutes, min_notice_hours, is_active, deleted_at
+           FROM business_services WHERE id = $1 AND business_id = $2 FOR UPDATE`,
         [orig.service_id, businessId]
       );
+      if (!svcRows.length) {
+        throw new AppError('Service not found', 404);
+      }
+      // Audit fix (P2-3-F12): a soft-deleted service cannot receive
+      // rescheduled appointments.
+      if (svcRows[0].deleted_at) {
+        throw new AppError('Service has been deleted', 410, 'service_deleted');
+      }
+
+      // Same window rules as create (enforceBookingRules does not run on
+      // this route): service bookable, duration match, min/max advance,
+      // business blocked times, no past times.
+      await assertRescheduleBookingRules(client, {
+        businessId,
+        service: svcRows[0] || null,
+        staffId: orig.staff_id,
+        startTime: new_start_time,
+        endTime: new_end_time,
+      });
 
       // Conflict / capacity / staff double-booking / blocked-time guards,
       // excluding the appointment being moved.

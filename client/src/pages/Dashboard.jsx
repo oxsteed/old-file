@@ -1955,6 +1955,7 @@ export default function Dashboard() {
           <div className="space-y-8">
 
             {/* ── Affiliate CTA ── */}
+            {LAUNCH_VISIBILITY.affiliateRewards && (
             <Link to="/affiliate" className="flex items-center justify-between bg-orange-500/10 border border-orange-500/20 rounded-2xl p-4 hover:bg-orange-500/15 transition group">
               <div>
                 <p className="text-orange-400 font-semibold text-sm mb-0.5">Earn affiliate commissions</p>
@@ -1962,6 +1963,7 @@ export default function Dashboard() {
               </div>
               <IcoArrowR size={16} cls="text-orange-400 group-hover:translate-x-0.5 transition-transform flex-shrink-0" />
             </Link>
+            )}
 
             {/* ── My Skills ── */}
             <div>

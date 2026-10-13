@@ -156,6 +156,24 @@ async function cleanupExpiredSessionData() {
   const notificationRetentionDays = Number.isFinite(configuredRetention)
     ? Math.min(730, Math.max(30, configuredRetention))
     : 180;
+  // P3-11-F16: one-time auth material (OTP/phone/email challenges) must not
+  // accumulate forever. Challenges are single-use secrets; after the
+  // retention window expires they are neither audit evidence nor usable.
+  const configuredOtpRetention = Number.parseInt(process.env.OTP_CHALLENGE_RETENTION_DAYS || '30', 10);
+  const otpChallengeRetentionDays = Number.isFinite(configuredOtpRetention)
+    ? Math.min(365, Math.max(7, configuredOtpRetention))
+    : 30;
+  // Retention windows applied below (documented per P3-11-F16):
+  //   sessions                      - by expires_at (token lifetime)
+  //   privacy_export_verifications  - 15 min challenge TTL; consumed rows 1 day
+  //   restaurant_app_devices        - by pairing_code_expires_at
+  //   restaurant_app_devices_tokens - by device_token_expires_at
+  //   pending_registrations         - by expires_at
+  //   password_reset_attempts       - 30 days
+  //   notifications                 - NOTIFICATION_RETENTION_DAYS (default 180, read rows only; unread kept 365)
+  //   admin_phone_verification_challenges - OTP_CHALLENGE_RETENTION_DAYS (default 30, past expiry or verified)
+  //   guest_profile_chat_verifications    - OTP_CHALLENGE_RETENTION_DAYS (default 30, past expiry or consumed)
+  //   webhook_event_receipts/watermarks   - 365 days
   const cleanups = [
     // Keep both lifecycle flags in the cleanup predicate so the sweeper
     // remains compatible with the session-read contract and never treats a
@@ -175,6 +193,14 @@ async function cleanupExpiredSessionData() {
     ['notifications', `DELETE FROM notifications
        WHERE created_at < NOW() - ($1::int * INTERVAL '1 day')
          AND (is_read = TRUE OR created_at < NOW() - INTERVAL '365 days')`, [notificationRetentionDays]],
+    ['admin_phone_verification_challenges', `DELETE FROM admin_phone_verification_challenges
+       WHERE expires_at < NOW() - ($1::int * INTERVAL '1 day')
+          OR (verified_at IS NOT NULL AND verified_at < NOW() - ($1::int * INTERVAL '1 day'))`,
+      [otpChallengeRetentionDays]],
+    ['guest_profile_chat_verifications', `DELETE FROM guest_profile_chat_verifications
+       WHERE expires_at < NOW() - ($1::int * INTERVAL '1 day')
+          OR (consumed_at IS NOT NULL AND consumed_at < NOW() - ($1::int * INTERVAL '1 day'))`,
+      [otpChallengeRetentionDays]],
     ['webhook_event_receipts', `DELETE FROM webhook_event_receipts
        WHERE last_seen_at < NOW() - INTERVAL '365 days'
          AND status IN ('processed', 'failed')`],

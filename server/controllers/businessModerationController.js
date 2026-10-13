@@ -16,6 +16,10 @@ exports.listBusinesses = async (req, res) => {
     }
     if (status === 'active')   conds.push('b.is_active = TRUE');
     if (status === 'inactive') conds.push('b.is_active = FALSE');
+    // Audit fix (P2-1-F08): the "flag for review" action used to be a dead
+    // end (nothing read admin_review_reason). The flagged filter turns it
+    // into a real review queue.
+    if (status === 'flagged')  conds.push("b.admin_review_reason IS NOT NULL AND b.admin_review_reason <> ''");
 
     // Always exclude deleted businesses from the list
     conds.push('b.deleted_at IS NULL');
@@ -33,6 +37,7 @@ exports.listBusinesses = async (req, res) => {
       SELECT b.id, b.business_name, b.business_type, b.is_active, b.is_primary,
              b.address_city, b.address_state, b.address_street, b.address_zip,
              b.description, b.website, b.phone, b.admin_notes,
+             b.admin_review_reason, b.admin_reviewed_at,
              b.created_at, b.updated_at,
              NULL::text AS category,
              u.id AS owner_id,
@@ -48,6 +53,7 @@ exports.listBusinesses = async (req, res) => {
        GROUP BY b.id, b.business_name, b.business_type, b.is_active, b.is_primary,
                 b.address_city, b.address_state, b.address_street, b.address_zip,
                 b.description, b.website, b.phone, b.admin_notes,
+                b.admin_review_reason, b.admin_reviewed_at,
                 b.created_at, b.updated_at,
                 u.id, u.first_name, u.last_name, u.email
        ORDER BY ${orderBy}
@@ -189,8 +195,8 @@ exports.toggleToolRental = async (req, res) => {
         description: reason || null, req,
       });
     } catch (e) {
-      logger.error('business moderation audit failed', { action: 'business_flagged_for_review', businessId: id, error: e.message });
-      return res.status(503).json({ error: 'Business flagged, but the audit record could not be written. Retry after the audit service recovers.', code: 'audit_unavailable' });
+      logger.error('business moderation audit failed', { action: 'tool_rental_toggled', toolRentalId: id, error: e.message });
+      return res.status(503).json({ error: 'Tool rental updated, but the audit record could not be written. Retry after the audit service recovers.', code: 'audit_unavailable' });
     }
     res.json({ message: `Tool rental ${newAvailable ? 'enabled' : 'hidden'}.`, is_available: newAvailable });
   } catch (err) {
@@ -268,8 +274,8 @@ exports.cancelAutopublish = async (req, res) => {
         description: reason || null, req,
       });
     } catch (e) {
-      logger.error('business moderation audit failed', { action: 'business_admin_notes_updated', businessId: id, error: e.message });
-      return res.status(503).json({ error: 'Notes updated, but the audit record could not be written. Retry after the audit service recovers.', code: 'audit_unavailable' });
+      logger.error('business moderation audit failed', { action: 'planned_need_autopublish_cancelled', needId: id, error: e.message });
+      return res.status(503).json({ error: 'Auto-publish cancelled, but the audit record could not be written. Retry after the audit service recovers.', code: 'audit_unavailable' });
     }
     res.json({ message: 'Auto-publish cancelled. Need reset to planned.' });
   } catch (err) {
@@ -309,8 +315,8 @@ exports.forceCancel = async (req, res) => {
         description: reason || null, req,
       });
     } catch (e) {
-      logger.error('business moderation audit failed', { action: 'business_deleted', businessId: id, error: e.message });
-      return res.status(503).json({ error: 'Business deleted, but the audit record could not be written. Retry after the audit service recovers.', code: 'audit_unavailable' });
+      logger.error('business moderation audit failed', { action: 'planned_need_force_cancelled', needId: id, error: e.message });
+      return res.status(503).json({ error: 'Planned need force-cancelled, but the audit record could not be written. Retry after the audit service recovers.', code: 'audit_unavailable' });
     }
     res.json({ message: 'Planned need force-cancelled.', published_job_id: rows[0].published_job_id });
   } catch (err) {
@@ -331,6 +337,7 @@ exports.getBusinessDetail = async (req, res) => {
              b.address_city, b.address_state, b.address_street, b.address_zip,
              b.description, b.website, b.phone,
              b.created_at, b.updated_at, b.admin_notes,
+             b.admin_review_reason, b.admin_reviewed_at,
              NULL::text AS category,
              u.id AS owner_id, u.first_name || ' ' || u.last_name AS owner_name,
              u.email AS owner_email,
@@ -344,6 +351,7 @@ exports.getBusinessDetail = async (req, res) => {
        GROUP BY b.id, b.business_name, b.business_type, b.is_active, b.is_primary,
                 b.address_city, b.address_state, b.address_street, b.address_zip,
                 b.description, b.website, b.phone, b.created_at, b.updated_at, b.admin_notes,
+                b.admin_review_reason, b.admin_reviewed_at,
                 u.id, u.first_name, u.last_name, u.email, u.phone_number, u.phone
     `, [id]);
 
@@ -446,7 +454,10 @@ exports.updateAdminNotes = async (req, res) => {
         after: { admin_notes: newNotes },
         req,
       });
-    } catch (e) {}
+    } catch (e) {
+      logger.error('business moderation audit failed', { action: 'business_admin_notes_updated', businessId: id, error: e.message });
+      return res.status(503).json({ error: 'Notes updated, but the audit record could not be written. Retry after the audit service recovers.', code: 'audit_unavailable' });
+    }
 
     res.json({ message: 'Admin notes updated.', admin_notes: newNotes });
   } catch (err) {
@@ -490,7 +501,10 @@ exports.deleteBusiness = async (req, res) => {
         details: reason ? { reason: String(reason).slice(0, 500) } : undefined,
         req,
       });
-    } catch (e) {}
+    } catch (e) {
+      logger.error('business moderation audit failed', { action: 'business_deleted', businessId: id, error: e.message });
+      return res.status(503).json({ error: 'Business deleted, but the audit record could not be written. Retry after the audit service recovers.', code: 'audit_unavailable' });
+    }
 
     res.json({ message: 'Business deleted (soft delete applied).' });
   } catch (err) {

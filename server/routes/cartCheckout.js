@@ -2,6 +2,7 @@ const { paymentsLimiter } = require('../middleware/rateLimiter');
 const express = require('express');
 const router = express.Router();
 const { requireAuth } = require('../middleware/auth');
+const checkRestrictions = require('../middleware/checkRestrictions');
 
 const notAvailable = (req, res) => res.status(503).json({ error: 'Checkout service unavailable' });
 
@@ -18,7 +19,8 @@ try {
 }
 
 router.get('/:cartId/session', requireAuth, checkoutController.getCheckoutSession || notAvailable);
-router.post('/:cartId/payment-intent', requireAuth, paymentsLimiter, checkoutController.createPaymentIntent || notAvailable);
-router.post('/:cartId/confirm', requireAuth, paymentsLimiter, checkoutController.confirmPayment || notAvailable);
+// Review P2-7-F07: admins must be able to restrict checkout here too.
+router.post('/:cartId/payment-intent', requireAuth, checkRestrictions('checkout'), paymentsLimiter, checkoutController.createPaymentIntent || notAvailable);
+router.post('/:cartId/confirm', requireAuth, checkRestrictions('checkout'), paymentsLimiter, checkoutController.confirmPayment || notAvailable);
 
 module.exports = router;

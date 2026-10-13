@@ -19,6 +19,11 @@
 const { registerProcessState } = require('./processState');
 
 const ENTRIES = [
+  {
+    file: 'controllers/paymentController.js', name: 'connectAccountStatusCache',
+    classification: 'cache', shared: 'none',
+    rationale: 'Stripe Connect status cache: 15min TTL, 250-entry cap; backed by Stripe. Only successful provider refreshes are cached; refresh errors fail closed.',
+  },
   // ── Caches (TTL-bounded, DB/provider-backed; safe in-process) ──────────
   {
     file: 'controllers/geoController.js', name: 'cache',

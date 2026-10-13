@@ -1,4 +1,52 @@
 {
+  "reviewW11Learn": {
+    "flagNotFound": "Nou pa jwenn rapò videyo a.",
+    "flagAlreadyDecided": "Yo deja revize rapò videyo sa a.",
+    "guideNotFound": "Nou pa jwenn gid la.",
+    "videoDuplicate": "Videyo sa a deja nan gid sa a.",
+    "videoModerated": "Moderasyon retire videyo sa a. Ou pa ka soumèt li pou gid sa a.",
+    "moderationActionFailed": "Nou pa t ka anrejistre desizyon moderasyon an. Tanpri eseye ankò.",
+    "previousPage": "Anvan",
+    "nextPage": "Apre",
+    "pageNumber": "Paj {{page}}"
+  },
+  "reviewW11Notifications": {
+    "learn_video_review_received": {
+      "title": "Videyo Learn soumèt pou revizyon",
+      "body": "Yo soumèt yon videyo pou yon gid. Louvri lis revizyon an anvan delè piblikasyon 24 èdtan an."
+    },
+    "learn_video_review_overdue": {
+      "title": "Delè revizyon videyo Learn rive",
+      "body": "Yon soumisyon rive nan delè revizyon 24 èdtan li a. Tcheke lis revizyon an ak estati piblikasyon an."
+    },
+    "warranty_claim_filed": {
+      "title": "Nouvo reklamasyon garanti",
+      "body": "Lòt pati a depoze yon reklamasyon garanti. Louvri akò ou pou revize l epi reponn."
+    },
+    "warranty_claim_updated": {
+      "title": "Reklamasyon garanti mete ajou",
+      "body": "Lòt pati a mete yon reklamasyon garanti ajou. Louvri akò ou pou wè estati a ak repons lan."
+    },
+    "job_started": {
+      "title": "Travay la kòmanse",
+      "body": "Travay ou ap fèt kounye a. Louvri l pou wè detay yo epi kontakte lòt patisipan an."
+    }
+  },
+  "reviewW11": {
+    "guestReplyInstruction": "Pou kontinye, kontakte Sipò epi bay nimewo tikè w la. Nou pa suiv repons ki voye nan imèl sa a.",
+    "guestResolvedInstruction": "Si w toujou bezwen èd, kontakte Sipò epi bay nimewo tikè w la.",
+    "openSupport": "Kontakte Sipò",
+    "reopenTicket": "Relouvri tikè a",
+    "reopening": "Ap relouvri…",
+    "reopened": "Tikè a relouvri",
+    "reopenFailed": "Nou pa t ka relouvri tikè a. Tanpri eseye ankò.",
+    "reviewClaim": "Revize reklamasyon an",
+    "replyTitle": "Nouvo repons sipò",
+    "replyInstruction": "Louvri tikè w la pou li epi reponn. Nou pa suiv repons ki voye nan imèl sa a.",
+    "resolvedTitle": "Demann sipò a rezoud",
+    "resolvedInstruction": "Si w toujou bezwen èd, louvri tikè w la epi chwazi Relouvri tikè a.",
+    "openTicket": "Louvri tikè sipò w la"
+  },
   "reviewLifecycleNotifications": {
     "dispute_update": {
       "title": "Nouvo mesaj nan diskisyon an",
@@ -1039,6 +1087,10 @@
       "email": {
         "label": "Notifikasyon pa Imèl",
         "description": "Mizajou voye nan adrès imèl ou"
+      },
+      "masters": {
+        "label": "Bouton prensipal yo",
+        "description": "Limonen oswa etenn yon kanal antye. Yo gen priyorite sou bouton endividyèl yo anba a."
       }
     },
     "prefs": {
@@ -1067,7 +1119,11 @@
       "email_subscription": "Mizajou abònman",
       "email_dispute_update": "Mizajou dispute",
       "email_weekly_summary": "Rezime chak semèn",
-      "email_new_message": "Nouvo mesaj chat"
+      "email_new_message": "Nouvo mesaj chat",
+      "push_notifications": "Notifikasyon push",
+      "push_notificationsDesc": "Tout alèt push sou tout aparèy (aplikasyon ak navigatè).",
+      "sms_notifications": "Notifikasyon pa SMS",
+      "sms_notificationsDesc": "Mesaj tèks sou nimewo telefòn verifye ou a."
     }
   },
   "jobs": {
@@ -1325,6 +1381,10 @@
     "duplicateSubtitle": "Idantite sa a deja lye ak yon kont OxSteed egzistan",
     "duplicateNote": "Chak moun ka gen yon sèl kont sèlman. Si ou gen plizyè biznis, ou ka ajoute yo tout depi tablo de bò ou apre koneksyon.",
     "signIn": "Konekte nan Kont Ou",
+    "duplicateGateMessage": "Idantite sa a deja lye ak yon kont OxSteed egzistan. Konekte ak kont sa a.",
+    "duplicateRecoverySignIn": "Konekte ak kont egzistan ou sou paj koneksyon an.",
+    "duplicateRecoveryReset": "Si ou pa ka jwenn aksè ak kont sa a, sèvi ak lyen reset modpas la sou paj koneksyon an.",
+    "duplicateRecoverySupport": "Si ou kwè sa se yon erè, kontakte sipò OxSteed.",
     "differentId": "Eseye ak yon ID diferan",
     "unavailableTitle": "Verifikasyon Pa Disponib",
     "unavailableSubtitle": "Verifikasyon idantite pa konfigire sou sèvè sa a. Sa nòmal nan anviwonman devlopman ak tès.",
@@ -2485,7 +2545,10 @@
       "manage2fa": "Jere 2FA",
       "passkeys": "Passkeys",
       "passkeysDesc": "Konekte ak Touch ID, Face ID, Windows Hello, oswa yon kle sekirite",
-      "managePasskeys": "Jere passkeys"
+      "managePasskeys": "Jere passkeys",
+      "sessions": "Sesyon aktif yo",
+      "sessionsDesc": "Wè aparèy ki konekte sou kont ou a epi dekonekte yo",
+      "manageSessions": "Jere sesyon yo"
     },
     "subscription": {
       "title": "Abonman",
@@ -4190,7 +4253,12 @@
     "listProfilePublicly": "Mete pwofil mwen an piblik",
     "listingStatePublished": "Pibliye: kliyan yo ka jwenn pwofil ou a",
     "listingStateDraft": "Bouyon: pwofil ou a kache pou kliyan yo",
-    "listingSaved": "Estati piblikasyon an mete ajou"
+    "listingSaved": "Estati piblikasyon an mete ajou",
+    "assignedMaintenanceTitle": "Antretyen asiyen",
+    "assignedMaintenanceEmpty": "Pa gen demann antretyen asiyen ba ou pou kounye a.",
+    "assignedMaintenanceDetails": "Montre detay yo",
+    "assignedMaintenanceContact": "Kontak",
+    "assignedMaintenanceScheduled": "Pwograme"
   },
   "postJob": {
     "title": "Pibliye yon Travay",
@@ -6419,7 +6487,9 @@
       "fields": {
         "start": "Kòmansman",
         "end": "Fini",
-        "role": "Wòl"
+        "role": "Wòl",
+        "staff": "Manm ekip la",
+        "staffPlaceholder": "Chwazi yon manm ekip"
       },
       "emptyShifts": "Pa gen shift pwograme ankò.",
       "emptyTime": "Pa gen antre tan ankò. Sèvi ak «Kòmanse tan» pou kòmanse.",
@@ -6440,7 +6510,8 @@
       "toastClockedIn": "Tan kòmanse!",
       "toastClockInFail": "Nou pa t kapab kòmanse tan",
       "toastClockedOut": "Tan fini!",
-      "toastClockOutFail": "Nou pa t kapab fini tan"
+      "toastClockOutFail": "Nou pa t kapab fini tan",
+      "toastStaffRequired": "Tanpri chwazi yon manm ekip"
     },
     "integrations": {
       "title": "Entegrasyon ak paramèt",
@@ -9237,6 +9308,7 @@
       "slotBookingToast": "Demann rezèvasyon voye, founisè a toujou bezwen konfime.",
       "slotBookingFailed": "Pa t kapab kreye demann rezèvasyon an. Mesaj chat la te prepare kanmenm.",
       "slotBookingConflict": "Lè sa a pa disponib ankò. Chwazi yon lòt.",
+      "slotBookingDisabled": "Edan sa a pa pran rezèvasyon pou kounye a.",
       "guestSessionExpired": "Sesyon envite ou a ekspire. Tanpri verifye imèl ou ankò.",
       "slotBookingConfirmedPlain": "Demann rezèvasyon voye · {{when}}",
       "guestOtpExpired": "Kòd sa a ekspire. Peze Voye kòd ankò pou jwenn yon nouvo.",
@@ -9513,6 +9585,33 @@
     "passkeyRevokeCancel": "Anile",
     "passkeysPageTitle": "Passkeys",
     "passkeysPageSubtitle": "Jere passkeys pou koneksyon kont ou"
+  },
+  "sessions": {
+    "pageTitle": "Sesyon aktif yo",
+    "pageSubtitle": "Aparèy ak navigatè ki konekte sou kont ou a",
+    "loading": "N ap chaje sesyon yo...",
+    "loadFailed": "Nou pa t kapab chaje sesyon ou yo. Eseye ankò.",
+    "retry": "Eseye ankò",
+    "empty": "Pa gen lòt sesyon aktif.",
+    "emptyDesc": "Se aparèy sa a sèlman ki konekte.",
+    "thisDevice": "Aparèy sa a",
+    "lastActive": "Dènye aktivite: {{date}}",
+    "unknownDevice": "Aparèy enkoni",
+    "revoke": "Anile",
+    "revokeTitle": "Anile sesyon sa a?",
+    "revokeConfirm": "N ap dekonekte aparèy sa a touswit. Kontinye?",
+    "cancel": "Anile",
+    "confirmRevoke": "Anile sesyon an",
+    "revoked": "Sesyon an anile.",
+    "revokeFailed": "Nou pa t kapab anile sesyon an. Eseye ankò.",
+    "revokeCurrentBlocked": "Ou pa ka anile sesyon w ap itilize a.",
+    "logoutEverywhere": "Dekonekte tout lòt kote",
+    "logoutEverywhereTitle": "Dekonekte tout lòt sesyon yo?",
+    "logoutEverywhereConfirm": "N ap dekonekte tout lòt aparèy ak navigatè yo touswit. Aparèy sa a ap rete konekte.",
+    "confirmLogoutEverywhere": "Dekonekte toupatou",
+    "loggedOutEverywhere": "Nou dekonekte tout lòt sesyon yo.",
+    "logoutEverywhereFailed": "Nou pa t kapab dekonekte toupatou. Eseye ankò.",
+    "working": "N ap travay..."
   },
   "homePage": {
     "company": {
@@ -13344,7 +13443,10 @@
       "body": "Ekip nou a pral revize dispyt ou nan 5 jou travay. Prèv ede nan desizyon jis."
     },
     "submit": "Soumèt Dispyt",
-    "submitting": "Soumèt..."
+    "submitting": "Soumèt...",
+    "windowExpired": "Delè 30 jou pou kontestasyon travay sa a fèmen. Ou dwe louvri yon dispyt nan 30 jou apre travay la fini.",
+    "warrantyClaimRequired": "Travay sa a gen yon akò travay ki siyen. Depoze yon reklamasyon garanti sou akò a anvan, apre sa louvri yon diskisyon si pwoblèm nan pa rezoud la.",
+    "warrantyClaimRequiredCta": "Louvri akò travay la"
   },
   "enforcementPolicy": {
     "pageTitle": "Politiki Aplikasyon",
@@ -17286,7 +17388,19 @@
     "contactTitle": "Ki jan pou kontakte nou",
     "contactIntro": "Si ou gen kesyon sou paj sa a oswa ou vle itilize yon dwa vi prive, kontakte nou nan:",
     "contactEmailLabel": "Imèl:",
-    "contactMailLabel": "Lèt pòs:"
+    "contactMailLabel": "Lèt pòs:",
+      "formTitle": "Voye yon demann pou pa vann done ou",
+      "formIntro": "Sèvi ak fòmilè sa a pou egzèse dwa ou pou refize vann oswa pataje enfòmasyon pèsonèl ou. N ap reponn nan 45 jou.",
+      "emailLabel": "Adrès imèl",
+      "emailPlaceholder": "ou@egzanp.com",
+      "notesLabel": "Lòt detay (opsyonèl)",
+      "notesPlaceholder": "Di nou sa ki ka ede nou jwenn done ou.",
+      "submitButton": "Voye demann lan",
+      "submittingButton": "Ap voye...",
+      "successTitle": "Demann resevwa",
+      "successMessage": "Nou resevwa demann ou. N ap reponn nan 45 jou.",
+      "errorRequired": "Tanpri antre adrès imèl ou.",
+      "errorFailed": "Nou pa t kapab voye demann ou. Tanpri eseye ankò pita."
   },
   "cookiePolicyPage": {
     "title": "Politik sou Cookies",
@@ -29431,6 +29545,8 @@
     "colOwner": "PWOPRIYETÈ",
     "colStatus": "ESTATI",
     "inactiveBadge": "Pa aktif",
+    "flaggedBadge": "Make",
+    "statusFlagged": "Make pou revizyon",
     "loading": "Ap chaje…",
     "modalTitle": "{{action}} biznis la",
     "moreActions": "Plis aksyon",
@@ -31221,7 +31337,9 @@
     "intro": "Fini etap sa yo pou parèt nan rechèch epi aksepte travay.",
     "email": "Imèl verifye",
     "terms": "Kondisyon aksepte",
-    "termsHelp": "Nou pa gen dosye ou te aksepte kondisyon yo. Kontakte sipò pou kontinye.",
+    "termsHelp": "Nou pa gen dosye ou te aksepte kondisyon yo. Revize epi aksepte kondisyon yo anba a pou kontinye.",
+    "acceptTerms": "Revize epi aksepte kondisyon yo",
+    "termsSaved": "Kondisyon aksepte",
     "profile": "Pwofil ak enfòmasyon kontak",
     "phone": "Telefòn",
     "city": "Vil",

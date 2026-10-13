@@ -59,6 +59,7 @@ const ForgotPasswordPage = lazyWithRetry(() => import('./pages/ForgotPassword'))
 const ResetPasswordPage = lazyWithRetry(() => import('./pages/ResetPassword'));
 const TwoFactorSetup = lazyWithRetry(() => import('./pages/Settings/TwoFactorSetup'));
 const PasskeysSetup = lazyWithRetry(() => import('./pages/Settings/PasskeysSetup'));
+const SessionsSetup = lazyWithRetry(() => import('./pages/Settings/SessionsSetup'));
 const NotificationSettings = lazyWithRetry(() => import('./pages/Settings/Notifications'));
 const CountrySettings = lazyWithRetry(() => import('./pages/Settings/Country'));
 const SettingsPage = lazyWithRetry(() => import('./pages/SettingsPage'));
@@ -563,6 +564,7 @@ export default function App() {
                     <Route path="/settings"       element={<Guarded><ProtectedRoute><SettingsPage /></ProtectedRoute></Guarded>} />
                     <Route path="/settings/2fa"   element={<Guarded><ProtectedRoute><TwoFactorSetup /></ProtectedRoute></Guarded>} />
                     <Route path="/settings/passkeys" element={<Guarded><ProtectedRoute><PasskeysSetup /></ProtectedRoute></Guarded>} />
+                    <Route path="/settings/sessions" element={<Guarded><ProtectedRoute><SessionsSetup /></ProtectedRoute></Guarded>} />
                     <Route path="/settings/notifications" element={<Guarded><ProtectedRoute><NotificationSettings /></ProtectedRoute></Guarded>} />
                     <Route path="/settings/country" element={<Guarded><CountrySettings /></Guarded>} />
                     <Route path="/settings/payment-policies" element={<Guarded><ProtectedRoute><HelperCancellationSettings /></ProtectedRoute></Guarded>} />

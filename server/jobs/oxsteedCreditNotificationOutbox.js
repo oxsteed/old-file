@@ -252,16 +252,19 @@ async function purgeSentCreditNotifications(limit = 1000, retentionDays = getSen
   return result.rows?.length || 0;
 }
 
-async function purgeExpiredCardChallenges(limit = 1000) {
+async function purgeExpiredCardChallenges(limit = 1000, retentionDays = null) {
   // Ephemeral authentication material is not audit evidence. Preserve audit
-  // events and replay receipts; remove only grants expired for 30 days.
+  // events and replay receipts; remove only grants expired for the OTP
+  // challenge retention window (P3-11-F16; shared with cleanupExpiredSessionData).
+  const parsed = Number(retentionDays ?? process.env.OTP_CHALLENGE_RETENTION_DAYS ?? 30);
+  const boundedRetentionDays = Number.isFinite(parsed) ? Math.max(7, Math.min(365, Math.floor(parsed))) : 30;
   const result = await db.query(`WITH stale AS (
     SELECT id FROM oxsteed_credit_card_security_challenges
-    WHERE expires_at < NOW() - INTERVAL '30 days'
+    WHERE expires_at < NOW() - ($2::integer * INTERVAL '1 day')
     ORDER BY expires_at, id FOR UPDATE SKIP LOCKED LIMIT $1
   ) DELETE FROM oxsteed_credit_card_security_challenges challenge
     USING stale WHERE challenge.id = stale.id RETURNING challenge.id`,
-  [Math.max(1, Math.min(Number(limit) || 1000, 5000))]);
+  [Math.max(1, Math.min(Number(limit) || 1000, 5000)), boundedRetentionDays]);
   return result.rows?.length || 0;
 }
 

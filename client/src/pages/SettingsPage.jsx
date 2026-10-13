@@ -840,6 +840,12 @@ export default function SettingsPage() {
         <p className="sp-card-subtitle">{t('settings.security.passkeysDesc')}</p>
         <Link to="/settings/passkeys" className="sp-btn sp-btn-ghost">{t('settings.security.managePasskeys')}</Link>
       </div>
+
+      <div className="sp-card">
+        <h2 className="sp-card-title">{t('settings.security.sessions')}</h2>
+        <p className="sp-card-subtitle">{t('settings.security.sessionsDesc')}</p>
+        <Link to="/settings/sessions" className="sp-btn sp-btn-ghost">{t('settings.security.manageSessions')}</Link>
+      </div>
     </>
   );
 

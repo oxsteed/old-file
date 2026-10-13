@@ -84,6 +84,9 @@ export const LAUNCH_VISIBILITY = Object.freeze({
 
 export function isBusinessHubTabLaunched(tab) {
   if (tab === 'media') return LAUNCH_VISIBILITY.oxsteedMedia;
+  // Review P3-7-F06: the Products tab is launch-gated by
+  // businessHubProductCommerce so flipping the flag restores it in one place.
+  if (tab === 'products') return LAUNCH_VISIBILITY.businessHubProductCommerce;
   return LAUNCH_BUSINESS_HUB_TABS.has(tab);
 }
 
@@ -99,7 +102,8 @@ const LAUNCH_ROUTE_REDIRECTS = Object.freeze([
   { prefix: '/checkout', to: '/restaurants' },
   { prefix: '/investor/login', to: '/login' },
   { prefix: '/investor', to: '/dashboard' },
-  { prefix: '/affiliate', to: '/dashboard' },
+  // Review P3-7-F06: /affiliate is gated by the affiliateRewards flag rather
+  // than a static redirect, so the flag has a real consumer.
   { prefix: '/network', to: '/dashboard' },
   { prefix: '/planned-needs', to: '/dashboard' },
   { prefix: '/car-care', to: '/dashboard' },
@@ -131,8 +135,20 @@ export function getLaunchRedirect(pathname = '/') {
   const specialtyMatch = normalizedPath.match(
     /^\/business\/([^/]+)\/(?:maintenance-request|trades-request|beauty-intake|creative-intake|professional-intake|continuity-intake|ai-preview)(?:\/|$)/,
   );
-  if (specialtyMatch) return `/business/${specialtyMatch[1]}`;
+  // Review P2-9-F11: the specialty template-intake pages are launch-gated by
+  // specializedProfileTemplates (BusinessProfilePage only links them when the
+  // flag is on). Bounce them to the business profile only while the flag is
+  // off; when launched, the pages must be reachable.
+  if (specialtyMatch && !LAUNCH_VISIBILITY.specializedProfileTemplates) {
+    return `/business/${specialtyMatch[1]}`;
+  }
   if (matchesPathPrefix(normalizedPath, '/dashboard/ai-preview')) return '/dashboard';
+
+  // The affiliate dashboard is launch-gated: while affiliateRewards is off,
+  // /affiliate (and its subpaths) redirect to the dashboard.
+  if (!LAUNCH_VISIBILITY.affiliateRewards && matchesPathPrefix(normalizedPath, '/affiliate')) {
+    return '/dashboard';
+  }
 
   return LAUNCH_ROUTE_REDIRECTS.find(({ prefix }) => matchesPathPrefix(normalizedPath, prefix))?.to || null;
 }

@@ -14,6 +14,7 @@ const pool = require('../db');
 const { AppError } = require('../utils/apiError');
 const logger = require('../utils/logger');
 const socketService = require('../services/socketService');
+const tokenRevocationService = require('../services/tokenRevocationService');
 const { sendValidationError, sendError } = require('../utils/apiError');
 
 // ─── Internal helpers ──────────────────────────────────────────────────────────
@@ -194,6 +195,21 @@ async function issueEnforcementAction(req, res) {
       adminId,
       expiresAt
     });
+
+    if (actionType === 'suspension') {
+      // Audit fix (P2-1-F05/F13): a full account lock must also kill live
+      // sessions. Revoke all tokens (defense in depth behind the middleware
+      // suspension 403) and force-disconnect sockets so an existing chat
+      // connection cannot keep operating after the suspension lands.
+      try {
+        await tokenRevocationService.revokeAllUserTokens(userId);
+      } catch (revErr) {
+        // The suspension itself is durable; the middleware 403 is the primary
+        // enforcement. Log loudly so the revocation failure is actionable.
+        logger.error('suspension token revocation failed', { userId, error: revErr.message });
+      }
+      socketService.disconnectUserSockets(userId);
+    }
 
     res.status(201).json({
       success: true,
@@ -522,6 +538,9 @@ async function addUserRestriction(userId, opts) {
  */
 async function suspendUser(userId, opts = {}) {
   const { expiry, reason } = opts;
+  // Revoke first (fail closed): a revocation failure aborts before any state
+  // change so no live token survives on a suspended account.
+  await tokenRevocationService.revokeAllUserTokens(userId);
   await pool.query(
     `UPDATE users
        SET is_suspended = true, suspended_until = $2, suspended_reason = $3, updated_at = NOW()
@@ -576,6 +595,35 @@ async function expireTimedEnforcements({ limit = 500 } = {}) {
       }
       lifted += 1;
     }
+    // Review P2-1-F03: direct timed suspensions (users.is_suspended with a
+    // suspended_until, written by the admin suspend path or suspendUser())
+    // have no enforcement_actions row, so the loop above never sees them and
+    // they never auto-lifted — the admin notice even promises a lift date.
+    // Lift them here once the end time passes. is_active is restored because
+    // the admin suspend path deactivates the account as part of the
+    // suspension; soft-deleted rows (deleted_at set) are left alone, and
+    // indefinite suspensions (suspended_until IS NULL) still need manual lift.
+    const { rows: directLifted } = await client.query(
+      `UPDATE users
+          SET is_suspended     = false,
+              suspended_until  = NULL,
+              suspended_reason = NULL,
+              is_active        = true,
+              updated_at       = NOW()
+        WHERE is_suspended = true
+          AND suspended_until IS NOT NULL
+          AND suspended_until <= NOW()
+          AND deleted_at IS NULL
+          AND NOT EXISTS (
+            SELECT 1 FROM enforcement_actions
+             WHERE user_id = users.id
+               AND action_type = 'suspension'
+               AND is_active = true
+               AND (expires_at IS NULL OR expires_at > NOW())
+          )
+        RETURNING id`
+    );
+    lifted += directLifted.length;
     await client.query('COMMIT');
     return { scanned: expired.length, lifted };
   } catch (err) {

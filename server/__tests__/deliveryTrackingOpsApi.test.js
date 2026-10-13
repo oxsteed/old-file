@@ -284,4 +284,51 @@ describe('telematics webhook receiver', () => {
     expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO delivery_location_points/.test(sql))).toBe(false);
     expect(mockQuery.mock.calls.some(([sql]) => /UPDATE delivery_telematics_connections/.test(sql))).toBe(false);
   });
+
+  test('P3-5-F07: payload without provider event id -> deterministic derived id dedupes retries', async () => {
+    const payloadNoId = { ...WEBHOOK_PAYLOAD };
+    delete payloadNoId.id;
+    delete payloadNoId.version;
+    const rawBody = JSON.stringify(payloadNoId);
+    const signature = crypto.createHmac('sha256', WEBHOOK_SECRET).update(rawBody, 'utf8').digest('hex');
+
+    // Simulate the (provider, provider_event_id) unique index.
+    const seen = new Set();
+    mockQuery.mockImplementation(async (sql, params) => {
+      if (/FROM delivery_telematics_connections/.test(sql)) return { rows: [CONNECTION_ROW] };
+      if (/FROM delivery_tracking_assignments/.test(sql)) return { rows: [ASSIGNMENT_ROW] };
+      if (/INSERT INTO delivery_tracking_events/.test(sql)) {
+        const eventId = params[3];
+        expect(eventId).toMatch(/^noid:[0-9a-f]{64}$/);
+        if (seen.has(eventId)) return { rows: [], rowCount: 0 };
+        seen.add(eventId);
+        return { rows: [{ id: 900 }], rowCount: 1 };
+      }
+      if (/INSERT INTO delivery_location_points/.test(sql)) return { rows: [{ id: 901 }], rowCount: 1 };
+      if (/UPDATE delivery_telematics_connections/.test(sql)) return { rows: [{ id: 1 }], rowCount: 1 };
+      return { rows: [] };
+    });
+
+    const makeReq = () => ({
+      params: { provider: 'geotab' },
+      headers: { 'x-telematics-signature': signature },
+      body: { ...payloadNoId },
+      ip: '203.0.113.10',
+    });
+
+    const res1 = mockRes();
+    await webhookController.receiveWebhook(makeReq(), res1);
+    expect(res1.status).toHaveBeenCalledWith(200);
+    expect(bodyOf(res1)).toMatchObject({ success: true, duplicate: false, receiptId: 900 });
+
+    const pointCall = mockQuery.mock.calls.find(([sql]) => /INSERT INTO delivery_location_points/.test(sql));
+    expect(pointCall).toBeDefined();
+    expect(pointCall[1][9]).toMatch(/^telematics:geotab:noid:[0-9a-f]{64}$/);
+
+    // Identical retry carries the same derived id -> duplicate, no new point.
+    const res2 = mockRes();
+    await webhookController.receiveWebhook(makeReq(), res2);
+    expect(res2.status).toHaveBeenCalledWith(200);
+    expect(bodyOf(res2)).toEqual({ success: true, duplicate: true });
+  });
 });

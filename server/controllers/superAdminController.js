@@ -3865,6 +3865,14 @@ exports.suspendUser = async (req, res) => {
 
     const suspendedUntil = days > 0 ? new Date(Date.now() + days * 86400000) : null;
 
+    // Audit fix (P2-1-F13): revoke all access tokens at suspend time so no
+    // previously issued token stays usable on any auth path (HTTP, sockets,
+    // optional-auth) until its natural expiry. Fail closed: revocation runs
+    // before the suspension write, so a revocation failure aborts the suspend
+    // and the admin retries instead of leaving live tokens on a suspended
+    // account.
+    await tokenRevocationService.revokeAllUserTokens(userId);
+
     await db.query(
       `UPDATE users
        SET is_suspended = TRUE,

@@ -2,7 +2,9 @@
 jest.unmock('../utils/transaction');
 const { mockQuery, resetMocks } = require('./setup');
 jest.mock('../services/notificationService', () => ({ sendNotification: jest.fn().mockResolvedValue({ success: true }) }));
+jest.mock('../services/socketService', () => ({ broadcastToUser: jest.fn() }));
 const { sendNotification } = require('../services/notificationService');
+const { broadcastToUser } = require('../services/socketService');
 const { sendDisputeMessage } = require('../controllers/disputeController');
 const KEY = '00000000-0000-4000-8000-000000000001';
 function route({ replay = false, fail = false } = {}) {
@@ -53,4 +55,24 @@ test('failed insertion and unauthorized callers send no notification', async () 
   expect(sendNotification).not.toHaveBeenCalled();
   route(); expect((await send('stranger')).next).toHaveBeenCalledWith(expect.objectContaining({ code: 'forbidden' }));
   expect(sendNotification).not.toHaveBeenCalled();
+});
+test.each([['customer', 'customer', ['customer', 'helper']], ['helper', 'helper', ['customer', 'helper']], ['admin', 'admin', ['admin', 'customer', 'helper']]])(
+  'emits dispute:message to each party room plus the sender (%s)', async (id, role, expectedRecipients) => {
+    route();
+    const { next } = await send(id, role);
+    expect(next).not.toHaveBeenCalled();
+    // The DisputeDetail page listens for 'dispute:message' with { disputeId, message }.
+    expect(broadcastToUser.mock.calls.map(([userId, event]) => [userId, event]).sort())
+      .toEqual(expectedRecipients.sort().map((userId) => [userId, 'dispute:message']));
+    for (const [, , payload] of broadcastToUser.mock.calls) {
+      expect(payload).toEqual({
+        disputeId: '7',
+        message: expect.objectContaining({ id: 42, sender_name: null }),
+      });
+    }
+  });
+test('failed insertion emits no realtime event', async () => {
+  route({ fail: true });
+  expect((await send()).next).toHaveBeenCalled();
+  expect(broadcastToUser).not.toHaveBeenCalled();
 });

@@ -36,6 +36,13 @@ const EXPORT_CSV_COLUMNS = {
   messages: ['id', 'sender_id', 'receiver_id', 'conversation_id', 'content', 'created_at'],
   payments: ['id', 'job_id', 'payer_id', 'payee_id', 'amount', 'status', 'created_at', 'updated_at'],
   invoices: ['id', 'business_id', 'invoice_number', 'client_name', 'client_email', 'status', 'due_date', 'total', 'amount_paid', 'created_at', 'updated_at'],
+  credit_accounts: ['id', 'account_type', 'currency_code', 'balance_cents', 'reserved_cents', 'status', 'created_at', 'updated_at'],
+  credit_transactions: ['id', 'transaction_type', 'status', 'amount_cents', 'currency_code', 'description', 'actor_type', 'posted_at', 'created_at'],
+  food_orders: ['id', 'restaurant_id', 'fulfillment_type', 'status', 'payment_status', 'subtotal_cents', 'tax_cents', 'tip_cents', 'total_cents', 'currency_code', 'created_at'],
+  subscriptions: ['id', 'plan_id', 'status', 'current_period_start', 'current_period_end', 'cancelled_at', 'cancel_at_period_end', 'created_at', 'updated_at'],
+  businesses: ['id', 'business_name', 'business_type', 'address_city', 'address_state', 'is_active', 'created_at', 'updated_at'],
+  helper_profiles: ['id', 'tier', 'bio_short', 'service_city', 'service_state', 'service_zip', 'hourly_rate_min', 'hourly_rate_max', 'created_at'],
+  notifications: ['id', 'type', 'title', 'body', 'is_read', 'created_at'],
 };
 
 function csvCell(value) {
@@ -86,6 +93,16 @@ function buildExportArchive(exportData) {
         '- bids.csv: bids submitted by you.',
         '- reviews.csv: reviews you wrote or received.',
         '- consents.csv: recorded consent history.',
+        '- messages.csv: messages you sent or received.',
+        '- payments.csv: payments where you are the payer or payee.',
+        '- invoices.csv: business invoices you issued or were billed on.',
+        '- credit_accounts.csv: your OxSteed Credit accounts and balances.',
+        '- credit_transactions.csv: ledger entries touching your credit accounts.',
+        '- food_orders.csv: food orders you placed.',
+        '- subscriptions.csv: your subscription history (provider ids excluded).',
+        '- businesses.csv: businesses you own (tax identifiers excluded).',
+        '- helper_profiles.csv: your helper profile.',
+        '- notifications.csv: notifications sent to you.',
         '',
         'Security:',
         '- Credentials, passwords, authentication tokens, and payment secrets are excluded.',
@@ -340,6 +357,78 @@ router.get('/export', authenticate, async (req, res) => {
           [String(userId), String(userId)],
         ),
       ]);
+    // P3-11-F05: the export previously omitted whole product surfaces.
+    // Provider secrets stay out: Stripe subscription/customer ids are not
+    // exported, business EIN is excluded, and only the user's own credit
+    // accounts and the ledger entries touching them are included.
+    const [
+      creditAccounts,
+      creditTransactions,
+      foodOrders,
+      userSubscriptions,
+      ownedBusinesses,
+      helperProfiles,
+      userNotifications,
+    ] = process.env.NODE_ENV === 'test'
+      ? [[], [], [], [], [], [], []]
+      : await Promise.all([
+        queryOptional(
+          `SELECT id, account_type, currency_code, balance_cents, reserved_cents,
+                  status, created_at, updated_at
+           FROM oxsteed_credit_accounts
+           WHERE ${userIdEq('customer_id')}
+           ORDER BY created_at DESC`,
+          [String(userId)],
+        ),
+        queryOptional(
+          `SELECT id, transaction_type, status, amount_cents, currency_code,
+                  description, actor_type, posted_at, created_at
+           FROM oxsteed_credit_transactions
+           WHERE debit_account_id IN (SELECT id FROM oxsteed_credit_accounts WHERE ${userIdEq('customer_id')})
+              OR credit_account_id IN (SELECT id FROM oxsteed_credit_accounts WHERE ${userIdEq('customer_id')})
+              OR ${userIdEq('actor_user_id')}
+           ORDER BY created_at DESC LIMIT 5000`,
+          [String(userId)],
+        ),
+        queryOptional(
+          `SELECT id, restaurant_id, fulfillment_type, status, payment_status,
+                  subtotal_cents, tax_cents, tip_cents, total_cents, currency_code, created_at
+           FROM food_orders
+           WHERE ${userIdEq('customer_id')}
+           ORDER BY created_at DESC LIMIT 5000`,
+          [String(userId)],
+        ),
+        queryOptional(
+          `SELECT id, plan_id, status, current_period_start, current_period_end,
+                  cancelled_at, cancel_at_period_end, created_at, updated_at
+           FROM subscriptions
+           WHERE ${userIdEq('user_id')}
+           ORDER BY created_at DESC`,
+          [String(userId)],
+        ),
+        queryOptional(
+          `SELECT id, business_name, business_type, address_city, address_state,
+                  is_active, created_at, updated_at
+           FROM businesses
+           WHERE ${userIdEq('user_id')}
+           ORDER BY created_at DESC`,
+          [String(userId)],
+        ),
+        queryOptional(
+          `SELECT id, tier, bio_short, service_city, service_state, service_zip,
+                  hourly_rate_min, hourly_rate_max, created_at
+           FROM helper_profiles
+           WHERE ${userIdEq('user_id')}`,
+          [String(userId)],
+        ),
+        queryOptional(
+          `SELECT id, type, title, body, is_read, created_at
+           FROM notifications
+           WHERE ${userIdEq('user_id')}
+           ORDER BY created_at DESC LIMIT 10000`,
+          [String(userId)],
+        ),
+      ]);
     const exportData = {
       exportDate: new Date().toISOString(),
       exportType: 'CCPA Data Export',
@@ -351,6 +440,13 @@ router.get('/export', authenticate, async (req, res) => {
       messages,
       payments,
       invoices,
+      credit_accounts: creditAccounts,
+      credit_transactions: creditTransactions,
+      food_orders: foodOrders,
+      subscriptions: userSubscriptions,
+      businesses: ownedBusinesses,
+      helper_profiles: helperProfiles,
+      notifications: userNotifications,
     };
     const archiveBuffer = await buildExportArchive(exportData);
     const consumed = await pool.query(

@@ -1,4 +1,52 @@
 {
+  "reviewW11Learn": {
+    "flagNotFound": "No se encontró el reporte del vídeo.",
+    "flagAlreadyDecided": "Este reporte del vídeo ya se revisó.",
+    "guideNotFound": "No se encontró la guía.",
+    "videoDuplicate": "Este vídeo ya está en esta guía.",
+    "videoModerated": "Este vídeo fue retirado por moderación y no se puede enviar a esta guía.",
+    "moderationActionFailed": "No se pudo guardar la decisión de moderación. Inténtalo de nuevo.",
+    "previousPage": "Anterior",
+    "nextPage": "Siguiente",
+    "pageNumber": "Página {{page}}"
+  },
+  "reviewW11Notifications": {
+    "learn_video_review_received": {
+      "title": "Vídeo de Learn enviado para revisión",
+      "body": "Se ha enviado un vídeo a una guía. Abre la cola de revisión antes de su plazo de publicación de 24 horas."
+    },
+    "learn_video_review_overdue": {
+      "title": "Plazo de revisión de vídeo de Learn alcanzado",
+      "body": "Un envío alcanzó su plazo de revisión de 24 horas. Comprueba la cola de revisión y el estado de publicación."
+    },
+    "warranty_claim_filed": {
+      "title": "Nueva reclamación de garantía",
+      "body": "La otra parte presentó una reclamación de garantía. Abre tu acuerdo para revisarla y responder."
+    },
+    "warranty_claim_updated": {
+      "title": "Reclamación de garantía actualizada",
+      "body": "La otra parte actualizó una reclamación de garantía. Abre tu acuerdo para ver su estado y la respuesta."
+    },
+    "job_started": {
+      "title": "Trabajo iniciado",
+      "body": "Tu trabajo está en curso. Ábrelo para ver los detalles y contactar con la otra persona."
+    }
+  },
+  "reviewW11": {
+    "guestReplyInstruction": "Para continuar, contacta con Soporte e incluye tu número de solicitud. No se revisan las respuestas a este correo.",
+    "guestResolvedInstruction": "Si aún necesitas ayuda, contacta con Soporte e incluye tu número de solicitud.",
+    "openSupport": "Contactar con Soporte",
+    "reopenTicket": "Reabrir solicitud",
+    "reopening": "Reabriendo…",
+    "reopened": "Solicitud reabierta",
+    "reopenFailed": "No se pudo reabrir la solicitud. Inténtalo de nuevo.",
+    "reviewClaim": "Revisar reclamación",
+    "replyTitle": "Nueva respuesta de soporte",
+    "replyInstruction": "Abre tu solicitud para leer y responder. No se revisan las respuestas a este correo.",
+    "resolvedTitle": "Solicitud de soporte resuelta",
+    "resolvedInstruction": "Si aún necesitas ayuda, abre tu solicitud y elige Reabrir solicitud.",
+    "openTicket": "Abrir tu solicitud de soporte"
+  },
   "reviewLifecycleNotifications": {
     "dispute_update": {
       "title": "Nuevo mensaje de disputa",
@@ -1235,6 +1283,10 @@
     "duplicateSubtitle": "Esta identidad ya está vinculada a una cuenta de OxSteed existente",
     "duplicateNote": "Cada persona solo puede tener una cuenta. Si tienes varios negocios, puedes agregarlos todos desde tu panel después de iniciar sesión.",
     "signIn": "Iniciar sesión en tu cuenta",
+    "duplicateGateMessage": "Esta identidad ya está vinculada a una cuenta de OxSteed existente. Inicia sesión con esa cuenta.",
+    "duplicateRecoverySignIn": "Inicia sesión con tu cuenta existente en la página de inicio de sesión.",
+    "duplicateRecoveryReset": "Si no puedes acceder a esa cuenta, usa el enlace de restablecimiento de contraseña en la página de inicio de sesión.",
+    "duplicateRecoverySupport": "Si crees que esto es un error, contacta al soporte de OxSteed.",
     "differentId": "Intentar con un documento diferente",
     "unavailableTitle": "Verificación no disponible",
     "unavailableSubtitle": "La verificación de identidad no está configurada en este servidor. Esto es normal en entornos de desarrollo y pruebas.",
@@ -2395,7 +2447,10 @@
       "manage2fa": "Administrar 2FA",
       "passkeys": "Claves de acceso",
       "passkeysDesc": "Inicia sesión con Touch ID, Face ID, Windows Hello o una llave de seguridad",
-      "managePasskeys": "Administrar claves de acceso"
+      "managePasskeys": "Administrar claves de acceso",
+      "sessions": "Sesiones activas",
+      "sessionsDesc": "Ver los dispositivos con sesión iniciada en tu cuenta y cerrarlas",
+      "manageSessions": "Gestionar sesiones"
     },
     "subscription": {
       "title": "Suscripción",
@@ -4100,7 +4155,12 @@
     "listProfilePublicly": "Mostrar mi perfil públicamente",
     "listingStatePublished": "Publicado: los clientes pueden encontrar tu perfil",
     "listingStateDraft": "Borrador: tu perfil está oculto para los clientes",
-    "listingSaved": "Estado de publicación actualizado"
+    "listingSaved": "Estado de publicación actualizado",
+    "assignedMaintenanceTitle": "Mantenimiento asignado",
+    "assignedMaintenanceEmpty": "No tienes solicitudes de mantenimiento asignadas en este momento.",
+    "assignedMaintenanceDetails": "Mostrar detalles",
+    "assignedMaintenanceContact": "Contacto",
+    "assignedMaintenanceScheduled": "Programado"
   },
   "postJob": {
     "title": "Publicar un trabajo",
@@ -6329,7 +6389,9 @@
       "fields": {
         "start": "Inicio",
         "end": "Fin",
-        "role": "Rol"
+        "role": "Rol",
+        "staff": "Miembro del equipo",
+        "staffPlaceholder": "Selecciona un miembro del equipo"
       },
       "emptyShifts": "Aún no hay turnos programados.",
       "emptyTime": "Aún no hay registros de tiempo. Usa «Fichar» para empezar.",
@@ -6350,7 +6412,8 @@
       "toastClockedIn": "¡Entrada registrada!",
       "toastClockInFail": "No se pudo registrar la entrada",
       "toastClockedOut": "¡Salida registrada!",
-      "toastClockOutFail": "No se pudo registrar la salida"
+      "toastClockOutFail": "No se pudo registrar la salida",
+      "toastStaffRequired": "Selecciona un miembro del equipo"
     },
     "integrations": {
       "title": "Integraciones y configuración",
@@ -8506,6 +8569,10 @@
       "email": {
         "label": "Notificaciones por Correo",
         "description": "Actualizaciones enviadas a tu dirección de correo"
+      },
+      "masters": {
+        "label": "Interruptores principales",
+        "description": "Activa o desactiva un canal completo. Tienen prioridad sobre los interruptores individuales."
       }
     },
     "prefs": {
@@ -8534,7 +8601,11 @@
       "email_subscription": "Actualizaciones de suscripción",
       "email_dispute_update": "Actualización de disputa",
       "email_weekly_summary": "Resumen semanal",
-      "email_new_message": "Nuevos mensajes de chat"
+      "email_new_message": "Nuevos mensajes de chat",
+      "push_notifications": "Notificaciones push",
+      "push_notificationsDesc": "Todas las alertas push en todos los dispositivos (aplicación y navegador).",
+      "sms_notifications": "Notificaciones por SMS",
+      "sms_notificationsDesc": "Mensajes de texto a tu número de teléfono verificado."
     }
   },
   "plannedNeeds": {
@@ -9237,6 +9308,7 @@
       "slotBookingToast": "Solicitud de reserva enviada. El proveedor aún debe confirmar.",
       "slotBookingFailed": "No se pudo crear la solicitud de reserva. El mensaje del chat sí se preparó.",
       "slotBookingConflict": "Ese horario ya no está disponible. Elige otro.",
+      "slotBookingDisabled": "Este ayudante no está aceptando reservas ahora mismo.",
       "guestSessionExpired": "Tu sesión de invitado expiró. Verifica tu correo otra vez.",
       "slotBookingConfirmedPlain": "Solicitud de reserva enviada · {{when}}",
       "guestOtpExpired": "Ese código expiró. Toca Reenviar código para obtener uno nuevo.",
@@ -9513,6 +9585,33 @@
     "passkeyRevokeCancel": "Cancelar",
     "passkeysPageTitle": "Claves de acceso",
     "passkeysPageSubtitle": "Administra las claves de acceso para iniciar sesión en tu cuenta"
+  },
+  "sessions": {
+    "pageTitle": "Sesiones activas",
+    "pageSubtitle": "Dispositivos y navegadores con sesión iniciada en tu cuenta",
+    "loading": "Cargando sesiones...",
+    "loadFailed": "No se pudieron cargar tus sesiones. Inténtalo de nuevo.",
+    "retry": "Reintentar",
+    "empty": "No hay otras sesiones activas.",
+    "emptyDesc": "Solo este dispositivo tiene la sesión iniciada.",
+    "thisDevice": "Este dispositivo",
+    "lastActive": "Última actividad: {{date}}",
+    "unknownDevice": "Dispositivo desconocido",
+    "revoke": "Revocar",
+    "revokeTitle": "¿Revocar esta sesión?",
+    "revokeConfirm": "Se cerrará la sesión de ese dispositivo de inmediato. ¿Continuar?",
+    "cancel": "Cancelar",
+    "confirmRevoke": "Revocar sesión",
+    "revoked": "Sesión revocada.",
+    "revokeFailed": "No se pudo revocar la sesión. Inténtalo de nuevo.",
+    "revokeCurrentBlocked": "No puedes revocar la sesión que estás usando.",
+    "logoutEverywhere": "Cerrar sesión en los demás dispositivos",
+    "logoutEverywhereTitle": "¿Cerrar sesión en todas las demás sesiones?",
+    "logoutEverywhereConfirm": "Se cerrará la sesión de todos los demás dispositivos y navegadores de inmediato. Este dispositivo seguirá con la sesión iniciada.",
+    "confirmLogoutEverywhere": "Cerrar sesión en todas partes",
+    "loggedOutEverywhere": "Sesión cerrada en los demás dispositivos.",
+    "logoutEverywhereFailed": "No se pudo cerrar la sesión en todas partes. Inténtalo de nuevo.",
+    "working": "Procesando..."
   },
   "homePage": {
     "company": {
@@ -13344,7 +13443,10 @@
       "body": "Nuestro equipo revisará tu disputa dentro de 5 días hábiles. Nos pondremos en contacto si es necesario. Las pruebas ayudan a tomar decisiones justas."
     },
     "submit": "Enviar Disputa",
-    "submitting": "Enviando..."
+    "submitting": "Enviando...",
+    "windowExpired": "El plazo de 30 días para disputas de este trabajo ha terminado. Las disputas deben abrirse dentro de los 30 días posteriores a la finalización del trabajo.",
+    "warrantyClaimRequired": "Este trabajo tiene un acuerdo de trabajo firmado. Presenta primero una reclamación de garantía en el acuerdo y luego abre una disputa si no se resuelve allí.",
+    "warrantyClaimRequiredCta": "Abrir el acuerdo de trabajo"
   },
   "enforcementPolicy": {
     "pageTitle": "Política de Cumplimiento",
@@ -17286,7 +17388,19 @@
     "contactTitle": "Cómo contactarnos",
     "contactIntro": "Si tiene preguntas sobre esta página o desea ejercer alguno de sus derechos de privacidad, contáctenos en:",
     "contactEmailLabel": "Correo:",
-    "contactMailLabel": "Correo postal:"
+    "contactMailLabel": "Correo postal:",
+      "formTitle": "Enviar una solicitud de exclusión",
+      "formIntro": "Usa este formulario para ejercer tu derecho a excluirte de la venta o el intercambio de tu información personal. Responderemos en un plazo de 45 días.",
+      "emailLabel": "Correo electrónico",
+      "emailPlaceholder": "tu@ejemplo.com",
+      "notesLabel": "Detalles adicionales (opcional)",
+      "notesPlaceholder": "Cuéntanos lo que nos ayude a encontrar tus datos.",
+      "submitButton": "Enviar solicitud de exclusión",
+      "submittingButton": "Enviando...",
+      "successTitle": "Solicitud recibida",
+      "successMessage": "Tu solicitud de exclusión fue recibida. Responderemos en un plazo de 45 días.",
+      "errorRequired": "Ingresa tu correo electrónico.",
+      "errorFailed": "No pudimos enviar tu solicitud. Inténtalo de nuevo más tarde."
   },
   "cookiePolicyPage": {
     "title": "Política de cookies",
@@ -29431,6 +29545,8 @@
     "colOwner": "PROPIETARIO",
     "colStatus": "ESTADO",
     "inactiveBadge": "Inactivo",
+    "flaggedBadge": "Marcado",
+    "statusFlagged": "Marcado para revisión",
     "loading": "Cargando…",
     "modalTitle": "{{action}} negocio",
     "moreActions": "Más acciones",
@@ -31221,7 +31337,9 @@
     "intro": "Completa estos pasos para aparecer en las búsquedas y aceptar trabajos.",
     "email": "Correo verificado",
     "terms": "Términos aceptados",
-    "termsHelp": "No tenemos registro de tu aceptación de los términos. Contacta a soporte para continuar.",
+    "termsHelp": "No tenemos registro de tu aceptación de los términos. Revisa y acepta los términos a continuación para continuar.",
+    "acceptTerms": "Revisar y aceptar los términos",
+    "termsSaved": "Términos aceptados",
     "profile": "Perfil y datos de contacto",
     "phone": "Teléfono",
     "city": "Ciudad",

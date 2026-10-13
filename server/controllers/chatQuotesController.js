@@ -1040,6 +1040,14 @@ exports.scheduleFromQuote = async (req, res, next) => {
       return bad(res, 409, 'Quote must be accepted before scheduling', 'not_accepted');
     }
 
+    // An accepted quote past its valid_until must not be schedulable at a
+    // stale price: fail closed with 409. The chatQuoteExpiry sweeper flips
+    // such rows to 'expired', but the check here is the enforcement point
+    // (it also covers rows the sweeper has not visited yet).
+    if (isQuoteExpired(quote)) {
+      return bad(res, 409, 'This quote has expired and can no longer be scheduled', 'quote_expired');
+    }
+
     const token = String(req.body?.token || '').trim();
     const userId = req.user?.id;
     let guest = req.guestSession || null;
@@ -1127,6 +1135,20 @@ exports.scheduleFromQuote = async (req, res, next) => {
       helperId = biz.rows[0]?.user_id;
     }
     if (!helperId) return bad(res, 400, 'Could not resolve helper for booking', 'validation_failed');
+
+    // Review P1-6-F03: the helper's "allow booking" privacy switch must be
+    // enforced on quote-schedule too. Skipped for business quotes the same
+    // way bookingController does: business bookings follow the business's
+    // own listing state instead of the helper's privacy switch.
+    if (kind === 'helper' && !businessId) {
+      const prefRes = await pool.query(
+        'SELECT COALESCE(allow_booking, TRUE) AS allow_booking FROM helper_profiles WHERE user_id = $1',
+        [helperId],
+      );
+      if (prefRes.rows[0] && prefRes.rows[0].allow_booking === false) {
+        return bad(res, 403, 'This helper is not taking bookings right now', 'BOOKING_DISABLED');
+      }
+    }
 
     // A quote schedule commits to a concrete time: verify it is truly free
     // before the request exists (skipped for idempotent replays).

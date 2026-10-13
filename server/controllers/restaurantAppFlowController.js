@@ -7,6 +7,7 @@ const { AppError } = require('../middleware/errorHandler');
 const { withTransaction } = require('../utils/transaction');
 const socketService = require('../services/socketService');
 const { syncMappedMenuAvailability } = require('../services/restaurantInventoryAvailabilityService');
+const { maybeUnpublishBusinessIfIncomplete } = require('./businessController');
 const {
   reserveInventoryForOrder,
   releaseInventoryForOrder,
@@ -7872,6 +7873,17 @@ exports.setMenuItemAvailability = async (req, res, next) => {
       return { item, event };
     });
     broadcastRestaurant(restaurant, 'food:menu:availability', result);
+    // Audit fix (P2-3-F13): toggling the last available menu item off breaks
+    // publish readiness. Re-check and auto-unpublish if now incomplete.
+    if (restaurant.business_id) {
+      const { unpublished, missing } = await maybeUnpublishBusinessIfIncomplete(pool, restaurant.business_id, {
+        actorUserId: req.user.id, actorRole: 'owner',
+      });
+      if (unpublished) {
+        result.businessUnpublished = true;
+        result.unpublishMissing = missing;
+      }
+    }
     res.json(result);
   } catch (err) {
     next(err);

@@ -1,4 +1,4 @@
-jest.mock('../db', () => ({ connect: jest.fn() }));
+jest.mock('../db', () => ({ connect: jest.fn(), query: jest.fn() }));
 jest.mock('../utils/email', () => ({ sendEmail: jest.fn() }));
 jest.mock('../services/websocketService', () => ({
   notifyAgent: jest.fn(),
@@ -53,15 +53,29 @@ test('no founder email before two minutes', async () => {
 test('support alert email at two minutes uses stable idempotency key', async () => {
   const client = mockClient(conversation(120)); await processWaiting();
   expect(email.sendEmail).toHaveBeenCalledWith(expect.objectContaining({ to: 'support@oxsteed.com', idempotencyKey: 'support-founder-test' }));
-  expect(client.query).toHaveBeenCalledWith(expect.stringContaining('founder_alert_sent_at = NOW()'), ['test']);
+  // Review P3-849: the alert fires AFTER the tick COMMITs (never inside the
+  // transaction), and the flag is stamped on confirmed delivery only.
+  const commitOrder = client.query.mock.invocationCallOrder[
+    client.query.mock.calls.findIndex(([sql]) => sql === 'COMMIT')
+  ];
+  expect(commitOrder).toBeLessThan(email.sendEmail.mock.invocationCallOrder[0]);
+  expect(db.query).toHaveBeenCalledWith(expect.stringContaining('founder_alert_sent_at = NOW()'), ['test']);
 });
 test('already-sent alert is not repeated', async () => {
   mockClient(conversation(200, { founder_alert_sent_at: new Date(now) })); await processWaiting(); expect(email.sendEmail).not.toHaveBeenCalled();
 });
-test('email failure rolls back so next worker pass retries', async () => {
+test('email failure never rolls back the tick and leaves the alert retryable', async () => {
   email.sendEmail.mockResolvedValue({ success: false, error: 'unavailable' });
   const client = mockClient(conversation(120)); await processWaiting();
-  expect(client.query).toHaveBeenCalledWith('ROLLBACK');
+  // Review P3-849: a failed alert is non-throwing, so the conversation tick
+  // still commits instead of rolling back.
+  expect(client.query).toHaveBeenCalledWith('COMMIT');
+  expect(client.query).not.toHaveBeenCalledWith('ROLLBACK');
+  // The flag is NOT stamped on failure, so the next worker pass retries it.
+  expect(db.query).not.toHaveBeenCalledWith(
+    expect.stringContaining('founder_alert_sent_at = NOW()'),
+    expect.anything()
+  );
   expect(client.release).toHaveBeenCalled();
 });
 test('agent can receive another conversation below capacity; no alert', async () => {

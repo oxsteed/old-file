@@ -1,5 +1,6 @@
 const pool = require('../db');
 const { AppError } = require('../middleware/errorHandler');
+const { notifyIntakeReceived } = require('../utils/intakeNotifications');
 
 const VALID_STATUS = new Set(['new', 'qualified', 'scheduled', 'active', 'progress_review', 'continuing', 'completed', 'paused', 'cancelled']);
 const VALID_STAGE = new Set(['intake', 'qualification', 'scheduling', 'session', 'progress', 'retention', 'closed']);
@@ -341,6 +342,9 @@ exports.createIntakeRequest = async (req, res, next) => {
         computeNextSessionRecommendedAt(templateSlug),
       ]
     );
+    // Notify the business owner: submitted intakes must be observable.
+    // Fire-and-forget: the helper never throws and never blocks the response.
+    notifyIntakeReceived({ businessId: business.id, intakeId: rows[0].id, area: 'continuity' });
     res.status(201).json({ request: rows[0] });
   } catch (err) {
     next(err);

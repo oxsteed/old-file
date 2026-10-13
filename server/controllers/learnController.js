@@ -5,6 +5,14 @@
 
 const pool = require('../db');
 const AppError = require('../utils/appError');
+const logger = require('../utils/logger');
+const { reviewPage, reviewPageResult } = require('../utils/learnReviewPagination');
+const { withTransaction } = require('../utils/transaction');
+const { normalizeSubmittedVideoUrl, lockVideoIdentity } = require('../utils/learnVideoIdentity');
+const { lockGuides, publishReviewedVideo, reviewVideoSubmission, reviewVideoFlag, enqueueLearnReviewNotice } = require('../services/learnVideoIntegrityService');
+const { processLearnVideoReviewAlerts } = require('../services/learnVideoReviewAlerts');
+const { moderationLabels } = require('../utils/learnReviewCopy');
+const moderatedMessage = req => (moderationLabels[req.user?.preferred_language] || moderationLabels.en).videoModerated;
 const { tagGuideWithAI, tagGuideInBackground, LEARN_CATEGORIES } = require('../services/learnTagging');
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -1138,39 +1146,6 @@ exports.adminMarketplaceStats = async (req, res, next) => {
 // admin blocks it first. Only YouTube/Vimeo URLs are accepted; the client
 // renders them in a sandboxed iframe with no top-level navigation.
 
-const VIDEO_URL_MAX_LEN = 500;
-const VIDEO_HOSTS = new Set([
-  'youtube.com', 'www.youtube.com', 'm.youtube.com', 'youtu.be',
-  'vimeo.com', 'www.vimeo.com', 'player.vimeo.com',
-]);
-
-function normalizeSubmittedVideoUrl(raw) {
-  if (typeof raw !== 'string') return null;
-  const trimmed = raw.trim().slice(0, VIDEO_URL_MAX_LEN);
-  if (!trimmed) return null;
-  let parsed;
-  try {
-    parsed = new URL(trimmed);
-  } catch { return null; }
-  if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') return null;
-  if (!VIDEO_HOSTS.has(parsed.hostname.toLowerCase())) return null;
-  parsed.protocol = 'https:';
-  const provider = detectVideoProvider(parsed.toString());
-  if (provider === 'youtube') {
-    const id = parsed.hostname === 'youtu.be'
-      ? parsed.pathname.split('/').filter(Boolean)[0]
-      : parsed.searchParams.get('v') || parsed.pathname.match(/\/(?:embed|shorts)\/([^/?]+)/)?.[1];
-    if (!id || !/^[A-Za-z0-9_-]{3,}$/.test(id)) return null;
-    return { url: `https://www.youtube.com/watch?v=${id}`, provider };
-  }
-  if (provider === 'vimeo') {
-    const id = parsed.pathname.match(/\/(\d+)(?:\/|$)/)?.[1];
-    if (!id) return null;
-    return { url: `https://vimeo.com/${id}`, provider };
-  }
-  return { url: parsed.toString(), provider };
-}
-
 async function pendingVideoGuideIds(db, guideIds) {
   if (!guideIds.length) return new Set();
   try {
@@ -1206,6 +1181,9 @@ const getGuideVideos = async (guideIds, viewerId = null) => {
           AND NOT EXISTS (
             SELECT 1 FROM learn_guide_video_flags f
              WHERE f.video_id = v.id AND f.status = 'open'
+          ) AND NOT EXISTS (
+            SELECT 1 FROM learn_guide_video_moderation_blocks b
+             WHERE b.guide_id=v.guide_id AND b.video_identity=learn_video_identity(v.video_url)
           )
         GROUP BY v.id, v.guide_id, v.video_url, v.video_provider, v.created_at
         ORDER BY COUNT(vt.user_id) DESC, v.created_at ASC`,
@@ -1257,48 +1235,41 @@ exports.submitGuideVideo = async (req, res, next) => {
         'Please provide a valid YouTube or Vimeo link (https).', 400, 'invalid_video_url'
       ));
     }
-    const { rows: guideRows } = await pool.query(
-      `SELECT id FROM learn_guides WHERE id = $1 AND status = 'published'`,
-      [guideId]
-    );
-    if (!guideRows.length) return next(new AppError('Guide not found.', 404, 'guide_not_found'));
-    // Same link cannot be submitted twice for one guide — whether it is
-    // already pending or already live in the playlist.
-    const { rows: dupRows } = await pool.query(
-      `SELECT 1 FROM learn_guide_video_submissions
-        WHERE guide_id = $1 AND video_url = $2 AND status = 'pending'
-       UNION
-       SELECT 1 FROM learn_guide_videos
-        WHERE guide_id = $1 AND video_url = $2
-       UNION
-       SELECT 1 FROM learn_guides
-        WHERE id = $1 AND video_url = $2
-       LIMIT 1`,
-      [guideId, normalized.url]
-    ).catch(() => ({ rows: [] }));
-    if (dupRows.length) {
-      return next(new AppError(
-        'This video is already on this guide.', 409, 'video_duplicate'
-      ));
-    }
-    try {
-      const { rows } = await pool.query(
-        `INSERT INTO learn_guide_video_submissions
-           (guide_id, video_url, video_provider, submitted_by)
-         VALUES ($1, $2, $3, $4)
-         RETURNING id, guide_id, video_url, video_provider, status, created_at`,
-        [guideId, normalized.url, normalized.provider, req.user.id]
-      );
-      return res.status(201).json({ success: true, submission: rows[0] });
-    } catch (err) {
-      if (err.code === '23505') {
-        return next(new AppError(
-          'This video is already pending review for this guide.', 409, 'video_duplicate'
-        ));
+    const submission = await withTransaction(pool, async client => {
+      await lockVideoIdentity(client, normalized.url);
+      const guides = await lockGuides(client, [guideId]);
+      if (!guides.some(g => g.id === guideId && g.status === 'published')) {
+        throw new AppError('Guide not found.', 404, 'guide_not_found');
       }
-      throw err;
-    }
+      // Include historical URL aliases and durable moderation tombstones.
+      // A lookup failure must not create a submission.
+      const { rows: duplicates } = await client.query(        `SELECT 'moderated' AS source FROM learn_guide_video_moderation_blocks
+          WHERE guide_id=$1 AND video_identity=$2
+         UNION SELECT 'pending' FROM learn_guide_video_submissions
+          WHERE guide_id=$1 AND learn_video_identity(video_url)=$2 AND status='pending'
+         UNION SELECT 'live' FROM learn_guide_videos
+          WHERE guide_id=$1 AND learn_video_identity(video_url)=$2
+         UNION SELECT 'pinned' FROM learn_guides
+          WHERE id=$1 AND learn_video_identity(video_url)=$2`,
+        [guideId, normalized.identity]
+      );
+      if (duplicates.some(row => row.source === 'moderated')) {
+        throw new AppError(moderatedMessage(req), 409, 'video_moderated');
+      }
+      if (duplicates.length) throw new AppError('This video is already on this guide.', 409, 'video_duplicate');
+      const { rows: [row] } = await client.query(        `INSERT INTO learn_guide_video_submissions(guide_id,video_url,video_provider,submitted_by)
+         VALUES($1,$2,$3,$4) RETURNING id,guide_id,video_url,video_provider,status,created_at`,
+        [guideId,normalized.url,normalized.provider,req.user.id]
+      );
+      await enqueueLearnReviewNotice(client, row.id, 'submitted');
+      return row;
+    }, 'learn_video_submit');
+    await processLearnVideoReviewAlerts({ submissionId: submission.id }).catch(error =>
+      logger.warn('Learn new-submission notice remains queued', { submissionId: submission.id, error: error.message }));
+    return res.status(201).json({ success: true, submission });
   } catch (err) {
+    if (err instanceof AppError) return next(err);
+    if (err.code === '23505') return next(new AppError('This video is already pending review for this guide.',409,'video_duplicate'));
     next(new AppError('Failed to submit video', 500, 'video_submit_failed'));
   }
 };
@@ -1312,71 +1283,28 @@ exports.adminListVideoSubmissions = async (req, res, next) => {
     const status = String(req.query.status || 'pending');
     const allowed = new Set(['pending', 'live', 'blocked', 'superseded']);
     if (!allowed.has(status)) return next(new AppError('Invalid status filter.', 400, 'bad_status'));
+    const { limit, cursor } = reviewPage(req.query);
     const { rows } = await pool.query(
       `SELECT s.id, s.guide_id, g.title AS guide_title, s.video_url, s.video_provider,
-              s.status, s.created_at, s.decided_at,
+              s.status, s.created_at, s.created_at::text AS cursor_timestamp, s.decided_at,
               u.email AS submitted_by_email, d.email AS decided_by_email
          FROM learn_guide_video_submissions s
          LEFT JOIN learn_guides g ON g.id = s.guide_id
          LEFT JOIN users u ON u.id = s.submitted_by
          LEFT JOIN users d ON d.id = s.decided_by
         WHERE s.status = $1
-        ORDER BY s.created_at DESC
+          ${cursor ? 'AND (s.created_at, s.id) < ($3::timestamptz, $4::uuid)' : ''}
+        ORDER BY s.created_at DESC, s.id DESC
         LIMIT $2`,
-      [status, Math.min(Math.max(Number(req.query.limit) || 200, 1), 500) + 1]
+      cursor ? [status, limit + 1, cursor.ts, cursor.id] : [status, limit + 1]
     );
-    const limit = Math.min(Math.max(Number(req.query.limit) || 200, 1), 500);
-    res.json({ success: true, submissions: rows.slice(0, limit), has_more: rows.length > limit });
+    const page = reviewPageResult(rows, limit);
+    res.json({ success: true, submissions: page.rows, has_more: page.has_more, next_cursor: page.next_cursor });
   } catch (err) {
+    if (err instanceof AppError) return next(err);
     next(new AppError('Failed to load video submissions', 500, 'video_submissions_failed'));
   }
 };
-
-async function decideVideoSubmission(id, decision, adminId) {
-  const client = await pool.connect();
-  try {
-    await client.query('BEGIN');
-    const { rows } = await client.query(
-      `SELECT id, guide_id, video_url, video_provider, status
-         FROM learn_guide_video_submissions WHERE id = $1 FOR UPDATE`,
-      [id]
-    );
-    const sub = rows[0];
-    if (!sub) { await client.query('ROLLBACK'); return { error: 'not_found' }; }
-    if (sub.status !== 'pending') { await client.query('ROLLBACK'); return { error: 'already_decided' }; }
-    if (decision === 'approve') {
-      // Append to the guide's playlist. If the same link landed meanwhile
-      // (auto-publish race), the submission is superseded.
-      const inserted = await client.query(
-        `INSERT INTO learn_guide_videos
-           (guide_id, video_url, video_provider, source, submitted_by)
-         VALUES ($1, $2, $3, 'community', $4)
-         ON CONFLICT (guide_id, video_url) DO NOTHING
-         RETURNING id`,
-        [sub.guide_id, sub.video_url, sub.video_provider, sub.submitted_by]
-      );
-      const finalStatus = inserted.rowCount > 0 ? 'live' : 'superseded';
-      await client.query(
-        `UPDATE learn_guide_video_submissions
-            SET status = $1, decided_at = NOW(), decided_by = $2 WHERE id = $3`,
-        [finalStatus, adminId, id]
-      );
-    } else {
-      await client.query(
-        `UPDATE learn_guide_video_submissions
-            SET status = 'blocked', decided_at = NOW(), decided_by = $1 WHERE id = $2`,
-        [adminId, id]
-      );
-    }
-    await client.query('COMMIT');
-    return { ok: true };
-  } catch (err) {
-    await client.query('ROLLBACK');
-    throw err;
-  } finally {
-    client.release();
-  }
-}
 
 /**
  * POST /api/learn/admin/video-submissions/:id/approve  (early publish)
@@ -1384,9 +1312,10 @@ async function decideVideoSubmission(id, decision, adminId) {
  */
 exports.adminApproveVideoSubmission = async (req, res, next) => {
   try {
-    const r = await decideVideoSubmission(req.params.id, 'approve', req.user.id);
+    const r = await reviewVideoSubmission(req.params.id, 'approve', req.user.id, req);
     if (r.error === 'not_found') return next(new AppError('Submission not found.', 404, 'video_submission_not_found'));
     if (r.error === 'already_decided') return next(new AppError('Submission was already decided.', 409, 'video_already_decided'));
+    if (r.error === 'moderated') return next(new AppError(moderatedMessage(req),409,'video_moderated'));
     res.json({ success: true });
   } catch (err) {
     next(new AppError('Failed to approve video submission', 500, 'video_approve_failed'));
@@ -1395,7 +1324,7 @@ exports.adminApproveVideoSubmission = async (req, res, next) => {
 
 exports.adminBlockVideoSubmission = async (req, res, next) => {
   try {
-    const r = await decideVideoSubmission(req.params.id, 'block', req.user.id);
+    const r = await reviewVideoSubmission(req.params.id, 'block', req.user.id, req);
     if (r.error === 'not_found') return next(new AppError('Submission not found.', 404, 'video_submission_not_found'));
     if (r.error === 'already_decided') return next(new AppError('Submission was already decided.', 409, 'video_already_decided'));
     res.json({ success: true });
@@ -1420,35 +1349,29 @@ exports.publishDueGuideVideos = async (db = pool, { limit = 100 } = {}) => {
         LIMIT $1`,
       [limit]
     ));
-  } catch (_) {
-    return { skipped: true, published: 0, superseded: 0 }; // table absent
+  } catch (error) {
+    if (error.code !== '42P01') throw error;
+    logger.warn('Learn publication migration unavailable', { error: error.message });
+    return { skipped: true, published: 0, superseded: 0, blocked: 0 }; // table absent
   }
-  let published = 0, superseded = 0;
+  let published = 0, superseded = 0, blocked = 0;
   for (const sub of rows) {
     const client = await db.connect();
     try {
       await client.query('BEGIN');
-      // Append to the playlist; a duplicate link (submitted twice, or an
-      // admin approve racing the worker) supersedes this submission.
-      const inserted = await client.query(
-        `INSERT INTO learn_guide_videos
-           (guide_id, video_url, video_provider, source, submitted_by)
-         SELECT $1, $2, $3, 'community', $4
-          WHERE EXISTS (SELECT 1 FROM learn_guide_video_submissions
-                        WHERE id = $5 AND status = 'pending')
-         ON CONFLICT (guide_id, video_url) DO NOTHING
-         RETURNING id`,
-        [sub.guide_id, sub.video_url, sub.video_provider, sub.submitted_by, sub.id]
-      );
-      const finalStatus = inserted.rowCount > 0 ? 'live' : 'superseded';
+      await lockVideoIdentity(client, sub.video_url);
+      await lockGuides(client, [sub.guide_id]);
+      const current = (await client.query('SELECT * FROM learn_guide_video_submissions WHERE id=$1 FOR UPDATE', [sub.id])).rows[0];
+      if (!current || current.status !== 'pending') { await client.query('COMMIT'); continue; }
+      // Persist the missed review window even when publication succeeds.
+      await enqueueLearnReviewNotice(client, current.id, 'overdue');
+      const finalStatus = await publishReviewedVideo(client, current);
       await client.query(
-        `UPDATE learn_guide_video_submissions
-            SET status = $1, decided_at = NOW(), decided_by = NULL
-          WHERE id = $2 AND status = 'pending'`,
-        [finalStatus, sub.id]
+        `UPDATE learn_guide_video_submissions SET status=$1,decided_at=NOW(),decided_by=NULL
+         WHERE id=$2 AND status='pending'`, [finalStatus,current.id]
       );
       await client.query('COMMIT');
-      if (finalStatus === 'live') published += 1; else superseded += 1;
+      if (finalStatus === 'live') published += 1; else if (finalStatus === 'blocked') blocked += 1; else superseded += 1;
     } catch (err) {
       await client.query('ROLLBACK').catch(() => {});
       // Leave pending for the next pass, but make the failure observable.
@@ -1459,7 +1382,7 @@ exports.publishDueGuideVideos = async (db = pool, { limit = 100 } = {}) => {
       client.release();
     }
   }
-  return { published, superseded };
+  return { published, superseded, blocked };
 };
 
 // ── Video votes ("most helpful") ─────────────────────────────────────────────
@@ -1562,8 +1485,9 @@ exports.adminListVideoFlags = async (req, res, next) => {
     const status = String(req.query.status || 'open');
     const allowed = new Set(['open', 'resolved', 'dismissed']);
     if (!allowed.has(status)) return next(new AppError('Invalid status filter.', 400, 'bad_status'));
+    const { limit, cursor } = reviewPage(req.query);
     const { rows } = await pool.query(
-      `SELECT f.id, f.video_id, f.reason, f.note, f.status, f.created_at,
+      `SELECT f.id, f.video_id, f.reason, f.note, f.status, f.created_at, f.created_at::text AS cursor_timestamp,
               v.guide_id, g.title AS guide_title, v.video_url, v.video_provider,
               (SELECT COUNT(*)::int FROM learn_guide_video_flags
                 WHERE video_id = f.video_id AND status = 'open') AS open_flags,
@@ -1574,92 +1498,36 @@ exports.adminListVideoFlags = async (req, res, next) => {
          LEFT JOIN users u ON u.id = f.user_id
          LEFT JOIN users d ON d.id = f.decided_by
         WHERE f.status = $1
-        ORDER BY f.created_at DESC
+          ${cursor ? 'AND (f.created_at, f.id) < ($3::timestamptz, $4::uuid)' : ''}
+        ORDER BY f.created_at DESC, f.id DESC
         LIMIT $2`,
-      [status, Math.min(Math.max(Number(req.query.limit) || 200, 1), 500) + 1]
+      cursor ? [status, limit + 1, cursor.ts, cursor.id] : [status, limit + 1]
     );
-    const limit = Math.min(Math.max(Number(req.query.limit) || 200, 1), 500);
-    res.json({ success: true, flags: rows.slice(0, limit), has_more: rows.length > limit });
+    const page = reviewPageResult(rows, limit);
+    res.json({ success: true, flags: page.rows, has_more: page.has_more, next_cursor: page.next_cursor });
   } catch (err) {
+    if (err instanceof AppError) return next(err);
     next(new AppError('Failed to load video flags', 500, 'video_flags_failed'));
   }
 };
 
-async function decideVideoFlag(flagId, adminId, action, targetGuideId = null) {
-  const client = await pool.connect();
-  try {
-    await client.query('BEGIN');
-    const { rows } = await client.query(
-      `SELECT id, video_id, status FROM learn_guide_video_flags
-        WHERE id = $1 FOR UPDATE`,
-      [flagId]
-    );
-    const flag = rows[0];
-    if (!flag) { await client.query('ROLLBACK'); return { error: 'not_found' }; }
-    if (flag.status !== 'open') { await client.query('ROLLBACK'); return { error: 'already_decided' }; }
-
-    if (action === 'dismiss') {
-      await client.query(
-        `UPDATE learn_guide_video_flags
-            SET status = 'dismissed', decided_at = NOW(), decided_by = $1
-          WHERE id = $2`,
-        [adminId, flagId]
-      );
-    } else if (action === 'move') {
-      const { rows: grows } = await client.query(
-        `SELECT id FROM learn_guides WHERE id = $1 AND status = 'published'`,
-        [targetGuideId]
-      );
-      if (!grows.length) { await client.query('ROLLBACK'); return { error: 'bad_guide' }; }
-      try {
-        await client.query(
-          'UPDATE learn_guide_videos SET guide_id = $1 WHERE id = $2',
-          [targetGuideId, flag.video_id]
-        );
-      } catch (err) {
-        await client.query('ROLLBACK');
-        if (err.code === '23505') return { error: 'duplicate' };
-        throw err;
-      }
-      // Votes travel with the video; close all its open flags as resolved.
-      await client.query(
-        `UPDATE learn_guide_video_flags
-            SET status = 'resolved', decided_at = NOW(), decided_by = $1
-          WHERE video_id = $2 AND status = 'open'`,
-        [adminId, flag.video_id]
-      );
-    } else if (action === 'delete') {
-      await client.query('DELETE FROM learn_guide_videos WHERE id = $1', [flag.video_id]);
-      await client.query(
-        `UPDATE learn_guide_video_flags
-            SET status = 'resolved', decided_at = NOW(), decided_by = $1
-          WHERE video_id = $2 AND status = 'open'`,
-        [adminId, flag.video_id]
-      );
-    }
-    await client.query('COMMIT');
-    return { ok: true };
-  } catch (err) {
-    await client.query('ROLLBACK');
-    throw err;
-  } finally {
-    client.release();
-  }
+function videoFlagDecisionError(result, next, req) {
+  const labels = moderationLabels[req.user?.preferred_language] || moderationLabels.en;
+  const errors = {
+    not_found: [404, 'video_flag_not_found', 'flagNotFound'],
+    already_decided: [409, 'video_flag_already_decided', 'flagAlreadyDecided'],
+    bad_guide: [404, 'guide_not_found', 'guideNotFound'],
+    moderated: [409, 'video_moderated', 'videoModerated'],
+    duplicate: [409, 'video_duplicate', 'videoDuplicate'],
+  };
+  const [status, code, key] = errors[result.error] || [500, 'video_flag_decision_failed', 'moderationActionFailed'];
+  return next(new AppError(labels[key], status, code));
 }
 
-const videoFlagDecisionError = (r, next, action) => {
-  if (r.error === 'not_found') return next(new AppError('Flag not found.', 404, 'video_flag_not_found'));
-  if (r.error === 'already_decided') return next(new AppError('Flag was already decided.', 409, 'video_flag_already_decided'));
-  if (r.error === 'bad_guide') return next(new AppError('Target guide not found.', 404, 'guide_not_found'));
-  if (r.error === 'duplicate') return next(new AppError('That guide already has this video.', 409, 'video_duplicate'));
-  return next(new AppError(`Failed to ${action} video flag`, 500, 'video_flag_decision_failed'));
-};
-
-/** POST /api/learn/admin/video-flags/:id/dismiss */
 exports.adminDismissVideoFlag = async (req, res, next) => {
   try {
-    const r = await decideVideoFlag(req.params.id, req.user.id, 'dismiss');
-    if (r.error) return videoFlagDecisionError(r, next, 'dismiss');
+    const r = await reviewVideoFlag(req.params.id, req.user.id, 'dismiss', null, req);
+    if (r.error) return videoFlagDecisionError(r, next, req);
     res.json({ success: true });
   } catch (err) {
     next(new AppError('Failed to dismiss video flag', 500, 'video_flag_decision_failed'));
@@ -1672,8 +1540,8 @@ exports.adminDismissVideoFlag = async (req, res, next) => {
  */
 exports.adminMoveVideoFlag = async (req, res, next) => {
   try {
-    const r = await decideVideoFlag(req.params.id, req.user.id, 'move', String(req.body?.guide_id || ''));
-    if (r.error) return videoFlagDecisionError(r, next, 'move');
+    const r = await reviewVideoFlag(req.params.id, req.user.id, 'move', String(req.body?.guide_id || ''), req);
+    if (r.error) return videoFlagDecisionError(r, next, req);
     res.json({ success: true });
   } catch (err) {
     next(new AppError('Failed to move video', 500, 'video_flag_decision_failed'));
@@ -1683,8 +1551,8 @@ exports.adminMoveVideoFlag = async (req, res, next) => {
 /** POST /api/learn/admin/video-flags/:id/delete — deletes the flagged video. */
 exports.adminDeleteVideoFlag = async (req, res, next) => {
   try {
-    const r = await decideVideoFlag(req.params.id, req.user.id, 'delete');
-    if (r.error) return videoFlagDecisionError(r, next, 'delete');
+    const r = await reviewVideoFlag(req.params.id, req.user.id, 'delete', null, req);
+    if (r.error) return videoFlagDecisionError(r, next, req);
     res.json({ success: true });
   } catch (err) {
     next(new AppError('Failed to delete video', 500, 'video_flag_decision_failed'));

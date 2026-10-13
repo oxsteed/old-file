@@ -1,4 +1,52 @@
 {
+  "reviewW11Learn": {
+    "flagNotFound": "Video flag not found.",
+    "flagAlreadyDecided": "This video flag was already reviewed.",
+    "guideNotFound": "Guide not found.",
+    "videoDuplicate": "This video is already on this guide.",
+    "videoModerated": "This video was removed by moderation and cannot be submitted to this guide.",
+    "moderationActionFailed": "Could not save the moderation decision. Please try again.",
+    "previousPage": "Previous",
+    "nextPage": "Next",
+    "pageNumber": "Page {{page}}"
+  },
+  "reviewW11Notifications": {
+    "learn_video_review_received": {
+      "title": "Learn video submitted for review",
+      "body": "A video was submitted to a guide. Open the review queue before its 24-hour publication window."
+    },
+    "learn_video_review_overdue": {
+      "title": "Learn video review window reached",
+      "body": "A submission reached its 24-hour review window. Check the review queue and publication status."
+    },
+    "warranty_claim_filed": {
+      "title": "New warranty claim",
+      "body": "The other party filed a warranty claim. Open your agreement to review and respond."
+    },
+    "warranty_claim_updated": {
+      "title": "Warranty claim updated",
+      "body": "The other party updated a warranty claim. Open your agreement to view its status and response."
+    },
+    "job_started": {
+      "title": "Job started",
+      "body": "Your job is now in progress. Open it to view the details and contact the other participant."
+    }
+  },
+  "reviewW11": {
+    "guestReplyInstruction": "For follow-up, contact Support and include your ticket number. Replies to this email are not monitored.",
+    "guestResolvedInstruction": "If you still need help, contact Support and include your ticket number.",
+    "openSupport": "Contact Support",
+    "reopenTicket": "Reopen ticket",
+    "reopening": "Reopening…",
+    "reopened": "Ticket reopened",
+    "reopenFailed": "Could not reopen the ticket. Please try again.",
+    "reviewClaim": "Review claim",
+    "replyTitle": "New reply from support",
+    "replyInstruction": "Open your ticket to read and reply. Replies to this email are not monitored.",
+    "resolvedTitle": "Support request resolved",
+    "resolvedInstruction": "If you still need help, open your ticket and choose Reopen ticket.",
+    "openTicket": "Open your support ticket"
+  },
   "reviewLifecycleNotifications": {
     "dispute_update": {
       "title": "New dispute message",
@@ -1235,6 +1283,10 @@
     "duplicateSubtitle": "This identity is already linked to an existing OxSteed account",
     "duplicateNote": "Each person can only have one account. If you run multiple businesses, you can add them all from your dashboard after signing in.",
     "signIn": "Sign In to Your Account",
+    "duplicateGateMessage": "This identity is already linked to an existing OxSteed account. Please sign in with that account instead.",
+    "duplicateRecoverySignIn": "Sign in with your existing account on the login page.",
+    "duplicateRecoveryReset": "If you cannot access that account, use the password reset link on the login page.",
+    "duplicateRecoverySupport": "If you believe this is a mistake, contact OxSteed support.",
     "differentId": "Try with a different ID",
     "unavailableTitle": "Verification Unavailable",
     "unavailableSubtitle": "Identity verification is not configured on this server. This is normal in development and staging environments.",
@@ -2394,7 +2446,10 @@
       "manage2fa": "Manage 2FA",
       "passkeys": "Passkeys",
       "passkeysDesc": "Sign in with Touch ID, Face ID, Windows Hello, or a security key",
-      "managePasskeys": "Manage passkeys"
+      "managePasskeys": "Manage passkeys",
+      "sessions": "Active sessions",
+      "sessionsDesc": "See devices signed in to your account and sign them out",
+      "manageSessions": "Manage sessions"
     },
     "subscription": {
       "title": "Subscription",
@@ -4100,7 +4155,12 @@
     "listProfilePublicly": "List my profile publicly",
     "listingStatePublished": "Published: customers can find your profile",
     "listingStateDraft": "Draft: your profile is hidden from customers",
-    "listingSaved": "Listing status updated"
+    "listingSaved": "Listing status updated",
+    "assignedMaintenanceTitle": "Assigned maintenance",
+    "assignedMaintenanceEmpty": "No maintenance requests assigned to you right now.",
+    "assignedMaintenanceDetails": "Show details",
+    "assignedMaintenanceContact": "Contact",
+    "assignedMaintenanceScheduled": "Scheduled"
   },
   "postJob": {
     "title": "Post a Job",
@@ -6896,7 +6956,9 @@
       "fields": {
         "start": "Start",
         "end": "End",
-        "role": "Role"
+        "role": "Role",
+        "staff": "Staff member",
+        "staffPlaceholder": "Select a team member"
       },
       "emptyShifts": "No shifts scheduled yet.",
       "emptyTime": "No time entries yet. Use Clock In to start tracking.",
@@ -6917,7 +6979,8 @@
       "toastClockedIn": "Clocked in!",
       "toastClockInFail": "Failed to clock in",
       "toastClockedOut": "Clocked out!",
-      "toastClockOutFail": "Failed to clock out"
+      "toastClockOutFail": "Failed to clock out",
+      "toastStaffRequired": "Please select a staff member"
     },
     "integrations": {
       "title": "Integrations & Settings",
@@ -8506,6 +8569,10 @@
       "email": {
         "label": "Email Notifications",
         "description": "Messages sent to your registered email address."
+      },
+      "masters": {
+        "label": "Master Switches",
+        "description": "Turn an entire channel on or off. These override the individual toggles below."
       }
     },
     "prefs": {
@@ -8534,7 +8601,11 @@
       "email_subscription": "Subscription events",
       "email_dispute_update": "Dispute updates",
       "email_weekly_summary": "Weekly activity summary",
-      "email_new_message": "New chat messages"
+      "email_new_message": "New chat messages",
+      "push_notifications": "Push notifications",
+      "push_notificationsDesc": "All push alerts on every device (app and browser).",
+      "sms_notifications": "SMS notifications",
+      "sms_notificationsDesc": "Text messages to your verified phone number."
     }
   },
   "plannedNeeds": {
@@ -9237,6 +9308,7 @@
       "slotBookingToast": "Booking request sent. The provider still needs to confirm.",
       "slotBookingFailed": "Could not create the booking request. Your chat message was still prepared.",
       "slotBookingConflict": "That time is no longer available. Pick another slot.",
+      "slotBookingDisabled": "This helper is not taking bookings right now.",
       "guestSessionExpired": "Your guest session expired. Please verify your email again.",
       "slotBookingConfirmedPlain": "Booking request sent · {{when}}",
       "guestOtpExpired": "That code expired. Tap Resend code for a new one.",
@@ -9513,6 +9585,33 @@
     "passkeyRevokeCancel": "Cancel",
     "passkeysPageTitle": "Passkeys",
     "passkeysPageSubtitle": "Manage sign-in passkeys for your account"
+  },
+  "sessions": {
+    "pageTitle": "Active sessions",
+    "pageSubtitle": "Devices and browsers signed in to your account",
+    "loading": "Loading sessions...",
+    "loadFailed": "Could not load your sessions. Please try again.",
+    "retry": "Retry",
+    "empty": "No other active sessions.",
+    "emptyDesc": "Only this device is signed in.",
+    "thisDevice": "This device",
+    "lastActive": "Last active {{date}}",
+    "unknownDevice": "Unknown device",
+    "revoke": "Revoke",
+    "revokeTitle": "Revoke this session?",
+    "revokeConfirm": "That device will be signed out immediately. Continue?",
+    "cancel": "Cancel",
+    "confirmRevoke": "Revoke session",
+    "revoked": "Session revoked.",
+    "revokeFailed": "Could not revoke the session. Please try again.",
+    "revokeCurrentBlocked": "You cannot revoke the session you are using.",
+    "logoutEverywhere": "Log out everywhere else",
+    "logoutEverywhereTitle": "Log out of all other sessions?",
+    "logoutEverywhereConfirm": "Every other device and browser will be signed out immediately. This device stays signed in.",
+    "confirmLogoutEverywhere": "Log out everywhere",
+    "loggedOutEverywhere": "Signed out of all other sessions.",
+    "logoutEverywhereFailed": "Could not sign out everywhere. Please try again.",
+    "working": "Working..."
   },
   "homePage": {
     "company": {
@@ -13601,7 +13700,10 @@
       "body": "Our team will review your dispute within 5 business days. We'll contact both parties if needed. Evidence such as photos or messages will help us make a fair decision."
     },
     "submit": "Submit Dispute",
-    "submitting": "Submitting..."
+    "submitting": "Submitting...",
+    "windowExpired": "The 30-day dispute window for this job has closed. Disputes must be opened within 30 days of job completion.",
+    "warrantyClaimRequired": "This job has a signed work agreement. File a warranty claim on the agreement first, then open a dispute if it is not resolved there.",
+    "warrantyClaimRequiredCta": "Open the work agreement"
   },
   "enforcementPolicy": {
     "pageTitle": "Enforcement Policy & Reliability",
@@ -17286,7 +17388,19 @@
     "contactTitle": "How to Contact Us",
     "contactIntro": "If you have questions about this page or wish to exercise any privacy rights, please contact us at:",
     "contactEmailLabel": "Email:",
-    "contactMailLabel": "Mail:"
+    "contactMailLabel": "Mail:",
+      "formTitle": "Submit an Opt-Out Request",
+      "formIntro": "Use this form to exercise your right to opt out of the sale or sharing of your personal information. We will respond within 45 days.",
+      "emailLabel": "Email address",
+      "emailPlaceholder": "you@example.com",
+      "notesLabel": "Additional details (optional)",
+      "notesPlaceholder": "Tell us anything that helps us find your data.",
+      "submitButton": "Submit Opt-Out Request",
+      "submittingButton": "Submitting...",
+      "successTitle": "Request received",
+      "successMessage": "Your opt-out request was received. We will respond within 45 days.",
+      "errorRequired": "Please enter your email address.",
+      "errorFailed": "We could not submit your request. Please try again later."
   },
   "cookiePolicyPage": {
     "title": "Cookie Policy",
@@ -29431,6 +29545,8 @@
     "colOwner": "OWNER",
     "colStatus": "STATUS",
     "inactiveBadge": "Inactive",
+    "flaggedBadge": "Flagged",
+    "statusFlagged": "Flagged for Review",
     "loading": "Loading…",
     "modalTitle": "{{action}} business",
     "moreActions": "More actions",
@@ -31221,7 +31337,9 @@
     "intro": "Complete these steps to appear in search and accept jobs.",
     "email": "Email verified",
     "terms": "Terms accepted",
-    "termsHelp": "We have no record of your terms acceptance. Contact support to continue.",
+    "termsHelp": "We have no record of your terms acceptance. Review and accept the terms below to continue.",
+    "acceptTerms": "Review and accept terms",
+    "termsSaved": "Terms accepted",
     "profile": "Profile and contact details",
     "phone": "Phone",
     "city": "City",

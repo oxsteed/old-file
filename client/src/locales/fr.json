@@ -1,4 +1,52 @@
 {
+  "reviewW11Learn": {
+    "flagNotFound": "Signalement de vidéo introuvable.",
+    "flagAlreadyDecided": "Ce signalement de vidéo a déjà été examiné.",
+    "guideNotFound": "Guide introuvable.",
+    "videoDuplicate": "Cette vidéo figure déjà dans ce guide.",
+    "videoModerated": "Cette vidéo a été retirée par la modération et ne peut pas être proposée pour ce guide.",
+    "moderationActionFailed": "Impossible d’enregistrer la décision de modération. Réessayez.",
+    "previousPage": "Précédent",
+    "nextPage": "Suivant",
+    "pageNumber": "Page {{page}}"
+  },
+  "reviewW11Notifications": {
+    "learn_video_review_received": {
+      "title": "Vidéo Learn proposée à la modération",
+      "body": "Une vidéo a été proposée pour un guide. Consultez la file de modération avant le délai de publication de 24 heures."
+    },
+    "learn_video_review_overdue": {
+      "title": "Délai de modération d’une vidéo Learn atteint",
+      "body": "Une proposition a atteint son délai de modération de 24 heures. Vérifiez la file et son statut de publication."
+    },
+    "warranty_claim_filed": {
+      "title": "Nouvelle réclamation de garantie",
+      "body": "L’autre partie a déposé une réclamation de garantie. Ouvrez votre accord pour la consulter et répondre."
+    },
+    "warranty_claim_updated": {
+      "title": "Réclamation de garantie mise à jour",
+      "body": "L’autre partie a mis à jour une réclamation de garantie. Ouvrez votre accord pour consulter son statut et la réponse."
+    },
+    "job_started": {
+      "title": "Travail commencé",
+      "body": "Votre travail est en cours. Ouvrez-le pour consulter les détails et contacter l’autre participant."
+    }
+  },
+  "reviewW11": {
+    "guestReplyInstruction": "Pour continuer, contactez le support en indiquant votre numéro de ticket. Les réponses à cet e-mail ne sont pas consultées.",
+    "guestResolvedInstruction": "Si vous avez encore besoin d’aide, contactez le support en indiquant votre numéro de ticket.",
+    "openSupport": "Contacter le support",
+    "reopenTicket": "Rouvrir le ticket",
+    "reopening": "Réouverture…",
+    "reopened": "Ticket rouvert",
+    "reopenFailed": "Impossible de rouvrir le ticket. Réessayez.",
+    "reviewClaim": "Examiner la réclamation",
+    "replyTitle": "Nouvelle réponse du support",
+    "replyInstruction": "Ouvrez votre ticket pour lire et répondre. Les réponses à cet e-mail ne sont pas consultées.",
+    "resolvedTitle": "Demande de support résolue",
+    "resolvedInstruction": "Si vous avez encore besoin d’aide, ouvrez votre ticket et choisissez Rouvrir le ticket.",
+    "openTicket": "Ouvrir votre ticket de support"
+  },
   "reviewLifecycleNotifications": {
     "dispute_update": {
       "title": "Nouveau message dans votre litige",
@@ -1235,6 +1283,10 @@
     "duplicateSubtitle": "Cette identité est déjà liée à un compte OxSteed existant",
     "duplicateNote": "Chaque personne ne peut avoir qu'un seul compte. Si vous gérez plusieurs entreprises, vous pouvez toutes les ajouter depuis votre tableau de bord après connexion.",
     "signIn": "Se connecter à votre compte",
+    "duplicateGateMessage": "Cette identité est déjà liée à un compte OxSteed existant. Connectez-vous avec ce compte.",
+    "duplicateRecoverySignIn": "Connectez-vous avec votre compte existant sur la page de connexion.",
+    "duplicateRecoveryReset": "Si vous ne pouvez pas accéder à ce compte, utilisez le lien de réinitialisation du mot de passe sur la page de connexion.",
+    "duplicateRecoverySupport": "Si vous pensez qu'il s'agit d'une erreur, contactez le support OxSteed.",
     "differentId": "Essayer avec une autre pièce d'identité",
     "unavailableTitle": "Vérification indisponible",
     "unavailableSubtitle": "La vérification d'identité n'est pas configurée sur ce serveur. C'est normal dans les environnements de développement et de test.",
@@ -2395,7 +2447,10 @@
       "manage2fa": "Gérer 2FA",
       "passkeys": "Clés d’accès",
       "passkeysDesc": "Connectez-vous avec Touch ID, Face ID, Windows Hello ou une clé de sécurité",
-      "managePasskeys": "Gérer les clés d’accès"
+      "managePasskeys": "Gérer les clés d’accès",
+      "sessions": "Sessions actives",
+      "sessionsDesc": "Voir les appareils connectés à votre compte et les déconnecter",
+      "manageSessions": "Gérer les sessions"
     },
     "subscription": {
       "title": "Abonnement",
@@ -4100,7 +4155,12 @@
     "listProfilePublicly": "Rendre mon profil public",
     "listingStatePublished": "Publié : les clients peuvent trouver votre profil",
     "listingStateDraft": "Brouillon : votre profil est masqué pour les clients",
-    "listingSaved": "Statut de publication mis à jour"
+    "listingSaved": "Statut de publication mis à jour",
+    "assignedMaintenanceTitle": "Maintenance assignée",
+    "assignedMaintenanceEmpty": "Aucune demande de maintenance ne vous est assignée pour le moment.",
+    "assignedMaintenanceDetails": "Afficher les détails",
+    "assignedMaintenanceContact": "Contact",
+    "assignedMaintenanceScheduled": "Planifié"
   },
   "postJob": {
     "title": "Publier une mission",
@@ -6896,7 +6956,9 @@
       "fields": {
         "start": "Début",
         "end": "Fin",
-        "role": "Rôle"
+        "role": "Rôle",
+        "staff": "Membre de l’équipe",
+        "staffPlaceholder": "Sélectionnez un membre de l’équipe"
       },
       "emptyShifts": "Aucun shift planifié pour l’instant.",
       "emptyTime": "Aucun pointage pour l’instant. Utilisez « Pointer » pour commencer.",
@@ -6917,7 +6979,8 @@
       "toastClockedIn": "Pointage d’entrée effectué !",
       "toastClockInFail": "Impossible de pointer",
       "toastClockedOut": "Pointage de sortie effectué !",
-      "toastClockOutFail": "Impossible de pointer la sortie"
+      "toastClockOutFail": "Impossible de pointer la sortie",
+      "toastStaffRequired": "Veuillez sélectionner un membre de l’équipe"
     },
     "integrations": {
       "title": "Intégrations et paramètres",
@@ -8506,6 +8569,10 @@
       "email": {
         "label": "Notifications par Email",
         "description": "Mises à jour envoyées à votre adresse email"
+      },
+      "masters": {
+        "label": "Interrupteurs principaux",
+        "description": "Activez ou désactivez un canal entier. Ils ont priorité sur les interrupteurs individuels ci-dessous."
       }
     },
     "prefs": {
@@ -8534,7 +8601,11 @@
       "email_subscription": "Mises à jour de l'abonnement",
       "email_dispute_update": "Mise à jour du litige",
       "email_weekly_summary": "Résumé hebdomadaire",
-      "email_new_message": "Nouveaux messages de chat"
+      "email_new_message": "Nouveaux messages de chat",
+      "push_notifications": "Notifications push",
+      "push_notificationsDesc": "Toutes les alertes push sur tous les appareils (application et navigateur).",
+      "sms_notifications": "Notifications par SMS",
+      "sms_notificationsDesc": "Messages texte à votre numéro de téléphone vérifié."
     }
   },
   "plannedNeeds": {
@@ -9237,6 +9308,7 @@
       "slotBookingToast": "Demande de réservation envoyée, le prestataire doit encore confirmer.",
       "slotBookingFailed": "Impossible de créer la demande de réservation. Le message du chat a tout de même été préparé.",
       "slotBookingConflict": "Ce créneau n’est plus disponible. Choisissez-en un autre.",
+      "slotBookingDisabled": "Cet aidant n’accepte pas de réservations pour le moment.",
       "guestSessionExpired": "Votre session invité a expiré. Veuillez vérifier votre e-mail à nouveau.",
       "slotBookingConfirmedPlain": "Demande de réservation envoyée · {{when}}",
       "guestOtpExpired": "Ce code a expiré. Appuyez sur Renvoyer le code pour en obtenir un nouveau.",
@@ -9513,6 +9585,33 @@
     "passkeyRevokeCancel": "Annuler",
     "passkeysPageTitle": "Clés d’accès",
     "passkeysPageSubtitle": "Gérez les clés d’accès pour vous connecter à votre compte"
+  },
+  "sessions": {
+    "pageTitle": "Sessions actives",
+    "pageSubtitle": "Appareils et navigateurs connectés à votre compte",
+    "loading": "Chargement des sessions...",
+    "loadFailed": "Impossible de charger vos sessions. Veuillez réessayer.",
+    "retry": "Réessayer",
+    "empty": "Aucune autre session active.",
+    "emptyDesc": "Seul cet appareil est connecté.",
+    "thisDevice": "Cet appareil",
+    "lastActive": "Dernière activité : {{date}}",
+    "unknownDevice": "Appareil inconnu",
+    "revoke": "Révoquer",
+    "revokeTitle": "Révoquer cette session ?",
+    "revokeConfirm": "Cet appareil sera déconnecté immédiatement. Continuer ?",
+    "cancel": "Annuler",
+    "confirmRevoke": "Révoquer la session",
+    "revoked": "Session révoquée.",
+    "revokeFailed": "Impossible de révoquer la session. Veuillez réessayer.",
+    "revokeCurrentBlocked": "Vous ne pouvez pas révoquer la session que vous utilisez.",
+    "logoutEverywhere": "Se déconnecter partout ailleurs",
+    "logoutEverywhereTitle": "Se déconnecter de toutes les autres sessions ?",
+    "logoutEverywhereConfirm": "Tous les autres appareils et navigateurs seront déconnectés immédiatement. Cet appareil restera connecté.",
+    "confirmLogoutEverywhere": "Tout déconnecter",
+    "loggedOutEverywhere": "Déconnexion de toutes les autres sessions.",
+    "logoutEverywhereFailed": "Impossible de tout déconnecter. Veuillez réessayer.",
+    "working": "En cours..."
   },
   "homePage": {
     "company": {
@@ -13344,7 +13443,10 @@
       "body": "Notre équipe examinera votre litige sous 5 jours ouvrables. Les preuves aident à prendre des décisions équitables."
     },
     "submit": "Soumettre le Litige",
-    "submitting": "Envoi..."
+    "submitting": "Envoi...",
+    "windowExpired": "Le délai de contestation de 30 jours pour ce travail est écoulé. Les litiges doivent être ouverts dans les 30 jours suivant l'achèvement du travail.",
+    "warrantyClaimRequired": "Cette mission a un accord de travail signé. Déposez d’abord une réclamation de garantie sur l’accord, puis ouvrez un litige si le problème n’y est pas résolu.",
+    "warrantyClaimRequiredCta": "Ouvrir l’accord de travail"
   },
   "enforcementPolicy": {
     "pageTitle": "Politique d'Application",
@@ -17286,7 +17388,19 @@
     "contactTitle": "Comment nous contacter",
     "contactIntro": "Si vous avez des questions sur cette page ou souhaitez exercer l'un de vos droits à la vie privée, veuillez nous contacter à :",
     "contactEmailLabel": "E-mail:",
-    "contactMailLabel": "Courrier:"
+    "contactMailLabel": "Courrier:",
+      "formTitle": "Soumettre une demande d’opposition",
+      "formIntro": "Utilisez ce formulaire pour exercer votre droit de vous opposer à la vente ou au partage de vos informations personnelles. Nous répondrons sous 45 jours.",
+      "emailLabel": "Adresse e-mail",
+      "emailPlaceholder": "vous@exemple.com",
+      "notesLabel": "Détails supplémentaires (facultatif)",
+      "notesPlaceholder": "Indiquez tout ce qui peut nous aider à retrouver vos données.",
+      "submitButton": "Envoyer la demande d’opposition",
+      "submittingButton": "Envoi en cours...",
+      "successTitle": "Demande reçue",
+      "successMessage": "Votre demande d’opposition a bien été reçue. Nous répondrons sous 45 jours.",
+      "errorRequired": "Veuillez saisir votre adresse e-mail.",
+      "errorFailed": "Nous n’avons pas pu envoyer votre demande. Veuillez réessayer plus tard."
   },
   "cookiePolicyPage": {
     "title": "Politique de cookies",
@@ -29431,6 +29545,8 @@
     "colOwner": "PROPRIÉTAIRE",
     "colStatus": "STATUT",
     "inactiveBadge": "Inactif",
+    "flaggedBadge": "Signalé",
+    "statusFlagged": "Signalé pour révision",
     "loading": "Chargement…",
     "modalTitle": "{{action}} l'entreprise",
     "moreActions": "Plus d'actions",
@@ -31221,7 +31337,9 @@
     "intro": "Terminez ces étapes pour apparaître dans les recherches et accepter des missions.",
     "email": "E-mail vérifié",
     "terms": "Conditions acceptées",
-    "termsHelp": "Nous n'avons aucune trace de votre acceptation des conditions. Contactez le support pour continuer.",
+    "termsHelp": "Nous n'avons aucune trace de votre acceptation des conditions. Consultez et acceptez les conditions ci-dessous pour continuer.",
+    "acceptTerms": "Consulter et accepter les conditions",
+    "termsSaved": "Conditions acceptées",
     "profile": "Profil et coordonnées",
     "phone": "Téléphone",
     "city": "Ville",

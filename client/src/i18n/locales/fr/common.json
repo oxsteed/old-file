@@ -1,4 +1,52 @@
 {
+  "reviewW11Learn": {
+    "flagNotFound": "Signalement de vidéo introuvable.",
+    "flagAlreadyDecided": "Ce signalement de vidéo a déjà été examiné.",
+    "guideNotFound": "Guide introuvable.",
+    "videoDuplicate": "Cette vidéo figure déjà dans ce guide.",
+    "videoModerated": "Cette vidéo a été retirée par la modération et ne peut pas être proposée pour ce guide.",
+    "moderationActionFailed": "Impossible d’enregistrer la décision de modération. Réessayez.",
+    "previousPage": "Précédent",
+    "nextPage": "Suivant",
+    "pageNumber": "Page {{page}}"
+  },
+  "reviewW11Notifications": {
+    "learn_video_review_received": {
+      "title": "Vidéo Learn proposée à la modération",
+      "body": "Une vidéo a été proposée pour un guide. Consultez la file de modération avant le délai de publication de 24 heures."
+    },
+    "learn_video_review_overdue": {
+      "title": "Délai de modération d’une vidéo Learn atteint",
+      "body": "Une proposition a atteint son délai de modération de 24 heures. Vérifiez la file et son statut de publication."
+    },
+    "warranty_claim_filed": {
+      "title": "Nouvelle réclamation de garantie",
+      "body": "L’autre partie a déposé une réclamation de garantie. Ouvrez votre accord pour la consulter et répondre."
+    },
+    "warranty_claim_updated": {
+      "title": "Réclamation de garantie mise à jour",
+      "body": "L’autre partie a mis à jour une réclamation de garantie. Ouvrez votre accord pour consulter son statut et la réponse."
+    },
+    "job_started": {
+      "title": "Travail commencé",
+      "body": "Votre travail est en cours. Ouvrez-le pour consulter les détails et contacter l’autre participant."
+    }
+  },
+  "reviewW11": {
+    "guestReplyInstruction": "Pour continuer, contactez le support en indiquant votre numéro de ticket. Les réponses à cet e-mail ne sont pas consultées.",
+    "guestResolvedInstruction": "Si vous avez encore besoin d’aide, contactez le support en indiquant votre numéro de ticket.",
+    "openSupport": "Contacter le support",
+    "reopenTicket": "Rouvrir le ticket",
+    "reopening": "Réouverture…",
+    "reopened": "Ticket rouvert",
+    "reopenFailed": "Impossible de rouvrir le ticket. Réessayez.",
+    "reviewClaim": "Examiner la réclamation",
+    "replyTitle": "Nouvelle réponse du support",
+    "replyInstruction": "Ouvrez votre ticket pour lire et répondre. Les réponses à cet e-mail ne sont pas consultées.",
+    "resolvedTitle": "Demande de support résolue",
+    "resolvedInstruction": "Si vous avez encore besoin d’aide, ouvrez votre ticket et choisissez Rouvrir le ticket.",
+    "openTicket": "Ouvrir votre ticket de support"
+  },
   "reviewLifecycleNotifications": {
     "dispute_update": {
       "title": "Nouveau message dans votre litige",

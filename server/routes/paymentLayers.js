@@ -5,6 +5,7 @@ const { authenticate } = require('../middleware/auth');
 const { requireAdmin, requireSuperAdmin, requirePermission } = require('../middleware/adminAuth');
 const { paymentsLimiter, generalLimiter } = require('../middleware/rateLimiter');
 const { rejectImpersonated } = require('../middleware/rejectImpersonated');
+const checkRestrictions = require('../middleware/checkRestrictions');
 const { errorHandler } = require('../middleware/errorHandler');
 const ctrl = require('../controllers/paymentLayersController');
 
@@ -26,7 +27,8 @@ router.post('/jobs/:id/offline-payment/confirm', authenticate, rejectImpersonate
 
 router.get('/jobs/:id/tips', authenticate, ctrl.listTips);
 router.post('/jobs/:id/tips/quote', authenticate, ctrl.quoteTip);
-router.post('/jobs/:id/tips', authenticate, rejectImpersonated, paymentsLimiter, ctrl.createTip);
+// Review P2-7-F07: tips initiate a payment; honor checkout restrictions.
+router.post('/jobs/:id/tips', authenticate, rejectImpersonated, checkRestrictions('checkout'), paymentsLimiter, ctrl.createTip);
 
 router.get('/cashout/eligibility', authenticate, ctrl.getCashoutEligibility);
 router.get('/cashout', authenticate, ctrl.listCashouts);

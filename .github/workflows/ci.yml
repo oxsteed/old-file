@@ -61,6 +61,10 @@ jobs:
         working-directory: client
         run: node --test scripts/*.test.mjs
 
+      - name: Client localization, type, and production build checks
+        working-directory: client
+        run: npm run build:ci
+
       - name: Install Chrome for browser regression tests
         uses: browser-actions/setup-chrome@v2
         with:
@@ -79,10 +83,6 @@ jobs:
           OXSTEED_E2E_SIGNATURE_NAME: ${{ secrets.OXSTEED_E2E_SIGNATURE_NAME }}
           OXSTEED_E2E_2FA_CODE: ${{ secrets.OXSTEED_E2E_2FA_CODE }}
         run: npm run test:admin-authenticated
-
-      - name: Client localization, type, and production build checks
-        working-directory: client
-        run: npm run build:ci
 
       - name: Install server dependencies
         working-directory: server
@@ -124,11 +124,10 @@ jobs:
           OXSTEED_MEDIA_LAUNCHED: 'true'
           MEDIA_PUBLIC_VIDEO_INTERIM: 'true'
         run: |
-          # Million-row capacity case runs in parallel (own file, own schema).
-          npx jest __tests__/statementExportJobs.millionRow.db.test.js --forceExit --json --outputFile=million-row-results.json &
-          MILLION_PID=$!
-          npm test -- --runInBand --forceExit --json --outputFile=statement-test-results.json --testPathIgnorePatterns=statementExportJobs.millionRow
-          wait $MILLION_PID
+          # Complete the capacity case before running the remaining suites.
+          npx jest __tests__/statementExportJobs.millionRow.db.test.js --runInBand --json --outputFile=million-row-results.json
+          # Invoke Jest directly: npm test adds --forceExit in package.json.
+          npx jest --runInBand --detectOpenHandles --json --outputFile=statement-test-results.json --testPathIgnorePatterns=statementExportJobs.millionRow
           node ../scripts/assert-statement-db-tests.cjs statement-test-results.json
           node ../scripts/assert-media-db-tests.cjs statement-test-results.json
 
@@ -189,7 +188,20 @@ jobs:
 
           node scripts/pull-ci-redis.cjs
 
-          docker build --tag "$CLAMAV_IMAGE" \
+          clamav_base=""
+          for round in 1 2 3; do
+            for source in public.ecr.aws/docker/library/debian:13-slim docker.io/library/debian:13-slim; do
+              echo "ClamAV base pull attempt $round/3: $source"
+              if docker pull "$source"; then clamav_base="$source"; break 2; fi
+            done
+            if [ "$round" -lt 3 ]; then sleep $((5 * round)); fi
+          done
+          if [ -z "$clamav_base" ]; then
+            echo "ClamAV base image unavailable from both public registries after three attempts each" >&2
+            exit 1
+          fi
+
+          docker build --tag "$CLAMAV_IMAGE" --build-arg "BASE_IMAGE=$clamav_base" \
             --file .github/ci/clamav.Dockerfile .github/ci/clamav
 
           compose=(docker compose --env-file "$env_file" --project-name "$COMPOSE_PROJECT" \

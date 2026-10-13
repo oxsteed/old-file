@@ -500,7 +500,7 @@ exports.respondAgreement = async (req, res, next) => {
     const row = await loadAgreement(req.params.id);
     if (!row) return bad(res, 404, 'Agreement not found', 'not_found');
 
-    const gate = canRespondToAgreement(row);
+    const gate = canRespondToAgreement(row, action);
     if (!gate.ok) return bad(res, 409, `Cannot respond: ${gate.reason}`, gate.reason);
 
     const userId = req.user?.id;
@@ -523,8 +523,9 @@ exports.respondAgreement = async (req, res, next) => {
       return bad(res, 403, 'Not allowed to respond to this agreement', 'forbidden');
     }
 
-    // acknowledge is allowed from shared; accept/decline from shared or acknowledged
-    if (action === 'acknowledge' && row.status !== 'shared') {
+    // acknowledge is allowed from shared, or as a changed response after a
+    // decline; accept/decline from shared or acknowledged
+    if (action === 'acknowledge' && row.status !== 'shared' && row.status !== 'declined') {
       return bad(res, 409, 'Already responded', 'invalid_status');
     }
 
@@ -534,7 +535,7 @@ exports.respondAgreement = async (req, res, next) => {
 
     const { rows } = await pool.query(
       `UPDATE chat_agreements
-          SET status = $1, decline_reason = CASE WHEN $1 = 'declined' THEN $2 ELSE decline_reason END,
+          SET status = $1, decline_reason = CASE WHEN $1 = 'declined' THEN $2 ELSE NULL END,
               updated_at = NOW()
         WHERE id = $3 RETURNING *`,
       [nextStatus, note, row.id],

@@ -167,8 +167,10 @@ exports.deleteCoverImage = async (req, res) => {
       [business.id]
     );
 
-    // TODO: Delete from S3
     if (business.cover_image_url) {
+      // Review P3-6-F03: queue the removed object for deletion (after a grace
+      // period, and only if nothing references it any more).
+      await enqueueStorageDeletion(business.cover_image_url, 'business_cover_deleted');
       logger.info('Business cover image deleted', {
         businessId: business.id,
         coverUrl: business.cover_image_url

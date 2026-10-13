@@ -99,6 +99,36 @@ describe('chatAgreements', () => {
     expect(canRespondToAgreement({ status: 'shared', superseded_at: new Date() }).reason).toBe('superseded');
   });
 
+  test('P2-10-F09: a declined agreement can be re-accepted or re-acknowledged', () => {
+    // Actionless call keeps the old terminal verdict (declining again is a no-op).
+    expect(canRespondToAgreement({ status: 'declined' }).reason).toBe('already_declined');
+    expect(canRespondToAgreement({ status: 'declined' }, 'decline').reason).toBe('already_declined');
+    // The customer path forward: change the response.
+    const accept = canRespondToAgreement({ status: 'declined' }, 'accept');
+    expect(accept.ok).toBe(true);
+    expect(accept.changeResponse).toBe(true);
+    expect(canRespondToAgreement({ status: 'declined' }, 'acknowledge').ok).toBe(true);
+    // Superseded stays terminal for every action.
+    expect(canRespondToAgreement({ status: 'declined', superseded_at: new Date() }, 'accept').reason)
+      .toBe('superseded');
+    expect(canRespondToAgreement({ status: 'accepted' }, 'accept').reason).toBe('already_accepted');
+  });
+
+  test('P2-10-F09: declined blockers carry the change-response hint', () => {
+    const blocked = scheduleBlockedByAgreements([
+      { id: '9', title: 'Terms', status: 'declined', required_before_schedule: true },
+    ]);
+    expect(blocked.blocked).toBe(true);
+    expect(blocked.agreements[0]).toMatchObject({ id: '9', status: 'declined', can_change_response: true });
+    const shared = scheduleBlockedByAgreements([
+      { id: '9', title: 'Terms', status: 'shared', required_before_schedule: true },
+    ]);
+    expect(shared.agreements[0].can_change_response).toBe(false);
+    const card = toPublicAgreementCard({ id: '9', title: 'Terms', status: 'declined', version: 1 });
+    expect(card.can_change_response).toBe(true);
+    expect(card.can_respond).toBe(false);
+  });
+
   test('normalizeAgreementPayload', () => {
     expect(normalizeAgreementPayload({ title: '' }).error).toMatch(/Title/);
     const ok = normalizeAgreementPayload({

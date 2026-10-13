@@ -35,6 +35,7 @@ const creditLedger = require('../services/referralCreditLedger');
 const { toLocalSubscriptionStatus } = require('../utils/subscriptionStatus');
 const jobPaymentReauth = require('../services/jobPaymentReauthorizationService');
 const paymentRailWebhooks = require('../services/paymentRails/webhooks');
+const { captureCents } = require('../services/paymentCaptureService');
 
 function extractFoodOrderId(metadata) {
   const raw = metadata?.food_order_id
@@ -665,27 +666,46 @@ async function handleVerifiedStripeEvent(event, destination, res, next) {
           const planId = parseInt(session.metadata.planId);
           const sub = await stripe.subscriptions.retrieve(subscriptionId);
           const period = subscriptionPeriod(sub);
-          await db.query(
-            `INSERT INTO subscriptions (user_id, plan_id, stripe_subscription_id, stripe_customer_id, status, current_period_start, current_period_end)
-             VALUES ($1, $2, $3, $4, $5, to_timestamp($6), to_timestamp($7))
-             ON CONFLICT (stripe_subscription_id) DO UPDATE SET status = $5`,
-            [userId, planId, subscriptionId, stripeObjectId(session.customer), toLocalSubscriptionStatus(sub.status),
-             period.start, period.end]
-          );
-          // Get plan tier
-          const { rows: plans } = await db.query(
-            'SELECT COALESCE(tier, slug) AS tier_slug, slug FROM plans WHERE id = $1', [planId]
-          );
-          const planSlug = plans[0]?.slug || plans[0]?.tier_slug || 'pro';
-          const userTier = planSlug === 'basic' ? 'basic' : planSlug === 'broker' ? 'broker' : 'pro';
-          await db.query(
-            `UPDATE users
-             SET tier = $1,
-                 subscription_status = 'active',
-                 tier_selected = TRUE
-             WHERE id = $2`,
-            [userTier, userId]
-          );
+          const newStatus = toLocalSubscriptionStatus(sub.status);
+          // P3-11-F08: the subscription row, the tier grant, and the audit
+          // row commit together; a missing audit row fails the whole event.
+          await withTransaction(db, async (client) => {
+            const { rows: inserted } = await client.query(
+              `INSERT INTO subscriptions (user_id, plan_id, stripe_subscription_id, stripe_customer_id, status, current_period_start, current_period_end)
+               VALUES ($1, $2, $3, $4, $5, to_timestamp($6), to_timestamp($7))
+               ON CONFLICT (stripe_subscription_id) DO UPDATE SET status = $5
+               RETURNING id`,
+              [userId, planId, subscriptionId, stripeObjectId(session.customer), newStatus,
+               period.start, period.end]
+            );
+            // Get plan tier
+            const { rows: plans } = await client.query(
+              'SELECT COALESCE(tier, slug) AS tier_slug, slug FROM plans WHERE id = $1', [planId]
+            );
+            const planSlug = plans[0]?.slug || plans[0]?.tier_slug || 'pro';
+            const userTier = planSlug === 'basic' ? 'basic' : planSlug === 'broker' ? 'broker' : 'pro';
+            await client.query(
+              `UPDATE users
+               SET tier = $1,
+                   subscription_status = 'active',
+                   tier_selected = TRUE
+               WHERE id = $2`,
+              [userTier, userId]
+            );
+            if (inserted[0]) {
+              const { logAdminAction } = require('../services/auditService');
+              await logAdminAction({
+                client,
+                adminId: userId,
+                action: 'subscription.created',
+                targetType: 'subscription',
+                targetId: String(inserted[0].id),
+                description: `Subscription created via Stripe Checkout (plan ${planSlug})`,
+                after: { status: newStatus, plan_id: planId },
+                throwOnError: true,
+              });
+            }
+          }, 'webhook_subscription_created');
           await recalculateBadges(userId);
         }
         break;
@@ -740,15 +760,34 @@ async function handleVerifiedStripeEvent(event, destination, res, next) {
           planId = planRows[0]?.id ?? null;
         }
 
-        await db.query(
-          `INSERT INTO subscriptions
-             (user_id, plan_id, stripe_subscription_id, stripe_customer_id,
-              status, current_period_start, current_period_end)
-           VALUES ($1, $2, $3, $4, $5, to_timestamp($6), to_timestamp($7))
-           ON CONFLICT (stripe_subscription_id) DO NOTHING`,
-          [userRows[0].id, planId, sub.id, stripeObjectId(sub.customer), toLocalSubscriptionStatus(sub.status),
-           period.start, period.end]
-        );
+        await withTransaction(db, async (client) => {
+          const { rows: inserted } = await client.query(
+            `INSERT INTO subscriptions
+               (user_id, plan_id, stripe_subscription_id, stripe_customer_id,
+                status, current_period_start, current_period_end)
+             VALUES ($1, $2, $3, $4, $5, to_timestamp($6), to_timestamp($7))
+             ON CONFLICT (stripe_subscription_id) DO NOTHING
+             RETURNING id`,
+            [userRows[0].id, planId, sub.id, stripeObjectId(sub.customer), toLocalSubscriptionStatus(sub.status),
+             period.start, period.end]
+          );
+
+          if (inserted[0]) {
+            // P3-11-F08: audit the dashboard/API-created subscription in the
+            // same transaction as the row itself.
+            const { logAdminAction } = require('../services/auditService');
+            await logAdminAction({
+              client,
+              adminId: userRows[0].id,
+              action: 'subscription.created',
+              targetType: 'subscription',
+              targetId: String(inserted[0].id),
+              description: 'Subscription created outside Checkout (Stripe dashboard or API)',
+              after: { status: toLocalSubscriptionStatus(sub.status), plan_id: planId },
+              throwOnError: true,
+            });
+          }
+        }, 'webhook_subscription_created_dashboard');
 
         // Only a paying/trialing subscription grants the tier; incomplete
         // ones wait for customer.subscription.updated.
@@ -800,11 +839,35 @@ async function handleVerifiedStripeEvent(event, destination, res, next) {
       }
       case 'customer.subscription.deleted': {
         const sub = event.data.object;
-        await db.query(
-          `UPDATE subscriptions SET status = 'cancelled', cancelled_at = NOW(), updated_at = NOW()
-           WHERE stripe_subscription_id = $1`,
-          [sub.id]
-        );
+        await withTransaction(db, async (client) => {
+          const { rows: existing } = await client.query(
+            `SELECT id, user_id, status FROM subscriptions
+              WHERE stripe_subscription_id = $1 FOR UPDATE`,
+            [sub.id]
+          );
+          const current = existing[0];
+          if (current && current.status !== 'cancelled') {
+            await client.query(
+              `UPDATE subscriptions SET status = 'cancelled', cancelled_at = NOW(), updated_at = NOW()
+               WHERE id = $1`,
+              [current.id]
+            );
+            // P3-11-F08: audit the provider-side cancellation in the same
+            // transaction as the status change.
+            const { logAdminAction } = require('../services/auditService');
+            await logAdminAction({
+              client,
+              adminId: current.user_id,
+              action: 'subscription.cancelled',
+              targetType: 'subscription',
+              targetId: String(current.id),
+              description: 'Subscription cancelled at the payment processor (Stripe webhook)',
+              before: { status: current.status },
+              after: { status: 'cancelled' },
+              throwOnError: true,
+            });
+          }
+        }, 'webhook_subscription_deleted');
         const { rows } = await db.query(
           'SELECT user_id FROM subscriptions WHERE stripe_subscription_id = $1', [sub.id]
         );
@@ -846,17 +909,43 @@ async function handleVerifiedStripeEvent(event, destination, res, next) {
         const sub = await stripe.subscriptions.retrieve(subId);
         const period = subscriptionPeriod(sub);
 
-        await db.query(
-          `UPDATE subscriptions
-           SET status                = $1,
-               current_period_start  = to_timestamp($2),
-               current_period_end    = to_timestamp($3),
-               cancel_at_period_end  = $4,
-               updated_at            = NOW()
-           WHERE stripe_subscription_id = $5`,
-          [toLocalSubscriptionStatus(sub.status), period.start, period.end,
-           sub.cancel_at_period_end, subId]
-        );
+        // P3-11-F08: the renewal write and its audit row commit together;
+        // a missing audit row fails the renewal rather than going unaudited.
+        await withTransaction(db, async (client) => {
+          const { rows: previous } = await client.query(
+            `SELECT id, user_id, status FROM subscriptions
+              WHERE stripe_subscription_id = $1 FOR UPDATE`,
+            [subId]
+          );
+          await client.query(
+            `UPDATE subscriptions
+             SET status                = $1,
+                 current_period_start  = to_timestamp($2),
+                 current_period_end    = to_timestamp($3),
+                 cancel_at_period_end  = $4,
+                 updated_at            = NOW()
+             WHERE stripe_subscription_id = $5`,
+            [toLocalSubscriptionStatus(sub.status), period.start, period.end,
+             sub.cancel_at_period_end, subId]
+          );
+          if (previous[0]) {
+            const { logAdminAction } = require('../services/auditService');
+            await logAdminAction({
+              client,
+              adminId: previous[0].user_id,
+              action: 'subscription.renewed',
+              targetType: 'subscription',
+              targetId: String(previous[0].id),
+              description: 'Subscription renewed (Stripe invoice paid)',
+              before: { status: previous[0].status },
+              after: {
+                status: toLocalSubscriptionStatus(sub.status),
+                current_period_end: new Date(period.end * 1000).toISOString(),
+              },
+              throwOnError: true,
+            });
+          }
+        }, 'webhook_subscription_renewed');
 
         const { rows: subRows } = await db.query(
           'SELECT user_id, plan_id FROM subscriptions WHERE stripe_subscription_id = $1', [subId]
@@ -1023,22 +1112,96 @@ async function handleVerifiedStripeEvent(event, destination, res, next) {
             });
           });
         } else if (jobId) {
-          const { rows: capturedPaymentRows } = await db.query(
-            `UPDATE payments SET status = 'captured', payment_hold_status = 'released',
-             captured_at = NOW(), released_at = NOW(), updated_at = NOW()
-             WHERE stripe_payment_intent_id = $1 AND status != 'captured'
-             RETURNING payer_id`,
-            [pi.id]
-          );
-          // Mark job escrow released
-          await db.query(
-            `UPDATE jobs SET escrow_status = 'released', updated_at = NOW() WHERE id = $1`,
-            [jobId]
-          );
-          logger.info(`[Stripe] PaymentIntent ${pi.id} captured - funds released for job ${jobId}`);
+          // Tier-3 capture (P3-1-F09). Verify the money before the ledger
+          // moves: the row must exist and be pre-capture, and Stripe's
+          // captured amount must equal what we authorized (partial captures
+          // are capped by capture_amount_cents, which the expectation
+          // accounts for). Anything else fails closed: a reconciliation
+          // exception is recorded and neither the payment nor the escrow
+          // changes state.
+          const capturedPayment = await withTransaction(db, async (client) => {
+            const { rows } = await client.query(
+              `SELECT id, payer_id, amount, currency, capture_amount_cents, status, metadata
+                 FROM payments WHERE stripe_payment_intent_id = $1 FOR UPDATE`,
+              [pi.id]
+            );
+            const payment = rows[0];
+            if (!payment) {
+              logger.error('[Stripe] payment_intent.succeeded for job with no payments row; escrow NOT released',
+                { intentId: pi.id, jobId });
+              await recordException({
+                domain: 'payment_capture',
+                referenceId: `stripe-pi:${pi.id}`,
+                severity: 'critical',
+                summary: 'Succeeded job PaymentIntent has no payments row; escrow not released',
+                details: { intentId: pi.id, jobId: String(jobId) },
+              });
+              return null;
+            }
+            if (!['pending', 'authorized'].includes(payment.status)) {
+              // Replay or late event for a terminal row (captured, refunded,
+              // failed, canceled): never flip it back to captured.
+              logger.warn('[Stripe] payment_intent.succeeded for non-capturable payment; ignored',
+                { intentId: pi.id, paymentId: payment.id, status: payment.status });
+              return null;
+            }
+            const expectedMinor = captureCents(payment.amount, payment.capture_amount_cents, payment.currency);
+            const receivedMinor = Number(pi.amount_received ?? pi.amount);
+            const currencyOk = String(pi.currency || '').toLowerCase() === String(payment.currency || '').toLowerCase();
+            if (!currencyOk || !Number.isSafeInteger(receivedMinor) || receivedMinor !== expectedMinor) {
+              logger.error('[Stripe] capture amount mismatch; payment NOT marked captured, escrow NOT released', {
+                intentId: pi.id, paymentId: payment.id, jobId,
+                expectedMinor, receivedMinor,
+                paymentCurrency: payment.currency, piCurrency: pi.currency,
+              });
+              await recordException({
+                domain: 'payment_capture',
+                referenceId: `payment:${payment.id}`,
+                severity: 'critical',
+                summary: 'Stripe captured amount does not match the payments row; escrow not released',
+                details: {
+                  intentId: pi.id, paymentId: payment.id, jobId: String(jobId),
+                  expectedMinor, receivedMinor,
+                  paymentCurrency: payment.currency, piCurrency: pi.currency,
+                },
+              });
+              return null;
+            }
+            // Credit backstop (mirrors amount_capturable_updated,
+            // P3-789/P3-889): the referral-credit deduction is idempotent
+            // per payment, so this is a no-op when intent creation already
+            // posted it, and closes the gap when it did not.
+            const meta = typeof payment.metadata === 'string'
+              ? JSON.parse(payment.metadata || '{}')
+              : (payment.metadata || {});
+            const appliedCents = Number(meta?.applied_credit_cents ?? meta?.appliedCreditCents ?? 0);
+            if (appliedCents > 0) {
+              await creditLedger.applyCreditToPayment(client, {
+                userId: payment.payer_id,
+                paymentId: payment.id,
+                amountCents: appliedCents,
+                jobId,
+                paymentIntentId: pi.id,
+              });
+            }
+            await client.query(
+              `UPDATE payments SET status = 'captured', payment_hold_status = 'released',
+                captured_at = NOW(), released_at = NOW(), updated_at = NOW()
+               WHERE id = $1`,
+              [payment.id]
+            );
+            // Mark job escrow released in the same transaction: the capture
+            // mark and the escrow release commit or roll back together.
+            await client.query(
+              `UPDATE jobs SET escrow_status = 'released', updated_at = NOW() WHERE id = $1`,
+              [jobId]
+            );
+            logger.info(`[Stripe] PaymentIntent ${pi.id} captured - funds released for job ${jobId}`);
+            return payment;
+          }, 'tier3_capture_webhook');
           // Notify helper that payment has been released
           const helperId = pi.metadata?.helper_id;
-          if (helperId && capturedPaymentRows.length > 0) {
+          if (helperId && capturedPayment) {
             const amountDollars = ((pi.amount_received || pi.amount) / 100).toFixed(2);
             sendNotification({
               userId: helperId,
@@ -1049,8 +1212,8 @@ async function handleVerifiedStripeEvent(event, destination, res, next) {
             }).catch(e => logger.warn('Failed to send payment released notification', { error: e.message }));
           }
           const payerId = pi.metadata?.client_id || pi.metadata?.payer_id;
-          const receiptUserId = capturedPaymentRows[0]?.payer_id || payerId;
-          if (receiptUserId) {
+          const receiptUserId = capturedPayment?.payer_id || payerId;
+          if (receiptUserId && capturedPayment) {
             sendNotification({
               userId: receiptUserId,
               type: 'payment_receipt',
@@ -1347,6 +1510,17 @@ async function handleVerifiedStripeEvent(event, destination, res, next) {
         if (!handled) {
           logger.info(`Unhandled Stripe event: ${event.type}`);
         }
+        break;
+      }
+
+      // Review P3-1-F16: instant payouts are created on the connected account;
+      // these events reconcile the local instant_payouts row as Stripe settles.
+      case 'payout.created':
+      case 'payout.updated':
+      case 'payout.paid':
+      case 'payout.failed':
+      case 'payout.canceled': {
+        await applyInstantPayoutWebhookEvent(event);
         break;
       }
 
@@ -1944,6 +2118,38 @@ async function applyQrPaymentClosed(session, status) {
   return rowCount;
 }
 exports.applyQrPaymentClosed = applyQrPaymentClosed;
+
+// Review P3-1-F16: reconcile the local instant_payouts row against the
+// payout.* lifecycle events from the connected account. Never resurrect a
+// terminal row (paid/failed/canceled); a failed payout records Stripe's
+// failure message for support.
+async function applyInstantPayoutWebhookEvent(event) {
+  const payout = event.data?.object || {};
+  const stripePayoutId = payout.id;
+  if (!stripePayoutId) {
+    logger.warn('[webhook] payout event without payout id; ignoring', { eventId: event.id, eventType: event.type });
+    return 0;
+  }
+  const status = String(payout.status || '').toLowerCase();
+  const localStatus = ['paid', 'failed', 'canceled', 'in_transit'].includes(status) ? status : 'pending';
+  const { rowCount } = await db.query(
+    `UPDATE instant_payouts
+        SET status = $2,
+            failure_message = CASE WHEN $2 = 'failed' THEN COALESCE($3, failure_message) ELSE failure_message END,
+            updated_at = NOW()
+      WHERE stripe_payout_id = $1
+        AND status NOT IN ('paid', 'failed', 'canceled')
+      RETURNING id`,
+    [stripePayoutId, localStatus, payout.failure_message ? String(payout.failure_message).slice(0, 500) : null]
+  );
+  if (rowCount === 0) {
+    logger.info('[webhook] payout event for unknown or terminal instant payout; ignoring', {
+      eventId: event.id, eventType: event.type, stripePayoutId, account: event.account || null,
+    });
+  }
+  return rowCount;
+}
+exports.applyInstantPayoutWebhookEvent = applyInstantPayoutWebhookEvent;
 
 async function handleConnectedCheckoutEvent(event) {
   const session = event.data?.object || {};

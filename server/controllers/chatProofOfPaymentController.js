@@ -243,11 +243,13 @@ exports.sharePop = async (req, res, next) => {
     let senderName = req.user
       ? `${req.user.first_name || ''} ${req.user.last_name || ''}`.trim() || 'Member'
       : guest?.guest_name || 'Guest';
+    let convRecord = null;
 
     if (conversationId) {
       if (!userId) return bad(res, 401, 'Sign in to share on this conversation', 'auth_required');
       const conv = await assertConversationParticipant(userId, conversationId, { writable: true });
       if (!conv) return bad(res, 403, 'Not a conversation participant', 'forbidden');
+      convRecord = conv;
       conversationParticipants = [conv.customer_id, conv.helper_id];
       helperId = conv.helper_id;
       businessId = businessId || conv.business_id;
@@ -262,6 +264,38 @@ exports.sharePop = async (req, res, next) => {
         businessId = businessId || guest.business_id;
       } else {
         return bad(res, 403, 'Guest session mismatch', 'forbidden');
+      }
+    }
+
+    // Optional: link this proof to an open chat payment request. The request
+    // is closed (open -> paid) when the provider confirms the proof, so the
+    // guards here mirror the credit-pay path: the request must exist, belong
+    // to this conversation/session, still be open, and match the amount.
+    // The provider cannot submit proof for their own request: the payer does.
+    let linkedPaymentRequest = null;
+    if (normalized.paymentRequestId) {
+      const { rows: payReqRows } = await pool.query(
+        'SELECT * FROM chat_payment_requests WHERE id = $1',
+        [normalized.paymentRequestId]
+      );
+      linkedPaymentRequest = payReqRows[0] || null;
+      if (!linkedPaymentRequest) {
+        return bad(res, 404, 'Payment request not found', 'not_found');
+      }
+      const sameScope = conversationId
+        ? String(linkedPaymentRequest.conversation_id) === String(conversationId)
+        : String(linkedPaymentRequest.guest_session_id) === String(guestSessionId);
+      if (!sameScope) {
+        return bad(res, 403, 'Payment request does not belong to this conversation', 'forbidden');
+      }
+      if (linkedPaymentRequest.status !== 'open') {
+        return bad(res, 409, 'Payment request is no longer open', 'invalid_status');
+      }
+      if (Number(linkedPaymentRequest.amount_cents) !== Number(normalized.amountCents)) {
+        return bad(res, 409, 'Amount does not match the payment request', 'amount_mismatch');
+      }
+      if (conversationId && userId && convRecord && isProviderOnConversation(userId, convRecord)) {
+        return bad(res, 403, 'Only the payer can submit proof of payment', 'provider_only');
       }
     }
 
@@ -321,9 +355,10 @@ exports.sharePop = async (req, res, next) => {
            quote_kind, quote_id, booking_request_id,
            amount_cents, currency, payment_method, transaction_id, paid_on, notes,
            attachment_key, attachment_name, attachment_mime, attachment_size,
-           submitted_by, submitted_by_guest, status, client_request_id
+           submitted_by, submitted_by_guest, status, client_request_id,
+           payment_request_id
          ) VALUES (
-           $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,'submitted',$20
+           $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,'submitted',$20,$21
          )
          ON CONFLICT DO NOTHING
          RETURNING *`,
@@ -348,6 +383,7 @@ exports.sharePop = async (req, res, next) => {
           userId || null,
           Boolean(guest && !userId),
           clientRequestId,
+          linkedPaymentRequest ? linkedPaymentRequest.id : null,
         ],
       );
       pop = rows[0] || null;
@@ -509,6 +545,21 @@ exports.confirmPop = async (req, res, next) => {
       [nextStatus, userId, reason, pop.id],
     );
     const updated = rows[0];
+
+    // Off-platform settlement: a confirmed proof closes the linked payment
+    // request (open -> paid) with the same AND status='open' guard the
+    // credit-pay path uses, so a POP confirm can never double-pay a request
+    // the credit path already closed. A rejected proof leaves the request
+    // open for the payer to retry.
+    if (action === 'confirm' && updated.payment_request_id) {
+      await pool.query(
+        `UPDATE chat_payment_requests
+            SET status = 'paid', paid_pop_id = $2, paid_at = NOW(), updated_at = NOW()
+          WHERE id = $1 AND status = 'open'`,
+        [updated.payment_request_id, updated.id]
+      );
+    }
+
     const marker = buildPopMarker({
       id: updated.id,
       status: updated.status,

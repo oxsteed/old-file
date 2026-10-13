@@ -453,6 +453,11 @@ export default function WorkAgreementPage() {
                           <textarea rows={2} value={claimNotes[c.id] || ''}
                             onChange={(e) => setClaimNotes((prev) => ({ ...prev, [c.id]: e.target.value }))} /></label>
                         <div className="wa-row">
+                          {!iFiled && c.status === 'filed' && (
+                            <button type="button" className="wa-btn" onClick={() => resolveClaim(c.id, 'under_review')}>
+                              {t('reviewW11.reviewClaim')}
+                            </button>
+                          )}
                           <button type="button" className="wa-btn" onClick={() => resolveClaim(c.id, 'resolved')}>
                             {iFiled
                               ? t('workAgreement.claimWithdraw', { defaultValue: 'Mark resolved' })

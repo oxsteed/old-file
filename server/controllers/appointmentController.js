@@ -213,6 +213,17 @@ exports.createAppointment = async (req, res, next) => {
       throw new AppError('User is not a helper', 400, 'invalid_state');
     }
 
+    // Review P1-6-F03: customers cannot book a helper who switched booking
+    // off. (The provider scheduling on the customer's behalf goes through
+    // the chat booking-request flow, which applies its own rule.)
+    const prefRes = await pool.query(
+      'SELECT COALESCE(allow_booking, TRUE) AS allow_booking FROM helper_profiles WHERE user_id = $1',
+      [helper_id]
+    );
+    if (prefRes.rows[0] && prefRes.rows[0].allow_booking === false) {
+      throw new AppError('This helper is not taking bookings right now', 403, 'booking_disabled');
+    }
+
     // 2. Atomic: re-check conflict + insert in one transaction.
     //    We use an advisory lock keyed off the helper UUID so two concurrent
     //    requests serialize at the helper level (not at the whole table level).

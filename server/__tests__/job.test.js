@@ -395,6 +395,7 @@ describe('POST /api/jobs/:id/complete', () => {
           job_type_label: 'One-Time',
         }],
       },
+      { rows: [] }, // no proposed work-agreement change order
       { rows: [{ id: 10, status: 'completed', client_id: 1, assigned_helper_id: 2 }] },
     );
     const res = await auth(
@@ -428,6 +429,7 @@ describe('POST /api/jobs/:id/complete', () => {
           transaction_mode: 'guided_protected',
         }],
       },
+      { rows: [] }, // no proposed work-agreement change order
       {
         rows: [{
           id: 5,
@@ -463,6 +465,7 @@ describe('POST /api/jobs/:id/complete', () => {
           transaction_mode: 'direct',
         }],
       },
+      { rows: [] }, // no proposed work-agreement change order
       { rows: [{ id: 10, status: 'completed', client_id: 1, assigned_helper_id: 2 }] },
     );
     const res = await auth(request(buildApp()).post('/api/jobs/10/complete').send({}));

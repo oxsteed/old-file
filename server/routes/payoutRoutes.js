@@ -7,12 +7,15 @@ const { requireAdmin, requirePermission } = require('../middleware/adminAuth');
 const { strictLimiter } = require('../middleware/rateLimiter');
 const PayoutController = require('../controllers/PayoutController');
 const AffiliateAnalyticsController = require('../controllers/AffiliateAnalyticsController');
+const { requireOnboardingStep } = require('../middleware/helperOnboardingMiddleware');
 
 // Payout Methods (User Routes)
+// Review P2-2-F01: registering or changing a payout destination is a money
+// path; helpers must have finished onboarding first. Reads stay open.
 router.get('/payout-methods', requireAuth, PayoutController.getPayoutMethods);
-router.post('/payout-methods', requireAuth, PayoutController.createPayoutMethod);
-router.put('/payout-methods/:method_id', requireAuth, PayoutController.updatePayoutMethod);
-router.delete('/payout-methods/:method_id', requireAuth, PayoutController.deletePayoutMethod);
+router.post('/payout-methods', requireAuth, requireOnboardingStep('active'), PayoutController.createPayoutMethod);
+router.put('/payout-methods/:method_id', requireAuth, requireOnboardingStep('active'), PayoutController.updatePayoutMethod);
+router.delete('/payout-methods/:method_id', requireAuth, requireOnboardingStep('active'), PayoutController.deletePayoutMethod);
 
 // Payouts (User Routes)
 router.get('/schedule', requireAuth, PayoutController.getPayouts);

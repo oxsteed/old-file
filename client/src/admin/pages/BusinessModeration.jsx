@@ -16,6 +16,7 @@ const STATUS_FILTERS = [
   { value: '',         labelKey: 'statusAll'      },
   { value: 'active',   labelKey: 'statusActive'   },
   { value: 'inactive', labelKey: 'statusInactive' },
+  { value: 'flagged',  labelKey: 'statusFlagged'  },
 ];
 
 const ACTIVITY_FILTERS = [
@@ -39,6 +40,7 @@ const SORT_OPTIONS = [
 // wording until then.
 const OPTION_DEFAULTS = {
   statusAll: 'All', statusActive: 'Active', statusInactive: 'Inactive',
+  statusFlagged: 'Flagged for Review',
   activityAll: 'All Activity', activityNoJobs: 'No Jobs Posted',
   activityIncomplete: 'Incomplete Setup', activityNoRevenue: 'No Revenue',
   activityActiveJobs: 'Active Jobs',
@@ -465,6 +467,14 @@ export default function BusinessModeration() {
                     <span className={`px-2 py-1 rounded-full text-xs font-semibold ${statusBadge(b.is_active)}`}>
                       {b.is_active ? t('adminBusinessModeration.activeBadge', { defaultValue: 'Active' }) : t('adminBusinessModeration.inactiveBadge', { defaultValue: 'Inactive' })}
                     </span>
+                    {b.admin_review_reason ? (
+                      <span
+                        className="ml-1 px-2 py-1 rounded-full text-xs font-semibold bg-amber-500/20 text-amber-400"
+                        title={b.admin_review_reason}
+                      >
+                        {t('adminBusinessModeration.flaggedBadge', { defaultValue: 'Flagged' })}
+                      </span>
+                    ) : null}
                   </td>
                   <td className={`${col} text-gray-400`}>
                     {b.created_at ? new Date(b.created_at).toLocaleDateString() : '-'}

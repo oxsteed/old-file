@@ -16,6 +16,13 @@ function toLocalDateStr(date) {
   return `${y}-${m}-${d}`;
 }
 
+/** HH:MM in the viewer's local timezone for a UTC ISO instant. */
+function toLocalHm(iso) {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
+
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export default function BookServicePage() {
@@ -126,11 +133,12 @@ export default function BookServicePage() {
       const businessRes = await api.get(`/businesses/${businessId}/profile`);
       setBusiness(businessRes.data);
 
-      // Load service
+      // Load service (service ids are integers server-side; the route
+      // param is a string, so compare as strings)
       const serviceRes = await api.get(
         `/businesses/${businessId}/services`
       );
-      const svc = serviceRes.data.find(s => s.id === serviceId);
+      const svc = (serviceRes.data || []).find((s) => String(s.id) === String(serviceId));
       setService(svc);
     } catch (error) {
       toast.error(t('bookService.errors.loadServiceDetails'));
@@ -142,11 +150,25 @@ export default function BookServicePage() {
 
   const loadAvailableSlots = async () => {
     try {
+      // The slots endpoint honors from/to (a bare `date` param is ignored),
+      // so request the selected day explicitly as a UTC window.
+      const dayEnd = new Date(`${selectedDate}T00:00:00Z`);
+      dayEnd.setUTCDate(dayEnd.getUTCDate() + 1);
       const response = await api.get(
         `/businesses/${businessId}/services/${serviceId}/slots`,
-        { params: { date: selectedDate } }
+        { params: { from: `${selectedDate}T00:00:00Z`, to: dayEnd.toISOString() } }
       );
-      setAvailableSlots(response.data.available_slots);
+      // The slot engine returns { slots: [{ start, end, staff_id, ... }] }
+      // with UTC ISO instants. Keep the instants for the booking POST and
+      // derive viewer-local display times.
+      const slots = Array.isArray(response.data?.slots) ? response.data.slots : [];
+      setAvailableSlots(slots.map((slot) => ({
+        ...slot,
+        startIso: slot.start,
+        endIso: slot.end,
+        start_time: toLocalHm(slot.start),
+        end_time: toLocalHm(slot.end),
+      })));
       setSelectedSlot(null);
     } catch (error) {
       toast.error(t('bookService.errors.loadSlots'));
@@ -187,10 +209,18 @@ export default function BookServicePage() {
       return;
     }
 
+    // The server requires a price; without a calculated price there is
+    // nothing safe to charge, so fail closed instead of posting blind.
+    if (!calculatedPrice) {
+      toast.error(t('bookService.errors.calculatePrice'));
+      return;
+    }
+
     try {
       setLoading(true);
 
-      // Create appointment
+      // Create appointment (slot instants come straight from the slot
+      // engine, so the window always matches a real offered slot)
       const response = await api.post(
         `/businesses/${businessId}/appointments`,
         {
@@ -199,8 +229,8 @@ export default function BookServicePage() {
           customer_email: formData.customer_email,
           customer_phone: formData.customer_phone,
           customer_notes: formData.customer_notes,
-          start_time: `${selectedDate}T${selectedSlot.start_time}:00Z`,
-          end_time: `${selectedDate}T${selectedSlot.end_time}:00Z`,
+          start_time: selectedSlot.startIso,
+          end_time: selectedSlot.endIso,
           base_price_cents: calculatedPrice.final_price_cents
         }
       );

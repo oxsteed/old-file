@@ -72,7 +72,9 @@ router.get('/:id/revisions', authenticate, generalLimiter, getJobRevisions);
 const requirePaymentsEnabled = requireFeatureEnabled('Payments', 'FEATURE_PAYMENTS_ENABLED');
 // OxSteed Credit collateral is not a Stripe payment, so only card steps need the payments flag.
 const requireCardPaymentsEnabled = (req, res, next) => (req.body?.method === 'credit' ? next() : requirePaymentsEnabled(req, res, next));
-const reauthGuards = [authenticate, rejectImpersonated, paymentsLimiter];
+// Review P2-7-F07: reauthorization starts a new payment authorization;
+// honor admin checkout restrictions there too.
+const reauthGuards = [authenticate, rejectImpersonated, checkRestrictions('checkout'), paymentsLimiter];
 router.get('/:id/payment-reauthorization', authenticate, generalLimiter, getPaymentReauthorization);
 router.post('/:id/payment-reauthorization', ...reauthGuards, requireCardPaymentsEnabled, startPaymentReauthorization);
 router.post('/:id/payment-reauthorization/:attemptId/confirm', ...reauthGuards, requirePaymentsEnabled, confirmPaymentReauthorization);

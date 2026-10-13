@@ -172,15 +172,22 @@ exports.updatePreferences = async (req, res, next) => {
     const userId = req.user.id;
     const updates = req.body;
 
-    // Whitelist allowed preference keys
+    // Whitelist allowed preference keys.
+    // Master toggles: push_notifications gates every push channel, and
+    // sms_notifications gates all SMS (see migration 795).
+    // Removed (review P2-8-F03): in_app_message_mention, push_message_mention
+    // (no mention events are ever emitted) and push_new_job_nearby (no
+    // nearby-job events are ever emitted). Their columns stay in the DB so
+    // existing rows are untouched; the UI no longer offers them.
     const allowed = [
+      'push_notifications','sms_notifications',
       'in_app_new_bid','in_app_bid_accepted','in_app_job_started',
       'in_app_job_completed','in_app_payment_released',
       'in_app_new_review','in_app_dispute_update','in_app_subscription',
-      'in_app_new_message','in_app_message_mention',
-      'push_new_job_nearby','push_new_bid','push_bid_accepted',
+      'in_app_new_message',
+      'push_new_bid','push_bid_accepted',
       'push_payment_released','push_dispute_update',
-      'push_new_message','push_message_mention',
+      'push_new_message',
       'email_bid_accepted','email_payment_released',
       'email_subscription','email_dispute_update','email_weekly_summary',
       'email_new_message'

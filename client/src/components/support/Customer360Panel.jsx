@@ -301,7 +301,7 @@ export default function Customer360Panel({ data, loading, lifecycle = [], lifecy
                       </ResolutionActionButton>
                     </span>
                   )}
-                  {canIssueRefunds && item.source === 'food_order' && item.status !== 'refunded' && item.payment_status !== 'refunded' && (
+                  {canIssueRefunds && item.source === 'food_order' && item.refundable === true && (
                     <ResolutionActionButton busy={resolutionBusy === `foodorder-refund-${item.id}`} onClick={() => refundFoodOrder(item)}>
                       {copy('resolution.refundFoodOrder', { defaultValue: 'Refund food order' })}
                     </ResolutionActionButton>

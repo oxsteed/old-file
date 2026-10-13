@@ -1,4 +1,52 @@
 {
+  "reviewW11Learn": {
+    "flagNotFound": "Nou pa jwenn rapò videyo a.",
+    "flagAlreadyDecided": "Yo deja revize rapò videyo sa a.",
+    "guideNotFound": "Nou pa jwenn gid la.",
+    "videoDuplicate": "Videyo sa a deja nan gid sa a.",
+    "videoModerated": "Moderasyon retire videyo sa a. Ou pa ka soumèt li pou gid sa a.",
+    "moderationActionFailed": "Nou pa t ka anrejistre desizyon moderasyon an. Tanpri eseye ankò.",
+    "previousPage": "Anvan",
+    "nextPage": "Apre",
+    "pageNumber": "Paj {{page}}"
+  },
+  "reviewW11Notifications": {
+    "learn_video_review_received": {
+      "title": "Videyo Learn soumèt pou revizyon",
+      "body": "Yo soumèt yon videyo pou yon gid. Louvri lis revizyon an anvan delè piblikasyon 24 èdtan an."
+    },
+    "learn_video_review_overdue": {
+      "title": "Delè revizyon videyo Learn rive",
+      "body": "Yon soumisyon rive nan delè revizyon 24 èdtan li a. Tcheke lis revizyon an ak estati piblikasyon an."
+    },
+    "warranty_claim_filed": {
+      "title": "Nouvo reklamasyon garanti",
+      "body": "Lòt pati a depoze yon reklamasyon garanti. Louvri akò ou pou revize l epi reponn."
+    },
+    "warranty_claim_updated": {
+      "title": "Reklamasyon garanti mete ajou",
+      "body": "Lòt pati a mete yon reklamasyon garanti ajou. Louvri akò ou pou wè estati a ak repons lan."
+    },
+    "job_started": {
+      "title": "Travay la kòmanse",
+      "body": "Travay ou ap fèt kounye a. Louvri l pou wè detay yo epi kontakte lòt patisipan an."
+    }
+  },
+  "reviewW11": {
+    "guestReplyInstruction": "Pou kontinye, kontakte Sipò epi bay nimewo tikè w la. Nou pa suiv repons ki voye nan imèl sa a.",
+    "guestResolvedInstruction": "Si w toujou bezwen èd, kontakte Sipò epi bay nimewo tikè w la.",
+    "openSupport": "Kontakte Sipò",
+    "reopenTicket": "Relouvri tikè a",
+    "reopening": "Ap relouvri…",
+    "reopened": "Tikè a relouvri",
+    "reopenFailed": "Nou pa t ka relouvri tikè a. Tanpri eseye ankò.",
+    "reviewClaim": "Revize reklamasyon an",
+    "replyTitle": "Nouvo repons sipò",
+    "replyInstruction": "Louvri tikè w la pou li epi reponn. Nou pa suiv repons ki voye nan imèl sa a.",
+    "resolvedTitle": "Demann sipò a rezoud",
+    "resolvedInstruction": "Si w toujou bezwen èd, louvri tikè w la epi chwazi Relouvri tikè a.",
+    "openTicket": "Louvri tikè sipò w la"
+  },
   "reviewLifecycleNotifications": {
     "dispute_update": {
       "title": "Nouvo mesaj nan diskisyon an",

@@ -480,9 +480,11 @@ const HelperBusinessProfilePage: React.FC<{ customerSnapshot?: HelperProfileData
             {!customerSnapshot && <PricingBlock helperId={helperUuid!} />}
 
             {/* Helper reliability & job acceptance history */}
+            {/* Review P1-6-F01: key on the resolved helper UUID, never the
+                vanity slug from the URL (the stats table is keyed by UUID). */}
             {!customerSnapshot && id && (
               <CancellationStats
-                userId={id}
+                userId={helperUuid}
                 type="helper"
                 showDetails={true}
               />

@@ -295,12 +295,20 @@ async function dispatchNotification(row) {
         when: scheduled_start_time,
         location: location_address,
       }, recipientLanguage);
-      await emailService.send({
+      // Review P3-844: emailService.send throws EmailDeliveryError on provider
+      // failure but returns null when no provider is configured. A null
+      // result must NOT count as sent, or the notification is lost silently
+      // instead of being retried with backoff.
+      const emailResult = await emailService.send({
         to: recipientEmail,
         subject: subjectForType(notification_type, recipientLanguage),
         html,
       });
-      sent = true;
+      if (emailResult) {
+        sent = true;
+      } else {
+        lastError = 'email: provider not configured';
+      }
     } catch (err) {
       lastError = `email: ${err.message}`;
     }

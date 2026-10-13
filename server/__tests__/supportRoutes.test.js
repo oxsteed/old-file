@@ -366,6 +366,7 @@ describe('support routes', () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [{ ...authUserRow(), id: ADMIN_ID, email: 'admin@example.com', role: 'super_admin' }] })
       .mockResolvedValueOnce({ rows: [{ id: 'conversation-1', customer_id: USER_ID, status: 'in_progress', agent_id: null }] })
+      .mockResolvedValueOnce({ rows: [{ attachment_url: null }] }) // read attachment before redaction
       .mockResolvedValueOnce({ rows: [{
         id: 'message-1',
         sender_id: USER_ID,

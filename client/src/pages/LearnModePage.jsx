@@ -4396,6 +4396,7 @@ export default function LearnModePage() {
       const code = err?.response?.data?.code;
       setVideoError(
         code === 'invalid_video_url' ? t('learn.page.videoInvalidUrl')
+        : code === 'video_moderated' ? t('reviewW11Learn.videoModerated')
         : code === 'video_duplicate' ? t('learn.page.videoDuplicate')
         : t('learn.page.videoSubmitError')
       );

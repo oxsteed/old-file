@@ -395,21 +395,81 @@ describe('payment_intent.amount_capturable_updated', () => {
 
 // ── payment_intent.succeeded (Tier 3) ─────────────────────────────────────────
 describe('payment_intent.succeeded', () => {
-  test('marks payment captured and releases escrow', async () => {
-    const event = {
+  const paymentRow = {
+    id: 1,
+    payer_id: 'user-1',
+    amount: '80.00',
+    currency: 'usd',
+    capture_amount_cents: null,
+    status: 'authorized',
+    metadata: {},
+  };
+  function succeededEvent(overrides = {}) {
+    return {
       type: 'payment_intent.succeeded',
-      data: { object: { id: 'pi_test', metadata: { job_id: '10' } } },
+      data: { object: {
+        id: 'pi_test',
+        amount_received: 8000,
+        currency: 'usd',
+        metadata: { job_id: '10' },
+        ...overrides,
+      } },
     };
-    mockQuery
-      .mockResolvedValueOnce({ rows: [] }) // UPDATE payments captured
-      .mockResolvedValueOnce({ rows: [] }); // UPDATE jobs escrow released
+  }
+  // First query inside the capture transaction: the locked payment row.
+  function queuePaymentRow(row) {
+    mockQuery.mockImplementation(async (sql) => {
+      if (/FROM payments WHERE stripe_payment_intent_id/.test(sql)) return { rows: row ? [row] : [] };
+      return { rows: [], rowCount: 0 };
+    });
+  }
 
-    const res = await sendEvent(buildApp(), event);
+  test('marks payment captured and releases escrow when the amount matches', async () => {
+    queuePaymentRow(paymentRow);
+    const res = await sendEvent(buildApp(), succeededEvent());
     expect(res.status).toBe(200);
-    expect(mockQuery).toHaveBeenCalledWith(
-      expect.stringContaining("status = 'captured'"),
-      expect.arrayContaining(['pi_test'])
-    );
+    const captureCall = mockQuery.mock.calls.find(([sql]) => /SET status = 'captured'/.test(sql));
+    expect(captureCall).toBeDefined();
+    expect(captureCall[1]).toEqual([1]);
+    expect(mockQuery.mock.calls.some(([sql]) => /SET escrow_status = 'released'/.test(sql))).toBe(true);
+    expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO reconciliation_exceptions/.test(sql))).toBe(false);
+  });
+
+  test('fails closed on amount mismatch: no capture, no escrow release, exception recorded', async () => {
+    queuePaymentRow(paymentRow);
+    const res = await sendEvent(buildApp(), succeededEvent({ amount_received: 9000 }));
+    expect(res.status).toBe(200);
+    expect(mockQuery.mock.calls.some(([sql]) => /SET status = 'captured'/.test(sql))).toBe(false);
+    expect(mockQuery.mock.calls.some(([sql]) => /SET escrow_status = 'released'/.test(sql))).toBe(false);
+    const exCall = mockQuery.mock.calls.find(([sql]) => /INSERT INTO reconciliation_exceptions/.test(sql));
+    expect(exCall).toBeDefined();
+    expect(exCall[1][0]).toBe('payment_capture');
+  });
+
+  test('fails closed when no payments row exists: exception recorded, escrow untouched', async () => {
+    queuePaymentRow(null);
+    const res = await sendEvent(buildApp(), succeededEvent());
+    expect(res.status).toBe(200);
+    expect(mockQuery.mock.calls.some(([sql]) => /SET status = 'captured'/.test(sql))).toBe(false);
+    expect(mockQuery.mock.calls.some(([sql]) => /SET escrow_status = 'released'/.test(sql))).toBe(false);
+    const exCall = mockQuery.mock.calls.find(([sql]) => /INSERT INTO reconciliation_exceptions/.test(sql));
+    expect(exCall).toBeDefined();
+    expect(exCall[1][0]).toBe('payment_capture');
+  });
+
+  test('ignores a replay for an already-captured payment', async () => {
+    queuePaymentRow({ ...paymentRow, status: 'captured' });
+    const res = await sendEvent(buildApp(), succeededEvent());
+    expect(res.status).toBe(200);
+    expect(mockQuery.mock.calls.some(([sql]) => /SET status = 'captured'/.test(sql))).toBe(false);
+    expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO reconciliation_exceptions/.test(sql))).toBe(false);
+  });
+
+  test('honors a partial-capture ceiling from capture_amount_cents', async () => {
+    queuePaymentRow({ ...paymentRow, capture_amount_cents: 5000 });
+    const res = await sendEvent(buildApp(), succeededEvent({ amount_received: 5000 }));
+    expect(res.status).toBe(200);
+    expect(mockQuery.mock.calls.some(([sql]) => /SET status = 'captured'/.test(sql))).toBe(true);
   });
 
   test('marks a food order paid when the Stripe payment intent succeeds', async () => {

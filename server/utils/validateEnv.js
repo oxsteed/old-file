@@ -156,6 +156,30 @@ module.exports = function validateEnv() {
     }
   });
 
+  // Review P3-6-F09: prominent startup warning for the tiered upload-malware
+  // posture. Public media paths (restaurant media, media creator posts)
+  // fail closed without a real scanner. General uploads accept files on
+  // static validation only (magic bytes, extension allowlist, EICAR
+  // signature) unless FILE_SCAN_REQUIRE_MALWARE forces fail-closed. This is
+  // a deliberate availability trade-off; see services/fileScanService.js.
+  try {
+    const scanStatus = require('../services/fileScanService').getStatus();
+    if (!scanStatus.configured && !scanStatus.required) {
+      logger.warn('UPLOAD MALWARE POSTURE: static validation only', {
+        impact: 'General uploads accept files without a real malware scan (magic bytes, extension allowlist, and the EICAR test signature only). Public media uploads are blocked (503) until a scanner is configured.',
+        remediation: 'Set CLAMAV_HOST (and CLAMAV_PORT) to enable ClamAV scanning, or set FILE_SCAN_REQUIRE_MALWARE=true to block all uploads until a scanner is reachable.',
+        adminSurface: 'GET /api/monitoring/upload-security (manage_operations grant)',
+      });
+      console.error('');
+      console.error('[WARN] Upload malware posture: STATIC VALIDATION ONLY (no ClamAV configured).');
+      console.error('       General uploads skip real malware scanning; public media uploads 503.');
+      console.error('       Set CLAMAV_HOST or FILE_SCAN_REQUIRE_MALWARE=true to change this.');
+      console.error('');
+    }
+  } catch (warnErr) {
+    logger.warn('Could not evaluate upload malware posture at startup', { error: warnErr.message });
+  }
+
   if ((process.env.NODE_ENV || 'production') === 'production' && process.env.SENTRY_ENABLED === 'false') {
     logger.warn('Server error monitoring is explicitly disabled', {
       impact: 'OxSteed Credit production activation disabled',

@@ -7,11 +7,11 @@ const request = require('supertest');
 const { mockQuery, resetMocks } = require('./setup');
 const learnController = require('../controllers/learnController');
 
-function buildApp() {
+function buildApp({ language = 'en' } = {}) {
   const app = express();
   app.use(express.json());
   app.use((req, _res, next) => {
-    req.user = { id: 'user-123', role: 'helper' };
+    req.user = { id: 'user-123', role: 'helper', preferred_language: language };
     next();
   });
 
@@ -45,6 +45,40 @@ const GUIDE_ROW = {
   skills: [], tools: [], xp: 10, video_url: null, video_provider: null,
 };
 
+// Route fixtures by SQL purpose rather than positional call order: identity
+// locks, moderation checks, notice enqueueing, and audit writes all run now.
+function videoQueries(options = {}) {
+  const sub = options.sub || { id: 'sub-1', guide_id: 'g1', status: 'pending',
+    video_url: 'https://www.youtube.com/watch?v=abc123', video_provider: 'youtube', submitted_by: 'user-123' };
+  const flag = { id: 'f1', video_id: 'v1', guide_id: 'g1', status: 'open', video_url: sub.video_url, ...options.flag };
+  const result = (rows = [], rowCount = rows.length) => ({ rows, rowCount });
+  mockQuery.mockImplementation(async (text, params = []) => {
+    const sql = String(text);
+    if (/^(BEGIN|COMMIT|ROLLBACK)$/.test(sql) || sql.includes('pg_advisory_xact_lock')) return result();
+    if (sql.includes('FROM learn_guides WHERE id=ANY')) return result(params[0]
+      .filter(id => id !== 'nope').map(id => ({ id, status: 'published' })));
+    if (sql.includes("SELECT 'moderated' AS source")) return result(options.duplicate ? [{ source: options.duplicate }] : []);
+    if (sql.includes('INSERT INTO learn_guide_video_submissions')) {
+      if (options.insertError) throw options.insertError;
+      return result([{ ...sub, guide_id: params[0], video_url: params[1], video_provider: params[2] }]);
+    }
+    if (sql.includes('FROM learn_guide_video_submissions')) {
+      if (sql.includes("INTERVAL '24 hours'")) return result(options.due || []);
+      return result([(options.due || [sub]).find(row => row.id === params[0])].filter(Boolean));
+    }
+    if (sql.includes('FROM learn_guide_video_moderation_blocks')) return result(options.blocked ? [{ '1': 1 }] : []);
+    if (sql.includes('SELECT 1 FROM learn_guide_videos')) return result(options.published ? [{ '1': 1 }] : []);
+    if (sql.includes('INSERT INTO learn_guide_videos')) {
+      if (options.failVideoUrl === params[1]) throw new Error('synthetic playlist write failure');
+      return result(options.insertConflict ? [] : [{ id: 'v1' }]);
+    }
+    if (sql.includes('FROM learn_guide_video_flags f')) return result(options.flagMissing ? [] : [flag]);
+    if (sql.includes('learn_video_review_notice_jobs')) return result();
+    if (/^(INSERT INTO|UPDATE|DELETE FROM)/.test(sql.trim()) || sql.includes('INSERT INTO admin_audit_log')) return result([], 1);
+    throw new Error(`Unexpected Learn fixture query: ${sql}`);
+  });
+}
+
 describe('community guide video submissions', () => {
   test('rejects non-YouTube/Vimeo URLs without touching the DB', async () => {
     const res = await request(buildApp())
@@ -66,17 +100,7 @@ describe('community guide video submissions', () => {
   });
 
   test('accepts a YouTube URL and stores a pending submission', async () => {
-    mockQuery
-      .mockResolvedValueOnce({ rows: [{ id: 'fix-leaky-faucet' }] })
-      .mockResolvedValueOnce({ rows: [] }) // duplicate-URL check: none
-      .mockResolvedValueOnce({
-        rows: [{
-          id: 'sub-1', guide_id: 'fix-leaky-faucet',
-          video_url: 'https://www.youtube.com/watch?v=abc123',
-          video_provider: 'youtube', status: 'pending',
-          created_at: new Date().toISOString(),
-        }],
-      });
+    videoQueries();
 
     const res = await request(buildApp())
       .post('/api/learn/guides/fix-leaky-faucet/videos')
@@ -85,19 +109,13 @@ describe('community guide video submissions', () => {
     expect(res.status).toBe(201);
     expect(res.body.submission.status).toBe('pending');
     // URL upgraded to https and provider detected
-    const insertSql = mockQuery.mock.calls[2][0];
-    expect(insertSql).toContain('INSERT INTO learn_guide_video_submissions');
-    expect(mockQuery.mock.calls[2][1][1]).toBe('https://www.youtube.com/watch?v=abc123');
-    expect(mockQuery.mock.calls[2][1][2]).toBe('youtube');
+    const insert = mockQuery.mock.calls.find(([sql]) => sql.includes('INSERT INTO learn_guide_video_submissions'));
+    expect(insert[1][1]).toBe('https://www.youtube.com/watch?v=abc123');
+    expect(insert[1][2]).toBe('youtube');
   });
 
   test('allows a second video when the guide already has videos (playlist)', async () => {
-    mockQuery
-      .mockResolvedValueOnce({ rows: [{ id: 'fix-leaky-faucet' }] })
-      .mockResolvedValueOnce({ rows: [] }) // duplicate-URL check: none
-      .mockResolvedValueOnce({
-        rows: [{ id: 'sub-2', guide_id: 'fix-leaky-faucet', status: 'pending' }],
-      });
+    videoQueries();
 
     const res = await request(buildApp())
       .post('/api/learn/guides/fix-leaky-faucet/videos')
@@ -107,9 +125,7 @@ describe('community guide video submissions', () => {
   });
 
   test('409 when the same URL is already live on the guide', async () => {
-    mockQuery
-      .mockResolvedValueOnce({ rows: [{ id: 'fix-leaky-faucet' }] })
-      .mockResolvedValueOnce({ rows: [{ 1: 1 }] }); // duplicate-URL check: hit
+    videoQueries({ duplicate: 'live' }); // duplicate-URL check: hit
 
     const res = await request(buildApp())
       .post('/api/learn/guides/fix-leaky-faucet/videos')
@@ -122,10 +138,7 @@ describe('community guide video submissions', () => {
   test('409 when the same URL is already pending (unique violation)', async () => {
     const uniqueViolation = new Error('duplicate key');
     uniqueViolation.code = '23505';
-    mockQuery
-      .mockResolvedValueOnce({ rows: [{ id: 'fix-leaky-faucet' }] })
-      .mockResolvedValueOnce({ rows: [] }) // duplicate-URL check: none
-      .mockRejectedValueOnce(uniqueViolation);
+    videoQueries({ insertError: uniqueViolation });
 
     const res = await request(buildApp())
       .post('/api/learn/guides/fix-leaky-faucet/videos')
@@ -136,7 +149,7 @@ describe('community guide video submissions', () => {
   });
 
   test('404 for an unknown guide', async () => {
-    mockQuery.mockResolvedValueOnce({ rows: [] });
+    videoQueries();
 
     const res = await request(buildApp())
       .post('/api/learn/guides/nope/videos')
@@ -200,21 +213,33 @@ describe('community guide video submissions', () => {
 });
 
 describe('publishDueGuideVideos worker', () => {
+  test('rolls back and logs a failed row, then publishes the next row', async () => {
+    const logger = require('../utils/logger');
+    const log = jest.spyOn(logger, 'error').mockImplementation(() => {});
+    const failed = { id: 'sub-failed', guide_id: 'g1', video_url: 'https://vimeo.com/1', video_provider: 'vimeo', status: 'pending' };
+    const next = { ...failed, id: 'sub-next', video_url: 'https://vimeo.com/2' };
+    videoQueries({ due: [failed, next], failVideoUrl: failed.video_url });
+    try {
+      expect(await learnController.publishDueGuideVideos()).toEqual({ published: 1, superseded: 0, blocked: 0 });
+      expect(mockQuery.mock.calls.filter(([sql]) => sql === 'ROLLBACK')).toHaveLength(1);
+      const updates = mockQuery.mock.calls.filter(([sql]) => sql.includes('UPDATE learn_guide_video_submissions'));
+      expect(updates).toHaveLength(1);
+      expect(updates[0][1]).toEqual(['live', next.id]);
+      expect(log).toHaveBeenCalledWith('publishDueGuideVideos submission failed',
+        expect.objectContaining({ submissionId: failed.id, error: 'synthetic playlist write failure' }));
+    } finally { log.mockRestore(); }
+  });
+
   test('publishes submissions pending >= 24h into the playlist', async () => {
     const due = {
       id: 'sub-1', guide_id: 'g1',
-      video_url: 'https://www.youtube.com/watch?v=abc', video_provider: 'youtube',
+      video_url: 'https://www.youtube.com/watch?v=abc', video_provider: 'youtube', status: 'pending',
     };
-    mockQuery
-      .mockResolvedValueOnce({ rows: [due] })          // due SELECT
-      .mockResolvedValueOnce({ rows: [] })             // BEGIN
-      .mockResolvedValueOnce({ rowCount: 1, rows: [{ id: 'v-1' }] }) // INSERT playlist
-      .mockResolvedValueOnce({ rowCount: 1 })          // UPDATE submission -> live
-      .mockResolvedValueOnce({ rows: [] });            // COMMIT
+    videoQueries({ due: [due] });
 
     const result = await learnController.publishDueGuideVideos();
 
-    expect(result).toEqual({ published: 1, superseded: 0 });
+    expect(result).toEqual({ published: 1, superseded: 0, blocked: 0 });
     const insert = mockQuery.mock.calls.find((c) => c[0].includes('INSERT INTO learn_guide_videos'));
     expect(insert).toBeTruthy();
     expect(insert[1][0]).toBe('g1');
@@ -224,17 +249,12 @@ describe('publishDueGuideVideos worker', () => {
   });
 
   test('marks superseded when the link is already in the playlist', async () => {
-    const due = { id: 'sub-2', guide_id: 'g2', video_url: 'https://vimeo.com/1', video_provider: 'vimeo' };
-    mockQuery
-      .mockResolvedValueOnce({ rows: [due] })
-      .mockResolvedValueOnce({ rows: [] })             // BEGIN
-      .mockResolvedValueOnce({ rowCount: 0, rows: [] }) // ON CONFLICT DO NOTHING
-      .mockResolvedValueOnce({ rowCount: 1 })
-      .mockResolvedValueOnce({ rows: [] });            // COMMIT
+    const due = { id: 'sub-2', guide_id: 'g2', video_url: 'https://vimeo.com/1', video_provider: 'vimeo', status: 'pending' };
+    videoQueries({ due: [due], published: true });
 
     const result = await learnController.publishDueGuideVideos();
 
-    expect(result).toEqual({ published: 0, superseded: 1 });
+    expect(result).toEqual({ published: 0, superseded: 1, blocked: 0 });
     const subUpdate = mockQuery.mock.calls.find((c) => c[0].includes('learn_guide_video_submissions') && c[0].includes('SET status'));
     expect(subUpdate[1][0]).toBe('superseded');
   });
@@ -248,44 +268,28 @@ describe('publishDueGuideVideos worker', () => {
   });
 
   test('does nothing when nothing is due', async () => {
-    mockQuery.mockResolvedValueOnce({ rows: [] });
+    videoQueries();
 
     const result = await learnController.publishDueGuideVideos();
 
-    expect(result).toEqual({ published: 0, superseded: 0 });
+    expect(result).toEqual({ published: 0, superseded: 0, blocked: 0 });
   });
 });
 
 describe('admin video submission decisions', () => {
   test('block marks the submission blocked', async () => {
-    mockQuery
-      .mockResolvedValueOnce({ rows: [] }) // BEGIN
-      .mockResolvedValueOnce({
-        rows: [{ id: 'sub-1', guide_id: 'g1', video_url: 'https://www.youtube.com/watch?v=x', video_provider: 'youtube', status: 'pending' }],
-      })
-      .mockResolvedValueOnce({ rowCount: 1 }) // UPDATE -> blocked
-      .mockResolvedValueOnce({ rows: [] });   // COMMIT
+    videoQueries();
 
     const res = await request(buildApp()).post('/api/learn/admin/video-submissions/sub-1/block');
 
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
-    const update = mockQuery.mock.calls.find((c) => c[0].includes("SET status = 'blocked'"));
+    const update = mockQuery.mock.calls.find((c) => c[0].includes('UPDATE learn_guide_video_submissions') && c[1][0] === 'blocked');
     expect(update).toBeTruthy();
   });
 
   test('approve appends the video to the playlist', async () => {
-    mockQuery
-      .mockResolvedValueOnce({ rows: [] }) // BEGIN
-      .mockResolvedValueOnce({
-        rows: [{
-          id: 'sub-1', guide_id: 'g1', video_url: 'https://www.youtube.com/watch?v=x',
-          video_provider: 'youtube', status: 'pending', submitted_by: 'user-9',
-        }],
-      })
-      .mockResolvedValueOnce({ rowCount: 1, rows: [{ id: 'v-1' }] }) // INSERT playlist
-      .mockResolvedValueOnce({ rowCount: 1 }) // UPDATE submission -> live
-      .mockResolvedValueOnce({ rows: [] });   // COMMIT
+    videoQueries();
 
     const res = await request(buildApp()).post('/api/learn/admin/video-submissions/sub-1/approve');
 
@@ -295,12 +299,7 @@ describe('admin video submission decisions', () => {
   });
 
   test('deciding an already-decided submission returns 409', async () => {
-    mockQuery
-      .mockResolvedValueOnce({ rows: [] }) // BEGIN
-      .mockResolvedValueOnce({
-        rows: [{ id: 'sub-1', guide_id: 'g1', video_url: 'u', video_provider: 'youtube', status: 'live' }],
-      })
-      .mockResolvedValueOnce({ rows: [] }); // ROLLBACK
+    videoQueries({ sub: { id: 'sub-1', guide_id: 'g1', video_url: 'https://vimeo.com/123', status: 'live' } });
 
     const res = await request(buildApp()).post('/api/learn/admin/video-submissions/sub-1/block');
 
@@ -409,6 +408,32 @@ describe('video flags', () => {
 });
 
 describe('admin video flag decisions', () => {
+  test.each([
+    [{ flagMissing: true }, 'dismiss', 404, 'video_flag_not_found', 'flagNotFound'],
+    [{ flag: { status: 'dismissed' } }, 'dismiss', 409, 'video_flag_already_decided', 'flagAlreadyDecided'],
+    [{ blocked: true }, 'move', 409, 'video_moderated', 'videoModerated'],
+    [{ published: true }, 'move', 409, 'video_duplicate', 'videoDuplicate'],
+  ])('maps flag decision failures to their status/code and Arabic copy (%s)', async (options, action, status, code, key) => {
+    videoQueries(options);
+    const res = await request(buildApp({ language: 'ar' }))
+      .post(`/api/learn/admin/video-flags/f1/${action}`).send({ guide_id: 'g2' });
+    expect(res.status).toBe(status);
+    expect(res.body).toMatchObject({ code, message: require('../utils/learnReviewCopy').moderationLabels.ar[key] });
+    expect(mockQuery.mock.calls.some(([sql]) => sql.startsWith('UPDATE learn_guide_videos'))).toBe(false);
+    expect(mockQuery.mock.calls.some(([sql]) => sql.startsWith('DELETE FROM learn_guide_videos'))).toBe(false);
+  });
+
+  test('moderation error messages match both client catalogs in all five languages', () => {
+    const { moderationLabels } = require('../utils/learnReviewCopy');
+    for (const language of ['en', 'es', 'fr', 'ht', 'ar']) {
+      for (const filename of [`locales/${language}.json`, `i18n/locales/${language}/common.json`]) {
+        const catalog = JSON.parse(fs.readFileSync(path.join(__dirname, '../../client/src', filename), 'utf8'));
+        for (const key of ['flagNotFound', 'flagAlreadyDecided', 'guideNotFound', 'videoDuplicate']) {
+          expect(catalog.reviewW11Learn[key]).toBe(moderationLabels[language][key]);
+        }
+      }
+    }
+  });
   test('lists flags', async () => {
     mockQuery.mockResolvedValueOnce({
       rows: [{ id: 'f1', reason: 'unrelated', video_id: 'v1', open_flags: 2 }],
@@ -422,27 +447,17 @@ describe('admin video flag decisions', () => {
   });
 
   test('dismiss closes the flag', async () => {
-    mockQuery
-      .mockResolvedValueOnce({ rows: [] }) // BEGIN
-      .mockResolvedValueOnce({ rows: [{ id: 'f1', video_id: 'v1', status: 'open' }] })
-      .mockResolvedValueOnce({ rowCount: 1 }) // UPDATE -> dismissed
-      .mockResolvedValueOnce({ rows: [] });   // COMMIT
+    videoQueries();
 
     const res = await request(buildApp()).post('/api/learn/admin/video-flags/f1/dismiss');
 
     expect(res.status).toBe(200);
-    const update = mockQuery.mock.calls.find((c) => c[0].includes("status = 'dismissed'"));
+    const update = mockQuery.mock.calls.find((c) => c[0].includes("status='dismissed'"));
     expect(update).toBeTruthy();
   });
 
   test('move transfers the video to the right guide and resolves its flags', async () => {
-    mockQuery
-      .mockResolvedValueOnce({ rows: [] }) // BEGIN
-      .mockResolvedValueOnce({ rows: [{ id: 'f1', video_id: 'v1', status: 'open' }] })
-      .mockResolvedValueOnce({ rows: [{ id: 'g2' }] }) // target guide exists
-      .mockResolvedValueOnce({ rowCount: 1 })         // UPDATE video guide_id
-      .mockResolvedValueOnce({ rowCount: 1 })         // resolve open flags
-      .mockResolvedValueOnce({ rows: [] });           // COMMIT
+    videoQueries();
 
     const res = await request(buildApp())
       .post('/api/learn/admin/video-flags/f1/move')
@@ -455,11 +470,7 @@ describe('admin video flag decisions', () => {
   });
 
   test('move to an unknown guide returns 404', async () => {
-    mockQuery
-      .mockResolvedValueOnce({ rows: [] }) // BEGIN
-      .mockResolvedValueOnce({ rows: [{ id: 'f1', video_id: 'v1', status: 'open' }] })
-      .mockResolvedValueOnce({ rows: [] }) // no target guide
-      .mockResolvedValueOnce({ rows: [] }); // ROLLBACK
+    videoQueries();
 
     const res = await request(buildApp())
       .post('/api/learn/admin/video-flags/f1/move')
@@ -470,12 +481,7 @@ describe('admin video flag decisions', () => {
   });
 
   test('delete removes the video', async () => {
-    mockQuery
-      .mockResolvedValueOnce({ rows: [] }) // BEGIN
-      .mockResolvedValueOnce({ rows: [{ id: 'f1', video_id: 'v1', status: 'open' }] })
-      .mockResolvedValueOnce({ rowCount: 1 }) // DELETE video
-      .mockResolvedValueOnce({ rowCount: 1 }) // resolve open flags
-      .mockResolvedValueOnce({ rows: [] });   // COMMIT
+    videoQueries();
 
     const res = await request(buildApp()).post('/api/learn/admin/video-flags/f1/delete');
 
@@ -485,10 +491,7 @@ describe('admin video flag decisions', () => {
   });
 
   test('deciding an already-decided flag returns 409', async () => {
-    mockQuery
-      .mockResolvedValueOnce({ rows: [] }) // BEGIN
-      .mockResolvedValueOnce({ rows: [{ id: 'f1', video_id: 'v1', status: 'dismissed' }] })
-      .mockResolvedValueOnce({ rows: [] }); // ROLLBACK
+    videoQueries({ flag: { status: 'dismissed' } });
 
     const res = await request(buildApp()).post('/api/learn/admin/video-flags/f1/dismiss');
 

@@ -32,6 +32,7 @@
  */
 
 const pool = require('../db');
+const logger = require('../utils/logger');
 const { openComplianceCase, findSlaBreachedCases } = require('./complianceCaseService');
 const { recordIncident } = require('./incidentStore');
 
@@ -375,6 +376,11 @@ async function checkComplianceCaseSla({ now = new Date(), client: providedClient
  * intentionally not auto-resolved; the compliance queue remains the source
  * of truth for the decision. Incident dedupe keys keep the nightly sweep
  * quiet after the first escalation.
+ *
+ * Covered review queues (P3-10-F09): credit identity verification requests,
+ * sanctions hits awaiting clearance, and identity appeal reviews. Provider-
+ * driven user-level checks (Didit/Stripe callbacks) have no human queue, so
+ * they carry no review SLA.
  */
 async function checkVerificationSla({ now = new Date(), client: providedClient = null } = {}) {
   const run = async (client) => {
@@ -386,13 +392,18 @@ async function checkVerificationSla({ now = new Date(), client: providedClient =
        SELECT 'sanctions_screening' AS review_type, id, subject_id, sla_due_at
          FROM oxsteed_credit_sanctions_screenings
         WHERE result = 'hit' AND cleared_at IS NULL AND sla_due_at IS NOT NULL AND sla_due_at < $1
+       UNION ALL
+       SELECT 'identity_appeal' AS review_type, id, customer_id::text AS subject_id, appeal_sla_due_at AS sla_due_at
+         FROM oxsteed_credit_identity_verifications
+        WHERE appeal_status = 'pending' AND appeal_sla_due_at IS NOT NULL AND appeal_sla_due_at < $1
        ORDER BY sla_due_at ASC`,
       [now]
     );
     const incidents = [];
     for (const row of rows) {
+      const incidentType = `oxsteed_credit_${row.review_type}_sla_breach`;
       const incident = await recordIncident({
-        type: `oxsteed_credit_${row.review_type}_sla_breach`,
+        type: incidentType,
         severity: 'critical',
         message: `${row.review_type} ${row.id} breached its review SLA`,
         dedupeKey: `credit-${row.review_type}-sla:${row.id}`,
@@ -403,7 +414,36 @@ async function checkVerificationSla({ now = new Date(), client: providedClient =
           slaDueAt: row.sla_due_at,
         },
       });
-      if (incident) incidents.push(incident);
+      if (incident) {
+        incidents.push(incident);
+        // The sweep used to stop at persisting the incident row: the
+        // notification window was claimed inside recordIncident but no
+        // channel ever dispatched it. Dispatch now that this replica owns
+        // the window, so the compliance team is actually paged.
+        if (incident.notificationClaimed) {
+          try {
+            const incidentAlertService = require('./incidentAlertService');
+            await incidentAlertService.dispatchRecordedIncident({
+              type: incidentType,
+              severity: 'critical',
+              message: `${row.review_type} ${row.id} breached its review SLA`,
+              details: {
+                reviewType: row.review_type,
+                reviewId: String(row.id),
+                subjectId: String(row.subject_id),
+                slaDueAt: row.sla_due_at,
+              },
+              timestamp: new Date().toISOString(),
+            });
+          } catch (dispatchError) {
+            logger.error('Verification SLA breach alert dispatch failed', {
+              incidentType,
+              reviewId: String(row.id),
+              error: dispatchError.message,
+            });
+          }
+        }
+      }
     }
     return { breachedCount: rows.length, incidents };
   };

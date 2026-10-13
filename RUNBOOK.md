@@ -33,6 +33,19 @@ This runbook is intentionally short and action-oriented.
 4. AI support and geocoding require `OPENAI_API_KEY` and `GOOGLE_MAPS_API_KEY`, respectively.
 5. Missing optional integrations must hide or degrade their UI; they must not make `/ready` fail.
 
+## Upload malware scanning posture
+1. Tiered by design (review P3-6-F09): public media uploads (restaurant media,
+   media-creator posts) fail closed and 503 without a real scanner. General
+   uploads (profile photos, attachments) use static validation only
+   (magic bytes, extension allowlist, EICAR signature) when no scanner is
+   configured, so uploads keep working on deployments without ClamAV.
+2. Scanner status: `GET /api/monitoring/upload-security` (admin,
+   `manage_operations` grant); an `UPLOAD_MALWARE_SCANNER_NOT_CONFIGURED`
+   alert appears on `GET /api/monitoring/health`, and the server logs a
+   startup warning in static-only mode.
+3. To force every upload path fail-closed: set `CLAMAV_HOST` (plus
+   `CLAMAV_PORT`) and `FILE_SCAN_REQUIRE_MALWARE=true`.
+
 ## DB migrations failed
 1. Identify the failing migration filename in logs.
 2. If safe: re-run migrations once (avoid repeated partial runs).

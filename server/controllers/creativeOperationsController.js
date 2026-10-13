@@ -2,6 +2,7 @@ const pool = require('../db');
 const { AppError } = require('../middleware/errorHandler');
 const { getPublicUrl } = require('../utils/storage');
 const { uploadFilesOrThrow } = require('../utils/uploadBatch');
+const { notifyIntakeReceived } = require('../utils/intakeNotifications');
 
 const VALID_STATUS = new Set(['new', 'discovery_scheduled', 'proposal_sent', 'active', 'in_review', 'approved', 'delivered', 'archived']);
 const VALID_STAGE = new Set(['intake', 'discovery', 'proposal', 'production', 'review', 'delivery', 'follow_up', 'closed']);
@@ -312,6 +313,9 @@ exports.createIntakeRequest = async (req, res, next) => {
         ]
       );
       await client.query('COMMIT');
+      // Notify the business owner: submitted intakes must be observable.
+      // Fire-and-forget: the helper never throws and never blocks the response.
+      notifyIntakeReceived({ businessId: business.id, intakeId: rows[0].id, area: 'creative' });
       res.status(201).json({ request: rows[0] });
     } catch (err) {
       await client.query('ROLLBACK');

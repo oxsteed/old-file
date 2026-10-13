@@ -8,6 +8,7 @@
  */
 
 const FLAGS = Object.freeze({
+  PLATFORM_PAYMENTS: 'FEATURE_PAYMENTS_ENABLED',         // protected (Tier-3 escrow) job payments are launched
   PAYMENT_RAILS: 'FEATURE_PAYMENT_RAILS',                 // rail engine, country gates, rail switching, offline ack
   STRIPE_INTL: 'FEATURE_RAIL_STRIPE_INTL',                // non-US Express accounts, destination charges, non-USD
   LOCAL_METHODS: 'FEATURE_STRIPE_LOCAL_METHODS',          // charge-now local methods (also needs country legal flag)

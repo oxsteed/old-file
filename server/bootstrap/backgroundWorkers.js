@@ -22,8 +22,10 @@ const { startDirectCalendarReminderJob } = require('../jobs/directCalendarRemind
 const { startAffiliateCommissionBatchJob } = require('../jobs/affiliateCommissionBatch');
 const { startTemplateExpiryJob } = require('../jobs/templateExpiryJob');
 const { startAcceptedJobExpiryJob } = require('../jobs/acceptedJobExpiryJob');
+const { startChatQuoteExpiryJob } = require('../jobs/chatQuoteExpiryJob');
 const { startHelperCompletionAutoConfirmJob } = require('../jobs/helperCompletionAutoConfirm');
 const { startScheduledDeletionJob } = require('../jobs/scheduledDeletionJob');
+const { startWorkAgreementProposalTimeoutJob } = require('../jobs/workAgreementProposalTimeout');
 const { startRecurringJobScheduler } = require('../jobs/recurringJobScheduler');
 const { startCustomerReengagementJob } = require('../jobs/customerReengagementJob');
 const { releaseExpiredInventoryReservations } = require('../services/restaurantInventoryOrderService');
@@ -61,6 +63,7 @@ const { startBookingDepositSettlementJob } = require('../jobs/bookingDepositSett
 const { startSettingsChangeApplierJob } = require('../jobs/settingsChangeApplier');
 const { startProfileVisibilityScheduler } = require('../jobs/profileVisibilityScheduledActions');
 const { startProfileVisibilityNotificationRetryJob } = require('../jobs/profileVisibilityNotificationRetry');
+const { startReferralRewardRetryJob } = require('../jobs/referralRewardRetry');
 const { runSupportSlaMonitor } = require('../services/supportSlaMonitor');
 const { processSupportEmailOutbox } = require('../services/supportEmailOutbox');
 const { processSupportFollowUpReminders } = require('../services/supportFollowUpReminderWorker');
@@ -102,7 +105,9 @@ class BackgroundWorkers {
       startScheduledDeletionJob();
       startTemplateExpiryJob();
       startAcceptedJobExpiryJob();
+      startChatQuoteExpiryJob();
       startHelperCompletionAutoConfirmJob();
+      startWorkAgreementProposalTimeoutJob();
       startRecurringJobScheduler();
       startCustomerReengagementJob();
       startOxsteedCreditHoldExpiryJob();
@@ -137,6 +142,7 @@ class BackgroundWorkers {
       startSettingsChangeApplierJob();
       startProfileVisibilityScheduler();
       startProfileVisibilityNotificationRetryJob();
+      startReferralRewardRetryJob();
       cron.schedule('*/10 * * * * *', () => {
         require('../services/supportWaitService').processWaiting().catch((error) => {
           this.log.error('Support waiting worker failed', { error: error.message });

@@ -9,6 +9,7 @@ const cardController = require('../controllers/oxsteedCreditCardController');
 const topupController = require('../controllers/oxsteedCreditTopupController');
 const withdrawalController = require('../controllers/oxsteedCreditWithdrawalController');
 const statementController = require('../controllers/creditStatementController');
+const checkRestrictions = require('../middleware/checkRestrictions');
 
 function noStoreCreditResponse(_req, res, next) {
   res.set('Cache-Control', 'private, no-store');
@@ -19,7 +20,9 @@ function noStoreCreditResponse(_req, res, next) {
 router.use(authenticate, requireRole('customer'), noStoreCreditResponse);
 
 router.get('/account', controller.getMyAccount);
-router.post('/conversions', creditMutationLimiter, rejectImpersonated, controller.convertMyCredit);
+// Review P2-7-F07: money-initiating credit mutations honor admin checkout
+// restrictions, like the other checkout surfaces.
+router.post('/conversions', creditMutationLimiter, rejectImpersonated, checkRestrictions('checkout'), controller.convertMyCredit);
 router.get('/conversion-quotes/:quoteId', controller.getMyCurrencyQuote);
 router.get('/limits', controller.getMyCreditLimits);
 router.get('/accounts', controller.getMyAccounts);
@@ -39,24 +42,24 @@ router.get('/documents.csv', creditExportLimiter, statementController.handler('o
 router.get('/account-details', controller.getMyAccountDetails);
 router.get('/transactions', controller.getMyTransactions);
 router.get('/transactions/:transactionId', controller.getMyTransaction);
-router.post('/holds', creditMutationLimiter, rejectImpersonated, controller.createMyHold);
+router.post('/holds', creditMutationLimiter, rejectImpersonated, checkRestrictions('checkout'), controller.createMyHold);
 router.post('/holds/:holdId/release', creditMutationLimiter, rejectImpersonated, controller.releaseMyHold);
-router.post('/transfers', creditMutationLimiter, rejectImpersonated, controller.transferMyCredit);
+router.post('/transfers', creditMutationLimiter, rejectImpersonated, checkRestrictions('checkout'), controller.transferMyCredit);
 router.get('/disputes', controller.listMyDisputes);
 router.post('/disputes', creditMutationLimiter, rejectImpersonated, controller.openMyDispute);
 
 // Stripe top-ups (fiat money IN): create a top-up intent and read its status.
-router.post('/topups', creditMutationLimiter, rejectImpersonated, topupController.createTopup);
+router.post('/topups', creditMutationLimiter, rejectImpersonated, checkRestrictions('checkout'), topupController.createTopup);
 router.get('/topups/:id', topupController.getTopup);
 // Step-up challenge issuance for large top-ups (Phase 5 compliance).
 router.post('/stepup-challenges', creditMutationLimiter, rejectImpersonated, topupController.issueTopupStepupChallenge);
 
 // Fiat money OUT: customer withdrawals to their connected bank account.
-router.post('/withdrawals', creditMutationLimiter, rejectImpersonated, withdrawalController.requestWithdrawal);
+router.post('/withdrawals', creditMutationLimiter, rejectImpersonated, checkRestrictions('checkout'), withdrawalController.requestWithdrawal);
 router.get('/withdrawals', withdrawalController.listMyWithdrawals);
 router.post('/withdrawals/:id/cancel', creditMutationLimiter, rejectImpersonated, withdrawalController.cancelMyWithdrawal);
 // Restaurant credit conversions (Phase 6): OxSteed <-> restaurant food wallet.
-router.post('/restaurant-conversions', creditMutationLimiter, rejectImpersonated, withdrawalController.createRestaurantConversion);
+router.post('/restaurant-conversions', creditMutationLimiter, rejectImpersonated, checkRestrictions('checkout'), withdrawalController.createRestaurantConversion);
 router.get('/restaurant-conversions', withdrawalController.listMyRestaurantConversions);
 // Restaurant conversion allowlist: restaurant ids with the from_restaurant
 // direction enabled by OxSteed (gated server-side too; to_restaurant is gated
