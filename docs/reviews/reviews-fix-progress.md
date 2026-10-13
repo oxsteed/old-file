@@ -175,3 +175,5 @@ W15 scheduler follow-up: email digests now use canonical notification bodies and
 W15 webhook follow-up: payment-release notifications now fire only on the first captured transition with a stable key; processed webhook receipts and ordering watermarks receive bounded cleanup; support channel event IDs reject payload-hash reuse; provider webhook secret configuration emits startup warnings when absent.
 
 W15 freshness follow-up: Didit now requires the signed payload timestamp to match the freshness header, preventing header/body replay substitution; telematics webhooks reject stale explicit provider timestamps before signature processing. Added regression coverage for both paths.
+
+W15 envelope follow-up: Checkr now requires a signed event id and recent creation timestamp, records an idempotent webhook receipt before applying report state, and marks it processed after completion; Stripe Identity events now use the same receipt envelope to suppress replayed session updates.
