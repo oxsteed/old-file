@@ -209,3 +209,5 @@ W16 upload follow-up: job creation no longer publishes a partial media set when 
 - W17 compliance follow-up: identity verification requests and unresolved sanctions hits now receive explicit review due times, with migration 788 indexes and a nightly monitor sweep that raises deduplicated critical incidents when either SLA is breached.
 
 - W17 identity appeal follow-up: rejected OxSteed Credit identity reviews can be appealed by the customer and approved back into the review queue or rejected by a super-admin. Appeal state is audited, included in the compliance queue, and notifications cover submission and final decisions.
+
+- W17 sanctions follow-up: the screening provider now receives a minimal subject identity profile for customers and partners, including verified-name and contact/country attributes when available. Raw identity documents and hashes remain excluded from provider payloads and stored screening evidence.

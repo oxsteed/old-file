@@ -126,6 +126,61 @@ function isScreeningFresh(screening, now = new Date()) {
 }
 
 /**
+ * Build a minimal identity profile for the screening provider. Raw identity
+ * documents and hashes never leave this process; only ordinary identifying
+ * attributes needed by the contracted provider are passed through.
+ */
+async function loadSubjectAttributes(client, { subjectType, subjectId }) {
+  if (subjectType === 'customer') {
+    const { rows } = await client.query(
+      `SELECT u.first_name, u.last_name, u.email, u.phone, u.country,
+              iv.verified_name
+         FROM users u
+         LEFT JOIN LATERAL (
+           SELECT verified_name FROM identity_verifications
+            WHERE user_id = u.id AND status = 'verified'
+            ORDER BY updated_at DESC NULLS LAST LIMIT 1
+         ) iv ON TRUE
+        WHERE u.id = $1
+        LIMIT 1`,
+      [subjectId]
+    );
+    const row = rows[0] || {};
+    return Object.fromEntries(Object.entries({
+      firstName: row.first_name,
+      lastName: row.last_name,
+      verifiedName: row.verified_name,
+      email: row.email,
+      phone: row.phone,
+      country: row.country,
+    }).filter(([, value]) => value !== null && value !== undefined && String(value).trim() !== ''));
+  }
+  if (subjectType === 'partner') {
+    const { rows } = await client.query(
+      `SELECT COALESCE(b.business_name, fr.display_name) AS business_name,
+              u.first_name, u.last_name, u.email, u.phone, u.country
+         FROM oxsteed_credit_partners p
+         LEFT JOIN businesses b ON b.id = p.business_id
+         LEFT JOIN food_restaurants fr ON fr.id = p.restaurant_id
+         LEFT JOIN users u ON u.id = COALESCE(b.user_id, fr.owner_user_id)
+        WHERE p.id = $1
+        LIMIT 1`,
+      [subjectId]
+    );
+    const row = rows[0] || {};
+    return Object.fromEntries(Object.entries({
+      businessName: row.business_name,
+      firstName: row.first_name,
+      lastName: row.last_name,
+      email: row.email,
+      phone: row.phone,
+      country: row.country,
+    }).filter(([, value]) => value !== null && value !== undefined && String(value).trim() !== ''));
+  }
+  return {};
+}
+
+/**
  * Run the provider when no fresh screening exists and persist the row.
  * Returns the screening row (fresh or newly created).
  */
@@ -133,9 +188,11 @@ async function screenSubjectIfStale(client, { subjectType, subjectId, attributes
   const existing = await getLatestScreening(client, { subjectType, subjectId });
   if (isScreeningFresh(existing)) return existing;
   const provider = getScreeningProvider();
+  const subjectAttributes = await loadSubjectAttributes(client, { subjectType, subjectId });
+  const providerAttributes = { ...subjectAttributes, ...(attributes || {}) };
   let outcome;
   try {
-    outcome = await provider.screenSubject({ subjectType, subjectId, attributes });
+    outcome = await provider.screenSubject({ subjectType, subjectId, attributes: providerAttributes });
   } catch (error) {
     outcome = { result: 'error', reference: null, hitContext: null, details: { error: error.message } };
   }
@@ -152,7 +209,7 @@ async function screenSubjectIfStale(client, { subjectType, subjectId, attributes
       provider.name,
       result,
       normalizeString(outcome?.hitContext || outcome?.details?.error || null, 1000) || null,
-      payloadHash({ subjectType, subjectId, attributes, reference: outcome?.reference || null }),
+      payloadHash({ subjectType, subjectId, attributes: providerAttributes, reference: outcome?.reference || null }),
       SANCTIONS_REVIEW_SLA_HOURS,
     ]
   );
@@ -292,6 +349,7 @@ module.exports = {
   SCREENING_PROVIDERS,
   getScreeningProvider,
   getLatestScreening,
+  loadSubjectAttributes,
   isScreeningFresh,
   screenSubjectIfStale,
   assertSanctionsClear,

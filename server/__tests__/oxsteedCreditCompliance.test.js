@@ -24,6 +24,7 @@ const {
 const {
   assertSanctionsClear,
   SCREENING_PROVIDERS,
+  loadSubjectAttributes,
 } = require('../services/sanctionsScreeningService');
 const { openComplianceCase } = require('../services/complianceCaseService');
 const {
@@ -215,6 +216,19 @@ function screeningRow(overrides = {}) {
 }
 
 describe('sanctions screening', () => {
+  test('loads identity attributes for the screening provider without persisting them', async () => {
+    mockQuery.mockImplementation(async (text) => {
+      const sql = String(text);
+      if (sql.includes('FROM users u') && sql.includes('identity_verifications')) {
+        return { rows: [{ first_name: 'Ada', last_name: 'Lovelace', verified_name: 'Ada Lovelace', email: 'ada@example.com', country: 'US' }] };
+      }
+      return { rows: [], rowCount: 0 };
+    });
+    const attrs = await loadSubjectAttributes(fakeClient(), { subjectType: 'customer', subjectId: CUSTOMER_ID });
+    expect(attrs).toEqual(expect.objectContaining({ firstName: 'Ada', lastName: 'Lovelace', verifiedName: 'Ada Lovelace', country: 'US' }));
+    expect(attrs).not.toHaveProperty('identityHash');
+  });
+
   test('a fresh clear screening passes the gate', async () => {
     mockQuery.mockImplementation(async (text) => {
       const sql = String(text);
