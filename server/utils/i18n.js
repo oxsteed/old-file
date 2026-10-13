@@ -1,4 +1,5 @@
 const T = {
+  ...require('./reviewW11NotificationTemplates').reviewW11Notifications,
   ...require('./reviewLifecycleNotificationTemplates').reviewLifecycleNotifications,
   ...require('./mediaCreatorNotifications').creatorNotifications,
   ...require('./disputeNotificationTemplates').disputeNotifications,

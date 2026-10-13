@@ -1200,8 +1200,9 @@ exports.startJob = async (req, res, next) => {
         WHERE id = $1
         AND status = 'accepted'
         AND assigned_helper_id IS NOT NULL
+        AND (client_id = $2 OR assigned_helper_id = $2)
         RETURNING *
-      `, [id]);
+      `, [id, req.user.id]);
 
       if (!rows.length) {
         throw new AppError('Job start failed - state changed during processing', 400, 'state_conflict');
@@ -1225,8 +1226,6 @@ exports.startJob = async (req, res, next) => {
       await sendNotification({
         userId: otherPartyId,
         type: 'job_started',
-        title: 'Job started',
-        body: `The job ${result.title ? `"${result.title}" ` : ''}is now in progress.`,
         data: { job_id: result.id },
         action_url: `/jobs/${result.id}`,
         idempotencyKey: `job-started:${result.id}`,

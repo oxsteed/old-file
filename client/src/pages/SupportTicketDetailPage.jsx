@@ -73,6 +73,20 @@ export default function SupportTicketDetailPage() {
 
   const isClosed = useMemo(() => ['resolved', 'closed'].includes(String(ticket?.status || '').toLowerCase()), [ticket?.status]);
 
+  const handleReopen = async () => {
+    setSending(true);
+    setReplyError('');
+    try {
+      await api.post(`/support/my-tickets/${ticketId}/reopen`);
+      toast.success(t('reviewW11.reopened'));
+      await loadTicket();
+    } catch {
+      setReplyError(t('reviewW11.reopenFailed'));
+    } finally {
+      setSending(false);
+    }
+  };
+
   const handleReply = async () => {
     if (!reply.trim()) {
       toast.error(t('support.replyRequired', { defaultValue: 'Please write a reply first.' }));
@@ -244,9 +258,17 @@ export default function SupportTicketDetailPage() {
 
             <Section title={t('support.reply', { defaultValue: 'Reply' })} icon={Clock3}>
               {isClosed ? (
-                <p className="text-slate-300">
-                  {t('support.closedReplyNotice', { defaultValue: 'This ticket is closed. Reopen it from the support center if you need to add more details.' })}
-                </p>
+                <div className="space-y-3">
+                  <p className="text-slate-300">
+                    {t('support.closedReplyNotice', { defaultValue: 'This ticket is closed. Reopen it from the support center if you need to add more details.' })}
+                  </p>
+                  {replyError && <p role="alert" className="text-rose-300">{replyError}</p>}
+                  <button type="button" onClick={handleReopen} disabled={sending}
+                    className="inline-flex min-h-11 items-center gap-2 rounded-full bg-orange-500 px-5 py-3 font-semibold text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-60">
+                    <RefreshCw size={16} aria-hidden="true" />
+                    {t(sending ? 'reviewW11.reopening' : 'reviewW11.reopenTicket')}
+                  </button>
+                </div>
               ) : (
                 <div className="space-y-3">
                   <textarea

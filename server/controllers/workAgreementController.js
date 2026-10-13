@@ -754,7 +754,8 @@ exports.resolveWarrantyClaim = async (req, res) => {
               resolved_by = CASE WHEN $2 = 'under_review' THEN NULL ELSE $3::uuid END,
               resolved_at = CASE WHEN $2 = 'under_review' THEN NULL ELSE now() END,
               resolution_note = $4
-        WHERE id = $1::uuid AND agreement_id = $5::uuid AND status = 'filed'
+        WHERE id = $1::uuid AND agreement_id = $5::uuid
+          AND status IN ('filed', 'under_review') AND status <> $2
         RETURNING *`,
       [req.params.claimId, decision, req.user.id, note ? String(note).slice(0, 5000) : null, agreement.id]
     );

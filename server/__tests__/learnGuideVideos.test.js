@@ -200,6 +200,31 @@ describe('community guide video submissions', () => {
 });
 
 describe('publishDueGuideVideos worker', () => {
+  test('rolls back and logs a failed row, then publishes the next row', async () => {
+    const logger = require('../utils/logger');
+    const log = jest.spyOn(logger, 'error').mockImplementation(() => {});
+    const failed = { id: 'sub-failed', guide_id: 'g1', video_url: 'https://vimeo.com/1', video_provider: 'vimeo' };
+    const next = { ...failed, id: 'sub-next', video_url: 'https://vimeo.com/2' };
+    mockQuery
+      .mockResolvedValueOnce({ rows: [failed, next] })
+      .mockResolvedValueOnce({ rows: [] }) // first BEGIN
+      .mockRejectedValueOnce(new Error('synthetic playlist write failure'))
+      .mockResolvedValueOnce({ rows: [] }) // first ROLLBACK
+      .mockResolvedValueOnce({ rows: [] }) // next BEGIN
+      .mockResolvedValueOnce({ rowCount: 1, rows: [{ id: 'video-next' }] })
+      .mockResolvedValueOnce({ rowCount: 1 }) // only next submission finalized
+      .mockResolvedValueOnce({ rows: [] }); // next COMMIT
+    try {
+      expect(await learnController.publishDueGuideVideos()).toEqual({ published: 1, superseded: 0 });
+      expect(mockQuery.mock.calls.filter(([sql]) => sql === 'ROLLBACK')).toHaveLength(1);
+      const updates = mockQuery.mock.calls.filter(([sql]) => sql.includes('UPDATE learn_guide_video_submissions'));
+      expect(updates).toHaveLength(1);
+      expect(updates[0][1]).toEqual(['live', next.id]);
+      expect(log).toHaveBeenCalledWith('publishDueGuideVideos submission failed',
+        expect.objectContaining({ submissionId: failed.id, error: 'synthetic playlist write failure' }));
+    } finally { log.mockRestore(); }
+  });
+
   test('publishes submissions pending >= 24h into the playlist', async () => {
     const due = {
       id: 'sub-1', guide_id: 'g1',

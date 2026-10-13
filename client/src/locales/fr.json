@@ -1,4 +1,33 @@
 {
+  "reviewW11Notifications": {
+    "warranty_claim_filed": {
+      "title": "Nouvelle réclamation de garantie",
+      "body": "L’autre partie a déposé une réclamation de garantie. Ouvrez votre accord pour la consulter et répondre."
+    },
+    "warranty_claim_updated": {
+      "title": "Réclamation de garantie mise à jour",
+      "body": "L’autre partie a mis à jour une réclamation de garantie. Ouvrez votre accord pour consulter son statut et la réponse."
+    },
+    "job_started": {
+      "title": "Travail commencé",
+      "body": "Votre travail est en cours. Ouvrez-le pour consulter les détails et contacter l’autre participant."
+    }
+  },
+  "reviewW11": {
+    "guestReplyInstruction": "Pour continuer, contactez le support en indiquant votre numéro de ticket. Les réponses à cet e-mail ne sont pas consultées.",
+    "guestResolvedInstruction": "Si vous avez encore besoin d’aide, contactez le support en indiquant votre numéro de ticket.",
+    "openSupport": "Contacter le support",
+    "reopenTicket": "Rouvrir le ticket",
+    "reopening": "Réouverture…",
+    "reopened": "Ticket rouvert",
+    "reopenFailed": "Impossible de rouvrir le ticket. Réessayez.",
+    "reviewClaim": "Examiner la réclamation",
+    "replyTitle": "Nouvelle réponse du support",
+    "replyInstruction": "Ouvrez votre ticket pour lire et répondre. Les réponses à cet e-mail ne sont pas consultées.",
+    "resolvedTitle": "Demande de support résolue",
+    "resolvedInstruction": "Si vous avez encore besoin d’aide, ouvrez votre ticket et choisissez Rouvrir le ticket.",
+    "openTicket": "Ouvrir votre ticket de support"
+  },
   "reviewLifecycleNotifications": {
     "dispute_update": {
       "title": "Nouveau message dans votre litige",

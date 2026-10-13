@@ -1,4 +1,33 @@
 {
+  "reviewW11Notifications": {
+    "warranty_claim_filed": {
+      "title": "Nouvo reklamasyon garanti",
+      "body": "Lòt pati a depoze yon reklamasyon garanti. Louvri akò ou pou revize l epi reponn."
+    },
+    "warranty_claim_updated": {
+      "title": "Reklamasyon garanti mete ajou",
+      "body": "Lòt pati a mete yon reklamasyon garanti ajou. Louvri akò ou pou wè estati a ak repons lan."
+    },
+    "job_started": {
+      "title": "Travay la kòmanse",
+      "body": "Travay ou ap fèt kounye a. Louvri l pou wè detay yo epi kontakte lòt patisipan an."
+    }
+  },
+  "reviewW11": {
+    "guestReplyInstruction": "Pou kontinye, kontakte Sipò epi bay nimewo tikè w la. Nou pa suiv repons ki voye nan imèl sa a.",
+    "guestResolvedInstruction": "Si w toujou bezwen èd, kontakte Sipò epi bay nimewo tikè w la.",
+    "openSupport": "Kontakte Sipò",
+    "reopenTicket": "Relouvri tikè a",
+    "reopening": "Ap relouvri…",
+    "reopened": "Tikè a relouvri",
+    "reopenFailed": "Nou pa t ka relouvri tikè a. Tanpri eseye ankò.",
+    "reviewClaim": "Revize reklamasyon an",
+    "replyTitle": "Nouvo repons sipò",
+    "replyInstruction": "Louvri tikè w la pou li epi reponn. Nou pa suiv repons ki voye nan imèl sa a.",
+    "resolvedTitle": "Demann sipò a rezoud",
+    "resolvedInstruction": "Si w toujou bezwen èd, louvri tikè w la epi chwazi Relouvri tikè a.",
+    "openTicket": "Louvri tikè sipò w la"
+  },
   "reviewLifecycleNotifications": {
     "dispute_update": {
       "title": "Nouvo mesaj nan diskisyon an",

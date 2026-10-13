@@ -5,6 +5,7 @@
 
 const pool = require('../db');
 const AppError = require('../utils/appError');
+const logger = require('../utils/logger');
 const { tagGuideWithAI, tagGuideInBackground, LEARN_CATEGORIES } = require('../services/learnTagging');
 
 // ── Constants ─────────────────────────────────────────────────────────────────

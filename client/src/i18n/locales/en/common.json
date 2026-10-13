@@ -1,4 +1,33 @@
 {
+  "reviewW11Notifications": {
+    "warranty_claim_filed": {
+      "title": "New warranty claim",
+      "body": "The other party filed a warranty claim. Open your agreement to review and respond."
+    },
+    "warranty_claim_updated": {
+      "title": "Warranty claim updated",
+      "body": "The other party updated a warranty claim. Open your agreement to view its status and response."
+    },
+    "job_started": {
+      "title": "Job started",
+      "body": "Your job is now in progress. Open it to view the details and contact the other participant."
+    }
+  },
+  "reviewW11": {
+    "guestReplyInstruction": "For follow-up, contact Support and include your ticket number. Replies to this email are not monitored.",
+    "guestResolvedInstruction": "If you still need help, contact Support and include your ticket number.",
+    "openSupport": "Contact Support",
+    "reopenTicket": "Reopen ticket",
+    "reopening": "Reopening…",
+    "reopened": "Ticket reopened",
+    "reopenFailed": "Could not reopen the ticket. Please try again.",
+    "reviewClaim": "Review claim",
+    "replyTitle": "New reply from support",
+    "replyInstruction": "Open your ticket to read and reply. Replies to this email are not monitored.",
+    "resolvedTitle": "Support request resolved",
+    "resolvedInstruction": "If you still need help, open your ticket and choose Reopen ticket.",
+    "openTicket": "Open your support ticket"
+  },
   "reviewLifecycleNotifications": {
     "dispute_update": {
       "title": "New dispute message",

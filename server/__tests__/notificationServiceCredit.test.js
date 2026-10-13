@@ -139,3 +139,32 @@ describe('W10.5 lifecycle delivery', () => {
     if (lang === 'ar') expect(sendEmail.mock.calls[0][0].html).toMatch(/dir="rtl"/);
   });
 });
+
+describe('W11 warranty and job-start delivery', () => {
+  const types = ['warranty_claim_filed', 'warranty_claim_updated', 'job_started'];
+  test.each(['en', 'es', 'fr', 'ht', 'ar'].flatMap(lang => types.map(type => [lang, type])))('%s %s uses actual localized notification and email', async (lang, type) => {
+    const legacy = require(`../../client/src/locales/${lang}.json`).reviewW11Notifications[type];
+    expect(require(`../../client/src/i18n/locales/${lang}/common.json`).reviewW11Notifications[type]).toEqual(legacy);
+    expect(require('../utils/i18n').tNotif(type, lang)).toEqual(legacy);
+    db.query.mockImplementation(async sql => {
+      if (/SELECT np\.\*/.test(sql)) return { rows: [{ ...prefs, email: 'synthetic@example.invalid', preferred_language: lang }] };
+      if (/INSERT INTO notifications/.test(sql)) return { rows: [{ id: 'w11-notice' }] };
+      return { rows: [] };
+    });
+    const key = `w11-fixture:${lang}:${type}`;
+    expect(await sendNotification({ userId: 'participant', type, action_url: '/agreements/synthetic', idempotencyKey: key })).toMatchObject({ success: true });
+    const insert = db.query.mock.calls.find(([sql]) => /INSERT INTO notifications/.test(sql));
+    expect(insert[1][2]).toBe(legacy.title);
+    expect(insert[1][3]).toBe(legacy.body);
+    expect(insert[1][6]).toBe(key);
+    expect(sendEmail).toHaveBeenCalledWith(expect.objectContaining({ subject: legacy.title, idempotencyKey: key }));
+    expect(sendEmail.mock.calls[0][0].html).toContain(legacy.body);
+    if (lang === 'ar') expect(sendEmail.mock.calls[0][0].html).toContain('dir="rtl"');
+  });
+  test.each(types)('%s respects disabled email preferences', async type => {
+    db.query.mockResolvedValueOnce({ rows: [{ ...prefs, email: 'synthetic@example.invalid', email_notifications: false }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'w11-optout-notice' }] });
+    expect(await sendNotification({ userId: 'participant', type, idempotencyKey: `w11-optout:${type}` })).toMatchObject({ success: true });
+    expect(sendEmail).not.toHaveBeenCalled();
+  });
+});

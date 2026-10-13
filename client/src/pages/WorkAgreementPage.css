@@ -16,7 +16,8 @@
 .wa-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
 .wa-primary { display: inline-flex; align-items: center; gap: 8px; padding: 10px 18px; border: none; border-radius: 12px; background: var(--oc-brand, #f97316); color: #fff; font-weight: 700; font-size: 14px; cursor: pointer; }
 .wa-primary:disabled { opacity: .55; cursor: not-allowed; }
-.wa-btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border: 1px solid var(--oc-line, #cbd5e1); border-radius: 10px; background: transparent; font-weight: 600; font-size: 13px; cursor: pointer; }
+.wa-btn { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 8px 14px; border: 1px solid var(--oc-line, #cbd5e1); border-radius: 10px; background: transparent; font-weight: 600; font-size: 13px; cursor: pointer; }
+.wa-btn:focus-visible { outline: 2px solid var(--oc-accent, #f97316); outline-offset: 2px; }
 .wa-btn--danger { color: #b91c1c; border-color: #fecaca; }
 .wa-muted { color: var(--oc-muted, #64748b); font-size: 13.5px; }
 .wa-error { color: #b91c1c; background: #fef2f2; border: 1px solid #fecaca; border-radius: 10px; padding: 10px 14px; font-size: 14px; }

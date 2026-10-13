@@ -12,6 +12,8 @@ const { sendEmail } = require('../utils/email');
 const { AppError } = require('../middleware/errorHandler');
 const { resolveScope, userLocationScopeClause } = require('../utils/scopeFilter');
 const { userMatchesAnyRegion } = require('../middleware/regionAuth');
+const { transitionTicket } = require('../services/supportTicketLifecycleService');
+const { ticketEmail } = require('../utils/supportTicketEmail');
 const { scheduleSupportMessageNotifications } = require('../services/supportNotificationService');
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
@@ -309,17 +311,11 @@ exports.getMyTicket = async (req, res, next) => {
 /** POST /api/support/my-tickets/:ticketId/reopen */
 exports.reopenMyTicket = async (req, res, next) => {
   try {
-    const { rows } = await db.query(
-      `UPDATE support_tickets
-          SET status = 'open', resolved_at = NULL, closed_at = NULL,
-              updated_at = NOW()
-        WHERE id = $1 AND user_id = $2 AND status IN ('resolved', 'closed')
-        RETURNING id, ticket_number, subject, status, updated_at`,
-      [req.params.ticketId, req.user.id]
-    );
-    if (!rows.length) throw new AppError('Only resolved or closed tickets can be reopened.', 409, 'ticket_not_reopenable');
-    notifyAdmins('support:ticket_reopened', { ticket_id: rows[0].id, ticket_number: rows[0].ticket_number });
-    return res.json({ ticket: rows[0] });
+    const { ticket } = await transitionTicket({
+      ticketId: req.params.ticketId, actor: req.user, status: 'open', ownerOnly: true, req,
+    });
+    notifyAdmins('support:ticket_reopened', { ticket_id: ticket.id, ticket_number: ticket.ticket_number });
+    return res.json({ ticket });
   } catch (err) {
     next(err);
   }
@@ -695,7 +691,7 @@ exports.unclaimTicket = async (req, res) => {
 };
 
 /** PUT /api/admin/support/tickets/:ticketId/status  - body: { status } */
-exports.updateStatus = async (req, res) => {
+exports.updateStatus = async (req, res, next) => {
   if (!['admin', 'super_admin'].includes(req.user.role)) return res.status(403).json({ error: 'Admin access required.' });
   const allowed = ['open', 'assigned', 'in_progress', 'waiting_user', 'resolved', 'closed'];
   const { status } = req.body;
@@ -704,36 +700,10 @@ exports.updateStatus = async (req, res) => {
   }
 
   try {
-    const { rows: currentRows } = await db.query(
-      'SELECT id, status FROM support_tickets WHERE id = $1', [req.params.ticketId]
-    );
-    if (!currentRows.length) return res.status(404).json({ error: 'Ticket not found.' });
-    const transitions = {
-      open: new Set(['open', 'assigned', 'in_progress', 'waiting_user', 'resolved']),
-      assigned: new Set(['assigned', 'open', 'in_progress', 'waiting_user', 'resolved']),
-      in_progress: new Set(['in_progress', 'waiting_user', 'resolved', 'closed']),
-      waiting_user: new Set(['waiting_user', 'in_progress', 'resolved', 'closed']),
-      resolved: new Set(['resolved', 'closed', 'open']),
-      closed: new Set(['closed', 'open']),
-    };
-    if (!transitions[currentRows[0].status]?.has(status)) {
-      return res.status(409).json({ error: `Cannot change ticket from ${currentRows[0].status} to ${status}.`, code: 'invalid_status_transition' });
-    }
-    let extraCols = '';
-    if (status === 'resolved') extraCols = ', resolved_at = NOW()';
-    if (status === 'closed')   extraCols = ', closed_at = NOW()';
-    if (status === 'open') extraCols = ', resolved_at = NULL, closed_at = NULL';
-
-    const { rows } = await db.query(
-      `UPDATE support_tickets
-          SET status = $1, updated_at = NOW() ${extraCols}
-        WHERE id = $2
-        RETURNING id, ticket_number, status, user_id, name, email, subject`,
-      [status, req.params.ticketId]
-    );
-    if (!rows.length) return res.status(404).json({ error: 'Ticket not found.' });
-
-    const ticket = rows[0];
+    const { ticket, replayed, eventId } = await transitionTicket({
+      ticketId: req.params.ticketId, actor: req.user, status, req,
+    });
+    if (replayed) return res.json({ ticket });
     notifyUser(ticket.user_id, 'support:ticket_updated', {
       ticket_id: ticket.id, ticket_number: ticket.ticket_number, status,
     });
@@ -742,24 +712,14 @@ exports.updateStatus = async (req, res) => {
     });
 
     if (status === 'resolved') {
-      sendEmail({
-        to: ticket.email,
-        subject: `[Ticket #${ticket.ticket_number}] Your support request has been resolved`,
-        html: `
-          <div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;">
-            <h2 style="color:#ea580c;">OxSteed Support</h2>
-            <p>Hi ${ticket.name},</p>
-            <p>Your support request (<strong>#${ticket.ticket_number}</strong>) has been marked as resolved.</p>
-            <p>If you still need help, sign in to your support center and choose <strong>Reopen ticket</strong>.</p>
-            <p><a href="https://app.oxsteed.com/support/my-tickets/${ticket.id}" style="color:#ea580c;">Open your support ticket</a></p>
-          </div>`,
-      }).catch(() => { /* non-fatal */ });
+      sendEmail({ to: ticket.email, ...ticketEmail(ticket, 'resolved'),
+        idempotencyKey: `support-ticket-resolved:${eventId}` }).catch(() => { /* non-fatal */ });
     }
 
-    return res.json({ ticket: rows[0] });
+    return res.json({ ticket });
   } catch (err) {
     logger.error('updateStatus error', { err });
-    return res.status(500).json({ error: 'Failed to update status.' });
+    return next(err);
   }
 };
 
@@ -812,9 +772,9 @@ exports.adminReply = async (req, res) => {
 
   try {
     const { rows: tRows } = await db.query(
-      `SELECT id, ticket_number, status, user_id, name, email, subject,
-              assigned_to, first_response_at
-         FROM support_tickets WHERE id = $1`,
+      `SELECT t.*, COALESCE(u.preferred_language,
+         (SELECT sender_language FROM support_messages WHERE ticket_id = t.id ORDER BY created_at LIMIT 1), 'en') AS preferred_language
+         FROM support_tickets t LEFT JOIN users u ON u.id = t.user_id WHERE t.id = $1`,
       [req.params.ticketId]
     );
     if (!tRows.length) return res.status(404).json({ error: 'Ticket not found.' });
@@ -903,23 +863,8 @@ exports.adminReply = async (req, res) => {
         actionUrl: `/support/my-tickets/${ticket.id}`,
       });
 
-      sendEmail({
-        to: ticket.email,
-        subject: `[Ticket #${ticket.ticket_number}] New reply from support`,
-        html: `
-          <div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;">
-            <h2 style="color:#ea580c;">OxSteed Support</h2>
-            <p>Hi ${ticket.name},</p>
-            <p>You have a new reply on ticket <strong>#${ticket.ticket_number}</strong>:</p>
-            <blockquote style="border-left:3px solid #ea580c;padding:12px 16px;margin:16px 0;
-                               background:#fff7ed;color:#374151;border-radius:0 8px 8px 0;">
-              ${content.trim().replace(/\n/g, '<br>')}
-            </blockquote>
-            <p style="color:#6b7280;font-size:13px;">
-              Reply to this email or log in to view the full conversation.
-            </p>
-          </div>`,
-      }).catch(() => { /* non-fatal */ });
+      sendEmail({ to: ticket.email, ...ticketEmail(ticket, 'reply', content.trim()),
+        idempotencyKey: `support-ticket-reply:${message.id}` }).catch(() => { /* non-fatal */ });
     }
 
     notifyAdmins('support:ticket_updated', {
