@@ -60,7 +60,7 @@ async function collectCancellationFee({ feeRecordId, customerId, helperId, feeTo
   if (feeToHelper > 0) {
     try {
       const eligibility = await pool.query(
-        `SELECT u.didit_status, u.didit_verified_at, u.didit_enforcement_required,
+        `SELECT u.w9_completed, u.didit_status, u.didit_verified_at, u.didit_enforcement_required,
                 ca.stripe_account_id, ca.payouts_enabled
            FROM users u
            LEFT JOIN connect_accounts ca ON ca.user_id = u.id AND ca.status = 'active'
@@ -71,7 +71,7 @@ async function collectCancellationFee({ feeRecordId, customerId, helperId, feeTo
       const helper = eligibility.rows[0];
       const identityVerified = helper?.didit_status === 'verified'
         && isDiditVerificationFresh(helper.didit_verified_at);
-      if (!helper || !identityVerified || !helper.stripe_account_id || helper.payouts_enabled !== true) {
+      if (!helper || !helper.w9_completed || !identityVerified || !helper.stripe_account_id || helper.payouts_enabled !== true) {
         await markFeePending(feeRecordId, 'helper_payout_eligibility_required');
         logger.warn('cancellationFeeService: helper payout eligibility gate blocked collection', { feeRecordId, helperId });
         return;

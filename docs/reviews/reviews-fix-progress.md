@@ -217,3 +217,5 @@ W16 upload follow-up: job creation no longer publishes a partial media set when 
 - W17 payout follow-up: cancellation-fee helper shares now fail closed before charging unless the helper has fresh Didit verification, an active Connect account with `payouts_enabled`, and a clear sanctions screening. Ineligible fees remain pending for reconciliation.
 
 - W17 affiliate payout follow-up: admin-triggered affiliate transfers now require a fresh verified affiliate identity and a clear sanctions screening before claiming or transferring the payout. The existing Connect `payouts_enabled` gate remains required.
+
+- W17 tax-identity follow-up: main-app tax documents now expose W-9 and fresh identity readiness, and 1099 downloads remain unavailable until both are complete. Affiliate and cancellation-fee payouts apply the same W-9 requirement before transfer.
