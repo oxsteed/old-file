@@ -176,8 +176,9 @@ describe('POST /api/payments/capture', () => {
     expect(stripe.paymentIntents.capture).toHaveBeenCalled();
   });
 
-  test('queues capture and returns 202 when PAYMENT_CAPTURE_ASYNC=true', async () => {
+  test('queues capture and returns 202 when PAYMENT_CAPTURE_ASYNC=true and a worker process runs', async () => {
     process.env.PAYMENT_CAPTURE_ASYNC = 'true';
+    process.env.DEDICATED_WORKER_PROCESS = 'true';
     mockAuth(
       { rows: [{ id: 10, status: 'completed', assigned_helper_id: 2, title: 'Fence repair', client_id: 1 }] },
       { rows: [] }, // BEGIN (tx)
@@ -191,6 +192,7 @@ describe('POST /api/payments/capture', () => {
     expect(res.status).toBe(202);
     expect(res.body.status).toBe('processing');
     delete process.env.PAYMENT_CAPTURE_ASYNC;
+    delete process.env.DEDICATED_WORKER_PROCESS;
   });
 });
 

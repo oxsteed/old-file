@@ -28,6 +28,7 @@
  */
 
 const pool = require('../db');
+const logger = require('../utils/logger');
 const crypto = require('crypto');
 const { AppError } = require('../middleware/errorHandler');
 const { withTransaction } = require('../utils/transaction');
@@ -65,6 +66,29 @@ function parsePositiveInt(value) {
   return Number.isSafeInteger(n) && n > 0 ? n : 0;
 }
 
+/**
+ * Review P3-819: the customer hears about provisional credit and the
+ * outcome of their Credit dispute. Best effort after commit; localized
+ * templates live in utils/i18n.js.
+ */
+async function notifyCreditDisputeCustomer(disputeId, type, idempotencyKey) {
+  try {
+    const { rows } = await pool.query('SELECT customer_id FROM oxsteed_credit_disputes WHERE id = $1', [disputeId]);
+    const customerId = rows[0]?.customer_id;
+    if (!customerId) return;
+    const { sendNotification } = require('./notificationService');
+    await sendNotification({
+      userId: customerId,
+      type,
+      data: { dispute_id: disputeId },
+      action_url: '/wallet',
+      idempotencyKey,
+    });
+  } catch (err) {
+    logger.warn('Credit dispute notification failed', { disputeId, type, error: err.message });
+  }
+}
+
 async function resolveDisputeWithCompensation({
   disputeId,
   adminId,
@@ -100,7 +124,7 @@ async function resolveDisputeWithCompensation({
     throw new AppError('Compensation is only allowed when resolving in the customer\'s favor', 400, 'credit_dispute_compensation_invalid');
   }
 
-  return withTransaction(pool, async (client) => {
+  const result = await withTransaction(pool, async (client) => {
     const { rows } = await client.query(
       `SELECT d.*, fr.display_name AS restaurant_name
          FROM oxsteed_credit_disputes d
@@ -240,6 +264,10 @@ async function resolveDisputeWithCompensation({
       replayed: false,
     };
   }, 'credit_resolve_dispute_compensated');
+  if (!result?.replayed) {
+    await notifyCreditDisputeCustomer(disputeId, DISPUTE_TERMINAL_STATUSES.includes(result?.dispute?.status) ? 'credit_dispute_resolved' : 'credit_dispute_updated', result?.compensation ? `credit_dispute:${disputeId}:compensation` : `credit_dispute:${disputeId}:${result?.dispute?.status}`);
+  }
+  return result;
 }
 
 /**
@@ -330,7 +358,7 @@ async function issueProvisionalCredit({
   if (!normalizedReason) throw new AppError('A reason is required for provisional credit', 400, 'credit_provisional_credit_reason_required');
   if (!adminId) throw new AppError('An administrator identity is required to issue provisional credit', 403, 'credit_dispute_actor_required');
 
-  return withTransaction(pool, async (client) => {
+  const result = await withTransaction(pool, async (client) => {
     const { rows } = await client.query(
       `SELECT d.*, t.amount_cents AS transaction_amount_cents, t.currency_code AS transaction_currency_code
          FROM oxsteed_credit_disputes d
@@ -409,4 +437,8 @@ async function issueProvisionalCredit({
       replayed: false,
     };
   }, 'credit_dispute_provisional_credit');
+  if (!result?.replayed) {
+    await notifyCreditDisputeCustomer(disputeId, 'credit_dispute_provisional_credit', `credit_dispute:${disputeId}:provisional:${result?.provisionalCredit?.transactionId || Date.now()}`);
+  }
+  return result;
 }

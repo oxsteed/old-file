@@ -8,6 +8,8 @@ if (!process.env.STRIPE_SECRET_KEY) {
 }
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const db = require('../db');
+const chargebackEvidence = require('../services/chargebackEvidenceService');
+const bookingDeposits = require('../services/bookingDepositService');
 const { recalculateBadges } = require('./verificationController');
 const { withTransaction } = require('../utils/transaction');
 const {
@@ -28,6 +30,10 @@ const { stripeObjectId, invoiceSubscriptionId, subscriptionPeriod } = require('.
 const { applyChargeRefund, verifiedChargeRefundTotal } = require('../services/paymentRefundStateService');
 const stripeWebhookContract = require('../config/stripeWebhookContract');
 const businessInvoiceStripeConnectService = require('../services/businessInvoiceStripeConnectService');
+const creditLedger = require('../services/referralCreditLedger');
+const { toLocalSubscriptionStatus } = require('../utils/subscriptionStatus');
+const jobPaymentReauth = require('../services/jobPaymentReauthorizationService');
+const paymentRailWebhooks = require('../services/paymentRails/webhooks');
 
 function extractFoodOrderId(metadata) {
   const raw = metadata?.food_order_id
@@ -311,6 +317,8 @@ async function applyFoodOrderPaymentState(client, {
             stripe_payment_intent_id = COALESCE($2, stripe_payment_intent_id),
             updated_at = NOW()
       WHERE id = $3::bigint
+        -- P3-890: a late/out-of-order unpaid session never undoes a payment.
+        AND NOT ($1 IN ('requires_payment', 'unpaid') AND payment_status IN ('paid', 'refunded'))
       RETURNING *`,
     [paymentStatus, stripePaymentIntentId, orderId]
   );
@@ -426,6 +434,24 @@ async function syncConnectAccountState(account) {
   });
 }
 
+// Review P3-888: when a claim is refused, distinguish a finished receipt
+// (true duplicate -> 200) from one still 'processing' (in flight, or left
+// behind by a crash). For the latter answer non-2xx so the provider keeps
+// retrying; the 15-minute reclaim then reprocesses it instead of the event
+// being acknowledged and silently dropped.
+async function receiptInFlight(provider, eventId) {
+  const { rows } = await db.query(
+    'SELECT status FROM webhook_event_receipts WHERE provider = $1 AND event_id = $2',
+    [provider, String(eventId)]
+  );
+  return rows[0]?.status === 'processing';
+}
+
+function respondInFlight(res) {
+  res.set('Retry-After', '60');
+  return res.status(409).json({ received: false, code: 'webhook_in_flight' });
+}
+
 async function beginWebhookEvent(provider, event) {
   if (!event?.id) return { shouldProcess: true };
 
@@ -442,8 +468,8 @@ async function beginWebhookEvent(provider, event) {
 
   const { rows } = await db.query(
     `INSERT INTO webhook_event_receipts
-       (provider, event_id, event_type, object_type, object_id, event_created, status)
-     VALUES ($1, $2, $3, $4, $5, $6, 'processing')
+       (provider, event_id, event_type, object_type, object_id, event_created, status, account_id)
+     VALUES ($1, $2, $3, $4, $5, $6, 'processing', $7)
      ON CONFLICT (provider, event_id) DO UPDATE SET
        attempts = webhook_event_receipts.attempts + 1,
        event_type = EXCLUDED.event_type,
@@ -459,10 +485,13 @@ async function beginWebhookEvent(provider, event) {
           AND webhook_event_receipts.last_seen_at < NOW() - INTERVAL '15 minutes'
         )
      RETURNING id`,
-    [provider, event.id, eventType, objectType, objectId, eventCreated]
+    [provider, event.id, eventType, objectType, objectId, eventCreated, event.account || null]
   );
 
   const receiptId = rows[0]?.id;
+  if (rows.length === 0) {
+    return { shouldProcess: false, receiptId: null, inFlight: await receiptInFlight(provider, event.id) };
+  }
   if (!receiptId || !objectId || eventCreated === null) {
     return { shouldProcess: rows.length > 0, receiptId };
   }
@@ -521,7 +550,6 @@ async function markWebhookEventFailed(receiptId, err) {
 exports.stripeWebhook = async (req, res, next) => {
   const sig = req.headers['stripe-signature'];
   let event;
-  let receiptId;
   const destination = req.stripeWebhookDestination === 'connect' ? 'connect' : 'platform';
   const contract = stripeWebhookContract[destination];
   const signingSecret = process.env[contract.secretEnv];
@@ -540,6 +568,17 @@ exports.stripeWebhook = async (req, res, next) => {
     return next(new AppError('Invalid signature', 400, 'invalid_webhook_signature'));
   }
 
+  return handleVerifiedStripeEvent(event, destination, res, next);
+};
+
+/**
+ * Process a signature-verified Stripe event. Shared by the webhook endpoint
+ * and the operator replay of failed receipts (review P3-891), which
+ * re-fetches the event from the Stripe API instead of trusting stored data.
+ */
+async function handleVerifiedStripeEvent(event, destination, res, next) {
+  const contract = stripeWebhookContract[destination];
+  let receiptId;
   // A platform secret must not authenticate connected-account events, or vice
   // versa. Missing Connect configuration fails closed without breaking startup.
   if ((destination === 'connect') !== !!event.account) {
@@ -552,6 +591,10 @@ exports.stripeWebhook = async (req, res, next) => {
   try {
     const receipt = await beginWebhookEvent('stripe', event);
     receiptId = receipt.receiptId;
+    if (!receipt.shouldProcess && receipt.inFlight) {
+      logger.warn('Stripe webhook still in flight; asking the provider to retry', { eventId: event.id, eventType: event.type });
+      return respondInFlight(res);
+    }
     if (!receipt.shouldProcess) {
       logger.info('Duplicate Stripe webhook ignored', { eventId: event.id, eventType: event.type });
       return res.json({ received: true, duplicate: true, stale: receipt.stale === true });
@@ -565,7 +608,19 @@ exports.stripeWebhook = async (req, res, next) => {
       return res.json({ received: true });
     }
 
+    // Review P1-297: connected-account checkout events are QR scan-to-pay
+    // sessions. Anything else on this destination is acknowledged and ignored.
+    if (destination === 'connect' && String(event.type).startsWith('checkout.session.')) {
+      await handleConnectedCheckoutEvent(event);
+      await markWebhookEventProcessed(receiptId);
+      return res.json({ received: true });
+    }
+
     switch (event.type) {
+      // Review P3-890: delayed-notification methods (ACH, bank debits) send
+      // async_payment_succeeded instead of a paid completed session; the
+      // completed handler keys everything off session.payment_status.
+      case 'checkout.session.async_payment_succeeded':
       case 'checkout.session.completed': {
         const session = event.data.object;
         if (session.metadata?.qr_payment === 'true') {
@@ -600,7 +655,7 @@ exports.stripeWebhook = async (req, res, next) => {
             `INSERT INTO subscriptions (user_id, plan_id, stripe_subscription_id, stripe_customer_id, status, current_period_start, current_period_end)
              VALUES ($1, $2, $3, $4, $5, to_timestamp($6), to_timestamp($7))
              ON CONFLICT (stripe_subscription_id) DO UPDATE SET status = $5`,
-            [userId, planId, subscriptionId, stripeObjectId(session.customer), sub.status,
+            [userId, planId, subscriptionId, stripeObjectId(session.customer), toLocalSubscriptionStatus(sub.status),
              period.start, period.end]
           );
           // Get plan tier
@@ -621,6 +676,16 @@ exports.stripeWebhook = async (req, res, next) => {
         }
         break;
       }
+      case 'checkout.session.async_payment_failed':
+      case 'checkout.session.expired': {
+        // Review P3-890: close out unpaid sessions; never downgrade money
+        // that already landed.
+        const session = event.data.object;
+        const failed = event.type === 'checkout.session.async_payment_failed';
+        await applyCheckoutSessionNotPaid(session, failed ? 'failed' : 'expired');
+        break;
+      }
+
       case 'customer.subscription.created': {
         // Subscriptions created through Checkout are already handled by
         // checkout.session.completed (which fires first and creates the row).
@@ -634,9 +699,15 @@ exports.stripeWebhook = async (req, res, next) => {
         if (existing.length > 0) break; // Already handled by checkout.session.completed
 
         // Look up the user via their Stripe customer ID
+        // Review P2-572: users has no stripe_customer_id column; resolve the
+        // owner from subscription metadata, then from an earlier subscription
+        // row for the same Stripe customer.
         const { rows: userRows } = await db.query(
-          'SELECT id FROM users WHERE stripe_customer_id = $1 LIMIT 1',
-          [stripeObjectId(sub.customer)]
+          `SELECT id FROM users WHERE id::text = $1
+           UNION ALL
+           SELECT user_id AS id FROM subscriptions WHERE stripe_customer_id = $2
+           LIMIT 1`,
+          [String(sub.metadata?.user_id || sub.metadata?.userId || ''), stripeObjectId(sub.customer)]
         );
         if (!userRows.length) {
           logger.warn('[webhook] customer.subscription.created: no user found for Stripe customer', {
@@ -661,20 +732,22 @@ exports.stripeWebhook = async (req, res, next) => {
               status, current_period_start, current_period_end)
            VALUES ($1, $2, $3, $4, $5, to_timestamp($6), to_timestamp($7))
            ON CONFLICT (stripe_subscription_id) DO NOTHING`,
-          [userRows[0].id, planId, sub.id, stripeObjectId(sub.customer), sub.status,
+          [userRows[0].id, planId, sub.id, stripeObjectId(sub.customer), toLocalSubscriptionStatus(sub.status),
            period.start, period.end]
         );
 
-        if (planId) {
+        // Only a paying/trialing subscription grants the tier; incomplete
+        // ones wait for customer.subscription.updated.
+        if (planId && ['active', 'trialing'].includes(toLocalSubscriptionStatus(sub.status))) {
           const { rows: planMeta } = await db.query(
             'SELECT COALESCE(tier, slug) AS tier_slug, slug FROM plans WHERE id = $1', [planId]
           );
           const planSlug = planMeta[0]?.slug || planMeta[0]?.tier_slug || 'pro';
           const userTier = planSlug === 'basic' ? 'basic' : planSlug === 'broker' ? 'broker' : 'pro';
           await db.query(
-            `UPDATE users SET tier = $1, subscription_status = 'active', tier_selected = TRUE
+            `UPDATE users SET tier = $1, subscription_status = $3, tier_selected = TRUE
              WHERE id = $2`,
-            [userTier, userRows[0].id]
+            [userTier, userRows[0].id, toLocalSubscriptionStatus(sub.status)]
           );
           await recalculateBadges(userRows[0].id);
         }
@@ -687,7 +760,7 @@ exports.stripeWebhook = async (req, res, next) => {
           `UPDATE subscriptions SET status = $1, current_period_start = to_timestamp($2),
            current_period_end = to_timestamp($3), cancel_at_period_end = $4, updated_at = NOW()
            WHERE stripe_subscription_id = $5`,
-          [sub.status, period.start, period.end,
+          [toLocalSubscriptionStatus(sub.status), period.start, period.end,
            sub.cancel_at_period_end, sub.id]
         );
         const { rows } = await db.query(
@@ -696,7 +769,7 @@ exports.stripeWebhook = async (req, res, next) => {
         if (rows.length) {
           await db.query(
             'UPDATE users SET subscription_status = $1 WHERE id = $2',
-            [sub.status, rows[0].user_id]
+            [toLocalSubscriptionStatus(sub.status), rows[0].user_id]
           );
           await recalculateBadges(rows[0].user_id);
         }
@@ -750,7 +823,7 @@ exports.stripeWebhook = async (req, res, next) => {
                cancel_at_period_end  = $4,
                updated_at            = NOW()
            WHERE stripe_subscription_id = $5`,
-          [sub.status, period.start, period.end,
+          [toLocalSubscriptionStatus(sub.status), period.start, period.end,
            sub.cancel_at_period_end, subId]
         );
 
@@ -819,34 +892,47 @@ exports.stripeWebhook = async (req, res, next) => {
       case 'payment_intent.amount_capturable_updated': {
         // Authorization succeeded - PaymentIntent is ready to capture after job completion.
         const pi = event.data.object;
+        // Change-order re-authorization: swap the job payment onto this intent.
+        if (await jobPaymentReauth.applyReauthorizationWebhook(event.type, pi)) break;
         const jobId = pi.metadata?.job_id;
-        if (jobId) {
-          const { rows: payRows } = await db.query(
-            `UPDATE payments SET status = 'authorized', payment_hold_status = 'held',
-             updated_at = NOW() WHERE stripe_payment_intent_id = $1 AND status != 'captured'
-             RETURNING id, payer_id, metadata`,
-            [pi.id]
-          );
-          // Audit fix: deduct referral credit only now that Stripe has
-          // confirmed the payment. The credit amount was stored in metadata
-          // at PI creation time.
-          if (payRows[0]?.metadata?.applied_credit_cents > 0) {
-            await db.query(
-              `INSERT INTO platform_ledger (user_id, type, amount_cents, description, metadata)
-               VALUES ($1, 'credit_applied', $2, 'Referral credit applied to job payment', $3)`,
-              [payRows[0].payer_id, payRows[0].metadata.applied_credit_cents, JSON.stringify({
-                job_id: jobId,
-                payment_id: payRows[0].id,
-              })]
+        // Review P3-789 / P3-889: the authorized status, the referral-credit
+        // deduction and the intent application commit together, and the
+        // deduction is keyed per payment so a retry cannot post it twice.
+        await withTransaction(db, async (client) => {
+          if (jobId) {
+            const { rows: payRows } = await client.query(
+              `UPDATE payments p SET status = 'authorized', payment_hold_status = 'held',
+                 authorized_at = COALESCE(p.authorized_at, NOW()),
+                 authorization_expires_at = NOW() + make_interval(days => COALESCE(
+                   (SELECT card_auth_window_days FROM payment_country_policies WHERE country_code = p.fee_country), 7)),
+                 updated_at = NOW()
+               WHERE stripe_payment_intent_id = $1 AND status != 'captured'
+               RETURNING id, payer_id, metadata`,
+              [pi.id]
             );
+            const pay = payRows[0];
+            const appliedCents = Number(pay?.metadata?.applied_credit_cents ?? pay?.metadata?.appliedCreditCents ?? 0);
+            if (pay && appliedCents > 0) {
+              // No-op when the reservation was made at intent creation.
+              await creditLedger.applyCreditToPayment(client, {
+                userId: pay.payer_id,
+                paymentId: pay.id,
+                amountCents: appliedCents,
+                jobId,
+                paymentIntentId: pi.id,
+              });
+            }
+            logger.info(`[Stripe] PaymentIntent ${pi.id} authorized - job ${jobId} funds held`);
           }
-          logger.info(`[Stripe] PaymentIntent ${pi.id} authorized - job ${jobId} funds held`);
-        }
-        await withTransaction(db, (client) => applyStripePaymentIntent(client, pi));
+          await applyStripePaymentIntent(client, pi);
+        });
         break;
       }
 
       case 'payment_intent.succeeded': {
+        // Booking-request deposits (P3-962): settle even if the native
+        // client never confirms.
+        if (await bookingDeposits.applyBookingIntentWebhook(event.type, event.data.object)) break;
         // OxSteed Credit top-up (fiat money IN). Handled and acknowledged
         // here; PaymentIntents that are not ours fall through to the
         // flows below.
@@ -864,6 +950,13 @@ exports.stripeWebhook = async (req, res, next) => {
           break;
         }
         const pi = event.data.object;
+        // Change-order re-authorization on a platform-held (charge-now) payment.
+        if (await jobPaymentReauth.applyReauthorizationWebhook(event.type, pi)) break;
+        // Charge-now + platform hold (local methods, jobs > 5 days out): the
+        // money is held for the job, not released to the helper yet.
+        if (await paymentRailWebhooks.applyPlatformHoldSucceeded(pi)) break;
+        // Tips: processing cost only (decision #9).
+        if (await paymentRailWebhooks.applyTipIntent(event.type, pi)) break;
         if (pi?.metadata?.business_invoice_payment === 'true') {
           await withTransaction(db, (client) => businessInvoiceStripeConnectService
             .applyBusinessInvoicePaymentFromWebhook(client, pi));
@@ -935,6 +1028,9 @@ exports.stripeWebhook = async (req, res, next) => {
       }
 
       case 'payment_intent.payment_failed': {
+        // Booking-request deposits (P3-962): settle even if the native
+        // client never confirms.
+        if (await bookingDeposits.applyBookingIntentWebhook(event.type, event.data.object)) break;
         // OxSteed Credit top-up (fiat money IN) that did not go through.
         if (await topupService.applyCreditTopupWebhookEvent({ type: event.type, object: event.data.object })) {
           break;
@@ -946,6 +1042,10 @@ exports.stripeWebhook = async (req, res, next) => {
         }
         // Authorization or capture failed.
         const pi = event.data.object;
+        // A declined change-order re-authorization leaves the original
+        // authorization untouched; the customer can retry.
+        if (await jobPaymentReauth.applyReauthorizationWebhook(event.type, pi)) break;
+        if (await paymentRailWebhooks.applyTipIntent(event.type, pi)) break;
         const jobId = pi.metadata?.job_id;
         const failureMsg = pi.last_payment_error?.message || 'Payment failed';
         let foodOrderId = extractFoodOrderId(pi.metadata);
@@ -982,13 +1082,22 @@ exports.stripeWebhook = async (req, res, next) => {
             }
           });
         } else if (jobId) {
-          await db.query(
-            `UPDATE payments SET status = 'failed', payment_hold_status = 'none',
-             updated_at = NOW() WHERE stripe_payment_intent_id = $1`,
-            [pi.id]
-          );
-          // Re-open escrow on the job so client can retry
-          await db.query(
+          const endedPayments = await withTransaction(db, async (client) => {
+            const { rows: endedPayments } = await client.query(
+              `UPDATE payments SET status = 'failed', payment_hold_status = 'none',
+               updated_at = NOW() WHERE stripe_payment_intent_id = $1 AND status <> 'captured'
+               RETURNING id`,
+              [pi.id]
+            );
+            // Return any referral credit reserved for this intent (P2-571).
+            for (const row of endedPayments) {
+              await creditLedger.releaseCreditForPayment(client, { paymentId: row.id, reason: 'payment_intent_failed' });
+            }
+            return endedPayments;
+          });
+          // Re-open escrow on the job so client can retry (unless this intent
+          // no longer backs the job's payment).
+          if (endedPayments.length !== 0) await db.query(
             `UPDATE jobs SET escrow_status = 'none', updated_at = NOW() WHERE id = $1`,
             [jobId]
           );
@@ -1018,6 +1127,9 @@ exports.stripeWebhook = async (req, res, next) => {
       }
 
       case 'payment_intent.canceled': {
+        // Booking-request deposits (P3-962): settle even if the native
+        // client never confirms.
+        if (await bookingDeposits.applyBookingIntentWebhook(event.type, event.data.object)) break;
         // OxSteed Credit top-up (fiat money IN) that was canceled.
         if (await topupService.applyCreditTopupWebhookEvent({ type: event.type, object: event.data.object })) {
           break;
@@ -1032,20 +1144,34 @@ exports.stripeWebhook = async (req, res, next) => {
           break;
         }
         const pi = event.data.object;
+        if (await jobPaymentReauth.applyReauthorizationWebhook(event.type, pi)) break;
+        if (await paymentRailWebhooks.applyTipIntent(event.type, pi)) break;
         await withTransaction(db, (client) => applyStripePaymentIntent(client, pi));
         // Audit fix: clear job escrow on cancel, same as payment_failed.
         // Otherwise the job stays in escrow with no payment behind it.
         const jobId = pi.metadata?.job_id;
         if (jobId) {
-          await db.query(
-            `UPDATE payments SET status = 'canceled', payment_hold_status = 'none',
-             updated_at = NOW() WHERE stripe_payment_intent_id = $1`,
-            [pi.id]
-          );
-          await db.query(
-            `UPDATE jobs SET escrow_status = 'none', updated_at = NOW() WHERE id = $1`,
-            [jobId]
-          );
+          const endedPayments = await withTransaction(db, async (client) => {
+            const { rows: endedPayments } = await client.query(
+              `UPDATE payments SET status = 'canceled', payment_hold_status = 'none',
+               updated_at = NOW() WHERE stripe_payment_intent_id = $1 AND status <> 'captured'
+               RETURNING id`,
+              [pi.id]
+            );
+            // Return any referral credit reserved for this intent (P2-571).
+            for (const row of endedPayments) {
+              await creditLedger.releaseCreditForPayment(client, { paymentId: row.id, reason: 'payment_intent_canceled' });
+            }
+            return endedPayments;
+          });
+          // An intent superseded by a change-order re-authorization no longer
+          // backs any payment row: the job's escrow is still funded.
+          if (endedPayments.length !== 0) {
+            await db.query(
+              `UPDATE jobs SET escrow_status = 'none', updated_at = NOW() WHERE id = $1`,
+              [jobId]
+            );
+          }
         }
         break;
       }
@@ -1099,6 +1225,10 @@ exports.stripeWebhook = async (req, res, next) => {
         // throw here marks the webhook failed so Stripe retries (the
         // ingestion is idempotent on the Stripe dispute id).
         await ingestStripeChargeback({ eventType: event.type, dispute });
+        // P3-814: track the evidence deadline and stage evidence at Stripe.
+        // A throw marks the webhook failed so Stripe retries (idempotent on
+        // the dispute id).
+        await chargebackEvidence.handleDisputeWebhook(dispute, event.account || null);
         break;
       }
 
@@ -1131,6 +1261,7 @@ exports.stripeWebhook = async (req, res, next) => {
         // Phase 8: OxSteed Credit chargeback ingestion (see
         // charge.dispute.created above for the contract).
         await ingestStripeChargeback({ eventType: event.type, dispute });
+        await chargebackEvidence.upsertFromStripe(dispute, event.account || null);
         break;
       }
 
@@ -1163,7 +1294,8 @@ exports.stripeWebhook = async (req, res, next) => {
     logger.error('Stripe webhook handler error', { error: err.message });
     return next(new AppError('Webhook processing failed', 500, 'webhook_processing_error'));
   }
-};
+}
+exports.handleVerifiedStripeEvent = handleVerifiedStripeEvent;
 
 // ── Didit v3 Signature Helpers ──────────────────────────────
 
@@ -1261,9 +1393,7 @@ async function beginDiditWebhookEvent(body) {
   if (!eventId) return { shouldProcess: true, receiptId: null };
 
   const eventType = String(body.webhook_type || body.type || 'didit.verification');
-  const eventCreated = Number.isSafeInteger(Number(body.created_at))
-    ? Number(body.created_at)
-    : null;
+  const eventCreated = parseDiditEventCreated(body);
   const { rows } = await db.query(
     `INSERT INTO webhook_event_receipts
        (provider, event_id, event_type, object_type, object_id, event_created, status)
@@ -1285,8 +1415,59 @@ async function beginDiditWebhookEvent(body) {
     [String(eventId), eventType, body.session_id ? String(body.session_id) : null, eventCreated]
   );
 
-  return { shouldProcess: rows.length > 0, receiptId: rows[0]?.id || null };
+  if (rows.length === 0) {
+    return { shouldProcess: false, receiptId: null, inFlight: await receiptInFlight('didit', eventId) };
+  }
+  const receiptId = rows[0].id;
+
+  // Review P3-892: a delayed/retried older verdict must not overwrite a newer
+  // one for the same session. Same watermark rule as Stripe events.
+  const sessionId = body.session_id ? String(body.session_id) : null;
+  if (!sessionId || eventCreated === null) return { shouldProcess: true, receiptId };
+  const { rows: watermarkRows } = await db.query(
+    `INSERT INTO webhook_event_watermarks
+       (provider, object_type, object_id, event_created, event_id)
+     VALUES ('didit', 'session', $1, $2, $3)
+     ON CONFLICT (provider, object_type, object_id) DO UPDATE
+       SET event_created = EXCLUDED.event_created,
+           event_id = EXCLUDED.event_id,
+           updated_at = NOW()
+     WHERE webhook_event_watermarks.event_id = EXCLUDED.event_id
+        OR webhook_event_watermarks.event_created < EXCLUDED.event_created
+        OR (
+          webhook_event_watermarks.event_created = EXCLUDED.event_created
+          AND webhook_event_watermarks.event_id < EXCLUDED.event_id
+        )
+     RETURNING event_id`,
+    [sessionId, eventCreated, String(eventId)]
+  );
+  if (watermarkRows.length > 0) return { shouldProcess: true, receiptId };
+  await db.query(
+    `UPDATE webhook_event_receipts
+        SET status = 'processed', processed_at = NOW(), last_seen_at = NOW(),
+            last_error = 'stale_event_skipped'
+      WHERE id = $1`,
+    [receiptId]
+  );
+  logger.info('Skipping stale Didit verdict', { eventId: String(eventId), sessionId });
+  return { shouldProcess: false, stale: true, receiptId };
 }
+
+function parseDiditEventCreated(body) {
+  for (const raw of [body?.created_at, body?.timestamp]) {
+    if (raw === undefined || raw === null || raw === '') continue;
+    const n = Number(raw);
+    if (Number.isFinite(n) && n > 0) {
+      // Accept seconds or milliseconds; normalise to seconds.
+      return Math.floor(n > 1e12 ? n / 1000 : n);
+    }
+    const ms = Date.parse(String(raw));
+    if (Number.isFinite(ms)) return Math.floor(ms / 1000);
+  }
+  return null;
+}
+exports._parseDiditEventCreated = parseDiditEventCreated;
+exports._beginDiditWebhookEvent = (body) => beginDiditWebhookEvent(body);
 
 // Didit identity webhook handler (v3 API)
 exports.diditWebhook = async (req, res, next) => {
@@ -1354,9 +1535,13 @@ exports.diditWebhook = async (req, res, next) => {
     }
 
     const event = await beginDiditWebhookEvent(body);
+    if (!event.shouldProcess && event.inFlight) {
+      logger.warn('[Didit] Webhook still in flight; asking the provider to retry', { eventId: body.event_id || body.id });
+      return respondInFlight(res);
+    }
     if (!event.shouldProcess) {
       logger.info('[Didit] Duplicate webhook ignored', { eventId: body.event_id || body.id });
-      return res.json({ received: true, duplicate: true });
+      return res.json({ received: true, duplicate: !event.stale, stale: Boolean(event.stale) });
     }
     receiptId = event.receiptId;
 
@@ -1566,6 +1751,34 @@ exports.canonicalizeDiditPayload = (body) => stableStringify(shortenFloats(body)
 exports.verifyDiditSignatureV2 = (body, signature, timestamp, secret) =>
   verifySignatureV2(body, signature, timestamp, secret);
 
+// Review P3-890: an unpaid/expired Checkout session marks its food order
+// failed and its QR payment failed/expired, but only while still unpaid.
+async function applyCheckoutSessionNotPaid(session, outcome) {
+  if (!session?.id) return { food: 0, qr: 0 };
+  let food = 0;
+  const foodOrderId = extractFoodOrderId(session.metadata);
+  if (foodOrderId) {
+    await withTransaction(db, async (client) => {
+      const { rows } = await client.query(
+        `UPDATE food_orders
+            SET payment_status = 'failed', updated_at = NOW()
+          WHERE id = $1::bigint AND payment_status IN ('unpaid', 'requires_payment')
+          RETURNING *`,
+        [foodOrderId]
+      );
+      food = rows.length;
+      if (rows[0]) emitFoodOrderUpdate(rows[0]);
+    });
+  }
+  const { rowCount: qr } = await db.query(
+    `UPDATE qr_payments SET status = $2
+      WHERE stripe_checkout_session_id = $1 AND status = 'pending'`,
+    [session.id, outcome === 'failed' ? 'failed' : 'expired']
+  );
+  return { food, qr };
+}
+exports.applyCheckoutSessionNotPaid = applyCheckoutSessionNotPaid;
+
 // Marks a QR scan-to-pay checkout as succeeded.
 // Idempotent: only flips rows that have not already succeeded, so duplicate
 // webhook deliveries and replays are safe.
@@ -1600,5 +1813,40 @@ async function applyQrPaymentSucceeded(session) {
   return rowCount;
 }
 exports.applyQrPaymentSucceeded = applyQrPaymentSucceeded;
+
+// Closes a pending QR payment whose Checkout Session expired or whose async
+// payment failed. Never touches a row that already succeeded.
+async function applyQrPaymentClosed(session, status) {
+  const { rowCount } = await db.query(
+    `UPDATE qr_payments SET status = $2
+      WHERE stripe_checkout_session_id = $1 AND status = 'pending'`,
+    [session.id, status]
+  );
+  return rowCount;
+}
+exports.applyQrPaymentClosed = applyQrPaymentClosed;
+
+async function handleConnectedCheckoutEvent(event) {
+  const session = event.data?.object || {};
+  if (session.metadata?.qr_payment !== 'true') {
+    logger.info('[webhook] Ignoring non-QR connected-account checkout event', { eventId: event.id, eventType: event.type });
+    return 'ignored';
+  }
+  switch (event.type) {
+    case 'checkout.session.completed':
+    case 'checkout.session.async_payment_succeeded':
+      await applyQrPaymentSucceeded(session);
+      return 'succeeded';
+    case 'checkout.session.async_payment_failed':
+      await applyQrPaymentClosed(session, 'failed');
+      return 'failed';
+    case 'checkout.session.expired':
+      await applyQrPaymentClosed(session, 'expired');
+      return 'expired';
+    default:
+      return 'ignored';
+  }
+}
+exports.handleConnectedCheckoutEvent = handleConnectedCheckoutEvent;
 // Test seam: exported so the lost-dispute financial path can be unit-tested.
 exports.recordLostDisputeFinancials = recordLostDisputeFinancials;

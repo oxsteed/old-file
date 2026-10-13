@@ -8,7 +8,13 @@ const { idempotencyKey, pinDigest, recordActivity } = require('../services/local
 
 exports.uploadGuard = async (req,res,next) => {
   try {
-    if (!scanner.isConfigured()) throw new AppError('Proof scanning is unavailable',503,'delivery_proof_scanner_unavailable');
+    // Review P3-915: proof uploads follow the platform scan policy instead of
+    // hard-requiring ClamAV. validateFileUpload always runs the static checks
+    // (and clamd when CLAMAV_HOST is set). Only when policy demands malware
+    // scanning and no scanner is configured do we refuse, with a clear error.
+    if (scanner.malwareScanRequired() && !scanner.isConfigured()) {
+      throw new AppError('Photo proof is temporarily unavailable. Use the delivery PIN or try again later.',503,'delivery_proof_scanner_unavailable');
+    }
     const {rows}=await pool.query("SELECT id FROM delivery_jobs WHERE id=$1 AND status IN ('in_transit','failed') AND (helper_user_id=$2 OR internal_driver_user_id=$2)",[req.params.id,req.user.id]);
     if (!rows[0]) throw new AppError('Assigned delivery not found',404,'delivery_not_found');
     next();

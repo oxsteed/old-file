@@ -431,64 +431,6 @@ async function resendOTP(req, res) {
   }
 }
 
-// ── 4. DEPRECATED - completeRegistration ─────────────────
-async function completeRegistration(req, res) {
-  const { email, token } = req.body;
-  if (!email && !token) return res.status(400).json({ error: 'Email or token required' });
-
-  let client;
-  try {
-    client = await pool.connect();
-    await client.query('BEGIN');
-
-    const lookupClause = token ? 'token = $1' : 'email = $1';
-
-    const { rows } = await client.query(
-      `SELECT * FROM pending_registrations
-       WHERE ${lookupClause} AND role = 'helper' AND otp_attempts = -1`,
-      [token || email]
-    );
-    if (!rows.length)
-      return res.status(400).json({ error: 'Email not verified or no pending registration' });
-
-    const reg = rows[0];
-
-    const userResult = await client.query(`
-      INSERT INTO users (email, password_hash, first_name, last_name, phone, zip_code, role,
-                         membership_tier, onboarding_status, onboarding_completed, email_verified)
-      VALUES ($1,$2,$3,$4,$5,$6,'helper','tier1','verified_pending_onboarding',false,true)
-      RETURNING id, email, first_name, last_name, phone, zip_code, role, membership_tier, onboarding_status
-    `, [reg.email, reg.password_hash, reg.first_name, reg.last_name, reg.phone || null, reg.zip_code || null]);
-
-    const user = userResult.rows[0];
-
-    await client.query('DELETE FROM pending_registrations WHERE id = $1', [reg.id]);
-    await client.query('COMMIT');
-
-    const { rows: fullRows } = await pool.query(
-      `SELECT id, first_name, last_name, email, phone, role, email_verified, is_verified,
-              onboarding_status, onboarding_completed, contact_completed, profile_completed,
-              tier_selected, w9_completed, terms_accepted, membership_tier, id_verified,
-              background_check_passed, city, state, zip_code
-       FROM users WHERE id = $1`,
-      [user.id]
-    );
-
-    const tokens = generateTokens(fullRows[0]);
-    setAccessTokenCookie(res, tokens.accessToken);
-    res.status(201).json({
-      message: 'Registration complete',
-      user: formatAuthUser(fullRows[0]),
-      ...tokens
-    });
-  } catch (err) {
-    logger.error('completeRegistration (deprecated) error:', { err });
-    res.status(500).json({ error: 'Registration completion failed' });
-  } finally {
-    if (client) client.release();
-  }
-}
-
 // ── 5. Submit Onboarding Profile ─────────────────────────
 // PUT /api/helper-registration/onboarding/profile
 async function submitOnboardingProfile(req, res) {
@@ -943,7 +885,6 @@ module.exports = {
   verifyOTP,
   resendOTP,
   getCategories,
-  completeRegistration,
   submitOnboardingProfile,
   submitIdVerification,
   submitBackgroundCheck,

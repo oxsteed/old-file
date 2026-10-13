@@ -397,6 +397,55 @@ describe('POST /api/auth/refresh', () => {
       .send({ refreshToken: 'invalid-token' });
     expect(res.status).toBe(401);
   });
+
+  test('rejects a session whose server-side expires_at has passed', async () => {
+    mockQuery.mockReset();
+    const token = jwt.sign({ id: 3, type: 'refresh' }, process.env.JWT_SECRET, { expiresIn: '7d' });
+    mockQuery.mockResolvedValueOnce({ rows: [{ user_id: 3, is_valid: true, is_revoked: false, expires_at: new Date(Date.now() - 1000).toISOString() }] });
+    const res = await request(buildApp()).post('/api/auth/refresh').send({ refreshToken: token });
+    expect(res.status).toBe(401);
+    const consumed = mockQuery.mock.calls.some(([sql]) => /UPDATE sessions SET is_valid = false/.test(String(sql)));
+    expect(consumed).toBe(false);
+  });
+
+  test('atomic consume also requires an unexpired session', async () => {
+    mockQuery.mockReset();
+    const token = jwt.sign({ id: 3, type: 'refresh' }, process.env.JWT_SECRET, { expiresIn: '7d' });
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ user_id: 3, is_valid: true, is_revoked: false, expires_at: new Date(Date.now() + 86400000).toISOString() }] })
+      .mockResolvedValueOnce({ rows: [] });
+    const res = await request(buildApp()).post('/api/auth/refresh').send({ refreshToken: token });
+    expect(res.status).toBe(401);
+    const consumeSql = mockQuery.mock.calls.find(([sql]) => /UPDATE sessions SET is_valid = false/.test(String(sql)))?.[0];
+    expect(consumeSql).toMatch(/expires_at > NOW\(\)/);
+  });
+
+  test('rejects a session family past its absolute deadline', async () => {
+    mockQuery.mockReset();
+    mockQuery.mockResolvedValueOnce({ rows: [{ user_id: 3, is_valid: true, is_revoked: false,
+      expires_at: new Date(Date.now() + 86400000).toISOString(),
+      absolute_expires_at: new Date(Date.now() - 1000).toISOString() }] });
+    const res = await request(buildApp()).post('/api/auth/refresh').send({ refreshToken: 'fam-token' });
+    expect(res.status).toBe(401);
+    expect(mockQuery.mock.calls.some(([sql]) => /UPDATE sessions SET is_valid = false/.test(String(sql)))).toBe(false);
+  });
+
+  test('rotation carries the absolute deadline forward', async () => {
+    mockQuery.mockReset();
+    const deadline = new Date(Date.now() + 3 * 86400000).toISOString();
+    mockQuery.mockImplementation(async (sql) => {
+      const t = String(sql);
+      if (t.includes('FROM sessions s WHERE')) return { rows: [{ user_id: 3, is_valid: true, is_revoked: false, expires_at: new Date(Date.now() + 86400000).toISOString(), absolute_expires_at: deadline }] };
+      if (t.includes('UPDATE sessions SET is_valid = false')) return { rows: [{ id: 1 }] };
+      if (t.includes('FROM users WHERE id')) return { rows: [{ id: 3, email: 'a@b.c', role: 'customer' }] };
+      return { rows: [] };
+    });
+    const res = await request(buildApp()).post('/api/auth/refresh').send({ refreshToken: 'fam-token' });
+    expect(res.status).toBe(200);
+    const insert = mockQuery.mock.calls.find(([sql]) => String(sql).includes('INSERT INTO sessions'));
+    expect(insert[0]).toMatch(/LEAST\(NOW\(\) \+ interval '7 days'/);
+    expect(insert[1][2]).toBe(new Date(deadline).toISOString());
+  });
 });
 
 // ── POST /api/auth/logout ─────────────────────────────────────────────────────

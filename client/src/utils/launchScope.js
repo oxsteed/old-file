@@ -1,3 +1,5 @@
+const VORTEX_CLIENT_ENABLED = import.meta.env?.VITE_VORTEX_ENABLED === 'true';
+
 // Central launch-scope policy.
 //
 // Future product code and routes intentionally remain in the repository. Public
@@ -57,7 +59,9 @@ export const LAUNCH_VISIBILITY = Object.freeze({
   businessHubRoleMenu: false,
   businessHubRoleMenuWidgets: false,
   businessHubSpecializedTemplates: false,
-  businessHubVortexAccess: true,
+  // Review P3-943: the Vortex APIs return 503 unless the server sets
+  // VORTEX_ENABLED. The client mirrors it via VITE_VORTEX_ENABLED (set both).
+  businessHubVortexAccess: VORTEX_CLIENT_ENABLED,
   oxsteedMedia: true,
   discoverEverything: false,
   footerUtilityPills: true,
@@ -75,7 +79,7 @@ export const LAUNCH_VISIBILITY = Object.freeze({
   subscriptions: false,
   templates: false,
   toolRentals: true,
-  vortexWorkspaceEntry: true,
+  vortexWorkspaceEntry: VORTEX_CLIENT_ENABLED,
 });
 
 export function isBusinessHubTabLaunched(tab) {

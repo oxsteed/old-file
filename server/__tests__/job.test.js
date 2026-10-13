@@ -1,6 +1,7 @@
 'use strict';
 
 const { mockQuery, resetMocks } = require('./setup');
+const { routeQueries } = require('./helpers/sqlRouter');
 
 // Extra mocks needed for job controller
 jest.mock('../services/matchService', () => ({
@@ -46,6 +47,15 @@ function buildApp() {
 const auth = (r, token = TOKEN_CUSTOMER) => r.set('Authorization', `Bearer ${token}`);
 
 // Each authenticated request fires the middleware DB lookup first
+// Route-based mocks for createJob: auth lookup + INSERT (inside a transaction).
+function mockCreate(newJob) {
+  return routeQueries(mockQuery, [
+    [/FROM users u/, { rows: [MOCK_USER_CUSTOMER] }],
+    [/INSERT INTO jobs/, { rows: [newJob] }],
+  ]);
+}
+const insertParams = (calls) => calls.find((c) => /INSERT INTO jobs/.test(c.sql)).params;
+
 function mockAuth(user = MOCK_USER_CUSTOMER, ...extras) {
   mockQuery.mockResolvedValueOnce({ rows: [user] });
   extras.forEach(e => mockQuery.mockResolvedValueOnce(e));
@@ -96,41 +106,64 @@ describe('POST /api/jobs', () => {
     location_country: 'US',
   };
 
-  test('returns 400 when title is too short', async () => {
+  test('returns 422 with a localizable code when title is too short', async () => {
     mockAuth();
     const res = await auth(
       request(buildApp()).post('/api/jobs').send({ ...validBody, title: 'Short' })
     );
-    expect(res.status).toBe(400);
-    expect(res.body.fields).toHaveProperty('title');
+    expect(res.status).toBe(422);
+    expect(res.body.fields.title).toBe('too_short');
   });
 
-  test('returns 400 when description is too short', async () => {
+  test('returns 422 when description is too short', async () => {
     mockAuth();
     const res = await auth(
       request(buildApp()).post('/api/jobs').send({ ...validBody, description: 'Too short' })
     );
-    expect(res.status).toBe(400);
-    expect(res.body.fields).toHaveProperty('description');
+    expect(res.status).toBe(422);
+    expect(res.body.fields.description).toBe('too_short');
   });
 
-  test('returns 400 when location_city is missing', async () => {
+  test('returns 422 when location_city is missing (legacy `location` key mirrored)', async () => {
     mockAuth();
     const res = await auth(
       request(buildApp()).post('/api/jobs').send({ ...validBody, location_city: '' })
     );
-    expect(res.status).toBe(400);
-    expect(res.body.fields).toHaveProperty('location');
+    expect(res.status).toBe(422);
+    expect(res.body.fields.location_city).toBe('required');
+    expect(res.body.fields.location).toBe('required');
+  });
+
+  test('returns 422 when the budget range is inverted', async () => {
+    mockAuth();
+    const res = await auth(
+      request(buildApp()).post('/api/jobs').send({ ...validBody, budget_type: 'range', budget_min: 300, budget_max: 100 })
+    );
+    expect(res.status).toBe(422);
+    expect(res.body.fields.budget_max_cents).toBe('budget_order');
   });
 
   test('creates job and returns 201', async () => {
     const newJob = { id: 42, title: validBody.title, status: 'published', client_id: 1 };
-    mockAuth(MOCK_USER_CUSTOMER, { rows: [newJob] }); // auth + INSERT RETURNING
+    const calls = mockCreate(newJob);
     const res = await auth(
       request(buildApp()).post('/api/jobs').send(validBody)
     );
     expect(res.status).toBe(201);
     expect(res.body).toHaveProperty('id');
+    // The publish event commits with the insert (transactional outbox).
+    expect(calls.some((c) => /INSERT INTO job_event_outbox/.test(c.sql) && c.params[1] === 'job.published')).toBe(true);
+  });
+
+  test('never returns exact coordinates', async () => {
+    const newJob = { id: 46, title: validBody.title, status: 'published', client_id: 1, location_lat: 30.1, location_lng: -97.7, location_point: 'POINT', location_approx_lat: 30.12 };
+    mockCreate(newJob);
+    const res = await auth(request(buildApp()).post('/api/jobs').send({ ...validBody, location_lat: 30.1, location_lng: -97.7 }));
+    expect(res.status).toBe(201);
+    expect(res.body.location_lat).toBeUndefined();
+    expect(res.body.location_lng).toBeUndefined();
+    expect(res.body.location_point).toBeUndefined();
+    expect(res.body.location_approx_lat).toBe(30.12);
   });
 
   test('stores app budget payload with currency and canonical cents', async () => {
@@ -143,7 +176,7 @@ describe('POST /api/jobs', () => {
       budget_min_cents: 8500,
       budget_max_cents: 8500,
     };
-    mockAuth(MOCK_USER_CUSTOMER, { rows: [newJob] });
+    const calls = mockCreate(newJob);
 
     const res = await auth(
       request(buildApp()).post('/api/jobs').send({
@@ -154,9 +187,9 @@ describe('POST /api/jobs', () => {
     );
 
     expect(res.status).toBe(201);
-    expect(mockQuery.mock.calls[1][1][32]).toBe('GHS');
-    expect(mockQuery.mock.calls[1][1][33]).toBe(8500);
-    expect(mockQuery.mock.calls[1][1][34]).toBe(8500);
+    expect(insertParams(calls)[32]).toBe('GHS');
+    expect(insertParams(calls)[33]).toBe(8500);
+    expect(insertParams(calls)[34]).toBe(8500);
   });
 
   test('creates job with uploaded media urls from the iOS payload', async () => {
@@ -171,7 +204,7 @@ describe('POST /api/jobs', () => {
       client_id: 1,
       media_urls: mediaUrls,
     };
-    mockAuth(MOCK_USER_CUSTOMER, { rows: [newJob] });
+    const calls = mockCreate(newJob);
 
     const res = await auth(
       request(buildApp()).post('/api/jobs').send({
@@ -182,7 +215,7 @@ describe('POST /api/jobs', () => {
 
     expect(res.status).toBe(201);
     expect(res.body.media_urls).toEqual(mediaUrls);
-    expect(mockQuery.mock.calls[1][1][23]).toEqual(mediaUrls);
+    expect(insertParams(calls)[23]).toEqual(mediaUrls);
   });
 
   test('creates recurring job using recurrence from the mobile payload', async () => {
@@ -193,7 +226,7 @@ describe('POST /api/jobs', () => {
       client_id: 1,
       recurrence: 'monthly',
     };
-    mockAuth(MOCK_USER_CUSTOMER, { rows: [newJob] });
+    const calls = mockCreate(newJob);
 
     const res = await auth(
       request(buildApp()).post('/api/jobs').send({
@@ -204,66 +237,29 @@ describe('POST /api/jobs', () => {
 
     expect(res.status).toBe(201);
     expect(res.body.recurrence).toBe('monthly');
-    expect(mockQuery.mock.calls[1][1][28]).toBe('monthly');
+    expect(insertParams(calls)[28]).toBe('monthly');
   });
 });
 
 // ── POST /api/jobs/assign ─────────────────────────────────────────────────────
 describe('POST /api/jobs/assign', () => {
+  const JOB = {
+    id: '10', client_id: 1, status: 'published', version: 4, revision: 2, title: 'Fix my fence',
+    location_city: 'Austin', location_state: 'TX', scheduled_start_at: null, deleted_at: null,
+  };
+  const PENDING_BID = { id: 20, job_id: '10', helper_id: 2, status: 'pending', eta_hours: 2, amount: '250.00', amount_cents: 25000, job_revision: 2, needs_reconfirm: false, expires_at: new Date(Date.now() + 3600e3) };
+  const assignRoutes = ({ job = JOB, bid = PENDING_BID } = {}) => [
+    [/FROM users u/, { rows: [MOCK_USER_CUSTOMER] }],
+    [/SELECT job_id FROM bids WHERE id = \$1/, { rows: [{ job_id: '10' }] }],
+    [/SELECT \* FROM jobs WHERE id = \$1 FOR UPDATE/, { rows: [job] }],
+    [/FROM bids WHERE id = \$1 AND job_id = \$2 FOR UPDATE/, { rows: [bid] }],
+    [/UPDATE bids SET status = 'accepted'/, { rows: [{ ...bid, status: 'accepted' }] }],
+    [/FROM helper_cancellation_policies/, { rows: [{ helper_id: 2, oxsteed_enabled: false, custom_enabled: true, custom_policy: { payment_mode: 'direct' } }] }],
+    [/UPDATE jobs SET\s+assigned_helper_id/, { rows: [{ ...job, assigned_helper_id: 2, status: 'accepted', version: job.version + 1, location_lat: 30.1, location_lng: -97.7 }] }],
+  ];
+
   test('customer accepts a pending bid with direct payment and assigns the job', async () => {
-    mockAuth(
-      MOCK_USER_CUSTOMER,
-      {
-        rows: [{
-          id: 20,
-          job_id: 10,
-          helper_id: 2,
-          status: 'pending',
-          eta_hours: 2,
-          client_id: 1,
-          job_status: 'published',
-          title: 'Fix my fence',
-          scheduled_date: null,
-          scheduled_time: null,
-          location_city: 'Austin',
-          location_state: 'TX',
-        }],
-      },
-      {
-        rows: [{
-          id: 20,
-          job_id: 10,
-          helper_id: 2,
-          amount: 25000,
-          status: 'accepted',
-          eta_hours: 2,
-        }],
-      },
-      { rows: [] },
-      {
-        rows: [{
-          helper_id: 2,
-          oxsteed_enabled: false,
-          custom_enabled: true,
-          custom_policy: {
-            terms: 'Customer and helper arrange payment directly. OxSteed does not collect or hold job payment yet.',
-            payment_mode: 'direct',
-          },
-        }],
-      },
-      { rows: [], rowCount: 1 },
-      { rows: [], rowCount: 1 },
-      {
-        rows: [{
-          id: 10,
-          title: 'Fix my fence',
-          client_id: 1,
-          assigned_helper_id: 2,
-          status: 'accepted',
-        }],
-      },
-      { rows: [], rowCount: 1 },
-    );
+    const calls = routeQueries(mockQuery, assignRoutes());
 
     const res = await auth(
       request(buildApp()).post('/api/jobs/assign').send({ bid_id: 20, payment_method: 'off_platform' })
@@ -272,10 +268,60 @@ describe('POST /api/jobs/assign', () => {
     expect(res.status).toBe(200);
     expect(res.body.job.status).toBe('accepted');
     expect(res.body.job.assigned_helper_id).toBe(2);
+    expect(res.body.job.location_lat).toBeUndefined();
     expect(res.body.bid.status).toBe('accepted');
-    const acceptBidCall = mockQuery.mock.calls.find(([sql]) => String(sql).includes('payment_method = $1'));
-    expect(acceptBidCall[1][0]).toBe('off_platform');
-    expect(JSON.parse(acceptBidCall[1][1]).type).toBe('custom');
+    expect(res.headers.etag).toBe('W/"job-10-v5"');
+    const acceptBidCall = calls.find(({ sql }) => String(sql).includes('payment_method = $1'));
+    expect(acceptBidCall.params[0]).toBe('off_platform');
+    expect(JSON.parse(acceptBidCall.params[1]).type).toBe('custom');
+    // Lock order jobs → bids.
+    const jobLock = calls.findIndex((c) => /FROM jobs WHERE id = \$1 FOR UPDATE/.test(c.sql));
+    const bidLock = calls.findIndex((c) => /FROM bids WHERE id = \$1 AND job_id = \$2 FOR UPDATE/.test(c.sql));
+    expect(jobLock).toBeGreaterThan(-1);
+    expect(jobLock).toBeLessThan(bidLock);
+  });
+
+  test('accepts from negotiating status', async () => {
+    routeQueries(mockQuery, assignRoutes({ job: { ...JOB, status: 'negotiating' } }));
+    const res = await auth(request(buildApp()).post('/api/jobs/assign').send({ bid_id: 20, payment_method: 'off_platform' }));
+    expect(res.status).toBe(200);
+  });
+
+  test('refuses a bid that must be reconfirmed after a material edit', async () => {
+    routeQueries(mockQuery, assignRoutes({ job: { ...JOB, revision: 3 }, bid: { ...PENDING_BID, job_revision: 2, needs_reconfirm: true } }));
+    const res = await auth(request(buildApp()).post('/api/jobs/assign').send({ bid_id: 20, payment_method: 'off_platform' }));
+    expect(res.status).toBe(409);
+    expect(res.body.code).toBe('bid_needs_reconfirm');
+  });
+
+  test('refuses an expired bid', async () => {
+    routeQueries(mockQuery, assignRoutes({ bid: { ...PENDING_BID, expires_at: new Date(Date.now() - 1000) } }));
+    const res = await auth(request(buildApp()).post('/api/jobs/assign').send({ bid_id: 20, payment_method: 'off_platform' }));
+    expect(res.status).toBe(409);
+    expect(res.body.code).toBe('bid_expired');
+  });
+
+  test('race guard: the customer\'s stale job version fails with 412 under If-Match', async () => {
+    routeQueries(mockQuery, assignRoutes());
+    const res = await auth(request(buildApp()).post('/api/jobs/assign')
+      .set('If-Match', 'W/"job-10-v3"')
+      .send({ bid_id: 20, payment_method: 'off_platform' }));
+    expect(res.status).toBe(412);
+    expect(res.body.code).toBe('precondition_failed');
+    expect(res.headers.etag).toBe('W/"job-10-v4"');
+  });
+
+  test('race guard: expected_job_version mismatch is a 409', async () => {
+    routeQueries(mockQuery, assignRoutes());
+    const res = await auth(request(buildApp()).post('/api/jobs/assign').send({ bid_id: 20, payment_method: 'off_platform', expected_job_version: 2 }));
+    expect(res.status).toBe(409);
+    expect(res.body.code).toBe('version_conflict');
+  });
+
+  test('non-owners cannot accept bids', async () => {
+    routeQueries(mockQuery, assignRoutes({ job: { ...JOB, client_id: 99 } }));
+    const res = await auth(request(buildApp()).post('/api/jobs/assign').send({ bid_id: 20, payment_method: 'off_platform' }));
+    expect(res.status).toBe(403);
   });
 
   test('rejects protected OxSteed job payment while platform job payments are coming soon', async () => {

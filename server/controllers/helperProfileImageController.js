@@ -1,6 +1,7 @@
 const pool = require('../db');
 const { sendValidationError, sendError } = require('../utils/apiError');
 const logger = require('../utils/logger');
+const { enqueueStorageDeletion } = require('../services/storageCleanupService');
 const { uploadFile, getPublicUrl } = require('../utils/storage');
 const { invalidateHelperContext } = require('../services/helperContext');
 const {
@@ -275,10 +276,9 @@ exports.uploadCoverImage = async (req, res) => {
       [helperId]
     );
     if (existingResult.rows.length > 0 && existingResult.rows[0].cover_image_url) {
-      // TODO: Delete old image from S3
-      logger.info('Old cover image should be deleted', {
-        oldUrl: existingResult.rows[0].cover_image_url
-      });
+      // Review P3-914: queue the replaced object for deletion (after a grace
+      // period, and only if nothing references it any more).
+      await enqueueStorageDeletion(existingResult.rows[0].cover_image_url, 'helper_cover_replaced');
     }
 
     // Update helper profile with new cover image URL (sync legacy column for directory / prerender)
