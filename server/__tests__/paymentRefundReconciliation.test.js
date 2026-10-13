@@ -4,6 +4,10 @@ const fs = require('fs');
 const path = require('path');
 const { mockQuery, resetMocks } = require('./setup');
 const stripe = require('stripe')();
+const mockSendNotification = jest.fn().mockResolvedValue({ success: true });
+jest.mock('../services/notificationService', () => ({
+  sendNotification: (...args) => mockSendNotification(...args),
+}));
 const {
   processPaymentRefund,
   settlePaymentRefund,
@@ -12,6 +16,7 @@ const {
 
 beforeEach(() => {
   resetMocks();
+  mockSendNotification.mockClear();
   jest.clearAllMocks();
 });
 
@@ -39,7 +44,7 @@ test('settles a partial payment refund without marking the payment fully refunde
   mockQuery
     .mockResolvedValueOnce({ rows: [] })
     .mockResolvedValueOnce({ rows: [{
-      id: 7, job_id: 'job-7', amount: '10.00', refunded_amount: '0.00', currency: 'usd',
+      id: 7, job_id: 'job-7', payer_id: 'user-7', amount: '10.00', refunded_amount: '0.00', currency: 'usd',
       status: 'captured', payment_hold_status: 'held', stripe_payment_intent_id: 'pi_7',
       stripe_account_id: 'acct_7',
     }] })
@@ -55,12 +60,12 @@ test('settles a partial payment refund without marking the payment fully refunde
       actor_user_id: 'user-7',
     }] })
     .mockResolvedValueOnce({ rows: [{
-      id: 7, job_id: 'job-7', amount: '10.00', refunded_amount: '0.00', currency: 'usd',
+      id: 7, job_id: 'job-7', payer_id: 'user-7', amount: '10.00', refunded_amount: '0.00', currency: 'usd',
       status: 'captured', payment_hold_status: 'held', stripe_payment_intent_id: 'pi_7',
       stripe_account_id: 'acct_7',
     }] })
     .mockResolvedValueOnce({ rows: [{ id: 11, amount_cents: 400, status: 'succeeded', stripe_refund_id: 're_7' }] })
-    .mockResolvedValueOnce({ rows: [{ id: 7, amount: '10.00', refunded_amount: '4.00', status: 'captured' }] })
+    .mockResolvedValueOnce({ rows: [{ id: 7, job_id: 'job-7', payer_id: 'user-7', amount: '10.00', refunded_amount: '4.00', status: 'captured' }] })
     .mockResolvedValueOnce({ rows: [] })
     .mockResolvedValueOnce({ rows: [] });
   stripe.refunds.create.mockResolvedValueOnce({
@@ -81,6 +86,11 @@ test('settles a partial payment refund without marking the payment fully refunde
   expect(result.attempt.status).toBe('succeeded');
   expect(result.payment.status).toBe('captured');
   expect(result.payment.refunded_amount).toBe('4.00');
+  expect(mockSendNotification).toHaveBeenCalledWith(expect.objectContaining({
+    userId: 'user-7',
+    type: 'refund',
+    idempotencyKey: 'payment-refund:11:succeeded',
+  }));
   const audit = mockQuery.mock.calls.find(([sql]) => sql.includes('INSERT INTO admin_audit_log'));
   expect(audit[0]).toContain('target_type');
   expect(audit[0]).not.toContain('entity_type');

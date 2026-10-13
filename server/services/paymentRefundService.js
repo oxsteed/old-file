@@ -6,6 +6,7 @@ const AppError = require('../utils/appError');
 const { withTransaction } = require('../utils/transaction');
 const { logAdminAction } = require('./auditService');
 const { verifiedChargeRefundTotal } = require('./paymentRefundStateService');
+const { sendNotification } = require('./notificationService');
 
 function centsFromDollars(value) {
   const number = Number(value);
@@ -299,6 +300,25 @@ async function recordProviderError(attemptId, error) {
   );
 }
 
+async function notifyRefundResult(result) {
+  const payerId = result?.payment?.payer_id;
+  const attempt = result?.attempt;
+  if (!payerId || !attempt || result.replay || !['succeeded', 'failed', 'canceled'].includes(attempt.status)) return;
+  const type = attempt.status === 'succeeded' ? 'refund' : 'refund_failed';
+  await sendNotification({
+    userId: payerId,
+    type,
+    data: {
+      job_id: result.payment.job_id,
+      refund_id: attempt.stripe_refund_id || null,
+      amount_cents: Number(attempt.amount_cents),
+      status: attempt.status,
+    },
+    action_url: `/jobs/${result.payment.job_id}`,
+    idempotencyKey: `payment-refund:${attempt.id}:${attempt.status}`,
+  });
+}
+
 async function processPaymentRefund(params) {
   const reservation = await reservePaymentRefund(params);
   if (reservation.attempt.status === 'succeeded') return { ...reservation, replay: true };
@@ -310,7 +330,9 @@ async function processPaymentRefund(params) {
       await recordProviderError(reservation.attempt.id, error);
       throw new AppError('Refund provider result requires reconciliation before retry', 503, 'payment_refund_reconciliation_required');
     }
-    return settlePaymentVoid(reservation, intent);
+    const result = await settlePaymentVoid(reservation, intent);
+    await notifyRefundResult(result);
+    return result;
   }
   let providerResult;
   try {
@@ -319,7 +341,9 @@ async function processPaymentRefund(params) {
     await recordProviderError(reservation.attempt.id, error);
     throw new AppError('Refund provider result requires reconciliation before retry', 503, 'payment_refund_reconciliation_required');
   }
-  return settlePaymentRefund(reservation, providerResult);
+  const result = await settlePaymentRefund(reservation, providerResult);
+  await notifyRefundResult(result);
+  return result;
 }
 
 async function reconcilePaymentRefundAttempt(reservation) {
@@ -335,7 +359,9 @@ async function reconcilePaymentRefundAttempt(reservation) {
       await recordProviderError(reservation.attempt.id, error);
       throw new AppError('Refund provider result requires reconciliation before retry', 503, 'payment_refund_reconciliation_required');
     }
-    return settlePaymentVoid(reservation, intent);
+    const result = await settlePaymentVoid(reservation, intent);
+    await notifyRefundResult(result);
+    return result;
   }
   let providerResult;
   try {
@@ -344,7 +370,9 @@ async function reconcilePaymentRefundAttempt(reservation) {
     await recordProviderError(reservation.attempt.id, error);
     throw new AppError('Refund provider result requires reconciliation before retry', 503, 'payment_refund_reconciliation_required');
   }
-  return settlePaymentRefund(reservation, providerResult);
+  const result = await settlePaymentRefund(reservation, providerResult);
+  await notifyRefundResult(result);
+  return result;
 }
 
 module.exports = {
