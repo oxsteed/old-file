@@ -19,7 +19,7 @@ async function assertAppointmentWindowFree(client, { businessId, serviceId, staf
   const maxCapacity = serviceRes.rows[0] ? Number(serviceRes.rows[0].max_capacity) || 1 : 1;
   const overlapParams = [serviceId, startTime, endTime];
   let overlapSql = `SELECT COUNT(*)::int AS n FROM business_appointments
-       WHERE service_id = $1 AND status <> 'cancelled'
+       WHERE service_id = $1 AND status NOT IN ('cancelled', 'no_show')
          AND start_time < $3 AND end_time > $2`;
   if (excludeAppointmentId) {
     overlapParams.push(excludeAppointmentId);
@@ -35,12 +35,12 @@ async function assertAppointmentWindowFree(client, { businessId, serviceId, staf
     // non-cancelled appointments at overlapping times, even across services.
     const staffParams = [staffId, startTime, endTime];
     let staffSql = `SELECT id FROM business_appointments
-       WHERE staff_id = $1 AND status <> 'cancelled'
+       WHERE staff_id = $1 AND status NOT IN ('cancelled', 'no_show')
          AND start_time < $3 AND end_time > $2 LIMIT 1`;
     if (excludeAppointmentId) {
       staffParams.push(excludeAppointmentId);
       staffSql = `SELECT id FROM business_appointments
-       WHERE staff_id = $1 AND status <> 'cancelled'
+       WHERE staff_id = $1 AND status NOT IN ('cancelled', 'no_show')
          AND start_time < $3 AND end_time > $2 AND id <> $4 LIMIT 1`;
     }
     const staffRes = await client.query(staffSql, staffParams);
