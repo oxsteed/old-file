@@ -131,3 +131,5 @@ Continued the same branch after W19 for two unresolved W15 notification/auth fin
 
 The follow-up also adds dedicated authenticated/conversation rate limits to message edits, deletes, reactions, archive/restore, and block removal, closing the W18 messaging-mutation abuse gap without changing message authorization.
 
+Refresh-token follow-up: refresh rotation now re-checks the account's active and suspension state before issuing a replacement session, so deactivated or actively suspended users cannot mint new access tokens. Expired suspensions remain eligible for refresh and are handled by the existing auth middleware cleanup path.
+
