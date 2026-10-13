@@ -24,6 +24,7 @@ const {
   translateRecordForRequest,
   translateRecordsForRequest,
 } = require('../modules/translation/userContentTranslationService');
+const { validateMediaUrl } = require('../utils/mediaUrlValidation');
 
 /**
  * Tier-3 escrow detection, deterministic edition.
@@ -138,6 +139,10 @@ exports.createJob = async (req, res, next) => {
         mediaArr = [];
       }
     }
+    if (mediaArr.length > 12) {
+      throw new AppError('A job can include at most 12 media items', 400, 'validation_failed');
+    }
+    mediaArr = mediaArr.map((url) => validateMediaUrl(url, 'media_urls'));
 
     // ── Resolve budget: integer cents are canonical (dollars mirror them) ──
     const resolvedBudgetType = canonicalInput.budget_type || 'open';
