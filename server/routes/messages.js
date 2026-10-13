@@ -71,28 +71,28 @@ router.get('/conversations/:conversationId/search', searchMessages);
 router.post('/conversations/:conversationId', userChatLimiter, conversationMessageLimiter, sendMessage);
 
 // DELETE /api/messages/conversations/:conversationId/:messageId - Delete a message
-router.delete('/conversations/:conversationId/:messageId', deleteMessage);
+router.delete('/conversations/:conversationId/:messageId', userChatLimiter, conversationMessageLimiter, deleteMessage);
 
 // PUT /api/messages/conversations/:conversationId/:messageId - Edit a message
-router.put('/conversations/:conversationId/:messageId', editMessage);
+router.put('/conversations/:conversationId/:messageId', userChatLimiter, conversationMessageLimiter, editMessage);
 
 // GET /api/messages/conversations/:conversationId/:messageId/reactions - Get all reactions for a message
 router.get('/conversations/:conversationId/:messageId/reactions', getMessageReactions);
 
 // POST /api/messages/conversations/:conversationId/:messageId/reactions - Add a reaction
-router.post('/conversations/:conversationId/:messageId/reactions', addReaction);
+router.post('/conversations/:conversationId/:messageId/reactions', userChatLimiter, conversationMessageLimiter, addReaction);
 
 // DELETE /api/messages/conversations/:conversationId/:messageId/reactions - Remove a reaction
-router.delete('/conversations/:conversationId/:messageId/reactions', removeReaction);
+router.delete('/conversations/:conversationId/:messageId/reactions', userChatLimiter, conversationMessageLimiter, removeReaction);
 
 // GET /api/messages/archived - Get archived conversations for current user
 router.get('/archived', getArchivedConversations);
 
 // POST /api/messages/conversations/:conversationId/archive - Archive a conversation
-router.post('/conversations/:conversationId/archive', archiveConversation);
+router.post('/conversations/:conversationId/archive', userChatLimiter, archiveConversation);
 
 // POST /api/messages/conversations/:conversationId/restore - Restore an archived conversation
-router.post('/conversations/:conversationId/restore', restoreConversation);
+router.post('/conversations/:conversationId/restore', userChatLimiter, restoreConversation);
 
 // POST /api/messages/conversations/:conversationId/attachments - Upload a file/image attachment
 // Accepts a single file under the field name "file" (max 10 MB, images + docs)
@@ -123,7 +123,7 @@ router.post('/users/:userId/block', strictLimiter, async (req, res) => {
 });
 
 // DELETE /api/messages/users/:userId/block - Unblock a user
-router.delete('/users/:userId/block', async (req, res) => {
+router.delete('/users/:userId/block', strictLimiter, async (req, res) => {
   const blockerId = req.user.id;
   const blockedId = req.params.userId;
   if (!ID_PATTERN.test(blockedId) || String(blockerId) === blockedId) {
