@@ -4,7 +4,7 @@ const fs = require('fs/promises');
 const fsCallback = require('fs');
 const path = require('path');
 const crypto = require('crypto');
-const { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } = require('@aws-sdk/client-s3');
+const { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand, ListObjectsV2Command } = require('@aws-sdk/client-s3');
 const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
 const logger = require('./logger');
 
@@ -223,6 +223,54 @@ async function deleteFile(key) {
   await fs.rm(metaPath, { force: true });
 }
 
+// List stored object keys under a prefix (for the orphan sweeper). Never
+// throws on a missing prefix; S3 callers get paginated listing, local callers
+// get a bounded directory walk. Sidecar .meta.json files are excluded.
+async function listKeysByPrefix(prefix, { limit = 1000 } = {}) {
+  const normalized = normalizeKey(String(prefix || '').replace(/\/+$/, ''));
+  if (!normalized) return [];
+  const bounded = Math.max(1, Math.min(Number(limit) || 1000, 5000));
+  const keys = [];
+  if (s3) {
+    let token;
+    do {
+      const out = await s3.send(new ListObjectsV2Command({
+        Bucket: BUCKET,
+        Prefix: `${normalized}/`,
+        ContinuationToken: token,
+        MaxKeys: Math.min(1000, bounded - keys.length),
+      }));
+      for (const obj of out.Contents || []) {
+        if (obj.Key && !obj.Key.endsWith('.meta.json')) keys.push(obj.Key);
+        if (keys.length >= bounded) break;
+      }
+      token = out.IsTruncated ? out.NextContinuationToken : undefined;
+    } while (token && keys.length < bounded);
+    return keys;
+  }
+  const root = getLocalStorageRoot();
+  const stack = [path.join(root, ...normalized.split('/'))];
+  while (stack.length && keys.length < bounded) {
+    const dir = stack.pop();
+    let entries;
+    try {
+      entries = await fs.readdir(dir, { withFileTypes: true });
+    } catch {
+      continue;
+    }
+    for (const entry of entries) {
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        stack.push(full);
+      } else if (entry.isFile() && !entry.name.endsWith('.meta.json')) {
+        keys.push(path.relative(root, full).split(path.sep).join('/'));
+        if (keys.length >= bounded) break;
+      }
+    }
+  }
+  return keys;
+}
+
 function getPublicUrl(key) {
   // Never mint a public URL for a key outside the public allowlist. Sensitive
   // uploads (proofs, POP, logistics, Direct, chat attachments, ...) fail
@@ -365,6 +413,7 @@ module.exports = {
   uploadFile,
   getSignedDownloadUrl,
   deleteFile,
+  listKeysByPrefix,
   getPublicUrl,
   normalizeStoredPublicUrl,
   knownObjectKeyFromUrl,

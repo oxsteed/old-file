@@ -21,7 +21,7 @@ describe('worker topology', () => {
   test('scheduled workers include the previously unwired jobs, once each', () => {
     const { SCHEDULED_WORKERS } = require('../workers/scheduledWorkerSchedule');
     const names = SCHEDULED_WORKERS.map(([n]) => n);
-    for (const name of ['publishDueGuideVideos', 'renewSubscriptionCredit', 'clearStaleAvailableNow', 'refreshEtas', 'storageDeletionQueue', 'emailDigestDaily', 'emailDigestWeekly', 'cleanupExpiredPasskeyChallenges']) {
+    for (const name of ['publishDueGuideVideos', 'renewSubscriptionCredit', 'clearStaleAvailableNow', 'refreshEtas', 'storageDeletionQueue', 'storageOrphanSweep', 'emailDigestDaily', 'emailDigestWeekly', 'cleanupExpiredPasskeyChallenges']) {
       expect(names).toContain(name);
     }
     expect(new Set(names).size).toBe(names.length);
@@ -239,12 +239,22 @@ describe('P3-785 affiliate payouts move money', () => {
 });
 
 describe('P3-914 storage deletion queue', () => {
-  test('replaced files are queued by key and not deleted while cleanup is off', async () => {
+  test('replaced files are queued by key and the drain runs by default', async () => {
     const svc = require('../services/storageCleanupService');
     await expect(svc.enqueueStorageDeletion('business-covers/a.jpg', 'business_cover_replaced')).resolves.toBe(true);
     expect(mockQuery.mock.calls[0][1].slice(0, 2)).toEqual(['business-covers/a.jpg', 'business_cover_replaced']);
-    await expect(svc.processStorageDeletionQueue()).resolves.toMatchObject({ skipped: true });
+    // P3-6-F03: the drain is on by default now; only an explicit opt-out pauses it.
+    await expect(svc.processStorageDeletionQueue()).resolves.toMatchObject({ scanned: 0, deleted: 0, failed: 0 });
     await expect(svc.enqueueStorageDeletion('data:image/png;base64,xx', 'x')).resolves.toBe(false);
+  });
+
+  test('drain and orphan sweep pause when STORAGE_CLEANUP_ENABLED=false', async () => {
+    process.env.STORAGE_CLEANUP_ENABLED = 'false';
+    jest.resetModules();
+    const svc = require('../services/storageCleanupService');
+    expect(svc.cleanupEnabled()).toBe(false);
+    await expect(svc.processStorageDeletionQueue()).resolves.toMatchObject({ skipped: true });
+    await expect(svc.sweepOrphanedProfileMedia()).resolves.toMatchObject({ skipped: true });
   });
 
   test('due rows are deleted unless still referenced', async () => {
@@ -263,6 +273,52 @@ describe('P3-914 storage deletion queue', () => {
     await expect(svc.processStorageDeletionQueue()).resolves.toMatchObject({ deleted: 1, kept: 1, failed: 0 });
     expect(deleteFile).toHaveBeenCalledWith('k/old.jpg');
     expect(deleteFile).not.toHaveBeenCalledWith('k/kept.jpg');
+    jest.dontMock('../utils/storage');
+  });
+
+  test('orphan sweep enqueues unreferenced profile-media keys with a long grace period', async () => {
+    jest.resetModules();
+    const listKeysByPrefix = jest.fn(async (prefix) =>
+      prefix === 'helper-covers' ? ['helper-covers/old.jpg', 'helper-covers/kept.jpg'] : [],
+    );
+    const actual = jest.requireActual('../utils/storage');
+    jest.doMock('../utils/storage', () => ({ ...actual, listKeysByPrefix }));
+    const { mockQuery: q } = require('./setup');
+    q.mockImplementation(async (sql, params) => {
+      if (/FROM storage_deletion_queue/.test(sql) && /storage_key = ANY/.test(sql)) return { rows: [] };
+      if (/FROM storage_deletion_queue/.test(sql) && /INSERT/.test(sql)) return { rows: [], rowCount: 1 };
+      if (/LIKE/.test(sql)) return { rows: params[0] === 'helper-covers/kept.jpg' ? [{ 1: 1 }] : [] };
+      return { rows: [], rowCount: 1 };
+    });
+    const svc = require('../services/storageCleanupService');
+    await expect(svc.sweepOrphanedProfileMedia({ limit: 50 })).resolves.toMatchObject({ scanned: 2, queued: 1 });
+    const inserts = q.mock.calls.filter((c) => /INSERT INTO storage_deletion_queue/.test(c[0]));
+    expect(inserts).toHaveLength(1);
+    expect(inserts[0][1][0]).toBe('helper-covers/old.jpg');
+    expect(inserts[0][1][1]).toBe('orphan_sweep');
+    expect(Number(inserts[0][1][2])).toBe(168);
+    expect(listKeysByPrefix).toHaveBeenCalledWith('helper-covers', expect.objectContaining({ limit: 50 }));
+    jest.dontMock('../utils/storage');
+  });
+
+  test('orphan sweep skips keys already queued for deletion', async () => {
+    jest.resetModules();
+    const listKeysByPrefix = jest.fn(async (prefix) =>
+      prefix === 'helper-covers' ? ['helper-covers/old.jpg'] : [],
+    );
+    const actual = jest.requireActual('../utils/storage');
+    jest.doMock('../utils/storage', () => ({ ...actual, listKeysByPrefix }));
+    const { mockQuery: q } = require('./setup');
+    q.mockImplementation(async (sql) => {
+      if (/FROM storage_deletion_queue/.test(sql) && /storage_key = ANY/.test(sql)) {
+        return { rows: [{ storage_key: 'helper-covers/old.jpg' }] };
+      }
+      return { rows: [], rowCount: 1 };
+    });
+    const svc = require('../services/storageCleanupService');
+    await expect(svc.sweepOrphanedProfileMedia({ limit: 50 })).resolves.toMatchObject({ scanned: 1, queued: 0 });
+    const inserts = q.mock.calls.filter((c) => /INSERT INTO storage_deletion_queue/.test(c[0]));
+    expect(inserts).toHaveLength(0);
     jest.dontMock('../utils/storage');
   });
 });

@@ -229,6 +229,64 @@ describe('bookingRequestLifecycle', () => {
     expect(pool.connect).not.toHaveBeenCalled();
   });
 
+  test('P2-10-F10: accept fails loudly when the appointment cannot be created (null return)', async () => {
+    const booking = {
+      id: 'br-no-appt',
+      helper_id: 'h1',
+      customer_id: 'c1',
+      status: 'pending',
+      service_name: 'Trim',
+      requested_date: '2026-09-22',
+      requested_start_time: '09:00:00',
+      requested_end_time: '10:00:00',
+      source: 'calendar',
+    };
+    queueTx([
+      { rows: [] }, // advisory lock
+      { rows: [booking] }, // re-read inside txn (still pending)
+      { rows: [] }, // pre-accept overlap check
+      { rows: [{ ...booking, status: 'accepted' }] }, // UPDATE accept
+      { rows: [] }, // confirm: overlap check
+      { rows: [] }, // INSERT appointment returns no row -> null
+    ]);
+
+    await expect(
+      lifecycle.acceptBookingRequest({ booking, actorId: 'h1', appointmentSource: 'calendar_accept' }),
+    ).rejects.toMatchObject({ code: 'appointment_failed', status: 500 });
+    // No accepted event: the booking was not accepted.
+    expect(socketService.broadcastToUser).not.toHaveBeenCalled();
+  });
+
+  test('P2-10-F10: accept fails loudly when the appointment step throws', async () => {
+    const booking = {
+      id: 'br-appt-throw',
+      helper_id: 'h1',
+      customer_id: 'c1',
+      status: 'pending',
+      service_name: 'Trim',
+      requested_date: '2026-09-22',
+      requested_start_time: '09:00:00',
+      requested_end_time: '10:00:00',
+      source: 'calendar',
+    };
+    queueTx([
+      { rows: [] }, // advisory lock
+      { rows: [booking] }, // re-read inside txn (still pending)
+      { rows: [] }, // pre-accept overlap check
+      { rows: [{ ...booking, status: 'accepted' }] }, // UPDATE accept
+      { rows: [] }, // confirm: overlap check
+    ]);
+    const conflict = new Error('Slot taken by a concurrent booking');
+    conflict.code = 'SCHEDULING_CONFLICT';
+    conflict.status = 409;
+    pool.query.mockRejectedValueOnce(conflict); // INSERT appointment throws
+
+    await expect(
+      lifecycle.acceptBookingRequest({ booking, actorId: 'h1', appointmentSource: 'calendar_accept' }),
+    ).rejects.toMatchObject({ code: 'SCHEDULING_CONFLICT', status: 409 });
+    expect(socketService.broadcastToUser).not.toHaveBeenCalled();
+  });
+
   test('acceptBookingRequest refuses a stale pending booking and expires it', async () => {
     const booking = {
       id: 'br-stale',

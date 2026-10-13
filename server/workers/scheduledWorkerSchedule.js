@@ -55,9 +55,16 @@ function buildSchedule() {
     // Lift timed suspensions/restrictions even when the user is idle.
     ['expireTimedEnforcements', expireTimedEnforcements, 5 * 60 * 1000, { limit: 500 }],
     // Review P3-914: delete replaced uploads after their grace period.
-    // No-op unless STORAGE_CLEANUP_ENABLED=true.
+    // Runs by default; set STORAGE_CLEANUP_ENABLED=false to pause.
     ['storageDeletionQueue', (options) => require('../services/storageCleanupService').processStorageDeletionQueue(options),
       15 * 60 * 1000, { limit: 100 }],
+    // Review P3-6-F03: orphan-scanning sweeper. Finds profile-media objects no
+    // DB row references (e.g. replaced before the deletion queue existed) and
+    // enqueues them with a 7-day grace period. Deletion still goes through the
+    // drain above, which re-verifies references right before deleting. Weekly;
+    // paused when STORAGE_CLEANUP_ENABLED=false.
+    ['storageOrphanSweep', (options) => require('../services/storageCleanupService').sweepOrphanedProfileMedia(options),
+      7 * 24 * 60 * 60 * 1000, { limit: 500 }],
     // Bound passkey challenge tables even when no new challenge is saved.
     ['cleanupExpiredPasskeyChallenges', cleanupExpiredChallenges, 15 * 60 * 1000, { limit: 1000 }],
     // Deliver queued notification digests through the shared email provider.
