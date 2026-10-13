@@ -590,13 +590,14 @@ router.delete('/delete-account', strictLimiter, authenticate, async (req, res) =
       params
     );
 
-    // Audit log
+    // Retain the deletion decision in the legal audit trail. user_consents is
+    // intentionally deleted by scheduled cleanup and is not an audit log.
     try {
       await pool.query(
-        `INSERT INTO user_consents (user_id, consent_type, version, ip_hash, user_agent)
-         VALUES ($1, 'account_deletion', '1.0', $2, $3)
-         ON CONFLICT DO NOTHING`,
-        [userId, req.ip, req.headers['user-agent'] || 'unknown']
+        `INSERT INTO legal_audit_log
+           (action_type, user_id, actor_id, actor_role, resource_id, resource_type, status, ip_address, user_agent, metadata)
+         VALUES ('account_deletion', $1, $1, 'user', $1, 'account', 'completed', $2, $3, $4::jsonb)`,
+        [userId, req.ip || null, req.headers['user-agent'] || 'unknown', JSON.stringify({ selfServe: true, emailHash: originalEmailHash })]
       );
     } catch { /* non-fatal */ }
 

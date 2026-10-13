@@ -33,16 +33,18 @@ async function createCCPARequest(req, res, next) {
       }
     }
 
-    if (!userId) {
+    if (!userId && requestType !== 'opt_out') {
       throw new AppError('User not found', 404, 'user_not_found');
     }
 
     // Check for duplicate recent requests (<30 days)
     const recentRequest = await pool.query(
       `SELECT id, submitted_at FROM ccpa_data_requests
-       WHERE user_id = $1 AND request_type = $2 AND submitted_at >= CURRENT_TIMESTAMP - INTERVAL '30 days'
+       WHERE request_type = $2
+         AND submitted_at >= CURRENT_TIMESTAMP - INTERVAL '30 days'
+         AND ((user_id IS NOT NULL AND user_id = $1) OR (user_id IS NULL AND lower(email) = lower($3)))
        LIMIT 1`,
-      [userId, requestType]
+      [userId || null, requestType, email.toLowerCase()]
     );
 
     if (recentRequest.rows.length > 0) {
@@ -173,10 +175,10 @@ async function listCCPARequests(req, res, next) {
       throw new AppError('Invalid pagination parameters', 400, 'invalid_pagination');
     }
 
-    let countQuery = 'SELECT COUNT(*) as total FROM ccpa_data_requests cdr JOIN users u ON cdr.user_id = u.id WHERE 1=1';
+    let countQuery = 'SELECT COUNT(*) as total FROM ccpa_data_requests cdr LEFT JOIN users u ON cdr.user_id = u.id WHERE 1=1';
     let dataQuery = `SELECT cdr.*, u.email as user_email, u.first_name, u.last_name
                     FROM ccpa_data_requests cdr
-                    JOIN users u ON cdr.user_id = u.id
+                    LEFT JOIN users u ON cdr.user_id = u.id
                     WHERE 1=1`;
     const params = [];
     let paramCount = 1;
@@ -542,7 +544,7 @@ async function compileUserData(userId, requestType) {
 
       // Payments
       const paymentsResult = await pool.query(
-        'SELECT * FROM payments WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1000',
+        'SELECT * FROM payments WHERE payer_id = $1 OR payee_id = $1 ORDER BY created_at DESC LIMIT 1000',
         [userId]
       );
       userData.payments = paymentsResult.rows;
