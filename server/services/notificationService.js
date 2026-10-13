@@ -379,8 +379,8 @@ async function sendEmailNotification({
       idempotencyKey: idempotencyKey || undefined,
     });
   } catch (err) {
-    if (type === 'oxsteed_credit_card_security') return { success: false };
     logger.error('Send email notification failed', { to, type, error: err.message });
+    return { success: false, error: err.message };
   }
 }
 

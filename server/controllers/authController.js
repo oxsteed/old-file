@@ -741,12 +741,17 @@ async function requestOTP(req, res) {
       await pool.query(
         `UPDATE users
             SET otp_code = $1, otp_expires_at = $2, otp_attempts = 0,
-                otp_locked_until = NULL, otp_last_sent_at = NOW()
+                otp_locked_until = NULL
           WHERE email = $3`,
         [hashedOtp, expiresAt, email.toLowerCase()]
       );
-      if (phone) await sendOTPSMS(phone, otp);
-      else await sendOTPEmail(email, otp, userRows[0].preferred_language);
+      const delivery = phone
+        ? await sendOTPSMS(phone, otp)
+        : await sendOTPEmail(email, otp, userRows[0].preferred_language);
+      if (!delivery || delivery.success === false) {
+        return res.status(503).json({ error: 'Unable to send OTP. Please try again.', code: 'otp_send_failed' });
+      }
+      await pool.query('UPDATE users SET otp_last_sent_at = NOW() WHERE email = $1', [email.toLowerCase()]);
     }
     res.json({ message: 'OTP sent' });
   } catch (err) {
@@ -1208,16 +1213,20 @@ async function acceptTerms(req, res) {
     const otp = crypto.randomInt(100000, 1000000).toString();
     const otpHash = crypto.createHash('sha256').update(otp).digest('hex');
     const otpExpires = new Date(Date.now() + 15 * 60 * 1000);
-    const sentAt = new Date();
     await pool.query(
       `UPDATE pending_registrations
           SET terms_accepted_at = NOW(), terms_version = $2, terms_acceptance_ip = $3,
               terms_acceptance_ua = $4, otp_code = $5, otp_expires_at = $6,
-              otp_attempts = COALESCE(otp_attempts, 0), otp_last_sent_at = NOW()
+              otp_attempts = COALESCE(otp_attempts, 0)
         WHERE token = $1`,
       [token, termsVersion, ip, userAgent, otpHash, otpExpires]
     );
-    await sendOTPEmail(pending.email, otp, resolveRequestLanguage(req));
+    const delivery = await sendOTPEmail(pending.email, otp, resolveRequestLanguage(req));
+    if (!delivery || delivery.success === false) {
+      return res.status(503).json({ error: 'Unable to send OTP. Please try again.', code: 'otp_send_failed' });
+    }
+    const sentAt = new Date();
+    await pool.query('UPDATE pending_registrations SET otp_last_sent_at = NOW() WHERE token = $1', [token]);
     res.json({ message: 'Terms accepted, OTP sent', ...registrationMetadata(pending, sentAt, otpExpires) });
   } catch (err) {
     logger.error('Accept terms error', { err });

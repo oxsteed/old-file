@@ -125,3 +125,7 @@ Reconciled the 45 W18 IDs against `resolution-audit-v2-2026-10-13.md`; no matchi
 
 Reconciled the 13 W19 IDs against `resolution-audit-v2-2026-10-13.md`; no matching rows were present in that snapshot. The access-token denylist path for individually revoked admin sessions was already present from W10.5; this batch adds scheduled cleanup for expired sessions, privacy export challenges, and expired restaurant pairing codes while preserving fail-safe behavior on older installations. Remaining device-management and impersonation inventory stays open for follow-up work.
 
+## Post-wave follow-up (2026-10-13)
+
+Continued the same branch after W19 for two unresolved W15 notification/auth findings: OTP resend timestamps are now written only after a successful email/SMS delivery, and template-render failures return an explicit failed delivery result so notifications are not reported as successful. Focused auth and notification regressions remain covered by the existing test suites.
+
