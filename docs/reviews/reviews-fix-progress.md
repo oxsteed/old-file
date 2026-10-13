@@ -151,3 +151,5 @@ Support alert follow-up: live-support wait alerts now use `SUPPORT_ALERT_EMAIL`,
 
 Food-order notification follow-up: signed-in `food_order_ready` notifications now carry a stable delivery key and are included in the transactional email allow-list, so the ready event reaches email and retries remain idempotent. Focused `foodOrderLoop` regression tests pass.
 
+Tier-3 payment follow-up: successful job-payment webhooks now emit a localized, idempotent `payment_receipt` notification to the payer, using the persisted payer id and the payment intent as the delivery key. Focused Stripe webhook and food-card suites pass.
+

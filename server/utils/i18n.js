@@ -93,6 +93,22 @@ const T = {
       ar: 'تم تحرير دفعتك.',
     },
   },
+  payment_receipt: {
+    title: {
+      en: 'Payment receipt',
+      fr: 'Reçu de paiement',
+      es: 'Recibo de pago',
+      ht: 'Resi peman',
+      ar: 'إيصال الدفع',
+    },
+    body: {
+      en: 'Your job payment was completed successfully.',
+      fr: 'Le paiement de votre mission a été effectué avec succès.',
+      es: 'El pago de tu trabajo se completó correctamente.',
+      ht: 'Peman travay ou a fèt avèk siksè.',
+      ar: 'اكتمل دفع مهمتك بنجاح.',
+    },
+  },
   oxsteed_credit_transaction: {
     title: {
       en: 'OxSteed Credit activity',
@@ -747,6 +763,13 @@ const EMAIL_TEMPLATES = {
       es: 'Ver ganancias',
       ht: 'Gade benefis',
       ar: 'عرض الأرباح',
+    },
+    payment_receipt: {
+      en: 'View Job',
+      fr: 'Voir la mission',
+      es: 'Ver trabajo',
+      ht: 'Gade travay la',
+      ar: 'عرض المهمة',
     },
     subscription_renewed: {
       en: 'View Billing',
