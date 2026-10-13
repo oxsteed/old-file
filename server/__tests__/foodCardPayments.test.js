@@ -450,6 +450,9 @@ describe('card payment webhook', () => {
     mockQuery.mockImplementation(async (sql) => {
       if (/INSERT INTO webhook_event_receipts/.test(sql)) return { rows: [{ id: 17 }], rowCount: 1 };
       if (/INSERT INTO webhook_event_watermarks/.test(sql)) return { rows: [{ event_id: event.id }], rowCount: 1 };
+      if (/FROM payments WHERE stripe_payment_intent_id/.test(sql)) return { rows: [{
+        id: 'payment-7', payer_id: 'payer-7', amount: '125.00', currency: 'USD', status: 'authorized', metadata: {},
+      }], rowCount: 1 };
       if (/UPDATE payments SET status = 'captured'/.test(sql)) return { rows: [{ payer_id: 'payer-7' }], rowCount: 1 };
       return { rows: [], rowCount: 0 };
     });

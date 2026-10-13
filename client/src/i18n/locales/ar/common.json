@@ -1,5 +1,9 @@
 {
   "reviewW11Learn": {
+    "flagNotFound": "لم يُعثر على بلاغ الفيديو.",
+    "flagAlreadyDecided": "تمت مراجعة بلاغ الفيديو هذا مسبقًا.",
+    "guideNotFound": "لم يُعثر على الدليل.",
+    "videoDuplicate": "هذا الفيديو موجود بالفعل في هذا الدليل.",
     "videoModerated": "أزيل هذا الفيديو بقرار من الإشراف ولا يمكن تقديمه لهذا الدليل.",
     "moderationActionFailed": "تعذّر حفظ قرار الإشراف. حاول مرة أخرى.",
     "previousPage": "السابق",

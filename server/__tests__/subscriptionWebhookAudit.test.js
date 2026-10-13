@@ -14,7 +14,7 @@ const mockStripe = {
   checkout: { sessions: { create: jest.fn() } },
   customers: { create: jest.fn() },
 };
-jest.mock('stripe', () => () => mockStripe);
+jest.mock('stripe', () => jest.fn().mockImplementation(() => mockStripe));
 jest.mock('../services/auditService', () => ({ logAdminAction: jest.fn().mockResolvedValue(undefined) }));
 jest.mock('../services/notificationService', () => ({ sendNotification: jest.fn().mockResolvedValue({ success: true }) }));
 jest.mock('../controllers/verificationController', () => ({ recalculateBadges: jest.fn().mockResolvedValue(true) }));

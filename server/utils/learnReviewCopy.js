@@ -12,8 +12,12 @@ const moderationActionFailed = t(
   'Impossible d’enregistrer la décision de modération. Réessayez.',
   'Nou pa t ka anrejistre desizyon moderasyon an. Tanpri eseye ankò.',
   'تعذّر حفظ قرار الإشراف. حاول مرة أخرى.');
+const flagNotFound = t("Video flag not found.","No se encontró el reporte del vídeo.","Signalement de vidéo introuvable.","Nou pa jwenn rapò videyo a.","لم يُعثر على بلاغ الفيديو.");
+const flagAlreadyDecided = t("This video flag was already reviewed.","Este reporte del vídeo ya se revisó.","Ce signalement de vidéo a déjà été examiné.","Yo deja revize rapò videyo sa a.","تمت مراجعة بلاغ الفيديو هذا مسبقًا.");
+const guideNotFound = t("Guide not found.","No se encontró la guía.","Guide introuvable.","Nou pa jwenn gid la.","لم يُعثر على الدليل.");
+const videoDuplicate = t("This video is already on this guide.","Este vídeo ya está en esta guía.","Cette vidéo figure déjà dans ce guide.","Videyo sa a deja nan gid sa a.","هذا الفيديو موجود بالفعل في هذا الدليل.");
 exports.moderationLabels = Object.fromEntries(['en','es','fr','ht','ar'].map(lang => [lang, {
-  videoModerated: videoModerated[lang], moderationActionFailed: moderationActionFailed[lang],
+  flagNotFound: flagNotFound[lang], flagAlreadyDecided: flagAlreadyDecided[lang], guideNotFound: guideNotFound[lang], videoDuplicate: videoDuplicate[lang], videoModerated: videoModerated[lang], moderationActionFailed: moderationActionFailed[lang],
 }]));
 exports.learnReviewNotifications = {
   learn_video_review_received: {

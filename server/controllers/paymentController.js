@@ -71,7 +71,10 @@ function instantPayoutStatusFromStripe(stripeStatus) {
 // pass a TTL so a burst of payments does not do a live accounts.retrieve per
 // call. Only successful refreshes are cached; failures stay fail-closed.
 const CONNECT_ACCOUNT_STATUS_TTL_MS = 15 * 60 * 1000;
-const connectAccountStatusCache = new Map();
+const { createTtlCache } = require('../utils/processState');
+const connectAccountStatusCache = createTtlCache({
+  name: 'connectAccountStatusCache', ttlMs: CONNECT_ACCOUNT_STATUS_TTL_MS, maxEntries: 250,
+});
 async function refreshConnectAccountStatus(userId, accountRow, opts = {}) {
   if (!accountRow) return null;
   const unavailable = {
@@ -136,7 +139,7 @@ async function refreshConnectAccountStatus(userId, accountRow, opts = {}) {
         stripeAccountId: accountRow.stripe_account_id,
         snapshot: verified,
         expiresAt: Date.now() + ttlMs,
-      });
+      }, ttlMs);
     }
     return verified;
   } catch (err) {

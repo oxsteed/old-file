@@ -75,6 +75,7 @@ beforeEach(() => {
     if (ns && typeof ns === 'object') Object.values(ns).forEach((fn) => fn && fn.mockReset && fn.mockReset());
   });
   delete process.env.PAYOUT_PROCESSOR_ENABLED;
+  paymentController._clearConnectAccountStatusCache();
 });
 
 // ── C2: payout stats `days` must be a bound integer, never SQL ──────────────
@@ -150,6 +151,9 @@ describe('H1 requestInstantPayout', () => {
     keyed(async (sql) => {
       if (sql.includes('FROM connect_accounts')) {
         return { rows: [{ id: 1, user_id: 'u1', stripe_account_id: 'acct_1', payouts_enabled: true, charges_enabled: true }], rowCount: 1 };
+      }
+      if (sql.includes('INSERT INTO instant_payouts')) {
+        return { rows: [{ id: 'instant-1', status: 'requested' }], rowCount: 1 };
       }
       return { rows: [], rowCount: 0 };
     });

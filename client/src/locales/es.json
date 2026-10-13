@@ -1,5 +1,9 @@
 {
   "reviewW11Learn": {
+    "flagNotFound": "No se encontró el reporte del vídeo.",
+    "flagAlreadyDecided": "Este reporte del vídeo ya se revisó.",
+    "guideNotFound": "No se encontró la guía.",
+    "videoDuplicate": "Este vídeo ya está en esta guía.",
     "videoModerated": "Este vídeo fue retirado por moderación y no se puede enviar a esta guía.",
     "moderationActionFailed": "No se pudo guardar la decisión de moderación. Inténtalo de nuevo.",
     "previousPage": "Anterior",

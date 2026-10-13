@@ -1,5 +1,9 @@
 {
   "reviewW11Learn": {
+    "flagNotFound": "Signalement de vidéo introuvable.",
+    "flagAlreadyDecided": "Ce signalement de vidéo a déjà été examiné.",
+    "guideNotFound": "Guide introuvable.",
+    "videoDuplicate": "Cette vidéo figure déjà dans ce guide.",
     "videoModerated": "Cette vidéo a été retirée par la modération et ne peut pas être proposée pour ce guide.",
     "moderationActionFailed": "Impossible d’enregistrer la décision de modération. Réessayez.",
     "previousPage": "Précédent",

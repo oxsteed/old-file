@@ -1511,10 +1511,23 @@ exports.adminListVideoFlags = async (req, res, next) => {
   }
 };
 
+function videoFlagDecisionError(result, next, req) {
+  const labels = moderationLabels[req.user?.preferred_language] || moderationLabels.en;
+  const errors = {
+    not_found: [404, 'video_flag_not_found', 'flagNotFound'],
+    already_decided: [409, 'video_flag_already_decided', 'flagAlreadyDecided'],
+    bad_guide: [404, 'guide_not_found', 'guideNotFound'],
+    moderated: [409, 'video_moderated', 'videoModerated'],
+    duplicate: [409, 'video_duplicate', 'videoDuplicate'],
+  };
+  const [status, code, key] = errors[result.error] || [500, 'video_flag_decision_failed', 'moderationActionFailed'];
+  return next(new AppError(labels[key], status, code));
+}
+
 exports.adminDismissVideoFlag = async (req, res, next) => {
   try {
     const r = await reviewVideoFlag(req.params.id, req.user.id, 'dismiss', null, req);
-    if (r.error) return videoFlagDecisionError(r, next, 'dismiss');
+    if (r.error) return videoFlagDecisionError(r, next, req);
     res.json({ success: true });
   } catch (err) {
     next(new AppError('Failed to dismiss video flag', 500, 'video_flag_decision_failed'));
@@ -1528,7 +1541,7 @@ exports.adminDismissVideoFlag = async (req, res, next) => {
 exports.adminMoveVideoFlag = async (req, res, next) => {
   try {
     const r = await reviewVideoFlag(req.params.id, req.user.id, 'move', String(req.body?.guide_id || ''), req);
-    if (r.error) return videoFlagDecisionError(r, next, 'move');
+    if (r.error) return videoFlagDecisionError(r, next, req);
     res.json({ success: true });
   } catch (err) {
     next(new AppError('Failed to move video', 500, 'video_flag_decision_failed'));
@@ -1539,7 +1552,7 @@ exports.adminMoveVideoFlag = async (req, res, next) => {
 exports.adminDeleteVideoFlag = async (req, res, next) => {
   try {
     const r = await reviewVideoFlag(req.params.id, req.user.id, 'delete', null, req);
-    if (r.error) return videoFlagDecisionError(r, next, 'delete');
+    if (r.error) return videoFlagDecisionError(r, next, req);
     res.json({ success: true });
   } catch (err) {
     next(new AppError('Failed to delete video', 500, 'video_flag_decision_failed'));

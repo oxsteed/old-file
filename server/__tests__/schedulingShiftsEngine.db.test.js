@@ -64,7 +64,14 @@ describeDb('scheduling write path feeds the slot engine (P1-5-F02, P1-6-F03, P1-
     await db.query(`CREATE TABLE ${schema}.business_members (
       business_id INTEGER, member_id UUID, status TEXT)`);
     // Real migrations for the tables at the heart of the findings.
-    await db.query(fs.readFileSync(path.join(__dirname, '../migrations/238_staff_schedules.sql'), 'utf8'));
+    // The legacy migration checks table_name across every schema. Scope only
+    // that existence probe to this fixture so migrated public tables cannot
+    // cause the test to write shifts referencing public.users.
+    const shiftMigration = fs.readFileSync(path.join(__dirname, '../migrations/238_staff_schedules.sql'), 'utf8');
+    await db.query(shiftMigration.replaceAll('WHERE table_name =', 'WHERE table_schema = current_schema() AND table_name ='));
+    const ownedTables = await db.query(`SELECT table_name FROM information_schema.tables
+      WHERE table_schema=$1 AND table_name IN ('business_staff_shifts','business_time_entries')`, [schema]);
+    expect(ownedTables.rows).toHaveLength(2);
     await db.query(fs.readFileSync(path.join(__dirname, '../migrations/168_helper_availability.sql'), 'utf8'));
     // Business booking tables: production column names/types the engines read.
     await db.query(`CREATE TABLE ${schema}.business_services (

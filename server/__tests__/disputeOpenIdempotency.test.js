@@ -119,6 +119,7 @@ describe('job dispute 30-day window (P3-2-F09)', () => {
       .mockResolvedValueOnce({ rows: [jobRow] }) // locked job row
       .mockResolvedValueOnce({ rows: [] }) // replay lookup
       .mockResolvedValueOnce({ rows: [] }) // existing-dispute check
+      .mockResolvedValueOnce({ rows: [] }) // no signed work agreement requiring a warranty claim
       .mockResolvedValueOnce({ rows: [dispute] }) // insert dispute
       .mockResolvedValueOnce({ rows: [] }) // link support ticket id
       .mockResolvedValueOnce({ rows: [] }) // escrow hold lookup

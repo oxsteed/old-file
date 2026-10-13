@@ -1,5 +1,9 @@
 {
   "reviewW11Learn": {
+    "flagNotFound": "Video flag not found.",
+    "flagAlreadyDecided": "This video flag was already reviewed.",
+    "guideNotFound": "Guide not found.",
+    "videoDuplicate": "This video is already on this guide.",
     "videoModerated": "This video was removed by moderation and cannot be submitted to this guide.",
     "moderationActionFailed": "Could not save the moderation decision. Please try again.",
     "previousPage": "Previous",

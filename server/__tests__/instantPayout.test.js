@@ -22,6 +22,7 @@ const HELPER = {
   id: 7, first_name: 'Rex', last_name: 'Helper', email: 'h@test.com',
   phone: null, role: 'helper', email_verified: true, is_verified: true, is_active: true,
   didit_status: 'verified', didit_verified_at: new Date(), didit_enforcement_required: false,
+  onboarding_completed: true, w9_completed: true,
 };
 const TOKEN = jwt.sign({ id: 7, email: 'h@test.com', role: 'helper' }, process.env.JWT_SECRET);
 const auth = r => r.set('Authorization', `Bearer ${TOKEN}`);
@@ -55,11 +56,11 @@ beforeEach(() => {
 });
 
 // Route pool queries to canned results; records statement order for assertions.
-function routeInstantPayoutQueries({ onInsert, onUpdate, existingRow = null, insertConflict = false } = {}) {
+function routeInstantPayoutQueries({ onInsert, onUpdate, existingRow = null, insertConflict = false, user = HELPER } = {}) {
   const calls = [];
   mockQuery.mockImplementation(async (sql, params) => {
     calls.push(sql);
-    if (/FROM users/.test(sql)) return { rows: [HELPER] };
+    if (/FROM users/.test(sql)) return { rows: [user] };
     if (/SELECT \* FROM connect_accounts/.test(sql)) return { rows: [CONNECT_ROW] };
     if (/FROM instant_payouts WHERE idempotency_key/.test(sql)) return { rows: existingRow ? [existingRow] : [] };
     if (/INSERT INTO instant_payouts/.test(sql)) {
@@ -79,6 +80,18 @@ function routeInstantPayoutQueries({ onInsert, onUpdate, existingRow = null, ins
 }
 
 describe('POST /api/payments/payout/instant', () => {
+  test.each([
+    [{ onboarding_completed: false }, 'Onboarding incomplete'],
+    [{ w9_completed: false }, 'tax_identity_required'],
+    [{ didit_verified_at: '2020-01-01T00:00:00Z' }, 'DIDIT_REQUIRED'],
+  ])('keeps incomplete onboarding and tax identity fail-closed (%s)', async (changes, error) => {
+    routeInstantPayoutQueries({ user: { ...HELPER, ...changes } });
+    const res = await auth(request(buildPaymentsApp()).post('/api/payments/payout/instant'));
+    expect(res.status).toBe(403);
+    expect(res.body.code || res.body.error).toBe(error);
+    expect(stripe.payouts.create).not.toHaveBeenCalled();
+    expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO instant_payouts/.test(sql))).toBe(false);
+  });
   test('creates the local payout row before the Stripe call and updates it on success', async () => {
     const sequence = [];
     let updateParams = null;

@@ -1,5 +1,9 @@
 {
   "reviewW11Learn": {
+    "flagNotFound": "Nou pa jwenn rapò videyo a.",
+    "flagAlreadyDecided": "Yo deja revize rapò videyo sa a.",
+    "guideNotFound": "Nou pa jwenn gid la.",
+    "videoDuplicate": "Videyo sa a deja nan gid sa a.",
     "videoModerated": "Moderasyon retire videyo sa a. Ou pa ka soumèt li pou gid sa a.",
     "moderationActionFailed": "Nou pa t ka anrejistre desizyon moderasyon an. Tanpri eseye ankò.",
     "previousPage": "Anvan",
