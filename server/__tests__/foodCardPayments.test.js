@@ -12,6 +12,11 @@ const webhookCtrl = require('../controllers/webhookController');
 const stripe = require('stripe');
 
 const stripeMock = stripe.__mockInstance;
+const mockSendNotification = jest.fn().mockResolvedValue({ success: true });
+
+jest.mock('../services/notificationService', () => ({
+  sendNotification: (...args) => mockSendNotification(...args),
+}));
 
 jest.mock('../services/socketService', () => ({
   broadcastToBusinessInbox: jest.fn(),
@@ -103,6 +108,7 @@ function buildWebhookApp() {
 
 beforeEach(() => {
   resetMocks();
+  mockSendNotification.mockClear();
   stripeMock.paymentIntents.create.mockReset();
   stripeMock.paymentIntents.retrieve.mockReset();
   stripeMock.paymentIntents.update.mockReset();
@@ -425,6 +431,44 @@ describe('checkout fields', () => {
 });
 
 describe('card payment webhook', () => {
+  test('payment_intent.succeeded sends an idempotent receipt to the Tier-3 payer', async () => {
+    const event = {
+      id: 'evt_job_payment',
+      type: 'payment_intent.succeeded',
+      created: Math.floor(Date.now() / 1000),
+      data: {
+        object: {
+          id: 'pi_job_payment',
+          amount: 12500,
+          amount_received: 12500,
+          currency: 'usd',
+          metadata: { job_id: 'job-42', helper_id: 'helper-9' },
+        },
+      },
+    };
+    stripeMock.webhooks.constructEvent.mockReturnValue(event);
+    mockQuery.mockImplementation(async (sql) => {
+      if (/INSERT INTO webhook_event_receipts/.test(sql)) return { rows: [{ id: 17 }], rowCount: 1 };
+      if (/INSERT INTO webhook_event_watermarks/.test(sql)) return { rows: [{ event_id: event.id }], rowCount: 1 };
+      if (/UPDATE payments SET status = 'captured'/.test(sql)) return { rows: [{ payer_id: 'payer-7' }], rowCount: 1 };
+      return { rows: [], rowCount: 0 };
+    });
+
+    const res = await request(buildWebhookApp())
+      .post('/api/webhooks/stripe')
+      .set('stripe-signature', 'sig_job_payment')
+      .send({});
+
+    expect(res.status).toBe(200);
+    expect(mockSendNotification).toHaveBeenCalledWith(expect.objectContaining({
+      userId: 'payer-7',
+      type: 'payment_receipt',
+      action_url: '/jobs/job-42',
+      idempotencyKey: 'payment-receipt:pi_job_payment',
+      data: expect.objectContaining({ amount: '125.00', currency: 'USD' }),
+    }));
+  });
+
   test('payment_intent.succeeded marks the food order paid', async () => {
     const event = {
       id: 'evt_test_1',

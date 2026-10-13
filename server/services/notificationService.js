@@ -205,7 +205,7 @@ exports.sendNotification = async ({
     // Respect global unsubscribe: if user opted out of all, skip non-transactional.
     const unsubscribedAll = !!prefs.unsubscribe_all;
     const emailTypes = [
-      'bid_accepted', 'payment_released', 'food_order_ready', 'subscription_renewed',
+      'bid_accepted', 'payment_released', 'payment_receipt', 'food_order_ready', 'subscription_renewed',
       'subscription_cancelled', 'subscription_past_due',
       'dispute_update', 'payout_deposited', 'account_banned',
       'oxsteed_credit_transaction', 'oxsteed_credit_card_security',

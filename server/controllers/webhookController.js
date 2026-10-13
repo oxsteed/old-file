@@ -1022,10 +1022,11 @@ async function handleVerifiedStripeEvent(event, destination, res, next) {
             });
           });
         } else if (jobId) {
-          await db.query(
+          const { rows: capturedPaymentRows } = await db.query(
             `UPDATE payments SET status = 'captured', payment_hold_status = 'released',
              captured_at = NOW(), released_at = NOW(), updated_at = NOW()
-             WHERE stripe_payment_intent_id = $1 AND status != 'captured'`,
+             WHERE stripe_payment_intent_id = $1 AND status != 'captured'
+             RETURNING payer_id`,
             [pi.id]
           );
           // Mark job escrow released
@@ -1044,6 +1045,22 @@ async function handleVerifiedStripeEvent(event, destination, res, next) {
               data: { job_id: jobId, amount: amountDollars },
               action_url: `/jobs/${jobId}`,
             }).catch(e => logger.warn('Failed to send payment released notification', { error: e.message }));
+          }
+          const payerId = pi.metadata?.client_id || pi.metadata?.payer_id;
+          const receiptUserId = capturedPaymentRows[0]?.payer_id || payerId;
+          if (receiptUserId) {
+            sendNotification({
+              userId: receiptUserId,
+              type: 'payment_receipt',
+              data: {
+                job_id: jobId,
+                payment_intent_id: pi.id,
+                amount: ((pi.amount_received || pi.amount || 0) / 100).toFixed(2),
+                currency: String(pi.currency || 'usd').toUpperCase(),
+              },
+              action_url: `/jobs/${jobId}`,
+              idempotencyKey: `payment-receipt:${pi.id}`,
+            }).catch(e => logger.warn('Failed to send payment receipt notification', { error: e.message }));
           }
         } else if (orderId) {
           // Marketplace order payment succeeded
