@@ -202,8 +202,8 @@ async function screenSubjectIfStale(client, { subjectType, subjectId, attributes
   const { rows } = await client.query(
     `INSERT INTO oxsteed_credit_sanctions_screenings
        (subject_type, subject_id, provider, result, hit_context, payload_hash, sla_due_at)
-     VALUES ($1, $2, $3, $4, $5, $6,
-             CASE WHEN $4 = 'hit' THEN NOW() + ($7 * INTERVAL '1 hour') ELSE NULL END)
+     VALUES ($1, $2, $3, $4::varchar, $5, $6,
+             CASE WHEN $4::varchar = 'hit' THEN NOW() + ($7 * INTERVAL '1 hour') ELSE NULL END)
      RETURNING *`,
     [
       subjectType,

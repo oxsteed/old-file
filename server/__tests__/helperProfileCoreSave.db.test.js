@@ -52,8 +52,8 @@ describeDatabase('PUT /api/helper-profile/core against migrated PostgreSQL', () 
     const id = crypto.randomUUID();
     created.push(id);
     await pool.query(
-      `INSERT INTO users (id, email, password_hash, first_name, last_name, role, email_verified, is_active, didit_status, created_at)
-       VALUES ($1, $2, 'synthetic-unusable', 'Synthetic', 'Helper', 'helper', TRUE, TRUE, 'verified', NOW())`,
+      `INSERT INTO users (id, email, password_hash, first_name, last_name, role, email_verified, is_active, didit_verified_at, didit_status, created_at)
+       VALUES ($1, $2, 'synthetic-unusable', 'Synthetic', 'Helper', 'helper', TRUE, TRUE, NOW(), 'verified', NOW())`,
       [id, `${id}@example.invalid`],
     );
     if (withProfile) {
@@ -130,5 +130,13 @@ describeDatabase('PUT /api/helper-profile/core against migrated PostgreSQL', () 
 
     me = await request(app).get('/api/helper-profile/me').set(h.auth);
     expect(me.body.is_listed).toBe(false);
+  });
+
+  test.each([null, '2020-01-01T00:00:00Z'])('missing or expired Didit approval (%s) still blocks protected access', async verifiedAt => {
+    const h = await helper({ withProfile: true });
+    await pool.query('UPDATE users SET didit_verified_at = $2 WHERE id = $1', [h.id, verifiedAt]);
+    const res = await request(app).get('/api/helper-profile/me').set(h.auth);
+    expect(res.status).toBe(403);
+    expect(res.body.code).toBe('DIDIT_REQUIRED');
   });
 });

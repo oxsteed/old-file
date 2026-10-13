@@ -39,8 +39,8 @@ function fakeStorage() {
 }
 async function user(role = 'customer') {
   const id = crypto.randomUUID();
-  await pool.query(`INSERT INTO users (id, email, password_hash, first_name, last_name, role, email_verified, is_active, didit_status, created_at)
-    VALUES ($1,$2,'synthetic-unusable','Synthetic','Statement',$3,TRUE,TRUE,'verified','2026-01-01')`, [id, `${id}@example.invalid`, role]);
+  await pool.query(`INSERT INTO users (id, email, password_hash, first_name, last_name, role, email_verified, is_active, didit_verified_at, didit_status, created_at)
+    VALUES ($1,$2,'synthetic-unusable','Synthetic','Statement',$3,TRUE,TRUE,NOW(), 'verified','2026-01-01')`, [id, `${id}@example.invalid`, role]);
   return { id, role };
 }
 function token(actor) { return jwt.sign({ id: actor.id, role: actor.role }, process.env.JWT_SECRET); }

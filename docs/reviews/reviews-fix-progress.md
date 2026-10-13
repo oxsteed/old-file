@@ -251,3 +251,11 @@ W16 upload follow-up: job creation no longer publishes a partial media set when 
 - Restriction checks now fail closed with a retryable 503 when the enforcement store is unavailable, and payment, capture, refund, food checkout, and wallet mutations use the checkout restriction guard (P2-463).
 - Helper directory listing can no longer be enabled for an unverified, incomplete, or suspended account (P2-487).
 - Business review flags now persist their reason and timestamp in idempotent migration 791, and audit failures return a retryable error instead of being swallowed (P2-460, P2-464).
+
+## CI repair after PR #565 (2026-10-13)
+
+Run `38359563109` failed 45 server tests in 11 suites and the disposable Media Credit harness. The verified-user/participant fixtures omitted `didit_verified_at` after W16 added the two-year identity TTL. They now provide fresh approval timestamps. Refund route wiring expects the existing strict limiter, permission middleware, and controller. No production verification or permission gates were relaxed.
+
+The Media failure was PostgreSQL `42P08`: sanctions screening reused `$4` as an INSERT varchar value and a CASE comparison with a conflicting inferred type. Both references now explicitly use varchar. A migrated PostgreSQL regression covers hit/clear/error persistence, the hit review deadline, and reuse of fresh screenings. Protected helper-profile tests additionally prove missing and expired approval timestamps remain denied.
+
+Validation: focused non-DB tests passed (6 suites / 60 tests); compliance and Didit gate tests passed (2 suites / 33 tests); all six affected DB suites plus the new sanctions DB regression passed (7 suites / 99 tests). Original screening SQL independently reproduced `42P08` in the disposable database. The full migration chain through 791 applied successfully using `npm run migrate`. Client checks and CodeQL had passed in the failed remote run; these changes contain no client code. Full server and fresh remote CI verification remain pending at this checkpoint. Deployment is not being monitored.

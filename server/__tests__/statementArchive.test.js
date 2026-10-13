@@ -99,8 +99,8 @@ async function consumeToBuffer(response) {
 async function createUser(role = 'customer') {
   const id = crypto.randomUUID();
   await pool.query(
-    `INSERT INTO users (id, email, password_hash, first_name, last_name, role, email_verified, is_active, didit_status)
-     VALUES ($1, $2, 'synthetic-unusable-hash', 'Archive', 'Fixture', $3, TRUE, TRUE, 'verified')`,
+    `INSERT INTO users (id, email, password_hash, first_name, last_name, role, email_verified, is_active, didit_verified_at, didit_status)
+     VALUES ($1, $2, 'synthetic-unusable-hash', 'Archive', 'Fixture', $3, TRUE, TRUE, NOW(), 'verified')`,
     [id, `${id}@example.invalid`, role]);
   return id;
 }

@@ -40,7 +40,7 @@ const user = {
   is_active: true,
   email_verified: true,
   id_verified: true,
-  didit_status: 'verified',
+  didit_status: 'verified', didit_verified_at: new Date().toISOString(),
   totp_enabled: true,
 };
 

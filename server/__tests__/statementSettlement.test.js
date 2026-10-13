@@ -70,8 +70,8 @@ const RUN_TAG = crypto.randomBytes(4).toString('hex');
 async function createUser(role = 'customer', createdAt = '2026-01-15T12:00:00.000Z') {
   const id = crypto.randomUUID();
   await pool.query(
-    `INSERT INTO users (id, email, password_hash, first_name, last_name, role, email_verified, is_active, created_at, didit_status)
-     VALUES ($1, $2, 'synthetic-unusable-hash', 'Settlement', 'Fixture', $3, TRUE, TRUE, $4, 'verified')`,
+    `INSERT INTO users (id, email, password_hash, first_name, last_name, role, email_verified, is_active, created_at, didit_verified_at, didit_status)
+     VALUES ($1, $2, 'synthetic-unusable-hash', 'Settlement', 'Fixture', $3, TRUE, TRUE, $4, NOW(), 'verified')`,
     [id, `${id}@example.invalid`, role, createdAt]);
   return id;
 }
