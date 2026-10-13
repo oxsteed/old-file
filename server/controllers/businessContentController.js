@@ -337,6 +337,125 @@ exports.deleteBusinessService = async (req, res) => {
   }
 };
 
+// ─── SERVICE BLOCKED TIMES (time off) ─────────────────────────────────────────
+// Review P2-3-F03: business_service_blocked_times had zero writers anywhere in
+// server/, migrations, or tests, while the slot engine (bookingSlotEngine),
+// booking rules, and the customer-facing slot endpoint all read it. Merchants
+// had no way to block bookings for time off. These endpoints are the writers.
+
+async function getBlockedTimeService(client, businessId, serviceId) {
+  const { rows } = await client.query(
+    `SELECT id FROM business_services
+      WHERE id = $1 AND business_id = $2 AND deleted_at IS NULL`,
+    [serviceId, businessId]
+  );
+  return rows[0] || null;
+}
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+exports.listServiceBlockedTimes = async (req, res) => {
+  try {
+    const { businessId, serviceId } = req.params;
+    const hasAccess = await canAccessBusiness(req.user.id, businessId, ['owner', 'manager']);
+    if (!hasAccess) return sendError(res, 403, 'Access denied');
+
+    const client = await db.connect();
+    try {
+      const svc = await getBlockedTimeService(client, businessId, serviceId);
+      if (!svc) return sendError(res, 404, 'Service not found');
+      const { rows } = await client.query(
+        `SELECT id, service_id, staff_id, business_id, start_time, end_time,
+                reason, created_by_id, created_at
+           FROM business_service_blocked_times
+          WHERE business_id = $1 AND service_id = $2
+          ORDER BY start_time ASC`,
+        [businessId, serviceId]
+      );
+      sendSuccess(res, rows);
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    logger.error('listServiceBlockedTimes failed', { error: err.message });
+    sendError(res, 500, 'Failed to fetch blocked times');
+  }
+};
+
+exports.createServiceBlockedTime = async (req, res) => {
+  try {
+    const { businessId, serviceId } = req.params;
+    const hasAccess = await canAccessBusiness(req.user.id, businessId, ['owner', 'manager']);
+    if (!hasAccess) return sendError(res, 403, 'Access denied');
+
+    const { start_time, end_time, reason, staff_id } = req.body || {};
+    const start = new Date(start_time);
+    const end = new Date(end_time);
+    if (!start_time || !end_time || Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+      return sendError(res, 400, 'Valid start_time and end_time are required');
+    }
+    if (start >= end) return sendError(res, 400, 'end_time must be after start_time');
+    if (end <= new Date()) return sendError(res, 400, 'Blocked time must end in the future');
+    if (staff_id != null && staff_id !== '' && !UUID_RE.test(String(staff_id))) {
+      return sendError(res, 400, 'Invalid staff member');
+    }
+    const safeReason = reason != null ? String(reason).slice(0, 500) : null;
+
+    const client = await db.connect();
+    try {
+      const svc = await getBlockedTimeService(client, businessId, serviceId);
+      if (!svc) return sendError(res, 404, 'Service not found');
+      const { rows: overlap } = await client.query(
+        `SELECT id FROM business_service_blocked_times
+          WHERE business_id = $1 AND service_id = $2
+            AND start_time < $4 AND end_time > $3
+          LIMIT 1`,
+        [businessId, serviceId, start.toISOString(), end.toISOString()]
+      );
+      if (overlap.length) return sendError(res, 409, 'This time range is already blocked');
+      const { rows } = await client.query(
+        `INSERT INTO business_service_blocked_times
+           (service_id, staff_id, business_id, start_time, end_time, reason, created_by_id)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)
+         RETURNING id, service_id, staff_id, business_id, start_time, end_time,
+                   reason, created_by_id, created_at`,
+        [serviceId, staff_id || null, businessId, start.toISOString(), end.toISOString(), safeReason, req.user.id]
+      );
+      sendSuccess(res, rows[0], 201);
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    if (err.code === '23503') return sendError(res, 400, 'Invalid staff member');
+    logger.error('createServiceBlockedTime failed', { error: err.message });
+    sendError(res, 500, 'Failed to create blocked time');
+  }
+};
+
+exports.deleteServiceBlockedTime = async (req, res) => {
+  try {
+    const { businessId, serviceId, blockId } = req.params;
+    const hasAccess = await canAccessBusiness(req.user.id, businessId, ['owner', 'manager']);
+    if (!hasAccess) return sendError(res, 403, 'Access denied');
+
+    const client = await db.connect();
+    try {
+      const { rowCount } = await client.query(
+        `DELETE FROM business_service_blocked_times
+          WHERE id = $1 AND business_id = $2 AND service_id = $3`,
+        [blockId, businessId, serviceId]
+      );
+      if (!rowCount) return sendError(res, 404, 'Blocked time not found');
+      sendSuccess(res, { deleted: true });
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    logger.error('deleteServiceBlockedTime failed', { error: err.message });
+    sendError(res, 500, 'Failed to delete blocked time');
+  }
+};
+
 // ─── GALLERY ──────────────────────────────────────────────────────────────────
 
 exports.getBusinessGallery = async (req, res) => {

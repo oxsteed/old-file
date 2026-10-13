@@ -141,7 +141,7 @@ async function requestPayout({ restaurantId, userId, amountCents, currencyCode, 
   const key = String(idempotencyKey || '').trim().slice(0, 120);
   if (!key) throw new AppError('Idempotency key is required', 400, 'validation_failed');
 
-  return withTransaction(pool, async (client) => {
+  const payout = await withTransaction(pool, async (client) => {
     const restaurant = await requireRestaurantOwnership(client, userId, restaurantId);
     const currency = assertSupportedCreditCurrency(currencyCode || restaurant.currency_code);
     if (!restaurant.stripe_account_id) {
@@ -162,23 +162,28 @@ async function requestPayout({ restaurantId, userId, amountCents, currencyCode, 
        RETURNING *`,
       [restaurantId, currency, amount, restaurant.stripe_account_id, key, userId]
     );
-    let payout = rows[0];
-    if (!payout) {
+    let created = rows[0];
+    if (!created) {
       const { rows: existing } = await client.query(
         `SELECT * FROM restaurant_payouts WHERE restaurant_id = $1 AND idempotency_key = $2`,
         [restaurantId, key]
       );
-      payout = existing[0];
-      if (!payout) throw new AppError('Payout could not be created', 500, 'payout_create_failed');
+      created = existing[0];
+      if (!created) throw new AppError('Payout could not be created', 500, 'payout_create_failed');
     }
     logger.info('[RestaurantPayout] requested', {
-      payoutId: payout.id,
+      payoutId: created.id,
       restaurantId,
       amountCents: amount,
       currency,
     });
-    return payout;
+    return created;
   }, 'restaurant_payout_request');
+
+  // Review P2-3-F09: the owner heard nothing until the money landed or was
+  // reversed. Notify on request too (idempotent per payout).
+  await notifyPayoutOwner(payout, 'payout_requested');
+  return payout;
 }
 
 async function listPayouts(client, { restaurantId, userId, status, limit = 50 }) {
@@ -204,7 +209,7 @@ async function approvePayout({ payoutId, adminUserId, reviewNote }) {
     throw new AppError('Payout processing is not enabled', 503, 'payout_processor_disabled');
   }
 
-  return withTransaction(pool, async (client) => {
+  const approved = await withTransaction(pool, async (client) => {
     const { rows } = await client.query(
       `SELECT * FROM restaurant_payouts WHERE id = $1 FOR UPDATE`,
       [payoutId]
@@ -292,6 +297,10 @@ async function approvePayout({ payoutId, adminUserId, reviewNote }) {
     );
     return done[0];
   }, 'restaurant_payout_approve');
+
+  // Review P2-3-F09: notify the owner when their payout is approved.
+  await notifyPayoutOwner(approved, 'payout_approved');
+  return approved;
 }
 
 async function claimNextTransferOutbox() {
@@ -640,7 +649,12 @@ async function rejectPayout({ payoutId, adminUserId, reviewNote }) {
       [payoutId, adminUserId, reviewNote || null]
     );
   }, 'restaurant_payout_reject');
-  return rows[0];
+  const rejected = rows[0];
+  // Review P2-3-F09: notify the owner when their payout is rejected.
+  if (rejected) {
+    await notifyPayoutOwner(rejected, 'payout_rejected', { review_note: rejected.review_note });
+  }
+  return rejected;
 }
 
 async function listAdminQueue(client, { status = 'requested', limit = 100 }) {

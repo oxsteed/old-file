@@ -3584,6 +3584,10 @@ function TeamTab({
                   </td>
                   <td>
                     {m.status === 'pending' && m.member_id ? (
+                      // Code-join approvals are a Vortex code flow: the
+                      // approve/deny APIs 503 while VORTEX_ENABLED is off, so
+                      // the buttons only render when the feature is launched.
+                      showVortexAccess ? (
                       <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
                         <button
                           className="bh-btn primary"
@@ -3596,6 +3600,11 @@ function TeamTab({
                           {t('businessHub.btnDeny')}
                         </button>
                       </div>
+                      ) : (
+                        <span style={{ fontSize: '0.78rem', color: 'var(--muted-text)' }}>
+                          {t('businessHub.statusAwaitingApproval')}
+                        </span>
+                      )
                     ) : m.status === 'pending' ? (
                       <button className="bh-btn bh-btn-danger-sm" onClick={() => onRevoke(m)}>
                         {t('businessHub.btnCancelInvite')}

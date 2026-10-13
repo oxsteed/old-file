@@ -249,7 +249,7 @@ exports.sendNotification = async ({
       // toggle (previously the toggle existed in settings but the type was
       // never attempted, so the toggle was dead).
       'new_message',
-      'payout_deposited', 'account_banned',
+      'payout_deposited', 'payout_requested', 'payout_approved', 'payout_rejected', 'account_banned',
       'oxsteed_credit_transaction', 'oxsteed_credit_card_security',
       'credit_identity_verification_requested', 'credit_identity_verification_approved',
       'credit_identity_verification_rejected', 'credit_sanctions_review_required',

@@ -144,6 +144,54 @@ const T = {
       ar: 'اكتمل دفع مهمتك بنجاح.',
     },
   },
+  payout_requested: {
+    title: {
+      en: 'Payout requested',
+      fr: 'Paiement demandé',
+      es: 'Pago solicitado',
+      ht: 'Peman mande',
+      ar: 'تم طلب الدفع',
+    },
+    body: {
+      en: 'Your payout request was received and is awaiting review.',
+      fr: 'Votre demande de paiement a été reçue et est en cours d\u2019examen.',
+      es: 'Tu solicitud de pago fue recibida y está en revisión.',
+      ht: 'Yo resevwa demann peman ou an epi y ap egzamine li.',
+      ar: 'تم استلام طلب الدفع الخاص بك وهو قيد المراجعة.',
+    },
+  },
+  payout_approved: {
+    title: {
+      en: 'Payout approved',
+      fr: 'Paiement approuvé',
+      es: 'Pago aprobado',
+      ht: 'Peman apwouve',
+      ar: 'تمت الموافقة على الدفع',
+    },
+    body: {
+      en: 'Your payout was approved and is on its way.',
+      fr: 'Votre paiement a été approuvé et est en cours d\u2019envoi.',
+      es: 'Tu pago fue aprobado y está en camino.',
+      ht: 'Peman ou an apwouve epi li sou wout li.',
+      ar: 'تمت الموافقة على دفعتك وهي في طريقها إليك.',
+    },
+  },
+  payout_rejected: {
+    title: {
+      en: 'Payout rejected',
+      fr: 'Paiement refusé',
+      es: 'Pago rechazado',
+      ht: 'Peman refize',
+      ar: 'تم رفض الدفع',
+    },
+    body: {
+      en: 'Your payout request was rejected. Check the review note for details.',
+      fr: 'Votre demande de paiement a été refusée. Consultez la note d\u2019examen pour plus de détails.',
+      es: 'Tu solicitud de pago fue rechazada. Revisa la nota de revisión para más detalles.',
+      ht: 'Yo refize demann peman ou an. Gade nòt revizyon an pou plis detay.',
+      ar: 'تم رفض طلب الدفع الخاص بك. تحقق من ملاحظة المراجعة لمزيد من التفاصيل.',
+    },
+  },
   refund: {
     title: {
       en: 'Refund processed', fr: 'Remboursement traité', es: 'Reembolso procesado',
@@ -960,6 +1008,27 @@ const EMAIL_TEMPLATES = {
       es: 'Ver ganancias',
       ht: 'Gade benefis',
       ar: 'عرض الأرباح',
+    },
+    payout_requested: {
+      en: 'View Payouts',
+      fr: 'Voir les paiements',
+      es: 'Ver pagos',
+      ht: 'Gade peman yo',
+      ar: 'عرض المدفوعات',
+    },
+    payout_approved: {
+      en: 'View Payouts',
+      fr: 'Voir les paiements',
+      es: 'Ver pagos',
+      ht: 'Gade peman yo',
+      ar: 'عرض المدفوعات',
+    },
+    payout_rejected: {
+      en: 'View Payouts',
+      fr: 'Voir les paiements',
+      es: 'Ver pagos',
+      ht: 'Gade peman yo',
+      ar: 'عرض المدفوعات',
     },
     bid_received: {
       en: 'View Job',

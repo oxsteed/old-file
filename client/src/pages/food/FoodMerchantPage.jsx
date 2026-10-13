@@ -2106,6 +2106,10 @@ function MerchantLanding({ t, onStart }) {
 function OwnerHomeTab({ t, restaurant, onGoTab, onUpdated }) {
   const [summary, setSummary] = useState({ activeOrders: 0, menuItems: 0, drafts: 0, soldOut: 0 });
   const [orders, setOrders] = useState([]);
+  // Review P2-3-F06: today's revenue is the server-computed orders-summary
+  // figure (paid sales today), the exact definition the Orders tab shows, so
+  // the two dashboard figures cannot disagree.
+  const [todayRevenue, setTodayRevenue] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const openCardRef = useRef(null);
@@ -2116,11 +2120,17 @@ function OwnerHomeTab({ t, restaurant, onGoTab, onUpdated }) {
     Promise.all([
       getManagedFoodMenu(restaurant.id).catch(() => ({ menu: [], uncategorizedItems: [] })),
       listFoodRestaurantOrders(restaurant.id, { limit: 100 }).catch(() => []),
-    ]).then(([menuData, fetchedOrders]) => {
+      listFoodRestaurantOrdersPage(restaurant.id, { limit: 1, includeMeta: 1 }).catch(() => null),
+    ]).then(([menuData, fetchedOrders, ordersPage]) => {
       if (cancelled) return;
       const items = [...(menuData.menu || []).flatMap((category) => category.items || []), ...(menuData.uncategorizedItems || [])];
       const orderList = Array.isArray(fetchedOrders) ? fetchedOrders : [];
       setOrders(orderList);
+      const pageSummary = ordersPage?.summary || null;
+      setTodayRevenue(pageSummary ? {
+        cents: Number(pageSummary.paid_sales_cents || 0),
+        currency: restaurant.currency_code || 'USD',
+      } : null);
       setSummary({
         activeOrders: orderList.filter((order) => !['completed', 'cancelled', 'refunded'].includes(order.status)).length,
         menuItems: items.filter((item) => !item.archived_at).length,
@@ -2142,10 +2152,12 @@ function OwnerHomeTab({ t, restaurant, onGoTab, onUpdated }) {
     const totals = todays.map((order) => Number(order.total_cents)).filter((n) => Number.isFinite(n));
     return {
       count: todays.length,
-      revenue: totals.length > 0 ? totals.reduce((a, b) => a + b, 0) : null,
-      currency: todays.find((order) => order.currency_code)?.currency_code || 'USD',
+      // P2-3-F06: prefer the server-computed figure (same as the Orders tab).
+      // Fall back to the client-side sum only if the summary fetch failed.
+      revenue: todayRevenue ? todayRevenue.cents : (totals.length > 0 ? totals.reduce((a, b) => a + b, 0) : null),
+      currency: todayRevenue ? todayRevenue.currency : (todays.find((order) => order.currency_code)?.currency_code || 'USD'),
     };
-  }, [orders]);
+  }, [orders, todayRevenue]);
 
   const attention = useMemo(() => {
     const items = [];

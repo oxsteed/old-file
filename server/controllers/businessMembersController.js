@@ -5,6 +5,30 @@ const pool   = require('../db');
 const logger = require('../utils/logger');
 const { ownedBusiness, canAccessBusinessTeam } = require('../utils/businessOwnership');
 const { enrichBusinessesWithRestaurantFields } = require('../utils/businessListRestaurantEnrichment');
+const emailUtils = require('../utils/email');
+
+/**
+ * Resolve the target business for the legacy team-member routes.
+ *
+ * The routes run behind bizIdAccess('manager'), which attaches req.business
+ * ({ id, business_name, owner_id, ... }) for owners AND active managers.
+ * Fall back to the owner-only lookup when the controller is invoked without
+ * the middleware (e.g. unit tests). Returns null when the caller may not
+ * manage this business's team.
+ */
+async function managedBusiness(req) {
+  const paramId = String(req.params.id || '');
+  if (req.business && String(req.business.id) === paramId) {
+    return {
+      id: req.business.id,
+      business_name: req.business.business_name,
+      owner_id: req.business.owner_id || req.user.id,
+    };
+  }
+  const biz = await ownedBusiness(req.user.id, req.params.id);
+  if (!biz) return null;
+  return { id: biz.id, business_name: biz.business_name, owner_id: req.user.id };
+}
 
 // ── GET /api/businesses/:id/members ──────────────────────────────────────────
 // Owner lists all members (active + pending) for their business.
@@ -43,10 +67,13 @@ async function listMembers(req, res) {
 }
 
 // ── POST /api/businesses/:id/members ─────────────────────────────────────────
-// Owner invites a user by email + role.
+// Owner or manager invites a user by email + role.
 async function inviteMember(req, res) {
   try {
-    const biz = await ownedBusiness(req.user.id, req.params.id);
+    // Review P2-3-F02: ownedBusiness() is owner-only, so managers who passed
+    // the route's bizIdAccess('manager') gate got a 404 here. Resolve via the
+    // middleware-attached business instead.
+    const biz = await managedBusiness(req);
     if (!biz) return res.status(404).json({ error: 'Business not found' });
 
     const { role } = req.body;
@@ -71,13 +98,15 @@ async function inviteMember(req, res) {
     );
     const invitee = userRes.rows[0] || null;
 
-    // Insert - partial unique index prevents duplicate pending invites
+    // Insert - partial unique index prevents duplicate pending invites.
+    // owner_id is the BUSINESS owner's id (not the inviter's): listMembers
+    // and the invite lifecycle scope rows by the business owner.
     const { rows: [record] } = await pool.query(
       `INSERT INTO business_members
          (business_id, owner_id, member_id, role, invite_email, status)
        VALUES ($1, $2, $3, $4, $5, 'pending')
        RETURNING *`,
-      [biz.id, req.user.id, invitee?.id || null, role, normalizedEmail]
+      [biz.id, biz.owner_id, invitee?.id || null, role, normalizedEmail]
     );
 
     // Send an in-app notification if the invitee already has an account
@@ -92,6 +121,21 @@ async function inviteMember(req, res) {
           JSON.stringify({ invite_id: record.id, business_id: biz.id, business_name: biz.business_name, role }),
         ]
       );
+    } else {
+      // Review P2-3-F11: invites to an email with no OxSteed account were
+      // silent. Email the invitation so the recipient can sign up and accept.
+      // Fire-and-forget: a provider failure must not fail the invite itself.
+      // (Lazy require: the email util is mocked without this export in some
+      // test setups, and destructuring at load time would freeze undefined.)
+      emailUtils.sendBusinessInviteEmail(normalizedEmail, {
+        businessName: biz.business_name,
+        inviterName: req.user.first_name,
+        role,
+        language: req.user.preferred_language,
+        inviteId: record.id,
+      }).catch((err) => logger.warn('inviteMember email failed', {
+        err: err?.message, inviteId: record.id, email: normalizedEmail,
+      }));
     }
 
     return res.status(201).json({ member: record, user_found: !!invitee });
@@ -105,17 +149,19 @@ async function inviteMember(req, res) {
 }
 
 // ── DELETE /api/businesses/:id/members/:memberId ──────────────────────────────
-// Owner revokes a member's access (sets status = 'revoked').
+// Owner or manager revokes a member's access (sets status = 'revoked').
 async function revokeMember(req, res) {
   try {
-    const biz = await ownedBusiness(req.user.id, req.params.id);
+    // Review P2-3-F02: see inviteMember — managers passed the route gate but
+    // 404'd on the owner-only lookup.
+    const biz = await managedBusiness(req);
     if (!biz) return res.status(404).json({ error: 'Business not found' });
 
     // Fetch member info before revoking so we can notify them
     const memberRes = await pool.query(
       `SELECT member_id, role FROM business_members
        WHERE id = $1 AND business_id = $2 AND owner_id = $3 AND status != 'revoked'`,
-      [req.params.memberId, biz.id, req.user.id]
+      [req.params.memberId, biz.id, biz.owner_id]
     );
 
     if (!memberRes.rows.length) return res.status(404).json({ error: 'Member not found' });
@@ -128,7 +174,7 @@ async function revokeMember(req, res) {
          AND business_id = $2
          AND owner_id    = $3
          AND status != 'revoked'`,
-      [req.params.memberId, biz.id, req.user.id]
+      [req.params.memberId, biz.id, biz.owner_id]
     );
 
     if (!rowCount) return res.status(404).json({ error: 'Member not found' });
