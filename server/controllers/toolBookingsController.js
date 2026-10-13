@@ -102,6 +102,11 @@ const createBooking = async (req, res, next) => {
       totalPrice,
     });
 
+    // Serialize bookings per tool before checking availability. The previous
+    // check ran before BEGIN, allowing concurrent requests to both pass.
+    await client.query('BEGIN');
+    await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', [`tool-rental:${toolId}`]);
+
     // Check for calendar conflicts (overlapping confirmed/pending bookings)
     const conflictResult = await client.query(
       `SELECT COUNT(*) as conflict_count FROM tool_rentals_bookings
@@ -115,9 +120,6 @@ const createBooking = async (req, res, next) => {
     if (parseInt(conflictResult.rows[0].conflict_count) > 0) {
       throw new AppError('Tool is already booked for these dates', 409, 'conflict');
     }
-
-    // Create booking in transaction
-    await client.query('BEGIN');
 
     const booking = await client.query(
       `INSERT INTO tool_rentals_bookings
@@ -240,7 +242,7 @@ const updateBookingStatus = async (req, res, next) => {
     const updatedBooking = result.rows[0];
 
     // Send status update emails asynchronously
-    if (status === 'confirmed') {
+    if (status === 'payment_confirmed') {
       const customerData = await db.query('SELECT email, first_name, preferred_language FROM users WHERE id = $1', [booking.customer_id]);
       const toolData = await db.query('SELECT name FROM tool_rentals WHERE id = $1', [booking.tool_id]);
       if (customerData.rows[0] && toolData.rows[0]) {
