@@ -25,6 +25,7 @@ const {
 const permissionsService = require('../services/permissionsService');
 const { maybeUnpublishBusinessIfIncomplete } = require('./businessController');
 const { debitFoodWallet, refundWalletDebitForReference, formatLedgerRow } = require('../services/foodWalletService');
+const { logFoodWalletOperatorAudit } = require('../services/foodWalletAuditService');
 const {
   refundCreditForReferenceInTransaction,
   formatCreditAmount,
@@ -4471,6 +4472,29 @@ exports.updateOrderStatus = async (req, res, next) => {
           refunded: Boolean(refundResult.refunded),
           reason: refundResult.reason || null,
         });
+        // P3-11-F11: the wallet re-credit moves customer money. Stamp the
+        // acting operator on the operator audit trail in the same
+        // transaction, so the refund cannot commit without attribution.
+        if (refundResult.refunded && refundResult.entry) {
+          await logFoodWalletOperatorAudit(client, {
+            restaurantId,
+            businessId: restaurant.business_id,
+            walletAccountId: refundResult.account?.id || refundResult.entry.account_id || null,
+            customerId: order.customer_id,
+            operatorUserId: req.user?.id || null,
+            actionType: 'order_wallet_refund',
+            amountCents: Number(refundResult.entry.amount_cents || 0),
+            currencyCode: normalizeCurrency(order.currency_code),
+            correlationId: `food-order-status:${order.id}:${status}`,
+            requestIp: req.ip || null,
+            metadata: {
+              orderId: order.id,
+              orderStatus: status,
+              ledgerEntryId: String(refundResult.entry.id),
+              refundReason: 'order_status_transition',
+            },
+          });
+        }
       }
 
       // Guest Credit orders (no customer_id) are refunded too: the refund is
@@ -4530,6 +4554,29 @@ exports.updateOrderStatus = async (req, res, next) => {
           stripeChargeId: cardRefund.chargeId,
           posPayment: formatPosPayment(cardRefund.posPayment),
         };
+        // P3-11-F11: the Stripe refund moves customer money off-platform.
+        // Stamp the acting operator on the operator audit trail in the same
+        // transaction, so the refund cannot commit without attribution.
+        await logFoodWalletOperatorAudit(client, {
+          restaurantId,
+          businessId: restaurant.business_id,
+          walletAccountId: null,
+          customerId: order.customer_id || null,
+          operatorUserId: req.user?.id || null,
+          actionType: 'order_card_refund',
+          amountCents: Number(order.total_cents || 0),
+          currencyCode: normalizeCurrency(order.currency_code),
+          correlationId: `food-order-status:${order.id}:${status}`,
+          requestIp: req.ip || null,
+          metadata: {
+            orderId: order.id,
+            orderStatus: status,
+            paymentMode,
+            stripeRefundId: cardRefund.refund?.id || null,
+            stripeChargeId: cardRefund.chargeId || null,
+            refundReason: 'order_status_transition',
+          },
+        });
       }
 
       if (status === 'completed') {
