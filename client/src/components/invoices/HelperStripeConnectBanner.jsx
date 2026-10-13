@@ -39,7 +39,7 @@ export default function HelperStripeConnectBanner({ className = '' }) {
     );
   }
 
-  const ready = Boolean(status?.connected && status?.charges_enabled);
+  const ready = Boolean(status?.connected && status?.charges_enabled && status?.payouts_enabled);
   if (ready) {
     return (
       <p className={`invoice-helper-stripe-banner ready ${className}`.trim()}>
@@ -48,7 +48,7 @@ export default function HelperStripeConnectBanner({ className = '' }) {
     );
   }
 
-  const needsContinue = Boolean(status?.connected && !status?.charges_enabled);
+  const needsContinue = Boolean(status?.connected && (!status?.charges_enabled || !status?.payouts_enabled));
 
   const handleClick = async () => {
     setConnecting(true);

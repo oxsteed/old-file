@@ -1204,6 +1204,21 @@ exports.startJob = async (req, res, next) => {
       return rows[0];
     }, 'start_job');
 
+    const otherPartyId = String(result.client_id) === String(req.user.id)
+      ? result.assigned_helper_id : result.client_id;
+    if (otherPartyId) {
+      await sendNotification({
+        userId: otherPartyId,
+        type: 'job_started',
+        title: 'Job started',
+        body: `The job ${result.title ? `"${result.title}" ` : ''}is now in progress.`,
+        data: { job_id: result.id },
+        action_url: `/jobs/${result.id}`,
+        idempotencyKey: `job-started:${result.id}`,
+      }).catch((notifErr) => logger.warn('Failed to send job started notification', {
+        jobId: result.id, error: notifErr.message,
+      }));
+    }
     res.json({ message: 'Job started', job: serializeJob(result, { user: req.user }) });
   } catch (err) {
     next(err);

@@ -66,6 +66,7 @@ router.use(requireAuth);
 // Authenticated customer ticket lifecycle.
 router.get('/my-tickets', supportTicketController.getMyTickets);
 router.get('/my-tickets/:ticketId', supportTicketController.getMyTicket);
+router.post('/my-tickets/:ticketId/reopen', supportTicketController.reopenMyTicket);
 router.post('/my-tickets/:ticketId/reply', supportTicketController.replyToMyTicket);
 
 // ============================================
