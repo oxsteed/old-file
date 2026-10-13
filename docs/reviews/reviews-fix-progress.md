@@ -195,3 +195,5 @@ W16 upload follow-up: job creation no longer publishes a partial media set when 
 - W16 upload follow-up: beauty, maintenance, trades, and creative intake uploads now fail closed on any partial batch failure, delete successful keys during rollback, and return bounded retryable errors instead of persisting a partial media set.
 
 - W16 upload validation follow-up: business and helper profile image multer filters now return structured `invalid_file_type` 400 errors instead of raw errors.
+
+- W17 KYC/AML follow-up: agent credit adjustments now require a distinct second admin for every amount; the former under-$50 auto-apply threshold and environment override are removed.
