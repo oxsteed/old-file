@@ -25,6 +25,8 @@ function normalizeString(value, max = 255) {
   return trimmed ? trimmed.slice(0, max) : null;
 }
 
+const PAYMENT_REFERENCE_RE = /^[A-Za-z0-9][A-Za-z0-9._:/#-]{2,159}$/;
+
 function stableStringify(value) {
   if (value === null || value === undefined) return 'null';
   if (Array.isArray(value)) return `[${value.map(stableStringify).join(',')}]`;
@@ -1638,6 +1640,9 @@ async function transitionSettlement({ settlementId, targetStatus, expectedStatus
     if (normalizedTarget === 'paid') {
       if (settlement.partner_status !== 'active') throw new AppError('Partner must be active before settlement is paid', 409, 'credit_partner_not_active');
       const resolvedPaymentReference = requestedPaymentReference || settlement.payment_reference || null;
+      if (resolvedPaymentReference && !PAYMENT_REFERENCE_RE.test(resolvedPaymentReference)) {
+        throw new AppError('A valid payment reference is required', 400, 'credit_settlement_payment_reference_invalid');
+      }
       if (settlement.payment_reference
         && resolvedPaymentReference
         && resolvedPaymentReference !== settlement.payment_reference) {
@@ -1649,6 +1654,10 @@ async function transitionSettlement({ settlementId, targetStatus, expectedStatus
       if (!settlement.approved_by) {
         throw new AppError('Settlement approval evidence is required before payment', 409, 'credit_settlement_approval_required');
       }
+      // Re-check the rail inside the locked execution transaction after all
+      // evidence is validated. The request-time check can race a freeze or
+      // payment-method disablement.
+      await assertCreditRailEnabled(client, { bypassFreeze: fromPayoutConfirmation });
       if (Number(settlement.net_cents || 0) === 0) {
         const normalizedReason = requireAuditReason(reason);
         const { rows: zeroPaidRows } = await client.query(

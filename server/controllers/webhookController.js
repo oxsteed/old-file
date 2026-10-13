@@ -405,6 +405,18 @@ async function syncConnectAccountState(account) {
     [accountId]
   );
   const userId = connectAccounts[0]?.user_id || null;
+  // Connect account.updated is the processor-owned verification event. Keep
+  // payout methods fail-closed when payouts are disabled or requirements
+  // regress, and never accept a user-supplied verified status.
+  await db.query(
+    `UPDATE payout_methods
+        SET status = CASE WHEN $2::boolean THEN 'verified' ELSE 'pending' END,
+            verified_at = CASE WHEN $2::boolean THEN COALESCE(verified_at, NOW()) ELSE NULL END,
+            updated_at = NOW()
+      WHERE stripe_account_id = $1
+        AND status IN ('pending', 'verified', 'active')`,
+    [accountId, !!account.payouts_enabled]
+  );
   if (!userId) return;
 
   await db.query(
@@ -773,6 +785,15 @@ async function handleVerifiedStripeEvent(event, destination, res, next) {
             [toLocalSubscriptionStatus(sub.status), rows[0].user_id]
           );
           await recalculateBadges(rows[0].user_id);
+          if (toLocalSubscriptionStatus(sub.status) === 'past_due') {
+            sendNotification({
+              userId: rows[0].user_id,
+              type: 'subscription_past_due',
+              data: { subscription_id: sub.id },
+              action_url: '/settings/billing',
+              idempotencyKey: `stripe:subscription_past_due:${event.id || sub.id}:${rows[0].user_id}`,
+            }).catch((e) => logger.warn('Failed to send subscription past due notification', { error: e.message }));
+          }
         }
         break;
       }
@@ -787,15 +808,23 @@ async function handleVerifiedStripeEvent(event, destination, res, next) {
           'SELECT user_id FROM subscriptions WHERE stripe_subscription_id = $1', [sub.id]
         );
         if (rows.length) {
+          const uid = rows[0].user_id;
           await db.query(
             `UPDATE users SET tier = 'free', subscription_status = 'cancelled' WHERE id = $1`,
-            [rows[0].user_id]
+            [uid]
           );
           // Deactivate subscription-dependent badges
           await db.query(
             `UPDATE badges SET active = FALSE WHERE user_id = $1 AND type IN ('verified', 'pro')`,
-            [rows[0].user_id]
+            [uid]
           );
+          sendNotification({
+            userId: uid,
+            type: 'subscription_cancelled',
+            data: { subscription_id: sub.id },
+            action_url: '/settings/billing',
+            idempotencyKey: `stripe:subscription_cancelled:${sub.id}:${uid}`,
+          }).catch((e) => logger.warn('Failed to send subscription cancellation notification', { error: e.message }));
         }
         break;
       }
@@ -851,6 +880,13 @@ async function handleVerifiedStripeEvent(event, destination, res, next) {
             );
           }
           await recalculateBadges(user_id);
+          sendNotification({
+            userId: user_id,
+            type: 'subscription_renewed',
+            data: { subscription_id: subId, period_end: period.end },
+            action_url: '/settings/billing',
+            idempotencyKey: `stripe:subscription_renewed:${invoice.id || subId}:${user_id}`,
+          }).catch((e) => logger.warn('Failed to send subscription renewal notification', { error: e.message }));
           logger.info('[webhook] invoice.payment_succeeded — subscription renewed', {
             subscriptionId: subId, userId: user_id, periodEnd: period.end,
           });
@@ -877,11 +913,10 @@ async function handleVerifiedStripeEvent(event, destination, res, next) {
           );
           sendNotification({
             userId: uid,
-            type: 'payment_failed',
-            title: '⚠️ Subscription Payment Failed',
-            body: 'We couldn\'t charge your card for your OxSteed subscription. Please update your payment method to keep your account active.',
+            type: 'subscription_past_due',
             data: { subscription_id: subId },
             action_url: '/settings/billing',
+            idempotencyKey: `stripe:subscription_past_due:${invoice.id || subId}:${uid}`,
           }).catch(e => logger.warn('Failed to send subscription payment failed notification', { error: e.message }));
         }
         break;
@@ -1060,6 +1095,7 @@ async function handleVerifiedStripeEvent(event, destination, res, next) {
           foodOrderId = orderRows[0]?.id || null;
         }
         if (foodOrderId) {
+          let failedFoodOrder = null;
           await withTransaction(db, async (client) => {
             const updated = await applyFoodOrderPaymentState(client, {
               orderId: foodOrderId,
@@ -1069,6 +1105,7 @@ async function handleVerifiedStripeEvent(event, destination, res, next) {
             // Release the inventory reservation so a failed card payment does
             // not hold stock. Best-effort: never fail the webhook on it.
             if (updated) {
+              failedFoodOrder = updated;
               try {
                 await releaseInventoryForOrder(client, {
                   restaurantId: updated.restaurant_id,
@@ -1082,6 +1119,15 @@ async function handleVerifiedStripeEvent(event, destination, res, next) {
               }
             }
           });
+          if (failedFoodOrder?.customer_id) {
+            sendNotification({
+              userId: failedFoodOrder.customer_id,
+              type: 'payment_failed',
+              data: { food_order_id: String(failedFoodOrder.id), payment_intent_id: pi.id },
+              action_url: `/food/orders/${failedFoodOrder.id}`,
+              idempotencyKey: `stripe:food-order-payment-failed:${pi.id}:${failedFoodOrder.id}`,
+            }).catch((e) => logger.warn('Failed to send food order payment failed notification', { error: e.message }));
+          }
         } else if (jobId) {
           const endedPayments = await withTransaction(db, async (client) => {
             const { rows: endedPayments } = await client.query(

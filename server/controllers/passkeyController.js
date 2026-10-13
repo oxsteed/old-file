@@ -212,7 +212,8 @@ async function authenticationOptions(req, res, next) {
 async function issueAdminSession(admin, req, res) {
   const tokens = generateTokens(admin, { authMethod: 'passkey' });
   const hashedRefresh = crypto.createHash('sha256').update(tokens.refreshToken).digest('hex');
-  await db.query(`INSERT INTO sessions (user_id, refresh_token, expires_at) VALUES ($1, $2, NOW() + interval '7 days')`, [admin.id, hashedRefresh]);
+  const accessHash = crypto.createHash('sha256').update(tokens.accessToken).digest('hex');
+  await db.query(`INSERT INTO sessions (user_id, refresh_token, access_token_hash, expires_at) VALUES ($1, $2, $3, NOW() + interval '7 days')`, [admin.id, hashedRefresh, accessHash]);
   await db.query(`UPDATE users SET last_login_at = NOW(), last_login_ip = $1 WHERE id = $2`, [req.ip || null, admin.id]).catch(() => {});
   await db.query(`INSERT INTO user_login_history (user_id, ip_address, user_agent, success) VALUES ($1, $2, $3, TRUE)`, [admin.id, req.ip || null, req.headers['user-agent'] || null]).catch(() => {});
   // Web sessions authenticate via httpOnly cookies (the client no longer

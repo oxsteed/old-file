@@ -191,11 +191,26 @@ class PayoutController {
         return sendValidationError(res, { method_type: 'Must be bank_account, paypal or stripe_connect' });
       }
 
+      let stripeAccountId = null;
+      if (method_type === 'stripe_connect') {
+        const { rows: connectRows } = await pool.query(
+          `SELECT stripe_account_id, payouts_enabled
+             FROM connect_accounts
+            WHERE user_id = $1
+            ORDER BY updated_at DESC NULLS LAST
+            LIMIT 1`,
+          [helper_id]
+        );
+        stripeAccountId = connectRows[0]?.stripe_account_id || null;
+        if (!stripeAccountId || !connectRows[0]?.payouts_enabled) {
+          return sendError(res, 409, 'Complete Stripe Connect onboarding before adding a payout method');
+        }
+      }
       const query = `
         INSERT INTO payout_methods (
           helper_id, method_type, account_holder_name, bank_name, account_last_four,
-          routing_number_last_four, account_type, paypal_email, is_primary, status
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, TRUE, 'pending')
+          routing_number_last_four, account_type, paypal_email, stripe_account_id, is_primary, status
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, TRUE, 'pending')
         RETURNING *
       `;
 
@@ -207,7 +222,8 @@ class PayoutController {
         account_last_four || null,
         routing_number_last_four || null,
         account_type || null,
-        paypal_email || null
+        paypal_email || null,
+        stripeAccountId
       ]);
 
       logger.info('Payout method created', { helper_id, method_id: result.rows[0].id });
@@ -385,9 +401,11 @@ class PayoutController {
         // pending payout may move to processing, so concurrent requests (or a
         // double click) cannot send the same payout twice.
         const payoutResult = await client.query(
-          `SELECT ap.*, pm.stripe_account_id, pm.paypal_email, pm.status AS payout_method_status, u.email
+          `SELECT ap.*, pm.stripe_account_id, pm.paypal_email, pm.status AS payout_method_status,
+                  ca.payouts_enabled AS connect_payouts_enabled, u.email
              FROM affiliate_payouts ap
              LEFT JOIN payout_methods pm ON ap.payout_method_id = pm.id
+             LEFT JOIN connect_accounts ca ON ca.stripe_account_id = pm.stripe_account_id
              LEFT JOIN users u ON ap.helper_id = u.id
             WHERE ap.id = $1
             FOR UPDATE`,
@@ -416,6 +434,21 @@ class PayoutController {
         if (!claimed) {
           await client.query('ROLLBACK');
           return sendError(res, 409, 'Payout is already being processed');
+        }
+
+        if (payout.stripe_account_id && payout.connect_payouts_enabled === true
+          && payout.payout_method_status === 'pending') {
+          await client.query(
+            `UPDATE payout_methods
+                SET status = 'verified', verified_at = COALESCE(verified_at, NOW()), updated_at = NOW()
+              WHERE stripe_account_id = $1 AND status = 'pending'`,
+            [payout.stripe_account_id]
+          );
+          payout.payout_method_status = 'verified';
+        }
+        if (!['verified', 'active'].includes(String(payout.payout_method_status))) {
+          await client.query('ROLLBACK');
+          return sendError(res, 409, 'Payout method is not verified');
         }
 
         // Review P3-785: move the money before marking the payout completed.

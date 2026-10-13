@@ -205,10 +205,11 @@ function verifyInternalAccessToken(token) {
 async function issueSessionForUser(req, user, rememberMe = false, extraClaims = {}) {
   const tokens = generateTokens(user, extraClaims);
   const hashedRefresh = crypto.createHash('sha256').update(tokens.refreshToken).digest('hex');
+  const accessHash = crypto.createHash('sha256').update(tokens.accessToken).digest('hex');
   const sessionSql = rememberMe
-    ? "INSERT INTO sessions (user_id, refresh_token, expires_at) VALUES ($1, $2, NOW() + interval '30 days')"
-    : "INSERT INTO sessions (user_id, refresh_token, expires_at) VALUES ($1, $2, NOW() + interval '7 days')";
-  await pool.query(sessionSql, [user.id, hashedRefresh]);
+    ? "INSERT INTO sessions (user_id, refresh_token, access_token_hash, expires_at) VALUES ($1, $2, $3, NOW() + interval '30 days')"
+    : "INSERT INTO sessions (user_id, refresh_token, access_token_hash, expires_at) VALUES ($1, $2, $3, NOW() + interval '7 days')";
+  await pool.query(sessionSql, [user.id, hashedRefresh, accessHash]);
 
   try {
     const loginIp = (req.headers['x-forwarded-for'] || '').split(',')[0].trim()

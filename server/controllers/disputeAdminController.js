@@ -279,6 +279,7 @@ exports.resolveDispute = async (req, res) => {
 
     // P3-817: both parties hear the outcome.
     await notifyDisputeParties(disputeId, 'dispute_resolved', { resolution });
+    await notifyDisputeParties(disputeId, 'dispute_update', { status: 'resolved', resolution });
 
     res.json({
       message: 'Dispute resolved successfully.',
@@ -394,6 +395,7 @@ exports.startReview = async (req, res) => {
     }
 
     await notifyDisputeParties(disputeId, 'dispute_under_review');
+    await notifyDisputeParties(disputeId, 'dispute_update', { status: 'under_review' });
 
     res.json({
       message: 'Dispute is now under review.',
