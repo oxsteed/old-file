@@ -3391,6 +3391,7 @@
       "noDueDate": "No due date",
       "everyNDays": "Every {{n}}d",
       "removed": "Removed",
+      "unsaveHelper": "Remove {{name}} from saved helpers",
       "addressNotFound": "Address not found.",
       "taskAdded": "Home task added",
       "saveFailed": "Failed to save home task",

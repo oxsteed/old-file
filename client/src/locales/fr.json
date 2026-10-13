@@ -3389,6 +3389,7 @@
       "noDueDate": "Pas de date limite",
       "everyNDays": "Tous les {{n}}j",
       "removed": "Supprimé",
+      "unsaveHelper": "Retirer {{name}} des aides enregistrés",
       "homeAddFailed": "Échec de l'ajout de la propriété.",
       "homeAdded": "Propriété sauvegardée !",
       "addressNotFound": "Adresse introuvable.",

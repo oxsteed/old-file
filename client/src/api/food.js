@@ -322,6 +322,21 @@ export const submitFoodOrderReview = (orderId, { rating, body, trackingToken } =
     .post(`/food/orders/${orderId}/review`, { rating, body, tracking_token: trackingToken })
     .then((r) => r.data?.review);
 
+export const updateFoodOrderReview = (orderId, { rating, body, trackingToken } = {}) =>
+  api
+    .put(`/food/orders/${orderId}/review`, { rating, body, tracking_token: trackingToken })
+    .then((r) => r.data?.review);
+
+export const deleteFoodOrderReview = (orderId, { trackingToken } = {}) =>
+  api
+    .delete(`/food/orders/${orderId}/review`, { params: trackingToken ? { tracking_token: trackingToken } : {} })
+    .then((r) => r.data);
+
+export const respondToFoodOrderReview = (orderId, { response } = {}) =>
+  api
+    .post(`/food/orders/${orderId}/review/respond`, { response })
+    .then((r) => r.data?.review);
+
 // ── Merchant payouts (Stripe Connect per restaurant) ───────────────────────
 export const getRestaurantPayoutStatus = (restaurantId) =>
   api.get(`/restaurants/${restaurantId}/payouts/status`).then((r) => r.data);

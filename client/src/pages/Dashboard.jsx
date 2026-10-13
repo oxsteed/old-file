@@ -1802,7 +1802,7 @@ export default function Dashboard() {
                       </div>
                       <div className="flex items-center gap-2 flex-shrink-0">
                         <Link to={`/helpers/${h.helper_id}`} className="text-xs text-orange-400 font-medium">{t('common.viewAll')}</Link>
-                        <button onClick={async()=>{await life.removeSavedHelper(h.id);toast.success(t('dashboard.home.removed'));}} className="opacity-0 group-hover:opacity-100 transition"><IcoTrash size={13} cls="text-gray-600 hover:text-red-400"/></button>
+                        <button onClick={async()=>{await life.removeSavedHelper(h.id);toast.success(t('dashboard.home.removed'));}} className="opacity-100 md:opacity-0 md:group-hover:opacity-100 focus-visible:opacity-100 transition" aria-label={t('dashboard.home.unsaveHelper', { name: h.display_name || h.first_name || '' })}><IcoTrash size={13} cls="text-gray-600 hover:text-red-400"/></button>
                       </div>
                     </div>
                   ))}

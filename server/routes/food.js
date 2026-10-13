@@ -28,6 +28,9 @@ router.get('/restaurants/:restaurantId/kiosk-config', kiosk.getPublicKioskConfig
 router.get('/payment-config', ctrl.getPaymentConfig);
 router.get('/orders/track/:trackingToken', ctrl.getTrackedOrder);
 router.post('/orders/:orderId/review', optionalAuth, ctrl.createOrderReview);
+router.put('/orders/:orderId/review', optionalAuth, ctrl.updateOrderReview);
+router.delete('/orders/:orderId/review', optionalAuth, ctrl.deleteOrderReview);
+router.post('/orders/:orderId/review/respond', authenticate, ctrl.respondToOrderReview);
 // Stripe hosted-checkout return URL. Kept on optionalAuth so guests can
 // complete a true guest cart (food_orders.customer_id IS NULL) after paying
 // at Stripe; user-bound carts require the signed-in owner (see controller).

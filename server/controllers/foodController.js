@@ -2075,7 +2075,7 @@ async function respondRestaurantProfile(req, res, next, adminPreview) {
       const { rows: ratingRows } = await pool.query(
         `SELECT COALESCE(ROUND(AVG(rating)::numeric, 1), 0)::float AS avg_rating,
                 COUNT(*)::int AS review_count
-           FROM food_reviews WHERE restaurant_id = $1`,
+           FROM food_reviews WHERE restaurant_id = $1 AND is_hidden = FALSE`,
         [restaurantId]
       );
       restaurant.avg_rating = ratingRows[0]?.avg_rating ?? 0;
@@ -6310,6 +6310,150 @@ exports.createOrderReview = async (req, res, next) => {
       throw new AppError('Review already submitted for this order', 409, 'review_exists');
     }
     res.status(201).json({ review });
+  } catch (err) {
+    if (isMissingRelationError(err)) {
+      return next(new AppError('Reviews are not available yet', 503, 'reviews_unavailable'));
+    }
+    next(err);
+  }
+};
+
+// Shared lookup for the edit/delete flows: the caller proves ownership of the
+// order either as the signed-in customer or via the guest tracking token
+// (createOrderReview allows guest reviews, so edit/delete must too).
+async function findOwnOrderReview(orderId, userId, trackingToken) {
+  let order;
+  if (userId) {
+    const { rows } = await pool.query(
+      `SELECT * FROM food_orders WHERE id = $1 AND customer_id = $2`,
+      [orderId, userId]
+    );
+    order = rows[0];
+  } else if (trackingToken) {
+    const { rows } = await pool.query(
+      `SELECT * FROM food_orders WHERE id = $1 AND metadata->>'trackingToken' = $2`,
+      [orderId, trackingToken]
+    );
+    order = rows[0];
+  }
+  if (!order) throw new AppError('Order not found', 404, 'order_not_found');
+  const { rows } = await pool.query(
+    `SELECT * FROM food_reviews WHERE order_id = $1`,
+    [orderId]
+  );
+  const review = rows[0];
+  if (!review) throw new AppError('Review not found', 404, 'review_not_found');
+  return { order, review };
+}
+
+exports.updateOrderReview = async (req, res, next) => {
+  try {
+    const orderId = parsePositiveInt(req.params.orderId);
+    const trackingToken = normalizeString(req.body.trackingToken || req.body.tracking_token, 255);
+    const hasRating = req.body.rating !== undefined && req.body.rating !== null && req.body.rating !== '';
+    const rating = hasRating ? parsePositiveInt(req.body.rating) : null;
+    const hasBody = req.body.body !== undefined;
+    const body = hasBody ? normalizeString(req.body.body, 2000) : null;
+    if (!orderId) {
+      throw new AppError('Validation failed', 400, 'validation_failed', { orderId: 'Invalid order id' });
+    }
+    if (hasRating && (!rating || rating < 1 || rating > 5)) {
+      throw new AppError('Validation failed', 400, 'validation_failed', {
+        rating: 'Must be an integer from 1 to 5',
+      });
+    }
+    if (!hasRating && !hasBody) {
+      throw new AppError('Validation failed', 400, 'validation_failed', { body: 'Nothing to update' });
+    }
+
+    const { review } = await findOwnOrderReview(orderId, req.user?.id, trackingToken);
+
+    const sets = [];
+    const params = [review.id];
+    if (hasRating) {
+      params.push(rating);
+      sets.push(`rating = $${params.length}`);
+    }
+    if (hasBody) {
+      params.push(body);
+      sets.push(`body = $${params.length}`);
+    }
+    const { rows: [updated] } = await pool.query(
+      `UPDATE food_reviews SET ${sets.join(', ')}
+        WHERE id = $1
+        RETURNING id, restaurant_id, order_id, customer_id, rating, body, response, responded_at, created_at`,
+      params
+    );
+    res.json({ review: updated });
+  } catch (err) {
+    if (isMissingRelationError(err)) {
+      return next(new AppError('Reviews are not available yet', 503, 'reviews_unavailable'));
+    }
+    next(err);
+  }
+};
+
+exports.deleteOrderReview = async (req, res, next) => {
+  try {
+    const orderId = parsePositiveInt(req.params.orderId);
+    const trackingToken = normalizeString(
+      req.query.trackingToken || req.query.tracking_token
+        || req.body?.trackingToken || req.body?.tracking_token,
+      255
+    );
+    if (!orderId) {
+      throw new AppError('Validation failed', 400, 'validation_failed', { orderId: 'Invalid order id' });
+    }
+
+    const { review } = await findOwnOrderReview(orderId, req.user?.id, trackingToken);
+    await pool.query(`DELETE FROM food_reviews WHERE id = $1`, [review.id]);
+    res.json({ deleted: true });
+  } catch (err) {
+    if (isMissingRelationError(err)) {
+      return next(new AppError('Reviews are not available yet', 503, 'reviews_unavailable'));
+    }
+    next(err);
+  }
+};
+
+exports.respondToOrderReview = async (req, res, next) => {
+  try {
+    const orderId = parsePositiveInt(req.params.orderId);
+    const response = normalizeString(req.body.response, 2000);
+    if (!orderId) {
+      throw new AppError('Validation failed', 400, 'validation_failed', { orderId: 'Invalid order id' });
+    }
+    if (!response || response.length < 2) {
+      throw new AppError('Validation failed', 400, 'validation_failed', {
+        response: 'Response text is required',
+      });
+    }
+
+    const { rows } = await pool.query(
+      `SELECT fr.*, fo.restaurant_id
+         FROM food_reviews fr
+         JOIN food_orders fo ON fo.id = fr.order_id
+        WHERE fr.order_id = $1`,
+      [orderId]
+    );
+    const review = rows[0];
+    if (!review) throw new AppError('Review not found', 404, 'review_not_found');
+
+    const restaurant = await requireRestaurantAccess(req.user.id, review.restaurant_id);
+    await assertRestaurantPermission(
+      restaurant,
+      ['restaurant.manage', 'orders.manage'],
+      'You do not have permission to respond to reviews'
+    );
+
+    const { rows: [updated] } = await pool.query(
+      `UPDATE food_reviews
+          SET response = $2, responded_at = NOW()
+        WHERE id = $1
+        RETURNING id, restaurant_id, order_id, customer_id, rating, body, response, responded_at, created_at`,
+      [review.id, response]
+    );
+    res.json({ review: updated });
   } catch (err) {
     if (isMissingRelationError(err)) {
       return next(new AppError('Reviews are not available yet', 503, 'reviews_unavailable'));

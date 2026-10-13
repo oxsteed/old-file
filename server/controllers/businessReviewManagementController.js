@@ -10,9 +10,12 @@ async function hasBusinessReviewsTable() {
 async function ensureReviewReplyColumns() {
   if (!await hasBusinessReviewsTable()) return false;
 
+  // Owner replies live in the canonical `response` column (migration 078,
+  // read by the public review endpoints). owner_reply_at keeps the reply
+  // timestamp. The legacy `owner_reply` column (migration 239) is no longer
+  // written; migration 821 backfilled it into `response`.
   await pool.query(`
     ALTER TABLE business_reviews
-      ADD COLUMN IF NOT EXISTS owner_reply TEXT,
       ADD COLUMN IF NOT EXISTS owner_reply_at TIMESTAMPTZ
   `);
   return true;
@@ -28,8 +31,8 @@ exports.listReviews = async (req, res, next) => {
 
     let where = 'WHERE r.business_id = $1';
     const params = [businessId];
-    if (replied === 'true')  where += " AND NULLIF(BTRIM(r.owner_reply), '') IS NOT NULL";
-    if (replied === 'false') where += " AND NULLIF(BTRIM(r.owner_reply), '') IS NULL";
+    if (replied === 'true')  where += " AND NULLIF(BTRIM(r.response), '') IS NOT NULL";
+    if (replied === 'false') where += " AND NULLIF(BTRIM(r.response), '') IS NULL";
     const rows = await pool.query(
       `SELECT r.*,
               COALESCE(u.display_name_preference, u.first_name || ' ' || u.last_name, 'Anonymous') AS reviewer_name,
@@ -54,7 +57,7 @@ exports.replyToReview = async (req, res, next) => {
     }
 
     const row = await pool.query(
-      `UPDATE business_reviews SET owner_reply=$1, owner_reply_at=NOW()
+      `UPDATE business_reviews SET response=$1, owner_reply_at=NOW()
        WHERE id=$2 AND business_id=$3 RETURNING *`,
       [reply.trim(), reviewId, businessId]
     );
@@ -71,7 +74,7 @@ exports.deleteReply = async (req, res, next) => {
     }
 
     const row = await pool.query(
-      'UPDATE business_reviews SET owner_reply=NULL, owner_reply_at=NULL WHERE id=$1 AND business_id=$2 RETURNING *',
+      'UPDATE business_reviews SET response=NULL, owner_reply_at=NULL WHERE id=$1 AND business_id=$2 RETURNING *',
       [reviewId, businessId]
     );
     if (!row.rows.length) return res.status(404).json({ error: 'Review not found' });

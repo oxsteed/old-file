@@ -626,6 +626,9 @@ exports.getSavedHelpers = async (req, res) => {
       LEFT JOIN helper_profiles hp ON hp.user_id = sh.helper_id
       LEFT JOIN businesses pb ON pb.user_id = u.id AND pb.is_primary = TRUE AND pb.is_active = TRUE
       WHERE sh.user_id = $1
+        -- Never surface helpers who unlisted themselves or were hidden by an admin.
+        AND COALESCE(hp.is_listed, TRUE) = TRUE
+        AND COALESCE(hp.is_hidden_by_admin, FALSE) = FALSE
       ORDER BY sh.created_at DESC
     `, [userId]);
 

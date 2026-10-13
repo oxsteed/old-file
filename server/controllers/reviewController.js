@@ -3,6 +3,25 @@ const logger        = require('../utils/logger');
 const { sendNotification } = require('../services/notificationService');
 const { AppError } = require('../middleware/errorHandler');
 
+// search_rank_boost drives the 'best_match' sort order.
+// Formula: base 1.0 + rating signal (up to +0.45 for 5-star avg)
+//        + review volume signal (up to +0.30, log-scaled)
+//        + completion volume signal (up to +0.25, log-scaled)
+// Capped at 2.0 so no single helper dominates forever.
+// Shared by submitReview and adminHideReview so hiding a review decays the
+// boost exactly the way submitting one grows it. $1 is the reviewee user id.
+const SEARCH_RANK_BOOST_EXPR = `LEAST(2.0,
+  1.0
+  + GREATEST(0.0, (
+      SELECT ROUND(AVG(rating)::numeric, 2)
+      FROM reviews WHERE reviewee_id = $1 AND is_public = true
+    ) - 3.5) * 0.15
+  + LEAST(0.30, LN(GREATEST(1,
+      (SELECT COUNT(*) FROM reviews WHERE reviewee_id = $1 AND is_public = true)
+    ) + 1) * 0.10)
+  + LEAST(0.25, LN(GREATEST(1, COALESCE(completed_jobs_count, 0)) + 1) * 0.08)
+)`;
+
 // ─── SUBMIT REVIEW ────────────────────────────────────────────
 exports.submitReview = async (req, res, next) => {
   let dbClient;
@@ -83,22 +102,7 @@ exports.submitReview = async (req, res, next) => {
               WHERE reviewee_id = $1
                 AND is_public = true
             ),
-            -- search_rank_boost drives the 'best_match' sort order.
-            -- Formula: base 1.0 + rating signal (up to +0.45 for 5-star avg)
-            --        + review volume signal (up to +0.30, log-scaled)
-            --        + completion volume signal (up to +0.25, log-scaled)
-            -- Capped at 2.0 so no single helper dominates forever.
-            search_rank_boost = LEAST(2.0,
-              1.0
-              + GREATEST(0.0, (
-                  SELECT ROUND(AVG(rating)::numeric, 2)
-                  FROM reviews WHERE reviewee_id = $1 AND is_public = true
-                ) - 3.5) * 0.15
-              + LEAST(0.30, LN(GREATEST(1,
-                  (SELECT COUNT(*) FROM reviews WHERE reviewee_id = $1 AND is_public = true)
-                ) + 1) * 0.10)
-              + LEAST(0.25, LN(GREATEST(1, COALESCE(completed_jobs_count, 0)) + 1) * 0.08)
-            ),
+            search_rank_boost = ${SEARCH_RANK_BOOST_EXPR},
             updated_at = now()
         WHERE user_id = $1
       `, [revieweeId]);
@@ -244,7 +248,8 @@ exports.adminHideReview = async (req, res, next) => {
       throw new AppError('Review not found', 404, 'not_found');
     }
 
-    // Recalculate helper rating after hiding
+    // Recalculate helper rating after hiding (avg, count, and the
+    // search_rank_boost, so a hidden review stops inflating search rank)
     await db.query(`
       UPDATE helper_profiles
       SET avg_rating = (
@@ -256,6 +261,7 @@ exports.adminHideReview = async (req, res, next) => {
             SELECT COUNT(*) FROM reviews
             WHERE reviewee_id = $1 AND is_public = true
           ),
+          search_rank_boost = ${SEARCH_RANK_BOOST_EXPR},
           updated_at = now()
       WHERE user_id = $1
     `, [rows[0].reviewee_id]);

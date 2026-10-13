@@ -76,16 +76,20 @@ exports.submitReview = async (req, res) => {
 
       if (bizOwnerRes.rows[0]) {
         await pool.query(
-          `INSERT INTO notifications (user_id, type, title, message, reference_id, reference_type)
-           VALUES ($1, 'review_received', 'New Review', $2, $3, 'business_review')`,
-          [bizOwnerRes.rows[0].user_id, `New ${rating}-star review received`, review.id]
+          `INSERT INTO notifications (user_id, type, title, body, data)
+           VALUES ($1, 'review_received', 'New Review', $2, $3)`,
+          [
+            bizOwnerRes.rows[0].user_id,
+            `New ${rating}-star review received`,
+            JSON.stringify({ reviewId: review.id, businessId, referenceType: 'business_review' }),
+          ]
         );
       }
     } catch (notifErr) {
       logger.warn('Failed to create review notification', { reviewId: review.id, error: notifErr.message });
     }
 
-    sendSuccess(res, review, 'Review submitted successfully', 201);
+    sendSuccess(res, review, 201);
   } catch (err) {
     logger.error('submitReview failed', { error: err.message, userId: req.user.id });
     sendError(res, 500, 'Failed to submit review');
@@ -120,6 +124,7 @@ exports.getBusinessReviews = async (req, res) => {
        FROM business_reviews br
        JOIN users u ON u.id = br.customer_id
        WHERE br.business_id = $1
+         AND br.is_hidden = FALSE
        ORDER BY ${orderClause}
        LIMIT $2 OFFSET $3`,
       [businessId, parsedLimit, (parsedPage - 1) * parsedLimit]
@@ -136,7 +141,8 @@ exports.getBusinessReviews = async (req, res) => {
          COUNT(*) FILTER (WHERE rating = 2) as two_star_count,
          COUNT(*) FILTER (WHERE rating = 1) as one_star_count
        FROM business_reviews
-       WHERE business_id = $1`,
+       WHERE business_id = $1
+         AND is_hidden = FALSE`,
       [businessId]
     );
 
@@ -182,7 +188,8 @@ exports.getReviewStats = async (req, res) => {
          COUNT(*) FILTER (WHERE rating = 2) as two_star_count,
          COUNT(*) FILTER (WHERE rating = 1) as one_star_count
        FROM business_reviews
-       WHERE business_id = $1`,
+       WHERE business_id = $1
+         AND is_hidden = FALSE`,
       [businessId]
     );
 
