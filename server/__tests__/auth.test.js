@@ -435,7 +435,7 @@ describe('POST /api/auth/refresh', () => {
     const deadline = new Date(Date.now() + 3 * 86400000).toISOString();
     mockQuery.mockImplementation(async (sql) => {
       const t = String(sql);
-      if (t.includes('FROM sessions s WHERE')) return { rows: [{ user_id: 3, is_valid: true, is_revoked: false, expires_at: new Date(Date.now() + 86400000).toISOString(), absolute_expires_at: deadline }] };
+      if (t.includes('FROM sessions s WHERE')) return { rows: [{ id: 17, user_id: 3, is_valid: true, is_revoked: false, expires_at: new Date(Date.now() + 86400000).toISOString(), absolute_expires_at: deadline }] };
       if (t.includes('UPDATE sessions SET is_valid = false')) return { rows: [{ id: 1 }] };
       if (t.includes('FROM users WHERE id')) return { rows: [{ id: 3, email: 'a@b.c', role: 'customer' }] };
       return { rows: [] };
@@ -445,6 +445,8 @@ describe('POST /api/auth/refresh', () => {
     const insert = mockQuery.mock.calls.find(([sql]) => String(sql).includes('INSERT INTO sessions'));
     expect(insert[0]).toMatch(/LEAST\(NOW\(\) \+ interval '7 days'/);
     expect(insert[1][2]).toBe(new Date(deadline).toISOString());
+    expect(insert[0]).toMatch(/parent_session_id/);
+    expect(insert[1][4]).toBe(17);
   });
 
   test('does not mint a session for an inactive account', async () => {
