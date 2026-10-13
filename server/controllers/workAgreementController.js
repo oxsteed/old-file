@@ -21,6 +21,22 @@ const { applyApprovedChangeOrder } = require('../services/jobChangeOrderFinance'
 const MAX_SIGNATURE_CHARS = 2000000;
 const MIN_SIGNATURE_CHARS = 100;
 
+// Review P1-3-F07: unilateral versioning used to stall activation forever —
+// a party re-versioned the instant the counterparty signed, stranding the
+// fresh signature, and repeated it without limit.
+//   * VERSION_STRAND_COOLDOWN_HOURS: after the counterparty signs the current
+//     version, nobody may strand that signature with a new version for 24h.
+//     The signer themselves may always re-version (only their own signature
+//     is stranded); everyone else must sign the current version or wait.
+//   * PROPOSAL_SIGN_TIMEOUT_DAYS: authorship is assent. When the current
+//     version was written by party X and the counterparty signed those exact
+//     terms, X cannot sit on their own proposal forever: after 7 days with
+//     notice and no action from X, the agreement activates on the terms X
+//     wrote. This never forges consent — both parties manifested assent to
+//     the same content (X by authoring, the counterparty by signing).
+const VERSION_STRAND_COOLDOWN_HOURS = 24;
+const PROPOSAL_SIGN_TIMEOUT_DAYS = 7;
+
 // ─── helpers ────────────────────────────────────────────────────────────────
 
 async function loadAgreement(agreementId) {
@@ -77,6 +93,20 @@ async function maybeActivate(client, agreementId, versionId) {
   return false;
 }
 
+// Review P1-3-F07: true when the current version is a stale proposal —
+// authored by one party, signed by the counterparty, never signed by the
+// author, and the counterparty's signature is older than
+// PROPOSAL_SIGN_TIMEOUT_DAYS. Callers activate (or refuse to re-version)
+// instead of letting the author stall on their own terms indefinitely.
+// `latest` must come from the extended latest-version query below.
+function isProposalTimedOut(latest, agreementStatus) {
+  if (agreementStatus !== 'pending_signatures') return false;
+  if (!latest?.other_signed_at) return false;
+  if (Number(latest.author_sig_count) > 0) return false;
+  const ageMs = Date.now() - new Date(latest.other_signed_at).getTime();
+  return ageMs > PROPOSAL_SIGN_TIMEOUT_DAYS * 86400000;
+}
+
 // Text fields that make up an agreement version's content. Free text is
 // trimmed and capped; priceCents must be integer cents.
 const CONTENT_TEXT_FIELDS = ['title', 'scope', 'timeline', 'terms', 'warrantyTerms', 'reimbursementTerms'];
@@ -126,8 +156,13 @@ async function notifyCounterparty(agreement, actorId) {
 
 // ─── Agreements ─────────────────────────────────────────────────────────────
 
+// Shared with server/jobs/workAgreementProposalTimeout.js.
+exports.VERSION_STRAND_COOLDOWN_HOURS = VERSION_STRAND_COOLDOWN_HOURS;
+exports.PROPOSAL_SIGN_TIMEOUT_DAYS = PROPOSAL_SIGN_TIMEOUT_DAYS;
+exports.isProposalTimedOut = isProposalTimedOut;
+
 // POST /api/work-agreements — create from a job. Caller must be the job's
-// helper or customer. Creates the agreement in draft with version 1.
+// helper or customer. Creates the agreement pending signatures with version 1.
 exports.createAgreement = async (req, res) => {
   try {
     const userId = req.user.id;
@@ -296,19 +331,62 @@ exports.createVersion = async (req, res) => {
         'SELECT status FROM work_agreements WHERE id = $1::uuid FOR UPDATE',
         [agreement.id]
       );
-      if (!locked || ['completed', 'closed'].includes(locked.status)) {
+      if (!locked || locked.status === 'completed') {
         await client.query('ROLLBACK');
-        return res.status(409).json({ error: 'Cannot version a completed or closed agreement.' });
+        return res.status(409).json({ error: 'Cannot version a completed agreement.' });
       }
       // An unsigned proposal from the same party is replaced, not stacked:
       // one party cannot keep resetting the counterparty's signature.
+      // The extra columns power the P1-3-F07 anti-stall rules below:
+      // counter_signed_at (newest signature not from the requester) feeds
+      // the 24h anti-stranding cooldown; other_signed_at / author_sig_count
+      // (relative to the version author) feed the proposal-sign timeout.
       const { rows: [latest] } = await client.query(
         `SELECT v.id, v.created_by,
-                (SELECT COUNT(*)::int FROM work_agreement_signatures s WHERE s.version_id = v.id) AS sig_count
+                (SELECT COUNT(*)::int FROM work_agreement_signatures s WHERE s.version_id = v.id) AS sig_count,
+                (SELECT MAX(s.signed_at) FROM work_agreement_signatures s
+                  WHERE s.version_id = v.id AND s.signer_id <> $2::uuid) AS counter_signed_at,
+                (SELECT MAX(s.signed_at) FROM work_agreement_signatures s
+                  WHERE s.version_id = v.id AND s.signer_id <> v.created_by) AS other_signed_at,
+                (SELECT COUNT(*)::int FROM work_agreement_signatures s
+                  WHERE s.version_id = v.id AND s.signer_id = v.created_by) AS author_sig_count
            FROM work_agreement_versions v WHERE v.agreement_id = $1::uuid
           ORDER BY v.version_number DESC LIMIT 1`,
-        [agreement.id]
+        [agreement.id, req.user.id]
       );
+      // Review P1-3-F07: the proposal-sign timeout fires here too, inside the
+      // same lock, so a stalling author cannot beat the hourly worker by
+      // re-versioning just after the deadline. The agreement activates on the
+      // author's own terms; propose a change order for later amendments.
+      if (isProposalTimedOut(latest, locked.status)) {
+        await client.query(
+          `UPDATE work_agreements SET status = 'active', updated_at = now()
+            WHERE id = $1::uuid AND status = 'pending_signatures'`,
+          [agreement.id]
+        );
+        await client.query('COMMIT');
+        logger.info('work agreement auto-activated on stale proposal', { agreementId: agreement.id });
+        // Both parties hear about the activation: the author whose proposal
+        // took effect, and the counterparty who signed it. Best effort: the
+        // agreement itself is already committed.
+        for (const userId of [agreement.helper_id, agreement.customer_id].filter(Boolean)) {
+          try {
+            await sendNotification({
+              userId,
+              type: 'work_agreement_auto_activated',
+              data: { agreement_id: agreement.id, job_id: agreement.job_id },
+              action_url: `/agreements/${agreement.id}`,
+              idempotencyKey: `wa-auto-activated:${agreement.id}`,
+            });
+          } catch (notifyErr) {
+            logger.warn('work agreement auto-activation notification failed', { agreementId: agreement.id, error: notifyErr.message });
+          }
+        }
+        return res.status(409).json({
+          error: 'This proposal already took effect: the other party signed your terms and the response window passed. The agreement is now active.',
+          code: 'proposal_auto_activated',
+        });
+      }
       if (latest && String(latest.created_by) === String(req.user.id) && Number(latest.sig_count) === 0) {
         const { rows: [replaced] } = await client.query(
           `UPDATE work_agreement_versions SET content = $2::jsonb WHERE id = $1::uuid RETURNING *`,
@@ -322,6 +400,21 @@ exports.createVersion = async (req, res) => {
         'SELECT COALESCE(MAX(version_number), 0)::int AS m FROM work_agreement_versions WHERE agreement_id = $1::uuid',
         [agreement.id]
       );
+      // Review P1-3-F07: a new version strands the signatures on the current
+      // one. Stranding your own signature is fine; stranding the
+      // counterparty's fresh signature is the stall vector, so inside the
+      // cooldown window the requester must sign the current version or wait.
+      if (latest?.counter_signed_at) {
+        const elapsedMs = Date.now() - new Date(latest.counter_signed_at).getTime();
+        if (elapsedMs < VERSION_STRAND_COOLDOWN_HOURS * 3600000) {
+          await client.query('ROLLBACK');
+          return res.status(409).json({
+            error: 'The other party just signed this version. Sign it yourself or wait before proposing changes.',
+            code: 'version_cooldown',
+            retry_after: new Date(new Date(latest.counter_signed_at).getTime() + VERSION_STRAND_COOLDOWN_HOURS * 3600000).toISOString(),
+          });
+        }
+      }
       const next = maxRow.m + 1;
       const { rows: [version] } = await client.query(
         `INSERT INTO work_agreement_versions (agreement_id, version_number, content, created_by)
@@ -418,6 +511,22 @@ exports.signAgreement = async (req, res) => {
       const activated = await maybeActivate(client, agreement.id, version.id);
       await client.query('COMMIT');
       logger.info('work agreement signed', { agreementId: agreement.id, versionId: version.id, role, activated });
+      // Review P1-3-F07: the counterparty just signed the proposer's terms.
+      // Start the proposer's clock with notice: sign within
+      // PROPOSAL_SIGN_TIMEOUT_DAYS or the proposal activates automatically.
+      if (!activated && String(version.created_by) !== String(req.user.id)) {
+        try {
+          await sendNotification({
+            userId: version.created_by,
+            type: 'work_agreement_proposal_signed',
+            data: { agreement_id: agreement.id, job_id: agreement.job_id },
+            action_url: `/agreements/${agreement.id}`,
+            idempotencyKey: `wa-proposal-signed:${version.id}:${req.user.id}`,
+          });
+        } catch (notifyErr) {
+          logger.warn('work agreement proposal-signed notification failed', { agreementId: agreement.id, error: notifyErr.message });
+        }
+      }
       return res.json({ ok: true, activated });
     } catch (e) {
       await client.query('ROLLBACK');

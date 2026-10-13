@@ -58,10 +58,12 @@ describe('job dispute creation idempotency', () => {
       // First request: authorization and user profile.
       .mockResolvedValueOnce({ rows: [{ id: JOB_ID, title: 'Kitchen repair' }] })
       .mockResolvedValueOnce({ rows: [{ first_name: 'Test', last_name: 'Customer', email: 'customer@example.com' }] })
-      // First request transaction: lock, keyed replay lookup, active check, insert.
+      // First request transaction: lock, keyed replay lookup, active check,
+      // complaint-barrier agreement check, insert.
       .mockResolvedValueOnce({ rows: [{ id: JOB_ID, title: 'Kitchen repair' }] })
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] }) // P1-3-F08: no signed work agreement
       .mockResolvedValueOnce({ rows: [dispute] })
       // Link support, hold escrow, and notify admins.
       .mockResolvedValueOnce({ rows: [] })

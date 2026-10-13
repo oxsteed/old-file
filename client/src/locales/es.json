@@ -13388,7 +13388,9 @@
       "body": "Nuestro equipo revisará tu disputa dentro de 5 días hábiles. Nos pondremos en contacto si es necesario. Las pruebas ayudan a tomar decisiones justas."
     },
     "submit": "Enviar Disputa",
-    "submitting": "Enviando..."
+    "submitting": "Enviando...",
+    "warrantyClaimRequired": "Este trabajo tiene un acuerdo de trabajo firmado. Presenta primero una reclamación de garantía en el acuerdo y luego abre una disputa si no se resuelve allí.",
+    "warrantyClaimRequiredCta": "Abrir el acuerdo de trabajo"
   },
   "enforcementPolicy": {
     "pageTitle": "Política de Cumplimiento",

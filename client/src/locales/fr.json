@@ -13388,7 +13388,9 @@
       "body": "Notre équipe examinera votre litige sous 5 jours ouvrables. Les preuves aident à prendre des décisions équitables."
     },
     "submit": "Soumettre le Litige",
-    "submitting": "Envoi..."
+    "submitting": "Envoi...",
+    "warrantyClaimRequired": "Cette mission a un accord de travail signé. Déposez d’abord une réclamation de garantie sur l’accord, puis ouvrez un litige si le problème n’y est pas résolu.",
+    "warrantyClaimRequiredCta": "Ouvrir l’accord de travail"
   },
   "enforcementPolicy": {
     "pageTitle": "Politique d'Application",

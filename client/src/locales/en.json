@@ -13645,7 +13645,9 @@
       "body": "Our team will review your dispute within 5 business days. We'll contact both parties if needed. Evidence such as photos or messages will help us make a fair decision."
     },
     "submit": "Submit Dispute",
-    "submitting": "Submitting..."
+    "submitting": "Submitting...",
+    "warrantyClaimRequired": "This job has a signed work agreement. File a warranty claim on the agreement first, then open a dispute if it is not resolved there.",
+    "warrantyClaimRequiredCta": "Open the work agreement"
   },
   "enforcementPolicy": {
     "pageTitle": "Enforcement Policy & Reliability",

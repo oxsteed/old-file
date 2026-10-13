@@ -13388,7 +13388,9 @@
       "body": "Ekip nou a pral revize dispyt ou nan 5 jou travay. Prèv ede nan desizyon jis."
     },
     "submit": "Soumèt Dispyt",
-    "submitting": "Soumèt..."
+    "submitting": "Soumèt...",
+    "warrantyClaimRequired": "Travay sa a gen yon akò travay ki siyen. Depoze yon reklamasyon garanti sou akò a anvan, apre sa louvri yon diskisyon si pwoblèm nan pa rezoud la.",
+    "warrantyClaimRequiredCta": "Louvri akò travay la"
   },
   "enforcementPolicy": {
     "pageTitle": "Politiki Aplikasyon",

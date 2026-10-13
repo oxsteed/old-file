@@ -39,6 +39,7 @@ const DisputeSubmissionModal: React.FC<DisputeSubmissionModalProps> = ({
   const [description, setDescription] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [barrierAgreementId, setBarrierAgreementId] = useState<string | null>(null);
   const pendingRequestRef = useRef<{ clientRequestId: string; fingerprint: string } | null>(null);
 
   const { data: jobData } = useQuery({
@@ -53,6 +54,7 @@ const DisputeSubmissionModal: React.FC<DisputeSubmissionModalProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setBarrierAgreementId(null);
 
     if (!selectedReason || description.trim().length < 20) {
       setError(t('dispute.validationError'));
@@ -84,7 +86,15 @@ const DisputeSubmissionModal: React.FC<DisputeSubmissionModalProps> = ({
       onSuccess?.();
       onClose();
     } catch (err: any) {
-      setError(err.response?.data?.error?.message || err.response?.data?.error || err.message || 'Unknown error');
+      // Review P1-3-F08: the complaint barrier. A signed work agreement must
+      // go through its warranty first; surface the agreement link instead of
+      // a bare error.
+      if (err.response?.data?.code === 'warranty_claim_required') {
+        setBarrierAgreementId(err.response?.data?.fields?.agreement_id || null);
+        setError(t('dispute.warrantyClaimRequired'));
+      } else {
+        setError(err.response?.data?.error?.message || err.response?.data?.error || err.message || 'Unknown error');
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -171,7 +181,17 @@ const DisputeSubmissionModal: React.FC<DisputeSubmissionModalProps> = ({
           {error && (
             <div className="p-4 bg-red-900/30 border border-red-700 rounded-lg flex items-gap-3">
               <AlertTriangle className="w-5 h-5 text-red-500 flex-shrink-0" />
-              <p className="text-sm text-red-200">{error}</p>
+              <div className="flex-1">
+                <p className="text-sm text-red-200">{error}</p>
+                {barrierAgreementId && (
+                  <a
+                    href={`/agreements/${barrierAgreementId}`}
+                    className="inline-block mt-2 text-sm font-semibold text-orange-400 hover:text-orange-300 underline"
+                  >
+                    {t('dispute.warrantyClaimRequiredCta')}
+                  </a>
+                )}
+              </div>
             </div>
           )}
 
