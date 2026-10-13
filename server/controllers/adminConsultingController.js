@@ -2,15 +2,36 @@
 const logger = require('../utils/logger');
 const db = require('../db');
 const { sendEmail } = require('../utils/email');
+const { renderOxSteedEmail } = require('../utils/emailTemplate');
 const { logAdminAction } = require('../services/auditService');
 
 const VALID_CONSULTING_STATUSES = ['pending', 'contacted', 'scheduled', 'in_progress', 'completed', 'cancelled', 'archived'];
 
-/** Minimal HTML escaper for interpolating admin input into email bodies. */
-function escapeHtml(value) {
-  return String(value ?? '').replace(/[&<>"']/g, (c) => ({
-    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
-  }[c]));
+// Branded, failure-loud consulting notification email. Review P3-844: sendEmail
+// resolves { success: false } instead of throwing, so the result is checked
+// explicitly; a failed send is logged loudly instead of being dropped
+// silently. The shared template supplies the branded HTML and a text part.
+// Never throws, so it stays non-blocking for the caller.
+async function sendConsultingNotification({ to, subject, title, intro, details, cta, logContext }) {
+  if (!to) return;
+  try {
+    const rendered = renderOxSteedEmail({
+      language: 'en',
+      preheader: subject,
+      eyebrow: 'OXSTEED CONSULTING',
+      title,
+      intro,
+      details,
+      cta,
+      footerText: 'The OxSteed Consulting Team',
+    });
+    const delivery = await sendEmail({ to, subject, html: rendered.html, text: rendered.text });
+    if (delivery?.success !== true) {
+      logger.warn('Consulting notification email failed', { ...(logContext || {}), error: delivery?.error || 'unknown' });
+    }
+  } catch (err) {
+    logger.warn('Consulting notification email failed', { ...(logContext || {}), error: err.message });
+  }
 }
 
 exports.getConsultingRequests = async (req, res) => {
@@ -344,11 +365,14 @@ exports.updateSessionDetails = async (req, res) => {
         if (consultantUser.rows.length) {
           const consultant = consultantUser.rows[0];
           // Email sending is non-blocking - failures are logged but don't fail the request
-          sendEmail({
+          await sendConsultingNotification({
             to: consultant.email,
             subject: 'New Consulting Session Assigned',
-            html: `<p>Hi ${consultant.first_name},</p><p>You have been assigned a new consulting session. Please log in to the admin dashboard to view details and get started.</p><p>Session ID: ${id}</p>`,
-          }).catch(err => logger.warn('Failed to send consultant assignment email', { error: err.message, consultant_id: consultant_assigned_id }));
+            title: 'New Consulting Session Assigned',
+            intro: `Hi ${consultant.first_name || 'there'}, you have been assigned a new consulting session. Please log in to the admin dashboard to view details and get started.`,
+            details: [{ label: 'Session ID', value: String(id) }],
+            logContext: { kind: 'consultant_assignment', session_id: id, consultant_id: consultant_assigned_id },
+          });
         }
       }
     }
@@ -792,14 +816,19 @@ exports.generateManualInvoice = async (req, res) => {
       ]
     );
 
-    // Escape admin-supplied name before interpolating into the email HTML.
-    const safeClientName = escapeHtml(client_name);
-    const safeInvoiceNumber = escapeHtml(invoiceNumber);
-    sendEmail({
+    // The branded template escapes interpolated values, so admin-supplied
+    // input is safe here without a manual escaper.
+    await sendConsultingNotification({
       to: client_email,
       subject: `Invoice ${invoiceNumber} - OxSteed Consulting`,
-      html: `<p>Dear ${safeClientName},</p><p>Please find your invoice for consulting services attached.</p><p><strong>Invoice #:</strong> ${safeInvoiceNumber}<br><strong>Amount:</strong> $${(amount_cents / 100).toFixed(2)}</p><p>Please contact us if you have any questions.</p>`,
-    }).catch(err => logger.warn('Failed to send invoice email', { error: err.message }));
+      title: `Invoice ${invoiceNumber}`,
+      intro: `Dear ${client_name}, please find your invoice for consulting services attached. Please contact us if you have any questions.`,
+      details: [
+        { label: 'Invoice #', value: invoiceNumber },
+        { label: 'Amount', value: `$${(amount_cents / 100).toFixed(2)}` },
+      ],
+      logContext: { kind: 'manual_invoice', invoice_number: invoiceNumber },
+    });
 
     try {
       await logAdminAction({
@@ -923,11 +952,27 @@ exports.sendSessionReminder = async (req, res) => {
 
     const session = result.rows[0];
     if (session.email) {
-      await sendEmail({
+      const rendered = renderOxSteedEmail({
+        language: 'en',
+        preheader: 'Reminder: Your Consulting Session',
+        eyebrow: 'OXSTEED CONSULTING',
+        title: 'Consulting session reminder',
+        intro: `Hi ${session.first_name || 'there'}, this is a reminder about your upcoming consulting session${session.scheduled_at ? ` on ${new Date(session.scheduled_at).toLocaleString()}` : ''}. Please reach out if you need to reschedule.`,
+        ...(session.meeting_url ? { cta: { url: session.meeting_url, label: 'Join the session' } } : {}),
+        footerText: 'The OxSteed Consulting Team',
+      });
+      // Review P3-844: sendEmail resolves { success: false } instead of
+      // throwing, so the delivery result is checked before reporting success.
+      const delivery = await sendEmail({
         to: session.email,
         subject: 'Reminder: Your Consulting Session',
-        html: `<p>Hi ${session.first_name},</p><p>This is a reminder about your upcoming consulting session${session.scheduled_at ? ` on ${new Date(session.scheduled_at).toLocaleString()}` : ''}.</p>${session.meeting_url ? `<p><a href="${session.meeting_url}">Join the session</a></p>` : ''}<p>Please reach out if you need to reschedule.</p>`,
+        html: rendered.html,
+        text: rendered.text,
       });
+      if (delivery?.success !== true) {
+        logger.error('Error sending session reminder', { id, error: delivery?.error || 'unknown' });
+        return res.status(500).json({ error: 'Failed to send reminder' });
+      }
     }
 
     await db.query('UPDATE consulting_sessions SET updated_at = NOW() WHERE id = $1', [id]);
@@ -950,11 +995,26 @@ exports.sendSessionFollowUp = async (req, res) => {
 
     const session = result.rows[0];
     if (session.email) {
-      await sendEmail({
+      const rendered = renderOxSteedEmail({
+        language: 'en',
+        preheader: 'Thank You - Consulting Session Follow-up',
+        eyebrow: 'OXSTEED CONSULTING',
+        title: 'Thank you for your session',
+        intro: `Hi ${session.first_name || 'there'}, thank you for your consulting session with OxSteed. We hope it was valuable. Please review your action items and reach out if you have any questions about next steps. We look forward to supporting your business journey.`,
+        footerText: 'The OxSteed Consulting Team',
+      });
+      // Review P3-844: sendEmail resolves { success: false } instead of
+      // throwing, so the delivery result is checked before reporting success.
+      const delivery = await sendEmail({
         to: session.email,
         subject: 'Thank You - Consulting Session Follow-up',
-        html: `<p>Hi ${session.first_name},</p><p>Thank you for your consulting session with OxSteed. We hope it was valuable.</p><p>Please review your action items and reach out if you have any questions about next steps.</p><p>We look forward to supporting your business journey.</p>`,
+        html: rendered.html,
+        text: rendered.text,
       });
+      if (delivery?.success !== true) {
+        logger.error('Error sending follow-up email', { id, error: delivery?.error || 'unknown' });
+        return res.status(500).json({ error: 'Failed to send follow-up' });
+      }
     }
 
     return res.json({ message: 'Follow-up email sent' });

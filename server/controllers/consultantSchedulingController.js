@@ -1,6 +1,7 @@
 const db = require('../db');
 const { isScheduledSessionPaid } = require('../services/consultingPaymentService');
 const { sendEmailOrThrow } = require('../utils/email');
+const { renderOxSteedEmail } = require('../utils/emailTemplate');
 const logger = require('../utils/logger');
 const platformApprovalSvc = require('../services/modePlatformApprovalService');
 
@@ -351,22 +352,27 @@ exports.bookTimeSlot = async (req, res) => {
           ? `${consultant.rows[0].first_name} ${consultant.rows[0].last_name}`
           : 'Your Consultant';
 
+        // Review P3-852: route through the branded template so the email
+        // carries both the branded HTML and a text part.
+        const rendered = renderOxSteedEmail({
+          language: 'en',
+          preheader: 'Your consulting session is confirmed',
+          eyebrow: 'OXSTEED CONSULTING',
+          title: 'Your session is confirmed',
+          intro: `Hi ${session.first_name || 'there'}, your consulting session has been scheduled! We look forward to helping you grow your business.`,
+          details: [
+            { label: 'Consultant', value: consultantName },
+            { label: 'Date and time', value: formattedDate },
+            { label: 'Duration', value: `${durationMinutes} minutes` },
+          ],
+          ...(meetingLink ? { cta: { url: meetingLink, label: 'Join meeting' } } : {}),
+          footerText: 'The OxSteed Consulting Team',
+        });
         await sendEmailOrThrow({
           to: session.email,
           subject: 'Your Consulting Session is Confirmed',
-          html: `
-            <p>Hi ${session.first_name},</p>
-            <p>Your consulting session has been scheduled!</p>
-            <p><strong>Session Details:</strong></p>
-            <ul>
-              <li>Consultant: ${consultantName}</li>
-              <li>Date &amp; Time: ${formattedDate}</li>
-              <li>Duration: ${durationMinutes} minutes</li>
-              ${meetingLink ? `<li><a href="${meetingLink}">Join Meeting</a></li>` : ''}
-            </ul>
-            <p>We look forward to helping you grow your business!</p>
-            <p>Best regards,<br>The OxSteed Team</p>
-          `,
+          html: rendered.html,
+          text: rendered.text,
         });
       } catch (emailErr) {
         logger.warn('Failed to send session confirmation email', { error: emailErr.message, sessionId });
