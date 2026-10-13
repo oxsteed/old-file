@@ -5,6 +5,8 @@ const logger = require('../utils/logger');
 const { sendError, sendValidationError } = require('../utils/apiError');
 const { AppError } = require('../middleware/errorHandler');
 const { logAdminAction } = require('../services/auditService');
+const { isDiditVerificationFresh } = require('../utils/diditGate');
+const { assertSanctionsClear } = require('../services/sanctionsScreeningService');
 
 async function getAffiliateProgram(req, res) {
   try {
@@ -323,9 +325,25 @@ async function processPayout(req, res, next) {
         ORDER BY updated_at DESC NULLS LAST LIMIT 1`,
       [payout.owner_id]
     );
-    if (!connect?.stripe_account_id || connect.payouts_enabled === false) {
+    if (!connect?.stripe_account_id || connect.payouts_enabled !== true) {
       throw new AppError('The affiliate has no payout-ready Stripe account', 400, 'no_payout_account');
     }
+
+    const { rows: [owner] } = await pool.query(
+      `SELECT didit_status, didit_verified_at
+         FROM users
+        WHERE id = $1 AND is_active = TRUE
+        LIMIT 1`,
+      [payout.owner_id]
+    );
+    if (owner?.didit_status !== 'verified' || !isDiditVerificationFresh(owner.didit_verified_at)) {
+      throw new AppError('The affiliate must have fresh identity verification before payout', 403, 'affiliate_identity_required');
+    }
+    await assertSanctionsClear(pool, {
+      subjectType: 'customer',
+      subjectId: payout.owner_id,
+      context: { operation: 'affiliate_payout', payoutId: String(payoutId) },
+    });
 
     // Claim: pending, or processing that has been stuck long enough to be a
     // crashed attempt (the idempotency key makes the re-run safe).
