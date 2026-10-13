@@ -157,3 +157,5 @@ Calendar notification follow-up: failed calendar reminders now retain bounded re
 
 Refund notification follow-up: successful and failed Tier-3 refund/void settlements now notify the payer with localized, idempotent `refund` or `refund_failed` events, including reconciliation retries. Focused refund reconciliation tests pass.
 
+Dispute email follow-up: counterparty, under-review, and resolved dispute events now use localized notification templates in the email allow-list. The legacy resolution path now supplies `body`, action data, and per-party idempotency keys instead of dropping its message field.
+
