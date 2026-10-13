@@ -10,6 +10,7 @@ import EmptyState from '../../components/EmptyState';
 import api from '../../api/axios';
 import { getFoodRestaurant, formatFoodMoney } from '../../api/food';
 import { FoodBrand } from './foodShared';
+import { usePosSync } from './usePosSync';
 import PageShell from '../../components/PageShell';
 import '../../styles/FoodPages.css';
 
@@ -236,6 +237,16 @@ export default function RestaurantPOSPage() {
   const [submitting, setSubmitting] = useState(false);
   const [completedOrder, setCompletedOrder] = useState(null);
 
+  // F13: wire the offline-sync pipeline into the web POS. Failed mutations
+  // are reported (never auto-retried) and the manager sees a degraded banner.
+  const {
+    degraded: syncDegraded,
+    failedOperations: syncFailed,
+    pendingOperations: syncPending,
+    outboxCount: syncOutbox,
+    reportFailedOperation,
+  } = usePosSync(restaurantId, canManage);
+
   const ticketRef = useRef(null);
 
   const load = useCallback(async () => {
@@ -409,7 +420,11 @@ export default function RestaurantPOSPage() {
         toast.success(t('food.pos.orderSent'));
       }
     } catch (err) {
-      toast.error(err?.response?.data?.message || t('food.pos.orderError'));
+      const message = err?.response?.data?.message || t('food.pos.orderError');
+      // Failed POS mutations are reported to the offline-sync pipeline so
+      // the manager's sync view shows them. Never auto-retried (money).
+      reportFailedOperation('pos_payment', message);
+      toast.error(message);
     } finally {
       setSubmitting(false);
     }
@@ -438,7 +453,9 @@ export default function RestaurantPOSPage() {
         toast.success(t('food.pos.sentToKitchen'));
       }
     } catch (err) {
-      toast.error(err?.response?.data?.message || t('food.pos.orderError'));
+      const message = err?.response?.data?.message || t('food.pos.orderError');
+      reportFailedOperation('pos_order', message);
+      toast.error(message);
     } finally {
       setSubmitting(false);
     }
@@ -457,6 +474,15 @@ export default function RestaurantPOSPage() {
   return (
     <PageShell>
       <div className="fd-pos-shell">
+        {syncDegraded && (
+          <div className="fd-pos-sync-banner" role="alert">
+            {t('food.pos.syncDegraded', 'Sync degraded: {{failed}} failed, {{pending}} pending, {{outbox}} unsent', {
+              failed: syncFailed,
+              pending: syncPending,
+              outbox: syncOutbox,
+            })}
+          </div>
+        )}
         {/* Header */}
         <header className="fd-pos-header">
           <FoodBrand />

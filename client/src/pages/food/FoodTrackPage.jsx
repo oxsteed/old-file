@@ -80,6 +80,14 @@ export default function FoodTrackPage() {
               {order.payment_status && (
                 <p><strong>{t('food.track.payment', 'Payment')}:</strong> {order.payment_status}</p>
               )}
+              {order.runner_location && (
+                <p className="food-track-runner">
+                  <strong>{t('food.track.runnerNearby', 'Runner nearby')}:</strong>{' '}
+                  {t('food.track.runnerUpdatedAgo', 'location updated {{seconds}}s ago', {
+                    seconds: Math.max(0, Math.round((Date.now() - new Date(order.runner_location.capturedAt).getTime()) / 1000)),
+                  })}
+                </p>
+              )}
             </div>
             {order.items && order.items.length > 0 && (
               <div className="food-track-items">

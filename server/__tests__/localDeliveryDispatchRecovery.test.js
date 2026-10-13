@@ -52,6 +52,11 @@ function fixture(jobPatch = {}, options = {}) {
       }
       if (q.startsWith('SELECT * FROM delivery_jobs')) return rows(String(args[0]) === String(db().job.id) ? [db().job] : []);
       if (q.startsWith('SELECT * FROM delivery_driver_profiles')) return rows(options.noDriver ? [] : [{ ...capacity(), ...options.driver }]);
+      // F10: claim checks the caller's onboarding profile explicitly.
+      if (q.startsWith('SELECT approved, active FROM delivery_driver_profiles')) {
+        const profile = options.noDriver ? null : { approved: true, active: true, ...options.driver };
+        return rows(profile ? [profile] : []);
+      }
       if (q.startsWith('SELECT * FROM delivery_vehicles')) return rows(options.noVehicle ? [] : [{ ...capacity(), ...options.vehicle }]);
       if (q.startsWith('SELECT j.id FROM delivery_jobs')) return rows(options.legacyConflict ? [{ id: '9' }] : []);
       if (q.startsWith('SELECT id FROM delivery_assignment_reservations')) {

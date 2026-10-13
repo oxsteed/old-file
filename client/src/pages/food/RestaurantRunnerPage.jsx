@@ -13,6 +13,69 @@ import '../../styles/FoodPages.css';
 
 const TASK_STATUSES = ['Assigned', 'En route', 'Completed', 'Issue'];
 
+// F14: surface the proof-required 409 as a specific message instead of the
+// generic loadError toast.
+function runnerActionErrorKey(err) {
+  return err?.response?.data?.code || err?.response?.data?.error_code || null;
+}
+
+function LocationShareToggle({ task, restaurantId }) {
+  const { t } = useTranslation();
+  const [sharing, setSharing] = useState(false);
+  const watchRef = useRef(null);
+  const lastPingRef = useRef(0);
+
+  const stop = useCallback(() => {
+    if (watchRef.current != null && navigator.geolocation) {
+      navigator.geolocation.clearWatch(watchRef.current);
+    }
+    watchRef.current = null;
+    setSharing(false);
+  }, []);
+
+  useEffect(() => () => stop(), [stop]);
+  useEffect(() => {
+    // Stop sharing once the task is no longer en route.
+    if (sharing && task.status !== 'En route') stop();
+  }, [task.status, sharing, stop]);
+
+  const start = () => {
+    if (!navigator.geolocation) {
+      toast.error(t('food.runner.geoUnsupported'));
+      return;
+    }
+    const post = (coords) => {
+      const now = Date.now();
+      if (now - lastPingRef.current < 15000) return;
+      lastPingRef.current = now;
+      api.post(`/restaurants/${restaurantId}/runner/tasks/${task.id}/location`, {
+        latitude: coords.latitude,
+        longitude: coords.longitude,
+        accuracyMeters: coords.accuracy,
+      }).catch(() => {});
+    };
+    watchRef.current = navigator.geolocation.watchPosition(
+      (pos) => post(pos.coords),
+      () => {
+        toast.error(t('food.runner.geoDenied'));
+        stop();
+      },
+      { enableHighAccuracy: false, maximumAge: 10000, timeout: 15000 }
+    );
+    setSharing(true);
+  };
+
+  if (task.status !== 'En route') return null;
+  return (
+    <button
+      className={`fd-btn-secondary fd-btn-sm${sharing ? ' fd-active' : ''}`}
+      onClick={() => (sharing ? stop() : start())}
+    >
+      {sharing ? t('food.runner.stopSharing') : t('food.runner.shareLocation')}
+    </button>
+  );
+}
+
 function ProofModal({ task, restaurantId, onSaved, onClose }) {
   const { t } = useTranslation();
   const [note, setNote] = useState('');
@@ -21,12 +84,17 @@ function ProofModal({ task, restaurantId, onSaved, onClose }) {
   const handle = async () => {
     setSaving(true);
     try {
-      await api.post(`/restaurants/${restaurantId}/runner/tasks/${task.id}/proofs`, { note, proof_type: 'delivery' });
+      // F17: the server reads `method` (accepts legacy `proof_type` too).
+      await api.post(`/restaurants/${restaurantId}/runner/tasks/${task.id}/proofs`, { note, method: 'delivery' });
       toast.success(t('food.runner.proofSaved'));
       onSaved();
       onClose();
-    } catch {
-      toast.error(t('food.common.loadError'));
+    } catch (err) {
+      if (runnerActionErrorKey(err) === 'runner_proof_required') {
+        toast.error(t('food.runner.proofRequired'));
+      } else {
+        toast.error(t('food.common.loadError'));
+      }
     } finally {
       setSaving(false);
     }
@@ -106,13 +174,18 @@ function TaskCard({ task, restaurantId, onRefresh }) {
   const [showIssue, setShowIssue] = useState(false);
   const [busy, setBusy] = useState(false);
 
-  const advance = async (newStatus) => {
-    setBusy(true);
+  const advance = async (newStatus) => {    setBusy(true);
     try {
       await api.patch(`/restaurants/${restaurantId}/runner/tasks/${task.id}/status`, { status: newStatus });
       onRefresh();
-    } catch {
-      toast.error(t('food.common.loadError'));
+    } catch (err) {
+      // F14: the proof-required 409 must not surface as a generic load error.
+      if (runnerActionErrorKey(err) === 'runner_proof_required') {
+        toast.error(t('food.runner.proofRequired'));
+        setShowProof(true);
+      } else {
+        toast.error(t('food.common.loadError'));
+      }
     } finally {
       setBusy(false);
     }
@@ -156,6 +229,37 @@ function TaskCard({ task, restaurantId, onRefresh }) {
             {t('food.runner.markDelivered')}
           </button>
         )}
+        {task.status === 'Completed' && (
+          <button
+            className="fd-btn-secondary fd-btn-sm"
+            disabled={busy}
+            onClick={async () => {
+              const raw = window.prompt(t('food.runner.cashCollectedPrompt'));
+              if (raw === null) return;
+              const cents = Math.round(Number(raw) * 100);
+              if (!Number.isFinite(cents) || cents < 0) {
+                toast.error(t('food.common.loadError'));
+                return;
+              }
+              setBusy(true);
+              try {
+                await api.post(`/restaurants/${restaurantId}/runner/tasks/${task.id}/settlements`, {
+                  status: 'pending',
+                  cashCollectedCents: cents,
+                });
+                toast.success(t('food.runner.settlementCreated'));
+                onRefresh();
+              } catch (err) {
+                toast.error(err?.response?.data?.message || t('food.common.loadError'));
+              } finally {
+                setBusy(false);
+              }
+            }}
+          >
+            {t('food.runner.createSettlement')}
+          </button>
+        )}
+        <LocationShareToggle task={task} restaurantId={restaurantId} />
         <button className="fd-btn-secondary fd-btn-sm" onClick={() => setShowProof(true)}>
           {t('food.runner.logProof')}
         </button>
@@ -174,6 +278,93 @@ function TaskCard({ task, restaurantId, onRefresh }) {
   );
 }
 
+function SettlementsSection({ restaurantId, refreshSignal }) {
+  const { t } = useTranslation();
+  const [settlements, setSettlements] = useState([]);
+  const [busy, setBusy] = useState(false);
+
+  const load = useCallback(async () => {
+    try {
+      const { data } = await api.get(`/restaurants/${restaurantId}/runner/settlements`);
+      setSettlements(data?.settlements || []);
+    } catch {
+      // Settlements are advisory; the runner page works without them.
+    }
+  }, [restaurantId]);
+
+  useEffect(() => { load(); }, [load, refreshSignal]);
+
+  const mutate = async (taskId, body, successKey) => {
+    setBusy(true);
+    try {
+      await api.post(`/restaurants/${restaurantId}/runner/tasks/${taskId}/settlements`, body);
+      toast.success(t(successKey));
+      load();
+    } catch (err) {
+      toast.error(err?.response?.data?.message || t('food.common.loadError'));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const fmt = (cents) => `${(Number(cents || 0) / 100).toFixed(2)}`;
+
+  return (
+    <div style={{ marginTop: '2rem' }}>
+      <h2 className="fd-runner-section-title">{t('food.runner.settlements')}</h2>
+      {settlements.length === 0 && <div className="fd-empty">{t('food.runner.noSettlements')}</div>}
+      {settlements.map((s) => (
+        <div key={s.id} className="fd-runner-card">
+          <div className="fd-runner-card-head">
+            <div>
+              <strong>#{s.task_id}</strong>
+              <span className="fd-card-meta"> · {t(`food.runner.settlement_${s.status}`, s.status)}</span>
+            </div>
+            <span className="fd-tag">{fmt(Number(s.delivery_fee_cents || 0) + Number(s.tip_cents || 0))}</span>
+          </div>
+          <div className="fd-card-meta">
+            {t('food.runner.cashCollected')}: {fmt(s.cash_collected_cents)} · {t('food.runner.cashRemitted')}: {fmt(s.cash_remitted_cents)}
+          </div>
+          <div className="fd-runner-actions">
+            {s.status === 'pending' && (
+              <button className="fd-btn fd-btn-sm" disabled={busy} onClick={() => mutate(s.task_id, { status: 'approved' }, 'food.runner.settlementApproved')}>
+                {t('food.runner.approve')}
+              </button>
+            )}
+            {s.status === 'approved' && (
+              <button
+                className="fd-btn fd-btn-sm"
+                disabled={busy}
+                onClick={() => {
+                  const ref = window.prompt(t('food.runner.paymentReferencePrompt'));
+                  if (!ref) return;
+                  mutate(s.task_id, { status: 'paid', paymentReference: ref }, 'food.runner.settlementPaid');
+                }}
+              >
+                {t('food.runner.markPaid')}
+              </button>
+            )}
+            {['pending', 'approved'].includes(s.status) && Number(s.cash_collected_cents || 0) > 0 && (
+              <button
+                className="fd-btn-secondary fd-btn-sm"
+                disabled={busy}
+                onClick={() => {
+                  const raw = window.prompt(t('food.runner.remitPrompt', { amount: fmt(s.cash_collected_cents) }));
+                  const cents = Math.round(Number(raw) * 100);
+                  if (!Number.isFinite(cents) || cents < 0) return;
+                  mutate(s.task_id, { status: s.status, cashRemittedCents: cents }, 'food.runner.remittanceRecorded');
+                }}
+              >
+                {t('food.runner.recordRemittance')}
+              </button>
+            )}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function RestaurantRunnerPage() {
   const { restaurantId } = useParams();
   const { t } = useTranslation();
@@ -184,6 +375,7 @@ export default function RestaurantRunnerPage() {
   const [offers, setOffers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState('all');
+  const [settlementTick, setSettlementTick] = useState(0);
 
   const timerRef = useRef(null);
   const POLL_MS = 8000;
@@ -198,6 +390,7 @@ export default function RestaurantRunnerPage() {
       setDashboard(dash);
       setTasks(dash.active_tasks || dash.tasks || []);
       setOffers(offersRes.data?.offers || []);
+      setSettlementTick((n) => n + 1);
     } catch {
       toast.error(t('food.common.loadError'));
     }
@@ -311,6 +504,10 @@ export default function RestaurantRunnerPage() {
             <TaskCard key={task.id} task={task} restaurantId={restaurantId} onRefresh={loadData} />
           ))}
         </div>
+
+        {/* Settlements (F05): approve / mark-paid / remittance UI for the
+            settlement endpoints that were previously API-only. */}
+        <SettlementsSection restaurantId={restaurantId} refreshSignal={settlementTick} />
       </div>
     </PageShell>
   );
