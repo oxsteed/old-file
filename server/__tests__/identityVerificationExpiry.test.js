@@ -15,6 +15,8 @@ const {
   getCustomerVerificationTier,
   requestIdentityVerificationAppeal,
   reviewIdentityVerificationAppeal,
+  warnExpiringIdentityVerifications,
+  IDENTITY_EXPIRY_WARNING_DAYS,
 } = require('../services/identityVerificationService');
 
 const CUSTOMER_ID = '11111111-1111-4111-8111-111111111111';
@@ -148,5 +150,43 @@ describe('appeal review SLA (P3-10-F09)', () => {
       String(sql).includes('UPDATE oxsteed_credit_identity_verifications')
     );
     expect(String(update[0])).toContain('appeal_sla_due_at = NULL');
+  });
+});
+
+describe('proactive expiry warnings (P3-10-F10)', () => {
+  test('warns customers whose verification expires inside the warning window', async () => {
+    const expiring = verificationRow({
+      expires_at: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
+    });
+    mockQuery.mockImplementation(async (text) => {
+      const sql = String(text);
+      if (sql.includes('FROM oxsteed_credit_identity_verifications')) return { rows: [expiring] };
+      return { rows: [], rowCount: 0 };
+    });
+
+    const result = await warnExpiringIdentityVerifications({ client: fakeClient() });
+
+    expect(result.warned).toBe(1);
+    expect(sendNotification).toHaveBeenCalledTimes(1);
+    const expiryDay = new Date(expiring.expires_at).toISOString().slice(0, 10);
+    expect(sendNotification).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: CUSTOMER_ID,
+        type: 'credit_identity_verification_expiring',
+        action_url: '/wallet',
+        idempotencyKey: `credit-identity:${VERIFICATION_ID}:expiring:${expiryDay}`,
+      })
+    );
+  });
+
+  test('skips verifications expiring outside the warning window', async () => {
+    // The sweep query itself filters by the window; simulate an empty
+    // result for an out-of-window verification.
+    mockQuery.mockImplementation(async () => ({ rows: [], rowCount: 0 }));
+
+    const result = await warnExpiringIdentityVerifications({ client: fakeClient() });
+
+    expect(result.warned).toBe(0);
+    expect(sendNotification).not.toHaveBeenCalled();
   });
 });

@@ -254,6 +254,7 @@ exports.sendNotification = async ({
       'credit_identity_verification_requested', 'credit_identity_verification_approved',
       'credit_identity_verification_rejected', 'credit_sanctions_review_required',
       'credit_sanctions_cleared', 'credit_sanctions_confirmed',
+      'credit_identity_verification_expired', 'credit_identity_verification_expiring',
       'credit_identity_verification_appeal_submitted', 'credit_identity_verification_appeal_approved',
       'credit_identity_verification_appeal_rejected',
       // Monthly statement issuance: generic authenticated-link email, no
@@ -288,6 +289,7 @@ exports.sendNotification = async ({
       'credit_identity_verification_requested', 'credit_identity_verification_approved',
       'credit_identity_verification_rejected', 'credit_sanctions_review_required',
       'credit_sanctions_cleared', 'credit_sanctions_confirmed',
+      'credit_identity_verification_expired', 'credit_identity_verification_expiring',
       'credit_identity_verification_appeal_submitted', 'credit_identity_verification_appeal_approved',
       'credit_identity_verification_appeal_rejected',
     ]);

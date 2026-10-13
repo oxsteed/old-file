@@ -3,8 +3,12 @@ const express = require('express');
 const request = require('supertest');
 const { mockQuery, resetMocks } = require('./setup');
 const { errorHandler } = require('../middleware/errorHandler');
+jest.mock('../services/fiatComplianceService', () => ({
+  evaluateFundingCompliance: jest.fn().mockResolvedValue({ allowed: true }),
+}));
 const foodController = require('../controllers/foodController');
 const walletController = require('../controllers/foodWalletController');
+const { evaluateFundingCompliance } = require('../services/fiatComplianceService');
 const {
   verifyWalletIntegrityForCustomer,
   computeWalletEntryHash,
@@ -864,6 +868,13 @@ describe('food wallet security wiring', () => {
       });
 
     expect(res.status).toBe(201);
+    expect(evaluateFundingCompliance).toHaveBeenCalledWith(expect.objectContaining({
+      customerId: CUSTOMER_ID,
+      amountCents: 2500,
+      currencyCode: 'USD',
+      fundingMethod: 'restaurant_wallet_load',
+      actorUserId: OWNER_ID,
+    }));
     expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO food_customer_wallet_operator_audit_events/.test(sql))).toBe(true);
 
     const secondRes = await request(buildMerchantApp())
@@ -1315,6 +1326,13 @@ describe('food wallet security wiring', () => {
     expect(res.body.approved).toBe(true);
     expect(res.body.loadRequest.status).toBe('approved');
     expect(res.body.wallet.balanceCents).toBe(75000);
+    expect(evaluateFundingCompliance).toHaveBeenCalledWith(expect.objectContaining({
+      customerId: CUSTOMER_ID,
+      amountCents: 75000,
+      currencyCode: 'USD',
+      fundingMethod: 'restaurant_wallet_load',
+      actorUserId: MANAGER_ID,
+    }));
     expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO food_customer_wallet_ledger/.test(sql))).toBe(true);
     expect(mockQuery.mock.calls.some(([sql, params]) => (
       /INSERT INTO food_customer_wallet_operator_audit_events/.test(sql)
