@@ -7,10 +7,9 @@
 //     intended path for tool-rental booking emails so they appear to come from
 //     the owner's own address.
 //
-//  2. Platform fallback - when no `smtpConfig` is supplied the service falls
-//     back to the platform-level SMTP env vars (SMTP_HOST, SMTP_USER, etc.).
-//     If those are also absent the send is skipped with a warning so the app
-//     never crashes at startup or at runtime due to missing mail config.
+//  2. Platform delivery - when no `smtpConfig` is supplied, use the shared
+//     Resend transport. Platform SMTP is intentionally not a second delivery
+//     system; this keeps retry and idempotency semantics consistent.
 
 const nodemailer = require('nodemailer');
 const logger = require('../utils/logger');
@@ -39,25 +38,6 @@ function buildTransport(cfg) {
 }
 
 /**
- * Returns the platform-level transporter built from env vars, or null if the
- * env vars are not configured.  Created lazily and cached.
- */
-let _platformTransport = null;
-function getPlatformTransport() {
-  if (_platformTransport) return _platformTransport;
-  const { SMTP_HOST, SMTP_USER, SMTP_PASS } = process.env;
-  if (!SMTP_HOST || !SMTP_USER || !SMTP_PASS) return null;
-  _platformTransport = buildTransport({
-    host: SMTP_HOST,
-    port: parseInt(process.env.SMTP_PORT || '587', 10),
-    secure: process.env.SMTP_SECURE === 'true',
-    user: SMTP_USER,
-    pass: SMTP_PASS,
-  });
-  return _platformTransport;
-}
-
-/**
  * Send an email.
  *
  * @param {object}  options
@@ -65,13 +45,15 @@ function getPlatformTransport() {
  * @param {string}  options.subject     Subject line
  * @param {string}  options.html        HTML body
  * @param {string}  [options.from]      Override the From address
+ * @param {string}  [options.text] Plain-text body for platform delivery
+ * @param {string}  [options.idempotencyKey] Provider idempotency key
  * @param {object}  [options.smtpConfig] Per-user SMTP credentials:
  *                                        { host, port, secure, user, pass, fromName }
  *                                       When provided the email is sent via the
  *                                       user's own mail server instead of the
  *                                       platform account.
  */
-async function send({ to, subject, html, from, smtpConfig }) {
+async function send({ to, subject, html, text, from, smtpConfig, idempotencyKey, headers }) {
   let transporter;
   let fromAddress;
 
@@ -81,33 +63,26 @@ async function send({ to, subject, html, from, smtpConfig }) {
     const displayName = smtpConfig.fromName || smtpConfig.user;
     fromAddress = from || `"${displayName}" <${smtpConfig.user}>`;
   } else {
-    // --- platform fallback path ---
-    transporter = getPlatformTransport();
-    if (!transporter) {
-      // Review P3-843: production has Resend but usually no SMTP, so these
-      // appointment, calendar, food-guest and credit emails were silently
-      // dropped. Route them through Resend; a failed send throws.
-      const resend = require('../utils/email');
-      const result = await resend.sendEmail({
-        to,
-        subject,
-        html,
-        text: String(html || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim(),
-        ...(from ? { from: String(from).match(/<([^>]+)>/)?.[1] || from } : {}),
-      });
-      if (result?.success === true) {
-        logger.info('emailService: sent via Resend', { messageId: result.id });
-        return { messageId: result.id, provider: 'resend' };
-      }
-      if (result?.code === 'email_not_configured') {
-        logger.error('emailService: neither SMTP nor Resend is configured - email not sent', { subject });
-        return null;
-      }
-      throw new resend.EmailDeliveryError(result?.error || 'Email send failed', result?.code);
+    // --- shared platform Resend path ---
+    const resend = require('../utils/email');
+    const result = await resend.sendEmail({
+      to,
+      subject,
+      html,
+      text: text || String(html || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim(),
+      ...(from ? { from: String(from).match(/<([^>]+)>/)?.[1] || from } : {}),
+      idempotencyKey,
+      headers,
+    });
+    if (result?.success === true) {
+      logger.info('emailService: sent via Resend', { messageId: result.id });
+      return { messageId: result.id, provider: 'resend' };
     }
-    fromAddress = from ||
-      process.env.SMTP_FROM ||
-      `"OxSteed" <${process.env.SMTP_USER}>`;
+    if (result?.code === 'email_not_configured') {
+      logger.error('emailService: Resend is not configured - email not sent', { subject });
+      return null;
+    }
+    throw new resend.EmailDeliveryError(result?.error || 'Email send failed', result?.code);
   }
 
   const info = await transporter.sendMail({

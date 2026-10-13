@@ -165,3 +165,5 @@ Email reliability follow-up: welcome-email provider idempotency now includes the
 
 Tier-3 receipt follow-up: protected job PaymentIntents now set Stripe `receipt_email` from the authenticated payer, alongside the in-app receipt notification, so provider receipts do not depend on our notification pipeline.
 
+Provider consolidation follow-up: platform email delivery now always uses the shared Resend path while per-user SMTP remains an explicit opt-in, and legacy OTP/job-alert SMS wrappers delegate to the single configured Twilio implementation. Focused email, SMS, and food-notification regressions pass.
+

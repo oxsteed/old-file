@@ -429,6 +429,28 @@ async function sendDirectSMS(phoneNumber, messageBody, options = {}) {
   }
 }
 
+// Shared provider path for transactional SMS that has no signed-in user
+// context (OTP and job-alert messages). Keeping this in the notification
+// service avoids a second Twilio client with different configuration rules.
+async function sendTransactionalSMS(phoneNumber, messageBody, options = {}) {
+  if (!client || !process.env.TWILIO_PHONE_NUMBER) {
+    return { success: false, error: 'Twilio not configured' };
+  }
+  const to = toE164(phoneNumber, options.countryCode || 'US');
+  if (!to) return { success: false, error: 'Invalid phone number' };
+  try {
+    const result = await client.messages.create({
+      body: String(messageBody || '').slice(0, 1600),
+      ...senderFor(to, options.countryCode),
+      to,
+    });
+    return { success: true, sid: result.sid };
+  } catch (error) {
+    logger.error('Transactional SMS send failed', { error: error.message });
+    return { success: false, error: error.message };
+  }
+}
+
 // Support channel delivery must never use the legacy mock fallback. Returning
 // a provider error lets the caller persist an honest failed attempt instead of
 // telling an agent that an SMS was sent when Twilio is unavailable.
@@ -449,6 +471,7 @@ module.exports = {
   sendOrderRefundedSMS,
   sendSMSIfOptedIn,
   sendDirectSMS,
+  sendTransactionalSMS,
   sendConfiguredSMS,
   isTwilioConfigured,
   requestPhoneVerification,
