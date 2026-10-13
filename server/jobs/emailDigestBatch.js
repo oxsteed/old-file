@@ -1,5 +1,6 @@
 const pool = require('../db');
 const logger = require('../utils/logger');
+const { sendEmail } = require('../utils/email');
 
 const FALLBACK_LANGUAGE = 'en';
 const SUPPORTED_LANGUAGES = new Set(['en', 'es', 'fr', 'ht', 'ar']);
@@ -135,7 +136,7 @@ async function processSingleUserDigest(userId, digestType) {
 
     // Get queued notifications
     const notificationsResult = await pool.query(`
-      SELECT edq.id, n.type, n.title, n.message, n.created_at
+      SELECT edq.id, n.type, n.title, n.body, n.created_at
       FROM email_digest_queue edq
       JOIN notifications n ON n.id = edq.notification_id
       WHERE edq.user_id = $1
@@ -151,10 +152,27 @@ async function processSingleUserDigest(userId, digestType) {
 
     const notifications = notificationsResult.rows;
 
-    // Build digest email (placeholder - actual sending would use email service)
+    // Build and deliver through the shared Resend path. The key is stable for
+    // one user/frequency/window, so a scheduler retry cannot duplicate it.
     const digestHtml = buildDigestEmailHtml(first_name, notifications, digestType, language);
+    const digestText = notifications.map((notification) =>
+      `${notification.title}\n${notification.body}\n${new Date(notification.created_at).toLocaleString(language)}`
+    ).join('\n\n');
+    const frequencyText = digestType === 'daily' ? DIGEST_COPY[language].daily : DIGEST_COPY[language].weekly;
+    const subject = interpolate(DIGEST_COPY[language].title, { frequency: frequencyText });
+    const window = getDigestWindowKey(new Date(), digestType);
+    const delivery = await sendEmail({
+      to: email,
+      subject,
+      text: digestText,
+      html: digestHtml,
+      idempotencyKey: `email-digest:${digestType}:${userId}:${window}`,
+    });
+    if (!delivery?.success) {
+      logger.warn('Email digest delivery failed', { userId, digestType, error: delivery?.error || 'provider unavailable' });
+      return false;
+    }
 
-    // Log digest creation (actual implementation would send via Resend/SendGrid)
     logger.info('Email digest compiled and ready to send', {
       userId,
       email,
@@ -195,7 +213,7 @@ function buildDigestEmailHtml(firstName, notifications, digestType, language = F
   const notificationsHtml = notifications.map(n => `
     <div style="margin: 15px 0; padding: 15px; border-left: 4px solid #3b82f6; background-color: #f0f9ff;">
       <p style="margin: 0; font-weight: bold; color: #333;">${escapeHtml(n.title)}</p>
-      <p style="margin: 5px 0 0; color: #666;">${escapeHtml(n.message)}</p>
+      <p style="margin: 5px 0 0; color: #666;">${escapeHtml(n.body || n.message || '')}</p>
       <p style="margin: 5px 0 0; font-size: 12px; color: #999;">
         ${dateFormatter.format(new Date(n.created_at))}
       </p>
@@ -234,6 +252,16 @@ function buildDigestEmailHtml(firstName, notifications, digestType, language = F
     </body>
     </html>
   `;
+}
+
+function getDigestWindowKey(date, digestType) {
+  if (digestType === 'daily') return date.toISOString().slice(0, 10);
+  const value = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+  const day = value.getUTCDay() || 7;
+  value.setUTCDate(value.getUTCDate() + 4 - day);
+  const yearStart = new Date(Date.UTC(value.getUTCFullYear(), 0, 1));
+  const week = Math.ceil((((value - yearStart) / 86400000) + 1) / 7);
+  return `${value.getUTCFullYear()}-W${String(week).padStart(2, '0')}`;
 }
 
 function normalizeLanguage(language) {

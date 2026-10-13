@@ -7,7 +7,13 @@ async function cleanupExpiredChallenges({ limit = 1000 } = {}) {
   let total = 0;
   for (const table of tables) {
     const { rowCount } = await db.query(
-      `DELETE FROM ${table} WHERE expires_at < NOW() LIMIT $1`,
+      `DELETE FROM ${table}
+        WHERE ctid IN (
+          SELECT ctid FROM ${table}
+          WHERE expires_at < NOW()
+          ORDER BY expires_at ASC
+          LIMIT $1
+        )`,
       [limit]
     );
     total += rowCount || 0;

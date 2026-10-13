@@ -23,6 +23,8 @@ function buildSchedule() {
   const { renewSubscriptionCredit } = require('./subscriptionCreditWorkers');
   const { expireTimedEnforcements } = require('../controllers/enforcementController');
   const { pollIssuanceCycle } = require('../jobs/statementIssuanceScheduler');
+  const { processEmailDigest } = require('../jobs/emailDigestBatch');
+  const { cleanupExpiredChallenges } = require('./passkeyWorkers');
 
   return [
     // [name, workerFn, intervalMs, options]
@@ -54,6 +56,14 @@ function buildSchedule() {
     // No-op unless STORAGE_CLEANUP_ENABLED=true.
     ['storageDeletionQueue', (options) => require('../services/storageCleanupService').processStorageDeletionQueue(options),
       15 * 60 * 1000, { limit: 100 }],
+    // Bound passkey challenge tables even when no new challenge is saved.
+    ['cleanupExpiredPasskeyChallenges', cleanupExpiredChallenges, 15 * 60 * 1000, { limit: 1000 }],
+    // Deliver queued notification digests through the shared email provider.
+    ['emailDigestDaily', () => processEmailDigest('daily'), 24 * 60 * 60 * 1000, {}],
+    ['emailDigestWeekly', () => {
+      if (new Date().getUTCDay() !== 1) return Promise.resolve({ skipped: true, reason: 'not_monday' });
+      return processEmailDigest('weekly');
+    }, 24 * 60 * 60 * 1000, {}],
   ];
 }
 

@@ -167,3 +167,7 @@ Tier-3 receipt follow-up: protected job PaymentIntents now set Stripe `receipt_e
 
 Provider consolidation follow-up: platform email delivery now always uses the shared Resend path while per-user SMTP remains an explicit opt-in, and legacy OTP/job-alert SMS wrappers delegate to the single configured Twilio implementation. Focused email, SMS, and food-notification regressions pass.
 
+Digest follow-up: the queued daily/weekly email digest is now registered in the fenced scheduled-worker set, sends through Resend with a stable window key, reads the canonical notification body, and marks queue rows sent only after confirmed delivery.
+
+
+W15 scheduler follow-up: email digests now use canonical notification bodies and ISO week delivery windows; planned-need notifications carry stable idempotency keys; recurring job spawning is wrapped in the fenced scheduler lock; passkey challenge cleanup is registered and uses PostgreSQL-compatible bounded deletion.
