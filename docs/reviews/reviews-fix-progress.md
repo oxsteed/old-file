@@ -259,3 +259,26 @@ Run `38359563109` failed 45 server tests in 11 suites and the disposable Media C
 The Media failure was PostgreSQL `42P08`: sanctions screening reused `$4` as an INSERT varchar value and a CASE comparison with a conflicting inferred type. Both references now explicitly use varchar. A migrated PostgreSQL regression covers hit/clear/error persistence, the hit review deadline, and reuse of fresh screenings. Protected helper-profile tests additionally prove missing and expired approval timestamps remain denied.
 
 Validation: focused non-DB tests passed (6 suites / 60 tests); compliance and Didit gate tests passed (2 suites / 33 tests); all six affected DB suites plus the new sanctions DB regression passed (7 suites / 99 tests). Original screening SQL independently reproduced `42P08` in the disposable database. The full migration chain through 791 applied successfully using `npm run migrate`. Client checks and CodeQL had passed in the failed remote run; these changes contain no client code. Full server and fresh remote CI verification remain pending at this checkpoint. Deployment is not being monitored.
+
+
+## W10.5 closure audit follow-up (2026-10-13, PR #567, ready for review)
+
+Revalidation found remaining failures despite PR #505's prior green checks:
+food audit writes omitted mandatory `admin_id`; payout processing referenced a
+nonexistent payout owner column and used an invalid outer-join row lock; lifecycle
+notifications had no title/body templates, dispute-update had no emitter, and
+subscription actions targeted a nonexistent URL. The follow-up repairs these
+paths, binds processor verification to the Connect owner, rechecks locked method
+and capability before transferring, and closes legacy-session immediate
+revocation with the established user-wide fallback when its identifier is absent.
+
+Focused verification: 15 suites/229 tests; subsequent real PostgreSQL controller
+and schema coverage: 6 tests. Client build:ci, 470 client script tests and the
+admin operations browser check passed. Full local server Jest was started; the
+unchanged million-row export case timed out on the disposable DB, and the run
+is still active. Remote follow-up checks/migration rehearsal remain required.
+No new migration, deployment wait, or P3-1009 change.
+
+Use `review-wave-closure-audit-2026-10-13.md` for current closure evidence. W11's
+33 remaining IDs are unproven; P2-453/P2-454 await this follow-up's green merge.
+W12–W19 are not declared complete.

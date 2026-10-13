@@ -1,4 +1,26 @@
 {
+  "reviewLifecycleNotifications": {
+    "dispute_update": {
+      "title": "New dispute message",
+      "body": "There is a new message in your dispute. Open it to review and reply."
+    },
+    "subscription_renewed": {
+      "title": "Subscription renewed",
+      "body": "Your subscription payment was received. Review your billing details."
+    },
+    "subscription_cancelled": {
+      "title": "Subscription cancelled",
+      "body": "Your subscription has ended. Review your plan and billing options."
+    },
+    "subscription_past_due": {
+      "title": "Subscription payment overdue",
+      "body": "We could not collect your subscription payment. Review your payment method."
+    },
+    "payment_failed": {
+      "title": "Payment failed",
+      "body": "Your card payment could not be completed. Open the order or job to review payment options."
+    }
+  },
   "footer": {
     "explore": "Explore",
     "help": "Help",

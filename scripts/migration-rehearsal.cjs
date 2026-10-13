@@ -9,7 +9,7 @@
  *   node scripts/migration-rehearsal.cjs [--from <n>] [--keep] [--timeout-ms <ms>]
  *
  * Modes:
- *   fresh (default)   start an empty postgres:16-alpine container, run the full
+ *   fresh (default)   start an empty PostGIS-enabled PostgreSQL container, run the full
  *                     migration chain, verify guard triggers exist.
  *   catch-up          --from <n> applies migrations 001..n first, then the rest,
  *                     simulating a production database catching up after lag.
@@ -90,7 +90,15 @@ function buildVerifySql() {
 }
 
 async function runQuery(psqlEnv, databaseUrl, sql, execImpl) {
-  const { stdout } = await execAsync(execImpl, 'psql', [databaseUrl, '-tA', '-F', ',', '-c', sql], { env: psqlEnv, timeout: 60000 });
+  // Use the installed server driver; rehearsal does not require a host psql.
+  const probe = `const { Client } = require(${JSON.stringify(path.join(REPO_ROOT, 'server/node_modules/pg'))});
+    const client = new Client({ connectionString: process.env.DATABASE_URL });
+    (async () => { try { await client.connect();
+      const result = await client.query(process.argv[1]);
+      for (const part of (Array.isArray(result) ? result : [result]))
+        for (const row of part.rows) console.log(Object.values(row).join(','));
+    } finally { await client.end(); } })().catch(error => { console.error(error.message); process.exitCode = 1; });`;
+  const { stdout } = await execAsync(execImpl, 'node', ['-e', probe, sql], { env: { ...psqlEnv, DATABASE_URL: databaseUrl }, timeout: 60000 });
   return stdout.trim();
 }
 
@@ -135,12 +143,16 @@ async function rehearseMigrations({
       log(`Starting disposable postgres container ${name}...`);
       const run = await execAsync(execImpl, 'docker', [
         'run', '--rm', '-d', '--name', name,
+        '-p', '127.0.0.1::5432',
         '-e', `POSTGRES_PASSWORD=${password}`,
         '-e', 'POSTGRES_DB=oxsteed_rehearsal',
-        'postgres:16-alpine',
+        'postgis/postgis:16-3.4-alpine',
       ], { timeout: 120000 });
       containerId = run.stdout.trim();
-      databaseUrl = `postgres://postgres:${password}@localhost:5432/oxsteed_rehearsal`;
+      const port = await execAsync(execImpl, 'docker', ['port', containerId, '5432/tcp'], { timeout: 15000 });
+      const mapping = /^127\.0\.0\.1:(\d+)$/.exec(port.stdout.trim());
+      if (!mapping) throw new Error('Rehearsal database is not mapped to loopback');
+      databaseUrl = `postgres://postgres:${password}@127.0.0.1:${mapping[1]}/oxsteed_rehearsal?sslmode=disable`;
       // Wait for readiness.
       let ready = false;
       for (let i = 0; i < 30; i += 1) {
@@ -162,15 +174,16 @@ async function rehearseMigrations({
     const failures = [];
 
     async function applyBatch(batch, label) {
-      for (const file of batch) {
-        const t0 = now();
-        try {
-          await execAsync(execImpl, 'node', [path.join(REPO_ROOT, 'server', 'migrate.js')], { env: migrateEnv, timeout: args.timeoutMs });
-          applied.push({ file, ms: now() - t0, label });
-        } catch (err) {
-          failures.push({ file, label, error: String((err && err.stderr) || (err && err.message) || err).slice(0, 2000) });
-          throw new Error(`Migration ${file} failed during ${label} rehearsal`);
-        }
+      if (!batch.length) return;
+      const file = batch[batch.length - 1];
+      const t0 = now();
+      try {
+        await execAsync(execImpl, 'node', [path.join(REPO_ROOT, 'server', 'migrate.js'), '--through', file], { env: migrateEnv, timeout: args.timeoutMs, maxBuffer: 16 * 1024 * 1024 });
+        for (const migration of batch) applied.push({ file: migration, label });
+        log(`${label}: ${batch.length} migrations checked in ${now() - t0}ms.`);
+      } catch (err) {
+        failures.push({ file, label, error: String((err && err.stderr) || (err && err.message) || err).slice(0, 2000) });
+        throw new Error(`Migration chain through ${file} failed during ${label} rehearsal`);
       }
     }
 
@@ -183,6 +196,8 @@ async function rehearseMigrations({
     } else {
       await applyBatch(files, 'fresh');
     }
+    log('Re-running the complete runner to verify markers and checksums...');
+    await execAsync(execImpl, 'node', [path.join(REPO_ROOT, 'server', 'migrate.js')], { env: migrateEnv, timeout: args.timeoutMs, maxBuffer: 16 * 1024 * 1024 });
 
     // Post-run verification: guard triggers present and enabled, no
     // out-of-enum legacy rows in the newly guarded money tables.
@@ -190,8 +205,9 @@ async function rehearseMigrations({
     const verifySql = buildVerifySql();
     const verifyOut = await runQuery(migrateEnv, databaseUrl, verifySql, execImpl);
     const missing = [];
+    const counts = new Map(verifyOut.split('\n').map(line => line.split(',')));
     for (const check of GUARD_CHECKS) {
-      if (check.trigger && !verifyOut.includes(check.trigger)) missing.push(check.trigger);
+      if (check.trigger && Number(counts.get(check.trigger)) !== 1) missing.push(check.trigger);
     }
     const unexpected = [];
     for (const line of verifyOut.split('\n')) {
@@ -204,7 +220,7 @@ async function rehearseMigrations({
 
     const durationMs = now() - startedAt;
     const report = {
-      ok: missing.length === 0 && failures.length === 0,
+      ok: missing.length === 0 && failures.length === 0 && unexpected.length === 0,
       mode,
       migrationsApplied: applied.length,
       totalMigrations: files.length,

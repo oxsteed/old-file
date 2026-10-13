@@ -401,14 +401,15 @@ class PayoutController {
         // pending payout may move to processing, so concurrent requests (or a
         // double click) cannot send the same payout twice.
         const payoutResult = await client.query(
-          `SELECT ap.*, pm.stripe_account_id, pm.paypal_email, pm.status AS payout_method_status,
+          `SELECT ap.*, aprg.helper_id AS helper_id, pm.stripe_account_id, pm.paypal_email, pm.status AS payout_method_status,
                   ca.payouts_enabled AS connect_payouts_enabled, u.email
              FROM affiliate_payouts ap
-             LEFT JOIN payout_methods pm ON ap.payout_method_id = pm.id
-             LEFT JOIN connect_accounts ca ON ca.stripe_account_id = pm.stripe_account_id
-             LEFT JOIN users u ON ap.helper_id = u.id
+             JOIN affiliate_programs aprg ON aprg.id = ap.affiliate_program_id
+             LEFT JOIN payout_methods pm ON ap.payout_method_id = pm.id AND pm.helper_id = aprg.helper_id
+             LEFT JOIN connect_accounts ca ON ca.stripe_account_id = pm.stripe_account_id AND ca.user_id = aprg.helper_id
+             LEFT JOIN users u ON aprg.helper_id = u.id
             WHERE ap.id = $1
-            FOR UPDATE`,
+            FOR UPDATE OF ap`,
           [payout_id]
         );
 
@@ -423,6 +424,26 @@ class PayoutController {
           return sendError(res, 409, 'Payout is not pending');
         }
 
+        // Lock and re-read the processor-backed method before claiming money.
+        // PostgreSQL cannot lock the nullable sides of the outer joins above.
+        // These inner joins also bind the method and Connect account to the
+        // payout owner and serialize deactivation/capability updates.
+        const { rows: [method] } = await client.query(
+          `SELECT pm.status AS payout_method_status, pm.stripe_account_id,
+                  ca.payouts_enabled AS connect_payouts_enabled
+             FROM payout_methods pm
+             JOIN connect_accounts ca ON ca.stripe_account_id = pm.stripe_account_id
+                                    AND ca.user_id = pm.helper_id
+            WHERE pm.id = $1 AND pm.helper_id = $2
+            FOR UPDATE OF pm, ca`,
+          [payout.payout_method_id, payout.helper_id]
+        );
+        if (!method) {
+          await client.query('ROLLBACK');
+          return sendError(res, 409, 'Payout method has no matching Stripe Connect account');
+        }
+        Object.assign(payout, method);
+
         // Claim the row before touching the processor.
         const { rows: [claimed] } = await client.query(
           `UPDATE affiliate_payouts
@@ -436,6 +457,10 @@ class PayoutController {
           return sendError(res, 409, 'Payout is already being processed');
         }
 
+        if (payout.connect_payouts_enabled !== true) {
+          await client.query('ROLLBACK');
+          return sendError(res, 409, 'Stripe Connect payouts are not enabled');
+        }
         if (payout.stripe_account_id && payout.connect_payouts_enabled === true
           && payout.payout_method_status === 'pending') {
           await client.query(

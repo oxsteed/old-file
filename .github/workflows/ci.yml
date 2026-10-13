@@ -274,14 +274,14 @@ jobs:
         working-directory: server
         run: npm ci
 
-      - name: Apply every migration twice
+      - name: Rehearse migration catch-up and checksum replay
         working-directory: server
         env:
           DATABASE_URL: postgresql://oxsteed:migration-rehearsal-password@127.0.0.1:5432/credit_card_security_test?sslmode=disable
           NODE_ENV: test
         run: |
-          npm run migrate
-          npm run migrate
+          node --test ../scripts/migration-rehearsal.test.cjs
+          REHEARSAL_DATABASE_URL="$DATABASE_URL" node ../scripts/migration-rehearsal.cjs --from 785
 
       - name: Rehearse card security and concurrent recovery
         working-directory: server

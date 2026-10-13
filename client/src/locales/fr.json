@@ -1,4 +1,26 @@
 {
+  "reviewLifecycleNotifications": {
+    "dispute_update": {
+      "title": "Nouveau message dans votre litige",
+      "body": "Un nouveau message est disponible dans votre litige. Ouvrez-le pour le consulter et répondre."
+    },
+    "subscription_renewed": {
+      "title": "Abonnement renouvelé",
+      "body": "Le paiement de votre abonnement a été reçu. Consultez vos informations de facturation."
+    },
+    "subscription_cancelled": {
+      "title": "Abonnement résilié",
+      "body": "Votre abonnement a pris fin. Consultez votre formule et vos options de facturation."
+    },
+    "subscription_past_due": {
+      "title": "Paiement de l’abonnement en retard",
+      "body": "Nous n’avons pas pu encaisser votre abonnement. Vérifiez votre moyen de paiement."
+    },
+    "payment_failed": {
+      "title": "Échec du paiement",
+      "body": "Votre paiement par carte n’a pas abouti. Ouvrez la commande ou la mission pour consulter les options de paiement."
+    }
+  },
   "signupUpgrade": {
     "title": "Créez votre compte",
     "subtitle": "Un compte. Votre choix.",
