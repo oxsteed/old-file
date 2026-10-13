@@ -181,3 +181,5 @@ W15 envelope follow-up: Checkr now requires a signed event id and recent creatio
 W16 launch-gate follow-up: DIDIT_ALLOW_USER_SKIP now defaults closed and requires an explicit `true` opt-in; unset or other values cannot convert an unverified account to skipped. Gate and skip-controller tests cover the fail-closed default.
 
 W16 booking follow-up: appointment capacity and staff-overlap guards now exclude both cancelled and no-show appointments, matching the slot engine and preventing phantom capacity consumption after a no-show.
+
+W17 receipt follow-up: completed OxSteed Credit Stripe top-ups now emit a localized, idempotent `payment_receipt` notification to the customer with the top-up and PaymentIntent references. Duplicate, failed, expired, and requires-attention paths do not emit a receipt.
