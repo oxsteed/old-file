@@ -9304,6 +9304,7 @@
       "slotBookingToast": "Solicitud de reserva enviada. El proveedor aún debe confirmar.",
       "slotBookingFailed": "No se pudo crear la solicitud de reserva. El mensaje del chat sí se preparó.",
       "slotBookingConflict": "Ese horario ya no está disponible. Elige otro.",
+      "slotBookingDisabled": "Este ayudante no está aceptando reservas ahora mismo.",
       "guestSessionExpired": "Tu sesión de invitado expiró. Verifica tu correo otra vez.",
       "slotBookingConfirmedPlain": "Solicitud de reserva enviada · {{when}}",
       "guestOtpExpired": "Ese código expiró. Toca Reenviar código para obtener uno nuevo.",

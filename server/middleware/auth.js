@@ -226,6 +226,11 @@ async function authenticate(req, res, next) {
           `UPDATE users SET is_suspended = false, suspended_until = NULL, suspended_reason = NULL WHERE id = $1`,
           [user.id]
         ).catch(() => {});
+        // Review P2-1-F03: keep the in-request user truthful too, so code
+        // downstream of authenticate sees the lifted state immediately.
+        user.is_suspended = false;
+        user.suspended_until = null;
+        user.suspended_reason = null;
       }
     }
 

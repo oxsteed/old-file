@@ -595,6 +595,35 @@ async function expireTimedEnforcements({ limit = 500 } = {}) {
       }
       lifted += 1;
     }
+    // Review P2-1-F03: direct timed suspensions (users.is_suspended with a
+    // suspended_until, written by the admin suspend path or suspendUser())
+    // have no enforcement_actions row, so the loop above never sees them and
+    // they never auto-lifted — the admin notice even promises a lift date.
+    // Lift them here once the end time passes. is_active is restored because
+    // the admin suspend path deactivates the account as part of the
+    // suspension; soft-deleted rows (deleted_at set) are left alone, and
+    // indefinite suspensions (suspended_until IS NULL) still need manual lift.
+    const { rows: directLifted } = await client.query(
+      `UPDATE users
+          SET is_suspended     = false,
+              suspended_until  = NULL,
+              suspended_reason = NULL,
+              is_active        = true,
+              updated_at       = NOW()
+        WHERE is_suspended = true
+          AND suspended_until IS NOT NULL
+          AND suspended_until <= NOW()
+          AND deleted_at IS NULL
+          AND NOT EXISTS (
+            SELECT 1 FROM enforcement_actions
+             WHERE user_id = users.id
+               AND action_type = 'suspension'
+               AND is_active = true
+               AND (expires_at IS NULL OR expires_at > NOW())
+          )
+        RETURNING id`
+    );
+    lifted += directLifted.length;
     await client.query('COMMIT');
     return { scanned: expired.length, lifted };
   } catch (err) {

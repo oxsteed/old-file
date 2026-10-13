@@ -9304,6 +9304,7 @@
       "slotBookingToast": "Booking request sent. The provider still needs to confirm.",
       "slotBookingFailed": "Could not create the booking request. Your chat message was still prepared.",
       "slotBookingConflict": "That time is no longer available. Pick another slot.",
+      "slotBookingDisabled": "This helper is not taking bookings right now.",
       "guestSessionExpired": "Your guest session expired. Please verify your email again.",
       "slotBookingConfirmedPlain": "Booking request sent · {{when}}",
       "guestOtpExpired": "That code expired. Tap Resend code for a new one.",
