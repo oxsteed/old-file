@@ -909,6 +909,28 @@ exports.getBusinessAvailableSlots = async (req, res) => {
       [businessId, date]
     );
     const busy = appointmentsResult.rows.map((row) => ({ start: row.start_time, end: row.end_time }));
+
+    // Review P2-3-F08: the merchant slot engine subtracts
+    // business_service_blocked_times (time off), but this customer-facing
+    // computation ignored them, so customers could book into blocked time.
+    // Mirror the engine's scoping: service-specific blocks apply to their
+    // service, staff-level (service_id NULL) blocks apply business-wide.
+    const blockedResult = await pool.query(
+      `SELECT to_char(GREATEST(bt.start_time, $2::timestamptz), 'HH24:MI:SS') AS start_time,
+              CASE WHEN LEAST(bt.end_time, (($2::date + INTERVAL '1 day')::timestamptz)) >= (($2::date + INTERVAL '1 day')::timestamptz)
+                   THEN '23:59:59'
+                   ELSE to_char(LEAST(bt.end_time, (($2::date + INTERVAL '1 day')::timestamptz)), 'HH24:MI:SS')
+              END AS end_time
+         FROM business_service_blocked_times bt
+        WHERE bt.business_id = $1
+          AND bt.end_time > $2::timestamptz
+          AND bt.start_time < (($2::date + INTERVAL '1 day')::timestamptz)
+          ${serviceId ? 'AND (bt.service_id = $3 OR bt.service_id IS NULL)' : 'AND bt.service_id IS NULL'}`,
+      serviceId ? [businessId, date, String(serviceId)] : [businessId, date]
+    );
+    for (const row of blockedResult.rows) {
+      busy.push({ start: row.start_time, end: row.end_time });
+    }
     const slots = [];
     for (const block of effectiveHours) {
       slots.push(...sliceWindowToHourSlots(block.start_time, block.end_time, busy, durationMinutes, 30));

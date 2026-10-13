@@ -53,6 +53,58 @@ const EMAIL_COPY = {
       footer: 'فريق OxSteed',
     },
   },
+  business_invite: {
+    en: {
+      subject: "You're invited to join {{business}} on OxSteed",
+      eyebrow: 'TEAM INVITATION',
+      intro: '{{inviter}} invited you to join {{business}} as a {{role}}.',
+      body: 'Create a free OxSteed account with this email address to accept the invitation and start collaborating.',
+      cta: 'Create your account',
+      footer: 'The OxSteed Team',
+      roleManager: 'Manager',
+      roleRepresentative: 'Representative',
+    },
+    fr: {
+      subject: 'Vous êtes invité(e) à rejoindre {{business}} sur OxSteed',
+      eyebrow: 'INVITATION À REJOINDRE UNE ÉQUIPE',
+      intro: '{{inviter}} vous a invité(e) à rejoindre {{business}} en tant que {{role}}.',
+      body: "Créez un compte OxSteed gratuit avec cette adresse e-mail pour accepter l'invitation et commencer à collaborer.",
+      cta: 'Créer votre compte',
+      footer: "L'équipe OxSteed",
+      roleManager: 'Gestionnaire',
+      roleRepresentative: 'Représentant',
+    },
+    es: {
+      subject: 'Te invitaron a unirte a {{business}} en OxSteed',
+      eyebrow: 'INVITACIÓN DE EQUIPO',
+      intro: '{{inviter}} te invitó a unirte a {{business}} como {{role}}.',
+      body: 'Crea una cuenta gratuita de OxSteed con esta dirección de correo para aceptar la invitación y empezar a colaborar.',
+      cta: 'Crear tu cuenta',
+      footer: 'El equipo de OxSteed',
+      roleManager: 'Gerente',
+      roleRepresentative: 'Representante',
+    },
+    ht: {
+      subject: 'Yo envite ou pou rantre nan {{business}} sou OxSteed',
+      eyebrow: 'ENVITASYON EKIP',
+      intro: '{{inviter}} envite ou pou rantre nan {{business}} kòm {{role}}.',
+      body: 'Kreye yon kont OxSteed gratis ak adrès imèl sa a pou aksepte envitasyon an epi kòmanse kolabore.',
+      cta: 'Kreye kont ou',
+      footer: 'Ekip OxSteed',
+      roleManager: 'Manadjè',
+      roleRepresentative: 'Reprezantan',
+    },
+    ar: {
+      subject: 'تمت دعوتك للانضمام إلى {{business}} على OxSteed',
+      eyebrow: 'دعوة فريق',
+      intro: 'دعاك {{inviter}} للانضمام إلى {{business}} بصفة {{role}}.',
+      body: 'أنشئ حساب OxSteed مجانيًا باستخدام عنوان البريد الإلكتروني هذا لقبول الدعوة وبدء التعاون.',
+      cta: 'أنشئ حسابك',
+      footer: 'فريق OxSteed',
+      roleManager: 'مدير',
+      roleRepresentative: 'ممثل',
+    },
+  },
   otp: {
     en: {
       subject: 'Your OxSteed verification code',
@@ -348,6 +400,42 @@ async function sendWelcomeEmail(user, language = FALLBACK_LANGUAGE, options = {}
   });
 }
 
+// Review P2-3-F11: business invites to an email with no OxSteed account were
+// silent (only in-app notifications for existing users). This sends the
+// invitation email so the invitee can create an account and accept.
+async function sendBusinessInviteEmail(email, options = {}) {
+  const lang = normalizeEmailLanguage(options.language);
+  const copy = EMAIL_COPY.business_invite[lang] || EMAIL_COPY.business_invite[FALLBACK_LANGUAGE];
+  const safeEmail = textSafe(email).trim().toLowerCase();
+  if (!safeEmail) return { success: false, error: 'Email is required' };
+  const businessName = textSafe(options.businessName) || 'a business';
+  const inviterName = textSafe(options.inviterName) || 'Someone';
+  const roleLabel = options.role === 'manager' ? copy.roleManager : copy.roleRepresentative;
+  const values = { business: businessName, inviter: inviterName, role: roleLabel };
+  const subject = templateText(copy.subject, values);
+  const rendered = renderOxSteedEmail({
+    language: lang,
+    preheader: templateText(copy.intro, values),
+    eyebrow: copy.eyebrow,
+    title: templateText(copy.intro, values),
+    intro: templateText(copy.intro, values),
+    bodyText: copy.body,
+    bodyHtml: `<p style="margin:0 0 16px;color:#334155;font-size:16px;line-height:1.65;">${escapeHtml(copy.body)}</p>`,
+    cta: { label: copy.cta, url: '/join' },
+    footerText: copy.footer,
+  });
+  const inviteId = textSafe(options.inviteId);
+  return sendEmail({
+    to: safeEmail,
+    subject,
+    text: rendered.text,
+    html: rendered.html,
+    // Pin one email per invite row; a re-invite creates a new row (new id)
+    // so the invitee still hears about it.
+    idempotencyKey: inviteId ? `business-invite:${inviteId}` : undefined,
+  });
+}
+
 async function sendOTPEmail(email, otp, language = FALLBACK_LANGUAGE, guestChatOptions = null) {
   const lang = normalizeEmailLanguage(language);
   const copy = EMAIL_COPY.otp[lang] || EMAIL_COPY.otp[FALLBACK_LANGUAGE];
@@ -519,6 +607,7 @@ module.exports = {
   sendEmailOrThrow,
   EmailDeliveryError,
   sendWelcomeEmail,
+  sendBusinessInviteEmail,
   sendOTPEmail,
   sendPasswordResetEmail,
   sendPrivacyRequestConfirmation,

@@ -47,6 +47,7 @@ const {
 
 const {
   getBusinessServices, createBusinessService, updateBusinessService, deleteBusinessService,
+  listServiceBlockedTimes, createServiceBlockedTime, deleteServiceBlockedTime,
   getBusinessGallery, addBusinessGalleryPhoto, updateBusinessGalleryPhoto, deleteBusinessGalleryPhoto,
   getBusinessPolicies, createBusinessPolicy, updateBusinessPolicy, deleteBusinessPolicy,
   getBusinessFAQs, createBusinessFAQ, updateBusinessFAQ, deleteBusinessFAQ,
@@ -171,6 +172,10 @@ router.get('/:businessId/services',              optionalAuth, getBusinessServic
 router.post('/:businessId/services',             authenticate, businessIdAccess('any'), createBusinessService);
 router.put('/:businessId/services/:serviceId',   authenticate, businessIdAccess('any'), updateBusinessService);
 router.delete('/:businessId/services/:serviceId', authenticate, businessIdAccess('any'), deleteBusinessService);
+// Review P2-3-F03: writers for business_service_blocked_times (time off).
+router.get('/:businessId/services/:serviceId/blocked-times', authenticate, businessIdAccess('manager'), listServiceBlockedTimes);
+router.post('/:businessId/services/:serviceId/blocked-times', authenticate, businessIdAccess('manager'), createServiceBlockedTime);
+router.delete('/:businessId/services/:serviceId/blocked-times/:blockId', authenticate, businessIdAccess('manager'), deleteServiceBlockedTime);
 
 // GALLERY
 router.get('/:businessId/gallery',               optionalAuth, getBusinessGallery);

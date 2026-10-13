@@ -2483,9 +2483,11 @@ exports.quoteOrder = async (req, res, next) => {
       throw new AppError('Validation failed', 400, 'validation_failed', { items: 'At least one item is required' });
     }
 
-    // Parse order source early: kiosk/in-store orders don't require public listing
+    // Parse order source early: kiosk/in-store vs online only affects the
+    // channel-acceptance check below. Restaurant eligibility matches
+    // createOrder exactly (Review P2-3-F07): a quote must never succeed where
+    // order creation would be rejected.
     const orderSourceEarly = normalizeString(req.body.orderSource || req.body.order_source, 24) || 'kiosk';
-    const isKioskOrder = ['kiosk', 'counter', 'tablet'].includes(orderSourceEarly);
     const { rows: restaurants } = await pool.query(
       `SELECT fr.*,
               -- Single Connect source of truth: restaurant_connect_accounts
@@ -2497,15 +2499,15 @@ exports.quoteOrder = async (req, res, next) => {
          LEFT JOIN businesses b ON b.id = fr.business_id
          LEFT JOIN restaurant_connect_accounts rca ON rca.restaurant_id = fr.id
         WHERE fr.id = $1
-          AND fr.status IN ('active','paused')
-          AND ($2 OR fr.discovery_status = 'visible')
+          AND fr.status = 'active'
+          AND fr.discovery_status = 'visible'
           AND COALESCE(fr.is_hidden_by_admin, FALSE) = FALSE
           AND b.is_active = TRUE
-          AND ($2 OR b.is_listed = TRUE)
-          AND COALESCE(b.setup_status, 'active') IN ('active', 'paused')
+          AND b.is_listed = TRUE
+          AND COALESCE(b.setup_status, 'active') = 'active'
           AND COALESCE(b.business_kind, 'restaurant') = 'restaurant'
           AND b.deleted_at IS NULL`,
-      [restaurantId, isKioskOrder]
+      [restaurantId]
     );
     const restaurant = restaurants[0];
     if (!restaurant) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');

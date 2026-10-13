@@ -296,3 +296,149 @@
     gap: 1rem;
   }
 }
+
+/* ── Time off (blocked times) — Review P2-3-F03 ─────────────────────────── */
+.bst-timeoff {
+  margin-top: 0.9rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  padding-top: 0.75rem;
+}
+
+.bst-timeoff-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: #d1d5db;
+  border-radius: 999px;
+  padding: 0.3rem 0.75rem;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.bst-timeoff-toggle:hover {
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.bst-timeoff-count {
+  background: #f59e0b;
+  color: #111827;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 0.05rem 0.45rem;
+}
+
+.bst-timeoff-body {
+  margin-top: 0.6rem;
+}
+
+.bst-timeoff-desc,
+.bst-timeoff-empty {
+  font-size: 0.8rem;
+  color: #9ca3af;
+  margin: 0 0 0.5rem;
+}
+
+.bst-timeoff-list {
+  list-style: none;
+  margin: 0 0 0.6rem;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.bst-timeoff-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  background: rgba(245, 158, 11, 0.08);
+  border: 1px solid rgba(245, 158, 11, 0.25);
+  border-radius: 0.6rem;
+  padding: 0.5rem 0.65rem;
+}
+
+.bst-timeoff-range {
+  font-size: 0.82rem;
+  color: #fcd34d;
+  font-weight: 600;
+}
+
+.bst-timeoff-reason {
+  font-size: 0.75rem;
+  color: #9ca3af;
+}
+
+.bst-timeoff-add {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  background: transparent;
+  border: 1px dashed rgba(255, 255, 255, 0.2);
+  color: #d1d5db;
+  border-radius: 0.6rem;
+  padding: 0.4rem 0.8rem;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.bst-timeoff-add:hover {
+  border-color: #f59e0b;
+  color: #fcd34d;
+}
+
+.bst-timeoff-form {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 0.6rem;
+  padding: 0.7rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.bst-timeoff-form-row {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr 1fr;
+  gap: 0.5rem;
+}
+
+.bst-timeoff-form label,
+.bst-timeoff-reason-label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.75rem;
+  color: #9ca3af;
+}
+
+.bst-timeoff-form input {
+  background: #111827;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: #f3f4f6;
+  border-radius: 0.5rem;
+  padding: 0.45rem 0.6rem;
+  font-size: 0.85rem;
+  color-scheme: dark;
+}
+
+.bst-timeoff-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.bst-timeoff-form-actions .bst-btn-cancel,
+.bst-timeoff-form-actions .bst-btn-save {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+@media (max-width: 768px) {
+  .bst-timeoff-form-row {
+    grid-template-columns: 1fr;
+  }
+}
