@@ -25,6 +25,25 @@ function scannerConfig() {
 }
 
 /**
+ * Review P3-6-F09 risk decision (documented, tiered posture):
+ *
+ * - Public, widely-distributed uploads (restaurant media, media-creator
+ *   photos/videos) FAIL CLOSED: they require a clean verdict from a real
+ *   scanner and 503 when ClamAV is unconfigured or unreachable. Malware in
+ *   these flows reaches every viewer, so availability yields to safety.
+ * - General uploads (profile photos, chat/job attachments, dispute evidence,
+ *   ...) use static validation as the baseline when no scanner is configured:
+ *   magic-byte sniffing, an extension allowlist, and the EICAR test signature
+ *   (always blocked, proving the static path is not a pass-through). This is
+ *   a deliberate availability trade-off: uploads are core product
+ *   functionality and must keep working on deployments without a ClamAV
+ *   daemon. Set FILE_SCAN_REQUIRE_MALWARE=true (with CLAMAV_HOST) to force
+ *   every upload path fail-closed instead.
+ * - Scanner status is visible to admins at GET /api/monitoring/upload-security
+ *   (manage_operations grant) and raises an UPLOAD_MALWARE_SCANNER_NOT_CONFIGURED
+ *   alert on GET /api/monitoring/health; a startup warning is logged when the
+ *   server boots in static-only mode.
+ *
  * Scan an upload with clamd's INSTREAM protocol when configured. Static
  * extension and magic-byte checks remain the baseline when no scanner is
  * configured, but a configured scanner fails closed on connection errors.

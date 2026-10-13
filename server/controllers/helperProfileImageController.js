@@ -174,6 +174,17 @@ exports.deleteCoverImage = async (req, res) => {
 
     logger.info('Deleting cover image', { helperId });
 
+    // Review P3-6-F03: read the current cover URLs before clearing so the
+    // removed objects can be queued for deletion instead of orphaned.
+    const existingResult = await pool.query(
+      'SELECT cover_image_url, cover_photo_url FROM helper_profiles WHERE user_id = $1',
+      [helperId]
+    );
+    if (existingResult.rows.length === 0) {
+      return sendError(res, 404, 'Helper profile not found');
+    }
+    const oldCover = existingResult.rows[0];
+
     // Update helper profile (clear cover image URL)
     const result = await pool.query(
       `UPDATE helper_profiles
@@ -187,6 +198,13 @@ exports.deleteCoverImage = async (req, res) => {
 
     if (result.rows.length === 0) {
       return sendError(res, 404, 'Helper profile not found');
+    }
+
+    if (oldCover.cover_image_url) {
+      await enqueueStorageDeletion(oldCover.cover_image_url, 'helper_cover_deleted');
+    }
+    if (oldCover.cover_photo_url && oldCover.cover_photo_url !== oldCover.cover_image_url) {
+      await enqueueStorageDeletion(oldCover.cover_photo_url, 'helper_cover_deleted');
     }
 
     // Keep primary business profile in sync

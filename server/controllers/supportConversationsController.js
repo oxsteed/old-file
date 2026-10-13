@@ -12,7 +12,8 @@ const { sendEmail, EMAIL_ADDRESSES } = require('../utils/email');
 const { sendSupportEmail, retryFailedSupportEmails } = require('../services/supportEmailOutbox');
 const escapeHtml = require('../utils/escapeHtml');
 const { uploadFile, getSignedDownloadUrl, deleteFile } = require('../utils/storage');
-const { validateMediaUrl } = require('../utils/mediaUrlValidation');
+const { normalizeAttachmentReference } = require('../utils/mediaUrlValidation');
+const { enqueueStorageDeletion } = require('../services/storageCleanupService');
 const { withTransaction } = require('../utils/transaction');
 const supportConversationStateMachine = require('../services/supportConversationStateMachine');
 const supportChannelDeliveryService = require('../services/supportChannelDeliveryService');
@@ -106,31 +107,6 @@ async function notifyCustomerOfConversationStatus(conversation, status, resoluti
       status: safeStatus,
       error: result?.error || 'unknown error',
     });
-  }
-}
-
-function normalizeAttachmentReference(attachmentUrl, attachmentName) {
-  const rawUrl = String(attachmentUrl ?? '').trim();
-  const rawName = String(attachmentName ?? '').trim();
-  if (!rawUrl) return { url: null, name: rawName.slice(0, 255) || null };
-  if (rawUrl.length > 2048) return { error: 'Attachment URL is too long' };
-
-  // Legacy clients may send a relative storage URL, but never accept an
-  // arbitrary /api/storage path that could point at an unrelated object.
-  if (rawUrl.startsWith('/api/storage/')) {
-    if (!/^\/api\/storage\/(?:public|files)\/[^?#]+(?:\?[^#]*)?$/.test(rawUrl)) {
-      return { error: 'Attachment URL must reference an OxSteed storage object' };
-    }
-    return { url: rawUrl, name: rawName.slice(0, 255) || null };
-  }
-
-  try {
-    return {
-      url: validateMediaUrl(rawUrl, 'attachment URL'),
-      name: rawName.slice(0, 255) || null,
-    };
-  } catch (err) {
-    return { error: err.message || 'Attachment URL is not allowed' };
   }
 }
 
@@ -1383,6 +1359,20 @@ async function redactSupportMessage(req, res) {
     if (!access.conversation) return sendError(res, 404, 'Conversation not found');
     if (!access.allowed || access.isCustomer) return sendError(res, 403, 'Only support staff can redact this message');
 
+    // Review P3-6-F15: read the attachment URL before redaction NULLs it so
+    // the storage object can be queued for deletion rather than orphaned.
+    let redactedAttachmentUrl = null;
+    try {
+      const { rows: [existing] } = await query(
+        `SELECT attachment_url FROM support_conversation_messages
+          WHERE id = $1 AND conversation_id = $2 AND redacted_at IS NULL`,
+        [messageId, conversationId]
+      );
+      redactedAttachmentUrl = existing?.attachment_url || null;
+    } catch (readErr) {
+      logger.warn('redactSupportMessage could not read attachment URL', { messageId, error: readErr.message });
+    }
+
     const result = await query(
       `UPDATE support_conversation_messages
        SET original_content = COALESCE(original_content, content),
@@ -1399,6 +1389,10 @@ async function redactSupportMessage(req, res) {
       [messageId, conversationId, req.user.id, reason]
     );
     if (!result.rows.length) return sendError(res, 409, 'This message is already redacted or was not found');
+
+    if (redactedAttachmentUrl) {
+      await enqueueStorageDeletion(redactedAttachmentUrl, 'message_redacted');
+    }
 
     const message = result.rows[0];
     const payload = {

@@ -72,8 +72,9 @@ class TokenRevocationService {
 
   /**
    * Check whether an impersonation session (JWT jti) was revoked via
-   * endImpersonation. Only the per-jti entry is consulted; user-level
-   * revocation markers do not apply to impersonation tokens.
+   * endImpersonation. Only the per-jti entry is consulted here; the
+   * target-user and impersonating-admin user-level markers are checked
+   * separately by the auth middleware via isRevoked.
    */
   async isImpersonationSessionRevoked(jti) {
     if (!jti) return false;

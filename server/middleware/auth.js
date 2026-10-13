@@ -125,6 +125,18 @@ async function authenticate(req, res, next) {
       if (userRevoked) {
         return res.status(401).json({ error: 'Token has been revoked' });
       }
+      // Review P3-14-F07: the impersonating admin's own revocation must also
+      // end the session. Without this, an admin password change,
+      // logout-everywhere, or admin deactivation after the session started
+      // would leave the impersonation token usable for its remaining life.
+      // The user-level marker (revoked:user:<adminId>) is what matters here;
+      // the per-token lookup above just misses for the impersonation token.
+      if (decoded.impersonated_by) {
+        const adminRevoked = await tokenRevocationService.isRevoked(tokenId, decoded.impersonated_by, decoded.iat);
+        if (adminRevoked) {
+          return res.status(401).json({ error: 'Impersonating admin session has been revoked' });
+        }
+      }
       // Audit fix: also check ended_at in the database. The revocation
       // service is a cache; the database is the source of truth. If the
       // session was ended but the revocation didn't propagate, deny.

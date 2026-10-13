@@ -2442,7 +2442,10 @@
       "manage2fa": "إدارة 2FA",
       "passkeys": "مفاتيح المرور",
       "passkeysDesc": "سجّل الدخول باستخدام Touch ID أو Face ID أو Windows Hello أو مفتاح أمان",
-      "managePasskeys": "إدارة مفاتيح المرور"
+      "managePasskeys": "إدارة مفاتيح المرور",
+      "sessions": "الجلسات النشطة",
+      "sessionsDesc": "عرض الأجهزة المسجلة في حسابك وتسجيل خروجها",
+      "manageSessions": "إدارة الجلسات"
     },
     "subscription": {
       "title": "الاشتراك",
@@ -9561,6 +9564,33 @@
     "passkeyRevokeCancel": "إلغاء",
     "passkeysPageTitle": "مفاتيح المرور",
     "passkeysPageSubtitle": "إدارة مفاتيح المرور لتسجيل الدخول إلى حسابك"
+  },
+  "sessions": {
+    "pageTitle": "الجلسات النشطة",
+    "pageSubtitle": "الأجهزة والمتصفحات المسجلة في حسابك",
+    "loading": "جارٍ تحميل الجلسات...",
+    "loadFailed": "تعذّر تحميل جلساتك. حاول مرة أخرى.",
+    "retry": "إعادة المحاولة",
+    "empty": "لا توجد جلسات نشطة أخرى.",
+    "emptyDesc": "هذا الجهاز فقط هو المسجل حالياً.",
+    "thisDevice": "هذا الجهاز",
+    "lastActive": "آخر نشاط: {{date}}",
+    "unknownDevice": "جهاز غير معروف",
+    "revoke": "إلغاء",
+    "revokeTitle": "إلغاء هذه الجلسة؟",
+    "revokeConfirm": "سيتم تسجيل خروج ذلك الجهاز فوراً. هل تريد المتابعة؟",
+    "cancel": "إلغاء",
+    "confirmRevoke": "إلغاء الجلسة",
+    "revoked": "تم إلغاء الجلسة.",
+    "revokeFailed": "تعذّر إلغاء الجلسة. حاول مرة أخرى.",
+    "revokeCurrentBlocked": "لا يمكنك إلغاء الجلسة التي تستخدمها.",
+    "logoutEverywhere": "تسجيل الخروج من كل الأجهزة الأخرى",
+    "logoutEverywhereTitle": "تسجيل الخروج من جميع الجلسات الأخرى؟",
+    "logoutEverywhereConfirm": "سيتم تسجيل خروج جميع الأجهزة والمتصفحات الأخرى فوراً. سيبقى هذا الجهاز مسجلاً.",
+    "confirmLogoutEverywhere": "تسجيل الخروج من كل مكان",
+    "loggedOutEverywhere": "تم تسجيل الخروج من جميع الجلسات الأخرى.",
+    "logoutEverywhereFailed": "تعذّر تسجيل الخروج من كل مكان. حاول مرة أخرى.",
+    "working": "جارٍ العمل..."
   },
   "homePage": {
     "company": {

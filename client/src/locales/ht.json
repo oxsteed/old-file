@@ -2533,7 +2533,10 @@
       "manage2fa": "Jere 2FA",
       "passkeys": "Passkeys",
       "passkeysDesc": "Konekte ak Touch ID, Face ID, Windows Hello, oswa yon kle sekirite",
-      "managePasskeys": "Jere passkeys"
+      "managePasskeys": "Jere passkeys",
+      "sessions": "Sesyon aktif yo",
+      "sessionsDesc": "Wè aparèy ki konekte sou kont ou a epi dekonekte yo",
+      "manageSessions": "Jere sesyon yo"
     },
     "subscription": {
       "title": "Abonman",
@@ -9561,6 +9564,33 @@
     "passkeyRevokeCancel": "Anile",
     "passkeysPageTitle": "Passkeys",
     "passkeysPageSubtitle": "Jere passkeys pou koneksyon kont ou"
+  },
+  "sessions": {
+    "pageTitle": "Sesyon aktif yo",
+    "pageSubtitle": "Aparèy ak navigatè ki konekte sou kont ou a",
+    "loading": "N ap chaje sesyon yo...",
+    "loadFailed": "Nou pa t kapab chaje sesyon ou yo. Eseye ankò.",
+    "retry": "Eseye ankò",
+    "empty": "Pa gen lòt sesyon aktif.",
+    "emptyDesc": "Se aparèy sa a sèlman ki konekte.",
+    "thisDevice": "Aparèy sa a",
+    "lastActive": "Dènye aktivite: {{date}}",
+    "unknownDevice": "Aparèy enkoni",
+    "revoke": "Anile",
+    "revokeTitle": "Anile sesyon sa a?",
+    "revokeConfirm": "N ap dekonekte aparèy sa a touswit. Kontinye?",
+    "cancel": "Anile",
+    "confirmRevoke": "Anile sesyon an",
+    "revoked": "Sesyon an anile.",
+    "revokeFailed": "Nou pa t kapab anile sesyon an. Eseye ankò.",
+    "revokeCurrentBlocked": "Ou pa ka anile sesyon w ap itilize a.",
+    "logoutEverywhere": "Dekonekte tout lòt kote",
+    "logoutEverywhereTitle": "Dekonekte tout lòt sesyon yo?",
+    "logoutEverywhereConfirm": "N ap dekonekte tout lòt aparèy ak navigatè yo touswit. Aparèy sa a ap rete konekte.",
+    "confirmLogoutEverywhere": "Dekonekte toupatou",
+    "loggedOutEverywhere": "Nou dekonekte tout lòt sesyon yo.",
+    "logoutEverywhereFailed": "Nou pa t kapab dekonekte toupatou. Eseye ankò.",
+    "working": "N ap travay..."
   },
   "homePage": {
     "company": {

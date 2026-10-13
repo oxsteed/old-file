@@ -2443,7 +2443,10 @@
       "manage2fa": "Administrar 2FA",
       "passkeys": "Claves de acceso",
       "passkeysDesc": "Inicia sesión con Touch ID, Face ID, Windows Hello o una llave de seguridad",
-      "managePasskeys": "Administrar claves de acceso"
+      "managePasskeys": "Administrar claves de acceso",
+      "sessions": "Sesiones activas",
+      "sessionsDesc": "Ver los dispositivos con sesión iniciada en tu cuenta y cerrarlas",
+      "manageSessions": "Gestionar sesiones"
     },
     "subscription": {
       "title": "Suscripción",
@@ -9561,6 +9564,33 @@
     "passkeyRevokeCancel": "Cancelar",
     "passkeysPageTitle": "Claves de acceso",
     "passkeysPageSubtitle": "Administra las claves de acceso para iniciar sesión en tu cuenta"
+  },
+  "sessions": {
+    "pageTitle": "Sesiones activas",
+    "pageSubtitle": "Dispositivos y navegadores con sesión iniciada en tu cuenta",
+    "loading": "Cargando sesiones...",
+    "loadFailed": "No se pudieron cargar tus sesiones. Inténtalo de nuevo.",
+    "retry": "Reintentar",
+    "empty": "No hay otras sesiones activas.",
+    "emptyDesc": "Solo este dispositivo tiene la sesión iniciada.",
+    "thisDevice": "Este dispositivo",
+    "lastActive": "Última actividad: {{date}}",
+    "unknownDevice": "Dispositivo desconocido",
+    "revoke": "Revocar",
+    "revokeTitle": "¿Revocar esta sesión?",
+    "revokeConfirm": "Se cerrará la sesión de ese dispositivo de inmediato. ¿Continuar?",
+    "cancel": "Cancelar",
+    "confirmRevoke": "Revocar sesión",
+    "revoked": "Sesión revocada.",
+    "revokeFailed": "No se pudo revocar la sesión. Inténtalo de nuevo.",
+    "revokeCurrentBlocked": "No puedes revocar la sesión que estás usando.",
+    "logoutEverywhere": "Cerrar sesión en los demás dispositivos",
+    "logoutEverywhereTitle": "¿Cerrar sesión en todas las demás sesiones?",
+    "logoutEverywhereConfirm": "Se cerrará la sesión de todos los demás dispositivos y navegadores de inmediato. Este dispositivo seguirá con la sesión iniciada.",
+    "confirmLogoutEverywhere": "Cerrar sesión en todas partes",
+    "loggedOutEverywhere": "Sesión cerrada en los demás dispositivos.",
+    "logoutEverywhereFailed": "No se pudo cerrar la sesión en todas partes. Inténtalo de nuevo.",
+    "working": "Procesando..."
   },
   "homePage": {
     "company": {

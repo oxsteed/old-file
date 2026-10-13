@@ -154,8 +154,47 @@ function validateMediaUrl(url, field) {
   return trimmed.slice(0, MAX_URL_LENGTH);
 }
 
+/**
+ * Review P3-6-F12: normalize a caller-supplied attachment reference to a safe
+ * stored value. Exactly one policy, shared by every support-message creation
+ * path so the rule cannot drift between call sites.
+ *
+ * Accepts either:
+ *  - a relative /api/storage/(public|files)/<key> reference minted by this
+ *    app (never an arbitrary /api/storage path that could point at an
+ *    unrelated object), or
+ *  - an absolute https URL on the media allowlist (validateMediaUrl).
+ *
+ * Returns { url, name } on success or { error } when the reference is unsafe.
+ */
+function normalizeAttachmentReference(attachmentUrl, attachmentName) {
+  const rawUrl = String(attachmentUrl ?? '').trim();
+  const rawName = String(attachmentName ?? '').trim();
+  if (!rawUrl) return { url: null, name: rawName.slice(0, 255) || null };
+  if (rawUrl.length > MAX_URL_LENGTH) return { error: 'Attachment URL is too long' };
+
+  // Legacy clients may send a relative storage URL, but never accept an
+  // arbitrary /api/storage path that could point at an unrelated object.
+  if (rawUrl.startsWith('/api/storage/')) {
+    if (!/^\/api\/storage\/(?:public|files)\/[^?#]+(?:\?[^#]*)?$/.test(rawUrl)) {
+      return { error: 'Attachment URL must reference an OxSteed storage object' };
+    }
+    return { url: rawUrl, name: rawName.slice(0, 255) || null };
+  }
+
+  try {
+    return {
+      url: validateMediaUrl(rawUrl, 'attachment URL'),
+      name: rawName.slice(0, 255) || null,
+    };
+  } catch (err) {
+    return { error: err.message || 'Attachment URL is not allowed' };
+  }
+}
+
 module.exports = {
   validateMediaUrl,
+  normalizeAttachmentReference,
   MAX_URL_LENGTH,
   _resetAllowedHostsCache,
   _allowedHosts: allowedHosts,

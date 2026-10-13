@@ -8,6 +8,7 @@ const { ownedBusiness, canEditProfile, canManageBusinessFinance } = require('../
 const countriesUtil = require('../utils/countries');
 const { AppError } = require('../middleware/errorHandler');
 const { validateMediaUrl } = require('../utils/mediaUrlValidation');
+const { enqueueStorageDeletion } = require('../services/storageCleanupService');
 const { withTransaction } = require('../utils/transaction');
 const { invalidateHelperContext } = require('../services/helperContext');
 const { resolvePublicDisplayName } = require('../utils/publicDisplayName');
@@ -391,7 +392,7 @@ async function updateBusiness(req, res, next) {
     // that, otherwise fall back to whatever the row already has.
     const { rows: [existingBusiness] } = await pool.query(
       `SELECT address_country, business_kind, industry_category, business_mode,
-              business_type, setup_status, published_at
+              business_type, setup_status, published_at, logo_url, cover_photo_url
          FROM businesses WHERE id = $1`,
       [id]
     );
@@ -522,6 +523,19 @@ async function updateBusiness(req, res, next) {
     );
 
     if (!biz) throw new AppError('Business not found', 404, 'not_found');
+
+    // Review P3-6-F03: queue replaced or cleared logo/cover objects for
+    // deletion instead of orphaning them in storage.
+    if (existingBusiness) {
+      const oldLogo = existingBusiness.logo_url;
+      const oldCover = existingBusiness.cover_photo_url;
+      if ((validLogoUrl && validLogoUrl !== oldLogo) || (logoExplicitNull && oldLogo)) {
+        await enqueueStorageDeletion(oldLogo, logoExplicitNull ? 'business_logo_cleared' : 'business_logo_replaced');
+      }
+      if ((validCoverUrl && validCoverUrl !== oldCover) || (coverExplicitNull && oldCover)) {
+        await enqueueStorageDeletion(oldCover, coverExplicitNull ? 'business_cover_cleared' : 'business_cover_replaced');
+      }
+    }
 
     if (biz.business_mode === 'food') {
       await ensureDraftFoodRestaurantForBusiness(pool, biz, ownerId);
@@ -939,6 +953,19 @@ async function uploadBusinessPhotos(req, res, next) {
     if (Object.keys(updates).length === 0)
       throw new AppError('No files uploaded', 400, 'validation_failed');
 
+    // Review P3-6-F03: read the current logo/cover before replacing so the
+    // old objects can be queued for deletion instead of orphaned.
+    let existingMedia = null;
+    try {
+      const { rows } = await pool.query(
+        'SELECT logo_url, cover_photo_url FROM businesses WHERE id = $1',
+        [id]
+      );
+      existingMedia = rows[0] || null;
+    } catch (readErr) {
+      logger.warn('uploadBusinessPhotos could not read existing media URLs', { err: readErr.message, businessId: id });
+    }
+
     // Access already verified above - update by id only (no user_id guard needed here).
     const setClauses = Object.keys(updates).map((k, i) => `${k} = $${i + 1}`).join(', ');
     const values = [...Object.values(updates), id];
@@ -948,6 +975,15 @@ async function uploadBusinessPhotos(req, res, next) {
        RETURNING id, logo_url, cover_photo_url`,
       values
     );
+
+    if (existingMedia) {
+      if (updates.logo_url && existingMedia.logo_url && existingMedia.logo_url !== updates.logo_url) {
+        await enqueueStorageDeletion(existingMedia.logo_url, 'business_logo_replaced');
+      }
+      if (updates.cover_photo_url && existingMedia.cover_photo_url && existingMedia.cover_photo_url !== updates.cover_photo_url) {
+        await enqueueStorageDeletion(existingMedia.cover_photo_url, 'business_cover_replaced');
+      }
+    }
 
     return res.json({ business: updated, ...updates });
   } catch (err) {
