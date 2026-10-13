@@ -12,6 +12,7 @@ const {
   maskEmail,
   tokenMatchesProfile,
   canEnterLiveMode,
+  isLiveChatAllowed,
   startGuestVerification,
   verifyGuestCode,
 } = require('../services/guestProfileChatVerification');
@@ -99,5 +100,23 @@ describe('guestProfileChatVerification helpers', () => {
       verifiedGuest: { id: 's1', guest_verified_at: new Date() },
     })).toBe(true);
     expect(canEnterLiveMode({ destination: 'helper', providerOnline: true })).toBe(false);
+  });
+
+  // P2-8-F10: allow_live_chat must be a server-side gate, not just a client
+  // affordance. isLiveChatAllowed resolves the helper's effective preference.
+  test('isLiveChatAllowed honors the helper allow_live_chat switch', async () => {
+    pool.query.mockResolvedValue({ rows: [{ allow_live_chat: false }] });
+    await expect(isLiveChatAllowed('helper-1')).resolves.toBe(false);
+
+    pool.query.mockResolvedValue({ rows: [{ allow_live_chat: true }] });
+    await expect(isLiveChatAllowed('helper-1')).resolves.toBe(true);
+
+    // NULL (unset) defaults to allowed, matching the client/UI default.
+    pool.query.mockResolvedValue({ rows: [{ allow_live_chat: null }] });
+    await expect(isLiveChatAllowed('helper-1')).resolves.toBe(true);
+
+    // No helper_profiles row: default allow.
+    pool.query.mockResolvedValue({ rows: [] });
+    await expect(isLiveChatAllowed('helper-1')).resolves.toBe(true);
   });
 });

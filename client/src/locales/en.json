@@ -8606,6 +8606,20 @@
       "push_notificationsDesc": "All push alerts on every device (app and browser).",
       "sms_notifications": "SMS notifications",
       "sms_notificationsDesc": "Text messages to your verified phone number."
+    },
+    "quietHours": {
+      "title": "Quiet hours",
+      "description": "Pause push notifications during hours you choose. In-app and email notifications are not affected.",
+      "enabled": "Enable quiet hours",
+      "enabledDesc": "Suppress push notifications during the quiet window",
+      "window": "Quiet window",
+      "windowDesc": "Push notifications are paused between these times",
+      "startLabel": "Quiet hours start",
+      "endLabel": "Quiet hours end",
+      "to": "to",
+      "saved": "Quiet hours updated",
+      "failedLoad": "Could not load quiet hours settings",
+      "failedSave": "Could not save quiet hours settings"
     }
   },
   "plannedNeeds": {
@@ -19578,6 +19592,11 @@
       "readyForPickupShort": "Ready for pickup!",
       "dismissOrderStatus": "Dismiss order status",
       "share": "Share",
+      "savedToFavorites": "Saved to favorites",
+      "removedFromFavorites": "Removed from favorites",
+      "favoriteFailed": "Could not update favorites",
+      "favoriteDishAria": "Save this dish to favorites",
+      "unfavoriteDishAria": "Remove this dish from favorites",
       "requestCredit": "Request credit",
       "message": "Message",
       "messageAria": "Message the restaurant",

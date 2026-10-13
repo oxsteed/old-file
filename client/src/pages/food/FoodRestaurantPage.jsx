@@ -30,6 +30,10 @@ import {
   listMyFoodOrders,
   sendFoodRestaurantMessage,
   formatFoodMoney,
+  listFavoriteRestaurants,
+  toggleFavoriteRestaurant,
+  listFavoriteItems,
+  toggleFavoriteItem,
 } from '../../api/food';
 import { parseCreditMajorAmount } from '../../lib/creditCurrency';
 import { safeCreditErrorMessage } from '../../lib/creditErrors';
@@ -230,6 +234,7 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
   const [searchQuery, setSearchQuery] = useState('');
   const [dietaryFilter, setDietaryFilter] = useState('all');
   const [saved, setSaved] = useState(false);
+  const [saveSaving, setSaveSaving] = useState(false);
   const [deliveryMode, setDeliveryMode] = useState('pickup');
   // Message-the-restaurant composer
   const [messageOpen, setMessageOpen] = useState(false);
@@ -315,6 +320,86 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
       href: `/restaurants/r/${restaurantId}`,
     });
   }, [restaurantId, restaurant]);
+
+  // P2-8-F14: the Save button was local-only state; hydrate it from the
+  // server favorites for signed-in users so it reflects the real state.
+  useEffect(() => {
+    if (!user || !restaurantId) return;
+    let alive = true;
+    listFavoriteRestaurants()
+      .then((ids) => {
+        if (alive) setSaved(ids.map(Number).includes(Number(restaurantId)));
+      })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, [user, restaurantId]);
+
+  // ── Dish favorites (P2-8-F14: favorite-items endpoints had no client UI) ──
+  const [favoriteItemIds, setFavoriteItemIds] = useState([]);
+  const [itemFavSaving, setItemFavSaving] = useState(false);
+
+  useEffect(() => {
+    if (!user) return;
+    let alive = true;
+    listFavoriteItems()
+      .then((d) => {
+        if (alive) setFavoriteItemIds(d?.favoriteItemIds || []);
+      })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, [user]);
+
+  // NOTE: modalItemFavorited is computed after the modalItem declaration
+  // below (TDZ: reading modalItem earlier crashes the render).
+  const isModalItemFavorited = (item) =>
+    item ? favoriteItemIds.map(Number).includes(Number(item.id)) : false;
+
+  const handleItemFavoriteToggle = async () => {
+    if (!modalItem) return;
+    const itemId = Number(modalItem.id);
+    const isFav = favoriteItemIds.map(Number).includes(itemId);
+    // Guests keep a local-only toggle (no account to persist to).
+    if (!user) {
+      setFavoriteItemIds(isFav
+        ? favoriteItemIds.filter((id) => Number(id) !== itemId)
+        : [...favoriteItemIds, itemId]);
+      return;
+    }
+    if (itemFavSaving) return;
+    setItemFavSaving(true);
+    try {
+      const data = await toggleFavoriteItem(restaurantId, itemId);
+      setFavoriteItemIds(data?.favoriteItemIds || []);
+      toast.success(
+        data?.favorited ? t('food.restaurant.savedToFavorites') : t('food.restaurant.removedFromFavorites')
+      );
+    } catch {
+      toast.error(t('food.restaurant.favoriteFailed'));
+    } finally {
+      setItemFavSaving(false);
+    }
+  };
+
+  const handleSaveToggle = async () => {
+    // Guests keep the previous local-only toggle (no account to persist to).
+    if (!user) {
+      setSaved((s) => !s);
+      return;
+    }
+    if (saveSaving) return;
+    setSaveSaving(true);
+    try {
+      const data = await toggleFavoriteRestaurant(restaurantId);
+      setSaved(Boolean(data?.favorited));
+      toast.success(
+        data?.favorited ? t('food.restaurant.savedToFavorites') : t('food.restaurant.removedFromFavorites')
+      );
+    } catch {
+      toast.error(t('food.restaurant.favoriteFailed'));
+    } finally {
+      setSaveSaving(false);
+    }
+  };
   const creditCurrency = String(currency).toUpperCase();
   const oxsteedCreditOrderType = deliveryMode === 'delivery' ? 'delivery' : 'pickup';
 
@@ -1931,7 +2016,7 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
                 <button onClick={handleMessageClick} aria-label={t('food.restaurant.messageAria')} style={{ height: 36, padding: '0 14px', borderRadius: 9999, border: '1.5px solid #e2e8f0', background: '#fff', color: '#0f172a', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
                   {`✉ ${t('food.restaurant.message')}`}
                 </button>
-                <button onClick={() => setSaved((s) => !s)} style={{ height: 36, padding: '0 14px', borderRadius: 9999, border: '1.5px solid #e2e8f0', background: '#fff', color: saved ? accent : '#94a3b8', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+                <button onClick={handleSaveToggle} disabled={saveSaving} style={{ height: 36, padding: '0 14px', borderRadius: 9999, border: '1.5px solid #e2e8f0', background: '#fff', color: saved ? accent : '#94a3b8', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
                   {saved ? `♥ ${t('food.common.saved')}` : `♡ ${t('food.common.save')}`}
                 </button>
                 <button onClick={onShare} aria-label={t('food.restaurant.share')} style={{ height: 36, padding: '0 14px', borderRadius: 9999, border: '1.5px solid #e2e8f0', background: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b' }}>{`↗ ${t('food.restaurant.share')}`}</button>
@@ -1985,7 +2070,7 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
                 </button>
                 <div style={{ display: 'flex', gap: 8 }}>
                   <button onClick={handleMessageClick} aria-label={t('food.restaurant.messageAria')} style={{ flex: 1, height: 40, borderRadius: 8, border: '1.5px solid #e2e8f0', background: '#fff', color: '#0f172a', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>{`✉ ${t('food.restaurant.message')}`}</button>
-                  <button onClick={() => setSaved((s) => !s)} style={{ flex: 1, height: 40, borderRadius: 8, border: '1.5px solid #e2e8f0', background: '#fff', color: saved ? accent : '#94a3b8', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>{saved ? `♥ ${t('food.common.saved')}` : `♡ ${t('food.common.save')}`}</button>
+                  <button onClick={handleSaveToggle} disabled={saveSaving} style={{ flex: 1, height: 40, borderRadius: 8, border: '1.5px solid #e2e8f0', background: '#fff', color: saved ? accent : '#94a3b8', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>{saved ? `♥ ${t('food.common.saved')}` : `♡ ${t('food.common.save')}`}</button>
                   <button onClick={onShare} aria-label={t('food.restaurant.share')} style={{ flex: 1, height: 40, borderRadius: 8, border: '1.5px solid #e2e8f0', background: '#fff', color: '#64748b', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>{`↗ ${t('food.restaurant.share')}`}</button>
                 </div>
                 {user && (
@@ -3030,6 +3115,13 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
                 <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom,transparent 40%,rgba(0,0,0,0.55) 100%)' }} />
                 <div style={{ position: 'absolute', top: 10, left: '50%', transform: 'translateX(-50%)', width: 36, height: 4, borderRadius: 2, background: 'rgba(255,255,255,0.4)' }} />
                 <button onClick={() => setModalItem(null)} aria-label={t('food.common.close')} style={{ position: 'absolute', top: 14, right: 14, width: 36, height: 36, borderRadius: '50%', background: 'rgba(0,0,0,0.35)', color: '#fff', border: 'none', fontSize: 20, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1, backdropFilter: 'blur(8px)' }}>×</button>
+                <button
+                  onClick={handleItemFavoriteToggle}
+                  disabled={itemFavSaving}
+                  aria-label={isModalItemFavorited(modalItem) ? t('food.restaurant.unfavoriteDishAria') : t('food.restaurant.favoriteDishAria')}
+                  aria-pressed={isModalItemFavorited(modalItem)}
+                  style={{ position: 'absolute', top: 14, left: 14, width: 36, height: 36, borderRadius: '50%', background: 'rgba(0,0,0,0.35)', color: isModalItemFavorited(modalItem) ? '#f87171' : '#fff', border: 'none', fontSize: 18, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1, backdropFilter: 'blur(8px)' }}
+                >{isModalItemFavorited(modalItem) ? '♥' : '♡'}</button>
                 <div style={{ position: 'absolute', bottom: 14, left: 20, right: 20 }}>
                   <h2 style={{ fontFamily: SERIF, fontSize: 22, fontWeight: 400, color: '#fff', lineHeight: 1.2, marginBottom: 2 }}>{modalItem.name}</h2>
                   <span style={{ fontSize: 16, fontWeight: 700, color: '#fff' }}>{formatFoodMoney(modalItem.price_cents, currency)}</span>

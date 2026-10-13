@@ -1,10 +1,29 @@
 'use strict';
 
 const pool = require('../db');
+const logger = require('../utils/logger');
 const { AppError } = require('../middleware/errorHandler');
 const { withTransaction } = require('../utils/transaction');
 const socketService = require('../services/socketService');
+const smsNotificationService = require('../services/smsNotificationService');
 const { consumeInventoryForOrder } = require('../services/restaurantInventoryOrderService');
+
+// P2-8-F08: the per-type order_shipped SMS had zero callers. A runner picking
+// up a delivery food order is the food-order analog of "shipped".
+// Fire-and-forget; opt-in checks and rate limits live in the service.
+async function notifyOrderPickedUpSms(foodOrderId) {
+  try {
+    const { rows } = await pool.query(
+      `SELECT customer_id FROM food_orders WHERE id = $1`,
+      [foodOrderId]
+    );
+    const customerId = rows[0]?.customer_id;
+    if (!customerId) return;
+    smsNotificationService.sendOrderShippedSMS(customerId, foodOrderId);
+  } catch (err) {
+    logger.warn('order picked-up SMS failed (non-blocking)', { error: err && err.message, foodOrderId });
+  }
+}
 
 function emitDeliveryHandoff(restaurantId, order) {
   if (!order) return;
@@ -416,6 +435,10 @@ exports.updateTaskStatus = async (req, res, next) => {
       return { task, completedOrder };
     }, 'restaurant_runner_status_update');
     emitDeliveryHandoff(restaurantId, result.completedOrder);
+    // P2-8-F08: wire the dead per-type order_shipped SMS for delivery orders.
+    if (status === 'Picked up' && result.task?.task_type === 'Delivery' && result.task?.food_order_id) {
+      notifyOrderPickedUpSms(result.task.food_order_id);
+    }
     res.json({ task: result.task });
   } catch (err) {
     next(err);

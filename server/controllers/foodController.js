@@ -3566,6 +3566,15 @@ exports.createOrder = async (req, res, next) => {
       emitRestaurantOrder(order.business_id, 'food:order:created', { order });
       emitRestaurantDisplay(order.restaurant_id, order);
     }
+    // P2-8-F08: the per-type order_created SMS had zero callers.
+    // Fire-and-forget; opt-in checks and rate limits live in the service.
+    if (!createdOrder.replayed && order.customer_id) {
+      smsNotificationService.sendOrderCreatedSMS(
+        order.customer_id,
+        order.id,
+        Number(order.total_cents || 0)
+      );
+    }
     const statusCode = createdOrder.replayed ? 200 : 201;
     res.status(statusCode).json({
       order,
@@ -4373,6 +4382,19 @@ exports.updateOrderStatus = async (req, res, next) => {
           await earnFoodLoyaltyOnComplete(client, order);
         }, 'food_loyalty_earn');
       }
+      // P2-8-F08: the per-type order_cancelled / order_refunded SMS had zero
+      // callers. Fire-and-forget; opt-in checks and rate limits live in the
+      // service.
+      if (status === 'cancelled' && order.customer_id) {
+        smsNotificationService.sendOrderCancelledSMS(order.customer_id, order.id);
+      }
+      if (status === 'refunded' && order.customer_id) {
+        smsNotificationService.sendOrderRefundedSMS(
+          order.customer_id,
+          order.id,
+          Number(order.total_cents || 0)
+        );
+      }
     }
 
     res.json({
@@ -4527,6 +4549,11 @@ exports.completeCheckout = async (req, res, next) => {
       );
       updatedOrder = updatedRows[0] || order;
       emitRestaurantOrder(updatedOrder.business_id, 'food:order:updated', { order: updatedOrder });
+      // P2-8-F08: the per-type payment_confirmed SMS had zero callers.
+      // Fire-and-forget; opt-in checks and rate limits live in the service.
+      if (updatedOrder.customer_id) {
+        smsNotificationService.sendPaymentConfirmedSMS(updatedOrder.customer_id, updatedOrder.id);
+      }
     }
 
     if (returnUrl) {
@@ -5754,6 +5781,26 @@ exports.updateCustomerProfile = async (req, res, next) => {
         preferredLanguage: profile.preferred_language,
         notificationsEnabled: profile.notifications_enabled === true,
       },
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// P2-8-F14: the favorites endpoints had no client UI, and there was no
+// read endpoint for restaurant favorites (only the mutating toggle). The
+// client Save button needs initial state without mutating.
+exports.listCustomerFavoriteRestaurants = async (req, res, next) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT restaurant_id
+         FROM food_customer_favorite_restaurants
+        WHERE user_id = $1
+        ORDER BY created_at DESC`,
+      [req.user.id]
+    );
+    res.json({
+      favoriteRestaurantIds: rows.map((row) => Number(row.restaurant_id)),
     });
   } catch (err) {
     next(err);

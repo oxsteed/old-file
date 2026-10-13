@@ -1785,11 +1785,28 @@ async function updateProfile(req, res) {
       didModeSwitch = true;
     }
 
+    // P2-8-F11: changing the phone number must reset phone_verified. A
+    // verification tied to the old number must not carry over to a new,
+    // unverified number. Digit-normalized comparison so a formatting-only
+    // edit does not force re-verification.
+    let phoneChanged = false;
+    if (phone) {
+      const { rows: phoneRows } = await client.query(
+        'SELECT phone FROM users WHERE id = $1',
+        [req.user.id]
+      );
+      const digits = (v) => String(v || '').replace(/[^0-9]/g, '');
+      phoneChanged = digits(phone) !== digits(phoneRows[0] && phoneRows[0].phone);
+    }
+
     const setFragments = [
       'phone = COALESCE($1, phone)',
       'display_name_preference = COALESCE($2, display_name_preference)',
       'preferred_language = COALESCE($3, preferred_language)',
     ];
+    if (phoneChanged) {
+      setFragments.push('phone_verified = FALSE', 'phone_verified_at = NULL');
+    }
     const updateParams = [phone || null, pref || null, preferredLang || null];
     if (bioValue !== undefined) {
       setFragments.push(`bio = $${updateParams.length + 1}`);

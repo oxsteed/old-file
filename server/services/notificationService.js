@@ -299,7 +299,39 @@ exports.sendNotification = async ({
         ? true
         : !emailPrefOff && prefs.email_notifications !== false)
       && !(unsubscribedAll && !transactionalEmailTypes.has(type));
-    if (emailAllowed && !notificationRow?.is_email_sent) {
+    // P2-8-F04: honor the user's email_frequency. The digest batch was the
+    // only reader, so 'off' did not stop realtime mail and 'daily'/'weekly'
+    // never received anything (nothing populated the digest queue).
+    // Transactional mail always goes out immediately. For everything else:
+    // 'off' drops realtime mail, 'daily'/'weekly' queues it for the digest
+    // batch instead of sending it now.
+    const isTransactionalEmail = transactionalEmailTypes.has(type);
+    const emailFrequency = String(prefs.email_frequency || 'real-time');
+    let sendRealtimeEmail = emailAllowed;
+    if (emailAllowed && !isTransactionalEmail) {
+      if (emailFrequency === 'off') {
+        logger.debug('[Notification] realtime email suppressed: frequency=off', { userId, type });
+        sendRealtimeEmail = false;
+      } else if ((emailFrequency === 'daily' || emailFrequency === 'weekly') && notifId) {
+        try {
+          await db.query(
+            `INSERT INTO email_digest_queue (user_id, notification_id, digest_type)
+             VALUES ($1, $2, $3)
+             ON CONFLICT (notification_id) DO NOTHING`,
+            [userId, notifId, emailFrequency]
+          );
+          logger.debug('[Notification] queued for email digest', { userId, type, emailFrequency });
+          sendRealtimeEmail = false;
+        } catch (queueErr) {
+          // Fail open on the queue write: the user still gets the email, just
+          // immediately instead of in the digest. Never drop it silently.
+          logger.warn('[Notification] digest queue insert failed; sending realtime', {
+            userId, type, error: queueErr.message,
+          });
+        }
+      }
+    }
+    if (sendRealtimeEmail && !notificationRow?.is_email_sent) {
       // Banned users get the notification email but with no account link
       const safeActionUrl = isBanned ? null : action_url;
       const delivery = await sendEmailNotification({

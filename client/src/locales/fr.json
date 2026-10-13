@@ -8606,6 +8606,20 @@
       "push_notificationsDesc": "Toutes les alertes push sur tous les appareils (application et navigateur).",
       "sms_notifications": "Notifications par SMS",
       "sms_notificationsDesc": "Messages texte à votre numéro de téléphone vérifié."
+    },
+    "quietHours": {
+      "title": "Heures de silence",
+      "description": "Mettez en pause les notifications push pendant les heures de votre choix. Les notifications dans l'application et par e-mail ne sont pas affectees.",
+      "enabled": "Activer les heures de silence",
+      "enabledDesc": "Supprimer les notifications push pendant la periode de silence",
+      "window": "Plage de silence",
+      "windowDesc": "Les notifications push sont mises en pause entre ces heures",
+      "startLabel": "Debut des heures de silence",
+      "endLabel": "Fin des heures de silence",
+      "to": "a",
+      "saved": "Heures de silence mises a jour",
+      "failedLoad": "Impossible de charger les parametres des heures de silence",
+      "failedSave": "Impossible d'enregistrer les parametres des heures de silence"
     }
   },
   "plannedNeeds": {
@@ -19578,6 +19592,11 @@
       "readyForPickupShort": "Prête à retirer !",
       "dismissOrderStatus": "Fermer l’état de la commande",
       "share": "Partager",
+      "savedToFavorites": "Ajoute aux favoris",
+      "removedFromFavorites": "Retire des favoris",
+      "favoriteFailed": "Impossible de mettre a jour les favoris",
+      "favoriteDishAria": "Ajouter ce plat aux favoris",
+      "unfavoriteDishAria": "Retirer ce plat des favoris",
       "requestCredit": "Demander du crédit",
       "message": "Message",
       "messageAria": "Envoyer un message au restaurant",

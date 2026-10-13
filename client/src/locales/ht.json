@@ -1124,6 +1124,20 @@
       "push_notificationsDesc": "Tout alèt push sou tout aparèy (aplikasyon ak navigatè).",
       "sms_notifications": "Notifikasyon pa SMS",
       "sms_notificationsDesc": "Mesaj tèks sou nimewo telefòn verifye ou a."
+    },
+    "quietHours": {
+      "title": "Le silans",
+      "description": "Sispann notifikasyon push yo pandan le ou chwazi yo. Notifikasyon nan aplikasyon an ak imel yo pa afekte.",
+      "enabled": "Aktive le silans",
+      "enabledDesc": "Sispann notifikasyon push yo pandan peryod silans lan",
+      "window": "Peryod silans",
+      "windowDesc": "Notifikasyon push yo sispann ant le sa yo",
+      "startLabel": "Le silans lan komanse",
+      "endLabel": "Le silans lan fini",
+      "to": "rive",
+      "saved": "Le silans lan mete ajou",
+      "failedLoad": "Pa t kapab chaje paramat le silans yo",
+      "failedSave": "Pa t kapab anrejistre paramat le silans yo"
     }
   },
   "jobs": {
@@ -19578,6 +19592,11 @@
       "readyForPickupShort": "Pare pou ranmase!",
       "dismissOrderStatus": "Fèmen estati kòmand lan",
       "share": "Pataje",
+      "savedToFavorites": "Anrejistre nan favori",
+      "removedFromFavorites": "Retire nan favori",
+      "favoriteFailed": "Pa t kapab mete favori yo ajou",
+      "favoriteDishAria": "Anrejistre plat sa a nan favori",
+      "unfavoriteDishAria": "Retire plat sa a nan favori",
       "requestCredit": "Mande kredi",
       "message": "Mesaj",
       "messageAria": "Voye yon mesaj bay restoran an",
