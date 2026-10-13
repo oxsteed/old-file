@@ -19,12 +19,8 @@ const {
   acceptTerms,
   acceptPendingTerms,
   finalizeRegistration,
-  savePaymentStep,
   submitOnboardingProfile,
-  submitIdVerification,
   submitBackgroundCheck,
-  submitProfile,
-  updateContact,
   uploadProfilePhoto,
   getOnboardingStatus
 } = require('../controllers/helperRegistrationController');
@@ -48,12 +44,14 @@ router.post('/accept-terms', authenticate, acceptTerms);
 // (version, time, hashed IP, user agent) before the account exists.
 router.post('/registration-terms', authLimiter, acceptPendingTerms);
 router.post('/finalize',    authenticate, requireHelperStep('finalize'), finalizeRegistration);
-router.post('/payment',     authenticate, savePaymentStep);
+// Review P2-2-F08/P2-7-F05: POST /payment was a no-op stub ("Payment step
+// recorded") with no client caller; removed. POST /profile and
+// POST /update-contact were the retired wizard's split profile/contact steps,
+// superseded by PUT /onboarding/profile (which sets both profile_completed
+// and contact_completed); removed.
 
-// Authenticated - profile + contact + photo (frontend Step4)
-// Email verification required to submit helper profile
-router.post('/profile', authenticate, requireEmailVerified, submitProfile);
-router.post('/update-contact', authenticate, requireEmailVerified, updateContact);
+// Authenticated - photo (the retired wizard's Step4 profile/contact split is
+// gone; PUT /onboarding/profile is the supported profile step)
 router.post('/profile-photo', authenticate, requireEmailVerified, upload.single('photo'), validateFileUpload, uploadProfilePhoto);
 
 // Authenticated + onboarding gated + email verified
@@ -63,12 +61,9 @@ router.put('/onboarding/profile',
   requireHelperStep('profile'),
   submitOnboardingProfile
 );
-router.put('/onboarding/id-verification',
-  authenticate,
-  requireEmailVerified,
-  requireHelperStep('identity'),
-  submitIdVerification
-);
+// Review P2-2-F08/P2-7-F05: PUT /onboarding/id-verification was a dead state
+// reporter with no client caller; identity is owned by the Didit flow
+// (/verify-identity + webhook). Removed.
 router.put('/onboarding/background-check',
   authenticate,
   requireEmailVerified,

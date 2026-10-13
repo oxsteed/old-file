@@ -13,7 +13,7 @@ const { uploadFile, getPublicUrl } = require('../utils/storage');
 const { validate, rules } = require('../utils/validate');
 const countriesUtil = require('../utils/countries');
 const logger = require('../utils/logger');
-const { ONBOARDING_COLUMNS, isIdentityVerified, deriveHelperOnboarding, loadHelperOnboarding } = require('../services/helperOnboarding');
+const { ONBOARDING_COLUMNS, isIdentityVerified, deriveHelperOnboarding } = require('../services/helperOnboarding');
 const TERMS_IP_HASH_MAX_LEN = 45;
 const SUPPORTED_LANGUAGE_CODES = new Set(['en', 'es', 'fr', 'ht', 'ar']);
 
@@ -474,28 +474,6 @@ async function submitOnboardingProfile(req, res) {
   }
 }
 
-// ── 6. Submit ID Verification ────────────────────────
-async function submitIdVerification(req, res) {
-  // Review P2-594: identity is verified by the Didit flow (/verify-identity)
-  // and its webhook. This endpoint used to reset id_verified to false and
-  // discard the submitted document; now it reports the real state.
-  try {
-    const onboarding = req.helperOnboarding || await loadHelperOnboarding(req.user.id);
-    if (!onboarding) return res.status(404).json({ error: 'Helper not found' });
-    if (onboarding.steps.identityVerified) {
-      return res.json({ message: 'Identity verified', onboarding_step: 'id_verified', identity: 'verified' });
-    }
-    return res.status(202).json({
-      message: 'Complete identity verification to continue',
-      code: 'identity_verification_required',
-      identity: onboarding.steps.identitySubmitted ? 'pending' : 'not_started',
-      verify_url: '/verify-identity',
-    });
-  } catch (err) {
-    logger.error('submitIdVerification error:', { err });
-    res.status(500).json({ error: 'ID verification submission failed' });
-  }
-}
 
 // ── 7. Submit Background Check ───────────────────────
 async function submitBackgroundCheck(req, res) {
@@ -564,68 +542,7 @@ async function getOnboardingStatus(req, res) {
   }
 }
 
-// ── 9. Submit Profile (called by frontend Step 4) ────────
-// POST /api/helper-registration/profile
-async function submitProfile(req, res) {
-  try {
-    const userId = req.user.id;
-    const { bio, serviceCategories, serviceRadius, ratePreference } = req.body;
 
-    // Mark profile complete on users table
-    await pool.query(`
-      UPDATE users SET
-        profile_completed = true,
-        onboarding_status = 'onboarding_in_progress'
-      WHERE id = $1 AND role = 'helper'
-    `, [userId]);
-
-    // Upsert bio and service info into helper_profiles
-    // Note: profile_headline column does not exist in this DB - omitted
-    await pool.query(`
-      INSERT INTO helper_profiles (user_id, bio_long, service_radius_miles, rate_preference)
-      VALUES ($1, $2, $3, $4)
-      ON CONFLICT (user_id) DO UPDATE SET
-        bio_long             = EXCLUDED.bio_long,
-        service_radius_miles = EXCLUDED.service_radius_miles,
-        rate_preference      = EXCLUDED.rate_preference,
-        updated_at           = NOW()
-    `, [userId, bio || null, serviceRadius || 10, ratePreference || 'per_job']);
-
-    res.json({ message: 'Profile saved', onboarding_step: 'profile_complete' });
-  } catch (err) {
-    logger.error('submitProfile error:', { err });
-    res.status(500).json({ error: 'Profile save failed' });
-  }
-}
-
-// ── 10. Update Contact Info (called by frontend Step 4) ──
-// POST /api/helper-registration/update-contact
-async function updateContact(req, res) {
-  try {
-    const userId = req.user.id;
-    const { phone, zip } = req.body;
-
-    if (!phone || !zip) return res.status(400).json({ error: 'Phone and zip required' });
-
-    const { rows } = await pool.query(`
-      UPDATE users SET
-        phone             = $1,
-        zip_code          = $2,
-        contact_completed = true
-      WHERE id = $3 AND role = 'helper'
-      RETURNING id
-    `, [phone, zip, userId]);
-
-    if (rows.length === 0) {
-      return res.status(404).json({ error: 'Helper account not found' });
-    }
-
-    res.json({ message: 'Contact updated' });
-  } catch (err) {
-    logger.error('updateContact error:', { err });
-    res.status(500).json({ error: 'Contact update failed' });
-  }
-}
 
 // ── 11. Upload Profile Photo ───────────────────────────
 // POST /api/helper-registration/profile-photo
@@ -875,10 +792,6 @@ async function finalizeRegistration(req, res) {
   }
 }
 
-// ── 16. Legacy payment step (no-op) ──────────────────
-async function savePaymentStep(req, res) {
-  return res.json({ message: 'Payment step recorded' });
-}
 
 module.exports = {
   startRegistration,
@@ -886,16 +799,12 @@ module.exports = {
   resendOTP,
   getCategories,
   submitOnboardingProfile,
-  submitIdVerification,
   submitBackgroundCheck,
   getOnboardingStatus,
-  submitProfile,
-  updateContact,
   uploadProfilePhoto,
   saveTier,
   saveW9,
   acceptTerms,
   acceptPendingTerms,
   finalizeRegistration,
-  savePaymentStep,
 };

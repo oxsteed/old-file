@@ -218,7 +218,10 @@ async function listHelpers(req, res, next) {
       'u.role = ANY($1::text[])',
       'u.email_verified = TRUE',
       'u.onboarding_completed = TRUE',
-      'COALESCE(hp.is_listed, TRUE) = TRUE',
+      // Review P2-2-F12: fail closed. The directory LEFT JOINs helper_profiles,
+      // so a helper with no profile row must NOT be treated as listed.
+      // `hp.is_listed IS TRUE` is false when the row (or value) is missing.
+      'hp.is_listed IS TRUE',
       'COALESCE(hp.is_hidden_by_admin, FALSE) = FALSE',
     ];
     const params     = [['helper', 'helper_pro', 'broker']];
@@ -768,7 +771,7 @@ async function respondHelperProfile(req, res, next, adminPreview) {
            ${adminPreview ? '' : `AND u.is_active = TRUE
            AND u.email_verified = TRUE
            AND u.onboarding_completed = TRUE
-           AND COALESCE(hp.is_listed, TRUE) = TRUE
+           AND hp.is_listed IS TRUE
            AND COALESCE(hp.is_hidden_by_admin, FALSE) = FALSE`}`,
         [id],
       ),
@@ -1079,7 +1082,7 @@ async function getHelperStatus(req, res, next) {
       `SELECT hp.is_available_now FROM helper_profiles hp
        JOIN users u ON u.id = hp.user_id
        WHERE hp.user_id = $1 AND u.deleted_at IS NULL
-         AND COALESCE(hp.is_listed, TRUE) = TRUE
+         AND hp.is_listed IS TRUE
          AND COALESCE(hp.is_hidden_by_admin, FALSE) = FALSE`,
       [id]
     );
@@ -1112,7 +1115,7 @@ async function getHelperAvailability(req, res, next) {
        WHERE hp.user_id = $1
          AND u.deleted_at IS NULL
          AND u.email_verified = TRUE
-         AND COALESCE(hp.is_listed, TRUE) = TRUE
+         AND hp.is_listed IS TRUE
          AND COALESCE(hp.is_hidden_by_admin, FALSE) = FALSE`,
       [id]
     );
@@ -1184,7 +1187,7 @@ async function getHelperAvailabilitySummary(req, res, next) {
         WHERE hp.user_id = $1
           AND u.deleted_at IS NULL
           AND u.email_verified = TRUE
-          AND COALESCE(hp.is_listed, TRUE) = TRUE
+          AND hp.is_listed IS TRUE
           AND COALESCE(hp.is_hidden_by_admin, FALSE) = FALSE`,
       [id]
     );
@@ -1221,7 +1224,7 @@ async function getHelperPricing(req, res, next) {
        WHERE hp.user_id = $1
          AND u.deleted_at IS NULL
          AND u.email_verified = TRUE
-         AND COALESCE(hp.is_listed, TRUE) = TRUE
+         AND hp.is_listed IS TRUE
          AND COALESCE(hp.is_hidden_by_admin, FALSE) = FALSE`,
       [id]
     );
@@ -1270,7 +1273,7 @@ async function getHelperSlots(req, res, next) {
        WHERE hp.user_id = $1
          AND u.deleted_at IS NULL
          AND u.email_verified = TRUE
-         AND COALESCE(hp.is_listed, TRUE) = TRUE
+         AND hp.is_listed IS TRUE
          AND COALESCE(hp.is_hidden_by_admin, FALSE) = FALSE`,
       [id]
     );

@@ -47,6 +47,33 @@ function requireOnboardingStep(minimumStep) {
 }
 
 
+// Review P2-2-F11: tax identity is required before money moves to a helper.
+// Mirrors the affiliate payout gate (affiliatePayoutsController.js): a W-9
+// must be on file and the Didit identity verification must be fresh (2-year
+// TTL, fail-closed). Mounted on helper money-movement routes (instant
+// payouts); Connect account creation stays ungated on tax identity because
+// Stripe collects tax details in its own onboarding and there is no W-9 UI
+// yet, so gating creation would deadlock helpers out of payouts.
+function requireTaxIdentity(req, res, next) {
+  const { isDiditVerificationFresh } = require('../utils/diditGate');
+  const user = req.user || {};
+  if (!user.w9_completed) {
+    return res.status(403).json({
+      error: 'Complete your W-9 tax form before receiving payouts.',
+      code: 'tax_identity_required',
+      missing: 'w9',
+    });
+  }
+  if (user.didit_status !== 'verified' || !isDiditVerificationFresh(user.didit_verified_at)) {
+    return res.status(403).json({
+      error: 'Verify your identity before receiving payouts.',
+      code: 'tax_identity_required',
+      missing: 'identity_verification',
+    });
+  }
+  next();
+}
+
 // Review P2-594: gate onboarding endpoints on what the helper has actually
 // done (see services/helperOnboarding.js), so every step is reachable.
 function requireHelperStep(step) {
@@ -177,6 +204,7 @@ module.exports = {
   requireHelperStep,
   requireListingEligible,
   requireOnboardingStep,
+  requireTaxIdentity,
   requireTier,
   requireCompletedHelperOnboarding,
   requireHelperLimitedAccess

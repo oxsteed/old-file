@@ -50,6 +50,12 @@ export default function HelperOnboardingChecklist() {
     () => api.put('/helper-registration/onboarding/background-check', { background_check_consent: true }),
     'helperOnboarding.backgroundSaved',
   );
+  // Review P2-2-F08: helpers who missed the signup checkbox had no way to
+  // accept terms later; wire the accept-terms endpoint into the checklist.
+  const acceptTerms = () => run(
+    () => api.post('/helper-registration/accept-terms'),
+    'helperOnboarding.termsSaved',
+  );
   const finalize = () => run(async () => {
     await api.post('/helper-registration/finalize');
     await refreshUser?.();
@@ -86,6 +92,11 @@ export default function HelperOnboardingChecklist() {
         <Row done={steps.email} label={t('helperOnboarding.email')} />
         <Row done={steps.terms} label={t('helperOnboarding.terms')}>
           <p className="text-sm">{t('helperOnboarding.termsHelp')}</p>
+          {!steps.terms && (
+            <button type="button" disabled={busy} onClick={acceptTerms} className="underline text-start">
+              {t('helperOnboarding.acceptTerms')}
+            </button>
+          )}
         </Row>
         <Row done={steps.profile} label={t('helperOnboarding.profile')}>
           <form onSubmit={saveProfile} className="grid grid-cols-1 sm:grid-cols-2 gap-2">

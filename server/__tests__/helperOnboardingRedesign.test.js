@@ -118,12 +118,8 @@ describe('controller', () => {
     expect(mockQuery.mock.calls[0][0]).not.toMatch(/background_check_passed\s*=\s*false/);
     expect(r.body.background_check_status).toBe('passed');
   });
-  test('id verification points to Didit instead of clearing id_verified (P2-594)', async () => {
-    const r = res();
-    await ctrl.submitIdVerification({ user: { id: 'u1' }, helperOnboarding: deriveHelperOnboarding({ email_verified: true }) }, r);
-    expect(r.statusCode).toBe(202);
-    expect(r.body.verify_url).toBe('/verify-identity');
-    expect(mockQuery).not.toHaveBeenCalled();
+  test('PUT /onboarding/id-verification is removed; identity is Didit-owned (P2-2-F08/P2-7-F05)', async () => {
+    expect(ctrl.submitIdVerification).toBeUndefined();
   });
   test('verifyOTP refuses a pending registration without recorded terms (P2-476/477)', async () => {
     const crypto = require('crypto');
