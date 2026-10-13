@@ -147,3 +147,5 @@ Session-management follow-up: signed-in users now have `/api/users/me/sessions` 
 
 Email privacy follow-up: transactional email logs no longer include recipient addresses or full provider error payloads; subjects and bounded status/error fields remain available for operations. This closes the plaintext recipient PII finding without changing delivery behavior.
 
+Support alert follow-up: live-support wait alerts now use `SUPPORT_ALERT_EMAIL`, then `SUPPORT_EMAIL`, with `support@oxsteed.com` as the safe default. The alert remains idempotent and retryable without a founder-specific recipient embedded in code.
+

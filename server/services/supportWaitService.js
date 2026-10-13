@@ -11,6 +11,7 @@ const {
 
 const WAIT_SECONDS = 300;
 const ALERT_SECONDS = 120;
+const SUPPORT_ALERT_EMAIL = process.env.SUPPORT_ALERT_EMAIL || process.env.SUPPORT_EMAIL || 'support@oxsteed.com';
 
 function waitingState(conversation, now = Date.now()) {
   const expires = new Date(conversation.live_wait_expires_at).getTime();
@@ -78,7 +79,7 @@ async function processWaiting() {
         }
         if (!c.agent_id && now - new Date(c.live_wait_started_at).getTime() >= ALERT_SECONDS * 1000 && !c.founder_alert_sent_at) {
           const result = await email.sendEmail({
-            to: 'emilejeanphilippe@oxsteed.com',
+            to: SUPPORT_ALERT_EMAIL,
             subject: 'OxSteed: a customer is waiting for live support',
             text: `A customer has been waiting at least two minutes without an assigned agent.\n\nConversation: ${id}\nOpen https://oxsteed.com/admin/support/chat and go online in Support to help.\nThe customer is offered message and call/text options after five minutes.`,
             idempotencyKey: `support-founder-${id}`,
