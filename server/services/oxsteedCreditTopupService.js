@@ -22,6 +22,7 @@ const pool = require('../db');
 const { withTransaction } = require('../utils/transaction');
 const { AppError } = require('../middleware/errorHandler');
 const logger = require('../utils/logger');
+const { sendNotification } = require('./notificationService');
 const {
   MAX_TRANSACTION_CENTS,
   assertSupportedCreditCurrency,
@@ -404,7 +405,14 @@ async function completeCreditTopupFromWebhook({ paymentIntentId }) {
           WHERE id = $1`,
         [topup.id, wallet.id, transaction.id]
       );
-      return { outcome: 'completed', topupId, transactionId: transaction.id };
+      return {
+        outcome: 'completed',
+        topupId,
+        transactionId: transaction.id,
+        customerId: topup.customer_id,
+        amountCents: amount,
+        currencyCode: currency,
+      };
     } catch (err) {
       await client.query(
         `UPDATE oxsteed_credit_topups
@@ -489,7 +497,28 @@ async function applyCreditTopupWebhookEvent({ type, object }) {
   switch (type) {
     case 'payment_intent.succeeded': {
       if (!metadata.oxsteed_credit_topup_id) return false;
-      await completeCreditTopupFromWebhook({ paymentIntentId: object.id });
+      const result = await completeCreditTopupFromWebhook({ paymentIntentId: object.id });
+      if (result.outcome === 'completed' && result.customerId) {
+        try {
+          await sendNotification({
+            userId: result.customerId,
+            type: 'payment_receipt',
+            data: {
+              credit_topup_id: String(result.topupId),
+              payment_intent_id: object.id,
+              amount: (result.amountCents / 100).toFixed(2),
+              currency: result.currencyCode,
+            },
+            action_url: '/oxsteed-credit',
+            idempotencyKey: `credit-topup-receipt:${result.topupId}`,
+          });
+        } catch (err) {
+          logger.warn('[oxsteed-credit] Failed to send top-up receipt notification', {
+            topupId: String(result.topupId),
+            error: err.message,
+          });
+        }
+      }
       return true;
     }
     case 'payment_intent.payment_failed':

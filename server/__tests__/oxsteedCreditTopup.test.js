@@ -28,6 +28,9 @@ jest.mock('../services/oxsteedCreditAdminService', () => ({
   confirmSettlementPayoutFromTransfer: jest.fn(),
   failSettlementPayoutFromTransfer: jest.fn(),
 }));
+jest.mock('../services/notificationService', () => ({
+  sendNotification: jest.fn().mockResolvedValue({ success: true }),
+}));
 
 const express = require('express');
 const request = require('supertest');
@@ -39,6 +42,7 @@ const webhookRoutes = require('../routes/webhook');
 const complianceService = require('../services/fiatComplianceService');
 const stepupService = require('../services/stepupChallengeService');
 const adminService = require('../services/oxsteedCreditAdminService');
+const { sendNotification } = require('../services/notificationService');
 
 const CUSTOMER_ID = '11111111-1111-4111-8111-111111111111';
 const OTHER_CUSTOMER_ID = '33333333-3333-4333-8333-333333333333';
@@ -431,6 +435,28 @@ describe('completeCreditTopupFromWebhook', () => {
     expect(incident[1][2]).toBe('Stripe payment received but credit not posted');
     expect(incident[1][4]).toBe(`credit-topup-uncredited:${TOPUP_ID}`);
   });
+
+  test('webhook routing sends one idempotent receipt after a newly completed top-up', async () => {
+    stubQueries(completionHandlers());
+    const handled = await topupService.applyCreditTopupWebhookEvent({
+      type: 'payment_intent.succeeded',
+      object: { id: 'pi_topup_1', metadata: { oxsteed_credit_topup_id: TOPUP_ID } },
+    });
+
+    expect(handled).toBe(true);
+    expect(sendNotification).toHaveBeenCalledWith({
+      userId: CUSTOMER_ID,
+      type: 'payment_receipt',
+      data: {
+        credit_topup_id: TOPUP_ID,
+        payment_intent_id: 'pi_topup_1',
+        amount: '50.00',
+        currency: 'USD',
+      },
+      action_url: '/oxsteed-credit',
+      idempotencyKey: `credit-topup-receipt:${TOPUP_ID}`,
+    });
+  });
 });
 
 describe('failCreditTopupFromWebhook', () => {
@@ -473,6 +499,7 @@ describe('applyCreditTopupWebhookEvent routing', () => {
     })).toBe(false);
     expect(mockQuery).not.toHaveBeenCalled();
   });
+
 });
 
 // ── Controller ───────────────────────────────────────────────────────────
