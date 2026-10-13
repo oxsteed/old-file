@@ -143,3 +143,5 @@ Session-chain follow-up: refresh rotation now records the consumed session id in
 
 Impersonation follow-up: impersonation requests now honor the target user's token-revocation marker in addition to the existing per-impersonation JTI and database ended-at checks, so account security actions terminate delegated sessions too.
 
+Session-management follow-up: signed-in users now have `/api/users/me/sessions` and `DELETE /api/users/me/sessions/:sessionId` for listing and revoking their own sessions, with current-session protection and the existing access-token denylist. The expiry sweeper predicate now references both session lifecycle flags while retaining expired-row cleanup.
+
