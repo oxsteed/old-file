@@ -639,7 +639,7 @@ router.get('/:toolId/availability', toolBookingsController.checkAvailability);
 router.put('/bookings/:bookingId', authenticate, toolBookingsController.updateBookingStatus);
 
 // ANALYTICS
-router.post('/analytics/track', generalLimiter, toolAnalyticsController.trackEvent);
+router.post('/analytics/track', authenticate, generalLimiter, toolAnalyticsController.trackEvent);
 router.get('/:toolId/analytics', toolAnalyticsController.getAnalytics);
 router.get('/analytics/top', toolAnalyticsController.getTopTools);
 router.get('/analytics/dashboard', authenticate, toolAnalyticsController.getOwnerDashboard);

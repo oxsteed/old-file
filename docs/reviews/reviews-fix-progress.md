@@ -227,3 +227,13 @@ W16 upload follow-up: job creation no longer publishes a partial media set when 
 - W17 sanctions queue follow-up: pending partner sanctions hits now include the linked restaurant or business name and owner email in the compliance queue, so reviewers can resolve partner hits without a bare internal ID.
 
 - W18 privacy follow-up: anonymous opt-out requests are now accepted and retained with their email, CCPA admin listing keeps orphaned requests visible, data compilation uses payer/payee payment ownership, and self-delete records its decision in the retained legal audit log. Audit-retained admin deletions anonymize the account instead of retrying a blocked hard delete.
+
+## W18 follow-up (tool rentals, security audit, retention)
+
+- Tool rental booking availability now runs inside a per-tool advisory-lock transaction, closing the create-booking race (P3-1072).
+- Invoice email payloads use the masked payment identifier; decrypted identifiers stay server-side (P3-1074).
+- Payment confirmation is customer-controlled; owners can no longer self-attest an invoice payment (P3-1078).
+- Tool analytics event writes require an authenticated user and the existing limiter (P3-1081).
+- Added a permission-gated, bounded security audit-log reader under admin operations (P3-1052).
+- Session cleanup now also removes expired pending registrations and aged password-reset attempts (P3-1054).
+- Removed a stale tool-rental moderation business update that caused false conflict responses; moderation remains audited on the rental record.

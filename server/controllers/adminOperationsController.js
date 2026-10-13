@@ -227,4 +227,32 @@ exports.getOverview = async (req, res) => {
   });
 };
 
+// Bounded, permission-gated reader for the security audit trail. The overview
+// only exposes counts; operators need the underlying events to investigate a
+// failure without reaching into the database directly.
+exports.getSecurityAuditLog = async (req, res) => {
+  const limit = Math.min(Math.max(Number.parseInt(req.query.limit, 10) || 50, 1), 200);
+  const offset = Math.max(Number.parseInt(req.query.offset, 10) || 0, 0);
+  const params = [limit, offset];
+  const filters = [];
+  if (req.query.status) { params.push(String(req.query.status).slice(0, 20)); filters.push(`status = $${params.length}`); }
+  if (req.query.action) { params.push(String(req.query.action).slice(0, 100)); filters.push(`action = $${params.length}`); }
+  const where = filters.length ? `WHERE ${filters.join(' AND ')}` : '';
+  try {
+    const { rows } = await db.query(
+      `SELECT id, user_id, action, resource_type, resource_id, details,
+              ip_address, user_agent, status, created_at
+         FROM security_audit_log
+        ${where}
+        ORDER BY created_at DESC, id DESC
+        LIMIT $1 OFFSET $2`,
+      params,
+    );
+    res.json({ rows, limit, offset });
+  } catch (error) {
+    logger.error('Security audit log read failed', { error: error.message });
+    res.status(503).json({ error: 'Security audit log unavailable', code: 'audit_log_unavailable' });
+  }
+};
+
 module.exports = exports;

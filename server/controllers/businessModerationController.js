@@ -179,15 +179,6 @@ exports.toggleToolRental = async (req, res) => {
       return res.status(409).json({ error: 'Tool rental state changed during update. Please try again.' });
     }
 
-    const { rows: flagged } = await db.query(
-      `UPDATE businesses
-          SET is_hidden_by_admin = TRUE, hidden_reason = 'admin_decision',
-              hidden_at = NOW(), hidden_by = $2, updated_at = NOW()
-        WHERE id = $1
-        RETURNING id`, [id, req.user.id]
-    );
-    if (!flagged.length) return res.status(409).json({ error: 'Business state changed during flagging. Please retry.' });
-
     try {
       await logAdminAction({
         adminId: req.user.id,

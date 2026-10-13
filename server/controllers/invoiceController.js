@@ -240,7 +240,7 @@ const createInvoice = async (req, res) => {
       // Prepare invoice data for email
       const invoiceForEmail = {
         ...invoice,
-        payment_identifier: decryptedIdentifier,
+        payment_identifier: maskedIdentifier,
         owner_first: booking.owner_first || '',
         owner_last: booking.owner_last || '',
         owner_email: booking.owner_email,
@@ -539,14 +539,14 @@ const confirmPayment = async (req, res) => {
   const client = await db.connect();
   try {
     const { invoiceId } = req.params;
-    const ownerId = req.user.id;
+    const customerId = req.user.id;
 
     const invoiceResult = await client.query(
       `SELECT tri.*, trb.status as booking_status
        FROM tool_rental_invoices tri
        JOIN tool_rentals_bookings trb ON tri.booking_id = trb.id
-       WHERE tri.id = $1 AND tri.owner_id = $2`,
-      [invoiceId, ownerId]
+       WHERE tri.id = $1 AND tri.customer_id = $2`,
+      [invoiceId, customerId]
     );
 
     if (!invoiceResult.rows[0]) {
@@ -592,7 +592,7 @@ const confirmPayment = async (req, res) => {
     await client.query(
       `INSERT INTO invoice_audit_log (invoice_id, previous_status, new_status, changed_by, change_reason)
        VALUES ($1, $2, $3, $4, $5)`,
-      [invoiceId, previousStatus, 'payment_confirmed', ownerId, 'Payment confirmed by owner']
+      [invoiceId, previousStatus, 'payment_confirmed', customerId, 'Payment confirmed by customer']
     );
 
     await client.query('COMMIT');
@@ -600,7 +600,7 @@ const confirmPayment = async (req, res) => {
 
     res.json({ status: 'payment_confirmed', invoiceId, message: 'Invoice is now immutable' });
 
-    logger.info('Payment confirmed and invoice immutable', { invoiceId, bookingId: invoice.booking_id, ownerId });
+    logger.info('Payment confirmed and invoice immutable', { invoiceId, bookingId: invoice.booking_id, customerId });
   } catch (err) {
     await client.query('ROLLBACK').catch(() => {});
     client.release();

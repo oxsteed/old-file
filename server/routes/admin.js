@@ -72,6 +72,7 @@ router.get('/dashboard',         requireAdmin, requirePermission('manage_operati
 // Read-only cross-domain command center. Each section reports its own
 // availability and permission state; domain pages remain authoritative.
 router.get('/operations/overview', requireAdmin, requirePermission('manage_operations'), adminOperationsCtrl.getOverview);
+router.get('/operations/security-audit-log', requireAdmin, requirePermission('view_audit_log'), adminOperationsCtrl.getSecurityAuditLog);
 
 // Content moderation
 router.get('/reports',           requireAdmin, requirePermission('manage_operations'), adminCtrl.getReports);
