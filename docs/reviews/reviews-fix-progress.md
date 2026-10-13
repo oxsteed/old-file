@@ -183,3 +183,5 @@ W16 launch-gate follow-up: DIDIT_ALLOW_USER_SKIP now defaults closed and require
 W16 booking follow-up: appointment capacity and staff-overlap guards now exclude both cancelled and no-show appointments, matching the slot engine and preventing phantom capacity consumption after a no-show.
 
 W17 receipt follow-up: completed OxSteed Credit Stripe top-ups now emit a localized, idempotent `payment_receipt` notification to the customer with the top-up and PaymentIntent references. Duplicate, failed, expired, and requires-attention paths do not emit a receipt.
+
+W16 media follow-up: support conversation attachments now accept only first-party storage paths or hosts on the shared media allowlist. Arbitrary external HTTPS links and unrelated storage paths are rejected on both the modern message route and the legacy attachment route.

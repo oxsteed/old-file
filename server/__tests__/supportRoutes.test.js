@@ -1191,6 +1191,18 @@ describe('support routes', () => {
     expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO support_conversation_messages/.test(sql))).toBe(false);
   });
 
+  test('rejects arbitrary external attachment URLs before storing them', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [{ ...authUserRow(), id: ADMIN_ID, role: 'super_admin' }] });
+
+    const res = await request(buildApp())
+      .post('/api/support/42/conversations/conversation-1/attachment')
+      .set('Authorization', adminAuthHeader())
+      .send({ attachmentUrl: 'https://cdn.example.com/image.png', attachmentName: 'external.png' });
+
+    expect(res.status).toBe(400);
+    expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO support_conversation_messages/.test(sql))).toBe(false);
+  });
+
   test('bounds attachment names and stores the attachment with its counter atomically', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [{ ...authUserRow(), id: ADMIN_ID, role: 'super_admin' }] })
@@ -1201,7 +1213,7 @@ describe('support routes', () => {
     const res = await request(buildApp())
       .post('/api/support/42/conversations/conversation-1/attachment')
       .set('Authorization', adminAuthHeader())
-      .send({ attachmentUrl: 'https://cdn.example.com/image.png', attachmentName: 'proof.png' });
+      .send({ attachmentUrl: '/api/storage/public/support/image.png', attachmentName: 'proof.png' });
 
     expect(res.status).toBe(200);
     const insertIndex = mockQuery.mock.calls.findIndex(([sql]) => /INSERT INTO support_conversation_messages/.test(sql));
@@ -1212,7 +1224,7 @@ describe('support routes', () => {
       'conversation-1',
       ADMIN_ID,
       'proof.png',
-      'https://cdn.example.com/image.png',
+      '/api/storage/public/support/image.png',
       'proof.png',
     ]);
   });
@@ -1223,7 +1235,7 @@ describe('support routes', () => {
     const res = await request(buildApp())
       .post('/api/support/42/conversations/conversation-1/attachment')
       .set('Authorization', adminAuthHeader())
-      .send({ attachmentUrl: 'https://cdn.example.com/image.png', attachmentName: 'x'.repeat(256) });
+      .send({ attachmentUrl: '/api/storage/public/support/image.png', attachmentName: 'x'.repeat(256) });
 
     expect(res.status).toBe(400);
     expect(mockQuery).toHaveBeenCalledTimes(1);

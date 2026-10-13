@@ -12,6 +12,7 @@ const { sendEmail, EMAIL_ADDRESSES } = require('../utils/email');
 const { sendSupportEmail, retryFailedSupportEmails } = require('../services/supportEmailOutbox');
 const escapeHtml = require('../utils/escapeHtml');
 const { uploadFile, getSignedDownloadUrl, deleteFile } = require('../utils/storage');
+const { validateMediaUrl } = require('../utils/mediaUrlValidation');
 const { withTransaction } = require('../utils/transaction');
 const supportConversationStateMachine = require('../services/supportConversationStateMachine');
 const supportChannelDeliveryService = require('../services/supportChannelDeliveryService');
@@ -114,16 +115,22 @@ function normalizeAttachmentReference(attachmentUrl, attachmentName) {
   if (!rawUrl) return { url: null, name: rawName.slice(0, 255) || null };
   if (rawUrl.length > 2048) return { error: 'Attachment URL is too long' };
 
+  // Legacy clients may send a relative storage URL, but never accept an
+  // arbitrary /api/storage path that could point at an unrelated object.
   if (rawUrl.startsWith('/api/storage/')) {
+    if (!/^\/api\/storage\/(?:public|files)\/[^?#]+(?:\?[^#]*)?$/.test(rawUrl)) {
+      return { error: 'Attachment URL must reference an OxSteed storage object' };
+    }
     return { url: rawUrl, name: rawName.slice(0, 255) || null };
   }
 
   try {
-    const parsed = new URL(rawUrl);
-    if (parsed.protocol !== 'https:') return { error: 'Attachment URL must use HTTPS' };
-    return { url: parsed.toString(), name: rawName.slice(0, 255) || null };
-  } catch {
-    return { error: 'Attachment URL must be a valid HTTPS URL' };
+    return {
+      url: validateMediaUrl(rawUrl, 'attachment URL'),
+      name: rawName.slice(0, 255) || null,
+    };
+  } catch (err) {
+    return { error: err.message || 'Attachment URL is not allowed' };
   }
 }
 
