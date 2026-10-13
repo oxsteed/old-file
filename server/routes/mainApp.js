@@ -3,6 +3,7 @@
 const express = require('express');
 const router = express.Router();
 const { authenticate, optionalAuth } = require('../middleware/auth');
+const { requireTaxIdentity } = require('../middleware/helperOnboardingMiddleware');
 const upload = require('../middleware/upload');
 const validateFileUpload = require('../middleware/validateFileUpload');
 const ctrl = require('../controllers/mainAppController');
@@ -14,7 +15,7 @@ router.get('/business-hub', authenticate, ctrl.getBusinessHub);
 router.get('/billing', authenticate, ctrl.getBillingHub);
 router.get('/transactions', authenticate, ctrl.getTransactionHistory);
 router.get('/payouts/summary', authenticate, ctrl.getPayoutSummary);
-router.post('/payouts', authenticate, ctrl.requestPayout);
+router.post('/payouts', authenticate, requireTaxIdentity, ctrl.requestPayout);
 router.post('/payouts/:requestId/cancel', authenticate, ctrl.cancelPayoutRequest);
 router.get('/payment-requests', authenticate, ctrl.listPaymentRequests);
 router.get('/payment-requests/:requestId', authenticate, ctrl.getPaymentRequest);
