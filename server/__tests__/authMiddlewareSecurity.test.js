@@ -70,4 +70,21 @@ describe('auth middleware token boundaries', () => {
     expect(res.body.userId).toBeNull();
     expect(mockQuery).not.toHaveBeenCalled();
   });
+
+  test('authenticate applies user revocation markers to impersonation tokens', async () => {
+    const impersonationToken = jwt.sign(
+      { id: 7, impersonation: true, impersonated_by: 99, jti: 'impersonation-1' },
+      process.env.JWT_SECRET,
+      { algorithm: 'HS256' }
+    );
+    tokenRevocationService.isRevoked.mockResolvedValueOnce(true);
+
+    const res = await request(buildApp(authenticate))
+      .get('/protected')
+      .set('Authorization', `Bearer ${impersonationToken}`);
+
+    expect(res.status).toBe(401);
+    expect(res.body.error).toMatch(/revoked/i);
+    expect(mockQuery).not.toHaveBeenCalled();
+  });
 });

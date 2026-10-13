@@ -116,6 +116,15 @@ async function authenticate(req, res, next) {
       if (sessionRevoked) {
         return res.status(401).json({ error: 'Impersonation session has ended' });
       }
+      // Impersonation still runs as the target user. A user-wide revocation
+      // (password change, account security action, or logout) must therefore
+      // invalidate the impersonation token too, before the database audit
+      // lookup can authorize another request.
+      const tokenId = crypto.createHash('sha256').update(token).digest('hex');
+      const userRevoked = await tokenRevocationService.isRevoked(tokenId, decoded.id, decoded.iat);
+      if (userRevoked) {
+        return res.status(401).json({ error: 'Token has been revoked' });
+      }
       // Audit fix: also check ended_at in the database. The revocation
       // service is a cache; the database is the source of truth. If the
       // session was ended but the revocation didn't propagate, deny.

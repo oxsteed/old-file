@@ -81,6 +81,7 @@ jest.mock('../services/tokenRevocationService', () => ({
   revokeAccessToken: jest.fn().mockResolvedValue(undefined),
   revokeRefreshToken: jest.fn().mockResolvedValue(undefined),
   revokeAllUserTokens: jest.fn().mockResolvedValue(undefined),
+  isImpersonationSessionRevoked: jest.fn().mockResolvedValue(false),
 }));
 
 // The production TOTP adapter currently ships an ESM-only transitive module.
