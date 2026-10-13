@@ -124,6 +124,7 @@ async function anonymizeCreditCustomer(client, userId, { hasNotificationOutbox =
 
 async function hardDeleteExpiredAccounts() {
   logger.info('scheduledDeletionJob: starting');
+  if (process.env.NODE_ENV !== 'test') await cleanupExpiredSessionData();
 
   const { rows: candidates } = await pool.query(
     `SELECT id, email, first_name, last_name, deletion_scheduled_at
@@ -148,6 +149,22 @@ async function hardDeleteExpiredAccounts() {
   }
 
   logger.info('scheduledDeletionJob: complete');
+}
+
+async function cleanupExpiredSessionData() {
+  const cleanups = [
+    ['sessions', `DELETE FROM sessions WHERE expires_at IS NOT NULL AND expires_at <= NOW()`],
+    ['privacy_export_verifications', `DELETE FROM privacy_export_verifications WHERE expires_at <= NOW() OR (consumed_at IS NOT NULL AND consumed_at < NOW() - INTERVAL '1 day')`],
+    ['restaurant_app_devices', `DELETE FROM restaurant_app_devices WHERE pairing_code IS NOT NULL AND pairing_code_expires_at IS NOT NULL AND pairing_code_expires_at <= NOW()`],
+  ];
+  for (const [name, sql] of cleanups) {
+    try {
+      const result = await pool.query(sql);
+      if (result.rowCount) logger.info('scheduledDeletionJob: expired session data cleaned', { table: name, count: result.rowCount });
+    } catch (error) {
+      logger.warn('scheduledDeletionJob: optional session cleanup skipped', { table: name, error: error.message });
+    }
+  }
 }
 
 async function hardDeleteUser(user) {
@@ -290,4 +307,4 @@ function startScheduledDeletionJob() {
   logger.info('scheduledDeletionJob: registered (daily at 03:00 UTC)');
 }
 
-module.exports = { startScheduledDeletionJob, hardDeleteExpiredAccounts };
+module.exports = { startScheduledDeletionJob, hardDeleteExpiredAccounts, cleanupExpiredSessionData };
