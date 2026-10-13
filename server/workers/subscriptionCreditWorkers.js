@@ -77,6 +77,19 @@ async function renewSubscriptionCredit({ limit } = {}) {
             `UPDATE subscriptions SET status = 'cancelled', updated_at = NOW() WHERE id = $1`,
             [sub.id]
           );
+          // P3-11-F08: audit the scheduled cancellation completing.
+          const { logAdminAction } = require('../services/auditService');
+          await logAdminAction({
+            client,
+            adminId: locked[0].user_id,
+            action: 'subscription.cancelled',
+            targetType: 'subscription',
+            targetId: String(sub.id),
+            description: 'Subscription ended at period close after subscriber cancellation (OxSteed Credit)',
+            before: { status: 'active', cancel_at_period_end: true },
+            after: { status: 'cancelled' },
+            throwOnError: true,
+          });
           ended += 1;
           return;
         }
@@ -132,6 +145,23 @@ async function renewSubscriptionCredit({ limit } = {}) {
             WHERE id = $1`,
           [sub.id, periodStart.toISOString(), nextEnd.toISOString()]
         );
+        // P3-11-F08: fail-closed audit row for the credit renewal; the
+        // renewal rolls back if the audit write fails.
+        const { logAdminAction } = require('../services/auditService');
+        await logAdminAction({
+          client,
+          adminId: locked[0].user_id,
+          action: 'subscription.renewed',
+          targetType: 'subscription',
+          targetId: String(sub.id),
+          description: 'Subscription renewed (OxSteed Credit)',
+          before: { current_period_end: locked[0].current_period_end },
+          after: {
+            current_period_start: periodStart.toISOString(),
+            current_period_end: nextEnd.toISOString(),
+          },
+          throwOnError: true,
+        });
       }, 'subscription_credit_renewal');
       renewed += 1;
     } catch (err) {

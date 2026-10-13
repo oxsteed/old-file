@@ -105,15 +105,31 @@ class IncidentAlertService {
     }
 
     // Send to all channels
-    this.alertChannels.forEach(channel => {
-      Promise.resolve()
-        .then(() => channel(incident))
-        .catch((err) => {
-          logger.error('Alert channel failed', { channel: channel.name, error: err.message });
-        });
-    });
+    await this.dispatchRecordedIncident(incident);
 
     return { ...incident, durable, notificationsSuppressed: false };
+  }
+
+  /**
+   * Dispatch the alert channels for an incident that was already recorded
+   * in the incident log by another component (e.g. a compliance SLA sweep
+   * that persists its own incidents with a custom dedupe key and then
+   * claims the notification window). The caller must only invoke this when
+   * it owns the notification window; otherwise repeated sweeps would
+   * re-notify on every run.
+   */
+  async dispatchRecordedIncident(incident) {
+    const settled = await Promise.allSettled(
+      this.alertChannels.map((channel) =>
+        Promise.resolve()
+          .then(() => channel(incident))
+          .catch((err) => {
+            logger.error('Alert channel failed', { channel: channel.name, error: err.message });
+            throw err;
+          })
+      )
+    );
+    return { dispatched: true, channels: settled.map((r) => r.status) };
   }
 
   /**

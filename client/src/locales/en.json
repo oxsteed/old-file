@@ -17330,7 +17330,19 @@
     "contactTitle": "How to Contact Us",
     "contactIntro": "If you have questions about this page or wish to exercise any privacy rights, please contact us at:",
     "contactEmailLabel": "Email:",
-    "contactMailLabel": "Mail:"
+    "contactMailLabel": "Mail:",
+      "formTitle": "Submit an Opt-Out Request",
+      "formIntro": "Use this form to exercise your right to opt out of the sale or sharing of your personal information. We will respond within 45 days.",
+      "emailLabel": "Email address",
+      "emailPlaceholder": "you@example.com",
+      "notesLabel": "Additional details (optional)",
+      "notesPlaceholder": "Tell us anything that helps us find your data.",
+      "submitButton": "Submit Opt-Out Request",
+      "submittingButton": "Submitting...",
+      "successTitle": "Request received",
+      "successMessage": "Your opt-out request was received. We will respond within 45 days.",
+      "errorRequired": "Please enter your email address.",
+      "errorFailed": "We could not submit your request. Please try again later."
   },
   "cookiePolicyPage": {
     "title": "Cookie Policy",
