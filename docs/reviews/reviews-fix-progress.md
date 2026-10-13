@@ -219,3 +219,5 @@ W16 upload follow-up: job creation no longer publishes a partial media set when 
 - W17 affiliate payout follow-up: admin-triggered affiliate transfers now require a fresh verified affiliate identity and a clear sanctions screening before claiming or transferring the payout. The existing Connect `payouts_enabled` gate remains required.
 
 - W17 tax-identity follow-up: main-app tax documents now expose W-9 and fresh identity readiness, and 1099 downloads remain unavailable until both are complete. Affiliate and cancellation-fee payouts apply the same W-9 requirement before transfer.
+
+- W17 identity lifecycle follow-up: expired Credit identity verifications are now persisted as `expired` on the first effective-tier read, while preserving the fail-closed tier-zero result and avoiding changes to immutable review evidence.

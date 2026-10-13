@@ -87,6 +87,7 @@ describe('identity verification tiers', () => {
       amountCents: 1000,
       fundingMethod: 'stripe_topup',
     })).rejects.toMatchObject({ code: 'credit_funding_verification_required', status: 403 });
+    expect(mockQuery.mock.calls.some(([sql]) => String(sql).includes("SET status = 'expired'"))).toBe(true);
   });
 
   test('tier 1 allows small top-ups and blocks amounts over its cap', async () => {
