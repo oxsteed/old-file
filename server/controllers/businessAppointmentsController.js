@@ -479,7 +479,7 @@ async function rescheduleAppointment(req, res, next) {
       // business blocked times, no past times.
       await assertRescheduleBookingRules(client, {
         businessId,
-        service: serviceResult.rows[0] || null,
+        service: svcRows[0] || null,
         staffId: orig.staff_id,
         startTime: new_start_time,
         endTime: new_end_time,
