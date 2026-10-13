@@ -644,6 +644,14 @@ const requireConsultingLaunched = require('./middleware/featureFlags').requireFe
 app.use('/api/consulting',   requireConsultingLaunched, consultingPaymentRoutes);
 app.use('/api/quote-requests', quoteRequestsRoutes);
 app.use('/api/consulting',   requireConsultingLaunched, consultingAllPhasesRoutes);
+// Review P3-7-F01 (by design): the consulting admin router stays ungated so
+// operators can configure and preview the product before launch. Every
+// handler requires admin auth with granular permissions, all actions are
+// audit-logged, and the router cannot move real money: the only payment
+// write (markInvoicePaid) records off-platform methods (bank_transfer,
+// check, cash, card_terminal) and charges nothing in Stripe. All
+// customer-facing consulting routers above and below carry
+// requireConsultingLaunched.
 app.use('/api/consulting/admin', consultingAdminRoutes);
 app.use('/api/consulting',   consultingRoutes);
 app.use('/api/invoices',     invoiceRoutes);

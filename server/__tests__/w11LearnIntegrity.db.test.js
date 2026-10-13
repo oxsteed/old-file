@@ -148,21 +148,33 @@ describeDb('W11 Learn integrity against real PostgreSQL', () => {
     }
   });
 
-  test('open flags hide public playlists until every flag is dismissed', async () => {
+  test('public playlist auto-hides a video once open flags reach the threshold', async () => {
     const id = await video();
-    const otherFlagger = crypto.randomUUID();
-    await db.query("INSERT INTO users(id,role) VALUES($1,'customer')", [otherFlagger]);
+    const flaggers = [crypto.randomUUID(), crypto.randomUUID()];
+    for (const fid of flaggers) {
+      await db.query("INSERT INTO users(id,role) VALUES($1,'customer')", [fid]);
+    }
     const first = await flag(id);
-    const second = (await db.query("INSERT INTO learn_guide_video_flags(video_id,user_id,reason) VALUES($1,$2,'broken') RETURNING id", [id, otherFlagger])).rows[0].id;
     // Execute the production playlist query against the isolated tables.
     const source = fs.readFileSync(path.join(__dirname, '../controllers/learnController.js'), 'utf8');
     const sql = source.slice(source.indexOf('const getGuideVideos =')).match(/`(SELECT v\.id[\s\S]+?)`/)[1]
-      .replace(/\$\{viewerId \? 'BOOL_OR\(vt\.user_id = \$2\)' : 'FALSE'\}/, 'FALSE');
-    const visible = async () => (await db.query(sql, [['guide']])).rows;
+      .replace(/\$\{viewerId \? 'BOOL_OR\(vt\.user_id = \$2\)' : 'FALSE'\}/, 'FALSE')
+      .replace(/\$\{thresholdParam\}/, '$2');
+    const visible = async () => (await db.query(sql, [['guide'], 3])).rows;
+    // A lone flag is not a griefing veto: the video stays visible below the
+    // auto-hide threshold.
+    expect(await visible()).toHaveLength(1);
+    const second = (await db.query("INSERT INTO learn_guide_video_flags(video_id,user_id,reason) VALUES($1,$2,'broken') RETURNING id", [id, flaggers[0]])).rows[0].id;
+    expect(await visible()).toHaveLength(1);
+    // The third distinct open flag crosses the threshold: interim auto-hide
+    // without waiting for an admin decision.
+    const third = (await db.query("INSERT INTO learn_guide_video_flags(video_id,user_id,reason) VALUES($1,$2,'spam') RETURNING id", [id, flaggers[1]])).rows[0].id;
     expect(await visible()).toHaveLength(0);
+    // Dismissing back below the threshold restores visibility.
     expect(await reviewVideoFlag(first, admin, 'dismiss', null, request)).toEqual({ ok: true });
-    expect(await visible()).toHaveLength(0);
+    expect(await visible()).toHaveLength(1);
     expect(await reviewVideoFlag(second, admin, 'dismiss', null, request)).toEqual({ ok: true });
+    expect(await reviewVideoFlag(third, admin, 'dismiss', null, request)).toEqual({ ok: true });
     expect(await visible()).toHaveLength(1);
   });
 
