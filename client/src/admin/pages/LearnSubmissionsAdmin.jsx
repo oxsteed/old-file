@@ -299,6 +299,21 @@ function ExpandedSubmission({ sub, onReview }) {
 
 // ── Main page ──────────────────────────────────────────────────────────────────
 
+function QueuePagination({ page, onPrevious, onNext, hasNext, loading }) {
+  const { t } = useTranslation();
+  return <div className="flex flex-wrap items-center justify-between gap-3 border-t border-gray-200 px-5 py-3 dark:border-gray-700">
+    <button type="button" onClick={onPrevious} disabled={!page || loading}
+      className="min-h-11 rounded-lg px-3 text-sm disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-orange-500">
+      {t('reviewW11Learn.previousPage')}
+    </button>
+    <span aria-live="polite" className="text-sm">{t('reviewW11Learn.pageNumber', { page: page + 1 })}</span>
+    <button type="button" onClick={onNext} disabled={!hasNext || loading}
+      className="min-h-11 rounded-lg px-3 text-sm disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-orange-500">
+      {t('reviewW11Learn.nextPage')}
+    </button>
+  </div>;
+}
+
 export default function LearnSubmissionsAdmin() {
   const { t } = useTranslation();
   const [submissions, setSubmissions] = useState([]);
@@ -349,19 +364,20 @@ export default function LearnSubmissionsAdmin() {
 
   // ── Community video submissions (24h auto-publish unless blocked) ──
   const [videoStatus, setVideoStatus] = useState('pending');
-  const [videos, setVideos] = useState([]);
+  const [videoPage, setVideoPage] = useState(0);
+  const [videoCursors, setVideoCursors] = useState([null]);
+  const videoCursor = videoCursors[videoPage];
   const { data: videosData, error: videosError, loading: videosLoading, reload: reloadVideos } =
     useAbortableFetch(async (signal) => {
       const { data } = await adminApi.get('/learn/admin/video-submissions', {
-        params: { status: videoStatus },
+        params: { status: videoStatus, cursor: videoCursor || undefined },
         signal,
       });
-      return { submissions: data.submissions ?? [] };
-    }, [videoStatus]);
+      return { ...data, submissions: data.submissions ?? [], request_cursor: videoCursor || null, request_status: videoStatus };
+    }, [videoStatus, videoCursor]);
 
-  useEffect(() => {
-    if (videosData) setVideos(videosData.submissions);
-  }, [videosData]);
+  const videos = videosData?.submissions || [];
+  const videosCurrent = videosData?.request_cursor === (videoCursor || null) && videosData?.request_status === videoStatus;
 
   const handleVideoDecision = async (id, decision) => {
     await adminApi.post(`/learn/admin/video-submissions/${id}/${decision}`);
@@ -370,21 +386,22 @@ export default function LearnSubmissionsAdmin() {
 
   // ── Flagged community videos (dismiss / move to the right guide / delete) ──
   const [flagStatus, setFlagStatus] = useState('open');
-  const [flags, setFlags] = useState([]);
+  const [flagPage, setFlagPage] = useState(0);
+  const [flagCursors, setFlagCursors] = useState([null]);
+  const flagCursor = flagCursors[flagPage];
   const [moveTarget, setMoveTarget] = useState({});
   const [guideOptions, setGuideOptions] = useState([]);
   const { data: flagsData, error: flagsError, loading: flagsLoading, reload: reloadFlags } =
     useAbortableFetch(async (signal) => {
       const { data } = await adminApi.get('/learn/admin/video-flags', {
-        params: { status: flagStatus },
+        params: { status: flagStatus, cursor: flagCursor || undefined },
         signal,
       });
-      return { flags: data.flags ?? [] };
-    }, [flagStatus]);
+      return { ...data, flags: data.flags ?? [], request_cursor: flagCursor || null, request_status: flagStatus };
+    }, [flagStatus, flagCursor]);
 
-  useEffect(() => {
-    if (flagsData) setFlags(flagsData.flags);
-  }, [flagsData]);
+  const flags = flagsData?.flags || [];
+  const flagsCurrent = flagsData?.request_cursor === (flagCursor || null) && flagsData?.request_status === flagStatus;
 
   // Guide options for the "move to the right guide" picker — loaded once.
   useEffect(() => {
@@ -466,7 +483,7 @@ export default function LearnSubmissionsAdmin() {
               {['pending', 'live', 'blocked', 'superseded'].map((s) => (
                 <button
                   key={s}
-                  onClick={() => setVideoStatus(s)}
+                  onClick={() => { setVideoStatus(s); setVideoPage(0); setVideoCursors([null]); }}
                   className={`px-2.5 py-1 rounded-full text-xs font-700 capitalize transition-colors ${
                     videoStatus === s
                       ? 'bg-orange-500 text-white'
@@ -480,7 +497,7 @@ export default function LearnSubmissionsAdmin() {
         </div>
         {videosError ? (
           <div className="px-5 py-4"><AdminErrorState onRetry={reloadVideos} /></div>
-        ) : videosLoading && videos.length === 0 ? (
+        ) : videosLoading || !videosCurrent ? (
           <div className="flex items-center justify-center py-8 text-gray-400">
             <RefreshCw size={16} className="animate-spin mr-2" />
             {t('adminLearnSubmissions.loading')}
@@ -544,6 +561,10 @@ export default function LearnSubmissionsAdmin() {
             ))}
           </ul>
         )}
+        <QueuePagination page={videoPage} loading={videosLoading || !videosCurrent || !!videosError}
+          hasNext={!!videosData?.has_more && !!videosData?.next_cursor}
+          onPrevious={() => setVideoPage(p => Math.max(0, p - 1))}
+          onNext={() => { setVideoCursors(previous => [...previous.slice(0, videoPage + 1), videosData.next_cursor]); setVideoPage(videoPage + 1); }} />
       </section>
 
       {/* Flagged community videos — dismiss, move, or delete */}
@@ -562,7 +583,7 @@ export default function LearnSubmissionsAdmin() {
               {['open', 'resolved', 'dismissed'].map((s) => (
                 <button
                   key={s}
-                  onClick={() => setFlagStatus(s)}
+                  onClick={() => { setFlagStatus(s); setFlagPage(0); setFlagCursors([null]); }}
                   className={`px-2.5 py-1 rounded-full text-xs font-700 capitalize transition-colors ${
                     flagStatus === s
                       ? 'bg-orange-500 text-white'
@@ -576,7 +597,7 @@ export default function LearnSubmissionsAdmin() {
         </div>
         {flagsError ? (
           <div className="px-5 py-4"><AdminErrorState onRetry={reloadFlags} /></div>
-        ) : flagsLoading && flags.length === 0 ? (
+        ) : flagsLoading || !flagsCurrent ? (
           <div className="flex items-center justify-center py-8 text-gray-400">
             <RefreshCw size={16} className="animate-spin mr-2" />
             {t('adminLearnSubmissions.loading')}
@@ -665,6 +686,10 @@ export default function LearnSubmissionsAdmin() {
             ))}
           </ul>
         )}
+        <QueuePagination page={flagPage} loading={flagsLoading || !flagsCurrent || !!flagsError}
+          hasNext={!!flagsData?.has_more && !!flagsData?.next_cursor}
+          onPrevious={() => setFlagPage(p => Math.max(0, p - 1))}
+          onNext={() => { setFlagCursors(previous => [...previous.slice(0, flagPage + 1), flagsData.next_cursor]); setFlagPage(flagPage + 1); }} />
       </section>
 
       {/* Filter bar */}

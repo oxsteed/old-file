@@ -1,4 +1,9 @@
 {
+  "reviewW11Learn": {
+    "previousPage": "Previous",
+    "nextPage": "Next",
+    "pageNumber": "Page {{page}}"
+  },
   "reviewW11Notifications": {
     "warranty_claim_filed": {
       "title": "New warranty claim",

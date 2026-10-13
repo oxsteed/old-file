@@ -1,4 +1,9 @@
 {
+  "reviewW11Learn": {
+    "previousPage": "السابق",
+    "nextPage": "التالي",
+    "pageNumber": "الصفحة {{page}}"
+  },
   "reviewW11Notifications": {
     "warranty_claim_filed": {
       "title": "مطالبة ضمان جديدة",

@@ -85,3 +85,33 @@ moderation/pagination/staleness, ticket SLA, enforcement, maker/checker, busines
 triage, purpose-bound reads, deposit/refund behavior, onboarding, directory
 visibility and Stripe refresh feedback. No W12 implementation starts before W11
 is complete and merged. No W11 PR was opened for this partial checkpoint.
+
+## Learn queue pagination checkpoint (P1-348)
+
+Both review endpoints now return opaque keyset cursors, retaining their default
+200-row limit and existing has_more field. Ordering uses created_at plus UUID,
+and cursor timestamps preserve PostgreSQL microseconds instead of rounding to a
+JavaScript Date. The actual admin page has localized Previous/Next controls for
+both queues, resets cursors when filters change, hides stale rows while a page
+loads, and offers the existing Retry panel on errors. Legacy callers retain the
+same first-page behavior. No migration or authorization change is needed.
+
+`w11LearnPagination.db.test.js` executes the real queue SQL against isolated
+production Learn table migrations, with 205 records timestamped one microsecond
+apart. It checks default 200+5 pages, smaller multi-page traversal, uniqueness,
+status selection and malformed cursor 400s. Together with learnGuideVideos:
+2 suites / 39 tests passed. `w11LearnPagination.browser-check.cjs` passed against
+the actual page with synthetic API boundaries, at all five requested widths in
+light/dark, French/Arabic. It checks both queues' first 200 rows -> older five ->
+previous page, filter reset, keyboard Next, 44px new controls, visible keyboard
+focus, pagination wrapping and failed fetch -> Retry. `npm run build:ci` passed
+with 776 emitted assets after the final page changes. Full W11/remote CI remains
+pending, and P1-345/346/347/349 still require their own closure evidence.
+
+Final combined checkpoint: 12 focused server suites / 261 tests passed, including
+the real PostgreSQL suites. Five-language pagination catalog parity/interpolation
+test passed. Expected failure-injection logs remain in the captured output;
+the authoritative Jest summary is green. No full W11 PR/CI claim is made.
+
+Rechecked default-branch CI after W10.5 merge: run38386697851 at c790370a succeeded.
+This is remote evidence for the merged base, not for the new W11 commits.

@@ -54,7 +54,7 @@ must be matched by behavior when it has no explicit ID row.
 | P1-345 | No staleness alerting on the pending queue | Unproven; implementation and regression audit pending |
 | P1-346 | URL-string dedupe, not video-ID dedupe | Unproven; implementation and regression audit pending |
 | P1-347 | Flags have no interim effect | Unproven; implementation and regression audit pending |
-| P1-348 | Admin queues truncate silently at 200 rows (adminListVideoSubmissions :1313, adminListVideoFlags :1560, newest | Unproven; implementation and regression audit pending |
+| P1-348 | Admin queues truncate silently at 200 rows (adminListVideoSubmissions :1313, adminListVideoFlags :1560, newest | Local real-DB 205-row cursor checks and actual-page browser checks passed; full W11 and remote CI pending |
 | P1-349 | Resubmission loop after flag-delete | Unproven; implementation and regression audit pending |
 | P1-350 | Per-submission worker failures are silent (rollback with no log line in publishDueGuideVideos); | Local finding-specific checks passed; full W11 and remote CI pending (see W11 reconciliation) |
 | P1-351 | Duplicate schedule entry | Local finding-specific checks passed; full W11 and remote CI pending (see W11 reconciliation) |

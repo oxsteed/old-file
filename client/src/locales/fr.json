@@ -1,4 +1,9 @@
 {
+  "reviewW11Learn": {
+    "previousPage": "Précédent",
+    "nextPage": "Suivant",
+    "pageNumber": "Page {{page}}"
+  },
   "reviewW11Notifications": {
     "warranty_claim_filed": {
       "title": "Nouvelle réclamation de garantie",

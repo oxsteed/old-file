@@ -6,6 +6,7 @@
 const pool = require('../db');
 const AppError = require('../utils/appError');
 const logger = require('../utils/logger');
+const { reviewPage, reviewPageResult } = require('../utils/learnReviewPagination');
 const { tagGuideWithAI, tagGuideInBackground, LEARN_CATEGORIES } = require('../services/learnTagging');
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -1313,22 +1314,25 @@ exports.adminListVideoSubmissions = async (req, res, next) => {
     const status = String(req.query.status || 'pending');
     const allowed = new Set(['pending', 'live', 'blocked', 'superseded']);
     if (!allowed.has(status)) return next(new AppError('Invalid status filter.', 400, 'bad_status'));
+    const { limit, cursor } = reviewPage(req.query);
     const { rows } = await pool.query(
       `SELECT s.id, s.guide_id, g.title AS guide_title, s.video_url, s.video_provider,
-              s.status, s.created_at, s.decided_at,
+              s.status, s.created_at, s.created_at::text AS cursor_timestamp, s.decided_at,
               u.email AS submitted_by_email, d.email AS decided_by_email
          FROM learn_guide_video_submissions s
          LEFT JOIN learn_guides g ON g.id = s.guide_id
          LEFT JOIN users u ON u.id = s.submitted_by
          LEFT JOIN users d ON d.id = s.decided_by
         WHERE s.status = $1
-        ORDER BY s.created_at DESC
+          ${cursor ? 'AND (s.created_at, s.id) < ($3::timestamptz, $4::uuid)' : ''}
+        ORDER BY s.created_at DESC, s.id DESC
         LIMIT $2`,
-      [status, Math.min(Math.max(Number(req.query.limit) || 200, 1), 500) + 1]
+      cursor ? [status, limit + 1, cursor.ts, cursor.id] : [status, limit + 1]
     );
-    const limit = Math.min(Math.max(Number(req.query.limit) || 200, 1), 500);
-    res.json({ success: true, submissions: rows.slice(0, limit), has_more: rows.length > limit });
+    const page = reviewPageResult(rows, limit);
+    res.json({ success: true, submissions: page.rows, has_more: page.has_more, next_cursor: page.next_cursor });
   } catch (err) {
+    if (err instanceof AppError) return next(err);
     next(new AppError('Failed to load video submissions', 500, 'video_submissions_failed'));
   }
 };
@@ -1563,8 +1567,9 @@ exports.adminListVideoFlags = async (req, res, next) => {
     const status = String(req.query.status || 'open');
     const allowed = new Set(['open', 'resolved', 'dismissed']);
     if (!allowed.has(status)) return next(new AppError('Invalid status filter.', 400, 'bad_status'));
+    const { limit, cursor } = reviewPage(req.query);
     const { rows } = await pool.query(
-      `SELECT f.id, f.video_id, f.reason, f.note, f.status, f.created_at,
+      `SELECT f.id, f.video_id, f.reason, f.note, f.status, f.created_at, f.created_at::text AS cursor_timestamp,
               v.guide_id, g.title AS guide_title, v.video_url, v.video_provider,
               (SELECT COUNT(*)::int FROM learn_guide_video_flags
                 WHERE video_id = f.video_id AND status = 'open') AS open_flags,
@@ -1575,13 +1580,15 @@ exports.adminListVideoFlags = async (req, res, next) => {
          LEFT JOIN users u ON u.id = f.user_id
          LEFT JOIN users d ON d.id = f.decided_by
         WHERE f.status = $1
-        ORDER BY f.created_at DESC
+          ${cursor ? 'AND (f.created_at, f.id) < ($3::timestamptz, $4::uuid)' : ''}
+        ORDER BY f.created_at DESC, f.id DESC
         LIMIT $2`,
-      [status, Math.min(Math.max(Number(req.query.limit) || 200, 1), 500) + 1]
+      cursor ? [status, limit + 1, cursor.ts, cursor.id] : [status, limit + 1]
     );
-    const limit = Math.min(Math.max(Number(req.query.limit) || 200, 1), 500);
-    res.json({ success: true, flags: rows.slice(0, limit), has_more: rows.length > limit });
+    const page = reviewPageResult(rows, limit);
+    res.json({ success: true, flags: page.rows, has_more: page.has_more, next_cursor: page.next_cursor });
   } catch (err) {
+    if (err instanceof AppError) return next(err);
     next(new AppError('Failed to load video flags', 500, 'video_flags_failed'));
   }
 };

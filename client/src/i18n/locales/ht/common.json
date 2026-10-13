@@ -1,4 +1,9 @@
 {
+  "reviewW11Learn": {
+    "previousPage": "Anvan",
+    "nextPage": "Apre",
+    "pageNumber": "Paj {{page}}"
+  },
   "reviewW11Notifications": {
     "warranty_claim_filed": {
       "title": "Nouvo reklamasyon garanti",
