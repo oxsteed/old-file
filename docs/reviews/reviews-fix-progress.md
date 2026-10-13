@@ -102,3 +102,6 @@ Reconciled the 39 W12 IDs against `resolution-audit-v2-2026-10-13.md`; the audit
 
 ## W13 — same continuation branch as PR #505 (in progress)
 Reconciled the W13 handoff list against audit v2; the audit records the booking-deposit and webhook crash-window items as resolved, so the active W13 work is the remaining subscription, preference, onboarding, payout, favorite, and review items listed in the handoff. This pass makes plan listing fail closed when the active catalog column is absent and makes the existing email and push master toggles effective in the primary notification path. Remaining W13 items stay open for subsequent continuation commits.
+
+## W14 — same continuation branch as PR #505 (in progress)
+Reconciled the 38 W14 handoff IDs against audit v2; the active list remains the handoff source for launch-gated, in-chat commerce, and payment-engine items. This pass enforces the property-maintenance `intake_enabled` setting and adds a dedicated authenticated assigned-helper queue so assigned helpers can discover their work without changing requester history semantics. Remaining W14 money, quote, franchise, and chat-booking items stay open.
