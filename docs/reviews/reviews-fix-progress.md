@@ -189,3 +189,5 @@ W16 media follow-up: support conversation attachments now accept only first-part
 W16 image-processing follow-up: every Sharp decode/thumbnail path now applies a 40-megapixel `limitInputPixels` guard before metadata stripping or resizing, preventing decompression-bomb images from exhausting memory.
 
 W17 compliance follow-up: restaurant Stripe top-up intents now pass through the shared fiat funding compliance gate (rail, identity tier, sanctions, limits, and audit) before a pending top-up row can be created. Amount validation remains side-effect free and the existing eligibility/payout gates stay in place.
+
+W16 upload follow-up: job creation no longer publishes a partial media set when one upload fails. Successfully uploaded objects are cleaned up and the client receives a retryable `job_media_upload_failed` error with bounded failure counts.
