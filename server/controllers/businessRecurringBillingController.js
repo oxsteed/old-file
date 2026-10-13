@@ -1,5 +1,6 @@
 const { randomUUID } = require('crypto');
 const pool = require('../db');
+const { withTransaction } = require('../utils/transaction');
 
 const VALID_FREQUENCIES = new Set(['weekly', 'biweekly', 'monthly', 'quarterly', 'annually']);
 const VALID_STATUSES = new Set(['active', 'paused', 'cancelled']);
@@ -118,19 +119,29 @@ exports.toggleStatus = async (req, res, next) => {
 exports.generateInvoice = async (req, res, next) => {
   const { businessId, id: billingId } = req.params;
   try {
-    const billingRow = await pool.query(
-      'SELECT * FROM business_recurring_billing WHERE id=$1 AND business_id=$2',
-      [billingId, businessId]
-    );
-    if (!billingRow.rows.length) return res.status(404).json({ error: 'Not found' });
-    const billing = billingRow.rows[0];
+    const generated = await withTransaction(pool, async (client) => {
+      await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1, 0))', [`recurring-invoice:${billingId}`]);
+      const billingRow = await client.query(
+        'SELECT * FROM business_recurring_billing WHERE id=$1 AND business_id=$2 FOR UPDATE',
+        [billingId, businessId]
+      );
+      if (!billingRow.rows.length) return { missing: true };
+      const billing = billingRow.rows[0];
+      const duplicate = await client.query(
+        `SELECT * FROM business_invoices
+         WHERE business_id = $1 AND notes = $2 AND status <> 'cancelled'
+           AND created_at >= date_trunc('day', NOW())
+         ORDER BY created_at DESC LIMIT 1`,
+        [businessId, `Generated from recurring billing ${billingId}`]
+      );
+      if (duplicate.rows[0]) return { invoice: duplicate.rows[0], replay: true };
 
-    const businessRow = await pool.query(
-      `UPDATE businesses SET invoice_seq = invoice_seq + 1
-       WHERE id = $1 RETURNING invoice_seq, user_id`,
-      [businessId]
-    );
-    if (!businessRow.rows.length) return res.status(404).json({ error: 'Business not found' });
+      const businessRow = await client.query(
+        `UPDATE businesses SET invoice_seq = invoice_seq + 1
+         WHERE id = $1 RETURNING invoice_seq, user_id`,
+        [businessId]
+      );
+      if (!businessRow.rows.length) return { businessMissing: true };
 
     const dueDate = new Date();
     dueDate.setDate(dueDate.getDate() + 14);
@@ -145,7 +156,7 @@ exports.generateInvoice = async (req, res, next) => {
     }]);
 
     const publicToken = randomUUID();
-    const invoiceRow = await pool.query(
+    const invoiceRow = await client.query(
       `INSERT INTO business_invoices
          (user_id, business_id, invoice_number, client_name, client_email,
           status, due_date, subtotal, invoice_tax_rate, tax_amount, total, line_items, notes, public_token)
@@ -162,7 +173,7 @@ exports.generateInvoice = async (req, res, next) => {
     // Advance next_billing_date by one period
     const freqMap = { weekly: 7, biweekly: 14, monthly: 30, quarterly: 90, annually: 365 };
     const days = freqMap[billing.frequency] || 30;
-    await pool.query(
+    await client.query(
       `UPDATE business_recurring_billing
        SET next_billing_date = COALESCE(next_billing_date, NOW()) + INTERVAL '${days} days',
            updated_at = NOW()
@@ -170,6 +181,10 @@ exports.generateInvoice = async (req, res, next) => {
       [billingId]
     );
 
-    res.status(201).json(invoiceRow.rows[0]);
+      return { invoice: invoiceRow.rows[0], replay: false };
+    }, 'generate_recurring_invoice');
+    if (generated.missing) return res.status(404).json({ error: 'Not found' });
+    if (generated.businessMissing) return res.status(404).json({ error: 'Business not found' });
+    res.status(generated.replay ? 200 : 201).json(generated.invoice);
   } catch (err) { next(err); }
 };
