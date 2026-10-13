@@ -1,13 +1,13 @@
 const pool = require('../db');
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const {
-  calculateTier3Fees
-} = require('../utils/feeCalculator');
-const {
   validate,
   rules
 } = require('../utils/validate');
 const logger = require('../utils/logger');
+const stripeRail = require('../services/paymentRails/stripeRail');
+const chargeModel = require('../services/stripeChargeModel');
+const { currencyExponent } = require('../validation/money');
 const {
   withTransaction,
   withPaymentTransaction
@@ -164,9 +164,12 @@ exports.createConnectAccount = async (req, res, next) => {
         account: freshExisting
       });
     }
+    // Express accounts (decision #2) in the helper's own country when the
+    // international rail is on; US otherwise (unchanged).
+    const connectCountry = await stripeRail.connectCountryFor(pool, req.user);
     const account = await stripe.accounts.create({
       type: 'express',
-      country: 'US',
+      country: connectCountry,
       email: req.user.email,
       capabilities: {
         card_payments: {
@@ -282,7 +285,8 @@ exports.createPaymentIntent = async (req, res, next) => {
     // SECURITY: Prevent accidental or malicious payments of absurdly large amounts
     // Max single payment: $50,000 (can be overridden only by super_admin if needed)
     const MAX_PAYMENT_AMOUNT = 50000;
-    if (job.rows[0].job_value > MAX_PAYMENT_AMOUNT) {
+    const jobCurrency = String(job.rows[0].settlement_currency || job.rows[0].currency_code || 'USD').trim().toUpperCase();
+    if (jobCurrency === 'USD' && job.rows[0].job_value > MAX_PAYMENT_AMOUNT) {
       throw new AppError(`Payment amount exceeds maximum allowed ($${MAX_PAYMENT_AMOUNT})`, 400, 'payment_amount_too_large', {
         job_value: `Maximum payment is $${MAX_PAYMENT_AMOUNT}. Contact support for exceptions.`
       });
@@ -292,7 +296,22 @@ exports.createPaymentIntent = async (req, res, next) => {
     if (!freshConnect || !freshConnect.charges_enabled) {
       throw new AppError('This helper is not ready for protected payment capture yet. Use the direct payment and proof flow instead.', 400, 'helper_account_not_ready');
     }
-    const rawJobValueCents = Math.round(job.rows[0].job_value * 100);
+    // Charge model, currency and fees for this job (payment layers). With the
+    // international flags off this is today's direct USD charge.
+    const { rows: helperRows } = stripeRail.isLegacy() ? { rows: [] } : await pool.query(
+      'SELECT id, country, tier, membership_tier, subscription_status, didit_status FROM users WHERE id = $1',
+      [job.rows[0].assigned_helper_id]
+    );
+    const rawJobValueCents = job.rows[0].job_value_cents != null
+      ? Number(job.rows[0].job_value_cents)
+      : Math.round(job.rows[0].job_value * 100);
+    const plan = await stripeRail.planIntent(pool, {
+      job: job.rows[0],
+      helper: helperRows[0] || null,
+      amountMinor: rawJobValueCents,
+      requestedMethodType: req.body.payment_method_type || null,
+    });
+    const minorScale = 10 ** currencyExponent(plan.currency);
 
     // ── Apply referral credits (reduces amount charged to customer) ──────────
     // H13: the credit balance read, the Stripe intent, the payments row, and
@@ -315,21 +334,23 @@ exports.createPaymentIntent = async (req, res, next) => {
          ), 0) AS balance_cents
          FROM platform_ledger
          WHERE user_id = $1`, [req.user.id]);
-      const availableCreditCents = Math.max(0, parseInt(creditResult.rows?.[0]?.balance_cents || '0', 10));
+      // Referral credit is a USD ledger; it only discounts USD charges.
+      const availableCreditCents = plan.currency === 'USD'
+        ? Math.max(0, parseInt(creditResult.rows?.[0]?.balance_cents || '0', 10))
+        : 0;
       // Cap credit at job value — can't go below $0.50 (Stripe minimum)
       const appliedCreditCents = Math.min(availableCreditCents, Math.max(0, rawJobValueCents - 50));
       const jobValueCents = rawJobValueCents - appliedCreditCents;
-      const fees = calculateTier3Fees(jobValueCents);
+      const fees = await stripeRail.feesFor(client, plan, jobValueCents);
 
       // Check for existing payment to prevent duplicates (idempotency).
       // We must return the actual `client_secret` from Stripe — not the PaymentIntent
       // ID — because the frontend uses it to confirm the card on the client.
-      const existingPayment = await client.query('SELECT id, stripe_payment_intent_id, stripe_account_id FROM payments WHERE job_id = $1 AND status IN ($2, $3)', [job_id, 'authorized', 'pending']);
+      const existingPayment = await client.query('SELECT id, stripe_payment_intent_id, stripe_account_id, charge_model FROM payments WHERE job_id = $1 AND status IN ($2, $3)', [job_id, 'authorized', 'pending']);
       if (existingPayment.rows[0]) {
         try {
-          const existingPi = await stripe.paymentIntents.retrieve(existingPayment.rows[0].stripe_payment_intent_id, {
-            stripeAccount: existingPayment.rows[0].stripe_account_id
-          });
+          const existingPi = await stripe.paymentIntents.retrieve(existingPayment.rows[0].stripe_payment_intent_id,
+            chargeModel.requestOptions(existingPayment.rows[0]));
           // Only reuse PIs that are still in a confirmable state. Anything past
           // `requires_capture` (or terminal) means the customer already paid;
           // returning that secret would let them re-pay an authorized intent.
@@ -341,6 +362,7 @@ exports.createPaymentIntent = async (req, res, next) => {
               body: {
                 client_secret: existingPi.client_secret,
                 payment_intent_id: existingPi.id,
+                stripe_account_id: chargeModel.modelOf(existingPayment.rows[0]) === 'direct' ? existingPayment.rows[0].stripe_account_id : null,
                 message: 'Existing payment intent returned'
               }
             };
@@ -375,12 +397,13 @@ exports.createPaymentIntent = async (req, res, next) => {
       // Direct charge on helper's connected account
       // Retries and concurrent browser requests for one job must resolve to the
       // same Stripe intent rather than creating multiple authorizations.
-      const paymentIntent = await stripe.paymentIntents.create({
-        amount: jobValueCents,
-        currency: 'usd',
-        payment_method_types: ['card'],
-        capture_method: 'manual',
-        application_fee_amount: fees.application_fee_cents,
+      const built = chargeModel.intentParams({
+        model: plan.model,
+        amountMinor: jobValueCents,
+        currency: plan.currency,
+        applicationFeeMinor: fees.application_fee_cents,
+        helperAccountId: freshConnect.stripe_account_id,
+        paymentMethodTypes: plan.paymentMethodTypes,
         metadata: {
           job_id: job_id.toString(),
           client_id: req.user.id.toString(),
@@ -388,8 +411,10 @@ exports.createPaymentIntent = async (req, res, next) => {
           tier: 'tier3',
           platform_fee_cents: fees.platform_fee_cents.toString()
         }
-      }, {
-        stripeAccount: freshConnect.stripe_account_id,
+      });
+      if (plan.model === 'direct' && !plan.feeCountry) delete built.params.metadata.charge_model;
+      const paymentIntent = await stripe.paymentIntents.create(built.params, {
+        ...built.options,
         idempotencyKey: paymentIdempotencyKey
       });
       let insertRows;
@@ -398,13 +423,16 @@ exports.createPaymentIntent = async (req, res, next) => {
           rows: insertRows
         } = await client.query(`INSERT INTO payments
             (job_id, payer_id, payee_id, stripe_payment_intent_id,
-             amount, platform_fee, status, payment_hold_status, stripe_account_id, metadata)
-           VALUES ($1, $2, $3, $4, $5, $6, 'pending', 'pending', $7, $8::jsonb)
-           RETURNING id`, [job_id, req.user.id, job.rows[0].assigned_helper_id, paymentIntent.id, jobValueCents / 100, fees.platform_fee_cents / 100, freshConnect.stripe_account_id, JSON.stringify({
+             amount, platform_fee, status, payment_hold_status, stripe_account_id, metadata,
+             currency, charge_model, destination_account_id, fee_country)
+           VALUES ($1, $2, $3, $4, $5, $6, 'pending', 'pending', $7, $8::jsonb, $9, $10, $11, $12)
+           RETURNING id`, [job_id, req.user.id, job.rows[0].assigned_helper_id, paymentIntent.id, jobValueCents / minorScale, fees.platform_fee_cents / minorScale,
+          plan.model === 'direct' ? freshConnect.stripe_account_id : null, JSON.stringify({
           discounted_amount_cents: jobValueCents,
           raw_job_value_cents: rawJobValueCents,
-          appliedCreditCents: appliedCreditCents
-        })]));
+          appliedCreditCents: appliedCreditCents,
+          platform_fee_cents: fees.platform_fee_cents
+        }), plan.currency.toLowerCase(), plan.model, plan.model === 'direct' ? null : freshConnect.stripe_account_id, plan.feeCountry]));
         // Audit fix: payment starts as 'pending', not 'authorized'. The
         // webhook (payment_intent.amount_capturable_updated) marks it
         // authorized only after Stripe confirms funds are held.
@@ -461,6 +489,9 @@ exports.createPaymentIntent = async (req, res, next) => {
     res.json({
       client_secret: paymentIntent.client_secret,
       payment_intent_id: paymentIntent.id,
+      stripe_account_id: plan.model === 'direct' ? freshConnect.stripe_account_id : null,
+      charge_model: plan.model,
+      currency: plan.currency,
       applied_credit_cents: appliedCreditCents,
       applied_credit_dollars: (appliedCreditCents / 100).toFixed(2)
     });

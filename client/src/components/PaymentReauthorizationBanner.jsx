@@ -92,11 +92,14 @@ export default function PaymentReauthorizationBanner({ jobId, job = null, always
     if (!intent) return null;
     const key = intent.publishable_key || import.meta.env?.VITE_STRIPE_PUBLISHABLE_KEY;
     // Direct charge on the helper's connected account, same as the first payment.
-    return key ? loadStripe(key, { stripeAccount: intent.stripe_account_id }) : null;
+    // Direct charges confirm on the helper's connected account; destination
+    // and platform-hold charges live on the platform account (no stripeAccount).
+    const options = intent.stripe_account_id ? { stripeAccount: intent.stripe_account_id } : undefined;
+    return key ? loadStripe(key, options) : null;
   }, [intent]);
 
   if (!model) return null;
-  const money = (c) => formatCents(c, i18n.language);
+  const money = (c) => formatCents(c, i18n.language, model.currency || 'USD');
 
   const finish = (outcome) => {
     setIntent(null);
@@ -130,9 +133,11 @@ export default function PaymentReauthorizationBanner({ jobId, job = null, always
   const amount = money(model.targetCents ?? model.creditCents);
   return (
     <section className="prb-card" role="region" aria-labelledby={headingId} data-testid="payment-reauth-banner">
-      <h2 id={headingId}>{t(model.mode === 'waiting' ? 'jobPaymentReauth.waitingTitle' : 'jobPaymentReauth.title')}</h2>
+      <h2 id={headingId}>{t(model.mode === 'waiting' ? 'jobPaymentReauth.waitingTitle' : model.mode === 'renew' ? 'paymentRail.holdExpiringTitle' : 'jobPaymentReauth.title')}</h2>
       {model.mode === 'waiting' && <p>{t('jobPaymentReauth.helperBody')}</p>}
       {model.mode === 'card' && <p>{t('jobPaymentReauth.customerBody', { target: money(model.targetCents), authorized: money(model.authorizedCents) })}</p>}
+      {model.mode === 'renew' && <p>{t('paymentRail.holdExpiringBody', { amount: money(model.targetCents) })}</p>}
+      {model.mode === 'renew' && model.holdExpiresAt && <p className="prb-muted">{t('paymentRail.holdExpiresAt', { date: new Intl.DateTimeFormat(i18n.language, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(model.holdExpiresAt)) })}</p>}
       {model.mode === 'reprice' && <p>{t('jobPaymentReauth.repriceBody', { target: money(model.targetCents) })}</p>}
       {model.mode === 'credit' && <p>{t('jobPaymentReauth.creditBody', { amount })}</p>}
       {model.notice && !intent && <p className="prb-error" role="alert">{t(`jobPaymentReauth.${model.notice}`)}</p>}
@@ -148,6 +153,8 @@ export default function PaymentReauthorizationBanner({ jobId, job = null, always
         <div className="prb-actions">
           {model.mode === 'card' && <button type="button" className="prb-btn prb-btn-primary" onClick={() => start('card')} disabled={busy}>
             {busy ? t('jobPaymentReauth.processing') : t('jobPaymentReauth.authorizeCard', { amount })}</button>}
+          {model.mode === 'renew' && <button type="button" className="prb-btn prb-btn-primary" onClick={() => start('card')} disabled={busy}>
+            {busy ? t('jobPaymentReauth.processing') : t('paymentRail.renewHold', { amount })}</button>}
           {model.mode === 'reprice' && <button type="button" className="prb-btn prb-btn-primary" onClick={() => start('card')} disabled={busy}>
             {busy ? t('jobPaymentReauth.processing') : t('jobPaymentReauth.updateAmount', { amount })}</button>}
           {model.mode === 'credit' && <>

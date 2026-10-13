@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import api from '../api/axios';
 import toast from 'react-hot-toast';
+import PaymentRailChooser from './PaymentRailChooser';
 
 export default function BidAcceptanceModal({
   bid,
@@ -12,6 +13,20 @@ export default function BidAcceptanceModal({
   const { t } = useTranslation();
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState(null);
   const [loading, setLoading] = useState(false);
+  // Rail engine (FEATURE_PAYMENT_RAILS): the server lists the rails for this
+  // bid; when it is off the legacy direct-payment choice below is unchanged.
+  const [railOptions, setRailOptions] = useState(null);
+  const [railSelection, setRailSelection] = useState(null);
+
+  React.useEffect(() => {
+    let cancelled = false;
+    const jobId = bid?.job_id;
+    if (!jobId || !bid?.id) return undefined;
+    api.get(`/payment-layers/jobs/${jobId}/options`, { params: { bid_id: bid.id } })
+      .then(({ data }) => { if (!cancelled && data?.engine) setRailOptions(data); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [bid?.job_id, bid?.id]);
 
   // Direct payment is the launch-safe default. Stripe-style protected payment
   // remains a future option, but it is not part of the launch flow.
@@ -28,6 +43,14 @@ export default function BidAcceptanceModal({
   }, [canSelectCustom, selectedPaymentMethod]);
 
   const handleConfirm = () => {
+    if (railOptions) {
+      if (!railSelection?.ready) {
+        toast.error(t('paymentRail.chooseRail'));
+        return;
+      }
+      onConfirm(railSelection.payload);
+      return;
+    }
     if (!selectedPaymentMethod) {
       toast.error(t('bidAcceptanceModal.selectPaymentMethod') || 'Please select a payment method');
       return;
@@ -48,7 +71,10 @@ export default function BidAcceptanceModal({
           {t('bidAcceptanceModal.selectPaymentExplanation') || 'Select how you\'ll pay for this job. Each option has different cancellation terms.'}
         </p>
 
-        <div className="space-y-4 mb-6">
+        {railOptions && (
+          <PaymentRailChooser bid={bid} options={railOptions} helperPolicies={helperPolicies} onChange={setRailSelection} />
+        )}
+        <div className="space-y-4 mb-6" hidden={Boolean(railOptions)}>
           {/* Custom Off-Platform Payment Method Option */}
           {canSelectCustom && (
             <div
@@ -182,7 +208,7 @@ export default function BidAcceptanceModal({
           </button>
           <button
             onClick={handleConfirm}
-            disabled={loading || !selectedPaymentMethod}
+            disabled={loading || (railOptions ? !railSelection?.ready : !selectedPaymentMethod)}
             className="flex-1 px-4 py-3 bg-orange-500 hover:bg-orange-600 disabled:bg-orange-400 text-white rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
           >
             {loading

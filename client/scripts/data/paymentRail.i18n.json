@@ -1,0 +1,702 @@
+{
+ "en": {
+  "panelTitle": "Payment",
+  "chooseRail": "Choose how to pay",
+  "amountLine": "Price: {{amount}} ({{currency}})",
+  "rails": {
+   "stripe": {
+    "title": "Card (protected)",
+    "body": "Paid through OxSteed. Your money is held until the job is done."
+   },
+   "credit": {
+    "title": "OxSteed Credit",
+    "body": "Pay with your OxSteed Credit balance.",
+    "payment": "Your Credit is held and paid to the helper when the job is done.",
+    "collateral": "Your Credit is held as a guarantee; the job is charged to your card."
+   },
+   "offline": {
+    "title": "Pay the helper directly",
+    "body": "You pay the helper outside OxSteed."
+   }
+  },
+  "protection": {
+   "3": "Highest protection",
+   "2": "Protected by OxSteed Credit",
+   "1": "Not covered by OxSteed"
+  },
+  "chargedNowHeld": "Because the job is more than 5 days away, your card is charged now and OxSteed holds the money until the job is done.",
+  "localMethods": "Also available: {{methods}}",
+  "unavailable": "Not available",
+  "noRails": "No payment method is available for this job yet.",
+  "quoting": "Getting estimate…",
+  "getEstimate": "Get Credit estimate",
+  "refreshEstimate": "Refresh estimate",
+  "quoteFailed": "Could not get an estimate. Try again.",
+  "creditSameCurrency": "{{amount}} will be held from your Credit.",
+  "fxEstimate": "Estimated {{amount}} from your Credit for {{target}}.",
+  "fxFee": "Includes a currency conversion fee of {{fee}} ({{percent}}%).",
+  "fxRecordCurrency": "The price is set in {{currency}}; amounts in other currencies are estimates.",
+  "offlineAck": "I understand that payments made directly to the helper are not covered by OxSteed.",
+  "holdExpiringTitle": "Renew your card authorization",
+  "holdExpiringBody": "Your card authorization for {{amount}} is about to expire. Renew it so the job stays funded.",
+  "holdExpiresAt": "Expires {{date}}",
+  "renewHold": "Renew authorization for {{amount}}",
+  "genericError": "Something went wrong. Try again.",
+  "switch": {
+   "title": "Change payment method",
+   "current": "Payment method: {{rail}}",
+   "pending": "Waiting for agreement to switch from {{from}} to {{to}}.",
+   "accept": "Agree to switch",
+   "decline": "Decline",
+   "choose": "Switch to",
+   "lessProtected": "This option has less protection than your current payment method.",
+   "request": "Ask to switch",
+   "consentNote": "The other person must agree. Changes are only possible before work starts."
+  },
+  "offline": {
+   "title": "Direct payment",
+   "notCovered": "This payment is between you and the other person. OxSteed does not hold or guarantee it.",
+   "status": "Customer confirmed: {{customer}} · Helper confirmed: {{helper}}",
+   "yes": "yes",
+   "no": "not yet",
+   "confirm": "Confirm payment was made",
+   "confirmed": "Payment confirmed"
+  },
+  "tips": {
+   "title": "Add a tip",
+   "amount": "Tip amount ({{currency}})",
+   "breakdown": "Processing cost {{cost}} · Helper receives {{helper}}",
+   "noPlatformFee": "OxSteed takes no fee from tips.",
+   "send": "Send tip",
+   "sent": "Tip sent. Thank you!",
+   "confirmCard": "Confirm the tip with your card to finish.",
+   "status": {
+    "pending": "pending",
+    "succeeded": "sent",
+    "failed": "failed",
+    "canceled": "canceled"
+   }
+  },
+  "cashout": {
+   "title": "Cash out Credit",
+   "rules": "Cash-out needs a verified ID. Earnings become available {{days}} days after they arrive, within daily and monthly limits.",
+   "available": "Available to cash out: {{amount}}",
+   "amount": "Amount ({{currency}})",
+   "destination": "Mobile money number or account",
+   "submit": "Request cash-out",
+   "requested": "Cash-out requested",
+   "status": {
+    "requested": "requested",
+    "submitted": "processing",
+    "paid": "paid",
+    "failed": "failed",
+    "cancelled": "cancelled"
+   }
+  },
+  "chat": {
+   "maskedBeforeHire": "Contact details are hidden until a bid is accepted. Keep talking here so you stay protected.",
+   "offPlatformReminder": "Reminder: payments made outside OxSteed are not protected."
+  },
+  "reasons": {
+   "country_not_supported": "Not available in this country yet.",
+   "country_not_enabled": "Not available in this country yet.",
+   "country_tax_review_pending": "Not available in this country yet.",
+   "rail_disabled_in_country": "Not offered in this country.",
+   "helper_country_unsupported": "Not available for this helper's country.",
+   "international_not_enabled": "International card payments are not available yet.",
+   "credit_rail_not_enabled": "OxSteed Credit payments are not available yet.",
+   "credit_currency_unsupported": "OxSteed Credit is not available in this currency.",
+   "credit_payment_not_cleared": "OxSteed Credit cannot be used here yet.",
+   "credit_fx_unavailable": "Currency conversion is unavailable right now.",
+   "credit_fx_quote_expired": "The estimate expired. Get a new one.",
+   "credit_fx_quote_required": "Get a Credit estimate first.",
+   "credit_insufficient_funds": "Not enough Credit.",
+   "offline_requires_subscription": "The helper needs a subscription to accept direct payments.",
+   "offline_requires_verified_helper": "The helper must verify their identity to accept direct payments.",
+   "offline_first_job_cap": "Your first job here must be paid through OxSteed above this amount.",
+   "offline_ack_required": "Please confirm that direct payments are not covered.",
+   "payment_rail_unavailable": "That payment method is not available.",
+   "rail_switch_after_start": "The payment method can only change before work starts.",
+   "rail_switch_pending": "A change is already waiting for an answer.",
+   "rail_switch_expired": "That request expired.",
+   "rail_switch_stale": "The job changed. Ask again.",
+   "rail_switch_not_pending": "That request was already answered.",
+   "rail_switch_customer_only": "Only the customer can confirm this change.",
+   "rail_switch_needs_counterparty": "The other person must answer this request.",
+   "tip_not_allowed": "This job cannot be tipped yet.",
+   "tip_offline_rail": "Tip your helper directly for jobs paid offline.",
+   "tip_too_large": "That tip is too large.",
+   "tip_amount_invalid": "Enter a tip amount.",
+   "cashout_unavailable_spend_only": "Cash-out is not available in your country. Credit can be spent on OxSteed.",
+   "cashout_identity_required": "Verify your identity to cash out.",
+   "cashout_no_balance": "You have no Credit to cash out.",
+   "cashout_nothing_available": "Nothing is available to cash out yet.",
+   "cashout_exceeds_available": "That is more than you can cash out right now.",
+   "cashout_amount_invalid": "Enter an amount.",
+   "cashout_destination_required": "Choose where to send the money.",
+   "bid_currency_mismatch": "Bids must be in the job's currency.",
+   "impersonation_blocked": "Not allowed in an impersonated session.",
+   "feature_disabled": "Not available."
+  }
+ },
+ "es": {
+  "panelTitle": "Pago",
+  "chooseRail": "Elige cómo pagar",
+  "amountLine": "Precio: {{amount}} ({{currency}})",
+  "rails": {
+   "stripe": {
+    "title": "Tarjeta (protegido)",
+    "body": "Pagado a través de OxSteed. Tu dinero se retiene hasta que termine el trabajo."
+   },
+   "credit": {
+    "title": "Crédito OxSteed",
+    "body": "Paga con tu saldo de Crédito OxSteed.",
+    "payment": "Tu Crédito se retiene y se paga al ayudante cuando termine el trabajo.",
+    "collateral": "Tu Crédito se retiene como garantía; el trabajo se cobra a tu tarjeta."
+   },
+   "offline": {
+    "title": "Pagar directamente al ayudante",
+    "body": "Pagas al ayudante fuera de OxSteed."
+   }
+  },
+  "protection": {
+   "3": "Máxima protección",
+   "2": "Protegido por Crédito OxSteed",
+   "1": "No cubierto por OxSteed"
+  },
+  "chargedNowHeld": "Como el trabajo es dentro de más de 5 días, tu tarjeta se cobra ahora y OxSteed retiene el dinero hasta que termine el trabajo.",
+  "localMethods": "También disponible: {{methods}}",
+  "unavailable": "No disponible",
+  "noRails": "Todavía no hay ningún método de pago disponible para este trabajo.",
+  "quoting": "Obteniendo estimación…",
+  "getEstimate": "Obtener estimación de Crédito",
+  "refreshEstimate": "Actualizar estimación",
+  "quoteFailed": "No se pudo obtener una estimación. Inténtalo de nuevo.",
+  "creditSameCurrency": "Se retendrán {{amount}} de tu Crédito.",
+  "fxEstimate": "Aproximadamente {{amount}} de tu Crédito por {{target}}.",
+  "fxFee": "Incluye una comisión de conversión de {{fee}} ({{percent}} %).",
+  "fxRecordCurrency": "El precio está fijado en {{currency}}; los importes en otras monedas son estimaciones.",
+  "offlineAck": "Entiendo que los pagos hechos directamente al ayudante no están cubiertos por OxSteed.",
+  "holdExpiringTitle": "Renueva la autorización de tu tarjeta",
+  "holdExpiringBody": "La autorización de tu tarjeta por {{amount}} está por vencer. Renuévala para que el trabajo siga financiado.",
+  "holdExpiresAt": "Vence el {{date}}",
+  "renewHold": "Renovar autorización por {{amount}}",
+  "genericError": "Algo salió mal. Inténtalo de nuevo.",
+  "switch": {
+   "title": "Cambiar método de pago",
+   "current": "Método de pago: {{rail}}",
+   "pending": "Esperando acuerdo para cambiar de {{from}} a {{to}}.",
+   "accept": "Aceptar el cambio",
+   "decline": "Rechazar",
+   "choose": "Cambiar a",
+   "lessProtected": "Esta opción tiene menos protección que tu método de pago actual.",
+   "request": "Pedir el cambio",
+   "consentNote": "La otra persona debe aceptar. Solo se puede cambiar antes de que empiece el trabajo."
+  },
+  "offline": {
+   "title": "Pago directo",
+   "notCovered": "Este pago es entre tú y la otra persona. OxSteed no lo retiene ni lo garantiza.",
+   "status": "Cliente confirmó: {{customer}} · Ayudante confirmó: {{helper}}",
+   "yes": "sí",
+   "no": "todavía no",
+   "confirm": "Confirmar que se realizó el pago",
+   "confirmed": "Pago confirmado"
+  },
+  "tips": {
+   "title": "Añadir una propina",
+   "amount": "Importe de la propina ({{currency}})",
+   "breakdown": "Costo de procesamiento {{cost}} · El ayudante recibe {{helper}}",
+   "noPlatformFee": "OxSteed no cobra comisión sobre las propinas.",
+   "send": "Enviar propina",
+   "sent": "Propina enviada. ¡Gracias!",
+   "confirmCard": "Confirma la propina con tu tarjeta para terminar.",
+   "status": {
+    "pending": "pendiente",
+    "succeeded": "enviada",
+    "failed": "fallida",
+    "canceled": "cancelada"
+   }
+  },
+  "cashout": {
+   "title": "Retirar Crédito",
+   "rules": "Para retirar necesitas una identificación verificada. Las ganancias están disponibles {{days}} días después de llegar, dentro de límites diarios y mensuales.",
+   "available": "Disponible para retirar: {{amount}}",
+   "amount": "Importe ({{currency}})",
+   "destination": "Número de dinero móvil o cuenta",
+   "submit": "Solicitar retiro",
+   "requested": "Retiro solicitado",
+   "status": {
+    "requested": "solicitado",
+    "submitted": "en proceso",
+    "paid": "pagado",
+    "failed": "fallido",
+    "cancelled": "cancelado"
+   }
+  },
+  "chat": {
+   "maskedBeforeHire": "Los datos de contacto se ocultan hasta que se acepte una oferta. Sigue conversando aquí para estar protegido.",
+   "offPlatformReminder": "Recordatorio: los pagos hechos fuera de OxSteed no están protegidos."
+  },
+  "reasons": {
+   "country_not_supported": "Aún no disponible en este país.",
+   "country_not_enabled": "Aún no disponible en este país.",
+   "country_tax_review_pending": "Aún no disponible en este país.",
+   "rail_disabled_in_country": "No se ofrece en este país.",
+   "helper_country_unsupported": "No disponible para el país del ayudante.",
+   "international_not_enabled": "Los pagos internacionales con tarjeta aún no están disponibles.",
+   "credit_rail_not_enabled": "Los pagos con Crédito OxSteed aún no están disponibles.",
+   "credit_currency_unsupported": "El Crédito OxSteed no está disponible en esta moneda.",
+   "credit_payment_not_cleared": "El Crédito OxSteed aún no se puede usar aquí.",
+   "credit_fx_unavailable": "La conversión de moneda no está disponible en este momento.",
+   "credit_fx_quote_expired": "La estimación venció. Obtén una nueva.",
+   "credit_fx_quote_required": "Primero obtén una estimación de Crédito.",
+   "credit_insufficient_funds": "No tienes suficiente Crédito.",
+   "offline_requires_subscription": "El ayudante necesita una suscripción para aceptar pagos directos.",
+   "offline_requires_verified_helper": "El ayudante debe verificar su identidad para aceptar pagos directos.",
+   "offline_first_job_cap": "Tu primer trabajo aquí debe pagarse a través de OxSteed por encima de este importe.",
+   "offline_ack_required": "Confirma que los pagos directos no están cubiertos.",
+   "payment_rail_unavailable": "Ese método de pago no está disponible.",
+   "rail_switch_after_start": "El método de pago solo puede cambiar antes de que empiece el trabajo.",
+   "rail_switch_pending": "Ya hay un cambio esperando respuesta.",
+   "rail_switch_expired": "Esa solicitud venció.",
+   "rail_switch_stale": "El trabajo cambió. Vuelve a pedirlo.",
+   "rail_switch_not_pending": "Esa solicitud ya fue respondida.",
+   "rail_switch_customer_only": "Solo el cliente puede confirmar este cambio.",
+   "rail_switch_needs_counterparty": "La otra persona debe responder esta solicitud.",
+   "tip_not_allowed": "Todavía no se puede dar propina en este trabajo.",
+   "tip_offline_rail": "Da la propina directamente al ayudante en trabajos pagados fuera de la plataforma.",
+   "tip_too_large": "Esa propina es demasiado alta.",
+   "tip_amount_invalid": "Introduce un importe de propina.",
+   "cashout_unavailable_spend_only": "El retiro no está disponible en tu país. El Crédito se puede gastar en OxSteed.",
+   "cashout_identity_required": "Verifica tu identidad para retirar.",
+   "cashout_no_balance": "No tienes Crédito para retirar.",
+   "cashout_nothing_available": "Todavía no hay nada disponible para retirar.",
+   "cashout_exceeds_available": "Es más de lo que puedes retirar ahora.",
+   "cashout_amount_invalid": "Introduce un importe.",
+   "cashout_destination_required": "Elige adónde enviar el dinero.",
+   "bid_currency_mismatch": "Las ofertas deben estar en la moneda del trabajo.",
+   "impersonation_blocked": "No permitido en una sesión suplantada.",
+   "feature_disabled": "No disponible."
+  }
+ },
+ "fr": {
+  "panelTitle": "Paiement",
+  "chooseRail": "Choisissez comment payer",
+  "amountLine": "Prix : {{amount}} ({{currency}})",
+  "rails": {
+   "stripe": {
+    "title": "Carte (protégé)",
+    "body": "Payé via OxSteed. Votre argent est retenu jusqu'à la fin du travail."
+   },
+   "credit": {
+    "title": "Crédit OxSteed",
+    "body": "Payez avec votre solde de Crédit OxSteed.",
+    "payment": "Votre Crédit est retenu puis versé à l'aidant à la fin du travail.",
+    "collateral": "Votre Crédit est retenu en garantie ; le travail est débité sur votre carte."
+   },
+   "offline": {
+    "title": "Payer l'aidant directement",
+    "body": "Vous payez l'aidant en dehors d'OxSteed."
+   }
+  },
+  "protection": {
+   "3": "Protection maximale",
+   "2": "Protégé par le Crédit OxSteed",
+   "1": "Non couvert par OxSteed"
+  },
+  "chargedNowHeld": "Le travail ayant lieu dans plus de 5 jours, votre carte est débitée maintenant et OxSteed retient l'argent jusqu'à la fin du travail.",
+  "localMethods": "Également disponible : {{methods}}",
+  "unavailable": "Indisponible",
+  "noRails": "Aucun moyen de paiement n'est encore disponible pour ce travail.",
+  "quoting": "Estimation en cours…",
+  "getEstimate": "Obtenir une estimation en Crédit",
+  "refreshEstimate": "Actualiser l'estimation",
+  "quoteFailed": "Impossible d'obtenir une estimation. Réessayez.",
+  "creditSameCurrency": "{{amount}} seront retenus sur votre Crédit.",
+  "fxEstimate": "Environ {{amount}} de votre Crédit pour {{target}}.",
+  "fxFee": "Comprend des frais de conversion de {{fee}} ({{percent}} %).",
+  "fxRecordCurrency": "Le prix est fixé en {{currency}} ; les montants dans d'autres devises sont des estimations.",
+  "offlineAck": "Je comprends que les paiements faits directement à l'aidant ne sont pas couverts par OxSteed.",
+  "holdExpiringTitle": "Renouvelez l'autorisation de votre carte",
+  "holdExpiringBody": "L'autorisation de votre carte pour {{amount}} va expirer. Renouvelez-la pour que le travail reste financé.",
+  "holdExpiresAt": "Expire le {{date}}",
+  "renewHold": "Renouveler l'autorisation pour {{amount}}",
+  "genericError": "Une erreur s'est produite. Réessayez.",
+  "switch": {
+   "title": "Changer de moyen de paiement",
+   "current": "Moyen de paiement : {{rail}}",
+   "pending": "En attente d'accord pour passer de {{from}} à {{to}}.",
+   "accept": "Accepter le changement",
+   "decline": "Refuser",
+   "choose": "Passer à",
+   "lessProtected": "Cette option est moins protégée que votre moyen de paiement actuel.",
+   "request": "Demander le changement",
+   "consentNote": "L'autre personne doit accepter. Le changement n'est possible qu'avant le début du travail."
+  },
+  "offline": {
+   "title": "Paiement direct",
+   "notCovered": "Ce paiement se fait entre vous et l'autre personne. OxSteed ne le retient pas et ne le garantit pas.",
+   "status": "Client a confirmé : {{customer}} · Aidant a confirmé : {{helper}}",
+   "yes": "oui",
+   "no": "pas encore",
+   "confirm": "Confirmer que le paiement a été fait",
+   "confirmed": "Paiement confirmé"
+  },
+  "tips": {
+   "title": "Ajouter un pourboire",
+   "amount": "Montant du pourboire ({{currency}})",
+   "breakdown": "Frais de traitement {{cost}} · L'aidant reçoit {{helper}}",
+   "noPlatformFee": "OxSteed ne prend aucune commission sur les pourboires.",
+   "send": "Envoyer le pourboire",
+   "sent": "Pourboire envoyé. Merci !",
+   "confirmCard": "Confirmez le pourboire avec votre carte pour terminer.",
+   "status": {
+    "pending": "en attente",
+    "succeeded": "envoyé",
+    "failed": "échoué",
+    "canceled": "annulé"
+   }
+  },
+  "cashout": {
+   "title": "Retirer du Crédit",
+   "rules": "Le retrait exige une pièce d'identité vérifiée. Les gains sont disponibles {{days}} jours après leur arrivée, dans des limites quotidiennes et mensuelles.",
+   "available": "Disponible au retrait : {{amount}}",
+   "amount": "Montant ({{currency}})",
+   "destination": "Numéro de mobile money ou compte",
+   "submit": "Demander un retrait",
+   "requested": "Retrait demandé",
+   "status": {
+    "requested": "demandé",
+    "submitted": "en cours",
+    "paid": "payé",
+    "failed": "échoué",
+    "cancelled": "annulé"
+   }
+  },
+  "chat": {
+   "maskedBeforeHire": "Les coordonnées sont masquées jusqu'à l'acceptation d'une offre. Continuez à discuter ici pour rester protégé.",
+   "offPlatformReminder": "Rappel : les paiements faits en dehors d'OxSteed ne sont pas protégés."
+  },
+  "reasons": {
+   "country_not_supported": "Pas encore disponible dans ce pays.",
+   "country_not_enabled": "Pas encore disponible dans ce pays.",
+   "country_tax_review_pending": "Pas encore disponible dans ce pays.",
+   "rail_disabled_in_country": "Non proposé dans ce pays.",
+   "helper_country_unsupported": "Indisponible pour le pays de l'aidant.",
+   "international_not_enabled": "Les paiements internationaux par carte ne sont pas encore disponibles.",
+   "credit_rail_not_enabled": "Les paiements en Crédit OxSteed ne sont pas encore disponibles.",
+   "credit_currency_unsupported": "Le Crédit OxSteed n'est pas disponible dans cette devise.",
+   "credit_payment_not_cleared": "Le Crédit OxSteed ne peut pas encore être utilisé ici.",
+   "credit_fx_unavailable": "La conversion de devises est indisponible pour le moment.",
+   "credit_fx_quote_expired": "L'estimation a expiré. Obtenez-en une nouvelle.",
+   "credit_fx_quote_required": "Obtenez d'abord une estimation en Crédit.",
+   "credit_insufficient_funds": "Crédit insuffisant.",
+   "offline_requires_subscription": "L'aidant doit avoir un abonnement pour accepter les paiements directs.",
+   "offline_requires_verified_helper": "L'aidant doit vérifier son identité pour accepter les paiements directs.",
+   "offline_first_job_cap": "Votre premier travail ici doit être payé via OxSteed au-delà de ce montant.",
+   "offline_ack_required": "Confirmez que les paiements directs ne sont pas couverts.",
+   "payment_rail_unavailable": "Ce moyen de paiement n'est pas disponible.",
+   "rail_switch_after_start": "Le moyen de paiement ne peut changer qu'avant le début du travail.",
+   "rail_switch_pending": "Un changement attend déjà une réponse.",
+   "rail_switch_expired": "Cette demande a expiré.",
+   "rail_switch_stale": "Le travail a changé. Redemandez.",
+   "rail_switch_not_pending": "Cette demande a déjà reçu une réponse.",
+   "rail_switch_customer_only": "Seul le client peut confirmer ce changement.",
+   "rail_switch_needs_counterparty": "L'autre personne doit répondre à cette demande.",
+   "tip_not_allowed": "Ce travail ne peut pas encore recevoir de pourboire.",
+   "tip_offline_rail": "Donnez le pourboire directement à l'aidant pour les travaux payés hors plateforme.",
+   "tip_too_large": "Ce pourboire est trop élevé.",
+   "tip_amount_invalid": "Saisissez un montant de pourboire.",
+   "cashout_unavailable_spend_only": "Le retrait n'est pas disponible dans votre pays. Le Crédit peut être dépensé sur OxSteed.",
+   "cashout_identity_required": "Vérifiez votre identité pour retirer.",
+   "cashout_no_balance": "Vous n'avez pas de Crédit à retirer.",
+   "cashout_nothing_available": "Rien n'est encore disponible au retrait.",
+   "cashout_exceeds_available": "C'est plus que ce que vous pouvez retirer maintenant.",
+   "cashout_amount_invalid": "Saisissez un montant.",
+   "cashout_destination_required": "Choisissez où envoyer l'argent.",
+   "bid_currency_mismatch": "Les offres doivent être dans la devise du travail.",
+   "impersonation_blocked": "Non autorisé dans une session d'usurpation.",
+   "feature_disabled": "Indisponible."
+  }
+ },
+ "ht": {
+  "panelTitle": "Peman",
+  "chooseRail": "Chwazi kijan pou peye",
+  "amountLine": "Pri: {{amount}} ({{currency}})",
+  "rails": {
+   "stripe": {
+    "title": "Kat (pwoteje)",
+    "body": "Peye atravè OxSteed. Lajan ou kenbe jiskaske travay la fini."
+   },
+   "credit": {
+    "title": "Kredi OxSteed",
+    "body": "Peye ak balans Kredi OxSteed ou.",
+    "payment": "Kredi ou kenbe epi li peye bay èd la lè travay la fini.",
+    "collateral": "Kredi ou kenbe kòm garanti; travay la chaje sou kat ou."
+   },
+   "offline": {
+    "title": "Peye èd la dirèkteman",
+    "body": "Ou peye èd la andeyò OxSteed."
+   }
+  },
+  "protection": {
+   "3": "Pi gwo pwoteksyon",
+   "2": "Pwoteje pa Kredi OxSteed",
+   "1": "OxSteed pa kouvri l"
+  },
+  "chargedNowHeld": "Paske travay la plis pase 5 jou devan, kat ou chaje kounye a epi OxSteed kenbe lajan an jiskaske travay la fini.",
+  "localMethods": "Disponib tou: {{methods}}",
+  "unavailable": "Pa disponib",
+  "noRails": "Poko gen okenn mwayen peman pou travay sa a.",
+  "quoting": "N ap kalkile estimasyon…",
+  "getEstimate": "Jwenn estimasyon Kredi",
+  "refreshEstimate": "Mete estimasyon an ajou",
+  "quoteFailed": "Nou pa t ka jwenn estimasyon. Eseye ankò.",
+  "creditSameCurrency": "{{amount}} pral kenbe sou Kredi ou.",
+  "fxEstimate": "Anviwon {{amount}} sou Kredi ou pou {{target}}.",
+  "fxFee": "Sa gen ladan frè konvèsyon {{fee}} ({{percent}}%).",
+  "fxRecordCurrency": "Pri a fikse an {{currency}}; montan nan lòt lajan se estimasyon.",
+  "offlineAck": "Mwen konprann peman mwen fè dirèkteman bay èd la pa kouvri pa OxSteed.",
+  "holdExpiringTitle": "Renouvle otorizasyon kat ou",
+  "holdExpiringBody": "Otorizasyon kat ou pou {{amount}} prèt pou ekspire. Renouvle l pou travay la rete finanse.",
+  "holdExpiresAt": "Ekspire {{date}}",
+  "renewHold": "Renouvle otorizasyon pou {{amount}}",
+  "genericError": "Gen yon bagay ki pa mache. Eseye ankò.",
+  "switch": {
+   "title": "Chanje mwayen peman",
+   "current": "Mwayen peman: {{rail}}",
+   "pending": "N ap tann akò pou chanje soti {{from}} pou ale {{to}}.",
+   "accept": "Dakò pou chanje",
+   "decline": "Refize",
+   "choose": "Chanje pou",
+   "lessProtected": "Opsyon sa a gen mwens pwoteksyon pase mwayen peman ou genyen kounye a.",
+   "request": "Mande chanjman",
+   "consentNote": "Lòt moun nan dwe dakò. Ou ka chanje sèlman anvan travay la kòmanse."
+  },
+  "offline": {
+   "title": "Peman dirèk",
+   "notCovered": "Peman sa a se ant ou menm ak lòt moun nan. OxSteed pa kenbe l ni garanti l.",
+   "status": "Kliyan konfime: {{customer}} · Èd konfime: {{helper}}",
+   "yes": "wi",
+   "no": "poko",
+   "confirm": "Konfime peman an fèt",
+   "confirmed": "Peman konfime"
+  },
+  "tips": {
+   "title": "Ajoute yon poubwa",
+   "amount": "Montan poubwa ({{currency}})",
+   "breakdown": "Frè tretman {{cost}} · Èd la resevwa {{helper}}",
+   "noPlatformFee": "OxSteed pa pran okenn frè sou poubwa.",
+   "send": "Voye poubwa",
+   "sent": "Poubwa voye. Mèsi!",
+   "confirmCard": "Konfime poubwa a ak kat ou pou fini.",
+   "status": {
+    "pending": "an atant",
+    "succeeded": "voye",
+    "failed": "echwe",
+    "canceled": "anile"
+   }
+  },
+  "cashout": {
+   "title": "Retire Kredi",
+   "rules": "Pou retire, ou bezwen yon idantite verifye. Lajan ou touche disponib {{days}} jou apre li rive, nan limit chak jou ak chak mwa.",
+   "available": "Disponib pou retire: {{amount}}",
+   "amount": "Montan ({{currency}})",
+   "destination": "Nimewo mobile money oswa kont",
+   "submit": "Mande retrè",
+   "requested": "Retrè mande",
+   "status": {
+    "requested": "mande",
+    "submitted": "ap trete",
+    "paid": "peye",
+    "failed": "echwe",
+    "cancelled": "anile"
+   }
+  },
+  "chat": {
+   "maskedBeforeHire": "Enfòmasyon kontak kache jiskaske yon òf aksepte. Kontinye pale isit la pou w rete pwoteje.",
+   "offPlatformReminder": "Rapèl: peman ki fèt andeyò OxSteed pa pwoteje."
+  },
+  "reasons": {
+   "country_not_supported": "Poko disponib nan peyi sa a.",
+   "country_not_enabled": "Poko disponib nan peyi sa a.",
+   "country_tax_review_pending": "Poko disponib nan peyi sa a.",
+   "rail_disabled_in_country": "Pa ofri nan peyi sa a.",
+   "helper_country_unsupported": "Pa disponib pou peyi èd la.",
+   "international_not_enabled": "Peman entènasyonal ak kat poko disponib.",
+   "credit_rail_not_enabled": "Peman ak Kredi OxSteed poko disponib.",
+   "credit_currency_unsupported": "Kredi OxSteed pa disponib nan lajan sa a.",
+   "credit_payment_not_cleared": "Ou poko ka itilize Kredi OxSteed isit la.",
+   "credit_fx_unavailable": "Konvèsyon lajan pa disponib kounye a.",
+   "credit_fx_quote_expired": "Estimasyon an ekspire. Pran yon lòt.",
+   "credit_fx_quote_required": "Pran yon estimasyon Kredi anvan.",
+   "credit_insufficient_funds": "Ou pa gen ase Kredi.",
+   "offline_requires_subscription": "Èd la bezwen yon abònman pou aksepte peman dirèk.",
+   "offline_requires_verified_helper": "Èd la dwe verifye idantite l pou aksepte peman dirèk.",
+   "offline_first_job_cap": "Premye travay ou isit la dwe peye atravè OxSteed si li depase montan sa a.",
+   "offline_ack_required": "Tanpri konfime peman dirèk pa kouvri.",
+   "payment_rail_unavailable": "Mwayen peman sa a pa disponib.",
+   "rail_switch_after_start": "Ou ka chanje mwayen peman sèlman anvan travay la kòmanse.",
+   "rail_switch_pending": "Gen yon chanjman k ap tann repons deja.",
+   "rail_switch_expired": "Demann sa a ekspire.",
+   "rail_switch_stale": "Travay la chanje. Mande ankò.",
+   "rail_switch_not_pending": "Demann sa a gentan gen repons.",
+   "rail_switch_customer_only": "Se kliyan an sèlman ki ka konfime chanjman sa a.",
+   "rail_switch_needs_counterparty": "Lòt moun nan dwe reponn demann sa a.",
+   "tip_not_allowed": "Ou poko ka bay poubwa pou travay sa a.",
+   "tip_offline_rail": "Bay èd la poubwa a dirèkteman pou travay ki peye andeyò platfòm nan.",
+   "tip_too_large": "Poubwa sa a twò gwo.",
+   "tip_amount_invalid": "Antre yon montan poubwa.",
+   "cashout_unavailable_spend_only": "Retrè pa disponib nan peyi ou. Ou ka depanse Kredi sou OxSteed.",
+   "cashout_identity_required": "Verifye idantite ou pou retire.",
+   "cashout_no_balance": "Ou pa gen Kredi pou retire.",
+   "cashout_nothing_available": "Poko gen anyen disponib pou retire.",
+   "cashout_exceeds_available": "Sa plis pase sa ou ka retire kounye a.",
+   "cashout_amount_invalid": "Antre yon montan.",
+   "cashout_destination_required": "Chwazi ki kote pou voye lajan an.",
+   "bid_currency_mismatch": "Òf yo dwe nan lajan travay la.",
+   "impersonation_blocked": "Sa pa pèmèt nan yon sesyon anpridantite.",
+   "feature_disabled": "Pa disponib."
+  }
+ },
+ "ar": {
+  "panelTitle": "الدفع",
+  "chooseRail": "اختر طريقة الدفع",
+  "amountLine": "السعر: {{amount}} ({{currency}})",
+  "rails": {
+   "stripe": {
+    "title": "بطاقة (محمي)",
+    "body": "يتم الدفع عبر OxSteed. تُحتجز أموالك حتى ينتهي العمل."
+   },
+   "credit": {
+    "title": "رصيد OxSteed",
+    "body": "ادفع من رصيد OxSteed الخاص بك.",
+    "payment": "يُحتجز رصيدك ويُدفع للمساعد عند انتهاء العمل.",
+    "collateral": "يُحتجز رصيدك كضمان؛ ويُخصم ثمن العمل من بطاقتك."
+   },
+   "offline": {
+    "title": "ادفع للمساعد مباشرة",
+    "body": "تدفع للمساعد خارج OxSteed."
+   }
+  },
+  "protection": {
+   "3": "أعلى حماية",
+   "2": "محمي برصيد OxSteed",
+   "1": "غير مشمول بحماية OxSteed"
+  },
+  "chargedNowHeld": "لأن موعد العمل بعد أكثر من 5 أيام، تُخصم من بطاقتك الآن وتحتجز OxSteed المبلغ حتى انتهاء العمل.",
+  "localMethods": "متاح أيضًا: {{methods}}",
+  "unavailable": "غير متاح",
+  "noRails": "لا توجد طريقة دفع متاحة لهذا العمل بعد.",
+  "quoting": "جارٍ الحصول على التقدير…",
+  "getEstimate": "احصل على تقدير بالرصيد",
+  "refreshEstimate": "تحديث التقدير",
+  "quoteFailed": "تعذّر الحصول على تقدير. حاول مرة أخرى.",
+  "creditSameCurrency": "سيُحتجز {{amount}} من رصيدك.",
+  "fxEstimate": "حوالي {{amount}} من رصيدك مقابل {{target}}.",
+  "fxFee": "يشمل رسوم تحويل عملة قدرها {{fee}} ({{percent}}٪).",
+  "fxRecordCurrency": "السعر محدد بعملة {{currency}}؛ والمبالغ بالعملات الأخرى تقديرية.",
+  "offlineAck": "أفهم أن المدفوعات المباشرة للمساعد غير مشمولة بحماية OxSteed.",
+  "holdExpiringTitle": "جدّد تفويض بطاقتك",
+  "holdExpiringBody": "تفويض بطاقتك بمبلغ {{amount}} على وشك الانتهاء. جدّده ليبقى العمل ممولًا.",
+  "holdExpiresAt": "ينتهي في {{date}}",
+  "renewHold": "جدّد التفويض بمبلغ {{amount}}",
+  "genericError": "حدث خطأ ما. حاول مرة أخرى.",
+  "switch": {
+   "title": "تغيير طريقة الدفع",
+   "current": "طريقة الدفع: {{rail}}",
+   "pending": "بانتظار الموافقة على التحويل من {{from}} إلى {{to}}.",
+   "accept": "الموافقة على التغيير",
+   "decline": "رفض",
+   "choose": "التحويل إلى",
+   "lessProtected": "هذا الخيار أقل حماية من طريقة الدفع الحالية.",
+   "request": "طلب التغيير",
+   "consentNote": "يجب أن يوافق الطرف الآخر. لا يمكن التغيير إلا قبل بدء العمل."
+  },
+  "offline": {
+   "title": "دفع مباشر",
+   "notCovered": "هذا الدفع بينك وبين الطرف الآخر. لا تحتجزه OxSteed ولا تضمنه.",
+   "status": "أكّد العميل: {{customer}} · أكّد المساعد: {{helper}}",
+   "yes": "نعم",
+   "no": "ليس بعد",
+   "confirm": "تأكيد إتمام الدفع",
+   "confirmed": "تم تأكيد الدفع"
+  },
+  "tips": {
+   "title": "أضف إكرامية",
+   "amount": "مبلغ الإكرامية ({{currency}})",
+   "breakdown": "تكلفة المعالجة {{cost}} · يحصل المساعد على {{helper}}",
+   "noPlatformFee": "لا تأخذ OxSteed أي رسوم من الإكراميات.",
+   "send": "إرسال الإكرامية",
+   "sent": "تم إرسال الإكرامية. شكرًا!",
+   "confirmCard": "أكّد الإكرامية ببطاقتك لإتمامها.",
+   "status": {
+    "pending": "قيد الانتظار",
+    "succeeded": "أُرسلت",
+    "failed": "فشلت",
+    "canceled": "أُلغيت"
+   }
+  },
+  "cashout": {
+   "title": "سحب الرصيد",
+   "rules": "يتطلب السحب هوية موثقة. تصبح الأرباح متاحة بعد {{days}} أيام من وصولها، ضمن حدود يومية وشهرية.",
+   "available": "المتاح للسحب: {{amount}}",
+   "amount": "المبلغ ({{currency}})",
+   "destination": "رقم المحفظة الهاتفية أو الحساب",
+   "submit": "طلب السحب",
+   "requested": "تم طلب السحب",
+   "status": {
+    "requested": "مطلوب",
+    "submitted": "قيد المعالجة",
+    "paid": "مدفوع",
+    "failed": "فشل",
+    "cancelled": "ملغى"
+   }
+  },
+  "chat": {
+   "maskedBeforeHire": "تُخفى بيانات الاتصال حتى يتم قبول عرض. واصل المحادثة هنا لتبقى محميًا.",
+   "offPlatformReminder": "تذكير: المدفوعات خارج OxSteed غير محمية."
+  },
+  "reasons": {
+   "country_not_supported": "غير متاح في هذا البلد بعد.",
+   "country_not_enabled": "غير متاح في هذا البلد بعد.",
+   "country_tax_review_pending": "غير متاح في هذا البلد بعد.",
+   "rail_disabled_in_country": "غير مقدَّم في هذا البلد.",
+   "helper_country_unsupported": "غير متاح لبلد المساعد.",
+   "international_not_enabled": "الدفع الدولي بالبطاقات غير متاح بعد.",
+   "credit_rail_not_enabled": "الدفع برصيد OxSteed غير متاح بعد.",
+   "credit_currency_unsupported": "رصيد OxSteed غير متاح بهذه العملة.",
+   "credit_payment_not_cleared": "لا يمكن استخدام رصيد OxSteed هنا بعد.",
+   "credit_fx_unavailable": "تحويل العملة غير متاح حاليًا.",
+   "credit_fx_quote_expired": "انتهت صلاحية التقدير. احصل على تقدير جديد.",
+   "credit_fx_quote_required": "احصل على تقدير بالرصيد أولًا.",
+   "credit_insufficient_funds": "الرصيد غير كافٍ.",
+   "offline_requires_subscription": "يحتاج المساعد إلى اشتراك لقبول الدفع المباشر.",
+   "offline_requires_verified_helper": "يجب أن يوثّق المساعد هويته لقبول الدفع المباشر.",
+   "offline_first_job_cap": "يجب دفع أول عمل لك هنا عبر OxSteed إذا تجاوز هذا المبلغ.",
+   "offline_ack_required": "يرجى تأكيد أن الدفع المباشر غير مشمول بالحماية.",
+   "payment_rail_unavailable": "طريقة الدفع هذه غير متاحة.",
+   "rail_switch_after_start": "لا يمكن تغيير طريقة الدفع إلا قبل بدء العمل.",
+   "rail_switch_pending": "هناك تغيير ينتظر الرد بالفعل.",
+   "rail_switch_expired": "انتهت صلاحية هذا الطلب.",
+   "rail_switch_stale": "تغيّر العمل. اطلب مرة أخرى.",
+   "rail_switch_not_pending": "تم الرد على هذا الطلب بالفعل.",
+   "rail_switch_customer_only": "العميل فقط يمكنه تأكيد هذا التغيير.",
+   "rail_switch_needs_counterparty": "يجب أن يرد الطرف الآخر على هذا الطلب.",
+   "tip_not_allowed": "لا يمكن إضافة إكرامية لهذا العمل بعد.",
+   "tip_offline_rail": "قدّم الإكرامية للمساعد مباشرة في الأعمال المدفوعة خارج المنصة.",
+   "tip_too_large": "هذه الإكرامية كبيرة جدًا.",
+   "tip_amount_invalid": "أدخل مبلغ الإكرامية.",
+   "cashout_unavailable_spend_only": "السحب غير متاح في بلدك. يمكن إنفاق الرصيد على OxSteed.",
+   "cashout_identity_required": "وثّق هويتك للسحب.",
+   "cashout_no_balance": "ليس لديك رصيد للسحب.",
+   "cashout_nothing_available": "لا يوجد شيء متاح للسحب بعد.",
+   "cashout_exceeds_available": "هذا أكثر مما يمكنك سحبه الآن.",
+   "cashout_amount_invalid": "أدخل مبلغًا.",
+   "cashout_destination_required": "اختر وجهة إرسال المال.",
+   "bid_currency_mismatch": "يجب أن تكون العروض بعملة العمل.",
+   "impersonation_blocked": "غير مسموح في جلسة انتحال.",
+   "feature_disabled": "غير متاح."
+  }
+ }
+}

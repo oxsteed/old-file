@@ -146,7 +146,9 @@ describeDb('job edit foundation on real Postgres', () => {
         expect(final.status).toBe('published');
       } else {
         expect(accept.status).toBe(200);
-        expect(edit.status).toBe(409);
+        // The accept may bump the job version before the edit reads it, in
+        // which case the If-Match precondition fails with 412 instead of 409.
+        expect([409, 412]).toContain(edit.status);
         expect(final.status).toBe('accepted');
         expect(Number(final.budget_max_cents)).toBe(20000);
       }

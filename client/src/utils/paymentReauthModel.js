@@ -1,3 +1,5 @@
+import { formatMoney } from '../shared/money.js';
+
 /**
  * Pure helpers for the change-order re-authorization banner
  * (server: services/jobPaymentReauthorizationService.js).
@@ -6,7 +8,7 @@
 /** Only fetch the state when the job says something is pending. */
 export function jobNeedsPaymentCheck(job) {
   const meta = job?.metadata && typeof job.metadata === 'object' ? job.metadata : {};
-  return Boolean(meta.paymentAdjustmentRequired || meta.creditAdjustmentRequired === true);
+  return Boolean(meta.paymentAdjustmentRequired || meta.creditAdjustmentRequired === true || meta.paymentHoldRenewalRequired === true);
 }
 
 /**
@@ -21,17 +23,22 @@ export function bannerModel(state) {
   let notice = null;
   if (latest?.status === 'pending' && latest.failure_code) notice = 'lastDeclined';
   else if (latest?.status === 'expired') notice = 'lastExpired';
-  if (req.card === 'intent_reprice_required') return { mode: 'reprice', targetCents: req.target_cents, notice };
+  const currency = req.currency || 'USD';
+  if (req.card === 'intent_reprice_required') return { mode: 'reprice', targetCents: req.target_cents, currency, notice };
+  if (req.card === 'hold_expiring') {
+    return { mode: 'renew', targetCents: req.target_cents, authorizedCents: req.authorized_cents, holdExpiresAt: req.hold_expires_at || null, currency, notice };
+  }
   if (req.card) {
     return {
       mode: 'card',
       targetCents: req.target_cents,
       authorizedCents: req.authorized_cents,
+      currency,
       expiresAt: latest?.status === 'pending' ? latest.expires_at : null,
       notice,
     };
   }
-  if (req.credit) return { mode: 'credit', creditCents: req.credit_amount_cents, notice };
+  if (req.credit) return { mode: 'credit', creditCents: req.credit_amount_cents, currency, notice };
   return { mode: 'waiting' };
 }
 
@@ -48,8 +55,8 @@ export function reauthErrorKey(code) {
   return ERROR_KEYS[code] || 'generic';
 }
 
-export function formatCents(cents, language) {
+export function formatCents(cents, language, currency = 'USD') {
   const value = Number(cents);
   if (!Number.isFinite(value)) return '';
-  return new Intl.NumberFormat(language || undefined, { style: 'currency', currency: 'USD' }).format(value / 100);
+  return formatMoney(Math.round(value), currency, language || undefined);
 }

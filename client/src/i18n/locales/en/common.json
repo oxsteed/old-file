@@ -815,5 +815,145 @@
       "stripeMissing": "Card payments can’t load right now. Try again later.",
       "generic": "That didn’t work. Try again."
     }
+  },
+  "paymentRail": {
+    "panelTitle": "Payment",
+    "chooseRail": "Choose how to pay",
+    "amountLine": "Price: {{amount}} ({{currency}})",
+    "rails": {
+      "stripe": {
+        "title": "Card (protected)",
+        "body": "Paid through OxSteed. Your money is held until the job is done."
+      },
+      "credit": {
+        "title": "OxSteed Credit",
+        "body": "Pay with your OxSteed Credit balance.",
+        "payment": "Your Credit is held and paid to the helper when the job is done.",
+        "collateral": "Your Credit is held as a guarantee; the job is charged to your card."
+      },
+      "offline": {
+        "title": "Pay the helper directly",
+        "body": "You pay the helper outside OxSteed."
+      }
+    },
+    "protection": {
+      "3": "Highest protection",
+      "2": "Protected by OxSteed Credit",
+      "1": "Not covered by OxSteed"
+    },
+    "chargedNowHeld": "Because the job is more than 5 days away, your card is charged now and OxSteed holds the money until the job is done.",
+    "localMethods": "Also available: {{methods}}",
+    "unavailable": "Not available",
+    "noRails": "No payment method is available for this job yet.",
+    "quoting": "Getting estimate…",
+    "getEstimate": "Get Credit estimate",
+    "refreshEstimate": "Refresh estimate",
+    "quoteFailed": "Could not get an estimate. Try again.",
+    "creditSameCurrency": "{{amount}} will be held from your Credit.",
+    "fxEstimate": "Estimated {{amount}} from your Credit for {{target}}.",
+    "fxFee": "Includes a currency conversion fee of {{fee}} ({{percent}}%).",
+    "fxRecordCurrency": "The price is set in {{currency}}; amounts in other currencies are estimates.",
+    "offlineAck": "I understand that payments made directly to the helper are not covered by OxSteed.",
+    "holdExpiringTitle": "Renew your card authorization",
+    "holdExpiringBody": "Your card authorization for {{amount}} is about to expire. Renew it so the job stays funded.",
+    "holdExpiresAt": "Expires {{date}}",
+    "renewHold": "Renew authorization for {{amount}}",
+    "genericError": "Something went wrong. Try again.",
+    "switch": {
+      "title": "Change payment method",
+      "current": "Payment method: {{rail}}",
+      "pending": "Waiting for agreement to switch from {{from}} to {{to}}.",
+      "accept": "Agree to switch",
+      "decline": "Decline",
+      "choose": "Switch to",
+      "lessProtected": "This option has less protection than your current payment method.",
+      "request": "Ask to switch",
+      "consentNote": "The other person must agree. Changes are only possible before work starts."
+    },
+    "offline": {
+      "title": "Direct payment",
+      "notCovered": "This payment is between you and the other person. OxSteed does not hold or guarantee it.",
+      "status": "Customer confirmed: {{customer}} · Helper confirmed: {{helper}}",
+      "yes": "yes",
+      "no": "not yet",
+      "confirm": "Confirm payment was made",
+      "confirmed": "Payment confirmed"
+    },
+    "tips": {
+      "title": "Add a tip",
+      "amount": "Tip amount ({{currency}})",
+      "breakdown": "Processing cost {{cost}} · Helper receives {{helper}}",
+      "noPlatformFee": "OxSteed takes no fee from tips.",
+      "send": "Send tip",
+      "sent": "Tip sent. Thank you!",
+      "confirmCard": "Confirm the tip with your card to finish.",
+      "status": {
+        "pending": "pending",
+        "succeeded": "sent",
+        "failed": "failed",
+        "canceled": "canceled"
+      }
+    },
+    "cashout": {
+      "title": "Cash out Credit",
+      "rules": "Cash-out needs a verified ID. Earnings become available {{days}} days after they arrive, within daily and monthly limits.",
+      "available": "Available to cash out: {{amount}}",
+      "amount": "Amount ({{currency}})",
+      "destination": "Mobile money number or account",
+      "submit": "Request cash-out",
+      "requested": "Cash-out requested",
+      "status": {
+        "requested": "requested",
+        "submitted": "processing",
+        "paid": "paid",
+        "failed": "failed",
+        "cancelled": "cancelled"
+      }
+    },
+    "chat": {
+      "maskedBeforeHire": "Contact details are hidden until a bid is accepted. Keep talking here so you stay protected.",
+      "offPlatformReminder": "Reminder: payments made outside OxSteed are not protected."
+    },
+    "reasons": {
+      "country_not_supported": "Not available in this country yet.",
+      "country_not_enabled": "Not available in this country yet.",
+      "country_tax_review_pending": "Not available in this country yet.",
+      "rail_disabled_in_country": "Not offered in this country.",
+      "helper_country_unsupported": "Not available for this helper's country.",
+      "international_not_enabled": "International card payments are not available yet.",
+      "credit_rail_not_enabled": "OxSteed Credit payments are not available yet.",
+      "credit_currency_unsupported": "OxSteed Credit is not available in this currency.",
+      "credit_payment_not_cleared": "OxSteed Credit cannot be used here yet.",
+      "credit_fx_unavailable": "Currency conversion is unavailable right now.",
+      "credit_fx_quote_expired": "The estimate expired. Get a new one.",
+      "credit_fx_quote_required": "Get a Credit estimate first.",
+      "credit_insufficient_funds": "Not enough Credit.",
+      "offline_requires_subscription": "The helper needs a subscription to accept direct payments.",
+      "offline_requires_verified_helper": "The helper must verify their identity to accept direct payments.",
+      "offline_first_job_cap": "Your first job here must be paid through OxSteed above this amount.",
+      "offline_ack_required": "Please confirm that direct payments are not covered.",
+      "payment_rail_unavailable": "That payment method is not available.",
+      "rail_switch_after_start": "The payment method can only change before work starts.",
+      "rail_switch_pending": "A change is already waiting for an answer.",
+      "rail_switch_expired": "That request expired.",
+      "rail_switch_stale": "The job changed. Ask again.",
+      "rail_switch_not_pending": "That request was already answered.",
+      "rail_switch_customer_only": "Only the customer can confirm this change.",
+      "rail_switch_needs_counterparty": "The other person must answer this request.",
+      "tip_not_allowed": "This job cannot be tipped yet.",
+      "tip_offline_rail": "Tip your helper directly for jobs paid offline.",
+      "tip_too_large": "That tip is too large.",
+      "tip_amount_invalid": "Enter a tip amount.",
+      "cashout_unavailable_spend_only": "Cash-out is not available in your country. Credit can be spent on OxSteed.",
+      "cashout_identity_required": "Verify your identity to cash out.",
+      "cashout_no_balance": "You have no Credit to cash out.",
+      "cashout_nothing_available": "Nothing is available to cash out yet.",
+      "cashout_exceeds_available": "That is more than you can cash out right now.",
+      "cashout_amount_invalid": "Enter an amount.",
+      "cashout_destination_required": "Choose where to send the money.",
+      "bid_currency_mismatch": "Bids must be in the job's currency.",
+      "impersonation_blocked": "Not allowed in an impersonated session.",
+      "feature_disabled": "Not available."
+    }
   }
 }

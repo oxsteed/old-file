@@ -18,6 +18,7 @@ const logger = require('../utils/logger');
 const db = require('../db');
 const metrics = require('../services/metricsService');
 const { sendNotification } = require('../services/notificationService');
+const templates = require('../services/notificationTemplates');
 const { EVENT_TYPES } = require('../services/jobEventOutbox');
 const { withFencedJobLock } = require('./jobLockingService');
 
@@ -206,14 +207,20 @@ async function notifyChangeOrderApplied(job, payload) {
   }
 }
 
+async function localized(key, userId, params) {
+  const recipient = await templates.loadRecipient(db, userId);
+  return templates.render(key, recipient, params);
+}
+
 async function notifyPaymentReauthorization(job, eventType, payload) {
   if (eventType === EVENT_TYPES.PAYMENT_REAUTHORIZED) {
     for (const userId of [payload.customer_id || job.client_id, payload.helper_id || job.assigned_helper_id].filter(Boolean)) {
+      const copy = await localized('payment_reauthorized', userId);
       const result = await sendNotification({
         userId,
         type: 'job_payment_reauthorized',
-        title: 'New price authorized',
-        body: 'The new job price from the approved change order is authorized. The job can be completed.',
+        title: copy.title,
+        body: copy.body,
         data: { job_id: job.id, attempt_id: payload.attempt_id },
         action_url: `/jobs/${job.id}`,
         idempotencyKey: `job-payment-reauthorized:${payload.attempt_id}:${userId}`,
@@ -223,18 +230,48 @@ async function notifyPaymentReauthorization(job, eventType, payload) {
     return;
   }
   const expired = payload.reason === 'expired';
+  const copy = await localized(expired ? 'payment_reauth_expired' : 'payment_reauth_declined', job.client_id);
   const result = await sendNotification({
     userId: job.client_id,
     type: 'job_payment_reauth_failed',
-    title: expired ? 'Payment authorization expired' : 'Card was declined',
-    body: expired
-      ? 'Your authorization request for the new job price expired. Open the job to try again.'
-      : 'Your card was declined for the new job price. Open the job to try another card.',
+    title: copy.title,
+    body: copy.body,
     data: { job_id: job.id, attempt_id: payload.attempt_id, reason: payload.reason || null },
     action_url: `/jobs/${job.id}`,
     idempotencyKey: `job-payment-reauth-failed:${payload.attempt_id}:${payload.reason}:${payload.failure_code || ''}`,
   });
   if (result?.success === false) throw new Error(result.error || 'notification failed');
+}
+
+/** Payment-layer notifications (localized; see services/notificationTemplates). */
+async function notifyPaymentLayerEvent(job, eventType, payload) {
+  const sends = [];
+  if (eventType === EVENT_TYPES.PAYMENT_HOLD_EXPIRING) {
+    sends.push({ userId: job.client_id, key: 'payment_hold_expiring', type: 'job_payment_hold_expiring', idem: `job-hold-expiring:${job.id}:${payload.payment_id}:${payload.expires_at}` });
+  } else if (eventType === EVENT_TYPES.PAYMENT_CHARGED_NOW) {
+    sends.push({ userId: job.client_id, key: 'payment_charged_now', type: 'job_payment_charged_now', idem: `job-charged-now:${payload.payment_id}`, params: { amount_minor: payload.amount_minor, currency: payload.currency } });
+  } else if (eventType === EVENT_TYPES.RAIL_SWITCH_REQUESTED) {
+    sends.push({ userId: payload.counterparty_id, key: 'rail_switch_requested', type: 'job_rail_switch_requested', idem: `job-rail-switch:${payload.request_id}:requested`, params: { rail: payload.to_rail } });
+  } else if (eventType === EVENT_TYPES.RAIL_SWITCH_RESOLVED) {
+    const key = payload.status === 'accepted' ? 'rail_switched' : 'rail_switch_declined';
+    for (const userId of [job.client_id, job.assigned_helper_id].filter(Boolean)) {
+      sends.push({ userId, key, type: 'job_rail_switch_resolved', idem: `job-rail-switch:${payload.request_id}:${payload.status}:${userId}`, params: { rail: payload.to_rail } });
+    }
+  }
+  for (const send of sends) {
+    if (!send.userId) continue;
+    const copy = await localized(send.key, send.userId, send.params || {});
+    const result = await sendNotification({
+      userId: send.userId,
+      type: send.type,
+      title: copy.title,
+      body: copy.body,
+      data: { job_id: job.id, ...payload },
+      action_url: `/jobs/${job.id}`,
+      idempotencyKey: send.idem,
+    });
+    if (result?.success === false) throw new Error(result.error || 'notification failed');
+  }
 }
 
 async function handleEvent(row) {
@@ -258,6 +295,12 @@ async function handleEvent(row) {
     case EVENT_TYPES.PAYMENT_REAUTHORIZED:
     case EVENT_TYPES.PAYMENT_REAUTH_FAILED:
       await notifyPaymentReauthorization(job, row.event_type, payload);
+      return;
+    case EVENT_TYPES.PAYMENT_HOLD_EXPIRING:
+    case EVENT_TYPES.PAYMENT_CHARGED_NOW:
+    case EVENT_TYPES.RAIL_SWITCH_REQUESTED:
+    case EVENT_TYPES.RAIL_SWITCH_RESOLVED:
+      await notifyPaymentLayerEvent(job, row.event_type, payload);
       return;
     default:
       logger.warn('job_event_outbox.unknown_event', { id: row.id, eventType: row.event_type });

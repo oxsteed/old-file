@@ -391,6 +391,16 @@ async function finalizeJobCancellation(result) {
     );
   } catch (_) { /* non-fatal */ }
 
+  // Payment layers: release a Credit payment hold / refund a platform-held
+  // charge. Logged, retried by the next cancellation sweep if it fails.
+  try {
+    if (result.job_id) {
+      require('./paymentRails').onCancelled(result.job_id).catch((err) =>
+        logger.warn('Failed to release payment-rail funds after cancellation', { jobId: result.job_id, error: err.message })
+      );
+    }
+  } catch (_) { /* non-fatal */ }
+
   logger.info('Job cancellation recorded', {
     jobId: result.job_id,
     cancelledBy: result.cancelled_by,

@@ -28,6 +28,7 @@ import { useJobDetailBids } from '../hooks/useJobDetailBids';
 import { JOB_STATUS_KEYS, jobDetailView, jobList, jobMediaType, matchingHelpersPath, samePartyId } from '../utils/jobDetailModel';
 import { bidNeedingReconfirm, canEditJob } from '../utils/jobEditModel';
 import PaymentReauthorizationBanner from '../components/PaymentReauthorizationBanner';
+import JobPaymentLayersPanel from '../components/paymentLayers/JobPaymentLayersPanel';
 import JobRevisionHistory from '../components/JobRevisionHistory';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -530,6 +531,7 @@ function JobDetailContent() {
         <div className="jdp-main">
           <PreferredHelperBanner job={job} />
           {(isOwner || (user && String(job.assigned_helper_id) === String(user.id))) && <PaymentReauthorizationBanner jobId={id} job={job} onResolved={() => fetchJob(id)} />}
+          <JobPaymentLayersPanel job={job} isOwner={isOwner} isAssignedHelper={isAssignedHelper} onChanged={() => fetchJob(id)} />
           {ownBidToReconfirm && <section className="jdp-card jdp-reconfirm" role="status" aria-labelledby={`${fieldId}-reconfirm`}>
             <h2 id={`${fieldId}-reconfirm`} className="jdp-section-title">{t('jobEdit.reconfirmTitle')}</h2>
             <p>{t('jobEdit.reconfirmHelp')}</p>
@@ -646,7 +648,8 @@ function JobDetailContent() {
           }}
           onConfirm={(bidData) => {
             // bidData should contain payment_method
-            handleAssign(acceptingBid.id, bidData.payment_method);
+            // Legacy: { payment_method }. Rail engine: the full selection.
+            handleAssign(acceptingBid.id, bidData.payment_rail ? bidData : bidData.payment_method);
           }}
         />
       )}
