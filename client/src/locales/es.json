@@ -8662,6 +8662,20 @@
       "push_notificationsDesc": "Todas las alertas push en todos los dispositivos (aplicación y navegador).",
       "sms_notifications": "Notificaciones por SMS",
       "sms_notificationsDesc": "Mensajes de texto a tu número de teléfono verificado."
+    },
+    "quietHours": {
+      "title": "Horas de silencio",
+      "description": "Pausa las notificaciones push durante las horas que elijas. Las notificaciones en la aplicacion y por correo no se ven afectadas.",
+      "enabled": "Activar horas de silencio",
+      "enabledDesc": "Silenciar las notificaciones push durante el periodo de silencio",
+      "window": "Periodo de silencio",
+      "windowDesc": "Las notificaciones push se pausan entre estas horas",
+      "startLabel": "Inicio de las horas de silencio",
+      "endLabel": "Fin de las horas de silencio",
+      "to": "a",
+      "saved": "Horas de silencio actualizadas",
+      "failedLoad": "No se pudo cargar la configuracion de horas de silencio",
+      "failedSave": "No se pudo guardar la configuracion de horas de silencio"
     }
   },
   "plannedNeeds": {
@@ -19668,6 +19682,11 @@
       "readyForPickupShort": "¡Listo para recoger!",
       "dismissOrderStatus": "Cerrar estado del pedido",
       "share": "Compartir",
+      "savedToFavorites": "Guardado en favoritos",
+      "removedFromFavorites": "Eliminado de favoritos",
+      "favoriteFailed": "No se pudieron actualizar los favoritos",
+      "favoriteDishAria": "Guardar este plato en favoritos",
+      "unfavoriteDishAria": "Quitar este plato de favoritos",
       "requestCredit": "Solicitar crédito",
       "message": "Mensaje",
       "messageAria": "Enviar un mensaje al restaurante",

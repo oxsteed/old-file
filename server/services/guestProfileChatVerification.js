@@ -140,6 +140,21 @@ async function assertGuestContactAllowed(helperId) {
   }
 }
 
+// P2-8-F10: allow_live_chat was a client-only gate (the UI hid the live
+// affordance but the server never checked). Returns the helper's effective
+// preference so the server can refuse live mode, not just hide the button.
+async function isLiveChatAllowed(helperId) {
+  const gate = await pool.query(
+    `SELECT COALESCE(hp.allow_live_chat, TRUE) AS allow_live_chat
+     FROM users u
+     JOIN helper_profiles hp ON hp.user_id = u.id
+     WHERE u.id = $1 AND u.deleted_at IS NULL`,
+    [helperId]
+  );
+  if (!gate.rows.length) return true;
+  return gate.rows[0].allow_live_chat !== false;
+}
+
 async function sendVerificationCode(sessionId, email, name, db = pool, language = 'en') {
   const code = randomCode();
   const accessCode = randomHistoryAccessCode();
@@ -490,6 +505,7 @@ module.exports = {
   generateGuestToken,
   tokenMatchesProfile,
   canEnterLiveMode,
+  isLiveChatAllowed,
   startGuestVerification,
   verifyGuestCode,
   resendGuestCode,

@@ -377,6 +377,19 @@ export const issueRestaurantTopupStepupChallenge = (restaurantId, payload) =>
 export const getRestaurantTopup = (restaurantId, topupId) =>
   api.get(`/restaurants/${restaurantId}/topups/${topupId}`).then((r) => r.data);
 
+// ── Customer favorites (P2-8-F14: endpoints had no client UI) ───────────────
+export const listFavoriteRestaurants = () =>
+  api.get('/food/customer/favorites').then((r) => r.data?.favoriteRestaurantIds || []);
+
+export const toggleFavoriteRestaurant = (restaurantId) =>
+  api.post(`/food/customer/favorites/${restaurantId}/toggle`).then((r) => r.data);
+
+export const listFavoriteItems = () =>
+  api.get('/food/customer/favorite-items').then((r) => r.data);
+
+export const toggleFavoriteItem = (restaurantId, itemId) =>
+  api.post(`/food/customer/favorite-items/${restaurantId}/${itemId}/toggle`).then((r) => r.data);
+
 // ── Shared formatting ────────────────────────────────────────────────────────
 export function formatFoodMoney(cents, currency = 'USD') {
   return formatCreditMinorUnits(cents, currency);

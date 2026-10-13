@@ -835,12 +835,16 @@ exports.profileChatMessage = async (req, res, next) => {
     }
 
     const providerOnline = helperOnline || anyRepOnline;
+    // P2-8-F10: allow_live_chat must be a server-side gate, not just a
+    // client-side affordance. When the helper disabled live chat, the
+    // request degrades to the AI path instead of entering live mode.
+    const allowLiveChat = await guestProfileVerify.isLiveChatAllowed(resolvedHelperId);
     const mayEnterLive = guestProfileVerify.canEnterLiveMode({
       destination,
       providerOnline,
       userId,
       verifiedGuest: verifiedGuestSession,
-    });
+    }) && allowLiveChat;
 
     // ── Live mode: authenticated customer OR verified guest + provider online + destination=helper ──
     if (mayEnterLive && userId) {
@@ -1192,7 +1196,7 @@ exports.profileChatMessage = async (req, res, next) => {
         destination,
         providerOnline,
         canLive: canLiveVisitor,
-        allowLiveChat: true,
+        allowLiveChat,
         threadId,
         helperOnline: providerOnline,
       });

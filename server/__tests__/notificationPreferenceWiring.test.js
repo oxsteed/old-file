@@ -111,6 +111,50 @@ describe('P2-8-F03 friendly toggle aliases', () => {
   });
 });
 
+describe('P2-8-F04 email_frequency honored by the realtime path', () => {
+  function digestQueueCalls() {
+    return db.query.mock.calls.filter(([sql]) => String(sql).includes('INSERT INTO email_digest_queue'));
+  }
+
+  test("email_frequency='off' suppresses non-transactional realtime email", async () => {
+    mockPrefs({ email_frequency: 'off' });
+    await sendNotification({ userId: 'u1', type: 'new_message', title: 't', body: 'b' });
+    expect(sendEmail).not.toHaveBeenCalled();
+    expect(digestQueueCalls()).toHaveLength(0);
+  });
+
+  test("email_frequency='off' still sends transactional email", async () => {
+    mockPrefs({ email_frequency: 'off' });
+    await sendNotification({ userId: 'u1', type: 'account_banned', title: 't', body: 'b' });
+    expect(sendEmail).toHaveBeenCalledTimes(1);
+  });
+
+  test("email_frequency='daily' queues for the digest instead of sending", async () => {
+    mockPrefs({ email_frequency: 'daily' });
+    await sendNotification({ userId: 'u1', type: 'new_message', title: 't', body: 'b' });
+    expect(sendEmail).not.toHaveBeenCalled();
+    const queued = digestQueueCalls();
+    expect(queued).toHaveLength(1);
+    expect(queued[0][1]).toEqual(['u1', 'n1', 'daily']);
+  });
+
+  test("email_frequency='weekly' queues for the digest instead of sending", async () => {
+    mockPrefs({ email_frequency: 'weekly' });
+    await sendNotification({ userId: 'u1', type: 'new_message', title: 't', body: 'b' });
+    expect(sendEmail).not.toHaveBeenCalled();
+    const queued = digestQueueCalls();
+    expect(queued).toHaveLength(1);
+    expect(queued[0][1]).toEqual(['u1', 'n1', 'weekly']);
+  });
+
+  test('real-time (default) sends email immediately and queues nothing', async () => {
+    mockPrefs({});
+    await sendNotification({ userId: 'u1', type: 'new_message', title: 't', body: 'b' });
+    expect(sendEmail).toHaveBeenCalledTimes(1);
+    expect(digestQueueCalls()).toHaveLength(0);
+  });
+});
+
 describe('P2-8-F05 push_notifications master toggle', () => {
   test('push_notifications=false suppresses Expo push', async () => {
     mockPrefs({ push_notifications: false });

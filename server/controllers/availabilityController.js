@@ -305,6 +305,7 @@ exports.updateNotificationPreferences = async (req, res, next) => {
     reminder_same_day_channels,
     quiet_hours_start = null,
     quiet_hours_end = null,
+    quiet_hours_enabled,
     timezone = null,
   } = req.body || {};
 
@@ -338,6 +339,12 @@ exports.updateNotificationPreferences = async (req, res, next) => {
     if (quiet_hours_end && !HHMM.test(String(quiet_hours_end))) {
       throw new AppError('Invalid quiet_hours_end format', 400, 'validation_failed', { quiet_hours_end: 'Must be HH:MM or HH:MM:SS' });
     }
+    // P2-8-F06: quiet_hours_enabled was only ever read, never set, so the
+    // quiet-hours gate could never fire. Accept it here so the setting is
+    // actually wireable.
+    if (quiet_hours_enabled !== undefined && typeof quiet_hours_enabled !== 'boolean') {
+      throw new AppError('Invalid quiet_hours_enabled', 400, 'validation_failed', { quiet_hours_enabled: 'Must be a boolean' });
+    }
 
     // Make sure a row exists (DB defaults fill everything)
     await pool.query(
@@ -356,13 +363,16 @@ exports.updateNotificationPreferences = async (req, res, next) => {
               reminder_same_day_channels     = COALESCE($5::text[], reminder_same_day_channels),
               quiet_hours_start              = COALESCE($6::time,    quiet_hours_start),
               quiet_hours_end                = COALESCE($7::time,    quiet_hours_end),
-              timezone                       = COALESCE($8,          timezone),
+              quiet_hours_enabled            = COALESCE($8::boolean, quiet_hours_enabled),
+              timezone                       = COALESCE($9,          timezone),
               updated_at                     = now()
-        WHERE user_id = $9
+        WHERE user_id = $10
         RETURNING *`,
       [
         confirmed, cancelled, r24, r2, rsd,
-        quiet_hours_start, quiet_hours_end, timezone,
+        quiet_hours_start, quiet_hours_end,
+        quiet_hours_enabled === undefined ? null : quiet_hours_enabled,
+        timezone,
         userId,
       ]
     );

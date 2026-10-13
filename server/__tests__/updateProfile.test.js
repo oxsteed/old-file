@@ -170,6 +170,46 @@ describe('updateProfile existing fields still work', () => {
   });
 });
 
+// P2-8-F11: changing the phone number must reset phone_verified.
+describe('updateProfile phone verification reset', () => {
+  function queuePhoneChangeResult(currentPhone, updatedRow) {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [] })                 // BEGIN
+      .mockResolvedValueOnce({ rows: [{ phone: currentPhone }] }) // SELECT current phone
+      .mockResolvedValueOnce({ rows: [updatedRow] })      // UPDATE ... RETURNING *
+      .mockResolvedValueOnce({ rows: [] });               // COMMIT
+  }
+
+  test('resets phone_verified when the phone number changes', async () => {
+    const res = mockResponse();
+    queuePhoneChangeResult('555-0001', baseRow({ phone: '555-0002', phone_verified: false }));
+    await authCtrl.updateProfile(mockReq({ phone: '555-0002' }), res);
+    const { text } = updateCall();
+    expect(text).toMatch(/phone_verified = FALSE/);
+    expect(text).toMatch(/phone_verified_at = NULL/);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ success: true }));
+  });
+
+  test('keeps phone_verified when the change is formatting-only', async () => {
+    const res = mockResponse();
+    queuePhoneChangeResult('(555) 000-0002', baseRow({ phone: '5550000002', phone_verified: true }));
+    await authCtrl.updateProfile(mockReq({ phone: '5550000002' }), res);
+    const { text } = updateCall();
+    expect(text).not.toMatch(/phone_verified/);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ success: true }));
+  });
+
+  test('does not touch phone_verified when phone is omitted', async () => {
+    const res = mockResponse();
+    queueUpdateResult(baseRow({ phone_verified: true }));
+    await authCtrl.updateProfile(mockReq({ bio: 'Hi' }), res);
+    const { text } = updateCall();
+    expect(text).not.toMatch(/phone_verified/);
+    const selectCalls = mockQuery.mock.calls.filter((c) => /SELECT phone FROM users/i.test(c[0]));
+    expect(selectCalls.length).toBe(0);
+  });
+});
+
 describe('updateProfile address', () => {
   test('accepts a full address, trims and normalizes it', async () => {
     const res = mockResponse();

@@ -268,7 +268,11 @@ exports.respondToReview = async (req, res) => {
   }
 };
 
-// ── Delete a review (customer or business owner) ──────────────────────────────
+// ── Delete a review (author only) ─────────────────────────────────────────────
+// P2-8-F15: a business owner could unilaterally delete any review on their
+// business, including negative ones. Only the review's author may delete it
+// here; business owners respond via respondToReview, and abusive reviews go
+// through admin moderation (POST /admin/reviews/:reviewId/remove).
 exports.deleteReview = async (req, res) => {
   try {
     const { reviewId } = req.params;
@@ -288,20 +292,16 @@ exports.deleteReview = async (req, res) => {
 
     const review = reviewRes.rows[0];
 
-    // Verify authorization: customer who posted it OR business owner
-    const isCustomer = review.customer_id === userId;
-    const isBizOwner = await pool.query(
-      `SELECT 1 FROM businesses WHERE id = $1 AND user_id = $2`,
-      [review.business_id, userId]
-    ).then(r => r.rows.length > 0);
+    // Verify authorization: only the customer who posted the review.
+    const isAuthor = review.customer_id === userId;
 
-    if (!isCustomer && !isBizOwner) {
+    if (!isAuthor) {
       return sendError(res, 403, 'You do not have permission to delete this review');
     }
 
     // Delete the review with authorization safeguard and RETURNING
     const delResult = await pool.query(
-      `DELETE FROM business_reviews WHERE id = $1 AND (customer_id = $2 OR business_id IN (SELECT id FROM businesses WHERE user_id = $2)) RETURNING id`,
+      `DELETE FROM business_reviews WHERE id = $1 AND customer_id = $2 RETURNING id`,
       [reviewId, userId]
     );
 

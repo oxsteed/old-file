@@ -239,25 +239,49 @@ class PayoutController {
           return sendError(res, 409, 'Complete Stripe Connect onboarding before adding a payout method');
         }
       }
-      const query = `
-        INSERT INTO payout_methods (
-          helper_id, method_type, account_holder_name, bank_name, account_last_four,
-          routing_number_last_four, account_type, paypal_email, stripe_account_id, is_primary, status
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, TRUE, 'pending')
-        RETURNING *
-      `;
+      // P2-8-F12: the insert always used is_primary=TRUE, so adding a second
+      // method hit the unique_primary_method_per_helper partial index and
+      // 500ed. Demote the existing primary in the same transaction; the
+      // advisory lock serializes concurrent creates for one helper.
+      const client = await pool.connect();
+      let result;
+      try {
+        await client.query('BEGIN');
+        await client.query(
+          `SELECT pg_advisory_xact_lock(hashtextextended($1, 0))`,
+          [`payout-method:${helper_id}`]
+        );
+        await client.query(
+          `UPDATE payout_methods SET is_primary = FALSE
+            WHERE helper_id = $1 AND is_primary = TRUE`,
+          [helper_id]
+        );
+        const query = `
+          INSERT INTO payout_methods (
+            helper_id, method_type, account_holder_name, bank_name, account_last_four,
+            routing_number_last_four, account_type, paypal_email, stripe_account_id, is_primary, status
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, TRUE, 'pending')
+          RETURNING *
+        `;
 
-      const result = await pool.query(query, [
-        helper_id,
-        method_type,
-        account_holder_name || null,
-        bank_name || null,
-        account_last_four || null,
-        routing_number_last_four || null,
-        account_type || null,
-        paypal_email || null,
-        stripeAccountId
-      ]);
+        result = await client.query(query, [
+          helper_id,
+          method_type,
+          account_holder_name || null,
+          bank_name || null,
+          account_last_four || null,
+          routing_number_last_four || null,
+          account_type || null,
+          paypal_email || null,
+          stripeAccountId
+        ]);
+        await client.query('COMMIT');
+      } catch (txErr) {
+        await client.query('ROLLBACK');
+        throw txErr;
+      } finally {
+        client.release();
+      }
 
       logger.info('Payout method created', { helper_id, method_id: result.rows[0].id });
 
