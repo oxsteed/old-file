@@ -28,6 +28,22 @@ const T = {
     },
   },
   ...require('./localDeliveryNotifications').deliveryNotifications,
+  work_agreement_signature_requested: {
+    title: {
+      en: 'Work agreement ready to sign',
+      es: 'Acuerdo de trabajo listo para firmar',
+      fr: 'Accord de travail prêt à signer',
+      ht: 'Akò travay la pare pou siyen',
+      ar: 'اتفاقية العمل جاهزة للتوقيع',
+    },
+    body: {
+      en: 'The other party created or updated a work agreement for your job. Review and sign it.',
+      es: 'La otra parte creó o actualizó un acuerdo de trabajo para tu trabajo. Revísalo y fírmalo.',
+      fr: 'L’autre partie a créé ou modifié un accord de travail pour votre mission. Relisez-le et signez-le.',
+      ht: 'Lòt pati a kreye oswa mete ajou yon akò travay pou travay ou. Revize l epi siyen l.',
+      ar: 'أنشأ الطرف الآخر أو حدّث اتفاقية عمل لوظيفتك. راجعها ووقّعها.',
+    },
+  },
   bid_received: {
     title: {
       en: 'New bid on your job',

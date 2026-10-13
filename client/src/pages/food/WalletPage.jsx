@@ -6,6 +6,7 @@ import Navbar from '../../components/Navbar';
 import Footer from '../../components/Footer';
 import PageMeta from '../../components/PageMeta';
 import WalletRestaurantWallets from './WalletRestaurantWallets';
+import CreditCashoutPanel from '../../components/paymentLayers/CreditCashoutPanel';
 import {
   getOxsteedCreditAccount,
   getOxsteedCreditAccountDetails,
@@ -162,6 +163,7 @@ export default function WalletPage() {
           )}
 
           <WalletRestaurantWallets onWalletsLoaded={setRestaurantWalletCount} />
+          <CreditCashoutPanel />
 
           <p className="ox-credit-footnote" role="note">{t('disclaimerBody')}</p>
         </div>

@@ -11,6 +11,53 @@ const client = process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN
   : null;
 const fromNumber = process.env.TWILIO_PHONE_NUMBER || '+1234567890';
 
+const paymentLayerFlags = require('./paymentLayerFlags');
+const { COUNTRIES, normalizeCountryCode } = require('../validation/countries');
+
+/**
+ * E.164 normalisation. Numbers that already carry "+" (or "00") keep their
+ * country code; national numbers get the calling code of `countryCode`
+ * (default US, which matches today's behaviour).
+ */
+function toE164(phoneNumber, countryCode = 'US') {
+  const raw = String(phoneNumber || '').trim();
+  if (!raw) return null;
+  let digits = raw.replace(/[^0-9]/g, '');
+  if (raw.startsWith('+')) return digits.length >= 8 && digits.length <= 15 ? `+${digits}` : null;
+  if (raw.startsWith('00')) { digits = digits.slice(2); return digits.length >= 8 && digits.length <= 15 ? `+${digits}` : null; }
+  const country = COUNTRIES[normalizeCountryCode(countryCode) || 'US'] || COUNTRIES.US;
+  const calling = country.calling;
+  if (digits.startsWith('0')) digits = digits.replace(/^0+/, '');
+  if (calling === '1' && digits.length === 11 && digits.startsWith('1')) digits = digits.slice(1);
+  const full = `${calling}${digits}`;
+  return full.length >= 8 && full.length <= 15 ? `+${full}` : null;
+}
+
+/** Country for an E.164 number by longest calling-code match (NANP → null). */
+function countryForE164(e164) {
+  const digits = String(e164 || '').replace(/[^0-9]/g, '');
+  let best = null;
+  for (const [code, info] of Object.entries(COUNTRIES)) {
+    if (!info.calling || info.calling === '1') continue;
+    if (digits.startsWith(info.calling) && (!best || info.calling.length > best.calling.length)) best = { code, calling: info.calling };
+  }
+  return best ? best.code : null;
+}
+
+/** Per-country sender: TWILIO_MESSAGING_SERVICE_SID_<CC> or TWILIO_FROM_<CC>. */
+function senderFor(e164, countryCode = null) {
+  if (!paymentLayerFlags.isEnabled('COUNTRY_SMS')) return { from: fromNumber };
+  const cc = normalizeCountryCode(countryCode || '') || countryForE164(e164);
+  if (cc) {
+    const service = process.env[`TWILIO_MESSAGING_SERVICE_SID_${cc}`];
+    if (service) return { messagingServiceSid: service };
+    const from = process.env[`TWILIO_FROM_${cc}`];
+    if (from) return { from };
+  }
+  if (process.env.TWILIO_MESSAGING_SERVICE_SID) return { messagingServiceSid: process.env.TWILIO_MESSAGING_SERVICE_SID };
+  return { from: fromNumber };
+}
+
 function isTwilioConfigured() {
   return Boolean(client && process.env.TWILIO_PHONE_NUMBER);
 }
@@ -67,7 +114,7 @@ async function sendSMSIfOptedIn(userId, messageBody, notificationType) {
   try {
     // Check if user has SMS enabled
     const userResult = await pool.query(
-      `SELECT u.phone_number, u.phone_verified, np.sms_enabled
+      `SELECT u.phone_number, u.phone_e164, u.phone_verified, np.sms_enabled
        FROM users u
        LEFT JOIN notification_preferences np ON np.user_id = u.id
        WHERE u.id = $1`,
@@ -79,7 +126,10 @@ async function sendSMSIfOptedIn(userId, messageBody, notificationType) {
       return false;
     }
 
-    const { phone_number, phone_verified, sms_enabled } = userResult.rows[0];
+    const { phone_verified, sms_enabled } = userResult.rows[0];
+    const phone_number = paymentLayerFlags.isEnabled('COUNTRY_SMS')
+      ? (userResult.rows[0].phone_e164 || toE164(userResult.rows[0].phone_number) || userResult.rows[0].phone_number)
+      : userResult.rows[0].phone_number;
 
     // Validate preconditions
     if (!phone_number) {
@@ -163,7 +213,7 @@ async function sendTwilioSMS(phoneNumber, messageBody) {
 
     const message = await client.messages.create({
       body: messageBody,
-      from: fromNumber,
+      ...senderFor(phoneNumber),
       to: phoneNumber
     });
 
@@ -405,5 +455,8 @@ module.exports = {
   verifyPhoneWithOTP,
   getSMSLogs,
   generateOTP,
-  maskPhoneNumber
+  maskPhoneNumber,
+  toE164,
+  countryForE164,
+  senderFor
 };

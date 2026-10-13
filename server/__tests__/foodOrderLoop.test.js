@@ -214,6 +214,10 @@ describe('food order loop E2E (F7)', () => {
       transactionId: 'credit-txn-100',
     });
     expect(response.body.order.metadata.oxsteedCreditTransactionId).toBe('credit-txn-100');
+    // P1-235: the posted debit marks the order paid in the same transaction
+    // (guest orders previously stayed requires_payment forever).
+    const paidUpdate = mockQuery.mock.calls.find(([sql]) => /oxsteedCreditTransactionId|SET metadata = COALESCE\(metadata/.test(String(sql)) && /payment_status = 'paid'/.test(String(sql)));
+    expect(paidUpdate).toBeTruthy();
     expect(spendWithCreditInTransaction).toHaveBeenCalledWith(
       expect.any(Object),
       expect.objectContaining({

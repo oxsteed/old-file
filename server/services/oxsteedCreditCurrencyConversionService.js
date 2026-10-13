@@ -14,6 +14,7 @@ const {
   MAX_CUSTOMER_BALANCE_CENTS,
 } = require('./oxsteedCreditService');
 const { getFxQuote } = require('./fxRateProvider');
+const { currencyExponent } = require('../validation/money');
 
 const DEFAULT_QUOTE_TTL_MINUTES = 15;
 const MAX_QUOTE_TTL_MINUTES = 1440;
@@ -365,6 +366,13 @@ async function createLiveRateCurrencyQuote({
   const from = String(sourceCurrency || '').toUpperCase();
   const to = String(targetCurrency || '').toUpperCase();
   const fx = await getFxQuote(from, to);
+  // Provider rates are per MAJOR unit; quotes work in minor units, so scale
+  // by the exponent difference (e.g. USD cents → KWD fils is ×10).
+  const shift = currencyExponent(to) - currencyExponent(from);
+  if (shift !== 0) {
+    fx.rateNumerator = shift > 0 ? (BigInt(fx.rateNumerator) * 10n ** BigInt(shift)).toString() : fx.rateNumerator;
+    fx.rateDenominator = shift < 0 ? (BigInt(fx.rateDenominator) * 10n ** BigInt(-shift)).toString() : fx.rateDenominator;
+  }
   const targetAmountMinorUnits = calculateQuotedTargetAmount({
     sourceAmountMinorUnits: sourceAmountCents,
     rateNumerator: fx.rateNumerator,

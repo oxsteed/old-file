@@ -8,6 +8,8 @@ if (!process.env.STRIPE_SECRET_KEY) {
 }
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const db = require('../db');
+const chargebackEvidence = require('../services/chargebackEvidenceService');
+const bookingDeposits = require('../services/bookingDepositService');
 const { recalculateBadges } = require('./verificationController');
 const { withTransaction } = require('../utils/transaction');
 const {
@@ -30,6 +32,8 @@ const stripeWebhookContract = require('../config/stripeWebhookContract');
 const businessInvoiceStripeConnectService = require('../services/businessInvoiceStripeConnectService');
 const creditLedger = require('../services/referralCreditLedger');
 const { toLocalSubscriptionStatus } = require('../utils/subscriptionStatus');
+const jobPaymentReauth = require('../services/jobPaymentReauthorizationService');
+const paymentRailWebhooks = require('../services/paymentRails/webhooks');
 
 function extractFoodOrderId(metadata) {
   const raw = metadata?.food_order_id
@@ -430,6 +434,24 @@ async function syncConnectAccountState(account) {
   });
 }
 
+// Review P3-888: when a claim is refused, distinguish a finished receipt
+// (true duplicate -> 200) from one still 'processing' (in flight, or left
+// behind by a crash). For the latter answer non-2xx so the provider keeps
+// retrying; the 15-minute reclaim then reprocesses it instead of the event
+// being acknowledged and silently dropped.
+async function receiptInFlight(provider, eventId) {
+  const { rows } = await db.query(
+    'SELECT status FROM webhook_event_receipts WHERE provider = $1 AND event_id = $2',
+    [provider, String(eventId)]
+  );
+  return rows[0]?.status === 'processing';
+}
+
+function respondInFlight(res) {
+  res.set('Retry-After', '60');
+  return res.status(409).json({ received: false, code: 'webhook_in_flight' });
+}
+
 async function beginWebhookEvent(provider, event) {
   if (!event?.id) return { shouldProcess: true };
 
@@ -467,6 +489,9 @@ async function beginWebhookEvent(provider, event) {
   );
 
   const receiptId = rows[0]?.id;
+  if (rows.length === 0) {
+    return { shouldProcess: false, receiptId: null, inFlight: await receiptInFlight(provider, event.id) };
+  }
   if (!receiptId || !objectId || eventCreated === null) {
     return { shouldProcess: rows.length > 0, receiptId };
   }
@@ -566,6 +591,10 @@ async function handleVerifiedStripeEvent(event, destination, res, next) {
   try {
     const receipt = await beginWebhookEvent('stripe', event);
     receiptId = receipt.receiptId;
+    if (!receipt.shouldProcess && receipt.inFlight) {
+      logger.warn('Stripe webhook still in flight; asking the provider to retry', { eventId: event.id, eventType: event.type });
+      return respondInFlight(res);
+    }
     if (!receipt.shouldProcess) {
       logger.info('Duplicate Stripe webhook ignored', { eventId: event.id, eventType: event.type });
       return res.json({ received: true, duplicate: true, stale: receipt.stale === true });
@@ -855,6 +884,8 @@ async function handleVerifiedStripeEvent(event, destination, res, next) {
       case 'payment_intent.amount_capturable_updated': {
         // Authorization succeeded - PaymentIntent is ready to capture after job completion.
         const pi = event.data.object;
+        // Change-order re-authorization: swap the job payment onto this intent.
+        if (await jobPaymentReauth.applyReauthorizationWebhook(event.type, pi)) break;
         const jobId = pi.metadata?.job_id;
         // Review P3-789 / P3-889: the authorized status, the referral-credit
         // deduction and the intent application commit together, and the
@@ -862,8 +893,12 @@ async function handleVerifiedStripeEvent(event, destination, res, next) {
         await withTransaction(db, async (client) => {
           if (jobId) {
             const { rows: payRows } = await client.query(
-              `UPDATE payments SET status = 'authorized', payment_hold_status = 'held',
-               updated_at = NOW() WHERE stripe_payment_intent_id = $1 AND status != 'captured'
+              `UPDATE payments p SET status = 'authorized', payment_hold_status = 'held',
+                 authorized_at = COALESCE(p.authorized_at, NOW()),
+                 authorization_expires_at = NOW() + make_interval(days => COALESCE(
+                   (SELECT card_auth_window_days FROM payment_country_policies WHERE country_code = p.fee_country), 7)),
+                 updated_at = NOW()
+               WHERE stripe_payment_intent_id = $1 AND status != 'captured'
                RETURNING id, payer_id, metadata`,
               [pi.id]
             );
@@ -887,6 +922,9 @@ async function handleVerifiedStripeEvent(event, destination, res, next) {
       }
 
       case 'payment_intent.succeeded': {
+        // Booking-request deposits (P3-962): settle even if the native
+        // client never confirms.
+        if (await bookingDeposits.applyBookingIntentWebhook(event.type, event.data.object)) break;
         // OxSteed Credit top-up (fiat money IN). Handled and acknowledged
         // here; PaymentIntents that are not ours fall through to the
         // flows below.
@@ -899,6 +937,13 @@ async function handleVerifiedStripeEvent(event, destination, res, next) {
           break;
         }
         const pi = event.data.object;
+        // Change-order re-authorization on a platform-held (charge-now) payment.
+        if (await jobPaymentReauth.applyReauthorizationWebhook(event.type, pi)) break;
+        // Charge-now + platform hold (local methods, jobs > 5 days out): the
+        // money is held for the job, not released to the helper yet.
+        if (await paymentRailWebhooks.applyPlatformHoldSucceeded(pi)) break;
+        // Tips: processing cost only (decision #9).
+        if (await paymentRailWebhooks.applyTipIntent(event.type, pi)) break;
         if (pi?.metadata?.business_invoice_payment === 'true') {
           await withTransaction(db, (client) => businessInvoiceStripeConnectService
             .applyBusinessInvoicePaymentFromWebhook(client, pi));
@@ -970,6 +1015,9 @@ async function handleVerifiedStripeEvent(event, destination, res, next) {
       }
 
       case 'payment_intent.payment_failed': {
+        // Booking-request deposits (P3-962): settle even if the native
+        // client never confirms.
+        if (await bookingDeposits.applyBookingIntentWebhook(event.type, event.data.object)) break;
         // OxSteed Credit top-up (fiat money IN) that did not go through.
         if (await topupService.applyCreditTopupWebhookEvent({ type: event.type, object: event.data.object })) {
           break;
@@ -981,6 +1029,10 @@ async function handleVerifiedStripeEvent(event, destination, res, next) {
         }
         // Authorization or capture failed.
         const pi = event.data.object;
+        // A declined change-order re-authorization leaves the original
+        // authorization untouched; the customer can retry.
+        if (await jobPaymentReauth.applyReauthorizationWebhook(event.type, pi)) break;
+        if (await paymentRailWebhooks.applyTipIntent(event.type, pi)) break;
         const jobId = pi.metadata?.job_id;
         const failureMsg = pi.last_payment_error?.message || 'Payment failed';
         let foodOrderId = extractFoodOrderId(pi.metadata);
@@ -1017,7 +1069,7 @@ async function handleVerifiedStripeEvent(event, destination, res, next) {
             }
           });
         } else if (jobId) {
-          await withTransaction(db, async (client) => {
+          const endedPayments = await withTransaction(db, async (client) => {
             const { rows: endedPayments } = await client.query(
               `UPDATE payments SET status = 'failed', payment_hold_status = 'none',
                updated_at = NOW() WHERE stripe_payment_intent_id = $1 AND status <> 'captured'
@@ -1028,9 +1080,11 @@ async function handleVerifiedStripeEvent(event, destination, res, next) {
             for (const row of endedPayments) {
               await creditLedger.releaseCreditForPayment(client, { paymentId: row.id, reason: 'payment_intent_failed' });
             }
+            return endedPayments;
           });
-          // Re-open escrow on the job so client can retry
-          await db.query(
+          // Re-open escrow on the job so client can retry (unless this intent
+          // no longer backs the job's payment).
+          if (endedPayments.length !== 0) await db.query(
             `UPDATE jobs SET escrow_status = 'none', updated_at = NOW() WHERE id = $1`,
             [jobId]
           );
@@ -1060,6 +1114,9 @@ async function handleVerifiedStripeEvent(event, destination, res, next) {
       }
 
       case 'payment_intent.canceled': {
+        // Booking-request deposits (P3-962): settle even if the native
+        // client never confirms.
+        if (await bookingDeposits.applyBookingIntentWebhook(event.type, event.data.object)) break;
         // OxSteed Credit top-up (fiat money IN) that was canceled.
         if (await topupService.applyCreditTopupWebhookEvent({ type: event.type, object: event.data.object })) {
           break;
@@ -1070,12 +1127,14 @@ async function handleVerifiedStripeEvent(event, destination, res, next) {
           break;
         }
         const pi = event.data.object;
+        if (await jobPaymentReauth.applyReauthorizationWebhook(event.type, pi)) break;
+        if (await paymentRailWebhooks.applyTipIntent(event.type, pi)) break;
         await withTransaction(db, (client) => applyStripePaymentIntent(client, pi));
         // Audit fix: clear job escrow on cancel, same as payment_failed.
         // Otherwise the job stays in escrow with no payment behind it.
         const jobId = pi.metadata?.job_id;
         if (jobId) {
-          await withTransaction(db, async (client) => {
+          const endedPayments = await withTransaction(db, async (client) => {
             const { rows: endedPayments } = await client.query(
               `UPDATE payments SET status = 'canceled', payment_hold_status = 'none',
                updated_at = NOW() WHERE stripe_payment_intent_id = $1 AND status <> 'captured'
@@ -1086,11 +1145,16 @@ async function handleVerifiedStripeEvent(event, destination, res, next) {
             for (const row of endedPayments) {
               await creditLedger.releaseCreditForPayment(client, { paymentId: row.id, reason: 'payment_intent_canceled' });
             }
+            return endedPayments;
           });
-          await db.query(
-            `UPDATE jobs SET escrow_status = 'none', updated_at = NOW() WHERE id = $1`,
-            [jobId]
-          );
+          // An intent superseded by a change-order re-authorization no longer
+          // backs any payment row: the job's escrow is still funded.
+          if (endedPayments.length !== 0) {
+            await db.query(
+              `UPDATE jobs SET escrow_status = 'none', updated_at = NOW() WHERE id = $1`,
+              [jobId]
+            );
+          }
         }
         break;
       }
@@ -1144,6 +1208,10 @@ async function handleVerifiedStripeEvent(event, destination, res, next) {
         // throw here marks the webhook failed so Stripe retries (the
         // ingestion is idempotent on the Stripe dispute id).
         await ingestStripeChargeback({ eventType: event.type, dispute });
+        // P3-814: track the evidence deadline and stage evidence at Stripe.
+        // A throw marks the webhook failed so Stripe retries (idempotent on
+        // the dispute id).
+        await chargebackEvidence.handleDisputeWebhook(dispute, event.account || null);
         break;
       }
 
@@ -1176,6 +1244,7 @@ async function handleVerifiedStripeEvent(event, destination, res, next) {
         // Phase 8: OxSteed Credit chargeback ingestion (see
         // charge.dispute.created above for the contract).
         await ingestStripeChargeback({ eventType: event.type, dispute });
+        await chargebackEvidence.upsertFromStripe(dispute, event.account || null);
         break;
       }
 
@@ -1329,7 +1398,9 @@ async function beginDiditWebhookEvent(body) {
     [String(eventId), eventType, body.session_id ? String(body.session_id) : null, eventCreated]
   );
 
-  if (rows.length === 0) return { shouldProcess: false, receiptId: null };
+  if (rows.length === 0) {
+    return { shouldProcess: false, receiptId: null, inFlight: await receiptInFlight('didit', eventId) };
+  }
   const receiptId = rows[0].id;
 
   // Review P3-892: a delayed/retried older verdict must not overwrite a newer
@@ -1447,6 +1518,10 @@ exports.diditWebhook = async (req, res, next) => {
     }
 
     const event = await beginDiditWebhookEvent(body);
+    if (!event.shouldProcess && event.inFlight) {
+      logger.warn('[Didit] Webhook still in flight; asking the provider to retry', { eventId: body.event_id || body.id });
+      return respondInFlight(res);
+    }
     if (!event.shouldProcess) {
       logger.info('[Didit] Duplicate webhook ignored', { eventId: body.event_id || body.id });
       return res.json({ received: true, duplicate: !event.stale, stale: Boolean(event.stale) });

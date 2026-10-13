@@ -2,6 +2,8 @@ const router          = require('express').Router();
 const { requireAdmin, requireSuperAdmin, requirePermission } = require('../middleware/adminAuth');
 const { loadAssignedRegions, requireRegionAccessForUser } = require('../middleware/regionAuth');
 const superCtrl       = require('../controllers/superAdminController');
+const adminJobEditCtrl = require('../controllers/adminJobEditController');
+const { rejectImpersonated } = require('../middleware/rejectImpersonated');
 const investigationCtrl = require('../controllers/investigationController');
 const superUserCtrl   = require('../controllers/superAdminUserController');
 const regionCtrl      = require('../controllers/adminRegionController');
@@ -80,6 +82,10 @@ router.get('/moderation-queue',  requireAdmin, requirePermission('moderate_conte
 router.get('/jobs',                    requireAdmin, requirePermission('manage_operations'),      superCtrl.getJobs);
 router.get('/jobs/:jobId',             requireAdmin, requirePermission('manage_operations'),      superCtrl.getJobDetail);
 router.post('/jobs/:jobId/action',     requireAdmin, requirePermission('manage_operations'),      superCtrl.forceJobAction);
+// Job edit tooling: reason required, revision history, rollback (docs/job-editing.md)
+router.patch('/jobs/:jobId',           requireAdmin, requirePermission('manage_operations'), rejectImpersonated, adminJobEditCtrl.editJob);
+router.get('/jobs/:jobId/revisions',   requireAdmin, requirePermission('manage_operations'),      adminJobEditCtrl.listRevisions);
+router.post('/jobs/:jobId/revisions/:revisionId/rollback', requireAdmin, requirePermission('manage_operations'), rejectImpersonated, adminJobEditCtrl.rollbackRevision);
 // Hard delete - delegatable via delete_jobs grant
 router.delete('/jobs/:jobId',          requireAdmin, requirePermission('delete_jobs'), superCtrl.deleteJob);
 
@@ -189,6 +195,26 @@ router.get('/super/dashboard',          requireSuperAdmin, superCtrl.getDashboar
 router.get('/super/webhook-receipts', requireSuperAdmin, webhookReceiptAdminCtrl.list);
 router.post('/super/webhook-receipts/:id/replay', requireSuperAdmin, webhookReceiptAdminCtrl.replay);
 router.post('/super/webhook-receipts/:id/resolve', requireSuperAdmin, webhookReceiptAdminCtrl.resolve);
+router.get('/super/chargebacks', requireSuperAdmin, async (req, res, next) => {
+  try {
+    const svc = require('../services/chargebackEvidenceService');
+    const chargebacks = await svc.listChargebacks({ open: req.query.all !== 'true', limit: req.query.limit });
+    res.json({ chargebacks });
+  } catch (err) { next(err); }
+});
+router.post('/super/chargebacks/:id/submit', requireSuperAdmin, async (req, res, next) => {
+  try {
+    const svc = require('../services/chargebackEvidenceService');
+    const { logAdminAction } = require('../services/auditService');
+    const row = await svc.submitEvidence(req.params.id, { actorId: req.user?.id || null, note: req.body?.note });
+    await logAdminAction({
+      adminId: req.user?.id || null, action: 'chargeback.evidence_submit', targetType: 'stripe_chargeback',
+      targetId: String(row.id), description: `Submitted evidence for ${row.stripe_dispute_id}`, req,
+    });
+    res.json({ chargeback: row });
+  } catch (err) { next(err); }
+});
+router.post('/super/subscriptions/:id/cancel', requireSuperAdmin, require('../controllers/subscriptionController').adminCancelSubscription);
 router.get('/super/revenue-chart',      requireSuperAdmin, superCtrl.getRevenueChart);
 router.get('/super/dashboard/activity', requireSuperAdmin, superCtrl.getDashboardActivity);
 router.get('/super/dashboard/geo',      requireSuperAdmin, superCtrl.getDashboardGeo);
