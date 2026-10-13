@@ -946,6 +946,15 @@ async function startServer() {
   } catch (err) {
     logger.warn('Direct draft asset sweeper failed to start', { message: err.message });
   }
+  // Expired chat payment requests (review P2-10-F01). Env-gated
+  // (CHAT_PAYMENT_REQUEST_SWEEPER_ENABLED, default on) and best-effort:
+  // a failure here must not affect boot.
+  try {
+    const { startChatPaymentRequestExpirySweeper } = require('./services/chatPaymentRequestExpirySweeper');
+    startChatPaymentRequestExpirySweeper();
+  } catch (err) {
+    logger.warn('Chat payment request expiry sweeper failed to start', { message: err.message });
+  }
   logger.info(`OxSteed v2 server running on port ${PORT}`, {
     env: process.env.NODE_ENV || 'development',
     realtimeNamespaces: ['/chat', '/support', '/restaurant-display'],
@@ -988,6 +997,10 @@ async function terminate(signal, exitCode = 0, cause) {
     try {
       const { stopDirectDraftAssetSweeper } = require('./services/directDraftAssetSweeper');
       stopDirectDraftAssetSweeper();
+    } catch { /* worker may never have started */ }
+    try {
+      const { stopChatPaymentRequestExpirySweeper } = require('./services/chatPaymentRequestExpirySweeper');
+      stopChatPaymentRequestExpirySweeper();
     } catch { /* worker may never have started */ }
     await runtime.shutdown(signal);
     clearTimeout(forceExit);

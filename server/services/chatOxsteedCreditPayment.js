@@ -8,7 +8,7 @@
  */
 
 const MAX_AMOUNT_CENTS = 1000000000;
-const PAYMENT_REQ_STATUSES = new Set(['open', 'paid', 'cancelled', 'refunded']);
+const PAYMENT_REQ_STATUSES = new Set(['open', 'paid', 'cancelled', 'refunded', 'expired']);
 const CREDIT_PAY_METHOD = 'oxsteed_credit';
 
 function encodeField(value, max = 80) {
@@ -230,6 +230,7 @@ function toPublicPaymentRequestCard(row) {
     paid_pop_id: row.paid_pop_id != null ? String(row.paid_pop_id) : null,
     paid_at: row.paid_at,
     credit_txn_id: row.credit_txn_id,
+    expires_at: row.expires_at || null,
     created_at: row.created_at,
   };
 }

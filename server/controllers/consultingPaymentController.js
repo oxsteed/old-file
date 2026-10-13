@@ -316,7 +316,11 @@ exports.refundPayment = async (req, res) => {
     }
 
     const { rows: paymentRows } = await db.query(
-      `SELECT id, status, amount_cents, stripe_payment_intent_id FROM consulting_payments WHERE id = $1`,
+      `SELECT cp.id, cp.status, cp.amount_cents, cp.stripe_payment_intent_id, cs.user_id AS payer_user_id
+         FROM consulting_payments cp
+         LEFT JOIN consulting_sessions_scheduled css ON css.id = cp.session_scheduled_id
+         LEFT JOIN consulting_sessions cs ON cs.id = css.session_id
+        WHERE cp.id = $1`,
       [paymentId]
     );
     if (paymentRows.length === 0) {
@@ -345,7 +349,12 @@ exports.refundPayment = async (req, res) => {
       reason: reason || 'requested_by_customer',
       actorUserId: req.user.id,
       requestId: `consulting-payment-refund-${payment.id}`,
-      metadata: { payment_id: payment.id },
+      // P3-3-F07: the customer learns their refund was issued (in-app + email).
+      metadata: {
+        payment_id: payment.id,
+        notify_user_id: payment.payer_user_id || null,
+        action_url: '/consulting',
+      },
     });
     if (refundResult.attempt.status !== 'succeeded') {
       return res.status(202).json({

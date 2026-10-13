@@ -1,6 +1,8 @@
 const cron = require('node-cron');
 const db = require('../db');
 const { sendEmailOrThrow } = require('../utils/email');
+const { renderOxSteedEmail } = require('../utils/emailTemplate');
+const escapeHtml = require('../utils/escapeHtml');
 const logger = require('../utils/logger');
 
 /**
@@ -60,23 +62,25 @@ const startConsultingSessionReminders = () => {
             body = `Your consulting session will start in approximately 1 hour at ${sessionDateTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}.`;
           }
 
+          // P3-3-F19: render through the branded OxSteed template with a text
+          // part instead of raw inline HTML.
+          const timeStr = sessionDateTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+          const dateTimeStr = sessionDateTime.toLocaleString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+          const rendered = renderOxSteedEmail({
+            language: 'en',
+            eyebrow: 'OXSTEED CONSULTING',
+            title: subject,
+            intro: `Hi ${session.first_name || 'there'},`,
+            bodyText: `${body}\n\nSession details:\nDate and time: ${dateTimeStr}\nDuration: ${session.duration_minutes || 120} minutes\nType: ${session.meeting_type || 'zoom'}\nMeeting link: ${session.meeting_url || 'On file'}\n\nPlease be ready to join 5 minutes early.\n\nBest regards,\nThe OxSteed Consulting Team`,
+            bodyHtml: `<p>${escapeHtml(body)}</p><p><strong>Session details:</strong></p><ul><li><strong>Date and time:</strong> ${escapeHtml(dateTimeStr)}</li><li><strong>Duration:</strong> ${escapeHtml(String(session.duration_minutes || 120))} minutes</li><li><strong>Type:</strong> ${escapeHtml(session.meeting_type || 'zoom')}</li><li><strong>Meeting link:</strong> ${session.meeting_url ? `<a href="${escapeHtml(session.meeting_url)}">${escapeHtml(session.meeting_url)}</a>` : 'On file'}</li></ul><p>Please be ready to join 5 minutes early.</p><p>Best regards,<br>The OxSteed Consulting Team</p>`,
+            footerText: 'You are receiving this message because you booked an OxSteed consulting session.',
+          });
           await sendEmailOrThrow({
             to: session.email,
             idempotencyKey: `consulting-session-reminder:${session.id}:${hoursUntil >= 23 && hoursUntil <= 25 ? '24h' : '1h'}`,
             subject,
-            html: `
-              <p>Hi ${session.first_name},</p>
-              <p>${body}</p>
-              <p><strong>Session Details:</strong></p>
-              <ul>
-                <li><strong>Date & Time:</strong> ${sessionDateTime.toLocaleString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</li>
-                <li><strong>Duration:</strong> ${session.duration_minutes || 120} minutes</li>
-                <li><strong>Type:</strong> ${session.meeting_type || 'zoom'}</li>
-                <li><strong>Meeting Link:</strong> <a href="${session.meeting_url}">${session.meeting_url}</a></li>
-              </ul>
-              <p>Please be ready to join 5 minutes early.</p>
-              <p>Best regards,<br>The OxSteed Consulting Team</p>
-            `,
+            text: rendered.text,
+            html: rendered.html,
           });
 
           // Mark reminder as sent

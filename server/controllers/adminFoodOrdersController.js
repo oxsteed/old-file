@@ -9,6 +9,7 @@ const stripe = process.env.STRIPE_SECRET_KEY
   ? require('stripe')(process.env.STRIPE_SECRET_KEY)
   : null;
 const { refundWalletDebitForReference } = require('../services/foodWalletService');
+const { notifyRefundIssued } = require('../services/refundNotification');
 
 async function auditAdminRead(adminId, orderId, purpose) {
   await pool.query(
@@ -195,6 +196,23 @@ async function refundFoodOrder(req, res) {
       orderId, adminId: req.user.id, amount_cents: refundAmount,
       provider: refundResult.provider,
     });
+    // P3-3-F07: the customer learns the admin-issued refund went through
+    // (in-app + email). Best-effort: the refund is settled.
+    if (order.customer_id) {
+      notifyRefundIssued({
+        userId: order.customer_id,
+        idempotencyKey: `admin-food-refund:${orderId}:${refundAmount}:issued`,
+        amountCents: refundAmount,
+        currency: order.currency_code,
+        surface: 'food_order',
+        referenceId: orderId,
+        refundId: refundResult.refund_id || null,
+        actionUrl: order.tracking_token ? `/food/track/${order.tracking_token}` : null,
+      }).catch((err) => logger.warn('adminFoodOrders.refund notification failed', {
+        orderId,
+        error: err.message,
+      }));
+    }
     res.json({ ok: true, order_id: orderId, amount_cents: refundAmount, provider: refundResult.provider });
   } catch (err) {
     logger.error('adminFoodOrders.refund error', { message: err.message });

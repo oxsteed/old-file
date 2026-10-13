@@ -4,6 +4,8 @@ const pool = require('../db');
 const stripe = process.env.STRIPE_SECRET_KEY ? require('stripe')(process.env.STRIPE_SECRET_KEY) : null;
 const AppError = require('../utils/appError');
 const { withTransaction } = require('../utils/transaction');
+const { notifyRefundIssued } = require('./refundNotification');
+const logger = require('../utils/logger');
 
 function cents(value) {
   const parsed = Number(value);
@@ -35,7 +37,7 @@ function providerStatus(refund) {
 async function reserveRefund({ orderId, requestedAmountCents, reason, actorUserId, requestId }) {
   return withTransaction(pool, async (client) => {
     const orderResult = await client.query(
-      `SELECT id, status, refund_reason
+      `SELECT id, customer_id, status, refund_reason
          FROM marketplace_orders
         WHERE id = $1
         FOR UPDATE`,
@@ -187,6 +189,27 @@ async function settleRefund(reservation, providerRefund) {
   }, 'marketplace_refund_settlement');
 }
 
+async function notifyMarketplaceRefundSucceeded(result) {
+  const refund = result?.refund;
+  const order = result?.order;
+  if (!refund || refund.status !== 'succeeded' || result.replay) return;
+  // Fire-and-forget: the refund is settled; a notification outage must not
+  // block the response or roll anything back.
+  notifyRefundIssued({
+    userId: order?.customer_id || null,
+    idempotencyKey: `marketplace-refund:${refund.id}:succeeded`,
+    amountCents: refund.amount_cents,
+    currency: result?.transaction?.currency || 'USD',
+    surface: 'marketplace_order',
+    referenceId: order?.id,
+    refundId: refund.provider_refund_id,
+    actionUrl: order?.id != null ? `/orders/${order.id}` : null,
+  }).catch((err) => logger.warn('[marketplaceRefund] refund notification failed', {
+    orderId: order?.id,
+    error: err.message,
+  }));
+}
+
 async function processMarketplaceRefund({ orderId, requestedAmountCents, reason, actorUserId, requestId }) {
   if (!reason || !String(reason).trim()) throw new AppError('Refund reason required', 400, 'refund_reason_required');
   if (!stripe) throw new AppError('Refunds are temporarily unavailable. Please contact support.', 503, 'refund_unavailable');
@@ -210,7 +233,9 @@ async function processMarketplaceRefund({ orderId, requestedAmountCents, reason,
   } catch (error) {
     throw new AppError('Refund provider result requires reconciliation before retry', 503, 'refund_reconciliation_required');
   }
-  return settleRefund(reservation, providerRefund);
+  const result = await settleRefund(reservation, providerRefund);
+  await notifyMarketplaceRefundSucceeded(result);
+  return result;
 }
 
 async function reconcileMarketplaceRefundReservation(reservation) {
@@ -231,7 +256,9 @@ async function reconcileMarketplaceRefundReservation(reservation) {
   } catch (error) {
     throw new AppError('Refund provider result requires reconciliation before retry', 503, 'refund_reconciliation_required');
   }
-  return settleRefund(reservation, providerRefund);
+  const result = await settleRefund(reservation, providerRefund);
+  await notifyMarketplaceRefundSucceeded(result);
+  return result;
 }
 
 module.exports = {

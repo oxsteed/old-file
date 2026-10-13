@@ -40,8 +40,14 @@ const {
   buildCreditRefundShareContent,
   toPublicCreditRefundCard,
 } = require('../services/chatOxsteedCreditPayment');
+const {
+  paymentRequestExpiresAt,
+  isPaymentRequestExpired,
+  closePaymentRequestAsPaid,
+} = require('../services/chatPaymentRequestExpiry');
 const { mirrorLegacyMessage } = require('../services/businessConversationSync');
 const { enqueueConversationMessageNotifications } = require('../services/messageNotificationService');
+const { notifyRefundIssued } = require('../services/refundNotification');
 
 function bad(res, status, error, code, extra = {}) {
   return res.status(status).json({ error, code: code || 'error', ...extra });
@@ -503,6 +509,11 @@ exports.payWithOxsteedCredit = async (req, res, next) => {
       if (paymentRequest.status !== 'open') {
         return bad(res, 409, 'Payment request is no longer open', 'invalid_status');
       }
+      // P2-10-F01: a past-expiry request cannot be paid even if the sweeper
+      // has not flipped it to 'expired' yet.
+      if (isPaymentRequestExpired(paymentRequest)) {
+        return bad(res, 410, 'Payment request has expired', 'payment_request_expired');
+      }
       if (Number(paymentRequest.amount_cents) !== Number(normalized.amountCents)) {
         return bad(res, 409, 'Amount does not match the payment request', 'amount_mismatch');
       }
@@ -617,13 +628,12 @@ exports.payWithOxsteedCredit = async (req, res, next) => {
           const pop = popRows[0];
 
           if (paymentRequest) {
-            await client.query(
-              `UPDATE chat_payment_requests
-                  SET status = 'paid', paid_pop_id = $2, paid_at = NOW(),
-                      credit_txn_id = $3, updated_at = NOW()
-                WHERE id = $1 AND status = 'open'`,
-              [paymentRequest.id, pop.id, creditTxnId],
-            );
+            // P2-10-F01: race-safe close; no-ops when the request expired
+            // between the load above and this write.
+            await closePaymentRequestAsPaid(client, paymentRequest.id, {
+              popId: pop.id,
+              creditTxnId,
+            });
           }
 
           const quoteMeta = await attachQuotePaymentMetadata(client, {
@@ -787,8 +797,8 @@ exports.requestPayment = async (req, res, next) => {
         `INSERT INTO chat_payment_requests (
            conversation_id, guest_session_id, business_id, helper_id,
            quote_kind, quote_id, amount_cents, currency, memo,
-           requested_by, idempotency_key, status
-         ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,'open')
+           requested_by, idempotency_key, status, expires_at
+         ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,'open',$12)
          ON CONFLICT (requested_by, idempotency_key)
          WHERE idempotency_key IS NOT NULL DO NOTHING
          RETURNING *`,
@@ -804,6 +814,7 @@ exports.requestPayment = async (req, res, next) => {
           normalized.memo,
           userId,
           normalized.idempotencyKey,
+          paymentRequestExpiresAt(),
         ],
       );
       payReq = rows[0] || null;
@@ -1266,6 +1277,25 @@ exports.refundChatCreditPayment = async (req, res, next) => {
         );
       }
       throw err;
+    }
+
+    // P3-3-F07: the customer learns their credit refund was issued (in-app +
+    // email). Replays are deduped by the idempotency key; best-effort so a
+    // notification outage never blocks the refund response.
+    if (!result.replay && conv?.customer_id) {
+      notifyRefundIssued({
+        userId: conv.customer_id,
+        idempotencyKey: `chat-credit-refund:${result.refundRow?.id || normalized.idempotencyKey}:issued`,
+        amountCents: refundAmount,
+        currency: result.refundRow?.currency || 'USD',
+        surface: 'chat_credit_payment',
+        referenceId: paymentRequest?.id || pop?.id || conversationId,
+        refundId: result.refundRow?.refund_txn_id || null,
+        actionUrl: null,
+      }).catch((err) => logger.warn('[chatCreditPay] refund notification failed', {
+        paymentRequestId: paymentRequest?.id || null,
+        error: err.message,
+      }));
     }
 
     return res.status(result.replay ? 200 : 201).json({
