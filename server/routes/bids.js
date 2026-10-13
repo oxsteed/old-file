@@ -1,6 +1,7 @@
 const router = require('express').Router();
 const { authenticate } = require('../middleware/auth');
 const requireEmailVerified = require('../middleware/requireEmailVerified');
+const requireTermsAcceptance = require('../middleware/requireTermsAcceptance');
 const { generalLimiter } = require('../middleware/rateLimiter');
 const { requireOnboardingStep } = require('../middleware/helperOnboardingMiddleware');
 const checkRestrictions = require('../middleware/checkRestrictions');
@@ -21,7 +22,8 @@ router.post('/:id/reconfirm', authenticate, rejectImpersonated, checkRestriction
 
 // Launch bidding is available to fully onboarded helpers without a paid tier.
 // checkRestrictions('bidding') blocks helpers with active bidding restrictions
-router.post('/', authenticate, requireEmailVerified, requireOnboardingStep('active'), checkRestrictions('bidding'), createBid);
+// Review P2-7-F08: server-side terms gate (was client-side only).
+router.post('/', authenticate, requireEmailVerified, requireTermsAcceptance, requireOnboardingStep('active'), checkRestrictions('bidding'), createBid);
 
 // Route-local JSON error handler for consistent API responses when this router
 // is mounted without the global server error handler (tests, serverless, etc.).

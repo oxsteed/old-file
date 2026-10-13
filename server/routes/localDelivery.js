@@ -26,6 +26,11 @@ router.post('/jobs/:id/proof-upload', requireAuth, rejectImpersonated, proofCont
 router.post('/jobs/:id/proof-pin', requireAuth, rejectImpersonated, proofController.rotatePin);
 router.get('/jobs/:id/proofs/:proofId', requireAuth, proofController.download);
 router.post('/jobs/:id/claim', requireAuth, rejectImpersonated, controller.claim);
+// P2-4-F10: self-serve driver onboarding (profile starts pending ops approval).
+router.post('/driver-profile', requireAuth, rejectImpersonated, controller.selfServeDriverOnboarding);
+router.get('/driver-profile', requireAuth, controller.getDriverProfile);
+// P2-4-F04: driver payout lifecycle (accrue on delivery; ops approves/pays).
+router.get('/driver-payouts', requireAuth, controller.listDriverPayouts);
 router.patch('/jobs/:id/status', requireAuth, rejectImpersonated, controller.updateStatus);
 router.post('/jobs/:id/issues', requireAuth, rejectImpersonated, controller.createIssue);
 router.post('/jobs/:id/extras', requireAuth, rejectImpersonated, controller.createExtra);
@@ -44,6 +49,12 @@ router.get('/internal/vehicles', requireAuth, requireOperationsWorkspace, contro
 router.post('/internal/vehicles', requireAuth, requireOperationsWorkspace, controller.createVehicle);
 router.get('/internal/drivers', requireAuth, requireOperationsWorkspace, controller.internalDrivers);
 router.post('/internal/drivers', requireAuth, requireOperationsWorkspace, controller.upsertDriver);
+// P2-4-F04: ops driver-payout management. Paid state requires a payment
+// reference (fails closed).
+router.get('/internal/driver-payouts', requireAuth, requireOperationsWorkspace, controller.listAllDriverPayouts);
+router.post('/internal/driver-payouts/:payoutId/approve', requireAuth, rejectImpersonated, requireOperationsWorkspace, controller.approveDriverPayout);
+router.post('/internal/driver-payouts/:payoutId/mark-paid', requireAuth, rejectImpersonated, requireOperationsWorkspace, controller.markDriverPayoutPaid);
+router.post('/internal/driver-payouts/:payoutId/void', requireAuth, rejectImpersonated, requireOperationsWorkspace, controller.voidDriverPayout);
 router.post('/internal/jobs/:id/assign', requireAuth, requireOperationsWorkspace, controller.assignInternal);
 router.post('/internal/jobs/:id/release-marketplace', requireAuth, requireOperationsWorkspace, controller.releaseMarketplace);
 router.patch('/internal/reschedule-requests/:requestId', requireAuth, requireOperationsWorkspace, controller.reviewReschedule);

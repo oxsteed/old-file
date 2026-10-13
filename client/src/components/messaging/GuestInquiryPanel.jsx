@@ -49,6 +49,7 @@ export default function GuestInquiryPanel({ inquiryId, embedded = false, onBack 
   const [showPopShare, setShowPopShare] = useState(false);
   const [showAgreementShare, setShowAgreementShare] = useState(false);
   const [showIntakeShare, setShowIntakeShare] = useState(false);
+  const [followUpIntakeId, setFollowUpIntakeId] = useState(null);
   const bottomRef = useRef(null);
 
   const inquiryUuid = useMemo(() => {
@@ -345,8 +346,34 @@ export default function GuestInquiryPanel({ inquiryId, embedded = false, onBack 
                         {agreementParsed ? (
                           <AgreementCard markerText={raw} isProvider isAuthenticated />
                         ) : null}
-                        {intakeParsed ? <ClientIntakeCard intake={intakeParsed} isProvider /> : null}
-                        {intakeResponseParsed ? <ClientIntakeCard intake={{ ...intakeResponseParsed, status: 'completed' }} isProvider /> : null}
+                        {intakeParsed ? (
+                          <>
+                            <ClientIntakeCard intake={intakeParsed} isProvider />
+                            {intakeParsed.id ? (
+                              <button
+                                type="button"
+                                className="messages-quote-share-btn"
+                                onClick={() => { setFollowUpIntakeId(intakeParsed.id); setShowIntakeShare(true); }}
+                              >
+                                {t('messages.clientIntake.followUpButton')}
+                              </button>
+                            ) : null}
+                          </>
+                        ) : null}
+                        {intakeResponseParsed ? (
+                          <>
+                            <ClientIntakeCard intake={{ ...intakeResponseParsed, status: 'completed' }} isProvider />
+                            {intakeResponseParsed.id ? (
+                              <button
+                                type="button"
+                                className="messages-quote-share-btn"
+                                onClick={() => { setFollowUpIntakeId(intakeResponseParsed.id); setShowIntakeShare(true); }}
+                              >
+                                {t('messages.clientIntake.followUpButton')}
+                              </button>
+                            ) : null}
+                          </>
+                        ) : null}
                       </>
                     );
                   })()}
@@ -456,17 +483,23 @@ export default function GuestInquiryPanel({ inquiryId, embedded = false, onBack 
           {showIntakeShare && (
             <ClientIntakeSharePanel
               open={showIntakeShare}
-              onClose={() => setShowIntakeShare(false)}
+              onClose={() => { setFollowUpIntakeId(null); setShowIntakeShare(false); }}
               guestSessionId={inquiryUuid}
+              followUpFor={followUpIntakeId}
               onShared={(data) => {
                 if (data?.intake) {
-                  const marker = `[[OXS_CLIENT_INTAKE]]${JSON.stringify({
+                  const markerPayload = {
                     id: data.intake.id,
                     title: data.intake.title,
                     description: data.intake.description,
                     fields: data.intake.fields,
                     status: data.intake.status,
-                  })}`;
+                  };
+                  if (followUpIntakeId) {
+                    markerPayload.responses = data.intake.responses || {};
+                    markerPayload.followUp = true;
+                  }
+                  const marker = `[[OXS_CLIENT_INTAKE]]${JSON.stringify(markerPayload)}`;
                   setMessages((prev) => [...prev, {
                     id: data.messageId || `intake-${Date.now()}`,
                     sender_type: 'helper',
@@ -476,6 +509,7 @@ export default function GuestInquiryPanel({ inquiryId, embedded = false, onBack 
                     created_at: new Date().toISOString(),
                   }]);
                 }
+                setFollowUpIntakeId(null);
                 setShowIntakeShare(false);
               }}
             />

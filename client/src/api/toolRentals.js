@@ -112,8 +112,8 @@ export const toolRentalsApi = {
     return response.data;
   },
 
-  updateBookingStatus: async (bookingId, status) => {
-    const response = await api.put(`/tool-rentals/bookings/${bookingId}`, { status });
+  updateBookingStatus: async (bookingId, status, extra = {}) => {
+    const response = await api.put(`/tool-rentals/bookings/${bookingId}`, { status, ...extra });
     return response.data;
   },
 

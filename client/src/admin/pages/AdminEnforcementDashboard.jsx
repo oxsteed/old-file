@@ -7,10 +7,237 @@ import { useAbortableFetch } from '../lib/useAbortableFetch';
 import AdminErrorState from '../lib/AdminErrorState';
 import ConfirmDialog from '../lib/ConfirmDialog';
 
+const getActionColor = (actionType) => {
+  switch (actionType) {
+    case 'warning':
+      return '#f59e0b';
+    case 'restriction':
+      return '#f97316';
+    case 'suspension':
+      return '#dc2626';
+    default:
+      return '#6b7280';
+  }
+};
+
+const getActionIcon = (actionType) => {
+  switch (actionType) {
+    case 'warning':
+      return '⚠️';
+    case 'restriction':
+      return '🚫';
+    case 'suspension':
+      return '🔴';
+    default:
+      return '⚪';
+  }
+};
+
+// P3-2-F13: enforcement appeals review UI. Backs the ?tab=appeals deep link
+// used by the admin notification; previously that link 404ed because no
+// client route or page existed for appeals.
+const EnforcementAppealsTab = ({ highlightAppealId }) => {
+  const { t } = useTranslation();
+  const [statusFilter, setStatusFilter] = useState('pending');
+  const [reviewTarget, setReviewTarget] = useState(null);
+  const [adminNotes, setAdminNotes] = useState('');
+  const [reviewing, setReviewing] = useState(false);
+  const [reviewError, setReviewError] = useState(null);
+
+  const { data, error: fetchError, loading, reload } = useAbortableFetch(async (signal) => {
+    const response = await api.get('/enforcement-policy/admin/appeals', {
+      params: { status: statusFilter, limit: 50 },
+      signal,
+    });
+    return response.data;
+  }, [statusFilter]);
+
+  const appeals = data?.data ?? [];
+
+  const submitReview = async (decision) => {
+    setReviewError(null);
+    setReviewing(true);
+    try {
+      await api.put(`/enforcement-policy/admin/appeals/${reviewTarget.id}/review`, {
+        decision,
+        adminNotes: adminNotes.trim() || null,
+      });
+      setReviewTarget(null);
+      setAdminNotes('');
+      reload();
+    } catch (err) {
+      setReviewError(err.response?.data?.error || err.message);
+    } finally {
+      setReviewing(false);
+    }
+  };
+
+  return (
+    <div className="admin-enforcement-appeals">
+      <div className="admin-enforcement-filters">
+        <select
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+          className="admin-enforcement-select"
+          aria-label={t('adminEnforcement.appealStatus')}
+        >
+          <option value="pending">{t('adminEnforcement.appealPending')}</option>
+          <option value="under_review">{t('adminEnforcement.appealUnderReview')}</option>
+          <option value="approved">{t('adminEnforcement.appealApproved')}</option>
+          <option value="denied">{t('adminEnforcement.appealDenied')}</option>
+          <option value="all">{t('adminEnforcement.allStatus')}</option>
+        </select>
+      </div>
+
+      {loading && appeals.length === 0 ? (
+        <div className="admin-enforcement-loading">
+          <Loader className="spinner" size={32} />
+          <p>{t('adminEnforcement.loading')}</p>
+        </div>
+      ) : fetchError ? (
+        <AdminErrorState onRetry={reload} />
+      ) : appeals.length === 0 ? (
+        <div className="admin-enforcement-empty">
+          <Shield size={32} opacity={0.5} />
+          <p>{t('adminEnforcement.noAppeals')}</p>
+        </div>
+      ) : (
+        <div className="admin-enforcement-list">
+          {appeals.map((appeal) => (
+            <div
+              key={appeal.id}
+              className={`admin-enforcement-item${String(highlightAppealId) === String(appeal.id) ? ' highlighted' : ''}`}
+            >
+              <div className="admin-enforcement-item-header">
+                <div className="admin-enforcement-item-title">
+                  <span>{appeal.user_name || appeal.user_email || appeal.user_id}</span>
+                </div>
+                <div className="admin-enforcement-item-status">
+                  <span className="admin-enforcement-action-badge" style={{ backgroundColor: '#6b7280' }}>
+                    {appeal.status}
+                  </span>
+                  <span className="admin-enforcement-action-badge" style={{ backgroundColor: getActionColor(appeal.action_type) }}>
+                    {appeal.action_type}
+                  </span>
+                </div>
+              </div>
+              <div className="admin-enforcement-item-details">
+                <p className="admin-enforcement-reason">
+                  <strong>{t('adminEnforcement.appealFor')}:</strong> {appeal.enforcement_reason}
+                </p>
+                <p className="admin-enforcement-description">
+                  <strong>{t('adminEnforcement.appealText')}:</strong> {appeal.appeal_text}
+                </p>
+                <div className="admin-enforcement-timestamps">
+                  <span>
+                    <Clock size={14} />
+                    {new Date(appeal.submitted_at).toLocaleString()}
+                  </span>
+                </div>
+                {appeal.admin_notes && (
+                  <p className="admin-enforcement-description">
+                    <strong>{t('adminEnforcement.appealAdminNotes')}:</strong> {appeal.admin_notes}
+                  </p>
+                )}
+                {['pending', 'under_review'].includes(appeal.status) && (
+                  <div className="admin-enforcement-appeal-actions">
+                    <button
+                      type="button"
+                      className="admin-enforcement-btn-approve"
+                      onClick={() => { setReviewTarget({ ...appeal, decision: 'approved' }); setAdminNotes(''); setReviewError(null); }}
+                    >
+                      {t('adminEnforcement.appealApprove')}
+                    </button>
+                    <button
+                      type="button"
+                      className="admin-enforcement-btn-deactivate"
+                      onClick={() => { setReviewTarget({ ...appeal, decision: 'denied' }); setAdminNotes(''); setReviewError(null); }}
+                    >
+                      {t('adminEnforcement.appealDeny')}
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {reviewTarget && (
+        <div className="admin-enforcement-modal-overlay" onClick={() => setReviewTarget(null)}>
+          <div className="admin-enforcement-modal" onClick={(e) => e.stopPropagation()}>
+            <h2>
+              {reviewTarget.decision === 'approved'
+                ? t('adminEnforcement.appealApproveTitle')
+                : t('adminEnforcement.appealDenyTitle')}
+            </h2>
+            <p className="admin-enforcement-help-text">
+              {t('adminEnforcement.appealReviewHint', { name: reviewTarget.user_name || reviewTarget.user_email })}
+            </p>
+            <div className="admin-enforcement-form-group">
+              <label htmlFor="appealNotes" className="admin-enforcement-label">
+                {t('adminEnforcement.appealNotes')}
+              </label>
+              <textarea
+                id="appealNotes"
+                value={adminNotes}
+                onChange={(e) => setAdminNotes(e.target.value)}
+                placeholder={t('adminEnforcement.appealNotesPlaceholder')}
+                className="admin-enforcement-textarea"
+                rows="4"
+                maxLength="2000"
+                disabled={reviewing}
+              />
+            </div>
+            {reviewError && <div className="admin-enforcement-error">{reviewError}</div>}
+            <div className="admin-enforcement-form-actions">
+              <button
+                type="button"
+                onClick={() => setReviewTarget(null)}
+                className="admin-enforcement-btn-cancel"
+                disabled={reviewing}
+              >
+                {t('adminEnforcement.cancel')}
+              </button>
+              <button
+                type="button"
+                onClick={() => submitReview(reviewTarget.decision)}
+                className={reviewTarget.decision === 'approved' ? 'admin-enforcement-btn-submit' : 'admin-enforcement-btn-deactivate'}
+                disabled={reviewing}
+              >
+                {reviewing
+                  ? t('adminEnforcement.creating')
+                  : reviewTarget.decision === 'approved'
+                    ? t('adminEnforcement.appealApprove')
+                    : t('adminEnforcement.appealDeny')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 const AdminEnforcementDashboard = () => {
   const { t } = useTranslation();
   const [actionError, setActionError] = useState(null);
   const [deactivateTarget, setDeactivateTarget] = useState(null);
+  // P3-2-F13: appeals review UI. Deep-linkable via ?tab=appeals&appealId=.
+  const [activeTab, setActiveTab] = useState(() => {
+    try {
+      return new URLSearchParams(window.location.search).get('tab') === 'appeals' ? 'appeals' : 'actions';
+    } catch {
+      return 'actions';
+    }
+  });
+  const [highlightAppealId] = useState(() => {
+    try {
+      return new URLSearchParams(window.location.search).get('appealId') || null;
+    } catch {
+      return null;
+    }
+  });
   const [filters, setFilters] = useState({ actionType: '', isActive: '' });
   const [pagination, setPagination] = useState({ offset: 0, limit: 20 });
   const [showNewActionModal, setShowNewActionModal] = useState(false);
@@ -93,32 +320,6 @@ const AdminEnforcementDashboard = () => {
     reload();
   };
 
-  const getActionColor = (actionType) => {
-    switch (actionType) {
-      case 'warning':
-        return '#f59e0b';
-      case 'restriction':
-        return '#f97316';
-      case 'suspension':
-        return '#dc2626';
-      default:
-        return '#6b7280';
-    }
-  };
-
-  const getActionIcon = (actionType) => {
-    switch (actionType) {
-      case 'warning':
-        return '⚠️';
-      case 'restriction':
-        return '🚫';
-      case 'suspension':
-        return '🔴';
-      default:
-        return '⚪';
-    }
-  };
-
   if (loading && actions.length === 0) {
     return (
       <div className="admin-enforcement-loading">
@@ -140,6 +341,31 @@ const AdminEnforcementDashboard = () => {
         </button>
       </div>
 
+      <div className="admin-enforcement-tabs" role="tablist">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === 'actions'}
+          className={`admin-enforcement-tab${activeTab === 'actions' ? ' active' : ''}`}
+          onClick={() => setActiveTab('actions')}
+        >
+          {t('adminEnforcement.actionsTab')}
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === 'appeals'}
+          className={`admin-enforcement-tab${activeTab === 'appeals' ? ' active' : ''}`}
+          onClick={() => setActiveTab('appeals')}
+        >
+          {t('adminEnforcement.appealsTab')}
+        </button>
+      </div>
+
+      {activeTab === 'appeals' ? (
+        <EnforcementAppealsTab highlightAppealId={highlightAppealId} />
+      ) : (
+        <>
       <div className="admin-enforcement-filters">
         <select
           value={filters.actionType}
@@ -252,6 +478,8 @@ const AdminEnforcementDashboard = () => {
             {t('adminEnforcement.loadMore')}
           </button>
         </div>
+      )}
+        </>
       )}
 
       {showNewActionModal && (

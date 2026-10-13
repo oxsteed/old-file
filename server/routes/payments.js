@@ -18,6 +18,8 @@ const {
 } = require('../controllers/paymentController');
 const { errorHandler } = require('../middleware/errorHandler');
 const checkRestrictions = require('../middleware/checkRestrictions');
+const requireEmailVerified = require('../middleware/requireEmailVerified');
+const requireTermsAcceptance = require('../middleware/requireTermsAcceptance');
 const { requireOnboardingStep, requireTaxIdentity } = require('../middleware/helperOnboardingMiddleware');
 
 const requirePaymentsEnabled = requireFeatureEnabled('Payments', 'FEATURE_PAYMENTS_ENABLED');
@@ -36,9 +38,11 @@ router.post('/payout/instant', authenticate, requirePaymentsEnabled, requireOnbo
 router.get('/investor-summary', authenticate, requireAdmin, getInvestorSummary);
 
 // Payments
+// Review P2-7-F06/F08: moving money requires a verified email and current
+// terms acceptance, like job posting and bidding.
 router.get('/me', authenticate, requirePaymentsEnabled, getMyPayments);
-router.post('/intent', authenticate, requirePaymentsEnabled, checkRestrictions('checkout'), paymentsLimiter, createPaymentIntent);
-router.post('/capture', authenticate, requirePaymentsEnabled, checkRestrictions('checkout'), paymentsLimiter, capturePayment);
+router.post('/intent', authenticate, requireEmailVerified, requireTermsAcceptance, requirePaymentsEnabled, checkRestrictions('checkout'), paymentsLimiter, createPaymentIntent);
+router.post('/capture', authenticate, requireEmailVerified, requireTermsAcceptance, requirePaymentsEnabled, checkRestrictions('checkout'), paymentsLimiter, capturePayment);
 router.post('/refund', authenticate, requirePaymentsEnabled, checkRestrictions('checkout'), paymentsLimiter, requireAdmin, requirePermission('issue_refunds'), refundPayment);
 router.get('/job/:job_id', authenticate, requirePaymentsEnabled, getJobPayment);
 

@@ -10,7 +10,16 @@ const { requireAdmin, requirePermission } = require('../middleware/adminAuth');
 const ctrl = require('../controllers/reviewModerationController');
 
 // ── Public/Authenticated: Report a review ──────────────────────
+// reviewType comes from the body ('product' default); the convenience
+// routes below pin it for business and food reviews so clients do not
+// have to know the discriminator.
+const reportWithType = (reviewType) => (req, res, next) => {
+  req.body = { ...(req.body || {}), reviewType: req.body?.reviewType || reviewType };
+  return ctrl.reportReview(req, res, next);
+};
 router.post('/reviews/:reviewId/report', requireAuth, ctrl.reportReview);
+router.post('/business-reviews/:reviewId/report', requireAuth, reportWithType('business'));
+router.post('/food/reviews/:reviewId/report', requireAuth, reportWithType('food'));
 router.get('/reviews/my-reports', requireAuth, ctrl.getMyReports);
 
 // ── Admin: Manage review reports ──────────────────────────────

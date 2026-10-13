@@ -6,11 +6,16 @@ import toast from 'react-hot-toast';
 import { useAbortableFetch } from '../lib/useAbortableFetch';
 import AdminErrorState from '../lib/AdminErrorState';
 
-const PACKAGE_TIERS = [
+// P3-12-F10: fallback used only when the /consulting/packages rows are not
+// available. Prices match the seed values in migration 109
+// (consulting_packages.price_cents): initial 10000, foundation 50000,
+// implementation 100000, transformation 250000. The tier dropdown in the
+// manual-invoice modal prefers the live DB rows.
+const FALLBACK_PACKAGE_TIERS = [
   { tier: 'initial', label: 'Initial', price: 10000, description: 'One 60-minute consultation session to assess your needs and map next steps.', sessions: 1 },
-  { tier: 'foundation', label: 'Foundation', price: 75000, description: 'Three sessions plus a written business plan and market analysis.', sessions: 3 },
-  { tier: 'implementation', label: 'Implementation', price: 150000, description: 'Six sessions with full setup of legal, financial, and operational systems.', sessions: 6 },
-  { tier: 'transformation', label: 'Transformation', price: 300000, description: 'Twelve sessions with deep coaching, branding, and growth roadmap.', sessions: 12 },
+  { tier: 'foundation', label: 'Foundation', price: 50000, description: 'Three sessions plus a written business plan and market analysis.', sessions: 3 },
+  { tier: 'implementation', label: 'Implementation', price: 100000, description: 'Six sessions with full setup of legal, financial, and operational systems.', sessions: 6 },
+  { tier: 'transformation', label: 'Transformation', price: 250000, description: 'Twelve sessions with deep coaching, branding, and growth roadmap.', sessions: 12 },
 ];
 
 const NS = 'adminConsultingPayments';
@@ -168,9 +173,21 @@ function PackageCard({ pkg, onEdit, onToggle }) {
   );
 }
 
-function ManualInvoiceModal({ onClose, onCreated }) {
+function ManualInvoiceModal({ onClose, onCreated, packages = [] }) {
   const { t } = useTranslation();
-  const [form, setForm] = useState({ client_email: '', client_name: '', package_tier: 'initial', amount_cents: 10000, notes: '' });
+  // P3-12-F10: price the tiers from the fetched /consulting/packages rows
+  // (tier, price_cents/base_price); the hardcoded list is only the fallback.
+  const tiers = packages.length > 0
+    ? packages.map((p) => ({
+        tier: p.tier,
+        label: p.package_name || p.name || p.tier,
+        price: Number(p.price_cents ?? p.base_price) || 0,
+        sessions: p.sessions_count ?? p.duration_hours ?? null,
+        description: p.description || '',
+      }))
+    : FALLBACK_PACKAGE_TIERS;
+  const defaultTier = tiers.find((p) => p.tier === 'initial') || tiers[0] || FALLBACK_PACKAGE_TIERS[0];
+  const [form, setForm] = useState({ client_email: '', client_name: '', package_tier: defaultTier.tier, amount_cents: defaultTier.price, notes: '' });
   const [saving, setSaving] = useState(false);
 
   async function handleSubmit(e) {
@@ -210,10 +227,10 @@ function ManualInvoiceModal({ onClose, onCreated }) {
           <div style={fieldStyle}>
             <label style={labelStyle}>{t(`${NS}.package`)}</label>
             <select style={inputStyle} value={form.package_tier} onChange={e => {
-              const pkg = PACKAGE_TIERS.find(p => p.tier === e.target.value);
+              const pkg = tiers.find(p => p.tier === e.target.value);
               setForm({ ...form, package_tier: e.target.value, amount_cents: pkg?.price || form.amount_cents });
             }}>
-              {PACKAGE_TIERS.map(p => <option key={p.tier} value={p.tier}>{t(`${NS}.${TIER_I18N[p.tier].labelKey}`)} ({formatMoney(p.price)})</option>)}
+              {tiers.map(p => <option key={p.tier} value={p.tier}>{t(`${NS}.${TIER_I18N[p.tier].labelKey}`)} ({formatMoney(p.price)})</option>)}
             </select>
           </div>
           <div style={fieldStyle}>
@@ -395,7 +412,7 @@ export default function ConsultingPayments() {
             <div>
               <p style={{ color: 'var(--color-text-muted)', marginBottom: '1.5rem' }}>{t(`${NS}.noPackages`)}</p>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.5rem' }}>
-                {PACKAGE_TIERS.map(pkg => (
+                {FALLBACK_PACKAGE_TIERS.map(pkg => (
                   <div key={pkg.tier} style={{ background: 'var(--color-surface)', border: '2px solid var(--color-primary)', borderRadius: '10px', padding: '1.5rem' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
                       <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700 }}>{t(`${NS}.${TIER_I18N[pkg.tier].labelKey}`)}</h3>
@@ -515,7 +532,7 @@ export default function ConsultingPayments() {
       )}
 
       {showInvoiceModal && (
-        <ManualInvoiceModal onClose={() => setShowInvoiceModal(false)} onCreated={reload} />
+        <ManualInvoiceModal onClose={() => setShowInvoiceModal(false)} onCreated={reload} packages={packages} />
       )}
     </div>
   );

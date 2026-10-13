@@ -14,21 +14,10 @@ const {
   PUBLIC_VIEW_STATUSES,
   assertCreatableStatus,
   validateInvoiceUpdate,
+  validateLineItems,
+  computeInvoiceTotals,
   resolvePaymentDelta,
 } = require('../utils/businessInvoiceHelpers');
-
-// ── Compute totals from line items + tax rate ─────────────────────────────────
-function computeTotals(lineItems, invoiceTaxRate) {
-  const subtotal = lineItems.reduce((sum, li) => {
-    const qty   = parseFloat(li.quantity  || 1);
-    const price = parseFloat(li.unit_price || 0);
-    return sum + qty * price;
-  }, 0);
-  const rate      = parseFloat(invoiceTaxRate || 0) / 100;
-  const taxAmount = round2(subtotal * rate);
-  const total     = round2(subtotal + taxAmount);
-  return { subtotal: round2(subtotal), tax_amount: taxAmount, total };
-}
 
 // ── Generate human-readable invoice number ─────────────────────────────────────
 // Format: BIZ-YYYY-NNNN where NNNN auto-increments per business
@@ -116,9 +105,8 @@ async function createInvoice(req, res) {
   } = req.body;
 
   if (!client_name?.trim()) return res.status(400).json({ error: 'Client name is required' });
-  if (!Array.isArray(line_items) || line_items.length === 0) {
-    return res.status(400).json({ error: 'At least one line item is required' });
-  }
+  const lineItemsError = validateLineItems(line_items);
+  if (lineItemsError) return res.status(400).json({ error: lineItemsError });
   const statusError = assertCreatableStatus(status);
   if (statusError) return res.status(400).json({ error: statusError });
 
@@ -127,7 +115,7 @@ async function createInvoice(req, res) {
     await client.query('BEGIN');
 
     const invoice_number = await nextInvoiceNumber(client, access.id);
-    const { subtotal, tax_amount, total } = computeTotals(line_items, invoice_tax_rate);
+    const { subtotal, tax_amount, total } = computeInvoiceTotals(line_items, invoice_tax_rate);
     const public_token = randomUUID();
     const { rows: [businessCurrency] } = await client.query(
       `SELECT COALESCE(NULLIF(currency_code, ''), 'USD') AS currency_code
@@ -186,7 +174,9 @@ async function updateInvoice(req, res) {
     // Recalculate totals if line items provided
     let subtotal, tax_amount, total;
     if (line_items) {
-      ({ subtotal, tax_amount, total } = computeTotals(line_items, invoice_tax_rate));
+      const recalcError = validateLineItems(line_items);
+      if (recalcError) return res.status(400).json({ error: recalcError });
+      ({ subtotal, tax_amount, total } = computeInvoiceTotals(line_items, invoice_tax_rate));
     }
 
     const { rows: [inv] } = await pool.query(`
@@ -539,9 +529,8 @@ async function createHelperInvoice(req, res) {
   } = req.body;
 
   if (!client_name?.trim()) return res.status(400).json({ error: 'Client name is required' });
-  if (!Array.isArray(line_items) || line_items.length === 0) {
-    return res.status(400).json({ error: 'At least one line item is required' });
-  }
+  const helperLineItemsError = validateLineItems(line_items);
+  if (helperLineItemsError) return res.status(400).json({ error: helperLineItemsError });
   const statusError = assertCreatableStatus(status);
   if (statusError) return res.status(400).json({ error: statusError });
 
@@ -550,7 +539,7 @@ async function createHelperInvoice(req, res) {
     await client.query('BEGIN');
 
     const invoice_number = await nextHelperInvoiceNumber(client);
-    const { subtotal, tax_amount, total } = computeTotals(line_items, invoice_tax_rate);
+    const { subtotal, tax_amount, total } = computeInvoiceTotals(line_items, invoice_tax_rate);
     const public_token = randomUUID();
 
     const { rows: [inv] } = await client.query(`
@@ -602,7 +591,9 @@ async function updateHelperInvoice(req, res) {
     // Recalculate totals if line items provided
     let subtotal, tax_amount, total;
     if (line_items) {
-      ({ subtotal, tax_amount, total } = computeTotals(line_items, invoice_tax_rate));
+      const helperRecalcError = validateLineItems(line_items);
+      if (helperRecalcError) return res.status(400).json({ error: helperRecalcError });
+      ({ subtotal, tax_amount, total } = computeInvoiceTotals(line_items, invoice_tax_rate));
     }
 
     const { rows: [inv] } = await pool.query(`

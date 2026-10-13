@@ -32,6 +32,13 @@ function createStoreOption(prefix) {
   return {};
 }
 
+// Review P3-13-F22: limiters NEVER use `skip: (req) => !req.user`. That
+// pattern silently disabled the limiter for any mount that forgot (or never
+// had) the authenticate middleware. Instead every limiter below keys by
+// user id when authenticated and falls back to req.ip otherwise, so an
+// unauthenticated request is still limited (fail-closed) and a future mount
+// without authenticate cannot silently bypass the limit.
+
 // SECURITY: verifies the Authorization Bearer token for real instead of
 // trusting the syntactic presence of a "Bearer ..." header. A bogus or
 // plausible-but-invalid token (expired, wrong signature, wrong secret) must
@@ -378,7 +385,6 @@ const invoiceLimiter = rateLimit({
   ...createStoreOption('rl:invoice:'),
   windowMs: 60 * 60 * 1000, // 1 hour
   max: 10,
-  skip: (req) => !req.user,
   keyGenerator: (req) => req.user?.id ? `user:${req.user.id}` : req.ip,
   standardHeaders: true,
   legacyHeaders: false,
@@ -394,7 +400,6 @@ const reportLimiter = rateLimit({
   ...createStoreOption('rl:report:'),
   windowMs: 60 * 60 * 1000, // 1 hour
   max: 10,
-  skip: (req) => !req.user,
   keyGenerator: (req) => req.user?.id ? `user:${req.user.id}` : req.ip,
   standardHeaders: true,
   legacyHeaders: false,
@@ -410,7 +415,6 @@ const termsLimiter = rateLimit({
   ...createStoreOption('rl:terms:'),
   windowMs: 60 * 60 * 1000, // 1 hour
   max: 5,
-  skip: (req) => !req.user,
   keyGenerator: (req) => req.user?.id ? `user:${req.user.id}` : req.ip,
   standardHeaders: true,
   legacyHeaders: false,
@@ -435,7 +439,6 @@ const userChatLimiter = rateLimit({
     }
     return req.ip;
   },
-  skip: (req) => !req.user, // Only applies to authenticated users
   standardHeaders: true,
   legacyHeaders: false,
   message: {
@@ -474,7 +477,6 @@ const paymentsLimiter = rateLimit({
   ...createStoreOption('rl:payments:'),
   windowMs: 60 * 60 * 1000, // 1 hour
   max: 20,
-  skip: (req) => !req.user,
   keyGenerator: (req) => req.user?.id ? `user:${req.user.id}` : req.ip,
   standardHeaders: true,
   legacyHeaders: false,
@@ -490,7 +492,6 @@ const connectAccountLimiter = rateLimit({
   ...createStoreOption('rl:connect_account:'),
   windowMs: 24 * 60 * 60 * 1000, // 24 hours
   max: 5,
-  skip: (req) => !req.user,
   keyGenerator: (req) => req.user?.id ? `user:${req.user.id}` : req.ip,
   standardHeaders: true,
   legacyHeaders: false,
@@ -513,7 +514,6 @@ const restaurantTopupIntentLimiter = rateLimit({
   ...createStoreOption('rl:restaurant_topup_intent:'),
   windowMs: 15 * 60 * 1000,
   max: 20,
-  skip: (req) => !req.user,
   keyGenerator: (req) => req.user?.id ? `user:${req.user.id}` : req.ip,
   standardHeaders: true,
   legacyHeaders: false,
@@ -526,7 +526,6 @@ const creditMutationLimiter = rateLimit({
   ...createStoreOption('rl:oxsteed_credit_mutation:'),
   windowMs: 15 * 60 * 1000,
   max: 60,
-  skip: (req) => !req.user,
   keyGenerator: (req) => req.user?.id ? `user:${req.user.id}` : req.ip,
   standardHeaders: true,
   legacyHeaders: false,
@@ -543,7 +542,6 @@ const jobEditLimiter = rateLimit({
   ...createStoreOption('rl:job_edit:'),
   windowMs: 15 * 60 * 1000,
   max: Number(process.env.JOB_EDIT_RATE_LIMIT_PER_15M || 30),
-  skip: (req) => !req.user,
   keyGenerator: (req) => req.user?.id ? `user:${req.user.id}` : req.ip,
   standardHeaders: true,
   legacyHeaders: false,
@@ -562,7 +560,6 @@ const restaurantCreditMutationLimiter = rateLimit({
   ...createStoreOption('rl:restaurant_credit_mutation:'),
   windowMs: 15 * 60 * 1000,
   max: 60,
-  skip: (req) => !req.user,
   keyGenerator: (req) => req.user?.id ? `user:${req.user.id}` : req.ip,
   standardHeaders: true,
   legacyHeaders: false,
@@ -600,7 +597,6 @@ const creditAdminMutationLimiter = rateLimit({
   ...createStoreOption('rl:oxsteed_credit_admin_mutation:'),
   windowMs: 15 * 60 * 1000,
   max: 60,
-  skip: (req) => !req.user,
   keyGenerator: (req) => req.user?.id ? `admin:${req.user.id}` : req.ip,
   standardHeaders: true,
   legacyHeaders: false,
@@ -616,7 +612,6 @@ const creditExportLimiter = rateLimit({
   ...createStoreOption('rl:oxsteed_credit_export:'),
   windowMs: 60 * 60 * 1000,
   max: 10,
-  skip: (req) => !req.user,
   keyGenerator: (req) => req.user?.id ? `user:${req.user.id}` : req.ip,
   standardHeaders: true,
   legacyHeaders: false,
@@ -657,7 +652,6 @@ const adminPhoneVerificationLimiter = rateLimit({
   ...createStoreOption('rl:admin_phone_verification:'),
   windowMs: 60 * 60 * 1000,
   max: 10,
-  skip: (req) => !req.user,
   keyGenerator: (req) => req.user?.id ? `admin:${req.user.id}` : req.ip,
   standardHeaders: true,
   legacyHeaders: false,
@@ -708,7 +702,6 @@ const entityResolveLimiter = rateLimit({
   ...createStoreOption('rl:entity_resolve:'),
   windowMs: 15 * 60 * 1000,
   max: 120,
-  skip: (req) => !req.user,
   keyGenerator: (req) => req.user?.id ? `entity:${req.user.id}` : req.ip,
   standardHeaders: true,
   legacyHeaders: false,

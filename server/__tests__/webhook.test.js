@@ -279,12 +279,47 @@ describe('checkout.session.completed', () => {
     })};
 
     mockQuery
+      .mockResolvedValueOnce({ rows: [] })                              // advisory lock
+      .mockResolvedValueOnce({ rows: [] })                              // duplicate active-subscription check
       .mockResolvedValueOnce({ rows: [] })                              // INSERT subscription
       .mockResolvedValueOnce({ rows: [{ slug: 'pro', tier_slug: 'pro' }] }) // SELECT plan
       .mockResolvedValueOnce({ rows: [] });                             // UPDATE users tier
 
     const res = await sendEvent(buildApp(), event);
     expect(res.status).toBe(200);
+    expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO subscriptions/.test(sql))).toBe(true);
+  });
+
+  test('refuses a second active subscription and cancels the duplicate at Stripe (P2-6-F07)', async () => {
+    const event = {
+      type: 'checkout.session.completed',
+      data: { object: {
+        mode: 'subscription',
+        subscription: 'sub_dup_2',
+        customer: 'cus_123',
+        metadata: { userId: '42', planId: '1' },
+      }},
+    };
+
+    stripe.subscriptions = {
+      retrieve: jest.fn().mockResolvedValueOnce({
+        id: 'sub_dup_2', status: 'active',
+        current_period_start: 1700000000,
+        current_period_end:   1702678400,
+      }),
+      cancel: jest.fn().mockResolvedValueOnce({ id: 'sub_dup_2', status: 'canceled' }),
+    };
+
+    mockQuery
+      .mockResolvedValueOnce({ rows: [] })                              // advisory lock
+      .mockResolvedValueOnce({ rows: [{ id: 'row-1', stripe_subscription_id: 'sub_dup_1' }] }); // existing active sub
+
+    const res = await sendEvent(buildApp(), event);
+    expect(res.status).toBe(200);
+    // No second subscription row is inserted...
+    expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO subscriptions/.test(sql))).toBe(false);
+    // ...and the duplicate is cancelled at Stripe so the user is not double-billed.
+    expect(stripe.subscriptions.cancel).toHaveBeenCalledWith('sub_dup_2');
   });
 
   test('marks a food order paid when Stripe reports a completed checkout session', async () => {

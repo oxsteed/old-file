@@ -3285,28 +3285,48 @@ test('blocks enabling the Credit rail when server error monitoring is explicitly
   else process.env.SENTRY_ENABLED = previous.SENTRY_ENABLED;
 });
 
-test('changes the rail status with an audit reason and serialized control lock', async () => {
-  mockQuery
-    .mockResolvedValueOnce({ rows: [] })
-    .mockResolvedValueOnce({ rows: [{ key: 'oxsteed_credit_enabled', is_enabled: false, description: 'Credit rail', updated_by: null, updated_at: '2026-09-12T12:00:00.000Z' }] })
-    .mockResolvedValueOnce({ rows: [{ key: 'oxsteed_credit_enabled', is_enabled: true, description: 'Credit rail', updated_by: ADMIN_ID, updated_at: '2026-09-12T12:01:00.000Z' }] })
-    .mockResolvedValueOnce({ rows: [] });
+test('rejects a single-admin direct rail activation (two-person approval required)', async () => {
+  // Review P3-7-F10: flipping the money rail false -> true via the direct
+  // admin path is rejected; activation must go through the settings
+  // change-request flow (propose -> approve by a different admin).
+  mockQuery.mockResolvedValueOnce({ rows: [{ key: 'oxsteed_credit_enabled', is_enabled: false, description: 'Credit rail', updated_by: null, updated_at: '2026-09-12T12:00:00.000Z' }] });
 
   const response = await request(createAdminApp())
     .post('/rail')
     .send({ enabled: true, reason: 'Approved after custody review' });
 
+  expect(response.status).toBe(409);
+  expect(response.body.code).toBe('credit_rail_enable_requires_approval');
+  expect(mockQuery.mock.calls.some(([sql]) => String(sql).includes('UPDATE feature_flags'))).toBe(false);
+});
+
+test('a single admin can still suspend the rail directly (emergency stop)', async () => {
+  mockQuery
+    .mockResolvedValueOnce({ rows: [] })
+    .mockResolvedValueOnce({ rows: [{ key: 'oxsteed_credit_enabled', is_enabled: true, description: 'Credit rail', updated_by: ADMIN_ID, updated_at: '2026-09-12T12:01:00.000Z' }] })
+    .mockResolvedValueOnce({ rows: [{ key: 'oxsteed_credit_enabled', is_enabled: false, description: 'Credit rail', updated_by: ADMIN_ID, updated_at: '2026-09-12T12:02:00.000Z' }] })
+    .mockResolvedValueOnce({ rows: [] });
+
+  const response = await request(createAdminApp())
+    .post('/rail')
+    .send({ enabled: false, reason: 'Incident response' });
+
   expect(response.status).toBe(200);
-  expect(response.body).toMatchObject({ changed: true, rail: { enabled: true, status: 'enabled', updatedBy: ADMIN_ID } });
+  expect(response.body).toMatchObject({ changed: true, rail: { enabled: false, status: 'suspended' } });
   expect(mockQuery.mock.calls[0][0]).toContain('pg_advisory_xact_lock');
-  expect(mockQuery.mock.calls[2][0]).toContain('UPDATE feature_flags');
-  expect(mockQuery.mock.calls[3][1][0]).toBe('credit.rail.enabled');
 });
 
 test('rejects a stale rail mutation before changing the emergency flag', async () => {
+  // Review P3-7-F10: the direct path now pre-checks rail state (flag SELECT +
+  // freeze check); the service then re-checks under its control lock
+  // (advisory lock + flag SELECT) and still rejects the stale
+  // expectedEnabled with a state conflict.
+  const flagRow = { key: 'oxsteed_credit_enabled', is_enabled: true, description: 'Credit rail', updated_by: ADMIN_ID, updated_at: '2026-09-12T12:01:00.000Z' };
   mockQuery
+    .mockResolvedValueOnce({ rows: [flagRow] })
     .mockResolvedValueOnce({ rows: [] })
-    .mockResolvedValueOnce({ rows: [{ key: 'oxsteed_credit_enabled', is_enabled: true, description: 'Credit rail', updated_by: ADMIN_ID, updated_at: '2026-09-12T12:01:00.000Z' }] });
+    .mockResolvedValueOnce({ rows: [] })
+    .mockResolvedValueOnce({ rows: [flagRow] });
 
   const response = await request(createAdminApp())
     .post('/rail')
@@ -3315,7 +3335,7 @@ test('rejects a stale rail mutation before changing the emergency flag', async (
   expect(response.status).toBe(409);
   expect(response.body.code).toBe('credit_rail_state_conflict');
   expect(response.body.error).toContain('changed before this request was applied');
-  expect(mockQuery).toHaveBeenCalledTimes(2);
+  expect(mockQuery).toHaveBeenCalledTimes(4);
   expect(mockQuery.mock.calls.some(([sql]) => String(sql).includes('UPDATE feature_flags'))).toBe(false);
 });
 

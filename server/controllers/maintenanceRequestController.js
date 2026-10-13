@@ -1,7 +1,10 @@
 const pool = require('../db');
+const path = require('path');
 const { AppError } = require('../middleware/errorHandler');
+const jobSchema = require('../validation/jobSchema');
 const { canAccessBusinessTeam } = require('../utils/businessOwnership');
-const { getPublicUrl } = require('../utils/storage');
+const { toPrivatePhotoRef, withHydratedPhotos, withHydratedPhotosList, resolvePhotoKey } = require('../utils/intakeMedia');
+const { copyObject, deleteFile, getPublicUrl } = require('../utils/storage');
 const { uploadFilesOrThrow } = require('../utils/uploadBatch');
 const { notifyIntakeReceived } = require('../utils/intakeNotifications');
 const { sendNotification } = require('../services/notificationService');
@@ -208,7 +211,7 @@ exports.createRequest = async (req, res, next) => {
         code: 'maintenance_request_media_upload_failed',
         label: 'maintenance request photo',
       });
-      photoUrls = uploads.map((key) => getPublicUrl(key));
+      photoUrls = uploads.map((key) => toPrivatePhotoRef(key));
     }
 
     const client = await pool.connect();
@@ -253,7 +256,7 @@ exports.createRequest = async (req, res, next) => {
       // Notify the business owner: submitted maintenance intakes must be observable.
       // Fire-and-forget: the helper never throws and never blocks the response.
       notifyIntakeReceived({ businessId: business.id, intakeId: request.id, area: 'maintenance' });
-      return res.status(201).json({ request });
+      return res.status(201).json({ request: await withHydratedPhotos(request) });
     } catch (err) {
       await client.query('ROLLBACK');
       throw err;
@@ -313,7 +316,7 @@ exports.listBusinessRequests = async (req, res, next) => {
       [businessId]
     );
 
-    return res.json({ requests: rows, stats });
+    return res.json({ requests: await withHydratedPhotosList(rows), stats });
   } catch (err) {
     next(err);
   }
@@ -331,7 +334,7 @@ exports.getRequest = async (req, res, next) => {
        ORDER BY e.created_at ASC`,
       [request.id]
     );
-    return res.json({ request, events });
+    return res.json({ request: await withHydratedPhotos(request), events });
   } catch (err) {
     next(err);
   }
@@ -445,7 +448,7 @@ exports.updateRequest = async (req, res, next) => {
         error: err.message,
       }));
     }
-    return res.json({ request });
+    return res.json({ request: await withHydratedPhotos(request) });
   } catch (err) {
     await client.query('ROLLBACK');
     next(err);
@@ -472,14 +475,41 @@ exports.convertToJob = async (req, res, next) => {
     if (!access) throw new AppError('Not authorized', 403, 'forbidden');
     if (request.job_id) throw new AppError('Request already has a job', 409, 'state_conflict');
 
-    const description = [
-      request.description,
-      request.property_label ? `Property: ${request.property_label}` : '',
-      request.unit_label ? `Unit: ${request.unit_label}` : '',
-      request.access_notes ? `Access notes: ${request.access_notes}` : '',
-      request.preferred_times ? `Preferred times: ${request.preferred_times}` : '',
-      request.permission_to_enter ? 'Tenant granted permission to enter if required.' : '',
-    ].filter(Boolean).join('\n\n');
+    // Review P2-9-F10: this used to INSERT into jobs directly, skipping the
+    // shared job-posting validation. Run the constructed input through the
+    // same schema POST /api/jobs uses so invalid jobs fail fast at 422.
+    const jobInput = {
+      title: request.title,
+      description: [
+        request.description,
+        request.property_label ? `Property: ${request.property_label}` : '',
+        request.unit_label ? `Unit: ${request.unit_label}` : '',
+        request.access_notes ? `Access notes: ${request.access_notes}` : '',
+        request.preferred_times ? `Preferred times: ${request.preferred_times}` : '',
+        request.permission_to_enter ? 'Tenant granted permission to enter if required.' : '',
+      ].filter(Boolean).join('\n\n'),
+      category_name: request.issue_category,
+      budget_type: 'open',
+      urgency: request.urgency === 'emergency' || request.urgency === 'urgent' ? 'asap' : 'flexible',
+      location_address: request.property_label || request.address_street || null,
+      location_city: request.address_city || null,
+      location_state: request.address_state || null,
+      location_zip: request.address_zip || null,
+      location_country: request.address_country || null,
+      scheduled_date: request.scheduled_start_at ? new Date(request.scheduled_start_at).toISOString().slice(0, 10) : null,
+      scheduled_time: request.scheduled_start_at || null,
+    };
+    const { patch: canonicalInput } = jobSchema.normalizeJobInput(jobInput, { mode: 'legacy' });
+    for (const key of ['title', 'description', 'location_city', 'location_country']) {
+      if (!Object.prototype.hasOwnProperty.call(canonicalInput, key)) canonicalInput[key] = null;
+    }
+    const schemaErrs = jobSchema.validateJobFields(canonicalInput, { mode: 'create' });
+    if (Object.keys(schemaErrs).length) {
+      if (schemaErrs.location_city) schemaErrs.location = schemaErrs.location_city;
+      throw new AppError('Validation failed', 422, 'validation_failed', schemaErrs);
+    }
+
+    const description = jobInput.description;
 
     const { rows: [job] } = await client.query(
       `INSERT INTO jobs (
@@ -487,9 +517,9 @@ exports.convertToJob = async (req, res, next) => {
          site_access, job_type_label, notes, location_address, location_city,
          location_state, location_zip, location_country, media_urls,
          preferred_helper_id, preferred_helper_name, scheduled_date, scheduled_time,
-         status, expires_at
+         status, expires_at, metadata
        )
-       VALUES ($1,$2,$3,$4,'open',$5,$6,'standard','one_time',$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,'published',now() + interval '30 days')
+       VALUES ($1,$2,$3,$4,'open',$5,$6,'standard','one_time',$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,'published',now() + interval '30 days',$18)
        RETURNING *`,
       [
         request.business_owner_id,
@@ -504,13 +534,50 @@ exports.convertToJob = async (req, res, next) => {
         request.address_state || null,
         request.address_zip || null,
         request.address_country || null,
-        request.photo_urls || [],
+        [],
         request.assigned_helper_id || null,
         request.vendor_name || null,
         request.scheduled_start_at ? new Date(request.scheduled_start_at).toISOString().slice(0, 10) : null,
         request.scheduled_start_at || null,
+        // Review P2-9-F10: keep the tenant (requester) linked on the job;
+        // the job is posted by the business owner but originated from them.
+        JSON.stringify({
+          maintenance_request_id: request.id,
+          tenant_requester_id: request.requester_id || null,
+          converted_from: 'property_maintenance_request',
+        }),
       ]
     );
+
+    // Review P3-6-F10: intake photos are private. Converting to a public job
+    // is an explicit publish step: copy each photo under the public jobs/
+    // prefix and point the job's media at the public copies. The private
+    // intake originals stay where they are. On any failure the job insert
+    // rolls back and the copied objects are removed best-effort.
+    const publishedKeys = [];
+    let publishedUrls = [];
+    try {
+      const photoRefs = Array.isArray(request.photo_urls) ? request.photo_urls : [];
+      for (const ref of photoRefs) {
+        const sourceKey = resolvePhotoKey(ref);
+        if (!sourceKey) continue;
+        const base = path.basename(sourceKey).replace(/[^A-Za-z0-9._-]/g, '_').slice(0, 120) || 'photo';
+        const destKey = `jobs/${job.id}/${Date.now()}-${base}`;
+        await copyObject(sourceKey, destKey);
+        publishedKeys.push(destKey);
+      }
+      publishedUrls = publishedKeys.map((key) => getPublicUrl(key));
+      if (publishedUrls.length) {
+        const { rows: [withMedia] } = await client.query(
+          `UPDATE jobs SET media_urls = $1 WHERE id = $2 RETURNING *`,
+          [publishedUrls, job.id]
+        );
+        if (withMedia) Object.assign(job, withMedia);
+      }
+    } catch (publishErr) {
+      await Promise.allSettled(publishedKeys.map((key) => deleteFile(key)));
+      throw publishErr;
+    }
 
     const { rows: [updated] } = await client.query(
       `UPDATE property_maintenance_requests
@@ -523,7 +590,7 @@ exports.convertToJob = async (req, res, next) => {
     );
     await insertEvent(client, request.id, req.user.id, 'converted_to_job', request.status, updated.status, `Created job ${job.id}`, { job_id: job.id });
     await client.query('COMMIT');
-    return res.status(201).json({ request: updated, job });
+    return res.status(201).json({ request: await withHydratedPhotos(updated), job });
   } catch (err) {
     await client.query('ROLLBACK');
     next(err);
@@ -543,7 +610,7 @@ exports.listMyRequests = async (req, res, next) => {
        LIMIT 100`,
       [req.user.id]
     );
-    return res.json({ requests: rows });
+    return res.json({ requests: await withHydratedPhotosList(rows) });
   } catch (err) {
     next(err);
   }
@@ -562,7 +629,7 @@ exports.listAssignedRequests = async (req, res, next) => {
         LIMIT 100`,
       [req.user.id]
     );
-    return res.json({ requests: rows });
+    return res.json({ requests: await withHydratedPhotosList(rows) });
   } catch (err) {
     next(err);
   }

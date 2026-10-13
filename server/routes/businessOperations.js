@@ -41,12 +41,18 @@ router.get ('/:businessId/services/:serviceId/slots',                           
 // Customers may book a public business service; the controller validates the
 // service/business relationship and binds the appointment to the signed-in user.
 router.post('/:businessId/appointments',                                   requireAuth, enforceBookingRules, businessAppointmentsController.createAppointment);
+// P3-8-F10: staff walk-in / phone booking. Same controller, but staff may
+// book inside the customer advance-notice window, and the appointment is
+// never bound to the staff member's own user id.
+router.post('/:businessId/appointments/staff-create',                      requireAuth, requireBusinessAccess({ minRole: 'any' }), (req, _res, next) => { req.staffCreated = true; next(); }, businessAppointmentsController.createAppointment);
 router.get ('/:businessId/appointments',                                   requireAuth, requireBusinessAccess({ minRole: 'any' }),     businessAppointmentsController.listAppointments);
 router.get ('/:businessId/appointments/calendar',                          requireAuth, requireBusinessAccess({ minRole: 'any' }),     businessCalendarController.getBusinessAppointmentsCalendar);
 router.get ('/:businessId/appointments/:appointmentId',                    requireAuth, requireBusinessAccess({ minRole: 'any' }),     businessAppointmentsController.getAppointment);
 router.put ('/:businessId/appointments/:appointmentId/status',             requireAuth, requireBusinessAccess({ minRole: 'any' }),     businessAppointmentsController.updateAppointmentStatus);
 router.post('/:businessId/appointments/:appointmentId/cancel',             requireAuth, requireBusinessAccess({ minRole: 'any' }),     businessAppointmentsController.cancelAppointment);
 router.post('/:businessId/appointments/:appointmentId/reschedule',         requireAuth, requireBusinessAccess({ minRole: 'any' }),     businessAppointmentsController.rescheduleAppointment);
+router.put ('/:businessId/appointments/:appointmentId/staff',              requireAuth, requireBusinessAccess({ minRole: 'any' }),     businessAppointmentsController.reassignAppointmentStaff);
+router.post('/:businessId/appointments/:appointmentId/record-payment',    requireAuth, requireBusinessAccess({ minRole: 'any' }),     businessAppointmentsController.recordAppointmentPayment);
 router.post('/:businessId/appointments/:appointmentId/notes',              requireAuth, requireBusinessAccess({ minRole: 'any' }),     businessAppointmentsController.addAppointmentNote);
 
 // ── DYNAMIC PRICING ROUTES ────────────────────────────────────

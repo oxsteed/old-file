@@ -22,6 +22,7 @@ jest.mock('../utils/logger', () => ({
 }));
 
 const { mockQuery, resetMocks } = require('./setup');
+const { currentConsentRows } = require('./helpers/currentConsents');
 const express = require('express');
 const request = require('supertest');
 const jwt = require('jsonwebtoken');
@@ -60,7 +61,7 @@ beforeEach(() => {
   resetMocks();
   jest.clearAllMocks();
   // authenticate looks the token up in the users table
-  mockQuery.mockImplementation(async () => ({ rows: [user] }));
+  mockQuery.mockImplementation(async sql => ({ rows: /FROM user_consents/.test(sql) ? currentConsentRows() : [user] }));
 });
 
 test('unauthenticated book request is rejected with 401 and never reaches the service', async () => {

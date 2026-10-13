@@ -79,19 +79,20 @@ function normalizeKey(key) {
 // is private and must be fetched through a signed download URL. This is an
 // allowlist on purpose: a newly added upload folder stays private until it is
 // explicitly listed here.
+//
+// Review P3-6-F10: customer intake photos (beauty, creative, maintenance,
+// trades) are deliberately NOT listed. They are private by default and served
+// through signed download URLs minted at read time (see utils/intakeMedia.js);
+// the old allowlist entries were world-readable by design.
 const PUBLIC_KEY_PREFIXES = [
   'avatars/',
-  'beauty-intakes/',
   'business-covers/',
   'business-logos/',
-  'creative-intakes/',
   'helper-covers/',
   'helper-gallery/',
   'jobs/',
-  'maintenance-requests/',
   'public-uploads/',
   'tool-rentals/',
-  'trades-diagnostics/',
 ];
 
 function isPublicKeyAllowed(key) {
@@ -186,7 +187,11 @@ async function uploadFile(arg1, arg2, arg3, arg4) {
     throw new Error('Invalid uploadFile arguments');
   }
 
-  if (!key) throw new Error('Invalid storage key');
+  // Review P3-6-F17: return null (not throw) for an invalid key so callers'
+  // `if (!key)` fallbacks are live. The buffer form still throws for an
+  // invalid folder via generateKey; only the caller-supplied string key can
+  // reach this as null.
+  if (!key) return null;
 
   if (s3) {
     await s3.send(new PutObjectCommand({
@@ -223,14 +228,16 @@ async function deleteFile(key) {
   await fs.rm(metaPath, { force: true });
 }
 
-// List stored object keys under a prefix (for the orphan sweeper). Never
-// throws on a missing prefix; S3 callers get paginated listing, local callers
-// get a bounded directory walk. Sidecar .meta.json files are excluded.
-async function listKeysByPrefix(prefix, { limit = 1000 } = {}) {
+// List stored objects under a prefix (for orphan sweepers). Returns
+// [{ key, lastModified }] where lastModified is a Date or null when the
+// backend does not report one. Never throws on a missing prefix; S3 callers
+// get paginated listing, local callers get a bounded directory walk. Sidecar
+// .meta.json files are excluded.
+async function listObjectsByPrefix(prefix, { limit = 1000 } = {}) {
   const normalized = normalizeKey(String(prefix || '').replace(/\/+$/, ''));
   if (!normalized) return [];
   const bounded = Math.max(1, Math.min(Number(limit) || 1000, 5000));
-  const keys = [];
+  const objects = [];
   if (s3) {
     let token;
     do {
@@ -238,19 +245,24 @@ async function listKeysByPrefix(prefix, { limit = 1000 } = {}) {
         Bucket: BUCKET,
         Prefix: `${normalized}/`,
         ContinuationToken: token,
-        MaxKeys: Math.min(1000, bounded - keys.length),
+        MaxKeys: Math.min(1000, bounded - objects.length),
       }));
       for (const obj of out.Contents || []) {
-        if (obj.Key && !obj.Key.endsWith('.meta.json')) keys.push(obj.Key);
-        if (keys.length >= bounded) break;
+        if (obj.Key && !obj.Key.endsWith('.meta.json')) {
+          objects.push({
+            key: obj.Key,
+            lastModified: obj.LastModified ? new Date(obj.LastModified) : null,
+          });
+        }
+        if (objects.length >= bounded) break;
       }
       token = out.IsTruncated ? out.NextContinuationToken : undefined;
-    } while (token && keys.length < bounded);
-    return keys;
+    } while (token && objects.length < bounded);
+    return objects;
   }
   const root = getLocalStorageRoot();
   const stack = [path.join(root, ...normalized.split('/'))];
-  while (stack.length && keys.length < bounded) {
+  while (stack.length && objects.length < bounded) {
     const dir = stack.pop();
     let entries;
     try {
@@ -263,12 +275,68 @@ async function listKeysByPrefix(prefix, { limit = 1000 } = {}) {
       if (entry.isDirectory()) {
         stack.push(full);
       } else if (entry.isFile() && !entry.name.endsWith('.meta.json')) {
-        keys.push(path.relative(root, full).split(path.sep).join('/'));
-        if (keys.length >= bounded) break;
+        const key = path.relative(root, full).split(path.sep).join('/');
+        let lastModified = null;
+        const meta = await readLocalObjectMeta(key);
+        if (meta?.storedAt) {
+          const parsed = new Date(meta.storedAt);
+          if (!Number.isNaN(parsed.getTime())) lastModified = parsed;
+        }
+        if (!lastModified) {
+          try {
+            lastModified = (await fs.stat(full)).mtime;
+          } catch {
+            lastModified = null;
+          }
+        }
+        objects.push({ key, lastModified });
+        if (objects.length >= bounded) break;
       }
     }
   }
-  return keys;
+  return objects;
+}
+
+// List stored object keys under a prefix (for the orphan sweeper). Never
+// throws on a missing prefix; S3 callers get paginated listing, local callers
+// get a bounded directory walk. Sidecar .meta.json files are excluded.
+async function listKeysByPrefix(prefix, options) {
+  const objects = await listObjectsByPrefix(prefix, options);
+  return objects.map((object) => object.key);
+}
+
+/**
+ * Copy a stored object to a new key (same backend). Used when a private
+ * object is explicitly published (e.g. an intake photo attached to a public
+ * job post): the bytes are copied under a public prefix instead of flipping
+ * the original key's visibility. Throws on invalid keys or copy failure.
+ */
+async function copyObject(sourceKey, destKey) {
+  const source = normalizeKey(sourceKey);
+  const dest = normalizeKey(destKey);
+  if (!source || !dest) throw new Error('Invalid storage key');
+  if (s3) {
+    const { CopyObjectCommand } = require('@aws-sdk/client-s3');
+    await s3.send(new CopyObjectCommand({
+      Bucket: BUCKET,
+      CopySource: `${BUCKET}/${source.split('/').map(encodeURIComponent).join('/')}`,
+      Key: dest,
+    }));
+    return dest;
+  }
+  const sourcePath = localFilePath(source);
+  const destPath = localFilePath(dest);
+  if (!sourcePath || !destPath) throw new Error('Invalid storage key');
+  await fs.mkdir(path.dirname(destPath), { recursive: true });
+  await fs.copyFile(sourcePath, destPath);
+  const sourceMeta = await readLocalObjectMeta(source);
+  if (sourceMeta) {
+    await fs.writeFile(localMetaPath(dest), JSON.stringify({
+      ...sourceMeta,
+      storedAt: sourceMeta.storedAt || new Date().toISOString(),
+    }));
+  }
+  return dest;
 }
 
 function getPublicUrl(key) {
@@ -414,6 +482,8 @@ module.exports = {
   getSignedDownloadUrl,
   deleteFile,
   listKeysByPrefix,
+  listObjectsByPrefix,
+  copyObject,
   getPublicUrl,
   normalizeStoredPublicUrl,
   knownObjectKeyFromUrl,

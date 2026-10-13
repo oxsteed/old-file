@@ -1,5 +1,9 @@
 # W11 reconciliation checkpoint
 
+> Current checkpoint: [Post-PR568 reconciliation](post-pr568-reconciliation-2026-10-13.md).
+> The historical branch/status statements below predate PR568; the current goal
+> is active and incomplete on `fix/review-w11-work` from `42bbe3ed`.
+
 Prepared against continuation 8240592e; implementation starts from fresh
 default `c790370a` after PR567 merged with green CI. Audit v2 is a historical snapshot (1071a91d),
 not current closure evidence. Full finding details are in reviews-source.md.
@@ -115,3 +119,82 @@ the authoritative Jest summary is green. No full W11 PR/CI claim is made.
 
 Rechecked default-branch CI after W10.5 merge: run38386697851 at c790370a succeeded.
 This is remote evidence for the merged base, not for the new W11 commits.
+
+### Restaurant browser fixture CI repair (2026-10-13)
+
+CI run 38461301212 at f35dc0c1 passed locale generation and the client production
+build, then failed its browser step: the restaurant fixture lacked five new
+food API exports for loyalty and favorites. Added empty read responses matching
+the API contracts and kept favorite mutations behind the existing unexpected-write
+guard. No production code changed. The focused command
+`cd client && node --test scripts/restaurantRender.browser-check.cjs` passed
+(1 test), exercising loading, menu search and missing-restaurant recovery.
+Remote verification for this repair remains pending.
+
+### Server CI repair after the browser checks (2026-10-13)
+
+Run38462670701 at 6c73c095 passed the browser stage and failed server Jest:
+20 suites / 64 tests failed, with 596 suites passing. The terms gate used
+`user_consents.created_at`, which does not exist in the migrated schema; it now
+selects the latest `accepted_at` record. Real PostgreSQL regression coverage
+checks missing consent, a newer outdated consent, and subsequently accepted
+current versions. Posting/bidding/payment fixtures now supply actual current
+consent rows rather than bypassing that middleware.
+
+The appointment error handler referenced try-block locals from its catch block;
+it now uses request fields and has a controlled lookup-failure regression.
+The scheduling fixture includes the new `allow_scheduling` column. Wallet
+last-statement tests use a private schema instead of deleting shared statement
+documents or removing public immutability triggers.
+
+Other fixtures now follow the implemented contracts: settings changes and Media
+compensation queue for approval without immediate mutation; payout destination
+ownership is asserted on the transactional INSERT; escrow completion uses SQL
+routing and asserts its audit; partner journal-failure injection has a fresh
+clear sanctions result; referral/sign-up tests account for the registration
+switch and referral lookup; identity-gate suites explicitly configure a synthetic
+provider. The platform settings cache is registered in the process-state inventory,
+and weekly-summary expectations use `payment_hold_status` for release timing.
+The broader local run also exposed a statement-amendment fixture that assumed
+source observation 123 was absent. It now selects an absent observation reference
+from the current test data while preserving the expected 404 assertion.
+The ledger UUID fixture also gives each synthetic Stripe transfer a unique ID,
+so repeated runs cannot select a prior payout during webhook lookup.
+
+The formerly failing suites passed in focused local runs against synthetic
+data. Full-server, client-build and migration-rehearsal results are recorded below
+when complete. This CI repair does not declare W11 or later waves complete and
+does not alter maker-checker exceptions or production settings.
+
+Additional local validation for this repair:
+
+- `cd client && npm run build:ci`: passed; 778 emitted assets verified.
+- `node --test scripts/migration-rehearsal.test.cjs`: 11 passed.
+- `DOCKER_CONTEXT=colima NODE_ENV=test node scripts/migration-rehearsal.cjs
+  --from 803`: passed all 824 migrations, catch-up/checksum replay and guard
+  checks in 159.8 seconds; disposable container removed.
+- The existing disposable PostgreSQL test database was migrated to this branch
+  before the real database regressions. No production database was used.
+- Full-server command: `STATEMENT_TEST_DATABASE_URL=<loopback disposable>
+  JOB_EDIT_TEST_DATABASE_URL=<same> STATEMENT_REQUIRE_DB_TESTS=true
+  FFMPEG_PATH=<local native binary> npx jest --runInBand --detectOpenHandles
+  --json --outputFile=<temporary results> --testPathIgnorePatterns=statementExportJobs.millionRow`.
+  Result: 611 suites passed, five failed, three skipped; 6,629 tests passed,
+  five failed, 46 skipped. Every originally failing CI suite passed, including
+  the new appointment and real-consent regressions.
+- All five additional local failures subsequently passed in focused reruns:
+  export, self-service, settlement issuance and restaurant media: four suites /
+  70 tests; ledger UUID: one suite / three tests. Reruns used `--runInBand
+  --forceExit`. The export capacity case passed without the concurrent build /
+  rehearsal load and async-handle instrumentation. Restaurant media used a
+  native FFprobe binary, missing in the initial environment. Self-service used
+  the disabled Credit rail matching a fresh CI database, with its prior local
+  test setting restored. The absent-reference and unique-transfer fixture fixes
+  cover the other two failures. This is combined run/rerun evidence, not one
+  clean full-server invocation.
+- The required Media database-suite assertion passed. The standalone million-row
+  capacity suite was not rerun locally; it passed in remote run38462670701.
+  Fresh exact-head GitHub CI remains required before merge. No deployment wait.
+- The required Statement database-suite assertion failed on the initial full
+  result because settlement issuance had the absent-reference failure. It passed
+  on explicitly combined full-run/rerun results, as did the Media assertion.

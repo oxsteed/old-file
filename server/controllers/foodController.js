@@ -882,12 +882,19 @@ async function syncDeliveryRunnerTaskForOrderStatus(client, { order, createdBy }
                 WHEN $3 = 'Cancelled' AND status <> 'Completed' THEN 'Cancelled'
                 ELSE status
               END,
+              -- cash_collection_required was frozen at task creation. If the
+              -- order has since been marked paid, the runner must no longer be
+              -- asked to collect cash.
+              cash_collection_required = CASE
+                WHEN $4 = 'paid' THEN FALSE
+                ELSE cash_collection_required
+              END,
               updated_at = NOW()
         WHERE restaurant_id = $1
           AND food_order_id = $2
           AND task_type = 'Delivery'
         RETURNING *`,
-      [order.restaurant_id, order.id, runnerStatus]
+      [order.restaurant_id, order.id, runnerStatus, order.payment_status]
     );
     return updatedTask || runnerTask;
   } catch (err) {
@@ -898,7 +905,18 @@ async function syncDeliveryRunnerTaskForOrderStatus(client, { order, createdBy }
 
 async function earnFoodLoyaltyOnComplete(client, order) {
   if (!order.customer_id) return null;
-  const points = Math.max(1, Math.floor(Number(order.total_cents || 0) / 100));
+  // P3-9-F06: only confirmed money earns points. pay_at_restaurant /
+  // pay_at_counter / direct_payment orders complete with payment_status
+  // 'unpaid' (or 'requires_payment'); minting points on those lets
+  // customers farm loyalty value without paying.
+  if (order.payment_status !== 'paid') return null;
+  // P3-9-F15: the earn base is menu value only (subtotal minus discounts).
+  // Tips, tax, delivery and service fees are excluded: the restaurant
+  // should not grant loyalty value on staff tips or platform fees.
+  // Legacy rows without a priced subtotal fall back to the order total.
+  const earnBaseCents = Math.max(0, Number(order.subtotal_cents || 0) - Number(order.discount_cents || 0));
+  const fallbackBaseCents = earnBaseCents > 0 ? earnBaseCents : Math.max(0, Number(order.total_cents || 0));
+  const points = Math.max(1, Math.floor(fallbackBaseCents / 100));
   try {
     const { rows: [account] } = await client.query(
       `INSERT INTO food_loyalty_accounts (restaurant_id, customer_id, points_balance, lifetime_points)
@@ -916,7 +934,95 @@ async function earnFoodLoyaltyOnComplete(client, order) {
        VALUES ($1, $2, $3, 'order_completed')`,
       [account.id, order.id, points]
     );
+    // P3-9-F07: keep the business loyalty profile live. customer_business_profile
+    // previously had zero writers, so loyalty_tier was forever 'new' and tier
+    // counts in the business hub were always zero.
+    await upsertCustomerBusinessProfileOnOrder(client, order, Number(account.lifetime_points || 0));
     return account;
+  } catch (err) {
+    if (isMissingRelationError(err)) return null;
+    throw err;
+  }
+}
+
+// P3-9-F07 writer: upserts customer_business_profile on each completed paid
+// food order and recomputes loyalty_tier from the business's own tier ladder
+// (business_loyalty_tiers by lifetime points), falling back to count-based
+// tiers (new/returning/regular/vip) when the business defined no tiers.
+async function upsertCustomerBusinessProfileOnOrder(client, order, lifetimePoints) {
+  const businessId = Number(order.business_id);
+  const customerId = order.customer_id;
+  if (!businessId || !customerId) return null;
+  try {
+    const { rows: [existing] } = await client.query(
+      `SELECT loyalty_tier FROM customer_business_profile
+        WHERE business_id = $1 AND customer_id = $2`,
+      [businessId, customerId]
+    );
+    const previousTier = existing ? String(existing.loyalty_tier || 'new') : 'new';
+
+    let tier = 'new';
+    let tierDiscountPercent = 0;
+    const { rows: tierRows } = await client.query(
+      `SELECT tier_name, min_points, discount_percent
+         FROM business_loyalty_tiers
+        WHERE business_id = $1
+        ORDER BY min_points DESC`,
+      [businessId]
+    );
+    const matched = tierRows.find((row) => Number(lifetimePoints || 0) >= Number(row.min_points || 0));
+    if (matched) {
+      tier = String(matched.tier_name);
+      tierDiscountPercent = Number(matched.discount_percent || 0);
+    } else {
+      const { rows: [counts] } = await client.query(
+        `SELECT COUNT(*)::int AS n
+           FROM food_orders
+          WHERE business_id = $1
+            AND customer_id = $2
+            AND status NOT IN ('cancelled', 'refunded')`,
+        [businessId, customerId]
+      );
+      const n = Number(counts?.n || 0);
+      tier = n >= 10 ? 'vip' : n >= 5 ? 'regular' : n >= 2 ? 'returning' : 'new';
+    }
+
+    const { rows: [profile] } = await client.query(
+      `INSERT INTO customer_business_profile
+         (business_id, customer_id, lifetime_bookings, lifetime_spent_cents,
+          first_booking_date, last_booking_date, loyalty_tier, updated_at)
+       VALUES ($1, $2, 1, $3, CURRENT_DATE, CURRENT_DATE, $4, NOW())
+       ON CONFLICT (business_id, customer_id)
+       DO UPDATE SET
+         lifetime_bookings = customer_business_profile.lifetime_bookings + 1,
+         lifetime_spent_cents = customer_business_profile.lifetime_spent_cents + $3,
+         first_booking_date = COALESCE(customer_business_profile.first_booking_date, CURRENT_DATE),
+         last_booking_date = CURRENT_DATE,
+         loyalty_tier = $4,
+         updated_at = NOW()
+       RETURNING loyalty_tier`,
+      [businessId, customerId, Math.max(0, Math.round(Number(order.total_cents || 0))), tier]
+    );
+
+    // P3-9-F09 writer: a tier upgrade mints a real loyalty offer so the
+    // customer_offers surface (previously zero writers) carries live data.
+    // created_by_id is NULL for system-generated offers (migration 810).
+    if (profile && tier !== previousTier && tierDiscountPercent > 0) {
+      await client.query(
+        `INSERT INTO customer_offers
+           (business_id, customer_id, offer_type, discount_percent,
+            max_uses, times_used, valid_from, valid_until, is_active, created_by_id)
+         VALUES ($1, $2, 'loyalty_discount', $3, 1, 0, CURRENT_DATE, CURRENT_DATE + INTERVAL '30 days', TRUE, NULL)`,
+        [businessId, customerId, Math.min(100, Math.max(1, Math.round(tierDiscountPercent)))]
+      );
+      logger.info('Issued loyalty tier-upgrade offer', {
+        businessId,
+        customerId,
+        previousTier,
+        tier,
+      });
+    }
+    return profile || null;
   } catch (err) {
     if (isMissingRelationError(err)) return null;
     throw err;
@@ -946,34 +1052,82 @@ async function clawBackFoodLoyaltyOnRefund(client, order) {
         LIMIT 1`,
       [account.id, order.id]
     );
-    if (!earned) return null;
-    const { rows: [alreadyClawedBack] } = await client.query(
-      `SELECT id FROM food_loyalty_ledger
-        WHERE account_id = $1 AND order_id = $2 AND reason = 'order_refunded'
-        LIMIT 1`,
+    let clawedBack = 0;
+    if (earned) {
+      const { rows: [alreadyClawedBack] } = await client.query(
+        `SELECT id FROM food_loyalty_ledger
+          WHERE account_id = $1 AND order_id = $2 AND reason = 'order_refunded'
+          LIMIT 1`,
+        [account.id, order.id]
+      );
+      if (!alreadyClawedBack) {
+        const points = Math.max(0, Number(earned.delta_points || 0));
+        if (points > 0) {
+          await client.query(
+            `UPDATE food_loyalty_accounts
+                SET points_balance = GREATEST(0, points_balance - $1),
+                    updated_at = NOW()
+              WHERE id = $2`,
+            [points, account.id]
+          );
+          await client.query(
+            `INSERT INTO food_loyalty_ledger (account_id, order_id, delta_points, reason)
+             VALUES ($1, $2, $3, 'order_refunded')`,
+            [account.id, order.id, -points]
+          );
+          logger.info('Clawed back food loyalty points for refunded order', {
+            orderId: order.id,
+            accountId: account.id,
+            points,
+          });
+          clawedBack = points;
+        }
+      }
+    }
+    // P3-9-F02: redeemed points were never restored on cancel/refund. A
+    // customer who redeemed points and then had the order cancelled lost the
+    // points and the order. Restore exactly what the order's 'order_redeem'
+    // rows deducted. Idempotent: a matching 'order_redeem_restored' row
+    // means a previous attempt already restored them. Runs even when the
+    // order never completed (no 'order_completed' row to claw back).
+    let restored = 0;
+    const { rows: [redeemed] } = await client.query(
+      `SELECT COALESCE(SUM(-delta_points), 0)::int AS redeemed_points
+         FROM food_loyalty_ledger
+        WHERE account_id = $1 AND order_id = $2 AND reason = 'order_redeem' AND delta_points < 0`,
       [account.id, order.id]
     );
-    if (alreadyClawedBack) return null;
-    const points = Math.max(0, Number(earned.delta_points || 0));
-    if (points <= 0) return null;
-    await client.query(
-      `UPDATE food_loyalty_accounts
-          SET points_balance = GREATEST(0, points_balance - $1),
-              updated_at = NOW()
-        WHERE id = $2`,
-      [points, account.id]
-    );
-    await client.query(
-      `INSERT INTO food_loyalty_ledger (account_id, order_id, delta_points, reason)
-       VALUES ($1, $2, $3, 'order_refunded')`,
-      [account.id, order.id, -points]
-    );
-    logger.info('Clawed back food loyalty points for refunded order', {
-      orderId: order.id,
-      accountId: account.id,
-      points,
-    });
-    return { accountId: account.id, points };
+    const redeemedPoints = Math.max(0, Number(redeemed?.redeemed_points || 0));
+    if (redeemedPoints > 0) {
+      const { rows: [alreadyRestored] } = await client.query(
+        `SELECT id FROM food_loyalty_ledger
+          WHERE account_id = $1 AND order_id = $2 AND reason = 'order_redeem_restored'
+          LIMIT 1`,
+        [account.id, order.id]
+      );
+      if (!alreadyRestored) {
+        await client.query(
+          `UPDATE food_loyalty_accounts
+              SET points_balance = points_balance + $1,
+                  updated_at = NOW()
+            WHERE id = $2`,
+          [redeemedPoints, account.id]
+        );
+        await client.query(
+          `INSERT INTO food_loyalty_ledger (account_id, order_id, delta_points, reason)
+           VALUES ($1, $2, $3, 'order_redeem_restored')`,
+          [account.id, order.id, redeemedPoints]
+        );
+        logger.info('Restored redeemed food loyalty points for refunded order', {
+          orderId: order.id,
+          accountId: account.id,
+          points: redeemedPoints,
+        });
+        restored = redeemedPoints;
+      }
+    }
+    if (clawedBack === 0 && restored === 0) return null;
+    return { accountId: account.id, points: clawedBack, restoredPoints: restored };
   } catch (err) {
     if (isMissingRelationError(err)) return null;
     throw err;
@@ -1077,6 +1231,13 @@ function publicTrackedOrder(order) {
     restaurant_name: order.restaurant_name,
     prep_time_min: order.prep_time_min,
     has_review: order.has_review,
+    runner_location: order.runner_location
+      ? {
+        latitude: Number(order.runner_location.latitude),
+        longitude: Number(order.runner_location.longitude),
+        capturedAt: order.runner_location.capturedAt,
+      }
+      : null,
     items: Array.isArray(order.items)
       ? order.items.map((item) => ({
         id: item.id,
@@ -2075,7 +2236,7 @@ async function respondRestaurantProfile(req, res, next, adminPreview) {
       const { rows: ratingRows } = await pool.query(
         `SELECT COALESCE(ROUND(AVG(rating)::numeric, 1), 0)::float AS avg_rating,
                 COUNT(*)::int AS review_count
-           FROM food_reviews WHERE restaurant_id = $1`,
+           FROM food_reviews WHERE restaurant_id = $1 AND is_hidden = FALSE`,
         [restaurantId]
       );
       restaurant.avg_rating = ratingRows[0]?.avg_rating ?? 0;
@@ -2322,9 +2483,11 @@ exports.quoteOrder = async (req, res, next) => {
       throw new AppError('Validation failed', 400, 'validation_failed', { items: 'At least one item is required' });
     }
 
-    // Parse order source early: kiosk/in-store orders don't require public listing
+    // Parse order source early: kiosk/in-store vs online only affects the
+    // channel-acceptance check below. Restaurant eligibility matches
+    // createOrder exactly (Review P2-3-F07): a quote must never succeed where
+    // order creation would be rejected.
     const orderSourceEarly = normalizeString(req.body.orderSource || req.body.order_source, 24) || 'kiosk';
-    const isKioskOrder = ['kiosk', 'counter', 'tablet'].includes(orderSourceEarly);
     const { rows: restaurants } = await pool.query(
       `SELECT fr.*,
               -- Single Connect source of truth: restaurant_connect_accounts
@@ -2336,15 +2499,15 @@ exports.quoteOrder = async (req, res, next) => {
          LEFT JOIN businesses b ON b.id = fr.business_id
          LEFT JOIN restaurant_connect_accounts rca ON rca.restaurant_id = fr.id
         WHERE fr.id = $1
-          AND fr.status IN ('active','paused')
-          AND ($2 OR fr.discovery_status = 'visible')
+          AND fr.status = 'active'
+          AND fr.discovery_status = 'visible'
           AND COALESCE(fr.is_hidden_by_admin, FALSE) = FALSE
           AND b.is_active = TRUE
-          AND ($2 OR b.is_listed = TRUE)
-          AND COALESCE(b.setup_status, 'active') IN ('active', 'paused')
+          AND b.is_listed = TRUE
+          AND COALESCE(b.setup_status, 'active') = 'active'
           AND COALESCE(b.business_kind, 'restaurant') = 'restaurant'
           AND b.deleted_at IS NULL`,
-      [restaurantId, isKioskOrder]
+      [restaurantId]
     );
     const restaurant = restaurants[0];
     if (!restaurant) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
@@ -2470,6 +2633,34 @@ exports.quoteOrder = async (req, res, next) => {
     }
     discountCents = Math.min(subtotalCents, discountCents);
 
+    // P3-9-F01: loyalty redemption is part of the quote so the checkout total
+    // the customer sees matches what createOrder will charge. Card payment
+    // intents must equal the final order total exactly, so the quote and the
+    // order must apply the same redemption.
+    let loyaltyRedeemedPoints = 0;
+    let loyaltyDiscountCents = 0;
+    let loyaltyRedemption = null;
+    const requestedLoyaltyPoints = parsePositiveInt(
+      req.body.loyaltyPointsToRedeem ?? req.body.loyalty_points_to_redeem,
+      0
+    ) || 0;
+    if (requestedLoyaltyPoints > 0 && req.user?.id) {
+      const loyaltyResult = await resolveFoodLoyaltyRedemption(
+        pool,
+        restaurantId,
+        req.user.id,
+        subtotalCents,
+        discountCents,
+        requestedLoyaltyPoints
+      );
+      if (loyaltyResult.discountCents > 0) {
+        loyaltyRedeemedPoints = loyaltyResult.pointsRedeemed;
+        loyaltyDiscountCents = loyaltyResult.discountCents;
+        loyaltyRedemption = loyaltyResult.metadata;
+        discountCents = Math.min(subtotalCents, discountCents + loyaltyDiscountCents);
+      }
+    }
+
     let deliveryAddress = null;
     let deliveryFeeCents = 0;
     if (fulfillmentType === 'delivery') {
@@ -2573,6 +2764,12 @@ exports.quoteOrder = async (req, res, next) => {
       subtotal_cents: subtotalCents,
       discountCents,
       discount_cents: discountCents,
+      loyaltyRedeemedPoints,
+      loyalty_redeemed_points: loyaltyRedeemedPoints,
+      loyaltyDiscountCents,
+      loyalty_discount_cents: loyaltyDiscountCents,
+      loyaltyRedemption,
+      loyalty_redemption: loyaltyRedemption,
       taxableSubtotalCents,
       taxable_subtotal_cents: taxableSubtotalCents,
       taxRateBps,
@@ -3566,6 +3763,15 @@ exports.createOrder = async (req, res, next) => {
       emitRestaurantOrder(order.business_id, 'food:order:created', { order });
       emitRestaurantDisplay(order.restaurant_id, order);
     }
+    // P2-8-F08: the per-type order_created SMS had zero callers.
+    // Fire-and-forget; opt-in checks and rate limits live in the service.
+    if (!createdOrder.replayed && order.customer_id) {
+      smsNotificationService.sendOrderCreatedSMS(
+        order.customer_id,
+        order.id,
+        Number(order.total_cents || 0)
+      );
+    }
     const statusCode = createdOrder.replayed ? 200 : 201;
     res.status(statusCode).json({
       order,
@@ -4332,6 +4538,21 @@ exports.updateOrderStatus = async (req, res, next) => {
           orderId: order.id,
           actorUserId: req.user?.id || null,
         });
+        // P3-9-F05: loyalty earn commits in the SAME transaction as the
+        // status transition. A separate post-commit transaction meant a
+        // throw left the order 'completed' with no points and no retry; now
+        // a real earn failure rolls the transition back (fail closed) instead
+        // of silently skipping the award. The savepoint preserves the
+        // defensive missing-table tolerance: a caught 42P01 inside earn must
+        // not poison the order transition on partially-migrated databases.
+        await client.query('SAVEPOINT food_loyalty_earn');
+        try {
+          await earnFoodLoyaltyOnComplete(client, order);
+          await client.query('RELEASE SAVEPOINT food_loyalty_earn');
+        } catch (err) {
+          await client.query('ROLLBACK TO SAVEPOINT food_loyalty_earn');
+          throw err;
+        }
       } else if (['cancelled', 'refunded'].includes(status)) {
         await releaseInventoryForOrder(client, {
           restaurantId,
@@ -4349,6 +4570,8 @@ exports.updateOrderStatus = async (req, res, next) => {
 
     // Idempotent retries return the original result without repeating customer
     // messages, loyalty awards, runner transitions, or realtime side effects.
+    // (Loyalty earn now runs inside the transition transaction above, and the
+    // replay path returns before reaching it, so replays cannot double-award.)
     if (!transitionResult.replayed) {
       emitRestaurantOrder(order.business_id, 'food:order:updated', { order });
       emitRestaurantDisplay(order.restaurant_id, order);
@@ -4368,10 +4591,38 @@ exports.updateOrderStatus = async (req, res, next) => {
       if (status === 'accepted' || status === 'preparing') {
         notifyFoodOrderMilestone(order, restaurant, status);
       }
+      // P2-8-F08: the per-type order_cancelled / order_refunded SMS had zero
+      // callers. Fire-and-forget; opt-in checks and rate limits live in the
+      // service.
+      if (status === 'cancelled' && order.customer_id) {
+        smsNotificationService.sendOrderCancelledSMS(order.customer_id, order.id);
+      }
+      if (status === 'refunded' && order.customer_id) {
+        smsNotificationService.sendOrderRefundedSMS(
+          order.customer_id,
+          order.id,
+          Number(order.total_cents || 0)
+        );
+      }
+      // Review P2-9-F13: franchise royalties accrue on food orders too,
+      // not just job completion. Non-blocking; the royalty service is
+      // idempotent per order. (Loyalty earn is intentionally NOT duplicated
+      // here; P3-9-F05 earns in the status-transition transaction above.)
       if (status === 'completed') {
-        await withTransaction(pool, async (client) => {
-          await earnFoodLoyaltyOnComplete(client, order);
-        }, 'food_loyalty_earn');
+        try {
+          const { accrueTerritoryRoyalty } = require('../services/franchiseRoyaltyService');
+          await accrueTerritoryRoyalty({
+            client: pool,
+            amountCents: Number(order.total_cents || 0),
+            city: restaurant.address_city || null,
+            region: restaurant.address_state || null,
+            sourceType: 'food_order',
+            sourceId: String(order.id),
+            description: `Territory royalty — food order #${order.id} in ${restaurant.address_city || restaurant.address_state || ''}`,
+          });
+        } catch (royaltyErr) {
+          logger.warn('Failed to accrue franchise royalty for food order (non-fatal)', { error: royaltyErr.message, orderId: order.id });
+        }
       }
     }
 
@@ -4527,6 +4778,11 @@ exports.completeCheckout = async (req, res, next) => {
       );
       updatedOrder = updatedRows[0] || order;
       emitRestaurantOrder(updatedOrder.business_id, 'food:order:updated', { order: updatedOrder });
+      // P2-8-F08: the per-type payment_confirmed SMS had zero callers.
+      // Fire-and-forget; opt-in checks and rate limits live in the service.
+      if (updatedOrder.customer_id) {
+        smsNotificationService.sendPaymentConfirmedSMS(updatedOrder.customer_id, updatedOrder.id);
+      }
     }
 
     if (returnUrl) {
@@ -5458,6 +5714,29 @@ exports.getTrackedOrder = async (req, res, next) => {
     let order = rows[0];
     if (!order) throw new AppError('Order not found', 404, 'order_not_found');
     order = await syncFoodOrderPaymentStatus(order);
+    // Live runner location: the latest ping is only surfaced while the
+    // delivery is actually en route and the ping is fresh (10 minutes).
+    // Location tracking is write-only on the server otherwise.
+    const { rows: [runnerLocation] } = await pool.query(
+      `SELECT p.latitude, p.longitude, p.captured_at
+         FROM restaurant_runner_location_pings p
+         JOIN restaurant_runner_tasks t
+           ON t.id = p.task_id AND t.restaurant_id = p.restaurant_id
+        WHERE t.food_order_id = $1
+          AND t.task_type = 'Delivery'
+          AND t.status = 'En route'
+          AND p.captured_at > NOW() - INTERVAL '10 minutes'
+        ORDER BY p.captured_at DESC
+        LIMIT 1`,
+      [order.id]
+    );
+    if (runnerLocation) {
+      order.runner_location = {
+        latitude: Number(runnerLocation.latitude),
+        longitude: Number(runnerLocation.longitude),
+        capturedAt: runnerLocation.captured_at,
+      };
+    }
     res.json({ order: publicTrackedOrder(order) });
   } catch (err) {
     next(err);
@@ -5712,6 +5991,41 @@ exports.getCustomerProfile = async (req, res, next) => {
   }
 };
 
+// P3-9-F01: customer-facing loyalty balance for one restaurant. Points could
+// be earned but never viewed or spent; the checkout UI needs this to offer
+// redemption.
+exports.getMyLoyaltyBalance = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    if (!restaurantId) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
+    let pointsBalance = 0;
+    let lifetimePoints = 0;
+    try {
+      const { rows: [account] } = await pool.query(
+        `SELECT points_balance, lifetime_points
+           FROM food_loyalty_accounts
+          WHERE restaurant_id = $1 AND customer_id = $2`,
+        [restaurantId, req.user.id]
+      );
+      if (account) {
+        pointsBalance = Math.max(0, Number(account.points_balance || 0));
+        lifetimePoints = Math.max(0, Number(account.lifetime_points || 0));
+      }
+    } catch (err) {
+      if (!isMissingRelationError(err)) throw err;
+    }
+    res.json({
+      restaurantId,
+      pointsBalance,
+      lifetimePoints,
+      minRedeemPoints: FOOD_LOYALTY_MIN_REDEEM_POINTS,
+      centsPerPoint: FOOD_LOYALTY_CENTS_PER_POINT,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
 exports.updateCustomerProfile = async (req, res, next) => {
   try {
     const preferredLanguage = normalizeString(req.body.preferredLanguage || req.body.preferred_language, 24);
@@ -5754,6 +6068,26 @@ exports.updateCustomerProfile = async (req, res, next) => {
         preferredLanguage: profile.preferred_language,
         notificationsEnabled: profile.notifications_enabled === true,
       },
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// P2-8-F14: the favorites endpoints had no client UI, and there was no
+// read endpoint for restaurant favorites (only the mutating toggle). The
+// client Save button needs initial state without mutating.
+exports.listCustomerFavoriteRestaurants = async (req, res, next) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT restaurant_id
+         FROM food_customer_favorite_restaurants
+        WHERE user_id = $1
+        ORDER BY created_at DESC`,
+      [req.user.id]
+    );
+    res.json({
+      favoriteRestaurantIds: rows.map((row) => Number(row.restaurant_id)),
     });
   } catch (err) {
     next(err);
@@ -6310,6 +6644,150 @@ exports.createOrderReview = async (req, res, next) => {
       throw new AppError('Review already submitted for this order', 409, 'review_exists');
     }
     res.status(201).json({ review });
+  } catch (err) {
+    if (isMissingRelationError(err)) {
+      return next(new AppError('Reviews are not available yet', 503, 'reviews_unavailable'));
+    }
+    next(err);
+  }
+};
+
+// Shared lookup for the edit/delete flows: the caller proves ownership of the
+// order either as the signed-in customer or via the guest tracking token
+// (createOrderReview allows guest reviews, so edit/delete must too).
+async function findOwnOrderReview(orderId, userId, trackingToken) {
+  let order;
+  if (userId) {
+    const { rows } = await pool.query(
+      `SELECT * FROM food_orders WHERE id = $1 AND customer_id = $2`,
+      [orderId, userId]
+    );
+    order = rows[0];
+  } else if (trackingToken) {
+    const { rows } = await pool.query(
+      `SELECT * FROM food_orders WHERE id = $1 AND metadata->>'trackingToken' = $2`,
+      [orderId, trackingToken]
+    );
+    order = rows[0];
+  }
+  if (!order) throw new AppError('Order not found', 404, 'order_not_found');
+  const { rows } = await pool.query(
+    `SELECT * FROM food_reviews WHERE order_id = $1`,
+    [orderId]
+  );
+  const review = rows[0];
+  if (!review) throw new AppError('Review not found', 404, 'review_not_found');
+  return { order, review };
+}
+
+exports.updateOrderReview = async (req, res, next) => {
+  try {
+    const orderId = parsePositiveInt(req.params.orderId);
+    const trackingToken = normalizeString(req.body.trackingToken || req.body.tracking_token, 255);
+    const hasRating = req.body.rating !== undefined && req.body.rating !== null && req.body.rating !== '';
+    const rating = hasRating ? parsePositiveInt(req.body.rating) : null;
+    const hasBody = req.body.body !== undefined;
+    const body = hasBody ? normalizeString(req.body.body, 2000) : null;
+    if (!orderId) {
+      throw new AppError('Validation failed', 400, 'validation_failed', { orderId: 'Invalid order id' });
+    }
+    if (hasRating && (!rating || rating < 1 || rating > 5)) {
+      throw new AppError('Validation failed', 400, 'validation_failed', {
+        rating: 'Must be an integer from 1 to 5',
+      });
+    }
+    if (!hasRating && !hasBody) {
+      throw new AppError('Validation failed', 400, 'validation_failed', { body: 'Nothing to update' });
+    }
+
+    const { review } = await findOwnOrderReview(orderId, req.user?.id, trackingToken);
+
+    const sets = [];
+    const params = [review.id];
+    if (hasRating) {
+      params.push(rating);
+      sets.push(`rating = $${params.length}`);
+    }
+    if (hasBody) {
+      params.push(body);
+      sets.push(`body = $${params.length}`);
+    }
+    const { rows: [updated] } = await pool.query(
+      `UPDATE food_reviews SET ${sets.join(', ')}
+        WHERE id = $1
+        RETURNING id, restaurant_id, order_id, customer_id, rating, body, response, responded_at, created_at`,
+      params
+    );
+    res.json({ review: updated });
+  } catch (err) {
+    if (isMissingRelationError(err)) {
+      return next(new AppError('Reviews are not available yet', 503, 'reviews_unavailable'));
+    }
+    next(err);
+  }
+};
+
+exports.deleteOrderReview = async (req, res, next) => {
+  try {
+    const orderId = parsePositiveInt(req.params.orderId);
+    const trackingToken = normalizeString(
+      req.query.trackingToken || req.query.tracking_token
+        || req.body?.trackingToken || req.body?.tracking_token,
+      255
+    );
+    if (!orderId) {
+      throw new AppError('Validation failed', 400, 'validation_failed', { orderId: 'Invalid order id' });
+    }
+
+    const { review } = await findOwnOrderReview(orderId, req.user?.id, trackingToken);
+    await pool.query(`DELETE FROM food_reviews WHERE id = $1`, [review.id]);
+    res.json({ deleted: true });
+  } catch (err) {
+    if (isMissingRelationError(err)) {
+      return next(new AppError('Reviews are not available yet', 503, 'reviews_unavailable'));
+    }
+    next(err);
+  }
+};
+
+exports.respondToOrderReview = async (req, res, next) => {
+  try {
+    const orderId = parsePositiveInt(req.params.orderId);
+    const response = normalizeString(req.body.response, 2000);
+    if (!orderId) {
+      throw new AppError('Validation failed', 400, 'validation_failed', { orderId: 'Invalid order id' });
+    }
+    if (!response || response.length < 2) {
+      throw new AppError('Validation failed', 400, 'validation_failed', {
+        response: 'Response text is required',
+      });
+    }
+
+    const { rows } = await pool.query(
+      `SELECT fr.*, fo.restaurant_id
+         FROM food_reviews fr
+         JOIN food_orders fo ON fo.id = fr.order_id
+        WHERE fr.order_id = $1`,
+      [orderId]
+    );
+    const review = rows[0];
+    if (!review) throw new AppError('Review not found', 404, 'review_not_found');
+
+    const restaurant = await requireRestaurantAccess(req.user.id, review.restaurant_id);
+    await assertRestaurantPermission(
+      restaurant,
+      ['restaurant.manage', 'orders.manage'],
+      'You do not have permission to respond to reviews'
+    );
+
+    const { rows: [updated] } = await pool.query(
+      `UPDATE food_reviews
+          SET response = $2, responded_at = NOW()
+        WHERE id = $1
+        RETURNING id, restaurant_id, order_id, customer_id, rating, body, response, responded_at, created_at`,
+      [review.id, response]
+    );
+    res.json({ review: updated });
   } catch (err) {
     if (isMissingRelationError(err)) {
       return next(new AppError('Reviews are not available yet', 503, 'reviews_unavailable'));
@@ -7107,4 +7585,5 @@ exports.splitOrder = async (req, res, next) => {
 // ── Test seams (exported for unit tests) ────────────────────────────────
 exports._refundFoodOrderStripePayment = refundFoodOrderStripePayment;
 exports._clawBackFoodLoyaltyOnRefund = clawBackFoodLoyaltyOnRefund;
+exports._earnFoodLoyaltyOnComplete = earnFoodLoyaltyOnComplete;
 exports._safeReturnUrl = safeReturnUrl;

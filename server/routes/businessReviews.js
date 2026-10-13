@@ -13,7 +13,7 @@ router.use(generalLimiter);
 // POST submit a review for a completed lead (authenticated customer only)
 router.post('/:businessId/submit', authenticate, reviewsController.submitReview);
 
-// DELETE a review (customer or business owner)
+// DELETE a review (review author only; P2-8-F15)
 router.delete('/:reviewId', authenticate, reviewsController.deleteReview);
 
 // ── Public endpoints (no authentication required) ────────────────────────────

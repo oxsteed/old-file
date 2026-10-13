@@ -12,9 +12,14 @@
  * orientation first so the pixels stay upright after the orientation tag is
  * dropped.
  *
- * Fallback: pure-JS segment surgery for JPEG / PNG / WebP, used only when
- * sharp cannot be loaded (e.g. a native binding missing on some host). Both
- * paths throw on unsupported input so callers fail closed.
+ * Fallback: pure-JS segment surgery for JPEG / PNG / WebP, used when sharp
+ * cannot be loaded (e.g. a native binding missing on some host) OR when
+ * sharp fails to parse the input (libpng/libjpeg strictness rejects some
+ * images that decoders tolerate). The fallback drops metadata segments
+ * without re-encoding, so pixels are preserved verbatim.
+ *
+ * Both paths throwing means the input is not a supported image: callers fail
+ * closed.
  */
 
 let sharp = null;
@@ -40,18 +45,30 @@ function requireImageBuffer(buffer) {
 async function stripExif(buffer) {
   requireImageBuffer(buffer);
   if (sharp) {
-    const format = (await sharp(buffer, { limitInputPixels: MAX_IMAGE_PIXELS }).metadata()).format;
-    const pipeline = sharp(buffer, { limitInputPixels: MAX_IMAGE_PIXELS }).rotate(); // apply EXIF orientation, then drop the tag
-    if (format === 'jpeg' || format === 'jpg') {
-      return pipeline.jpeg({ quality: JPEG_QUALITY }).toBuffer();
+    try {
+      const format = (await sharp(buffer, { limitInputPixels: MAX_IMAGE_PIXELS }).metadata()).format;
+      const pipeline = sharp(buffer, { limitInputPixels: MAX_IMAGE_PIXELS }).rotate(); // apply EXIF orientation, then drop the tag
+      // NOTE: `return await` (not bare `return`) so a rejected encode is
+      // thrown inside this try block and falls through to the segment
+      // surgery below instead of bypassing the catch.
+      if (format === 'jpeg' || format === 'jpg') {
+        return await pipeline.jpeg({ quality: JPEG_QUALITY }).toBuffer();
+      }
+      if (format === 'png') {
+        return await pipeline.png().toBuffer();
+      }
+      if (format === 'webp') {
+        return await pipeline.webp({ quality: WEBP_QUALITY }).toBuffer();
+      }
+      throw new Error(`stripExif: unsupported image format (${format || 'unknown'})`);
+    } catch (err) {
+      // Sharp is strict (e.g. libpng rejects some marginally-valid files
+      // that decoders tolerate). Fall through to the segment-surgery
+      // fallback, which still drops all metadata without re-encoding.
+      // Truly unsupported input throws there too, keeping callers fail-closed.
+      if (err && err.message && err.message.startsWith('stripExif: unsupported image format')) throw err;
+      return stripExifFallback(buffer);
     }
-    if (format === 'png') {
-      return pipeline.png().toBuffer();
-    }
-    if (format === 'webp') {
-      return pipeline.webp({ quality: WEBP_QUALITY }).toBuffer();
-    }
-    throw new Error(`stripExif: unsupported image format (${format || 'unknown'})`);
   }
   return stripExifFallback(buffer);
 }

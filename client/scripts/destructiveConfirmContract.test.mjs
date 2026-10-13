@@ -57,11 +57,10 @@ test('dialog strings exist in all five locales with key parity', () => {
   const languages = ['en', 'es', 'fr', 'ht', 'ar'];
   const loadMerged = (lang) => {
     const merged = {};
-    for (const shard of [0, 1, 2]) {
-      Object.assign(
-        merged,
-        JSON.parse(read(path.join(clientSrc, 'locales', 'generated', `${lang}-${shard}.json`)))
-      );
+    for (let shard = 0; ; shard += 1) {
+      const shardPath = path.join(clientSrc, 'locales', 'generated', `${lang}-${shard}.json`);
+      if (!fs.existsSync(shardPath)) break;
+      Object.assign(merged, JSON.parse(read(shardPath)));
     }
     return merged;
   };

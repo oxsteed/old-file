@@ -12,6 +12,11 @@ test('first grant posts the reward and counts the conversion', async () => {
   const insert = mockQuery.mock.calls.find(([sql]) => /INSERT INTO platform_ledger/.test(sql));
   expect(insert[1]).toContain('referral:referrer:new');
   expect(mockQuery.mock.calls.some(([sql]) => /referral_conversions_count/.test(sql))).toBe(true);
+  // P3-11-F12: the grant writes an audit row attributed to the system actor.
+  const auditInsert = mockQuery.mock.calls.find(([sql]) => /INSERT INTO admin_audit_log/.test(sql));
+  expect(auditInsert).toBeDefined();
+  expect(auditInsert[1][0]).toBe('00000000-0000-0000-0000-000000000000');
+  expect(auditInsert[1][1]).toBe('referral_reward_granted');
 });
 
 test('a second grant (first-job value event) does not pay or count again', async () => {
@@ -33,4 +38,26 @@ test('a failed grant records a reconciliation exception for retry instead of fai
   expect(exCall).toBeDefined();
   expect(exCall[1][0]).toBe('credit');
   expect(exCall[1][1]).toBe('referral-reward:new');
+});
+
+test('self-referral never earns (P2-6-F12)', async () => {
+  mockQuery.mockImplementation(async () => ({ rows: [], rowCount: 0 }));
+  await expect(grantReferralReward('same-user', 'same-user')).resolves.toBe(false);
+  expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO platform_ledger/.test(sql))).toBe(false);
+});
+
+test('velocity cap withholds the reward and records a visible exception (P2-6-F12)', async () => {
+  mockQuery.mockImplementation(async (sql) => {
+    if (/FROM platform_ledger/.test(sql) && /referral_credit/.test(sql)) return { rows: [{ count: 10 }] };
+    if (/FROM reconciliation_exceptions/.test(sql)) return { rows: [] };
+    if (/INSERT INTO reconciliation_exceptions/.test(sql)) return { rows: [{ id: 10 }] };
+    return { rows: [], rowCount: 0 };
+  });
+  await expect(grantReferralReward('ref', 'new')).resolves.toBe(false);
+  // No reward posted...
+  expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO platform_ledger/.test(sql))).toBe(false);
+  // ...but the refusal is visible, not silent.
+  const exCall = mockQuery.mock.calls.find(([sql]) => /INSERT INTO reconciliation_exceptions/.test(sql));
+  expect(exCall).toBeDefined();
+  expect(exCall[1][1]).toBe('referral-velocity:ref:new');
 });

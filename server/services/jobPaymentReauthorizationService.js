@@ -81,6 +81,25 @@ async function feesFor(client, payment, amount) {
   return { platform_fee_cents: fees.platform_fee_minor, application_fee_cents: fees.application_fee_minor };
 }
 
+/**
+ * Net platform fees for a (possibly referral-discounted) reauthorization
+ * target. The discount is funded by the platform at intent creation
+ * (P2-6-F09); re-pricing or replacing the authorization must preserve that.
+ * Fee the gross (target + the already-applied credit) and subtract the
+ * credit again, instead of feeing the discounted target, which would
+ * silently move the discount back onto the helper.
+ */
+async function netFeesFor(client, payment, target) {
+  const meta = parseJson(payment?.metadata);
+  const appliedCredit = cents(meta.applied_credit_cents ?? meta.appliedCreditCents) || 0;
+  const gross = (cents(target) || 0) + appliedCredit;
+  const fees = await feesFor(client, payment, gross);
+  return {
+    platform_fee_cents: Math.max(0, fees.platform_fee_cents - appliedCredit),
+    application_fee_cents: Math.max(0, fees.application_fee_cents - appliedCredit),
+  };
+}
+
 /** What the customer still has to fund, or null when nothing is required. */
 function requirementFrom(job, payment) {
   const meta = parseJson(job?.metadata);
@@ -214,7 +233,9 @@ async function startCardReauthorization({ jobId, user }) {
     if (!Number.isInteger(target) || target < 50 || target > MAX_PAYMENT_CENTS) {
       throw new AppError('The new amount cannot be authorized online. Contact support.', 409, 'payment_reauthorization_amount_invalid');
     }
-    const fees = await feesFor(client, payment, target);
+    // P2-6-F09: net fees preserve the platform-funded discount through
+    // re-pricing/replacement (fee the gross, subtract the applied credit).
+    const fees = await netFeesFor(client, payment, target);
     const model = chargeModel.modelOf(payment);
 
     if (requirement.card === 'intent_reprice_required') {
@@ -345,7 +366,9 @@ async function finalizeAuthorizedInTransaction(client, attempt, intent, { job, p
     return { attempt: { ...current, status: 'canceled' }, cancelAfter: { intentId: intent.id, account: current.stripe_account_id, attemptId: current.id, key: `job-payment-reauth-cancel:${current.id}`, model } };
   }
   const amount = cents(current.amount_cents);
-  const fees = await feesFor(client, lockedPayment, amount);
+  // P2-6-F09: keep the platform-funded discount through the replacement
+  // authorization instead of re-feeing the discounted amount.
+  const fees = await netFeesFor(client, lockedPayment, amount);
   const windowDays = await authWindowDays(client, lockedPayment);
   const meta = parseJson(lockedPayment.metadata);
   const superseded = Array.isArray(meta.superseded_payment_intent_ids) ? meta.superseded_payment_intent_ids : [];

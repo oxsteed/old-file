@@ -8,6 +8,7 @@ const logger = require('../utils/logger');
 const creditLedger = require('../services/referralCreditLedger');
 const stripeRail = require('../services/paymentRails/stripeRail');
 const chargeModel = require('../services/stripeChargeModel');
+const { applyPlatformFundedDiscount } = require('../utils/feeCalculator');
 const { currencyExponent } = require('../validation/money');
 const {
   withTransaction,
@@ -321,6 +322,11 @@ exports.createPaymentIntent = async (req, res, next) => {
     if (job.rows[0].client_id !== req.user.id) {
       throw new AppError('Not authorized to create payment for this job', 403, 'forbidden');
     }
+    // P3-1-F13: no payment intents on terminal jobs. Capturing on a
+    // completed or cancelled job would move money outside the job lifecycle.
+    if (['completed', 'cancelled'].includes(job.rows[0].status)) {
+      throw new AppError('Payments cannot be created for completed or cancelled jobs', 409, 'job_not_payable');
+    }
     if (!job.rows[0].job_value) {
       throw new AppError('No agreed price set for this job', 400, 'missing_job_value');
     }
@@ -380,10 +386,21 @@ exports.createPaymentIntent = async (req, res, next) => {
       const availableCreditCents = plan.currency === 'USD'
         ? Math.max(0, parseInt(creditResult.rows?.[0]?.balance_cents || '0', 10))
         : 0;
-      // Cap credit at job value — can't go below $0.50 (Stripe minimum)
-      const appliedCreditCents = Math.min(availableCreditCents, Math.max(0, rawJobValueCents - 50));
-      const jobValueCents = rawJobValueCents - appliedCreditCents;
-      const fees = await stripeRail.feesFor(client, plan, jobValueCents);
+      // P2-6-F09: fees are computed on the GROSS job value and the discount
+      // is funded by the platform out of its own fee, never by the helper.
+      // The helper's net is identical with or without the discount. The
+      // credit can never exceed the platform's fee on the job (fail-closed:
+      // the platform never goes negative funding a discount), and the
+      // customer charge never drops below the $0.50 Stripe minimum.
+      const fees = await stripeRail.feesFor(client, plan, rawJobValueCents);
+      const discount = applyPlatformFundedDiscount({
+        rawJobValueCents,
+        availableCreditCents,
+        platformFeeCents: fees.platform_fee_cents,
+        applicationFeeCents: fees.application_fee_cents,
+      });
+      const appliedCreditCents = discount.appliedCreditCents;
+      const jobValueCents = discount.chargeCents;
 
       // Check for existing payment to prevent duplicates (idempotency).
       // We must return the actual `client_secret` from Stripe — not the PaymentIntent
@@ -443,7 +460,7 @@ exports.createPaymentIntent = async (req, res, next) => {
         model: plan.model,
         amountMinor: jobValueCents,
         currency: plan.currency,
-        applicationFeeMinor: fees.application_fee_cents,
+        applicationFeeMinor: discount.applicationFeeCents,
         helperAccountId: freshConnect.stripe_account_id,
         paymentMethodTypes: plan.paymentMethodTypes,
         metadata: {
@@ -451,7 +468,10 @@ exports.createPaymentIntent = async (req, res, next) => {
           client_id: req.user.id.toString(),
           helper_id: job.rows[0].assigned_helper_id.toString(),
           tier: 'tier3',
-          platform_fee_cents: fees.platform_fee_cents.toString()
+          // Net platform take after funding the discount; the gross fee is
+          // kept alongside for audit.
+          platform_fee_cents: discount.applicationFeeCents.toString(),
+          gross_platform_fee_cents: fees.platform_fee_cents.toString()
         }
       });
       if (plan.model === 'direct' && !plan.feeCountry) delete built.params.metadata.charge_model;
@@ -472,12 +492,13 @@ exports.createPaymentIntent = async (req, res, next) => {
              amount, platform_fee, status, payment_hold_status, stripe_account_id, metadata,
              currency, charge_model, destination_account_id, fee_country)
            VALUES ($1, $2, $3, $4, $5, $6, 'pending', 'pending', $7, $8::jsonb, $9, $10, $11, $12)
-           RETURNING id`, [job_id, req.user.id, job.rows[0].assigned_helper_id, paymentIntent.id, jobValueCents / minorScale, fees.platform_fee_cents / minorScale,
+           RETURNING id`, [job_id, req.user.id, job.rows[0].assigned_helper_id, paymentIntent.id, jobValueCents / minorScale, discount.applicationFeeCents / minorScale,
           plan.model === 'direct' ? freshConnect.stripe_account_id : null, JSON.stringify({
           discounted_amount_cents: jobValueCents,
           raw_job_value_cents: rawJobValueCents,
           appliedCreditCents: appliedCreditCents,
-          platform_fee_cents: fees.platform_fee_cents,
+          platform_fee_cents: discount.applicationFeeCents,
+          gross_platform_fee_cents: fees.platform_fee_cents,
           applied_credit_cents: appliedCreditCents
         }), plan.currency.toLowerCase(), plan.model, plan.model === 'direct' ? null : freshConnect.stripe_account_id, plan.feeCountry]));
         // Audit fix: payment starts as 'pending', not 'authorized'. The
@@ -528,6 +549,27 @@ exports.createPaymentIntent = async (req, res, next) => {
 
       // Referral credit is reserved above and released by the webhook if
       // the intent fails or is cancelled (P2-571).
+      // P3-11-F13: audit the Tier-3 payment-intent creation. The client is
+      // the caller's transaction client, so a dropped audit row rolls the
+      // intent back instead of leaving an unaudited authorization.
+      await logAdminAction({
+        client,
+        adminId: req.user.id,
+        action: 'tier3_payment_intent_created',
+        targetType: 'payment',
+        targetId: String(insertRows[0].id),
+        description: `Tier-3 payment intent created for job ${job_id} (${jobValueCents} ${plan.currency})`,
+        before: { status: null },
+        after: {
+          status: 'pending',
+          amount_cents: jobValueCents,
+          currency: plan.currency,
+          charge_model: plan.model,
+          stripe_payment_intent_id: paymentIntent.id,
+          applied_credit_cents: appliedCreditCents,
+          transaction_mode: 'guided_protected',
+        },
+      });
       return {
         replay: false,
         paymentIntent,
@@ -721,14 +763,50 @@ exports.disconnectConnectAccount = async (req, res, next) => {
       success: true,
       message: 'No connected payout account found.'
     });
+    // P3-1-F14: refuse while money is in flight. Disconnecting with an
+    // authorized or unsettled payment would strand the capture/refund path.
+    const { rows: inflight } = await pool.query(
+      `SELECT id FROM payments
+        WHERE payee_id = $1
+          AND status IN ('pending', 'authorized', 'captured')
+          AND payment_hold_status NOT IN ('released', 'refunded')
+        LIMIT 1`,
+      [req.user.id]
+    );
+    if (inflight[0]) {
+      throw new AppError(
+        'You have payments still in progress. Wait until they settle before disconnecting your payout account.',
+        409,
+        'payments_in_flight'
+      );
+    }
     if (process.env.STRIPE_SECRET_KEY && account.stripe_account_id) {
       try {
         await stripe.accounts.del(account.stripe_account_id);
       } catch (stripeErr) {
-        logger.warn('Stripe account disconnect failed; removing local link', {
+        // P3-1-F14: a Stripe-side failure must NOT delete the local row.
+        // Otherwise the account reads "not connected" locally while Stripe
+        // still has it, and payouts silently stop routing. Fail closed,
+        // except when Stripe confirms the account is already gone.
+        const gone = stripeErr && (
+          stripeErr.code === 'resource_missing' ||
+          /no such account/i.test(stripeErr.message || '')
+        );
+        if (!gone) {
+          logger.error('Stripe account disconnect failed; keeping local link', {
+            userId: req.user.id,
+            accountId: account.stripe_account_id,
+            error: stripeErr.message
+          });
+          throw new AppError(
+            'Could not disconnect the payout account with the payment provider. Please try again.',
+            502,
+            'connect_disconnect_failed'
+          );
+        }
+        logger.warn('Stripe account already gone; removing local link', {
           userId: req.user.id,
-          accountId: account.stripe_account_id,
-          error: stripeErr.message
+          accountId: account.stripe_account_id
         });
       }
     }
@@ -743,6 +821,7 @@ exports.disconnectConnectAccount = async (req, res, next) => {
       userId: req.user?.id,
       error: err.message
     });
+    if (err instanceof AppError) return next(err);
     next(new AppError('Failed to disconnect payout account', 500, 'connect_disconnect_failed'));
   }
 };
@@ -821,7 +900,8 @@ exports.capturePayment = async (req, res, next) => {
         const result = await captureAuthorizedPayment({
           paymentId: paymentData.id,
           jobId: job_id,
-          amount: paymentData.amount
+          amount: paymentData.amount,
+          actorUserId: req.user?.id,
         });
         return res.status(200).json({
           status: 'captured',
@@ -836,6 +916,10 @@ exports.capturePayment = async (req, res, next) => {
           paymentId: paymentData.id,
           error: capErr.message
         });
+        // P3-1-F08: business-rule rejections from the capture service (e.g.
+        // a dispute opened mid-capture) keep their own status and code; only
+        // unexpected/provider failures become 502.
+        if (capErr instanceof AppError) throw capErr;
         throw new AppError(capErr.message || 'Could not capture payment. Please try again or contact support.', 502, 'payment_capture_failed');
       }
     } finally {

@@ -1,10 +1,29 @@
 'use strict';
 
 const pool = require('../db');
+const logger = require('../utils/logger');
 const { AppError } = require('../middleware/errorHandler');
 const { withTransaction } = require('../utils/transaction');
 const socketService = require('../services/socketService');
+const smsNotificationService = require('../services/smsNotificationService');
 const { consumeInventoryForOrder } = require('../services/restaurantInventoryOrderService');
+
+// P2-8-F08: the per-type order_shipped SMS had zero callers. A runner picking
+// up a delivery food order is the food-order analog of "shipped".
+// Fire-and-forget; opt-in checks and rate limits live in the service.
+async function notifyOrderPickedUpSms(foodOrderId) {
+  try {
+    const { rows } = await pool.query(
+      `SELECT customer_id FROM food_orders WHERE id = $1`,
+      [foodOrderId]
+    );
+    const customerId = rows[0]?.customer_id;
+    if (!customerId) return;
+    smsNotificationService.sendOrderShippedSMS(customerId, foodOrderId);
+  } catch (err) {
+    logger.warn('order picked-up SMS failed (non-blocking)', { error: err && err.message, foodOrderId });
+  }
+}
 
 function emitDeliveryHandoff(restaurantId, order) {
   if (!order) return;
@@ -37,6 +56,18 @@ function asBool(value, fallback = false) {
   if (value === 'true' || value === '1' || value === 1) return true;
   if (value === 'false' || value === '0' || value === 0) return false;
   return fallback;
+}
+
+// Delivery proof must be an attested method, not an arbitrary string. The
+// runner page posts `method` (older clients post `proof_type`); both are
+// accepted and normalized to the allowlist.
+const RUNNER_PROOF_METHODS = new Set(['photo', 'signature', 'customer_name', 'delivery', 'note']);
+
+function normalizeProofMethod(value) {
+  const raw = normalizeString(value, 40);
+  if (!raw) return null;
+  const canonical = raw.toLowerCase().replace(/[\s-]+/g, '_');
+  return RUNNER_PROOF_METHODS.has(canonical) ? canonical : null;
 }
 
 function parseAmount(value, field = 'amount') {
@@ -416,6 +447,10 @@ exports.updateTaskStatus = async (req, res, next) => {
       return { task, completedOrder };
     }, 'restaurant_runner_status_update');
     emitDeliveryHandoff(restaurantId, result.completedOrder);
+    // P2-8-F08: wire the dead per-type order_shipped SMS for delivery orders.
+    if (status === 'Picked up' && result.task?.task_type === 'Delivery' && result.task?.food_order_id) {
+      notifyOrderPickedUpSms(result.task.food_order_id);
+    }
     res.json({ task: result.task });
   } catch (err) {
     next(err);
@@ -432,14 +467,26 @@ exports.logProof = async (req, res, next) => {
     // M14: logProof completes the task, so it must obey the transition map
     // (only 'En route' -> 'Completed' is legal), not a wider allowlist.
     assertLegalRunnerCompletion(task.status);
+    // Proof is self-attested, so require both a known method and a written
+    // note. An unknown method or an empty note is a formally bypassable
+    // proof and is rejected.
+    const proofMethod = normalizeProofMethod(req.body.method ?? req.body.proof_type);
+    if (!proofMethod) {
+      throw new AppError('Validation failed', 400, 'validation_failed', {
+        method: `Proof method must be one of: ${[...RUNNER_PROOF_METHODS].join(', ')}`,
+      });
+    }
+    const proofNote = normalizeString(req.body.note, 2000);
+    if (!proofNote) {
+      throw new AppError('A proof note is required when logging delivery proof', 400, 'proof_note_required');
+    }
     const result = await withTransaction(pool, async (client) => {
       const { rows: [proof] } = await client.query(
         `INSERT INTO restaurant_runner_proofs
            (restaurant_id, task_id, method, note, created_by)
          VALUES ($1,$2,$3,$4,$5)
          RETURNING *`,
-        [restaurantId, taskId, normalizeString(req.body.method, 40) || 'Photo / signature',
-          normalizeString(req.body.note, 2000), req.user.id]
+        [restaurantId, taskId, proofMethod, proofNote, req.user.id]
       );
       const { rows: [updatedTask] } = await client.query(
         `UPDATE restaurant_runner_tasks

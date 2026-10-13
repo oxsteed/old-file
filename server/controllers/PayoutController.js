@@ -1,7 +1,7 @@
 const pool = require('../db');
 const logger = require('../utils/logger');
 const { sendError, sendValidationError } = require('../utils/apiError');
-const { logAdminAction } = require('../services/auditService');
+const { logAdminAction, logUserAction } = require('../services/auditService');
 
 // C9: Idempotency-Key must be caller-supplied, URL-safe, and bounded.
 function normalizeIdempotencyKey(value) {
@@ -11,6 +11,39 @@ function normalizeIdempotencyKey(value) {
 }
 
 class PayoutController {
+  // P3-1-F12: payout destination changes used to leave only a logger.info
+  // line, so an account-takeover payout redirection was silent. Every
+  // change now writes an audit row and notifies the account owner; both are
+  // best-effort after the mutation commits so they can never block it.
+  static async auditPayoutDestinationChange({ userId, methodId, methodType, detail, req }) {
+    try {
+      await logUserAction({
+        adminId: userId,
+        targetUserId: userId,
+        actionType: 'payout_destination_changed',
+        fieldName: 'payout_method',
+        oldValue: null,
+        newValue: `${methodType}:${methodId}`,
+        ipAddress: req?.ip || null,
+        notes: `self-service: ${detail}`,
+      });
+    } catch (auditErr) {
+      logger.error('Failed to audit payout destination change', { userId, methodId, error: auditErr.message });
+    }
+    try {
+      const { sendNotification } = require('../services/notificationService');
+      await sendNotification({
+        userId,
+        type: 'payout_destination_changed',
+        data: { payout_method_id: methodId },
+        action_url: '/settings/payouts',
+        idempotencyKey: `payout-destination:${methodId}:${Date.now()}`,
+      });
+    } catch (notifyErr) {
+      logger.warn('Failed to notify payout destination change', { userId, methodId, error: notifyErr.message });
+    }
+  }
+
   // Get all payouts for a helper
   static async getPayouts(req, res) {
     try {
@@ -206,27 +239,60 @@ class PayoutController {
           return sendError(res, 409, 'Complete Stripe Connect onboarding before adding a payout method');
         }
       }
-      const query = `
-        INSERT INTO payout_methods (
-          helper_id, method_type, account_holder_name, bank_name, account_last_four,
-          routing_number_last_four, account_type, paypal_email, stripe_account_id, is_primary, status
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, TRUE, 'pending')
-        RETURNING *
-      `;
+      // P2-8-F12: the insert always used is_primary=TRUE, so adding a second
+      // method hit the unique_primary_method_per_helper partial index and
+      // 500ed. Demote the existing primary in the same transaction; the
+      // advisory lock serializes concurrent creates for one helper.
+      const client = await pool.connect();
+      let result;
+      try {
+        await client.query('BEGIN');
+        await client.query(
+          `SELECT pg_advisory_xact_lock(hashtextextended($1, 0))`,
+          [`payout-method:${helper_id}`]
+        );
+        await client.query(
+          `UPDATE payout_methods SET is_primary = FALSE
+            WHERE helper_id = $1 AND is_primary = TRUE`,
+          [helper_id]
+        );
+        const query = `
+          INSERT INTO payout_methods (
+            helper_id, method_type, account_holder_name, bank_name, account_last_four,
+            routing_number_last_four, account_type, paypal_email, stripe_account_id, is_primary, status
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, TRUE, 'pending')
+          RETURNING *
+        `;
 
-      const result = await pool.query(query, [
-        helper_id,
-        method_type,
-        account_holder_name || null,
-        bank_name || null,
-        account_last_four || null,
-        routing_number_last_four || null,
-        account_type || null,
-        paypal_email || null,
-        stripeAccountId
-      ]);
+        result = await client.query(query, [
+          helper_id,
+          method_type,
+          account_holder_name || null,
+          bank_name || null,
+          account_last_four || null,
+          routing_number_last_four || null,
+          account_type || null,
+          paypal_email || null,
+          stripeAccountId
+        ]);
+        await client.query('COMMIT');
+      } catch (txErr) {
+        await client.query('ROLLBACK');
+        throw txErr;
+      } finally {
+        client.release();
+      }
 
       logger.info('Payout method created', { helper_id, method_id: result.rows[0].id });
+
+      // P3-1-F12: audit + notify on payout destination changes.
+      await PayoutController.auditPayoutDestinationChange({
+        userId: helper_id,
+        methodId: result.rows[0].id,
+        methodType: method_type,
+        detail: 'payout method added and set as primary',
+        req,
+      });
 
       res.status(201).json({
         success: true,
@@ -283,6 +349,16 @@ class PayoutController {
       if (!result.rows.length) {
         return sendError(res, 404, 'Payout method not found');
       }
+
+      // P3-1-F12: audit + notify on payout destination changes (primary
+      // switches and deactivations both redirect where money goes).
+      await PayoutController.auditPayoutDestinationChange({
+        userId: helper_id,
+        methodId: result.rows[0].id,
+        methodType: result.rows[0].method_type,
+        detail: `payout method updated (is_primary=${result.rows[0].is_primary}, status=${result.rows[0].status})`,
+        req,
+      });
 
       res.json({
         success: true,

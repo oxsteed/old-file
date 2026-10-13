@@ -10,6 +10,12 @@
  *     already applied and must stay untouched).
  *   - Every read path on the sessions table must treat a session as dead
  *     if EITHER flag says so.
+ *   - Review P3-14-F01: migration 824 drops the trigger entirely. The
+ *     trigger silently enforced single-live-session-per-user (every new
+ *     session row revoked all previous sessions for that user); per-session
+ *     revocation now lives in application code (refresh rotation revokes
+ *     only the rotated session; password change / security actions revoke
+ *     deliberately).
  *
  * #17 — Direct TIMESTAMP columns must all be covered by the TIMESTAMPTZ
  *   conversion in migration 715 (named migrations 374/375/376/416/417/418).
@@ -27,7 +33,7 @@ function readMigration(name) {
 
 // ─── #15a: migration 714 trigger body sets BOTH flags ───────────────────────
 
-describe('P2 #15: session trigger dual-writes is_valid + is_revoked', () => {
+describe('P2 #15 / P3-14-F01: session invalidation trigger lifecycle', () => {
   test('migration 200 is left untouched (already applied)', () => {
     const sql200 = readMigration('200_session_fixation_prevention.sql');
     // The original one-flag body must still be there: the fix belongs in 714.
@@ -44,56 +50,21 @@ describe('P2 #15: session trigger dual-writes is_valid + is_revoked', () => {
     expect(setClause).toContain('IS_VALID = FALSE');
   });
 
-  test('trigger body behavior: previous sessions for the user get both flags set', () => {
-    let pgMem;
-    try {
-      // Optional: only exercised where pg-mem is installed (verification env).
-      pgMem = require('pg-mem');
-    } catch {
-      pgMem = null;
-    }
-    if (!pgMem) {
-      // eslint-disable-next-line no-console
-      console.warn('pg-mem not installed; skipping trigger behavior simulation');
-      return;
-    }
-    const sql714 = readMigration('716_session_trigger_dual_flags.sql');
-    const body = sql714.match(/BEGIN([\s\S]*?)RETURN NEW;/i)[1];
-    const updateTpl = body.match(/UPDATE\s+sessions[\s\S]*?;/i)[0];
-    const userA = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
-    const userB = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb';
-    const nowTs = new Date();
-    const newId = 4;
-    // pg-mem has an internal bug with bound parameters in this shape of
-    // UPDATE, so substitute literals (test-only simulation of NEW).
-    const iso = (d) => d.toISOString().replace('T', ' ').replace('Z', '+00');
-    const update = updateTpl
-      .replace(/NEW\.user_id/g, `'${userA}'`)
-      .replace(/NEW\.id/g, String(newId))
-      .replace(/NEW\.created_at/g, `TIMESTAMPTZ '${iso(nowTs)}'`);
+  test('Review P3-14-F01: migration 824 drops the single-live-session trigger', () => {
+    const sql824 = readMigration('824_drop_single_session_trigger_and_rollout_pct.sql');
+    // The trigger that revoked every previous session for the user on each
+    // new session insert must be gone, along with its function, so a new
+    // login no longer logs the user out on all other devices.
+    expect(sql824).toMatch(/DROP TRIGGER IF EXISTS trigger_invalidate_old_sessions ON sessions/);
+    expect(sql824).toMatch(/DROP FUNCTION IF EXISTS invalidate_previous_sessions\(\)/);
+    // Migration 200 itself stays untouched (already applied to production).
+    const sql200 = readMigration('200_session_fixation_prevention.sql');
+    expect(sql200).toMatch(/CREATE TRIGGER trigger_invalidate_old_sessions/);
+  });
 
-    const db = pgMem.newDb();
-    db.public.none(`CREATE TABLE sessions (
-      id BIGSERIAL PRIMARY KEY,
-      user_id UUID,
-      is_valid BOOLEAN NOT NULL DEFAULT true,
-      is_revoked BOOLEAN NOT NULL DEFAULT false,
-      created_at TIMESTAMPTZ DEFAULT now()
-    )`);
-    db.public.none(
-      `INSERT INTO sessions (user_id, created_at) VALUES
-        ('${userA}', now() - interval '2 hours'),
-        ('${userA}', now() - interval '1 hour'),
-        ('${userB}', now() - interval '2 hours')`
-    );
-    // Simulate the trigger firing for a brand-new session of userA.
-    db.public.none(update);
-
-    const rows = db.public.many('SELECT id, is_valid, is_revoked FROM sessions ORDER BY id');
-    expect(rows[0]).toEqual({ id: 1, is_valid: false, is_revoked: true });
-    expect(rows[1]).toEqual({ id: 2, is_valid: false, is_revoked: true });
-    // Other users are untouched.
-    expect(rows[2]).toEqual({ id: 3, is_valid: true, is_revoked: false });
+  test('Review P3-7-F08: migration 824 drops the dead rollout_pct column', () => {
+    const sql824 = readMigration('824_drop_single_session_trigger_and_rollout_pct.sql');
+    expect(sql824).toMatch(/ALTER TABLE feature_flags DROP COLUMN IF EXISTS rollout_pct/);
   });
 });
 

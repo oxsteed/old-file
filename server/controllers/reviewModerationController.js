@@ -21,6 +21,34 @@ const REPORT_REASONS = Object.freeze({
 
 const REPORT_REASON_VALUES = Object.freeze(Object.values(REPORT_REASONS));
 
+// Review targets a report can point at. product_reviews uses UUID ids;
+// business_reviews and food_reviews use BIGINT ids in their own tables,
+// so each type has its own reference column on review_reports.
+const REVIEW_TYPES = Object.freeze({
+  product: Object.freeze({
+    idColumn: 'review_id',
+    table: 'product_reviews',
+    reviewerColumn: 'helper_id',
+    lookupSql: 'SELECT id, helper_id AS reviewer_id FROM product_reviews WHERE id = $1',
+    bumpCountSql: 'UPDATE product_reviews SET report_count = report_count + 1, updated_at = NOW() WHERE id = $1',
+  }),
+  business: Object.freeze({
+    idColumn: 'business_review_id',
+    table: 'business_reviews',
+    reviewerColumn: 'customer_id',
+    lookupSql: 'SELECT id, customer_id AS reviewer_id FROM business_reviews WHERE id = $1',
+    bumpCountSql: 'UPDATE business_reviews SET report_count = report_count + 1, updated_at = NOW() WHERE id = $1',
+  }),
+  food: Object.freeze({
+    idColumn: 'food_review_id',
+    table: 'food_reviews',
+    reviewerColumn: 'customer_id',
+    lookupSql: 'SELECT id, customer_id AS reviewer_id FROM food_reviews WHERE id = $1',
+    bumpCountSql: 'UPDATE food_reviews SET report_count = report_count + 1 WHERE id = $1',
+  }),
+});
+const REVIEW_TYPE_VALUES = Object.freeze(Object.keys(REVIEW_TYPES));
+
 const MODERATION_ACTIONS = Object.freeze({
   HIDDEN: 'hidden',
   REMOVED: 'removed',
@@ -37,13 +65,16 @@ exports.reportReview = async (req, res, next) => {
   try {
     const userId = req.user.id;
     const { reviewId } = req.params;
-    const { reason, description } = req.body;
+    const { reason, description, reviewType = 'product' } = req.body;
     const clientRequestId = getClientRequestId(req);
     if (clientRequestId === false) {
       throw new AppError('Validation failed', 400, 'validation_failed', { clientRequestId: 'Must be a valid UUID' });
     }
 
     const fields = {};
+    if (!REVIEW_TYPE_VALUES.includes(reviewType)) {
+      fields.reviewType = `Invalid review type. Must be one of: ${REVIEW_TYPE_VALUES.join(', ')}`;
+    }
     if (!REPORT_REASON_VALUES.includes(reason)) {
       fields.reason = `Invalid reason. Must be one of: ${REPORT_REASON_VALUES.join(', ')}`;
     }
@@ -54,11 +85,10 @@ exports.reportReview = async (req, res, next) => {
       throw new AppError('Validation failed', 400, 'validation_failed', fields);
     }
 
-    // Verify review exists
-    const { rows: reviewRows } = await pool.query(
-      'SELECT id, helper_id, product_id FROM product_reviews WHERE id = $1',
-      [reviewId]
-    );
+    const typeCfg = REVIEW_TYPES[reviewType];
+
+    // Verify review exists (business and food reviews live in their own tables)
+    const { rows: reviewRows } = await pool.query(typeCfg.lookupSql, [reviewId]);
 
     if (!reviewRows.length) {
       throw new AppError('Review not found', 404, 'not_found');
@@ -67,7 +97,7 @@ exports.reportReview = async (req, res, next) => {
     const review = reviewRows[0];
 
     // Cannot report own review
-    if (review.helper_id === userId) {
+    if (review.reviewer_id === userId) {
       throw new AppError('You cannot report your own review', 400, 'validation_failed');
     }
 
@@ -88,11 +118,11 @@ exports.reportReview = async (req, res, next) => {
       }
     }
 
-    // Check for duplicate pending report from same user
+    // Check for duplicate pending report from same user (scoped to review type)
     const { rows: existingReports } = await pool.query(
       `SELECT id FROM review_reports
-       WHERE review_id = $1 AND reported_by = $2 AND status IN ('open', 'under_review')`,
-      [reviewId, userId]
+       WHERE review_type = $1 AND ${typeCfg.idColumn} = $2 AND reported_by = $3 AND status IN ('open', 'under_review')`,
+      [reviewType, reviewId, userId]
     );
 
     if (existingReports.length > 0) {
@@ -101,12 +131,12 @@ exports.reportReview = async (req, res, next) => {
 
     // Create report
     const { rows: reportRows } = await pool.query(
-      `INSERT INTO review_reports (review_id, reported_by, reason, description, status, submitted_at, client_request_id)
-       VALUES ($1, $2, $3, $4, 'open', NOW(), $5)
+      `INSERT INTO review_reports (review_type, ${typeCfg.idColumn}, reported_by, reason, description, status, submitted_at, client_request_id)
+       VALUES ($1, $2, $3, $4, $5, 'open', NOW(), $6)
        ON CONFLICT (reported_by, client_request_id)
        WHERE client_request_id IS NOT NULL DO NOTHING
        RETURNING *`,
-      [reviewId, userId, reason, description.trim(), clientRequestId]
+      [reviewType, reviewId, userId, reason, description.trim(), clientRequestId]
     );
 
     let report = reportRows[0];
@@ -133,10 +163,7 @@ exports.reportReview = async (req, res, next) => {
     }
 
     // Increment report count on review
-    await pool.query(
-      'UPDATE product_reviews SET report_count = report_count + 1, updated_at = NOW() WHERE id = $1',
-      [reviewId]
-    );
+    await pool.query(typeCfg.bumpCountSql, [reviewId]);
 
     // Notify admins
     try {
@@ -150,8 +177,8 @@ exports.reportReview = async (req, res, next) => {
             userId: admin.id,
             type: 'review_reported',
             title: 'Review Reported for Moderation',
-            body: `A review has been reported as ${reason.replace(/_/g, ' ')}`,
-            data: { reviewId, reportId: report.id },
+            body: `A ${reviewType} review has been reported as ${reason.replace(/_/g, ' ')}`,
+            data: { reviewId, reviewType, reportId: report.id },
             action_url: `/admin/reviews/reports/${report.id}`
           })
         )
@@ -182,11 +209,21 @@ exports.getMyReports = async (req, res, next) => {
     const { rows: reports } = await pool.query(
       `SELECT
          r.*,
-         pr.rating, pr.title, pr.comment, pr.helper_id,
-         u_helper.first_name || ' ' || u_helper.last_name AS helper_name
+         COALESCE(pr.rating, br.rating, fr.rating) AS rating,
+         pr.title AS product_title,
+         pr.comment AS product_comment,
+         pr.helper_id,
+         br.testimonial AS business_testimonial,
+         br.business_id,
+         fr.body AS food_body,
+         fr.restaurant_id,
+         COALESCE(pr.helper_id, br.customer_id, fr.customer_id) AS reviewer_id,
+         u_rev.first_name || ' ' || u_rev.last_name AS reviewer_name
        FROM review_reports r
-       JOIN product_reviews pr ON r.review_id = pr.id
-       JOIN users u_helper ON pr.helper_id = u_helper.id
+       LEFT JOIN product_reviews pr ON r.review_type = 'product' AND r.review_id = pr.id
+       LEFT JOIN business_reviews br ON r.review_type = 'business' AND r.business_review_id = br.id
+       LEFT JOIN food_reviews fr ON r.review_type = 'food' AND r.food_review_id = fr.id
+       LEFT JOIN users u_rev ON u_rev.id = COALESCE(pr.helper_id, br.customer_id, fr.customer_id)
        WHERE r.reported_by = $1
        ORDER BY r.submitted_at DESC`,
       [userId]
@@ -218,15 +255,28 @@ exports.listReports = async (req, res, next) => {
     const { rows: reports, rowCount } = await pool.query(
       `SELECT
          r.*,
-         pr.rating, pr.title, pr.comment, pr.helper_id, pr.report_count,
-         u_helper.first_name || ' ' || u_helper.last_name AS helper_name,
+         COALESCE(pr.rating, br.rating, fr.rating) AS rating,
+         pr.title AS product_title, pr.comment AS product_comment,
+         pr.helper_id, pr.product_id,
+         br.testimonial AS business_testimonial, br.business_id,
+         fr.body AS food_body, fr.restaurant_id,
+         COALESCE(pr.helper_id, br.customer_id, fr.customer_id) AS reviewer_id,
+         u_rev.first_name || ' ' || u_rev.last_name AS reviewer_name,
          u_reporter.first_name || ' ' || u_reporter.last_name AS reporter_name,
-         u_admin.first_name || ' ' || u_admin.last_name AS reviewed_by_name
+         u_admin.first_name || ' ' || u_admin.last_name AS reviewed_by_name,
+         p.name AS product_name,
+         b.business_name AS business_name,
+         fr_rest.display_name AS restaurant_name
        FROM review_reports r
-       JOIN product_reviews pr ON r.review_id = pr.id
-       JOIN users u_helper ON pr.helper_id = u_helper.id
+       LEFT JOIN product_reviews pr ON r.review_type = 'product' AND r.review_id = pr.id
+       LEFT JOIN business_reviews br ON r.review_type = 'business' AND r.business_review_id = br.id
+       LEFT JOIN food_reviews fr ON r.review_type = 'food' AND r.food_review_id = fr.id
+       LEFT JOIN users u_rev ON u_rev.id = COALESCE(pr.helper_id, br.customer_id, fr.customer_id)
        JOIN users u_reporter ON r.reported_by = u_reporter.id
        LEFT JOIN users u_admin ON r.reviewed_by = u_admin.id
+       LEFT JOIN marketplace_products p ON pr.product_id = p.id
+       LEFT JOIN businesses b ON br.business_id = b.id
+       LEFT JOIN food_restaurants fr_rest ON fr.restaurant_id = fr_rest.id
        WHERE r.status = $1
        ORDER BY r.submitted_at DESC
        LIMIT $2 OFFSET $3`,
@@ -255,17 +305,28 @@ exports.getReportDetail = async (req, res, next) => {
     const { rows: reportRows } = await pool.query(
       `SELECT
          r.*,
-         pr.rating, pr.title, pr.comment, pr.helper_id, pr.product_id,
-         u_helper.first_name || ' ' || u_helper.last_name AS helper_name,
+         COALESCE(pr.rating, br.rating, fr.rating) AS rating,
+         pr.title AS product_title, pr.comment AS product_comment,
+         pr.helper_id, pr.product_id,
+         br.testimonial AS business_testimonial, br.business_id,
+         fr.body AS food_body, fr.restaurant_id,
+         COALESCE(pr.helper_id, br.customer_id, fr.customer_id) AS reviewer_id,
+         u_rev.first_name || ' ' || u_rev.last_name AS reviewer_name,
          u_reporter.first_name || ' ' || u_reporter.last_name AS reporter_name,
          u_admin.first_name || ' ' || u_admin.last_name AS reviewed_by_name,
-         p.name AS product_name
+         p.name AS product_name,
+         b.business_name AS business_name,
+         fr_rest.display_name AS restaurant_name
        FROM review_reports r
-       JOIN product_reviews pr ON r.review_id = pr.id
-       JOIN users u_helper ON pr.helper_id = u_helper.id
+       LEFT JOIN product_reviews pr ON r.review_type = 'product' AND r.review_id = pr.id
+       LEFT JOIN business_reviews br ON r.review_type = 'business' AND r.business_review_id = br.id
+       LEFT JOIN food_reviews fr ON r.review_type = 'food' AND r.food_review_id = fr.id
+       LEFT JOIN users u_rev ON u_rev.id = COALESCE(pr.helper_id, br.customer_id, fr.customer_id)
        JOIN users u_reporter ON r.reported_by = u_reporter.id
        LEFT JOIN users u_admin ON r.reviewed_by = u_admin.id
        LEFT JOIN marketplace_products p ON pr.product_id = p.id
+       LEFT JOIN businesses b ON br.business_id = b.id
+       LEFT JOIN food_restaurants fr_rest ON fr.restaurant_id = fr_rest.id
        WHERE r.id = $1`,
       [reportId]
     );
@@ -275,6 +336,7 @@ exports.getReportDetail = async (req, res, next) => {
     }
 
     const report = reportRows[0];
+    const detailCfg = REVIEW_TYPES[report.review_type] || REVIEW_TYPES.product;
 
     // Get moderation history
     const { rows: history } = await pool.query(
@@ -283,9 +345,14 @@ exports.getReportDetail = async (req, res, next) => {
          u.first_name || ' ' || u.last_name AS performed_by_name
        FROM review_moderation_log m
        JOIN users u ON m.performed_by = u.id
-       WHERE m.review_id = $1
+       WHERE m.review_type = $1
+         AND (
+           (m.review_id = $2 AND $1 = 'product')
+           OR (m.business_review_id = $2 AND $1 = 'business')
+           OR (m.food_review_id = $2 AND $1 = 'food')
+         )
        ORDER BY m.created_at DESC`,
-      [report.review_id]
+      [report.review_type, report[detailCfg.idColumn]]
     );
 
     res.json({
@@ -344,69 +411,111 @@ exports.resolveReport = async (req, res, next) => {
       );
 
       const updatedReport = updatedReportRows[0];
+      const resolveCfg = REVIEW_TYPES[report.review_type] || REVIEW_TYPES.product;
+      const targetReviewId = report[resolveCfg.idColumn];
+
+      // Moderation-log insert shared by all review types; only the
+      // matching reference column is populated.
+      const logModeration = (action, reason) => client.query(
+        `INSERT INTO review_moderation_log
+           (review_type, review_id, business_review_id, food_review_id, action, reason, performed_by, metadata)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+        [
+          report.review_type,
+          report.review_type === 'product' ? targetReviewId : null,
+          report.review_type === 'business' ? targetReviewId : null,
+          report.review_type === 'food' ? targetReviewId : null,
+          action,
+          reason,
+          req.user.id,
+          JSON.stringify({ reportId, decision }),
+        ]
+      );
+
+      // Notify reviewer of warning
+      const notifyReviewerOfWarning = async () => {
+        try {
+          const { rows: reviewRows } = await client.query(
+            `SELECT ${resolveCfg.reviewerColumn} AS reviewer_id FROM ${resolveCfg.table} WHERE id = $1`,
+            [targetReviewId]
+          );
+
+          if (reviewRows.length > 0 && reviewRows[0].reviewer_id) {
+            const reviewerId = reviewRows[0].reviewer_id;
+            await sendNotification({
+              userId: reviewerId,
+              type: 'review_warning',
+              title: 'Review Content Warning',
+              body: 'One of your reviews has been flagged for moderation. Please review our community guidelines.',
+              data: { reviewId: targetReviewId, reviewType: report.review_type },
+              action_url: '/my-profile/reviews'
+            });
+          }
+        } catch (notifyErr) {
+          logger.warn('Failed to notify reviewer of warning', { reportId, error: notifyErr.message });
+        }
+      };
 
       // If upheld, take action on review
       if (decision === 'upheld') {
         if (actionType === 'removed') {
-          await client.query(
-            `UPDATE product_reviews
-             SET is_removed = true, removed_at = NOW(), moderation_reason = $1, updated_at = NOW()
-             WHERE id = $2`,
-            [`Removed due to: ${report.reason}`, report.review_id]
-          );
-
-          await client.query(
-            `INSERT INTO review_moderation_log (review_id, action, reason, performed_by, metadata)
-             VALUES ($1, 'removed', $2, $3, $4)`,
-            [report.review_id, report.reason, req.user.id, JSON.stringify({ reportId, decision })]
-          );
-        } else if (actionType === 'hidden') {
-          await client.query(
-            `UPDATE product_reviews
-             SET is_hidden = true, hidden_at = NOW(), moderation_reason = $1, updated_at = NOW()
-             WHERE id = $2`,
-            [`Hidden due to: ${report.reason}`, report.review_id]
-          );
-
-          await client.query(
-            `INSERT INTO review_moderation_log (review_id, action, reason, performed_by, metadata)
-             VALUES ($1, 'hidden', $2, $3, $4)`,
-            [report.review_id, report.reason, req.user.id, JSON.stringify({ reportId, decision })]
-          );
-        } else if (actionType === 'warning_issued') {
-          await client.query(
-            `INSERT INTO review_moderation_log (review_id, action, reason, performed_by, metadata)
-             VALUES ($1, 'warning_issued', $2, $3, $4)`,
-            [report.review_id, `Warning issued to reviewer for: ${report.reason}`, req.user.id, JSON.stringify({ reportId, decision })]
-          );
-
-          // Notify reviewer of warning
-          try {
-            const { rows: reviewRows } = await client.query(
-              'SELECT helper_id FROM product_reviews WHERE id = $1',
-              [report.review_id]
+          if (report.review_type === 'product') {
+            await client.query(
+              `UPDATE product_reviews
+               SET is_removed = true, removed_at = NOW(), moderation_reason = $1, updated_at = NOW()
+               WHERE id = $2`,
+              [`Removed due to: ${report.reason}`, targetReviewId]
             );
-
-            if (reviewRows.length > 0) {
-              const reviewerId = reviewRows[0].helper_id;
-              await sendNotification({
-                userId: reviewerId,
-                type: 'review_warning',
-                title: 'Review Content Warning',
-                body: 'One of your reviews has been flagged for moderation. Please review our community guidelines.',
-                data: { reviewId: report.review_id },
-                action_url: '/my-profile/reviews'
-              });
-            }
-          } catch (notifyErr) {
-            logger.warn('Failed to notify reviewer of warning', { reportId, error: notifyErr.message });
+          } else {
+            // food_reviews has no updated_at column; business_reviews does.
+            await client.query(
+              report.review_type === 'business'
+                ? `UPDATE business_reviews
+                   SET is_hidden = true, moderation_reason = $1, updated_at = NOW()
+                   WHERE id = $2`
+                : `UPDATE food_reviews
+                   SET is_hidden = true, moderation_reason = $1
+                   WHERE id = $2`,
+              [`Removed due to: ${report.reason}`, targetReviewId]
+            );
           }
+
+          await logModeration('removed', report.reason);
+        } else if (actionType === 'hidden') {
+          if (report.review_type === 'product') {
+            await client.query(
+              `UPDATE product_reviews
+               SET is_hidden = true, hidden_at = NOW(), moderation_reason = $1, updated_at = NOW()
+               WHERE id = $2`,
+              [`Hidden due to: ${report.reason}`, targetReviewId]
+            );
+          } else if (report.review_type === 'business') {
+            await client.query(
+              `UPDATE business_reviews
+               SET is_hidden = true, moderation_reason = $1, updated_at = NOW()
+               WHERE id = $2`,
+              [`Hidden due to: ${report.reason}`, targetReviewId]
+            );
+          } else {
+            await client.query(
+              `UPDATE food_reviews
+               SET is_hidden = true, moderation_reason = $1
+               WHERE id = $2`,
+              [`Hidden due to: ${report.reason}`, targetReviewId]
+            );
+          }
+
+          await logModeration('hidden', report.reason);
+        } else if (actionType === 'warning_issued') {
+          await logModeration('warning_issued', `Warning issued to reviewer for: ${report.reason}`);
+          await notifyReviewerOfWarning();
         }
       }
 
       logger.info('Review report resolved', {
         reportId,
-        reviewId: report.review_id,
+        reviewId: targetReviewId,
+        reviewType: report.review_type,
         decision,
         actionType
       });

@@ -1,5 +1,7 @@
 'use strict';
 
+process.env.DIDIT_API_KEY = 'synthetic-didit-provider';
+
 // Review P2-7-F13: the API gate 403 for didit_status='duplicate' must return
 // the actionable in-app recovery message (with locale keys), not the generic
 // identity_verification_required body.

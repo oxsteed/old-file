@@ -186,6 +186,22 @@ async function reconcilePosOrderPayment(client, orderId) {
       Number(totals.pending_payments || 0),
     ]
   );
+  if (nextPaymentStatus === 'paid') {
+    // The order was just marked paid, but a delivery runner task created
+    // earlier may still flag cash_collection_required (frozen at task
+    // creation). Clear it so the runner is not asked to collect cash the
+    // customer already paid.
+    await client.query(
+      `UPDATE restaurant_runner_tasks
+          SET cash_collection_required = FALSE,
+              updated_at = NOW()
+        WHERE food_order_id = $1
+          AND task_type = 'Delivery'
+          AND status <> 'Completed'
+          AND cash_collection_required = TRUE`,
+      [orderId]
+    );
+  }
   return { order: updatedOrder, totals: { ...totals, net_paid_cents: netPaidCents } };
 }
 

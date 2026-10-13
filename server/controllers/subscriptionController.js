@@ -112,7 +112,14 @@ exports.createCheckout = async (req, res, next) => {
     if (!plans.length) throw new AppError('Plan not found', 404, 'not_found');
     const plan = plans[0];
 
-    // Atomic check for existing subscription (prevents race conditions)
+    // Best-effort pre-check for an existing subscription. A SELECT ... FOR
+    // UPDATE cannot serialize concurrent checkouts on its own: it locks
+    // nothing when no rows exist, and the lock releases at commit, long
+    // before the Stripe webhook inserts the row. This is only a fast
+    // rejection for the obvious case. The real duplicate guard is the
+    // per-user advisory lock plus the pre-insert check in the webhook
+    // handlers, backstopped by the partial unique index
+    // (migration 826, P2-6-F07).
     try {
       await withTransaction(db, async (client) => {
         const { rows: existing } = await client.query(
@@ -275,11 +282,14 @@ exports.cancelSubscription = async (req, res, next) => {
       }
 
       // ── CHECK FOR OPEN ESCROW FUNDS (atomic within transaction)
-      // Helpers cannot cancel Tier 3 subscription while they have escrow funds held
+      // Helpers cannot cancel Tier 3 subscription while they have escrow funds held.
+      // P3-1-F11: 'authorized' is a payments.status value, never a
+      // payments.escrow_status value; the written hold values are
+      // 'held' and 'disputed'.
       const { rows: escrowRows } = await client.query(`
         SELECT COUNT(*) as count FROM payments
         WHERE payee_id = $1
-          AND escrow_status IN ('authorized', 'disputed', 'held')
+          AND escrow_status IN ('held', 'disputed')
           AND status IN ('authorized', 'captured')
       `, [userId]);
 
@@ -415,6 +425,54 @@ exports.createPortalSession = async (req, res, next) => {
   }
 };
 
+// P3-9-F11: in-app subscription invoice/receipt view. Subscription receipts
+// were unverifiable from code (no receipt_email in the subscription checkout,
+// receipt delivery depended on Stripe-dashboard email settings). This lists
+// the customer's Stripe invoices with hosted URLs and PDF links so receipts
+// are always viewable in-app.
+exports.listSubscriptionInvoices = async (req, res, next) => {
+  try {
+    const { rows } = await db.query(
+      `SELECT stripe_customer_id
+       FROM subscriptions
+       WHERE user_id = $1
+         AND stripe_customer_id IS NOT NULL
+       ORDER BY created_at DESC
+       LIMIT 1`,
+      [req.user.id]
+    );
+    const stripeCustomerId = rows[0]?.stripe_customer_id || null;
+    if (!stripeCustomerId) {
+      return res.json({ invoices: [] });
+    }
+    const limit = Math.min(parseInt(req.query.limit, 10) || 12, 50);
+    const stripeInvoices = await stripe.invoices.list({
+      customer: stripeCustomerId,
+      limit,
+    });
+    res.json({
+      invoices: (stripeInvoices.data || []).map((invoice) => ({
+        id: invoice.id,
+        number: invoice.number,
+        amountDue: invoice.amount_due,
+        amountPaid: invoice.amount_paid,
+        currency: String(invoice.currency || 'usd').toUpperCase(),
+        status: invoice.status,
+        created: invoice.created,
+        periodStart: invoice.period_start,
+        periodEnd: invoice.period_end,
+        hostedInvoiceUrl: invoice.hosted_invoice_url,
+        invoicePdf: invoice.invoice_pdf,
+        description: Array.isArray(invoice.lines?.data) && invoice.lines.data[0]?.description
+          ? invoice.lines.data[0].description
+          : null,
+      })),
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
 /**
  * Phase 5 — Credit Everywhere: create a subscription paid with OxSteed Credit.
  *
@@ -476,7 +534,12 @@ async function createCreditSubscription(req, res, next, plan, userId) {
     else periodEnd.setMonth(periodEnd.getMonth() + 1);
 
     const result = await withTransaction(db, async (client) => {
-      // Double-check no active subscription (race-safe, mirrors Stripe path).
+      // P2-6-F07: SELECT ... FOR UPDATE locks nothing when no rows exist, so
+      // serialize per user with an advisory lock before the check. The
+      // partial unique index (migration 826) is the final backstop; a 23505
+      // here rolls back the whole transaction including the debit below, so
+      // a lost race can never double-bill.
+      await client.query(`SELECT pg_advisory_xact_lock(hashtextextended($1, 0))`, [`subscription-user:${userId}`]);
       const { rows: existing } = await client.query(
         `SELECT id FROM subscriptions WHERE user_id = $1 AND status IN ('active', 'trialing') FOR UPDATE`,
         [userId]

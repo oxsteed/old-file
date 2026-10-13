@@ -180,6 +180,7 @@ router.post('/sessions/guest/booking-request', chatLimiter, profileChatLimiter, 
 router.post('/intakes', chatLimiter, authenticate, chatClientIntakes.createIntake);
 router.get('/intakes/:id', chatLimiter, optionalAuth, chatClientIntakes.getIntake);
 router.post('/intakes/:id/respond', chatLimiter, optionalAuth, chatClientIntakes.respondToIntake);
+router.post('/intakes/:id/follow-up', chatLimiter, authenticate, chatClientIntakes.addFollowUpRound);
 
 // POST /api/chat/sessions/guest - public guest inquiry (helper must allow guest contact)
 router.post('/sessions/guest', profileChatLimiter, guestProfileChatSession);

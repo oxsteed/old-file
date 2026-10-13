@@ -18,6 +18,7 @@ router.post('/appeals', requireAuth, ctrl.submitAppeal);
 router.get('/my-appeals', requireAuth, ctrl.getMyAppeals);
 
 // ── Admin: review appeals ───────────────────────────────────────
+router.get('/admin/appeals', requireAuth, requireAdmin, requirePermission('manage_disputes'), ctrl.listAppeals);
 router.put('/admin/appeals/:appealId/review', requireAuth, requireAdmin, requirePermission('manage_disputes'), ctrl.reviewAppeal);
 
 module.exports = router;

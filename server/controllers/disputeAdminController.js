@@ -232,6 +232,14 @@ exports.resolveDispute = async (req, res) => {
 
       const resolvedDispute = updateRows[0];
 
+      // P3-2-F16: lock the evidentiary record at resolution too, covering
+      // anything submitted while the dispute was under review.
+      await client.query(
+        `UPDATE dispute_evidence SET is_final = TRUE
+          WHERE dispute_id = $1 AND COALESCE(is_final, FALSE) = FALSE`,
+        [disputeId]
+      );
+
       // RELEASE ESCROW HOLD (atomic within transaction with lock)
       const { rows: paymentRows } = await client.query(`
         SELECT id, escrow_status FROM payments
@@ -269,6 +277,29 @@ exports.resolveDispute = async (req, res) => {
             JSON.stringify({ dispute_id: dispute.id, payment_id: payment.id, resolution, job_id: dispute.job_id,
               stripe_refund_id: processorRefundId, refund_amount: processorRefundAmount })
           ]).catch(err => logger.error('Failed to log escrow release', { err }));
+
+          // P3-2-F12: a split resolution refunds part to the customer while
+          // the remainder (already captured) stays with the helper. Record
+          // the reconciliation explicitly so the helper's remainder is not
+          // unreconciled bookkeeping.
+          if (resolution === DISPUTE_RESOLUTIONS.SPLIT_RESOLUTION && processorRefundAmount != null) {
+            await client.query(`
+              INSERT INTO platform_ledger (user_id, type, amount_cents, description, metadata, idempotency_key)
+              VALUES (NULL, 'dispute_split_reconciled', 0, $1, $2, $3)
+            `, [
+              `Dispute #${dispute.id} split: customer refunded ${processorRefundAmount}, remainder released to helper`,
+              JSON.stringify({
+                dispute_id: dispute.id,
+                payment_id: payment.id,
+                job_id: dispute.job_id,
+                resolution,
+                refund_amount: processorRefundAmount,
+                stripe_refund_id: processorRefundId,
+                helper_remainder_released: true,
+              }),
+              `dispute-split:${dispute.id}`,
+            ]).catch(err => logger.error('Failed to log split reconciliation', { err }));
+          }
         }
       }
 
@@ -378,15 +409,26 @@ exports.startReview = async (req, res) => {
         throw err;
       }
 
-      // Update status to under_review (atomic within transaction)
+      // Update status to under_review (atomic within transaction). The guard
+      // re-checks 'open': the earlier read locked the row, so a zero-row
+      // update means a concurrent transition won.
       const { rows: updateRows } = await client.query(
-        `UPDATE disputes SET status = $1, reviewed_at = NOW() WHERE id = $2 AND status = $1 RETURNING *`,
+        `UPDATE disputes SET status = $1, reviewed_at = NOW() WHERE id = $2 AND status = 'open' RETURNING *`,
         [DISPUTE_STATUSES.UNDER_REVIEW, disputeId]
       );
 
       if (!updateRows.length) {
         throw new Error('Dispute state changed during update');
       }
+
+      // P3-2-F16: entering review finalizes the evidence. The trigger hashes
+      // each row and blocks later edits, so neither party can alter what the
+      // admin is about to read.
+      await client.query(
+        `UPDATE dispute_evidence SET is_final = TRUE
+          WHERE dispute_id = $1 AND COALESCE(is_final, FALSE) = FALSE`,
+        [disputeId]
+      );
 
       return updateRows[0];
     }, 'start_dispute_review');
@@ -419,6 +461,70 @@ exports.startReview = async (req, res) => {
     }
     logger.error('Start review error', { err });
     res.status(500).json({ error: 'Failed to start dispute review.' });
+  }
+};
+
+// P3-2-F20: startReview was one-way; a dispute sent to review by mistake had
+// no path back. Reopen moves under_review -> open (guarded, audited). Evidence
+// finalized on review entry stays finalized: the record is append-only.
+exports.reopenDispute = async (req, res) => {
+  try {
+    const { disputeId } = req.params;
+    const adminId = req.user.id;
+
+    const dispute = await withTransaction(db, async (client) => {
+      const { rows: disputeRows } = await client.query(
+        'SELECT * FROM disputes WHERE id = $1 FOR UPDATE',
+        [disputeId]
+      );
+      if (!disputeRows.length) {
+        const err = new Error('Dispute not found');
+        err.status = 404;
+        throw err;
+      }
+      if (disputeRows[0].status !== DISPUTE_STATUSES.UNDER_REVIEW) {
+        const err = new Error(`Only disputes under review can be reopened (current: '${disputeRows[0].status}').`);
+        err.status = 409;
+        throw err;
+      }
+      const { rows: updateRows } = await client.query(
+        `UPDATE disputes SET status = $1, reviewed_at = NULL, updated_at = NOW()
+          WHERE id = $2 AND status = $3 RETURNING *`,
+        [DISPUTE_STATUSES.OPEN, disputeId, DISPUTE_STATUSES.UNDER_REVIEW]
+      );
+      if (!updateRows.length) {
+        throw new Error('Dispute state changed during update');
+      }
+      return updateRows[0];
+    }, 'reopen_dispute');
+
+    try {
+      await logAdminAction({
+        adminId,
+        action: 'reopen_dispute',
+        targetType: 'dispute',
+        targetId: disputeId,
+        details: {}
+      });
+    } catch (logErr) {
+      logger.error('Failed to log admin action', { err: logErr });
+    }
+
+    await notifyDisputeParties(disputeId, 'dispute_reopened');
+
+    res.json({
+      message: 'Dispute reopened.',
+      dispute: { id: disputeId, status: 'open' }
+    });
+  } catch (err) {
+    if (err.status === 404) {
+      return res.status(404).json({ error: err.message });
+    }
+    if (err.status === 409) {
+      return res.status(409).json({ error: err.message });
+    }
+    logger.error('Reopen dispute error', { err });
+    res.status(500).json({ error: 'Failed to reopen dispute.' });
   }
 };
 

@@ -266,13 +266,17 @@ async function recordLostDisputeFinancials(dispute, accountId) {
       [dispute.id]
     );
     if (!existingLoss[0]) {
+      // P3-1-F20: the chargeback debit lands on the helper's connected
+      // Stripe account, not on platform funds. Record it as a memorandum
+      // entry attributed to the payee (the connected-account owner) so the
+      // platform P&L is not overstated with a loss it did not absorb.
       await client.query(
-        `INSERT INTO platform_ledger (user_id, type, amount_cents, description, metadata)
-         VALUES ($1, 'dispute_lost', $2, $3, $4::jsonb)`,
+        `INSERT INTO platform_ledger (user_id, type, amount_cents, description, metadata, idempotency_key)
+         VALUES ($1, 'dispute_lost', $2, $3, $4::jsonb, $5)`,
         [
           payment.payee_id,
           -Math.abs(Number(dispute.amount || 0)),
-          `Lost dispute ${dispute.id} on charge ${chargeId || piId}`,
+          `Memo: lost dispute ${dispute.id} debited helper connected account (charge ${chargeId || piId})`,
           JSON.stringify({
             stripeDisputeId: dispute.id,
             paymentId: payment.id,
@@ -280,7 +284,10 @@ async function recordLostDisputeFinancials(dispute, accountId) {
             paymentIntentId: piId,
             stripeAccountId: accountId,
             reason: dispute.reason || null,
+            memo: true,
+            debit_location: 'connected_account',
           }),
+          `dispute-lost:${dispute.id}`,
         ]
       );
     }
@@ -669,7 +676,32 @@ async function handleVerifiedStripeEvent(event, destination, res, next) {
           const newStatus = toLocalSubscriptionStatus(sub.status);
           // P3-11-F08: the subscription row, the tier grant, and the audit
           // row commit together; a missing audit row fails the whole event.
+          // P2-6-F07: two checkouts racing (or a dashboard-created duplicate)
+          // must not leave two active rows for one user. Serialize per user
+          // with an advisory lock, refuse the second active row, and cancel
+          // the duplicate at Stripe so the customer is not double-billed.
+          // The partial unique index (migration 826) backstops this check.
           await withTransaction(db, async (client) => {
+            await client.query(`SELECT pg_advisory_xact_lock(hashtextextended($1, 0))`, [`subscription-user:${userId}`]);
+            const { rows: dupRows } = await client.query(
+              `SELECT id, stripe_subscription_id FROM subscriptions
+                WHERE user_id = $1 AND status IN ('active', 'trialing') FOR UPDATE`,
+              [userId]
+            );
+            const duplicate = dupRows.find((row) => row.stripe_subscription_id !== subscriptionId);
+            if (duplicate && ['active', 'trialing'].includes(newStatus)) {
+              logger.warn('[webhook] duplicate active subscription refused; cancelling duplicate at Stripe', {
+                userId, keptSubscriptionId: duplicate.stripe_subscription_id, duplicateSubscriptionId: subscriptionId,
+              });
+              try {
+                await stripe.subscriptions.cancel(subscriptionId);
+              } catch (cancelErr) {
+                logger.error('[webhook] failed to cancel duplicate Stripe subscription', {
+                  subscriptionId, error: cancelErr?.message,
+                });
+              }
+              return;
+            }
             const { rows: inserted } = await client.query(
               `INSERT INTO subscriptions (user_id, plan_id, stripe_subscription_id, stripe_customer_id, status, current_period_start, current_period_end)
                VALUES ($1, $2, $3, $4, $5, to_timestamp($6), to_timestamp($7))
@@ -761,6 +793,30 @@ async function handleVerifiedStripeEvent(event, destination, res, next) {
         }
 
         await withTransaction(db, async (client) => {
+          // P2-6-F07: a dashboard/API-created subscription must not become a
+          // second active row for the user. Serialize per user; refuse the
+          // duplicate and cancel it at Stripe so the customer is not
+          // double-billed. Migration 826 backstops this check.
+          const newStatus = toLocalSubscriptionStatus(sub.status);
+          await client.query(`SELECT pg_advisory_xact_lock(hashtextextended($1, 0))`, [`subscription-user:${userRows[0].id}`]);
+          const { rows: dupRows } = await client.query(
+            `SELECT id, stripe_subscription_id FROM subscriptions
+              WHERE user_id = $1 AND status IN ('active', 'trialing') FOR UPDATE`,
+            [userRows[0].id]
+          );
+          if (dupRows.some((row) => row.stripe_subscription_id !== sub.id) && ['active', 'trialing'].includes(newStatus)) {
+            logger.warn('[webhook] duplicate dashboard subscription refused; cancelling duplicate at Stripe', {
+              userId: userRows[0].id, duplicateSubscriptionId: sub.id,
+            });
+            try {
+              await stripe.subscriptions.cancel(sub.id);
+            } catch (cancelErr) {
+              logger.error('[webhook] failed to cancel duplicate Stripe subscription', {
+                subscriptionId: sub.id, error: cancelErr?.message,
+              });
+            }
+            return;
+          }
           const { rows: inserted } = await client.query(
             `INSERT INTO subscriptions
                (user_id, plan_id, stripe_subscription_id, stripe_customer_id,
@@ -768,7 +824,7 @@ async function handleVerifiedStripeEvent(event, destination, res, next) {
              VALUES ($1, $2, $3, $4, $5, to_timestamp($6), to_timestamp($7))
              ON CONFLICT (stripe_subscription_id) DO NOTHING
              RETURNING id`,
-            [userRows[0].id, planId, sub.id, stripeObjectId(sub.customer), toLocalSubscriptionStatus(sub.status),
+            [userRows[0].id, planId, sub.id, stripeObjectId(sub.customer), newStatus,
              period.start, period.end]
           );
 

@@ -243,6 +243,7 @@ router.delete('/users/:userId',      requireSuperAdmin, superCtrl.deleteUser);
 router.post('/users/:userId/cancel-pending-deletion', requireSuperAdmin, superCtrl.cancelPendingDeletion);
 router.post('/users/:userId/restore', requireSuperAdmin, superCtrl.restoreUser);
 router.post('/super/force-logout/:userId', requireSuperAdmin, superCtrl.forceLogout);
+router.get('/super/users/:userId/sessions', requireSuperAdmin, superCtrl.listUserSessions);
 router.post('/users/:userId/password', requireSuperAdmin, superCtrl.setUserPasswordBySuperAdmin);
 
 // Impersonation (super-admin only)
@@ -315,6 +316,11 @@ router.post('/feature-flags/:key/rollback', requireAdmin, requirePermission('man
 
 // Audit log + export
 router.get('/audit-log',             requireAdmin, requirePermission('view_audit_log'), superCtrl.getAuditLog);
+// P3-11-F15: readers for the domain audit logs that previously had writers
+// but zero readers.
+router.get('/audit-log/booking-requests', requireAdmin, requirePermission('view_audit_log'), auditCtrl.listBookingRequestAuditLog);
+router.get('/audit-log/invoices',         requireAdmin, requirePermission('view_audit_log'), auditCtrl.listInvoiceAuditLog);
+router.get('/audit-log/calendar',         requireAdmin, requirePermission('view_audit_log'), auditCtrl.listCalendarAuditLog);
 router.get('/export/:type',          requireAdmin, requirePermission('export_data'), strictLimiter, superCtrl.exportData);
 
 // ══════════════════════════════════════════════════════════════

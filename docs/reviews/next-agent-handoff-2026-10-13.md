@@ -1,5 +1,9 @@
 # Continuation handoff: W10.5 and W11–W19
 
+> Current checkpoint: [Post-PR568 reconciliation](post-pr568-reconciliation-2026-10-13.md).
+> The historical branch/status statements below predate PR568; the current goal
+> is active and incomplete on `fix/review-w11-work` from `42bbe3ed`.
+
 Prepared 2026-10-13. The goal is **paused and incomplete**. This is a checkpoint,
 not a closure report. Resume only when the human authorizes continuation. Do not
 repeat an earlier premature claim that the entire goal was completed.

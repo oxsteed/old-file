@@ -21,9 +21,9 @@ jest.mock('../utils/speechToText', () => ({
   }),
 }));
 
-function buildApp() {
+function buildApp({ jsonLimit = '1mb' } = {}) {
   const app = express();
-  app.use(express.json({ limit: '1mb' }));
+  app.use(express.json({ limit: jsonLimit }));
   app.use('/api/chat', chatRoutes);
   app.use((err, _req, res, _next) => {
     res.status(err.statusCode || err.status || 500).json({
@@ -88,6 +88,32 @@ describe('chat transcription compatibility', () => {
 
     expect(res.status).toBe(400);
     expect(res.body.code).toBe('validation_failed');
+    expect(speechToText.transcribeAudio).not.toHaveBeenCalled();
+  });
+
+  // Review P3-6-F16: the base64 JSON path must meet the same gates as the
+  // multer path (audio content check, 10 MB cap).
+  test('rejects base64 audio_data that is not audio content', async () => {
+    fileTypeFromBuffer.mockResolvedValueOnce({ mime: 'image/png', ext: 'png' });
+    const res = await request(buildApp())
+      .post('/api/chat/transcribe')
+      .send({ audio_data: Buffer.from('not audio at all').toString('base64'), language: 'en' });
+
+    expect(res.status).toBe(400);
+    expect(res.body.code).toBe('validation_failed');
+    expect(speechToText.transcribeAudio).not.toHaveBeenCalled();
+  });
+
+  test('rejects base64 audio_data larger than 10 MB', async () => {
+    // Raise the JSON body cap so the controller's own 10 MB gate is the one
+    // under test (production also blunts this via the 1 MB express.json cap).
+    const big = Buffer.alloc(10 * 1024 * 1024 + 1, 1).toString('base64');
+    const res = await request(buildApp({ jsonLimit: '20mb' }))
+      .post('/api/chat/transcribe')
+      .send({ audio_data: big, language: 'en' });
+
+    expect(res.status).toBe(413);
+    expect(res.body.code).toBe('audio_too_large');
     expect(speechToText.transcribeAudio).not.toHaveBeenCalled();
   });
 });

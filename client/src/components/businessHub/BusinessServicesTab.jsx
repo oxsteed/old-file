@@ -4,6 +4,7 @@ import api from '../../api/axios';
 import toast from 'react-hot-toast';
 import { Edit2, Trash2, Plus, Clock, DollarSign } from 'lucide-react';
 import '../../styles/BusinessServicesTab.css';
+import { ServiceBlockedTimes } from './ServiceBlockedTimes';
 
 // Helper: normalise a service row regardless of DB schema version
 function normaliseService(s) {
@@ -287,6 +288,7 @@ export function BusinessServicesTab({ businessId }) {
                     {service.staff_count} {t('businessServices.staffAssigned')}
                   </div>
                 ) : null}
+                <ServiceBlockedTimes businessId={businessId} serviceId={service.id} />
               </div>
             ))
           )}

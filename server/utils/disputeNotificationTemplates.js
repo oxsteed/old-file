@@ -16,6 +16,10 @@ exports.disputeNotifications = {
     title: t('Dispute resolved', 'Disputa resuelta', 'Litige résolu', 'Diskisyon an rezoud', 'تم حل النزاع'),
     body: t('A decision was made on this dispute. Open it to see the outcome.', 'Se tomó una decisión sobre esta disputa. Ábrela para ver el resultado.', 'Une décision a été prise sur ce litige. Ouvrez-le pour voir le résultat.', 'Yo pran yon desizyon sou diskisyon sa a. Louvri l pou wè rezilta a.', 'تم اتخاذ قرار بشأن هذا النزاع. افتحه لمعرفة النتيجة.'),
   },
+  dispute_reopened: {
+    title: t('Dispute reopened', 'Disputa reabierta', 'Litige rouvert', 'Diskisyon an relouvri', 'أُعيد فتح النزاع'),
+    body: t('This dispute was sent back to open status. You can add more information while it awaits review.', 'Esta disputa volvió al estado abierta. Puedes agregar más información mientras espera revisión.', 'Ce litige a été renvoyé au statut ouvert. Vous pouvez ajouter des informations en attendant sa révision.', 'Diskisyon sa a tounen nan estati louvri. Ou ka ajoute plis enfòmasyon pandan l ap tann revizyon.', 'أُعيد هذا النزاع إلى الحالة المفتوحة. يمكنك إضافة مزيد من المعلومات أثناء انتظار المراجعة.'),
+  },
   credit_dispute_provisional_credit: {
     title: t('Provisional credit added', 'Crédito provisional agregado', 'Crédit provisoire ajouté', 'Yo ajoute yon kredi pwovizwa', 'تمت إضافة رصيد مؤقت'),
     body: t('We added provisional OxSteed Credit while we review your dispute.', 'Agregamos Crédito OxSteed provisional mientras revisamos tu disputa.', 'Nous avons ajouté un crédit OxSteed provisoire pendant l’examen de votre litige.', 'Nou ajoute Kredi OxSteed pwovizwa pandan n ap revize diskisyon ou.', 'أضفنا رصيد OxSteed مؤقتًا أثناء مراجعة نزاعك.'),

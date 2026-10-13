@@ -249,7 +249,7 @@ exports.sendNotification = async ({
       // toggle (previously the toggle existed in settings but the type was
       // never attempted, so the toggle was dead).
       'new_message',
-      'payout_deposited', 'account_banned',
+      'payout_deposited', 'payout_requested', 'payout_approved', 'payout_rejected', 'account_banned',
       'oxsteed_credit_transaction', 'oxsteed_credit_card_security',
       'credit_identity_verification_requested', 'credit_identity_verification_approved',
       'credit_identity_verification_rejected', 'credit_sanctions_review_required',
@@ -264,6 +264,9 @@ exports.sendNotification = async ({
       // Account integrity / admin actions — user should receive email by default
       'account_restored', 'account_suspended', 'account_restricted',
       'account_deletion_scheduled', 'admin_warning',
+      // P3-1-F12: payout destination changes are security notices; the user
+      // must hear about them even if they turned off marketing emails.
+      'payout_destination_changed',
       // Direct booking notifications
       'booking_request_new', 'booking_accepted', 'booking_declined',
       'booking_cancelled', 'booking_auto_released',
@@ -280,6 +283,7 @@ exports.sendNotification = async ({
       'account_restricted',
       'account_deletion_scheduled',
       'admin_warning',
+      'payout_destination_changed',
       'oxsteed_credit_transaction', 'oxsteed_credit_card_security',
       'credit_identity_verification_requested', 'credit_identity_verification_approved',
       'credit_identity_verification_rejected', 'credit_sanctions_review_required',
@@ -299,7 +303,39 @@ exports.sendNotification = async ({
         ? true
         : !emailPrefOff && prefs.email_notifications !== false)
       && !(unsubscribedAll && !transactionalEmailTypes.has(type));
-    if (emailAllowed && !notificationRow?.is_email_sent) {
+    // P2-8-F04: honor the user's email_frequency. The digest batch was the
+    // only reader, so 'off' did not stop realtime mail and 'daily'/'weekly'
+    // never received anything (nothing populated the digest queue).
+    // Transactional mail always goes out immediately. For everything else:
+    // 'off' drops realtime mail, 'daily'/'weekly' queues it for the digest
+    // batch instead of sending it now.
+    const isTransactionalEmail = transactionalEmailTypes.has(type);
+    const emailFrequency = String(prefs.email_frequency || 'real-time');
+    let sendRealtimeEmail = emailAllowed;
+    if (emailAllowed && !isTransactionalEmail) {
+      if (emailFrequency === 'off') {
+        logger.debug('[Notification] realtime email suppressed: frequency=off', { userId, type });
+        sendRealtimeEmail = false;
+      } else if ((emailFrequency === 'daily' || emailFrequency === 'weekly') && notifId) {
+        try {
+          await db.query(
+            `INSERT INTO email_digest_queue (user_id, notification_id, digest_type)
+             VALUES ($1, $2, $3)
+             ON CONFLICT (notification_id) DO NOTHING`,
+            [userId, notifId, emailFrequency]
+          );
+          logger.debug('[Notification] queued for email digest', { userId, type, emailFrequency });
+          sendRealtimeEmail = false;
+        } catch (queueErr) {
+          // Fail open on the queue write: the user still gets the email, just
+          // immediately instead of in the digest. Never drop it silently.
+          logger.warn('[Notification] digest queue insert failed; sending realtime', {
+            userId, type, error: queueErr.message,
+          });
+        }
+      }
+    }
+    if (sendRealtimeEmail && !notificationRow?.is_email_sent) {
       // Banned users get the notification email but with no account link
       const safeActionUrl = isBanned ? null : action_url;
       const delivery = await sendEmailNotification({

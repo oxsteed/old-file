@@ -909,6 +909,28 @@ exports.getBusinessAvailableSlots = async (req, res) => {
       [businessId, date]
     );
     const busy = appointmentsResult.rows.map((row) => ({ start: row.start_time, end: row.end_time }));
+
+    // Review P2-3-F08: the merchant slot engine subtracts
+    // business_service_blocked_times (time off), but this customer-facing
+    // computation ignored them, so customers could book into blocked time.
+    // Mirror the engine's scoping: service-specific blocks apply to their
+    // service, staff-level (service_id NULL) blocks apply business-wide.
+    const blockedResult = await pool.query(
+      `SELECT to_char(GREATEST(bt.start_time, $2::timestamptz), 'HH24:MI:SS') AS start_time,
+              CASE WHEN LEAST(bt.end_time, (($2::date + INTERVAL '1 day')::timestamptz)) >= (($2::date + INTERVAL '1 day')::timestamptz)
+                   THEN '23:59:59'
+                   ELSE to_char(LEAST(bt.end_time, (($2::date + INTERVAL '1 day')::timestamptz)), 'HH24:MI:SS')
+              END AS end_time
+         FROM business_service_blocked_times bt
+        WHERE bt.business_id = $1
+          AND bt.end_time > $2::timestamptz
+          AND bt.start_time < (($2::date + INTERVAL '1 day')::timestamptz)
+          ${serviceId ? 'AND (bt.service_id = $3 OR bt.service_id IS NULL)' : 'AND bt.service_id IS NULL'}`,
+      serviceId ? [businessId, date, String(serviceId)] : [businessId, date]
+    );
+    for (const row of blockedResult.rows) {
+      busy.push({ start: row.start_time, end: row.end_time });
+    }
     const slots = [];
     for (const block of effectiveHours) {
       slots.push(...sliceWindowToHourSlots(block.start_time, block.end_time, busy, durationMinutes, 30));
@@ -1504,24 +1526,99 @@ exports.expirePendingBookingRequests = async () => {
  * Also releases request-only bookings that were accepted but never got an agreed time (stranded),
  * and cancels the linked appointment (helper or business) for every released booking.
  * Notifies both parties.
+ *
+ * P3-8-F11: never release a booking whose service was delivered. A linked
+ * appointment in 'completed' status is delivery evidence: the booking moves
+ * to 'completed' instead of 'accepted_cancelled', and the linked appointment
+ * is left alone. A linked appointment still 'in_progress' is left to the
+ * appointment lifecycle (not swept here).
  */
 exports.releaseStaleAcceptedBookings = async () => {
   try {
+    // Delivery evidence: the linked helper or business appointment reached
+    // 'completed'. Those bookings are done, not abandoned.
+    const deliveredCondition = `
+      (
+        (br.appointment_id IS NOT NULL AND EXISTS (
+          SELECT 1 FROM appointments a
+          WHERE a.id = br.appointment_id AND a.status = 'completed'
+        ))
+        OR (br.business_appointment_id IS NOT NULL AND EXISTS (
+          SELECT 1 FROM business_appointments ba
+          WHERE ba.id = br.business_appointment_id AND ba.status = 'completed'
+        ))
+      )`;
+    const inProgressCondition = `
+      (
+        (br.appointment_id IS NOT NULL AND EXISTS (
+          SELECT 1 FROM appointments a
+          WHERE a.id = br.appointment_id AND a.status = 'in_progress'
+        ))
+        OR (br.business_appointment_id IS NOT NULL AND EXISTS (
+          SELECT 1 FROM business_appointments ba
+          WHERE ba.id = br.business_appointment_id AND ba.status = 'in_progress'
+        ))
+      )`;
+    const staleCondition = `
+      status = 'accepted'
+      AND (
+        (requested_end_time IS NOT NULL
+          AND (requested_date::timestamp + requested_end_time::interval) < NOW())
+        OR (requested_end_time IS NULL
+          AND updated_at < NOW() - INTERVAL '7 days')
+      )`;
+
+    // 1) Delivered bookings: accepted -> completed (never cancelled).
+    const completed = await pool.query(
+      `UPDATE booking_requests br
+       SET status = 'completed',
+           helper_response_reason = COALESCE(
+             helper_response_reason,
+             'Service delivered; booking completed automatically'
+           ),
+           updated_at = CURRENT_TIMESTAMP
+       WHERE ${staleCondition} AND ${deliveredCondition}
+       RETURNING id, customer_id, helper_id, business_id, service_name, requested_date,
+                 appointment_id, business_appointment_id`
+    );
+    if (completed.rowCount > 0) {
+      logger.info('Auto-completed delivered bookings past scheduled end', { count: completed.rowCount });
+      for (const row of completed.rows) {
+        await logBookingAudit(row.id, 'auto_completed', null, 'system', 'accepted', 'completed');
+        broadcastToUser(row.customer_id, 'booking:updated', { bookingId: row.id, status: 'completed' });
+        broadcastToUser(row.helper_id, 'booking:updated', { bookingId: row.id, status: 'completed' });
+
+        sendNotification({
+          userId: row.customer_id,
+          type: 'booking_auto_completed',
+          body: `${row.service_name}, ${row.requested_date}`,
+          data: { bookingId: row.id },
+          action_url: '/my-bookings',
+        }).catch((err) => logger.warn('Failed auto-complete customer notification', { error: err.message }));
+
+        sendNotification({
+          userId: row.helper_id,
+          type: 'booking_auto_completed',
+          body: `${row.service_name}, ${row.requested_date}`,
+          data: { bookingId: row.id },
+          action_url: '/calendar',
+        }).catch((err) => logger.warn('Failed auto-complete helper notification', { error: err.message }));
+      }
+    }
+
+    // 2) Genuinely stale bookings: accepted -> accepted_cancelled, excluding
+    // delivered work (handled above) and appointments still in progress.
     const r = await pool.query(
-      `UPDATE booking_requests
+      `UPDATE booking_requests br
        SET status = 'accepted_cancelled',
            helper_response_reason = COALESCE(
              helper_response_reason,
              'Automatically released after scheduled time passed'
            ),
            updated_at = CURRENT_TIMESTAMP
-       WHERE status = 'accepted'
-         AND (
-           (requested_end_time IS NOT NULL
-             AND (requested_date::timestamp + requested_end_time::interval) < NOW())
-           OR (requested_end_time IS NULL
-             AND updated_at < NOW() - INTERVAL '7 days')
-         )
+       WHERE ${staleCondition}
+         AND NOT (${deliveredCondition})
+         AND NOT (${inProgressCondition})
        RETURNING id, customer_id, helper_id, business_id, service_name, requested_date,
                  appointment_id, business_appointment_id`
     );

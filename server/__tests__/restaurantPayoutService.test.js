@@ -223,6 +223,12 @@ test('approve journals and queues the transfer without calling Stripe in the tra
   expect(approveUpdate).toBeDefined();
   expect(approveUpdate[1][3]).toBe(TXN_UUID);
   expect(sendNotification).not.toHaveBeenCalled();
+  // P3-11-F06: the approval writes an audit row keyed on the admin identity.
+  const auditInsert = client.query.mock.calls.find(([sql]) =>
+    sql.includes('INSERT INTO admin_audit_log'));
+  expect(auditInsert).toBeDefined();
+  expect(auditInsert[1][0]).toBe('admin-1');
+  expect(auditInsert[1][1]).toBe('approve_restaurant_payout');
 });
 
 test('approve fails closed when the processor is disabled', async () => {
@@ -265,6 +271,12 @@ test('reject moves a requested payout to rejected', async () => {
     reviewNote: 'duplicate',
   });
   expect(done.status).toBe('rejected');
+  // P3-11-F06: the rejection writes an audit row keyed on the admin identity.
+  const auditInsert = client.query.mock.calls.find(([sql]) =>
+    sql.includes('INSERT INTO admin_audit_log'));
+  expect(auditInsert).toBeDefined();
+  expect(auditInsert[1][0]).toBe('admin-1');
+  expect(auditInsert[1][1]).toBe('reject_restaurant_payout');
 });
 
 test('worker creates Stripe transfer only for a journaled outbox item', async () => {

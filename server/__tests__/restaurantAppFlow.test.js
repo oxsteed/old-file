@@ -882,6 +882,8 @@ describe('restaurant app-flow backend', () => {
       .mockResolvedValueOnce({ rows: [{ paid_cents: 1200, refunded_cents: 0 }] })
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [] })
+      // F03 guard: no processor-backed card exposure on this externally-paid order.
+      .mockResolvedValueOnce({ rows: [{ captured_cents: 0, refunded_cents: 0 }] })
       .mockResolvedValueOnce({ rows: [{ id: 602, amount_cents: 300, payment_type: 'refund' }] })
       .mockResolvedValueOnce({ rows: [{ id: ORDER_ID, total_cents: 1200, payment_status: 'paid', pos_ticket_state: 'closed' }] })
       .mockResolvedValueOnce({ rows: [{ paid_cents: 1200, refunded_cents: 300, pending_payments: 0 }] })

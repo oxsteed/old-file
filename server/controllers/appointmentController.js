@@ -217,11 +217,17 @@ exports.createAppointment = async (req, res, next) => {
     // off. (The provider scheduling on the customer's behalf goes through
     // the chat booking-request flow, which applies its own rule.)
     const prefRes = await pool.query(
-      'SELECT COALESCE(allow_booking, TRUE) AS allow_booking FROM helper_profiles WHERE user_id = $1',
+      'SELECT COALESCE(allow_booking, TRUE) AS allow_booking, COALESCE(allow_scheduling, TRUE) AS allow_scheduling FROM helper_profiles WHERE user_id = $1',
       [helper_id]
     );
     if (prefRes.rows[0] && prefRes.rows[0].allow_booking === false) {
       throw new AppError('This helper is not taking bookings right now', 403, 'booking_disabled');
+    }
+    // P2-8-F09: allow_scheduling was a dead privacy toggle (settable and
+    // returned by profile payloads, never enforced). Enforce it here the
+    // same way allow_booking is enforced above.
+    if (prefRes.rows[0] && prefRes.rows[0].allow_scheduling === false) {
+      throw new AppError('This helper is not taking appointments right now', 403, 'scheduling_disabled');
     }
 
     // 2. Atomic: re-check conflict + insert in one transaction.
@@ -427,7 +433,7 @@ exports.createAppointment = async (req, res, next) => {
     if (err.code === 'HELPER_UNAVAILABLE') {
       return sendError(res, 409, 'Helper is unavailable during the requested time', 'HELPER_UNAVAILABLE');
     }
-    logger.error('Failed to create appointment', { customerId: customer_id, helperId: helper_id, error: err.message });
+    logger.error('Failed to create appointment', { customerId: req.user?.id, helperId: req.body?.helper_id, error: err.message });
     return sendError(res, 500, 'Failed to create appointment', 'INTERNAL_ERROR');
   }
 };

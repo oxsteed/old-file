@@ -12,6 +12,7 @@
  */
 
 const logger = require('../utils/logger');
+const db = require('../db');
 const { getUserActionLogs } = require('../services/auditService');
 const { withDbBudget } = require('../utils/dbBudgets');
 const { parsePagination } = require('../utils/boundedPagination');
@@ -122,5 +123,75 @@ exports.exportUserActions = async (req, res, next) => {
     if (err && err.code === 'SCOPE_UNAVAILABLE') return scopeFailureResponse(res, err);
     logger.error('exportUserActions error', { err: err.message });
     return res.status(500).json({ error: 'Failed to export audit logs.' });
+  }
+};
+
+// ── Domain audit-log readers ────────────────────────────────────────────────
+// P3-11-F15: booking_request_audit_log, invoice_audit_log and
+// calendar_audit_log had writers but zero readers, which made them
+// write-only compliance theater. These admin readers expose them with the
+// same bounded-pagination and view_audit_log permission gate as /audit-log.
+//
+// Endpoints:
+//   GET /admin/audit-log/booking-requests   (filter: booking_request_id, action)
+//   GET /admin/audit-log/invoices           (filter: invoice_id)
+//   GET /admin/audit-log/calendar           (filter: user_id, appointment_id, action)
+
+async function runDomainAuditQuery(req, res, table, filters) {
+  // E04: bounded pagination at the edge so no unbounded list query can
+  // exhaust the pool.
+  const { limit, offset } = parsePagination(req.query, { defaultLimit: 100, maxLimit: 500 });
+  const clauses = [];
+  const values = [];
+  for (const [column, raw] of Object.entries(filters)) {
+    if (raw === undefined || raw === null || raw === '') continue;
+    values.push(String(raw));
+    clauses.push(`${column} = $${values.length}`);
+  }
+  const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';
+  const { rows } = await db.query(
+    `SELECT * FROM ${table} ${where} ORDER BY id DESC LIMIT $${values.length + 1} OFFSET $${values.length + 2}`,
+    [...values, limit, offset]
+  );
+  const count = await db.query(
+    `SELECT COUNT(*)::int AS total FROM ${table} ${where}`,
+    values
+  );
+  return res.json({ logs: rows, total: count.rows[0]?.total ?? 0, limit, offset });
+}
+
+exports.listBookingRequestAuditLog = async (req, res) => {
+  try {
+    return await runDomainAuditQuery(req, res, 'booking_request_audit_log', {
+      booking_request_id: req.query.booking_request_id || null,
+      action: req.query.action || null,
+    });
+  } catch (err) {
+    logger.error('listBookingRequestAuditLog error', { err: err.message });
+    return res.status(500).json({ error: 'Failed to fetch audit logs.' });
+  }
+};
+
+exports.listInvoiceAuditLog = async (req, res) => {
+  try {
+    return await runDomainAuditQuery(req, res, 'invoice_audit_log', {
+      invoice_id: req.query.invoice_id || null,
+    });
+  } catch (err) {
+    logger.error('listInvoiceAuditLog error', { err: err.message });
+    return res.status(500).json({ error: 'Failed to fetch audit logs.' });
+  }
+};
+
+exports.listCalendarAuditLog = async (req, res) => {
+  try {
+    return await runDomainAuditQuery(req, res, 'calendar_audit_log', {
+      user_id: req.query.user_id || null,
+      appointment_id: req.query.appointment_id || null,
+      action: req.query.action || null,
+    });
+  } catch (err) {
+    logger.error('listCalendarAuditLog error', { err: err.message });
+    return res.status(500).json({ error: 'Failed to fetch audit logs.' });
   }
 };

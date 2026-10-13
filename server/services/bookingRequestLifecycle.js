@@ -530,6 +530,20 @@ async function validateBookingSlot({ helperId, businessId, date, start, end, req
   }
 }
 
+/**
+ * The mutex every business_appointments writer must hold inside its
+ * transaction, BEFORE any conflict check or insert. The accept path
+ * (acceptBookingRequest) serializes on this per-business advisory lock while
+ * the direct-create path used to serialize on the service row FOR UPDATE,
+ * so a racing create+accept pair could both pass their conflict checks and
+ * double-book (P3-8-F12). Both paths must take this lock first.
+ */
+async function lockBusinessAppointments(db, businessId) {
+  await db.query('SELECT pg_advisory_xact_lock(hashtext($1))', [
+    `business_appointments:${businessId}`,
+  ]);
+}
+
 function advisoryLockKey(booking) {
   return booking.business_id
     ? `business_appointments:${booking.business_id}`
@@ -1447,6 +1461,7 @@ module.exports = {
   validateBookingSlot,
   confirmOrCreateAppointment,
   cancelLinkedAppointment,
+  lockBusinessAppointments,
   syncAppointmentTimes,
   emitBookingEvent,
   listBusinessMemberUserIds,

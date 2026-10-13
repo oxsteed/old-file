@@ -16,6 +16,7 @@ jest.mock('@otplib/v12-adapter', () => ({
 const express = require('express');
 const request = require('supertest');
 const { mockQuery, resetMocks } = require('./setup');
+const settingsCache = require('../services/platformSettingsCache');
 const authRoutes = require('../routes/auth');
 
 function buildApp() {
@@ -25,7 +26,11 @@ function buildApp() {
   return app;
 }
 
-beforeEach(() => resetMocks());
+beforeEach(() => {
+  resetMocks();
+  // Review P3-7-F07: the registration gate reads platform_settings first.
+  settingsCache._clearCacheForTests();
+});
 
 describe('auth login contract', () => {
   test('rejects login without termsAgreed for non-admin users', async () => {
@@ -70,6 +75,8 @@ describe('auth login contract', () => {
 
 describe('auth register/start contract', () => {
   test('accepts camelCase registration fields from web clients', async () => {
+    // Review P3-7-F07: the registration gate issues the first query.
+    mockQuery.mockResolvedValueOnce({ rows: [{ value: 'true' }] });
     mockQuery
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [{ id: 99 }] });
@@ -93,7 +100,7 @@ describe('auth register/start contract', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.token).toBeTruthy();
-    const insertArgs = mockQuery.mock.calls[1][1];
+    const insertArgs = mockQuery.mock.calls[2][1];
     expect(insertArgs[3]).toBe('New');
     expect(insertArgs[4]).toBe('User');
   });

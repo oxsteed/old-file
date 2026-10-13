@@ -14,6 +14,14 @@ jest.mock('../services/oxsteedCreditService', () => ({
   assertCreditRailEnabled: (...args) => mockAssertCreditRailEnabled(...args),
 }));
 
+// P3-10-F07: partner funding is sanctions-screened like settlement payouts.
+// Mock the gate (clear by default) so funding tests stay hermetic; the
+// screening service itself is covered by sanctionsScreening.db.test.js.
+const mockAssertSanctionsClear = jest.fn();
+jest.mock('../services/sanctionsScreeningService', () => ({
+  assertSanctionsClear: (...args) => mockAssertSanctionsClear(...args),
+}));
+
 const { recordPartnerFunding } = require('../services/oxsteedCreditPartnerLedgerService');
 
 beforeEach(() => {
@@ -21,6 +29,8 @@ beforeEach(() => {
   mockEnsureAccount.mockReset();
   mockPostJournalTransaction.mockReset();
   mockAssertCreditRailEnabled.mockReset();
+  mockAssertSanctionsClear.mockReset();
+  mockAssertSanctionsClear.mockResolvedValue({ screening: null, cleared: false });
   mockAssertCreditRailEnabled.mockResolvedValue(undefined);
   mockEnsureAccount
     .mockResolvedValueOnce({ id: 701 })
@@ -78,6 +88,25 @@ test('passes the validated funding amount to the journal transaction', async () 
     debitAccountId: 703,
     creditAccountId: 702,
   }));
+  // P3-10-F07: the partner is sanctions-screened before any money moves.
+  expect(mockAssertSanctionsClear).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({
+    subjectType: 'partner',
+    subjectId: 41,
+  }));
+});
+
+test('funding is blocked when sanctions screening denies the partner (P3-10-F07)', async () => {
+  const { AppError } = require('../middleware/errorHandler');
+  mockAssertSanctionsClear.mockRejectedValueOnce(new AppError('Blocked', 403, 'credit_sanctions_match'));
+  await expect(recordPartnerFunding({
+    partnerId: 41,
+    amountCents: 1000,
+    externalReference: 'bank-transfer-blocked',
+    idempotencyKey: 'funding-blocked-1',
+    actorUserId: '22222222-2222-4222-8222-222222222222',
+    reason: 'Sanctioned partner funding attempt',
+  })).rejects.toMatchObject({ code: 'credit_sanctions_match', status: 403 });
+  expect(mockPostJournalTransaction).not.toHaveBeenCalled();
 });
 
 test('funding is rejected for a non-active partner (M27c)', async () => {

@@ -9,6 +9,7 @@ const ctrl = require('../controllers/mediaController');
 const assetCtrl = require('../controllers/mediaAssetController');
 const verificationCtrl = require('../controllers/mediaVerificationController');
 const creatorCtrl = require('../controllers/mediaCreatorController');
+const enforceUploadQuota = require('../middleware/uploadQuota');
 
 const mediaUploadLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -106,13 +107,14 @@ router.post('/posts/:id/share', ctrl.recordShare);
 router.post('/posts/:id/view', ctrl.recordView);
 router.post('/posts/:id/flags', requireAuth, ctrl.flagPost);
 
-// Asset uploads.
-router.post('/assets/photo-uploads', requireAuth, mediaUploadLimiter, assetCtrl.mediaPhotoUploadHandler, assetCtrl.uploadPhoto);
-router.post('/assets/video-uploads', requireAuth, mediaUploadLimiter, assetCtrl.requireVideoIdentity, assetCtrl.mediaVideoUploadHandler, assetCtrl.videoUpload);
+// Asset uploads. enforceUploadQuota runs after the multer handler so the
+// file size is known (review P3-6-F13: per-user/per-day storage quota).
+router.post('/assets/photo-uploads', requireAuth, mediaUploadLimiter, assetCtrl.mediaPhotoUploadHandler, enforceUploadQuota, assetCtrl.uploadPhoto);
+router.post('/assets/video-uploads', requireAuth, mediaUploadLimiter, assetCtrl.requireVideoIdentity, assetCtrl.mediaVideoUploadHandler, enforceUploadQuota, assetCtrl.videoUpload);
 router.post('/assets/link', requireAuth, assetCtrl.linkAsset);
 router.delete('/posts/:postId/assets/:assetId', requireAuth, assetCtrl.removeAsset);
 router.patch('/posts/:postId/assets/:assetId', requireAuth, assetCtrl.updateAsset);
 router.put('/posts/:postId/assets/order', requireAuth, assetCtrl.reorderAssets);
-router.post('/posts/:postId/assets/:assetId/captions', requireAuth, mediaUploadLimiter, assetCtrl.mediaCaptionUploadHandler, assetCtrl.uploadCaption);
+router.post('/posts/:postId/assets/:assetId/captions', requireAuth, mediaUploadLimiter, assetCtrl.mediaCaptionUploadHandler, enforceUploadQuota, assetCtrl.uploadCaption);
 
 module.exports = router;

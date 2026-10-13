@@ -20,6 +20,7 @@ import {
   createRestaurantTopupIntent,
   getFoodRestaurant,
   getMyFoodRestaurantWallet,
+  getLoyaltyBalance,
   getRestaurantTopup,
   getRestaurantTopupEligibility,
   issueRestaurantTopupStepupChallenge,
@@ -30,6 +31,10 @@ import {
   listMyFoodOrders,
   sendFoodRestaurantMessage,
   formatFoodMoney,
+  listFavoriteRestaurants,
+  toggleFavoriteRestaurant,
+  listFavoriteItems,
+  toggleFavoriteItem,
 } from '../../api/food';
 import { parseCreditMajorAmount } from '../../lib/creditCurrency';
 import { safeCreditErrorMessage } from '../../lib/creditErrors';
@@ -230,6 +235,7 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
   const [searchQuery, setSearchQuery] = useState('');
   const [dietaryFilter, setDietaryFilter] = useState('all');
   const [saved, setSaved] = useState(false);
+  const [saveSaving, setSaveSaving] = useState(false);
   const [deliveryMode, setDeliveryMode] = useState('pickup');
   // Message-the-restaurant composer
   const [messageOpen, setMessageOpen] = useState(false);
@@ -247,6 +253,11 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
   const [addressLine1, setAddressLine1] = useState('');
   const [addressLine2, setAddressLine2] = useState('');
   const [promoCode, setPromoCode] = useState('');
+  // P3-9-F01: loyalty points redemption. Balance is fetched for the signed-in
+  // customer; the requested points ride along in the quote and order payloads
+  // (the server re-validates and clamps them).
+  const [loyaltyBalance, setLoyaltyBalance] = useState(null);
+  const [loyaltyPointsText, setLoyaltyPointsText] = useState('');
   const [deliverySlot, setDeliverySlot] = useState('asap');
   const [tipPreset, setTipPreset] = useState('none'); // 'none' | 10 | 15 | 20 | 'custom'
   const [customTipText, setCustomTipText] = useState('');
@@ -315,6 +326,86 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
       href: `/restaurants/r/${restaurantId}`,
     });
   }, [restaurantId, restaurant]);
+
+  // P2-8-F14: the Save button was local-only state; hydrate it from the
+  // server favorites for signed-in users so it reflects the real state.
+  useEffect(() => {
+    if (!user || !restaurantId) return;
+    let alive = true;
+    listFavoriteRestaurants()
+      .then((ids) => {
+        if (alive) setSaved(ids.map(Number).includes(Number(restaurantId)));
+      })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, [user, restaurantId]);
+
+  // ── Dish favorites (P2-8-F14: favorite-items endpoints had no client UI) ──
+  const [favoriteItemIds, setFavoriteItemIds] = useState([]);
+  const [itemFavSaving, setItemFavSaving] = useState(false);
+
+  useEffect(() => {
+    if (!user) return;
+    let alive = true;
+    listFavoriteItems()
+      .then((d) => {
+        if (alive) setFavoriteItemIds(d?.favoriteItemIds || []);
+      })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, [user]);
+
+  // NOTE: modalItemFavorited is computed after the modalItem declaration
+  // below (TDZ: reading modalItem earlier crashes the render).
+  const isModalItemFavorited = (item) =>
+    item ? favoriteItemIds.map(Number).includes(Number(item.id)) : false;
+
+  const handleItemFavoriteToggle = async () => {
+    if (!modalItem) return;
+    const itemId = Number(modalItem.id);
+    const isFav = favoriteItemIds.map(Number).includes(itemId);
+    // Guests keep a local-only toggle (no account to persist to).
+    if (!user) {
+      setFavoriteItemIds(isFav
+        ? favoriteItemIds.filter((id) => Number(id) !== itemId)
+        : [...favoriteItemIds, itemId]);
+      return;
+    }
+    if (itemFavSaving) return;
+    setItemFavSaving(true);
+    try {
+      const data = await toggleFavoriteItem(restaurantId, itemId);
+      setFavoriteItemIds(data?.favoriteItemIds || []);
+      toast.success(
+        data?.favorited ? t('food.restaurant.savedToFavorites') : t('food.restaurant.removedFromFavorites')
+      );
+    } catch {
+      toast.error(t('food.restaurant.favoriteFailed'));
+    } finally {
+      setItemFavSaving(false);
+    }
+  };
+
+  const handleSaveToggle = async () => {
+    // Guests keep the previous local-only toggle (no account to persist to).
+    if (!user) {
+      setSaved((s) => !s);
+      return;
+    }
+    if (saveSaving) return;
+    setSaveSaving(true);
+    try {
+      const data = await toggleFavoriteRestaurant(restaurantId);
+      setSaved(Boolean(data?.favorited));
+      toast.success(
+        data?.favorited ? t('food.restaurant.savedToFavorites') : t('food.restaurant.removedFromFavorites')
+      );
+    } catch {
+      toast.error(t('food.restaurant.favoriteFailed'));
+    } finally {
+      setSaveSaving(false);
+    }
+  };
   const creditCurrency = String(currency).toUpperCase();
   const oxsteedCreditOrderType = deliveryMode === 'delivery' ? 'delivery' : 'pickup';
 
@@ -877,6 +968,13 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
     })),
     [cartItems]
   );
+  // Points the customer asked to redeem, clamped to a sane integer. The
+  // server re-validates against the live balance and the order subtotal.
+  const loyaltyPointsToRedeem = useMemo(() => {
+    const requested = Math.floor(Number(loyaltyPointsText) || 0);
+    if (requested <= 0 || !loyaltyBalance) return 0;
+    return Math.min(requested, Math.max(0, loyaltyBalance.pointsBalance));
+  }, [loyaltyPointsText, loyaltyBalance]);
   // Authoritative total from the server quote when available; the client
   // estimate is only a fallback (it omits tax and service fees).
   const displayTotalCents = quote && Number.isFinite(Number(quote.totalCents))
@@ -950,6 +1048,11 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
         if (promoCode.trim()) {
           payload.discountCode = promoCode.trim();
         }
+        // P3-9-F01: loyalty redemption is validated server-side; the quote
+        // must reflect it so the displayed total matches the placed order.
+        if (loyaltyPointsToRedeem > 0) {
+          payload.loyaltyPointsToRedeem = loyaltyPointsToRedeem;
+        }
         if (fulfillmentType === 'delivery') {
           payload.deliveryAddress = {
             line1: addressLine1.trim(),
@@ -968,7 +1071,21 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
       }
     }, 450);
     return () => clearTimeout(timer);
-  }, [cartOpen, cartItems.length, restaurantId, cartStep, deliveryMode, addressLine1, addressLine2, apiPaymentMode, tipCents, promoCode, orderItemsPayload, restaurant]);
+  }, [cartOpen, cartItems.length, restaurantId, cartStep, deliveryMode, addressLine1, addressLine2, apiPaymentMode, tipCents, promoCode, loyaltyPointsToRedeem, orderItemsPayload, restaurant]);
+
+  // P3-9-F01: fetch the signed-in customer's loyalty balance for this
+  // restaurant when the checkout opens so points can be viewed and redeemed.
+  useEffect(() => {
+    if (!cartOpen || !user || !restaurantId) {
+      setLoyaltyBalance(null);
+      return undefined;
+    }
+    let cancelled = false;
+    getLoyaltyBalance(restaurantId)
+      .then((balance) => { if (!cancelled) setLoyaltyBalance(balance); })
+      .catch(() => { if (!cancelled) setLoyaltyBalance(null); });
+    return () => { cancelled = true; };
+  }, [cartOpen, user, restaurantId]);
 
   const openLoginGate = () => {
     navigate('/login', { state: { from: location } });
@@ -1087,6 +1204,8 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
           paymentMode,
           // CC4: promo codes are validated server-side for every payment mode.
           discountCode: promoCode.trim() ? promoCode.trim() : undefined,
+          // P3-9-F01: loyalty points redemption (validated server-side).
+          loyaltyPointsToRedeem: loyaltyPointsToRedeem > 0 ? loyaltyPointsToRedeem : undefined,
           items: orderItemsPayload,
           // The server re-prices everything; send the customer-chosen tip and
           // time slot so the debited total matches the quoted total.
@@ -1841,7 +1960,18 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
       { key: 'subtotal', label: t('food.restaurant.subtotal'), amount: quoted(quote?.subtotalCents) ?? subtotalCents },
     ];
     const discount = quoted(quote?.discountCents);
-    if (discount > 0) rows.push({ key: 'discount', label: t('food.restaurant.quoteDiscount'), amount: -discount, tone: 'green' });
+    // P3-9-F01: the quoted discount bundles promo + loyalty redemption;
+    // show the loyalty line separately so the customer sees what their
+    // points bought.
+    const loyaltyDiscount = quoted(quote?.loyaltyDiscountCents) || 0;
+    const promoDiscount = Math.max(0, (discount || 0) - loyaltyDiscount);
+    if (promoDiscount > 0) rows.push({ key: 'discount', label: t('food.restaurant.quoteDiscount'), amount: -promoDiscount, tone: 'green' });
+    if (loyaltyDiscount > 0) rows.push({
+      key: 'loyalty',
+      label: t('food.restaurant.loyaltyDiscount', { points: quoted(quote?.loyaltyRedeemedPoints) || 0 }),
+      amount: -loyaltyDiscount,
+      tone: 'green',
+    });
     const tax = quoted(quote?.taxCents);
     if (tax > 0) rows.push({ key: 'tax', label: t('food.restaurant.quoteTax'), amount: tax });
     const serviceFee = quoted(quote?.serviceFeeCents);
@@ -1931,7 +2061,7 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
                 <button onClick={handleMessageClick} aria-label={t('food.restaurant.messageAria')} style={{ height: 36, padding: '0 14px', borderRadius: 9999, border: '1.5px solid #e2e8f0', background: '#fff', color: '#0f172a', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
                   {`✉ ${t('food.restaurant.message')}`}
                 </button>
-                <button onClick={() => setSaved((s) => !s)} style={{ height: 36, padding: '0 14px', borderRadius: 9999, border: '1.5px solid #e2e8f0', background: '#fff', color: saved ? accent : '#94a3b8', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+                <button onClick={handleSaveToggle} disabled={saveSaving} style={{ height: 36, padding: '0 14px', borderRadius: 9999, border: '1.5px solid #e2e8f0', background: '#fff', color: saved ? accent : '#94a3b8', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
                   {saved ? `♥ ${t('food.common.saved')}` : `♡ ${t('food.common.save')}`}
                 </button>
                 <button onClick={onShare} aria-label={t('food.restaurant.share')} style={{ height: 36, padding: '0 14px', borderRadius: 9999, border: '1.5px solid #e2e8f0', background: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b' }}>{`↗ ${t('food.restaurant.share')}`}</button>
@@ -1985,7 +2115,7 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
                 </button>
                 <div style={{ display: 'flex', gap: 8 }}>
                   <button onClick={handleMessageClick} aria-label={t('food.restaurant.messageAria')} style={{ flex: 1, height: 40, borderRadius: 8, border: '1.5px solid #e2e8f0', background: '#fff', color: '#0f172a', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>{`✉ ${t('food.restaurant.message')}`}</button>
-                  <button onClick={() => setSaved((s) => !s)} style={{ flex: 1, height: 40, borderRadius: 8, border: '1.5px solid #e2e8f0', background: '#fff', color: saved ? accent : '#94a3b8', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>{saved ? `♥ ${t('food.common.saved')}` : `♡ ${t('food.common.save')}`}</button>
+                  <button onClick={handleSaveToggle} disabled={saveSaving} style={{ flex: 1, height: 40, borderRadius: 8, border: '1.5px solid #e2e8f0', background: '#fff', color: saved ? accent : '#94a3b8', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>{saved ? `♥ ${t('food.common.saved')}` : `♡ ${t('food.common.save')}`}</button>
                   <button onClick={onShare} aria-label={t('food.restaurant.share')} style={{ flex: 1, height: 40, borderRadius: 8, border: '1.5px solid #e2e8f0', background: '#fff', color: '#64748b', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>{`↗ ${t('food.restaurant.share')}`}</button>
                 </div>
                 {user && (
@@ -2814,6 +2944,43 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
                         style={{ ...inputStyle, marginBottom: 20, textTransform: 'uppercase' }}
                       />
                     </>
+                    {/* P3-9-F01: loyalty points. Signed-in customers see their
+                        balance for this restaurant and can redeem points for
+                        a discount (validated server-side). */}
+                    {user && (
+                      <>
+                        <p style={{ ...sectionLabel, color: '#64748b' }}>
+                          {t('food.restaurant.loyaltyPoints')}{' '}
+                          <span style={{ textTransform: 'none', fontWeight: 400, color: '#94a3b8' }}>({t('food.restaurant.optional')})</span>
+                        </p>
+                        <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 20 }}>
+                          <input
+                            value={loyaltyPointsText}
+                            onChange={(e) => setLoyaltyPointsText(e.target.value.replace(/[^0-9]/g, '').slice(0, 7))}
+                            placeholder={t('food.restaurant.loyaltyPlaceholder')}
+                            inputMode="numeric"
+                            aria-label={t('food.restaurant.loyaltyPoints')}
+                            style={{ ...inputStyle, marginBottom: 0, flex: 1 }}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setLoyaltyPointsText(loyaltyBalance ? String(Math.max(0, loyaltyBalance.pointsBalance)) : '')}
+                            disabled={!loyaltyBalance || loyaltyBalance.pointsBalance < (loyaltyBalance.minRedeemPoints || 100)}
+                            style={{ height: 40, padding: '0 14px', borderRadius: 10, border: '1.5px solid #e2e8f0', background: '#fff', color: '#475569', fontSize: 13, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}
+                          >
+                            {t('food.restaurant.loyaltyUseMax')}
+                          </button>
+                        </div>
+                        <p style={{ fontSize: 12, color: '#64748b', marginTop: -14, marginBottom: 20, lineHeight: 1.5 }}>
+                          {loyaltyBalance
+                            ? t('food.restaurant.loyaltyBalanceHint', {
+                                balance: loyaltyBalance.pointsBalance,
+                                min: loyaltyBalance.minRedeemPoints,
+                              })
+                            : t('food.restaurant.loyaltyLoading')}
+                        </p>
+                      </>
+                    )}
                     <p style={{ ...sectionLabel, color: '#64748b' }}>{t('food.restaurant.tip')}</p>
                     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: tipPreset === 'custom' ? 8 : 20 }}>
                       {[
@@ -3030,6 +3197,13 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
                 <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom,transparent 40%,rgba(0,0,0,0.55) 100%)' }} />
                 <div style={{ position: 'absolute', top: 10, left: '50%', transform: 'translateX(-50%)', width: 36, height: 4, borderRadius: 2, background: 'rgba(255,255,255,0.4)' }} />
                 <button onClick={() => setModalItem(null)} aria-label={t('food.common.close')} style={{ position: 'absolute', top: 14, right: 14, width: 36, height: 36, borderRadius: '50%', background: 'rgba(0,0,0,0.35)', color: '#fff', border: 'none', fontSize: 20, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1, backdropFilter: 'blur(8px)' }}>×</button>
+                <button
+                  onClick={handleItemFavoriteToggle}
+                  disabled={itemFavSaving}
+                  aria-label={isModalItemFavorited(modalItem) ? t('food.restaurant.unfavoriteDishAria') : t('food.restaurant.favoriteDishAria')}
+                  aria-pressed={isModalItemFavorited(modalItem)}
+                  style={{ position: 'absolute', top: 14, left: 14, width: 36, height: 36, borderRadius: '50%', background: 'rgba(0,0,0,0.35)', color: isModalItemFavorited(modalItem) ? '#f87171' : '#fff', border: 'none', fontSize: 18, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1, backdropFilter: 'blur(8px)' }}
+                >{isModalItemFavorited(modalItem) ? '♥' : '♡'}</button>
                 <div style={{ position: 'absolute', bottom: 14, left: 20, right: 20 }}>
                   <h2 style={{ fontFamily: SERIF, fontSize: 22, fontWeight: 400, color: '#fff', lineHeight: 1.2, marginBottom: 2 }}>{modalItem.name}</h2>
                   <span style={{ fontSize: 16, fontWeight: 700, color: '#fff' }}>{formatFoodMoney(modalItem.price_cents, currency)}</span>

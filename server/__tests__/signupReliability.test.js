@@ -1,5 +1,7 @@
 'use strict';
 const { mockQuery, resetMocks } = require('./setup');
+const settingsCache = require('../services/platformSettingsCache');
+jest.spyOn(settingsCache, 'areNewUserRegistrationsEnabled').mockResolvedValue(true);
 const crypto = require('crypto');
 const bcrypt = require('bcrypt');
 const controller = require('../controllers/authController');
@@ -35,13 +37,13 @@ describe('new registration validation', () => {
   });
   test.each(['customer', 'helper', 'business_owner'])('preserves launch mode, referral and explicit consent: %s', async defaultMode => {
     const expires = future(1800000);
-    mockQuery.mockResolvedValueOnce({ rows: [] }).mockResolvedValueOnce({ rows: [{ id: 1, expires_at: expires }] });
+    mockQuery.mockResolvedValueOnce({ rows: [{ id: 'referrer' }] }).mockResolvedValueOnce({ rows: [] }).mockResolvedValueOnce({ rows: [{ id: 1, expires_at: expires }] });
     const res = await call('startRegistration', { ...valid, defaultMode, ref: 'REFTEST', password: ' A1aaaaa ' });
     expect(res.body.registrationExpiresAt).toBe(expires);
     expect(hash).toHaveBeenCalledWith(' A1aaaaa ', expect.any(Number));
-    const args = mockQuery.mock.calls[1][1]; expect(args[11]).toBe(true); expect(args[13]).toBe('REFTEST'); expect(args[14]).toBe(defaultMode);
-    expect(mockQuery.mock.calls[1][0]).toMatch(/expires_at = NOW\(\) \+ interval '30 minutes'/);
-    expect(mockQuery.mock.calls[1][0]).not.toMatch(/otp_locked_until\s*=/);
+    const args = mockQuery.mock.calls[2][1]; expect(args[11]).toBe(true); expect(args[13]).toBe('REFTEST'); expect(args[14]).toBe(defaultMode);
+    expect(mockQuery.mock.calls[2][0]).toMatch(/expires_at = NOW\(\) \+ interval '30 minutes'/);
+    expect(mockQuery.mock.calls[2][0]).not.toMatch(/otp_locked_until\s*=/);
   });
   test.each([
     ['FR', 'Île-de-France', '75001', '+33123456789', 'Île-de-France'],

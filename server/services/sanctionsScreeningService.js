@@ -5,7 +5,8 @@
  * perimeter (Phase 5, gap 8).
  *
  * Screened subjects: the funding customer on every fiat funding decision,
- * and the payout beneficiary (partner) before every settlement payout.
+ * the partner on every partner funding movement (P3-10-F07), and the
+ * payout beneficiary (partner) before every settlement payout.
  * A screening is fresh for OXSTEED_CREDIT_SANCTIONS_SCREENING_TTL_HOURS
  * (default 24); older or missing screenings are re-run.
  *
@@ -29,6 +30,15 @@
  * money until a real screening vendor is contracted and the legal review
  * signs off. That vendor contract and the legal sign-off are human /
  * operational steps, not code.
+ *
+ * P3-10-F20 (informational, by design): with provider 'manual_review'
+ * every subject screens as a hit, so each customer needs an admin
+ * clearance per SCREENING_TTL_HOURS window (default 24h) before fiat
+ * funding or payouts. That per-customer daily clearance burden is the
+ * known cost of the fail-closed posture, not a bug. Contracting an
+ * automated vendor (OXSTEED_CREDIT_SANCTIONS_PROVIDER) removes it; do
+ * not "fix" it by lengthening the TTL or auto-clearing manual_review
+ * hits, which would silently re-open the sanctions perimeter.
  */
 
 const crypto = require('crypto');

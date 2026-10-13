@@ -170,3 +170,14 @@ export const getOxsteedCreditTopup = (topupId) =>
 
 export const issueOxsteedCreditTopupStepup = (payload) =>
   api.post('/oxsteed-credit/stepup-challenges', payload).then((response) => response.data);
+
+// P3-10-F05: credit-rail identity verification (KYC tier for fiat funding).
+// Blocked users (tier 0) had no client path to request verification.
+export const getOxsteedCreditIdentityVerification = () =>
+  api.get('/oxsteed-credit/identity-verification').then((response) => response.data);
+
+export const requestOxsteedCreditIdentityVerification = (payload = {}) =>
+  api.post('/oxsteed-credit/identity-verification', payload).then((response) => response.data);
+
+export const appealOxsteedCreditIdentityVerification = (verificationId, payload = {}) =>
+  api.post(`/oxsteed-credit/identity-verification/${encodeURIComponent(verificationId)}/appeal`, payload).then((response) => response.data);

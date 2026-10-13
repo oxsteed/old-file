@@ -22,7 +22,7 @@ const STATUS_COLOR = {
 /**
  * BusinessProcurementTab
  * Embedded version of BusinessProcurementPage scoped to a single businessId.
- * Rendered inside BusinessHubComplete — no PageShell or workspace switcher needed.
+ * Rendered inside the Business Hub services area. No PageShell or workspace switcher needed.
  */
 export function BusinessProcurementTab({ businessId }) {
   const { t, i18n } = useTranslation();

@@ -1,5 +1,7 @@
 'use strict';
 
+process.env.DIDIT_API_KEY = 'synthetic-didit-provider';
+
 // Review P3-1-F16: instant payouts must create a local payout row BEFORE the
 // Stripe call (failures are tracked), and payout.* webhook events must
 // reconcile that row as Stripe settles.

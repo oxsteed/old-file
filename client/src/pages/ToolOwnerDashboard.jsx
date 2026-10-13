@@ -86,11 +86,14 @@ export default function ToolOwnerDashboard() {
     // Pickups/returns in the next 7 days
     const upcomingPickups = bookings.filter(b => b.status === 'confirmed' && withinNextDays(b.start_date || b.start_at, 7)).length;
     const upcomingReturns = bookings.filter(b => b.status === 'in_progress' && withinNextDays(b.end_date || b.end_at, 7)).length;
-    // Last 30 days completed bookings → gross earnings in cents
+    // Last 30 days completed bookings → estimated earnings in cents.
+    // P3-12-F11: booking rows carry total_price (DECIMAL), not amount_cents
+    // or total_amount. Payments are collected off-platform, so this is an
+    // estimate from booking totals, not a payout record.
     const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
     const earnings30 = bookings
       .filter(b => (b.status === 'completed' || b.status === 'paid') && new Date(b.completed_at || b.end_date || b.created_at).getTime() >= thirtyDaysAgo)
-      .reduce((sum, b) => sum + (Number(b.amount_cents) || Math.round((Number(b.total_amount) || 0) * 100)), 0);
+      .reduce((sum, b) => sum + Math.round((Number(b.total_price) || 0) * 100), 0);
     // Avg rating across listings (server side calc on each tool row)
     const rated = listings.filter(l => l.avg_rating != null && l.review_count > 0);
     const avgRating = rated.length === 0
@@ -150,9 +153,9 @@ export default function ToolOwnerDashboard() {
           />
           <StatTile
             icon={<DollarSign size={14} />}
-            label={t('dashboards.toolOwner.earnings30', { defaultValue: '30-day earnings' })}
+            label={t('dashboards.toolOwner.earnings30')}
             value={fmtCurrency(stats.earnings30, currency)}
-            hint={t('dashboards.toolOwner.earningsHint', { defaultValue: 'Gross, before fees' })}
+            hint={t('dashboards.toolOwner.earningsHint')}
           />
         </div>
 

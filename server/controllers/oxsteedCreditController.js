@@ -344,6 +344,7 @@ async function getCustomerEligibility(req, res, next) {
 const {
   requestIdentityVerification,
   getCustomerVerificationTier,
+  getCustomerLatestVerification,
   TIER1_TOPUP_MAX_CENTS: CUSTOMER_TIER1_MAX,
   TIER2_TOPUP_MAX_CENTS: CUSTOMER_TIER2_MAX,
 } = require('../services/identityVerificationService');
@@ -351,15 +352,19 @@ const {
 /**
  * GET /api/oxsteed-credit/identity-verification
  * Current verification tier and per-tier fiat funding limits.
+ * P3-10-F05: also returns the newest verification row so the client can
+ * render pending/rejected state and offer the appeal path.
  */
 async function getMyIdentityVerification(req, res, next) {
   try {
     const client = await pool.connect();
     try {
       const tier = await getCustomerVerificationTier(client, req.user.id);
+      const latest = await getCustomerLatestVerification(client, req.user.id);
       res.json({
         ...tier,
         tierLimitsCents: { tier1: CUSTOMER_TIER1_MAX, tier2: CUSTOMER_TIER2_MAX },
+        latestVerification: latest,
       });
     } finally {
       client.release();
@@ -371,13 +376,26 @@ async function getMyIdentityVerification(req, res, next) {
 
 /**
  * POST /api/oxsteed-credit/identity-verification
- * Open a verification request (manual review queue). Body: { requestedTier }.
+ * Open a verification request (manual review queue). Body: { requestedTier, providerName }.
+ *
+ * P3-10-F06: the Didit auto-grant tier path was dead code because this
+ * handler never passed providerName, so requestIdentityVerification always
+ * fell back to 'manual_review'. The provider name is now allow-listed from
+ * the request body (default 'didit'): customers with a verified, unexpired
+ * Didit identity are auto-granted tier 2 with no human review, everyone
+ * else falls through to the manual review queue inside the didit provider.
  */
+const IDENTITY_VERIFICATION_PROVIDERS = new Set(['didit', 'manual_review']);
 async function requestMyIdentityVerification(req, res, next) {
   try {
+    const requestedProvider = req.body?.providerName ?? req.body?.provider_name;
+    const providerName = IDENTITY_VERIFICATION_PROVIDERS.has(requestedProvider)
+      ? requestedProvider
+      : 'didit';
     const result = await requestIdentityVerification({
       customerId: req.user.id,
       requestedTier: req.body?.requestedTier ?? req.body?.requested_tier ?? 2,
+      providerName,
       actorUserId: req.user.id,
       requestIp: req.ip || null,
     });
@@ -838,16 +856,16 @@ async function resolveAdminDispute(req, res, next) {
     // (with optional compensation) and resolved_merchant. Disputes are
     // never auto-resolved in the customer's favor.
     const decision = rawStatus === 'resolved' ? 'resolved_merchant' : rawStatus;
-    const result = await resolveDisputeWithCompensation({
+    // Review P2-1-F07: resolutions (and their compensation legs) are money
+    // movement: they queue as a pending action for a different admin to
+    // decide instead of executing immediately.
+    const result = await requestMoneyMovement(req, 'credit_dispute_resolve', {
       disputeId,
-      adminId: req.user.id,
       decision,
       reason: req.body?.resolution || req.body?.reason,
       compensationCents: req.body?.compensationCents ?? req.body?.compensation_cents ?? 0,
-      requestIp: req.ip || null,
-      correlationId: req.correlationId || req.get('X-Request-ID') || null,
     });
-    res.json(result);
+    sendMoneyMovementResult(res, result);
   } catch (error) {
     next(error);
   }
@@ -855,22 +873,20 @@ async function resolveAdminDispute(req, res, next) {
 
 /**
  * POST /admin/super/oxsteed-credit/disputes/:disputeId/provisional-credit
- * Super-admin only: issue provisional credit while a dispute is in_review.
- * The dispute stays open; the cumulative provisional total is tracked on
- * the dispute and reduces the final-resolution compensation cap.
+ * Maker endpoint: queue provisional credit for checker approval while a
+ * dispute is in_review. The dispute stays open; the cumulative provisional
+ * total is tracked on the dispute and reduces the final-resolution
+ * compensation cap. Review P2-1-F07: this used to execute immediately.
  */
 async function issueAdminProvisionalCredit(req, res, next) {
   try {
     const disputeId = parseUuid(req.params.disputeId, 'disputeId');
-    const result = await issueProvisionalCredit({
+    const result = await requestMoneyMovement(req, 'credit_dispute_provisional_credit', {
       disputeId,
-      adminId: req.user.id,
       amountCents: req.body?.amountCents ?? req.body?.amount_cents,
       reason: req.body?.reason,
-      requestIp: req.ip || null,
-      correlationId: req.correlationId || req.get('X-Request-ID') || null,
     });
-    res.json(result);
+    sendMoneyMovementResult(res, result);
   } catch (error) {
     next(error);
   }
@@ -1165,11 +1181,32 @@ async function getAdminCreditRail(req, res, next) {
 
 async function updateAdminCreditRail(req, res, next) {
   try {
+    const enabled = parseBoolean(req.body?.enabled, 'enabled');
+    let expectedEnabled = req.body?.expectedEnabled === undefined && req.body?.expected_enabled === undefined
+      ? undefined
+      : parseBoolean(req.body?.expectedEnabled ?? req.body?.expected_enabled, 'expectedEnabled');
+    // Review P3-7-F10: activating the money rail requires two-person
+    // approval. A single admin may still SUSPEND it (the emergency stop
+    // stays unilateral and fast), but flipping false -> true must go through
+    // the settings change-request flow: propose, then approve by a different
+    // admin, which applies via the rail's gated control path. An enable
+    // request while the rail is already enabled is an idempotent replay and
+    // is allowed through, with the expectation pinned so a concurrent
+    // suspend between the check and the apply below surfaces as a state
+    // conflict instead of silently re-enabling the rail.
+    if (enabled === true) {
+      const current = await getCreditRailStatus();
+      if (!current.enabled) {
+        return res.status(409).json({
+          error: 'Activating the OxSteed Credit rail requires approval from a second administrator. Propose it in Platform Settings > Change Requests.',
+          code: 'credit_rail_enable_requires_approval',
+        });
+      }
+      if (expectedEnabled === undefined) expectedEnabled = true;
+    }
     const result = await setCreditRailStatus({
-      enabled: parseBoolean(req.body?.enabled, 'enabled'),
-      expectedEnabled: req.body?.expectedEnabled === undefined && req.body?.expected_enabled === undefined
-        ? undefined
-        : parseBoolean(req.body?.expectedEnabled ?? req.body?.expected_enabled, 'expectedEnabled'),
+      enabled,
+      expectedEnabled,
       actorUserId: req.user.id,
       reason: req.body?.reason,
       correlationId: req.correlationId || req.get('X-Request-ID') || null,

@@ -68,6 +68,119 @@ function Toggle({ checked, onChange, disabled, ariaLabel }) {
   );
 }
 
+// P2-8-F07: the calendar notification-preferences endpoint (channel arrays +
+// quiet hours) previously had no client UI. This panel wires the quiet-hours
+// fields (toggle + start/end) to GET/PUT /calendar/notification-preferences.
+function QuietHoursPanel() {
+  const { t } = useTranslation();
+  const [enabled, setEnabled] = useState(false);
+  const [start, setStart] = useState('22:00');
+  const [end, setEnd] = useState('07:00');
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  const toHHMM = (value) => String(value || '').slice(0, 5) || '';
+
+  useEffect(() => {
+    api.get('/calendar/notification-preferences')
+      .then(r => {
+        const p = r.data || {};
+        setEnabled(!!p.quiet_hours_enabled);
+        if (p.quiet_hours_start) setStart(toHHMM(p.quiet_hours_start));
+        if (p.quiet_hours_end) setEnd(toHHMM(p.quiet_hours_end));
+        setLoading(false);
+      })
+      .catch(() => {
+        toast.error(t('notifications.quietHours.failedLoad'));
+        setLoading(false);
+      });
+  }, [t]);
+
+  const save = useCallback(async (next) => {
+    setSaving(true);
+    try {
+      await api.put('/calendar/notification-preferences', next);
+      toast.success(t('notifications.quietHours.saved'));
+    } catch {
+      toast.error(t('notifications.quietHours.failedSave'));
+    } finally {
+      setSaving(false);
+    }
+  }, [t]);
+
+  const handleToggle = (value) => {
+    setEnabled(value);
+    save({ quiet_hours_enabled: value, quiet_hours_start: start, quiet_hours_end: end });
+  };
+
+  const handleTimeChange = (which, value) => {
+    const nextStart = which === 'start' ? value : start;
+    const nextEnd = which === 'end' ? value : end;
+    if (which === 'start') setStart(value); else setEnd(value);
+    save({ quiet_hours_enabled: enabled, quiet_hours_start: nextStart, quiet_hours_end: nextEnd });
+  };
+
+  return (
+    <div className="notification-settings__preference-list rounded-2xl mb-6">
+      <div className="px-6 py-4 border-b" style={{ borderBottomColor: 'var(--color-border)' }}>
+        <h2 className="notification-settings__section-title">{t('notifications.quietHours.title')}</h2>
+        <p className="notification-settings__muted text-xs mt-0.5">{t('notifications.quietHours.description')}</p>
+      </div>
+      {loading ? (
+        <div className="flex items-center justify-center py-8">
+          <div className="animate-spin h-6 w-6 border-2 border-orange-500 border-t-transparent rounded-full" />
+        </div>
+      ) : (
+        <div>
+          <div className="notification-settings__preference-row has-border">
+            <div>
+              <label className="notification-settings__row-title cursor-pointer select-none">
+                {t('notifications.quietHours.enabled')}
+              </label>
+              <p className="notification-settings__muted text-xs mt-0.5">{t('notifications.quietHours.enabledDesc')}</p>
+            </div>
+            <Toggle
+              checked={enabled}
+              onChange={handleToggle}
+              disabled={saving}
+              ariaLabel={t('notifications.quietHours.enabled')}
+            />
+          </div>
+          <div className="notification-settings__preference-row">
+            <div>
+              <label className="notification-settings__row-title select-none">
+                {t('notifications.quietHours.window')}
+              </label>
+              <p className="notification-settings__muted text-xs mt-0.5">{t('notifications.quietHours.windowDesc')}</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="time"
+                value={start}
+                disabled={!enabled || saving}
+                onChange={(e) => handleTimeChange('start', e.target.value)}
+                aria-label={t('notifications.quietHours.startLabel')}
+                className="px-2 py-1.5 rounded-lg border text-sm bg-transparent"
+                style={{ borderColor: 'var(--color-border)' }}
+              />
+              <span className="notification-settings__muted text-sm">{t('notifications.quietHours.to')}</span>
+              <input
+                type="time"
+                value={end}
+                disabled={!enabled || saving}
+                onChange={(e) => handleTimeChange('end', e.target.value)}
+                aria-label={t('notifications.quietHours.endLabel')}
+                className="px-2 py-1.5 rounded-lg border text-sm bg-transparent"
+                style={{ borderColor: 'var(--color-border)' }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function NotificationSettings() {
   const { t } = useTranslation();
   const [prefs,   setPrefs]   = useState(null);
@@ -144,6 +257,8 @@ export default function NotificationSettings() {
           </div>
 
           <BrowserPushPanel />
+
+          <QuietHoursPanel />
 
           {/* Master channel toggles */}
           {!loading && (

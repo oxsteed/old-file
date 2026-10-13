@@ -132,7 +132,9 @@ export default function DisputeResolutionPage() {
   };
 
   const handleReportDispute = () => {
-    navigate('/support/escalation?ticketType=dispute_refund');
+    // P3-2-F18: this page is the dispute-resolution policy; the button must
+    // open the actual dispute flow, not file a support ticket.
+    navigate('/disputes');
   };
 
   const canAccept = scrollProgress >= 95 && formData.agreed;

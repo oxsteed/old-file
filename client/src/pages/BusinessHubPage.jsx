@@ -129,7 +129,7 @@ function fmtMonth(m) {
 const DEFAULT_INV_FORM   = {
   client_name: '', client_email: '', client_company: '',
   due_date: '', invoice_tax_rate: '', notes: '', status: 'draft',
-  line_items: [{ description: '', quantity: 1, unit_price: '' }],
+  line_items: [{ description: '', quantity: 1, unit_price: '', type: 'item' }],
 };
 const DEFAULT_GOAL_FORM  = { title: '', goal_type: 'revenue', period: 'monthly', target_value: '', current_value: '' };
 
@@ -797,6 +797,7 @@ function BusinessHubInner() {
           description: li.description,
           quantity: parseFloat(li.quantity) || 1,
           unit_price: parseFloat(li.unit_price) || 0,
+          type: ['item', 'discount', 'fee'].includes(li.type) ? li.type : 'item',
         })),
       };
       if (modal === 'add-inv') {
@@ -1067,7 +1068,7 @@ function BusinessHubInner() {
 
   // ── invoice line items helpers ────────────────────────────────────────────
   function addLineItem() {
-    setForm(f => ({ ...f, line_items: [...(f.line_items || []), { description: '', quantity: 1, unit_price: '' }] }));
+    setForm(f => ({ ...f, line_items: [...(f.line_items || []), { description: '', quantity: 1, unit_price: '', type: 'item' }] }));
   }
   function removeLineItem(i) {
     setForm(f => ({ ...f, line_items: f.line_items.filter((_, idx) => idx !== i) }));
@@ -1080,9 +1081,18 @@ function BusinessHubInner() {
     });
   }
   function calcTotals(lineItems, taxRate) {
-    const subtotal = (lineItems || []).reduce((s, li) => s + (parseFloat(li.quantity) || 0) * (parseFloat(li.unit_price) || 0), 0);
+    // Mirrors the server computeInvoiceTotals: discounts reduce the taxable
+    // subtotal, fees are added after tax.
+    let items = 0, discounts = 0, fees = 0;
+    for (const li of (lineItems || [])) {
+      const amount = (parseFloat(li.quantity) || 0) * (parseFloat(li.unit_price) || 0);
+      if (li.type === 'discount') discounts += amount;
+      else if (li.type === 'fee') fees += amount;
+      else items += amount;
+    }
+    const subtotal = Math.max(0, items - discounts);
     const taxAmt   = subtotal * ((parseFloat(taxRate) || 0) / 100);
-    return { subtotal, taxAmt, total: subtotal + taxAmt };
+    return { subtotal, taxAmt, total: subtotal + taxAmt + fees, discountTotal: discounts, feeTotal: fees };
   }
 
   // ── services CRUD ─────────────────────────────────────────────────────────
@@ -2242,6 +2252,16 @@ function BusinessHubInner() {
               <div className="bh-line-items">
                 {(form.line_items || []).map((li, i) => (
                   <div key={i} className="bh-line-item">
+                    <select
+                      aria-label={t('businessHub.lineItemType')}
+                      value={li.type || 'item'}
+                      onChange={e => updateLineItem(i, 'type', e.target.value)}
+                      className="bh-line-type"
+                    >
+                      <option value="item">{t('businessHub.lineItemTypeItem')}</option>
+                      <option value="discount">{t('businessHub.lineItemTypeDiscount')}</option>
+                      <option value="fee">{t('businessHub.lineItemTypeFee')}</option>
+                    </select>
                     <input placeholder={t('businessHub.placeholderLineDesc')} value={li.description || ''} onChange={e => updateLineItem(i, 'description', e.target.value)} />
                     <input type="number" placeholder={t('businessHub.placeholderLineQty')} value={li.quantity || ''} onChange={e => updateLineItem(i, 'quantity', e.target.value)} min="0" step="0.01" />
                     <input type="number" placeholder={t('businessHub.placeholderLineUnit')} value={li.unit_price || ''} onChange={e => updateLineItem(i, 'unit_price', e.target.value)} min="0" step="0.01" />
@@ -2253,11 +2273,13 @@ function BusinessHubInner() {
 
               {/* Live totals preview */}
               {(() => {
-                const { subtotal, taxAmt, total } = calcTotals(form.line_items, form.invoice_tax_rate);
+                const { subtotal, taxAmt, total, discountTotal, feeTotal } = calcTotals(form.line_items, form.invoice_tax_rate);
                 return (
                   <div className="bh-totals">
                     <div>{t('businessHub.subtotal')}: {fmt$(subtotal, currency)}</div>
+                    {discountTotal > 0 && <div>{t('businessHub.discountTotal')}: -{fmt$(discountTotal, currency)}</div>}
                     {taxAmt > 0 && <div>{t('businessHub.taxLabel')} ({form.invoice_tax_rate || 0}%): {fmt$(taxAmt, currency)}</div>}
+                    {feeTotal > 0 && <div>{t('businessHub.feeTotal')}: {fmt$(feeTotal, currency)}</div>}
                     <div className="grand">{t('businessHub.total')}: {fmt$(total, currency)}</div>
                   </div>
                 );
@@ -3584,6 +3606,10 @@ function TeamTab({
                   </td>
                   <td>
                     {m.status === 'pending' && m.member_id ? (
+                      // Code-join approvals are a Vortex code flow: the
+                      // approve/deny APIs 503 while VORTEX_ENABLED is off, so
+                      // the buttons only render when the feature is launched.
+                      showVortexAccess ? (
                       <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
                         <button
                           className="bh-btn primary"
@@ -3596,6 +3622,11 @@ function TeamTab({
                           {t('businessHub.btnDeny')}
                         </button>
                       </div>
+                      ) : (
+                        <span style={{ fontSize: '0.78rem', color: 'var(--muted-text)' }}>
+                          {t('businessHub.statusAwaitingApproval')}
+                        </span>
+                      )
                     ) : m.status === 'pending' ? (
                       <button className="bh-btn bh-btn-danger-sm" onClick={() => onRevoke(m)}>
                         {t('businessHub.btnCancelInvite')}

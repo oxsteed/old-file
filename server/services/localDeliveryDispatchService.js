@@ -324,6 +324,19 @@ function createDispatchService(deps = {}) {
       await ensureNoOpenRecovery(client, job);
       const assignment = { driverId: req.user.id, vehicleId: null };
       await lockResources(client, assignment);
+      // P2-4-F10: self-serve onboarding exists, but claim still needs an
+      // approved profile. Fail with a targeted code so the client can route
+      // the helper to onboarding instead of a generic capacity error.
+      const { rows: [selfProfile] } = await client.query(
+        'SELECT approved, active FROM delivery_driver_profiles WHERE user_id = $1',
+        [req.user.id]
+      );
+      if (!selfProfile) {
+        throw fail('Complete driver onboarding before claiming deliveries', 'delivery_driver_onboarding_required', 409);
+      }
+      if (selfProfile.approved !== true) {
+        throw fail('Driver profile is pending operations approval', 'delivery_driver_pending_approval', 409);
+      }
       const window = windowForJob(job, now);
       await checkAssignment(client, job, assignment, window);
       await reserve(client, job, assignment, window);

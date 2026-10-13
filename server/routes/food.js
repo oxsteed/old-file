@@ -28,6 +28,9 @@ router.get('/restaurants/:restaurantId/kiosk-config', kiosk.getPublicKioskConfig
 router.get('/payment-config', ctrl.getPaymentConfig);
 router.get('/orders/track/:trackingToken', ctrl.getTrackedOrder);
 router.post('/orders/:orderId/review', optionalAuth, ctrl.createOrderReview);
+router.put('/orders/:orderId/review', optionalAuth, ctrl.updateOrderReview);
+router.delete('/orders/:orderId/review', optionalAuth, ctrl.deleteOrderReview);
+router.post('/orders/:orderId/review/respond', authenticate, ctrl.respondToOrderReview);
 // Stripe hosted-checkout return URL. Kept on optionalAuth so guests can
 // complete a true guest cart (food_orders.customer_id IS NULL) after paying
 // at Stripe; user-bound carts require the signed-in owner (see controller).
@@ -50,6 +53,8 @@ router.get('/my/orders', authenticate, ctrl.listMyOrders);
 router.get('/orders/:orderId', authenticate, ctrl.getOrder);
 router.get('/customer/profile', authenticate, ctrl.getCustomerProfile);
 router.patch('/customer/profile', authenticate, ctrl.updateCustomerProfile);
+// P3-9-F01: customer-facing loyalty balance (view points / redeem at checkout).
+router.get('/customer/loyalty/:restaurantId', authenticate, ctrl.getMyLoyaltyBalance);
 router.use('/customer/wallets', authenticate, checkRestrictions('checkout'), noStoreCreditResponse);
 router.get('/customer/wallets', walletCtrl.listCustomerWallets);
 router.get('/customer/wallets/:restaurantId', walletCtrl.getCustomerWallet);
@@ -67,6 +72,7 @@ router.get('/customer/wallets/:restaurantId/transfers', walletCtrl.listMyWalletT
 router.post('/customer/wallets/:restaurantId/load-requests', restaurantCreditMutationLimiter, walletCtrl.createMyWalletLoadRequest);
 router.get('/customer/wallets/:restaurantId/load-requests', walletCtrl.listMyWalletLoadRequests);
 router.post('/customer/wallets/:restaurantId/load-requests/:requestId/cancel', restaurantCreditMutationLimiter, walletCtrl.cancelMyWalletLoadRequest);
+router.get('/customer/favorites', authenticate, ctrl.listCustomerFavoriteRestaurants);
 router.post('/customer/favorites/:restaurantId/toggle', authenticate, ctrl.toggleCustomerFavoriteRestaurant);
 router.get('/customer/favorite-items', authenticate, ctrl.listCustomerFavoriteItems);
 router.put('/customer/favorite-items/sync', authenticate, ctrl.syncCustomerFavoriteItems);

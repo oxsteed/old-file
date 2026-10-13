@@ -42,12 +42,14 @@ function intentParams({ model = 'direct', amountMinor, currency = 'USD', applica
     metadata: { ...metadata, charge_model: model },
   };
   if (model === 'direct') {
-    params.application_fee_amount = applicationFeeMinor;
+    // Stripe rejects application_fee_amount: 0 on direct charges; omit it
+    // when the platform-funded discount consumed the whole fee (P2-6-F09).
+    if (Number(applicationFeeMinor) > 0) params.application_fee_amount = applicationFeeMinor;
     return { params, options: { stripeAccount: helperAccountId } };
   }
   params.on_behalf_of = helperAccountId;
   if (model === 'destination') {
-    params.application_fee_amount = applicationFeeMinor;
+    if (Number(applicationFeeMinor) > 0) params.application_fee_amount = applicationFeeMinor;
     params.transfer_data = { destination: helperAccountId };
   } else {
     params.transfer_group = metadata.job_id ? `job_${metadata.job_id}` : undefined;

@@ -9,6 +9,14 @@ const logger = require('../utils/logger');
 const { logAdminAction } = require('../services/auditService');
 const { sendBusinessInvoiceEmail } = require('../utils/businessInvoiceEmail');
 const { listUserInvoices, getUserInvoiceById } = require('../services/userInvoicesService');
+// P3-9-F03: the super-admin endpoints below used to bypass every guard the
+// business-side path enforces (immutability of paid/cancelled invoices,
+// legal status transitions, already-paid rejection). They now apply the same
+// helpers.
+const {
+  validateInvoiceUpdate,
+  resolvePaymentDelta,
+} = require('../utils/businessInvoiceHelpers');
 const businessInvoiceCreditController = require('../controllers/businessInvoiceCreditController');
 const businessInvoiceStripeConnectController = require('../controllers/businessInvoiceStripeConnectController');
 const mobileController = require('../controllers/mobileController');
@@ -94,9 +102,27 @@ router.get('/:id', authenticate, generalLimiter, async (req, res) => {
 
 router.patch('/:id/mark-paid', authenticate, requireSuperAdmin, async (req, res) => {
   try {
+    const { rows: [existing] } = await pool.query(
+      'SELECT id, status, total, amount_paid, invoice_number FROM business_invoices WHERE id = $1',
+      [req.params.id]
+    );
+    if (!existing) return res.status(404).json({ error: 'Invoice not found' });
+    // P3-9-F03: same guards as the business-side payment path. Paid and
+    // cancelled invoices are immutable, and an already fully-paid invoice
+    // cannot be marked paid again. resolvePaymentDelta runs first so the
+    // already-paid case keeps the business-side 409 semantics; the cancelled
+    // rejection is stricter than business-side (fail closed: a voided
+    // invoice must not be resurrected as paid).
+    const paidAmount = resolvePaymentDelta(undefined, existing.total, existing.amount_paid);
+    if (paidAmount.error) {
+      const code = paidAmount.error.includes('fully paid') ? 409 : 400;
+      return res.status(code).json({ error: paidAmount.error });
+    }
+    const immutabilityError = validateInvoiceUpdate(existing, {});
+    if (immutabilityError) return res.status(400).json({ error: immutabilityError });
     const { rows: [inv] } = await pool.query(
       `UPDATE business_invoices
-       SET status = 'paid', paid_at = NOW(), amount_paid = total
+       SET status = 'paid', paid_at = COALESCE(paid_at, NOW()), amount_paid = total
        WHERE id = $1 RETURNING *`,
       [req.params.id]
     );
@@ -108,7 +134,7 @@ router.patch('/:id/mark-paid', authenticate, requireSuperAdmin, async (req, res)
         targetType: 'business_invoice',
         targetId: inv.id,
         description: `Invoice ${inv.invoice_number || inv.id} marked as paid`,
-        before: { status: 'unpaid' },
+        before: { status: existing.status, amount_paid: existing.amount_paid },
         after: { status: 'paid', amount_paid: inv.amount_paid },
         req,
       });
@@ -132,6 +158,12 @@ router.patch('/:id/status', authenticate, requireSuperAdmin, async (req, res) =>
       [req.params.id]
     );
     if (!before) return res.status(404).json({ error: 'Invoice not found' });
+    // P3-9-F03: same transition guards as the business-side path. Paid and
+    // cancelled invoices are immutable; a sent invoice cannot return to
+    // draft, and 'paid' must go through the mark-paid endpoint so the
+    // payment math (resolvePaymentDelta) is honored.
+    const transitionError = validateInvoiceUpdate(before, { status });
+    if (transitionError) return res.status(400).json({ error: transitionError });
     const { rows: [inv] } = await pool.query(
       `UPDATE business_invoices
           SET status = $1,

@@ -20,7 +20,10 @@ const { requireFeatureEnabled } = require('../middleware/featureFlags');
 const { rejectImpersonated } = require('../middleware/rejectImpersonated');
 
 // Audit fix: Vortex is launch-hidden. Gate the leftover access-code and
-// membership approve/deny APIs to match the UI and /api/vortex routes.
+// code-flow membership approve/deny APIs to match the UI and /api/vortex
+// routes. Removing (kicking) an ACTIVE member is core team management, not a
+// Vortex code flow, so it stays available whenever the caller holds
+// team.remove_member.
 const requireVortexEnabled = requireFeatureEnabled('Vortex', 'VORTEX_ENABLED', false);
 
 const access = require('../controllers/businessAccessCodesController');
@@ -80,7 +83,6 @@ router.post(
   '/:businessId/memberships/:membershipId/remove',
   authenticate,
   rejectImpersonated,
-  requireVortexEnabled,
   requireBusinessAccess({ minRole: 'manager' }),
   requirePermission('team.remove_member'),
   access.removeMembership

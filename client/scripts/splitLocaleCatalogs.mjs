@@ -6,11 +6,12 @@ const scriptDirectory = dirname(fileURLToPath(import.meta.url));
 const localeDirectory = join(scriptDirectory, '../src/locales');
 const outputDirectory = join(localeDirectory, 'generated');
 const languages = ['en', 'es', 'fr', 'ht', 'ar'];
-// Arabic needs about 513 KiB per shard after the Media recovery translations.
-// Allow 16 KiB of headroom above the previous 512 KiB cap while retaining a
-// bounded three-shard budget in every supported language.
+// Arabic needs more than three shards after the Media recovery translations.
+// Keep the per-shard transfer cap while allowing a bounded number of shards
+// as catalogs grow.
 const maxShardBytes = 528 * 1024;
-const shardCount = 3;
+const minimumShardCount = 3;
+const maxAllowedShards = 6;
 
 await mkdir(outputDirectory, { recursive: true });
 
@@ -19,25 +20,53 @@ for (const language of languages) {
     await readFile(join(localeDirectory, `${language}.json`), 'utf8'),
   );
   const entries = Object.entries(catalog);
-  const shards = Array.from({ length: shardCount }, () => []);
-  const shardSizes = Array.from({ length: shardCount }, () => 0);
-  const assignments = new Map();
+  const sizedEntries = entries
+    .map(([key, value]) => ({
+      key,
+      value,
+      size: Buffer.byteLength(JSON.stringify({ [key]: value })) - 2,
+    }))
+    .sort((left, right) => right.size - left.size);
+  const totalBytes = sizedEntries.reduce((sum, entry) => sum + entry.size, 0);
 
-  for (const { key, size } of entries
-    .map(([key, value]) => ({ key, value, size: Buffer.byteLength(JSON.stringify({ [key]: value })) - 2 }))
-    .sort((left, right) => right.size - left.size)) {
-    const shardIndex = shardSizes.indexOf(Math.min(...shardSizes));
-    assignments.set(key, shardIndex);
-    shardSizes[shardIndex] += size;
+  const createShards = (count) => {
+    const shards = Array.from({ length: count }, () => []);
+    const shardSizes = Array.from({ length: count }, () => 0);
+    const assignments = new Map();
+
+    for (const { key, size } of sizedEntries) {
+      const shardIndex = shardSizes.indexOf(Math.min(...shardSizes));
+      assignments.set(key, shardIndex);
+      shardSizes[shardIndex] += size;
+    }
+
+    // Restore the source catalog order so generated files remain stable and
+    // diffs stay readable even when the balancing algorithm changes.
+    for (const [key, value] of entries) {
+      shards[assignments.get(key)].push([key, value]);
+    }
+
+    return {
+      shards,
+      // Include JSON punctuation and the trailing newline in the safety check.
+      actualSizes: shards.map((shard) => Buffer.byteLength(`${JSON.stringify(Object.fromEntries(shard))}\n`)),
+    };
+  };
+
+  let shardCount = Math.max(minimumShardCount, Math.ceil(totalBytes / maxShardBytes));
+  let split = createShards(shardCount);
+  while (Math.max(...split.actualSizes) > maxShardBytes) {
+    shardCount += 1;
+    if (shardCount > maxAllowedShards) {
+      throw new Error(
+        `${language} locale requires more than ${maxAllowedShards} shards `
+        + `(total ${totalBytes} bytes; largest ${Math.max(...split.actualSizes)} bytes).`,
+      );
+    }
+    split = createShards(shardCount);
   }
 
-  if (Math.max(...shardSizes) > maxShardBytes) {
-    throw new Error(`${language} locale shard exceeds ${maxShardBytes} bytes; update the split strategy.`);
-  }
-
-  for (const [key, value] of entries) {
-    shards[assignments.get(key)].push([key, value]);
-  }
+  const { shards } = split;
 
   await Promise.all(shards.map(async (shard, index) => {
     const outputPath = join(outputDirectory, `${language}-${index}.json`);

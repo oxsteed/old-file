@@ -157,7 +157,10 @@ async function rehearseMigrations({
       let ready = false;
       for (let i = 0; i < 30; i += 1) {
         try {
-          await execAsync(execImpl, 'docker', ['exec', containerId, 'pg_isready', '-U', 'postgres'], { timeout: 10000 });
+          // The image starts a temporary socket-only server while initializing
+          // PostGIS, then restarts it. Probe TCP so migrations cannot connect
+          // during that temporary server's shutdown window.
+          await execAsync(execImpl, 'docker', ['exec', containerId, 'pg_isready', '-h', '127.0.0.1', '-U', 'postgres'], { timeout: 10000 });
           ready = true;
           break;
         } catch {

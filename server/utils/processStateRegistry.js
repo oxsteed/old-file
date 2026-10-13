@@ -20,6 +20,11 @@ const { registerProcessState } = require('./processState');
 
 const ENTRIES = [
   {
+    file: 'services/platformSettingsCache.js', name: 'cache',
+    classification: 'cache', shared: 'none',
+    rationale: 'PostgreSQL-backed platform settings cache: 15s default TTL, two fixed keys. Operator changes propagate within the TTL.',
+  },
+  {
     file: 'controllers/paymentController.js', name: 'connectAccountStatusCache',
     classification: 'cache', shared: 'none',
     rationale: 'Stripe Connect status cache: 15min TTL, 250-entry cap; backed by Stripe. Only successful provider refreshes are cached; refresh errors fail closed.',

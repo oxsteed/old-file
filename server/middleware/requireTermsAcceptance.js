@@ -22,7 +22,7 @@ const requireTermsAcceptance = async (req, res, next) => {
       FROM user_consents
       WHERE user_id = $1
         AND consent_type = ANY($2)
-      ORDER BY consent_type, created_at DESC`,
+      ORDER BY consent_type, accepted_at DESC`,
       [userId, REQUIRED_CONSENTS]
     );
 

@@ -3,6 +3,7 @@
 const pool = require('../db');
 const { withTransaction } = require('../utils/transaction');
 const { AppError } = require('../middleware/errorHandler');
+const { logAdminAction } = require('./auditService');
 
 const SOURCE = 'local_delivery_v1';
 const RETRY_WINDOW_MS = 23 * 60 * 60 * 1000;
@@ -176,6 +177,27 @@ paymentsEnabled = () => /^(true|1)$/i.test(process.env.FEATURE_PAYMENTS_ENABLED 
        WHERE id = $1 RETURNING *`,
       [payment.id, status, session.id, intentId, paid ? charge.id : null, paid,
         paid ? charge.receipt_url || null : null, refunded]);
+    // P3-11-F09: audit the parcel-delivery money movement. Fail closed:
+    // logAdminAction throws when given the transaction client, so a dropped
+    // audit row rolls the capture back instead of leaving an unaudited charge.
+    if (paid && !payment.captured_at) {
+      await logAdminAction({
+        client,
+        adminId: payment.customer_user_id,
+        action: 'delivery_payment_captured',
+        targetType: 'delivery_payment',
+        targetId: String(payment.id),
+        description: `Parcel delivery payment ${payment.id} captured (${payment.amount_cents} ${payment.currency})`,
+        before: { status: payment.status },
+        after: {
+          status: updated.status,
+          amount_cents: Number(payment.amount_cents),
+          currency: payment.currency,
+          payment_intent_id: intentId,
+          charge_id: charge.id,
+        },
+      });
+    }
     if (payment.delivery_extra_id != null) {
       await client.query(
         `UPDATE delivery_extras SET payment_status = $2, payment_intent_id = COALESCE($3, payment_intent_id)
@@ -355,6 +377,24 @@ paymentsEnabled = () => /^(true|1)$/i.test(process.env.FEATURE_PAYMENTS_ENABLED 
         refund = await issueRefund(payment.payment_intent_id, Number(request.amount_cents), request.idempotency_key);
       }
       await applyRefundResponse(client, payment, request, refund);
+      // P3-11-F09: audit the admin-issued parcel refund with the same
+      // fail-closed contract as the capture above.
+      await logAdminAction({
+        client,
+        adminId: actor.id,
+        action: 'delivery_payment_refunded',
+        targetType: 'delivery_payment',
+        targetId: String(paymentId),
+        description: `Parcel delivery payment ${paymentId} refunded ${request.amount_cents} ${payment.currency}: ${reason.trim()}`,
+        before: { refunded_amount_cents: Number(payment.refunded_amount_cents || 0) },
+        after: {
+          refunded_amount_cents: Number(request.target_refunded_cents),
+          refund_cents: Number(request.amount_cents),
+          currency: payment.currency,
+          provider_refund_id: refund.id,
+          reason: reason.trim(),
+        },
+      });
       const result = await retrieveAndReconcile(client, payment, await latestAttempt(client, paymentId));
       return { ...result, refundId: refund.id, refundStatus: refund.status };
     });

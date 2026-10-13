@@ -730,12 +730,16 @@ ddescribe('settlement amendments', () => {
       scopeValue: businessId, from: P_AUG.from, to: P_AUG.to,
     });
 
+    const { rows: [{ missing_ref }] } = await pool.query(
+      'SELECT (COALESCE(MAX(id), 0) + 1)::text AS missing_ref FROM settlement_source_history',
+    );
+
     await expect(amendments.proposeAmendment({
       adminId: admin,
       documentId: doc.id,
       amendmentType: 'accounting',
       reason: 'attempted accounting amendment on a snapshot product',
-      compensatingTransactionRefs: ['123'],
+      compensatingTransactionRefs: [missing_ref],
     })).rejects.toMatchObject({ code: 'statement_amendment_transaction_not_found', statusCode: 404 });
   });
 

@@ -40,6 +40,13 @@ router.post('/admin/:disputeId/review',
   adminDisputeCtrl.startReview
 );
 
+// P3-2-F20: path back from under_review to open.
+router.post('/admin/:disputeId/reopen',
+  authenticate,
+  requireAdmin, requirePermission('manage_disputes'),
+  adminDisputeCtrl.reopenDispute
+);
+
 router.post('/admin/:disputeId/resolve',
   authenticate,
   requireAdmin,

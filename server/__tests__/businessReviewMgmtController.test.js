@@ -31,15 +31,16 @@ describe('business review management backend wiring', () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [{ '?column?': 1 }] })
       .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({ rows: [{ id: 'review-1', owner_reply: 'Thanks for the feedback' }] });
+      .mockResolvedValueOnce({ rows: [{ id: 'review-1', response: 'Thanks for the feedback' }] });
 
     const res = await request(buildApp())
       .post('/api/businesses/12/reviews-manage/review-1/reply')
       .send({ reply: 'Thanks for the feedback' });
 
     expect(res.status).toBe(200);
-    expect(res.body.review.owner_reply).toBe('Thanks for the feedback');
-    expect(mockQuery.mock.calls[1][0]).toMatch(/ADD COLUMN IF NOT EXISTS owner_reply/);
+    expect(res.body.review.response).toBe('Thanks for the feedback');
+    expect(mockQuery.mock.calls[1][0]).toMatch(/ADD COLUMN IF NOT EXISTS owner_reply_at/);
+    expect(mockQuery.mock.calls[2][0]).toMatch(/SET response=\$1, owner_reply_at=NOW\(\)/);
     expect(mockQuery.mock.calls[2][1][0]).toBe('Thanks for the feedback');
   });
 
@@ -47,21 +48,21 @@ describe('business review management backend wiring', () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [{ '?column?': 1 }] })
       .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({ rows: [{ id: 'review-1', owner_reply: null }] });
+      .mockResolvedValueOnce({ rows: [{ id: 'review-1', response: null }] });
 
     const res = await request(buildApp())
       .delete('/api/businesses/12/reviews-manage/review-1/reply');
 
     expect(res.status).toBe(200);
-    expect(res.body.review.owner_reply).toBeNull();
-    expect(mockQuery.mock.calls[2][0]).toMatch(/SET owner_reply=NULL/);
+    expect(res.body.review.response).toBeNull();
+    expect(mockQuery.mock.calls[2][0]).toMatch(/SET response=NULL/);
   });
 
   test('applies replied and unreplied filters against stored replies', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [{ '?column?': 1 }] })
       .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({ rows: [{ id: 'review-1', owner_reply: 'Thank you' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'review-1', response: 'Thank you' }] })
       .mockResolvedValueOnce({ rows: [{ count: '1' }] });
 
     const res = await request(buildApp())
@@ -69,6 +70,6 @@ describe('business review management backend wiring', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.total).toBe(1);
-    expect(mockQuery.mock.calls[2][0]).toMatch(/NULLIF\(BTRIM\(r.owner_reply\), ''\) IS NOT NULL/);
+    expect(mockQuery.mock.calls[2][0]).toMatch(/NULLIF\(BTRIM\(r.response\), ''\) IS NOT NULL/);
   });
 });

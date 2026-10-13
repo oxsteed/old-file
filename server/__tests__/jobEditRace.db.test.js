@@ -31,6 +31,7 @@ jest.mock('../services/notificationService', () => ({ sendNotification: jest.fn(
 jest.mock('../services/socketService', () => ({ broadcastToUser: jest.fn(), emitToUser: jest.fn(), getIO: () => null }));
 
 const crypto = require('node:crypto');
+const { acceptCurrentConsents, currentConsentRows } = require('./helpers/currentConsents');
 const describeDb = url ? describe : describe.skip;
 
 describeDb('job edit foundation on real Postgres', () => {
@@ -68,8 +69,42 @@ describeDb('job edit foundation on real Postgres', () => {
          VALUES ($1, $2, 'x', 'Job', 'Edit', $3)`,
         [id, `${id}@job-edit.test`, role]
       );
+      await acceptCurrentConsents(pool, id);
     }
   }, 30000);
+
+  test('terms gate uses the latest accepted_at record and denies missing or outdated consent', async () => {
+    const gate = require('../middleware/requireTermsAcceptance');
+    const res = { status: jest.fn().mockReturnThis(), json: jest.fn().mockReturnThis() };
+    const next = jest.fn();
+    try {
+      await pool.query('DELETE FROM user_consents WHERE user_id = $1', [customer]);
+      await gate({ user: { id: customer } }, res, next);
+      expect(res.status).toHaveBeenCalledWith(403);
+      expect(next).not.toHaveBeenCalled();
+
+      await acceptCurrentConsents(pool, customer);
+      await pool.query("UPDATE user_consents SET accepted_at = NOW() - INTERVAL '2 minutes' WHERE user_id = $1", [customer]);
+      await pool.query(
+        `INSERT INTO user_consents (user_id, consent_type, version, ip_hash, user_agent, accepted_at)
+         VALUES ($1, $2, '2000-01-01', $3, 'synthetic-consent-fixture', NOW() - INTERVAL '1 minute')`,
+        [customer, currentConsentRows()[0].consent_type, 'a'.repeat(64)],
+      );
+      res.status.mockClear();
+      await gate({ user: { id: customer } }, res, next);
+      expect(res.status).toHaveBeenCalledWith(403);
+      expect(next).not.toHaveBeenCalled();
+
+      await acceptCurrentConsents(pool, customer);
+      res.status.mockClear();
+      await gate({ user: { id: customer } }, res, next);
+      expect(next).toHaveBeenCalledTimes(1);
+      expect(res.status).not.toHaveBeenCalled();
+    } finally {
+      await pool.query('DELETE FROM user_consents WHERE user_id = $1', [customer]);
+      await acceptCurrentConsents(pool, customer);
+    }
+  });
 
   afterAll(async () => {
     for (const sql of [

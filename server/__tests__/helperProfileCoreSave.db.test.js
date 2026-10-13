@@ -1,5 +1,7 @@
 'use strict';
 
+process.env.DIDIT_API_KEY = 'synthetic-didit-provider';
+
 // PS-1 / PS-7 regression: real migrated PostgreSQL (disposable
 // credit_statement_test database only). Exercises the actual
 // INSERT ... ON CONFLICT upsert in PUT /api/helper-profile/core, which used

@@ -13,6 +13,7 @@
 'use strict';
 
 const { mockQuery, resetMocks } = require('./setup');
+const settingsCache = require('../services/platformSettingsCache');
 
 jest.mock('@otplib/v12-adapter', () => ({
   authenticator: {
@@ -44,7 +45,17 @@ const TEST_TOKEN = jwt.sign(
   process.env.JWT_SECRET
 );
 
-beforeEach(() => resetMocks());
+beforeEach(() => {
+  resetMocks();
+  // Review P3-7-F07: the registration gate reads platform_settings first;
+  // clear the TTL cache so each test's mock sequence starts fresh.
+  settingsCache._clearCacheForTests();
+});
+
+// The registration gate (assertRegistrationsOpen) issues the first query:
+// SELECT value FROM platform_settings WHERE key = 'new_user_registrations'.
+const registrationsOpenMock = () =>
+  mockQuery.mockResolvedValueOnce({ rows: [{ value: 'true' }] });
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -115,6 +126,7 @@ describe('POST /api/auth/register/start', () => {
   });
 
   test('normalizes and stores trimmed registration fields', async () => {
+    registrationsOpenMock();
     mockQuery
       .mockResolvedValueOnce({ rows: [] }) // check existing email
       .mockResolvedValueOnce({ rows: [{ id: 123 }] }); // insert/update pending registration
@@ -135,7 +147,7 @@ describe('POST /api/auth/register/start', () => {
       });
 
     expect(res.status).toBe(200);
-    const insertArgs = mockQuery.mock.calls[1][1];
+    const insertArgs = mockQuery.mock.calls.find(([sql]) => /INSERT INTO pending_registrations/.test(sql))[1];
     expect(insertArgs[1]).toBe('customer@example.com');
     expect(insertArgs[3]).toBe('Customer');
     expect(insertArgs[4]).toBe('User');
@@ -144,7 +156,61 @@ describe('POST /api/auth/register/start', () => {
     expect(insertArgs[9]).toBe('OH');
   });
 
+  test('rejects an unknown referral code instead of failing silently (P2-6-F08)', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [] }); // referral code lookup: no match
+
+    const res = await request(buildApp())
+      .post('/api/auth/register/start')
+      .send({
+        email: 'ref-bad@example.com',
+        password: 'Str0ng!Pass',
+        firstName: 'Ref',
+        lastName: 'Bad',
+        phone: '+15551112222',
+        addressLine1: '123 Main St',
+        city: 'Springfield',
+        state: 'OH',
+        country: 'US',
+        zip: '12345',
+        ageConfirmed: true,
+        ref: 'typo-code',
+      });
+
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual(expect.objectContaining({ code: 'invalid_referral_code' }));
+  });
+
+  test('accepts a known referral code and stores it', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ id: 'referrer-1' }] }) // referral code lookup
+      .mockResolvedValueOnce({ rows: [{ value: 'true' }] }) // registration kill switch
+      .mockResolvedValueOnce({ rows: [] }) // check existing email
+      .mockResolvedValueOnce({ rows: [{ id: 125 }] }); // insert/update pending registration
+
+    const res = await request(buildApp())
+      .post('/api/auth/register/start')
+      .send({
+        email: 'ref-good@example.com',
+        password: 'Str0ng!Pass',
+        firstName: 'Ref',
+        lastName: 'Good',
+        phone: '+15551112222',
+        addressLine1: '123 Main St',
+        city: 'Springfield',
+        state: 'OH',
+        country: 'US',
+        zip: '12345',
+        ageConfirmed: true,
+        ref: 'good-code',
+      });
+
+    expect(res.status).toBe(200);
+    const insertArgs = mockQuery.mock.calls.find(([sql]) => /INSERT INTO pending_registrations/.test(sql))[1];
+    expect(insertArgs[13]).toBe('good-code');
+  });
+
   test('accepts exact-cased predefined region names', async () => {
+    registrationsOpenMock();
     mockQuery
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [{ id: 124 }] });
@@ -167,12 +233,13 @@ describe('POST /api/auth/register/start', () => {
       });
 
     expect(res.status).toBe(200);
-    const insertArgs = mockQuery.mock.calls[1][1];
+    const insertArgs = mockQuery.mock.calls.find(([sql]) => /INSERT INTO pending_registrations/.test(sql))[1];
     expect(insertArgs[9]).toBe('Île-de-France');
     expect(insertArgs[14]).toBe('restaurant_staff');
   });
 
   test('allows empty postal code when the selected country does not require one', async () => {
+    registrationsOpenMock();
     mockQuery
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [{ id: 125 }] });
@@ -194,13 +261,14 @@ describe('POST /api/auth/register/start', () => {
       });
 
     expect(res.status).toBe(200);
-    const insertArgs = mockQuery.mock.calls[1][1];
+    const insertArgs = mockQuery.mock.calls.find(([sql]) => /INSERT INTO pending_registrations/.test(sql))[1];
     expect(insertArgs[6]).toBeNull();
     expect(insertArgs[9]).toBeNull();
     expect(insertArgs[10]).toBe('HT');
   });
 
   test('returns 400 for DB field length overflow instead of 500', async () => {
+    registrationsOpenMock();
     mockQuery
       .mockResolvedValueOnce({ rows: [] }) // check existing email
       .mockRejectedValueOnce({ code: '22001' }); // insert pending registration
@@ -435,7 +503,7 @@ describe('POST /api/auth/refresh', () => {
     const deadline = new Date(Date.now() + 3 * 86400000).toISOString();
     mockQuery.mockImplementation(async (sql) => {
       const t = String(sql);
-      if (t.includes('FROM sessions s WHERE')) return { rows: [{ id: 17, user_id: 3, is_valid: true, is_revoked: false, expires_at: new Date(Date.now() + 86400000).toISOString(), absolute_expires_at: deadline }] };
+      if (t.includes('FROM sessions s WHERE')) return { rows: [{ id: 17, user_id: 3, is_valid: true, is_revoked: false, remember_me: false, expires_at: new Date(Date.now() + 86400000).toISOString(), absolute_expires_at: deadline }] };
       if (t.includes('UPDATE sessions SET is_valid = false')) return { rows: [{ id: 1 }] };
       if (t.includes('FROM users WHERE id')) return { rows: [{ id: 3, email: 'a@b.c', role: 'customer' }] };
       return { rows: [] };
@@ -443,10 +511,31 @@ describe('POST /api/auth/refresh', () => {
     const res = await request(buildApp()).post('/api/auth/refresh').send({ refreshToken: 'fam-token' });
     expect(res.status).toBe(200);
     const insert = mockQuery.mock.calls.find(([sql]) => String(sql).includes('INSERT INTO sessions'));
-    expect(insert[0]).toMatch(/LEAST\(NOW\(\) \+ interval '7 days'/);
+    // Review P1-1-F04: the rotation window is parameterized by remember_me
+    // (7d default, 30d when the original login had remember-me).
+    expect(insert[0]).toMatch(/LEAST\(NOW\(\) \+ make_interval\(days => \$4\)/);
     expect(insert[1][2]).toBe(new Date(deadline).toISOString());
+    expect(insert[1][3]).toBe(7);
     expect(insert[0]).toMatch(/parent_session_id/);
-    expect(insert[1][4]).toBe(17);
+    expect(insert[1][5]).toBe(17);
+    expect(insert[1][6]).toBe(false);
+  });
+
+  test('rotation honors remember-me with a 30-day window', async () => {
+    mockQuery.mockReset();
+    const deadline = new Date(Date.now() + 40 * 86400000).toISOString();
+    mockQuery.mockImplementation(async (sql) => {
+      const t = String(sql);
+      if (t.includes('FROM sessions s WHERE')) return { rows: [{ id: 17, user_id: 3, is_valid: true, is_revoked: false, remember_me: true, expires_at: new Date(Date.now() + 86400000).toISOString(), absolute_expires_at: deadline }] };
+      if (t.includes('UPDATE sessions SET is_valid = false')) return { rows: [{ id: 1 }] };
+      if (t.includes('FROM users WHERE id')) return { rows: [{ id: 3, email: 'a@b.c', role: 'customer' }] };
+      return { rows: [] };
+    });
+    const res = await request(buildApp()).post('/api/auth/refresh').send({ refreshToken: 'fam-token' });
+    expect(res.status).toBe(200);
+    const insert = mockQuery.mock.calls.find(([sql]) => String(sql).includes('INSERT INTO sessions'));
+    expect(insert[1][3]).toBe(30);
+    expect(insert[1][6]).toBe(true);
   });
 
   test('does not mint a session for an inactive account', async () => {

@@ -108,25 +108,9 @@ const createInvoice = async (req, res) => {
       }
     }
 
-    // Check for existing invoice with same idempotency key (for this booking)
-    const existingResult = await client.query(
-      `SELECT * FROM tool_rental_invoices WHERE booking_id = $1 AND idempotency_key = $2`,
-      [bookingId, idempotencyKey]
-    );
-
-    if (existingResult.rows[0]) {
-      // Idempotent: return existing invoice with 202 Accepted
-      client.release();
-      const existingInvoice = existingResult.rows[0];
-      return res.status(202).json({
-        invoiceId: existingInvoice.id,
-        invoiceNumber: existingInvoice.invoice_number,
-        status: existingInvoice.status,
-        deliveryMethod,
-        isRetry: true
-      });
-    }
-
+    // P3-9-F14: the owner/booking check runs BEFORE the idempotency replay
+    // check. Previously a guessed (booking_id, UUID) pair returned the
+    // existing invoice to anyone, leaking invoice existence and details.
     // Get booking details + owner email
     const bookingResult = await client.query(
       `SELECT trb.*, tr.name, tr.daily_rate, cu.email as customer_email, cu.first_name as customer_first, cu.last_name as customer_last,
@@ -151,6 +135,39 @@ const createInvoice = async (req, res) => {
     if (booking.status !== 'pending') {
       client.release();
       return res.status(400).json({ error: 'Invoice already sent for this booking' });
+    }
+
+    // Check for existing invoice with same idempotency key (for this booking).
+    // Only the booking owner ever reaches this point, so the replay response
+    // cannot leak invoice existence to anyone else.
+    const existingResult = await client.query(
+      `SELECT * FROM tool_rental_invoices WHERE booking_id = $1 AND idempotency_key = $2`,
+      [bookingId, idempotencyKey]
+    );
+
+    if (existingResult.rows[0]) {
+      // Idempotent: return existing invoice with 202 Accepted
+      client.release();
+      const existingInvoice = existingResult.rows[0];
+      return res.status(202).json({
+        invoiceId: existingInvoice.id,
+        invoiceNumber: existingInvoice.invoice_number,
+        status: existingInvoice.status,
+        deliveryMethod,
+        isRetry: true
+      });
+    }
+
+    // P3-12-F09: the owner must accept the per-booking rental terms before
+    // the first invoice. Fail closed: an invoice request from a client that
+    // skipped the terms modal is refused rather than silently issued.
+    const termsResult = await client.query(
+      `SELECT 1 FROM tool_rental_terms_acceptance WHERE booking_id = $1 AND user_role = 'owner'`,
+      [bookingId]
+    );
+    if (termsResult.rows.length === 0) {
+      client.release();
+      return res.status(409).json({ error: 'owner_terms_not_accepted' });
     }
 
     // Get owner's payment method

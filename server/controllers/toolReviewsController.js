@@ -5,6 +5,10 @@ const { resolvePublicDisplayName } = require('../utils/publicDisplayName');
 const getToolReviews = async (req, res) => {
   try {
     const { toolId } = req.params;
+    const toolIdNum = parseInt(toolId, 10);
+    if (!Number.isInteger(toolIdNum) || toolIdNum < 1) {
+      return res.status(400).json({ error: 'Invalid tool id' });
+    }
     const result = await db.query(
       `SELECT tr.*, u.first_name, u.last_name, u.display_name_preference,
               pb.business_name AS primary_business_name,
@@ -14,7 +18,7 @@ const getToolReviews = async (req, res) => {
        LEFT JOIN businesses pb ON pb.user_id = u.id AND pb.is_primary = TRUE AND pb.is_active = TRUE
        WHERE tr.tool_id = $1
        ORDER BY tr.created_at DESC`,
-      [toolId]
+      [toolIdNum]
     );
     res.json(result.rows.map((row) => {
       const displayName = resolvePublicDisplayName(row);
@@ -44,6 +48,34 @@ const submitReview = async (req, res) => {
       return res.status(400).json({ error: 'Invalid rating' });
     }
 
+    const toolIdNum = parseInt(toolId, 10);
+    if (!Number.isInteger(toolIdNum) || toolIdNum < 1) {
+      return res.status(400).json({ error: 'Invalid tool id' });
+    }
+
+    // The tool must exist (bogus ids used to die on the FK as a 500)
+    const toolRes = await db.query('SELECT id, user_id FROM tool_rentals WHERE id = $1', [toolIdNum]);
+    const tool = toolRes.rows[0];
+    if (!tool) {
+      return res.status(404).json({ error: 'Tool not found' });
+    }
+
+    // Owners cannot review their own tools
+    if (tool.user_id === userId) {
+      return res.status(403).json({ error: 'You cannot review your own tool' });
+    }
+
+    // Only customers with a completed rental of this tool may review it
+    const bookingRes = await db.query(
+      `SELECT 1 FROM tool_rentals_bookings
+        WHERE tool_id = $1 AND customer_id = $2 AND status = 'completed'
+        LIMIT 1`,
+      [toolIdNum, userId]
+    );
+    if (!bookingRes.rows.length) {
+      return res.status(403).json({ error: 'Only customers with a completed rental can review this tool' });
+    }
+
     await client.query('BEGIN');
 
     // Insert review
@@ -52,19 +84,19 @@ const submitReview = async (req, res) => {
        VALUES ($1, $2, $3, $4)
        ON CONFLICT (tool_id, user_id) DO UPDATE SET rating = $3, review_text = $4
        RETURNING *`,
-      [toolId, userId, rating, review_text || null]
+      [toolIdNum, userId, rating, review_text || null]
     );
 
     // Update tool avg rating
     const avgResult = await client.query(
       'SELECT AVG(rating) as avg_rating, COUNT(*) as review_count FROM tool_reviews WHERE tool_id = $1',
-      [toolId]
+      [toolIdNum]
     );
     const { avg_rating, review_count } = avgResult.rows[0];
 
     await client.query(
       'UPDATE tool_rentals SET avg_rating = $1, review_count = $2 WHERE id = $3',
-      [parseFloat(avg_rating).toFixed(2), review_count, toolId]
+      [parseFloat(avg_rating).toFixed(2), review_count, toolIdNum]
     );
 
     await client.query('COMMIT');

@@ -36,6 +36,7 @@ jest.mock('../services/notificationService', () => ({ sendNotification: jest.fn(
 jest.mock('../services/socketService', () => ({ broadcastToUser: jest.fn(), emitToUser: jest.fn(), getIO: () => null }));
 
 const crypto = require('node:crypto');
+const { acceptCurrentConsents } = require('./helpers/currentConsents');
 const describeDb = url ? describe : describe.skip;
 
 const FLAG_ENV = ['FEATURE_PAYMENT_RAILS', 'FEATURE_RAIL_OFFLINE_GATING', 'FEATURE_JOB_TIMEZONES'];
@@ -83,6 +84,7 @@ describeDb('payment layers on real Postgres', () => {
         `INSERT INTO users (id, email, password_hash, first_name, last_name, role) VALUES ($1, $2, 'x', 'Pay', 'Layers', $3)`,
         [id, `${id}@payment-layers.test`, role]
       );
+      await acceptCurrentConsents(pool, id);
     }
     const { rows } = await pool.query(`SELECT * FROM payment_country_policies WHERE country_code = 'CA'`);
     savedPolicy = rows[0];

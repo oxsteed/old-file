@@ -415,6 +415,9 @@
 .ox-credit-statement-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 0; border-top: 1px solid var(--oc-line); font-size: 14px; }
 .ox-credit-statement-actions { display: flex; align-items: center; gap: 10px; }
 .ox-credit-statement-actions .ox-credit-detail-link { background: none; border: 0; cursor: pointer; padding: 0; font-size: 13.5px; }
+/* Badge marking a month backed by an issued immutable original (P2-5-F06). */
+.ox-credit-statement-badge { display: inline-block; font-size: 11px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: #166534; background: #dcfce7; border-radius: 999px; padding: 2px 8px; margin-inline-start: 8px; white-space: nowrap; }
+.ox-credit-statement-badge.amended { color: #92400e; background: #fef3c7; }
 
 /* ── Running balance on transactions ────────────────────────────── */
 .ox-credit-transaction-amount { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }

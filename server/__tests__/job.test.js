@@ -1,6 +1,7 @@
 'use strict';
 
 const { mockQuery, resetMocks } = require('./setup');
+const { currentConsentRows } = require('./helpers/currentConsents');
 const { routeQueries } = require('./helpers/sqlRouter');
 
 // Extra mocks needed for job controller
@@ -51,6 +52,7 @@ const auth = (r, token = TOKEN_CUSTOMER) => r.set('Authorization', `Bearer ${tok
 function mockCreate(newJob) {
   return routeQueries(mockQuery, [
     [/FROM users u/, { rows: [MOCK_USER_CUSTOMER] }],
+    [/FROM user_consents/, { rows: currentConsentRows() }],
     [/INSERT INTO jobs/, { rows: [newJob] }],
   ]);
 }
@@ -107,7 +109,7 @@ describe('POST /api/jobs', () => {
   };
 
   test('returns 422 with a localizable code when title is too short', async () => {
-    mockAuth();
+    mockAuth(MOCK_USER_CUSTOMER, { rows: currentConsentRows() });
     const res = await auth(
       request(buildApp()).post('/api/jobs').send({ ...validBody, title: 'Short' })
     );
@@ -116,7 +118,7 @@ describe('POST /api/jobs', () => {
   });
 
   test('returns 422 when description is too short', async () => {
-    mockAuth();
+    mockAuth(MOCK_USER_CUSTOMER, { rows: currentConsentRows() });
     const res = await auth(
       request(buildApp()).post('/api/jobs').send({ ...validBody, description: 'Too short' })
     );
@@ -125,7 +127,7 @@ describe('POST /api/jobs', () => {
   });
 
   test('returns 422 when location_city is missing (legacy `location` key mirrored)', async () => {
-    mockAuth();
+    mockAuth(MOCK_USER_CUSTOMER, { rows: currentConsentRows() });
     const res = await auth(
       request(buildApp()).post('/api/jobs').send({ ...validBody, location_city: '' })
     );
@@ -135,7 +137,7 @@ describe('POST /api/jobs', () => {
   });
 
   test('returns 422 when the budget range is inverted', async () => {
-    mockAuth();
+    mockAuth(MOCK_USER_CUSTOMER, { rows: currentConsentRows() });
     const res = await auth(
       request(buildApp()).post('/api/jobs').send({ ...validBody, budget_type: 'range', budget_min: 300, budget_max: 100 })
     );
@@ -250,6 +252,7 @@ describe('POST /api/jobs/assign', () => {
   const PENDING_BID = { id: 20, job_id: '10', helper_id: 2, status: 'pending', eta_hours: 2, amount: '250.00', amount_cents: 25000, job_revision: 2, needs_reconfirm: false, expires_at: new Date(Date.now() + 3600e3) };
   const assignRoutes = ({ job = JOB, bid = PENDING_BID } = {}) => [
     [/FROM users u/, { rows: [MOCK_USER_CUSTOMER] }],
+    [/FROM user_consents/, { rows: currentConsentRows() }],
     [/SELECT job_id FROM bids WHERE id = \$1/, { rows: [{ job_id: '10' }] }],
     [/SELECT \* FROM jobs WHERE id = \$1 FOR UPDATE/, { rows: [job] }],
     [/FROM bids WHERE id = \$1 AND job_id = \$2 FOR UPDATE/, { rows: [bid] }],
@@ -415,38 +418,22 @@ describe('POST /api/jobs/:id/complete', () => {
       charges: { data: [{ id: 'ch_job_complete' }] },
       amount_received: 10000,
     });
-    mockAuth(
-      MOCK_USER_CUSTOMER,
-      {
-        rows: [{
-          id: 10,
-          client_id: 1,
-          assigned_helper_id: 2,
-          status: 'in_progress',
-          job_type: 'one_time',
-          job_type_label: 'One-Time',
-          // Deterministic tier enum (replaces label substring matching).
-          transaction_mode: 'guided_protected',
-        }],
-      },
-      { rows: [] }, // no proposed work-agreement change order
-      {
-        rows: [{
-          id: 5,
-          amount: 100,
-          stripe_payment_intent_id: 'pi_t3',
-          stripe_account_id: 'acct_x',
-          status: 'authorized',
-        }],
-      },
-      { rows: [] },
-      { rowCount: 1, rows: [] },
-      { rows: [{ id: 10, status: 'completed', client_id: 1, assigned_helper_id: 2 }] },
-    );
+    const calls = routeQueries(mockQuery, [
+      [/FROM users u/, { rows: [MOCK_USER_CUSTOMER] }],
+      [/FROM jobs/, { rows: [{ id: 10, client_id: 1, assigned_helper_id: 2,
+        status: 'in_progress', job_type: 'one_time', job_type_label: 'One-Time',
+        transaction_mode: 'guided_protected' }] }],
+      [/FROM payments WHERE job_id = \$1 AND status = 'authorized'/, { rows: [{
+        id: 5, job_id: 10, amount: 100, stripe_payment_intent_id: 'pi_t3',
+        stripe_account_id: 'acct_x', status: 'authorized',
+      }] }],
+      [/UPDATE jobs SET/, { rows: [{ id: 10, status: 'completed', client_id: 1, assigned_helper_id: 2 }] }],
+    ]);
     const res = await auth(request(buildApp()).post('/api/jobs/10/complete').send({}));
     expect(res.status).toBe(200);
     expect(stripe.paymentIntents.capture).toHaveBeenCalled();
     expect(res.body.job.status).toBe('completed');
+    expect(calls.some(c => /INSERT INTO admin_audit_log/.test(c.sql))).toBe(true);
   });
 
   test('tier-looking labels alone do not trigger escrow capture (fail closed)', async () => {

@@ -21,6 +21,9 @@ jest.mock('../services/notificationService', () => ({
 }));
 jest.mock('../services/smsNotificationService', () => ({
   sendDirectSMS: jest.fn().mockResolvedValue({ sid: 'SM_TEST' }),
+  sendOrderCreatedSMS: jest.fn().mockResolvedValue(true),
+  sendOrderCancelledSMS: jest.fn().mockResolvedValue(true),
+  sendOrderRefundedSMS: jest.fn().mockResolvedValue(true),
 }));
 jest.mock('../services/emailService', () => ({
   send: jest.fn().mockResolvedValue(true),

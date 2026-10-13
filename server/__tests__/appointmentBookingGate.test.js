@@ -33,13 +33,19 @@ function mockRes() {
   return res;
 }
 
-function baseDb(allowBooking) {
+function baseDb(allowBooking, allowScheduling) {
   mockQuery.mockImplementation(async (sql) => {
     if (/FROM users/.test(sql)) {
       return { rows: [{ id: HELPER_ID, role: 'helper', is_active: true, deleted_at: null }] };
     }
     if (/FROM helper_profiles/.test(sql)) {
-      return allowBooking == null ? { rows: [] } : { rows: [{ allow_booking: allowBooking }] };
+      if (allowBooking == null && allowScheduling == null) return { rows: [] };
+      return {
+        rows: [{
+          allow_booking: allowBooking == null ? true : allowBooking,
+          allow_scheduling: allowScheduling == null ? true : allowScheduling,
+        }],
+      };
     }
     if (/INSERT INTO appointments/.test(sql)) {
       return { rows: [{ id: 'appt-1', helper_id: HELPER_ID, customer_id: CUSTOMER_ID, status: 'requested' }] };
@@ -49,6 +55,16 @@ function baseDb(allowBooking) {
 }
 
 describe('appointmentController.createAppointment booking gate (P1-6-F03)', () => {
+  test('returns a controlled error when the helper lookup fails', async () => {
+    mockQuery.mockRejectedValueOnce(new Error('synthetic helper lookup failure'));
+    const res = mockRes();
+    const next = jest.fn();
+    await expect(createAppointment(validReq(), res, next)).resolves.toBeDefined();
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ code: 'INTERNAL_ERROR' }));
+    expect(next).not.toHaveBeenCalled();
+  });
+
   test('403s when the helper switched booking off', async () => {
     baseDb(false);
     const next = jest.fn();
@@ -85,6 +101,36 @@ describe('appointmentController.createAppointment booking gate (P1-6-F03)', () =
       ([err]) => err && err.code === 'booking_disabled'
     );
     expect(bookingDisabled).toBe(false);
+    expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO appointments/.test(sql))).toBe(true);
+  });
+});
+
+// P2-8-F09: allow_scheduling was a dead privacy toggle; createAppointment
+// must enforce it the same way allow_booking is enforced.
+describe('appointmentController.createAppointment scheduling gate (P2-8-F09)', () => {
+  test('403s when the helper switched scheduling off', async () => {
+    baseDb(true, false);
+    const next = jest.fn();
+    await createAppointment(validReq(), mockRes(), next);
+
+    expect(next).toHaveBeenCalledTimes(1);
+    const err = next.mock.calls[0][0];
+    expect(err).toBeInstanceOf(AppError);
+    expect(err.statusCode).toBe(403);
+    expect(err.code).toBe('scheduling_disabled');
+    // The appointment insert must never run.
+    expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO appointments/.test(sql))).toBe(false);
+  });
+
+  test('proceeds when scheduling is allowed', async () => {
+    baseDb(true, true);
+    const next = jest.fn();
+    await createAppointment(validReq(), mockRes(), next);
+
+    const schedulingDisabled = next.mock.calls.some(
+      ([err]) => err && err.code === 'scheduling_disabled'
+    );
+    expect(schedulingDisabled).toBe(false);
     expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO appointments/.test(sql))).toBe(true);
   });
 });

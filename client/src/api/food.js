@@ -93,6 +93,16 @@ export const listFoodPromotions = (restaurantId) =>
 export const quoteFoodOrder = (restaurantId, payload) =>
   api.post(`/food/restaurants/${restaurantId}/orders/quote`, payload).then((r) => r.data?.quote || null);
 
+// P3-9-F01: the customer's loyalty point balance for one restaurant. Shown in
+// checkout so points can be viewed and redeemed.
+export const getLoyaltyBalance = (restaurantId) =>
+  api.get(`/food/customer/loyalty/${restaurantId}`).then((r) => ({
+    pointsBalance: Number(r.data?.pointsBalance || 0),
+    lifetimePoints: Number(r.data?.lifetimePoints || 0),
+    minRedeemPoints: Number(r.data?.minRedeemPoints || 100),
+    centsPerPoint: Number(r.data?.centsPerPoint || 1),
+  }));
+
 // In-checkout card payment: creates a Stripe PaymentIntent on the
 // restaurant's connected account. The client confirms it with Elements, then
 // places the order with paymentMode 'card' and the payment intent id.
@@ -322,6 +332,21 @@ export const submitFoodOrderReview = (orderId, { rating, body, trackingToken } =
     .post(`/food/orders/${orderId}/review`, { rating, body, tracking_token: trackingToken })
     .then((r) => r.data?.review);
 
+export const updateFoodOrderReview = (orderId, { rating, body, trackingToken } = {}) =>
+  api
+    .put(`/food/orders/${orderId}/review`, { rating, body, tracking_token: trackingToken })
+    .then((r) => r.data?.review);
+
+export const deleteFoodOrderReview = (orderId, { trackingToken } = {}) =>
+  api
+    .delete(`/food/orders/${orderId}/review`, { params: trackingToken ? { tracking_token: trackingToken } : {} })
+    .then((r) => r.data);
+
+export const respondToFoodOrderReview = (orderId, { response } = {}) =>
+  api
+    .post(`/food/orders/${orderId}/review/respond`, { response })
+    .then((r) => r.data?.review);
+
 // ── Merchant payouts (Stripe Connect per restaurant) ───────────────────────
 export const getRestaurantPayoutStatus = (restaurantId) =>
   api.get(`/restaurants/${restaurantId}/payouts/status`).then((r) => r.data);
@@ -366,6 +391,19 @@ export const issueRestaurantTopupStepupChallenge = (restaurantId, payload) =>
 
 export const getRestaurantTopup = (restaurantId, topupId) =>
   api.get(`/restaurants/${restaurantId}/topups/${topupId}`).then((r) => r.data);
+
+// ── Customer favorites (P2-8-F14: endpoints had no client UI) ───────────────
+export const listFavoriteRestaurants = () =>
+  api.get('/food/customer/favorites').then((r) => r.data?.favoriteRestaurantIds || []);
+
+export const toggleFavoriteRestaurant = (restaurantId) =>
+  api.post(`/food/customer/favorites/${restaurantId}/toggle`).then((r) => r.data);
+
+export const listFavoriteItems = () =>
+  api.get('/food/customer/favorite-items').then((r) => r.data);
+
+export const toggleFavoriteItem = (restaurantId, itemId) =>
+  api.post(`/food/customer/favorite-items/${restaurantId}/${itemId}/toggle`).then((r) => r.data);
 
 // ── Shared formatting ────────────────────────────────────────────────────────
 export function formatFoodMoney(cents, currency = 'USD') {

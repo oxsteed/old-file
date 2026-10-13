@@ -8,6 +8,7 @@ const { calculateLocalDeliveryQuote } = require('../services/localDeliveryServic
 const { broadcastToUser } = require('../services/socketService');
 const { createLinkedSupportTicket } = require('../services/supportTicketLinkService');
 const { canStatusTransition, canInternalAssign, canReleaseToMarketplace } = require('../services/localDeliveryState');
+const { accrueDriverPayout, approvePayout, markPayoutPaid, voidPayout, getPayout } = require('../services/deliveryDriverPayoutService');
 
 const HELPER_MODES = new Set([
   'helper', 'helper_pro', 'business_owner', 'business_manager',
@@ -438,6 +439,9 @@ exports.updateStatus = async (req,res,next) => {
     if(requested==='delivered') {
       proof=await validateProof(client,job,req.body,req.user.id);
       await recordProof(client,job,proof,req.user.id,key);
+      // P2-4-F04: accrue the driver payout on delivery. Idempotent; money
+      // only moves through explicit ops approval + mark-paid.
+      await accrueDriverPayout(client, job);
     }
     const timestamp={picked_up:'picked_up_at',delivered:'delivered_at',cancelled:'cancelled_at',approaching:'approaching_at'}[requested];
     const dispatch=requested==='delivered'?'completed':requested==='cancelled'?'exception':job.dispatch_state;
@@ -628,6 +632,154 @@ exports.upsertDriver = async (req, res, next) => {
   } catch (error) {
     next(error);
   }
+};
+
+// P2-4-F10: self-serve driver onboarding. Any authenticated helper can
+// register their own capability profile. The profile is created PENDING
+// approval (approved = FALSE); ops approves via upsertDriver. The helper
+// supplies their own capacity data so onboarding no longer requires an
+// ops-provisioned row to get started.
+exports.selfServeDriverOnboarding = async (req, res, next) => {
+  try {
+    if (!isDeliveryHelper(req.user) && !isInternalDriver(req.user)) {
+      throw new AppError('Helper access required', 403, 'delivery_helper_required');
+    }
+    const insuranceAcknowledged = req.body.insuranceAcknowledged === true || req.body.insurance_acknowledged === true;
+    if (!insuranceAcknowledged) {
+      throw new AppError('Insurance acknowledgement is required to drive', 400, 'delivery_driver_insurance_required');
+    }
+    const { rows: [profile] } = await pool.query(
+      `INSERT INTO delivery_driver_profiles
+         (user_id, approved, active, vehicle_type, max_payload_lbs,
+          cargo_length_in, cargo_width_in, cargo_height_in, equipment,
+          service_area, insurance_acknowledged, updated_by_user_id)
+       VALUES ($1, FALSE, TRUE, $2, $3, $4, $5, $6, $7, $8, TRUE, $1)
+       ON CONFLICT (user_id) DO UPDATE SET
+         vehicle_type = EXCLUDED.vehicle_type,
+         max_payload_lbs = EXCLUDED.max_payload_lbs,
+         cargo_length_in = EXCLUDED.cargo_length_in,
+         cargo_width_in = EXCLUDED.cargo_width_in,
+         cargo_height_in = EXCLUDED.cargo_height_in,
+         equipment = EXCLUDED.equipment,
+         service_area = EXCLUDED.service_area,
+         insurance_acknowledged = TRUE,
+         updated_by_user_id = EXCLUDED.updated_by_user_id,
+         updated_at = NOW()
+       RETURNING *`,
+      [
+        req.user.id,
+        text(req.body.vehicleType ?? req.body.vehicle_type, 32) || null,
+        positiveNumber(req.body.maxPayloadLbs ?? req.body.max_payload_lbs),
+        positiveNumber(req.body.cargoLengthIn ?? req.body.cargo_length_in),
+        positiveNumber(req.body.cargoWidthIn ?? req.body.cargo_width_in),
+        positiveNumber(req.body.cargoHeightIn ?? req.body.cargo_height_in),
+        JSON.stringify(normalizeHandling(req.body.equipment)),
+        JSON.stringify(req.body.serviceArea ?? req.body.service_area ?? {}),
+      ]
+    );
+    res.status(201).json({ success: true, profile, pendingApproval: profile.approved !== true });
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.getDriverProfile = async (req, res, next) => {
+  try {
+    const { rows: [profile] } = await pool.query('SELECT * FROM delivery_driver_profiles WHERE user_id = $1', [req.user.id]);
+    res.json({ success: true, profile: profile || null });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// ── P2-4-F04: driver payout endpoints ──
+
+// Driver-facing: list own payouts.
+exports.listDriverPayouts = async (req, res, next) => {
+  try {
+    const status = text(req.query.status, 24);
+    const params = [req.user.id];
+    let filter = '';
+    if (status) { params.push(status); filter = ` AND status = $2`; }
+    const { rows } = await pool.query(
+      `SELECT p.*, j.reference AS job_reference, j.status AS job_status
+         FROM delivery_driver_payouts p
+         LEFT JOIN delivery_jobs j ON j.id = p.delivery_job_id
+        WHERE p.driver_user_id = $1${filter}
+        ORDER BY p.created_at DESC
+        LIMIT 100`,
+      params
+    );
+    res.json({ success: true, payouts: rows });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Ops: list all payouts (operations workspace enforced by route middleware).
+exports.listAllDriverPayouts = async (req, res, next) => {
+  try {
+    const status = text(req.query.status, 24);
+    const params = [];
+    let filter = '';
+    if (status) { params.push(status); filter = ` WHERE p.status = $1`; }
+    const { rows } = await pool.query(
+      `SELECT p.*, u.email AS driver_email, u.first_name, u.last_name,
+              j.reference AS job_reference, j.status AS job_status
+         FROM delivery_driver_payouts p
+         LEFT JOIN users u ON u.id = p.driver_user_id
+         LEFT JOIN delivery_jobs j ON j.id = p.delivery_job_id
+        ${filter}
+        ORDER BY p.created_at DESC
+        LIMIT 200`,
+      params
+    );
+    res.json({ success: true, payouts: rows });
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.approveDriverPayout = async (req, res, next) => {
+  let client;
+  try {
+    client = await pool.connect();
+    await client.query('BEGIN');
+    const payout = await approvePayout(client, req.params.payoutId, req.user.id, req.body.note);
+    await client.query('COMMIT');
+    res.json({ success: true, payout });
+  } catch (error) {
+    if (client) { try { await client.query('ROLLBACK'); } catch (_) {} }
+    next(error);
+  } finally { client?.release(); }
+};
+
+exports.markDriverPayoutPaid = async (req, res, next) => {
+  let client;
+  try {
+    client = await pool.connect();
+    await client.query('BEGIN');
+    const payout = await markPayoutPaid(client, req.params.payoutId, req.user.id, req.body.paymentReference ?? req.body.payment_reference, req.body.note);
+    await client.query('COMMIT');
+    res.json({ success: true, payout });
+  } catch (error) {
+    if (client) { try { await client.query('ROLLBACK'); } catch (_) {} }
+    next(error);
+  } finally { client?.release(); }
+};
+
+exports.voidDriverPayout = async (req, res, next) => {
+  let client;
+  try {
+    client = await pool.connect();
+    await client.query('BEGIN');
+    const payout = await voidPayout(client, req.params.payoutId, req.user.id, req.body.note);
+    await client.query('COMMIT');
+    res.json({ success: true, payout });
+  } catch (error) {
+    if (client) { try { await client.query('ROLLBACK'); } catch (_) {} }
+    next(error);
+  } finally { client?.release(); }
 };
 
 

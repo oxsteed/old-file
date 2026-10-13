@@ -20,6 +20,7 @@ const { isSignupPasswordValid } = require('../utils/signupValidation');
 const logger = require('../utils/logger');
 const tokenRevocationService = require('../services/tokenRevocationService');
 const { AppError } = require('../middleware/errorHandler');
+const { assertRegistrationsOpen } = require('../middleware/maintenanceGate'); // Review P3-7-F07
 const { grantFreeTrialToUser } = require('./templateController');
 const { checkAndAlertNewLogin } = require('../services/loginAlertService');
 const { invalidateGuestHistoryAccessCodesForEmail } = require('../services/guestProfileChatVerification');
@@ -428,9 +429,13 @@ async function login(req, res, next) {
     const tokens = generateTokens(user);
     const hashedRefresh = crypto.createHash('sha256').update(tokens.refreshToken).digest('hex');
     const accessHash = crypto.createHash('sha256').update(tokens.accessToken).digest('hex');
+    // P1-1-F04: persist the remember-me intent on the session row. The
+    // refresh endpoint rotates sessions; without this flag it minted an
+    // unconditional 7-day window and silently degraded a 30-day
+    // remember-me session on the first refresh.
     const sessionSql = rememberMe
-      ? "INSERT INTO sessions (user_id, refresh_token, access_token_hash, expires_at) VALUES ($1, $2, $3, NOW() + interval '30 days')"
-      : "INSERT INTO sessions (user_id, refresh_token, access_token_hash, expires_at) VALUES ($1, $2, $3, NOW() + interval '7 days')";
+      ? "INSERT INTO sessions (user_id, refresh_token, access_token_hash, expires_at, remember_me) VALUES ($1, $2, $3, NOW() + interval '30 days', TRUE)"
+      : "INSERT INTO sessions (user_id, refresh_token, access_token_hash, expires_at, remember_me) VALUES ($1, $2, $3, NOW() + interval '7 days', FALSE)";
     await pool.query(sessionSql, [user.id, hashedRefresh, accessHash]);
     await recordSessionContext(pool, hashedRefresh, req);
 
@@ -640,9 +645,10 @@ async function loginWith2FA(req, res, next) {
     const tokens = generateTokens(user);
     const hashedRefresh = crypto.createHash('sha256').update(tokens.refreshToken).digest('hex');
     const accessHash = crypto.createHash('sha256').update(tokens.accessToken).digest('hex');
+    // P1-1-F04: persist the remember-me intent (see login above).
     const sessionSql = rememberMe
-      ? "INSERT INTO sessions (user_id, refresh_token, access_token_hash, expires_at) VALUES ($1, $2, $3, NOW() + interval '30 days')"
-      : "INSERT INTO sessions (user_id, refresh_token, access_token_hash, expires_at) VALUES ($1, $2, $3, NOW() + interval '7 days')";
+      ? "INSERT INTO sessions (user_id, refresh_token, access_token_hash, expires_at, remember_me) VALUES ($1, $2, $3, NOW() + interval '30 days', TRUE)"
+      : "INSERT INTO sessions (user_id, refresh_token, access_token_hash, expires_at, remember_me) VALUES ($1, $2, $3, NOW() + interval '7 days', FALSE)";
     await pool.query(sessionSql, [user.id, hashedRefresh, accessHash]);
     await recordSessionContext(pool, hashedRefresh, req);
 
@@ -836,7 +842,7 @@ async function refreshToken(req, res, next) {
 
     const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
     const { rows: sessionRows } = await pool.query(
-      'SELECT s.id, s.user_id, s.is_valid, s.is_revoked, s.expires_at, s.absolute_expires_at, s.created_at FROM sessions s WHERE s.refresh_token = $1',
+      'SELECT s.id, s.user_id, s.is_valid, s.is_revoked, s.expires_at, s.absolute_expires_at, s.created_at, COALESCE(s.remember_me, FALSE) AS remember_me FROM sessions s WHERE s.refresh_token = $1',
       [hashedToken]
     );
     if (!sessionRows[0]) {
@@ -918,12 +924,17 @@ async function refreshToken(req, res, next) {
     }
     const tokens = generateTokens(user);
     const hashedRefresh = crypto.createHash('sha256').update(tokens.refreshToken).digest('hex');
+    // P1-1-F04: the rotated session inherits the remember-me window of the
+    // consumed session (30 days) instead of an unconditional 7 days. The
+    // absolute family deadline still caps the rotation.
+    const rotatedRememberMe = sessionRows[0].remember_me === true;
+    const rotationWindowDays = rotatedRememberMe ? 30 : 7;
     const { rows: newSessionRows } = await pool.query(
       `INSERT INTO sessions (user_id, refresh_token, expires_at, absolute_expires_at, access_token_hash,
-                             parent_session_id, regenerated_from_session_id)
-       VALUES ($1, $2, LEAST(NOW() + interval '7 days', $3::timestamptz), $3::timestamptz, $4, $5, $5)
+                             parent_session_id, regenerated_from_session_id, remember_me)
+       VALUES ($1, $2, LEAST(NOW() + make_interval(days => $4), $3::timestamptz), $3::timestamptz, $5, $6, $6, $7)
        RETURNING expires_at`,
-      [user.id, hashedRefresh, absoluteDeadline.toISOString(), crypto.createHash('sha256').update(tokens.accessToken).digest('hex'), sessionRows[0].id || null]
+      [user.id, hashedRefresh, absoluteDeadline.toISOString(), rotationWindowDays, crypto.createHash('sha256').update(tokens.accessToken).digest('hex'), sessionRows[0].id || null, rotatedRememberMe]
     );
     await recordSessionContext(pool, hashedRefresh, req);
     const newExpiry = newSessionRows?.[0]?.expires_at ? new Date(newSessionRows[0].expires_at) : null;
@@ -1153,6 +1164,20 @@ async function startRegistration(req, res) {
     if (phoneClean.length < 7 || phoneClean.length > 15) {
       return res.status(400).json({ error: 'Invalid phone number', code: 'validation_failed', fields: { phone: 'Invalid phone number' } });
     }
+    // P2-6-F08: validate the referral code now, not silently at OTP verify
+    // time. A typo'd or unknown code is a 400 so the user can fix it before
+    // creating the account.
+    if (normalized.ref) {
+      const { rows: codeRows } = await pool.query(
+        'SELECT id FROM users WHERE referral_code = $1', [normalized.ref]);
+      if (!codeRows.length) {
+        return res.status(400).json({
+          error: 'This referral code is not valid. Check the code and try again.',
+          code: 'invalid_referral_code',
+          fields: { ref: 'Unknown referral code' },
+        });
+      }
+    }
     let formattedPhone;
     if (countryCode === 'US') {
       if (phoneClean.length !== 10 && phoneClean.length !== 11) {
@@ -1167,6 +1192,11 @@ async function startRegistration(req, res) {
         ? '+' + phoneClean
         : (dial ? `+${dial}${phoneClean}` : '+' + phoneClean);
     }
+    // Review P3-7-F07: 'new_user_registrations' kill-switch. Checked after
+    // input validation (so invalid input still 400s without a settings
+    // lookup) but before any account state is created.
+    await assertRegistrationsOpen();
+
     const existing = await pool.query('SELECT id FROM users WHERE email = $1', [normalized.email]);
     if (existing.rows.length > 0) return res.status(409).json({ error: 'Email already registered', code: 'email_registered' });
     const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
@@ -1785,11 +1815,28 @@ async function updateProfile(req, res) {
       didModeSwitch = true;
     }
 
+    // P2-8-F11: changing the phone number must reset phone_verified. A
+    // verification tied to the old number must not carry over to a new,
+    // unverified number. Digit-normalized comparison so a formatting-only
+    // edit does not force re-verification.
+    let phoneChanged = false;
+    if (phone) {
+      const { rows: phoneRows } = await client.query(
+        'SELECT phone FROM users WHERE id = $1',
+        [req.user.id]
+      );
+      const digits = (v) => String(v || '').replace(/[^0-9]/g, '');
+      phoneChanged = digits(phone) !== digits(phoneRows[0] && phoneRows[0].phone);
+    }
+
     const setFragments = [
       'phone = COALESCE($1, phone)',
       'display_name_preference = COALESCE($2, display_name_preference)',
       'preferred_language = COALESCE($3, preferred_language)',
     ];
+    if (phoneChanged) {
+      setFragments.push('phone_verified = FALSE', 'phone_verified_at = NULL');
+    }
     const updateParams = [phone || null, pref || null, preferredLang || null];
     if (bioValue !== undefined) {
       setFragments.push(`bio = $${updateParams.length + 1}`);

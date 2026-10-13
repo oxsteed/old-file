@@ -49,7 +49,8 @@ const startWeeklySummaryJob = () => {
              WHERE p.payee_id = u.id
                AND p.status IN ('captured', 'released')
                AND COALESCE(
-                     CASE WHEN p.status = 'released' THEN p.released_at ELSE p.captured_at END,
+                     -- P3-1-F19: release is tracked in payment_hold_status, not status.
+                     CASE WHEN p.payment_hold_status = 'released' THEN p.released_at ELSE p.captured_at END,
                      p.released_at, p.captured_at, p.updated_at, p.created_at
                    ) >= date_trunc('month', CURRENT_DATE)
           ), 0) AS earnings_mtd,
