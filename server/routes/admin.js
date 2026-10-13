@@ -303,7 +303,7 @@ router.post('/super/payouts/:id/retry', requireSuperAdmin, superCtrl.retryPayout
 router.get('/super/money',           requireAdmin, requirePermission('view_financials'), superCtrl.getMoneyOverview);
 router.get('/super/revenue',         requireAdmin, requirePermission('view_financials'), superCtrl.getRevenueSummary);
 router.get('/super/revenue/export',  requireAdmin, requirePermission('view_financials'), superCtrl.getRevenueExport);
-router.post('/jobs/:jobId/refund',   requireAdmin, requirePermission('issue_refunds'),   superCtrl.issueManualRefund);
+router.post('/jobs/:jobId/refund',   strictLimiter, requireAdmin, requirePermission('issue_refunds'),   superCtrl.issueManualRefund);
 
 // Platform settings - super-admin direct, or admin with manage_settings grant
 router.get('/settings',              requireAdmin, requirePermission('manage_settings'), superCtrl.getSettings);

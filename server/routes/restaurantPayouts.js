@@ -11,7 +11,7 @@
 
 const router = require('express').Router();
 const { authenticate } = require('../middleware/auth');
-const { connectAccountLimiter } = require('../middleware/rateLimiter');
+const { connectAccountLimiter, strictLimiter } = require('../middleware/rateLimiter');
 const { requireFeatureEnabled } = require('../middleware/featureFlags');
 const { errorHandler } = require('../middleware/errorHandler');
 const {
@@ -59,6 +59,7 @@ router.get(
 );
 router.post(
   '/:restaurantId/wallet-payouts',
+  strictLimiter,
   authenticate,
   requirePayoutManager,
   walletPayoutCtrl.requestPayout

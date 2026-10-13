@@ -133,3 +133,5 @@ The follow-up also adds dedicated authenticated/conversation rate limits to mess
 
 Refresh-token follow-up: refresh rotation now re-checks the account's active and suspension state before issuing a replacement session, so deactivated or actively suspended users cannot mint new access tokens. Expired suspensions remain eligible for refresh and are handled by the existing auth middleware cleanup path.
 
+Rate-limit follow-up: money-moving invoice, mobile payment, affiliate payout, restaurant wallet-payout, Direct credit, delivery checkout, marketplace cancellation, admin/agent refund, subscription portal, and API-product subscription routes now use the strict abuse limiter before authentication. Discover search now keys its authenticated bucket from the same verified cookie-or-Bearer identity used by the rest of the limiter system, and internal-access configuration is bounded.
+

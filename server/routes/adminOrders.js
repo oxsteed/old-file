@@ -3,6 +3,7 @@ const router = express.Router();
 const { requireAuth } = require('../middleware/auth');
 const { requireAdmin, requirePermission } = require('../middleware/adminAuth');
 const adminOrdersController = require('../controllers/adminOrdersController');
+const { strictLimiter } = require('../middleware/rateLimiter');
 
 // All admin order routes require authentication and admin role
 router.use(requireAuth, requireAdmin, requirePermission('manage_operations'));
@@ -20,7 +21,7 @@ router.get('/:orderId', adminOrdersController.getOrder);
 router.post('/:orderId/mark-shipped', adminOrdersController.markShipped);
 
 // Process refund - issues real Stripe refunds, requires the issue_refunds grant
-router.post('/:orderId/refund', requirePermission('issue_refunds'), adminOrdersController.processRefund);
+router.post('/:orderId/refund', strictLimiter, requirePermission('issue_refunds'), adminOrdersController.processRefund);
 
 // Cancel order
 router.post('/:orderId/cancel', adminOrdersController.cancelOrder);

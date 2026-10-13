@@ -4,7 +4,7 @@ const router = express.Router();
 const pool = require('../db');
 const { authenticate } = require('../middleware/auth');
 const { requireSuperAdmin } = require('../middleware/adminAuth');
-const { generalLimiter } = require('../middleware/rateLimiter');
+const { generalLimiter, strictLimiter } = require('../middleware/rateLimiter');
 const logger = require('../utils/logger');
 const { logAdminAction } = require('../services/auditService');
 const { sendBusinessInvoiceEmail } = require('../utils/businessInvoiceEmail');
@@ -50,15 +50,15 @@ router.get('/:id/credit-eligibility', authenticate, generalLimiter, businessInvo
 router.get('/:id/card-eligibility', authenticate, generalLimiter, businessInvoiceStripeConnectController.getInvoiceCardEligibility);
 router.post(
   '/:id/pay-with-credit',
+  strictLimiter,
   authenticate,
-  generalLimiter,
   rejectImpersonated,
   businessInvoiceCreditController.payInvoiceWithOxsteedCredit,
 );
 router.post(
   '/:id/payment-intent',
+  strictLimiter,
   authenticate,
-  generalLimiter,
   rejectImpersonated,
   (req, res, next) => {
     req.params.invoiceId = req.params.id;
@@ -67,8 +67,8 @@ router.post(
 );
 router.post(
   '/:id/confirm-payment',
+  strictLimiter,
   authenticate,
-  generalLimiter,
   rejectImpersonated,
   (req, res, next) => {
     req.params.invoiceId = req.params.id;

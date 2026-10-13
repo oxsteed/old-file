@@ -42,7 +42,7 @@ router.post('/login', loginLimiter, login);
 router.post('/login/2fa', loginLimiter, loginWith2FA);
 router.post('/login/passkey/options', strictLimiter, passkeyCtrl.authenticationOptions);
 router.post('/login/passkey', strictLimiter, passkeyCtrl.verifyAuthentication);
-router.get('/internal-access/config', logisticsInternalAccessCtrl.getRouteConfig);
+router.get('/internal-access/config', strictLimiter, logisticsInternalAccessCtrl.getRouteConfig);
 router.post('/internal-access/verify', strictLimiter, logisticsInternalAccessCtrl.verifyInternalAccess);
 router.post('/internal-access/login', loginLimiter, logisticsInternalAccessCtrl.loginWithInternalAccess);
 // Recovery — only emails on ACCESS_GATE_RECOVERY_EMAILS can actually trigger

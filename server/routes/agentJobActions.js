@@ -16,9 +16,11 @@
 const router = require('express').Router();
 const { requireAdmin, requirePermission } = require('../middleware/adminAuth');
 const agentJobActions = require('../controllers/agentJobActions');
+const { strictLimiter } = require('../middleware/rateLimiter');
 
 router.post(
   '/jobs/:jobId/cancel',
+  strictLimiter,
   requireAdmin,
   requirePermission('issue_refunds'),
   agentJobActions.cancelJobAsAgent
