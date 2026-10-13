@@ -17,6 +17,18 @@ const { diditAllowUserSkip } = require('../utils/diditGate');
 async function createSession(req, res) {
   try {
     const userId = req.user.id;
+    const { rows: existingRows } = await pool.query(
+      `SELECT didit_status, didit_session_id, identity_verified, id_verified
+         FROM users WHERE id = $1`, [userId]
+    );
+    const existing = existingRows[0];
+    if (existing && (existing.identity_verified || existing.id_verified || existing.didit_status === 'verified')) {
+      return res.status(409).json({
+        error: 'identity_already_verified',
+        message: 'Identity verification is already approved. A new session is not required.',
+        status: 'verified',
+      });
+    }
 
     // Guard: if Didit is not configured, tell the client so it can offer a skip
     // path instead of showing a generic 502 error.

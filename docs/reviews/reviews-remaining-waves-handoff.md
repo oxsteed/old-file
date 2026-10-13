@@ -104,7 +104,7 @@ After W10.5 merges, start W11 from the fresh tip and **reconcile each W11–W19 
 ## Proposed waves
 The migration column is a heuristic (it flags findings whose text implies a schema change). Confirm per finding. Number migrations from the next free number at the time you start: **786 after W10.5 merges** (W10.5 takes 785), else 785 if W10.5 has not landed. **Reconcile IDs against audit v2 before starting each wave.**
 
-### W11: `fix/review-w11-work` (35 IDs)
+### W11: `fix/review-w11-work` (33 IDs after W10.5 reconciliation)
 Areas: P1 3. Work agreements records room; P1 16. Learn/guide videos; P1 17. Support flows; P2 1. Admin/super-admin operational flows; P2 2. Helper dashboard and helper onboarding
 Severity: High 9, Medium 21, Low 5
 
@@ -128,8 +128,8 @@ Severity: High 9, Medium 21, Low 5
 | P1-364 | Medium | support_tickets have no SLA or stale handling | `—` |
 | P1-365 | Medium | "Reply to this email" is a dead end | `supportController.js:882-884` |
 | P1-366 | Low | updateStatus allows any->any transitions (:679-690) with no guard or reopen audit (e.g. | `—` |
-| P2-453 | High | Admin bid/review moderation can never complete (Top 10 #3). | `—` |
-| P2-454 | High | Admin food-order refund succeeds at Stripe but returns 500 and writes no audit (Top 10 #4). | `—` |
+| ~~P2-453~~ | ~~High~~ | **Closed by W10.5 / PR #505 (audit-log columns).** | `—` |
+| ~~P2-454~~ | ~~High~~ | **Closed by W10.5 / PR #505 (audit-log columns and refund path).** | `—` |
 | P2-455 | High | Timed user suspensions never auto-lift (Top 10 #5). | `—` |
 | P2-456 | High | The super-admin "Restrict" action is a dead flag | `server/controllers/superAdminController.js:738,751` |
 | P2-457 | High | Enforcement-system "full account lock" enforced on exactly 2 routes | `controllers/enforcementController.js:150-153` |

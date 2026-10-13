@@ -160,6 +160,8 @@ async function authenticate(req, res, next) {
          u.preferred_language,
          u.display_name_preference, u.is_active,
          u.didit_status, u.didit_verified_at,
+         COALESCE(u.is_suspended, FALSE) AS is_suspended,
+         u.suspended_until, u.suspended_reason,
          COALESCE(u.didit_enforcement_required, FALSE) AS didit_enforcement_required,
          u.trial_started_at, u.trial_ends_at,
          u.default_mode, u.logistics_role,
@@ -188,6 +190,23 @@ async function authenticate(req, res, next) {
         if (!user.is_active) {
       return res.status(403).json({ error: 'Account suspended' });
     }
+    const authPath = `${req.baseUrl || ''}${req.path || ''}` || req.originalUrl?.split('?')[0] || '';
+    if (user.is_suspended) {
+      const suspensionActive = !user.suspended_until || new Date(user.suspended_until) > new Date();
+      if (suspensionActive && !authPath.startsWith('/api/auth/') && !authPath.startsWith('/api/support/')) {
+        return res.status(403).json({
+          error: 'Your account is suspended.',
+          code: 'ACCOUNT_SUSPENDED',
+          suspendedUntil: user.suspended_until || null,
+        });
+      }
+      if (!suspensionActive) {
+        pool.query(
+          `UPDATE users SET is_suspended = false, suspended_until = NULL, suspended_reason = NULL WHERE id = $1`,
+          [user.id]
+        ).catch(() => {});
+      }
+    }
 
     // Compute consistent onboarding_step matching authController.formatAuthUser
     user.onboarding_step = computeOnboardingStep(user);
@@ -196,7 +215,7 @@ async function authenticate(req, res, next) {
     user.stripe_account_id = user.connect_stripe_account_id || null;
     user.stripe_charges_enabled = !!user.connect_charges_enabled;
     user.stripe_payouts_enabled = !!user.connect_payouts_enabled;
-    user.stripe_connect_ready = !!user.connect_charges_enabled;
+    user.stripe_connect_ready = !!(user.connect_charges_enabled && user.connect_payouts_enabled);
     user.stripe_connect_onboarded = !!user.connect_onboarding_complete;
 
     // Identity (Didit): block API access when email is verified but identity gate not met

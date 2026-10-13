@@ -11,15 +11,11 @@ const stripe = process.env.STRIPE_SECRET_KEY
 const { refundWalletDebitForReference } = require('../services/foodWalletService');
 
 async function auditAdminRead(adminId, orderId, purpose) {
-  try {
-    await pool.query(
-      `INSERT INTO admin_audit_log (admin_user_id, action, entity_type, entity_id, metadata)
-       VALUES ($1, 'food_order_read', 'food_order', $2, $3)`,
-      [adminId, String(orderId), JSON.stringify({ purpose })]
-    );
-  } catch (err) {
-    logger.warn('adminFoodOrders audit failed', { message: err.message });
-  }
+  await pool.query(
+    `INSERT INTO admin_audit_log (admin_user_id, action, entity_type, entity_id, metadata)
+     VALUES ($1, 'food_order_read', 'food_order', $2, $3)`,
+    [adminId, String(orderId), JSON.stringify({ purpose })]
+  );
 }
 
 async function listFoodOrders(req, res) {
@@ -142,7 +138,7 @@ async function refundFoodOrder(req, res) {
         logger.error('Admin Stripe refund failed', { orderId, error: refundErr.message });
         return res.status(502).json({ error: 'Stripe refund failed', code: 'stripe_refund_failed' });
       }
-    } else if (order.payment_mode === 'wallet_credit' && order.customer_id) {
+    } else if (['wallet_credit', 'oxsteed_credit', 'credit'].includes(String(order.payment_mode || '').toLowerCase()) && order.customer_id) {
       // Wallet credit: reverse the ledger debit.
       const client = await pool.connect();
       try {

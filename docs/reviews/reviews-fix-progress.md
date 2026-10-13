@@ -3,7 +3,7 @@
 > **Merge status (2026-10-12):** PRs #492–#503 are all merged into `old-files-claude`.
 > Tip after #503: `1071a91d`. Docs PR #504 tip: `9ccb8b8d`.
 > **Audit v2** (`resolution-audit-v2-2026-10-13.md`, audited at `1071a91d`): **185 resolved / 47 partial / 284 still broken / 27 needs live / 1 unclear**. **14 of 15 Criticals resolved**; remaining Critical is **P3-1009** (intentionally excluded).
-> **Next:** W10.5 (post-merge priorities) before W11–W19 — see `reviews-remaining-waves-handoff.md`.
+> **Next:** W11 (33 IDs after W10.5 reconciliation), then W12–W19 — see `reviews-remaining-waves-handoff.md`.
 
 Status values:
 - **fixed (PR#)**: only once the PR is green.
@@ -85,11 +85,14 @@ Source: `docs/reviews/resolution-audit-v2-2026-10-13.md`.
 - Criticals: **14/15 RESOLVED**. Still broken on purpose: **P3-1009** (admin credit adjustments skip KYC/sanctions — owner excluded).
 - Headline: ~35% of findings resolved by W1–W10 + #492/#493.
 
-## W10.5 — `fix/review-w10_5-post-merge` (ready for review)
+## W10.5 — `fix/review-w10_5-post-merge` (merged PR #505, commit `4150d9ea`)
 Implemented from audit v2:
 1. Stripe Connect `account.updated` and processor paths now verify payout methods only when `payouts_enabled`; regressions demote methods to pending and user self-verify remains blocked.
 2. Migration **785** adds the idempotent admin audit-log writer columns and per-session access-token hash index.
 3. Settlement execution re-checks the Credit rail inside the locked transaction, validates payment references, and removes the maker-checker threshold bypass. Two distinct admins remain required.
 4. Session issuance stores the access-token hash and `revokeMySession` immediately denies the revoked access token.
 5. Added idempotent dispute update, subscription renewal/cancellation/past-due, and failed food-order card payment notifications.
-Validation: focused server suite 100/100 passed; client `npm run build:ci` passed; migration rehearsal reached the existing baseline failure at migration 001 before W10.5 could run (no `DATABASE_URL` was configured). P3-1009 remains skipped. Reconcile W11–W19 ID lists against audit v2 before starting those waves.
+Validation: focused server suite 100/100 passed; client `npm run build:ci` passed; GitHub checks for PR #505 passed. Migration rehearsal reached the existing baseline failure at migration 001 before W10.5 could run locally (no `DATABASE_URL` was configured). P3-1009 remains skipped.
+
+## W11 — same continuation branch as PR #505 (in progress)
+Reconciled against audit v2 after PR #505: P2-453 and P2-454 are closed by W10.5, leaving 33 active IDs. Current fixes cover Learn video queue visibility/dedupe/observability, support ticket reopen and guarded transitions, warranty-claim notifications and review state, job-start notifications, and payout-readiness UI gating. Remaining W11 admin and onboarding paths will be completed before opening the W11 PR.

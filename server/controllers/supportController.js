@@ -306,6 +306,25 @@ exports.getMyTicket = async (req, res, next) => {
   }
 };
 
+/** POST /api/support/my-tickets/:ticketId/reopen */
+exports.reopenMyTicket = async (req, res, next) => {
+  try {
+    const { rows } = await db.query(
+      `UPDATE support_tickets
+          SET status = 'open', resolved_at = NULL, closed_at = NULL,
+              updated_at = NOW()
+        WHERE id = $1 AND user_id = $2 AND status IN ('resolved', 'closed')
+        RETURNING id, ticket_number, subject, status, updated_at`,
+      [req.params.ticketId, req.user.id]
+    );
+    if (!rows.length) throw new AppError('Only resolved or closed tickets can be reopened.', 409, 'ticket_not_reopenable');
+    notifyAdmins('support:ticket_reopened', { ticket_id: rows[0].id, ticket_number: rows[0].ticket_number });
+    return res.json({ ticket: rows[0] });
+  } catch (err) {
+    next(err);
+  }
+};
+
 /** POST /api/support/my-tickets/:ticketId/reply */
 exports.replyToMyTicket = async (req, res, next) => {
   try {
@@ -685,9 +704,25 @@ exports.updateStatus = async (req, res) => {
   }
 
   try {
+    const { rows: currentRows } = await db.query(
+      'SELECT id, status FROM support_tickets WHERE id = $1', [req.params.ticketId]
+    );
+    if (!currentRows.length) return res.status(404).json({ error: 'Ticket not found.' });
+    const transitions = {
+      open: new Set(['open', 'assigned', 'in_progress', 'waiting_user', 'resolved']),
+      assigned: new Set(['assigned', 'open', 'in_progress', 'waiting_user', 'resolved']),
+      in_progress: new Set(['in_progress', 'waiting_user', 'resolved', 'closed']),
+      waiting_user: new Set(['waiting_user', 'in_progress', 'resolved', 'closed']),
+      resolved: new Set(['resolved', 'closed', 'open']),
+      closed: new Set(['closed', 'open']),
+    };
+    if (!transitions[currentRows[0].status]?.has(status)) {
+      return res.status(409).json({ error: `Cannot change ticket from ${currentRows[0].status} to ${status}.`, code: 'invalid_status_transition' });
+    }
     let extraCols = '';
     if (status === 'resolved') extraCols = ', resolved_at = NOW()';
     if (status === 'closed')   extraCols = ', closed_at = NOW()';
+    if (status === 'open') extraCols = ', resolved_at = NULL, closed_at = NULL';
 
     const { rows } = await db.query(
       `UPDATE support_tickets
@@ -715,7 +750,8 @@ exports.updateStatus = async (req, res) => {
             <h2 style="color:#ea580c;">OxSteed Support</h2>
             <p>Hi ${ticket.name},</p>
             <p>Your support request (<strong>#${ticket.ticket_number}</strong>) has been marked as resolved.</p>
-            <p>If you still need help, reply to this email and your ticket will be re-opened.</p>
+            <p>If you still need help, sign in to your support center and choose <strong>Reopen ticket</strong>.</p>
+            <p><a href="https://app.oxsteed.com/support/my-tickets/${ticket.id}" style="color:#ea580c;">Open your support ticket</a></p>
           </div>`,
       }).catch(() => { /* non-fatal */ });
     }

@@ -13,6 +13,7 @@
 const pool = require('../db');
 const { AppError } = require('../utils/apiError');
 const logger = require('../utils/logger');
+const socketService = require('../services/socketService');
 const { sendValidationError, sendError } = require('../utils/apiError');
 
 // ─── Internal helpers ──────────────────────────────────────────────────────────
@@ -527,6 +528,63 @@ async function suspendUser(userId, opts = {}) {
      WHERE id = $1`,
     [userId, expiry || null, reason || 'Account suspended.']
   );
+  socketService.disconnectUserSockets(userId);
+}
+
+/**
+ * Clear timed enforcement effects even when the user makes no request. The
+ * request middleware remains a fast safety net, while this worker keeps the
+ * account and admin queues accurate for expired actions.
+ */
+async function expireTimedEnforcements({ limit = 500 } = {}) {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const { rows: expired } = await client.query(
+      `SELECT id, user_id, action_type
+         FROM enforcement_actions
+        WHERE is_active = true AND expires_at IS NOT NULL AND expires_at <= NOW()
+        ORDER BY expires_at ASC
+        LIMIT $1 FOR UPDATE SKIP LOCKED`, [limit]
+    );
+    let lifted = 0;
+    for (const action of expired) {
+      await client.query(
+        `UPDATE enforcement_actions SET is_active = false, updated_at = NOW()
+          WHERE id = $1 AND is_active = true`, [action.id]
+      );
+      if (action.action_type === 'restriction') {
+        await client.query(
+          `UPDATE user_restrictions SET is_active = false, updated_at = NOW()
+            WHERE enforcement_id = $1 AND is_active = true`, [action.id]
+        );
+      } else if (action.action_type === 'suspension') {
+        const { rows: others } = await client.query(
+          `SELECT 1 FROM enforcement_actions
+             WHERE user_id = $1 AND action_type = 'suspension' AND is_active = true
+               AND (expires_at IS NULL OR expires_at > NOW())
+             LIMIT 1`, [action.user_id]
+        );
+        if (!others.length) {
+          await client.query(
+            `UPDATE users SET is_suspended = false, suspended_until = NULL,
+                    suspended_reason = NULL, updated_at = NOW()
+              WHERE id = $1 AND is_suspended = true
+                AND (suspended_until IS NULL OR suspended_until <= NOW())`, [action.user_id]
+          );
+        }
+      }
+      lifted += 1;
+    }
+    await client.query('COMMIT');
+    return { scanned: expired.length, lifted };
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
+    logger.error('expireTimedEnforcements failed', { error: err.message });
+    return { failed: true, error: err.message };
+  } finally {
+    client.release();
+  }
 }
 
 module.exports = {
@@ -537,5 +595,6 @@ module.exports = {
   getAuditLog,
   // Programmatic helpers for use by other controllers / automation
   addUserRestriction,
-  suspendUser
+  suspendUser,
+  expireTimedEnforcements
 };

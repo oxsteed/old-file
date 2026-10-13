@@ -105,7 +105,10 @@ exports.toggleBusiness = async (req, res) => {
         before: { is_active: rows[0].is_active }, after: { is_active: newActive },
         description: reason || null, req,
       });
-    } catch (e) {}
+    } catch (e) {
+      logger.error('business moderation audit failed', { action: 'business_reactivated_or_deactivated', businessId: id, error: e.message });
+      return res.status(503).json({ error: 'Business updated, but the audit record could not be written. Retry after the audit service recovers.', code: 'audit_unavailable' });
+    }
     res.json({ message: `Business ${newActive ? 'reactivated' : 'deactivated'}.`, is_active: newActive });
   } catch (err) {
     logger.error('toggleBusiness error', { err, businessId: req.params?.id, adminId: req.user?.id });
@@ -176,6 +179,15 @@ exports.toggleToolRental = async (req, res) => {
       return res.status(409).json({ error: 'Tool rental state changed during update. Please try again.' });
     }
 
+    const { rows: flagged } = await db.query(
+      `UPDATE businesses
+          SET is_hidden_by_admin = TRUE, hidden_reason = 'admin_decision',
+              hidden_at = NOW(), hidden_by = $2, updated_at = NOW()
+        WHERE id = $1
+        RETURNING id`, [id, req.user.id]
+    );
+    if (!flagged.length) return res.status(409).json({ error: 'Business state changed during flagging. Please retry.' });
+
     try {
       await logAdminAction({
         adminId: req.user.id,
@@ -185,7 +197,10 @@ exports.toggleToolRental = async (req, res) => {
         after: { is_available: newAvailable, moderation_hold: newHold },
         description: reason || null, req,
       });
-    } catch (e) {}
+    } catch (e) {
+      logger.error('business moderation audit failed', { action: 'business_flagged_for_review', businessId: id, error: e.message });
+      return res.status(503).json({ error: 'Business flagged, but the audit record could not be written. Retry after the audit service recovers.', code: 'audit_unavailable' });
+    }
     res.json({ message: `Tool rental ${newAvailable ? 'enabled' : 'hidden'}.`, is_available: newAvailable });
   } catch (err) {
     logger.error('toggleToolRental error', { err, toolId: req.params?.id, adminId: req.user?.id });
@@ -261,7 +276,10 @@ exports.cancelAutopublish = async (req, res) => {
         before: { status: 'activating_soon' }, after: { status: 'planned' },
         description: reason || null, req,
       });
-    } catch (e) {}
+    } catch (e) {
+      logger.error('business moderation audit failed', { action: 'business_admin_notes_updated', businessId: id, error: e.message });
+      return res.status(503).json({ error: 'Notes updated, but the audit record could not be written. Retry after the audit service recovers.', code: 'audit_unavailable' });
+    }
     res.json({ message: 'Auto-publish cancelled. Need reset to planned.' });
   } catch (err) {
     logger.error('cancelAutopublish error', { err, needId: req.params?.id, adminId: req.user?.id });
@@ -299,7 +317,10 @@ exports.forceCancel = async (req, res) => {
         before: { status: rows[0].status }, after: { status: 'cancelled' },
         description: reason || null, req,
       });
-    } catch (e) {}
+    } catch (e) {
+      logger.error('business moderation audit failed', { action: 'business_deleted', businessId: id, error: e.message });
+      return res.status(503).json({ error: 'Business deleted, but the audit record could not be written. Retry after the audit service recovers.', code: 'audit_unavailable' });
+    }
     res.json({ message: 'Planned need force-cancelled.', published_job_id: rows[0].published_job_id });
   } catch (err) {
     logger.error('forceCancel error', { err });

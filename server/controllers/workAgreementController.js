@@ -692,6 +692,17 @@ exports.fileWarrantyClaim = async (req, res) => {
        VALUES ($1::uuid, $2, $3::uuid) RETURNING *`,
       [agreement.id, String(description).trim(), req.user.id]
     );
+    const otherPartyId = String(agreement.helper_id) === String(req.user.id)
+      ? agreement.customer_id : agreement.helper_id;
+    if (otherPartyId) {
+      await sendNotification({
+        userId: otherPartyId,
+        type: 'warranty_claim_filed',
+        data: { agreement_id: agreement.id, claim_id: claim.id, job_id: agreement.job_id },
+        action_url: `/agreements/${agreement.id}`,
+        idempotencyKey: `wa-warranty-filed:${claim.id}`,
+      }).catch((err) => logger.warn('warranty claim notification failed', { claimId: claim.id, error: err.message }));
+    }
     logger.info('warranty claim filed', { agreementId: agreement.id, claimId: claim.id });
     return res.status(201).json({ claim });
   } catch (err) {
@@ -724,8 +735,8 @@ exports.resolveWarrantyClaim = async (req, res) => {
     if (!agreement) return res.status(404).json({ error: 'Agreement not found.' });
     if (!isParty(agreement, req.user.id)) return res.status(403).json({ error: 'Not a party to this agreement.' });
     const { decision, note } = req.body || {};
-    if (!['resolved', 'denied'].includes(decision)) {
-      return res.status(400).json({ error: 'Decision must be resolved or denied.' });
+    if (!['under_review', 'resolved', 'denied'].includes(decision)) {
+      return res.status(400).json({ error: 'Decision must be under_review, resolved, or denied.' });
     }
     // The party who filed may withdraw (record as resolved) but may not deny
     // their own claim; a denial must come from the other party.
@@ -739,13 +750,26 @@ exports.resolveWarrantyClaim = async (req, res) => {
     }
     const { rows: [claim] } = await db.query(
       `UPDATE work_agreement_warranty_claims
-          SET status = $2, resolved_by = $3::uuid, resolved_at = now(),
+          SET status = $2,
+              resolved_by = CASE WHEN $2 = 'under_review' THEN NULL ELSE $3::uuid END,
+              resolved_at = CASE WHEN $2 = 'under_review' THEN NULL ELSE now() END,
               resolution_note = $4
         WHERE id = $1::uuid AND agreement_id = $5::uuid AND status = 'filed'
         RETURNING *`,
       [req.params.claimId, decision, req.user.id, note ? String(note).slice(0, 5000) : null, agreement.id]
     );
     if (!claim) return res.status(404).json({ error: 'Claim not found or already decided.' });
+    const otherPartyId = String(agreement.helper_id) === String(req.user.id)
+      ? agreement.customer_id : agreement.helper_id;
+    if (otherPartyId) {
+      await sendNotification({
+        userId: otherPartyId,
+        type: 'warranty_claim_updated',
+        data: { agreement_id: agreement.id, claim_id: claim.id, decision, job_id: agreement.job_id },
+        action_url: `/agreements/${agreement.id}`,
+        idempotencyKey: `wa-warranty-${decision}:${claim.id}`,
+      }).catch((err) => logger.warn('warranty claim resolution notification failed', { claimId: claim.id, error: err.message }));
+    }
     return res.json({ claim });
   } catch (err) {
     logger.error('warranty claim resolve error', { err, userId: req.user?.id });

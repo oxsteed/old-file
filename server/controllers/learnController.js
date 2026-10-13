@@ -1155,7 +1155,20 @@ function normalizeSubmittedVideoUrl(raw) {
   if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') return null;
   if (!VIDEO_HOSTS.has(parsed.hostname.toLowerCase())) return null;
   parsed.protocol = 'https:';
-  return { url: parsed.toString(), provider: detectVideoProvider(parsed.toString()) };
+  const provider = detectVideoProvider(parsed.toString());
+  if (provider === 'youtube') {
+    const id = parsed.hostname === 'youtu.be'
+      ? parsed.pathname.split('/').filter(Boolean)[0]
+      : parsed.searchParams.get('v') || parsed.pathname.match(/\/(?:embed|shorts)\/([^/?]+)/)?.[1];
+    if (!id || !/^[A-Za-z0-9_-]{3,}$/.test(id)) return null;
+    return { url: `https://www.youtube.com/watch?v=${id}`, provider };
+  }
+  if (provider === 'vimeo') {
+    const id = parsed.pathname.match(/\/(\d+)(?:\/|$)/)?.[1];
+    if (!id) return null;
+    return { url: `https://vimeo.com/${id}`, provider };
+  }
+  return { url: parsed.toString(), provider };
 }
 
 async function pendingVideoGuideIds(db, guideIds) {
@@ -1190,6 +1203,10 @@ const getGuideVideos = async (guideIds, viewerId = null) => {
          FROM learn_guide_videos v
          LEFT JOIN learn_guide_video_votes vt ON vt.video_id = v.id
         WHERE v.guide_id = ANY($1)
+          AND NOT EXISTS (
+            SELECT 1 FROM learn_guide_video_flags f
+             WHERE f.video_id = v.id AND f.status = 'open'
+          )
         GROUP BY v.id, v.guide_id, v.video_url, v.video_provider, v.created_at
         ORDER BY COUNT(vt.user_id) DESC, v.created_at ASC`,
       params
@@ -1305,10 +1322,11 @@ exports.adminListVideoSubmissions = async (req, res, next) => {
          LEFT JOIN users d ON d.id = s.decided_by
         WHERE s.status = $1
         ORDER BY s.created_at DESC
-        LIMIT 200`,
-      [status]
+        LIMIT $2`,
+      [status, Math.min(Math.max(Number(req.query.limit) || 200, 1), 500) + 1]
     );
-    res.json({ success: true, submissions: rows });
+    const limit = Math.min(Math.max(Number(req.query.limit) || 200, 1), 500);
+    res.json({ success: true, submissions: rows.slice(0, limit), has_more: rows.length > limit });
   } catch (err) {
     next(new AppError('Failed to load video submissions', 500, 'video_submissions_failed'));
   }
@@ -1395,7 +1413,7 @@ exports.publishDueGuideVideos = async (db = pool, { limit = 100 } = {}) => {
   let rows;
   try {
     ({ rows } = await db.query(
-      `SELECT id, guide_id, video_url, video_provider
+      `SELECT id, guide_id, video_url, video_provider, submitted_by
          FROM learn_guide_video_submissions
         WHERE status = 'pending' AND created_at <= NOW() - INTERVAL '24 hours'
         ORDER BY created_at ASC
@@ -1433,7 +1451,10 @@ exports.publishDueGuideVideos = async (db = pool, { limit = 100 } = {}) => {
       if (finalStatus === 'live') published += 1; else superseded += 1;
     } catch (err) {
       await client.query('ROLLBACK').catch(() => {});
-      // leave pending for the next pass; do not fail the whole batch
+      // Leave pending for the next pass, but make the failure observable.
+      logger.error('publishDueGuideVideos submission failed', {
+        submissionId: sub.id, guideId: sub.guide_id, error: err.message,
+      });
     } finally {
       client.release();
     }
@@ -1554,10 +1575,11 @@ exports.adminListVideoFlags = async (req, res, next) => {
          LEFT JOIN users d ON d.id = f.decided_by
         WHERE f.status = $1
         ORDER BY f.created_at DESC
-        LIMIT 200`,
-      [status]
+        LIMIT $2`,
+      [status, Math.min(Math.max(Number(req.query.limit) || 200, 1), 500) + 1]
     );
-    res.json({ success: true, flags: rows });
+    const limit = Math.min(Math.max(Number(req.query.limit) || 200, 1), 500);
+    res.json({ success: true, flags: rows.slice(0, limit), has_more: rows.length > limit });
   } catch (err) {
     next(new AppError('Failed to load video flags', 500, 'video_flags_failed'));
   }
