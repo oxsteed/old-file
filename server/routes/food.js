@@ -50,6 +50,8 @@ router.get('/my/orders', authenticate, ctrl.listMyOrders);
 router.get('/orders/:orderId', authenticate, ctrl.getOrder);
 router.get('/customer/profile', authenticate, ctrl.getCustomerProfile);
 router.patch('/customer/profile', authenticate, ctrl.updateCustomerProfile);
+// P3-9-F01: customer-facing loyalty balance (view points / redeem at checkout).
+router.get('/customer/loyalty/:restaurantId', authenticate, ctrl.getMyLoyaltyBalance);
 router.use('/customer/wallets', authenticate, checkRestrictions('checkout'), noStoreCreditResponse);
 router.get('/customer/wallets', walletCtrl.listCustomerWallets);
 router.get('/customer/wallets/:restaurantId', walletCtrl.getCustomerWallet);

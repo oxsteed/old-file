@@ -2224,7 +2224,13 @@
     "protectionDesc": "Cuando usas la Protección OxSteed, la app registra el pago, el acuerdo y el historial de disputas en un solo lugar. El crédito del restaurante y el pago directo entre usuarios son las rutas activas de lanzamiento, así que el enfoque está en registros claros, confirmaciones y soporte.",
     "protectionNote": "* La Protección OxSteed requiere verificación de ID para clientes y verificación de ID + verificación de antecedentes para ayudantes. Los pagos de lanzamiento no requieren configuración de cuenta Stripe.",
     "proFeatures": "Características profesionales",
-    "legacyProcessorFee": "Comisión del procesador anterior (solo backend)"
+    "legacyProcessorFee": "Comisión del procesador anterior (solo backend)",
+    "receiptsTitle": "Recibos",
+    "receiptsSubtitle": "Tus facturas de suscripcion, siempre disponibles aqui.",
+    "receiptsLoading": "Cargando recibos...",
+    "receiptsEmpty": "Aun no hay facturas. Tu primer recibo aparecera aqui despues del pago.",
+    "receiptFallbackLabel": "Factura",
+    "viewReceipt": "Ver recibo"
   },
   "businessAppointments": {
     "title": "Calendario de citas",
@@ -8543,7 +8549,13 @@
     "showOnceTitle": "Tu nuevo código de acceso",
     "showOnceDesc": "Copia este código ahora. Por seguridad, no se mostrará de nuevo.",
     "showOnceDismiss": "Ya lo copié",
-    "codeHiddenTitle": "Oculto por seguridad. Rota para emitir un código nuevo."
+    "codeHiddenTitle": "Oculto por seguridad. Rota para emitir un código nuevo.",
+    "lineItemType": "Tipo de linea",
+    "lineItemTypeItem": "Articulo",
+    "lineItemTypeDiscount": "Descuento",
+    "lineItemTypeFee": "Cargo",
+    "discountTotal": "Descuentos",
+    "feeTotal": "Cargos"
   },
   "plans": {
     "free": "Gratis",
@@ -17451,18 +17463,18 @@
     "contactIntro": "Si tiene preguntas sobre esta página o desea ejercer alguno de sus derechos de privacidad, contáctenos en:",
     "contactEmailLabel": "Correo:",
     "contactMailLabel": "Correo postal:",
-      "formTitle": "Enviar una solicitud de exclusión",
-      "formIntro": "Usa este formulario para ejercer tu derecho a excluirte de la venta o el intercambio de tu información personal. Responderemos en un plazo de 45 días.",
-      "emailLabel": "Correo electrónico",
-      "emailPlaceholder": "tu@ejemplo.com",
-      "notesLabel": "Detalles adicionales (opcional)",
-      "notesPlaceholder": "Cuéntanos lo que nos ayude a encontrar tus datos.",
-      "submitButton": "Enviar solicitud de exclusión",
-      "submittingButton": "Enviando...",
-      "successTitle": "Solicitud recibida",
-      "successMessage": "Tu solicitud de exclusión fue recibida. Responderemos en un plazo de 45 días.",
-      "errorRequired": "Ingresa tu correo electrónico.",
-      "errorFailed": "No pudimos enviar tu solicitud. Inténtalo de nuevo más tarde."
+    "formTitle": "Enviar una solicitud de exclusión",
+    "formIntro": "Usa este formulario para ejercer tu derecho a excluirte de la venta o el intercambio de tu información personal. Responderemos en un plazo de 45 días.",
+    "emailLabel": "Correo electrónico",
+    "emailPlaceholder": "tu@ejemplo.com",
+    "notesLabel": "Detalles adicionales (opcional)",
+    "notesPlaceholder": "Cuéntanos lo que nos ayude a encontrar tus datos.",
+    "submitButton": "Enviar solicitud de exclusión",
+    "submittingButton": "Enviando...",
+    "successTitle": "Solicitud recibida",
+    "successMessage": "Tu solicitud de exclusión fue recibida. Responderemos en un plazo de 45 días.",
+    "errorRequired": "Ingresa tu correo electrónico.",
+    "errorFailed": "No pudimos enviar tu solicitud. Inténtalo de nuevo más tarde."
   },
   "cookiePolicyPage": {
     "title": "Política de cookies",
@@ -19784,7 +19796,13 @@
       "creditSheetStripeUnavailable": "Los pagos con tarjeta no están disponibles por ahora.",
       "useNewCard": "Usar una tarjeta nueva",
       "guestCredit": "Crédito de invitado",
-      "guestCreditSub": "Paga con Crédito OxSteed como invitado (hasta $25/pedido)"
+      "guestCreditSub": "Paga con Crédito OxSteed como invitado (hasta $25/pedido)",
+      "loyaltyPoints": "Puntos de lealtad",
+      "loyaltyPlaceholder": "Puntos para canjear",
+      "loyaltyUseMax": "Usar maximo",
+      "loyaltyBalanceHint": "{{balance}} puntos disponibles. Minimo {{min}} puntos para canjear.",
+      "loyaltyLoading": "Cargando tu saldo de puntos...",
+      "loyaltyDiscount": "Lealtad ({{points}} pts)"
     },
     "order": {
       "specialInstructions": "Instrucciones especiales (opcional)",

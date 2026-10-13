@@ -2224,7 +2224,13 @@
     "protectionDesc": "عند استخدام حماية OxSteed، يسجل التطبيق الدفع والاتفاق ومسار النزاع في مكان واحد. رصيد المطعم والدفع المباشر بين المستخدمين هما مسارا الإطلاق النشطان، لذا يتركز العمل على السجلات الواضحة والتأكيدات ودعم النزاعات.",
     "protectionNote": "* تتطلب حماية OxSteed التحقق من الهوية للعملاء والتحقق من الهوية + التحقق الخلفي للمساعدين. لا تتطلب مدفوعات الإطلاق إعداد حساب Stripe.",
     "proFeatures": "مميزات المتقدمة",
-    "legacyProcessorFee": "رسوم معالج الدفع القديم (الخلفية فقط)"
+    "legacyProcessorFee": "رسوم معالج الدفع القديم (الخلفية فقط)",
+    "receiptsTitle": "الإيصالات",
+    "receiptsSubtitle": "فواتير اشتراكك، متوفرة هنا دائمًا.",
+    "receiptsLoading": "جارٍ تحميل الإيصالات...",
+    "receiptsEmpty": "لا توجد فواتير بعد. سيظهر إيصالك الأول هنا بعد الدفع.",
+    "receiptFallbackLabel": "فاتورة",
+    "viewReceipt": "عرض الإيصال"
   },
   "businessAppointments": {
     "title": "تقويم المواعيد",
@@ -8543,7 +8549,13 @@
     "showOnceTitle": "رمز الوصول الجديد",
     "showOnceDesc": "انسخ هذا الرمز الآن. لأسباب أمنية، لن يظهر مرة أخرى.",
     "showOnceDismiss": "لقد نسخته",
-    "codeHiddenTitle": "مخفي لأسباب أمنية. قم بالتدوير لإصدار رمز جديد."
+    "codeHiddenTitle": "مخفي لأسباب أمنية. قم بالتدوير لإصدار رمز جديد.",
+    "lineItemType": "نوع البند",
+    "lineItemTypeItem": "بند",
+    "lineItemTypeDiscount": "خصم",
+    "lineItemTypeFee": "رسوم",
+    "discountTotal": "الخصومات",
+    "feeTotal": "الرسوم"
   },
   "plans": {
     "free": "حر",
@@ -17462,18 +17474,18 @@
     "contactIntro": "إذا كانت لديك أسئلة حول هذه الصفحة أو كنت ترغب في ممارسة أي من حقوق الخصوصية، يرجى الاتصال بنا على:",
     "contactEmailLabel": "البريد الإلكتروني:",
     "contactMailLabel": "البريد:",
-      "formTitle": "إرسال طلب إلغاء الاشتراك في البيع",
-      "formIntro": "استخدم هذا النموذج لممارسة حقك في إلغاء بيع معلوماتك الشخصية أو مشاركتها. سنرد خلال 45 يومًا.",
-      "emailLabel": "عنوان البريد الإلكتروني",
-      "emailPlaceholder": "you@example.com",
-      "notesLabel": "تفاصيل إضافية (اختياري)",
-      "notesPlaceholder": "أخبرنا بأي شيء يساعدنا في العثور على بياناتك.",
-      "submitButton": "إرسال طلب إلغاء الاشتراك",
-      "submittingButton": "جارٍ الإرسال...",
-      "successTitle": "تم استلام الطلب",
-      "successMessage": "تم استلام طلب إلغاء الاشتراك الخاص بك. سنرد خلال 45 يومًا.",
-      "errorRequired": "يرجى إدخال عنوان بريدك الإلكتروني.",
-      "errorFailed": "تعذر إرسال طلبك. يرجى المحاولة مرة أخرى لاحقًا."
+    "formTitle": "إرسال طلب إلغاء الاشتراك في البيع",
+    "formIntro": "استخدم هذا النموذج لممارسة حقك في إلغاء بيع معلوماتك الشخصية أو مشاركتها. سنرد خلال 45 يومًا.",
+    "emailLabel": "عنوان البريد الإلكتروني",
+    "emailPlaceholder": "you@example.com",
+    "notesLabel": "تفاصيل إضافية (اختياري)",
+    "notesPlaceholder": "أخبرنا بأي شيء يساعدنا في العثور على بياناتك.",
+    "submitButton": "إرسال طلب إلغاء الاشتراك",
+    "submittingButton": "جارٍ الإرسال...",
+    "successTitle": "تم استلام الطلب",
+    "successMessage": "تم استلام طلب إلغاء الاشتراك الخاص بك. سنرد خلال 45 يومًا.",
+    "errorRequired": "يرجى إدخال عنوان بريدك الإلكتروني.",
+    "errorFailed": "تعذر إرسال طلبك. يرجى المحاولة مرة أخرى لاحقًا."
   },
   "cookiePolicyPage": {
     "title": "سياسة ملفات تعريف الارتباط",
@@ -19795,7 +19807,13 @@
       "creditSheetStripeUnavailable": "الدفع بالبطاقة غير متاح حالياً.",
       "useNewCard": "استخدام بطاقة جديدة",
       "guestCredit": "رصيد الضيف",
-      "guestCreditSub": "ادفع برصيد OxSteed كضيف (حتى 25 دولارًا/طلب)"
+      "guestCreditSub": "ادفع برصيد OxSteed كضيف (حتى 25 دولارًا/طلب)",
+      "loyaltyPoints": "نقاط الولاء",
+      "loyaltyPlaceholder": "النقاط المراد استبدالها",
+      "loyaltyUseMax": "استخدام الكل",
+      "loyaltyBalanceHint": "{{balance}} نقطة متاحة. الحد الأدنى {{min}} نقطة للاستبدال.",
+      "loyaltyLoading": "جارٍ تحميل رصيد نقاطك...",
+      "loyaltyDiscount": "الولاء ({{points}} نقطة)"
     },
     "order": {
       "specialInstructions": "تعليمات خاصة (اختياري)",

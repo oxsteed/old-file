@@ -898,7 +898,18 @@ async function syncDeliveryRunnerTaskForOrderStatus(client, { order, createdBy }
 
 async function earnFoodLoyaltyOnComplete(client, order) {
   if (!order.customer_id) return null;
-  const points = Math.max(1, Math.floor(Number(order.total_cents || 0) / 100));
+  // P3-9-F06: only confirmed money earns points. pay_at_restaurant /
+  // pay_at_counter / direct_payment orders complete with payment_status
+  // 'unpaid' (or 'requires_payment'); minting points on those lets
+  // customers farm loyalty value without paying.
+  if (order.payment_status !== 'paid') return null;
+  // P3-9-F15: the earn base is menu value only (subtotal minus discounts).
+  // Tips, tax, delivery and service fees are excluded: the restaurant
+  // should not grant loyalty value on staff tips or platform fees.
+  // Legacy rows without a priced subtotal fall back to the order total.
+  const earnBaseCents = Math.max(0, Number(order.subtotal_cents || 0) - Number(order.discount_cents || 0));
+  const fallbackBaseCents = earnBaseCents > 0 ? earnBaseCents : Math.max(0, Number(order.total_cents || 0));
+  const points = Math.max(1, Math.floor(fallbackBaseCents / 100));
   try {
     const { rows: [account] } = await client.query(
       `INSERT INTO food_loyalty_accounts (restaurant_id, customer_id, points_balance, lifetime_points)
@@ -916,7 +927,95 @@ async function earnFoodLoyaltyOnComplete(client, order) {
        VALUES ($1, $2, $3, 'order_completed')`,
       [account.id, order.id, points]
     );
+    // P3-9-F07: keep the business loyalty profile live. customer_business_profile
+    // previously had zero writers, so loyalty_tier was forever 'new' and tier
+    // counts in the business hub were always zero.
+    await upsertCustomerBusinessProfileOnOrder(client, order, Number(account.lifetime_points || 0));
     return account;
+  } catch (err) {
+    if (isMissingRelationError(err)) return null;
+    throw err;
+  }
+}
+
+// P3-9-F07 writer: upserts customer_business_profile on each completed paid
+// food order and recomputes loyalty_tier from the business's own tier ladder
+// (business_loyalty_tiers by lifetime points), falling back to count-based
+// tiers (new/returning/regular/vip) when the business defined no tiers.
+async function upsertCustomerBusinessProfileOnOrder(client, order, lifetimePoints) {
+  const businessId = Number(order.business_id);
+  const customerId = order.customer_id;
+  if (!businessId || !customerId) return null;
+  try {
+    const { rows: [existing] } = await client.query(
+      `SELECT loyalty_tier FROM customer_business_profile
+        WHERE business_id = $1 AND customer_id = $2`,
+      [businessId, customerId]
+    );
+    const previousTier = existing ? String(existing.loyalty_tier || 'new') : 'new';
+
+    let tier = 'new';
+    let tierDiscountPercent = 0;
+    const { rows: tierRows } = await client.query(
+      `SELECT tier_name, min_points, discount_percent
+         FROM business_loyalty_tiers
+        WHERE business_id = $1
+        ORDER BY min_points DESC`,
+      [businessId]
+    );
+    const matched = tierRows.find((row) => Number(lifetimePoints || 0) >= Number(row.min_points || 0));
+    if (matched) {
+      tier = String(matched.tier_name);
+      tierDiscountPercent = Number(matched.discount_percent || 0);
+    } else {
+      const { rows: [counts] } = await client.query(
+        `SELECT COUNT(*)::int AS n
+           FROM food_orders
+          WHERE business_id = $1
+            AND customer_id = $2
+            AND status NOT IN ('cancelled', 'refunded')`,
+        [businessId, customerId]
+      );
+      const n = Number(counts?.n || 0);
+      tier = n >= 10 ? 'vip' : n >= 5 ? 'regular' : n >= 2 ? 'returning' : 'new';
+    }
+
+    const { rows: [profile] } = await client.query(
+      `INSERT INTO customer_business_profile
+         (business_id, customer_id, lifetime_bookings, lifetime_spent_cents,
+          first_booking_date, last_booking_date, loyalty_tier, updated_at)
+       VALUES ($1, $2, 1, $3, CURRENT_DATE, CURRENT_DATE, $4, NOW())
+       ON CONFLICT (business_id, customer_id)
+       DO UPDATE SET
+         lifetime_bookings = customer_business_profile.lifetime_bookings + 1,
+         lifetime_spent_cents = customer_business_profile.lifetime_spent_cents + $3,
+         first_booking_date = COALESCE(customer_business_profile.first_booking_date, CURRENT_DATE),
+         last_booking_date = CURRENT_DATE,
+         loyalty_tier = $4,
+         updated_at = NOW()
+       RETURNING loyalty_tier`,
+      [businessId, customerId, Math.max(0, Math.round(Number(order.total_cents || 0))), tier]
+    );
+
+    // P3-9-F09 writer: a tier upgrade mints a real loyalty offer so the
+    // customer_offers surface (previously zero writers) carries live data.
+    // created_by_id is NULL for system-generated offers (migration 810).
+    if (profile && tier !== previousTier && tierDiscountPercent > 0) {
+      await client.query(
+        `INSERT INTO customer_offers
+           (business_id, customer_id, offer_type, discount_percent,
+            max_uses, times_used, valid_from, valid_until, is_active, created_by_id)
+         VALUES ($1, $2, 'loyalty_discount', $3, 1, 0, CURRENT_DATE, CURRENT_DATE + INTERVAL '30 days', TRUE, NULL)`,
+        [businessId, customerId, Math.min(100, Math.max(1, Math.round(tierDiscountPercent)))]
+      );
+      logger.info('Issued loyalty tier-upgrade offer', {
+        businessId,
+        customerId,
+        previousTier,
+        tier,
+      });
+    }
+    return profile || null;
   } catch (err) {
     if (isMissingRelationError(err)) return null;
     throw err;
@@ -946,34 +1045,82 @@ async function clawBackFoodLoyaltyOnRefund(client, order) {
         LIMIT 1`,
       [account.id, order.id]
     );
-    if (!earned) return null;
-    const { rows: [alreadyClawedBack] } = await client.query(
-      `SELECT id FROM food_loyalty_ledger
-        WHERE account_id = $1 AND order_id = $2 AND reason = 'order_refunded'
-        LIMIT 1`,
+    let clawedBack = 0;
+    if (earned) {
+      const { rows: [alreadyClawedBack] } = await client.query(
+        `SELECT id FROM food_loyalty_ledger
+          WHERE account_id = $1 AND order_id = $2 AND reason = 'order_refunded'
+          LIMIT 1`,
+        [account.id, order.id]
+      );
+      if (!alreadyClawedBack) {
+        const points = Math.max(0, Number(earned.delta_points || 0));
+        if (points > 0) {
+          await client.query(
+            `UPDATE food_loyalty_accounts
+                SET points_balance = GREATEST(0, points_balance - $1),
+                    updated_at = NOW()
+              WHERE id = $2`,
+            [points, account.id]
+          );
+          await client.query(
+            `INSERT INTO food_loyalty_ledger (account_id, order_id, delta_points, reason)
+             VALUES ($1, $2, $3, 'order_refunded')`,
+            [account.id, order.id, -points]
+          );
+          logger.info('Clawed back food loyalty points for refunded order', {
+            orderId: order.id,
+            accountId: account.id,
+            points,
+          });
+          clawedBack = points;
+        }
+      }
+    }
+    // P3-9-F02: redeemed points were never restored on cancel/refund. A
+    // customer who redeemed points and then had the order cancelled lost the
+    // points and the order. Restore exactly what the order's 'order_redeem'
+    // rows deducted. Idempotent: a matching 'order_redeem_restored' row
+    // means a previous attempt already restored them. Runs even when the
+    // order never completed (no 'order_completed' row to claw back).
+    let restored = 0;
+    const { rows: [redeemed] } = await client.query(
+      `SELECT COALESCE(SUM(-delta_points), 0)::int AS redeemed_points
+         FROM food_loyalty_ledger
+        WHERE account_id = $1 AND order_id = $2 AND reason = 'order_redeem' AND delta_points < 0`,
       [account.id, order.id]
     );
-    if (alreadyClawedBack) return null;
-    const points = Math.max(0, Number(earned.delta_points || 0));
-    if (points <= 0) return null;
-    await client.query(
-      `UPDATE food_loyalty_accounts
-          SET points_balance = GREATEST(0, points_balance - $1),
-              updated_at = NOW()
-        WHERE id = $2`,
-      [points, account.id]
-    );
-    await client.query(
-      `INSERT INTO food_loyalty_ledger (account_id, order_id, delta_points, reason)
-       VALUES ($1, $2, $3, 'order_refunded')`,
-      [account.id, order.id, -points]
-    );
-    logger.info('Clawed back food loyalty points for refunded order', {
-      orderId: order.id,
-      accountId: account.id,
-      points,
-    });
-    return { accountId: account.id, points };
+    const redeemedPoints = Math.max(0, Number(redeemed?.redeemed_points || 0));
+    if (redeemedPoints > 0) {
+      const { rows: [alreadyRestored] } = await client.query(
+        `SELECT id FROM food_loyalty_ledger
+          WHERE account_id = $1 AND order_id = $2 AND reason = 'order_redeem_restored'
+          LIMIT 1`,
+        [account.id, order.id]
+      );
+      if (!alreadyRestored) {
+        await client.query(
+          `UPDATE food_loyalty_accounts
+              SET points_balance = points_balance + $1,
+                  updated_at = NOW()
+            WHERE id = $2`,
+          [redeemedPoints, account.id]
+        );
+        await client.query(
+          `INSERT INTO food_loyalty_ledger (account_id, order_id, delta_points, reason)
+           VALUES ($1, $2, $3, 'order_redeem_restored')`,
+          [account.id, order.id, redeemedPoints]
+        );
+        logger.info('Restored redeemed food loyalty points for refunded order', {
+          orderId: order.id,
+          accountId: account.id,
+          points: redeemedPoints,
+        });
+        restored = redeemedPoints;
+      }
+    }
+    if (clawedBack === 0 && restored === 0) return null;
+    return { accountId: account.id, points: clawedBack, restoredPoints: restored };
   } catch (err) {
     if (isMissingRelationError(err)) return null;
     throw err;
@@ -2470,6 +2617,34 @@ exports.quoteOrder = async (req, res, next) => {
     }
     discountCents = Math.min(subtotalCents, discountCents);
 
+    // P3-9-F01: loyalty redemption is part of the quote so the checkout total
+    // the customer sees matches what createOrder will charge. Card payment
+    // intents must equal the final order total exactly, so the quote and the
+    // order must apply the same redemption.
+    let loyaltyRedeemedPoints = 0;
+    let loyaltyDiscountCents = 0;
+    let loyaltyRedemption = null;
+    const requestedLoyaltyPoints = parsePositiveInt(
+      req.body.loyaltyPointsToRedeem ?? req.body.loyalty_points_to_redeem,
+      0
+    ) || 0;
+    if (requestedLoyaltyPoints > 0 && req.user?.id) {
+      const loyaltyResult = await resolveFoodLoyaltyRedemption(
+        pool,
+        restaurantId,
+        req.user.id,
+        subtotalCents,
+        discountCents,
+        requestedLoyaltyPoints
+      );
+      if (loyaltyResult.discountCents > 0) {
+        loyaltyRedeemedPoints = loyaltyResult.pointsRedeemed;
+        loyaltyDiscountCents = loyaltyResult.discountCents;
+        loyaltyRedemption = loyaltyResult.metadata;
+        discountCents = Math.min(subtotalCents, discountCents + loyaltyDiscountCents);
+      }
+    }
+
     let deliveryAddress = null;
     let deliveryFeeCents = 0;
     if (fulfillmentType === 'delivery') {
@@ -2573,6 +2748,12 @@ exports.quoteOrder = async (req, res, next) => {
       subtotal_cents: subtotalCents,
       discountCents,
       discount_cents: discountCents,
+      loyaltyRedeemedPoints,
+      loyalty_redeemed_points: loyaltyRedeemedPoints,
+      loyaltyDiscountCents,
+      loyalty_discount_cents: loyaltyDiscountCents,
+      loyaltyRedemption,
+      loyalty_redemption: loyaltyRedemption,
       taxableSubtotalCents,
       taxable_subtotal_cents: taxableSubtotalCents,
       taxRateBps,
@@ -4332,6 +4513,21 @@ exports.updateOrderStatus = async (req, res, next) => {
           orderId: order.id,
           actorUserId: req.user?.id || null,
         });
+        // P3-9-F05: loyalty earn commits in the SAME transaction as the
+        // status transition. A separate post-commit transaction meant a
+        // throw left the order 'completed' with no points and no retry; now
+        // a real earn failure rolls the transition back (fail closed) instead
+        // of silently skipping the award. The savepoint preserves the
+        // defensive missing-table tolerance: a caught 42P01 inside earn must
+        // not poison the order transition on partially-migrated databases.
+        await client.query('SAVEPOINT food_loyalty_earn');
+        try {
+          await earnFoodLoyaltyOnComplete(client, order);
+          await client.query('RELEASE SAVEPOINT food_loyalty_earn');
+        } catch (err) {
+          await client.query('ROLLBACK TO SAVEPOINT food_loyalty_earn');
+          throw err;
+        }
       } else if (['cancelled', 'refunded'].includes(status)) {
         await releaseInventoryForOrder(client, {
           restaurantId,
@@ -4349,6 +4545,8 @@ exports.updateOrderStatus = async (req, res, next) => {
 
     // Idempotent retries return the original result without repeating customer
     // messages, loyalty awards, runner transitions, or realtime side effects.
+    // (Loyalty earn now runs inside the transition transaction above, and the
+    // replay path returns before reaching it, so replays cannot double-award.)
     if (!transitionResult.replayed) {
       emitRestaurantOrder(order.business_id, 'food:order:updated', { order });
       emitRestaurantDisplay(order.restaurant_id, order);
@@ -4367,11 +4565,6 @@ exports.updateOrderStatus = async (req, res, next) => {
       // customer informed and pull them back to the tracker.
       if (status === 'accepted' || status === 'preparing') {
         notifyFoodOrderMilestone(order, restaurant, status);
-      }
-      if (status === 'completed') {
-        await withTransaction(pool, async (client) => {
-          await earnFoodLoyaltyOnComplete(client, order);
-        }, 'food_loyalty_earn');
       }
     }
 
@@ -5707,6 +5900,41 @@ exports.getCustomerProfile = async (req, res, next) => {
     }
 
     res.json({ profile });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// P3-9-F01: customer-facing loyalty balance for one restaurant. Points could
+// be earned but never viewed or spent; the checkout UI needs this to offer
+// redemption.
+exports.getMyLoyaltyBalance = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    if (!restaurantId) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
+    let pointsBalance = 0;
+    let lifetimePoints = 0;
+    try {
+      const { rows: [account] } = await pool.query(
+        `SELECT points_balance, lifetime_points
+           FROM food_loyalty_accounts
+          WHERE restaurant_id = $1 AND customer_id = $2`,
+        [restaurantId, req.user.id]
+      );
+      if (account) {
+        pointsBalance = Math.max(0, Number(account.points_balance || 0));
+        lifetimePoints = Math.max(0, Number(account.lifetime_points || 0));
+      }
+    } catch (err) {
+      if (!isMissingRelationError(err)) throw err;
+    }
+    res.json({
+      restaurantId,
+      pointsBalance,
+      lifetimePoints,
+      minRedeemPoints: FOOD_LOYALTY_MIN_REDEEM_POINTS,
+      centsPerPoint: FOOD_LOYALTY_CENTS_PER_POINT,
+    });
   } catch (err) {
     next(err);
   }
@@ -7107,4 +7335,5 @@ exports.splitOrder = async (req, res, next) => {
 // ── Test seams (exported for unit tests) ────────────────────────────────
 exports._refundFoodOrderStripePayment = refundFoodOrderStripePayment;
 exports._clawBackFoodLoyaltyOnRefund = clawBackFoodLoyaltyOnRefund;
+exports._earnFoodLoyaltyOnComplete = earnFoodLoyaltyOnComplete;
 exports._safeReturnUrl = safeReturnUrl;

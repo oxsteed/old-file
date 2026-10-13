@@ -2224,7 +2224,13 @@
     "protectionDesc": "When you use OxSteed Protection, the app records the payment, the agreement, and the dispute trail in one place. Restaurant credit and direct payment between users are the active launch paths, so the focus is on clear records, confirmations, and support handling.",
     "protectionNote": "* OxSteed Protection requires ID verification for customers and ID verification + background check for helpers. Launch payments do not require Stripe account setup.",
     "proFeatures": "Pro Features",
-    "legacyProcessorFee": "Legacy processor fee (backend only)"
+    "legacyProcessorFee": "Legacy processor fee (backend only)",
+    "receiptsTitle": "Receipts",
+    "receiptsSubtitle": "Your subscription invoices, always available here.",
+    "receiptsLoading": "Loading receipts...",
+    "receiptsEmpty": "No invoices yet. Your first receipt will appear here after payment.",
+    "receiptFallbackLabel": "Invoice",
+    "viewReceipt": "View receipt"
   },
   "businessAppointments": {
     "title": "Appointment Calendar",
@@ -8543,7 +8549,13 @@
     "showOnceTitle": "Your new access code",
     "showOnceDesc": "Copy this code now. For security, it will not be shown again.",
     "showOnceDismiss": "I have copied it",
-    "codeHiddenTitle": "Hidden for security. Rotate to issue a new code."
+    "codeHiddenTitle": "Hidden for security. Rotate to issue a new code.",
+    "lineItemType": "Line item type",
+    "lineItemTypeItem": "Item",
+    "lineItemTypeDiscount": "Discount",
+    "lineItemTypeFee": "Fee",
+    "discountTotal": "Discounts",
+    "feeTotal": "Fees"
   },
   "plans": {
     "free": "Free",
@@ -17451,18 +17463,18 @@
     "contactIntro": "If you have questions about this page or wish to exercise any privacy rights, please contact us at:",
     "contactEmailLabel": "Email:",
     "contactMailLabel": "Mail:",
-      "formTitle": "Submit an Opt-Out Request",
-      "formIntro": "Use this form to exercise your right to opt out of the sale or sharing of your personal information. We will respond within 45 days.",
-      "emailLabel": "Email address",
-      "emailPlaceholder": "you@example.com",
-      "notesLabel": "Additional details (optional)",
-      "notesPlaceholder": "Tell us anything that helps us find your data.",
-      "submitButton": "Submit Opt-Out Request",
-      "submittingButton": "Submitting...",
-      "successTitle": "Request received",
-      "successMessage": "Your opt-out request was received. We will respond within 45 days.",
-      "errorRequired": "Please enter your email address.",
-      "errorFailed": "We could not submit your request. Please try again later."
+    "formTitle": "Submit an Opt-Out Request",
+    "formIntro": "Use this form to exercise your right to opt out of the sale or sharing of your personal information. We will respond within 45 days.",
+    "emailLabel": "Email address",
+    "emailPlaceholder": "you@example.com",
+    "notesLabel": "Additional details (optional)",
+    "notesPlaceholder": "Tell us anything that helps us find your data.",
+    "submitButton": "Submit Opt-Out Request",
+    "submittingButton": "Submitting...",
+    "successTitle": "Request received",
+    "successMessage": "Your opt-out request was received. We will respond within 45 days.",
+    "errorRequired": "Please enter your email address.",
+    "errorFailed": "We could not submit your request. Please try again later."
   },
   "cookiePolicyPage": {
     "title": "Cookie Policy",
@@ -19784,7 +19796,13 @@
       "creditSheetStripeUnavailable": "Card payments are not available right now.",
       "useNewCard": "Use a new card",
       "guestCredit": "Guest Credit",
-      "guestCreditSub": "Pay with OxSteed Credit as a guest (up to $25/order)"
+      "guestCreditSub": "Pay with OxSteed Credit as a guest (up to $25/order)",
+      "loyaltyPoints": "Loyalty points",
+      "loyaltyPlaceholder": "Points to redeem",
+      "loyaltyUseMax": "Use max",
+      "loyaltyBalanceHint": "{{balance}} points available. Minimum {{min}} points to redeem.",
+      "loyaltyLoading": "Loading your points balance...",
+      "loyaltyDiscount": "Loyalty ({{points}} pts)"
     },
     "order": {
       "specialInstructions": "Special instructions (optional)",

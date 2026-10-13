@@ -121,6 +121,79 @@ function businessInvoiceCreditPayEnabled() {
 
 const PAYABLE_INVOICE_STATUSES = new Set(['sent', 'partial', 'overdue']);
 
+// P3-9-F13: business invoices support three line-item types. 'item' lines
+// build the subtotal, 'discount' lines reduce it (before tax), and 'fee'
+// lines are added after tax. Stored `subtotal` is items minus discounts;
+// invoices without discount/fee lines compute exactly as before.
+const INVOICE_LINE_ITEM_TYPES = new Set(['item', 'discount', 'fee']);
+
+function normalizeLineItemType(lineItem) {
+  const raw = String(lineItem?.type || lineItem?.kind || 'item').trim().toLowerCase();
+  return INVOICE_LINE_ITEM_TYPES.has(raw) ? raw : null;
+}
+
+// Returns an error string for invalid line items, or null when valid.
+// Fail closed: unknown types, negative amounts, and discounts larger than
+// the items subtotal are rejected instead of silently corrected.
+function validateLineItems(lineItems) {
+  if (!Array.isArray(lineItems) || lineItems.length === 0) {
+    return 'At least one line item is required';
+  }
+  let itemsSubtotal = 0;
+  let discountTotal = 0;
+  for (let index = 0; index < lineItems.length; index += 1) {
+    const li = lineItems[index] || {};
+    const label = `Line item ${index + 1}`;
+    const type = normalizeLineItemType(li);
+    if (!type) {
+      return `${label}: unknown type '${String(li.type ?? li.kind ?? '')}'. Expected item, discount, or fee.`;
+    }
+    const quantity = li.quantity === undefined || li.quantity === null || li.quantity === '' ? 1 : Number(li.quantity);
+    const unitPrice = li.unit_price === undefined || li.unit_price === null || li.unit_price === '' ? 0 : Number(li.unit_price);
+    if (!Number.isFinite(quantity) || quantity < 0) {
+      return `${label}: quantity must be zero or greater`;
+    }
+    if (!Number.isFinite(unitPrice) || unitPrice < 0) {
+      return `${label}: unit price must be zero or greater`;
+    }
+    const amount = round2(quantity * unitPrice);
+    if (type === 'item') itemsSubtotal = round2(itemsSubtotal + amount);
+    else if (type === 'discount') discountTotal = round2(discountTotal + amount);
+  }
+  if (discountTotal > itemsSubtotal + 0.009) {
+    return 'Discount line items cannot exceed the items subtotal';
+  }
+  return null;
+}
+
+function computeInvoiceTotals(lineItems, invoiceTaxRate) {
+  const validationError = validateLineItems(lineItems);
+  if (validationError) throw new Error(validationError);
+  let itemsSubtotal = 0;
+  let discountTotal = 0;
+  let feeTotal = 0;
+  for (const li of lineItems) {
+    const type = normalizeLineItemType(li);
+    const quantity = li.quantity === undefined || li.quantity === null || li.quantity === '' ? 1 : Number(li.quantity);
+    const unitPrice = li.unit_price === undefined || li.unit_price === null || li.unit_price === '' ? 0 : Number(li.unit_price);
+    const amount = round2(quantity * unitPrice);
+    if (type === 'item') itemsSubtotal = round2(itemsSubtotal + amount);
+    else if (type === 'discount') discountTotal = round2(discountTotal + amount);
+    else feeTotal = round2(feeTotal + amount);
+  }
+  const subtotal = round2(itemsSubtotal - discountTotal);
+  const rate = parseFloat(invoiceTaxRate || 0) / 100;
+  const taxAmount = round2(subtotal * rate);
+  const total = round2(subtotal + taxAmount + feeTotal);
+  return {
+    subtotal,
+    tax_amount: taxAmount,
+    total,
+    discount_total: discountTotal,
+    fee_total: feeTotal,
+  };
+}
+
 function invoiceBalanceCents(invoice) {
   const totalCents = Math.round(Number(invoice.total || 0) * 100);
   const paidCents = Math.round(Number(invoice.amount_paid || 0) * 100);
@@ -132,6 +205,10 @@ module.exports = {
   PUBLIC_VIEW_STATUSES,
   assertCreatableStatus,
   validateInvoiceUpdate,
+  validateLineItems,
+  computeInvoiceTotals,
+  normalizeLineItemType,
+  INVOICE_LINE_ITEM_TYPES: ['item', 'discount', 'fee'],
   resolvePaymentDelta,
   isInvoicePayer,
   stripeInvoiceCurrency,
