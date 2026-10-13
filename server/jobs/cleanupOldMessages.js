@@ -7,6 +7,43 @@
 
 const pool = require('../db');
 const logger = require('../utils/logger');
+const { enqueueStorageDeletion, resolveKey } = require('../services/storageCleanupService');
+
+// Review P3-6-F15: legacy support_messages rows can carry file references in
+// the metadata JSONB column ("For storing file URLs"). Only strings shaped
+// like storage references are collected: relative /api/storage/ download
+// refs, or absolute URLs that resolve to a storage key. Anything else is
+// ignored so free-text metadata never lands in the deletion queue.
+function isStorageReference(value) {
+  const text = String(value || '').trim();
+  if (!text) return false;
+  if (text.startsWith('/api/storage/')) return true;
+  if (/^https?:\/\//i.test(text)) return resolveKey(text) !== null;
+  return false;
+}
+
+function collectAttachmentReferences(metadata) {
+  const refs = [];
+  const walk = (node) => {
+    if (typeof node === 'string') {
+      if (isStorageReference(node)) refs.push(node);
+      return;
+    }
+    if (Array.isArray(node)) {
+      node.forEach(walk);
+      return;
+    }
+    if (node && typeof node === 'object') {
+      Object.values(node).forEach(walk);
+    }
+  };
+  try {
+    walk(metadata);
+  } catch {
+    // Never fail retention cleanup on odd metadata shapes.
+  }
+  return refs;
+}
 
 module.exports = {
   id: 'cleanup-old-messages',
@@ -23,19 +60,32 @@ module.exports = {
       });
 
       // Option 1: Hard delete (removes data permanently)
-      // Use this if you don't need audit trail of deleted messages
+      // Use this if you don't need audit trail of deleted messages.
+      // Review P3-6-F15: capture attachment references before the rows are
+      // gone so the storage objects are queued for deletion instead of
+      // orphaned. Enqueueing never throws; a failed enqueue is logged by the
+      // service and the object is left for a later sweep.
       const hardDeleteResult = await pool.query(
         `DELETE FROM support_messages
          WHERE expires_at < NOW() AND deleted_at IS NULL
-         RETURNING id`
+         RETURNING id, metadata`
       );
 
       const deletedCount = hardDeleteResult.rows.length;
+      let attachmentsQueued = 0;
+      for (const row of hardDeleteResult.rows) {
+        for (const ref of collectAttachmentReferences(row.metadata)) {
+          if (await enqueueStorageDeletion(ref, 'support_legacy_retention')) {
+            attachmentsQueued += 1;
+          }
+        }
+      }
       const elapsedMs = Date.now() - startTime;
 
       logger.info('Message cleanup completed', {
         job: 'cleanup-old-messages',
         deleted_message_count: deletedCount,
+        attachments_queued: attachmentsQueued,
         elapsed_ms: elapsedMs,
         status: 'success',
         timestamp: new Date().toISOString(),
@@ -44,6 +94,7 @@ module.exports = {
       return {
         success: true,
         deleted: deletedCount,
+        attachmentsQueued,
         elapsed_ms: elapsedMs,
       };
     } catch (error) {
