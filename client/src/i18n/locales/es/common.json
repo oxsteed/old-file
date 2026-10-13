@@ -1,4 +1,26 @@
 {
+  "reviewLifecycleNotifications": {
+    "dispute_update": {
+      "title": "Nuevo mensaje de disputa",
+      "body": "Hay un nuevo mensaje en tu disputa. Ábrela para revisarlo y responder."
+    },
+    "subscription_renewed": {
+      "title": "Suscripción renovada",
+      "body": "Recibimos el pago de tu suscripción. Revisa los detalles de facturación."
+    },
+    "subscription_cancelled": {
+      "title": "Suscripción cancelada",
+      "body": "Tu suscripción ha terminado. Revisa tu plan y las opciones de facturación."
+    },
+    "subscription_past_due": {
+      "title": "Pago de suscripción pendiente",
+      "body": "No pudimos cobrar tu suscripción. Revisa tu método de pago."
+    },
+    "payment_failed": {
+      "title": "Pago fallido",
+      "body": "No se pudo completar tu pago con tarjeta. Abre el pedido o trabajo para revisar las opciones de pago."
+    }
+  },
   "footer": {
     "explore": "Explorar",
     "help": "Ayuda",

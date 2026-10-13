@@ -1,4 +1,26 @@
 {
+  "reviewLifecycleNotifications": {
+    "dispute_update": {
+      "title": "Nouvo mesaj nan diskisyon an",
+      "body": "Gen yon nouvo mesaj nan diskisyon ou. Louvri l pou gade l epi reponn."
+    },
+    "subscription_renewed": {
+      "title": "Abònman an renouvle",
+      "body": "Nou resevwa peman abònman ou. Gade detay fakti ou."
+    },
+    "subscription_cancelled": {
+      "title": "Abònman an anile",
+      "body": "Abònman ou fini. Gade plan ou ak opsyon peman yo."
+    },
+    "subscription_past_due": {
+      "title": "Peman abònman an anreta",
+      "body": "Nou pa t kapab resevwa peman abònman ou. Verifye mwayen peman ou."
+    },
+    "payment_failed": {
+      "title": "Peman an echwe",
+      "body": "Peman kat ou pa t kapab fèt. Louvri kòmann nan oswa travay la pou gade opsyon peman yo."
+    }
+  },
   "footer": {
     "explore": "Eksplore",
     "help": "Èd",

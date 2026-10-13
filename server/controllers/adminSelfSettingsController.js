@@ -9,6 +9,7 @@ const tokenRevocationService = require('../services/tokenRevocationService');
 const crypto = require('crypto');
 const { AppError } = require('../middleware/errorHandler');
 const logger = require('../utils/logger');
+const { withTransaction } = require('../utils/transaction');
 
 // ── Profile ────────────────────────────────────────────────────────────────
 
@@ -67,19 +68,29 @@ async function revokeMySession(req, res, next) {
     const { sessionId } = req.params;
     if (!/^\d+$/.test(String(sessionId))) throw new AppError('Session not found', 404, 'not_found');
     const current = currentRefreshHash(req);
-    const { rows: [target] } = await db.query(
-      'SELECT refresh_token, access_token_hash FROM sessions WHERE id = $1 AND user_id = $2', [sessionId, req.user.id]);
-    if (!target) throw new AppError('Session not found', 404, 'not_found');
-    if (current && target.refresh_token === current) {
-      throw new AppError('Cannot revoke your current session', 400, 'cannot_revoke_current');
-    }
-    const { rowCount } = await db.query(
-      `UPDATE sessions SET is_valid = false, is_revoked = true, revoked_at = NOW()
-       WHERE id = $1 AND user_id = $2`,
-      [sessionId, req.user.id]
-    );
-    if (!rowCount) throw new AppError('Session not found', 404, 'not_found');
-    if (target.access_token_hash) await tokenRevocationService.revokeAccessTokenId(target.access_token_hash);
+    await withTransaction(db, async (client) => {
+      const { rows: [target] } = await client.query(
+        'SELECT refresh_token, access_token_hash FROM sessions WHERE id = $1 AND user_id = $2 FOR UPDATE',
+        [sessionId, req.user.id]);
+      if (!target) throw new AppError('Session not found', 404, 'not_found');
+      if (current && target.refresh_token === current) {
+        throw new AppError('Cannot revoke your current session', 400, 'cannot_revoke_current');
+      }
+      // Legacy sessions have no stored access identifier. Use the established
+      // user-wide revoke path rather than acknowledging an access token that
+      // remains usable. A storage failure rolls back the session mutation.
+      if (target.access_token_hash) {
+        await tokenRevocationService.revokeAccessTokenId(target.access_token_hash);
+      } else {
+        await tokenRevocationService.revokeAllUserTokens(req.user.id);
+      }
+      const { rowCount } = await client.query(
+        `UPDATE sessions SET is_valid = false, is_revoked = true, revoked_at = NOW()
+         WHERE id = $1 AND user_id = $2`,
+        [sessionId, req.user.id]
+      );
+      if (!rowCount) throw new AppError('Session not found', 404, 'not_found');
+    }, 'revoke_admin_session');
     res.json({ revoked: true });
   } catch (err) { next(err); }
 }

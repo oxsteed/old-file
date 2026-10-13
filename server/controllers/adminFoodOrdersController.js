@@ -12,8 +12,8 @@ const { refundWalletDebitForReference } = require('../services/foodWalletService
 
 async function auditAdminRead(adminId, orderId, purpose) {
   await pool.query(
-    `INSERT INTO admin_audit_log (admin_user_id, action, entity_type, entity_id, metadata)
-     VALUES ($1, 'food_order_read', 'food_order', $2, $3)`,
+    `INSERT INTO admin_audit_log (admin_id, admin_user_id, action, entity_type, entity_id, metadata)
+     VALUES ($1, $1, 'food_order_read', 'food_order', $2, $3)`,
     [adminId, String(orderId), JSON.stringify({ purpose })]
   );
 }
@@ -179,8 +179,8 @@ async function refundFoodOrder(req, res) {
 
     // Audit trail.
     await pool.query(
-      `INSERT INTO admin_audit_log (admin_user_id, action, entity_type, entity_id, metadata)
-       VALUES ($1, 'food_order_refund', 'food_order', $2, $3)`,
+      `INSERT INTO admin_audit_log (admin_id, admin_user_id, action, entity_type, entity_id, metadata)
+       VALUES ($1, $1, 'food_order_refund', 'food_order', $2, $3)`,
       [req.user.id, String(orderId), JSON.stringify({
         amount_cents: refundAmount,
         reason,

@@ -1,4 +1,5 @@
 const T = {
+  ...require('./reviewLifecycleNotificationTemplates').reviewLifecycleNotifications,
   ...require('./mediaCreatorNotifications').creatorNotifications,
   ...require('./disputeNotificationTemplates').disputeNotifications,
   media_follow: {

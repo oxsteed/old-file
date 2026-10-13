@@ -620,6 +620,23 @@ exports.sendDisputeMessage = async (req, res, next) => {
       return { disputeMessage: replayRows[0], replayed: true };
     }, 'send_dispute_message');
 
+    // Notify the other participants after commit. The persisted message ID
+    // keeps retries from duplicating deliveries without suppressing later
+    // messages in the same dispute. Never include private message text.
+    const recipients = [...new Set([
+      dispute.opened_by, dispute.against_user,
+      dispute.client_id, dispute.assigned_helper_id,
+    ].filter(Boolean).map(String))].filter((id) => id !== String(userId));
+    await Promise.all(recipients.map((recipientId) => sendNotification({
+      userId: recipientId,
+      type: 'dispute_update',
+      data: { dispute_id: String(disputeId), message_id: String(result.disputeMessage.id) },
+      action_url: `/disputes/${disputeId}`,
+      idempotencyKey: `dispute:${disputeId}:message:${result.disputeMessage.id}:${recipientId}`,
+    }).catch((error) => logger.warn('Dispute message notification failed', {
+      disputeId, error: error.message,
+    }))));
+
     res.status(result.replayed ? 200 : 201).json({
       message: 'Message sent successfully.',
       disputeMessage: result.disputeMessage

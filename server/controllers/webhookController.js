@@ -405,6 +405,7 @@ async function syncConnectAccountState(account) {
     [accountId]
   );
   const userId = connectAccounts[0]?.user_id || null;
+  if (!userId) return;
   // Connect account.updated is the processor-owned verification event. Keep
   // payout methods fail-closed when payouts are disabled or requirements
   // regress, and never accept a user-supplied verified status.
@@ -414,10 +415,10 @@ async function syncConnectAccountState(account) {
             verified_at = CASE WHEN $2::boolean THEN COALESCE(verified_at, NOW()) ELSE NULL END,
             updated_at = NOW()
       WHERE stripe_account_id = $1
+        AND helper_id = $3
         AND status IN ('pending', 'verified', 'active')`,
-    [accountId, !!account.payouts_enabled]
+    [accountId, !!account.payouts_enabled, userId]
   );
-  if (!userId) return;
 
   await db.query(
     `UPDATE connect_accounts
@@ -786,11 +787,11 @@ async function handleVerifiedStripeEvent(event, destination, res, next) {
           );
           await recalculateBadges(rows[0].user_id);
           if (toLocalSubscriptionStatus(sub.status) === 'past_due') {
-            sendNotification({
+            await sendNotification({
               userId: rows[0].user_id,
               type: 'subscription_past_due',
               data: { subscription_id: sub.id },
-              action_url: '/settings/billing',
+              action_url: '/settings',
               idempotencyKey: `stripe:subscription_past_due:${event.id || sub.id}:${rows[0].user_id}`,
             }).catch((e) => logger.warn('Failed to send subscription past due notification', { error: e.message }));
           }
@@ -818,11 +819,11 @@ async function handleVerifiedStripeEvent(event, destination, res, next) {
             `UPDATE badges SET active = FALSE WHERE user_id = $1 AND type IN ('verified', 'pro')`,
             [uid]
           );
-          sendNotification({
+          await sendNotification({
             userId: uid,
             type: 'subscription_cancelled',
             data: { subscription_id: sub.id },
-            action_url: '/settings/billing',
+            action_url: '/settings',
             idempotencyKey: `stripe:subscription_cancelled:${sub.id}:${uid}`,
           }).catch((e) => logger.warn('Failed to send subscription cancellation notification', { error: e.message }));
         }
@@ -880,11 +881,11 @@ async function handleVerifiedStripeEvent(event, destination, res, next) {
             );
           }
           await recalculateBadges(user_id);
-          sendNotification({
+          await sendNotification({
             userId: user_id,
             type: 'subscription_renewed',
             data: { subscription_id: subId, period_end: period.end },
-            action_url: '/settings/billing',
+            action_url: '/settings',
             idempotencyKey: `stripe:subscription_renewed:${invoice.id || subId}:${user_id}`,
           }).catch((e) => logger.warn('Failed to send subscription renewal notification', { error: e.message }));
           logger.info('[webhook] invoice.payment_succeeded — subscription renewed', {
@@ -911,11 +912,11 @@ async function handleVerifiedStripeEvent(event, destination, res, next) {
             `UPDATE users SET subscription_status = 'past_due' WHERE id = $1`,
             [uid]
           );
-          sendNotification({
+          await sendNotification({
             userId: uid,
             type: 'subscription_past_due',
             data: { subscription_id: subId },
-            action_url: '/settings/billing',
+            action_url: '/settings',
             idempotencyKey: `stripe:subscription_past_due:${invoice.id || subId}:${uid}`,
           }).catch(e => logger.warn('Failed to send subscription payment failed notification', { error: e.message }));
         }
@@ -1138,7 +1139,7 @@ async function handleVerifiedStripeEvent(event, destination, res, next) {
             }
           });
           if (failedFoodOrder?.customer_id) {
-            sendNotification({
+            await sendNotification({
               userId: failedFoodOrder.customer_id,
               type: 'payment_failed',
               data: { food_order_id: String(failedFoodOrder.id), payment_intent_id: pi.id },
@@ -1170,7 +1171,7 @@ async function handleVerifiedStripeEvent(event, destination, res, next) {
           // Notify customer to retry
           const clientId = pi.metadata?.client_id;
           if (clientId) {
-            sendNotification({
+            await sendNotification({
               userId: clientId,
               type: 'payment_failed',
               title: '⚠️ Payment Failed',

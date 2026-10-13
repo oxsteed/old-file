@@ -115,3 +115,27 @@ test('reuses an existing delivery-keyed notification without broadcasting twice'
   expect(db.query.mock.calls[2][0]).toContain('WHERE delivery_key = $1');
   expect(require('../services/socketService').broadcastToUser).not.toHaveBeenCalled();
 });
+
+// W10.5: prove the real notification service creates a localized row and email,
+// rather than accepting a mocked emitter with missing title/body templates.
+describe('W10.5 lifecycle delivery', () => {
+  const types = ['dispute_update', 'subscription_renewed', 'subscription_cancelled', 'subscription_past_due', 'payment_failed'];
+  const languages = ['en', 'es', 'fr', 'ht', 'ar'];
+  test.each(languages.flatMap((lang) => types.map((type) => [lang, type])))('%s %s delivers matching catalog copy', async (lang, type) => {
+    const legacy = require(`../../client/src/locales/${lang}.json`).reviewLifecycleNotifications[type];
+    const namespaced = require(`../../client/src/i18n/locales/${lang}/common.json`).reviewLifecycleNotifications[type];
+    expect(namespaced).toEqual(legacy);
+    expect(require('../utils/i18n').tNotif(type, lang)).toEqual(legacy);
+    db.query.mockImplementation(async (sql) => {
+      if (/SELECT np\.\*/.test(sql)) return { rows: [{ ...prefs, email: 'synthetic@example.invalid', preferred_language: lang }] };
+      if (/INSERT INTO notifications/.test(sql)) return { rows: [{ id: 'lifecycle-notice' }] };
+      return { rows: [] };
+    });
+    expect(await sendNotification({ userId: 'customer', type, action_url: '/support', idempotencyKey: `synthetic:${lang}:${type}` }))
+      .toMatchObject({ success: true });
+    const insert = db.query.mock.calls.find(([sql]) => /INSERT INTO notifications/.test(sql));
+    expect(insert[1][2]).toBe(legacy.title); expect(insert[1][3]).toBe(legacy.body);
+    expect(sendEmail).toHaveBeenCalledWith(expect.objectContaining({ subject: legacy.title, idempotencyKey: `synthetic:${lang}:${type}` }));
+    if (lang === 'ar') expect(sendEmail.mock.calls[0][0].html).toMatch(/dir="rtl"/);
+  });
+});
