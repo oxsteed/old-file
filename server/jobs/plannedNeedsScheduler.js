@@ -119,6 +119,7 @@ async function tryPublishPlannedNeed(need) {
         body:   `${need.title} is scheduled and they'd like you to handle it. You can accept or decline within 72 hours.`,
         data:   { job_id: jobId, planned_need_id: need.id },
         action_url: `/jobs/${jobId}`,
+        idempotencyKey: `planned-need-request:${need.id}:${need.preferred_helper_id}`,
       }).catch(err => logger.warn('Preferred-helper notification failed', { plannedNeedId: need.id, error: err.message }));
 
       logger.info('Planned need published with helper hold', {
@@ -252,6 +253,7 @@ const startPlannedNeedsScheduler = () => {
               body:       `${helperName} didn't confirm availability for "${row.title}" within 72 hours. The job is now open to all helpers nearby.`,
               data:       { job_id: row.job_id, planned_need_id: row.pn_id },
               action_url: `/jobs/${row.job_id}`,
+              idempotencyKey: `planned-need-expired:${row.job_id}:${row.user_id}`,
             });
           }
           logger.info('Job hold expired, now open to all helpers', { jobId: row.job_id });

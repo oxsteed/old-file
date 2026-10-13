@@ -16,6 +16,9 @@ const cron = require('node-cron');
 const db   = require('../db');
 const { sendNotification } = require('../services/notificationService');
 const logger = require('../utils/logger');
+const { withFencedJobLock } = require('./jobLockingService');
+
+const JOB_NAME = 'recurring-job-scheduler';
 
 const RECURRENCE_INTERVAL = {
   daily:     1,
@@ -25,19 +28,16 @@ const RECURRENCE_INTERVAL = {
 };
 
 async function spawnRecurringJobs() {
-  const lockKey = "hashtextextended('oxsteed:recurring-jobs', 0)";
-  let lockHeld = false;
+  return withFencedJobLock(JOB_NAME, (fence) => spawnRecurringJobsLocked(fence), 900, { throwOnError: true });
+}
+
+async function spawnRecurringJobsLocked(fence) {
+  const query = fence?.db?.query ? fence.db.query : db.query.bind(db);
   try {
-    const { rows: lockRows } = await db.query(`SELECT pg_try_advisory_lock(${lockKey}) AS acquired`);
-    lockHeld = lockRows[0]?.acquired === true;
-    if (!lockHeld) {
-      logger.info('[recurringJobs] Another scheduler is active; skipping this run');
-      return { skipped: true };
-    }
     // Fetch completed recurring jobs that have no successor yet.
     // We use a LEFT JOIN on jobs with parent_job_id to detect duplicates.
     // Fail open if parent_job_id column doesn't exist.
-    const { rows: jobs } = await db.query(`
+    const { rows: jobs } = await query(`
       SELECT
         j.id, j.client_id, j.title, j.description,
         j.category_id, j.job_type, j.budget_min, j.budget_max,
@@ -81,7 +81,7 @@ async function spawnRecurringJobs() {
         const nextScheduled = new Date();
         nextScheduled.setDate(nextScheduled.getDate() + intervalDays);
 
-        const { rows: inserted } = await db.query(`
+        const { rows: inserted } = await query(`
           INSERT INTO jobs (
             client_id, title, description, category_id,
             job_type, budget_min, budget_max, budget_type,
@@ -122,6 +122,7 @@ async function spawnRecurringJobs() {
             job_title: job.title,
           },
           action_url: `/jobs/${newJobId}`,
+          idempotencyKey: `job-recurring-posted:${job.id}:${newJobId}:${job.client_id}`,
         });
 
         // If there's a preferred helper, notify them first
@@ -133,6 +134,7 @@ async function spawnRecurringJobs() {
             body:       `${job.title} — a recurring job from a previous customer is available.`,
             data:       { job_id: newJobId },
             action_url: `/jobs/${newJobId}`,
+            idempotencyKey: `job-recurring-matched:${job.id}:${newJobId}:${job.preferred_helper_id}`,
           });
         }
       } catch (jobErr) {
@@ -143,12 +145,6 @@ async function spawnRecurringJobs() {
   } catch (err) {
     logger.error('[recurringJobs] Scheduler error', { error: err.message });
     return { error: err };
-  } finally {
-    if (lockHeld) {
-      await db.query(`SELECT pg_advisory_unlock(${lockKey})`).catch((unlockError) => {
-        logger.error('[recurringJobs] Failed to release scheduler lock', { error: unlockError.message });
-      });
-    }
   }
 }
 

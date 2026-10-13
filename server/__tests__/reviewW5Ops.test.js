@@ -21,7 +21,7 @@ describe('worker topology', () => {
   test('scheduled workers include the previously unwired jobs, once each', () => {
     const { SCHEDULED_WORKERS } = require('../workers/scheduledWorkerSchedule');
     const names = SCHEDULED_WORKERS.map(([n]) => n);
-    for (const name of ['publishDueGuideVideos', 'renewSubscriptionCredit', 'clearStaleAvailableNow', 'refreshEtas', 'storageDeletionQueue']) {
+    for (const name of ['publishDueGuideVideos', 'renewSubscriptionCredit', 'clearStaleAvailableNow', 'refreshEtas', 'storageDeletionQueue', 'emailDigestDaily', 'emailDigestWeekly', 'cleanupExpiredPasskeyChallenges']) {
       expect(names).toContain(name);
     }
     expect(new Set(names).size).toBe(names.length);
