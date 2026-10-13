@@ -173,3 +173,114 @@ describe('webhook subscription audit', () => {
     );
   });
 });
+
+describe('webhook subscription update audit (P3-11-F08 residual)', () => {
+  function updatedEvent(overrides = {}) {
+    return {
+      id: 'evt_upd_1',
+      type: 'customer.subscription.updated',
+      data: {
+        object: {
+          id: 'sub_4',
+          status: 'past_due',
+          current_period_start: 1760000000,
+          current_period_end: 1762600000,
+          cancel_at_period_end: false,
+          ...overrides,
+        },
+      },
+    };
+  }
+
+  test('customer.subscription.updated writes a fail-closed audit row on status change', async () => {
+    receiptMocks();
+    mockQuery.mockImplementation(async (text) => {
+      const sql = String(text);
+      if (sql.includes('INSERT INTO webhook_event_receipts')) return { rows: [{ id: 99 }] };
+      if (sql.includes('FROM subscriptions') && sql.includes('FOR UPDATE')) {
+        return { rows: [{ id: 'subrow-4', user_id: USER_ID, status: 'active', cancel_at_period_end: false, current_period_end: new Date() }] };
+      }
+      if (sql.includes('UPDATE subscriptions')) return { rows: [], rowCount: 1 };
+      if (sql.includes('UPDATE users SET subscription_status')) return { rows: [], rowCount: 1 };
+      return { rows: [], rowCount: 0 };
+    });
+
+    const res = resMock();
+    await handleVerifiedStripeEvent(updatedEvent(), 'platform', res, nextMock());
+
+    expect(res.json).toHaveBeenCalledWith({ received: true });
+    expect(logAdminAction).toHaveBeenCalledWith(
+      expect.objectContaining({
+        adminId: USER_ID,
+        action: 'subscription.updated',
+        targetType: 'subscription',
+        targetId: 'subrow-4',
+        before: { status: 'active', cancel_at_period_end: false },
+        after: { status: 'past_due', cancel_at_period_end: false },
+        throwOnError: true,
+      })
+    );
+  });
+
+  test('customer.subscription.updated skips the audit row when nothing material changed', async () => {
+    receiptMocks();
+    mockQuery.mockImplementation(async (text) => {
+      const sql = String(text);
+      if (sql.includes('INSERT INTO webhook_event_receipts')) return { rows: [{ id: 99 }] };
+      if (sql.includes('FROM subscriptions') && sql.includes('FOR UPDATE')) {
+        return { rows: [{ id: 'subrow-4', user_id: USER_ID, status: 'active', cancel_at_period_end: false, current_period_end: new Date() }] };
+      }
+      if (sql.includes('UPDATE subscriptions')) return { rows: [], rowCount: 1 };
+      if (sql.includes('UPDATE users SET subscription_status')) return { rows: [], rowCount: 1 };
+      return { rows: [], rowCount: 0 };
+    });
+
+    const res = resMock();
+    await handleVerifiedStripeEvent(
+      updatedEvent({ status: 'active' }),
+      'platform',
+      res,
+      nextMock()
+    );
+
+    expect(res.json).toHaveBeenCalledWith({ received: true });
+    expect(logAdminAction).not.toHaveBeenCalledWith(
+      expect.objectContaining({ action: 'subscription.updated' })
+    );
+  });
+
+  test('invoice.payment_failed writes a fail-closed audit row on the past_due flip', async () => {
+    receiptMocks();
+    mockQuery.mockImplementation(async (text) => {
+      const sql = String(text);
+      if (sql.includes('INSERT INTO webhook_event_receipts')) return { rows: [{ id: 99 }] };
+      if (sql.includes('FROM subscriptions') && sql.includes('FOR UPDATE')) {
+        return { rows: [{ id: 'subrow-5', user_id: USER_ID, status: 'active' }] };
+      }
+      if (sql.includes("SET status = 'past_due'")) return { rows: [], rowCount: 1 };
+      if (sql.includes('UPDATE users SET subscription_status')) return { rows: [], rowCount: 1 };
+      return { rows: [], rowCount: 0 };
+    });
+
+    const res = resMock();
+    await handleVerifiedStripeEvent(
+      { id: 'evt_pf_1', type: 'invoice.payment_failed', data: { object: { id: 'in_9', subscription: 'sub_5' } } },
+      'platform',
+      res,
+      nextMock()
+    );
+
+    expect(res.json).toHaveBeenCalledWith({ received: true });
+    expect(logAdminAction).toHaveBeenCalledWith(
+      expect.objectContaining({
+        adminId: USER_ID,
+        action: 'subscription.payment_failed',
+        targetType: 'subscription',
+        targetId: 'subrow-5',
+        before: { status: 'active' },
+        after: { status: 'past_due' },
+        throwOnError: true,
+      })
+    );
+  });
+});

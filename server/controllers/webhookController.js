@@ -865,29 +865,61 @@ async function handleVerifiedStripeEvent(event, destination, res, next) {
       case 'customer.subscription.updated': {
         const sub = event.data.object;
         const period = subscriptionPeriod(sub);
-        await db.query(
-          `UPDATE subscriptions SET status = $1, current_period_start = to_timestamp($2),
-           current_period_end = to_timestamp($3), cancel_at_period_end = $4, updated_at = NOW()
-           WHERE stripe_subscription_id = $5`,
-          [toLocalSubscriptionStatus(sub.status), period.start, period.end,
-           sub.cancel_at_period_end, sub.id]
-        );
-        const { rows } = await db.query(
-          'SELECT user_id FROM subscriptions WHERE stripe_subscription_id = $1', [sub.id]
-        );
-        if (rows.length) {
+        const newStatus = toLocalSubscriptionStatus(sub.status);
+        const newCancelAtPeriodEnd = !!sub.cancel_at_period_end;
+        let affectedUserId = null;
+        // P3-11-F08: the processor-side state change and its audit row
+        // commit together; a missing audit row fails the update rather
+        // than going unaudited. Pure period rollovers are not audited
+        // here: renewals already carry their own 'subscription.renewed'
+        // audit row from the invoice.paid branch.
+        await withTransaction(db, async (client) => {
+          const { rows: existing } = await client.query(
+            `SELECT id, user_id, status, cancel_at_period_end,
+                    current_period_end
+               FROM subscriptions
+              WHERE stripe_subscription_id = $1 FOR UPDATE`,
+            [sub.id]
+          );
+          const current = existing[0];
+          if (!current) return;
+          affectedUserId = current.user_id;
+          await client.query(
+            `UPDATE subscriptions SET status = $1, current_period_start = to_timestamp($2),
+             current_period_end = to_timestamp($3), cancel_at_period_end = $4, updated_at = NOW()
+             WHERE id = $5`,
+            [newStatus, period.start, period.end, newCancelAtPeriodEnd, current.id]
+          );
+          const statusChanged = current.status !== newStatus;
+          const cancelFlagChanged = !!current.cancel_at_period_end !== newCancelAtPeriodEnd;
+          if (statusChanged || cancelFlagChanged) {
+            const { logAdminAction } = require('../services/auditService');
+            await logAdminAction({
+              client,
+              adminId: current.user_id,
+              action: 'subscription.updated',
+              targetType: 'subscription',
+              targetId: String(current.id),
+              description: `Subscription updated at the payment processor (Stripe webhook: ${event.type})`,
+              before: { status: current.status, cancel_at_period_end: !!current.cancel_at_period_end },
+              after: { status: newStatus, cancel_at_period_end: newCancelAtPeriodEnd },
+              throwOnError: true,
+            });
+          }
+        }, 'webhook_subscription_updated');
+        if (affectedUserId) {
           await db.query(
             'UPDATE users SET subscription_status = $1 WHERE id = $2',
-            [toLocalSubscriptionStatus(sub.status), rows[0].user_id]
+            [newStatus, affectedUserId]
           );
-          await recalculateBadges(rows[0].user_id);
-          if (toLocalSubscriptionStatus(sub.status) === 'past_due') {
+          await recalculateBadges(affectedUserId);
+          if (newStatus === 'past_due') {
             await sendNotification({
-              userId: rows[0].user_id,
+              userId: affectedUserId,
               type: 'subscription_past_due',
               data: { subscription_id: sub.id },
               action_url: '/settings',
-              idempotencyKey: `stripe:subscription_past_due:${event.id || sub.id}:${rows[0].user_id}`,
+              idempotencyKey: `stripe:subscription_past_due:${event.id || sub.id}:${affectedUserId}`,
             }).catch((e) => logger.warn('Failed to send subscription past due notification', { error: e.message }));
           }
         }
@@ -1043,26 +1075,49 @@ async function handleVerifiedStripeEvent(event, destination, res, next) {
         const invoice = event.data.object;
         const subId = invoiceSubscriptionId(invoice);
         if (!subId) break;
-        await db.query(
-          `UPDATE subscriptions SET status = 'past_due', updated_at = NOW()
-           WHERE stripe_subscription_id = $1`,
-          [subId]
-        );
-        const { rows } = await db.query(
-          'SELECT user_id FROM subscriptions WHERE stripe_subscription_id = $1', [subId]
-        );
-        if (rows.length) {
-          const uid = rows[0].user_id;
+        let affectedUserId = null;
+        // P3-11-F08: the past_due flip and its audit row commit together;
+        // a missing audit row fails the update rather than going unaudited.
+        await withTransaction(db, async (client) => {
+          const { rows: existing } = await client.query(
+            `SELECT id, user_id, status FROM subscriptions
+              WHERE stripe_subscription_id = $1 FOR UPDATE`,
+            [subId]
+          );
+          const current = existing[0];
+          if (!current) return;
+          affectedUserId = current.user_id;
+          await client.query(
+            `UPDATE subscriptions SET status = 'past_due', updated_at = NOW()
+             WHERE id = $1`,
+            [current.id]
+          );
+          if (current.status !== 'past_due') {
+            const { logAdminAction } = require('../services/auditService');
+            await logAdminAction({
+              client,
+              adminId: current.user_id,
+              action: 'subscription.payment_failed',
+              targetType: 'subscription',
+              targetId: String(current.id),
+              description: 'Subscription payment failed at the payment processor (Stripe webhook)',
+              before: { status: current.status },
+              after: { status: 'past_due' },
+              throwOnError: true,
+            });
+          }
+        }, 'webhook_subscription_payment_failed');
+        if (affectedUserId) {
           await db.query(
             `UPDATE users SET subscription_status = 'past_due' WHERE id = $1`,
-            [uid]
+            [affectedUserId]
           );
           await sendNotification({
-            userId: uid,
+            userId: affectedUserId,
             type: 'subscription_past_due',
             data: { subscription_id: subId },
             action_url: '/settings',
-            idempotencyKey: `stripe:subscription_past_due:${invoice.id || subId}:${uid}`,
+            idempotencyKey: `stripe:subscription_past_due:${invoice.id || subId}:${affectedUserId}`,
           }).catch(e => logger.warn('Failed to send subscription payment failed notification', { error: e.message }));
         }
         break;
