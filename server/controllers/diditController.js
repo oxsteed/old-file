@@ -9,7 +9,7 @@ const { upsertDiditVerification, linkVerificationToEntity } = require('../servic
 
 const DIDIT_API_URL = 'https://verification.didit.me/v3/session/';
 const DEFAULT_DIDIT_WORKFLOW_ID = '3d74f89a-8a9a-4a0a-a401-1501baaf2b7d';
-const { diditAllowUserSkip } = require('../utils/diditGate');
+const { diditAllowUserSkip, isDiditIdentitySatisfied } = require('../utils/diditGate');
 
 // ── Create a Didit session for a user ────────────────────
 // Called by the frontend before launching the Didit SDK.
@@ -18,11 +18,15 @@ async function createSession(req, res) {
   try {
     const userId = req.user.id;
     const { rows: existingRows } = await pool.query(
-      `SELECT didit_status, didit_session_id, identity_verified, id_verified
+      `SELECT didit_status, didit_verified_at, didit_session_id, identity_verified, id_verified
          FROM users WHERE id = $1`, [userId]
     );
     const existing = existingRows[0];
-    if (existing && (existing.identity_verified || existing.id_verified || existing.didit_status === 'verified')) {
+    if (existing && (existing.identity_verified || existing.id_verified || isDiditIdentitySatisfied({
+      didit_status: existing.didit_status,
+      didit_verified_at: existing.didit_verified_at,
+      didit_enforcement_required: true,
+    }))) {
       return res.status(409).json({
         error: 'identity_already_verified',
         message: 'Identity verification is already approved. A new session is not required.',

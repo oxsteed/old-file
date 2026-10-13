@@ -13,6 +13,7 @@
 
 const { AppError } = require('../middleware/errorHandler');
 const logger = require('../utils/logger');
+const { isDiditVerificationFresh } = require('../utils/diditGate');
 
 // participant_type -> subject column. Polymorphic types accept either
 // business_id or user_id; resolution tries business first.
@@ -174,7 +175,7 @@ function assertParticipantActive(resolved) {
     throw new AppError('Credit partner is not active', 403, 'credit_partner_not_active');
   }
   // LOCKED: Didit mandatory before active.
-  if (!participant.didit_verified) {
+  if (!participant.didit_verified || !isDiditVerificationFresh(participant.didit_verified_at)) {
     throw new AppError(
       'This payee must complete identity verification before accepting OxSteed Credit',
       403, 'credit_participant_didit_required'
