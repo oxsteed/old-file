@@ -67,7 +67,10 @@ describe('bid edit validation (P2-480)', () => {
   });
 
   test('a bid on a job that stopped accepting bids cannot be edited', async () => {
-    mockQuery.mockResolvedValueOnce({ rows: [{ id: 'b1', helper_id: 'h1', status: 'pending', job_status: 'accepted' }], rowCount: 1 });
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ job_id: 'j1' }], rowCount: 1 })
+      .mockResolvedValueOnce({ rows: [{ id: 'j1', status: 'accepted', revision: 1 }], rowCount: 1 })
+      .mockResolvedValueOnce({ rows: [{ id: 'b1', helper_id: 'h1', status: 'pending', job_revision: 1 }], rowCount: 1 });
     const next = jest.fn();
     await bidController.updateBid({ params: { id: 'b1' }, user: { id: 'h1' }, body: { amount: 50 } }, res(), next);
     expect(next.mock.calls[0][0]).toMatchObject({ code: 'job_not_accepting_bids' });

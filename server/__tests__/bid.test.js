@@ -1,6 +1,7 @@
 'use strict';
 
 const { mockQuery, resetMocks } = require('./setup');
+const { routeQueries } = require('./helpers/sqlRouter');
 
 // helperOnboardingMiddleware requires DB + tier checks - mock it to pass
 jest.mock('../middleware/helperOnboardingMiddleware', () => ({
@@ -73,11 +74,16 @@ describe('POST /api/bids', () => {
     expect(res.body.error).toMatch(/not accepting/i);
   });
 
-  test('returns 400 when bid already placed', async () => {
-    mockAuth(
-      { rows: [{ id: 10, client_id: 1, status: 'published' }] }, // job
-      { rows: [{ id: 5, helper_id: HELPER_ID }] }                  // existing bid
-    );
+  const JOB = { id: '10', client_id: 1, status: 'published', version: 3, revision: 2, title: 'Fix the fence', description: 'x'.repeat(60) };
+  const routesFor = (extra = []) => [
+    [/FROM users u/, { rows: [MOCK_HELPER] }],
+    [/SELECT id, client_id, status, deleted_at FROM jobs/, { rows: [JOB] }],
+    [/SELECT \* FROM jobs WHERE id = \$1 FOR SHARE/, { rows: [JOB] }],
+    ...extra,
+  ];
+
+  test('returns 409 when bid already placed', async () => {
+    routeQueries(mockQuery, routesFor([[/SELECT id FROM bids WHERE job_id = \$1 AND helper_id = \$2 FOR UPDATE/, { rows: [{ id: 5 }] }]]));
     const res = await auth(
       request(buildApp()).post('/api/bids').send({ job_id: 10, amount: 150, message: 'Already bid' })
     );
@@ -85,19 +91,47 @@ describe('POST /api/bids', () => {
     expect(res.body.error).toMatch(/already/i);
   });
 
-  test('creates bid and returns 201', async () => {
-    mockAuth(
-      { rows: [{ id: 10, client_id: 1, status: 'published' }] },      // job
-      { rows: [] },                                                       // no existing bid
-      { rows: [{ id: 20, job_id: 10, helper_id: HELPER_ID, amount: 150, status: 'pending' }] }, // INSERT bid
-      { rows: [], rowCount: 0 }                                          // UPDATE job status
-    );
+  test('creates bid with cents and a job revision snapshot', async () => {
+    const calls = routeQueries(mockQuery, routesFor([
+      [/INSERT INTO bids/, (sql, params) => ({ rows: [{ id: 20, job_id: 10, helper_id: HELPER_ID, amount: params[2], amount_cents: params[3], status: 'pending', job_revision: params[7] }] })],
+    ]));
     const res = await auth(
-      request(buildApp()).post('/api/bids').send({ job_id: 10, amount: 150, message: 'I can handle this' })
+      request(buildApp()).post('/api/bids').send({ job_id: 10, amount: 150.255, message: 'I can handle this' })
     );
     expect(res.status).toBe(201);
     expect(res.body).toHaveProperty('id', 20);
-    expect(res.body.amount).toBe(150);
+    expect(res.body.amount_cents).toBe(15026);
+    expect(res.body.job_revision).toBe(2);
+    const insert = calls.find((c) => /INSERT INTO bids/.test(c.sql));
+    const snapshot = JSON.parse(insert.params[8]);
+    expect(snapshot).toMatchObject({ revision: 2, version: 3, title: 'Fix the fence' });
+    expect(snapshot.description_sha256).toHaveLength(64);
+    // Lock order: the job row is locked before the bid duplicate check.
+    const lockIdx = calls.findIndex((c) => /FOR SHARE/.test(c.sql));
+    const dupIdx = calls.findIndex((c) => /FROM bids WHERE job_id = \$1 AND helper_id = \$2 FOR UPDATE/.test(c.sql));
+    expect(lockIdx).toBeGreaterThan(-1);
+    expect(lockIdx).toBeLessThan(dupIdx);
+  });
+
+  test('rejects a bid written against an outdated job revision', async () => {
+    routeQueries(mockQuery, routesFor());
+    const res = await auth(
+      request(buildApp()).post('/api/bids').send({ job_id: 10, amount: 150, message: 'Old terms', job_revision: 1 })
+    );
+    expect(res.status).toBe(409);
+    expect(res.body.code).toBe('job_changed');
+  });
+
+  test('accepts bids while the customer is negotiating', async () => {
+    const negotiating = { ...JOB, status: 'negotiating' };
+    routeQueries(mockQuery, [
+      [/FROM users u/, { rows: [MOCK_HELPER] }],
+      [/SELECT id, client_id, status, deleted_at FROM jobs/, { rows: [negotiating] }],
+      [/FOR SHARE/, { rows: [negotiating] }],
+      [/INSERT INTO bids/, { rows: [{ id: 21, status: 'pending' }] }],
+    ]);
+    const res = await auth(request(buildApp()).post('/api/bids').send({ job_id: 10, amount: 90, message: 'Happy to help' }));
+    expect(res.status).toBe(201);
   });
 });
 
@@ -169,27 +203,109 @@ describe('PUT /api/bids/:id', () => {
     expect(res.status).toBe(404);
   });
 
+  const JOB = { id: '10', client_id: 1, status: 'published', version: 5, revision: 3, title: 'Fix the fence', description: 'y'.repeat(60) };
+  const bidRoutesFor = (bid, extra = []) => [
+    [/FROM users u/, { rows: [MOCK_HELPER] }],
+    [/SELECT job_id FROM bids WHERE id = \$1/, { rows: [{ job_id: '10' }] }],
+    [/SELECT \* FROM jobs WHERE id = \$1 FOR SHARE/, { rows: [JOB] }],
+    [/FROM bids WHERE id = \$1 FOR UPDATE/, { rows: [bid] }],
+    ...extra,
+  ];
+
   test('returns 403 when bid belongs to another helper', async () => {
-    mockAuth({ rows: [{ id: 20, helper_id: 99, status: 'pending' }] });
+    routeQueries(mockQuery, bidRoutesFor({ id: 20, helper_id: 99, status: 'pending', job_revision: 3 }));
     const res = await auth(request(buildApp()).put('/api/bids/20').send({ amount: 200 }));
     expect(res.status).toBe(403);
   });
 
   test('returns 400 when bid is not pending', async () => {
-    mockAuth({ rows: [{ id: 20, helper_id: HELPER_ID, status: 'accepted' }] });
+    routeQueries(mockQuery, bidRoutesFor({ id: 20, helper_id: HELPER_ID, status: 'accepted', job_revision: 3 }));
     const res = await auth(request(buildApp()).put('/api/bids/20').send({ amount: 200 }));
     expect(res.status).toBe(400);
     expect(res.body.error).toMatch(/pending/i);
   });
 
-  test('updates and returns the bid', async () => {
-    mockAuth(
-      { rows: [{ id: 20, helper_id: HELPER_ID, status: 'pending', job_status: 'published' }] },
-      { rows: [{ id: 20, amount: 200, status: 'pending' }] }
-    );
+  test('updates and returns the bid in cents', async () => {
+    const calls = routeQueries(mockQuery, bidRoutesFor({ id: 20, helper_id: HELPER_ID, status: 'pending', job_revision: 3 }, [
+      [/UPDATE bids/, (sql, params) => ({ rows: [{ id: 20, amount: 200, amount_cents: params[0], status: 'pending', needs_reconfirm: false }] })],
+    ]));
     const res = await auth(request(buildApp()).put('/api/bids/20').send({ amount: 200 }));
     expect(res.status).toBe(200);
-    expect(res.body.amount).toBe(200);
+    expect(res.body.amount_cents).toBe(20000);
+    const update = calls.find((c) => /UPDATE bids/.test(c.sql));
+    expect(update.params[4]).toBe(false); // not a reconfirmation
+  });
+
+  test('updating a stale bid reconfirms it against the latest revision', async () => {
+    const calls = routeQueries(mockQuery, bidRoutesFor({ id: 20, helper_id: HELPER_ID, status: 'pending', job_revision: 2, needs_reconfirm: true }, [
+      [/UPDATE bids/, { rows: [{ id: 20, status: 'pending', job_revision: 3, needs_reconfirm: false }] }],
+    ]));
+    const res = await auth(request(buildApp()).put('/api/bids/20').send({ message: 'Still works for me' }));
+    expect(res.status).toBe(200);
+    const update = calls.find((c) => /UPDATE bids/.test(c.sql));
+    expect(update.params[4]).toBe(true);
+    expect(update.params[6]).toBe(3);
+  });
+});
+
+// ── POST /api/bids/:id/reconfirm ──────────────────────────────────────────────
+describe('POST /api/bids/:id/reconfirm', () => {
+  const JOB = { id: '10', client_id: 1, status: 'matched', version: 5, revision: 3, title: 'Fix the fence', description: 'z'.repeat(60) };
+  const routesFor = (bid, job = JOB, extra = []) => [
+    [/FROM users u/, { rows: [MOCK_HELPER] }],
+    [/SELECT job_id FROM bids WHERE id = \$1/, { rows: [{ job_id: '10' }] }],
+    [/SELECT \* FROM jobs WHERE id = \$1 FOR SHARE/, { rows: [job] }],
+    [/FROM bids WHERE id = \$1 FOR UPDATE/, { rows: [bid] }],
+    ...extra,
+  ];
+
+  test('rebinds a flagged bid to the current revision and clears the flag', async () => {
+    const calls = routeQueries(mockQuery, routesFor({ id: 20, helper_id: HELPER_ID, status: 'pending', job_revision: 2, needs_reconfirm: true }, JOB, [
+      [/UPDATE bids/, { rows: [{ id: 20, status: 'pending', job_revision: 3, needs_reconfirm: false }] }],
+    ]));
+    const res = await auth(request(buildApp()).post('/api/bids/20/reconfirm').send({ amount: 175 }));
+    expect(res.status).toBe(200);
+    expect(res.body.reconfirmed).toBe(true);
+    expect(res.body.bid.needs_reconfirm).toBe(false);
+    const update = calls.find((c) => /UPDATE bids/.test(c.sql));
+    expect(update.params[0]).toBe(17500);
+    expect(JSON.parse(update.params[7])).toMatchObject({ revision: 3 });
+  });
+
+  test('returns 409 when the bid already matches the latest job', async () => {
+    routeQueries(mockQuery, routesFor({ id: 20, helper_id: HELPER_ID, status: 'pending', job_revision: 3, needs_reconfirm: false }));
+    const res = await auth(request(buildApp()).post('/api/bids/20/reconfirm').send({}));
+    expect(res.status).toBe(409);
+    expect(res.body.code).toBe('bid_already_current');
+  });
+
+  test('returns 409 when the job stopped accepting bids', async () => {
+    routeQueries(mockQuery, routesFor({ id: 20, helper_id: HELPER_ID, status: 'pending', job_revision: 2, needs_reconfirm: true }, { ...JOB, status: 'cancelled' }));
+    const res = await auth(request(buildApp()).post('/api/bids/20/reconfirm').send({}));
+    expect(res.status).toBe(409);
+    expect(res.body.code).toBe('job_not_accepting_bids');
+  });
+
+  test('reconfirming against a revision the helper has not seen returns 409 job_changed', async () => {
+    const calls = routeQueries(mockQuery, routesFor({ id: 20, helper_id: HELPER_ID, status: 'pending', job_revision: 2, needs_reconfirm: true }));
+    const res = await auth(request(buildApp()).post('/api/bids/20/reconfirm').send({ job_revision: 2 }));
+    expect(res.status).toBe(409);
+    expect(res.body.code).toBe('job_changed');
+    expect(calls.some((c) => /UPDATE bids/.test(c.sql))).toBe(false);
+  });
+
+  test('an expired bid cannot be reconfirmed', async () => {
+    routeQueries(mockQuery, routesFor({ id: 20, helper_id: HELPER_ID, status: 'pending', job_revision: 2, needs_reconfirm: true,
+      expires_at: new Date(Date.now() - 60e3) }));
+    const res = await auth(request(buildApp()).post('/api/bids/20/reconfirm').send({ job_revision: 3 }));
+    expect(res.status).toBe(409);
+    expect(res.body.code).toBe('bid_expired');
+  });
+
+  test('other helpers cannot reconfirm someone else\'s bid', async () => {
+    routeQueries(mockQuery, routesFor({ id: 20, helper_id: 77, status: 'pending', job_revision: 2, needs_reconfirm: true }));
+    const res = await auth(request(buildApp()).post('/api/bids/20/reconfirm').send({}));
+    expect(res.status).toBe(403);
   });
 });
 

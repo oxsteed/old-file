@@ -35,6 +35,7 @@ const ActivityPage = lazyWithRetry(() => import('./pages/ActivityPage'));
 const JobListPage = lazyWithRetry(routeLoaders.jobs, { name: 'jobs' });
 const SavedSearchesPage = lazyWithRetry(() => import('./pages/SavedSearchesPage'));
 const JobDetailPage = lazyWithRetry(() => import('./pages/JobDetailPage'));
+const JobEditPage = lazyWithRetry(() => import('./pages/JobEditPage'));
 const BidDetailPage = lazyWithRetry(() => import('./pages/BidDetailPage'));
 const PostJobPage = lazyWithRetry(() => import('./pages/PostJobPage'));
 const NotFoundPage = lazyWithRetry(() => import('./pages/NotFoundPage'));
@@ -414,6 +415,7 @@ export default function App() {
                     <Route path="/business/:businessId/careers" element={<Guarded><CareersPage /></Guarded>} />
                     <Route path="/jobs"                    element={<Guarded><JobListPage /></Guarded>} />
                     <Route path="/saved-searches"         element={<Guarded><ProtectedRoute><SavedSearchesPage /></ProtectedRoute></Guarded>} />
+                    <Route path="/jobs/:id/edit"           element={<Guarded><ProtectedRoute><RouteErrorBoundary><JobEditPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/jobs/:id"                element={<Guarded><JobDetailPage /></Guarded>} />
                     <Route path="/bids/:bidId"             element={<Guarded><ProtectedRoute><RouteErrorBoundary><BidDetailPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/jobs/public/:jobId"      element={<JobPublicPage />} />
