@@ -211,3 +211,5 @@ W16 upload follow-up: job creation no longer publishes a partial media set when 
 - W17 identity appeal follow-up: rejected OxSteed Credit identity reviews can be appealed by the customer and approved back into the review queue or rejected by a super-admin. Appeal state is audited, included in the compliance queue, and notifications cover submission and final decisions.
 
 - W17 sanctions follow-up: the screening provider now receives a minimal subject identity profile for customers and partners, including verified-name and contact/country attributes when available. Raw identity documents and hashes remain excluded from provider payloads and stored screening evidence.
+
+- W17 conversion follow-up: customer currency conversions now re-run the shared sanctions gate after quote ownership, expiry, and amount checks and before any wallet or ledger write, so quote reuse cannot bypass a stale or missing screening.
