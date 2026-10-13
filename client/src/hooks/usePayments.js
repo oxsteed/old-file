@@ -70,7 +70,7 @@ export default function usePayments() {
   };
 
   const addDisputeMessage = async (disputeId, message, attachments) => {
-    const { data } = await api.post(`/disputes/${disputeId}/message`, { message, attachments });
+    const { data } = await api.post(`/disputes/${disputeId}/messages`, { message, attachments });
     return data;
   };
 

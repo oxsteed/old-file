@@ -13679,7 +13679,8 @@
       "body": "Our team will review your dispute within 5 business days. We'll contact both parties if needed. Evidence such as photos or messages will help us make a fair decision."
     },
     "submit": "Submit Dispute",
-    "submitting": "Submitting..."
+    "submitting": "Submitting...",
+    "windowExpired": "The 30-day dispute window for this job has closed. Disputes must be opened within 30 days of job completion."
   },
   "enforcementPolicy": {
     "pageTitle": "Enforcement Policy & Reliability",

@@ -233,9 +233,11 @@ describe('communication edge idempotency', () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [dispute] })
       .mockResolvedValueOnce({ rows: [inserted] })
+      .mockResolvedValueOnce({ rows: [{ first_name: 'Test', last_name: 'Customer' }] })
       .mockResolvedValueOnce({ rows: [dispute] })
       .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({ rows: [inserted] });
+      .mockResolvedValueOnce({ rows: [inserted] })
+      .mockResolvedValueOnce({ rows: [{ first_name: 'Test', last_name: 'Customer' }] });
 
     const app = buildDisputeApp();
     const first = await request(app)

@@ -13422,7 +13422,8 @@
       "body": "Notre équipe examinera votre litige sous 5 jours ouvrables. Les preuves aident à prendre des décisions équitables."
     },
     "submit": "Soumettre le Litige",
-    "submitting": "Envoi..."
+    "submitting": "Envoi...",
+    "windowExpired": "Le délai de contestation de 30 jours pour ce travail est écoulé. Les litiges doivent être ouverts dans les 30 jours suivant l'achèvement du travail."
   },
   "enforcementPolicy": {
     "pageTitle": "Politique d'Application",

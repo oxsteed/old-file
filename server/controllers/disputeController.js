@@ -1,6 +1,7 @@
 const { DISPUTE_VIEW_FROM, disputeViewSelect, partyPredicate, isDisputeParty } = require('../utils/disputeView');
 const db                    = require('../db');
 const { sendNotification }  = require('../services/notificationService');
+const { broadcastToUser }   = require('../services/socketService');
 const logger                = require('../utils/logger');
 const { withTransaction }   = require('../utils/transaction');
 const { AppError }          = require('../middleware/errorHandler');
@@ -27,6 +28,10 @@ const DISPUTE_REASONS = Object.freeze({
 });
 
 const DISPUTE_REASON_VALUES = Object.freeze(Object.values(DISPUTE_REASONS));
+
+// Review P3-2-F09: disputes may only be opened within 30 days of job
+// completion (advertised in the dispute-resolution guide).
+const DISPUTE_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
 
 function isUuid(value) {
   return typeof value === 'string'
@@ -84,7 +89,7 @@ exports.openDispute = async (req, res, next) => {
 
     // Verify the requesting user is a party to this job
     const { rows: jobRows } = await db.query(
-      `SELECT id, title, status, client_id, assigned_helper_id
+      `SELECT id, title, status, client_id, assigned_helper_id, completed_at
          FROM jobs
         WHERE id = $1
           AND (client_id = $2 OR assigned_helper_id = $2)`,
@@ -114,7 +119,7 @@ exports.openDispute = async (req, res, next) => {
     const result = await withTransaction(db, async (client) => {
       // Lock the job row to prevent concurrent disputes
       const { rows: jobLockRows } = await client.query(
-        'SELECT id, title, status, client_id, assigned_helper_id FROM jobs WHERE id = $1 FOR UPDATE',
+        'SELECT id, title, status, client_id, assigned_helper_id, completed_at FROM jobs WHERE id = $1 FOR UPDATE',
         [jobId]
       );
 
@@ -137,6 +142,18 @@ exports.openDispute = async (req, res, next) => {
         if (replayRows[0]) {
           return { dispute: replayRows[0], replayed: true };
         }
+      }
+
+      // Review P3-2-F09: the advertised 30-day dispute window. A dispute may
+      // only be opened within 30 days of the job's completion. Jobs that were
+      // never completed can still be disputed (the window has not started).
+      const completedAt = jobLockRows[0].completed_at ? new Date(jobLockRows[0].completed_at).getTime() : null;
+      if (completedAt && Date.now() - completedAt > DISPUTE_WINDOW_MS) {
+        throw new AppError(
+          'The 30-day dispute window for this job has closed. Disputes must be opened within 30 days of job completion.',
+          409,
+          'dispute_window_expired'
+        );
       }
 
       // Check for existing disputes AFTER locking
@@ -637,6 +654,25 @@ exports.sendDisputeMessage = async (req, res, next) => {
       disputeId, error: error.message,
     }))));
 
+    // Review P3-2-F11: emit the realtime event the DisputeDetail page listens
+    // for ('dispute:message'). Same recipients as the notifications, plus the
+    // sender so their other tabs update without a refresh. The detail page
+    // renders sender_name, which the INSERT ... RETURNING row does not carry.
+    const { rows: senderRows } = await db.query(
+      'SELECT first_name, last_name FROM users WHERE id = $1',
+      [userId]
+    ).catch(() => ({ rows: [] }));
+    const senderName = senderRows[0]
+      ? `${senderRows[0].first_name || ''} ${senderRows[0].last_name || ''}`.trim() || null
+      : null;
+    const realtimeMessage = { ...result.disputeMessage, sender_name: senderName };
+    for (const recipientId of [...new Set([...recipients, String(userId)])]) {
+      broadcastToUser(recipientId, 'dispute:message', {
+        disputeId: String(disputeId),
+        message: realtimeMessage,
+      });
+    }
+
     res.status(result.replayed ? 200 : 201).json({
       message: 'Message sent successfully.',
       disputeMessage: result.disputeMessage
@@ -646,138 +682,3 @@ exports.sendDisputeMessage = async (req, res, next) => {
   }
 };
 
-// ─── RESOLVE DISPUTE (ADMIN ONLY) ─────────────────────────────
-/**
- * Admin resolution endpoint
- * PUT /api/admin/disputes/:disputeId/resolve
- *
- * Body:
- * {
- *   resolutionType: 'refund_full' | 'refund_partial' | 'no_refund' | 'mutual_agreement',
- *   refundAmount: 1000 (in cents, if partial),
- *   adminNotes: 'Explanation...'
- * }
- */
-exports.resolveDispute = async (req, res, next) => {
-  try {
-    const { disputeId } = req.params;
-    const { resolutionType, refundAmount, adminNotes } = req.body;
-
-    if (!['refund_full', 'refund_partial', 'no_refund', 'mutual_agreement'].includes(resolutionType)) {
-      throw new AppError('Invalid resolution type', 400, 'validation_failed', {
-        resolutionType: 'Must be one of: refund_full, refund_partial, no_refund, mutual_agreement'
-      });
-    }
-
-    // Resolve in transaction
-    const result = await withTransaction(db, async (client) => {
-      // Fetch and lock dispute
-      const { rows: disputeRows } = await client.query(
-        'SELECT * FROM disputes WHERE id = $1 FOR UPDATE',
-        [disputeId]
-      );
-
-      if (!disputeRows.length) {
-        throw new AppError('Dispute not found', 404, 'dispute_not_found');
-      }
-
-      const dispute = disputeRows[0];
-
-      // Update dispute
-      const { rows: updatedRows } = await client.query(`
-        UPDATE disputes
-        SET
-          status = $1,
-          resolution_type = $2,
-          refund_amount = $3,
-          admin_notes = $4,
-          resolved_by = $5,
-          resolved_at = NOW(),
-          updated_at = NOW()
-        WHERE id = $6
-        RETURNING *
-      `, ['resolved_by_admin', resolutionType, refundAmount || 0, adminNotes || null, req.user.id, disputeId]);
-
-      const updatedDispute = updatedRows[0];
-
-      // Handle escrow payment release/refund
-      const { rows: paymentRows } = await client.query(`
-        SELECT id, amount FROM payments
-        WHERE job_id = $1 AND escrow_status = 'disputed'
-        FOR UPDATE
-      `, [dispute.job_id]);
-
-      if (paymentRows.length > 0) {
-        const payment = paymentRows[0];
-        let newEscrowStatus = 'released';
-
-        if (resolutionType === 'refund_full') {
-          newEscrowStatus = 'refunded';
-        } else if (resolutionType === 'refund_partial') {
-          newEscrowStatus = 'released'; // Partial refund processed
-        }
-
-        await client.query(`
-          UPDATE payments
-          SET
-            escrow_status = $1,
-            updated_at = NOW()
-          WHERE id = $2
-        `, [newEscrowStatus, payment.id]);
-
-        logger.info('Dispute resolved - escrow updated', {
-          disputeId,
-          resolutionType,
-          escrowStatus: newEscrowStatus,
-          refundAmount: refundAmount || 0
-        });
-      }
-
-      return updatedDispute;
-    }, 'resolve_dispute');
-
-    // Notify both parties of resolution
-    try {
-      const { rows: jobRows } = await db.query(
-        'SELECT client_id, assigned_helper_id FROM jobs WHERE id = $1',
-        [result.job_id]
-      );
-
-      if (jobRows.length > 0) {
-        const job = jobRows[0];
-        const message = `Dispute resolved: ${resolutionType.replace(/_/g, ' ')}`;
-
-        await Promise.allSettled([
-          sendNotification({
-            userId: job.client_id,
-            type: 'dispute_resolved',
-            title: 'Your dispute has been resolved',
-            body: message,
-            data: { dispute_id: disputeId, job_id: result.job_id },
-            action_url: `/disputes/${disputeId}`,
-            idempotencyKey: `dispute:${disputeId}:resolved:client`,
-          }),
-          sendNotification({
-            userId: job.assigned_helper_id,
-            type: 'dispute_resolved',
-            title: 'A dispute on your job has been resolved',
-            body: message,
-            data: { dispute_id: disputeId, job_id: result.job_id },
-            action_url: `/disputes/${disputeId}`,
-            idempotencyKey: `dispute:${disputeId}:resolved:helper`,
-          })
-        ]);
-      }
-    } catch (notifErr) {
-      logger.warn('Failed to notify dispute resolution', { disputeId, error: notifErr.message });
-    }
-
-    res.json({
-      success: true,
-      data: result,
-      message: 'Dispute resolved'
-    });
-  } catch (err) {
-    next(err);
-  }
-};

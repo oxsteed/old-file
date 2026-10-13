@@ -7,6 +7,13 @@ const paymentEvents = [
   'charge.dispute.created', 'charge.dispute.updated', 'charge.dispute.closed',
 ];
 
+// Review P3-1-F16: instant payouts are created on the connected account, so
+// their lifecycle events arrive at the connect webhook destination. The
+// local instant_payouts row is reconciled against them.
+const payoutEvents = [
+  'payout.created', 'payout.updated', 'payout.paid', 'payout.failed', 'payout.canceled',
+];
+
 // These are delivery contracts, not switches that activate financial products.
 module.exports = Object.freeze({
   platform: Object.freeze({
@@ -26,6 +33,7 @@ module.exports = Object.freeze({
     // connected account, so their checkout events arrive only here.
     events: Object.freeze([
       ...paymentEvents, 'account.updated',
+      ...payoutEvents,
       'checkout.session.completed', 'checkout.session.async_payment_succeeded',
       'checkout.session.async_payment_failed', 'checkout.session.expired',
     ]),
