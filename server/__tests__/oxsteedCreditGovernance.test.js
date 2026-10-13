@@ -34,6 +34,9 @@ jest.mock('../services/oxsteedCreditService', () => {
     refundCreditInTransaction: jest.fn(),
   };
 });
+jest.mock('../services/fiatComplianceService', () => ({
+  evaluateFundingCompliance: jest.fn().mockResolvedValue({ allowed: true }),
+}));
 
 const {
   requestPendingAction,
@@ -45,6 +48,7 @@ const { reconcileCreditLedger } = require('../services/oxsteedCreditAdminService
 const { failSettlementPayoutFromTransfer } = require('../services/oxsteedCreditAdminService');
 const feeScheduleService = require('../services/oxsteedCreditFeeScheduleService');
 const creditService = require('../services/oxsteedCreditService');
+const { evaluateFundingCompliance } = require('../services/fiatComplianceService');
 const { recordIncident } = require('../services/incidentStore');
 const { AppError } = require('../middleware/errorHandler');
 
@@ -378,6 +382,7 @@ describe('provisional credit on disputes under review', () => {
   beforeEach(() => {
     resetMocks();
     creditService.adjustCustomerCreditInTransaction.mockReset();
+    evaluateFundingCompliance.mockReset().mockResolvedValue({ allowed: true });
   });
 
   test('provisional credit posts an adjustment and keeps the dispute in review', async () => {
@@ -399,6 +404,12 @@ describe('provisional credit on disputes under review', () => {
     expect(call.direction).toBe('credit');
     expect(call.referenceType).toBe('oxsteed_credit_dispute');
     expect(call.metadata.provisional).toBe(true);
+    expect(evaluateFundingCompliance).toHaveBeenCalledWith(expect.objectContaining({
+      customerId: 'cust-1',
+      amountCents: 1500,
+      fundingMethod: 'credit_dispute_provisional',
+      actorUserId: ADMIN_ID,
+    }));
     // The dispute records the cumulative provisional total.
     const updateCalls = mockQuery.mock.calls.filter(([sql]) => String(sql).includes('provisional_credit_cents = provisional_credit_cents + $1'));
     expect(updateCalls).toHaveLength(1);

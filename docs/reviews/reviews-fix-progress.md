@@ -199,3 +199,5 @@ W16 upload follow-up: job creation no longer publishes a partial media set when 
 - W17 KYC/AML follow-up: agent credit adjustments now require a distinct second admin for every amount; the former under-$50 auto-apply threshold and environment override are removed.
 
 - W17 KYC/AML follow-up: agent credit adjustment proposals now pass through the shared identity, sanctions, rail, and funding-capacity compliance gate before a pending row is created.
+
+- W17 KYC/AML follow-up: dispute provisional credit now passes through the same compliance choke point before posting customer value.
