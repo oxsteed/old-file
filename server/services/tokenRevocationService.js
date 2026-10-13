@@ -40,6 +40,14 @@ class TokenRevocationService {
     return this.revoke(tokenId, ttl, 'access');
   }
 
+  // Session rows store the access-token identifier (SHA-256) rather than the
+  // raw JWT. Keep a dedicated name so callers do not hash an already-hashed
+  // value and accidentally leave the revoked session usable.
+  async revokeAccessTokenId(tokenId) {
+    const ttl = 15 * 60;
+    return this.revoke(tokenId, ttl, 'access');
+  }
+
   /**
    * Revoke a refresh token (7-day TTL)
    */

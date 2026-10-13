@@ -237,3 +237,11 @@ W16 upload follow-up: job creation no longer publishes a partial media set when 
 - Added a permission-gated, bounded security audit-log reader under admin operations (P3-1052).
 - Session cleanup now also removes expired pending registrations and aged password-reset attempts (P3-1054).
 - Removed a stale tool-rental moderation business update that caused false conflict responses; moderation remains audited on the rental record.
+
+## W19 session and device follow-up
+
+- Session self-revocation now deny-lists the stored access-token identifier directly; previously the identifier was hashed a second time and the access JWT could remain valid until expiry (P3-1127).
+- Mode and role session invalidation now marks sessions revoked and deny-lists their access-token identifiers (P3-1129).
+- Restaurant device credentials are already rotated and expiry-checked; the scheduled cleanup now revokes expired paired device tokens (P3-1131, P3-1135).
+- Refresh-token account-state checks, impersonation user-revocation checks, session listing/revocation endpoints, and delivery-device pause/revoke routes were present on the fresh base (P3-1126, P3-1130, P3-1133, P3-1134).
+- Session lineage columns are populated during refresh rotation (P3-1137). The legacy SERIAL session primary key remains a compatibility constraint (P3-1136) and was not changed in this wave.

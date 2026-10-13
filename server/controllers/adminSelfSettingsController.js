@@ -5,7 +5,7 @@
 
 const db = require('../db');
 const { currentRefreshHash } = require('../utils/sessionContext');
-const { revokeAccessToken } = require('../services/tokenRevocationService');
+const tokenRevocationService = require('../services/tokenRevocationService');
 const crypto = require('crypto');
 const { AppError } = require('../middleware/errorHandler');
 const logger = require('../utils/logger');
@@ -79,7 +79,7 @@ async function revokeMySession(req, res, next) {
       [sessionId, req.user.id]
     );
     if (!rowCount) throw new AppError('Session not found', 404, 'not_found');
-    if (target.access_token_hash) await revokeAccessToken(target.access_token_hash);
+    if (target.access_token_hash) await tokenRevocationService.revokeAccessTokenId(target.access_token_hash);
     res.json({ revoked: true });
   } catch (err) { next(err); }
 }
