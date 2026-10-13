@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/axios';
-import { uploadAppAsset } from '../api/uploads';
+import { uploadProfilePhoto } from '../api/uploads';
 import toast from 'react-hot-toast';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
@@ -289,13 +289,15 @@ export default function SettingsPage() {
     }
     setUploadingPhoto(true);
     try {
-      const data = await uploadAppAsset(file, 'profile-photo');
+      // Review P3-6-F06: the dedicated route applies the photo immediately.
+      const data = await uploadProfilePhoto(file);
       const url = data && data.url;
       if (!url) throw new Error('missing url');
       setProfile(p => ({ ...p, profile_photo_url: url }));
-      toast.success(t('settings.profile.photoUploaded', 'Photo uploaded. Save your changes to keep it.'));
+      setProfileSnapshot(s => (s ? { ...s, profile_photo_url: url } : s));
+      toast.success(t('settings.profile.photoUploaded', 'Profile photo updated.'));
     } catch (err) {
-      toast.error(t('settings.profile.photoUploadFailed', 'Photo upload failed. Please try again.'));
+      toast.error(err.response?.data?.error || t('settings.profile.photoUploadFailed', 'Photo upload failed. Please try again.'));
     } finally {
       setUploadingPhoto(false);
     }

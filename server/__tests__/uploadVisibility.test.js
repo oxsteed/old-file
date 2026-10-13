@@ -1,8 +1,10 @@
 'use strict';
 
 // Audit P1: storage public surface is default-deny.
-// - The generic upload route is private by default; only allowlisted
-//   public-safe purposes get a public URL.
+// Review P3-6-F06: the generic upload route is private-only. A
+// caller-controlled `purpose` can never mint a permanent public URL; the
+// only public URL the upload surface mints is POST /profile-photo, whose
+// purpose is pinned server-side.
 // - Public URL generation is refused for sensitive keys.
 // - Existing legit public asset prefixes keep working.
 
@@ -20,7 +22,7 @@ jest.mock('../middleware/upload', () => ({
     req.file = {
       buffer: Buffer.from('fake-image-bytes'),
       originalname: 'photo.jpg',
-      mimetype: 'image/jpeg',
+      mimetype: req.get('x-mimetype') || 'image/jpeg',
       size: 16,
     };
     // Purpose/visibility travel via headers in these tests because the
@@ -41,11 +43,19 @@ jest.mock('../utils/storage', () => {
     getSignedDownloadUrl: jest.fn(),
   };
 });
+jest.mock('../db', () => ({
+  query: jest.fn(),
+}));
+jest.mock('../services/storageCleanupService', () => ({
+  enqueueStorageDeletion: jest.fn(),
+}));
 
 const express = require('express');
 const request = require('supertest');
 const uploadRouter = require('../routes/upload');
 const storage = require('../utils/storage');
+const pool = require('../db');
+const { enqueueStorageDeletion } = require('../services/storageCleanupService');
 
 function buildApp() {
   const app = express();
@@ -106,20 +116,37 @@ describe('upload route visibility (default-deny public)', () => {
     expect(storage.getSignedDownloadUrl).not.toHaveBeenCalled();
   });
 
-  test('allowlisted public purpose still gets a public URL (profile photo)', async () => {
-    mockStoredUpload('public-uploads/profile-photo/user-123/images/abc123.jpg');
+  // Review P3-6-F06: a caller-selected public purpose no longer mints a
+  // public URL on the generic route. It is stored private like everything
+  // else; the dedicated POST /profile-photo route is the only public path.
+  test('a self-selected public purpose is stored private on the generic route', async () => {
+    mockStoredUpload('user-uploads/user-123/images/profile-photo/abc123.jpg');
 
     const res = await request(buildApp()).post('/api/upload').set('x-purpose', 'profile-photo');
 
     expect(res.status).toBe(201);
-    expect(res.body.visibility).toBe('public');
-    expect(res.body.key).toBe('public-uploads/profile-photo/user-123/images/abc123.jpg');
-    expect(res.body.url).toContain('/api/storage/public/public-uploads/profile-photo/user-123/images/abc123.jpg');
+    expect(res.body.visibility).toBe('private');
+    expect(res.body.key).toBe('user-uploads/user-123/images/profile-photo/abc123.jpg');
+    expect(storage.getSignedDownloadUrl).toHaveBeenCalledWith(
+      'user-uploads/user-123/images/profile-photo/abc123.jpg', 3600);
+    expect(res.body.url).toContain('/api/storage/files/');
+  });
+
+  test('explicit visibility=public is refused even for a formerly-public purpose', async () => {
+    mockStoredUpload('user-uploads/user-123/images/avatar/abc123.jpg');
+
+    const res = await request(buildApp())
+      .post('/api/upload')
+      .set('x-purpose', 'avatar')
+      .set('x-visibility', 'public');
+
+    expect(res.status).toBe(400);
+    expect(res.body.code).toBe('purpose_not_public');
     expect(storage.getSignedDownloadUrl).not.toHaveBeenCalled();
   });
 
-  test('a public purpose can still opt into private', async () => {
-    mockStoredUpload('public-uploads/avatar/user-123/images/abc123.jpg');
+  test('an explicit visibility=private request still works', async () => {
+    mockStoredUpload('user-uploads/user-123/images/avatar/abc123.jpg');
 
     const res = await request(buildApp())
       .post('/api/upload')
@@ -129,6 +156,60 @@ describe('upload route visibility (default-deny public)', () => {
     expect(res.status).toBe(201);
     expect(res.body.visibility).toBe('private');
     expect(storage.getSignedDownloadUrl).toHaveBeenCalled();
+  });
+});
+
+describe('POST /api/upload/profile-photo (review P3-6-F06)', () => {
+  beforeEach(() => {
+    pool.query.mockReset();
+    enqueueStorageDeletion.mockReset();
+  });
+
+  function mockProfilePhotoUpload(key) {
+    storage.uploadFile.mockResolvedValue(key);
+    pool.query
+      .mockResolvedValueOnce({ rows: [{ profile_photo_url: '/api/storage/public/public-uploads/profile-photo/user-123/images/old.jpg' }] })
+      .mockResolvedValueOnce({ rows: [] });
+    enqueueStorageDeletion.mockResolvedValue(true);
+  }
+
+  test('pins the purpose server-side and mints a public URL', async () => {
+    mockProfilePhotoUpload('public-uploads/profile-photo/user-123/images/abc123.jpg');
+
+    // A caller-supplied purpose must not influence the stored location.
+    const res = await request(buildApp())
+      .post('/api/upload/profile-photo')
+      .set('x-purpose', 'business-logo');
+
+    expect(res.status).toBe(201);
+    expect(res.body.visibility).toBe('public');
+    expect(res.body.key).toBe('public-uploads/profile-photo/user-123/images/abc123.jpg');
+    expect(res.body.url).toContain('/api/storage/public/public-uploads/profile-photo/user-123/images/abc123.jpg');
+    expect(storage.getSignedDownloadUrl).not.toHaveBeenCalled();
+  });
+
+  test('persists the photo and queues the replaced object for deletion', async () => {
+    mockProfilePhotoUpload('public-uploads/profile-photo/user-123/images/abc123.jpg');
+
+    await request(buildApp()).post('/api/upload/profile-photo');
+
+    expect(pool.query).toHaveBeenCalledWith(
+      'UPDATE users SET profile_photo_url = $1 WHERE id = $2',
+      [expect.stringContaining('/api/storage/public/public-uploads/profile-photo/user-123/images/abc123.jpg'), 'user-123']
+    );
+    expect(enqueueStorageDeletion).toHaveBeenCalledWith(
+      '/api/storage/public/public-uploads/profile-photo/user-123/images/old.jpg',
+      'profile_photo_replaced'
+    );
+  });
+
+  test('rejects non-image files', async () => {
+    const res = await request(buildApp())
+      .post('/api/upload/profile-photo')
+      .set('x-mimetype', 'application/pdf');
+
+    expect(res.status).toBe(400);
+    expect(storage.uploadFile).not.toHaveBeenCalled();
   });
 });
 

@@ -1,9 +1,11 @@
 const express = require('express');
 const path = require('path');
+const pool = require('../db');
 const { authenticate } = require('../middleware/auth');
 const upload = require('../middleware/upload');
 const validateFileUpload = require('../middleware/validateFileUpload');
 const { uploadFile, getPublicUrl, getSignedDownloadUrl } = require('../utils/storage');
+const { enqueueStorageDeletion } = require('../services/storageCleanupService');
 const logger = require('../utils/logger');
 const AppError = require('../utils/appError');
 const { authenticatedLimiter } = require('../middleware/rateLimiter');
@@ -18,32 +20,16 @@ function cleanPurpose(value) {
   return raw.replace(/[^a-z0-9_-]/g, '-').replace(/-+/g, '-').slice(0, 48) || 'general';
 }
 
-// Visibility model (audit P1): default-deny public.
-// - PUBLIC_PURPOSES are intentionally public assets (profile photos, business
-//   logos, listing imagery). They are stored under the public-uploads/ prefix,
-//   which is in the storage public allowlist, and get a permanent public URL.
-// - Everything else is private: stored under user-uploads/ and served through
-//   a short-lived signed URL. Sensitive purposes (proofs, POP, logistics,
-//   Direct, message attachments, ...) are therefore never given a public URL,
-//   and an explicit visibility=public request for a non-public purpose is
-//   refused instead of silently downgraded.
-const PUBLIC_PURPOSES = new Set([
-  'profile-photo', 'avatar', 'avatars',
-  'business-logo', 'business-logos', 'logo',
-  'business-cover', 'business-covers', 'cover',
-  'helper-cover', 'helper-covers',
-  'helper-gallery', 'gallery',
-  'job-photo', 'job', 'jobs',
-  'tool-photo', 'tool-rentals', 'tool',
-  'business-photo', 'listing-photo',
-]);
-
+// Visibility model (audit P1, hardened review P3-6-F06): the generic upload
+// surface is private-only. The `purpose` body field is caller-controlled, so
+// it must never decide public visibility: a self-selected purpose is not a
+// trust signal. Every generic upload lands under user-uploads/ and is served
+// through a short-lived signed URL, and an explicit visibility=public request
+// is refused instead of silently downgraded. Permanent public URLs are minted
+// only by dedicated routes below that pin the purpose server-side.
 function uploadFolder(req, kind) {
   const userId = req.user?.id || 'unknown';
   const purpose = cleanPurpose(req.body?.purpose);
-  if (PUBLIC_PURPOSES.has(purpose)) {
-    return `public-uploads/${purpose}/${userId}/${kind}`;
-  }
   return `user-uploads/${userId}/${kind}/${purpose}`;
 }
 
@@ -61,6 +47,18 @@ async function handleUpload(req, res, next, kind) {
       return res.status(400).json({ error: 'file is required' });
     }
 
+    // Generic uploads are always private: the caller-controlled purpose can
+    // never mint a permanent public URL (review P3-6-F06). Fail closed on an
+    // explicit visibility=public request before anything is stored, so a
+    // refused request cannot orphan an object.
+    const visibility = String(req.body?.visibility || '').toLowerCase();
+    if (visibility === 'public') {
+      return res.status(400).json({
+        error: 'This upload purpose cannot be public',
+        code: 'purpose_not_public',
+      });
+    }
+
     const key = await uploadFile(
       req.file.buffer,
       uploadFolder(req, kind),
@@ -72,29 +70,14 @@ async function handleUpload(req, res, next, kind) {
       return res.status(503).json({ error: 'File storage is not configured' });
     }
 
-    // Visibility: private uploads get a signed URL (1h expiry), public
-    // uploads get a permanent public URL. Default to private for safety;
-    // only allowlisted public purposes may be public.
-    const visibility = String(req.body?.visibility || '').toLowerCase();
-    const purpose = cleanPurpose(req.body?.purpose);
-    if (visibility === 'public' && !PUBLIC_PURPOSES.has(purpose)) {
-      return res.status(400).json({
-        error: 'This upload purpose cannot be public',
-        code: 'purpose_not_public',
-      });
-    }
-    const isPrivate = visibility === 'private' || !PUBLIC_PURPOSES.has(purpose);
-
-    const url = isPrivate
-      ? await getSignedDownloadUrl(key, 3600)
-      : getPublicUrl(key);
+    const url = await getSignedDownloadUrl(key, 3600);
 
     return res.status(201).json({
       url,
       key,
       content_type: req.file.mimetype,
       size_bytes: req.file.size,
-      visibility: isPrivate ? 'private' : 'public',
+      visibility: 'private',
     });
   } catch (error) {
     logger.error('upload route failed', { kind, error: error.message });
@@ -105,6 +88,74 @@ async function handleUpload(req, res, next, kind) {
     ));
   }
 }
+
+// Review P3-6-F06: the only public URL the generic upload surface mints.
+// The purpose is pinned server-side ('profile-photo'); the caller cannot
+// choose it. Uploading replaces the user's live profile photo immediately
+// (delete-on-replace for the previous object), so a minted public URL is
+// always the user's actual profile photo: there is no way to stockpile
+// permanent public URLs for arbitrary files.
+router.post('/profile-photo', upload.single('file'), validateFileUpload, async (req, res, next) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'file is required' });
+    }
+    const mime = String(req.file.mimetype || '').toLowerCase();
+    if (!mime.startsWith('image/')) {
+      return res.status(400).json({ error: 'Only image files can be used as a profile photo' });
+    }
+
+    const userId = req.user?.id || 'unknown';
+    const key = await uploadFile(
+      req.file.buffer,
+      `public-uploads/profile-photo/${userId}/images`,
+      req.file.originalname || `profile-photo${path.extname(req.file.originalname || '')}`,
+      req.file.mimetype
+    );
+
+    if (!key) {
+      return res.status(503).json({ error: 'File storage is not configured' });
+    }
+
+    const url = getPublicUrl(key);
+
+    // Replace the live profile photo and queue the previous object for
+    // deletion. A failed queue entry never fails the upload itself.
+    let previousUrl = null;
+    try {
+      const { rows } = await pool.query(
+        'SELECT profile_photo_url FROM users WHERE id = $1',
+        [req.user.id]
+      );
+      previousUrl = rows[0]?.profile_photo_url || null;
+      await pool.query(
+        'UPDATE users SET profile_photo_url = $1 WHERE id = $2',
+        [url, req.user.id]
+      );
+    } catch (dbError) {
+      logger.error('profile photo persist failed', { userId, error: dbError.message });
+      return next(new AppError('Could not save the profile photo', 500, 'profile_photo_save_failed'));
+    }
+    if (previousUrl && previousUrl !== url) {
+      await enqueueStorageDeletion(previousUrl, 'profile_photo_replaced');
+    }
+
+    return res.status(201).json({
+      url,
+      key,
+      content_type: req.file.mimetype,
+      size_bytes: req.file.size,
+      visibility: 'public',
+    });
+  } catch (error) {
+    logger.error('profile photo upload failed', { error: error.message });
+    next(new AppError(
+      'File storage is temporarily unavailable',
+      503,
+      'storage_unavailable'
+    ));
+  }
+});
 
 router.post('/image', upload.single('image'), validateFileUpload, (req, res, next) => {
   handleUpload(req, res, next, 'images');
