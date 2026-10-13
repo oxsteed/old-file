@@ -62,3 +62,11 @@
 .wa-issue-banner div { flex: 1; }
 .wa-issue-banner strong { display: block; margin-bottom: 4px; }
 .wa-issue-banner p { margin: 0; font-size: 14px; color: var(--oc-muted); }
+
+/* Agreed terms and warranty terms (review P1 area 3). Logical properties
+   keep the layout correct in RTL (ar). */
+.wa-terms { display: grid; gap: 10px; margin: 12px 0 0; }
+.wa-terms dt { font-weight: 600; font-size: 13px; color: var(--oc-muted); }
+.wa-terms dd { margin: 2px 0 0; margin-inline-start: 0; white-space: pre-wrap; }
+.wa-warranty-terms { display: grid; gap: 6px; padding-block: 4px 8px; }
+.wa-warranty-terms p { margin: 0; white-space: pre-wrap; }

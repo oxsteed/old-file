@@ -2209,6 +2209,8 @@
     "metaDesc": "Encuentra trabajos en tu área publicados por propietarios y empresas. Haz ofertas en trabajos que coincidan con tus habilidades y horario."
   },
   "settings": {
+    "accountDeleteHasBalance": "Todavía tienes un saldo, una retención o un pago pendiente. Retira o usa tu saldo restante y espera a que terminen los pagos pendientes antes de eliminar tu cuenta, o escribe a support@oxsteed.com.",
+    "accountDeleteSubscriptionRetry": "No pudimos cancelar tu suscripción en este momento, así que tu cuenta no se eliminó. Inténtalo de nuevo en unos minutos.",
     "title": "Configuración",
     "tabProfile": "Perfil",
     "tabSecurity": "Seguridad",
@@ -4440,6 +4442,9 @@
     "whatHappensNextBody": "Cuando el trabajo esté activo, los ayudantes que coincidan con la ubicación, categoría y requisitos podrán enviar ofertas. Puedes comparar propuestas, hacer preguntas y contratar cuando estés listo."
   },
   "jobDetail": {
+    "signWorkAgreement": "Revisa y firma el acuerdo de trabajo",
+    "viewWorkAgreement": "Ver acuerdo de trabajo",
+    "createWorkAgreement": "Crear un acuerdo de trabajo",
     "draftStatus": "Borrador",
     "matchedStatus": "Coincidencia encontrada",
     "negotiatingStatus": "En negociación",
@@ -30218,6 +30223,22 @@
     "finalCtaSubtitle": "Gratis de crear. Compártelo donde sea y empieza a cobrar hoy."
   },
   "workAgreement": {
+    "scopeLabel": "Alcance del trabajo",
+    "priceLabel": "Precio acordado",
+    "timelineLabel": "Plazos",
+    "extraTermsLabel": "Otras condiciones",
+    "termTitle": "Título",
+    "noWarrantyTerms": "No se añadieron condiciones de garantía por escrito.",
+    "claimNote": "Nota (opcional)",
+    "claimWithdraw": "Marcar como resuelto",
+    "claimResolve": "Resuelto",
+    "claimDeny": "Rechazar reclamación",
+    "claimResolveError": "No se pudo actualizar la reclamación.",
+    "claimStatus_filed": "Presentada",
+    "claimStatus_under_review": "En revisión",
+    "claimStatus_resolved": "Resuelta",
+    "claimStatus_denied": "Rechazada",
+    "coAwaitingOther": "Esperando la decisión de la otra parte.",
     "signHere": "Dibuja tu firma aquí",
     "signHint": "Dibuja tu firma con el mouse o el dedo",
     "clearSignature": "Borrar",

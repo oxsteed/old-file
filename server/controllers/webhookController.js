@@ -8,6 +8,8 @@ if (!process.env.STRIPE_SECRET_KEY) {
 }
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const db = require('../db');
+const chargebackEvidence = require('../services/chargebackEvidenceService');
+const bookingDeposits = require('../services/bookingDepositService');
 const { recalculateBadges } = require('./verificationController');
 const { withTransaction } = require('../utils/transaction');
 const {
@@ -428,6 +430,24 @@ async function syncConnectAccountState(account) {
   });
 }
 
+// Review P3-888: when a claim is refused, distinguish a finished receipt
+// (true duplicate -> 200) from one still 'processing' (in flight, or left
+// behind by a crash). For the latter answer non-2xx so the provider keeps
+// retrying; the 15-minute reclaim then reprocesses it instead of the event
+// being acknowledged and silently dropped.
+async function receiptInFlight(provider, eventId) {
+  const { rows } = await db.query(
+    'SELECT status FROM webhook_event_receipts WHERE provider = $1 AND event_id = $2',
+    [provider, String(eventId)]
+  );
+  return rows[0]?.status === 'processing';
+}
+
+function respondInFlight(res) {
+  res.set('Retry-After', '60');
+  return res.status(409).json({ received: false, code: 'webhook_in_flight' });
+}
+
 async function beginWebhookEvent(provider, event) {
   if (!event?.id) return { shouldProcess: true };
 
@@ -465,6 +485,9 @@ async function beginWebhookEvent(provider, event) {
   );
 
   const receiptId = rows[0]?.id;
+  if (rows.length === 0) {
+    return { shouldProcess: false, receiptId: null, inFlight: await receiptInFlight(provider, event.id) };
+  }
   if (!receiptId || !objectId || eventCreated === null) {
     return { shouldProcess: rows.length > 0, receiptId };
   }
@@ -554,6 +577,10 @@ exports.stripeWebhook = async (req, res, next) => {
   try {
     const receipt = await beginWebhookEvent('stripe', event);
     receiptId = receipt.receiptId;
+    if (!receipt.shouldProcess && receipt.inFlight) {
+      logger.warn('Stripe webhook still in flight; asking the provider to retry', { eventId: event.id, eventType: event.type });
+      return respondInFlight(res);
+    }
     if (!receipt.shouldProcess) {
       logger.info('Duplicate Stripe webhook ignored', { eventId: event.id, eventType: event.type });
       return res.json({ received: true, duplicate: true, stale: receipt.stale === true });
@@ -858,6 +885,9 @@ exports.stripeWebhook = async (req, res, next) => {
       }
 
       case 'payment_intent.succeeded': {
+        // Booking-request deposits (P3-962): settle even if the native
+        // client never confirms.
+        if (await bookingDeposits.applyBookingIntentWebhook(event.type, event.data.object)) break;
         // OxSteed Credit top-up (fiat money IN). Handled and acknowledged
         // here; PaymentIntents that are not ours fall through to the
         // flows below.
@@ -948,6 +978,9 @@ exports.stripeWebhook = async (req, res, next) => {
       }
 
       case 'payment_intent.payment_failed': {
+        // Booking-request deposits (P3-962): settle even if the native
+        // client never confirms.
+        if (await bookingDeposits.applyBookingIntentWebhook(event.type, event.data.object)) break;
         // OxSteed Credit top-up (fiat money IN) that did not go through.
         if (await topupService.applyCreditTopupWebhookEvent({ type: event.type, object: event.data.object })) {
           break;
@@ -1036,6 +1069,9 @@ exports.stripeWebhook = async (req, res, next) => {
       }
 
       case 'payment_intent.canceled': {
+        // Booking-request deposits (P3-962): settle even if the native
+        // client never confirms.
+        if (await bookingDeposits.applyBookingIntentWebhook(event.type, event.data.object)) break;
         // OxSteed Credit top-up (fiat money IN) that was canceled.
         if (await topupService.applyCreditTopupWebhookEvent({ type: event.type, object: event.data.object })) {
           break;
@@ -1119,6 +1155,10 @@ exports.stripeWebhook = async (req, res, next) => {
         // throw here marks the webhook failed so Stripe retries (the
         // ingestion is idempotent on the Stripe dispute id).
         await ingestStripeChargeback({ eventType: event.type, dispute });
+        // P3-814: track the evidence deadline and stage evidence at Stripe.
+        // A throw marks the webhook failed so Stripe retries (idempotent on
+        // the dispute id).
+        await chargebackEvidence.handleDisputeWebhook(dispute, event.account || null);
         break;
       }
 
@@ -1151,6 +1191,7 @@ exports.stripeWebhook = async (req, res, next) => {
         // Phase 8: OxSteed Credit chargeback ingestion (see
         // charge.dispute.created above for the contract).
         await ingestStripeChargeback({ eventType: event.type, dispute });
+        await chargebackEvidence.upsertFromStripe(dispute, event.account || null);
         break;
       }
 
@@ -1305,7 +1346,10 @@ async function beginDiditWebhookEvent(body) {
     [String(eventId), eventType, body.session_id ? String(body.session_id) : null, eventCreated]
   );
 
-  return { shouldProcess: rows.length > 0, receiptId: rows[0]?.id || null };
+  if (rows.length === 0) {
+    return { shouldProcess: false, receiptId: null, inFlight: await receiptInFlight('didit', eventId) };
+  }
+  return { shouldProcess: true, receiptId: rows[0]?.id || null };
 }
 
 // Didit identity webhook handler (v3 API)
@@ -1374,6 +1418,10 @@ exports.diditWebhook = async (req, res, next) => {
     }
 
     const event = await beginDiditWebhookEvent(body);
+    if (!event.shouldProcess && event.inFlight) {
+      logger.warn('[Didit] Webhook still in flight; asking the provider to retry', { eventId: body.event_id || body.id });
+      return respondInFlight(res);
+    }
     if (!event.shouldProcess) {
       logger.info('[Didit] Duplicate webhook ignored', { eventId: body.event_id || body.id });
       return res.json({ received: true, duplicate: true });

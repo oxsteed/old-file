@@ -186,6 +186,26 @@ router.delete('/markets/:marketId/zip-codes', requireAdmin, requirePermission('m
 
 // Full dashboard + charts
 router.get('/super/dashboard',          requireSuperAdmin, superCtrl.getDashboardStats);
+router.get('/super/chargebacks', requireSuperAdmin, async (req, res, next) => {
+  try {
+    const svc = require('../services/chargebackEvidenceService');
+    const chargebacks = await svc.listChargebacks({ open: req.query.all !== 'true', limit: req.query.limit });
+    res.json({ chargebacks });
+  } catch (err) { next(err); }
+});
+router.post('/super/chargebacks/:id/submit', requireSuperAdmin, async (req, res, next) => {
+  try {
+    const svc = require('../services/chargebackEvidenceService');
+    const { logAdminAction } = require('../services/auditService');
+    const row = await svc.submitEvidence(req.params.id, { actorId: req.user?.id || null, note: req.body?.note });
+    await logAdminAction({
+      adminId: req.user?.id || null, action: 'chargeback.evidence_submit', targetType: 'stripe_chargeback',
+      targetId: String(row.id), description: `Submitted evidence for ${row.stripe_dispute_id}`, req,
+    });
+    res.json({ chargeback: row });
+  } catch (err) { next(err); }
+});
+router.post('/super/subscriptions/:id/cancel', requireSuperAdmin, require('../controllers/subscriptionController').adminCancelSubscription);
 router.get('/super/revenue-chart',      requireSuperAdmin, superCtrl.getRevenueChart);
 router.get('/super/dashboard/activity', requireSuperAdmin, superCtrl.getDashboardActivity);
 router.get('/super/dashboard/geo',      requireSuperAdmin, superCtrl.getDashboardGeo);

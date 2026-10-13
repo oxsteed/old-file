@@ -22,11 +22,21 @@ export default function NewWorkAgreementPage() {
   const [warrantyMonths, setWarrantyMonths] = useState(6);
   const [warrantyTerms, setWarrantyTerms] = useState('');
   const [reimbursementTerms, setReimbursementTerms] = useState('');
+  const [scope, setScope] = useState('');
+  const [timeline, setTimeline] = useState('');
+  const [extraTerms, setExtraTerms] = useState('');
+  const [price, setPrice] = useState('');
 
   useEffect(() => {
     if (!jobId) { setLoading(false); return; }
-    api.get(`/api/jobs/${jobId}`)
-      .then((r) => setJob(r.data?.job || r.data))
+    api.get(`/jobs/${jobId}`)
+      .then((r) => {
+        const j = r.data?.job || r.data;
+        setJob(j);
+        if (j?.description) setScope((prev) => prev || String(j.description));
+        const cents = Number(j?.final_price_cents ?? j?.job_value_cents ?? j?.budget_max_cents);
+        if (Number.isInteger(cents) && cents > 0) setPrice((prev) => prev || (cents / 100).toFixed(2));
+      })
       .catch(() => setError(t('workAgreement.jobLoadError', { defaultValue: 'Could not load the job.' })))
       .finally(() => setLoading(false));
   }, [jobId, t]);
@@ -35,11 +45,15 @@ export default function NewWorkAgreementPage() {
     setDrafting(true);
     setError('');
     try {
-      const { data } = await api.post('/api/work-agreements/draft', { jobId });
+      const { data } = await api.post('/work-agreements/draft', { jobId });
       const d = data.draft || {};
       if (d.warrantyMonths) setWarrantyMonths(d.warrantyMonths);
       if (d.warrantyTerms) setWarrantyTerms(d.warrantyTerms);
       if (d.reimbursementTerms) setReimbursementTerms(d.reimbursementTerms);
+      if (d.scope) setScope(String(d.scope));
+      if (d.timeline) setTimeline(String(d.timeline));
+      if (d.terms) setExtraTerms(String(d.terms));
+      if (Number.isInteger(d.priceCents) && d.priceCents >= 0) setPrice((d.priceCents / 100).toFixed(2));
     } catch (e) {
       setError(e.response?.data?.error || t('workAgreement.draftError', { defaultValue: 'Could not draft terms. Enter them manually.' }));
     } finally {
@@ -51,13 +65,30 @@ export default function NewWorkAgreementPage() {
     setCreating(true);
     setError('');
     try {
-      const { data } = await api.post('/api/work-agreements', {
+      const priceNumber = Number(price);
+      const priceCents = price !== '' && Number.isFinite(priceNumber) && priceNumber >= 0
+        ? Math.round(priceNumber * 100)
+        : undefined;
+      const wm = Number(warrantyMonths);
+      const { data } = await api.post('/work-agreements', {
         jobId,
-        warrantyMonths: Number(warrantyMonths) || 6,
+        warrantyMonths: Number.isInteger(wm) ? wm : 6,
         warrantyTerms: warrantyTerms.trim() || undefined,
         reimbursementTerms: reimbursementTerms.trim() || undefined,
+        content: {
+          title: job?.title || undefined,
+          scope: scope.trim() || job?.title || undefined,
+          timeline: timeline.trim() || undefined,
+          terms: extraTerms.trim() || undefined,
+          priceCents,
+          warrantyMonths: Number.isInteger(wm) ? wm : 6,
+          warrantyTerms: warrantyTerms.trim() || undefined,
+          reimbursementTerms: reimbursementTerms.trim() || undefined,
+        },
       });
-      navigate(`/agreements/${data.id}`);
+      const newId = data?.id || data?.agreement?.id;
+      if (!newId) throw new Error('missing agreement id');
+      navigate(`/agreements/${newId}`);
     } catch (e) {
       setError(e.response?.data?.error || t('workAgreement.createError', { defaultValue: 'Could not create the agreement.' }));
     } finally {
@@ -93,6 +124,23 @@ export default function NewWorkAgreementPage() {
             {job.description && <p className="wa-muted">{String(job.description).slice(0, 300)}</p>}
 
             <label className="wa-field">
+              <span>{t('workAgreement.scopeLabel', { defaultValue: 'Scope of work' })}</span>
+              <textarea rows={4} value={scope} onChange={(e) => setScope(e.target.value)} required />
+            </label>
+            <label className="wa-field">
+              <span>{t('workAgreement.priceLabel', { defaultValue: 'Agreed price' })}</span>
+              <input type="number" min="0" step="0.01" inputMode="decimal" value={price}
+                onChange={(e) => setPrice(e.target.value)} />
+            </label>
+            <label className="wa-field">
+              <span>{t('workAgreement.timelineLabel', { defaultValue: 'Timeline' })}</span>
+              <input type="text" value={timeline} onChange={(e) => setTimeline(e.target.value)} />
+            </label>
+            <label className="wa-field">
+              <span>{t('workAgreement.extraTermsLabel', { defaultValue: 'Other terms' })}</span>
+              <textarea rows={3} value={extraTerms} onChange={(e) => setExtraTerms(e.target.value)} />
+            </label>
+            <label className="wa-field">
               <span>{t('workAgreement.warrantyMonths', { defaultValue: 'Warranty (months)' })}</span>
               <input type="number" min="0" max="60" value={warrantyMonths}
                 onChange={(e) => setWarrantyMonths(e.target.value)} />
@@ -115,7 +163,7 @@ export default function NewWorkAgreementPage() {
                   ? t('workAgreement.drafting', { defaultValue: 'Drafting…' })
                   : t('workAgreement.draftCta', { defaultValue: 'Draft terms with AI' })}
               </button>
-              <button type="button" className="wa-primary" onClick={create} disabled={creating || drafting || !user}>
+              <button type="button" className="wa-primary" onClick={create} disabled={creating || drafting || !user || !scope.trim()}>
                 {creating
                   ? t('workAgreement.creating', { defaultValue: 'Creating…' })
                   : t('workAgreement.createCta', { defaultValue: 'Create agreement' })}

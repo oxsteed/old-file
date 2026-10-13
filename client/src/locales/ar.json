@@ -2209,6 +2209,8 @@
     "metaDesc": "ابحث عن الوظائف في منطقتك التي نشرها أصحاب المنازل والشركات. قم بالمزايدة على العمل الذي يتناسب مع مهاراتك وجدولك الزمني."
   },
   "settings": {
+    "accountDeleteHasBalance": "لا يزال لديك رصيد أو مبلغ محجوز أو دفعة معلقة. اسحب رصيدك المتبقي أو استخدمه وانتظر اكتمال الدفعات المعلقة قبل حذف حسابك، أو تواصل مع support@oxsteed.com.",
+    "accountDeleteSubscriptionRetry": "تعذّر علينا إلغاء اشتراكك الآن، لذلك لم يتم حذف حسابك. يرجى المحاولة مرة أخرى بعد بضع دقائق.",
     "title": "إعدادات",
     "tabProfile": "حساب تعريفي",
     "tabSecurity": "حماية",
@@ -4440,6 +4442,9 @@
     "whatHappensNextBody": "بعد نشر العمل، يمكن للأشخاص المطابقين للموقع والفئة والمتطلبات إرسال عروض. يمكنك مقارنة العروض وطرح الأسئلة والتوظيف عندما تكون جاهزًا."
   },
   "jobDetail": {
+    "signWorkAgreement": "راجع اتفاقية العمل ووقّعها",
+    "viewWorkAgreement": "عرض اتفاقية العمل",
+    "createWorkAgreement": "إنشاء اتفاقية عمل",
     "draftStatus": "مسودة",
     "matchedStatus": "تمت المطابقة",
     "negotiatingStatus": "قيد التفاوض",
@@ -30229,6 +30234,22 @@
     "finalCtaSubtitle": "مجاناً. شاركه في أي مكان وابدأ القبض اليوم."
   },
   "workAgreement": {
+    "scopeLabel": "نطاق العمل",
+    "priceLabel": "السعر المتفق عليه",
+    "timelineLabel": "الجدول الزمني",
+    "extraTermsLabel": "شروط أخرى",
+    "termTitle": "العنوان",
+    "noWarrantyTerms": "لم تُضف شروط ضمان مكتوبة.",
+    "claimNote": "ملاحظة (اختياري)",
+    "claimWithdraw": "وضع علامة تم الحل",
+    "claimResolve": "تم الحل",
+    "claimDeny": "رفض المطالبة",
+    "claimResolveError": "تعذّر تحديث المطالبة.",
+    "claimStatus_filed": "مقدّمة",
+    "claimStatus_under_review": "قيد المراجعة",
+    "claimStatus_resolved": "تم حلها",
+    "claimStatus_denied": "مرفوضة",
+    "coAwaitingOther": "بانتظار قرار الطرف الآخر.",
     "signHere": "ارسم توقيعك هنا",
     "signHint": "ارسم توقيعك بالفأرة أو الإصبع",
     "clearSignature": "مسح",

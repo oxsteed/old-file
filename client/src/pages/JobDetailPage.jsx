@@ -161,6 +161,27 @@ function JobDetailContent() {
     return () => { current = false; };
   }, [job?.status, job?.client_id, job?.assigned_helper_id, user?.id, id]);
 
+  // Work agreement entry point (review P1 area 3): parties of an assigned job
+  // can open the existing agreement or start one.
+  const [agreementInfo, setAgreementInfo] = useState(null);
+  useEffect(() => {
+    let current = true;
+    setAgreementInfo(null);
+    const involved = user && job?.assigned_helper_id
+      && (samePartyId(user.id, job?.client_id) || samePartyId(user.id, job?.assigned_helper_id));
+    if (involved && !['cancelled', 'draft'].includes(job?.status)) {
+      api.get(`/work-agreements/by-job/${id}`)
+        .then((r) => {
+          if (!current) return;
+          const a = r.data?.agreement;
+          const mine = r.data?.myRole && (r.data?.signatures || []).some((sig) => sig.signer_role === r.data.myRole);
+          setAgreementInfo(a ? { id: a.id, status: a.status, needsMySignature: a.status === 'pending_signatures' && !mine } : { id: null });
+        })
+        .catch(() => { if (current) setAgreementInfo(null); });
+    }
+    return () => { current = false; };
+  }, [job?.status, job?.client_id, job?.assigned_helper_id, user?.id, id]);
+
   useEffect(() => {
     if (!showCancelModal) return;
     const opener = document.activeElement;
@@ -522,6 +543,11 @@ function JobDetailContent() {
               : <button type="button" className="jdp-btn-primary" onClick={runNextStep} disabled={actionLoading || loading}>{actionLoading ? t('jobDetail.processing') : t(`jobDetail.${actionLabels[action]}`)}</button>}
           </> : <p role="status">{t(`jobDetail.${['loading', 'idle'].includes(bidsStatus) && user && ['published', 'matched', 'negotiating'].includes(job.status) ? 'checkingBids' : 'noNextStep'}`)}</p>}
           {isOwner && job.status === 'accepted' && <Link className="jdp-btn-ghost" to="/messages">{t('jobDetail.openMessages')}</Link>}
+          {agreementInfo && (agreementInfo.id
+            ? <Link className={agreementInfo.needsMySignature ? 'jdp-btn-primary' : 'jdp-btn-ghost'} to={`/agreements/${agreementInfo.id}`}>
+                {agreementInfo.needsMySignature ? t('jobDetail.signWorkAgreement') : t('jobDetail.viewWorkAgreement')}
+              </Link>
+            : <Link className="jdp-btn-ghost" to={`/agreements/new?jobId=${encodeURIComponent(id)}`}>{t('jobDetail.createWorkAgreement')}</Link>)}
           {isOwner && canEditJob(job, user) && <Link className="jdp-btn-ghost" to={`/jobs/${id}/edit`}>{t('jobEdit.editJob')}</Link>}
           {(view.canCancelBeforeAcceptance || view.canCancelAfterAcceptance) && <div className="jdp-secondary-action">
             <button type="button" className="jdp-btn-danger" onClick={() => view.canCancelBeforeAcceptance ? setShowCancelModal(true) : setShowJobCancellationModal(true)} disabled={actionLoading || loading || (view.canCancelAfterAcceptance && !acceptedBid)}>{t('jobDetail.cancelJob')}</button>

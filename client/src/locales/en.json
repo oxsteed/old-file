@@ -2209,6 +2209,8 @@
     "metaDesc": "Find jobs in your area posted by homeowners and businesses. Bid on work that matches your skills and schedule."
   },
   "settings": {
+    "accountDeleteHasBalance": "You still have a balance, hold, or pending payout. Withdraw or use your remaining balance and let pending payouts finish before deleting your account, or contact support@oxsteed.com.",
+    "accountDeleteSubscriptionRetry": "We could not cancel your subscription right now, so your account was not deleted. Please try again in a few minutes.",
     "title": "Settings",
     "tabProfile": "Profile",
     "tabSecurity": "Security",
@@ -4440,6 +4442,9 @@
     "whatHappensNextBody": "Once your job is live, helpers who match the location, category, and requirements can send bids. You can compare offers, ask follow-up questions, and hire when you are ready."
   },
   "jobDetail": {
+    "signWorkAgreement": "Review and sign the work agreement",
+    "viewWorkAgreement": "View work agreement",
+    "createWorkAgreement": "Create a work agreement",
     "draftStatus": "Draft",
     "matchedStatus": "Matched",
     "negotiatingStatus": "Negotiating",
@@ -30218,6 +30223,22 @@
     "finalCtaSubtitle": "Free to create. Share it anywhere and start getting paid today."
   },
   "workAgreement": {
+    "scopeLabel": "Scope of work",
+    "priceLabel": "Agreed price",
+    "timelineLabel": "Timeline",
+    "extraTermsLabel": "Other terms",
+    "termTitle": "Title",
+    "noWarrantyTerms": "No written warranty terms were added.",
+    "claimNote": "Note (optional)",
+    "claimWithdraw": "Mark resolved",
+    "claimResolve": "Resolved",
+    "claimDeny": "Decline claim",
+    "claimResolveError": "Could not update the claim.",
+    "claimStatus_filed": "Filed",
+    "claimStatus_under_review": "Under review",
+    "claimStatus_resolved": "Resolved",
+    "claimStatus_denied": "Declined",
+    "coAwaitingOther": "Waiting for the other party to decide.",
     "signHere": "Draw your signature here",
     "signHint": "Draw your signature with mouse or finger",
     "clearSignature": "Clear",
