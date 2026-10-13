@@ -40,6 +40,7 @@ const {
   adjustCustomerCreditInTransaction,
 } = require('./oxsteedCreditService');
 const { recordIncident } = require('./incidentStore');
+const { evaluateFundingCompliance } = require('./fiatComplianceService');
 
 const DISPUTE_SLA_HOURS = Math.max(
   1,
@@ -377,6 +378,19 @@ async function issueProvisionalCredit({
     if (amount + alreadyIssued > disputedAmount) {
       throw new AppError('Provisional credit cannot exceed the disputed amount', 400, 'credit_provisional_credit_exceeds');
     }
+
+    // Provisional credit increases a customer's stored value. Apply the same
+    // identity, sanctions, rail, and issuance-capacity gate used for other
+    // credit funding before posting the adjustment.
+    await evaluateFundingCompliance({
+      customerId: dispute.customer_id,
+      amountCents: amount,
+      currencyCode: dispute.transaction_currency_code,
+      fundingMethod: 'credit_dispute_provisional',
+      actorUserId: adminId,
+      requestIp: requestIp || null,
+      correlationId: correlationId || String(dispute.id),
+    });
 
     const reasonHash = crypto.createHash('sha256').update(normalizedReason).digest('hex').slice(0, 32);
     const idempotencyKey = `credit-dispute-provisional:${String(disputeId)}:${amount}:${reasonHash}`;
