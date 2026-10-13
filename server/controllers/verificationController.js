@@ -165,10 +165,15 @@ exports.checkrWebhook = async (req, res, next) => {
         const userId = rows[0].user_id;
         const passed = result === 'clear';
 
+        // P2-7-F11: keep the parallel identity models in sync. Gates read
+        // both background_check_status (verificationController badges,
+        // helperOnboarding) and the legacy background_check_passed boolean
+        // (tierMiddleware), so the Checkr webhook must write both.
         await db.query(
-        `UPDATE users SET background_check_status = $1, background_check_passed_at = NOW(),
+        `UPDATE users SET background_check_status = $1, background_check_passed = $3,
+           background_check_passed_at = NOW(),
            background_check_expiry = NOW() + INTERVAL '1 year' WHERE id = $2`,
-          [passed ? 'passed' : 'failed', userId]
+          [passed ? 'passed' : 'failed', userId, passed]
         );
 
         if (passed) {
@@ -347,8 +352,11 @@ exports.identityWebhook = async (req, res, next) => {
         [verifiedName, sessionId, eventCreatedTs]
       );
       if (transitioned.length) {
+        // P2-7-F11: Stripe Identity is a real identity verification, so it
+        // must satisfy the legacy id_verified gate (tierMiddleware) as well
+        // as identity_verified.
         await db.query(
-          'UPDATE users SET identity_verified = TRUE WHERE id = $1', [transitioned[0].user_id]
+          'UPDATE users SET identity_verified = TRUE, id_verified = TRUE WHERE id = $1', [transitioned[0].user_id]
         );
       }
     }

@@ -187,6 +187,49 @@ describe('P2-8-F18 polymorphic review reporting', () => {
     expect(mockQuery.mock.calls[0][0]).toMatch(/FROM product_reviews/);
     expect(r.status).toHaveBeenCalledWith(201);
   });
+
+  test('reportReview routes job reviews to the reviews table and job_review_id (P2-8-F18)', async () => {
+    const req = {
+      params: { reviewId: '22222222-2222-4222-8222-222222222222' },
+      body: { reason: 'false_review', description: 'This job review describes work that never happened', reviewType: 'job' },
+      user: { id: 'reporter-1' },
+      headers: {},
+    };
+    const r = res();
+    const next = jest.fn();
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ id: '22222222-2222-4222-8222-222222222222', reviewer_id: 'author-2' }] }) // lookup
+      .mockResolvedValueOnce({ rows: [] }) // duplicate check
+      .mockResolvedValueOnce({ rows: [{ id: 9, review_type: 'job', job_review_id: '22222222-2222-4222-8222-222222222222' }] }) // insert
+      .mockResolvedValueOnce({ rows: [] }) // bump count
+      .mockResolvedValueOnce({ rows: [] }); // admin list
+    await reviewModeration.reportReview(req, r, next);
+    expect(next).not.toHaveBeenCalled();
+    const lookup = mockQuery.mock.calls[0][0];
+    expect(lookup).toMatch(/FROM reviews WHERE/);
+    const dupCheck = mockQuery.mock.calls[1][0];
+    expect(dupCheck).toMatch(/review_type = \$1 AND job_review_id = \$2/);
+    const insert = mockQuery.mock.calls[2][0];
+    expect(insert).toMatch(/job_review_id/);
+    expect(insert).toMatch(/review_type/);
+    const bump = mockQuery.mock.calls[3][0];
+    expect(bump).toMatch(/UPDATE reviews SET report_count/);
+    expect(r.status).toHaveBeenCalledWith(201);
+  });
+
+  test('reportReview refuses a report on the reporter’s own job review (P2-8-F18)', async () => {
+    const req = {
+      params: { reviewId: '22222222-2222-4222-8222-222222222222' },
+      body: { reason: 'spam', description: 'Trying to report my own review here', reviewType: 'job' },
+      user: { id: 'author-2' },
+      headers: {},
+    };
+    const next = jest.fn();
+    mockQuery.mockResolvedValueOnce({ rows: [{ id: '22222222-2222-4222-8222-222222222222', reviewer_id: 'author-2' }] });
+    await reviewModeration.reportReview(req, res(), next);
+    expect(next).toHaveBeenCalled();
+    expect(next.mock.calls[0][0].statusCode).toBe(400);
+  });
 });
 
 describe('P2-8-F19 food review edit/delete/respond', () => {

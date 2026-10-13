@@ -61,3 +61,41 @@ test('velocity cap withholds the reward and records a visible exception (P2-6-F1
   expect(exCall).toBeDefined();
   expect(exCall[1][1]).toBe('referral-velocity:ref:new');
 });
+
+test('shared-IP farming pattern withholds the reward and records a visible exception (P2-6-F12)', async () => {
+  mockQuery.mockImplementation(async (sql) => {
+    if (/FROM platform_ledger/.test(sql) && /referral_credit/.test(sql)) return { rows: [{ count: 0 }] };
+    if (/SELECT terms_acceptance_ip FROM users/.test(sql)) return { rows: [{ terms_acceptance_ip: '203.0.113.7' }] };
+    if (/FROM users/.test(sql) && /referred_by/.test(sql)) return { rows: [{ count: 5 }] };
+    if (/FROM reconciliation_exceptions/.test(sql)) return { rows: [] };
+    if (/INSERT INTO reconciliation_exceptions/.test(sql)) return { rows: [{ id: 11 }] };
+    return { rows: [], rowCount: 0 };
+  });
+  await expect(grantReferralReward('ref', 'new')).resolves.toBe(false);
+  expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO platform_ledger/.test(sql))).toBe(false);
+  const exCall = mockQuery.mock.calls.find(([sql]) => /INSERT INTO reconciliation_exceptions/.test(sql));
+  expect(exCall).toBeDefined();
+  expect(exCall[1][1]).toBe('referral-ip-farm:ref:new');
+});
+
+test('IP check fails open when the signup IP is missing (P2-6-F12)', async () => {
+  mockQuery.mockImplementation(async (sql) => {
+    if (/FROM platform_ledger/.test(sql) && /referral_credit/.test(sql)) return { rows: [{ count: 0 }] };
+    if (/SELECT terms_acceptance_ip FROM users/.test(sql)) return { rows: [{ terms_acceptance_ip: null }] };
+    if (/INSERT INTO platform_ledger/.test(sql)) return { rows: [{ id: 2 }] };
+    return { rows: [], rowCount: 0 };
+  });
+  await expect(grantReferralReward('ref', 'new')).resolves.toBe(true);
+  expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO platform_ledger/.test(sql))).toBe(true);
+});
+
+test('IP check passes below the per-IP weekly threshold (P2-6-F12)', async () => {
+  mockQuery.mockImplementation(async (sql) => {
+    if (/FROM platform_ledger/.test(sql) && /referral_credit/.test(sql)) return { rows: [{ count: 0 }] };
+    if (/SELECT terms_acceptance_ip FROM users/.test(sql)) return { rows: [{ terms_acceptance_ip: '203.0.113.7' }] };
+    if (/FROM users/.test(sql) && /referred_by/.test(sql)) return { rows: [{ count: 2 }] };
+    if (/INSERT INTO platform_ledger/.test(sql)) return { rows: [{ id: 3 }] };
+    return { rows: [], rowCount: 0 };
+  });
+  await expect(grantReferralReward('ref', 'new')).resolves.toBe(true);
+});

@@ -392,6 +392,16 @@ class PayoutController {
 
       logger.info('Payout method deleted', { helper_id, method_id });
 
+      // P3-1-F12: deleting a payout method redirects where money goes, so it
+      // gets the same audit row + owner notification as adds/updates.
+      await PayoutController.auditPayoutDestinationChange({
+        userId: helper_id,
+        methodId: result.rows[0].id,
+        methodType: result.rows[0].method_type,
+        detail: `payout method deleted (was_primary=${result.rows[0].is_primary}, status=${result.rows[0].status})`,
+        req,
+      });
+
       res.json({ success: true });
     } catch (err) {
       logger.error('Failed to delete payout method', { error: err.message });
