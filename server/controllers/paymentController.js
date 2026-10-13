@@ -416,6 +416,10 @@ exports.createPaymentIntent = async (req, res, next) => {
         }
       });
       if (plan.model === 'direct' && !plan.feeCountry) delete built.params.metadata.charge_model;
+      // Stripe sends the payer a receipt for successful Tier-3 charges. Keep
+      // this on the PaymentIntent itself so it works independently of our
+      // in-app notification delivery.
+      if (req.user.email) built.params.receipt_email = req.user.email;
       const paymentIntent = await stripe.paymentIntents.create(built.params, {
         ...built.options,
         idempotencyKey: paymentIdempotencyKey
