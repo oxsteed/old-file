@@ -1,10 +1,20 @@
 {
   "reviewW11Learn": {
+    "videoModerated": "Este vídeo fue retirado por moderación y no se puede enviar a esta guía.",
+    "moderationActionFailed": "No se pudo guardar la decisión de moderación. Inténtalo de nuevo.",
     "previousPage": "Anterior",
     "nextPage": "Siguiente",
     "pageNumber": "Página {{page}}"
   },
   "reviewW11Notifications": {
+    "learn_video_review_received": {
+      "title": "Vídeo de Learn enviado para revisión",
+      "body": "Se ha enviado un vídeo a una guía. Abre la cola de revisión antes de su plazo de publicación de 24 horas."
+    },
+    "learn_video_review_overdue": {
+      "title": "Plazo de revisión de vídeo de Learn alcanzado",
+      "body": "Un envío alcanzó su plazo de revisión de 24 horas. Comprueba la cola de revisión y el estado de publicación."
+    },
     "warranty_claim_filed": {
       "title": "Nueva reclamación de garantía",
       "body": "La otra parte presentó una reclamación de garantía. Abre tu acuerdo para revisarla y responder."

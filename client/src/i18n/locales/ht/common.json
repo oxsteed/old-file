@@ -1,10 +1,20 @@
 {
   "reviewW11Learn": {
+    "videoModerated": "Moderasyon retire videyo sa a. Ou pa ka soumèt li pou gid sa a.",
+    "moderationActionFailed": "Nou pa t ka anrejistre desizyon moderasyon an. Tanpri eseye ankò.",
     "previousPage": "Anvan",
     "nextPage": "Apre",
     "pageNumber": "Paj {{page}}"
   },
   "reviewW11Notifications": {
+    "learn_video_review_received": {
+      "title": "Videyo Learn soumèt pou revizyon",
+      "body": "Yo soumèt yon videyo pou yon gid. Louvri lis revizyon an anvan delè piblikasyon 24 èdtan an."
+    },
+    "learn_video_review_overdue": {
+      "title": "Delè revizyon videyo Learn rive",
+      "body": "Yon soumisyon rive nan delè revizyon 24 èdtan li a. Tcheke lis revizyon an ak estati piblikasyon an."
+    },
     "warranty_claim_filed": {
       "title": "Nouvo reklamasyon garanti",
       "body": "Lòt pati a depoze yon reklamasyon garanti. Louvri akò ou pou revize l epi reponn."

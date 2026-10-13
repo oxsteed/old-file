@@ -1,10 +1,20 @@
 {
   "reviewW11Learn": {
+    "videoModerated": "This video was removed by moderation and cannot be submitted to this guide.",
+    "moderationActionFailed": "Could not save the moderation decision. Please try again.",
     "previousPage": "Previous",
     "nextPage": "Next",
     "pageNumber": "Page {{page}}"
   },
   "reviewW11Notifications": {
+    "learn_video_review_received": {
+      "title": "Learn video submitted for review",
+      "body": "A video was submitted to a guide. Open the review queue before its 24-hour publication window."
+    },
+    "learn_video_review_overdue": {
+      "title": "Learn video review window reached",
+      "body": "A submission reached its 24-hour review window. Check the review queue and publication status."
+    },
     "warranty_claim_filed": {
       "title": "New warranty claim",
       "body": "The other party filed a warranty claim. Open your agreement to review and respond."

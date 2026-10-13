@@ -364,6 +364,8 @@ export default function LearnSubmissionsAdmin() {
 
   // ── Community video submissions (24h auto-publish unless blocked) ──
   const [videoStatus, setVideoStatus] = useState('pending');
+  const [videoActionError, setVideoActionError] = useState('');
+  const [videoDecisionBusy, setVideoDecisionBusy] = useState(false);
   const [videoPage, setVideoPage] = useState(0);
   const [videoCursors, setVideoCursors] = useState([null]);
   const videoCursor = videoCursors[videoPage];
@@ -380,12 +382,21 @@ export default function LearnSubmissionsAdmin() {
   const videosCurrent = videosData?.request_cursor === (videoCursor || null) && videosData?.request_status === videoStatus;
 
   const handleVideoDecision = async (id, decision) => {
-    await adminApi.post(`/learn/admin/video-submissions/${id}/${decision}`);
-    reloadVideos();
+    if (videoDecisionBusy) return;
+    setVideoActionError(''); setVideoDecisionBusy(true);
+    try {
+      await adminApi.post(`/learn/admin/video-submissions/${id}/${decision}`);
+      reloadVideos();
+    } catch (error) {
+      setVideoActionError(t(error.response?.data?.code === 'video_moderated'
+        ? 'reviewW11Learn.videoModerated' : 'reviewW11Learn.moderationActionFailed'));
+    } finally { setVideoDecisionBusy(false); }
   };
 
   // ── Flagged community videos (dismiss / move to the right guide / delete) ──
   const [flagStatus, setFlagStatus] = useState('open');
+  const [flagActionError, setFlagActionError] = useState('');
+  const [flagDecisionBusy, setFlagDecisionBusy] = useState(false);
   const [flagPage, setFlagPage] = useState(0);
   const [flagCursors, setFlagCursors] = useState([null]);
   const flagCursor = flagCursors[flagPage];
@@ -415,8 +426,15 @@ export default function LearnSubmissionsAdmin() {
   }, []);
 
   const handleFlagDecision = async (id, action, body) => {
-    await adminApi.post(`/learn/admin/video-flags/${id}/${action}`, body);
-    reloadFlags();
+    if (flagDecisionBusy) return;
+    setFlagActionError(''); setFlagDecisionBusy(true);
+    try {
+      await adminApi.post(`/learn/admin/video-flags/${id}/${action}`, body);
+      reloadFlags();
+    } catch (error) {
+      setFlagActionError(t(error.response?.data?.code === 'video_moderated'
+        ? 'reviewW11Learn.videoModerated' : 'reviewW11Learn.moderationActionFailed'));
+    } finally { setFlagDecisionBusy(false); }
   };
 
   const flagStatusLabels = {
@@ -495,6 +513,7 @@ export default function LearnSubmissionsAdmin() {
             </div>
           </div>
         </div>
+        {videoActionError && <p role="alert" className="px-5 py-3 text-red-700 dark:text-red-300">{videoActionError}</p>}
         {videosError ? (
           <div className="px-5 py-4"><AdminErrorState onRetry={reloadVideos} /></div>
         ) : videosLoading || !videosCurrent ? (
@@ -539,6 +558,7 @@ export default function LearnSubmissionsAdmin() {
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() => handleVideoDecision(v.id, 'approve')}
+                      disabled={videoDecisionBusy}
                       className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-green-600 text-white text-xs font-700 hover:bg-green-700"
                     >
                       <CheckCircle size={13} />
@@ -546,6 +566,7 @@ export default function LearnSubmissionsAdmin() {
                     </button>
                     <button
                       onClick={() => handleVideoDecision(v.id, 'block')}
+                      disabled={videoDecisionBusy}
                       className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-red-600 text-white text-xs font-700 hover:bg-red-700"
                     >
                       <XCircle size={13} />
@@ -595,6 +616,7 @@ export default function LearnSubmissionsAdmin() {
             </div>
           </div>
         </div>
+        {flagActionError && <p role="alert" className="px-5 py-3 text-red-700 dark:text-red-300">{flagActionError}</p>}
         {flagsError ? (
           <div className="px-5 py-4"><AdminErrorState onRetry={reloadFlags} /></div>
         ) : flagsLoading || !flagsCurrent ? (

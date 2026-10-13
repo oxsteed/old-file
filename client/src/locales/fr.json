@@ -1,10 +1,20 @@
 {
   "reviewW11Learn": {
+    "videoModerated": "Cette vidéo a été retirée par la modération et ne peut pas être proposée pour ce guide.",
+    "moderationActionFailed": "Impossible d’enregistrer la décision de modération. Réessayez.",
     "previousPage": "Précédent",
     "nextPage": "Suivant",
     "pageNumber": "Page {{page}}"
   },
   "reviewW11Notifications": {
+    "learn_video_review_received": {
+      "title": "Vidéo Learn proposée à la modération",
+      "body": "Une vidéo a été proposée pour un guide. Consultez la file de modération avant le délai de publication de 24 heures."
+    },
+    "learn_video_review_overdue": {
+      "title": "Délai de modération d’une vidéo Learn atteint",
+      "body": "Une proposition a atteint son délai de modération de 24 heures. Vérifiez la file et son statut de publication."
+    },
     "warranty_claim_filed": {
       "title": "Nouvelle réclamation de garantie",
       "body": "L’autre partie a déposé une réclamation de garantie. Ouvrez votre accord pour la consulter et répondre."

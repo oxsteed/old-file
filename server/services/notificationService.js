@@ -228,6 +228,7 @@ exports.sendNotification = async ({
       'booking_cancelled', 'booking_auto_released',
       // Agreement/job lifecycle notices respect the participant's email choices.
       'warranty_claim_filed', 'warranty_claim_updated', 'job_started',
+      'learn_video_review_received', 'learn_video_review_overdue',
     ];
     // Transactional: always attempt email when we have an address (cannot opt out of
     // security-relevant account notices via marketing-style toggles).

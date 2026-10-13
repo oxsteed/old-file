@@ -19,6 +19,7 @@ function buildSchedule() {
   } = require('./deliveryTrackingWorkers');
   const { clearStaleAvailableNow } = require('./availabilityWorkers');
   const { publishDueGuideVideos } = require('../controllers/learnController');
+  const { processLearnVideoReviewAlerts } = require('../services/learnVideoReviewAlerts');
   const { expireVortexTokens } = require('./vortexTokenWorkers');
   const { renewSubscriptionCredit } = require('./subscriptionCreditWorkers');
   const { expireTimedEnforcements } = require('../controllers/enforcementController');
@@ -40,7 +41,8 @@ function buildSchedule() {
     ['clearStaleAvailableNow', clearStaleAvailableNow, 15 * 60 * 1000, { limit: 500 }],
     // Publish Learn guide video submissions pending 24h without an admin
     // block (Emile's decision 2026-10-01), every 5 minutes.
-    ['publishDueGuideVideos', publishDueGuideVideos, 5 * 60 * 1000, { limit: 100 }],
+    ['learnVideoReviewAlerts', processLearnVideoReviewAlerts, 60 * 1000, { limit: 100 }],
+    ['publishDueGuideVideos', (options) => publishDueGuideVideos(undefined, options), 5 * 60 * 1000, { limit: 100 }],
     // Monthly statement issuance; always drains the statement.ready outbox.
     ['statementIssuanceCycle',
       (options) => pollIssuanceCycle({ workerId: options.workerId, maxJobsPerProduct: options.maxJobsPerProduct }),
