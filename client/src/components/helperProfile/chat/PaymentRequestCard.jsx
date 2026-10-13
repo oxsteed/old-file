@@ -34,6 +34,7 @@ export default function PaymentRequestCard({
   const [loading, setLoading] = useState(!initialRequest && Boolean(requestId));
   const [error, setError] = useState(null);
   const [showPay, setShowPay] = useState(false);
+  const status = req?.status || parsed?.status || 'open';
 
   const load = useCallback(async ({ silent = false } = {}) => {
     if (!requestId) return;
@@ -77,7 +78,6 @@ export default function PaymentRequestCard({
     return () => clearInterval(timer);
   }, [readOnly, status, requestId, load]);
 
-  const status = req?.status || parsed?.status || 'open';
   const amount = req?.amount_cents ?? parsed?.amountCents ?? 0;
   const currency = req?.currency || parsed?.currency || 'USD';
   const gate = canPayWithOxsteedCredit({ isAuthenticated, guestVerified });
