@@ -112,6 +112,12 @@ export function isLaunchSelfSelectableMode(mode) {
 }
 
 const LAUNCH_ROUTE_REDIRECTS = Object.freeze([
+  // Review P1-7-F01 (by design): /discover is the "Discover Everything"
+  // cross-entity search surface (DiscoverPage.jsx: helpers, jobs,
+  // businesses, tools, products). It is unlaunched (discoverEverything is
+  // false and the HomePage discover tab only renders when the flag is on),
+  // so the route intentionally redirects to /jobs, the launched discovery
+  // surface. Flipping discoverEverything to true restores it in one place.
   { prefix: '/discover', to: '/jobs' },
   { prefix: '/translator', to: '/' },
   { prefix: '/cart', to: '/restaurants' },
