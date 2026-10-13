@@ -1065,6 +1065,7 @@ module.exports = {
   TOPUP_FEE_BPS,
 
   restaurantTopupRequiresStepup,
+  validateTopupAmount,
   getEligibility,
   isEligibilityApproved,
   applyForEligibility,
