@@ -1,8 +1,9 @@
 # Review fix progress
 
 > **Merge status (2026-10-12):** PRs #492–#503 are all merged into `old-files-claude`.
-> Final tip: `1071a91d` (Merge pull request #503 from oxsteed/fix/review-w10-messaging).
-> Remaining work (W11–W19) is tracked in `reviews-remaining-waves-handoff.md`.
+> Tip after #503: `1071a91d`. Docs PR #504 tip: `9ccb8b8d`.
+> **Audit v2** (`resolution-audit-v2-2026-10-13.md`, audited at `1071a91d`): **185 resolved / 47 partial / 284 still broken / 27 needs live / 1 unclear**. **14 of 15 Criticals resolved**; remaining Critical is **P3-1009** (intentionally excluded).
+> **Next:** W10.5 (post-merge priorities) before W11–W19 — see `reviews-remaining-waves-handoff.md`.
 
 Status values:
 - **fixed (PR#)**: only once the PR is green.
@@ -77,3 +78,18 @@ No migrations (next free: 785). New env (optional): CREDIT_PENDING_SETTLEMENT_AG
 Fixed: P1-264, P1-265, P1-266, P1-267, P1-268, P1-269, P1-270, P1-285, P1-286, P1-287, P1-288, P1-298, P1-299, P1-300, P1-301, P1-302, P1-303, P1-312, P1-313, P1-314, P1-315, P1-316, P1-317, P1-318, P1-331, P1-332, P1-333, P1-334
 No migrations (next free: 785). Ops: PUBLIC_APP_URL absolute (required for QR); GUEST_CHAT_RETENTION_DAYS (optional, 180); MEDIA_VIDEO_WORKER_ENABLED=1 for video uploads; QR_CREDIT_ENABLED gates the Credit pay button.
 Stopped here per Emile; remaining waves planned in docs/reviews/reviews-remaining-waves-handoff.md.
+
+## Audit v2 summary (2026-10-13, tip `1071a91d`)
+Source: `docs/reviews/resolution-audit-v2-2026-10-13.md`.
+- Verdict-records: **185 RESOLVED / 47 PARTIAL / 284 STILL BROKEN / 27 NEEDS LIVE / 1 UNCLEAR** (544 total vs 524 findings; workers split combined entries).
+- Criticals: **14/15 RESOLVED**. Still broken on purpose: **P3-1009** (admin credit adjustments skip KYC/sanctions — owner excluded).
+- Headline: ~35% of findings resolved by W1–W10 + #492/#493.
+
+## W10.5 — planned: `fix/review-w10_5-post-merge` (run BEFORE W11)
+Not started. Priorities from audit v2:
+1. PR #498 regression: payout methods never reach `verified` — add real verification path (Stripe Connect `payouts_enabled` / webhook); keep fail-closed.
+2. Migration **785**: admin audit-log missing columns so removeBid/removeReview/restoreReview, refundFoodOrder, auditAdminRead stop 500ing.
+3. Settlement mark-paid TOCTOU: re-assert rail gate at approve/execute; validate `payment_reference`; keep two-distinct-admin.
+4. `revokeMySession`: denylist revoked session's access JWT.
+5. Emitters: `dispute_update` email; `subscription_renewed`/`cancelled`/`past_due`; failed food-order card payment notification.
+P3-1009 remains skipped. Reconcile W11–W19 ID lists against audit v2 before starting those waves.

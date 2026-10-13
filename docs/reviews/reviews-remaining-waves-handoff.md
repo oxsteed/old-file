@@ -8,10 +8,13 @@ Sources:
 - The full review at `/home/box/agent-data/agents/39846d8d-d594-449e-a5a6-a44886c15022/attachments/5c9aeaae5a7354c30950aa8008341bb759896044c94e70e4fd262d732c7dab7f.md`. Every ID is `part-line` in that file, so open the review at that line for the full finding.
 
 ## Status
-- Done: W1–W10 (PRs #494–#503, all CI green). #492 and #493 are separate feature PRs; #492 also covers P1-156.
-- **Remaining: 328 IDs** (category A plus the code side of B, excluding P3-1009). Category C is skipped: P1-119, P3-921, P3-951, P3-996, P3-1124.
-- The migration number **785** is the next free one, because W8–W10 added none. Before choosing a number, check `ls server/migrations | sort | tail` on the current base **and** in every open PR.
-- Not yet started from earlier lists: P1-154 and P1-360 are included below.
+- Done: W1–W10 (PRs #494–#503, all CI green and merged). #492 and #493 are separate feature PRs; #492 also covers P1-156. Docs landed in PR #504.
+- **Audit v2** (`resolution-audit-v2-2026-10-13.md`, tip `1071a91d`): **185 resolved / 47 partial / 284 still broken / 27 needs live / 1 unclear** (544 verdict-records). **14 of 15 Criticals resolved**; the remaining Critical is **P3-1009** (intentionally excluded).
+- **Next:** run **W10.5** (post-merge priorities from audit v2) **before** W11.
+- **Remaining after W10.5:** the W11–W19 ID lists below. **Reconcile those lists against audit v2** before starting each wave — some items marked PARTIAL in the audit may already be partly fixed, and a few W11 IDs (e.g. P2-453/P2-454 admin audit-log 500s) are pulled forward into W10.5.
+- The migration number **785** is the next free one (W8–W10 added none; W10.5 claims it for the admin audit-log columns). Before choosing a number, check `ls server/migrations | sort | tail` on the current base **and** in every open PR.
+- Not yet started from earlier lists: P1-154 and P1-360 are included in W11 (unless closed by neighboring work).
+- **P3-1009 remains intentionally excluded** from every wave.
 
 ## Hard rules (every wave)
 1. **Never touch P3-1009.** Skip it even if a neighboring fix makes it tempting.
@@ -44,7 +47,7 @@ git fetch origin && git checkout -B fix/review-wN-<area> origin/old-files-claude
 For a worktree, symlink `server/node_modules` and `client/node_modules` from the main checkout, and remove the links before `git add -A`.
 
 ## Merge order and known conflicts
-Merge in this order: **#492 → #493 → #494 → … → #503**, then the new waves in number order. Migrations are disjoint, so numbering won't collide: W2 770–774, W3 775, W4 776–777, W5 778–779, W6 780–781, W7 782–784, W8–W10 none.
+Merge in this order: **#492 → #493 → #494 → … → #503** (done), then **W10.5**, then W11–W19 in number order. Migrations are disjoint, so numbering won't collide: W2 770–774, W3 775, W4 776–777, W5 778–779, W6 780–781, W7 782–784, W8–W10 none, **W10.5 claims 785** for the admin audit-log columns.
 These files are touched by many PRs, so expect textual conflicts and resolve by keeping both sides:
 - `client/src/locales/{en,es,fr,ht,ar}.json`: every PR except #498 and #502. Re-insert the keys textually; don't regenerate the file.
 - `server/bootstrap/backgroundWorkers.js`: #494, #496, #498, #502, #503 (worker registrations, keep them all).
@@ -82,8 +85,24 @@ After each merge, rebase the next PR and rerun CI. If a merge touches the same f
 - W10: messages to your own restaurant, or to a restaurant nobody can receive, now return 409.
 - W10: authors of posts hidden by moderation get a notification and can appeal from the post page.
 
+## W10.5 — Post-merge priorities (from audit v2, tip `1071a91d`)
+
+**Run this BEFORE W11.** Branch: `fix/review-w10_5-post-merge`. Source: `docs/reviews/resolution-audit-v2-2026-10-13.md`.
+
+Audit v2 confirmed W1–W10 landed (~35% of findings resolved, 14/15 Criticals). Five regressions / gaps should be closed first so later waves don't build on broken rails. **P3-1009 stays excluded.**
+
+| # | Priority | What to fix | Notes |
+|---|---|---|---|
+| 1 | Regression from PR #498 | Payout methods can never leave `pending` — nothing in code writes `status='verified'`. Fail-closed today (payouts blocked), but broken. Add a real verification path, e.g. mark verified when backed by a Stripe Connect account with `payouts_enabled` and/or via the Connect account.updated webhook. Keep fail-closed: unverified → no payout. | Keep user self-verify blocked. |
+| 2 | Admin audit-log column mismatch | One migration (**785**) adding the missing columns so `removeBid` / `removeReview` / `restoreReview`, `refundFoodOrder`, and `auditAdminRead` stop 500ing. Closes the four High findings that audit v2 still marks broken (overlap with W11's P2-453 / P2-454). | Idempotent `IF NOT EXISTS`. |
+| 3 | Settlement mark-paid TOCTOU | Re-assert the rail / payment-method gate at **approve/execute** (not only at request). Validate `payment_reference`. Keep the **two-distinct-admin** rule (no self-approval, no break-glass). | From W9 maker-checker; request can sit up to 24h. |
+| 4 | `revokeMySession` gap | Denylist the revoked session's access JWT (iat / jti) so the access token stops working immediately, not after up to ~15 minutes. | Align with the cookie-only logout path that already revokes. |
+| 5 | Missing notification emitters | Wire `dispute_update` email emitter; emit `subscription_renewed` / `subscription_cancelled` / `subscription_past_due`; notify on failed food-order card payment. Use `sendNotification` with idempotency keys. | Confirm templates / locale keys in all 5 locales + RTL. |
+
+After W10.5 merges, start W11 from the fresh tip and **reconcile each W11–W19 ID list against audit v2** (drop or retarget PARTIAL items; confirm still-broken ones still match the code).
+
 ## Proposed waves
-The migration column is a heuristic (it flags findings whose text implies a schema change). Confirm per finding. Number migrations from the next free number at the time you start, which is 785 if no other wave has merged.
+The migration column is a heuristic (it flags findings whose text implies a schema change). Confirm per finding. Number migrations from the next free number at the time you start: **786 after W10.5 merges** (W10.5 takes 785), else 785 if W10.5 has not landed. **Reconcile IDs against audit v2 before starting each wave.**
 
 ### W11: `fix/review-w11-work` (35 IDs)
 Areas: P1 3. Work agreements records room; P1 16. Learn/guide videos; P1 17. Support flows; P2 1. Admin/super-admin operational flows; P2 2. Helper dashboard and helper onboarding
@@ -501,7 +520,31 @@ Severity: Medium 9, Low 4
 | P3-1138 | Low | Admins can't see other users' sessions (force-logout is blind, though audited). | `—` |
 
 ## Ready-to-paste Cursor cloud agent prompts
-Run these one wave at a time, in order. After each PR merges, the next agent branches from the fresh base and picks the next free migration number.
+Run these one wave at a time, in order — **W10.5 first**, then W11–W19. After each PR merges, the next agent branches from the fresh base and picks the next free migration number. Before starting W11+, reconcile that wave's ID list against `resolution-audit-v2-2026-10-13.md`.
+
+### Prompt W10.5
+```text
+Repo oxsteed/old-file, base branch old-files-claude. Implement review wave W10.5 — post-merge priorities from audit v2 (tip 1071a91d). Run this BEFORE W11.
+Create branch fix/review-w10_5-post-merge from origin/old-files-claude.
+Read docs/reviews/resolution-audit-v2-2026-10-13.md and docs/reviews/reviews-remaining-waves-handoff.md (section W10.5) first.
+Fix these five items completely, with tests:
+1. REGRESSION from PR #498: payout methods never leave status='pending' because nothing writes status='verified'. Add a real verification path (e.g. verified when backed by a Stripe Connect account with payouts_enabled, and/or via Connect account.updated webhook). Keep fail-closed: unverified methods must not receive payouts. Do NOT restore user self-verify.
+2. Admin audit-log column mismatch: one migration numbered 785 (confirm it is still free) adding the missing columns so removeBid/removeReview/restoreReview, refundFoodOrder, and auditAdminRead stop returning 500. Idempotent IF NOT EXISTS. This closes the four High findings audit v2 still marks broken (overlaps W11 P2-453/P2-454 — note them closed in the PR body so W11 can skip).
+3. Settlement mark-paid TOCTOU: re-assert the rail/payment-method gate at approve/execute (not only at request time); validate payment_reference. Keep the two-distinct-admin rule (no self-approval, no break-glass, no env bypass).
+4. revokeMySession: denylist the revoked session's access JWT so the access token stops working immediately (not after up to ~15 minutes). Align with the all-session revoke path.
+5. Missing emitters: wire dispute_update email emitter; emit subscription_renewed / subscription_cancelled / subscription_past_due; notify on failed food-order card payment. Use sendNotification with idempotencyKey. Locale strings in en/es/fr/ht/ar + RTL-safe.
+Rules:
+- NEVER touch P3-1009.
+- Two admins are ALWAYS required: no self-approval, single-admin override, break-glass or env bypass of maker-checker.
+- Put every new UI string in client/src/locales/{en,es,fr,ht,ar}.json (or the namespaced src/i18n/locales). Edit en.json textually (it has duplicate keys; don't JSON round-trip it). RTL-safe CSS (logical properties).
+- Migrations go in server/migrations, numbered from the next free number (check the base and the open PRs for collisions), idempotent. W10.5 claims 785 for the audit-log columns.
+- Errors use AppError(msg, status, code); admin actions use requireAdmin + logAdminAction; notifications use sendNotification with an idempotencyKey.
+- If you add an api export imported by a page, stub it in every client/scripts/*.browser-check.cjs fixture for that module.
+- Run: cd server && npx jest; client test:*/verify* scripts; npm run build:ci; the relevant browser checks; node scripts/migration-rehearsal.cjs (with DATABASE_URL).
+- Push often. Open the PR READY FOR REVIEW against old-files-claude. The body lists the items closed, ops steps/env vars and behavior changes needing owner review.
+- Watch CI (Server and Client Verification, PostgreSQL migration rehearsal, Media harness, CodeQL) until green; rerun on registry 429s. Fix valid Bugbot findings.
+- No emails or other external actions.
+```
 
 ### Prompt W11
 ```text
