@@ -97,12 +97,12 @@ export function ReviewManager({ businessId }) {
             </div>
           </div>
 
-          {r.owner_reply ? (
+          {r.response ? (
             <div style={{ background: 'var(--app-bg)', borderInlineStart: '3px solid #f97316', padding: '0.75rem', borderRadius: '0 0.5rem 0.5rem 0', marginTop: '0.75rem' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <div>
                   <div style={{ fontSize: '0.75rem', fontWeight: 600, color: '#f97316', marginBottom: '0.25rem' }}>{t('businessHub.reviews.yourReply')}</div>
-                  <p style={{ margin: 0, fontSize: '0.875rem' }}>{r.owner_reply}</p>
+                  <p style={{ margin: 0, fontSize: '0.875rem' }}>{r.response}</p>
                 </div>
                 <button onClick={() => deleteReply(r.id)} style={{ padding: '0.25rem', border: 'none', background: 'transparent', cursor: 'pointer', color: '#ef4444' }}><Trash2 size={12} /></button>
               </div>

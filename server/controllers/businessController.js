@@ -1533,6 +1533,7 @@ async function respondBusinessProfile(req, res, adminPreview) {
          JOIN users u ON u.id = br.customer_id
          LEFT JOIN users helper ON helper.id = br.helper_id
          WHERE br.business_id = $1
+           AND br.is_hidden = FALSE
          ORDER BY br.created_at DESC
          LIMIT 20`,
         [bizId]

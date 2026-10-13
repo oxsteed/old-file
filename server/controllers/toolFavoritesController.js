@@ -24,17 +24,28 @@ const toggleFavorite = async (req, res) => {
     const { toolId } = req.params;
     const userId = req.user.id;
 
+    const toolIdNum = parseInt(toolId, 10);
+    if (!Number.isInteger(toolIdNum) || toolIdNum < 1) {
+      return res.status(400).json({ error: 'Invalid tool id' });
+    }
+
+    // The tool must exist; otherwise the INSERT dies on the FK as a 500
+    const toolRes = await client.query('SELECT id FROM tool_rentals WHERE id = $1', [toolIdNum]);
+    if (!toolRes.rows.length) {
+      return res.status(404).json({ error: 'Tool not found' });
+    }
+
     // Check if already favorited
     const existing = await client.query(
       'SELECT id FROM user_tool_favorites WHERE user_id = $1 AND tool_id = $2',
-      [userId, toolId]
+      [userId, toolIdNum]
     );
 
     if (existing.rows.length > 0) {
       // Remove favorite with RETURNING to verify deletion
       const delResult = await client.query(
         'DELETE FROM user_tool_favorites WHERE user_id = $1 AND tool_id = $2 RETURNING id',
-        [userId, toolId]
+        [userId, toolIdNum]
       );
       if (!delResult.rows.length) throw new Error('Delete verification failed');
       res.json({ favorited: false });
@@ -42,7 +53,7 @@ const toggleFavorite = async (req, res) => {
       // Add favorite
       await client.query(
         'INSERT INTO user_tool_favorites (user_id, tool_id) VALUES ($1, $2)',
-        [userId, toolId]
+        [userId, toolIdNum]
       );
       res.json({ favorited: true });
     }
@@ -58,9 +69,13 @@ const isFavorited = async (req, res) => {
   try {
     const { toolId } = req.params;
     const userId = req.user.id;
+    const toolIdNum = parseInt(toolId, 10);
+    if (!Number.isInteger(toolIdNum) || toolIdNum < 1) {
+      return res.status(400).json({ error: 'Invalid tool id' });
+    }
     const result = await db.query(
       'SELECT id FROM user_tool_favorites WHERE user_id = $1 AND tool_id = $2',
-      [userId, toolId]
+      [userId, toolIdNum]
     );
     res.json({ favorited: result.rows.length > 0 });
   } catch (err) {

@@ -3551,6 +3551,7 @@
       "noDueDate": "Pa gen dat limit",
       "everyNDays": "Chak {{n}}j",
       "removed": "Retire",
+      "unsaveHelper": "Retire {{name}} nan asistan ou anrejistre yo",
       "homeAddFailed": "Echwe ajoute pwopriyete.",
       "homeAdded": "Pwopriyete sove!",
       "addressNotFound": "Adrès pa jwenn.",

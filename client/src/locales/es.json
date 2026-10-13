@@ -3439,6 +3439,7 @@
       "noDueDate": "Sin fecha límite",
       "everyNDays": "Cada {{n}}d",
       "removed": "Eliminado",
+      "unsaveHelper": "Quitar a {{name}} de los ayudantes guardados",
       "homeAddFailed": "Error al añadir la propiedad.",
       "homeAdded": "¡Propiedad guardada!",
       "addressNotFound": "Dirección no encontrada.",
