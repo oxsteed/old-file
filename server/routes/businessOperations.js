@@ -38,7 +38,9 @@ router.get ('/:businessId/services/:serviceId/slots',                           
 
 // ── APPOINTMENTS ROUTES ───────────────────────────────────────
 // Phase 2c: enforce business_booking_rules + per-staff overbooking guard before insert.
-router.post('/:businessId/appointments',                                   requireAuth, requireBusinessAccess({ minRole: 'any' }),     enforceBookingRules, businessAppointmentsController.createAppointment);
+// Customers may book a public business service; the controller validates the
+// service/business relationship and binds the appointment to the signed-in user.
+router.post('/:businessId/appointments',                                   requireAuth, enforceBookingRules, businessAppointmentsController.createAppointment);
 router.get ('/:businessId/appointments',                                   requireAuth, requireBusinessAccess({ minRole: 'any' }),     businessAppointmentsController.listAppointments);
 router.get ('/:businessId/appointments/calendar',                          requireAuth, requireBusinessAccess({ minRole: 'any' }),     businessCalendarController.getBusinessAppointmentsCalendar);
 router.get ('/:businessId/appointments/:appointmentId',                    requireAuth, requireBusinessAccess({ minRole: 'any' }),     businessAppointmentsController.getAppointment);

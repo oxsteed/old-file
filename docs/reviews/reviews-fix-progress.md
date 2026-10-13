@@ -109,3 +109,7 @@ Reconciled the 38 W14 handoff IDs against audit v2; the active list remains the 
 
 Reconciled the 44 W15 IDs against `resolution-audit-v2-2026-10-13.md` before implementation. Existing W10.5/W13 work already covers the failed food-order card notification and dispute update emitter; the current batch closes the admin dispute multi-status filter, adds idempotency to weekly summary notifications, and fences the recurring-job worker with a PostgreSQL advisory lock. Booking-deposit and webhook crash-window findings referenced by the audit are already resolved in earlier waves. Remaining W15 findings stay open for follow-up batches.
 
+## W16 reconciliation (2026-10-13)
+
+Reconciled the 38 W16 IDs against `resolution-audit-v2-2026-10-13.md`; no matching ID rows were present in the audit snapshot, so the handoff list remains authoritative. This batch validates job media URLs against the existing storage allowlist, allows authenticated customers to reach the booking endpoint while binding appointments to their account, and enforces legal appointment status transitions with row locking. Remaining upload, feature-flag, and booking items stay open for follow-up batches.
+

@@ -79,6 +79,7 @@ async function createAppointment(req, res, next) {
       return next(new AppError('End time must be after start time', 400));
     }
 
+    const effectiveCustomerId = req.user?.id || customer_id || null;
     const appointment = await withTransaction(pool, async (client) => {
       // Check service exists and take a row-level claim so concurrent
       // creates for the same service serialize instead of racing.
@@ -107,7 +108,7 @@ async function createAppointment(req, res, next) {
           customer_phone, customer_notes, start_time, end_time, base_price_cents, final_price_cents, status)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'pending')
          RETURNING *`,
-        [businessId, service_id, staff_id || null, customer_id || null, customer_name || null,
+        [businessId, service_id, staff_id || null, effectiveCustomerId, customer_name || null,
          customer_email || null, customer_phone || null, customer_notes || null,
          start_time, end_time, base_price_cents, base_price_cents]
       );
@@ -236,17 +237,32 @@ async function updateAppointmentStatus(req, res, next) {
       return next(new AppError('Invalid status', 400));
     }
 
-    const result = await pool.query(
-      `UPDATE business_appointments
-       SET status = $1, updated_at = NOW()
-       WHERE id = $2 AND business_id = $3
-       RETURNING *`,
-      [status, appointmentId, businessId]
-    );
-
-    if (!result.rows.length) {
-      return next(new AppError('Appointment not found', 404));
-    }
+    const allowedTransitions = {
+      pending: ['confirmed', 'cancelled'],
+      confirmed: ['in_progress', 'cancelled', 'no_show'],
+      in_progress: ['completed', 'cancelled'],
+      completed: [],
+      cancelled: [],
+      no_show: [],
+    };
+    const appointment = await withTransaction(pool, async (client) => {
+      const currentResult = await client.query(
+        'SELECT * FROM business_appointments WHERE id = $1 AND business_id = $2 FOR UPDATE',
+        [appointmentId, businessId]
+      );
+      if (!currentResult.rows.length) throw new AppError('Appointment not found', 404);
+      const current = currentResult.rows[0];
+      if (!allowedTransitions[current.status]?.includes(status)) {
+        throw new AppError(`Cannot change appointment from ${current.status} to ${status}`, 409, 'invalid_status_transition');
+      }
+      const result = await client.query(
+        `UPDATE business_appointments SET status = $1, updated_at = NOW()
+         WHERE id = $2 AND business_id = $3 AND status = $4 RETURNING *`,
+        [status, appointmentId, businessId, current.status]
+      );
+      if (!result.rows.length) throw new AppError('Appointment status changed; please refresh', 409, 'stale_appointment');
+      return result.rows[0];
+    }, 'update_appointment_status');
 
     // Add note if provided
     if (notes) {
@@ -258,9 +274,11 @@ async function updateAppointmentStatus(req, res, next) {
       );
     }
 
-    res.json(result.rows[0]);
+    await notifyAppointmentParticipants(appointment, `appointment_${status}`);
+    res.json(appointment);
   } catch (error) {
     logger.error('Error updating appointment', { error });
+    if (error.status) return next(error);
     next(new AppError('Failed to update appointment', 500));
   }
 }
