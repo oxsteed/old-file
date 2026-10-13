@@ -6947,7 +6947,9 @@
       "fields": {
         "start": "Start",
         "end": "End",
-        "role": "Role"
+        "role": "Role",
+        "staff": "Staff member",
+        "staffPlaceholder": "Select a team member"
       },
       "emptyShifts": "No shifts scheduled yet.",
       "emptyTime": "No time entries yet. Use Clock In to start tracking.",
@@ -6968,7 +6970,8 @@
       "toastClockedIn": "Clocked in!",
       "toastClockInFail": "Failed to clock in",
       "toastClockedOut": "Clocked out!",
-      "toastClockOutFail": "Failed to clock out"
+      "toastClockOutFail": "Failed to clock out",
+      "toastStaffRequired": "Please select a staff member"
     },
     "integrations": {
       "title": "Integrations & Settings",

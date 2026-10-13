@@ -9,7 +9,8 @@
  *
  * Runs BEFORE businessAppointmentsController.createAppointment.
  * Bails early with 4xx when:
- *   - service is missing or inactive
+ *   - service is missing, inactive, deleted, or has online booking disabled
+ *   - the business is missing, inactive, unlisted, or hidden by admin
  *   - start_time is in the past or before min_advance_booking_hours
  *   - start_time is past max_advance_booking_days
  *   - end_time - start_time != service.duration_minutes (within 1 min tolerance)
@@ -58,6 +59,24 @@ module.exports = async function enforceBookingRules(req, res, next) {
     if (!svc) return sendError(res, 404, 'Service not found', 'service_not_found');
     if (svc.deleted_at) return sendError(res, 410, 'Service has been deleted', 'service_deleted');
     if (svc.is_active === false) return sendError(res, 409, 'Service is inactive', 'service_inactive');
+    // Review P1-6-F03: the service-level "allow online booking" switch is
+    // enforced on the create path, not just the slot engine.
+    if (svc.allow_online_booking === false) {
+      return sendError(res, 403, 'This service is not taking online bookings right now', 'booking_disabled');
+    }
+
+    // 1b) The business itself must be listed and active; a deactivated or
+    // hidden business cannot take new appointments.
+    const bizRes = await pool.query(
+      `SELECT id, is_active, is_listed, is_hidden_by_admin
+         FROM businesses WHERE id = $1`,
+      [businessId]
+    );
+    const biz = bizRes.rows[0];
+    if (!biz) return sendError(res, 404, 'Business not found', 'business_not_found');
+    if (biz.is_active === false || biz.is_listed === false || biz.is_hidden_by_admin === true) {
+      return sendError(res, 403, 'This business is not taking bookings right now', 'business_not_bookable');
+    }
 
     // Duration sanity (1 min tolerance for clock skew)
     const requestedMin = Math.round((endTime.getTime() - startTime.getTime()) / 60000);

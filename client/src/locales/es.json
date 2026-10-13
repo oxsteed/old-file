@@ -6380,7 +6380,9 @@
       "fields": {
         "start": "Inicio",
         "end": "Fin",
-        "role": "Rol"
+        "role": "Rol",
+        "staff": "Miembro del equipo",
+        "staffPlaceholder": "Selecciona un miembro del equipo"
       },
       "emptyShifts": "Aún no hay turnos programados.",
       "emptyTime": "Aún no hay registros de tiempo. Usa «Fichar» para empezar.",
@@ -6401,7 +6403,8 @@
       "toastClockedIn": "¡Entrada registrada!",
       "toastClockInFail": "No se pudo registrar la entrada",
       "toastClockedOut": "¡Salida registrada!",
-      "toastClockOutFail": "No se pudo registrar la salida"
+      "toastClockOutFail": "No se pudo registrar la salida",
+      "toastStaffRequired": "Selecciona un miembro del equipo"
     },
     "integrations": {
       "title": "Integraciones y configuración",

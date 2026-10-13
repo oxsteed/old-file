@@ -13,7 +13,29 @@ export function StaffScheduler({ businessId }) {
   const [timeEntries, setTimeEntries] = useState([]);
   const [loading, setLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ shift_start: '', shift_end: '', role: '', notes: '' });
+  const [form, setForm] = useState({ user_id: '', shift_start: '', shift_end: '', role: '', notes: '' });
+  // Review P1-5-F02: shifts only feed availability when they carry the staff
+  // member's user id, so the form requires picking a team member.
+  const [staffMembers, setStaffMembers] = useState([]);
+
+  useEffect(() => {
+    if (tab === 'shifts') loadShifts();
+    else loadTime();
+  }, [businessId, tab]);
+
+  useEffect(() => {
+    let cancelled = false;
+    api.get(`/businesses/${businessId}/members`)
+      .then((res) => {
+        if (cancelled) return;
+        const members = (res.data?.members || []).filter((m) => m.user_id && m.status === 'active');
+        setStaffMembers(members);
+      })
+      .catch(() => { if (!cancelled) setStaffMembers([]); });
+    return () => { cancelled = true; };
+  }, [businessId]);
+
+  const staffName = (m) => [m.first_name, m.last_name].filter(Boolean).join(' ') || m.member_email || m.user_id;
 
   useEffect(() => {
     if (tab === 'shifts') loadShifts();
@@ -35,8 +57,9 @@ export function StaffScheduler({ businessId }) {
   };
 
   const saveShift = async () => {
+    if (!form.user_id) return toast.error(t('businessHub.staffScheduler.toastStaffRequired'));
     if (!form.shift_start || !form.shift_end) return toast.error(t('businessHub.staffScheduler.toastShiftTimesRequired'));
-    try { await api.post(`/businesses/${businessId}/staff/shifts`, { ...form, user_id: null }); toast.success(t('businessHub.staffScheduler.toastShiftAdded')); setShowForm(false); setForm({ shift_start: '', shift_end: '', role: '', notes: '' }); loadShifts(); }
+    try { await api.post(`/businesses/${businessId}/staff/shifts`, { ...form }); toast.success(t('businessHub.staffScheduler.toastShiftAdded')); setShowForm(false); setForm({ user_id: '', shift_start: '', shift_end: '', role: '', notes: '' }); loadShifts(); }
     catch { toast.error(t('businessHub.staffScheduler.toastShiftSaveFail')); }
   };
 
@@ -92,6 +115,15 @@ export function StaffScheduler({ businessId }) {
         <div style={{ background: 'var(--card-bg)', border: '1px solid var(--border-color)', borderRadius: '0.75rem', padding: '1.25rem', marginBottom: '1.5rem' }}>
           <h4 style={{ margin: '0 0 1rem' }}>{t('businessHub.staffScheduler.newShift')}</h4>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+            <div style={{ gridColumn: '1 / -1' }}>
+              <label style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.25rem', color: 'var(--muted-text)' }}>{t('businessHub.staffScheduler.fields.staff')}</label>
+              <select value={form.user_id} onChange={e => setForm(f => ({ ...f, user_id: e.target.value }))} style={{ width: '100%', padding: '0.6rem', border: '1px solid var(--border-color)', borderRadius: '0.5rem', background: 'var(--card-bg)', color: 'var(--app-text)', boxSizing: 'border-box' }}>
+                <option value="">{t('businessHub.staffScheduler.fields.staffPlaceholder')}</option>
+                {staffMembers.map(m => (
+                  <option key={m.user_id} value={m.user_id}>{staffName(m)}</option>
+                ))}
+              </select>
+            </div>
             {[
               ['shift_start', t('businessHub.staffScheduler.fields.start'), 'datetime-local'],
               ['shift_end', t('businessHub.staffScheduler.fields.end'), 'datetime-local'],
