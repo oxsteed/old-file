@@ -427,10 +427,11 @@ async function login(req, res, next) {
 
     const tokens = generateTokens(user);
     const hashedRefresh = crypto.createHash('sha256').update(tokens.refreshToken).digest('hex');
+    const accessHash = crypto.createHash('sha256').update(tokens.accessToken).digest('hex');
     const sessionSql = rememberMe
-      ? "INSERT INTO sessions (user_id, refresh_token, expires_at) VALUES ($1, $2, NOW() + interval '30 days')"
-      : "INSERT INTO sessions (user_id, refresh_token, expires_at) VALUES ($1, $2, NOW() + interval '7 days')";
-    await pool.query(sessionSql, [user.id, hashedRefresh]);
+      ? "INSERT INTO sessions (user_id, refresh_token, access_token_hash, expires_at) VALUES ($1, $2, $3, NOW() + interval '30 days')"
+      : "INSERT INTO sessions (user_id, refresh_token, access_token_hash, expires_at) VALUES ($1, $2, $3, NOW() + interval '7 days')";
+    await pool.query(sessionSql, [user.id, hashedRefresh, accessHash]);
     await recordSessionContext(pool, hashedRefresh, req);
 
     // H8d: web clients get the refresh token as an httpOnly cookie; the JSON
@@ -638,10 +639,11 @@ async function loginWith2FA(req, res, next) {
     }
     const tokens = generateTokens(user);
     const hashedRefresh = crypto.createHash('sha256').update(tokens.refreshToken).digest('hex');
+    const accessHash = crypto.createHash('sha256').update(tokens.accessToken).digest('hex');
     const sessionSql = rememberMe
-      ? "INSERT INTO sessions (user_id, refresh_token, expires_at) VALUES ($1, $2, NOW() + interval '30 days')"
-      : "INSERT INTO sessions (user_id, refresh_token, expires_at) VALUES ($1, $2, NOW() + interval '7 days')";
-    await pool.query(sessionSql, [user.id, hashedRefresh]);
+      ? "INSERT INTO sessions (user_id, refresh_token, access_token_hash, expires_at) VALUES ($1, $2, $3, NOW() + interval '30 days')"
+      : "INSERT INTO sessions (user_id, refresh_token, access_token_hash, expires_at) VALUES ($1, $2, $3, NOW() + interval '7 days')";
+    await pool.query(sessionSql, [user.id, hashedRefresh, accessHash]);
     await recordSessionContext(pool, hashedRefresh, req);
 
     // H8d: refresh token as httpOnly cookie for web clients (JSON fallback kept).
@@ -896,10 +898,10 @@ async function refreshToken(req, res, next) {
     const tokens = generateTokens(user);
     const hashedRefresh = crypto.createHash('sha256').update(tokens.refreshToken).digest('hex');
     const { rows: newSessionRows } = await pool.query(
-      `INSERT INTO sessions (user_id, refresh_token, expires_at, absolute_expires_at)
-       VALUES ($1, $2, LEAST(NOW() + interval '7 days', $3::timestamptz), $3::timestamptz)
+      `INSERT INTO sessions (user_id, refresh_token, expires_at, absolute_expires_at, access_token_hash)
+       VALUES ($1, $2, LEAST(NOW() + interval '7 days', $3::timestamptz), $3::timestamptz, $4)
        RETURNING expires_at`,
-      [user.id, hashedRefresh, absoluteDeadline.toISOString()]
+      [user.id, hashedRefresh, absoluteDeadline.toISOString(), crypto.createHash('sha256').update(tokens.accessToken).digest('hex')]
     );
     await recordSessionContext(pool, hashedRefresh, req);
     const newExpiry = newSessionRows?.[0]?.expires_at ? new Date(newSessionRows[0].expires_at) : null;
@@ -1404,8 +1406,8 @@ async function verifyRegistrationOTP(req, res) {
     const tokens = generateTokens(user);
     const hashedRefresh = crypto.createHash('sha256').update(tokens.refreshToken).digest('hex');
     await pool.query(
-      "INSERT INTO sessions (user_id, refresh_token, expires_at) VALUES ($1, $2, NOW() + interval '7 days')",
-      [user.id, hashedRefresh]
+      "INSERT INTO sessions (user_id, refresh_token, access_token_hash, expires_at) VALUES ($1, $2, $3, NOW() + interval '7 days')",
+      [user.id, hashedRefresh, crypto.createHash('sha256').update(tokens.accessToken).digest('hex')]
     );
     // H8d: registration completes a login — set the httpOnly cookies too.
     setRefreshTokenCookie(res, tokens.refreshToken);
@@ -1810,8 +1812,8 @@ async function updateProfile(req, res) {
       const hashedRefresh = crypto.createHash('sha256').update(tokens.refreshToken).digest('hex');
       await modeRoleUtil.invalidateUserSessions(client, req.user.id);
       await client.query(
-        "INSERT INTO sessions (user_id, refresh_token, expires_at) VALUES ($1, $2, NOW() + interval '7 days')",
-        [finalRow.id, hashedRefresh],
+        "INSERT INTO sessions (user_id, refresh_token, access_token_hash, expires_at) VALUES ($1, $2, $3, NOW() + interval '7 days')",
+        [finalRow.id, hashedRefresh, crypto.createHash('sha256').update(tokens.accessToken).digest('hex')],
       );
       modeTokens = tokens;
     }
@@ -2221,8 +2223,8 @@ async function switchRole(req, res) {
     // after the role has already changed.
     await modeRoleUtil.invalidateUserSessions(client, userId);
     await client.query(
-      "INSERT INTO sessions (user_id, refresh_token, expires_at) VALUES ($1, $2, NOW() + interval '7 days')",
-      [updatedUser.id, hashedRefresh],
+      "INSERT INTO sessions (user_id, refresh_token, access_token_hash, expires_at) VALUES ($1, $2, $3, NOW() + interval '7 days')",
+      [updatedUser.id, hashedRefresh, crypto.createHash('sha256').update(tokens.accessToken).digest('hex')],
     );
     await client.query('COMMIT');
 

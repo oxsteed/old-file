@@ -374,8 +374,8 @@ async function verifyOTP(req, res) {
     // Persist the refresh token so subsequent /auth/refresh calls work
     const hashedRefresh = crypto.createHash('sha256').update(tokens.refreshToken).digest('hex');
     await pool.query(
-      "INSERT INTO sessions (user_id, refresh_token, expires_at) VALUES ($1, $2, NOW() + interval '7 days')",
-      [userId, hashedRefresh]
+      "INSERT INTO sessions (user_id, refresh_token, access_token_hash, expires_at) VALUES ($1, $2, $3, NOW() + interval '7 days')",
+      [userId, hashedRefresh, crypto.createHash('sha256').update(tokens.accessToken).digest('hex')]
     );
     setSessionCookies(res, tokens);
 

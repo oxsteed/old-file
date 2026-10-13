@@ -85,11 +85,11 @@ Source: `docs/reviews/resolution-audit-v2-2026-10-13.md`.
 - Criticals: **14/15 RESOLVED**. Still broken on purpose: **P3-1009** (admin credit adjustments skip KYC/sanctions — owner excluded).
 - Headline: ~35% of findings resolved by W1–W10 + #492/#493.
 
-## W10.5 — planned: `fix/review-w10_5-post-merge` (run BEFORE W11)
-Not started. Priorities from audit v2:
-1. PR #498 regression: payout methods never reach `verified` — add real verification path (Stripe Connect `payouts_enabled` / webhook); keep fail-closed.
-2. Migration **785**: admin audit-log missing columns so removeBid/removeReview/restoreReview, refundFoodOrder, auditAdminRead stop 500ing.
-3. Settlement mark-paid TOCTOU: re-assert rail gate at approve/execute; validate `payment_reference`; keep two-distinct-admin.
-4. `revokeMySession`: denylist revoked session's access JWT.
-5. Emitters: `dispute_update` email; `subscription_renewed`/`cancelled`/`past_due`; failed food-order card payment notification.
-P3-1009 remains skipped. Reconcile W11–W19 ID lists against audit v2 before starting those waves.
+## W10.5 — `fix/review-w10_5-post-merge` (ready for review)
+Implemented from audit v2:
+1. Stripe Connect `account.updated` and processor paths now verify payout methods only when `payouts_enabled`; regressions demote methods to pending and user self-verify remains blocked.
+2. Migration **785** adds the idempotent admin audit-log writer columns and per-session access-token hash index.
+3. Settlement execution re-checks the Credit rail inside the locked transaction, validates payment references, and removes the maker-checker threshold bypass. Two distinct admins remain required.
+4. Session issuance stores the access-token hash and `revokeMySession` immediately denies the revoked access token.
+5. Added idempotent dispute update, subscription renewal/cancellation/past-due, and failed food-order card payment notifications.
+Validation: focused server suite 100/100 passed; client `npm run build:ci` passed; migration rehearsal reached the existing baseline failure at migration 001 before W10.5 could run (no `DATABASE_URL` was configured). P3-1009 remains skipped. Reconcile W11–W19 ID lists against audit v2 before starting those waves.

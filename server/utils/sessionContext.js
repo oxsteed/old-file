@@ -10,6 +10,10 @@ function hashRefreshToken(token) {
   return crypto.createHash('sha256').update(String(token)).digest('hex');
 }
 
+function hashAccessToken(token) {
+  return crypto.createHash('sha256').update(String(token)).digest('hex');
+}
+
 function clientUserAgent(req) {
   const ua = req?.headers?.['user-agent'];
   return typeof ua === 'string' ? ua.slice(0, 512) : null;
@@ -44,4 +48,4 @@ function currentRefreshHash(req) {
   return token ? hashRefreshToken(token) : null;
 }
 
-module.exports = { recordSessionContext, currentRefreshHash, hashRefreshToken };
+module.exports = { recordSessionContext, currentRefreshHash, hashRefreshToken, hashAccessToken };

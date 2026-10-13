@@ -5,6 +5,7 @@
 
 const db = require('../db');
 const { currentRefreshHash } = require('../utils/sessionContext');
+const { revokeAccessToken } = require('../services/tokenRevocationService');
 const crypto = require('crypto');
 const { AppError } = require('../middleware/errorHandler');
 const logger = require('../utils/logger');
@@ -67,7 +68,7 @@ async function revokeMySession(req, res, next) {
     if (!/^\d+$/.test(String(sessionId))) throw new AppError('Session not found', 404, 'not_found');
     const current = currentRefreshHash(req);
     const { rows: [target] } = await db.query(
-      'SELECT refresh_token FROM sessions WHERE id = $1 AND user_id = $2', [sessionId, req.user.id]);
+      'SELECT refresh_token, access_token_hash FROM sessions WHERE id = $1 AND user_id = $2', [sessionId, req.user.id]);
     if (!target) throw new AppError('Session not found', 404, 'not_found');
     if (current && target.refresh_token === current) {
       throw new AppError('Cannot revoke your current session', 400, 'cannot_revoke_current');
@@ -78,6 +79,7 @@ async function revokeMySession(req, res, next) {
       [sessionId, req.user.id]
     );
     if (!rowCount) throw new AppError('Session not found', 404, 'not_found');
+    if (target.access_token_hash) await revokeAccessToken(target.access_token_hash);
     res.json({ revoked: true });
   } catch (err) { next(err); }
 }

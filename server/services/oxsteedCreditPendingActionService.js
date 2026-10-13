@@ -18,11 +18,8 @@
  * - Rejection requires a reason (400 credit_decision_reason_required).
  * - Lazy expiry: deciding an expired pending action marks it expired and
  *   returns 409 credit_pending_action_expired; it can never execute.
- * - OXSTEED_CREDIT_MAKER_CHECKER_THRESHOLD_CENTS (default 0): when set
- *   above 0, money movements below the threshold execute immediately
- *   under the single requesting admin (the bypass is deliberate and is
- *   named in a comment at the call site). Amount-less actions
- *   (fee schedule updates) always require dual approval.
+ * - Every money movement requires a distinct checker. There is no amount,
+ *   environment, or break-glass bypass for maker-checker.
  * - Idempotency: the caller's Idempotency-Key is the pending action's
  *   idempotency key, so a retried request replays the existing receipt
  *   instead of queueing a duplicate.
@@ -59,10 +56,6 @@ const {
 const PENDING_ACTION_TTL_HOURS = Math.max(
   1,
   Number.parseInt(process.env.OXSTEED_CREDIT_PENDING_ACTION_TTL_HOURS || '24', 10) || 24
-);
-const MAKER_CHECKER_THRESHOLD_CENTS = Math.max(
-  0,
-  Number.parseInt(process.env.OXSTEED_CREDIT_MAKER_CHECKER_THRESHOLD_CENTS || '0', 10) || 0
 );
 
 const PENDING_ACTION_STATUSES = ['pending', 'approved', 'rejected', 'expired'];
@@ -397,33 +390,9 @@ async function requestPendingAction({ actionType, payload, requestedBy, idempote
   if (!key) throw new AppError('An Idempotency-Key is required to request a pending action', 400, 'credit_pending_action_idempotency_required');
 
   const storedPayload = { ...(payload || {}), idempotencyKey: key };
+  // The amount is recorded in the audit trail for traceability. There is no
+  // threshold bypass: every money movement requires a distinct checker.
   const amountCents = await resolveActionAmountCents(normalizedType, storedPayload);
-
-  // Threshold bypass: OXSTEED_CREDIT_MAKER_CHECKER_THRESHOLD_CENTS lets
-  // Emile exempt small movements from dual approval; the requesting admin
-  // alone executes them (default 0 = every movement needs a checker).
-  if (MAKER_CHECKER_THRESHOLD_CENTS > 0 && amountCents !== null && amountCents < MAKER_CHECKER_THRESHOLD_CENTS) {
-    const executor = ACTION_EXECUTORS[normalizedType];
-    const result = await withTransaction(pool, async (client) => executor({
-      client,
-      payload: storedPayload,
-      actorUserId: requestedBy,
-      requestIp: requestIp || null,
-      correlationId: correlationId || null,
-    }));
-    await withTransaction(pool, async (client) => insertAudit(client, {
-      actionType: 'credit.pending_action.threshold_executed',
-      actorUserId: requestedBy,
-      resourceType: 'pending_action',
-      resourceId: normalizedType,
-      reason: `Below maker-checker threshold (${MAKER_CHECKER_THRESHOLD_CENTS} cents); executed directly`,
-      correlationId: correlationId || null,
-      requestIp: requestIp || null,
-      metadata: { actionType: normalizedType, amountCents },
-    }));
-    return { executed: true, pendingAction: null, result };
-  }
-
   const expiresAt = new Date(Date.now() + PENDING_ACTION_TTL_HOURS * 3600 * 1000).toISOString();
   try {
     const result = await withTransaction(pool, async (client) => {
@@ -641,7 +610,6 @@ async function listPendingActions({ status = null, limit = 50, offset = 0 } = {}
 module.exports = {
   ACTION_TYPES,
   PENDING_ACTION_STATUSES,
-  MAKER_CHECKER_THRESHOLD_CENTS,
   requestPendingAction,
   decidePendingAction,
   getPendingAction,
