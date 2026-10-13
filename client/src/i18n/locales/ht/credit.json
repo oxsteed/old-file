@@ -1457,6 +1457,7 @@
   "adminNotificationRetryFailed": "Nouvo tantativ notifikasyon Credit la echwe.",
   "adminDisputeResolutionRequired": "Ajoute yon rezon chanjman estati anvan ou mete yon diskisyon Credit ajou.",
   "adminDisputeStatusChanged": "Diskisyon {{id}} chanje pou {{status}}.",
+  "adminDisputeQueuedForApproval": "Konfli {{id}} nan ke. Yon dezyèm administratè dwe apwouve li anvan li antre an vigè.",
   "adminDisputeUpdateFailed": "Mizajou diskisyon an echwe.",
   "adminPostedPurchaseOnly": "Se sèlman yon acha Credit ki anrejistre ki ka jwenn ranbousman nan paj sa a.",
   "adminRefundAmountRequired": "Antre yon montan ranbousman pozitif an {{currency}}.",

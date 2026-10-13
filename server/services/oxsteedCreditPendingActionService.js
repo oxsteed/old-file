@@ -52,6 +52,12 @@ const {
   activateParticipantInTransaction,
   activatePartnerWithGuards,
 } = require('./oxsteedCreditParticipantService');
+// Review P2-1-F07: dispute provisional credit and compensated resolutions
+// bypassed maker-checker. They now execute as pending-action types below.
+const {
+  issueProvisionalCredit,
+  resolveDisputeWithCompensation,
+} = require('./oxsteedCreditDisputeService');
 
 const PENDING_ACTION_TTL_HOURS = Math.max(
   1,
@@ -101,7 +107,10 @@ async function resolveActionAmountCents(actionType, payload) {
     case 'credit_hold_capture':
     case 'credit_withdrawal_approval':
     case 'credit_partner_funding':
+    case 'credit_dispute_provisional_credit':
       return parseAmount(payload.amountCents ?? payload.amount_cents);
+    case 'credit_dispute_resolve':
+      return parseAmount(payload.compensationCents ?? payload.compensation_cents ?? 0);
     case 'credit_currency_quote':
       return parseAmount(payload.sourceAmountMinorUnits ?? payload.source_amount_minor_units);
     case 'credit_settlement_approval':
@@ -367,6 +376,30 @@ const ACTION_EXECUTORS = {
       reason: payload.reason,
       correlationId,
       metadata: { ...(payload.metadata || {}), approvedBy: actorUserId },
+    }),
+  // Review P2-1-F07: dispute provisional credit and compensated resolutions
+  // move money, so they execute only as the checker half of maker-checker.
+  // The executor runs inside the checker's decision transaction with the
+  // checker's identity; the original Idempotency-Key is carried so a crash
+  // between execution and the decision commit replays safely.
+  credit_dispute_provisional_credit: async ({ payload, actorUserId, requestIp, correlationId }) =>
+    issueProvisionalCredit({
+      disputeId: payload.disputeId,
+      adminId: actorUserId,
+      amountCents: payload.amountCents,
+      reason: payload.reason,
+      requestIp,
+      correlationId,
+    }),
+  credit_dispute_resolve: async ({ payload, actorUserId, requestIp, correlationId }) =>
+    resolveDisputeWithCompensation({
+      disputeId: payload.disputeId,
+      adminId: actorUserId,
+      decision: payload.decision,
+      reason: payload.reason,
+      compensationCents: payload.compensationCents ?? 0,
+      requestIp,
+      correlationId,
     }),
 };
 

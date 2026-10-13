@@ -1430,43 +1430,21 @@ async function afterJobCompleted(result, actorId) {
   // ── Franchise royalty collection (non-blocking) ────────────────────────
   // If the job was completed in a franchise territory, credit the franchise
   // owner's platform_ledger with their agreed royalty_bps of the job value.
+  // Review P2-9-F08/F13: deterministic territory matching and all revenue
+  // surfaces now funnel through franchiseRoyaltyService.accrueTerritoryRoyalty.
   try {
     const jobForRoyalty = result;
     if (jobForRoyalty.job_value && (jobForRoyalty.location_city || jobForRoyalty.location_state)) {
-      const city   = jobForRoyalty.location_city  || null;
-      const region = jobForRoyalty.location_state || null;
-
-      const { rows: franchiseRows } = await pool.query(`
-        SELECT fa.owner_user_id, fa.desired_city, fa.desired_region,
-               fagr.royalty_bps
-        FROM franchise_applications fa
-        JOIN franchise_agreements fagr ON fagr.application_id = fa.id
-        WHERE fa.status = 'launched'
-          AND fagr.royalty_bps > 0
-          AND (
-            ($1::text IS NOT NULL AND LOWER(COALESCE(fa.desired_city,'')) = LOWER($1))
-            OR ($2::text IS NOT NULL AND LOWER(COALESCE(fa.desired_region,'')) = LOWER($2))
-          )
-        LIMIT 1
-      `, [city, region]);
-
-      if (franchiseRows.length > 0) {
-        const { owner_user_id, royalty_bps } = franchiseRows[0];
-        const royaltyCents = Math.round((jobForRoyalty.job_value * 100) * (royalty_bps / 10000));
-        if (royaltyCents > 0 && owner_user_id) {
-          await pool.query(`
-            INSERT INTO platform_ledger
-              (user_id, type, amount_cents, description, metadata, source_type)
-            VALUES ($1, 'franchise_royalty', $2, $3, $4, 'franchise_royalty')
-          `, [
-            owner_user_id,
-            royaltyCents,
-            `Territory royalty — job #${jobForRoyalty.id} in ${city || region}`,
-            JSON.stringify({ job_id: jobForRoyalty.id, royalty_bps, job_value: jobForRoyalty.job_value }),
-          ]);
-          logger.info(`[franchise] Royalty ${royaltyCents}¢ credited to owner ${owner_user_id} for job ${jobForRoyalty.id}`);
-        }
-      }
+      const { accrueTerritoryRoyalty } = require('../services/franchiseRoyaltyService');
+      await accrueTerritoryRoyalty({
+        client: pool,
+        amountCents: Math.round(Number(jobForRoyalty.job_value) * 100),
+        city: jobForRoyalty.location_city || null,
+        region: jobForRoyalty.location_state || null,
+        sourceType: 'job',
+        sourceId: String(jobForRoyalty.id),
+        description: `Territory royalty — job #${jobForRoyalty.id} in ${jobForRoyalty.location_city || jobForRoyalty.location_state}`,
+      });
     }
   } catch (royaltyErr) {
     logger.warn('Failed to collect franchise royalty (non-fatal)', { error: royaltyErr.message });

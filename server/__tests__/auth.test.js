@@ -435,7 +435,7 @@ describe('POST /api/auth/refresh', () => {
     const deadline = new Date(Date.now() + 3 * 86400000).toISOString();
     mockQuery.mockImplementation(async (sql) => {
       const t = String(sql);
-      if (t.includes('FROM sessions s WHERE')) return { rows: [{ id: 17, user_id: 3, is_valid: true, is_revoked: false, expires_at: new Date(Date.now() + 86400000).toISOString(), absolute_expires_at: deadline }] };
+      if (t.includes('FROM sessions s WHERE')) return { rows: [{ id: 17, user_id: 3, is_valid: true, is_revoked: false, remember_me: false, expires_at: new Date(Date.now() + 86400000).toISOString(), absolute_expires_at: deadline }] };
       if (t.includes('UPDATE sessions SET is_valid = false')) return { rows: [{ id: 1 }] };
       if (t.includes('FROM users WHERE id')) return { rows: [{ id: 3, email: 'a@b.c', role: 'customer' }] };
       return { rows: [] };
@@ -443,10 +443,31 @@ describe('POST /api/auth/refresh', () => {
     const res = await request(buildApp()).post('/api/auth/refresh').send({ refreshToken: 'fam-token' });
     expect(res.status).toBe(200);
     const insert = mockQuery.mock.calls.find(([sql]) => String(sql).includes('INSERT INTO sessions'));
-    expect(insert[0]).toMatch(/LEAST\(NOW\(\) \+ interval '7 days'/);
+    // Review P1-1-F04: the rotation window is parameterized by remember_me
+    // (7d default, 30d when the original login had remember-me).
+    expect(insert[0]).toMatch(/LEAST\(NOW\(\) \+ make_interval\(days => \$4\)/);
     expect(insert[1][2]).toBe(new Date(deadline).toISOString());
+    expect(insert[1][3]).toBe(7);
     expect(insert[0]).toMatch(/parent_session_id/);
-    expect(insert[1][4]).toBe(17);
+    expect(insert[1][5]).toBe(17);
+    expect(insert[1][6]).toBe(false);
+  });
+
+  test('rotation honors remember-me with a 30-day window', async () => {
+    mockQuery.mockReset();
+    const deadline = new Date(Date.now() + 40 * 86400000).toISOString();
+    mockQuery.mockImplementation(async (sql) => {
+      const t = String(sql);
+      if (t.includes('FROM sessions s WHERE')) return { rows: [{ id: 17, user_id: 3, is_valid: true, is_revoked: false, remember_me: true, expires_at: new Date(Date.now() + 86400000).toISOString(), absolute_expires_at: deadline }] };
+      if (t.includes('UPDATE sessions SET is_valid = false')) return { rows: [{ id: 1 }] };
+      if (t.includes('FROM users WHERE id')) return { rows: [{ id: 3, email: 'a@b.c', role: 'customer' }] };
+      return { rows: [] };
+    });
+    const res = await request(buildApp()).post('/api/auth/refresh').send({ refreshToken: 'fam-token' });
+    expect(res.status).toBe(200);
+    const insert = mockQuery.mock.calls.find(([sql]) => String(sql).includes('INSERT INTO sessions'));
+    expect(insert[1][3]).toBe(30);
+    expect(insert[1][6]).toBe(true);
   });
 
   test('does not mint a session for an inactive account', async () => {

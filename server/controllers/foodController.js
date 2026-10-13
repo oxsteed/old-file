@@ -4372,6 +4372,23 @@ exports.updateOrderStatus = async (req, res, next) => {
         await withTransaction(pool, async (client) => {
           await earnFoodLoyaltyOnComplete(client, order);
         }, 'food_loyalty_earn');
+        // Review P2-9-F13: franchise royalties accrue on food orders too,
+        // not just job completion. Non-blocking; the royalty service is
+        // idempotent per order.
+        try {
+          const { accrueTerritoryRoyalty } = require('../services/franchiseRoyaltyService');
+          await accrueTerritoryRoyalty({
+            client: pool,
+            amountCents: Number(order.total_cents || 0),
+            city: restaurant.address_city || null,
+            region: restaurant.address_state || null,
+            sourceType: 'food_order',
+            sourceId: String(order.id),
+            description: `Territory royalty — food order #${order.id} in ${restaurant.address_city || restaurant.address_state || ''}`,
+          });
+        } catch (royaltyErr) {
+          logger.warn('Failed to accrue franchise royalty for food order (non-fatal)', { error: royaltyErr.message, orderId: order.id });
+        }
       }
     }
 

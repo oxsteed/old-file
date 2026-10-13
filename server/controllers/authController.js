@@ -428,9 +428,13 @@ async function login(req, res, next) {
     const tokens = generateTokens(user);
     const hashedRefresh = crypto.createHash('sha256').update(tokens.refreshToken).digest('hex');
     const accessHash = crypto.createHash('sha256').update(tokens.accessToken).digest('hex');
+    // P1-1-F04: persist the remember-me intent on the session row. The
+    // refresh endpoint rotates sessions; without this flag it minted an
+    // unconditional 7-day window and silently degraded a 30-day
+    // remember-me session on the first refresh.
     const sessionSql = rememberMe
-      ? "INSERT INTO sessions (user_id, refresh_token, access_token_hash, expires_at) VALUES ($1, $2, $3, NOW() + interval '30 days')"
-      : "INSERT INTO sessions (user_id, refresh_token, access_token_hash, expires_at) VALUES ($1, $2, $3, NOW() + interval '7 days')";
+      ? "INSERT INTO sessions (user_id, refresh_token, access_token_hash, expires_at, remember_me) VALUES ($1, $2, $3, NOW() + interval '30 days', TRUE)"
+      : "INSERT INTO sessions (user_id, refresh_token, access_token_hash, expires_at, remember_me) VALUES ($1, $2, $3, NOW() + interval '7 days', FALSE)";
     await pool.query(sessionSql, [user.id, hashedRefresh, accessHash]);
     await recordSessionContext(pool, hashedRefresh, req);
 
@@ -640,9 +644,10 @@ async function loginWith2FA(req, res, next) {
     const tokens = generateTokens(user);
     const hashedRefresh = crypto.createHash('sha256').update(tokens.refreshToken).digest('hex');
     const accessHash = crypto.createHash('sha256').update(tokens.accessToken).digest('hex');
+    // P1-1-F04: persist the remember-me intent (see login above).
     const sessionSql = rememberMe
-      ? "INSERT INTO sessions (user_id, refresh_token, access_token_hash, expires_at) VALUES ($1, $2, $3, NOW() + interval '30 days')"
-      : "INSERT INTO sessions (user_id, refresh_token, access_token_hash, expires_at) VALUES ($1, $2, $3, NOW() + interval '7 days')";
+      ? "INSERT INTO sessions (user_id, refresh_token, access_token_hash, expires_at, remember_me) VALUES ($1, $2, $3, NOW() + interval '30 days', TRUE)"
+      : "INSERT INTO sessions (user_id, refresh_token, access_token_hash, expires_at, remember_me) VALUES ($1, $2, $3, NOW() + interval '7 days', FALSE)";
     await pool.query(sessionSql, [user.id, hashedRefresh, accessHash]);
     await recordSessionContext(pool, hashedRefresh, req);
 
@@ -836,7 +841,7 @@ async function refreshToken(req, res, next) {
 
     const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
     const { rows: sessionRows } = await pool.query(
-      'SELECT s.id, s.user_id, s.is_valid, s.is_revoked, s.expires_at, s.absolute_expires_at, s.created_at FROM sessions s WHERE s.refresh_token = $1',
+      'SELECT s.id, s.user_id, s.is_valid, s.is_revoked, s.expires_at, s.absolute_expires_at, s.created_at, COALESCE(s.remember_me, FALSE) AS remember_me FROM sessions s WHERE s.refresh_token = $1',
       [hashedToken]
     );
     if (!sessionRows[0]) {
@@ -918,12 +923,17 @@ async function refreshToken(req, res, next) {
     }
     const tokens = generateTokens(user);
     const hashedRefresh = crypto.createHash('sha256').update(tokens.refreshToken).digest('hex');
+    // P1-1-F04: the rotated session inherits the remember-me window of the
+    // consumed session (30 days) instead of an unconditional 7 days. The
+    // absolute family deadline still caps the rotation.
+    const rotatedRememberMe = sessionRows[0].remember_me === true;
+    const rotationWindowDays = rotatedRememberMe ? 30 : 7;
     const { rows: newSessionRows } = await pool.query(
       `INSERT INTO sessions (user_id, refresh_token, expires_at, absolute_expires_at, access_token_hash,
-                             parent_session_id, regenerated_from_session_id)
-       VALUES ($1, $2, LEAST(NOW() + interval '7 days', $3::timestamptz), $3::timestamptz, $4, $5, $5)
+                             parent_session_id, regenerated_from_session_id, remember_me)
+       VALUES ($1, $2, LEAST(NOW() + make_interval(days => $4), $3::timestamptz), $3::timestamptz, $5, $6, $6, $7)
        RETURNING expires_at`,
-      [user.id, hashedRefresh, absoluteDeadline.toISOString(), crypto.createHash('sha256').update(tokens.accessToken).digest('hex'), sessionRows[0].id || null]
+      [user.id, hashedRefresh, absoluteDeadline.toISOString(), rotationWindowDays, crypto.createHash('sha256').update(tokens.accessToken).digest('hex'), sessionRows[0].id || null, rotatedRememberMe]
     );
     await recordSessionContext(pool, hashedRefresh, req);
     const newExpiry = newSessionRows?.[0]?.expires_at ? new Date(newSessionRows[0].expires_at) : null;

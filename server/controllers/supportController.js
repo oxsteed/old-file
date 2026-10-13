@@ -154,8 +154,14 @@ exports.submitSupportRequest = async (req, res, next) => {
 
     const ticketRes = await client.query(
       `INSERT INTO support_tickets
-         (user_id, name, email, subject, category, priority, status, source, client_request_id)
-       VALUES ($1, $2, $3, $4, $5, $6, 'open', 'widget', $7)
+         (user_id, name, email, subject, category, priority, status, source, client_request_id, sla_due_at)
+       VALUES ($1, $2, $3, $4, $5, $6, 'open', 'widget', $7,
+               NOW() + (CASE $6
+                 WHEN 'urgent' THEN INTERVAL '1 hour'
+                 WHEN 'high'   THEN INTERVAL '4 hours'
+                 WHEN 'low'    THEN INTERVAL '72 hours'
+                 ELSE INTERVAL '24 hours'
+               END))
        ON CONFLICT (client_request_id)
        WHERE client_request_id IS NOT NULL DO NOTHING
        RETURNING *`,

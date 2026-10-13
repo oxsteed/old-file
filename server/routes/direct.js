@@ -6,6 +6,8 @@ const rateLimit = require('express-rate-limit');
 const { authenticate, optionalAuth } = require('../middleware/auth');
 const { requireAdmin, requirePermission } = require('../middleware/adminAuth');
 const { requireDg1StepUp } = require('../middleware/requireDg1StepUp');
+const requireEmailVerified = require('../middleware/requireEmailVerified');
+const requireTermsAcceptance = require('../middleware/requireTermsAcceptance');
 const upload = require('../middleware/upload');
 const validateFileUpload = require('../middleware/validateFileUpload');
 const { generalLimiter, strictLimiter, createStoreOption } = require('../middleware/rateLimiter');
@@ -93,7 +95,7 @@ router.post('/catalog/services/:id/holds', authenticate, directHoldLimiter, ctrl
 // payment_status='unpaid'. The book endpoint is now authenticated, matching
 // the holds route directly above it, with the Bookable gate already
 // enforced in the service layer and the tight rate-limit bucket kept.
-router.post('/catalog/services/:id/book', authenticate, directBookLimiter, ctrl.bookServiceSlot);
+router.post('/catalog/services/:id/book', authenticate, requireEmailVerified, requireTermsAcceptance, directBookLimiter, ctrl.bookServiceSlot);
 router.get('/service-areas', generalLimiter, ctrl.getServiceAreas);
 router.post('/service-availability', generalLimiter, ctrl.checkServiceAvailability);
 router.post('/uploads', authenticate, directUploadLimiter, upload.single('image'), validateFileUpload, ctrl.uploadDirectAsset);

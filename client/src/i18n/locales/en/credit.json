@@ -1457,6 +1457,7 @@
   "adminNotificationRetryFailed": "Credit notification retry failed.",
   "adminDisputeResolutionRequired": "Add a status-change note before updating a Credit dispute.",
   "adminDisputeStatusChanged": "Dispute {{id}} moved to {{status}}.",
+  "adminDisputeQueuedForApproval": "Dispute {{id}} queued. A second admin must approve it before it takes effect.",
   "adminDisputeUpdateFailed": "Dispute update failed.",
   "adminPostedPurchaseOnly": "Only a posted Credit purchase can be refunded from this view.",
   "adminRefundAmountRequired": "Enter a positive refund amount in {{currency}}.",

@@ -1,6 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const { authenticate } = require('../middleware/auth');
+const requireEmailVerified = require('../middleware/requireEmailVerified');
+const requireTermsAcceptance = require('../middleware/requireTermsAcceptance');
+const checkRestrictions = require('../middleware/checkRestrictions');
 const upload = require('../middleware/upload');
 const validateFileUpload = require('../middleware/validateFileUpload');
 const controller = require('../controllers/maintenanceRequestController');
@@ -19,6 +22,9 @@ router.get('/assigned', authenticate, controller.listAssignedRequests);
 router.get('/business/:businessId', authenticate, controller.listBusinessRequests);
 router.get('/:id', authenticate, controller.getRequest);
 router.patch('/:id', authenticate, controller.updateRequest);
-router.post('/:id/convert-to-job', authenticate, controller.convertToJob);
+// Review P2-9-F10: converting a maintenance request to a job posts a public
+// job, so it goes through the same guards as POST /api/jobs (verified email,
+// current terms, job-posting restrictions).
+router.post('/:id/convert-to-job', authenticate, requireEmailVerified, requireTermsAcceptance, checkRestrictions('job_posting'), controller.convertToJob);
 
 module.exports = router;

@@ -284,91 +284,126 @@ function parseEffectiveAt(raw) {
 }
 
 // POST /  body: { kind, key, proposed_value, reason, effective_at?, rollout_percent?, rollout_segment? }
+/**
+ * Core change-request creation shared by the propose endpoint and the
+ * legacy direct PUT routes (PUT /admin/settings/:key,
+ * PUT /admin/feature-flags/:key). The direct routes used to apply changes
+ * immediately, bypassing maker-checker; they now funnel through this
+ * function so every settings/flag change starts as 'proposed' and needs a
+ * different admin's approval (review P2-1-F06).
+ *
+ * @throws changeError (400/404) on any validation problem.
+ */
+async function createChangeRequest({
+  kind,
+  key,
+  proposedValue,
+  reason,
+  proposedBy,
+  effectiveAt = null,
+  rolloutPercent = null,
+  rolloutSegment = null,
+  req = null,
+}) {
+  if (!KINDS.includes(kind)) {
+    throw changeError(400, 'invalid_change_kind', 'kind must be "setting" or "flag".');
+  }
+  const cleanKey = String(key || '').trim();
+  if (!cleanKey) {
+    throw changeError(400, 'key_required', 'A setting or flag key is required.');
+  }
+  const cleanReason = String(reason || '').trim();
+  if (!cleanReason) {
+    throw changeError(400, 'reason_required', 'A reason is required to propose a change.');
+  }
+  const when = parseEffectiveAt(effectiveAt);
+  if (when === 'invalid') {
+    throw changeError(400, 'invalid_effective_at', 'effective_at must be a valid date.');
+  }
+  let parsedRollout = null;
+  if (rolloutPercent !== undefined && rolloutPercent !== null && rolloutPercent !== '') {
+    const n = Number(rolloutPercent);
+    if (!Number.isInteger(n) || n < 0 || n > 100) {
+      throw changeError(400, 'invalid_rollout_percent', 'rollout_percent must be an integer between 0 and 100.');
+    }
+    parsedRollout = n;
+  }
+
+  // Validate the proposed value up front through the same parse path the
+  // direct update routes use, so an invalid proposal fails fast at 400.
+  let storedValue;
+  if (kind === 'setting') {
+    const { rows } = await db.query('SELECT * FROM platform_settings WHERE key = $1', [cleanKey]);
+    if (!rows.length) {
+      throw changeError(404, 'setting_not_found', `Setting "${cleanKey}" not found.`);
+    }
+    const parsed = parsePlatformSettingValue(rows[0], proposedValue);
+    if (parsed.error) {
+      throw changeError(400, 'invalid_setting_value', parsed.error);
+    }
+    storedValue = parsed.value; // canonical DB string, same as updateSetting stores
+  } else {
+    const newEnabled = parseStrictBoolean(proposedValue);
+    if (newEnabled === null) {
+      throw changeError(400, 'invalid_feature_flag_value', 'Feature flags must be true or false.');
+    }
+    const { rows } = await db.query('SELECT key FROM feature_flags WHERE key = $1', [cleanKey]);
+    if (!rows.length) {
+      throw changeError(404, 'flag_not_found', `Feature flag "${cleanKey}" not found.`);
+    }
+    storedValue = newEnabled;
+  }
+
+  // A proposal always starts as 'proposed', even when it carries a future
+  // effective_at. Only an approver (approve_settings grant) may move a
+  // request to 'approved' or 'scheduled' via the approve/schedule endpoints,
+  // so a proposer can never schedule a change that applies itself without
+  // independent review (separation of duties).
+  const status = 'proposed';
+  const { rows: created } = await db.query(
+    `INSERT INTO settings_change_requests
+       (kind, key, proposed_value, reason, status, proposed_by, effective_at, rollout_percent, rollout_segment)
+     VALUES ($1, $2, $3::jsonb, $4, $5, $6, $7, $8, $9::jsonb)
+     RETURNING *`,
+    [
+      kind,
+      cleanKey,
+      JSON.stringify(storedValue),
+      cleanReason,
+      status,
+      proposedBy,
+      when ? when.toISOString() : null,
+      parsedRollout,
+      rolloutSegment === undefined || rolloutSegment === null ? null : JSON.stringify(rolloutSegment),
+    ]
+  );
+  const request = created[0];
+  await auditChangeRequest({
+    req,
+    adminId: proposedBy,
+    action: 'settings_change_proposed',
+    request,
+    after: { kind, key: cleanKey, proposed_value: storedValue, status },
+  });
+  return request;
+}
+
 async function proposeChange(req, res) {
   try {
     const {
       kind, key, proposed_value, reason, effective_at, rollout_percent, rollout_segment,
     } = req.body || {};
 
-    if (!KINDS.includes(kind)) {
-      return res.status(400).json({ error: 'kind must be "setting" or "flag".', code: 'invalid_change_kind' });
-    }
-    const cleanKey = String(key || '').trim();
-    if (!cleanKey) {
-      return res.status(400).json({ error: 'A setting or flag key is required.', code: 'key_required' });
-    }
-    const cleanReason = String(reason || '').trim();
-    if (!cleanReason) {
-      return res.status(400).json({ error: 'A reason is required to propose a change.', code: 'reason_required' });
-    }
-    const when = parseEffectiveAt(effective_at);
-    if (when === 'invalid') {
-      return res.status(400).json({ error: 'effective_at must be a valid date.', code: 'invalid_effective_at' });
-    }
-    let parsedRollout = null;
-    if (rollout_percent !== undefined && rollout_percent !== null && rollout_percent !== '') {
-      const n = Number(rollout_percent);
-      if (!Number.isInteger(n) || n < 0 || n > 100) {
-        return res.status(400).json({ error: 'rollout_percent must be an integer between 0 and 100.', code: 'invalid_rollout_percent' });
-      }
-      parsedRollout = n;
-    }
-
-    // Validate the proposed value up front through the same parse path the
-    // direct update routes use, so an invalid proposal fails fast at 400.
-    let storedValue;
-    if (kind === 'setting') {
-      const { rows } = await db.query('SELECT * FROM platform_settings WHERE key = $1', [cleanKey]);
-      if (!rows.length) {
-        return res.status(404).json({ error: `Setting "${cleanKey}" not found.`, code: 'setting_not_found' });
-      }
-      const parsed = parsePlatformSettingValue(rows[0], proposed_value);
-      if (parsed.error) {
-        return res.status(400).json({ error: parsed.error, code: 'invalid_setting_value' });
-      }
-      storedValue = parsed.value; // canonical DB string, same as updateSetting stores
-    } else {
-      const newEnabled = parseStrictBoolean(proposed_value);
-      if (newEnabled === null) {
-        return res.status(400).json({ error: 'Feature flags must be true or false.', code: 'invalid_feature_flag_value' });
-      }
-      const { rows } = await db.query('SELECT key FROM feature_flags WHERE key = $1', [cleanKey]);
-      if (!rows.length) {
-        return res.status(404).json({ error: `Feature flag "${cleanKey}" not found.`, code: 'flag_not_found' });
-      }
-      storedValue = newEnabled;
-    }
-
-    // A proposal always starts as 'proposed', even when it carries a future
-    // effective_at. Only an approver (approve_settings grant) may move a
-    // request to 'approved' or 'scheduled' via the approve/schedule endpoints,
-    // so a proposer can never schedule a change that applies itself without
-    // independent review (separation of duties).
-    const status = 'proposed';
-    const { rows: created } = await db.query(
-      `INSERT INTO settings_change_requests
-         (kind, key, proposed_value, reason, status, proposed_by, effective_at, rollout_percent, rollout_segment)
-       VALUES ($1, $2, $3::jsonb, $4, $5, $6, $7, $8, $9::jsonb)
-       RETURNING *`,
-      [
-        kind,
-        cleanKey,
-        JSON.stringify(storedValue),
-        cleanReason,
-        status,
-        req.user.id,
-        when ? when.toISOString() : null,
-        parsedRollout,
-        rollout_segment === undefined || rollout_segment === null ? null : JSON.stringify(rollout_segment),
-      ]
-    );
-    const request = created[0];
-    await auditChangeRequest({
+    const request = await createChangeRequest({
+      kind,
+      key,
+      proposedValue: proposed_value,
+      reason,
+      proposedBy: req.user.id,
+      effectiveAt: effective_at,
+      rolloutPercent: rollout_percent,
+      rolloutSegment: rollout_segment,
       req,
-      adminId: req.user.id,
-      action: 'settings_change_proposed',
-      request,
-      after: { kind, key: cleanKey, proposed_value: storedValue, status },
     });
     return res.status(201).json({ request });
   } catch (err) {
@@ -685,6 +720,7 @@ async function cancelChange(req, res) {
 module.exports = {
   applyChangeRequest,
   buildPreview,
+  createChangeRequest,
   proposeChange,
   listChanges,
   listChangeRequests,

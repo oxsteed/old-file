@@ -13,6 +13,9 @@ const JWT_SECRET = process.env.JWT_SECRET;
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '15m';
 const REFRESH_EXPIRES_IN = process.env.REFRESH_EXPIRES_IN || '7d';
 
+// Review P2-7-F12: warn-once flag for the unconfigured-Didit fail-open.
+let diditUnconfiguredWarned = false;
+
 function generateTokens(user, extraClaims = {}) {
   const accessToken = jwt.sign(
     { id: user.id, email: user.email, role: user.role, ...extraClaims },
@@ -183,6 +186,8 @@ async function authenticate(req, res, next) {
          u.didit_status, u.didit_verified_at,
          COALESCE(u.is_suspended, FALSE) AS is_suspended,
          u.suspended_until, u.suspended_reason,
+         COALESCE(u.is_restricted, FALSE) AS is_restricted,
+         u.restriction_reason,
          COALESCE(u.didit_enforcement_required, FALSE) AS didit_enforcement_required,
          u.trial_started_at, u.trial_ends_at,
          u.default_mode, u.logistics_role,
@@ -234,6 +239,20 @@ async function authenticate(req, res, next) {
       }
     }
 
+    // Review P2-1-F04: the super-admin "Restrict" action was a dead flag —
+    // nothing read users.is_restricted. Enforce it here like suspension: a
+    // restricted account cannot act through the API (auth/support paths stay
+    // open so the user can sign out or appeal).
+    if (user.is_restricted) {
+      if (!authPath.startsWith('/api/auth/') && !authPath.startsWith('/api/support/')) {
+        return res.status(403).json({
+          error: 'Your account is restricted.',
+          code: 'ACCOUNT_RESTRICTED',
+          restrictionReason: user.restriction_reason || null,
+        });
+      }
+    }
+
     // Compute consistent onboarding_step matching authController.formatAuthUser
     user.onboarding_step = computeOnboardingStep(user);
     user.internal_access_route = decoded.internalAccessRoute || null;
@@ -258,7 +277,19 @@ async function authenticate(req, res, next) {
     const isDiditExempt =
       DIDIT_EXEMPT_PATH_PREFIXES.some((p) => fullPath.startsWith(p)) ||
       fullPath.startsWith('/api/webhooks');
-    if (
+    // Review P2-7-F12: latent lockout trap. With DIDIT_ALLOW_USER_SKIP=false
+    // (the default) and DIDIT_API_KEY unset, no user can verify (session
+    // creation 503s) and no user can skip (403) — every email-verified user
+    // would be 403'd API-wide with no recovery path. When the provider is
+    // not configured the gate is unenforceable, so fail open with a loud
+    // warning instead of a self-inflicted lockout. Money paths keep their
+    // own identity checks (credit rail review is fail-closed separately).
+    if (!process.env.DIDIT_API_KEY) {
+      if (!diditUnconfiguredWarned) {
+        diditUnconfiguredWarned = true;
+        logger.warn('DIDIT_API_KEY is not set: identity verification gate is disabled; configure Didit or set DIDIT_ALLOW_USER_SKIP explicitly.');
+      }
+    } else if (
       user.email_verified &&
       !isDiditIdentitySatisfied(user) &&
       !isDiditExempt

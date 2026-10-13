@@ -81,16 +81,33 @@ async function resolveCreatorDispute(req, res, next) {
   try {
     await assertMediaCreatorDispute(req.params.disputeId);
     const decision = req.body?.status === 'resolved' ? 'resolved_merchant' : req.body?.status || req.body?.decision;
-    const result = await resolveDisputeWithCompensation({
-      disputeId: req.params.disputeId,
-      adminId: req.user.id,
-      decision,
-      reason: req.body?.reason || req.body?.resolution,
-      compensationCents: req.body?.compensationCents ?? req.body?.compensation_cents ?? 0,
+    // Review P2-1-F07: compensated resolutions are money movement; queue for
+    // checker approval like the credit disputes queue (maker-checker).
+    const { requestPendingAction } = require('../services/oxsteedCreditPendingActionService');
+    const getIdempotencyKey = (r) => {
+      const v = r.get('Idempotency-Key') || r.body?.idempotencyKey || r.body?.idempotency_key;
+      return typeof v === 'string' ? v.slice(0, 160) : '';
+    };
+    const result = await requestPendingAction({
+      actionType: 'credit_dispute_resolve',
+      payload: {
+        disputeId: req.params.disputeId,
+        decision,
+        reason: req.body?.reason || req.body?.resolution,
+        compensationCents: req.body?.compensationCents ?? req.body?.compensation_cents ?? 0,
+      },
+      requestedBy: req.user.id,
+      idempotencyKey: getIdempotencyKey(req),
       requestIp: req.ip || null,
       correlationId: req.correlationId || req.get('X-Request-ID') || null,
     });
-    res.json(result);
+    if (result.executed) {
+      return res.status(result.result && result.result.replayed ? 200 : 201).json(result.result);
+    }
+    return res.status(result.replayed ? 200 : 202).json({
+      pendingAction: result.pendingAction,
+      replayed: Boolean(result.replayed),
+    });
   } catch (err) { next(err); }
 }
 

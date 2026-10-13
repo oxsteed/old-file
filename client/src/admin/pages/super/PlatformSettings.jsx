@@ -1122,11 +1122,20 @@ export default function PlatformSettings() {
     setSaving(key);
     setMessage(null);
     try {
-      await adminApi.put(`/admin/settings/${key}`, { value: editing[key] });
-      setSettings((prev) => prev.map((setting) => (
-        setting.key === key ? { ...setting, value: editing[key] } : setting
-      )));
-      setMessage({ type: 'success', textKey: 'superPlatformSettings.savedKey', textParams: { key } });
+      const { status } = await adminApi.put(`/admin/settings/${key}`, { value: editing[key] });
+      if (status === 202) {
+        // Review P2-1-F06: direct edits now propose a change request instead
+        // of applying immediately. A second admin must approve it; revert the
+        // local edit and refresh the change-request queue.
+        resetSetting(key);
+        setMessage({ type: 'success', textKey: 'superPlatformSettings.proposedKey', textParams: { key } });
+        loadChangeRequests();
+      } else {
+        setSettings((prev) => prev.map((setting) => (
+          setting.key === key ? { ...setting, value: editing[key] } : setting
+        )));
+        setMessage({ type: 'success', textKey: 'superPlatformSettings.savedKey', textParams: { key } });
+      }
     } catch (err) {
       setMessage({
         type: 'error',
@@ -1198,15 +1207,27 @@ export default function PlatformSettings() {
     setSaving('__all__');
     setMessage(null);
     let savedCount = 0;
+    let proposedCount = 0;
     try {
       for (const setting of dirtySettings) {
-        await adminApi.put(`/admin/settings/${setting.key}`, { value: editing[setting.key] });
-        savedCount += 1;
-        setSettings((prev) => prev.map((item) => (
-          item.key === setting.key ? { ...item, value: editing[setting.key] } : item
-        )));
+        const { status } = await adminApi.put(`/admin/settings/${setting.key}`, { value: editing[setting.key] });
+        if (status === 202) {
+          // Review P2-1-F06: proposed, not applied; revert the local edit.
+          proposedCount += 1;
+          resetSetting(setting.key);
+        } else {
+          savedCount += 1;
+          setSettings((prev) => prev.map((item) => (
+            item.key === setting.key ? { ...item, value: editing[setting.key] } : item
+          )));
+        }
       }
-      setMessage({ type: 'success', textKey: 'superPlatformSettings.savedCount', textParams: { count: savedCount } });
+      if (proposedCount > 0) loadChangeRequests();
+      if (proposedCount > 0 && savedCount === 0) {
+        setMessage({ type: 'success', textKey: 'superPlatformSettings.proposedCount', textParams: { count: proposedCount } });
+      } else {
+        setMessage({ type: 'success', textKey: 'superPlatformSettings.savedCount', textParams: { count: savedCount } });
+      }
     } catch (err) {
       setMessage({
         type: 'error',
@@ -1223,11 +1244,18 @@ export default function PlatformSettings() {
     setMessage(null);
     setFlagUpdating(key);
     try {
-      await adminApi.put(`/admin/feature-flags/${key}`, { enabled: !current });
-      setFlags((prev) => prev.map((flag) => (
-        flag.key === key ? { ...flag, enabled: !current } : flag
-      )));
-      setMessage({ type: 'success', textKey: 'superPlatformSettings.flagUpdated', textParams: { key } });
+      const { status } = await adminApi.put(`/admin/feature-flags/${key}`, { enabled: !current });
+      if (status === 202) {
+        // Review P2-1-F06: proposed, not applied; the flag keeps its current
+        // value until a second admin approves the change request.
+        setMessage({ type: 'success', textKey: 'superPlatformSettings.flagProposed', textParams: { key } });
+        loadChangeRequests();
+      } else {
+        setFlags((prev) => prev.map((flag) => (
+          flag.key === key ? { ...flag, enabled: !current } : flag
+        )));
+        setMessage({ type: 'success', textKey: 'superPlatformSettings.flagUpdated', textParams: { key } });
+      }
     } catch (err) {
       setMessage({
         type: 'error',

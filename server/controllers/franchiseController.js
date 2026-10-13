@@ -778,6 +778,23 @@ async function upsertFranchiseAgreement(req, res) {
   const marketingFeeBps = body.marketing_fee_bps !== undefined ? parseNonNegativeInt(body.marketing_fee_bps, null) : null;
   const termYears = body.term_years !== undefined ? parsePositiveInt(body.term_years, null) : null;
 
+  // Review P2-9-F09: agreement "signing" was admin-asserted — the applicant
+  // never signed. The admin upsert now ignores any applicant signature
+  // fields; only the applicant's own POST /applications/:id/agreement/sign
+  // can record a signature. Likewise 'signed' can no longer be set through
+  // application_agreement_status (it is derived from the signature row).
+  if (body.signed_by_name !== undefined || body.signed_by_email !== undefined || body.signed_at !== undefined) {
+    logger.warn('[franchise] Admin attempted to assert applicant signature fields; ignored', {
+      applicationId: id, adminId: req.user?.id || null,
+    });
+  }
+  if (body.application_agreement_status === 'signed') {
+    return res.status(409).json({
+      error: 'The agreement must be signed by the applicant through their own signing step; it cannot be marked signed by an admin.',
+      code: 'franchise_signature_requires_applicant',
+    });
+  }
+
   try {
     const client = await db.connect();
     try {
@@ -816,9 +833,9 @@ async function upsertFranchiseAgreement(req, res) {
            marketing_fee_bps = COALESCE(EXCLUDED.marketing_fee_bps, franchise_agreements.marketing_fee_bps),
            territory_exclusive = EXCLUDED.territory_exclusive,
            term_years = COALESCE(EXCLUDED.term_years, franchise_agreements.term_years),
-           signed_by_name = COALESCE(EXCLUDED.signed_by_name, franchise_agreements.signed_by_name),
-           signed_by_email = COALESCE(EXCLUDED.signed_by_email, franchise_agreements.signed_by_email),
-           signed_at = COALESCE(EXCLUDED.signed_at, franchise_agreements.signed_at),
+           signed_by_name = franchise_agreements.signed_by_name,
+           signed_by_email = franchise_agreements.signed_by_email,
+           signed_at = franchise_agreements.signed_at,
            countersigned_by = COALESCE(EXCLUDED.countersigned_by, franchise_agreements.countersigned_by),
            countersigned_at = COALESCE(EXCLUDED.countersigned_at, franchise_agreements.countersigned_at),
            notes = COALESCE(EXCLUDED.notes, franchise_agreements.notes),
@@ -832,9 +849,11 @@ async function upsertFranchiseAgreement(req, res) {
           marketingFeeBps,
           body.territory_exclusive === true,
           termYears,
-          asTrimmed(body.signed_by_name),
-          asTrimmed(body.signed_by_email),
-          body.signed_at || null,
+          // Review P2-9-F09: applicant signature fields are always NULL on
+          // admin upsert; only the applicant sign endpoint writes them.
+          null, // signed_by_name
+          null, // signed_by_email
+          null, // signed_at
           body.countersigned_by || req.user?.id || null,
           body.countersigned_at || null,
           asTrimmed(body.notes),
@@ -871,6 +890,194 @@ async function upsertFranchiseAgreement(req, res) {
   } catch (err) {
     logger.error('Error updating franchise agreement', { id, err: err.message });
     return res.status(500).json({ error: 'Failed to update agreement.' });
+  }
+}
+
+/**
+ * POST /api/franchise/applications/:id/agreement/sign
+ * Review P2-9-F09: the applicant (not an admin) signs the franchise
+ * agreement. The typed name must match the applicant's account name; the
+ * signature timestamp is server-set. Sets application.agreement_status to
+ * 'signed'. Admins cannot use this endpoint.
+ */
+async function signFranchiseAgreement(req, res) {
+  const { id } = req.params;
+  const signedByName = asTrimmed(req.body?.signed_by_name);
+  if (!signedByName) {
+    return res.status(400).json({ error: 'signed_by_name is required.', code: 'signature_name_required' });
+  }
+  try {
+    const client = await db.connect();
+    try {
+      await client.query('BEGIN');
+      const { rows: appRows } = await client.query(
+        `SELECT fa.id, fa.applicant_user_id, fa.owner_user_id, fa.agreement_status,
+                u.first_name, u.last_name, u.email
+           FROM franchise_applications fa
+           LEFT JOIN users u ON u.id = $2
+          WHERE fa.id = $1
+          FOR UPDATE OF fa`,
+        [id, req.user.id]
+      );
+      const application = appRows[0];
+      if (!application) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'Franchise application not found.' });
+      }
+      // Only the applicant (or the assigned owner) may sign; admins use the
+      // countersignature on the admin upsert path.
+      if (['admin', 'super_admin'].includes(req.user.role)) {
+        await client.query('ROLLBACK');
+        return res.status(403).json({
+          error: 'Admins cannot sign as the applicant. The applicant signs from their own account.',
+          code: 'franchise_admin_cannot_sign',
+        });
+      }
+      if (req.user.id !== application.applicant_user_id && req.user.id !== application.owner_user_id) {
+        await client.query('ROLLBACK');
+        return res.status(403).json({ error: 'Only the applicant can sign this agreement.' });
+      }
+      // The signature must match the name on the signer's account
+      // (case- and whitespace-insensitive), mirroring the login signature.
+      const normalize = (s) => String(s || '').trim().replace(/\s+/g, ' ').toLowerCase();
+      const accountName = normalize(`${application.first_name || ''} ${application.last_name || ''}`);
+      if (!accountName || normalize(signedByName) !== accountName) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({
+          error: 'The name you entered does not match the name on your account. Please use your full name exactly as registered.',
+          code: 'signature_name_mismatch',
+        });
+      }
+      const { rows: agreementRows } = await client.query(
+        `SELECT id, signed_at FROM franchise_agreements WHERE application_id = $1`,
+        [id]
+      );
+      if (!agreementRows.length) {
+        await client.query('ROLLBACK');
+        return res.status(409).json({
+          error: 'No agreement has been prepared for this application yet.',
+          code: 'franchise_agreement_missing',
+        });
+      }
+      if (agreementRows[0].signed_at) {
+        await client.query('ROLLBACK');
+        return res.status(409).json({
+          error: 'This agreement has already been signed.',
+          code: 'franchise_agreement_already_signed',
+        });
+      }
+      await client.query(
+        `UPDATE franchise_agreements
+            SET signed_by_name = $2,
+                signed_by_email = $3,
+                signed_at = NOW(),
+                updated_at = NOW()
+          WHERE id = $1`,
+        [agreementRows[0].id, signedByName, application.email]
+      );
+      await client.query(
+        `UPDATE franchise_applications
+            SET agreement_status = 'signed', updated_at = NOW()
+          WHERE id = $1`,
+        [id]
+      );
+      await logActivity(client, id, req.user.id, 'agreement_signed', 'Applicant signed the franchise agreement.', {
+        signed_by_name: signedByName,
+      });
+      await client.query('COMMIT');
+      const bundle = await fetchFranchiseApplicationBundle(id);
+      return res.json(bundle);
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    logger.error('Error signing franchise agreement', { id, err: err.message });
+    return res.status(500).json({ error: 'Failed to sign agreement.' });
+  }
+}
+
+/**
+ * POST /api/franchise/applications/:id/agreement/collect-fee
+ * Review P2-9-F07: record collection of the franchise initial fee (or an
+ * explicit waiver). Admin-only, audited. The fee is collected off-platform
+ * (wire/Stripe dashboard); this records the external reference so
+ * activateFranchiseStore can fail closed until the fee is accounted for.
+ * Body: { amount_cents, collection_reference } or { waived: true, reason }.
+ */
+async function recordFranchiseFeeCollection(req, res) {
+  const { id } = req.params;
+  const body = req.body || {};
+  const waived = body.waived === true;
+  const amountCents = waived ? 0 : parsePositiveInt(body.amount_cents ?? body.amountCents, 0);
+  const reference = asTrimmed(body.collection_reference || body.reference);
+  const reason = asTrimmed(body.reason);
+  if (!waived && amountCents <= 0) {
+    return res.status(400).json({ error: 'amount_cents must be a positive integer.', code: 'invalid_fee_amount' });
+  }
+  if (!waived && !reference) {
+    return res.status(400).json({ error: 'collection_reference is required to record a fee collection.', code: 'collection_reference_required' });
+  }
+  if (waived && !reason) {
+    return res.status(400).json({ error: 'A reason is required to waive the initial fee.', code: 'waiver_reason_required' });
+  }
+  try {
+    const client = await db.connect();
+    try {
+      await client.query('BEGIN');
+      const { rows } = await client.query(
+        `SELECT id, initial_fee_cents, COALESCE(initial_fee_collected_cents, 0) AS collected_cents,
+                COALESCE(initial_fee_waived, FALSE) AS waived
+           FROM franchise_agreements
+          WHERE application_id = $1
+          FOR UPDATE`,
+        [id]
+      );
+      const agreement = rows[0];
+      if (!agreement) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'No agreement found for this application.' });
+      }
+      if (waived) {
+        await client.query(
+          `UPDATE franchise_agreements
+              SET initial_fee_waived = TRUE,
+                  initial_fee_waived_reason = $2,
+                  initial_fee_waived_by = $3,
+                  initial_fee_waived_at = NOW(),
+                  updated_at = NOW()
+            WHERE id = $1`,
+          [agreement.id, reason, req.user.id]
+        );
+        await logActivity(client, id, req.user.id, 'initial_fee_waived', `Initial fee waived: ${reason}`, { reason });
+      } else {
+        await client.query(
+          `UPDATE franchise_agreements
+              SET initial_fee_collected_cents = COALESCE(initial_fee_collected_cents, 0) + $2,
+                  initial_fee_collected_at = NOW(),
+                  initial_fee_collection_reference = $3,
+                  updated_at = NOW()
+            WHERE id = $1`,
+          [agreement.id, amountCents, reference]
+        );
+        await logActivity(client, id, req.user.id, 'initial_fee_collected', `Initial fee collection recorded: ${amountCents}c (ref ${reference})`, {
+          amount_cents: amountCents, collection_reference: reference,
+        });
+      }
+      await client.query('COMMIT');
+      const bundle = await fetchFranchiseApplicationBundle(id);
+      return res.json(bundle);
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    logger.error('Error recording franchise fee collection', { id, err: err.message });
+    return res.status(500).json({ error: 'Failed to record fee collection.' });
   }
 }
 
@@ -921,6 +1128,29 @@ async function activateFranchiseStore(req, res) {
         return res.status(409).json({
           error: 'The franchise agreement must be signed or waived before the store can be activated.',
           code: 'franchise_agreement_incomplete',
+        });
+      }
+      // Review P2-9-F07: the initial fee was recorded on the agreement but
+      // never collected. Fail closed: when a fee is configured it must be
+      // recorded as collected (or explicitly waived) before the store can
+      // launch.
+      const feeResult = await client.query(
+        `SELECT initial_fee_cents,
+                COALESCE(initial_fee_collected_cents, 0) AS collected_cents,
+                COALESCE(initial_fee_waived, FALSE) AS waived
+           FROM franchise_agreements
+          WHERE application_id = $1`,
+        [applicationId]
+      );
+      const feeRow = feeResult.rows[0];
+      const feeCents = Number(feeRow?.initial_fee_cents || 0);
+      if (feeRow && feeCents > 0 && !feeRow.waived && Number(feeRow.collected_cents) < feeCents) {
+        await client.query('ROLLBACK');
+        return res.status(409).json({
+          error: 'The franchise initial fee has not been collected. Record the collection (or waive it) before activating the store.',
+          code: 'franchise_initial_fee_uncollected',
+          initial_fee_cents: feeCents,
+          initial_fee_collected_cents: Number(feeRow.collected_cents),
         });
       }
       if (application.training_status !== 'completed') {
@@ -1039,5 +1269,7 @@ module.exports = {
   addFranchiseNote,
   updateChecklistItem,
   upsertFranchiseAgreement,
+  signFranchiseAgreement,
+  recordFranchiseFeeCollection,
   activateFranchiseStore,
 };

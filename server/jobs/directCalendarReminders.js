@@ -103,6 +103,9 @@ async function processDirectCalendarReminders() {
 
 // Review P1-183: paid, scheduled Direct visits used to sit in `scheduled`
 // forever. Complete them once the visit window has ended.
+// Review P2-9-F13: franchise royalties accrue on Direct bookings too, not
+// just job completion. The sweep accrues per completed visit (idempotent);
+// failures are non-fatal and logged.
 async function completeFinishedDirectVisits() {
   const { rows } = await db.query(
     `WITH done AS (
@@ -112,12 +115,41 @@ async function completeFinishedDirectVisits() {
           AND status = 'scheduled'
           AND payment_status IN ('paid', 'confirmed')
           AND COALESCE(scheduled_end_at, scheduled_start_at) < NOW() - INTERVAL '1 hour'
-        RETURNING id)
+        RETURNING id, quote_amount_cents, service_city)
      INSERT INTO direct_request_events (quote_request_id, actor_role, event_type, title, details, payload)
      SELECT id, 'system', 'request_completed', 'Visit completed', 'The visit window ended and payment is settled.', '{}'::jsonb
        FROM done
      RETURNING quote_request_id`
   );
+  const completedIds = rows.map((r) => r.quote_request_id);
+  if (completedIds.length > 0) {
+    try {
+      const { rows: done } = await db.query(
+        `SELECT id, quote_amount_cents, service_city
+           FROM quote_requests
+          WHERE id = ANY($1::bigint[])`,
+        [completedIds]
+      );
+      const { accrueTerritoryRoyalty } = require('../services/franchiseRoyaltyService');
+      for (const visit of done) {
+        try {
+          await accrueTerritoryRoyalty({
+            client: db,
+            amountCents: Number(visit.quote_amount_cents || 0),
+            city: visit.service_city || null,
+            region: null,
+            sourceType: 'direct_booking',
+            sourceId: String(visit.id),
+            description: `Territory royalty — Direct booking #${visit.id}`,
+          });
+        } catch (royaltyErr) {
+          logger.warn('Failed to accrue franchise royalty for Direct booking (non-fatal)', { error: royaltyErr.message, requestId: visit.id });
+        }
+      }
+    } catch (err) {
+      logger.error('Direct royalty accrual sweep failed (non-fatal)', { error: err.message });
+    }
+  }
   return rows.length;
 }
 
