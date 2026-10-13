@@ -50,6 +50,10 @@ async function processSupportFollowUpReminders() {
           await sendNotification({
             userId: reminder.recipient_user_id,
             type: 'support_follow_up_due',
+            // The notified_at marker below is written after the send; if the
+            // send succeeds but the UPDATE fails, the next tick would resend.
+            // The key makes that retry a delivery-level no-op.
+            idempotencyKey: `support-follow-up:${reminder.id}`,
             title,
             body,
             data: {

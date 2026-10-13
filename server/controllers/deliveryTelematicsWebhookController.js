@@ -24,6 +24,9 @@
  *   6. Insert the provider_receipt tracking event idempotently via the
  *      (provider, provider_event_id) unique index, then insert the location
  *      point with source=<provider>. Replays -> 200 { duplicate: true }.
+ *      Providers do not always supply an event id; in that case a
+ *      deterministic id derived from the raw payload (noid:<sha256>) feeds
+ *      the same dedupe so a retried webhook cannot insert duplicates.
  *   7. Advance the connection cursor (provider_event_id) and last_sync_at.
  *
  * Security:
@@ -46,6 +49,7 @@
  */
 
 const pool = require('../db');
+const crypto = require('crypto');
 const logger = require('../utils/logger');
 const { withTransaction } = require('../utils/transaction');
 const { getAdapter } = require('../services/telematics/adapterRegistry');
@@ -259,6 +263,16 @@ async function receiveWebhook(req, res) {
       || (statusPoint && statusPoint.providerEventId)
       || null;
 
+    // Not every provider supplies an event id. Derive a deterministic one
+    // from the raw payload so a retried webhook still hits the
+    // (provider, provider_event_id) unique index instead of inserting a
+    // duplicate receipt and location point. Retries resend identical bytes,
+    // so the derived id is stable across retries and distinct across
+    // distinct events. The connection cursor below keeps using the real
+    // provider id only.
+    const dedupeEventId = providerEventId
+      || `noid:${crypto.createHash('sha256').update(provider, 'utf8').update(rawBody).digest('hex')}`;
+
     // Match the provider vehicle identity to an OxSteed vehicle record. A
     // per-vehicle connection already names the vehicle; a fleet-level
     // connection (vehicle_id NULL) resolves it from the event.
@@ -294,51 +308,30 @@ async function receiveWebhook(req, res) {
     // point with source=<provider>. The whole write is one transaction so a
     // replay can never double-record a point.
     const outcome = await withTransaction(pool, async (client) => {
-      let receiptId = null;
-      if (providerEventId) {
-        const receipt = await client.query(
-          `INSERT INTO delivery_tracking_events
-             (delivery_job_id, assignment_id, event_type, provider, provider_event_id, payload)
-           VALUES ($1, $2, 'provider_receipt', $3, $4, $5)
-           ON CONFLICT (provider, provider_event_id)
-             WHERE provider IS NOT NULL AND provider_event_id IS NOT NULL
-           DO NOTHING
-           RETURNING id`,
-          [
-            deliveryJobId,
-            assignment.id,
-            provider,
-            providerEventId,
-            JSON.stringify({
-              vehicle_external_id: adapter.parseVehicleIdentity(rawEvent),
-              location: locationPoint,
-              status: statusPoint,
-            }),
-          ]
-        );
-        if (receipt.rowCount === 0) {
-          return { duplicate: true };
-        }
-        receiptId = receipt.rows[0].id;
-      } else {
-        const receipt = await client.query(
-          `INSERT INTO delivery_tracking_events
-             (delivery_job_id, assignment_id, event_type, provider, provider_event_id, payload)
-           VALUES ($1, $2, 'provider_receipt', $3, NULL, $4)
-           RETURNING id`,
-          [
-            deliveryJobId,
-            assignment.id,
-            provider,
-            JSON.stringify({
-              vehicle_external_id: adapter.parseVehicleIdentity(rawEvent),
-              location: locationPoint,
-              status: statusPoint,
-            }),
-          ]
-        );
-        receiptId = receipt.rows[0].id;
+      const receipt = await client.query(
+        `INSERT INTO delivery_tracking_events
+           (delivery_job_id, assignment_id, event_type, provider, provider_event_id, payload)
+         VALUES ($1, $2, 'provider_receipt', $3, $4, $5)
+         ON CONFLICT (provider, provider_event_id)
+           WHERE provider IS NOT NULL AND provider_event_id IS NOT NULL
+         DO NOTHING
+         RETURNING id`,
+        [
+          deliveryJobId,
+          assignment.id,
+          provider,
+          dedupeEventId,
+          JSON.stringify({
+            vehicle_external_id: adapter.parseVehicleIdentity(rawEvent),
+            location: locationPoint,
+            status: statusPoint,
+          }),
+        ]
+      );
+      if (receipt.rowCount === 0) {
+        return { duplicate: true };
       }
+      const receiptId = receipt.rows[0].id;
 
       let pointId = null;
       if (locationPoint) {
@@ -360,7 +353,7 @@ async function receiveWebhook(req, res) {
             locationPoint.speedMps,
             locationPoint.headingDegrees,
             locationPoint.recordedAt,
-            providerEventId ? `telematics:${provider}:${providerEventId}` : null,
+            `telematics:${provider}:${dedupeEventId}`,
           ]
         );
         pointId = inserted.rows[0] ? inserted.rows[0].id : null;
@@ -395,6 +388,7 @@ async function receiveWebhook(req, res) {
       receiptId: outcome.receiptId,
       pointId: outcome.pointId,
       providerEventId,
+      dedupeEventId,
     });
 
     // Realtime fan-out. The provider_receipt row was written in the
@@ -420,7 +414,7 @@ async function receiveWebhook(req, res) {
           },
           provider,
           providerEventId,
-          idempotencyKey: providerEventId ? `telematics:${provider}:${providerEventId}` : null,
+          idempotencyKey: `telematics:${provider}:${dedupeEventId}`,
           insertEvent: false,
         });
       } catch (err) {

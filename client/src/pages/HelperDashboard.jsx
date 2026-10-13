@@ -1656,7 +1656,7 @@ export default function HelperDashboard() {
         )}
 
         {/* ═══════ AFFILIATE CTA (earnings tab) ═══════ */}
-        {tab==='earnings'&&(
+        {tab==='earnings'&&LAUNCH_VISIBILITY.affiliateRewards&&(
           <Link to="/affiliate" className="block mb-4 bg-orange-500/10 border border-orange-500/20 rounded-2xl p-4 hover:bg-orange-500/15 transition group">
             <div className="flex items-center justify-between">
               <div>
