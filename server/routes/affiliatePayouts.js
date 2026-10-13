@@ -16,7 +16,7 @@ router.get('/stats/all', requireAuth, affiliatePayoutsController.getAffiliateSta
 
 // ── Payouts ───────────────────────────────────────────────────────────────
 router.get('/schedule', requireAuth, affiliatePayoutsController.getPayoutsSchedule);
-router.post('/calculate', requireAuth, affiliatePayoutsController.calculateAndCreatePayout);
+router.post('/calculate', strictLimiter, requireAuth, affiliatePayoutsController.calculateAndCreatePayout);
 // Review P3-787: processing moves real money, so it is an admin action with
 // the financials grant, rate-limited and audited.
 router.post(

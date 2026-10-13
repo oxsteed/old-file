@@ -3,7 +3,7 @@ const router = express.Router();
 const { authenticate } = require('../middleware/auth');
 const subCtrl = require('../controllers/subscriptionController');
 const db = require('../db');
-const { paymentsLimiter } = require('../middleware/rateLimiter');
+const { paymentsLimiter, strictLimiter } = require('../middleware/rateLimiter');
 const { requireFeatureEnabled } = require('../middleware/featureFlags');
 // Review P3-942: subscriptions are unlaunched in the client; new purchases are
 // gated server-side too. Existing subscribers can still view, cancel and use the portal.
@@ -28,6 +28,6 @@ router.get('/badges/:userId', async (req, res, next) => {
   }
 });
 router.post('/cancel', authenticate, subCtrl.cancelSubscription);
-router.post('/portal', authenticate, subCtrl.createPortalSession);
+router.post('/portal', strictLimiter, authenticate, subCtrl.createPortalSession);
 
 module.exports = router;

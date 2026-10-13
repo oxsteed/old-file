@@ -317,7 +317,9 @@ const discoverLimiter = rateLimit({
   ...createStoreOption('rl:discover:'),
   windowMs: 15 * 60 * 1000,
   max: 40,
-  skip: (req) => getVerifiedBearerUserId(req) !== null,
+  // Match the auth token precedence used by the other limiters so browser
+  // sessions using the HttpOnly cookie are not treated as anonymous.
+  skip: (req) => getVerifiedAuthUserId(req) !== null,
   standardHeaders: true,
   legacyHeaders: false,
   message: {
@@ -331,8 +333,8 @@ const discoverAuthLimiter = rateLimit({
   ...createStoreOption('rl:discover_auth:'),
   windowMs: 15 * 60 * 1000,
   max: 200,
-  skip: (req) => getVerifiedBearerUserId(req) === null,
-  keyGenerator: (req) => `discover:${getVerifiedBearerUserId(req)}`,
+  skip: (req) => getVerifiedAuthUserId(req) === null,
+  keyGenerator: (req) => `discover:${getVerifiedAuthUserId(req)}`,
   standardHeaders: true,
   legacyHeaders: false,
   message: {

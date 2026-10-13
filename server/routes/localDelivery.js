@@ -10,7 +10,7 @@ const trackingOpsController = require('../controllers/deliveryTrackingOpsControl
 const trackingLinkController = require('../controllers/deliveryTrackingLinkController');
 const upload = require('../middleware/upload');
 const validateFileUpload = require('../middleware/validateFileUpload');
-const { authenticatedLimiter, generalLimiter } = require('../middleware/rateLimiter');
+const { authenticatedLimiter, generalLimiter, strictLimiter } = require('../middleware/rateLimiter');
 
 const router = express.Router();
 router.use(authenticatedLimiter);
@@ -19,7 +19,7 @@ router.post('/quote', requireAuth, controller.quote);
 router.post('/jobs', requireAuth, controller.create);
 router.get('/jobs', requireAuth, controller.list);
 router.get('/jobs/:id', requireAuth, controller.get);
-router.post('/jobs/:id/checkout', requireAuth, rejectImpersonated, controller.createBaseCheckout);
+router.post('/jobs/:id/checkout', strictLimiter, requireAuth, rejectImpersonated, controller.createBaseCheckout);
 router.post('/jobs/:id/proof-upload', requireAuth, rejectImpersonated, proofController.uploadGuard, upload.single('image'), validateFileUpload, proofController.upload);
 router.post('/jobs/:id/proof-pin', requireAuth, rejectImpersonated, proofController.rotatePin);
 router.get('/jobs/:id/proofs/:proofId', requireAuth, proofController.download);
@@ -30,7 +30,7 @@ router.post('/jobs/:id/extras', requireAuth, rejectImpersonated, controller.crea
 router.post('/jobs/:id/reschedule-requests', requireAuth, rejectImpersonated, controller.requestReschedule);
 router.post('/jobs/:id/return-requests', requireAuth, rejectImpersonated, controller.requestReturn);
 router.patch('/extras/:extraId', requireAuth, rejectImpersonated, controller.reviewExtra);
-router.post('/extras/:extraId/checkout', requireAuth, rejectImpersonated, controller.createExtraCheckout);
+router.post('/extras/:extraId/checkout', strictLimiter, requireAuth, rejectImpersonated, controller.createExtraCheckout);
 router.post('/payments/:paymentId/sync', requireAuth, rejectImpersonated, controller.syncExtraPayment);
 router.post('/extras/:extraId/payment-sync', requireAuth, rejectImpersonated, controller.syncExtraPayment);
 

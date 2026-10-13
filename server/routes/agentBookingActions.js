@@ -15,6 +15,7 @@ const express = require('express');
 const { requireAuth } = require('../middleware/auth');
 const { requireAdmin, requirePermission } = require('../middleware/adminAuth');
 const agentBookingActions = require('../controllers/agentBookingActions');
+const { strictLimiter } = require('../middleware/rateLimiter');
 
 const router = express.Router();
 
@@ -22,6 +23,7 @@ const router = express.Router();
 // actor recorded as the admin; both parties are notified.
 router.post(
   '/:bookingId/cancel',
+  strictLimiter,
   requireAuth,
   requireAdmin,
   requirePermission('issue_refunds'),
