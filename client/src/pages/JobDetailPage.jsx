@@ -17,7 +17,6 @@ import HelperCancellationConfirmation from '../components/HelperCancellationConf
 import CancellationStats from '../components/CancellationStats';
 import UserReputationCard from '../components/UserReputationCard';
 import ReportModal from '../components/ReportModal';
-import DisputeSubmissionModal from '../components/DisputeSubmissionModal';
 import JobMaterialsPanel from '../components/JobMaterialsPanel';
 import DirectPaymentRecordModal from '../components/DirectPaymentRecordModal';
 import JobAutoExpiryWarning from '../components/JobAutoExpiryWarning';
@@ -149,7 +148,6 @@ function JobDetailContent() {
   const [actionLoading, setActionLoading] = useState(false);
   const [reviewEligible, setReviewEligible] = useState(false);
   const [paymentRecordOpen, setPaymentRecordOpen] = useState(false);
-  const [disputeOpen, setDisputeOpen] = useState(false);
   const [chatOpening, setChatOpening] = useState(false);
 
   // P1-136: open (or create) the job-scoped conversation instead of the bare inbox.
@@ -612,9 +610,6 @@ function JobDetailContent() {
             : <Link className="jdp-btn-ghost" to={`/agreements/new?jobId=${encodeURIComponent(id)}`}>{t('jobDetail.createWorkAgreement')}</Link>)}
           {isOwner && canEditJob(job, user) && <Link className="jdp-btn-ghost" to={`/jobs/${id}/edit`}>{t('jobEdit.editJob')}</Link>}
           {(isOwner || isAssignedHelper) && job.assigned_helper_id && action !== 'messages' && <button type="button" className="jdp-btn-ghost" onClick={openJobChat} disabled={chatOpening}>{t('jobDetail.openJobChat')}</button>}
-          {(isOwner || isAssignedHelper) && job.assigned_helper_id && <div className="jdp-related-actions">
-            {['accepted', 'in_progress', 'pending_completion', 'completed'].includes(job.status) && <button type="button" className="jdp-btn-ghost" onClick={() => setDisputeOpen(true)}>{t('jobDetail.reportProblem')}</button>}
-          </div>}
           {(view.canCancelBeforeAcceptance || view.canCancelAfterAcceptance) && <div className="jdp-secondary-action">
             <button type="button" className="jdp-btn-danger" onClick={() => view.canCancelBeforeAcceptance ? setShowCancelModal(true) : setShowJobCancellationModal(true)} disabled={actionLoading || loading || (view.canCancelAfterAcceptance && !acceptedBid)}>{t('jobDetail.cancelJob')}</button>
             {view.canCancelAfterAcceptance && !acceptedBid && bidsStatus === 'error' && <button type="button" className="jdp-btn-ghost" onClick={loadBids}>{t('jobDetail.retryBids')}</button>}
@@ -757,7 +752,6 @@ function JobDetailContent() {
       )}
 
       {/* ── Job Cancellation Modals (role-aware Phase 2) ────────────── */}
-      {disputeOpen && <DisputeSubmissionModal jobId={id} isOpen={disputeOpen} onClose={() => setDisputeOpen(false)} onSuccess={() => { setDisputeOpen(false); toast.success(t('jobDetail.problemReported')); }} />}
       {showJobCancellationModal && job && acceptedBid && isOwner && (
         /* Customer sees: helper name+avatar, blocked time, fee, acknowledge */
         <JobCancellationConfirmation

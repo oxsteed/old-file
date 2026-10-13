@@ -94,7 +94,7 @@ export default function WorkAgreementPage() {
   const confirmComplete = async () => {
     setCompleting(true);
     try {
-      await api.post(`/api/work-agreements/${id}/complete`);
+      await api.post(`/work-agreements/${id}/complete`);
       load();
     } catch (e) {
       setError(e.response?.data?.error || t('workAgreement.completeError', { defaultValue: 'Could not confirm completion.' }));
