@@ -225,3 +225,5 @@ W16 upload follow-up: job creation no longer publishes a partial media set when 
 - W17 escrow follow-up: Tier-3 platform-held payment settlement now re-checks the helper Connect account's `payouts_enabled` flag immediately before creating the release transfer. Missing or disabled payout state fails closed and leaves the authorized payment unsettled.
 
 - W17 sanctions queue follow-up: pending partner sanctions hits now include the linked restaurant or business name and owner email in the compliance queue, so reviewers can resolve partner hits without a bare internal ID.
+
+- W18 privacy follow-up: anonymous opt-out requests are now accepted and retained with their email, CCPA admin listing keeps orphaned requests visible, data compilation uses payer/payee payment ownership, and self-delete records its decision in the retained legal audit log. Audit-retained admin deletions anonymize the account instead of retrying a blocked hard delete.

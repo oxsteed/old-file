@@ -301,6 +301,27 @@ async function hardDeleteUser(user) {
         email: user.email,
         error: err.message,
       });
+      // Complete the privacy request without deleting immutable evidence. The
+      // account is anonymized and disabled while retained audit rows remain.
+      try {
+        await pool.query(
+          `UPDATE users
+              SET first_name = 'Deleted', last_name = 'User',
+                  email = CONCAT('deleted_', id::text, '@oxsteed.removed'),
+                  phone = NULL, phone_number = NULL, bio = NULL,
+                  profile_photo_url = NULL, city = NULL, state = NULL,
+                  zip_code = NULL, address_line1 = NULL, country = NULL,
+                  password_hash = 'DELETED', totp_secret = NULL,
+                  totp_enabled = FALSE, backup_codes = NULL,
+                  is_active = FALSE, deletion_scheduled_at = NULL,
+                  updated_at = NOW()
+            WHERE id::text = $1`,
+          [String(userId)],
+        );
+        logger.info('scheduledDeletionJob: anonymized user while retaining audit evidence', { userId });
+      } catch (anonymizeErr) {
+        logger.error('scheduledDeletionJob: audit-retained anonymization failed', { userId, error: anonymizeErr.message });
+      }
     } else {
       logger.error('scheduledDeletionJob: hard-delete failed', {
         userId,
