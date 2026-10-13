@@ -207,7 +207,8 @@ exports.sendNotification = async ({
     const emailTypes = [
       'bid_accepted', 'payment_released', 'payment_receipt', 'food_order_ready', 'subscription_renewed',
       'subscription_cancelled', 'subscription_past_due',
-      'dispute_update', 'payout_deposited', 'account_banned',
+      'dispute_update', 'dispute_opened_against', 'dispute_under_review', 'dispute_resolved',
+      'payout_deposited', 'account_banned',
       'oxsteed_credit_transaction', 'oxsteed_credit_card_security',
       // Monthly statement issuance: generic authenticated-link email, no
       // amounts or attachments. Respects the user's email preference toggle.

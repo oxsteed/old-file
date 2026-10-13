@@ -735,15 +735,19 @@ exports.resolveDispute = async (req, res, next) => {
             userId: job.client_id,
             type: 'dispute_resolved',
             title: 'Your dispute has been resolved',
-            message,
-            metadata: { disputeId, jobId: result.job_id }
+            body: message,
+            data: { dispute_id: disputeId, job_id: result.job_id },
+            action_url: `/disputes/${disputeId}`,
+            idempotencyKey: `dispute:${disputeId}:resolved:client`,
           }),
           sendNotification({
             userId: job.assigned_helper_id,
             type: 'dispute_resolved',
             title: 'A dispute on your job has been resolved',
-            message,
-            metadata: { disputeId, jobId: result.job_id }
+            body: message,
+            data: { dispute_id: disputeId, job_id: result.job_id },
+            action_url: `/disputes/${disputeId}`,
+            idempotencyKey: `dispute:${disputeId}:resolved:helper`,
           })
         ]);
       }

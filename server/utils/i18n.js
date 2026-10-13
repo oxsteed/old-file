@@ -831,6 +831,15 @@ const EMAIL_TEMPLATES = {
       ht: 'Gade dosi diskisyon an',
       ar: 'عرض النزاع',
     },
+    dispute_opened_against: {
+      en: 'View Dispute', fr: 'Voir le litige', es: 'Ver disputa', ht: 'Gade dosi diskisyon an', ar: 'عرض النزاع',
+    },
+    dispute_under_review: {
+      en: 'View Dispute', fr: 'Voir le litige', es: 'Ver disputa', ht: 'Gade dosi diskisyon an', ar: 'عرض النزاع',
+    },
+    dispute_resolved: {
+      en: 'View Dispute', fr: 'Voir le litige', es: 'Ver disputa', ht: 'Gade dosi diskisyon an', ar: 'عرض النزاع',
+    },
     payout_released: {
       en: 'View Earnings',
       fr: 'Voir les gains',
