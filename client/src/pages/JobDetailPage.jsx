@@ -26,6 +26,10 @@ import { LAUNCH_VISIBILITY } from '../utils/launchScope';
 import JobImageViewer from '../components/JobImageViewer';
 import { useJobDetailBids } from '../hooks/useJobDetailBids';
 import { JOB_STATUS_KEYS, jobDetailView, jobList, jobMediaType, matchingHelpersPath, samePartyId } from '../utils/jobDetailModel';
+import { bidNeedingReconfirm, canEditJob } from '../utils/jobEditModel';
+import PaymentReauthorizationBanner from '../components/PaymentReauthorizationBanner';
+import JobPaymentLayersPanel from '../components/paymentLayers/JobPaymentLayersPanel';
+import JobRevisionHistory from '../components/JobRevisionHistory';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function formatBudget(job, t) {
@@ -121,7 +125,8 @@ function JobDetailContent() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user, canApplyToJobs, needsOnboarding } = useAuth();
-  const { fetchJob, job, loading, error, createBid, getJobBids, assignHelper, startJob, completeJob, cancelJob } = useJobs();
+  const { fetchJob, job, loading, error, createBid, getJobBids, assignHelper, startJob, completeJob, cancelJob, reconfirmBid, getJobRevisions } = useJobs();
+  const [reconfirmLoading, setReconfirmLoading] = useState(false);
 
   const { bids, status: bidsStatus, loadBids } = useJobDetailBids(id, user?.id, getJobBids);
   const fieldId = useId();
@@ -207,13 +212,21 @@ function JobDetailContent() {
         amount: parseFloat(bidForm.amount),
         message: bidForm.message,
         estimated_hours: parseInt(bidForm.eta_hours, 10),
+        // The job terms this bid is priced against; the server refuses a bid
+        // on a stale revision so the helper reviews the latest details first.
+        ...(job?.revision != null ? { job_revision: job.revision } : {}),
       });
       analytics.bidPlaced(id, parseFloat(bidForm.amount));
       setBidForm({ amount: '', message: '', eta_hours: '' });
       loadBids();
       fetchJob(id);
     } catch (err) {
-      setBidError(err.response?.data?.error || t('jobDetail.bidFailed'));
+      if (err.response?.data?.code === 'job_changed') {
+        setBidError(t('jobEdit.bidJobChanged'));
+        fetchJob(id);
+      } else {
+        setBidError(err.response?.data?.error || t('jobDetail.bidFailed'));
+      }
     } finally {
       setBidLoading(false);
     }
@@ -245,7 +258,7 @@ function JobDetailContent() {
     setHelperPolicies(null);
     setActionLoading(true);
     try {
-      await assignHelper(bidId, paymentMethod, scheduledStart, scheduledEnd);
+      await assignHelper(bidId, paymentMethod, scheduledStart, scheduledEnd, job?.version ?? null);
       fetchJob(id);
       loadBids();
       toast.success(t('jobDetail.helperAssigned', { defaultValue: 'Helper assigned successfully' }));
@@ -315,6 +328,20 @@ function JobDetailContent() {
     }
   }
 
+  async function handleReconfirm(bid) {
+    setReconfirmLoading(true);
+    try {
+      await reconfirmBid(bid.id, { job_revision: job?.revision });
+      toast.success(t('jobEdit.reconfirmed'));
+      loadBids();
+      fetchJob(id);
+    } catch (err) {
+      toast.error(err.response?.data?.code === 'bid_expired' ? t('jobEdit.acceptBidExpired') : getErrorMessage(err));
+    } finally {
+      setReconfirmLoading(false);
+    }
+  }
+
   async function handleJobCancellation(feeData) {
     // Called after JobCancellationModal confirms cancellation
     setShowJobCancellationModal(false);
@@ -333,6 +360,14 @@ function JobDetailContent() {
     if (err.code === 'DISPUTE_OPEN') {
       return t('jobDetail.disputeOpen');
     }
+    const serverCode = err.response?.data?.code;
+    if (serverCode === 'bid_needs_reconfirm') return t('jobEdit.acceptNeedsReconfirm');
+    if (serverCode === 'bid_expired') return t('jobEdit.acceptBidExpired');
+    if (serverCode === 'payment_reauthorization_required') return t('jobPaymentReauth.blockedComplete');
+    if (serverCode === 'precondition_failed' || serverCode === 'version_conflict') {
+      fetchJob(id);
+      return t('jobEdit.acceptJobChanged');
+    }
     return err.message || err.response?.data?.error || t('jobDetail.operationFailed');
   }
 
@@ -349,6 +384,9 @@ function JobDetailContent() {
   const { isOwner, isHelper, isAssignedHelper, visibleBids, totalBids, action } = view;
   const partialBids = isOwner && bidsStatus === 'success' && totalBids > visibleBids.length;
   const acceptedBid = visibleBids.find(bid => bid.status === 'accepted');
+  const ownBidToReconfirm = !isOwner && isHelper ? bidNeedingReconfirm(visibleBids, user, job) : null;
+  const showRevisions = Number(job.revision) > 1 || Number(job.version) > 1;
+  const canSeeRevisions = showRevisions && (isOwner || isAssignedHelper || Boolean(visibleBids.length));
   const visibleRequirements = jobList(job.requirements).filter(requirement => typeof requirement === 'object' &&
     (requirement.type !== 'backgroundCheck' || LAUNCH_VISIBILITY.backgroundChecks));
   const requiredSkills = jobList(job.required_skills).filter(skill => typeof skill === 'object' && skill.name);
@@ -433,6 +471,7 @@ function JobDetailContent() {
                           <div className="jdp-bid-amount">{formatMoney(bid.amount, { currency: job.currency || 'USD', minimumFractionDigits: 0, maximumFractionDigits: 0 })}</div>
                           <div className="jdp-bid-eta">⏱ {t('jobDetail.hoursEstimated', { hours: bid.eta_hours ?? bid.estimated_hours })}</div>
                           <span className={`jdp-bid-status ${bid.status}`}>{t(`jobDetail.bidStatus.${bid.status}`, { defaultValue: bid.status })}</span>
+                          {bid.status === 'pending' && bid.needs_reconfirm && <span className="jdp-bid-status pending">{t('jobEdit.awaitingReconfirm')}</span>}
                         </div>
                       </div>
                       {bid.message && <p className="jdp-bid-message">"{bid.message}"</p>}
@@ -456,11 +495,12 @@ function JobDetailContent() {
                       )}
                       <div className="jdp-bid-footer">
                         <span className="jdp-bid-date">{timeAgo(bid.created_at)}</span>
-                        {isOwner && ['published', 'matched'].includes(job.status) && bid.status === 'pending' && (
+                        {isOwner && ['published', 'matched', 'negotiating'].includes(job.status) && bid.status === 'pending' && (
                           <button
                             className="jdp-btn-accept"
                             onClick={() => handleAcceptClick(bid)}
-                            disabled={actionLoading || loading || loadingPolicies}
+                            disabled={actionLoading || loading || loadingPolicies || Boolean(bid.needs_reconfirm)}
+                            title={bid.needs_reconfirm ? t('jobEdit.acceptNeedsReconfirm') : undefined}
                           >
                             {t('jobDetail.acceptBid', { defaultValue: 'Accept & Schedule' })}
                           </button>
@@ -488,6 +528,7 @@ function JobDetailContent() {
             {urgencyMeta && <div><dt>{t('jobs.urgency')}</dt><dd style={{ color: urgencyMeta.color }}>{urgencyMeta.label}</dd></div>}
             {jobTypeLabel && <div><dt>{t('jobDetail.jobType')}</dt><dd>{jobTypeLabel}</dd></div>}
           </dl><p className="jdp-description">{job.description}</p>
+          {Number(job.revision) > 1 && <p className="jdp-count">{t('jobEdit.updatedNotice', { revision: job.revision })}</p>}
         </div>
         <div className="jdp-budget"><h2>{t('jobDetail.budgetLabel')}</h2><p className="jdp-budget-value">{formatBudget(job, t)}</p>
           {job.budget_type === 'open' && <p>{t('jobDetail.openBudgetHelp')}</p>}
@@ -507,6 +548,7 @@ function JobDetailContent() {
                 {agreementInfo.needsMySignature ? t('jobDetail.signWorkAgreement') : t('jobDetail.viewWorkAgreement')}
               </Link>
             : <Link className="jdp-btn-ghost" to={`/agreements/new?jobId=${encodeURIComponent(id)}`}>{t('jobDetail.createWorkAgreement')}</Link>)}
+          {isOwner && canEditJob(job, user) && <Link className="jdp-btn-ghost" to={`/jobs/${id}/edit`}>{t('jobEdit.editJob')}</Link>}
           {(view.canCancelBeforeAcceptance || view.canCancelAfterAcceptance) && <div className="jdp-secondary-action">
             <button type="button" className="jdp-btn-danger" onClick={() => view.canCancelBeforeAcceptance ? setShowCancelModal(true) : setShowJobCancellationModal(true)} disabled={actionLoading || loading || (view.canCancelAfterAcceptance && !acceptedBid)}>{t('jobDetail.cancelJob')}</button>
             {view.canCancelAfterAcceptance && !acceptedBid && bidsStatus === 'error' && <button type="button" className="jdp-btn-ghost" onClick={loadBids}>{t('jobDetail.retryBids')}</button>}
@@ -514,6 +556,18 @@ function JobDetailContent() {
         </section>
         <div className="jdp-main">
           <PreferredHelperBanner job={job} />
+          {(isOwner || (user && String(job.assigned_helper_id) === String(user.id))) && <PaymentReauthorizationBanner jobId={id} job={job} onResolved={() => fetchJob(id)} />}
+          <JobPaymentLayersPanel job={job} isOwner={isOwner} isAssignedHelper={isAssignedHelper} onChanged={() => fetchJob(id)} />
+          {ownBidToReconfirm && <section className="jdp-card jdp-reconfirm" role="status" aria-labelledby={`${fieldId}-reconfirm`}>
+            <h2 id={`${fieldId}-reconfirm`} className="jdp-section-title">{t('jobEdit.reconfirmTitle')}</h2>
+            <p>{t('jobEdit.reconfirmHelp')}</p>
+            {ownBidToReconfirm.expires_at && <p className="jdp-count">{t('jobEdit.reconfirmBy', { date: formatDate(ownBidToReconfirm.expires_at, { month: 'long', hour: 'numeric', minute: '2-digit' }) })}</p>}
+            <div className="jdp-modal-actions">
+              <button type="button" className="jdp-btn-primary" onClick={() => handleReconfirm(ownBidToReconfirm)} disabled={reconfirmLoading}>
+                {reconfirmLoading ? t('jobDetail.processing') : t('jobEdit.reconfirmButton')}</button>
+              <Link className="jdp-btn-ghost" to="/my-bids">{t('jobEdit.reviseBid')}</Link>
+            </div>
+          </section>}
           {isOwner && bidsCard}
           {requirementsCard}
           {view.canSubmitBid && <section className="jdp-card jdp-bid-form-card" aria-labelledby={`${fieldId}-bid-form`}>
@@ -556,6 +610,7 @@ function JobDetailContent() {
               </form>
           </section>}
           {!isOwner && bidsCard}
+          {canSeeRevisions && <JobRevisionHistory jobId={id} revision={job.revision} version={job.version} load={getJobRevisions} />}
           {mediaUrls.length > 0 && <section className="jdp-card" aria-labelledby={`${fieldId}-media`}>
             <h2 id={`${fieldId}-media`} className="jdp-section-title">{t('jobDetail.photosMedia', { count: mediaUrls.length })}</h2>
             <div className="jdp-media-grid">{mediaUrls.map((url, i) => jobMediaType(url) === 'audio' ?
@@ -619,7 +674,8 @@ function JobDetailContent() {
           }}
           onConfirm={(bidData) => {
             // bidData should contain payment_method
-            handleAssign(acceptingBid.id, bidData.payment_method);
+            // Legacy: { payment_method }. Rail engine: the full selection.
+            handleAssign(acceptingBid.id, bidData.payment_rail ? bidData : bidData.payment_method);
           }}
         />
       )}

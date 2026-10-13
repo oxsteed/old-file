@@ -9,6 +9,7 @@ import PageMeta from '../components/PageMeta';
 import PageShell from '../components/PageShell';
 import useAuth from '../hooks/useAuth';
 import SignaturePad from '../components/SignaturePad';
+import PaymentReauthorizationBanner from '../components/PaymentReauthorizationBanner';
 import '../components/SignaturePad.css';
 import api from '../api/axios';
 import './WorkAgreementPage.css';
@@ -187,6 +188,7 @@ export default function WorkAgreementPage() {
       />
       <main className="wa-page">
         <Link to={data?.agreement?.job_id ? `/jobs/${data.agreement.job_id}` : '/jobs'} className="wa-back"><ArrowLeft size={16} aria-hidden="true" /> {t('workAgreement.back', { defaultValue: 'Back' })}</Link>
+        {agreement?.job_id && <PaymentReauthorizationBanner key={(data?.changeOrders || []).filter((co) => co.status === 'approved').length} jobId={agreement.job_id} alwaysCheck />}
         {error && <p className="wa-error" role="alert">{error}</p>}
         {!agreement && !loading && <p>{t('workAgreement.notFound', { defaultValue: 'Agreement not found.' })}</p>}
 
