@@ -81,6 +81,10 @@ router.post('/shipments',               requireAuth, requireShipmentOps, shipCtr
 router.post('/shipments/:id/milestone', requireAuth, requireShipmentOps, shipCtrl.addMilestone);
 router.patch('/shipments/:id/tracking', requireAuth, requireShipmentOps, shipCtrl.updateTracking);
 router.post('/shipments/:id/documents', requireAuth, requireShipmentOps, upload.single('file'), validateFileUpload, shipCtrl.uploadDocument);
+// Review P3-6-F02: documents were write-only. Anyone who can view the
+// shipment (buyer / organizer / participant / coordinator / admin, per
+// getShipment) can download its documents via a short-lived signed URL.
+router.get('/shipments/:id/documents/:docId/download', requireAuth, shipCtrl.downloadDocument);
 
 // ─── Warehouses / Receiving / Allocations / Delivery ─────────
 

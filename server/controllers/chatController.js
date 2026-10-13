@@ -1746,7 +1746,30 @@ exports.transcribeAudio = async (req, res, next) => {
   try {
     const { audio_data, language = 'en' } = req.body;
 
-    const audioBuffer = req.file?.buffer || (audio_data?.trim() ? Buffer.from(audio_data, 'base64') : null);
+    // Review P3-6-F16: the base64 JSON path must meet the same gates as the
+    // multer path (10 MB cap, audio content check). Without this, audio_data
+    // bypassed multer's size/type checks entirely.
+    let audioBuffer = req.file?.buffer || null;
+    if (!audioBuffer && typeof audio_data === 'string' && audio_data.trim()) {
+      let decoded;
+      try {
+        decoded = Buffer.from(audio_data.trim(), 'base64');
+      } catch {
+        throw new AppError('audio_data is not valid base64', 400, 'validation_failed', { audio_data: 'audio_data is not valid base64' });
+      }
+      if (!decoded.length) {
+        throw new AppError('audio_data is required', 400, 'validation_failed', { audio_data: 'audio_data is required' });
+      }
+      if (decoded.length > 10 * 1024 * 1024) {
+        throw new AppError('Audio is too large (max 10MB).', 413, 'audio_too_large');
+      }
+      const { fileTypeFromBuffer } = require('file-type');
+      const detected = await fileTypeFromBuffer(decoded);
+      if (!detected || !String(detected.mime || '').startsWith('audio/')) {
+        throw new AppError('audio_data must be audio content.', 400, 'validation_failed', { audio_data: 'audio_data must be audio content' });
+      }
+      audioBuffer = decoded;
+    }
     if (!audioBuffer?.length) {
       throw new AppError('audio_data is required', 400, 'validation_failed', { audio_data: 'audio_data is required' });
     }

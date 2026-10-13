@@ -82,6 +82,44 @@ exports.uploadDocument = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
+// Review P3-6-F02: shipment documents were write-only (upload succeeded but
+// no retrieval path existed). This mints a short-lived signed download URL
+// for a document on a shipment the caller is allowed to see (same access
+// rule as GET /shipments/:id). The stored key must live under this
+// shipment's folder; anything else is treated as not found.
+exports.downloadDocument = async (req, res, next) => {
+  try {
+    const shipment = await shipmentService.getShipment(req.params.id, {
+      userId: req.user.id,
+      isAdmin: !!req.isAdmin,
+    });
+    if (!shipment) return next(new AppError('Shipment not found', 404, 'not_found'));
+
+    const docId = Number(req.params.docId);
+    const doc = (shipment.documents || []).find((d) => Number(d.id) === docId);
+    if (!doc) return next(new AppError('Document not found', 404, 'not_found'));
+
+    const key = storage.normalizeStorageKey(doc.file_url);
+    const expectedPrefix = `logistics/shipment-docs/${req.params.id}/`;
+    if (!key || !key.startsWith(expectedPrefix)) {
+      return next(new AppError('Document not found', 404, 'not_found'));
+    }
+
+    const downloadUrl = await storage.getSignedDownloadUrl(key, 900);
+    if (!downloadUrl) {
+      return next(new AppError('File storage is temporarily unavailable', 503, 'storage_unavailable'));
+    }
+    res.json({
+      success: true,
+      data: {
+        download_url: downloadUrl,
+        filename: doc.filename || null,
+        doc_type: doc.doc_type || null,
+      },
+    });
+  } catch (err) { next(err); }
+};
+
 exports.updateTracking = async (req, res, next) => {
   try {
     const pool = require('../db');

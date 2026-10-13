@@ -1,7 +1,9 @@
 const pool = require('../db');
+const path = require('path');
 const { AppError } = require('../middleware/errorHandler');
 const { canAccessBusinessTeam } = require('../utils/businessOwnership');
-const { getPublicUrl } = require('../utils/storage');
+const { toPrivatePhotoRef, withHydratedPhotos, withHydratedPhotosList, resolvePhotoKey } = require('../utils/intakeMedia');
+const { copyObject, deleteFile, getPublicUrl } = require('../utils/storage');
 const { uploadFilesOrThrow } = require('../utils/uploadBatch');
 const { notifyIntakeReceived } = require('../utils/intakeNotifications');
 const { sendNotification } = require('../services/notificationService');
@@ -208,7 +210,7 @@ exports.createRequest = async (req, res, next) => {
         code: 'maintenance_request_media_upload_failed',
         label: 'maintenance request photo',
       });
-      photoUrls = uploads.map((key) => getPublicUrl(key));
+      photoUrls = uploads.map((key) => toPrivatePhotoRef(key));
     }
 
     const client = await pool.connect();
@@ -253,7 +255,7 @@ exports.createRequest = async (req, res, next) => {
       // Notify the business owner: submitted maintenance intakes must be observable.
       // Fire-and-forget: the helper never throws and never blocks the response.
       notifyIntakeReceived({ businessId: business.id, intakeId: request.id, area: 'maintenance' });
-      return res.status(201).json({ request });
+      return res.status(201).json({ request: await withHydratedPhotos(request) });
     } catch (err) {
       await client.query('ROLLBACK');
       throw err;
@@ -313,7 +315,7 @@ exports.listBusinessRequests = async (req, res, next) => {
       [businessId]
     );
 
-    return res.json({ requests: rows, stats });
+    return res.json({ requests: await withHydratedPhotosList(rows), stats });
   } catch (err) {
     next(err);
   }
@@ -331,7 +333,7 @@ exports.getRequest = async (req, res, next) => {
        ORDER BY e.created_at ASC`,
       [request.id]
     );
-    return res.json({ request, events });
+    return res.json({ request: await withHydratedPhotos(request), events });
   } catch (err) {
     next(err);
   }
@@ -445,7 +447,7 @@ exports.updateRequest = async (req, res, next) => {
         error: err.message,
       }));
     }
-    return res.json({ request });
+    return res.json({ request: await withHydratedPhotos(request) });
   } catch (err) {
     await client.query('ROLLBACK');
     next(err);
@@ -504,13 +506,43 @@ exports.convertToJob = async (req, res, next) => {
         request.address_state || null,
         request.address_zip || null,
         request.address_country || null,
-        request.photo_urls || [],
+        [],
         request.assigned_helper_id || null,
         request.vendor_name || null,
         request.scheduled_start_at ? new Date(request.scheduled_start_at).toISOString().slice(0, 10) : null,
         request.scheduled_start_at || null,
       ]
     );
+
+    // Review P3-6-F10: intake photos are private. Converting to a public job
+    // is an explicit publish step: copy each photo under the public jobs/
+    // prefix and point the job's media at the public copies. The private
+    // intake originals stay where they are. On any failure the job insert
+    // rolls back and the copied objects are removed best-effort.
+    const publishedKeys = [];
+    let publishedUrls = [];
+    try {
+      const photoRefs = Array.isArray(request.photo_urls) ? request.photo_urls : [];
+      for (const ref of photoRefs) {
+        const sourceKey = resolvePhotoKey(ref);
+        if (!sourceKey) continue;
+        const base = path.basename(sourceKey).replace(/[^A-Za-z0-9._-]/g, '_').slice(0, 120) || 'photo';
+        const destKey = `jobs/${job.id}/${Date.now()}-${base}`;
+        await copyObject(sourceKey, destKey);
+        publishedKeys.push(destKey);
+      }
+      publishedUrls = publishedKeys.map((key) => getPublicUrl(key));
+      if (publishedUrls.length) {
+        const { rows: [withMedia] } = await client.query(
+          `UPDATE jobs SET media_urls = $1 WHERE id = $2 RETURNING *`,
+          [publishedUrls, job.id]
+        );
+        if (withMedia) Object.assign(job, withMedia);
+      }
+    } catch (publishErr) {
+      await Promise.allSettled(publishedKeys.map((key) => deleteFile(key)));
+      throw publishErr;
+    }
 
     const { rows: [updated] } = await client.query(
       `UPDATE property_maintenance_requests
@@ -523,7 +555,7 @@ exports.convertToJob = async (req, res, next) => {
     );
     await insertEvent(client, request.id, req.user.id, 'converted_to_job', request.status, updated.status, `Created job ${job.id}`, { job_id: job.id });
     await client.query('COMMIT');
-    return res.status(201).json({ request: updated, job });
+    return res.status(201).json({ request: await withHydratedPhotos(updated), job });
   } catch (err) {
     await client.query('ROLLBACK');
     next(err);
@@ -543,7 +575,7 @@ exports.listMyRequests = async (req, res, next) => {
        LIMIT 100`,
       [req.user.id]
     );
-    return res.json({ requests: rows });
+    return res.json({ requests: await withHydratedPhotosList(rows) });
   } catch (err) {
     next(err);
   }
@@ -562,7 +594,7 @@ exports.listAssignedRequests = async (req, res, next) => {
         LIMIT 100`,
       [req.user.id]
     );
-    return res.json({ requests: rows });
+    return res.json({ requests: await withHydratedPhotosList(rows) });
   } catch (err) {
     next(err);
   }

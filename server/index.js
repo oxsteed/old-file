@@ -882,6 +882,15 @@ async function startServer() {
   } catch (err) {
     logger.warn('Abandoned recovery worker failed to start', { message: err.message });
   }
+
+  // Abandoned Direct draft assets (review P3-6-F19). Env-gated and
+  // best-effort: a failure here must not affect boot.
+  try {
+    const { startDirectDraftAssetSweeper } = require('./services/directDraftAssetSweeper');
+    startDirectDraftAssetSweeper();
+  } catch (err) {
+    logger.warn('Direct draft asset sweeper failed to start', { message: err.message });
+  }
   logger.info(`OxSteed v2 server running on port ${PORT}`, {
     env: process.env.NODE_ENV || 'development',
     realtimeNamespaces: ['/chat', '/support', '/restaurant-display'],
@@ -920,6 +929,10 @@ async function terminate(signal, exitCode = 0, cause) {
     try {
       const { stopAbandonedRecoveryWorker } = require('./services/abandonedRecoveryWorker');
       stopAbandonedRecoveryWorker();
+    } catch { /* worker may never have started */ }
+    try {
+      const { stopDirectDraftAssetSweeper } = require('./services/directDraftAssetSweeper');
+      stopDirectDraftAssetSweeper();
     } catch { /* worker may never have started */ }
     await runtime.shutdown(signal);
     clearTimeout(forceExit);

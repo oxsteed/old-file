@@ -142,6 +142,15 @@ describe('public URL generation allowlist', () => {
     expect(() => storage.getPublicUrl('direct-request-assets/1/quote/abc.jpg')).toThrow();
   });
 
+  test('refuses public URLs for intake photos (P3-6-F10: intakes are private)', () => {
+    expect(() => storage.getPublicUrl('beauty-intakes/abc.png')).toThrow();
+    expect(() => storage.getPublicUrl('creative-intakes/abc.png')).toThrow();
+    expect(() => storage.getPublicUrl('maintenance-requests/abc.png')).toThrow();
+    expect(() => storage.getPublicUrl('trades-diagnostics/abc.png')).toThrow();
+    expect(storage.isPublicKeyAllowed('beauty-intakes/abc.png')).toBe(false);
+    expect(storage.isPublicKeyAllowed('maintenance-requests/abc.png')).toBe(false);
+  });
+
   test('keeps existing legit public asset purposes working', () => {
     expect(storage.getPublicUrl('business-logos/abc.png')).toContain('/api/storage/public/business-logos/abc.png');
     expect(storage.getPublicUrl('business-covers/abc.png')).toContain('/api/storage/public/business-covers/abc.png');
@@ -150,10 +159,6 @@ describe('public URL generation allowlist', () => {
     expect(storage.getPublicUrl('helper-gallery/user-123/abc.png')).toContain('/api/storage/public/helper-gallery/user-123/abc.png');
     expect(storage.getPublicUrl('jobs/abc.png')).toContain('/api/storage/public/jobs/abc.png');
     expect(storage.getPublicUrl('tool-rentals/abc.png')).toContain('/api/storage/public/tool-rentals/abc.png');
-    expect(storage.getPublicUrl('beauty-intakes/abc.png')).toContain('/api/storage/public/beauty-intakes/abc.png');
-    expect(storage.getPublicUrl('creative-intakes/abc.png')).toContain('/api/storage/public/creative-intakes/abc.png');
-    expect(storage.getPublicUrl('maintenance-requests/abc.png')).toContain('/api/storage/public/maintenance-requests/abc.png');
-    expect(storage.getPublicUrl('trades-diagnostics/abc.png')).toContain('/api/storage/public/trades-diagnostics/abc.png');
     expect(storage.getPublicUrl('public-uploads/profile-photo/user-123/images/abc.jpg'))
       .toContain('/api/storage/public/public-uploads/profile-photo/user-123/images/abc.jpg');
   });
