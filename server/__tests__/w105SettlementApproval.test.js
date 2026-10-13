@@ -13,6 +13,9 @@ function pending() { return { id, status: 'pending', action_type: 'credit_settle
     paymentReference, reason: 'Synthetic payment reconciliation' } }; }
 function route() {
   mockQuery.mockImplementation(async (sql) => {
+    // P1-9-F05: the single-admin break-glass flag stays OFF here so the
+    // maker-checker 403 assertions keep their original meaning.
+    if (/FROM feature_flags WHERE key = 'credit_single_admin_self_approval'/.test(sql)) return { rows: [{ is_enabled: false }] };
     if (/FROM feature_flags/.test(sql)) { if (flagError) throw new Error('synthetic flag outage'); return { rows: [{ is_enabled: enabled }] }; }
     if (/FROM oxsteed_credit_rail_freezes/.test(sql)) return { rows: frozen ? [{ id: 2 }] : [] };
     if (/INSERT INTO oxsteed_credit_pending_actions|FROM oxsteed_credit_pending_actions/.test(sql)) {

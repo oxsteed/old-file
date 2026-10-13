@@ -51,8 +51,9 @@ describe('review W9: OxSteed Credit settlement and maker-checker fixes', () => {
     expect(mockQuery.mock.calls[0][0]).toMatch(/expires_at IS NULL OR expires_at >= NOW\(\)/);
   });
 
-  test('P1-251: self-approval is always forbidden', async () => {
+  test('P1-251: self-approval is forbidden when the break-glass flag is off', async () => {
     route([
+      [/FROM feature_flags WHERE key = 'credit_single_admin_self_approval'/, { rows: [{ is_enabled: false }] }],
       [/feature_flags/, { rows: [{ is_enabled: true }] }],
       [/oxsteed_credit_rail_freezes/, { rows: [] }],
       [/FROM oxsteed_credit_pending_actions/, { rows: [{ id: 1, status: 'pending', requested_by: 'u1', action_type: 'credit_settlement_approval', payload: {}, expires_at: null }] }],
@@ -66,6 +67,7 @@ describe('review W9: OxSteed Credit settlement and maker-checker fixes', () => {
     process.env.CREDIT_SINGLE_ADMIN_BREAK_GLASS = 'true';
     try {
       route([
+        [/FROM feature_flags WHERE key = 'credit_single_admin_self_approval'/, { rows: [{ is_enabled: false }] }],
         [/feature_flags/, { rows: [{ is_enabled: true }] }],
         [/oxsteed_credit_rail_freezes/, { rows: [] }],
         [/FROM users/, { rows: [{ n: 1 }] }],
@@ -79,6 +81,20 @@ describe('review W9: OxSteed Credit settlement and maker-checker fixes', () => {
     }
     const src = fs.readFileSync(path.join(__dirname, '../services/oxsteedCreditPendingActionService.js'), 'utf8');
     expect(src).not.toMatch(/BREAK_GLASS|break_glass_self_approval/);
+  });
+
+  test('P1-9-F05: break-glass needs the DB flag on AND fewer than 2 super admins', async () => {
+    // Flag on but a second super admin exists: the two-person rule stands.
+    route([
+      [/FROM feature_flags WHERE key = 'credit_single_admin_self_approval'/, { rows: [{ is_enabled: true }] }],
+      [/feature_flags/, { rows: [{ is_enabled: true }] }],
+      [/oxsteed_credit_rail_freezes/, { rows: [] }],
+      [/FROM users/, { rows: [{ n: 2 }] }],
+      [/FROM oxsteed_credit_pending_actions/, { rows: [{ id: 1, status: 'pending', requested_by: 'u1', action_type: 'credit_settlement_approval', payload: {}, expires_at: null }] }],
+    ]);
+    const { decidePendingAction } = require('../services/oxsteedCreditPendingActionService');
+    await expect(decidePendingAction({ actionId: 1, id: 1, decision: 'approved', decidedBy: 'u1', reason: 'only admin' }))
+      .rejects.toMatchObject({ code: 'credit_self_approval_forbidden' });
   });
 
   test('P1-250: daily cap check takes a per-proposer lock', () => {

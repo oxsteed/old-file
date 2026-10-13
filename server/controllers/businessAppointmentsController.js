@@ -6,6 +6,96 @@ const { AppError } = require('../utils/apiError');
 const logger = require('../utils/logger');
 const { withTransaction } = require('../utils/transaction');
 const { sendNotification } = require('../services/notificationService');
+// P3-8-F12: the accept path (bookingRequestLifecycle.acceptBookingRequest)
+// serializes on this per-business advisory lock, so direct creates and
+// reschedules must take it too (before any conflict check), or a racing
+// create+accept pair can both pass their checks and double-book.
+const { lockBusinessAppointments } = require('../services/bookingRequestLifecycle');
+
+// Cancellation policy enforcement (P3-8-F05). The service's
+// cancellation_policy_hours / cancellation_fee_percent (falling back to the
+// business-level cancellation_allowed_hours_before for the window) are
+// otherwise dead config. Returns { feeCents, late }: the recorded late-cancel
+// amount. Recording only: the server never charges the fee automatically;
+// the business collects it directly. Money code fails closed.
+async function computeLateCancellationFee(client, { businessId, serviceId, startTime, finalPriceCents }) {
+  const { rows } = await client.query(
+    `SELECT COALESCE(s.cancellation_policy_hours, r.cancellation_allowed_hours_before, 24) AS policy_hours,
+            COALESCE(s.cancellation_fee_percent, 0) AS fee_percent
+       FROM business_services s
+       LEFT JOIN business_booking_rules r ON r.business_id = s.business_id
+      WHERE s.id = $1 AND s.business_id = $2`,
+    [serviceId, businessId]
+  );
+  const policyHours = Number(rows[0]?.policy_hours) || 0;
+  const feePercent = Number(rows[0]?.fee_percent) || 0;
+  if (!policyHours || !feePercent) return { feeCents: 0, late: false };
+  const hoursUntilStart = (new Date(startTime).getTime() - Date.now()) / 3600000;
+  if (hoursUntilStart >= policyHours) return { feeCents: 0, late: false };
+  return {
+    feeCents: Math.round((Number(finalPriceCents) || 0) * feePercent / 100),
+    late: true,
+  };
+}
+
+// Waitlist auto-offer (P3-8-F16). When a slot frees up, offer it to the
+// longest-waiting entry whose preferred window covers the freed time, flip
+// it to 'offered', and write the waitlist_notifications row the manual-only
+// flow never wrote. Returns the offered entry ({ id, customer_id }) or null.
+async function offerFreedSlotToWaitlist(client, { businessId, appointment }) {
+  const { rows } = await client.query(
+    `SELECT w.id, w.customer_id
+       FROM appointment_waitlist w
+       JOIN business_services bs ON bs.id = w.service_id
+      WHERE w.status = 'waiting'
+        AND bs.id = $1 AND bs.business_id = $2
+        AND (w.preferred_date_start IS NULL OR DATE($3) >= w.preferred_date_start)
+        AND (w.preferred_date_end IS NULL OR DATE($3) <= w.preferred_date_end)
+        AND (w.preferred_time_start IS NULL OR w.preferred_time_start::time <= ($3::timestamptz)::time)
+        AND (w.preferred_time_end IS NULL OR ($3::timestamptz)::time < w.preferred_time_end::time)
+        AND (w.staff_id IS NULL OR ($4::uuid IS NOT NULL AND w.staff_id = $4))
+      ORDER BY w.position_in_queue ASC NULLS LAST, w.created_at ASC
+      LIMIT 1`,
+    [appointment.service_id, businessId, appointment.start_time, appointment.staff_id]
+  );
+  if (!rows.length) return null;
+  const entry = rows[0];
+  const expiresAt = new Date(Date.now() + 24 * 3600 * 1000);
+  await client.query(
+    `UPDATE appointment_waitlist
+        SET status = 'offered', offer_made_at = NOW(), offer_expires_at = $2, updated_at = NOW()
+      WHERE id = $1`,
+    [entry.id, expiresAt.toISOString()]
+  );
+  await client.query(
+    `INSERT INTO waitlist_notifications (waitlist_id, notification_type, channel, sent_at)
+     VALUES ($1, 'slot_available', 'both', NOW())`,
+    [entry.id]
+  );
+  return entry;
+}
+
+async function notifyWaitlistOffer(entry, appointment) {
+  if (!entry?.customer_id) return;
+  try {
+    await sendNotification({
+      userId: entry.customer_id,
+      type: 'waitlist_slot_available',
+      title: 'A slot opened up',
+      body: 'A time you were waiting for is now available. It is held for you for 24 hours.',
+      data: {
+        waitlist_id: String(entry.id),
+        appointment_id: String(appointment.id),
+        business_id: String(appointment.business_id || ''),
+        start_time: appointment.start_time,
+      },
+      action_url: `/businesses/${appointment.business_id}/book`,
+      idempotencyKey: `waitlist-offer:${entry.id}`,
+    });
+  } catch (error) {
+    logger.warn('Waitlist offer notification failed', { waitlistId: entry.id, error: error.message });
+  }
+}
 
 // Shared appointment-window guards (audit M11): capacity per service, no
 // staff double-booking across services, and no booking over the staff
@@ -134,10 +224,18 @@ async function assertRescheduleBookingRules(client, { businessId, service, staff
 async function createAppointment(req, res, next) {
   try {
     const { businessId } = req.params;
+    // P3-8-F15: the enforceBookingRules middleware already validated and
+    // normalized these; use its result instead of re-deriving from the body
+    // (drift risk). Standalone callers (no middleware) fall back to the body.
+    const bv = req.bookingValidation || null;
     const {
-      service_id, staff_id, customer_id, customer_name, customer_email,
-      customer_phone, customer_notes, start_time, end_time, base_price_cents
+      customer_id, customer_name, customer_email,
+      customer_phone, customer_notes, base_price_cents
     } = req.body;
+    const service_id = bv?.service?.id ?? req.body.service_id;
+    const staff_id = bv ? bv.staffId : req.body.staff_id;
+    const start_time = bv?.startTimeIso ?? req.body.start_time;
+    const end_time = bv?.endTimeIso ?? req.body.end_time;
 
     // Validate required fields
     if (!service_id || !start_time || !end_time || base_price_cents === undefined) {
@@ -147,8 +245,14 @@ async function createAppointment(req, res, next) {
       return next(new AppError('End time must be after start time', 400));
     }
 
-    const effectiveCustomerId = req.user?.id || customer_id || null;
+    // P3-8-F10: staff-created (walk-in) appointments record the customer
+    // from the body only; never bind the staff member's own user id.
+    const effectiveCustomerId = req.staffCreated ? (customer_id || null) : (req.user?.id || customer_id || null);
     const appointment = await withTransaction(pool, async (client) => {
+      // P3-8-F12: take the per-business advisory lock FIRST (same mutex the
+      // accept path holds), before the service row claim and the conflict
+      // check, so a racing direct create and booking accept serialize.
+      await lockBusinessAppointments(client, businessId);
       // Check service exists and take a row-level claim so concurrent
       // creates for the same service serialize instead of racing.
       // Audit fix (P2-3-F12): soft-deleted services must not accept new
@@ -195,7 +299,16 @@ async function createAppointment(req, res, next) {
     await setupReminderSchedule(appointment.id, start_time);
     await notifyAppointmentParticipants(appointment, 'appointment_created');
 
-    res.status(201).json(appointment);
+    // P3-8-F05: require_payment_upfront was dead config; surface it on the
+    // created appointment so the hub and the customer know payment is due
+    // before the service. The server never charges on its own.
+    const rulesRes = await pool.query(
+      'SELECT require_payment_upfront FROM business_booking_rules WHERE business_id = $1 LIMIT 1',
+      [businessId]
+    );
+    const requiresPaymentUpfront = rulesRes.rows[0]?.require_payment_upfront !== false;
+
+    res.status(201).json({ ...appointment, requires_payment_upfront: requiresPaymentUpfront });
   } catch (error) {
     // DB-level backstop (ba_no_staff_double_booking exclusion) fired: the
     // window was taken between check and insert.
@@ -324,6 +437,8 @@ async function updateAppointmentStatus(req, res, next) {
       no_show: [],
     };
     const appointment = await withTransaction(pool, async (client) => {
+      // P3-8-F12: same mutex as the accept path and direct creates.
+      await lockBusinessAppointments(client, businessId);
       const currentResult = await client.query(
         'SELECT * FROM business_appointments WHERE id = $1 AND business_id = $2 FOR UPDATE',
         [appointmentId, businessId]
@@ -338,6 +453,7 @@ async function updateAppointmentStatus(req, res, next) {
       // the dedicated cancel path (cancelled_at / cancelled_by).
       const setFragments = ['status = $1', 'updated_at = NOW()'];
       const params = [status, appointmentId, businessId, current.status];
+      let lateCancellation = false;
       if (status === 'cancelled') {
         setFragments.push('cancelled_at = NOW()');
         const cancelledBy = ['customer', 'business', 'system'].includes(req.body?.cancelled_by)
@@ -350,6 +466,16 @@ async function updateAppointmentStatus(req, res, next) {
           params.push(String(reason).slice(0, 500));
           setFragments.push(`cancellation_reason = $${params.length}`);
         }
+        // P3-8-F05: enforce the late-cancel fee on this path too.
+        const { feeCents, late } = await computeLateCancellationFee(client, {
+          businessId,
+          serviceId: current.service_id,
+          startTime: current.start_time,
+          finalPriceCents: current.final_price_cents,
+        });
+        lateCancellation = late;
+        params.push(feeCents);
+        setFragments.push(`cancellation_fee_cents = $${params.length}`);
       }
       const result = await client.query(
         `UPDATE business_appointments SET ${setFragments.join(', ')}
@@ -357,7 +483,11 @@ async function updateAppointmentStatus(req, res, next) {
         params
       );
       if (!result.rows.length) throw new AppError('Appointment status changed; please refresh', 409, 'stale_appointment');
-      return result.rows[0];
+      // P3-8-F16: the freed slot is offered to the waitlist automatically.
+      const waitlistOffer = status === 'cancelled'
+        ? await offerFreedSlotToWaitlist(client, { businessId, appointment: result.rows[0] })
+        : null;
+      return { row: { ...result.rows[0], late_cancellation: lateCancellation }, waitlistOffer };
     }, 'update_appointment_status');
 
     // Add note if provided
@@ -370,8 +500,10 @@ async function updateAppointmentStatus(req, res, next) {
       );
     }
 
-    await notifyAppointmentParticipants(appointment, `appointment_${status}`);
-    res.json(appointment);
+    const { row: updatedAppointment, waitlistOffer } = appointment;
+    await notifyAppointmentParticipants(updatedAppointment, `appointment_${status}`);
+    if (waitlistOffer) await notifyWaitlistOffer(waitlistOffer, updatedAppointment);
+    res.json(updatedAppointment);
   } catch (error) {
     logger.error('Error updating appointment', { error });
     if (error.status) return next(error);
@@ -393,7 +525,9 @@ async function cancelAppointment(req, res, next) {
     // transition table: a completed or no-show appointment cannot be
     // cancelled through this path either.
     const cancellableFrom = ['pending', 'confirmed', 'in_progress'];
-    const appointment = await withTransaction(pool, async (client) => {
+    const { appointment, waitlistOffer } = await withTransaction(pool, async (client) => {
+      // P3-8-F12: same mutex as the accept path and direct creates.
+      await lockBusinessAppointments(client, businessId);
       const currentResult = await client.query(
         'SELECT * FROM business_appointments WHERE id = $1 AND business_id = $2 FOR UPDATE',
         [appointmentId, businessId]
@@ -403,18 +537,31 @@ async function cancelAppointment(req, res, next) {
       if (!cancellableFrom.includes(current.status)) {
         throw new AppError(`Cannot cancel appointment with status ${current.status}`, 409, 'invalid_status_transition');
       }
+      // P3-8-F05: enforce the service's cancellation policy. A late
+      // cancellation records the fee as an amount due; the server never
+      // charges it automatically.
+      const { feeCents, late } = await computeLateCancellationFee(client, {
+        businessId,
+        serviceId: current.service_id,
+        startTime: current.start_time,
+        finalPriceCents: current.final_price_cents,
+      });
       const result = await client.query(
         `UPDATE business_appointments
-         SET status = 'cancelled', cancellation_reason = $1, cancelled_by = $2, cancelled_at = NOW(), updated_at = NOW()
+         SET status = 'cancelled', cancellation_reason = $1, cancelled_by = $2, cancelled_at = NOW(),
+             cancellation_fee_cents = $5, updated_at = NOW()
          WHERE id = $3 AND business_id = $4
          RETURNING *`,
-        [cancelReason, cancelledBy, appointmentId, businessId]
+        [cancelReason, cancelledBy, appointmentId, businessId, feeCents]
       );
-      return result.rows[0];
+      // P3-8-F16: a freed slot is offered to the waitlist automatically.
+      const offer = await offerFreedSlotToWaitlist(client, { businessId, appointment: result.rows[0] });
+      return { appointment: { ...result.rows[0], late_cancellation: late }, waitlistOffer: offer };
     }, 'cancel_appointment');
 
     // Send cancellation notification
     await notifyAppointmentParticipants(appointment, 'appointment_cancelled');
+    if (waitlistOffer) await notifyWaitlistOffer(waitlistOffer, appointment);
 
     res.json(appointment);
   } catch (error) {
@@ -438,6 +585,9 @@ async function rescheduleAppointment(req, res, next) {
     }
 
     const updated = await withTransaction(pool, async (client) => {
+      // P3-8-F12: take the per-business advisory lock FIRST (same mutex the
+      // accept path holds), before the row claims and conflict checks.
+      await lockBusinessAppointments(client, businessId);
       // Get original appointment and take a claim on the service row so
       // concurrent reschedules/creates for the same service serialize.
       const origResult = await client.query(
@@ -505,12 +655,17 @@ async function rescheduleAppointment(req, res, next) {
         [new_start_time, new_end_time, appointmentId]
       );
 
-      // Log reschedule
+      // Log reschedule. P3-8-F14: rescheduled_by_type reflects who acted:
+      // the appointment's customer, or business staff. The route is
+      // staff-only today, but the label stays correct if it ever opens to
+      // customers.
+      const rescheduledByType = orig.customer_id && req.user?.id &&
+        String(orig.customer_id) === String(req.user.id) ? 'customer' : 'business';
       await client.query(
         `INSERT INTO business_appointment_reschedule_history
          (appointment_id, original_start_time, original_end_time, new_start_time, new_end_time, rescheduled_by_id, rescheduled_by_type)
-         VALUES ($1, $2, $3, $4, $5, $6, 'business')`,
-        [appointmentId, orig.start_time, orig.end_time, new_start_time, new_end_time, req.user.id]
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [appointmentId, orig.start_time, orig.end_time, new_start_time, new_end_time, req.user.id, rescheduledByType]
       );
 
       return updateResult.rows[0];
@@ -551,6 +706,140 @@ async function addAppointmentNote(req, res, next) {
   } catch (error) {
     logger.error('Error adding note', { error });
     next(new AppError('Failed to add note', 500));
+  }
+}
+
+// Reassign an appointment to a different staff member (P3-8-F07).
+// Previously the only path was cancel + recreate, which destroyed notes and
+// reschedule history. This updates staff_id in place, re-validating the
+// service assignment and the appointment window for the new staff member,
+// and records an internal note for the audit trail.
+async function reassignAppointmentStaff(req, res, next) {
+  try {
+    const { businessId, appointmentId } = req.params;
+    const { staff_id } = req.body || {};
+
+    const appointment = await withTransaction(pool, async (client) => {
+      // P3-8-F12: same mutex as the accept path and direct creates.
+      await lockBusinessAppointments(client, businessId);
+      const currentResult = await client.query(
+        'SELECT * FROM business_appointments WHERE id = $1 AND business_id = $2 FOR UPDATE',
+        [appointmentId, businessId]
+      );
+      if (!currentResult.rows.length) throw new AppError('Appointment not found', 404);
+      const current = currentResult.rows[0];
+      if (['cancelled', 'completed', 'no_show'].includes(current.status)) {
+        throw new AppError(
+          `Cannot reassign an appointment with status ${current.status}`,
+          409,
+          'invalid_status_transition'
+        );
+      }
+      const newStaffId = staff_id || null;
+      if (newStaffId && String(newStaffId) === String(current.staff_id)) {
+        return current;
+      }
+      if (newStaffId) {
+        // The new staff member must be assigned to the service and available,
+        // mirroring enforceBookingRules step 3.
+        const staffRes = await client.query(
+          `SELECT 1 FROM business_service_staff
+            WHERE service_id = $1 AND staff_id = $2 AND is_available = TRUE`,
+          [current.service_id, newStaffId]
+        );
+        if (!staffRes.rows.length) {
+          throw new AppError('Staff member is not assigned to this service', 400, 'staff_not_assigned');
+        }
+        // The new staff member must be free in the appointment's window.
+        await assertAppointmentWindowFree(client, {
+          businessId,
+          serviceId: current.service_id,
+          staffId: newStaffId,
+          startTime: current.start_time,
+          endTime: current.end_time,
+          excludeAppointmentId: appointmentId,
+        });
+      }
+      const result = await client.query(
+        `UPDATE business_appointments
+         SET staff_id = $1, updated_at = NOW()
+         WHERE id = $2 AND business_id = $3
+         RETURNING *`,
+        [newStaffId, appointmentId, businessId]
+      );
+      await client.query(
+        `INSERT INTO business_appointment_notes
+         (appointment_id, created_by_id, note_type, content)
+         VALUES ($1, $2, 'internal', $3)`,
+        [appointmentId, req.user.id, `Staff reassigned to ${newStaffId || 'unassigned'}`]
+      );
+      return result.rows[0];
+    }, 'reassign_appointment_staff');
+
+    await notifyAppointmentParticipants(appointment, 'appointment_staff_reassigned');
+    res.json(appointment);
+  } catch (error) {
+    // DB-level backstop (ba_no_staff_double_booking exclusion) fired.
+    if (error && error.code === '23P01') {
+      return next(new AppError('Staff member is no longer available at this time', 409));
+    }
+    if (error instanceof AppError) return next(error);
+    logger.error('Error reassigning appointment staff', { error });
+    next(new AppError('Failed to reassign appointment', 500));
+  }
+}
+
+// Record an off-platform payment collection for an appointment (P3-8-F05).
+// require_payment_upfront is now surfaced on create; this gives staff the
+// matching path to mark the payment collected (cash/card at the door).
+// Recording only: the server moves no money. pending -> paid is the only
+// allowed transition; anything else fails closed.
+async function recordAppointmentPayment(req, res, next) {
+  try {
+    const { businessId, appointmentId } = req.params;
+    const { amount_cents, payment_method } = req.body || {};
+
+    if (!Number.isSafeInteger(amount_cents) || amount_cents <= 0) {
+      return next(new AppError('A positive amount_cents is required', 400, 'validation_failed'));
+    }
+    const method = ['cash', 'card', 'transfer', 'other'].includes(payment_method) ? payment_method : 'other';
+
+    const appointment = await withTransaction(pool, async (client) => {
+      const currentResult = await client.query(
+        'SELECT * FROM business_appointments WHERE id = $1 AND business_id = $2 FOR UPDATE',
+        [appointmentId, businessId]
+      );
+      if (!currentResult.rows.length) throw new AppError('Appointment not found', 404);
+      const current = currentResult.rows[0];
+      if (current.payment_status !== 'pending') {
+        throw new AppError(`Payment is already ${current.payment_status}`, 409, 'invalid_payment_transition');
+      }
+      if (['cancelled', 'no_show'].includes(current.status)) {
+        throw new AppError(`Cannot record payment for a ${current.status} appointment`, 409, 'invalid_status_transition');
+      }
+      const result = await client.query(
+        `UPDATE business_appointments
+         SET payment_status = 'paid', updated_at = NOW()
+         WHERE id = $1 AND business_id = $2 AND payment_status = 'pending'
+         RETURNING *`,
+        [appointmentId, businessId]
+      );
+      if (!result.rows.length) throw new AppError('Payment was already recorded; please refresh', 409, 'stale_appointment');
+      await client.query(
+        `INSERT INTO business_appointment_notes
+         (appointment_id, created_by_id, note_type, content)
+         VALUES ($1, $2, 'internal', $3)`,
+        [appointmentId, req.user.id, `Payment collected: ${(amount_cents / 100).toFixed(2)} via ${method}`]
+      );
+      return result.rows[0];
+    }, 'record_appointment_payment');
+
+    await notifyAppointmentParticipants(appointment, 'appointment_payment_recorded');
+    res.json(appointment);
+  } catch (error) {
+    if (error instanceof AppError) return next(error);
+    logger.error('Error recording appointment payment', { error });
+    next(new AppError('Failed to record payment', 500));
   }
 }
 
@@ -609,5 +898,7 @@ module.exports = {
   updateAppointmentStatus,
   cancelAppointment,
   rescheduleAppointment,
+  reassignAppointmentStaff,
+  recordAppointmentPayment,
   addAppointmentNote
 };
