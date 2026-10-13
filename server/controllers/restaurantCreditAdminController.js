@@ -14,6 +14,7 @@ const {
   formatTransfer,
   formatLedgerRow,
 } = require('../services/foodWalletOperationsService');
+const { evaluateFundingCompliance } = require('../services/fiatComplianceService');
 
 const MAX_PAGE_SIZE = 100;
 const MAX_DETAIL_ROWS = 100;
@@ -735,6 +736,19 @@ exports.approveLoadRequest = async (req, res, next) => {
       if (requestRow.requested_by_user_id === req.user.id) {
         throw new AppError('A second wallet operator must approve this load', 409, 'wallet_load_requires_second_operator');
       }
+
+      // A restaurant wallet load increases customer stored value. Apply the
+      // shared identity, sanctions, rail, and issuance-capacity gate before
+      // the ledger write so an operator cannot bypass KYC/AML at approval.
+      await evaluateFundingCompliance({
+        customerId: requestRow.customer_id,
+        amountCents: Number(requestRow.amount_cents || 0),
+        currencyCode: requestRow.currency_code,
+        fundingMethod: 'restaurant_wallet_load',
+        actorUserId: req.user.id,
+        requestIp: req.ip || null,
+        correlationId: requestRow.correlation_id || `admin-wallet-request:${requestId}`,
+      });
 
       const walletResult = await creditFoodWallet(client, {
         restaurantId: requestRow.restaurant_id,
