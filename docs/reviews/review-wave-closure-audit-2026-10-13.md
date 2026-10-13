@@ -1,5 +1,9 @@
 # Review-wave closure audit — 2026-10-13
 
+> Current checkpoint: [Post-PR568 reconciliation](post-pr568-reconciliation-2026-10-13.md).
+> The historical branch/status statements below predate PR568; the current goal
+> is active and incomplete on `fix/review-w11-work` from `42bbe3ed`.
+
 This is a current evidence ledger, not a declaration that the historical fixes
 completed every wave. Base: `830ecfe2` (PR #566). Continuation branch:
 `fix/review-w10_5-post-merge`. The W10.5–W19 goal remains active. W10.5 follow-up: PR #567 merged as `c790370a` after exact-head green CI.

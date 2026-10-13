@@ -1,5 +1,9 @@
 # W11 reconciliation checkpoint
 
+> Current checkpoint: [Post-PR568 reconciliation](post-pr568-reconciliation-2026-10-13.md).
+> The historical branch/status statements below predate PR568; the current goal
+> is active and incomplete on `fix/review-w11-work` from `42bbe3ed`.
+
 Prepared against continuation 8240592e; implementation starts from fresh
 default `c790370a` after PR567 merged with green CI. Audit v2 is a historical snapshot (1071a91d),
 not current closure evidence. Full finding details are in reviews-source.md.

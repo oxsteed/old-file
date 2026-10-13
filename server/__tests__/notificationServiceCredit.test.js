@@ -168,3 +168,27 @@ describe('W11 warranty and job-start delivery', () => {
     expect(sendEmail).not.toHaveBeenCalled();
   });
 });
+
+describe('W11 Learn review alert delivery', () => {
+  const types = ['learn_video_review_received', 'learn_video_review_overdue'];
+  test.each(['en', 'es', 'fr', 'ht', 'ar'].flatMap(lang => types.map(type => [lang, type])))(
+    '%s %s uses actual localized notification and email', async (lang, type) => {
+      const catalog = require(`../../client/src/locales/${lang}.json`).reviewW11Notifications;
+      expect(require(`../../client/src/i18n/locales/${lang}/common.json`).reviewW11Notifications).toEqual(catalog);
+      const template = require('../utils/i18n').tNotif(type, lang);
+      expect(template).toEqual(catalog[type]);
+      db.query.mockImplementation(async sql => {
+        if (/SELECT np\.\*/.test(sql)) return { rows: [{ ...prefs, email: 'synthetic@example.invalid', preferred_language: lang }] };
+        if (/INSERT INTO notifications/.test(sql)) return { rows: [{ id: 'w11-learn-notice' }] };
+        return { rows: [] };
+      });
+      const key = `w11-learn:${lang}:${type}`;
+      expect(await sendNotification({ userId: 'reviewer', type, action_url: '/admin/learn/submissions', idempotencyKey: key })).toMatchObject({ success: true });
+      const insert = db.query.mock.calls.find(([sql]) => /INSERT INTO notifications/.test(sql));
+      expect(insert[1][2]).toBe(template.title);
+      expect(insert[1][3]).toBe(template.body);
+      expect(sendEmail).toHaveBeenCalledWith(expect.objectContaining({ subject: template.title, idempotencyKey: key }));
+      if (lang === 'ar') expect(sendEmail.mock.calls[0][0].html).toContain('dir="rtl"');
+    },
+  );
+});

@@ -119,6 +119,9 @@ test('fresh rehearsal applies all migrations then verifies guards', async () => 
   const dockerRun = fake.calls.find(c => c.command === 'docker' && c.args[0] === 'run');
   assert.ok(dockerRun.args.includes('127.0.0.1::5432'));
   assert.ok(dockerRun.args.includes('postgis/postgis:16-3.4-alpine'));
+  const readiness = fake.calls.find(c => c.command === 'docker' && c.args.includes('pg_isready'));
+  assert.deepEqual(readiness.args, ['exec', 'container-abc123', 'pg_isready', '-h', '127.0.0.1', '-U', 'postgres'],
+    'use final TCP listener, not the temporary socket-only initialization server');
   assert.match(nodeCalls[0].options.env.DATABASE_URL, /127\.0\.0\.1:55440/);
   assert.ok(fake.calls.some((c) => c.command === 'docker' && c.args[0] === 'rm'), 'container cleaned up');
 });
