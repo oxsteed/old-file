@@ -4442,6 +4442,8 @@
     "whatHappensNextBody": "Once your job is live, helpers who match the location, category, and requirements can send bids. You can compare offers, ask follow-up questions, and hire when you are ready."
   },
   "jobDetail": {
+    "openDispute": "Open a dispute",
+    "disputeOpened": "Dispute opened. Our team and the other party have been notified.",
     "signWorkAgreement": "Review and sign the work agreement",
     "viewWorkAgreement": "View work agreement",
     "createWorkAgreement": "Create a work agreement",
@@ -9311,6 +9313,7 @@
   },
   "disputes": {
     "center": {
+      "openFromJob": "Open a dispute from a job",
       "title": "My Disputes",
       "subtitle": "View and manage your active disputes",
       "loading": "Loading...",

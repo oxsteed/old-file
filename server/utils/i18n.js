@@ -1,5 +1,6 @@
 const T = {
   ...require('./mediaCreatorNotifications').creatorNotifications,
+  ...require('./disputeNotificationTemplates').disputeNotifications,
   media_follow: {
     title: {
       en: 'New Media follower',

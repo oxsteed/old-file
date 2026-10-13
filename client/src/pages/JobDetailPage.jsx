@@ -16,6 +16,7 @@ import HelperCancellationConfirmation from '../components/HelperCancellationConf
 import CancellationStats from '../components/CancellationStats';
 import UserReputationCard from '../components/UserReputationCard';
 import ReportModal from '../components/ReportModal';
+import DisputeSubmissionModal from '../components/DisputeSubmissionModal';
 import JobMaterialsPanel from '../components/JobMaterialsPanel';
 import DirectPaymentRecordModal from '../components/DirectPaymentRecordModal';
 import { useTranslation } from 'react-i18next';
@@ -91,6 +92,9 @@ function daysUntil(dateStr) {
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
+// Statuses where work is agreed or done, so a dispute is meaningful.
+const DISPUTABLE_JOB_STATUSES = ['accepted', 'in_progress', 'pending_completion', 'completed', 'closed'];
+
 export default function JobDetailPage() {
   const { id } = useParams();
   const { user } = useAuth();
@@ -139,6 +143,7 @@ function JobDetailContent() {
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [showJobCancellationModal, setShowJobCancellationModal] = useState(false);
   const [reportModalOpen, setReportModalOpen] = useState(false);
+  const [disputeModalOpen, setDisputeModalOpen] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
   const [reviewEligible, setReviewEligible] = useState(false);
   const [paymentRecordOpen, setPaymentRecordOpen] = useState(false);
@@ -553,6 +558,10 @@ function JobDetailContent() {
             <button type="button" className="jdp-btn-danger" onClick={() => view.canCancelBeforeAcceptance ? setShowCancelModal(true) : setShowJobCancellationModal(true)} disabled={actionLoading || loading || (view.canCancelAfterAcceptance && !acceptedBid)}>{t('jobDetail.cancelJob')}</button>
             {view.canCancelAfterAcceptance && !acceptedBid && bidsStatus === 'error' && <button type="button" className="jdp-btn-ghost" onClick={loadBids}>{t('jobDetail.retryBids')}</button>}
           </div>}
+          {/* P3-818: either party to an assigned job can open a dispute. */}
+          {(isOwner || isAssignedHelper) && job.assigned_helper_id && DISPUTABLE_JOB_STATUSES.includes(job.status) && <div className="jdp-secondary-action jdp-dispute-action">
+            <button type="button" className="jdp-btn-ghost" onClick={() => setDisputeModalOpen(true)}>{t('jobDetail.openDispute')}</button>
+          </div>}
         </section>
         <div className="jdp-main">
           <PreferredHelperBanner job={job} />
@@ -705,6 +714,8 @@ function JobDetailContent() {
       )}
 
       {/* ── Report Helper Modal ──────────────────────────────── */}
+      {disputeModalOpen && <DisputeSubmissionModal jobId={id} isOpen={disputeModalOpen} onClose={() => setDisputeModalOpen(false)}
+        onSuccess={() => { setDisputeModalOpen(false); toast.success(t('jobDetail.disputeOpened')); navigate('/disputes'); }} />}
       {reportModalOpen && job?.assigned_helper_id && (
         <ReportModal
           reportedUserId={job.assigned_helper_id}

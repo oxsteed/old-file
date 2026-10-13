@@ -5,6 +5,7 @@ const {
   rules
 } = require('../utils/validate');
 const logger = require('../utils/logger');
+const creditLedger = require('../services/referralCreditLedger');
 const stripeRail = require('../services/paymentRails/stripeRail');
 const chargeModel = require('../services/stripeChargeModel');
 const { currencyExponent } = require('../validation/money');
@@ -326,14 +327,7 @@ exports.createPaymentIntent = async (req, res, next) => {
 
       // Query spendable credit balance: referral_credit + dispute_credit + promo_credit
       // minus any previously applied credits.
-      const creditResult = await client.query(`SELECT COALESCE(SUM(
-           CASE WHEN type IN ('referral_credit', 'dispute_credit', 'promo_credit') THEN amount_cents
-                WHEN type = 'credit_applied' THEN -amount_cents
-                ELSE 0
-           END
-         ), 0) AS balance_cents
-         FROM platform_ledger
-         WHERE user_id = $1`, [req.user.id]);
+      const creditResult = await client.query(creditLedger.BALANCE_SQL, [req.user.id]);
       // Referral credit is a USD ledger; it only discounts USD charges.
       const availableCreditCents = plan.currency === 'USD'
         ? Math.max(0, parseInt(creditResult.rows?.[0]?.balance_cents || '0', 10))
@@ -431,7 +425,8 @@ exports.createPaymentIntent = async (req, res, next) => {
           discounted_amount_cents: jobValueCents,
           raw_job_value_cents: rawJobValueCents,
           appliedCreditCents: appliedCreditCents,
-          platform_fee_cents: fees.platform_fee_cents
+          platform_fee_cents: fees.platform_fee_cents,
+          applied_credit_cents: appliedCreditCents
         }), plan.currency.toLowerCase(), plan.model, plan.model === 'direct' ? null : freshConnect.stripe_account_id, plan.feeCountry]));
         // Audit fix: payment starts as 'pending', not 'authorized'. The
         // webhook (payment_intent.amount_capturable_updated) marks it
@@ -458,6 +453,17 @@ exports.createPaymentIntent = async (req, res, next) => {
         throw new AppError('Failed to save payment intent to database', 500, 'payment_save_failed');
       }
 
+      // Review P2-571: reserve the credit now, under the same advisory lock
+      // that read the balance, so concurrent intents cannot spend it twice.
+      // It is returned if the intent fails or is cancelled.
+      await creditLedger.applyCreditToPayment(client, {
+        userId: req.user.id,
+        paymentId: insertRows[0].id,
+        amountCents: appliedCreditCents,
+        jobId: job_id,
+        paymentIntentId: paymentIntent.id,
+      });
+
       // Tier-3 escrow opt-in, deterministic: mark the job's transaction_mode
       // so completion detects escrow via the enum instead of fragile label
       // substring matching (see isTier3EscrowJob in jobController). Same
@@ -468,10 +474,8 @@ exports.createPaymentIntent = async (req, res, next) => {
         [job_id]
       );
 
-      // Audit fix: referral credit is NOT deducted here. It's recorded in the
-      // payment metadata and deducted only when Stripe confirms the payment
-      // (in the webhook). Deducting now would spend credit on a payment that
-      // might fail.
+      // Referral credit is reserved above and released by the webhook if
+      // the intent fails or is cancelled (P2-571).
       return {
         replay: false,
         paymentIntent,
@@ -639,7 +643,7 @@ exports.capturePayment = async (req, res, next) => {
       }
 
       // ── CHECK FOR OPEN DISPUTES ──────────────────────────────────────────
-      const dispute = await client.query('SELECT id FROM disputes WHERE job_id = $1 AND status IN ($2, $3)', [job_id, 'open', 'in_progress']);
+      const dispute = await client.query('SELECT id FROM disputes WHERE job_id = $1 AND status IN ($2, $3, $4)', [job_id, 'open', 'under_review', 'in_progress']);
       if (dispute.rows[0]) {
         await client.query('ROLLBACK');
         throw new AppError('Cannot capture payment while a dispute is open. Dispute must be resolved first.', 409, 'dispute_open');

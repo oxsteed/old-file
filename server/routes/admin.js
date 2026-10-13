@@ -17,6 +17,8 @@ const profileVisCtrl  = require('../controllers/profileVisibilityController');
 const profileVisApprCtrl = require('../controllers/profileVisibilityApprovalsController');
 const convAdminCtrl   = require('../controllers/conversationsAdminController');
 const paymentsCtrl    = require('../controllers/paymentsAdminController');
+const paymentDisputeAdminCtrl = require('../controllers/paymentDisputeAdminController');
+const webhookReceiptAdminCtrl = require('../controllers/webhookReceiptAdminController');
 const adminMsgCtrl    = require('../controllers/adminMessageController');
 const adminPhoneVerificationCtrl = require('../controllers/adminPhoneVerificationController');
 const adminOperationsCtrl = require('../controllers/adminOperationsController');
@@ -149,6 +151,9 @@ router.post('/planned-needs/:id/:action',            requireAdmin, requirePermis
 
 // Payments list (read-only)
 router.get('/payments', requireAdmin, requirePermission('view_financials'), paymentsCtrl.listPayments);
+// Review P3-821: main-app refund/payment disputes get an admin lifecycle.
+router.get('/payment-disputes', requireAdmin, requirePermission('manage_disputes'), paymentDisputeAdminCtrl.listPaymentDisputes);
+router.post('/payment-disputes/:id/decision', requireAdmin, requirePermission('manage_disputes'), paymentDisputeAdminCtrl.decidePaymentDispute);
 
 // Users - read + write actions (ban/unban logged; admins cannot ban other admins)
 router.get('/users',            requireAdmin, requirePermission('manage_users'), superCtrl.getUsers);
@@ -186,6 +191,10 @@ router.delete('/markets/:marketId/zip-codes', requireAdmin, requirePermission('m
 
 // Full dashboard + charts
 router.get('/super/dashboard',          requireSuperAdmin, superCtrl.getDashboardStats);
+// Review P3-891: failed webhook receipts — list, replay from Stripe, resolve.
+router.get('/super/webhook-receipts', requireSuperAdmin, webhookReceiptAdminCtrl.list);
+router.post('/super/webhook-receipts/:id/replay', requireSuperAdmin, webhookReceiptAdminCtrl.replay);
+router.post('/super/webhook-receipts/:id/resolve', requireSuperAdmin, webhookReceiptAdminCtrl.resolve);
 router.get('/super/chargebacks', requireSuperAdmin, async (req, res, next) => {
   try {
     const svc = require('../services/chargebackEvidenceService');

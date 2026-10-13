@@ -4442,6 +4442,8 @@
     "whatHappensNextBody": "Une fois l’annonce publiée, les prestataires correspondant au lieu, à la catégorie et aux exigences peuvent envoyer des offres. Comparez-les, posez des questions et engagez quelqu’un lorsque vous êtes prêt."
   },
   "jobDetail": {
+    "openDispute": "Ouvrir un litige",
+    "disputeOpened": "Litige ouvert. Notre équipe et l'autre partie ont été prévenues.",
     "signWorkAgreement": "Relire et signer l’accord de travail",
     "viewWorkAgreement": "Voir l’accord de travail",
     "createWorkAgreement": "Créer un accord de travail",
@@ -9311,6 +9313,7 @@
   },
   "disputes": {
     "center": {
+      "openFromJob": "Ouvrir un litige depuis une mission",
       "title": "Centre de Litiges",
       "noDisputes": "Aucun litige en cours",
       "subtitle": "Afficher et gérer vos litiges actifs",

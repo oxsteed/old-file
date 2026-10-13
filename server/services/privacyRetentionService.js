@@ -62,7 +62,7 @@ async function blockerFor(client, userId) {
     ['active_jobs', `SELECT 1 FROM jobs WHERE (client_id = $1 OR assigned_helper_id = $1) AND status::text IN ('accepted', 'in_progress') LIMIT 1`],
     ['held_payments', `SELECT 1 FROM payments WHERE (payer_id = $1 OR payee_id = $1) AND status IN ('pending', 'authorized') LIMIT 1`],
     ['held_credit', `SELECT 1 FROM job_credit_payments WHERE (customer_id = $1 OR helper_id = $1) AND status = 'held' LIMIT 1`],
-    ['open_disputes', `SELECT 1 FROM disputes d JOIN jobs j ON j.id = d.job_id WHERE (j.client_id = $1 OR j.assigned_helper_id = $1) AND d.status IN ('open', 'in_progress') LIMIT 1`],
+    ['open_disputes', `SELECT 1 FROM disputes d JOIN jobs j ON j.id = d.job_id WHERE (j.client_id = $1 OR j.assigned_helper_id = $1) AND d.status IN ('open', 'under_review', 'in_progress') LIMIT 1`],
     ['pending_cashout', `SELECT 1 FROM credit_cashout_requests WHERE user_id = $1 AND status IN ('requested', 'submitted') LIMIT 1`],
   ];
   for (const [reason, sql] of checks) {

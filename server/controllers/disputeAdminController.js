@@ -1,5 +1,7 @@
+const { DISPUTE_VIEW_FROM, disputeViewSelect } = require('../utils/disputeView');
 const db                    = require('../db');
 const { sendNotification }  = require('../services/notificationService');
+const { notifyDisputeParties } = require('../services/disputeNotifications');
 const { logAdminAction }    = require('../services/auditService');
 const logger                = require('../utils/logger');
 const { withTransaction }   = require('../utils/transaction');
@@ -12,7 +14,22 @@ const DISPUTE_RESOLUTIONS = Object.freeze({
   CUSTOMER_WINS: 'customer_wins',
   SPLIT_RESOLUTION: 'split_resolution',
   HELPER_WINS: 'helper_wins',
+  DISMISSED: 'dismissed',
 });
+
+// P3-815: the admin UI historically posted a different vocabulary. Accept
+// those aliases so no submitted resolution is silently rejected.
+const RESOLUTION_ALIASES = Object.freeze({
+  full_refund: 'refund_customer',
+  partial_refund: 'split_resolution',
+  release_to_helper: 'helper_wins',
+  dismiss: 'dismissed',
+});
+
+function normalizeResolution(value) {
+  const v = String(value || '').trim();
+  return RESOLUTION_ALIASES[v] || v;
+}
 
 const DISPUTE_STATUSES = Object.freeze({
   OPEN: 'open',
@@ -27,22 +44,15 @@ exports.getAllDisputes = async (req, res) => {
     const { status = 'open', page = 1, limit = 20 } = req.query;
     const offset = (page - 1) * limit;
 
-    const { rows } = await db.query(`
-      SELECT
-        d.id, d.status, d.reason, d.resolution,
-        d.created_at, d.resolved_at,
-        d.opened_by_role, d.opened_by_name,
-        d.job_id, d.job_type,
-        d.description, d.admin_notes,
-        d.evidence_poster, d.evidence_helper,
-        u_op.first_name || ' ' || u_op.last_name AS opener_full_name,
-        u_op.email AS opened_by_email
-      FROM disputes d
-      LEFT JOIN users u_op ON d.opened_by = u_op.id
-      WHERE d.status = $1
-      ORDER BY d.created_at DESC
-      LIMIT $2 OFFSET $3
-    `, [status, limit, offset]);
+    // P3-820: return the fields the admin list renders (job, parties,
+    // amount, evidence deadline, evidence/message counts).
+    const { rows } = await db.query(
+      `SELECT ${disputeViewSelect()} ${DISPUTE_VIEW_FROM}
+        WHERE d.status = $1
+        ORDER BY d.created_at DESC
+        LIMIT $2 OFFSET $3`,
+      [status, limit, offset]
+    );
 
     const countResult = await db.query(
       'SELECT COUNT(*) FROM disputes WHERE status = $1',
@@ -66,15 +76,10 @@ exports.getDisputeDetail = async (req, res) => {
   try {
     const { disputeId } = req.params;
 
-    const { rows } = await db.query(`
-      SELECT
-        d.*,
-        u_op.first_name || ' ' || u_op.last_name AS opener_full_name,
-        u_op.email AS opened_by_email
-      FROM disputes d
-      LEFT JOIN users u_op ON d.opened_by = u_op.id
-      WHERE d.id = $1
-    `, [disputeId]);
+    const { rows } = await db.query(
+      `SELECT ${disputeViewSelect()} ${DISPUTE_VIEW_FROM} WHERE d.id = $1`,
+      [disputeId]
+    );
 
     if (!rows.length) {
       return res.status(404).json({ error: 'Dispute not found' });
@@ -91,7 +96,8 @@ exports.getDisputeDetail = async (req, res) => {
 exports.resolveDispute = async (req, res) => {
   try {
     const { disputeId } = req.params;
-    const { resolution, admin_notes, resolution_notes } = req.body;
+    const { admin_notes, resolution_notes } = req.body;
+    const resolution = normalizeResolution(req.body.resolution);
     const requestedRefundAmount = req.body.refund_amount ?? req.body.refundAmount;
     const notes = admin_notes || resolution_notes || null; // accept both field names
     const adminId = req.user.id;
@@ -127,11 +133,21 @@ exports.resolveDispute = async (req, res) => {
       const payment = paymentRows[0];
       if (!payment) return res.status(409).json({ error: 'No disputed payment is attached to this dispute.' });
       if (payment.status === DISPUTE_STATUSES.RESOLVED) return res.status(409).json({ error: 'Dispute has already been resolved.' });
-      if (payment.payment_status !== 'captured') return res.status(409).json({ error: 'Only captured payments can be refunded through dispute resolution.' });
+      const fullRefund = resolution !== DISPUTE_RESOLUTIONS.SPLIT_RESOLUTION;
+      // Authorized (uncaptured) escrow is released in full by voiding the
+      // intent; a partial outcome needs a captured payment.
+      if (!['captured', 'authorized'].includes(payment.payment_status)
+        || (payment.payment_status === 'authorized' && !fullRefund)) {
+        return res.status(409).json({
+          error: payment.payment_status === 'authorized'
+            ? 'A partial refund needs a captured payment. Capture the job payment first or refund in full.'
+            : 'Only captured or authorized payments can be refunded through dispute resolution.',
+          code: 'dispute_refund_payment_state',
+        });
+      }
       if (!payment.stripe_payment_intent_id) return res.status(409).json({ error: 'Disputed payment has no payment-processor reference.' });
 
       const originalCents = Math.round(Number(payment.amount) * 100);
-      const fullRefund = resolution !== DISPUTE_RESOLUTIONS.SPLIT_RESOLUTION;
       const refundCents = fullRefund ? originalCents : Math.round(Number(requestedRefundAmount) * 100);
       if (!Number.isInteger(originalCents) || originalCents <= 0 || !Number.isInteger(refundCents)
         || refundCents <= 0 || refundCents > originalCents) {
@@ -223,8 +239,8 @@ exports.resolveDispute = async (req, res) => {
         const { rows: escrowUpdateRows } = await client.query(
           `UPDATE payments
            SET escrow_status = $1,
-               status = CASE WHEN $3 IN ('refund_customer', 'customer_wins') THEN 'refunded' ELSE status END,
-               refunded_at = CASE WHEN $3 IN ('refund_customer', 'customer_wins') THEN NOW() ELSE refunded_at END,
+               status = CASE WHEN $3 IN ('refund_customer', 'customer_wins') AND $5::text IS NOT NULL THEN 'refunded' ELSE status END,
+               refunded_at = CASE WHEN $3 IN ('refund_customer', 'customer_wins') AND $5::text IS NOT NULL THEN NOW() ELSE refunded_at END,
                refund_amount = COALESCE($4, refund_amount),
                stripe_refund_id = COALESCE($5, stripe_refund_id),
                updated_at = NOW()
@@ -261,19 +277,8 @@ exports.resolveDispute = async (req, res) => {
       logger.error('Failed to log admin action', { err: logErr });
     }
 
-    try {
-      if (dispute.opened_by) {
-        await sendNotification({
-          userId: dispute.opened_by,
-          type: 'dispute_resolved',
-          title: 'Dispute Resolved',
-          message: `Your dispute has been resolved. Resolution: ${resolution}`,
-          metadata: { disputeId, resolution }
-        });
-      }
-    } catch (notifErr) {
-      logger.error('Failed to send dispute notification', { err: notifErr });
-    }
+    // P3-817: both parties hear the outcome.
+    await notifyDisputeParties(disputeId, 'dispute_resolved', { resolution });
 
     res.json({
       message: 'Dispute resolved successfully.',
@@ -388,19 +393,7 @@ exports.startReview = async (req, res) => {
       logger.error('Failed to log admin action', { err: logErr });
     }
 
-    try {
-      if (dispute.opened_by) {
-        await sendNotification({
-          userId: dispute.opened_by,
-          type: 'dispute_under_review',
-          title: 'Dispute Under Review',
-          message: 'Your dispute is now being reviewed by an admin.',
-          metadata: { disputeId }
-        });
-      }
-    } catch (notifErr) {
-      logger.error('Failed to send review notification', { err: notifErr });
-    }
+    await notifyDisputeParties(disputeId, 'dispute_under_review');
 
     res.json({
       message: 'Dispute is now under review.',
@@ -417,3 +410,6 @@ exports.startReview = async (req, res) => {
     res.status(500).json({ error: 'Failed to start dispute review.' });
   }
 };
+
+exports.normalizeResolution = normalizeResolution;
+exports.DISPUTE_RESOLUTIONS = DISPUTE_RESOLUTIONS;
