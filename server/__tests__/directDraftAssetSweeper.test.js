@@ -17,12 +17,15 @@ const DAY = 24 * 60 * 60 * 1000;
 beforeEach(() => {
   resetMocks();
   jest.clearAllMocks();
-  process.env.DIRECT_DRAFT_ASSET_SWEEPER_ENABLED = '1';
+  delete process.env.DIRECT_DRAFT_ASSET_SWEEPER_ENABLED;
+  delete process.env.DIRECT_DRAFT_ASSET_SWEEPER_DISABLED;
   delete process.env.DIRECT_DRAFT_ASSET_TTL_DAYS;
 });
 
 afterEach(() => {
   delete process.env.DIRECT_DRAFT_ASSET_SWEEPER_ENABLED;
+  delete process.env.DIRECT_DRAFT_ASSET_SWEEPER_DISABLED;
+  sweeper.stopDirectDraftAssetSweeper();
 });
 
 function obj(key, ageDays) {
@@ -71,11 +74,26 @@ test('counts failures without throwing', async () => {
   expect(stats).toEqual({ checked: 1, deleted: 0, failed: 1 });
 });
 
-test('runOnce is disabled without the env flag', async () => {
-  delete process.env.DIRECT_DRAFT_ASSET_SWEEPER_ENABLED;
+test('runOnce is enabled by default (review P3-6-F19)', async () => {
+  storage.listObjectsByPrefix.mockResolvedValue([]);
   const result = await sweeper.runOnce();
-  expect(result).toEqual({ ran: false });
-  expect(storage.listObjectsByPrefix).not.toHaveBeenCalled();
+  expect(result.ran).toBe(true);
+  expect(storage.listObjectsByPrefix).toHaveBeenCalled();
+});
+
+test('runOnce can be paused explicitly', async () => {
+  for (const env of [
+    { DIRECT_DRAFT_ASSET_SWEEPER_DISABLED: '1' },
+    { DIRECT_DRAFT_ASSET_SWEEPER_ENABLED: '0' },
+  ]) {
+    jest.clearAllMocks();
+    Object.assign(process.env, env);
+    const result = await sweeper.runOnce();
+    expect(result).toEqual({ ran: false });
+    expect(storage.listObjectsByPrefix).not.toHaveBeenCalled();
+    delete process.env.DIRECT_DRAFT_ASSET_SWEEPER_DISABLED;
+    delete process.env.DIRECT_DRAFT_ASSET_SWEEPER_ENABLED;
+  }
 });
 
 test('runOnce never throws on sweep errors', async () => {
@@ -89,6 +107,7 @@ test('start/stop lifecycle', () => {
   expect(sweeper.startDirectDraftAssetSweeper()).toEqual({ started: true });
   expect(sweeper.startDirectDraftAssetSweeper()).toEqual({ started: false, reason: 'already_started' });
   sweeper.stopDirectDraftAssetSweeper();
-  delete process.env.DIRECT_DRAFT_ASSET_SWEEPER_ENABLED;
+  process.env.DIRECT_DRAFT_ASSET_SWEEPER_DISABLED = '1';
   expect(sweeper.startDirectDraftAssetSweeper()).toEqual({ started: false, reason: 'disabled' });
+  delete process.env.DIRECT_DRAFT_ASSET_SWEEPER_DISABLED;
 });

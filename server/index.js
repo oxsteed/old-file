@@ -923,8 +923,9 @@ async function startServer() {
     logger.warn('Abandoned recovery worker failed to start', { message: err.message });
   }
 
-  // Abandoned Direct draft assets (review P3-6-F19). Env-gated and
-  // best-effort: a failure here must not affect boot.
+  // Abandoned Direct draft assets (review P3-6-F19). On by default
+  // (DIRECT_DRAFT_ASSET_SWEEPER_DISABLED=1 pauses it); best-effort: a
+  // failure here must not affect boot.
   try {
     const { startDirectDraftAssetSweeper } = require('./services/directDraftAssetSweeper');
     startDirectDraftAssetSweeper();

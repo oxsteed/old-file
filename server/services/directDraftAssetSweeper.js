@@ -13,7 +13,10 @@
  * the TTL and referenced by no quote request is an abandoned orphan and is
  * deleted.
  *
- * Runs on an interval while the server is up (env-gated, off by default).
+ * Runs on an interval while the server is up. On by default: an env-gated
+ * default-off sweeper never runs in practice, which is exactly the
+ * "abandoned drafts are never cleaned" gap. Operators can pause it with
+ * DIRECT_DRAFT_ASSET_SWEEPER_DISABLED=1 (or DIRECT_DRAFT_ASSET_SWEEPER_ENABLED=0).
  * Deletions are best-effort and logged; a storage outage never throws out
  * of the tick.
  */
@@ -31,7 +34,11 @@ let timer = null;
 let running = false;
 
 function enabled() {
-  return String(process.env.DIRECT_DRAFT_ASSET_SWEEPER_ENABLED || '').trim() === '1';
+  const disabled = String(process.env.DIRECT_DRAFT_ASSET_SWEEPER_DISABLED || '').trim().toLowerCase();
+  if (['1', 'true', 'yes'].includes(disabled)) return false;
+  const explicit = String(process.env.DIRECT_DRAFT_ASSET_SWEEPER_ENABLED || '').trim().toLowerCase();
+  if (['0', 'false', 'no'].includes(explicit)) return false;
+  return true;
 }
 
 function pollMs() {
