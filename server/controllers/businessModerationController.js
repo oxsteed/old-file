@@ -381,6 +381,13 @@ exports.flagBusiness = async (req, res) => {
     );
     if (!rows.length) return res.status(404).json({ error: 'Business not found.' });
 
+    await db.query(
+      `UPDATE businesses
+          SET admin_review_reason = $2, admin_reviewed_at = NOW(), updated_at = NOW()
+        WHERE id = $1`,
+      [id, reason.trim().slice(0, 2000)],
+    );
+
     try {
       await logAdminAction({
         adminId: req.user.id,
@@ -390,7 +397,10 @@ exports.flagBusiness = async (req, res) => {
         description: reason,
         req,
       });
-    } catch (e) {}
+    } catch (e) {
+      logger.error('business flag audit failed', { businessId: id, error: e.message });
+      return res.status(503).json({ error: 'Business flagged, but the audit record could not be written. Retry after the audit service recovers.', code: 'audit_unavailable' });
+    }
 
     res.json({ message: 'Business flagged for review.' });
   } catch (err) {

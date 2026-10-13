@@ -1326,6 +1326,18 @@ async function toggleListing(req, res, next) {
       throw new AppError('Validation failed', 400, 'validation_failed', fields);
     }
 
+    if (is_listed) {
+      const { rows: users } = await pool.query(
+        `SELECT email_verified, onboarding_completed, COALESCE(is_suspended, FALSE) AS is_suspended
+           FROM users WHERE id = $1`,
+        [req.user.id],
+      );
+      const user = users[0];
+      if (!user || user.is_suspended || !user.email_verified || !user.onboarding_completed) {
+        throw new AppError('Complete account verification before listing your helper profile', 403, 'listing_not_ready');
+      }
+    }
+
     const { rows } = await pool.query(
       `UPDATE helper_profiles
        SET is_listed = $1, updated_at = NOW()

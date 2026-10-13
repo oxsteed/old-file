@@ -9,6 +9,7 @@ const statementController = require('../controllers/creditStatementController');
 const kiosk = require('../controllers/restaurantKioskController');
 const oxsteedCreditPartnerCtrl = require('../controllers/oxsteedCreditPartnerController');
 const { creditExportLimiter, creditPurchaseLimiter, paymentsLimiter, restaurantCreditMutationLimiter, profileChatLimiter, foodCheckoutCompleteLimiter } = require('../middleware/rateLimiter');
+const checkRestrictions = require('../middleware/checkRestrictions');
 
 function noStoreCreditResponse(_req, res, next) {
   res.set('Cache-Control', 'private, no-store');
@@ -40,7 +41,7 @@ router.post('/orders/:orderId/review', optionalAuth, ctrl.createOrderReview);
 router.get('/orders/:orderId/checkout/complete', optionalAuth, foodCheckoutCompleteLimiter, ctrl.completeCheckout);
 router.get('/orders/:orderId/checkout/cancelled', ctrl.cancelCheckout);
 // H12: resume an interrupted pay_now checkout without placing a duplicate order.
-router.post('/orders/:orderId/checkout', authenticate, ctrl.resumeFoodCheckoutSession);
+router.post('/orders/:orderId/checkout', authenticate, checkRestrictions('checkout'), ctrl.resumeFoodCheckoutSession);
 router.post('/restaurants/:restaurantId/orders/quote', optionalAuth, ctrl.quoteOrder);
 
 // Signed-in customer surface.
@@ -49,7 +50,7 @@ router.get('/my/orders', authenticate, ctrl.listMyOrders);
 router.get('/orders/:orderId', authenticate, ctrl.getOrder);
 router.get('/customer/profile', authenticate, ctrl.getCustomerProfile);
 router.patch('/customer/profile', authenticate, ctrl.updateCustomerProfile);
-router.use('/customer/wallets', authenticate, noStoreCreditResponse);
+router.use('/customer/wallets', authenticate, checkRestrictions('checkout'), noStoreCreditResponse);
 router.get('/customer/wallets', walletCtrl.listCustomerWallets);
 router.get('/customer/wallets/:restaurantId', walletCtrl.getCustomerWallet);
 router.get('/customer/wallets/:restaurantId/integrity', walletCtrl.verifyMyWalletIntegrity);

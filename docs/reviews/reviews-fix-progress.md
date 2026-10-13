@@ -245,3 +245,9 @@ W16 upload follow-up: job creation no longer publishes a partial media set when 
 - Restaurant device credentials are already rotated and expiry-checked; the scheduled cleanup now revokes expired paired device tokens (P3-1131, P3-1135).
 - Refresh-token account-state checks, impersonation user-revocation checks, session listing/revocation endpoints, and delivery-device pause/revoke routes were present on the fresh base (P3-1126, P3-1130, P3-1133, P3-1134).
 - Session lineage columns are populated during refresh rotation (P3-1137). The legacy SERIAL session primary key remains a compatibility constraint (P3-1136) and was not changed in this wave.
+
+## W11 follow-up (enforcement and business moderation)
+
+- Restriction checks now fail closed with a retryable 503 when the enforcement store is unavailable, and payment, capture, refund, food checkout, and wallet mutations use the checkout restriction guard (P2-463).
+- Helper directory listing can no longer be enabled for an unverified, incomplete, or suspended account (P2-487).
+- Business review flags now persist their reason and timestamp in idempotent migration 791, and audit failures return a retryable error instead of being swallowed (P2-460, P2-464).
