@@ -9,6 +9,7 @@ const crypto = require('crypto');
 const logger = require('../utils/logger');
 const notificationService = require('../services/notificationService');
 const smsNotificationService = require('../services/smsNotificationService');
+const { notifyRefundIssued } = require('../services/refundNotification');
 const emailService = require('../services/emailService');
 const { maskEmail } = require('../utils/directQuote');
 const { sanitizeMessage } = require('../utils/messageSanitizer');
@@ -4603,6 +4604,29 @@ exports.updateOrderStatus = async (req, res, next) => {
           order.id,
           Number(order.total_cents || 0)
         );
+      }
+      // P3-3-F07: a settled refund notifies the customer in-app + email (the
+      // SMS above is opt-in only). walletRefund is only set when the ledger
+      // refund actually posted; the oxsteed_credit/Stripe branches throw
+      // before reaching here unless the provider confirmed, so a 'refunded'
+      // payment there means money moved. Fire-and-forget: the refund is
+      // settled and the response must not wait on notification delivery.
+      const refundPosted = Boolean(transitionResult.walletRefund)
+        || (transitionResult.payment?.status === 'refunded'
+          && transitionResult.payment?.mode !== 'wallet_credit');
+      if (refundPosted && order.customer_id) {
+        notifyRefundIssued({
+          userId: order.customer_id,
+          idempotencyKey: `food-order:${order.id}:refund-issued`,
+          amountCents: Number(transitionResult.payment?.amountCents ?? order.total_cents ?? 0),
+          currency: order.currency_code,
+          surface: 'food_order',
+          referenceId: order.id,
+          actionUrl: order.tracking_token ? `/food/track/${order.tracking_token}` : null,
+        }).catch((err) => logger.warn('[food] refund notification failed', {
+          orderId: order.id,
+          error: err.message,
+        }));
       }
       // Review P2-9-F13: franchise royalties accrue on food orders too,
       // not just job completion. Non-blocking; the royalty service is

@@ -2,6 +2,8 @@ const cron = require('node-cron');
 const crypto = require('crypto');
 const db = require('../db');
 const { sendEmailOrThrow } = require('../utils/email');
+const { renderOxSteedEmail } = require('../utils/emailTemplate');
+const escapeHtml = require('../utils/escapeHtml');
 const logger = require('../utils/logger');
 
 /**
@@ -68,62 +70,48 @@ const startConsultingPostSessionFollowup = () => {
             ? `${session.consultant_first_name} ${session.consultant_last_name}`
             : 'Your Consultant';
 
-          // Build action items HTML
+          // Build action items as escaped HTML + plain text for the branded
+          // template (P3-3-F19: no raw untemplated HTML, always a text part).
           let actionItemsHtml = '';
+          let actionItemsText = '';
           if (actionItems.length > 0) {
             actionItemsHtml = '<h3>Action Items:</h3><ul>';
+            actionItemsText = 'Action items:\n';
             for (const item of actionItems) {
               const dueDate = item.due_date ? new Date(item.due_date).toLocaleDateString('en-US') : 'N/A';
-              actionItemsHtml += `
-                <li>
-                  <strong>${item.title}</strong> (${item.priority.charAt(0).toUpperCase() + item.priority.slice(1)} Priority, Due: ${dueDate})
-                  ${item.description ? `<br/><em>${item.description}</em>` : ''}
-                </li>
-              `;
+              const priorityLabel = item.priority
+                ? item.priority.charAt(0).toUpperCase() + item.priority.slice(1)
+                : 'Normal';
+              actionItemsHtml += `<li><strong>${escapeHtml(item.title)}</strong> (${escapeHtml(priorityLabel)} Priority, Due: ${escapeHtml(dueDate)})${item.description ? `<br/><em>${escapeHtml(item.description)}</em>` : ''}</li>`;
+              actionItemsText += `- ${item.title} (${priorityLabel} priority, due: ${dueDate})${item.description ? ` - ${item.description}` : ''}\n`;
             }
             actionItemsHtml += '</ul>';
           } else {
             actionItemsHtml = '<p>No action items assigned at this time.</p>';
+            actionItemsText = 'No action items assigned at this time.\n';
           }
+
+          const sessionDateStr = new Date(`${session.scheduled_date}T${session.scheduled_time}`).toLocaleDateString('en-US');
+          const appBase = process.env.APP_URL || process.env.CLIENT_URL || 'https://oxsteed.com';
+          const feedbackUrl = `${appBase}/consulting/feedback/${session.session_id}/${feedbackToken}`;
+          const postSession = renderOxSteedEmail({
+            language: 'en',
+            eyebrow: 'OXSTEED CONSULTING',
+            title: 'Thank you for your session',
+            intro: `Hi ${session.first_name || 'there'},`,
+            bodyText: `Thank you for participating in your consulting session with ${consultantName} on ${sessionDateStr}.\n\nWe hope you found the session valuable and actionable. Below are the action items discussed:\n\n${actionItemsText}\nNext steps:\n- Review the action items above.\n- Work on items assigned to you according to the due dates.\n- Reach out if you have any questions or need clarification.\n- Schedule your next session when you are ready for the next phase.\n\nReady to execute? Find a helper on OxSteed: ${appBase}/post-job (or browse helpers: ${appBase}/helpers). Many action items benefit from hands-on help while you focus on growing your business.\n\nWe would love to hear about your experience. Please provide your feedback here (takes less than 2 minutes): ${feedbackUrl}\n\nBest regards,\nThe OxSteed Consulting Team`,
+            bodyHtml: `<p>Thank you for participating in your consulting session with ${escapeHtml(consultantName)} on ${escapeHtml(sessionDateStr)}.</p><p>We hope you found the session valuable and actionable. Below are the action items discussed:</p>${actionItemsHtml}<p><strong>Next steps:</strong></p><ul><li>Review the action items above</li><li>Work on items assigned to you according to the due dates</li><li>Reach out if you have any questions or need clarification</li><li>Schedule your next session when you are ready for the next phase</li></ul><p>Many action items benefit from hands-on help. <a href="${escapeHtml(appBase)}/post-job">Post a job</a> or <a href="${escapeHtml(appBase)}/helpers">browse helpers</a> on OxSteed while you focus on growing your business.</p><p>We would love to hear about your experience. <a href="${escapeHtml(feedbackUrl)}">Please provide your feedback here</a> (takes less than 2 minutes).</p><p>Best regards,<br>The OxSteed Consulting Team</p>`,
+            footerText: 'You are receiving this message because you booked an OxSteed consulting session.',
+            cta: { url: `${appBase}/consulting/feedback/${session.session_id}/${feedbackToken}`, label: 'Share your feedback' },
+          });
 
           // Send follow-up email to customer
           await sendEmailOrThrow({
             to: session.email,
             idempotencyKey: `consulting-post-session:${session.id}`,
             subject: 'Thank You for Your OxSteed Consulting Session',
-            html: `
-              <p>Hi ${session.first_name},</p>
-              <p>Thank you for participating in your consulting session with ${consultantName} on ${new Date(`${session.scheduled_date}T${session.scheduled_time}`).toLocaleDateString('en-US')}!</p>
-              <p>We hope you found the session valuable and actionable. Below are the action items discussed:</p>
-              ${actionItemsHtml}
-              <p><strong>Next Steps:</strong></p>
-              <ul>
-                <li>Review the action items above</li>
-                <li>Work on items assigned to you according to the due dates</li>
-                <li>Reach out if you have any questions or need clarification</li>
-                <li>Schedule your next session when you're ready for the next phase</li>
-              </ul>
-
-              <div style="margin:24px 0;padding:20px;background:#f9f5ff;border-left:4px solid #7c3aed;border-radius:4px;">
-                <h3 style="margin:0 0 8px;color:#5b21b6;">Ready to execute? Find a helper on OxSteed.</h3>
-                <p style="margin:0 0 12px;color:#4b5563;font-size:14px;">
-                  Many action items benefit from hands-on help — a handyman, cleaner, landscaper, or local specialist.
-                  OxSteed has vetted, reviewed helpers ready to take on the work while you focus on growing your business.
-                </p>
-                <a href="${process.env.APP_URL || process.env.CLIENT_URL || 'https://oxsteed.com'}/post-job"
-                   style="display:inline-block;padding:10px 20px;background:#7c3aed;color:white;text-decoration:none;border-radius:6px;font-weight:600;font-size:14px;">
-                  Post a Job →
-                </a>
-                &nbsp;
-                <a href="${process.env.APP_URL || process.env.CLIENT_URL || 'https://oxsteed.com'}/helpers"
-                   style="display:inline-block;padding:10px 20px;background:white;color:#7c3aed;text-decoration:none;border-radius:6px;font-weight:600;font-size:14px;border:1px solid #7c3aed;">
-                  Browse Helpers
-                </a>
-              </div>
-
-              <p>We'd love to hear about your experience! <a href="${process.env.APP_URL || process.env.CLIENT_URL || 'https://oxsteed.com'}/consulting/feedback/${session.session_id}/${feedbackToken}">Please provide your feedback here</a> (takes less than 2 minutes).</p>
-              <p>Best regards,<br>The OxSteed Consulting Team</p>
-            `,
+            text: postSession.text,
+            html: postSession.html,
           });
 
           // Record that follow-up was sent

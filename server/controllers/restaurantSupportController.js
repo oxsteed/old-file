@@ -755,7 +755,13 @@ exports.acceptResolution = async (req, res, next) => {
           reason: `Restaurant support case ${caseId}: ${caseForPayment.final_resolution}`,
           actorUserId: req.user.id,
           requestId: `restaurant-support-refund-${caseId}-${refundAmountCents}`,
-          metadata: { order_id: caseForPayment.order_id, final_resolution: caseForPayment.final_resolution },
+          // P3-3-F07: the customer learns their refund was issued (in-app + email).
+          metadata: {
+            order_id: caseForPayment.order_id,
+            final_resolution: caseForPayment.final_resolution,
+            notify_user_id: caseForPayment.customer_user_id || null,
+            action_url: '/support',
+          },
         });
         if (refundResult.attempt.status !== 'succeeded') {
           return res.status(202).json({

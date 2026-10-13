@@ -20,6 +20,7 @@ const {
   toPublicPopCard,
   redactPopForLog,
 } = require('../services/chatProofOfPayment');
+const { closePaymentRequestAsPaid } = require('../services/chatPaymentRequestExpiry');
 const { mirrorLegacyMessage } = require('../services/businessConversationSync');
 const { enqueueConversationMessageNotifications } = require('../services/messageNotificationService');
 const { withTransaction } = require('../utils/transaction');
@@ -550,14 +551,12 @@ exports.confirmPop = async (req, res, next) => {
     // request (open -> paid) with the same AND status='open' guard the
     // credit-pay path uses, so a POP confirm can never double-pay a request
     // the credit path already closed. A rejected proof leaves the request
-    // open for the payer to retry.
+    // open for the payer to retry. P2-10-F01: the shared close also enforces
+    // the request TTL, so an expired request cannot settle here.
     if (action === 'confirm' && updated.payment_request_id) {
-      await pool.query(
-        `UPDATE chat_payment_requests
-            SET status = 'paid', paid_pop_id = $2, paid_at = NOW(), updated_at = NOW()
-          WHERE id = $1 AND status = 'open'`,
-        [updated.payment_request_id, updated.id]
-      );
+      await closePaymentRequestAsPaid(pool, updated.payment_request_id, {
+        popId: updated.id,
+      });
     }
 
     const marker = buildPopMarker({

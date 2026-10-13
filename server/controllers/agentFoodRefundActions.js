@@ -57,6 +57,7 @@ const { withTransaction } = require('../utils/transaction');
 const logger = require('../utils/logger');
 const { refundWalletDebitForReference } = require('../services/foodWalletService');
 const { refundCreditForReferenceInTransaction } = require('../services/oxsteedCreditService');
+const { notifyRefundIssued } = require('../services/refundNotification');
 const { recordWalletCreditRefundForOrder } = require('../services/restaurantPosPaymentLedgerService');
 const { logAdminAction } = require('../services/auditService');
 
@@ -424,6 +425,25 @@ async function refundFoodOrder(req, res, next) {
       amountCents: result.money.amountCents,
       manual: result.money.kind === 'manual',
     });
+
+    // P3-3-F07: the customer learns their refund was issued (in-app + email).
+    // Only for kinds that actually moved money (not 'manual'); best-effort so
+    // a notification outage never blocks the settled refund response.
+    if (!result.replayed && result.money.kind !== 'manual' && result.order?.customer_id) {
+      notifyRefundIssued({
+        userId: result.order.customer_id,
+        idempotencyKey: `agent-food-refund:${orderId}:${result.money.kind}:issued`,
+        amountCents: result.money.amountCents,
+        currency: result.money.currencyCode,
+        surface: 'food_order',
+        referenceId: orderId,
+        refundId: result.money.refundId || result.money.transactionId || result.money.ledgerEntryId || null,
+        actionUrl: result.order?.tracking_token ? `/food/track/${result.order.tracking_token}` : null,
+      }).catch((err) => logger.warn('Agent food order refund notification failed', {
+        orderId,
+        error: err.message,
+      }));
+    }
 
     return res.json({
       success: true,
