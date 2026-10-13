@@ -39,6 +39,7 @@ const AppError = require('../utils/appError');
 const logger = require('../utils/logger');
 const { withTransaction } = require('../utils/transaction');
 const creditService = require('../services/oxsteedCreditService');
+const { evaluateFundingCompliance } = require('../services/fiatComplianceService');
 
 const {
   assertCreditRailEnabled,
@@ -319,6 +320,20 @@ async function proposeAdjustment(req, res, next) {
     const reason = parseReason(req.body?.reason);
     const idempotencyKey = parseIdempotencyKey(req.body?.idempotencyKey ?? req.body?.idempotency_key);
     const { correlationId, requestIp } = requestContext(req);
+
+    // Administrative adjustments can increase a customer's stored value just
+    // like a top-up. Run the same identity and sanctions choke point before
+    // creating the pending row; the checker cannot approve around a failed
+    // compliance decision.
+    await evaluateFundingCompliance({
+      customerId,
+      amountCents: Math.abs(amountCents),
+      currencyCode,
+      fundingMethod: 'agent_credit_adjustment',
+      actorUserId: adminId,
+      requestIp,
+      correlationId,
+    });
 
     const result = await withTransaction(pool, async (client) => {
       // Idempotent propose: first writer wins; concurrent losers read the
