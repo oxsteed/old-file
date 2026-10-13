@@ -4,7 +4,24 @@ const express = require('express');
 const request = require('supertest');
 const { mockQuery, resetMocks } = require('./setup');
 const { errorHandler } = require('../middleware/errorHandler');
+jest.mock('../services/fiatComplianceService', () => ({
+  evaluateFundingCompliance: jest.fn().mockResolvedValue({ allowed: true }),
+}));
+jest.mock('../services/foodWalletService', () => ({
+  ...jest.requireActual('../services/foodWalletService'),
+  creditFoodWallet: jest.fn().mockResolvedValue({ entry: { id: 'ledger-1' }, account: { id: 9001 }, replayed: false }),
+}));
+jest.mock('../services/foodWalletAuditService', () => ({
+  ...jest.requireActual('../services/foodWalletAuditService'),
+  logFoodWalletOperatorAudit: jest.fn().mockResolvedValue(undefined),
+}));
+jest.mock('../services/auditService', () => ({
+  ...jest.requireActual('../services/auditService'),
+  logAdminAction: jest.fn().mockResolvedValue(undefined),
+}));
 const controller = require('../controllers/restaurantCreditAdminController');
+const { evaluateFundingCompliance } = require('../services/fiatComplianceService');
+const { creditFoodWallet } = require('../services/foodWalletService');
 
 const RESTAURANT_ID = 41;
 const ACCOUNT_ID = 9001;
@@ -118,4 +135,45 @@ test('rejects an invalid wallet status filter before querying the database', asy
   expect(response.status).toBe(400);
   expect(response.body.code).toBe('validation_failed');
   expect(mockQuery).not.toHaveBeenCalled();
+});
+
+test('screens a pending wallet load before writing the customer wallet ledger', async () => {
+  const requestRow = {
+    id: 7,
+    restaurant_id: RESTAURANT_ID,
+    business_id: 81,
+    restaurant_name: 'Test Restaurant',
+    customer_id: CUSTOMER_ID,
+    currency_code: 'USD',
+    amount_cents: 2500,
+    status: 'pending',
+    requested_by_user_id: '33333333-3333-4333-8333-333333333333',
+    expires_at: new Date(Date.now() + 60_000).toISOString(),
+    note: 'Customer support credit',
+    correlation_id: 'wallet-request-7',
+    metadata: {},
+  };
+  mockQuery.mockImplementation(async (sql) => {
+    const text = String(sql);
+    if (text.includes('SELECT r.*, fr.business_id')) return { rows: [requestRow] };
+    if (text.includes("UPDATE food_customer_wallet_load_requests")) return { rows: [{ ...requestRow, status: 'approved' }] };
+    return { rows: [] };
+  });
+
+  const res = { status: jest.fn().mockReturnThis(), json: jest.fn() };
+  await controller.approveLoadRequest({
+    params: { requestId: '7' },
+    body: { approvalNote: 'Reviewed' },
+    user: { id: '44444444-4444-4444-8444-444444444444' },
+    ip: '127.0.0.1',
+  }, res, (error) => { throw error; });
+
+  expect(evaluateFundingCompliance).toHaveBeenCalledWith(expect.objectContaining({
+    customerId: CUSTOMER_ID,
+    amountCents: 2500,
+    currencyCode: 'USD',
+    fundingMethod: 'restaurant_wallet_load',
+  }));
+  expect(creditFoodWallet).toHaveBeenCalled();
+  expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ approved: true }));
 });
