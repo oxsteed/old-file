@@ -13,6 +13,9 @@
 
 const db = require('../db');
 const logger = require('../utils/logger');
+const { withTransaction } = require('../utils/transaction');
+const { AppError } = require('../middleware/errorHandler');
+const { applyApprovedChangeOrder } = require('../services/jobChangeOrderFinance');
 
 const MAX_SIGNATURE_CHARS = 2000000;
 const MIN_SIGNATURE_CHARS = 100;
@@ -351,25 +354,39 @@ async function decideChangeOrder(req, res, decision) {
       return res.status(400).json({ error: 'A drawn signature is required to decide a change order.' });
     }
 
-    const { rows: [co] } = await db.query(
-      'SELECT * FROM work_agreement_change_orders WHERE id = $1::uuid AND agreement_id = $2::uuid',
-      [req.params.coId, agreement.id]
-    );
-    if (!co) return res.status(404).json({ error: 'Change order not found.' });
-    if (co.status !== 'proposed') return res.status(409).json({ error: 'Change order already decided.' });
-    if (String(co.proposed_by) === String(req.user.id)) {
-      return res.status(403).json({ error: 'The counterparty must decide.' });
-    }
-
-    const { rows: [updated] } = await db.query(
-      `UPDATE work_agreement_change_orders
-          SET status = $2, decided_by = $3::uuid, decided_at = now(), decider_signature_data = $4
-        WHERE id = $1::uuid RETURNING *`,
-      [co.id, decision, req.user.id, signatureData]
-    );
-    logger.info('change order decided', { changeOrderId: co.id, decision, userId: req.user.id });
-    return res.json({ changeOrder: updated });
+    // Decision and money application commit together: an approved change
+    // order always updates the job price, payment capture, and Credit hold.
+    const outcome = await withTransaction(db, async (client) => {
+      const { rows: [co] } = await client.query(
+        'SELECT * FROM work_agreement_change_orders WHERE id = $1::uuid AND agreement_id = $2::uuid FOR UPDATE',
+        [req.params.coId, agreement.id]
+      );
+      if (!co) return { status: 404, body: { error: 'Change order not found.' } };
+      if (co.status !== 'proposed') return { status: 409, body: { error: 'Change order already decided.' } };
+      if (String(co.proposed_by) === String(req.user.id)) {
+        return { status: 403, body: { error: 'The counterparty must decide.' } };
+      }
+      const { rows: [updated] } = await client.query(
+        `UPDATE work_agreement_change_orders
+            SET status = $2, decided_by = $3::uuid, decided_at = now(), decider_signature_data = $4
+          WHERE id = $1::uuid RETURNING *`,
+        [co.id, decision, req.user.id, signatureData]
+      );
+      let adjustment = null;
+      if (decision === 'approved') {
+        ({ adjustment } = await applyApprovedChangeOrder(client, {
+          agreement, changeOrder: updated, actorId: req.user.id, isImpersonated: Boolean(req.isImpersonated),
+        }));
+      }
+      return { status: 200, body: { changeOrder: { ...updated, payment_adjustment: adjustment || updated.payment_adjustment || null } } };
+    }, 'decide_change_order');
+    if (outcome.status !== 200) return res.status(outcome.status).json(outcome.body);
+    logger.info('change order decided', { changeOrderId: req.params.coId, decision, userId: req.user.id });
+    return res.json(outcome.body);
   } catch (err) {
+    if (err instanceof AppError) {
+      return res.status(err.status || 400).json({ error: err.message, code: err.code, fields: err.fields });
+    }
     logger.error('change order decide error', { err, userId: req.user?.id });
     return res.status(500).json({ error: 'Could not decide change order.' });
   }

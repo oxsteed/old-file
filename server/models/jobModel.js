@@ -220,10 +220,13 @@ exports.confirmAttendance = async (jobId, helperId) => {
 // --- Set Financial Breakdown ---
 // Called when a bid is accepted -- locks in all fee amounts
 exports.setFinancials = async (jobId, agreedAmountDollars, isBrokerMediated, client = null) => {
-  const breakdown = calculateTier3Fees(
-    Math.round(agreedAmountDollars * 100), // Convert to cents
-    isBrokerMediated
-  );
+  // calculateTier3Fees is the direct-charge model: the customer pays the job
+  // value, the platform fee is the application fee, and there is no separate
+  // protection or broker fee. (Reading fields it does not return wrote NaN and
+  // failed every call.)
+  const breakdown = calculateTier3Fees(Math.round(agreedAmountDollars * 100));
+  const jobValueCents = breakdown.job_value_cents;
+  const platformFeeCents = breakdown.platform_fee_cents;
   const q = client || db;
   await q.query(
     `UPDATE jobs
@@ -237,13 +240,13 @@ exports.setFinancials = async (jobId, agreedAmountDollars, isBrokerMediated, cli
          updated_at         = now()
      WHERE id = $8`,
     [
-      breakdown.job_value_cents      / 100,
-      breakdown.customer_total_cents / 100,
-      breakdown.platform_fee_cents   / 100,
-      breakdown.protection_fee_cents / 100,
-      breakdown.broker_fee_cents     / 100,
-      breakdown.helper_payout_cents  / 100,
-      isBrokerMediated,
+      jobValueCents / 100,
+      breakdown.customer_charged_cents / 100,
+      platformFeeCents / 100,
+      0,
+      0,
+      Math.max(0, jobValueCents - platformFeeCents) / 100,
+      Boolean(isBrokerMediated),
       jobId,
     ]
   );
@@ -252,17 +255,8 @@ exports.setFinancials = async (jobId, agreedAmountDollars, isBrokerMediated, cli
 
 // --- Transition Status ---
 // Enforces valid state machine transitions
-const VALID_TRANSITIONS = {
-  draft:        ['published', 'cancelled'],
-  published:    ['matched', 'cancelled'],
-  matched:      ['negotiating', 'published', 'cancelled'],
-  negotiating:  ['accepted', 'matched', 'cancelled'],
-  accepted:     ['in_progress', 'cancelled'],
-  in_progress:  ['completed', 'cancelled'],
-  completed:    ['closed'],
-  cancelled:    [],
-  closed:       [],
-};
+// Shared lifecycle rules (services/jobStatusPolicy.js, docs/job-status-transitions.md).
+const VALID_TRANSITIONS = require('../services/jobStatusPolicy').TRANSITIONS;
 
 exports.transitionStatus = async (jobId, newStatus, userId) => {
   const job = await exports.findById(jobId, userId);

@@ -1,0 +1,12 @@
+.prb-card { border: 1px solid var(--color-warning-border, #f0b429); background: var(--color-warning-bg, #fffbea); color: inherit; border-radius: 12px; padding: 1rem 1.25rem; margin-block-end: 1rem; }
+.prb-card h2 { font-size: 1.05rem; margin: 0 0 .5rem; }
+.prb-card p { margin: 0 0 .5rem; overflow-wrap: anywhere; }
+.prb-actions { display: flex; flex-wrap: wrap; gap: .5rem; margin-block-start: .75rem; }
+.prb-btn { min-height: 44px; padding-inline: 1rem; border-radius: 8px; border: 1px solid currentColor; background: transparent; color: inherit; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; text-decoration: none; }
+.prb-btn-primary { background: var(--color-primary, #1d4ed8); border-color: var(--color-primary, #1d4ed8); color: #fff; }
+.prb-btn:disabled { opacity: .6; cursor: not-allowed; }
+.prb-card-field { display: block; margin-block: .5rem; }
+.prb-card-element { border: 1px solid var(--color-border, #cbd5e1); border-radius: 8px; padding: .75rem; background: var(--color-surface, #fff); margin-block-start: .25rem; }
+.prb-error { color: var(--color-danger, #b91c1c); font-weight: 600; }
+.prb-muted { opacity: .85; font-size: .9rem; }
+@media (prefers-color-scheme: dark) { .prb-card { background: rgba(240, 180, 41, .12); } }

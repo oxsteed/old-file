@@ -11,12 +11,39 @@ const Stripe = require('stripe');
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
 /**
+ * Approved change orders can lower what may be captured
+ * (payments.capture_amount_cents). Never capture more than either the row's
+ * amount or that ceiling.
+ */
+/**
+ * A change order raised the price above the authorization and the customer
+ * has not re-authorized yet: capturing now would under-pay the helper and
+ * close the job at the old price.
+ */
+function assertNoPendingIncrease(payment) {
+  if (Number(payment?.pending_increase_cents || 0) > 0) {
+    const { AppError } = require('../middleware/errorHandler');
+    throw new AppError(
+      'The customer must authorize the new price from the approved change order before payment can be captured.',
+      409,
+      'payment_reauthorization_required'
+    );
+  }
+}
+
+function captureCents(amount, captureAmountCents) {
+  const fromAmount = Math.round(Number(amount) * 100);
+  const ceiling = captureAmountCents === null || captureAmountCents === undefined ? null : Number(captureAmountCents);
+  return Number.isFinite(ceiling) && ceiling > 0 ? Math.min(fromAmount, Math.round(ceiling)) : fromAmount;
+}
+
+/**
  * @param {{ paymentId: number|string, jobId?: number|string, amount: number }} params
  * @returns {Promise<{ success: boolean, paymentId: any, chargeId?: string|null }>}
  */
 async function captureAuthorizedPayment({ paymentId, jobId, amount }) {
   const paymentResult = await pool.query(
-    'SELECT id, stripe_payment_intent_id, stripe_account_id, status FROM payments WHERE id = $1',
+    'SELECT id, stripe_payment_intent_id, stripe_account_id, status, capture_amount_cents, pending_increase_cents FROM payments WHERE id = $1',
     [paymentId],
   );
 
@@ -28,6 +55,7 @@ async function captureAuthorizedPayment({ paymentId, jobId, amount }) {
   if (payment.status !== 'authorized') {
     throw new Error(`Payment ${paymentId} is not in authorized state (current: ${payment.status})`);
   }
+  assertNoPendingIncrease(payment);
   if (!payment.stripe_payment_intent_id) {
     throw new Error(`No PaymentIntent for payment ${paymentId}`);
   }
@@ -37,7 +65,7 @@ async function captureAuthorizedPayment({ paymentId, jobId, amount }) {
 
   const captured = await stripe.paymentIntents.capture(
     payment.stripe_payment_intent_id,
-    { amount_to_capture: Math.round(Number(amount) * 100) },
+    { amount_to_capture: captureCents(amount, payment.capture_amount_cents) },
     {
       stripeAccount: payment.stripe_account_id,
       // Capture retries must address the same Stripe operation. The payment
@@ -81,6 +109,7 @@ async function captureAuthorizedPaymentWithClient(client, paymentRow) {
   if (!paymentRow || paymentRow.status !== 'authorized') {
     throw new Error('Invalid payment row for capture');
   }
+  assertNoPendingIncrease(paymentRow);
   if (!paymentRow.stripe_payment_intent_id || !paymentRow.stripe_account_id) {
     throw new Error('Payment missing Stripe identifiers');
   }
@@ -97,7 +126,7 @@ async function captureAuthorizedPaymentWithClient(client, paymentRow) {
 
   const captured = await stripe.paymentIntents.capture(
     paymentRow.stripe_payment_intent_id,
-    { amount_to_capture: Math.round(Number(paymentRow.amount) * 100) },
+    { amount_to_capture: captureCents(paymentRow.amount, paymentRow.capture_amount_cents) },
     {
       stripeAccount: paymentRow.stripe_account_id,
       idempotencyKey: `payment-capture:${paymentRow.id}`,
@@ -119,4 +148,4 @@ async function captureAuthorizedPaymentWithClient(client, paymentRow) {
   return { paymentId: paymentRow.id, chargeId: captured.charges?.data?.[0]?.id || null };
 }
 
-module.exports = { captureAuthorizedPayment, captureAuthorizedPaymentWithClient };
+module.exports = { captureAuthorizedPayment, captureAuthorizedPaymentWithClient, captureCents, assertNoPendingIncrease };
