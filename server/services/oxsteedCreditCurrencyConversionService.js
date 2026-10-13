@@ -487,6 +487,16 @@ async function convertCustomerCreditInTransaction(client, { customerId, quoteId,
   }
   if (Number(quote.source_amount_minor_units) !== sourceAmount) throw new AppError('Conversion amount does not match the currency quote', 409, 'credit_conversion_quote_amount_mismatch');
 
+  // Currency conversion moves fiat value between customer wallets. Re-run
+  // sanctions screening at the money-moving boundary so a stale clear from a
+  // quote cannot authorize the conversion.
+  const { assertSanctionsClear } = require('./sanctionsScreeningService');
+  await assertSanctionsClear(client, {
+    subjectType: 'customer',
+    subjectId: normalizedCustomerId,
+    context: { operation: 'currency_conversion', quoteId: String(quote.id) },
+  });
+
   const feeAmount = Number(quote.fee_amount_minor_units || 0);
   if (sourceAmount + feeAmount > MAX_TRANSACTION_CENTS) throw new AppError('Conversion source amount plus fee exceeds the transaction limit', 409, 'credit_conversion_transaction_limit');
   await assertDailyConversionCapacity(client, { customerId: normalizedCustomerId, currencyCode: quote.source_currency_code, sourceAmount });
