@@ -194,8 +194,8 @@ describe('POST /api/jobs', () => {
 
   test('creates job with uploaded media urls from the iOS payload', async () => {
     const mediaUrls = [
-      'https://cdn.oxsteed.com/jobs/fence-before.jpg',
-      'https://cdn.oxsteed.com/jobs/fence-closeup.jpg',
+      'https://oxsteed.com/api/storage/public/jobs/fence-before.jpg',
+      'https://oxsteed.com/api/storage/public/jobs/fence-closeup.jpg',
     ];
     const newJob = {
       id: 43,

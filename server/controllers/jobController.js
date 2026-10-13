@@ -1,6 +1,6 @@
 const pool = require('../db');
 const { scoreAndMatch } = require('../services/matchService');
-const { uploadFile, getPublicUrl } = require('../utils/storage');
+const { uploadFile, getPublicUrl, deleteFile } = require('../utils/storage');
 const logger = require('../utils/logger');
 const { fuzzCoords } = require('../models/jobModel');
 const { withTransaction, withJobTransaction } = require('../utils/transaction');
@@ -124,12 +124,22 @@ exports.createJob = async (req, res, next) => {
       const uploads = await Promise.allSettled(
         req.files.map(f => uploadFile(f.buffer, 'jobs', f.originalname, f.mimetype))
       );
-      mediaArr = uploads
+      const storedKeys = uploads
         .filter(r => r.status === 'fulfilled' && r.value)
-        .map(r => getPublicUrl(r.value));
-      // If S3 not configured, log warning but don't fail the job creation
-      const failed = uploads.filter(r => r.status === 'rejected' || !r.value).length;
-      if (failed > 0) logger.warn(`[createJob] ${failed}/${req.files.length} media files not uploaded (S3 not configured?)`);
+        .map(r => r.value);
+      const failed = uploads.length - storedKeys.length;
+      if (failed > 0) {
+        // Do not publish a job with a partial media set. Remove any objects
+        // that did upload before returning a retryable, explicit error.
+        await Promise.allSettled(storedKeys.map((key) => deleteFile(key)));
+        throw new AppError(
+          'One or more job media files could not be uploaded. Please retry.',
+          502,
+          'job_media_upload_failed',
+          { failedFiles: String(failed), totalFiles: String(req.files.length) }
+        );
+      }
+      mediaArr = storedKeys.map((key) => getPublicUrl(key));
     } else if (media_urls) {
       try {
         mediaArr = typeof media_urls === 'string'
