@@ -24,6 +24,7 @@ import { formatDate, formatMoney, formatNumber } from '../lib/format';
 import { LAUNCH_VISIBILITY } from '../utils/launchScope';
 import DashboardQuickLinks, { DASHBOARD_QUICK_LINKS } from '../components/DashboardQuickLinks';
 import HelperCapabilitiesCatalog from '../components/HelperCapabilitiesCatalog';
+import HelperOnboardingChecklist from '../components/HelperOnboardingChecklist';
 import QuoteHistoryPanel from '../components/messaging/QuoteHistoryPanel';
 import '../components/messaging/SharedMessengerShell.css';
 import '../styles/HelperDashboard.css';
@@ -1253,6 +1254,7 @@ export default function HelperDashboard() {
       <div className="helper-dashboard-shell min-h-screen text-white">
         <PageMeta title={t('helperDashboard.title')} description={t('helperDashboard.metaDesc')} noIndex={true} />
         <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <HelperOnboardingChecklist />
 
           <section className="helper-dashboard-hero" aria-labelledby="helper-workspace-heading">
             <div className="helper-dashboard-hero__main">

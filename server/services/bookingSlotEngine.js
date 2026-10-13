@@ -190,14 +190,67 @@ async function computeSlots(args) {
         AND status = ANY($5)
         ${staffFilter ? 'AND (staff_id = $6 OR staff_id IS NULL)' : ''}`,
     staffFilter
-      ? [businessId, serviceId, rangeStart.toISOString(), rangeEnd.toISOString(), SLOT_STATUSES_BLOCKING, staffFilter]
-      : [businessId, serviceId, rangeStart.toISOString(), rangeEnd.toISOString(), SLOT_STATUSES_BLOCKING]
+      ? [businessId, serviceId, addMinutes(rangeStart, -240).toISOString(), addMinutes(rangeEnd, 240).toISOString(), SLOT_STATUSES_BLOCKING, staffFilter]
+      : [businessId, serviceId, addMinutes(rangeStart, -240).toISOString(), addMinutes(rangeEnd, 240).toISOString(), SLOT_STATUSES_BLOCKING]
   );
   const appointments = apptRes.rows.map(r => ({
     staff_id: r.staff_id,
     start: new Date(r.start_time),
     end:   new Date(r.end_time),
   }));
+
+  // Review P1-195: business services get between-appointment turnaround.
+  // The owner-set preparation_minutes (stored but never applied) pads every
+  // existing appointment on both sides.
+  const bufferMs = Math.max(0, Math.min(240, Number(svc.preparation_minutes) || 0)) * 60000;
+
+  // Review P1-192: staff are people on other surfaces too. Their helper
+  // appointments, personal time off, Direct visits and this business's other
+  // services' appointments block them here.
+  const staffBusy = [];
+  // Review P1-193: when a staff member has shifts in the range, they are only
+  // bookable inside those shifts.
+  const shiftsByStaff = new Map();
+  if (staffIds.length) {
+    const { loadCrossSurfaceBusy } = require('./crossSurfaceBusy');
+    const [cross, otherServices, shifts] = await Promise.all([
+      loadCrossSurfaceBusy(staffIds, addMinutes(rangeStart, -240), addMinutes(rangeEnd, 240), { exclude: ['business'] }),
+      pool.query(
+        `SELECT staff_id::text AS staff_id, start_time, end_time
+           FROM business_appointments
+          WHERE staff_id = ANY($1::uuid[]) AND service_id <> $2
+            AND status = ANY($5)
+            AND end_time > $3 AND start_time < $4`,
+        [staffIds, serviceId, addMinutes(rangeStart, -240).toISOString(), addMinutes(rangeEnd, 240).toISOString(), SLOT_STATUSES_BLOCKING]
+      ),
+      pool.query(
+        `SELECT user_id::text AS user_id, shift_date::text AS shift_date, start_time, end_time
+           FROM business_staff_shifts
+          WHERE business_id = $1 AND user_id = ANY($2::uuid[])
+            AND shift_date BETWEEN $3::date AND $4::date`,
+        [businessId, staffIds, toIso(rangeStart).slice(0, 10), toIso(rangeEnd).slice(0, 10)]
+      ),
+    ]);
+    for (const c of cross) staffBusy.push({ staff_id: c.userId, start: c.startsAt, end: c.endsAt });
+    for (const r of (otherServices.rows || [])) staffBusy.push({ staff_id: r.staff_id, start: new Date(r.start_time), end: new Date(r.end_time) });
+    for (const r of (shifts.rows || [])) {
+      const list = shiftsByStaff.get(r.user_id) || [];
+      const dayMs = new Date(`${r.shift_date}T00:00:00Z`).getTime();
+      const startMs = dayMs + parseHmsToSeconds(r.start_time) * 1000;
+      let endMs = dayMs + parseHmsToSeconds(r.end_time) * 1000;
+      if (endMs <= startMs) endMs += 86400000; // overnight shift
+      list.push({ start: startMs, end: endMs });
+      shiftsByStaff.set(r.user_id, list);
+    }
+  }
+  function staffUnavailable(staffId, slotStart, slotEnd) {
+    if (!staffId) return false;
+    const key = String(staffId);
+    const shifts = shiftsByStaff.get(key);
+    if (shifts && !shifts.some((sh) => sh.start <= slotStart.getTime() && sh.end >= slotEnd.getTime())) return true;
+    return staffBusy.some((b) => b.staff_id === key
+      && overlaps(new Date(slotStart.getTime() - bufferMs), new Date(slotEnd.getTime() + bufferMs), b.start, b.end));
+  }
 
   // Pick which "actors" we'll generate slots for.
   // If service has staff: per-staff slots.
@@ -217,7 +270,7 @@ async function computeSlots(args) {
     for (const a of appointments) {
       // Appointment consumes capacity if same staff (or staff_id NULL on a service-wide booking)
       if (staffId && a.staff_id && a.staff_id !== staffId) continue;
-      if (overlaps(slotStart, slotEnd, a.start, a.end)) n++;
+      if (overlaps(new Date(slotStart.getTime() - bufferMs), new Date(slotEnd.getTime() + bufferMs), a.start, a.end)) n++;
     }
     return n;
   }
@@ -256,6 +309,7 @@ async function computeSlots(args) {
           if (slotStart < rangeStart) continue;
           if (slotEnd > rangeEnd) break;
           if (blockedFor(actor, slotStart, slotEnd)) continue;
+          if (staffUnavailable(actor, slotStart, slotEnd)) continue;
           const taken = consumedCapacity(actor, slotStart, slotEnd);
           if (taken >= capacity) continue;
           slots.push({

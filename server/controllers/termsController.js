@@ -4,10 +4,10 @@ const crypto = require('crypto');
 const { hashIP } = require('../utils/encryption');
 const { AppError } = require('../middleware/errorHandler');
 
-const TERMS_VERSION = '1.0';
+const TERMS_VERSION = '1.1';
 const TERMS_CONTENT = {
-  version: '1.0',
-  lastUpdated: '2026-05-11',
+  version: '1.1',
+  lastUpdated: '2026-10-12',
   sections: {
     peerAgreement: 'Tool rentals are informal peer-to-peer agreements between the tool owner and renter. OxSteed helps neighbors document listings, booking dates, messages, reports, and agreement acceptance.',
     platformFacilitator: 'OxSteed is a technology facilitator only. OxSteed is not the tool owner, renter, inspector, insurer, carrier, mechanic, guarantor, or a party to the rental agreement.',
@@ -15,7 +15,7 @@ const TERMS_CONTENT = {
     renterInspection: 'The renter is responsible for inspecting the tool before use and deciding whether the tool is appropriate and safe for the renter\'s intended use.',
     useRisk: 'The renter assumes ordinary risks of tool use, including injury or property damage caused by use, misuse, transport, storage, or failure to follow the owner\'s rules or manufacturer guidance.',
     damageLoss: 'The renter may be responsible to the owner for damage beyond normal wear, loss, theft, missing parts, late return, or failure to return the tool clean and working, as documented by the parties.',
-    deposits: 'Deposits and refunds are obligations between owner and renter unless OxSteed explicitly provides an escrow or payment-hold feature for that booking.',
+    deposits: 'When a listing requires a deposit, it is added to the invoice as a separate refundable line and paid to the owner with the rental. The owner holds the deposit, not OxSteed. After the rental the owner records on OxSteed whether the deposit is returned or withheld, and must give a written reason for any amount withheld. Both parties can see this record and can report a dispute.',
     insurance: 'General insurance may not cover rented equipment, peer-to-peer tools, theft, misuse, or damage. Each party is responsible for understanding their own insurance coverage.',
     reporting: 'Either party can report bad behavior. OxSteed may review reports, messages, booking records, and evidence and may take platform action such as warnings, restrictions, suspensions, or bans.',
     noGuarantee: 'OxSteed does not guarantee tool condition, safety, availability, return, payment, refund, repair, replacement, or dispute outcome.',

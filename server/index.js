@@ -47,6 +47,7 @@ const webhookRoutes = require('./routes/webhook');
 const { diditWebhook } = require('./controllers/webhookController');
 const jobRoutes = require('./routes/jobs');
 const bidRoutes = require('./routes/bids');
+const paymentLayersRoutes = require('./routes/paymentLayers');
 const paymentRoutes = require('./routes/payments');
 const disputeRoutes = require('./routes/disputes');
 const workAgreementRoutes = require('./routes/workAgreements');
@@ -218,6 +219,8 @@ function resolveTrustProxyHops() {
   return parsed;
 }
 app.set('trust proxy', resolveTrustProxyHops());
+// Review P3-1107: reject requests that bypass the CDN, where XFF is forgeable.
+app.use(require('./middleware/originLock').createOriginLock());
 const PORT = process.env.PORT || 5000;
 const canonicalHostRedirect = require('./middleware/canonicalHost');
 app.use(canonicalHostRedirect);
@@ -483,6 +486,7 @@ app.use('/api/users', usersRoutes);
 app.use('/api/subscription', subscriptionRoutes);
 app.use('/api/jobs', jobRoutes);
 app.use('/api/bids', bidRoutes);
+app.use('/api/payment-layers', paymentLayersRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/disputes', disputeRoutes);
 app.use('/api/work-agreements', workAgreementRoutes);
@@ -591,23 +595,26 @@ app.use('/api/helper-quotes', helperQuotesRoutes);
 const savedSearchesRoutes = require('./routes/savedSearches');
 app.use('/api/saved-searches', savedSearchesRoutes);
 app.use('/api/qr-codes',     qrCodesRoutes);
+// Review P3-940: consulting is unlaunched; every consulting router (payments,
+// purchase, scheduling, ...) carries the same CONSULTING_ENABLED gate.
+const requireConsultingLaunched = require('./middleware/featureFlags').requireFeatureEnabled('Consulting', 'CONSULTING_ENABLED', false);
 // NOTE: specific /api/consulting routers must mount before consultingRoutes,
 // whose GET /:id would otherwise swallow /consultants, /packages, /analytics.
-app.use('/api/consulting',   consultingPaymentRoutes);
+app.use('/api/consulting',   requireConsultingLaunched, consultingPaymentRoutes);
 app.use('/api/quote-requests', quoteRequestsRoutes);
-app.use('/api/consulting',   consultingAllPhasesRoutes);
+app.use('/api/consulting',   requireConsultingLaunched, consultingAllPhasesRoutes);
 app.use('/api/consulting/admin', consultingAdminRoutes);
 app.use('/api/consulting',   consultingRoutes);
 app.use('/api/invoices',     invoiceRoutes);
-app.use('/api/consulting/feedback', consultingFeedbackRoutes);
-app.use('/api/consulting/business-launch', businessLaunchRoutes);
+app.use('/api/consulting/feedback', requireConsultingLaunched, consultingFeedbackRoutes);
+app.use('/api/consulting/business-launch', requireConsultingLaunched, businessLaunchRoutes);
 app.use('/api/franchise', franchiseRoutes);
 app.use('/api/safety',   safetyRoutes);
-app.use('/api/consulting/analytics', consultingAnalyticsRoutes);
+app.use('/api/consulting/analytics', requireConsultingLaunched, consultingAnalyticsRoutes);
 app.use('/api/analytics', siteVisitRoutes);
-app.use('/api/consulting', consultingActionItemsRoutes);
-app.use('/api/consulting/contractor', consultantNetworkRoutes);
-app.use('/api/scheduling', consultantSchedulingRoutes);
+app.use('/api/consulting', requireConsultingLaunched, consultingActionItemsRoutes);
+app.use('/api/consulting/contractor', requireConsultingLaunched, consultantNetworkRoutes);
+app.use('/api/scheduling', requireConsultingLaunched, consultantSchedulingRoutes);
 app.use('/api/helper-settings', helperCancellationPoliciesRoutes);
 // NOTE: /api/role-toggle intentionally removed - see comment near top of file
 
@@ -646,7 +653,7 @@ const monitoringRoutes = require('./routes/monitoring');
 const countryConfigRoutes = require('./routes/countryConfig');
 app.use('/api/calendar', calendarRoutes);
 app.use('/api/bookings', bookingsRoutes);
-app.use('/api/maintenance-requests', maintenanceRequestsRoutes);
+app.use('/api/maintenance-requests', launchGate(), maintenanceRequestsRoutes);
 app.use('/api/property-operations', propertyOperationsRoutes);
 app.use('/api/trades-operations', tradesOperationsRoutes);
 app.use('/api/beauty-operations', beautyOperationsRoutes);
@@ -662,10 +669,10 @@ app.use('/api/legal', legalDocumentsRoutes);
 app.use('/api/admin/legal', legalDocumentsRoutes);
 app.use('/api', reviewModerationRoutes);
 app.use('/api/marketplace/products', launchGate(), marketplaceProductsRoutes);
-app.use('/api/carts', shoppingCartsRoutes);
-app.use('/api/carts', cartCheckoutRoutes);
-app.use('/api/shared-carts', sharedCartsRoutes);
-app.use('/api/job-kits', jobKitsRoutes);
+app.use('/api/carts', launchGate(), shoppingCartsRoutes);
+app.use('/api/carts', launchGate(), cartCheckoutRoutes);
+app.use('/api/shared-carts', launchGate(), sharedCartsRoutes);
+app.use('/api/job-kits', launchGate(), jobKitsRoutes);
 app.use('/api/mobile', mobileRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/storage', storageRoutes);

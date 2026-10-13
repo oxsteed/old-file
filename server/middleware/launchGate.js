@@ -38,6 +38,31 @@ const GATED_PREFIXES = Object.freeze([
     flag: 'productMarketplace',
     allow: Object.freeze(['/api/marketplace/products/sync-homedepot']),
   },
+  // Review P1-210: the specialized-template intake is launch-gated in the
+  // client; the public intake API is now gated too (owners keep access to
+  // requests that already exist).
+  {
+    prefix: '/api/maintenance-requests/public',
+    flag: 'specializedProfileTemplates',
+    allow: Object.freeze([]),
+  },
+  {
+    // Review P2-652: carts, cart checkout, shared carts and job kits are the
+    // marketplace purchase path; gate them with the product catalog.
+    prefix: '/api/carts',
+    flag: 'productMarketplace',
+    allow: Object.freeze([]),
+  },
+  {
+    prefix: '/api/shared-carts',
+    flag: 'productMarketplace',
+    allow: Object.freeze([]),
+  },
+  {
+    prefix: '/api/job-kits',
+    flag: 'productMarketplace',
+    allow: Object.freeze([]),
+  },
   {
     prefix: '/api/media',
     flag: 'oxsteedMedia',
@@ -59,6 +84,7 @@ function oxsteedMediaLaunched() {
 const LAUNCH_VISIBILITY = Object.freeze({
   templates: false,
   productMarketplace: false,
+  specializedProfileTemplates: false,
   oxsteedMedia: oxsteedMediaLaunched(),
 });
 

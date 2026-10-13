@@ -25,6 +25,9 @@ const { errorHandler } = require('../middleware/errorHandler');
 const { requirePermission } = require('../middleware/adminAuth');
 const { refundFoodOrder } = require('../controllers/agentFoodRefundActions');
 
+jest.mock('../controllers/foodController', () => ({
+  refundFoodOrderCardPayment: jest.fn().mockResolvedValue({ refund: { id: 're_1', amount: 2500 }, chargeId: 'ch_1' }),
+}));
 jest.mock('../services/foodWalletService', () => ({
   ...jest.requireActual('../services/foodWalletService'),
   refundWalletDebitForReference: jest.fn(),
@@ -422,19 +425,27 @@ describe('manual-settlement payment methods', () => {
     }
   );
 
-  test('pay_now is rejected: card refunds stay on the restaurant card-refund flow', async () => {
-    routeQueries({ order: orderFixture({ metadata: { paymentMode: 'pay_now' } }) });
+  test.each(['pay_now', 'card'])('%s card orders refund through Stripe with the shared key', async (mode) => {
+    const { refundFoodOrderCardPayment } = require('../controllers/foodController');
+    refundFoodOrderCardPayment.mockClear();
+    routeQueries({ order: orderFixture({ payment_status: 'paid', stripe_payment_intent_id: 'pi_1', metadata: { paymentMode: mode } }) });
 
     const res = await request(buildApp())
       .post('/agent/food-orders/101/refund')
       .send({ reason: 'Card refund from console' });
 
+    expect(res.status).toBe(200);
+    expect(refundFoodOrderCardPayment).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({
+      destinationCharge: mode === 'card',
+    }));
+    expect(updateCalls()).toHaveLength(1);
+  });
+
+  test('card order without a captured payment is rejected', async () => {
+    routeQueries({ order: orderFixture({ payment_status: 'unpaid', stripe_payment_intent_id: null, metadata: { paymentMode: 'card' } }) });
+    const res = await request(buildApp()).post('/agent/food-orders/101/refund').send({ reason: 'x refund' });
     expect(res.status).toBe(422);
-    expect(res.body.code).toBe('refund_pay_now_unsupported');
-    expect(refundWalletDebitForReference).not.toHaveBeenCalled();
-    expect(refundCreditForReferenceInTransaction).not.toHaveBeenCalled();
-    expect(updateCalls()).toHaveLength(0);
-    expect(logAdminAction).not.toHaveBeenCalled();
+    expect(res.body.code).toBe('refund_card_not_paid');
   });
 });
 

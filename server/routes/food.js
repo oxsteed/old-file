@@ -8,7 +8,7 @@ const walletCtrl = require('../controllers/foodWalletController');
 const statementController = require('../controllers/creditStatementController');
 const kiosk = require('../controllers/restaurantKioskController');
 const oxsteedCreditPartnerCtrl = require('../controllers/oxsteedCreditPartnerController');
-const { creditExportLimiter, creditPurchaseLimiter, restaurantCreditMutationLimiter, profileChatLimiter, foodCheckoutCompleteLimiter } = require('../middleware/rateLimiter');
+const { creditExportLimiter, creditPurchaseLimiter, paymentsLimiter, restaurantCreditMutationLimiter, profileChatLimiter, foodCheckoutCompleteLimiter } = require('../middleware/rateLimiter');
 
 function noStoreCreditResponse(_req, res, next) {
   res.set('Cache-Control', 'private, no-store');
@@ -122,7 +122,9 @@ router.post('/restaurants/:restaurantId/customer-wallet-holds/:holdId/release', 
 // PaymentIntent for the restaurant's Connect account; the client confirms it
 // with Elements, then places the order with paymentMode 'card' and the
 // payment intent id.
-router.post('/card-payment/intent', authenticate, creditPurchaseLimiter, ctrl.createCardPaymentIntent);
+// Review P3-1095: card intents carry the per-user payments budget
+// (creditPurchaseLimiter skips every non-credit body).
+router.post('/card-payment/intent', authenticate, paymentsLimiter, ctrl.createCardPaymentIntent);
 router.get('/payment-methods', authenticate, ctrl.listSavedPaymentMethods);
 router.post('/restaurants/:restaurantId/orders', optionalAuth, creditPurchaseLimiter, ctrl.createOrder);
 

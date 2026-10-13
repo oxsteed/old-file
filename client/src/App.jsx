@@ -35,6 +35,7 @@ const ActivityPage = lazyWithRetry(() => import('./pages/ActivityPage'));
 const JobListPage = lazyWithRetry(routeLoaders.jobs, { name: 'jobs' });
 const SavedSearchesPage = lazyWithRetry(() => import('./pages/SavedSearchesPage'));
 const JobDetailPage = lazyWithRetry(() => import('./pages/JobDetailPage'));
+const JobEditPage = lazyWithRetry(() => import('./pages/JobEditPage'));
 const BidDetailPage = lazyWithRetry(() => import('./pages/BidDetailPage'));
 const PostJobPage = lazyWithRetry(() => import('./pages/PostJobPage'));
 const NotFoundPage = lazyWithRetry(() => import('./pages/NotFoundPage'));
@@ -184,8 +185,8 @@ const StatusPage = lazyWithRetry(() => import('./pages/StatusPage'));
 const InventoryHelpCenterPage = lazyWithRetry(() => import('./pages/InventoryHelpCenterPage'));
 const MyJobsPage = lazyWithRetry(() => import('./pages/MyJobsPage'));
 const MyBidsPage = lazyWithRetry(() => import('./pages/MyBidsPage'));
+const HelperPayoutsPage = lazyWithRetry(() => import('./pages/helper/HelperPayoutsPage'));
 const EnforcementPolicyPage = lazyWithRetry(() => import('./pages/EnforcementPolicyPage'));
-const HelperProfileEditPage = lazyWithRetry(() => import('./pages/HelperProfileEditPage'));
 const FeatureGuidePage = lazyWithRetry(() => import('./pages/FeatureGuidePage'));
 const ExperienceGuidePage = lazyWithRetry(() => import('./pages/ExperienceGuidePage'));
 const LearnModePage = lazyWithRetry(() => import('./pages/LearnModePage'));
@@ -413,6 +414,7 @@ export default function App() {
                     <Route path="/business/:businessId/careers" element={<Guarded><CareersPage /></Guarded>} />
                     <Route path="/jobs"                    element={<Guarded><JobListPage /></Guarded>} />
                     <Route path="/saved-searches"         element={<Guarded><ProtectedRoute><SavedSearchesPage /></ProtectedRoute></Guarded>} />
+                    <Route path="/jobs/:id/edit"           element={<Guarded><ProtectedRoute><RouteErrorBoundary><JobEditPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/jobs/:id"                element={<Guarded><JobDetailPage /></Guarded>} />
                     <Route path="/bids/:bidId"             element={<Guarded><ProtectedRoute><RouteErrorBoundary><BidDetailPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/jobs/public/:jobId"      element={<JobPublicPage />} />
@@ -552,6 +554,7 @@ export default function App() {
                     <Route path="/post-job"       element={<Guarded><ProtectedRoute><RouteErrorBoundary><PostJobPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/my-jobs"        element={<Guarded><ProtectedRoute><MyJobsPage /></ProtectedRoute></Guarded>} />
                     <Route path="/my-bids"        element={<Guarded><ProtectedRoute><MyBidsPage /></ProtectedRoute></Guarded>} />
+                    <Route path="/helper/payouts" element={<Guarded><ProtectedRoute><RouteErrorBoundary><HelperPayoutsPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/invoices"       element={<Guarded><ProtectedRoute><RouteErrorBoundary><InvoicesPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/consultant-availability" element={<Guarded><ProtectedRoute><RouteErrorBoundary><ConsultantAvailabilityPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/consulting/contractor-dashboard" element={<Guarded><ProtectedRoute><RouteErrorBoundary><ConsultantContractorDashboard /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
@@ -563,7 +566,8 @@ export default function App() {
                     <Route path="/settings/notifications" element={<Guarded><ProtectedRoute><NotificationSettings /></ProtectedRoute></Guarded>} />
                     <Route path="/settings/country" element={<Guarded><CountrySettings /></Guarded>} />
                     <Route path="/settings/payment-policies" element={<Guarded><ProtectedRoute><HelperCancellationSettings /></ProtectedRoute></Guarded>} />
-                    <Route path="/dashboard/edit-profile" element={<Guarded><ProtectedRoute><RouteErrorBoundary><HelperProfileEditPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
+                    {/* Review P1-208: the stub editor is retired; the dashboard tab is the real editor. */}
+                    <Route path="/dashboard/edit-profile" element={<Guarded><ProtectedRoute><Navigate to="/dashboard?tab=editprofile" replace /></ProtectedRoute></Guarded>} />
                     {/* Retired: the legacy business profile editor is superseded by the
                         Business Hub profile tab; keep the old URL working as a redirect. */}
                     <Route path="/business/edit-profile" element={<Guarded><ProtectedRoute><Navigate to="/business-hub?tab=profile" replace /></ProtectedRoute></Guarded>} />

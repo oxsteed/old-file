@@ -203,6 +203,11 @@ test('passkey login hydrates shared authentication without posting its response 
     });
     await page.locator('#email').fill('synthetic@example.invalid');
     await page.evaluate(()=>localStorage.setItem('refreshToken','synthetic-legacy-revoked'));
+    // P1-113: passkey sign-in needs the same agreement + signature as password sign-in.
+    await page.getByRole('button', { name: 'login.signInWithPasskey' }).click();
+    assert.equal(env.calls.filter(call => call.path.startsWith('/api/passkeys/authentication')).length, 0);
+    await page.locator('#terms-agree').check();
+    await page.locator('#signature-name').fill('Synthetic Person');
     await page.getByRole('button', { name: 'login.signInWithPasskey' }).click();
     await page.waitForURL('**/dashboard');
     assert.equal(await page.locator('[data-user]').innerText(), 'synthetic');

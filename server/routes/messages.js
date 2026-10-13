@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { authenticate } = require('../middleware/auth');
-const { conversationMessageLimiter, userChatLimiter, strictLimiter } = require('../middleware/rateLimiter');
+const { conversationMessageLimiter, userChatLimiter, userUploadLimiter, strictLimiter } = require('../middleware/rateLimiter');
 const upload = require('../middleware/upload');
 const validateFileUpload = require('../middleware/validateFileUpload');
 const pool = require('../db');
@@ -16,6 +16,7 @@ const {
   markGuestInquiryRead,
   replyGuestInquiryMessage,
   getOrCreateConversation,
+  getOrCreateJobConversation,
   getConversationMeta,
   getMessages,
   searchMessages,
@@ -50,6 +51,9 @@ router.get('/conversations', getConversations);
 
 // POST /api/messages/conversations - Create or get existing conversation
 router.post('/conversations', getOrCreateConversation);
+
+// POST /api/messages/jobs/:jobId/conversation - job-scoped chat (P1-136)
+router.post('/jobs/:jobId/conversation', getOrCreateJobConversation);
 
 // GET /api/messages/conversations/:conversationId/meta - conversation name, job title, business
 router.get('/conversations/:conversationId/meta', getConversationMeta);
@@ -92,7 +96,7 @@ router.post('/conversations/:conversationId/restore', restoreConversation);
 
 // POST /api/messages/conversations/:conversationId/attachments - Upload a file/image attachment
 // Accepts a single file under the field name "file" (max 10 MB, images + docs)
-router.post('/conversations/:conversationId/attachments', upload.single('file'), validateFileUpload, uploadAttachment);
+router.post('/conversations/:conversationId/attachments', userUploadLimiter, conversationMessageLimiter, upload.single('file'), validateFileUpload, uploadAttachment);
 
 // ── User blocking (Guideline 1.2) ────────────────────────────────────────────
 

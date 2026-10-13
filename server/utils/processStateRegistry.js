@@ -183,6 +183,16 @@ const ENTRIES = [
     classification: 'cache', shared: 'none',
     rationale: '60s TTL cache of provider probe snapshots for the operator view (max 32 entries). Backing truth is the live provider; staleness is bounded by the TTL.',
   },
+  {
+    file: 'services/paymentRailPolicy.js', name: 'cache',
+    classification: 'cache', shared: 'none',
+    rationale: '60s TTL cache of payment_country_policies rows keyed by ISO country code (bounded by the country list). Backing truth is PostgreSQL; the admin update endpoint clears it, other instances converge within the TTL.',
+  },
+  {
+    file: 'services/payoutPartners/index.js', name: 'registry',
+    classification: 'constant', shared: 'none',
+    rationale: 'Write-once registry of cash-out partner adapters populated at module load (tests may register fakes). Holds no money state; payouts are recorded in credit_cashout_requests.',
+  },
 ];
 
 for (const entry of ENTRIES) registerProcessState(entry);

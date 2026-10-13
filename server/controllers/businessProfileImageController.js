@@ -1,6 +1,7 @@
 const pool = require('../db');
 const { AppError, sendValidationError, sendError } = require('../utils/apiError');
 const logger = require('../utils/logger');
+const { enqueueStorageDeletion } = require('../services/storageCleanupService');
 const { uploadFile, getPublicUrl } = require('../utils/storage');
 const {
   generateBusinessProfileQRCode,
@@ -104,10 +105,9 @@ exports.uploadCoverImage = async (req, res) => {
     );
 
     if (existingResult.rows.length > 0 && existingResult.rows[0].cover_image_url) {
-      // TODO: Delete old image from S3
-      logger.info('Old business cover image should be deleted', {
-        oldUrl: existingResult.rows[0].cover_image_url
-      });
+      // Review P3-914: queue the replaced object for deletion (after a grace
+      // period, and only if nothing references it any more).
+      await enqueueStorageDeletion(existingResult.rows[0].cover_image_url, 'business_cover_replaced');
     }
 
     // Update business with new cover image URL

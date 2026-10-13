@@ -4,7 +4,7 @@ const router  = express.Router();
 
 const { authenticate } = require('../middleware/auth');
 const requireEmailVerified = require('../middleware/requireEmailVerified');
-const { requireOnboardingStep } = require('../middleware/helperOnboardingMiddleware');
+const { requireHelperStep } = require('../middleware/helperOnboardingMiddleware');
 const { authLimiter } = require('../middleware/rateLimiter');
 const upload = require('../middleware/upload');
 const validateFileUpload = require('../middleware/validateFileUpload');
@@ -14,10 +14,10 @@ const {
   verifyOTP,
   resendOTP,
   getCategories,
-  completeRegistration,
   saveTier,
   saveW9,
   acceptTerms,
+  acceptPendingTerms,
   finalizeRegistration,
   savePaymentStep,
   submitOnboardingProfile,
@@ -35,11 +35,19 @@ router.post('/verify-otp',  authLimiter, verifyOTP);
 router.post('/resend-otp',  authLimiter, resendOTP);
 router.post('/send-otp',    authLimiter, resendOTP);  // alias for frontend
 router.get('/categories',   getCategories);
-router.post('/complete',    authLimiter, completeRegistration);
+// Review P2-482: the deprecated completion endpoint created accounts from an
+// email alone and returned 500s. Account creation happens in /verify-otp now.
+router.post('/complete',    authLimiter, (_req, res) => res.status(410).json({
+  error: 'This step is no longer used. Verify your code to finish creating your account.',
+  code: 'endpoint_retired',
+}));
 router.post('/tier',        authenticate, saveTier);
 router.post('/w9',          authenticate, saveW9);
 router.post('/accept-terms', authenticate, acceptTerms);
-router.post('/finalize',    authenticate, finalizeRegistration);
+// Review P2-477: records the signup checkbox against the pending registration
+// (version, time, hashed IP, user agent) before the account exists.
+router.post('/registration-terms', authLimiter, acceptPendingTerms);
+router.post('/finalize',    authenticate, requireHelperStep('finalize'), finalizeRegistration);
 router.post('/payment',     authenticate, savePaymentStep);
 
 // Authenticated - profile + contact + photo (frontend Step4)
@@ -52,19 +60,19 @@ router.post('/profile-photo', authenticate, requireEmailVerified, upload.single(
 router.put('/onboarding/profile',
   authenticate,
   requireEmailVerified,
-  requireOnboardingStep('registered'),
+  requireHelperStep('profile'),
   submitOnboardingProfile
 );
 router.put('/onboarding/id-verification',
   authenticate,
   requireEmailVerified,
-  requireOnboardingStep('profile_complete'),
+  requireHelperStep('identity'),
   submitIdVerification
 );
 router.put('/onboarding/background-check',
   authenticate,
   requireEmailVerified,
-  requireOnboardingStep('id_submitted'),
+  requireHelperStep('background'),
   submitBackgroundCheck
 );
 router.get('/onboarding/status',

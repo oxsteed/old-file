@@ -574,6 +574,12 @@ function parseTipCents(value, subtotalCents, field = 'tipCents') {
   return tipCents;
 }
 exports.parseTipCents = parseTipCents;
+// Agent/admin consoles refund card orders through the same idempotency-keyed
+// Stripe path as the kitchen (food-order:<id>:refund), so paths dedupe.
+exports.refundFoodOrderCardPayment = (client, { order, createdByUserId = null, status = 'refunded', destinationCharge = false }) =>
+  refundFoodOrderStripePayment(client, {
+    order, restaurantId: order.restaurant_id, createdByUserId, status, destinationCharge,
+  });
 
 function safeReturnUrl(value) {
   const raw = normalizeString(value, 1000);
@@ -1378,7 +1384,7 @@ async function createFoodCheckoutSession({
 // POS refund row dedupes on (restaurant_id, idempotency_key), so retries and
 // the charge.refunded webhook cannot double-refund. Runs inside the caller's
 // transaction so a failed refund rolls back the status transition.
-async function refundFoodOrderStripePayment(client, { order, restaurantId, createdByUserId = null, status = 'refunded' }) {
+async function refundFoodOrderStripePayment(client, { order, restaurantId, createdByUserId = null, status = 'refunded', destinationCharge = false }) {
   if (!hasRestaurantStripeCheckout()) {
     throw new AppError('Stripe payments are not configured', 503, 'stripe_not_configured');
   }
@@ -1389,10 +1395,18 @@ async function refundFoodOrderStripePayment(client, { order, restaurantId, creat
   );
   let refund;
   try {
+    // Destination charges (card mode) live on the platform account: reverse
+    // the transfer and the application fee so the restaurant's share comes
+    // back with the customer's money.
+    const refundParams = { payment_intent: order.stripe_payment_intent_id };
+    if (destinationCharge && !connectedAccountId) {
+      refundParams.reverse_transfer = true;
+      refundParams.refund_application_fee = true;
+    }
     refund = await stripe.refunds.create(
-      { payment_intent: order.stripe_payment_intent_id },
+      refundParams,
       {
-        stripeAccount: connectedAccountId || undefined,
+        stripeAccount: (destinationCharge ? null : connectedAccountId) || undefined,
         idempotencyKey: `food-order:${order.id}:refund`,
       }
     );
@@ -3357,6 +3371,13 @@ exports.createOrder = async (req, res, next) => {
 
       if (paymentContract.canonical === 'oxsteed_credit') {
         if (total <= 0) {
+          if (created.payment_status !== 'paid') {
+            await client.query(
+              `UPDATE food_orders SET payment_status = 'paid', updated_at = NOW() WHERE id = $1`,
+              [created.id]
+            );
+            created.payment_status = 'paid';
+          }
           oxsteedCreditPayment = buildOxsteedCreditPaymentResponse({
             status: 'paid',
             amountCents: 0,
@@ -3399,13 +3420,17 @@ exports.createOrder = async (req, res, next) => {
             },
           });
           const creditTransactionId = creditResult.purchase?.transaction?.id || null;
+          // The debit has posted (same transaction): the order is paid,
+          // for guests as much as for signed-in customers.
           await client.query(
             `UPDATE food_orders
                 SET metadata = COALESCE(metadata, '{}'::jsonb) || $1::jsonb,
+                    payment_status = 'paid',
                     updated_at = NOW()
               WHERE id = $2`,
             [JSON.stringify({ oxsteedCreditTransactionId: creditTransactionId }), created.id]
           );
+          created.payment_status = 'paid';
           created.metadata = {
             ...(created.metadata || {}),
             oxsteedCreditTransactionId: creditTransactionId,
@@ -4049,7 +4074,7 @@ exports.updateOrderStatus = async (req, res, next) => {
                 handed_off_by = CASE WHEN $1 = 'completed' THEN COALESCE(fo.handed_off_by, $5) ELSE fo.handed_off_by END,
                 payment_status = CASE
                   WHEN $1 IN ('cancelled', 'refunded')
-                    AND COALESCE(fo.metadata->>'paymentMode', '') IN ('wallet_credit', 'oxsteed_credit', 'pay_now')
+                    AND COALESCE(fo.metadata->>'paymentMode', fo.metadata->>'payment_mode', '') IN ('wallet_credit', 'oxsteed_credit', 'pay_now', 'card')
                     AND fo.payment_status = 'paid'
                     THEN 'refunded'
                   ELSE fo.payment_status
@@ -4232,7 +4257,10 @@ exports.updateOrderStatus = async (req, res, next) => {
         });
       }
 
-      if (['cancelled', 'refunded'].includes(status) && paymentMode === 'oxsteed_credit' && order.customer_id && Number(order.total_cents || 0) > 0) {
+      // Guest Credit orders (no customer_id) are refunded too: the refund is
+      // keyed on the order's original Credit purchase, not on a user.
+      if (['cancelled', 'refunded'].includes(status) && paymentMode === 'oxsteed_credit'
+        && previousPaymentStatus === 'paid' && Number(order.total_cents || 0) > 0) {
         const refundResult = await refundCreditForReferenceInTransaction(client, {
           referenceType: 'food_order',
           referenceId: String(order.id),
@@ -4263,8 +4291,10 @@ exports.updateOrderStatus = async (req, res, next) => {
       // refunding a paid card order must refund the charge, not just flip the
       // status. The refund is idempotency-keyed per order so retries and the
       // charge.refunded webhook cannot double-refund.
+      // Card mode (Stripe Elements destination charge) is refunded the same
+      // way; the transfer to the restaurant is reversed with it.
       if (['cancelled', 'refunded'].includes(status)
-        && paymentMode === 'pay_now'
+        && ['pay_now', 'card'].includes(paymentMode)
         && previousPaymentStatus === 'paid'
         && order.stripe_payment_intent_id) {
         const cardRefund = await refundFoodOrderStripePayment(client, {
@@ -4272,9 +4302,10 @@ exports.updateOrderStatus = async (req, res, next) => {
           restaurantId,
           createdByUserId: req.user?.id || null,
           status,
+          destinationCharge: paymentMode === 'card',
         });
         payment = {
-          mode: 'pay_now',
+          mode: paymentMode,
           status: 'refunded',
           amountCents: Number(order.total_cents || 0),
           amount: Number(order.total_cents || 0) / 100,

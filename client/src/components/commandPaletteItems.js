@@ -5,6 +5,7 @@
  */
 import api from '../api/axios';
 import { REGULAR_NAV, SUPER_NAV } from '../admin/layouts/AdminLayout';
+import { getLaunchRedirect } from '../utils/launchScope';
 
 export const RECENT_STORAGE_KEY = 'oxsteed:cmdk:recent';
 const MAX_RECENT = 8;
@@ -113,7 +114,9 @@ const CLIENT_ACTIONS = [
 ];
 
 export function buildClientItems(t) {
-  const pages = CLIENT_PAGES.map((entry) => ({
+  // Review P1-222: don't offer pages the launch scope redirects away
+  // (e.g. /discover while discoverEverything is off).
+  const pages = CLIENT_PAGES.filter((entry) => !getLaunchRedirect(entry.path)).map((entry) => ({
     ...entry,
     label: t(entry.labelKey),
     group: 'pages',

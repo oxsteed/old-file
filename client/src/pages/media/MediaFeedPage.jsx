@@ -1,3 +1,4 @@
+import { getLaunchRedirect } from '../../utils/launchScope';
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useSearchParams } from 'react-router-dom';
@@ -116,7 +117,7 @@ export default function MediaFeedPage() {
       </div>
     </section>}
     <section className="media-community-discovery"><h2>{t('media.landing.discoverCommunity')}</h2><div className="media-community-discovery-grid">
-      <Link className="media-reference-card media-discovery-tile" to={`/discover?type=business${Number.isFinite(resolvedLocation.latitude) ? `&lat=${resolvedLocation.latitude}&lng=${resolvedLocation.longitude}` : resolvedLocation.city && resolvedLocation.state ? `&city=${encodeURIComponent(resolvedLocation.city)}&state=${encodeURIComponent(resolvedLocation.state)}` : ''}`}><MediaNeighborhoodArt kind="business" className="media-discovery-art" /><div><Store size={29} /><h3>{t('media.landing.localBusinesses')}</h3><p>{t('media.landing.businessesDescription')}</p></div></Link>
+      <Link className="media-reference-card media-discovery-tile" to={getLaunchRedirect('/discover') ? '/helpers' : `/discover?type=business${Number.isFinite(resolvedLocation.latitude) ? `&lat=${resolvedLocation.latitude}&lng=${resolvedLocation.longitude}` : resolvedLocation.city && resolvedLocation.state ? `&city=${encodeURIComponent(resolvedLocation.city)}&state=${encodeURIComponent(resolvedLocation.state)}` : ''}`}><MediaNeighborhoodArt kind="business" className="media-discovery-art" /><div><Store size={29} /><h3>{t('media.landing.localBusinesses')}</h3><p>{t('media.landing.businessesDescription')}</p></div></Link>
       <Link className="media-reference-card media-discovery-tile" to="/media/communities"><MediaNeighborhoodArt kind="community" className="media-discovery-art" /><div><Users size={29} /><h3>{t('media.landing.communitySpaces')}</h3><p>{t('media.landing.spacesDescription')}</p></div></Link>
     </div></section>
   </div>;

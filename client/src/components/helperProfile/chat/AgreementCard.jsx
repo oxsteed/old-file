@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Check, X, Download, Loader2, ScrollText, Hand } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import api from '../../../api/axios';
 import { canCustomerRespondToAgreement, parseAgreementMarker } from './messengerAgreements.js';
 import './MessengerDock.css';
@@ -138,6 +139,15 @@ export default function AgreementCard({
         </div>
         {agreement?.required_before_schedule ? (
           <div className="artifact-meta warn">{t('helperProfile.messenger.agreementRequiredBeforeSchedule')}</div>
+        ) : null}
+        {agreement?.jobId ? (
+          <div className="artifact-meta">
+            <Link to={agreement.recordsRoomAgreementId ? `/agreements/${agreement.recordsRoomAgreementId}` : `/agreements/new?jobId=${encodeURIComponent(agreement.jobId)}`}>
+              {agreement.recordsRoomAgreementId
+                ? t('helperProfile.messenger.agreementOpenRecords')
+                : t('helperProfile.messenger.agreementCreateRecords')}
+            </Link>
+          </div>
         ) : null}
         {agreement?.body_text ? (
           <pre className="artifact-terms">{agreement.body_text.slice(0, compact ? 280 : 2000)}</pre>

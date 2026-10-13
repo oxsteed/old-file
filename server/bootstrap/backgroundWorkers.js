@@ -21,6 +21,7 @@ const { startDirectCalendarReminderJob } = require('../jobs/directCalendarRemind
 const { startAffiliateCommissionBatchJob } = require('../jobs/affiliateCommissionBatch');
 const { startTemplateExpiryJob } = require('../jobs/templateExpiryJob');
 const { startAcceptedJobExpiryJob } = require('../jobs/acceptedJobExpiryJob');
+const { startHelperCompletionAutoConfirmJob } = require('../jobs/helperCompletionAutoConfirm');
 const { startScheduledDeletionJob } = require('../jobs/scheduledDeletionJob');
 const { startRecurringJobScheduler } = require('../jobs/recurringJobScheduler');
 const { startCustomerReengagementJob } = require('../jobs/customerReengagementJob');
@@ -29,6 +30,9 @@ const { cancelAbandonedPayNowOrders } = require('../services/foodAbandonedOrderS
 const { cleanupExpiredWalletOperations } = require('../services/foodWalletOperationsService');
 const { startOxsteedCreditHoldExpiryJob } = require('../jobs/oxsteedCreditHoldExpiry');
 const { startDirectSlotHoldExpiryJob } = require('../jobs/directSlotHoldExpiry');
+const { startJobEventOutboxJob } = require('../jobs/jobEventOutbox');
+const { startJobRevisionMaintenanceJob } = require('../jobs/jobRevisionMaintenance');
+const { startPaymentLayersWorker } = require('../jobs/paymentLayersWorker');
 const { startOxsteedCreditEntitlementExpiryJob } = require('../jobs/oxsteedCreditEntitlementExpiry');
 const { startOxsteedCreditReconciliationJob } = require('../jobs/oxsteedCreditReconciliation');
 const { startOxsteedCreditTopupExpiryJob } = require('../jobs/oxsteedCreditTopupExpiry');
@@ -50,6 +54,9 @@ const { startExternalRefundReconciliationJob } = require('../jobs/externalRefund
 const { startPayoutSettlementReconciliationJob } = require('../jobs/payoutSettlementReconciliation');
 const { startRestaurantPayoutReconciliationJob } = require('../jobs/restaurantPayoutReconciliation');
 const { startWebhookRetryJob } = require('../jobs/webhookRetryWorker');
+const { startChargebackEvidenceDeadlineJob } = require('../jobs/chargebackEvidenceDeadline');
+const { startWebhookReceiptRecoveryJob } = require('../jobs/webhookReceiptRecovery');
+const { startBookingDepositSettlementJob } = require('../jobs/bookingDepositSettlement');
 const { startSettingsChangeApplierJob } = require('../jobs/settingsChangeApplier');
 const { startProfileVisibilityScheduler } = require('../jobs/profileVisibilityScheduledActions');
 const { startProfileVisibilityNotificationRetryJob } = require('../jobs/profileVisibilityNotificationRetry');
@@ -58,6 +65,7 @@ const { processSupportEmailOutbox } = require('../services/supportEmailOutbox');
 const { processSupportFollowUpReminders } = require('../services/supportFollowUpReminderWorker');
 const { processBusinessInvoicePaymentReminders } = require('../services/businessInvoicePaymentReminderWorker');
 const { recoverStaleSupportChannelDeliveries } = require('../services/supportChannelDeliveryRecovery');
+const { dedicatedWorkerProcess } = require('../utils/workerTopology');
 
 class BackgroundWorkers {
   constructor({ log = logger } = {}) {
@@ -93,6 +101,7 @@ class BackgroundWorkers {
       startScheduledDeletionJob();
       startTemplateExpiryJob();
       startAcceptedJobExpiryJob();
+      startHelperCompletionAutoConfirmJob();
       startRecurringJobScheduler();
       startCustomerReengagementJob();
       startOxsteedCreditHoldExpiryJob();
@@ -112,12 +121,18 @@ class BackgroundWorkers {
       startOxsteedCreditWorkerWatchdog();
       startRestaurantWalletWatchdog();
       startMessageNotificationOutboxJob();
+      startJobEventOutboxJob();
+      startJobRevisionMaintenanceJob();
+      startPaymentLayersWorker();
       startMarketplaceRefundReconciliationJob();
       startPaymentRefundReconciliationJob();
       startExternalRefundReconciliationJob();
       startPayoutSettlementReconciliationJob();
       startRestaurantPayoutReconciliationJob();
       startWebhookRetryJob();
+      startChargebackEvidenceDeadlineJob();
+      startWebhookReceiptRecoveryJob();
+      startBookingDepositSettlementJob();
       startSettingsChangeApplierJob();
       startProfileVisibilityScheduler();
       startProfileVisibilityNotificationRetryJob();
@@ -214,6 +229,12 @@ class BackgroundWorkers {
       this.captureCronTasks(existingTaskIds);
 
       this.handles.push(startLocalDeliveryEventWorker({ log: this.log }));
+      // Review P1-344 / P2-573 / P3-869 / P3-872: the interval workers used to
+      // run only in workerMain.js, which production never started. The API
+      // runs them unless a dedicated worker process is declared.
+      if (!dedicatedWorkerProcess()) {
+        this.handles.push(require('../workers/scheduledWorkerSchedule').startScheduledWorkers({ log: this.log }));
+      }
       this.started = true;
       this.log.info('Background workers started', {
         cronTasks: this.cronTaskIds.size,

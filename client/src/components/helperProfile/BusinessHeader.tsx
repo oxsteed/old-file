@@ -18,7 +18,7 @@ interface BusinessHeaderProps {
   helperId?: string;
   helper: HelperProfile;
   /** Desktop-only hero Book Now (mobile uses the sticky bottom bar) */
-  onBookNow: () => void;
+  onBookNow?: () => void;
   /** Broad job post (optional second CTA) */
   onPostJobPublic?: () => void;
   /** Recipient's public QR pay link; renders a Pay button when present */
@@ -112,13 +112,15 @@ const BusinessHeader: React.FC<BusinessHeaderProps> = ({
   const actions = (
     <div className="pph-actions">
       <div className="pph-actions__pair">
-        <button
-          type="button"
-          onClick={onBookNow}
-          className={`${btnPrimary} hidden lg:inline-flex`}
-        >
-          {t('helperProfile.header.bookNow')}
-        </button>
+        {onBookNow && (
+          <button
+            type="button"
+            onClick={onBookNow}
+            className={`${btnPrimary} hidden lg:inline-flex`}
+          >
+            {t('helperProfile.header.bookNow')}
+          </button>
+        )}
         {onPostJobPublic && (
           <button
             type="button"

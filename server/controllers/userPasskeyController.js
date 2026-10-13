@@ -1,7 +1,7 @@
 'use strict';
 
 const crypto = require('crypto');
-const { setSessionCookies } = require('../utils/authCookies');
+const { setSessionCookies, bodyTokens } = require('../utils/authCookies');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const {
@@ -11,6 +11,8 @@ const {
   verifyAuthenticationResponse,
 } = require('@simplewebauthn/server');
 const db = require('../db');
+const { challengeFromResponse } = require('../utils/webauthnChallenge');
+const { assertLoginAgreement, recordLoginAgreement } = require('../services/loginAgreementService');
 const { generateTokens } = require('../middleware/auth');
 const { formatAuthUser } = require('./authController');
 
@@ -54,7 +56,7 @@ function parsePasskeyToken(token) {
 
 async function saveChallenge(userId, purpose, challenge) {
   await db.query(
-    `DELETE FROM user_passkey_challenges WHERE (user_id = $1 OR user_id IS NULL) AND purpose = $2`,
+    `DELETE FROM user_passkey_challenges WHERE (user_id = $1 OR user_id IS NULL) AND purpose = $2 AND expires_at <= NOW()`,
     [userId || null, purpose]
   );
   await db.query(
@@ -145,7 +147,8 @@ async function verifyRegistration(req, res, next) {
     const { rows: challenges } = await db.query(
       `SELECT challenge FROM user_passkey_challenges
        WHERE user_id = $1 AND purpose = 'registration' AND expires_at > NOW()
-       ORDER BY created_at DESC LIMIT 1`, [user.id]
+         AND ($2::text IS NULL OR challenge = $2)
+       ORDER BY created_at DESC LIMIT 1`, [user.id, challengeFromResponse(response)]
     );
     if (!challenges[0]) return res.status(400).json({ error: 'Passkey registration expired. Start again.' });
     const consumedChallenge = await consumeChallenge(user.id, 'registration', challenges[0].challenge);
@@ -256,7 +259,7 @@ async function issueUserSession(user, req, res) {
   // as 'oxsteed_refresh', which nothing reads.
   setSessionCookies(res, tokens);
 
-  return res.json({ success: true, user: formatAuthUser(user), accessToken: tokens.accessToken, refreshToken: tokens.refreshToken });
+  return res.json({ success: true, user: formatAuthUser(user), ...bodyTokens(req, tokens) });
 }
 
 async function verifyAuthentication(req, res, next) {
@@ -267,6 +270,11 @@ async function verifyAuthentication(req, res, next) {
   try {
     const user = await getUser(token.id);
     if (!user || !user.is_active) return res.status(401).json({ error: 'Invalid or expired passkey session.' });
+    // Review P1-113: passkey sign-in carries the same per-login agreement and
+    // typed-name signature as password sign-in (admins are exempt there too).
+    if (!['admin', 'super_admin'].includes(user.role)) {
+      assertLoginAgreement(req.body || {}, user);
+    }
     // Parity with password login: respect account lockout.
     if (user.login_locked_until && new Date(user.login_locked_until) > new Date()) {
       return res.status(423).json({ error: 'Account is temporarily locked. Try again later.' });
@@ -280,7 +288,8 @@ async function verifyAuthentication(req, res, next) {
     const { rows: challenges } = await db.query(
       `SELECT challenge FROM user_passkey_challenges
        WHERE user_id = $1 AND purpose = 'authentication' AND expires_at > NOW()
-       ORDER BY created_at DESC LIMIT 1`, [user.id]
+         AND ($2::text IS NULL OR challenge = $2)
+       ORDER BY created_at DESC LIMIT 1`, [user.id, challengeFromResponse(response)]
     );
     if (!challenges[0]) return res.status(400).json({ error: 'Passkey authentication expired. Start again.' });
     const consumedChallenge = await consumeChallenge(user.id, 'authentication', challenges[0].challenge);
@@ -301,7 +310,9 @@ async function verifyAuthentication(req, res, next) {
     });
     if (!verification.verified) return res.status(401).json({ error: 'Passkey verification failed.' });
     const nextCounter = Number(verification.authenticationInfo.newCounter);
-    if (nextCounter <= Number(stored.counter)) return res.status(401).json({ error: 'Passkey counter validation failed.' });
+    // Review P1-111: synced passkeys (iCloud Keychain, Google Password Manager)
+    // always report counter 0; only enforce monotonicity once a counter is used.
+    if (Number(stored.counter) > 0 && nextCounter <= Number(stored.counter)) return res.status(401).json({ error: 'Passkey counter validation failed.' });
     await db.query(`UPDATE user_passkeys SET counter = $1, last_used_at = NOW() WHERE id = $2`, [nextCounter, stored.id]);
     // Parity with password login: if TOTP is enabled, require it.
     if (user.totp_enabled) {
@@ -316,9 +327,10 @@ async function verifyAuthentication(req, res, next) {
         message: 'Please provide your 2FA code to complete login.',
       });
     }
-    // Terms acceptance check (parity with password login).
-    if (!user.terms_accepted) {
-      return res.status(403).json({ error: 'Terms must be accepted before signing in.', code: 'terms_required' });
+    // Review P1-113: same per-login signature and consent records as
+    // password login (which also does not block on users.terms_accepted).
+    if (!['admin', 'super_admin'].includes(user.role)) {
+      await recordLoginAgreement(req, user, req.body.agreementName);
     }
     return issueUserSession(user, req, res);
   } catch (err) { return next(err); }

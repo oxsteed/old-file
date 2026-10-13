@@ -157,6 +157,38 @@ async function createPaymentIntent(req, res) {
 
     if (total <= 0) return sendError(res, 400, 'Invalid order total');
 
+    // Review P3-1092: a double-submit or retry for the same cart and total
+    // resumes the existing pending order/PaymentIntent instead of minting a
+    // second completable one. A per-cart advisory lock serialises racers.
+    const reuse = await withTransaction(pool, async (client) => {
+      await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', [`marketplace-cart-checkout:${cartId}`]);
+      const { rows } = await client.query(
+        `SELECT o.id, mt.payment_intent_id, mt.client_secret
+           FROM marketplace_orders o
+           JOIN marketplace_transactions mt ON mt.order_id = o.id
+          WHERE o.cart_id = $1 AND o.customer_id = $2 AND o.status = 'pending'
+            AND o.total_cents = $3 AND o.created_at > NOW() - INTERVAL '30 minutes'
+            AND mt.status IN ('requires_payment_method', 'requires_confirmation', 'requires_action')
+          ORDER BY o.created_at DESC LIMIT 1`,
+        [cartId, userId, total]
+      );
+      return rows[0] || null;
+    });
+    if (reuse) {
+      return res.json({
+        success: true,
+        data: {
+          orderId: reuse.id,
+          clientSecret: reuse.client_secret,
+          paymentIntentId: reuse.payment_intent_id,
+          total,
+          email,
+          publishableKey: process.env.STRIPE_PUBLISHABLE_KEY,
+          resumed: true,
+        },
+      });
+    }
+
     // Create order and payment intent in transaction
     const order = await withTransaction(pool, async (client) => {
       // Create order
@@ -193,7 +225,7 @@ async function createPaymentIntent(req, res) {
         cartId: cartId.toString(),
         userId: userId.toString()
       }
-    });
+    }, { idempotencyKey: `marketplace-order-pi:${order.id}` });
 
     // Store transaction record
     await pool.query(

@@ -196,7 +196,14 @@
     "next": "Next",
     "scopeNote": "Each product, account and currency has its own statements. These are credit-account records, not bank deposit statements.",
     "correctionsUnavailable": "Online accounting corrections are not available for Helper earnings or Business statements yet. For a review, contact Support and include the account and statement period.",
-    "contactSupport": "Contact Support"
+    "contactSupport": "Contact Support",
+    "entriesTitle": "Transactions",
+    "showEntries": "Show transactions",
+    "entriesLoading": "Loading transactions…",
+    "entriesError": "Transactions could not be loaded.",
+    "entriesEmpty": "This statement has no transactions.",
+    "investigate": "Review or report",
+    "moreEntries": "Show more"
   },
   "statementInvestigation": {
     "title": "Statement transaction",
@@ -1951,5 +1958,11 @@
   "adminParticipantTypeProductSeller": "Product seller",
   "adminParticipantTypeRentalSeller": "Rental seller",
   "adminGuestCreditCaps": "Guest Credit caps (fixed policy)",
-  "adminGuestCreditCapsDescription": "Guests can spend OxSteed Credit up to $25 per order, $50 per day, and $200 lifetime per session. Guest spend is funded from platform treasury. These caps are fixed and apply to all participants."
+  "adminGuestCreditCapsDescription": "Guests can spend OxSteed Credit up to $25 per order, $50 per day, and $200 lifetime per session. Guest spend is funded from platform treasury. These caps are fixed and apply to all participants.",
+  "walletTopup": {
+    "title": "Add money",
+    "intro": "Add money to OxSteed Credit with a card. It is credited once the payment clears.",
+    "credited": "Money added to your OxSteed Credit",
+    "invalidAmount": "Enter at least {{min}}."
+  }
 }

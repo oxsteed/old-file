@@ -44,6 +44,20 @@ describe('launchGate middleware', () => {
     expect(next).not.toHaveBeenCalled();
   });
 
+  test.each([
+    ['/api/carts', '/cart-1/payment-intent'],
+    ['/api/carts', '/cart-1/confirm'],
+    ['/api/shared-carts', '/share-1'],
+    ['/api/job-kits', '/'],
+  ])('P2-652: blocks the unlaunched marketplace purchase path %s%s', (baseUrl, path) => {
+    const gate = launchGate();
+    const res = mockRes();
+    const next = jest.fn();
+    gate({ ...mockReq({ baseUrl, path }), method: 'POST' }, res, next);
+    expect(res.status).toHaveBeenCalledWith(404);
+    expect(next).not.toHaveBeenCalled();
+  });
+
   test('allows admin templates path through', () => {
     const gate = launchGate();
     const req = mockReq({ baseUrl: '/api/templates', path: '/admin/preview' });
@@ -76,5 +90,20 @@ describe('launchGate middleware', () => {
     gate(req, res, next);
     expect(next).toHaveBeenCalled();
     expect(res.status).not.toHaveBeenCalled();
+  });
+});
+
+describe('maintenance intake gate (P1-210)', () => {
+  test('public intake is gated while owners keep their existing requests', () => {
+    const gate = launchGate();
+    const blockedRes = mockRes();
+    const nextBlocked = jest.fn();
+    gate(mockReq({ baseUrl: '/api/maintenance-requests', path: '/public/12' }), blockedRes, nextBlocked);
+    expect(nextBlocked).not.toHaveBeenCalled();
+    expect(blockedRes.statusCode).toBe(404);
+
+    const nextAllowed = jest.fn();
+    gate(mockReq({ baseUrl: '/api/maintenance-requests', path: '/my' }), mockRes(), nextAllowed);
+    expect(nextAllowed).toHaveBeenCalled();
   });
 });

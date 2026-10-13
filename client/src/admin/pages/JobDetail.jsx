@@ -11,6 +11,7 @@ import { useAbortableFetch } from '../lib/useAbortableFetch';
 import AdminErrorState from '../lib/AdminErrorState';
 import ConfirmDialog from '../lib/ConfirmDialog';
 import { useHasGrant } from '../lib/GrantGuard';
+import AdminJobRevisionsPanel from '../components/AdminJobRevisionsPanel';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -259,6 +260,9 @@ export default function JobDetail() {
               </p>
             </Section>
           )}
+
+          {/* Revision history + rollback */}
+          <AdminJobRevisionsPanel job={job} onChanged={reload} />
 
           {/* Bids */}
           <Section title={t('adminJobDetail.sections.bids', { count: bids.length })}>
