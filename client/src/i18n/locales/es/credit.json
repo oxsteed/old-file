@@ -1965,5 +1965,42 @@
     "intro": "Agrega dinero a OxSteed Credit con tarjeta. Se acredita cuando se confirma el pago.",
     "credited": "Dinero agregado a tu OxSteed Credit",
     "invalidAmount": "Ingresa al menos {{min}}."
+  },
+  "identityVerification": {
+    "eyebrow": "Verificación de identidad",
+    "title": "Verifica tu identidad",
+    "intro": "Algunas acciones de fondos requieren verificación de identidad. Revisa tu nivel abajo o solicita una revisión para aumentar tus límites.",
+    "loading": "Cargando el estado de verificación...",
+    "currentTier": "Nivel actual",
+    "tierLabel": "Nivel {{tier}}",
+    "statusLabel": "Estado",
+    "status": {
+      "none": "Sin iniciar",
+      "pending": "En revisión",
+      "verified": "Verificado",
+      "rejected": "No aprobado",
+      "expired": "Vencido"
+    },
+    "tierLimit": "Límite de recarga del nivel {{tier}}",
+    "upgradeCopy": "Tu cuenta está verificada en el Nivel 1. Solicita el Nivel 2 para aumentar tu límite de fondos.",
+    "requestTier2": "Solicitar Nivel 2",
+    "submitting": "Enviando...",
+    "pendingTitle": "Verificación en revisión",
+    "pendingCopy": "Nuestro equipo está revisando tu solicitud. Te avisaremos cuando haya una decisión.",
+    "requestCopy": "Solicita la verificación de identidad para desbloquear límites de fondos más altos. Si ya completaste la verificación de identidad de Didit, la aprobación es automática.",
+    "requestedTier": "Nivel solicitado",
+    "tierOption": "Nivel {{tier}}",
+    "requestVerification": "Solicitar verificación",
+    "requestSubmitted": "Solicitud de verificación enviada",
+    "requestFailed": "No se pudo enviar la solicitud de verificación",
+    "rejectedTitle": "Verificación no aprobada",
+    "rejectedCopy": "Tu solicitud de verificación no fue aprobada. Puedes apelar la decisión o enviar una nueva solicitud.",
+    "rejectedCopyWithReason": "Tu solicitud de verificación no fue aprobada: {{reason}}",
+    "appealPendingCopy": "Tu apelación está en revisión. Te avisaremos cuando haya una decisión.",
+    "appealReason": "Motivo de la apelación",
+    "appealReasonPlaceholder": "Explica por qué la decisión debería reconsiderarse",
+    "submitAppeal": "Enviar apelación",
+    "appealSubmitted": "Apelación enviada",
+    "appealFailed": "No se pudo enviar la apelación"
   }
 }

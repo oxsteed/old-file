@@ -27,6 +27,7 @@ const {
 } = require('./oxsteedCreditService');
 const { ensureRestaurantSubBankAccount } = require('./oxsteedCreditSubBankService');
 const { sendNotification } = require('./notificationService');
+const { logAdminAction } = require('./auditService');
 
 const stripe = process.env.STRIPE_SECRET_KEY
   ? require('stripe')(process.env.STRIPE_SECRET_KEY)
@@ -270,6 +271,26 @@ async function approvePayout({ payoutId, adminUserId, reviewNote }) {
         WHERE id = $1`,
       [payout.id, adminUserId, reviewNote || null, journal.transaction.id]
     );
+    // P3-11-F06: the controller header promises an audit trail keyed on
+    // admin identity for approve/reject. Fail closed: logAdminAction throws
+    // when given the transaction client, so a dropped audit row rolls the
+    // approval back instead of leaving an unaudited payout.
+    await logAdminAction({
+      client,
+      adminId: adminUserId,
+      action: 'approve_restaurant_payout',
+      targetType: 'restaurant_payout',
+      targetId: String(payout.id),
+      description: `Admin approved restaurant wallet payout of ${payout.amount_cents} ${payout.currency_code}`,
+      before: { status: 'requested', amount_cents: payout.amount_cents, currency_code: payout.currency_code },
+      after: {
+        status: 'approved',
+        amount_cents: payout.amount_cents,
+        currency_code: payout.currency_code,
+        ledger_transaction_id: journal.transaction.id,
+        review_note: reviewNote || null,
+      },
+    });
     await client.query(
       `INSERT INTO restaurant_payout_outbox (payout_id, available_at)
        VALUES ($1, NOW())
@@ -631,7 +652,7 @@ async function rejectPayout({ payoutId, adminUserId, reviewNote }) {
     if (payout.status !== 'requested') {
       throw new AppError(`Payout is ${payout.status}, cannot reject`, 409, 'payout_invalid_status');
     }
-    return client.query(
+    const updated = await client.query(
       `UPDATE restaurant_payouts
           SET status = 'rejected', reviewed_by = $2, reviewed_at = NOW(),
               review_note = $3, updated_at = NOW()
@@ -639,6 +660,24 @@ async function rejectPayout({ payoutId, adminUserId, reviewNote }) {
        RETURNING *`,
       [payoutId, adminUserId, reviewNote || null]
     );
+    // P3-11-F06: audit the rejection with the same fail-closed contract as
+    // the approval above.
+    await logAdminAction({
+      client,
+      adminId: adminUserId,
+      action: 'reject_restaurant_payout',
+      targetType: 'restaurant_payout',
+      targetId: String(payoutId),
+      description: `Admin rejected restaurant wallet payout of ${payout.amount_cents} ${payout.currency_code}`,
+      before: { status: 'requested', amount_cents: payout.amount_cents, currency_code: payout.currency_code },
+      after: {
+        status: 'rejected',
+        amount_cents: payout.amount_cents,
+        currency_code: payout.currency_code,
+        review_note: reviewNote || null,
+      },
+    });
+    return updated;
   }, 'restaurant_payout_reject');
   return rows[0];
 }

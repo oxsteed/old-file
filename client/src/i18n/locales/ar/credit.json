@@ -1965,5 +1965,42 @@
     "intro": "أضف رصيدًا إلى OxSteed Credit بالبطاقة. تتم إضافته بعد تأكيد الدفع.",
     "credited": "تمت إضافة الرصيد إلى OxSteed Credit",
     "invalidAmount": "أدخل {{min}} على الأقل."
+  },
+  "identityVerification": {
+    "eyebrow": "التحقق من الهوية",
+    "title": "تحقق من هويتك",
+    "intro": "تتطلب بعض إجراءات التمويل التحقق من الهوية. تحقق من مستواك أدناه أو اطلب مراجعة لرفع حدودك.",
+    "loading": "جارٍ تحميل حالة التحقق...",
+    "currentTier": "المستوى الحالي",
+    "tierLabel": "المستوى {{tier}}",
+    "statusLabel": "الحالة",
+    "status": {
+      "none": "لم يبدأ",
+      "pending": "قيد المراجعة",
+      "verified": "تم التحقق",
+      "rejected": "غير معتمد",
+      "expired": "منتهي"
+    },
+    "tierLimit": "حد الشحن للمستوى {{tier}}",
+    "upgradeCopy": "تم التحقق من حسابك في المستوى 1. اطلب المستوى 2 لرفع حد التمويل.",
+    "requestTier2": "طلب المستوى 2",
+    "submitting": "جارٍ الإرسال...",
+    "pendingTitle": "التحقق قيد المراجعة",
+    "pendingCopy": "يراجع فريقنا طلبك. سنُعلمك عند صدور القرار.",
+    "requestCopy": "اطلب التحقق من الهوية لفتح حدود تمويل أعلى. إذا أكملت التحقق من هوية Didit من قبل، فستكون الموافقة تلقائية.",
+    "requestedTier": "المستوى المطلوب",
+    "tierOption": "المستوى {{tier}}",
+    "requestVerification": "طلب التحقق",
+    "requestSubmitted": "تم إرسال طلب التحقق",
+    "requestFailed": "تعذر إرسال طلب التحقق",
+    "rejectedTitle": "لم يتم اعتماد التحقق",
+    "rejectedCopy": "لم يتم اعتماد طلب التحقق الخاص بك. يمكنك الطعن في القرار أو إرسال طلب جديد.",
+    "rejectedCopyWithReason": "لم يتم اعتماد طلب التحقق الخاص بك: {{reason}}",
+    "appealPendingCopy": "طعنك قيد المراجعة. سنُعلمك عند صدور القرار.",
+    "appealReason": "سبب الطعن",
+    "appealReasonPlaceholder": "اشرح لماذا يجب إعادة النظر في القرار",
+    "submitAppeal": "إرسال الطعن",
+    "appealSubmitted": "تم إرسال الطعن",
+    "appealFailed": "تعذر إرسال الطعن"
   }
 }

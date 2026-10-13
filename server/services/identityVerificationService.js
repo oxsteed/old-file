@@ -564,6 +564,23 @@ async function listPendingVerifications(client, { limit = 50, offset = 0 } = {})
   return rows.map((row) => ({ ...formatVerification(row), customerEmail: row.customer_email || null }));
 }
 
+/**
+ * P3-10-F05: the newest verification row for the customer-facing status
+ * panel, so the UI can show pending/rejected state and offer the appeal
+ * path (getCustomerVerificationTier only surfaces the verification id for
+ * pending rows).
+ */
+async function getCustomerLatestVerification(client, customerId) {
+  const { rows } = await client.query(
+    `SELECT * FROM oxsteed_credit_identity_verifications
+      WHERE customer_id = $1
+      ORDER BY created_at DESC
+      LIMIT 1`,
+    [customerId]
+  );
+  return formatVerification(rows[0]);
+}
+
 module.exports = {
   TIER1_TOPUP_MAX_CENTS,
   TIER2_TOPUP_MAX_CENTS,
@@ -573,6 +590,7 @@ module.exports = {
   VERIFICATION_PROVIDERS,
   getVerificationProvider,
   getCustomerVerificationTier,
+  getCustomerLatestVerification,
   requestIdentityVerification,
   reviewIdentityVerification,
   requestIdentityVerificationAppeal,

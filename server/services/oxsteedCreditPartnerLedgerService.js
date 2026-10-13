@@ -254,6 +254,17 @@ async function recordPartnerFundingInTransaction(client, { partnerId, currencyCo
   });
   if (ledger.ledger_status !== 'active') throw new AppError('Partner ledger is not active', 409, 'credit_partner_ledger_inactive');
   if (ledger.partner_status !== 'active') throw new AppError('Credit partner is not active', 409, 'credit_partner_not_active', { partnerStatus: ledger.partner_status });
+  // P3-10-F07: partner funding moves platform money to the partner's reserve,
+  // so the partner gets the same sanctions screening as settlement payouts.
+  // A hit blocks funding until an admin explicitly clears it; a provider
+  // error fails closed. Required lazily to avoid a require cycle with
+  // sanctionsScreeningService (which uses insertAudit here).
+  const { assertSanctionsClear } = require('./sanctionsScreeningService');
+  await assertSanctionsClear(client, {
+    subjectType: 'partner',
+    subjectId: normalizedPartnerId,
+    context: { operation: 'credit_partner_funding', direction: normalizedDirection },
+  });
   const transactionType = normalizedDirection === 'fund' ? 'funding' : 'reserve_release';
   const treasury = await ensureAccount(client, {
     accountType: 'platform_treasury',

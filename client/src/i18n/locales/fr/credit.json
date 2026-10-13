@@ -1965,5 +1965,42 @@
     "intro": "Ajoutez de l'argent à OxSteed Credit par carte. Il est crédité une fois le paiement confirmé.",
     "credited": "Argent ajouté à votre OxSteed Credit",
     "invalidAmount": "Saisissez au moins {{min}}."
+  },
+  "identityVerification": {
+    "eyebrow": "Vérification d'identité",
+    "title": "Vérifiez votre identité",
+    "intro": "Certaines opérations de financement exigent une vérification d'identité. Consultez votre niveau ci-dessous ou demandez un examen pour relever vos limites.",
+    "loading": "Chargement du statut de vérification...",
+    "currentTier": "Niveau actuel",
+    "tierLabel": "Niveau {{tier}}",
+    "statusLabel": "Statut",
+    "status": {
+      "none": "Non commencée",
+      "pending": "En cours d'examen",
+      "verified": "Vérifié",
+      "rejected": "Non approuvée",
+      "expired": "Expirée"
+    },
+    "tierLimit": "Limite de recharge du niveau {{tier}}",
+    "upgradeCopy": "Votre compte est vérifié au Niveau 1. Demandez le Niveau 2 pour relever votre limite de financement.",
+    "requestTier2": "Demander le Niveau 2",
+    "submitting": "Envoi en cours...",
+    "pendingTitle": "Vérification en cours d'examen",
+    "pendingCopy": "Notre équipe examine votre demande. Vous serez notifié dès qu'une décision sera prise.",
+    "requestCopy": "Demandez la vérification d'identité pour débloquer des limites de financement plus élevées. Si vous avez déjà terminé la vérification d'identité Didit, l'approbation est automatique.",
+    "requestedTier": "Niveau demandé",
+    "tierOption": "Niveau {{tier}}",
+    "requestVerification": "Demander la vérification",
+    "requestSubmitted": "Demande de vérification envoyée",
+    "requestFailed": "Impossible d'envoyer la demande de vérification",
+    "rejectedTitle": "Vérification non approuvée",
+    "rejectedCopy": "Votre demande de vérification n'a pas été approuvée. Vous pouvez faire appel de la décision ou envoyer une nouvelle demande.",
+    "rejectedCopyWithReason": "Votre demande de vérification n'a pas été approuvée : {{reason}}",
+    "appealPendingCopy": "Votre appel est en cours d'examen. Vous serez notifié dès qu'une décision sera prise.",
+    "appealReason": "Motif de l'appel",
+    "appealReasonPlaceholder": "Expliquez pourquoi la décision devrait être réexaminée",
+    "submitAppeal": "Envoyer l'appel",
+    "appealSubmitted": "Appel envoyé",
+    "appealFailed": "Impossible d'envoyer l'appel"
   }
 }

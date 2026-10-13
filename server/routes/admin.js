@@ -315,6 +315,11 @@ router.post('/feature-flags/:key/rollback', requireAdmin, requirePermission('man
 
 // Audit log + export
 router.get('/audit-log',             requireAdmin, requirePermission('view_audit_log'), superCtrl.getAuditLog);
+// P3-11-F15: readers for the domain audit logs that previously had writers
+// but zero readers.
+router.get('/audit-log/booking-requests', requireAdmin, requirePermission('view_audit_log'), auditCtrl.listBookingRequestAuditLog);
+router.get('/audit-log/invoices',         requireAdmin, requirePermission('view_audit_log'), auditCtrl.listInvoiceAuditLog);
+router.get('/audit-log/calendar',         requireAdmin, requirePermission('view_audit_log'), auditCtrl.listCalendarAuditLog);
 router.get('/export/:type',          requireAdmin, requirePermission('export_data'), strictLimiter, superCtrl.exportData);
 
 // ══════════════════════════════════════════════════════════════

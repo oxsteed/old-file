@@ -1,7 +1,7 @@
 'use strict';
 
 const { mockQuery, resetMocks } = require('./setup');
-const { hardDeleteExpiredAccounts, cleanupExpiredSessionData } = require('../jobs/scheduledDeletionJob');
+const { hardDeleteExpiredAccounts, cleanupExpiredSessionData, hardDeleteUser } = require('../jobs/scheduledDeletionJob');
 
 beforeEach(resetMocks);
 
@@ -93,4 +93,37 @@ test('OTP challenge retention defaults to 30 days and is bounded', async () => {
   expect(phonePurge[1]).toEqual([365]);
 
   delete process.env.OTP_CHALLENGE_RETENTION_DAYS;
+});
+
+test('P3-11-F03: audit rows are reassigned to the sentinel, never nulled, so a user with audit history can be hard-deleted', async () => {
+  const SENTINEL = '00000000-0000-0000-0000-000000000000';
+  const user = { id: '11111111-1111-4111-8111-111111111111', email: 'admin@example.com' };
+  mockQuery.mockImplementation(async (sql) => {
+    const text = String(sql);
+    if (text.includes('information_schema.tables')) return { rows: [{ exists: true }] };
+    if (text.includes('AS has_credit_records')) return { rows: [{ has_credit_records: false }] };
+    return { rows: [] };
+  });
+
+  await hardDeleteUser(user);
+
+  const updates = mockQuery.mock.calls.filter(([sql]) => String(sql).startsWith('UPDATE'));
+  // NOT NULL audit columns are reassigned to the sentinel system user.
+  for (const [table, column] of [
+    ['admin_audit_log', 'admin_id'],
+    ['admin_user_action_log', 'admin_id'],
+    ['admin_user_action_log', 'target_user_id'],
+  ]) {
+    const call = updates.find(([sql]) => sql.includes(`UPDATE ${table} SET ${column} =`));
+    expect(call).toBeDefined();
+    expect(call[0]).toContain(`SET ${column} = $2`);
+    expect(call[0]).not.toContain('= NULL');
+    expect(call[1]).toEqual([user.id, SENTINEL]);
+  }
+  // Nullable references still use plain nullify.
+  const settingsNullify = updates.find(([sql]) => sql.includes('UPDATE platform_settings SET updated_by = NULL'));
+  expect(settingsNullify).toBeDefined();
+  // The user row itself is deleted and the transaction commits.
+  expect(mockQuery.mock.calls.some(([sql]) => String(sql).includes('DELETE FROM users'))).toBe(true);
+  expect(mockQuery.mock.calls.some(([sql]) => String(sql) === 'COMMIT')).toBe(true);
 });

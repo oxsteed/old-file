@@ -1965,5 +1965,42 @@
     "intro": "Add money to OxSteed Credit with a card. It is credited once the payment clears.",
     "credited": "Money added to your OxSteed Credit",
     "invalidAmount": "Enter at least {{min}}."
+  },
+  "identityVerification": {
+    "eyebrow": "Identity check",
+    "title": "Verify your identity",
+    "intro": "Some funding actions need identity verification. Check your tier below or request a review to raise your limits.",
+    "loading": "Loading verification status...",
+    "currentTier": "Current tier",
+    "tierLabel": "Tier {{tier}}",
+    "statusLabel": "Status",
+    "status": {
+      "none": "Not started",
+      "pending": "Under review",
+      "verified": "Verified",
+      "rejected": "Not approved",
+      "expired": "Expired"
+    },
+    "tierLimit": "Tier {{tier}} top-up limit",
+    "upgradeCopy": "You are verified at Tier 1. Request Tier 2 to raise your funding limit.",
+    "requestTier2": "Request Tier 2",
+    "submitting": "Submitting...",
+    "pendingTitle": "Verification under review",
+    "pendingCopy": "Our team is reviewing your request. You will be notified when a decision is made.",
+    "requestCopy": "Request identity verification to unlock higher funding limits. If you already completed Didit identity verification, approval is automatic.",
+    "requestedTier": "Requested tier",
+    "tierOption": "Tier {{tier}}",
+    "requestVerification": "Request verification",
+    "requestSubmitted": "Verification request submitted",
+    "requestFailed": "Could not submit the verification request",
+    "rejectedTitle": "Verification not approved",
+    "rejectedCopy": "Your verification request was not approved. You can appeal the decision or submit a new request.",
+    "rejectedCopyWithReason": "Your verification request was not approved: {{reason}}",
+    "appealPendingCopy": "Your appeal is under review. You will be notified when a decision is made.",
+    "appealReason": "Appeal reason",
+    "appealReasonPlaceholder": "Explain why the decision should be reconsidered",
+    "submitAppeal": "Submit appeal",
+    "appealSubmitted": "Appeal submitted",
+    "appealFailed": "Could not submit the appeal"
   }
 }

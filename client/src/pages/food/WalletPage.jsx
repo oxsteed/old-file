@@ -7,6 +7,7 @@ import Footer from '../../components/Footer';
 import PageMeta from '../../components/PageMeta';
 import WalletRestaurantWallets from './WalletRestaurantWallets';
 import OxsteedCreditTopupPanel from '../../components/credit/OxsteedCreditTopupPanel';
+import IdentityVerificationPanel from '../../components/credit/IdentityVerificationPanel';
 import CreditCashoutPanel from '../../components/paymentLayers/CreditCashoutPanel';
 import {
   getOxsteedCreditAccount,
@@ -146,6 +147,11 @@ export default function WalletPage() {
 
           {!loading && account && railStatus?.enabled !== false && accountStatus === 'active' && (
             <OxsteedCreditTopupPanel currency={currency} onCredited={() => load({ quiet: true })} />
+          )}
+
+          {/* P3-10-F05: identity-verification path for users blocked at tier 0. */}
+          {!loading && account && railStatus?.enabled !== false && (
+            <IdentityVerificationPanel currency={currency} />
           )}
 
           {accountDetails && (

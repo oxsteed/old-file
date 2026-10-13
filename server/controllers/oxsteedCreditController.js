@@ -344,6 +344,7 @@ async function getCustomerEligibility(req, res, next) {
 const {
   requestIdentityVerification,
   getCustomerVerificationTier,
+  getCustomerLatestVerification,
   TIER1_TOPUP_MAX_CENTS: CUSTOMER_TIER1_MAX,
   TIER2_TOPUP_MAX_CENTS: CUSTOMER_TIER2_MAX,
 } = require('../services/identityVerificationService');
@@ -351,15 +352,19 @@ const {
 /**
  * GET /api/oxsteed-credit/identity-verification
  * Current verification tier and per-tier fiat funding limits.
+ * P3-10-F05: also returns the newest verification row so the client can
+ * render pending/rejected state and offer the appeal path.
  */
 async function getMyIdentityVerification(req, res, next) {
   try {
     const client = await pool.connect();
     try {
       const tier = await getCustomerVerificationTier(client, req.user.id);
+      const latest = await getCustomerLatestVerification(client, req.user.id);
       res.json({
         ...tier,
         tierLimitsCents: { tier1: CUSTOMER_TIER1_MAX, tier2: CUSTOMER_TIER2_MAX },
+        latestVerification: latest,
       });
     } finally {
       client.release();
@@ -371,13 +376,26 @@ async function getMyIdentityVerification(req, res, next) {
 
 /**
  * POST /api/oxsteed-credit/identity-verification
- * Open a verification request (manual review queue). Body: { requestedTier }.
+ * Open a verification request (manual review queue). Body: { requestedTier, providerName }.
+ *
+ * P3-10-F06: the Didit auto-grant tier path was dead code because this
+ * handler never passed providerName, so requestIdentityVerification always
+ * fell back to 'manual_review'. The provider name is now allow-listed from
+ * the request body (default 'didit'): customers with a verified, unexpired
+ * Didit identity are auto-granted tier 2 with no human review, everyone
+ * else falls through to the manual review queue inside the didit provider.
  */
+const IDENTITY_VERIFICATION_PROVIDERS = new Set(['didit', 'manual_review']);
 async function requestMyIdentityVerification(req, res, next) {
   try {
+    const requestedProvider = req.body?.providerName ?? req.body?.provider_name;
+    const providerName = IDENTITY_VERIFICATION_PROVIDERS.has(requestedProvider)
+      ? requestedProvider
+      : 'didit';
     const result = await requestIdentityVerification({
       customerId: req.user.id,
       requestedTier: req.body?.requestedTier ?? req.body?.requested_tier ?? 2,
+      providerName,
       actorUserId: req.user.id,
       requestIp: req.ip || null,
     });
