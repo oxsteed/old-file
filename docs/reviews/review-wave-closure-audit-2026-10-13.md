@@ -2,7 +2,8 @@
 
 This is a current evidence ledger, not a declaration that the historical fixes
 completed every wave. Base: `830ecfe2` (PR #566). Continuation branch:
-`fix/review-w10_5-post-merge`. The W10.5–W19 goal remains active.
+`fix/review-w10_5-post-merge`. The W10.5–W19 goal remains active. W10.5 follow-up: PR #567, ready for review;
+remote CI pending.
 
 The historical v2 audit and remaining-waves handoff define scope. Existing
 progress notes, merged PRs, and aggregate green CI do not substitute for a
@@ -101,6 +102,7 @@ must be matched by behavior when it has no explicit ID row.
   synthetic Connect accounts and mocked Stripe transfers.
 - Complete server Jest was run against the disposable DB and remains active.
   The unchanged million-row export test hit PostgreSQL statement timeout locally;
+  a statement-amendment fixture then lacked its generated document UUID;
   that is a failed local check, not a pass. No export threshold or test was
   relaxed. Remaining results and remote CI must be checked before closure.
 - Remote follow-up and full migration rehearsal remain pending; do not infer

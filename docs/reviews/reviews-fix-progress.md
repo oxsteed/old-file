@@ -261,7 +261,7 @@ The Media failure was PostgreSQL `42P08`: sanctions screening reused `$4` as an 
 Validation: focused non-DB tests passed (6 suites / 60 tests); compliance and Didit gate tests passed (2 suites / 33 tests); all six affected DB suites plus the new sanctions DB regression passed (7 suites / 99 tests). Original screening SQL independently reproduced `42P08` in the disposable database. The full migration chain through 791 applied successfully using `npm run migrate`. Client checks and CodeQL had passed in the failed remote run; these changes contain no client code. Full server and fresh remote CI verification remain pending at this checkpoint. Deployment is not being monitored.
 
 
-## W10.5 closure audit follow-up (2026-10-13)
+## W10.5 closure audit follow-up (2026-10-13, PR #567, ready for review)
 
 Revalidation found remaining failures despite PR #505's prior green checks:
 food audit writes omitted mandatory `admin_id`; payout processing referenced a
