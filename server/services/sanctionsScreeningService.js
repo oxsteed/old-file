@@ -66,6 +66,8 @@ function formatScreening(row) {
     id: String(row.id),
     subjectType: row.subject_type,
     subjectId: String(row.subject_id),
+    subjectName: row.subject_name || null,
+    subjectEmail: row.subject_email || null,
     provider: row.provider,
     result: row.result,
     hitContext: row.hit_context,
@@ -330,15 +332,28 @@ async function decideSanctionsScreening({ screeningId, decision, actorUserId, re
 async function listPendingSanctionHits(client, { limit = 50, offset = 0 } = {}) {
   const { rows } = await client.query(
     `SELECT s.*,
-            CASE WHEN s.subject_type = 'customer' THEN u.email ELSE NULL END AS subject_email
+            CASE
+              WHEN s.subject_type = 'customer' THEN u.email
+              WHEN s.subject_type = 'partner' THEN partner_user.email
+              ELSE NULL
+            END AS subject_email,
+            CASE
+              WHEN s.subject_type = 'customer' THEN COALESCE(NULLIF(CONCAT_WS(' ', u.first_name, u.last_name), ''), u.email)
+              WHEN s.subject_type = 'partner' THEN COALESCE(fr.display_name, b.business_name, CONCAT('Partner ', s.subject_id))
+              ELSE NULL
+            END AS subject_name
        FROM oxsteed_credit_sanctions_screenings s
        LEFT JOIN users u ON u.id::text = s.subject_id AND s.subject_type = 'customer'
+       LEFT JOIN oxsteed_credit_partners p ON p.id::text = s.subject_id AND s.subject_type = 'partner'
+       LEFT JOIN food_restaurants fr ON fr.id = p.restaurant_id
+       LEFT JOIN businesses b ON b.id = p.business_id
+       LEFT JOIN users partner_user ON partner_user.id = COALESCE(b.user_id, fr.owner_user_id)
       WHERE s.result = 'hit' AND s.cleared_at IS NULL
       ORDER BY s.screened_at ASC
       LIMIT $1 OFFSET $2`,
     [Math.min(Math.max(Number(limit) || 50, 1), 200), Math.max(Number(offset) || 0, 0)]
   );
-  return rows.map((row) => ({ ...formatScreening(row), subjectEmail: row.subject_email || null }));
+  return rows.map((row) => formatScreening(row));
 }
 
 module.exports = {
