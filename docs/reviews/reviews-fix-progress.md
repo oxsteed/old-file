@@ -105,3 +105,7 @@ Reconciled the W13 handoff list against audit v2; the audit records the booking-
 
 ## W14 — same continuation branch as PR #505 (in progress)
 Reconciled the 38 W14 handoff IDs against audit v2; the active list remains the handoff source for launch-gated, in-chat commerce, and payment-engine items. This pass enforces the property-maintenance `intake_enabled` setting and adds a dedicated authenticated assigned-helper queue so assigned helpers can discover their work without changing requester history semantics. Remaining W14 money, quote, franchise, and chat-booking items stay open.
+### W15 reconciliation (2026-10-13)
+
+Reconciled the 44 W15 IDs against `resolution-audit-v2-2026-10-13.md` before implementation. Existing W10.5/W13 work already covers the failed food-order card notification and dispute update emitter; the current batch closes the admin dispute multi-status filter, adds idempotency to weekly summary notifications, and fences the recurring-job worker with a PostgreSQL advisory lock. Booking-deposit and webhook crash-window findings referenced by the audit are already resolved in earlier waves. Remaining W15 findings stay open for follow-up batches.
+
