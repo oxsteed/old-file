@@ -475,6 +475,10 @@ export default function SettingsPage() {
       if (serverErr?.activeJobs) {
         setDeleteActiveJobs(serverErr.activeJobs);
         setDeleteError(serverErr.error || t('settings.accountDeleteFailed'));
+      } else if (serverErr?.code === 'account_has_balance') {
+        setDeleteError(t('settings.accountDeleteHasBalance'));
+      } else if (serverErr?.code === 'subscription_cancel_failed') {
+        setDeleteError(t('settings.accountDeleteSubscriptionRetry'));
       } else {
         setDeleteError(serverErr?.error || t('settings.accountDeleteFailed'));
       }

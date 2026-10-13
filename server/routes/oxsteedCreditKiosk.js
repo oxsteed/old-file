@@ -10,12 +10,14 @@
 const router = require('express').Router({ mergeParams: true });
 const rateLimit = require('express-rate-limit');
 const cardController = require('../controllers/oxsteedCreditCardController');
-const { creditMutationLimiter } = require('../middleware/rateLimiter');
+const { creditMutationLimiter, createStoreOption } = require('../middleware/rateLimiter');
 
 // Audit fix: kiosk endpoints get a per-device rate limit, not just the
 // shared IP-based creditMutationLimiter. A compromised kiosk should not
 // be able to brute-force redemptions.
 const kioskDeviceLimiter = rateLimit({
+  // Review P3-1096: shared Redis store so the budget holds across replicas.
+  ...createStoreOption('rl:kiosk_device:'),
   windowMs: 15 * 60 * 1000,
   max: 30,
   standardHeaders: true,

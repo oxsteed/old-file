@@ -47,6 +47,23 @@ const GATED_PREFIXES = Object.freeze([
     allow: Object.freeze([]),
   },
   {
+    // Review P2-652: carts, cart checkout, shared carts and job kits are the
+    // marketplace purchase path; gate them with the product catalog.
+    prefix: '/api/carts',
+    flag: 'productMarketplace',
+    allow: Object.freeze([]),
+  },
+  {
+    prefix: '/api/shared-carts',
+    flag: 'productMarketplace',
+    allow: Object.freeze([]),
+  },
+  {
+    prefix: '/api/job-kits',
+    flag: 'productMarketplace',
+    allow: Object.freeze([]),
+  },
+  {
     prefix: '/api/media',
     flag: 'oxsteedMedia',
     allow: Object.freeze([]),

@@ -1,3 +1,4 @@
+const { paymentsLimiter } = require('../middleware/rateLimiter');
 const express = require('express');
 const router = express.Router();
 const { requireAuth } = require('../middleware/auth');
@@ -17,7 +18,7 @@ try {
 }
 
 router.get('/:cartId/session', requireAuth, checkoutController.getCheckoutSession || notAvailable);
-router.post('/:cartId/payment-intent', requireAuth, checkoutController.createPaymentIntent || notAvailable);
-router.post('/:cartId/confirm', requireAuth, checkoutController.confirmPayment || notAvailable);
+router.post('/:cartId/payment-intent', requireAuth, paymentsLimiter, checkoutController.createPaymentIntent || notAvailable);
+router.post('/:cartId/confirm', requireAuth, paymentsLimiter, checkoutController.confirmPayment || notAvailable);
 
 module.exports = router;

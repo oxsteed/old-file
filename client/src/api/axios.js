@@ -5,6 +5,9 @@ const API_BASE = import.meta.env.VITE_API_URL || '/api';
 const api = axios.create({
   baseURL: API_BASE,
   withCredentials: true,
+  // Review P1-114: tells the server this is the cookie-based web client, so
+  // session responses omit raw tokens.
+  headers: { 'X-OxSteed-Client': 'web' },
 });
 
 function getPreferredLanguage() {

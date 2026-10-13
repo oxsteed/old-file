@@ -155,6 +155,10 @@ export default function AccountForm({ role, onSuccess }: Props) {
           date: new Date().toISOString(),
         },
       });
+    } else {
+      // Review P2-477: helpers record terms consent on the pending
+      // registration before the OTP step; the account is created with it.
+      await api.post('/helper-registration/registration-terms', { token, accepted: true });
     }
 
     return token;

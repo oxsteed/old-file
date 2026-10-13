@@ -5,7 +5,8 @@ const { generalLimiter } = require('../middleware/rateLimiter');
 const { requireOnboardingStep } = require('../middleware/helperOnboardingMiddleware');
 const checkRestrictions = require('../middleware/checkRestrictions');
 const { errorHandler } = require('../middleware/errorHandler');
-const { createBid, getBid, getJobBids, getMyBids, updateBid, withdrawBid, getRecentBids } = require('../controllers/bidController');
+const { createBid, getBid, getJobBids, getMyBids, updateBid, reconfirmBid, withdrawBid, getRecentBids } = require('../controllers/bidController');
+const { rejectImpersonated } = require('../middleware/rejectImpersonated');
 
 // Public route - no auth required (for homepage)
 router.get('/recent', generalLimiter, getRecentBids);
@@ -16,6 +17,7 @@ router.get('/job/:jobId', authenticate, getJobBids);
 router.get('/:id', authenticate, getBid);
 router.put('/:id', authenticate, updateBid);
 router.post('/:id/withdraw', authenticate, withdrawBid);
+router.post('/:id/reconfirm', authenticate, rejectImpersonated, checkRestrictions('bidding'), reconfirmBid);
 
 // Launch bidding is available to fully onboarded helpers without a paid tier.
 // checkRestrictions('bidding') blocks helpers with active bidding restrictions

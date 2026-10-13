@@ -1,6 +1,8 @@
 const db     = require('../db');
 const logger = require('../utils/logger');
 const { AppError } = require('../middleware/errorHandler');
+const { withTransaction } = require('../utils/transaction');
+const creditLedger = require('../services/referralCreditLedger');
 
 const REWARD_TYPE = process.env.REFERRAL_REWARD_TYPE || 'credit';
 
@@ -20,46 +22,49 @@ const REFEREE_CREDIT_CENTS  = parseInt(process.env.REFERRAL_REFEREE_CREDIT_CENTS
  *   'none'    – no reward (disabled)
  */
 exports.grantReferralReward = async function grantReferralReward(referrerId, newUserId) {
-  if (REWARD_TYPE === 'none') return;
+  if (REWARD_TYPE === 'none' || !referrerId || !newUserId) return false;
 
+  // Review P2-570: one reward per referred user, ever. Registration and the
+  // first-job value event both call this; the idempotency key makes the
+  // second call a no-op, and conversions only count the posting that landed.
   try {
-    const grants = [];
-
-    if (REWARD_TYPE === 'credit' || REWARD_TYPE === 'both') {
-      grants.push(
-        db.query(
-          `INSERT INTO platform_ledger (user_id, type, amount_cents, description, metadata)
-           VALUES ($1, 'referral_credit', $2, 'Referral reward — new member joined', $3)`,
-          [referrerId, REFERRER_CREDIT_CENTS, JSON.stringify({ new_user_id: newUserId, reward_type: 'referrer' })],
-        ),
-      );
-    }
-
-    if (REWARD_TYPE === 'both') {
-      grants.push(
-        db.query(
-          `INSERT INTO platform_ledger (user_id, type, amount_cents, description, metadata)
-           VALUES ($1, 'referral_credit', $2, 'Welcome credit — joined via referral', $3)`,
-          [newUserId, REFEREE_CREDIT_CENTS, JSON.stringify({ referrer_id: referrerId, reward_type: 'referee' })],
-        ),
-      );
-    }
-
-    // Mark reward given + increment conversions on referrer
-    grants.push(
-      db.query(
-        `UPDATE users
-         SET referral_reward_given      = TRUE,
-             referral_conversions_count = COALESCE(referral_conversions_count, 0) + 1
-         WHERE id = $1`,
-        [referrerId],
-      ),
-    );
-
-    await Promise.all(grants);
-    logger.info('[referral] Reward granted', { referrerId, newUserId, type: REWARD_TYPE });
+    return await withTransaction(db, async (client) => {
+      let referrerPosted = false;
+      if (REWARD_TYPE === 'credit' || REWARD_TYPE === 'both') {
+        referrerPosted = await creditLedger.postOnce(client, {
+          userId: referrerId,
+          type: 'referral_credit',
+          amountCents: REFERRER_CREDIT_CENTS,
+          description: 'Referral reward — new member joined',
+          metadata: { new_user_id: newUserId, reward_type: 'referrer' },
+          idempotencyKey: `referral:referrer:${newUserId}`,
+        });
+      }
+      if (REWARD_TYPE === 'both') {
+        await creditLedger.postOnce(client, {
+          userId: newUserId,
+          type: 'referral_credit',
+          amountCents: REFEREE_CREDIT_CENTS,
+          description: 'Welcome credit — joined via referral',
+          metadata: { referrer_id: referrerId, reward_type: 'referee' },
+          idempotencyKey: `referral:referee:${newUserId}`,
+        });
+      }
+      if (referrerPosted) {
+        await client.query(
+          `UPDATE users
+              SET referral_reward_given      = TRUE,
+                  referral_conversions_count = COALESCE(referral_conversions_count, 0) + 1
+            WHERE id = $1`,
+          [referrerId],
+        );
+        logger.info('[referral] Reward granted', { referrerId, newUserId, type: REWARD_TYPE });
+      }
+      return referrerPosted;
+    }, 'referral_reward');
   } catch (err) {
     logger.error('[referral] grantReferralReward failed (non-fatal)', { referrerId, newUserId, err: err.message });
+    return false;
   }
 };
 
@@ -163,17 +168,7 @@ exports.validateCode = async (req, res, next) => {
 // Returns the user's spendable referral credit balance in cents and dollars.
 exports.getCreditBalance = async (req, res, next) => {
   try {
-    const { rows } = await db.query(
-      `SELECT COALESCE(SUM(
-         CASE WHEN type IN ('referral_credit', 'dispute_credit', 'promo_credit') THEN amount_cents
-              WHEN type = 'credit_applied' THEN -amount_cents
-              ELSE 0
-         END
-       ), 0) AS balance_cents
-       FROM platform_ledger
-       WHERE user_id = $1`,
-      [req.user.id]
-    );
+    const { rows } = await db.query(creditLedger.BALANCE_SQL, [req.user.id]);
     const balanceCents = Math.max(0, parseInt(rows[0].balance_cents, 10));
     res.json({
       balance_cents: balanceCents,

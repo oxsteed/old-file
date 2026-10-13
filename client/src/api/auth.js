@@ -134,9 +134,12 @@ api.interceptors.response.use(
         requestSessionRefresh();
 
       const response = await refreshPromise;
-      const newAccessToken = response.data?.accessToken;
+      // Review P1-114: web responses no longer carry raw tokens; the
+      // rotated httpOnly cookies are the credential. A successful refresh is
+      // signalled by success/user.
+      const refreshed = Boolean(response.data?.success || response.data?.user || response.data?.accessToken);
 
-      if (!newAccessToken) {
+      if (!refreshed) {
         clearStoredSession();
         return Promise.reject(error);
       }

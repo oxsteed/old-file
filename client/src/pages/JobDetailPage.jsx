@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useId, useRef } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, useNavigate, Link, useSearchParams } from 'react-router-dom';
 import useJobs from '../hooks/useJobs';
 import useAuth from '../hooks/useAuth';
 import api from '../api/axios';
@@ -11,6 +11,7 @@ import Footer from '../components/Footer';
 import PreferredHelperBanner from '../components/PreferredHelperBanner';
 import ReviewModal from '../components/reviews/ReviewModal';
 import BidAcceptanceModal from '../components/BidAcceptanceModal';
+import DisputeSubmissionModal from '../components/DisputeSubmissionModal';
 import JobCancellationConfirmation from '../components/JobCancellationConfirmation';
 import HelperCancellationConfirmation from '../components/HelperCancellationConfirmation';
 import CancellationStats from '../components/CancellationStats';
@@ -18,6 +19,7 @@ import UserReputationCard from '../components/UserReputationCard';
 import ReportModal from '../components/ReportModal';
 import JobMaterialsPanel from '../components/JobMaterialsPanel';
 import DirectPaymentRecordModal from '../components/DirectPaymentRecordModal';
+import JobAutoExpiryWarning from '../components/JobAutoExpiryWarning';
 import { useTranslation } from 'react-i18next';
 import { analytics } from '../utils/analytics';
 import { detectLocale, formatDate, formatMoney } from '../lib/format';
@@ -26,6 +28,10 @@ import { LAUNCH_VISIBILITY } from '../utils/launchScope';
 import JobImageViewer from '../components/JobImageViewer';
 import { useJobDetailBids } from '../hooks/useJobDetailBids';
 import { JOB_STATUS_KEYS, jobDetailView, jobList, jobMediaType, matchingHelpersPath, samePartyId } from '../utils/jobDetailModel';
+import { bidNeedingReconfirm, canEditJob } from '../utils/jobEditModel';
+import PaymentReauthorizationBanner from '../components/PaymentReauthorizationBanner';
+import JobPaymentLayersPanel from '../components/paymentLayers/JobPaymentLayersPanel';
+import JobRevisionHistory from '../components/JobRevisionHistory';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function formatBudget(job, t) {
@@ -87,6 +93,9 @@ function daysUntil(dateStr) {
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
+// Statuses where work is agreed or done, so a dispute is meaningful.
+const DISPUTABLE_JOB_STATUSES = ['accepted', 'in_progress', 'pending_completion', 'completed', 'closed'];
+
 export default function JobDetailPage() {
   const { id } = useParams();
   const { user } = useAuth();
@@ -121,7 +130,8 @@ function JobDetailContent() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user, canApplyToJobs, needsOnboarding } = useAuth();
-  const { fetchJob, job, loading, error, createBid, getJobBids, assignHelper, startJob, completeJob, cancelJob } = useJobs();
+  const { fetchJob, job, loading, error, createBid, getJobBids, assignHelper, startJob, completeJob, cancelJob, reconfirmBid, getJobRevisions } = useJobs();
+  const [reconfirmLoading, setReconfirmLoading] = useState(false);
 
   const { bids, status: bidsStatus, loadBids } = useJobDetailBids(id, user?.id, getJobBids);
   const fieldId = useId();
@@ -134,9 +144,25 @@ function JobDetailContent() {
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [showJobCancellationModal, setShowJobCancellationModal] = useState(false);
   const [reportModalOpen, setReportModalOpen] = useState(false);
+  const [disputeModalOpen, setDisputeModalOpen] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
   const [reviewEligible, setReviewEligible] = useState(false);
   const [paymentRecordOpen, setPaymentRecordOpen] = useState(false);
+  const [chatOpening, setChatOpening] = useState(false);
+
+  // P1-136: open (or create) the job-scoped conversation instead of the bare inbox.
+  async function openJobChat() {
+    setChatOpening(true);
+    try {
+      const { data } = await api.post(`/messages/jobs/${id}/conversation`);
+      const base = samePartyId(user?.id, job?.assigned_helper_id) ? '/helper/messages' : '/messages';
+      navigate(data?.id ? `${base}/${data.id}` : base);
+    } catch {
+      toast.error(t('jobDetail.openChatFailed'));
+    } finally {
+      setChatOpening(false);
+    }
+  }
   // Bid acceptance scheduling modal
   const [acceptingBid, setAcceptingBid] = useState(null); // bid object being accepted
   const [helperPolicies, setHelperPolicies] = useState(null); // cancellation policies for helper
@@ -152,6 +178,27 @@ function JobDetailContent() {
       api.get(`/reviews/jobs/${id}/eligibility`)
         .then(r => { if (current) setReviewEligible(r.data.eligible === true); })
         .catch(() => { if (current) setReviewEligible(false); });
+    }
+    return () => { current = false; };
+  }, [job?.status, job?.client_id, job?.assigned_helper_id, user?.id, id]);
+
+  // Work agreement entry point (review P1 area 3): parties of an assigned job
+  // can open the existing agreement or start one.
+  const [agreementInfo, setAgreementInfo] = useState(null);
+  useEffect(() => {
+    let current = true;
+    setAgreementInfo(null);
+    const involved = user && job?.assigned_helper_id
+      && (samePartyId(user.id, job?.client_id) || samePartyId(user.id, job?.assigned_helper_id));
+    if (involved && !['cancelled', 'draft'].includes(job?.status)) {
+      api.get(`/work-agreements/by-job/${id}`)
+        .then((r) => {
+          if (!current) return;
+          const a = r.data?.agreement;
+          const mine = r.data?.myRole && (r.data?.signatures || []).some((sig) => sig.signer_role === r.data.myRole);
+          setAgreementInfo(a ? { id: a.id, status: a.status, needsMySignature: a.status === 'pending_signatures' && !mine } : { id: null });
+        })
+        .catch(() => { if (current) setAgreementInfo(null); });
     }
     return () => { current = false; };
   }, [job?.status, job?.client_id, job?.assigned_helper_id, user?.id, id]);
@@ -186,17 +233,40 @@ function JobDetailContent() {
         amount: parseFloat(bidForm.amount),
         message: bidForm.message,
         estimated_hours: parseInt(bidForm.eta_hours, 10),
+        // The job terms this bid is priced against; the server refuses a bid
+        // on a stale revision so the helper reviews the latest details first.
+        ...(job?.revision != null ? { job_revision: job.revision } : {}),
       });
       analytics.bidPlaced(id, parseFloat(bidForm.amount));
       setBidForm({ amount: '', message: '', eta_hours: '' });
       loadBids();
       fetchJob(id);
     } catch (err) {
-      setBidError(err.response?.data?.error || t('jobDetail.bidFailed'));
+      if (err.response?.data?.code === 'job_changed') {
+        setBidError(t('jobEdit.bidJobChanged'));
+        fetchJob(id);
+      } else {
+        setBidError(err.response?.data?.error || t('jobDetail.bidFailed'));
+      }
     } finally {
       setBidLoading(false);
     }
   }
+
+  // P1-134: a quote accepted in chat lands here as ?acceptBid=<id>; open the normal
+  // acceptance flow so payment + assignment go through the bid path.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const acceptBidParam = searchParams.get('acceptBid');
+  useEffect(() => {
+    if (!acceptBidParam || !Array.isArray(bids) || !samePartyId(user?.id, job?.client_id)) return;
+    const target = bids.find(b => String(b.id) === String(acceptBidParam) && b.status === 'pending');
+    if (!target) return;
+    const next = new URLSearchParams(searchParams);
+    next.delete('acceptBid');
+    setSearchParams(next, { replace: true });
+    void handleAcceptClick(target);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [acceptBidParam, bids, job?.client_id, user?.id]);
 
   // Opens the BidAcceptanceModal (payment method selection step) before calling assignHelper.
   async function handleAcceptClick(bid) {
@@ -224,7 +294,7 @@ function JobDetailContent() {
     setHelperPolicies(null);
     setActionLoading(true);
     try {
-      await assignHelper(bidId, paymentMethod, scheduledStart, scheduledEnd);
+      await assignHelper(bidId, paymentMethod, scheduledStart, scheduledEnd, job?.version ?? null);
       fetchJob(id);
       loadBids();
       toast.success(t('jobDetail.helperAssigned', { defaultValue: 'Helper assigned successfully' }));
@@ -239,6 +309,22 @@ function JobDetailContent() {
     }
   }
 
+  async function handleClose() {
+    setActionLoading(true);
+    try {
+      await api.post(`/jobs/${id}/close`);
+      fetchJob(id);
+      toast.success(t('jobDetail.jobClosed'));
+    } catch (err) {
+      const code = err.response?.data?.code;
+      toast.error(code === 'dispute_open' ? t('jobDetail.closeBlockedDispute')
+        : code === 'pending_payments' ? t('jobDetail.closeBlockedPayment')
+        : getErrorMessage(err));
+    } finally {
+      setActionLoading(false);
+    }
+  }
+
   async function handleStart() {
     setActionLoading(true);
     try {
@@ -246,7 +332,9 @@ function JobDetailContent() {
       fetchJob(id);
       toast.success(t('jobDetail.jobStarted'));
     } catch (err) {
-      const errorMsg = getErrorMessage(err);
+      const errorMsg = err?.response?.data?.code === 'customer_confirmation_required'
+        ? t('jobDetail.customerConfirmsEscrow')
+        : getErrorMessage(err);
       toast.error(errorMsg);
       // Handle auth errors - redirect to login
       if (err.code === 'AUTH_EXPIRED' || err.code === 'NO_TOKEN') {
@@ -260,9 +348,9 @@ function JobDetailContent() {
   async function handleComplete() {
     setActionLoading(true);
     try {
-      await completeJob(id);
+      const result = await completeJob(id);
       fetchJob(id);
-      toast.success(t('jobDetail.jobCompleted'));
+      toast.success(t(result?.pending_confirmation ? 'jobDetail.completionRequested' : 'jobDetail.jobCompleted'));
     } catch (err) {
       const errorMsg = getErrorMessage(err);
       toast.error(errorMsg);
@@ -294,6 +382,20 @@ function JobDetailContent() {
     }
   }
 
+  async function handleReconfirm(bid) {
+    setReconfirmLoading(true);
+    try {
+      await reconfirmBid(bid.id, { job_revision: job?.revision });
+      toast.success(t('jobEdit.reconfirmed'));
+      loadBids();
+      fetchJob(id);
+    } catch (err) {
+      toast.error(err.response?.data?.code === 'bid_expired' ? t('jobEdit.acceptBidExpired') : getErrorMessage(err));
+    } finally {
+      setReconfirmLoading(false);
+    }
+  }
+
   async function handleJobCancellation(feeData) {
     // Called after JobCancellationModal confirms cancellation
     setShowJobCancellationModal(false);
@@ -312,6 +414,14 @@ function JobDetailContent() {
     if (err.code === 'DISPUTE_OPEN') {
       return t('jobDetail.disputeOpen');
     }
+    const serverCode = err.response?.data?.code;
+    if (serverCode === 'bid_needs_reconfirm') return t('jobEdit.acceptNeedsReconfirm');
+    if (serverCode === 'bid_expired') return t('jobEdit.acceptBidExpired');
+    if (serverCode === 'payment_reauthorization_required') return t('jobPaymentReauth.blockedComplete');
+    if (serverCode === 'precondition_failed' || serverCode === 'version_conflict') {
+      fetchJob(id);
+      return t('jobEdit.acceptJobChanged');
+    }
     return err.message || err.response?.data?.error || t('jobDetail.operationFailed');
   }
 
@@ -328,6 +438,9 @@ function JobDetailContent() {
   const { isOwner, isHelper, isAssignedHelper, visibleBids, totalBids, action } = view;
   const partialBids = isOwner && bidsStatus === 'success' && totalBids > visibleBids.length;
   const acceptedBid = visibleBids.find(bid => bid.status === 'accepted');
+  const ownBidToReconfirm = !isOwner && isHelper ? bidNeedingReconfirm(visibleBids, user, job) : null;
+  const showRevisions = Number(job.revision) > 1 || Number(job.version) > 1;
+  const canSeeRevisions = showRevisions && (isOwner || isAssignedHelper || Boolean(visibleBids.length));
   const visibleRequirements = jobList(job.requirements).filter(requirement => typeof requirement === 'object' &&
     (requirement.type !== 'backgroundCheck' || LAUNCH_VISIBILITY.backgroundChecks));
   const requiredSkills = jobList(job.required_skills).filter(skill => typeof skill === 'object' && skill.name);
@@ -347,7 +460,7 @@ function JobDetailContent() {
     else if (action === 'findHelpers') navigate(matchingHelpersPath(job.required_skills));
     else if (action === 'onboarding') navigate('/dashboard');
     else if (action === 'manageBid') navigate('/my-bids');
-    else if (action === 'messages') navigate('/helper/messages');
+    else if (action === 'messages') void openJobChat();
     else if (action === 'signIn') navigate(`/login?next=${encodeURIComponent(`/jobs/${id}`)}`);
     else if (action === 'start') handleStart();
     else if (action === 'complete') handleComplete();
@@ -412,6 +525,7 @@ function JobDetailContent() {
                           <div className="jdp-bid-amount">{formatMoney(bid.amount, { currency: job.currency || 'USD', minimumFractionDigits: 0, maximumFractionDigits: 0 })}</div>
                           <div className="jdp-bid-eta">⏱ {t('jobDetail.hoursEstimated', { hours: bid.eta_hours ?? bid.estimated_hours })}</div>
                           <span className={`jdp-bid-status ${bid.status}`}>{t(`jobDetail.bidStatus.${bid.status}`, { defaultValue: bid.status })}</span>
+                          {bid.status === 'pending' && bid.needs_reconfirm && <span className="jdp-bid-status pending">{t('jobEdit.awaitingReconfirm')}</span>}
                         </div>
                       </div>
                       {bid.message && <p className="jdp-bid-message">"{bid.message}"</p>}
@@ -435,11 +549,12 @@ function JobDetailContent() {
                       )}
                       <div className="jdp-bid-footer">
                         <span className="jdp-bid-date">{timeAgo(bid.created_at)}</span>
-                        {isOwner && ['published', 'matched'].includes(job.status) && bid.status === 'pending' && (
+                        {isOwner && ['published', 'matched', 'negotiating'].includes(job.status) && bid.status === 'pending' && (
                           <button
                             className="jdp-btn-accept"
                             onClick={() => handleAcceptClick(bid)}
-                            disabled={actionLoading || loading || loadingPolicies}
+                            disabled={actionLoading || loading || loadingPolicies || Boolean(bid.needs_reconfirm)}
+                            title={bid.needs_reconfirm ? t('jobEdit.acceptNeedsReconfirm') : undefined}
                           >
                             {t('jobDetail.acceptBid', { defaultValue: 'Accept & Schedule' })}
                           </button>
@@ -467,6 +582,7 @@ function JobDetailContent() {
             {urgencyMeta && <div><dt>{t('jobs.urgency')}</dt><dd style={{ color: urgencyMeta.color }}>{urgencyMeta.label}</dd></div>}
             {jobTypeLabel && <div><dt>{t('jobDetail.jobType')}</dt><dd>{jobTypeLabel}</dd></div>}
           </dl><p className="jdp-description">{job.description}</p>
+          {Number(job.revision) > 1 && <p className="jdp-count">{t('jobEdit.updatedNotice', { revision: job.revision })}</p>}
         </div>
         <div className="jdp-budget"><h2>{t('jobDetail.budgetLabel')}</h2><p className="jdp-budget-value">{formatBudget(job, t)}</p>
           {job.budget_type === 'open' && <p>{t('jobDetail.openBudgetHelp')}</p>}
@@ -480,14 +596,49 @@ function JobDetailContent() {
             {action === 'review' ? <ReviewModal jobId={id} revieweeName={isOwner ? (formatNameForPrivacy(job.helper_name) || t('jobDetail.yourHelper')) : (formatNameForPrivacy(job.client_name) || t('jobDetail.yourCustomer'))} onComplete={() => setReviewEligible(false)} />
               : <button type="button" className="jdp-btn-primary" onClick={runNextStep} disabled={actionLoading || loading}>{actionLoading ? t('jobDetail.processing') : t(`jobDetail.${actionLabels[action]}`)}</button>}
           </> : <p role="status">{t(`jobDetail.${['loading', 'idle'].includes(bidsStatus) && user && ['published', 'matched', 'negotiating'].includes(job.status) ? 'checkingBids' : 'noNextStep'}`)}</p>}
+          {view.expiryDaysLeft !== null && <JobAutoExpiryWarning status={job.status} acceptedAt={job.accepted_at} daysUntilExpiry={view.expiryDaysLeft} />}
+          {view.completionPending && <p role="status" className="jdp-completion-pending">
+            {isOwner
+              ? t('jobDetail.completionPendingOwner', { date: job.completion_auto_confirm_at ? formatDate(job.completion_auto_confirm_at, { locale: detectLocale() }) : '' })
+              : t('jobDetail.completionPendingHelper')}
+          </p>}
           {isOwner && job.status === 'accepted' && <Link className="jdp-btn-ghost" to="/messages">{t('jobDetail.openMessages')}</Link>}
+          {agreementInfo && (agreementInfo.id
+            ? <Link className={agreementInfo.needsMySignature ? 'jdp-btn-primary' : 'jdp-btn-ghost'} to={`/agreements/${agreementInfo.id}`}>
+                {agreementInfo.needsMySignature ? t('jobDetail.signWorkAgreement') : t('jobDetail.viewWorkAgreement')}
+              </Link>
+            : <Link className="jdp-btn-ghost" to={`/agreements/new?jobId=${encodeURIComponent(id)}`}>{t('jobDetail.createWorkAgreement')}</Link>)}
+          {isOwner && canEditJob(job, user) && <Link className="jdp-btn-ghost" to={`/jobs/${id}/edit`}>{t('jobEdit.editJob')}</Link>}
+          {(isOwner || isAssignedHelper) && job.assigned_helper_id && action !== 'messages' && <button type="button" className="jdp-btn-ghost" onClick={openJobChat} disabled={chatOpening}>{t('jobDetail.openJobChat')}</button>}
           {(view.canCancelBeforeAcceptance || view.canCancelAfterAcceptance) && <div className="jdp-secondary-action">
             <button type="button" className="jdp-btn-danger" onClick={() => view.canCancelBeforeAcceptance ? setShowCancelModal(true) : setShowJobCancellationModal(true)} disabled={actionLoading || loading || (view.canCancelAfterAcceptance && !acceptedBid)}>{t('jobDetail.cancelJob')}</button>
             {view.canCancelAfterAcceptance && !acceptedBid && bidsStatus === 'error' && <button type="button" className="jdp-btn-ghost" onClick={loadBids}>{t('jobDetail.retryBids')}</button>}
           </div>}
+          {view.canHelperComplete && <div className="jdp-secondary-action jdp-helper-complete-action">
+            <button type="button" className="jdp-btn-ghost" onClick={handleComplete} disabled={actionLoading || loading}>{t('jobDetail.helperMarkDone')}</button>
+          </div>}
+          {view.canClose && <div className="jdp-secondary-action jdp-close-action">
+            <button type="button" className="jdp-btn-ghost" onClick={handleClose} disabled={actionLoading || loading}>{t('jobDetail.closeJob')}</button>
+          </div>}
+          {/* P3-818: either party to an assigned job can open a dispute. */}
+          {(isOwner || isAssignedHelper) && job.assigned_helper_id && DISPUTABLE_JOB_STATUSES.includes(job.status) && <div className="jdp-secondary-action jdp-dispute-action">
+            <button type="button" className="jdp-btn-ghost" onClick={() => setDisputeModalOpen(true)}>{t('jobDetail.openDispute')}</button>
+          </div>}
         </section>
         <div className="jdp-main">
           <PreferredHelperBanner job={job} />
+          {(isOwner || (user && String(job.assigned_helper_id) === String(user.id))) && <PaymentReauthorizationBanner jobId={id} job={job} onResolved={() => fetchJob(id)} />}
+          <JobPaymentLayersPanel job={job} isOwner={isOwner} isAssignedHelper={isAssignedHelper} onChanged={() => fetchJob(id)} />
+          {ownBidToReconfirm && <section className="jdp-card jdp-reconfirm" role="status" aria-labelledby={`${fieldId}-reconfirm`}>
+            <h2 id={`${fieldId}-reconfirm`} className="jdp-section-title">{t('jobEdit.reconfirmTitle')}</h2>
+            <p>{t('jobEdit.reconfirmHelp')}</p>
+            {ownBidToReconfirm.expires_at && <p className="jdp-count">{t('jobEdit.reconfirmBy', { date: formatDate(ownBidToReconfirm.expires_at, { month: 'long', hour: 'numeric', minute: '2-digit' }) })}</p>}
+            <div className="jdp-modal-actions">
+              <button type="button" className="jdp-btn-primary" onClick={() => handleReconfirm(ownBidToReconfirm)} disabled={reconfirmLoading}>
+                {reconfirmLoading ? t('jobDetail.processing') : t('jobEdit.reconfirmButton')}</button>
+              <Link className="jdp-btn-ghost" to="/my-bids">{t('jobEdit.reviseBid')}</Link>
+            </div>
+          </section>}
           {isOwner && bidsCard}
           {requirementsCard}
           {view.canSubmitBid && <section className="jdp-card jdp-bid-form-card" aria-labelledby={`${fieldId}-bid-form`}>
@@ -530,6 +681,7 @@ function JobDetailContent() {
               </form>
           </section>}
           {!isOwner && bidsCard}
+          {canSeeRevisions && <JobRevisionHistory jobId={id} revision={job.revision} version={job.version} load={getJobRevisions} />}
           {mediaUrls.length > 0 && <section className="jdp-card" aria-labelledby={`${fieldId}-media`}>
             <h2 id={`${fieldId}-media`} className="jdp-section-title">{t('jobDetail.photosMedia', { count: mediaUrls.length })}</h2>
             <div className="jdp-media-grid">{mediaUrls.map((url, i) => jobMediaType(url) === 'audio' ?
@@ -593,7 +745,8 @@ function JobDetailContent() {
           }}
           onConfirm={(bidData) => {
             // bidData should contain payment_method
-            handleAssign(acceptingBid.id, bidData.payment_method);
+            // Legacy: { payment_method }. Rail engine: the full selection.
+            handleAssign(acceptingBid.id, bidData.payment_rail ? bidData : bidData.payment_method);
           }}
         />
       )}
@@ -623,6 +776,8 @@ function JobDetailContent() {
       )}
 
       {/* ── Report Helper Modal ──────────────────────────────── */}
+      {disputeModalOpen && <DisputeSubmissionModal jobId={id} isOpen={disputeModalOpen} onClose={() => setDisputeModalOpen(false)}
+        onSuccess={() => { setDisputeModalOpen(false); toast.success(t('jobDetail.disputeOpened')); navigate('/disputes'); }} />}
       {reportModalOpen && job?.assigned_helper_id && (
         <ReportModal
           reportedUserId={job.assigned_helper_id}

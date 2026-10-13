@@ -1,7 +1,7 @@
 'use strict';
 
 const crypto = require('crypto');
-const { setSessionCookies } = require('../utils/authCookies');
+const { setSessionCookies, bodyTokens } = require('../utils/authCookies');
 const jwt = require('jsonwebtoken');
 const {
   generateRegistrationOptions,
@@ -10,6 +10,7 @@ const {
   verifyAuthenticationResponse,
 } = require('@simplewebauthn/server');
 const db = require('../db');
+const { challengeFromResponse } = require('../utils/webauthnChallenge');
 const logger = require('../utils/logger');
 const { generateTokens } = require('../middleware/auth');
 const { logAdminAction } = require('../services/auditService');
@@ -53,7 +54,7 @@ function safePasskey(row) {
 
 async function saveChallenge(userId, purpose, challenge) {
   await db.query(
-    `DELETE FROM admin_passkey_challenges WHERE (user_id = $1 OR user_id IS NULL) AND purpose = $2`,
+    `DELETE FROM admin_passkey_challenges WHERE (user_id = $1 OR user_id IS NULL) AND purpose = $2 AND expires_at <= NOW()`,
     [userId || null, purpose]
   );
   await db.query(
@@ -132,7 +133,7 @@ async function verifyRegistration(req, res, next) {
   try {
     const admin = await getAdmin(req.user.id);
     if (!admin || !admin.is_active || !admin.totp_enabled) return res.status(403).json({ error: 'Admin TOTP must be enabled before adding a passkey.' });
-    const { rows: pwRows } = await db.query('SELECT password_hash FROM admin_users WHERE id = $1', [admin.id]);
+    const { rows: pwRows } = await db.query('SELECT password_hash FROM users WHERE id = $1', [admin.id]);
     const bcrypt = require('bcrypt');
     if (!pwRows[0]?.password_hash || !(await bcrypt.compare(password, pwRows[0].password_hash))) {
       return res.status(403).json({ error: 'Current password is incorrect.' });
@@ -140,7 +141,8 @@ async function verifyRegistration(req, res, next) {
     const { rows: challenges } = await db.query(
       `SELECT challenge FROM admin_passkey_challenges
        WHERE user_id = $1 AND purpose = 'registration' AND expires_at > NOW()
-       ORDER BY created_at DESC LIMIT 1`, [admin.id]
+         AND ($2::text IS NULL OR challenge = $2)
+       ORDER BY created_at DESC LIMIT 1`, [admin.id, challengeFromResponse(response)]
     );
     if (!challenges[0]) return res.status(400).json({ error: 'Passkey registration expired. Start again.' });
     const consumedChallenge = await consumeChallenge(admin.id, 'registration', challenges[0].challenge);
@@ -216,7 +218,7 @@ async function issueAdminSession(admin, req, res) {
   // Web sessions authenticate via httpOnly cookies (the client no longer
   // stores the access token); JSON tokens are kept for native clients.
   setSessionCookies(res, tokens);
-  return res.json({ success: true, user: admin, accessToken: tokens.accessToken, refreshToken: tokens.refreshToken });
+  return res.json({ success: true, user: admin, ...bodyTokens(req, tokens) });
 }
 
 async function verifyAuthentication(req, res, next) {
@@ -236,7 +238,8 @@ async function verifyAuthentication(req, res, next) {
     const { rows: challenges } = await db.query(
       `SELECT challenge FROM admin_passkey_challenges
        WHERE user_id = $1 AND purpose = 'authentication' AND expires_at > NOW()
-       ORDER BY created_at DESC LIMIT 1`, [admin.id]
+         AND ($2::text IS NULL OR challenge = $2)
+       ORDER BY created_at DESC LIMIT 1`, [admin.id, challengeFromResponse(response)]
     );
     if (!challenges[0]) return res.status(400).json({ error: 'Passkey authentication expired. Start again.' });
     const consumedChallenge = await consumeChallenge(admin.id, 'authentication', challenges[0].challenge);

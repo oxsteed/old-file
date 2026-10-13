@@ -106,6 +106,12 @@ export const toolRentalsApi = {
     return response.data || [];
   },
 
+  // Review P3-1068: owner returns or withholds a held deposit.
+  resolveDeposit: async (bookingId, body) => {
+    const response = await api.post(`/tool-rentals/bookings/${bookingId}/deposit/resolve`, body);
+    return response.data;
+  },
+
   updateBookingStatus: async (bookingId, status) => {
     const response = await api.put(`/tool-rentals/bookings/${bookingId}`, { status });
     return response.data;

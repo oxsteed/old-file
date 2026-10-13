@@ -9,9 +9,11 @@ import PageMeta from '../components/PageMeta';
 import PageShell from '../components/PageShell';
 import useAuth from '../hooks/useAuth';
 import SignaturePad from '../components/SignaturePad';
+import PaymentReauthorizationBanner from '../components/PaymentReauthorizationBanner';
 import '../components/SignaturePad.css';
 import api from '../api/axios';
 import './WorkAgreementPage.css';
+import { safeHttpUrl } from '../utils/safeHref';
 
 function Section({ icon: Icon, title, children, action, id }) {
   return (
@@ -43,17 +45,21 @@ export default function WorkAgreementPage() {
   const [coDesc, setCoDesc] = useState('');
   const [coPrice, setCoPrice] = useState('');
   const [evType, setEvType] = useState('before_photo');
+  const [evFile, setEvFile] = useState(null);
   const [evUrl, setEvUrl] = useState('');
   const [evDesc, setEvDesc] = useState('');
+  const [docFile, setDocFile] = useState(null);
   const [docUrl, setDocUrl] = useState('');
+  const [fileInputKey, setFileInputKey] = useState(0);
   const [docName, setDocName] = useState('');
   const [claimDesc, setClaimDesc] = useState('');
   const [claimOpen, setClaimOpen] = useState(false);
+  const [claimNotes, setClaimNotes] = useState({});
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const { data: d } = await api.get(`/api/work-agreements/${id}`);
+      const { data: d } = await api.get(`/work-agreements/${id}`);
       setData(d);
     } catch (e) {
       setError(e.response?.data?.error || t('workAgreement.loadError', { defaultValue: 'Could not load the agreement.' }));
@@ -68,7 +74,7 @@ export default function WorkAgreementPage() {
     if (!signatureData) return;
     setSigning(true);
     try {
-      await api.post(`/api/work-agreements/${id}/sign`, {
+      await api.post(`/work-agreements/${id}/sign`, {
         versionId: data.currentVersion?.id,
         signatureData,
         role: data.myRole,
@@ -83,6 +89,20 @@ export default function WorkAgreementPage() {
     }
   };
 
+  // Review P1-164: each party confirms; the agreement completes once both have.
+  const [completing, setCompleting] = useState(false);
+  const confirmComplete = async () => {
+    setCompleting(true);
+    try {
+      await api.post(`/work-agreements/${id}/complete`);
+      load();
+    } catch (e) {
+      setError(e.response?.data?.error || t('workAgreement.completeError', { defaultValue: 'Could not confirm completion.' }));
+    } finally {
+      setCompleting(false);
+    }
+  };
+
   const proposeChangeOrder = async () => {
     if (!coDesc.trim()) return;
     setCoPending({ type: 'propose' });
@@ -93,7 +113,7 @@ export default function WorkAgreementPage() {
   const submitChangeOrderProposal = async () => {
     if (!coSignatureData) return;
     try {
-      await api.post(`/api/work-agreements/${id}/change-orders`, {
+      await api.post(`/work-agreements/${id}/change-orders`, {
         description: coDesc.trim(),
         priceChangeCents: Math.round(Number(coPrice || 0) * 100),
         signatureData: coSignatureData,
@@ -115,7 +135,7 @@ export default function WorkAgreementPage() {
   const submitChangeOrderDecision = async () => {
     if (!coSignatureData || !coPending?.coId) return;
     try {
-      await api.post(`/api/work-agreements/${id}/change-orders/${coPending.coId}/${coPending.decision}`, {
+      await api.post(`/work-agreements/${id}/change-orders/${coPending.coId}/${coPending.decision}`, {
         signatureData: coSignatureData,
       });
       setCoSignOpen(false); setCoSignatureData(null); setCoPending(null);
@@ -127,8 +147,15 @@ export default function WorkAgreementPage() {
 
   const addEvidence = async () => {
     try {
-      await api.post(`/api/work-agreements/${id}/evidence`, { type: evType, fileUrl: evUrl.trim(), description: evDesc.trim() });
-      setEvUrl(''); setEvDesc(''); load();
+      // Review P3-912: upload the file itself (stored privately, served via a
+      // short-lived signed URL). A pasted https link stays as a fallback.
+      const form = new FormData();
+      form.append('type', evType);
+      form.append('description', evDesc.trim());
+      if (evFile) form.append('file', evFile);
+      else form.append('fileUrl', evUrl.trim());
+      await api.post(`/work-agreements/${id}/evidence`, form);
+      setEvFile(null); setEvUrl(''); setEvDesc(''); setFileInputKey((k) => k + 1); load();
     } catch (e) {
       setError(e.response?.data?.error || t('workAgreement.evidenceError', { defaultValue: 'Could not add evidence.' }));
     }
@@ -136,8 +163,12 @@ export default function WorkAgreementPage() {
 
   const addDocument = async () => {
     try {
-      await api.post(`/api/work-agreements/${id}/documents`, { fileUrl: docUrl.trim(), fileName: docName.trim() });
-      setDocUrl(''); setDocName(''); load();
+      const form = new FormData();
+      form.append('fileName', docName.trim() || docFile?.name || '');
+      if (docFile) form.append('file', docFile);
+      else form.append('fileUrl', docUrl.trim());
+      await api.post(`/work-agreements/${id}/documents`, form);
+      setDocFile(null); setDocUrl(''); setDocName(''); setFileInputKey((k) => k + 1); load();
     } catch (e) {
       setError(e.response?.data?.error || t('workAgreement.docError', { defaultValue: 'Could not add the document.' }));
     }
@@ -145,10 +176,23 @@ export default function WorkAgreementPage() {
 
   const fileClaim = async () => {
     try {
-      await api.post(`/api/work-agreements/${id}/warranty-claims`, { description: claimDesc.trim() });
+      await api.post(`/work-agreements/${id}/warranty-claims`, { description: claimDesc.trim() });
       setClaimOpen(false); setClaimDesc(''); load();
     } catch (e) {
       setError(e.response?.data?.error || t('workAgreement.claimError', { defaultValue: 'Could not file the claim.' }));
+    }
+  };
+
+  const resolveClaim = async (claimId, decision) => {
+    try {
+      await api.post(`/work-agreements/${id}/warranty-claims/${claimId}/resolve`, {
+        decision,
+        note: (claimNotes[claimId] || '').trim() || undefined,
+      });
+      setClaimNotes((prev) => ({ ...prev, [claimId]: '' }));
+      load();
+    } catch (e) {
+      setError(e.response?.data?.error || t('workAgreement.claimResolveError', { defaultValue: 'Could not update the claim.' }));
     }
   };
 
@@ -163,6 +207,9 @@ export default function WorkAgreementPage() {
   const myRole = data?.myRole;
   const iSigned = myRole && signedRoles.has(myRole);
   const bothSigned = signedRoles.has('helper') && signedRoles.has('customer');
+  const agreementRow = data?.agreement;
+  const iConfirmed = myRole && Boolean(agreementRow?.[`${myRole}_completed_at`]);
+  const jobLink = data?.jobLink;
 
   return (
     <PageShell>
@@ -172,7 +219,8 @@ export default function WorkAgreementPage() {
         url={`/agreements/${id}`}
       />
       <main className="wa-page">
-        <Link to="/jobs" className="wa-back"><ArrowLeft size={16} aria-hidden="true" /> {t('workAgreement.back', { defaultValue: 'Back' })}</Link>
+        <Link to={data?.agreement?.job_id ? `/jobs/${data.agreement.job_id}` : '/jobs'} className="wa-back"><ArrowLeft size={16} aria-hidden="true" /> {t('workAgreement.back', { defaultValue: 'Back' })}</Link>
+        {agreement?.job_id && <PaymentReauthorizationBanner key={(data?.changeOrders || []).filter((co) => co.status === 'approved').length} jobId={agreement.job_id} alwaysCheck />}
         {error && <p className="wa-error" role="alert">{error}</p>}
         {!agreement && !loading && <p>{t('workAgreement.notFound', { defaultValue: 'Agreement not found.' })}</p>}
 
@@ -187,13 +235,39 @@ export default function WorkAgreementPage() {
                   {t('workAgreement.recordsNote', { defaultValue: 'OxSteed keeps the records. You and the other party decide the terms.' })}
                 </p>
               </div>
-              {myRole && !iSigned && version && (
+              {myRole && !iSigned && version && agreement.status !== 'completed' && (
                 <button type="button" className="wa-primary" onClick={() => setSignOpen(true)}>
                   <PenLine size={16} aria-hidden="true" />
                   {t('workAgreement.signCta', { defaultValue: 'Sign this version' })}
                 </button>
               )}
             </header>
+            {jobLink && (
+              <p className="wa-records-note" role="status">
+                {t('workAgreement.jobLinkSummary', {
+                  defaultValue: 'Job: {{job}} · Payment: {{payment}}',
+                  job: jobLink.job_status?.replaceAll('_', ' ') || '—',
+                  payment: jobLink.payment_status?.replaceAll('_', ' ') || t('workAgreement.noPayment', { defaultValue: 'none recorded' }),
+                })}
+                {jobLink.dispute_open ? ` · ${t('workAgreement.disputeOpen', { defaultValue: 'A dispute is open on this job' })}` : ''}
+              </p>
+            )}
+            {agreement.status === 'active' && myRole && (
+              <div className="wa-issue-banner" role="note">
+                <CheckCircle2 size={18} aria-hidden="true" />
+                <div>
+                  <strong>{t('workAgreement.completeTitle', { defaultValue: 'Work finished?' })}</strong>
+                  <p>{iConfirmed
+                    ? t('workAgreement.awaitingCounterparty', { defaultValue: 'You confirmed. Waiting for the other party to confirm.' })
+                    : t('workAgreement.completeBody', { defaultValue: 'Both of you confirm before the agreement is marked complete.' })}</p>
+                </div>
+                {!iConfirmed && (
+                  <button type="button" className="wa-btn" onClick={confirmComplete} disabled={completing}>
+                    {t('workAgreement.confirmComplete', { defaultValue: 'Confirm complete' })}
+                  </button>
+                )}
+              </div>
+            )}
             {agreement.status === 'active' && (
               <div className="wa-issue-banner" role="note">
                 <AlertCircle size={18} aria-hidden="true" />
@@ -242,7 +316,25 @@ export default function WorkAgreementPage() {
               {version?.content && (
                 <details className="wa-details">
                   <summary>{t('workAgreement.viewTerms', { defaultValue: 'View agreed terms' })}</summary>
-                  <pre>{JSON.stringify(version.content, null, 2)}</pre>
+                  <dl className="wa-terms">
+                    {[
+                      ['title', 'termTitle', 'Title'],
+                      ['scope', 'scopeLabel', 'Scope of work'],
+                      ['timeline', 'timelineLabel', 'Timeline'],
+                      ['terms', 'extraTermsLabel', 'Other terms'],
+                    ].filter(([key]) => version.content[key]).map(([key, label, fallback]) => (
+                      <div key={key}>
+                        <dt>{t(`workAgreement.${label}`, { defaultValue: fallback })}</dt>
+                        <dd>{String(version.content[key])}</dd>
+                      </div>
+                    ))}
+                    {Number.isInteger(version.content.priceCents) && (
+                      <div>
+                        <dt>{t('workAgreement.priceLabel', { defaultValue: 'Agreed price' })}</dt>
+                        <dd dir="ltr">{(version.content.priceCents / 100).toFixed(2)}</dd>
+                      </div>
+                    )}
+                  </dl>
                 </details>
               )}
             </Section>
@@ -255,7 +347,10 @@ export default function WorkAgreementPage() {
                   <p>{co.description}</p>
                   <p className="wa-muted">{t('workAgreement.priceChange', { defaultValue: 'Price change' })}: {(co.price_change_cents / 100).toFixed(2)}</p>
                   <span className={`wa-pill wa-pill--${co.status}`}>{co.status}</span>
-                  {co.status === 'proposed' && (
+                  {co.status === 'proposed' && user && String(co.proposed_by) === String(user.id) && (
+                    <p className="wa-muted">{t('workAgreement.coAwaitingOther', { defaultValue: 'Waiting for the other party to decide.' })}</p>
+                  )}
+                  {co.status === 'proposed' && user && String(co.proposed_by) !== String(user.id) && (
                     <div className="wa-row">
                       <button type="button" className="wa-btn" onClick={() => decideChangeOrder(co.id, 'approve')}>{t('workAgreement.approve', { defaultValue: 'Approve' })}</button>
                       <button type="button" className="wa-btn wa-btn--danger" onClick={() => decideChangeOrder(co.id, 'reject')}>{t('workAgreement.reject', { defaultValue: 'Reject' })}</button>
@@ -281,10 +376,12 @@ export default function WorkAgreementPage() {
               <div className="wa-evidence-grid">
                 {(data.evidence || []).map((ev) => (
                   <figure key={ev.id} className="wa-ev">
-                    {ev.evidence_type !== 'testing_record' ? (
-                      <img src={ev.file_url} alt={ev.description || ev.evidence_type} loading="lazy" />
+                    {!safeHttpUrl(ev.file_url) ? (
+                      <span className="wa-muted">{t('workAgreement.fileUnavailable', { defaultValue: 'File unavailable' })}</span>
+                    ) : ev.evidence_type !== 'testing_record' ? (
+                      <img src={safeHttpUrl(ev.file_url)} alt={ev.description || ev.evidence_type} loading="lazy" />
                     ) : (
-                      <a href={ev.file_url} target="_blank" rel="noreferrer" className="wa-ev__doc">{t('workAgreement.testingRecord', { defaultValue: 'Testing record' })}</a>
+                      <a href={safeHttpUrl(ev.file_url)} target="_blank" rel="noopener noreferrer" className="wa-ev__doc">{t('workAgreement.testingRecord', { defaultValue: 'Testing record' })}</a>
                     )}
                     <figcaption><span className="wa-pill">{ev.evidence_type?.replaceAll('_', ' ')}</span> {ev.description}</figcaption>
                   </figure>
@@ -296,9 +393,12 @@ export default function WorkAgreementPage() {
                   <option value="after_photo">{t('workAgreement.afterPhoto', { defaultValue: 'After photo' })}</option>
                   <option value="testing_record">{t('workAgreement.testingRecord', { defaultValue: 'Testing record' })}</option>
                 </select>
-                <input value={evUrl} onChange={(e) => setEvUrl(e.target.value)} placeholder={t('workAgreement.fileUrl', { defaultValue: 'File URL' })} />
+                <input key={`ev-${fileInputKey}`} type="file" accept={evType === 'testing_record' ? 'image/*,application/pdf' : 'image/*'}
+                  onChange={(e) => setEvFile(e.target.files?.[0] || null)} aria-label={t('workAgreement.chooseFile', { defaultValue: 'Choose a file' })} />
+                <input type="url" dir="ltr" value={evUrl} onChange={(e) => setEvUrl(e.target.value)} disabled={!!evFile}
+                  placeholder={t('workAgreement.fileUrlOptional', { defaultValue: 'Or paste an https link' })} />
                 <input value={evDesc} onChange={(e) => setEvDesc(e.target.value)} placeholder={t('workAgreement.description', { defaultValue: 'Description' })} />
-                <button type="button" className="wa-btn" onClick={addEvidence} disabled={!evUrl.trim()}><Upload size={14} aria-hidden="true" /> {t('workAgreement.add', { defaultValue: 'Add' })}</button>
+                <button type="button" className="wa-btn" onClick={addEvidence} disabled={!evFile && !evUrl.trim()}><Upload size={14} aria-hidden="true" /> {t('workAgreement.add', { defaultValue: 'Add' })}</button>
               </div>
             </Section>
 
@@ -306,26 +406,69 @@ export default function WorkAgreementPage() {
               {(data.documents || []).length === 0 && <p className="wa-muted">{t('workAgreement.noDocuments', { defaultValue: 'No outside paperwork uploaded yet.' })}</p>}
               <ul className="wa-docs">
                 {(data.documents || []).map((doc) => (
-                  <li key={doc.id}><a href={doc.file_url} target="_blank" rel="noreferrer">{doc.file_name}</a></li>
+                  <li key={doc.id}>{safeHttpUrl(doc.file_url)
+                    ? <a href={safeHttpUrl(doc.file_url)} target="_blank" rel="noopener noreferrer">{doc.file_name}</a>
+                    : <span>{doc.file_name} <span className="wa-muted">({t('workAgreement.fileUnavailable', { defaultValue: 'File unavailable' })})</span></span>}</li>
                 ))}
               </ul>
               <div className="wa-form wa-form--inline">
-                <input value={docUrl} onChange={(e) => setDocUrl(e.target.value)} placeholder={t('workAgreement.fileUrl', { defaultValue: 'File URL' })} />
+                <input key={`doc-${fileInputKey}`} type="file" accept="application/pdf,image/*"
+                  onChange={(e) => setDocFile(e.target.files?.[0] || null)} aria-label={t('workAgreement.chooseFile', { defaultValue: 'Choose a file' })} />
+                <input type="url" dir="ltr" value={docUrl} onChange={(e) => setDocUrl(e.target.value)} disabled={!!docFile}
+                  placeholder={t('workAgreement.fileUrlOptional', { defaultValue: 'Or paste an https link' })} />
                 <input value={docName} onChange={(e) => setDocName(e.target.value)} placeholder={t('workAgreement.fileName', { defaultValue: 'File name' })} />
-                <button type="button" className="wa-btn" onClick={addDocument} disabled={!docUrl.trim() || !docName.trim()}><Upload size={14} aria-hidden="true" /> {t('workAgreement.add', { defaultValue: 'Add' })}</button>
+                <button type="button" className="wa-btn" onClick={addDocument} disabled={(!docFile && !docUrl.trim()) || (!docFile && !docName.trim())}><Upload size={14} aria-hidden="true" /> {t('workAgreement.add', { defaultValue: 'Add' })}</button>
               </div>
             </Section>
 
             <Section id="wa-warranty" icon={ShieldCheck} title={t('workAgreement.warranty', { defaultValue: 'Warranty claims' })}
               action={<button type="button" className="wa-btn" onClick={() => setClaimOpen(true)}><Plus size={14} aria-hidden="true" /> {t('workAgreement.fileClaim', { defaultValue: 'File claim' })}</button>}>
+              <div className="wa-warranty-terms">
+                <p>
+                  <strong>{t('workAgreement.warrantyMonths', { defaultValue: 'Warranty (months)' })}:</strong>{' '}
+                  <span dir="ltr">{agreement.warranty_months ?? 0}</span>
+                </p>
+                {agreement.warranty_terms && (
+                  <p><strong>{t('workAgreement.warrantyTermsLabel', { defaultValue: 'Warranty terms' })}:</strong> {agreement.warranty_terms}</p>
+                )}
+                {agreement.reimbursement_terms && (
+                  <p><strong>{t('workAgreement.reimbursementLabel', { defaultValue: 'Reimbursement terms' })}:</strong> {agreement.reimbursement_terms}</p>
+                )}
+                {!agreement.warranty_terms && !agreement.reimbursement_terms && (
+                  <p className="wa-muted">{t('workAgreement.noWarrantyTerms', { defaultValue: 'No written warranty terms were added.' })}</p>
+                )}
+              </div>
               <p className="wa-muted">{t('workAgreement.warrantyNote', { defaultValue: 'OxSteed records the claim. The parties resolve it between themselves.' })}</p>
-              {(data.warrantyClaims || []).map((c) => (
-                <div key={c.id} className="wa-co">
-                  <p>{c.description}</p>
-                  <span className={`wa-pill wa-pill--${c.status}`}>{c.status?.replaceAll('_', ' ')}</span>
-                  {c.resolution_note && <p className="wa-muted">{c.resolution_note}</p>}
-                </div>
-              ))}
+              {(data.warrantyClaims || []).map((c) => {
+                const open = ['filed', 'under_review'].includes(c.status);
+                const iFiled = user && String(c.filed_by) === String(user.id);
+                return (
+                  <div key={c.id} className="wa-co">
+                    <p>{c.description}</p>
+                    <span className={`wa-pill wa-pill--${c.status}`}>{t(`workAgreement.claimStatus_${c.status}`, { defaultValue: c.status?.replaceAll('_', ' ') })}</span>
+                    {c.resolution_note && <p className="wa-muted">{c.resolution_note}</p>}
+                    {open && myRole && (
+                      <div className="wa-form">
+                        <label>{t('workAgreement.claimNote', { defaultValue: 'Note (optional)' })}
+                          <textarea rows={2} value={claimNotes[c.id] || ''}
+                            onChange={(e) => setClaimNotes((prev) => ({ ...prev, [c.id]: e.target.value }))} /></label>
+                        <div className="wa-row">
+                          <button type="button" className="wa-btn" onClick={() => resolveClaim(c.id, 'resolved')}>
+                            {iFiled
+                              ? t('workAgreement.claimWithdraw', { defaultValue: 'Mark resolved' })
+                              : t('workAgreement.claimResolve', { defaultValue: 'Resolved' })}
+                          </button>
+                          {!iFiled && (
+                            <button type="button" className="wa-btn wa-btn--danger" onClick={() => resolveClaim(c.id, 'denied')}>
+                              {t('workAgreement.claimDeny', { defaultValue: 'Decline claim' })}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
               {claimOpen && (
                 <div className="wa-form">
                   <label>{t('workAgreement.claimDesc', { defaultValue: 'What went wrong?' })}

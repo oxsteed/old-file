@@ -543,6 +543,10 @@ export function useConversationChat(
       const warnings = res?.warnings;
       if (Array.isArray(warnings) && warnings.includes('off_platform_contact')) {
         toast(t('messages.offPlatformWarning'), { icon: 'i', duration: 6000 });
+      } else if (Array.isArray(warnings) && warnings.includes('contact_masked_before_hire')) {
+        toast(t('paymentRail.chat.maskedBeforeHire'), { icon: 'i', duration: 6000 });
+      } else if (Array.isArray(warnings) && warnings.includes('off_platform_reminder')) {
+        toast(t('paymentRail.chat.offPlatformReminder'), { icon: 'i', duration: 6000 });
       }
     } catch (err) {
       const terminalState = resolveSendErrorState(err);

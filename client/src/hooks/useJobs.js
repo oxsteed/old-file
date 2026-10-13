@@ -70,17 +70,41 @@ export default function useJobs() {
     });
   };
 
-  const updateJob = async (id, jobData) => {
-    const { data } = await api.put(`/jobs/${id}`, jobData);
+  // JSON merge-patch with optimistic concurrency: the server rejects the edit
+  // (409/412) if the job changed since `version` was loaded. Pass an
+  // idempotencyKey to make retries of the same submit safe.
+  const updateJob = async (id, patch, { version, etag, idempotencyKey } = {}) => {
+    const headers = {};
+    if (etag) headers['If-Match'] = etag;
+    if (idempotencyKey) headers['Idempotency-Key'] = idempotencyKey;
+    const body = { ...patch };
+    if (!etag && version !== undefined && version !== null) body.expected_version = version;
+    const response = await withTokenValidation(() => api.patch(`/jobs/${id}`, body, { headers }));
+    const data = response.data;
+    if (data?.job && String(data.job.id) === String(job?.id)) setJob((current) => ({ ...current, ...data.job }));
+    return { ...data, etag: response.headers?.etag || null };
+  };
+
+  const getJobRevisions = useCallback(async (jobId, { before } = {}) => {
+    const params = before ? `?before=${encodeURIComponent(before)}` : '';
+    const { data } = await api.get(`/jobs/${jobId}/revisions${params}`);
     return data;
+  }, []);
+
+  const reconfirmBid = async (bidId, body = {}) => {
+    return withTokenValidation(() => api.post(`/bids/${bidId}/reconfirm`, body).then(r => r.data));
   };
 
   const cancelJob = async (id, reason) => {
     return withTokenValidation(() => api.post(`/jobs/${id}/cancel`, { reason }).then(r => r.data));
   };
 
-  const assignHelper = async (bidId, paymentMethod, scheduledStart = null, scheduledEnd = null) => {
-    const body = { bid_id: bidId, payment_method: paymentMethod };
+  const assignHelper = async (bidId, paymentMethod, scheduledStart = null, scheduledEnd = null, expectedJobVersion = null) => {
+    // paymentMethod is the legacy string, or the rail-engine selection object
+    // ({ payment_rail, offline_ack, fx_quote_id, credit_quote_id, payment_method }).
+    const selection = paymentMethod && typeof paymentMethod === 'object' ? paymentMethod : { payment_method: paymentMethod };
+    const body = { bid_id: bidId, ...selection };
+    if (expectedJobVersion !== null && expectedJobVersion !== undefined) body.expected_job_version = expectedJobVersion;
     if (scheduledStart) body.scheduled_start = scheduledStart;
     if (scheduledEnd)   body.scheduled_end   = scheduledEnd;
     return withTokenValidation(() => api.post('/jobs/assign', body).then(r => r.data));
@@ -119,7 +143,7 @@ export default function useJobs() {
   return {
     jobs, job, myJobs, loading, error, pagination,
     fetchJobs, fetchJob, fetchMyJobs,
-    createJob, updateJob, cancelJob, assignHelper, startJob, completeJob,
-    createBid, getJobBids, getMyBids, withdrawBid,
+    createJob, updateJob, getJobRevisions, cancelJob, assignHelper, startJob, completeJob,
+    createBid, getJobBids, getMyBids, withdrawBid, reconfirmBid,
   };
 }

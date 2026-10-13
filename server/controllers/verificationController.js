@@ -2,7 +2,9 @@ const crypto = require('crypto');
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const fetch = require('node-fetch');
 const db = require('../db');
-const { sendPush } = require('../utils/pushNotification');
+// Review P3-842: utils/pushNotification never exported sendPush, so every
+// completed report crashed the webhook after the DB writes (and Checkr retried).
+const { sendNotification } = require('../services/notificationService');
 const { sendEmail } = require('../utils/email');
 const logger = require('../utils/logger');
 const { AppError } = require('../middleware/errorHandler');
@@ -149,10 +151,13 @@ exports.checkrWebhook = async (req, res, next) => {
           );
           const userLang = langRows[0]?.preferred_language || 'en';
           const passedNotif = tNotif('background_check_passed', userLang);
-          await sendPush(userId, {
+          await sendNotification({
+            userId,
+            type: 'background_check_passed',
             title: passedNotif.title,
             body: passedNotif.body,
-            link: '/dashboard/helper',
+            action_url: '/dashboard/helper',
+            idempotencyKey: `checkr-report:${reportId}`,
           });
         } else {
           const { rows: langRows } = await db.query(
@@ -161,10 +166,13 @@ exports.checkrWebhook = async (req, res, next) => {
           );
           const userLang = langRows[0]?.preferred_language || 'en';
           const failedNotif = tNotif('background_check_failed', userLang);
-          await sendPush(userId, {
+          await sendNotification({
+            userId,
+            type: 'background_check_failed',
             title: failedNotif.title,
             body: failedNotif.body,
-            link: '/settings',
+            action_url: '/settings',
+            idempotencyKey: `checkr-report:${reportId}`,
           });
         }
       }

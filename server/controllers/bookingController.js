@@ -1,4 +1,5 @@
 const pool = require('../db');
+const bookingDeposits = require('../services/bookingDepositService');
 const { checkScheduleAgreementGate } = require('../services/chatAgreements');
 const availabilityService = require('../services/helperAvailabilityService');
 const { sendValidationError, sendError } = require('../utils/apiError');
@@ -565,6 +566,7 @@ exports.cancelBookingRequest = async (req, res) => {
         return sendError(res, 400, 'Booking is no longer pending');
       }
       await logBookingAudit(bookingId, 'cancelled', customerId, 'customer', 'pending', 'cancelled');
+      bookingDeposits.settleTerminalBookingSoon(bookingId, 'customer_cancelled');
       await notifyHelperOfBookingCancellation(booking.helper_id, updatedResult.rows[0]);
       return res.json({ success: true, data: transformBooking(updatedResult.rows[0]) });
     }
@@ -595,6 +597,7 @@ exports.cancelBookingRequest = async (req, res) => {
         'accepted',
         'accepted_cancelled'
       );
+      bookingDeposits.settleTerminalBookingSoon(bookingId, 'customer_cancelled');
       await notifyHelperOfBookingCancellation(booking.helper_id, updatedResult.rows[0]);
       return res.json({ success: true, data: transformBooking(updatedResult.rows[0]) });
     }
@@ -662,6 +665,7 @@ exports.helperCancelAcceptedBooking = async (req, res) => {
       'accepted',
       'accepted_cancelled'
     );
+    bookingDeposits.settleTerminalBookingSoon(bookingId, 'helper_cancelled');
     await notifyCustomerOfBookingResponse(booking.customer_id, updated, 'accepted_cancelled');
 
     res.json({

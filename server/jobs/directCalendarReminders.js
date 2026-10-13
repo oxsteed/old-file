@@ -76,12 +76,33 @@ async function processDirectCalendarReminders() {
   return { sent, failed };
 }
 
+// Review P1-183: paid, scheduled Direct visits used to sit in `scheduled`
+// forever. Complete them once the visit window has ended.
+async function completeFinishedDirectVisits() {
+  const { rows } = await db.query(
+    `WITH done AS (
+       UPDATE quote_requests
+          SET status = 'completed', completed_at = COALESCE(completed_at, NOW()), updated_at = NOW()
+        WHERE COALESCE(metadata->>'flow', 'direct') = 'direct'
+          AND status = 'scheduled'
+          AND payment_status IN ('paid', 'confirmed')
+          AND COALESCE(scheduled_end_at, scheduled_start_at) < NOW() - INTERVAL '1 hour'
+        RETURNING id)
+     INSERT INTO direct_request_events (quote_request_id, actor_role, event_type, title, details, payload)
+     SELECT id, 'system', 'request_completed', 'Visit completed', 'The visit window ended and payment is settled.', '{}'::jsonb
+       FROM done
+     RETURNING quote_request_id`
+  );
+  return rows.length;
+}
+
 function startDirectCalendarReminderJob() {
   const interval = setInterval(() => {
     processDirectCalendarReminders().catch((err) => logger.error('Direct calendar reminder job failed', { error: err.message }));
+    completeFinishedDirectVisits().catch((err) => logger.error('Direct auto-complete sweep failed', { error: err.message }));
   }, 5 * 60 * 1000);
   logger.info('Direct calendar reminder job started');
   return { stop: () => clearInterval(interval) };
 }
 
-module.exports = { processDirectCalendarReminders, startDirectCalendarReminderJob };
+module.exports = { processDirectCalendarReminders, completeFinishedDirectVisits, startDirectCalendarReminderJob };

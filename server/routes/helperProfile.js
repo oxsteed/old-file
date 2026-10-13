@@ -7,6 +7,7 @@ const multer     = require('multer');
 const pool       = require('../db');
 const { authenticate } = require('../middleware/auth');
 const requireRole      = require('../middleware/requireRole');
+const { requireListingEligible } = require('../middleware/helperOnboardingMiddleware');
 const { generalLimiter } = require('../middleware/rateLimiter');
 const validateFileUpload = require('../middleware/validateFileUpload');
 const logger     = require('../utils/logger');
@@ -265,7 +266,7 @@ router.put('/visibility', helperOnly, generalLimiter, async (req, res) => {
 // Review P1-209: one listing toggle. This route is kept for existing clients
 // but delegates to the same implementation as PUT /api/helpers/me/listing
 // (which also fans out saved-search alerts when a profile goes live).
-router.patch('/listing', helperOnly, generalLimiter, (req, res, next) => {
+router.patch('/listing', helperOnly, generalLimiter, requireListingEligible, (req, res, next) => {
   const { toggleListing } = require('../controllers/helpersController');
   const json = res.json.bind(res);
   res.json = (body) => json({ ok: body?.success === true, ...body });

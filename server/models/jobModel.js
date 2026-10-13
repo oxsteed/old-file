@@ -220,10 +220,13 @@ exports.confirmAttendance = async (jobId, helperId) => {
 // --- Set Financial Breakdown ---
 // Called when a bid is accepted -- locks in all fee amounts
 exports.setFinancials = async (jobId, agreedAmountDollars, isBrokerMediated, client = null) => {
-  const breakdown = calculateTier3Fees(
-    Math.round(agreedAmountDollars * 100), // Convert to cents
-    isBrokerMediated
-  );
+  // calculateTier3Fees is the direct-charge model: the customer pays the job
+  // value, the platform fee is the application fee, and there is no separate
+  // protection or broker fee. (Reading fields it does not return wrote NaN and
+  // failed every call.)
+  const breakdown = calculateTier3Fees(Math.round(agreedAmountDollars * 100));
+  const jobValueCents = breakdown.job_value_cents;
+  const platformFeeCents = breakdown.platform_fee_cents;
   const q = client || db;
   await q.query(
     `UPDATE jobs
@@ -237,32 +240,44 @@ exports.setFinancials = async (jobId, agreedAmountDollars, isBrokerMediated, cli
          updated_at         = now()
      WHERE id = $8`,
     [
-      breakdown.job_value_cents      / 100,
-      breakdown.customer_total_cents / 100,
-      breakdown.platform_fee_cents   / 100,
-      breakdown.protection_fee_cents / 100,
-      breakdown.broker_fee_cents     / 100,
-      breakdown.helper_payout_cents  / 100,
-      isBrokerMediated,
+      jobValueCents / 100,
+      breakdown.customer_charged_cents / 100,
+      platformFeeCents / 100,
+      0,
+      0,
+      Math.max(0, jobValueCents - platformFeeCents) / 100,
+      Boolean(isBrokerMediated),
       jobId,
     ]
   );
   return breakdown;
 };
 
+/**
+ * Minor-unit variant for non-USD jobs and per-country fees (payment layers):
+ * writes the *_cents columns (minor units of the job currency); the decimal
+ * mirrors are derived by the jobs triggers using the currency exponent.
+ */
+exports.setFinancialsMinor = async (jobId, amountMinor, { currency = 'USD', country = null, rail = 'stripe', isBrokerMediated = false } = {}, client = null) => {
+  const q = client || db;
+  const railPolicy = require('../services/paymentRailPolicy');
+  const policy = country ? await railPolicy.getCountryPolicy(q, country) : null;
+  const fees = railPolicy.computeFees({ amountMinor, currency, policy, rail: rail || 'stripe' });
+  await q.query(
+    `UPDATE jobs
+        SET job_value_cents = $1, customer_total_cents = $1, platform_fee_cents = $2,
+            protection_fee_cents = 0, broker_fee_cents = 0, helper_payout_cents = $3,
+            is_broker_mediated = $4, updated_at = now()
+      WHERE id = $5`,
+    [amountMinor, fees.platform_fee_minor, Math.max(0, amountMinor - fees.platform_fee_minor), Boolean(isBrokerMediated), jobId]
+  );
+  return { job_value_cents: amountMinor, platform_fee_cents: fees.platform_fee_minor, application_fee_cents: fees.application_fee_minor, fee_country: fees.fee_country };
+};
+
 // --- Transition Status ---
 // Enforces valid state machine transitions
-const VALID_TRANSITIONS = {
-  draft:        ['published', 'cancelled'],
-  published:    ['matched', 'cancelled'],
-  matched:      ['negotiating', 'published', 'cancelled'],
-  negotiating:  ['accepted', 'matched', 'cancelled'],
-  accepted:     ['in_progress', 'cancelled'],
-  in_progress:  ['completed', 'cancelled'],
-  completed:    ['closed'],
-  cancelled:    [],
-  closed:       [],
-};
+// Shared lifecycle rules (services/jobStatusPolicy.js, docs/job-status-transitions.md).
+const VALID_TRANSITIONS = require('../services/jobStatusPolicy').TRANSITIONS;
 
 exports.transitionStatus = async (jobId, newStatus, userId) => {
   const job = await exports.findById(jobId, userId);
@@ -412,3 +427,5 @@ exports.getPublicFeed = async ({
     pages: Math.ceil(parseInt(countRows[0].count) / limit),
   };
 };
+
+exports.VALID_TRANSITIONS = VALID_TRANSITIONS;

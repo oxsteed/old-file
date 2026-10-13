@@ -23,6 +23,7 @@ router.get('/consultants', ...auth, adminConsultingController.getAvailableConsul
 // operations write grant, not the read-only view_financials.
 router.post('/invoices/generate', ...auth, requirePermission('manage_operations'), adminConsultingController.generateInvoice);
 router.post('/invoices/generate-manual', ...auth, requirePermission('manage_operations'), adminConsultingController.generateManualInvoice);
+router.patch('/invoices/:invoiceId/mark-paid', ...auth, requirePermission('manage_operations'), adminConsultingController.markInvoicePaid);
 router.get('/invoices/:invoiceId/download', ...auth, requirePermission('view_financials'), adminConsultingController.downloadInvoice);
 router.get('/invoices', ...auth, requirePermission('view_financials'), adminConsultingController.listInvoices);
 router.get('/purchases', ...auth, requirePermission('view_financials'), adminConsultingController.listPurchases);

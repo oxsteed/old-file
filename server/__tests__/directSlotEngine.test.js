@@ -1,6 +1,12 @@
 'use strict';
 
 const { mockQuery, resetMocks } = require('./setup');
+// Cross-surface busy/buffers have their own tests; keep this suite's query
+// sequence focused on the Direct tables.
+jest.mock('../services/crossSurfaceBusy', () => ({
+  loadCrossSurfaceBusy: jest.fn(async () => []),
+  loadBookingBuffers: jest.fn(async () => new Map()),
+}));
 const { computeServiceSlots, expireHolds, createHold, resolveEligibleAssignees } = require('../services/directSlotEngine');
 const db = require('../db');
 

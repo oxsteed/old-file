@@ -1,6 +1,10 @@
+const { rejectImpersonated } = require('../middleware/rejectImpersonated');
 const router = require('express').Router();
 const { authenticate } = require('../middleware/auth');
 const wa = require('../controllers/workAgreementController');
+const upload = require('../middleware/upload');
+const validateFileUpload = require('../middleware/validateFileUpload');
+const { userUploadLimiter } = require('../middleware/rateLimiter');
 
 // All routes require auth; the controller enforces party-only access
 // (only the helper or customer on the agreement may act).
@@ -20,15 +24,16 @@ router.get('/:id/signatures', authenticate, wa.listSignatures);
 
 // Change orders
 router.post('/:id/change-orders', authenticate, wa.proposeChangeOrder);
-router.post('/:id/change-orders/:coId/approve', authenticate, wa.approveChangeOrder);
-router.post('/:id/change-orders/:coId/reject', authenticate, wa.rejectChangeOrder);
+// Approval moves money (job price, card capture, Credit collateral): no impersonation.
+router.post('/:id/change-orders/:coId/approve', authenticate, rejectImpersonated, wa.approveChangeOrder);
+router.post('/:id/change-orders/:coId/reject', authenticate, rejectImpersonated, wa.rejectChangeOrder);
 
 // Evidence
-router.post('/:id/evidence', authenticate, wa.addEvidence);
+router.post('/:id/evidence', authenticate, userUploadLimiter, upload.single('file'), validateFileUpload, wa.addEvidence);
 router.get('/:id/evidence', authenticate, wa.listEvidence);
 
 // Documents
-router.post('/:id/documents', authenticate, wa.addDocument);
+router.post('/:id/documents', authenticate, userUploadLimiter, upload.single('file'), validateFileUpload, wa.addDocument);
 router.get('/:id/documents', authenticate, wa.listDocuments);
 
 // Warranty claims (recorded only; the platform never adjudicates)

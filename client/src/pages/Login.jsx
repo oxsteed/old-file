@@ -107,11 +107,21 @@ export default function Login({ embedded = false, returnTo } = {}) {
       toast.error(t('login.passkeyUnsupported'));
       return;
     }
+    // Review P1-113: passkey sign-in records the same agreement and typed-name
+    // signature as password sign-in.
+    if (!termsAgreed) {
+      toast.error(t('login.agreementRequired'));
+      return;
+    }
+    if (!isValidFullName(signatureName)) {
+      toast.error(t('login.signatureFullNameRequired'));
+      return;
+    }
     setPasskeyLoading(true);
     try {
       const { data } = await userPasskeyAPI.authenticationOptions(email.trim());
       const response = await startAuthentication({ optionsJSON: data.options });
-      const result = await userPasskeyAPI.verifyAuthentication(data.token, response);
+      const result = await userPasskeyAPI.verifyAuthentication(data.token, response, { termsAgreed: true, agreementName: signatureName.trim() });
       finishLogin(result?.data || result);
     } catch (err) {
       if (err?.name !== 'NotAllowedError') {

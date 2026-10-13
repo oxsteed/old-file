@@ -13,6 +13,8 @@ import {
   acceptDirectRequest,
   changeDirectRequest,
   confirmDirectProof,
+  payDirectWithCredit,
+  checkDirectServiceAvailability,
   deleteDirectLocation,
   getDirectAccount,
   getDirectCatalog,
@@ -358,6 +360,19 @@ export function DirectQuoteRequestPage() {
     email: user?.email || '',
     phone: user?.phone || '',
   });
+  // P1-179: tell the customer early when their ZIP is outside Direct's areas.
+  const [zipCoverage, setZipCoverage] = useState(null);
+  useEffect(() => {
+    const zip = form.service_zip_code.trim();
+    if (!/^\d{5}$/.test(zip)) { setZipCoverage(null); return undefined; }
+    let active = true;
+    const timer = setTimeout(() => {
+      checkDirectServiceAvailability({ zipCode: zip })
+        .then((data) => { if (active) setZipCoverage(data?.available === false ? 'outside' : 'inside'); })
+        .catch(() => { if (active) setZipCoverage(null); });
+    }, 400);
+    return () => { active = false; clearTimeout(timer); };
+  }, [form.service_zip_code]);
   const catalogServices = useMemo(() => (profile.catalog?.categories || [])
     .flatMap((category) => (category.services || []).map((service) => ({
       ...service,
@@ -624,6 +639,9 @@ export function DirectQuoteRequestPage() {
               </Field>
               <Field label={t('directPortal.request.fields.serviceZipCode')} required hint={t('directPortal.request.hints.serviceZipCode', { defaultValue: 'Used to match your quote later.' })}>
                 <Input inputMode="numeric" value={form.service_zip_code} onChange={update('service_zip_code')} placeholder={t('directPortal.request.placeholders.serviceZipCode')} maxLength={5} />
+                {zipCoverage === 'outside' && (
+                  <p role="status" className="mt-2 text-xs text-amber-200">{t('directPortal.request.hints.outsideServiceArea', { defaultValue: "This ZIP is outside our usual service areas. You can still send the request and we'll confirm." })}</p>
+                )}
               </Field>
               <Field label={t('directPortal.request.fields.serviceCity')}><Input value={form.service_city} onChange={update('service_city')} placeholder={t('directPortal.request.placeholders.optional')} /></Field>
               <Field label={t('directPortal.request.fields.budgetRange')}><Input value={form.budget_range} onChange={update('budget_range')} placeholder={t('directPortal.request.placeholders.budgetRange')} /></Field>
@@ -1679,6 +1697,27 @@ function DirectCasePage({ mode }) {
     }
   };
 
+  const canPayWithCredit = Boolean(request)
+    && ['accepted', 'scheduled'].includes(request.status)
+    && ['unpaid', 'proof_submitted'].includes(request.paymentStatus || 'unpaid')
+    && Number(request.quoteAmountCents) > 0;
+  const payWithCredit = async () => {
+    if (!id) return;
+    setActionBusy(true);
+    try {
+      const result = await payDirectWithCredit(id);
+      const { request: refreshed } = await getDirectRequest(id);
+      setRequest(refreshed);
+      toast.success(result?.recordPending
+        ? t('directPortal.case.messages.creditPaidPending', { defaultValue: 'Paid with OxSteed Credit. Your receipt will appear shortly.' })
+        : t('directPortal.case.messages.creditPaid', { defaultValue: 'Paid with OxSteed Credit.' }));
+    } catch (error) {
+      toast.error(error?.response?.data?.error || t('directPortal.case.errors.creditPay', { defaultValue: 'Could not pay with OxSteed Credit.' }));
+    } finally {
+      setActionBusy(false);
+    }
+  };
+
   const confirmProof = async () => {
     if (!id) return;
     setActionBusy(true);
@@ -1760,6 +1799,9 @@ function DirectCasePage({ mode }) {
                 )}
                 {mode === 'book' && (
                   <button type="button" onClick={saveSchedule} disabled={actionBusy} className="rounded-full bg-orange-500 px-4 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60">{t('directPortal.case.actions.saveSchedule', { defaultValue: 'Save schedule' })}</button>
+                )}
+                {mode === 'proof' && canPayWithCredit && (
+                  <button type="button" onClick={payWithCredit} disabled={actionBusy} className="rounded-full bg-emerald-500 px-4 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60">{t('directPortal.case.actions.payWithCredit', { defaultValue: 'Pay with OxSteed Credit' })}</button>
                 )}
                 {mode === 'proof' && (
                   <button type="button" onClick={submitProof} disabled={actionBusy} className="rounded-full bg-orange-500 px-4 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60">{t('directPortal.case.actions.submitProof', { defaultValue: 'Submit proof' })}</button>

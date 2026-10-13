@@ -44,6 +44,20 @@ describe('launchGate middleware', () => {
     expect(next).not.toHaveBeenCalled();
   });
 
+  test.each([
+    ['/api/carts', '/cart-1/payment-intent'],
+    ['/api/carts', '/cart-1/confirm'],
+    ['/api/shared-carts', '/share-1'],
+    ['/api/job-kits', '/'],
+  ])('P2-652: blocks the unlaunched marketplace purchase path %s%s', (baseUrl, path) => {
+    const gate = launchGate();
+    const res = mockRes();
+    const next = jest.fn();
+    gate({ ...mockReq({ baseUrl, path }), method: 'POST' }, res, next);
+    expect(res.status).toHaveBeenCalledWith(404);
+    expect(next).not.toHaveBeenCalled();
+  });
+
   test('allows admin templates path through', () => {
     const gate = launchGate();
     const req = mockReq({ baseUrl: '/api/templates', path: '/admin/preview' });
