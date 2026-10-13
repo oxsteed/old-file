@@ -1,6 +1,7 @@
 // Invoice email templates and sending logic (localized: en, es, fr, ht, ar)
 const { sendEmail } = require('./email');
 const logger = require('./logger');
+const { maskEmail } = require('./directQuote'); // Review P3-852: PII masking for log fields
 const QRCode = require('qrcode');
 const escapeHtml = require('./escapeHtml');
 const { renderOxSteedEmail, normalizeEmailLanguage } = require('./emailTemplate');
@@ -417,9 +418,10 @@ async function sendInvoiceEmail(invoice, recipientEmail, maxRetries = 3, languag
       });
 
       if (result.success) {
+        // Review P3-852: mask the recipient address in logs (PII).
         logger.info('Invoice email sent successfully', {
           invoiceId: invoice.id,
-          recipientEmail,
+          recipientEmail: maskEmail(recipientEmail),
           attempt,
           language: lang,
         });
@@ -428,7 +430,7 @@ async function sendInvoiceEmail(invoice, recipientEmail, maxRetries = 3, languag
         lastError = result.error;
         logger.warn('Invoice email send failed, will retry', {
           invoiceId: invoice.id,
-          recipientEmail,
+          recipientEmail: maskEmail(recipientEmail),
           attempt,
           error: lastError,
         });
@@ -443,7 +445,7 @@ async function sendInvoiceEmail(invoice, recipientEmail, maxRetries = 3, languag
       lastError = err.message;
       logger.error('Invoice email send exception', {
         invoiceId: invoice.id,
-        recipientEmail,
+        recipientEmail: maskEmail(recipientEmail),
         attempt,
         error: err.message,
       });
@@ -457,7 +459,7 @@ async function sendInvoiceEmail(invoice, recipientEmail, maxRetries = 3, languag
 
   logger.error('Invoice email send failed after retries', {
     invoiceId: invoice.id,
-    recipientEmail,
+    recipientEmail: maskEmail(recipientEmail),
     maxRetries,
     lastError,
   });

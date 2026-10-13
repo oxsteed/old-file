@@ -3,7 +3,7 @@
 const db = require('../db');
 const logger = require('../utils/logger');
 const escapeHtml = require('../utils/escapeHtml');
-const { sendEmail } = require('../utils/email');
+const { sendEmail, sendEmailOrThrow, EmailDeliveryError } = require('../utils/email');
 const { renderOxSteedEmail } = require('../utils/emailTemplate');
 const { withTransaction } = require('../utils/transaction');
 const { uploadFile, getSignedDownloadUrl } = require('../utils/storage');
@@ -558,19 +558,38 @@ async function createLookupChallenge(request, zipCode) {
   };
 }
 
+// Review P3-844/P3-849: the lookup code is the only way the requester opens
+// their quote, so a failed send must fail loud (EmailDeliveryError), never
+// silently drop. Uses the branded template with a text part.
 async function sendPublicLookupCodeEmail(request, challenge, code) {
-  await sendEmail({
+  const reference = request.public_reference || request.id;
+  const zipCode = request.service_zip_code || '-';
+  const rendered = renderOxSteedEmail({
+    language: 'en',
+    preheader: 'Your OxSteed Direct verification code',
+    eyebrow: 'OXSTEED DIRECT',
+    title: 'Your verification code',
+    intro: 'Use this code to open your quote details.',
+    bodyText: `If you did not request this code, you can ignore this message.`,
+    codeBlocks: [
+      {
+        label: 'Verification code',
+        code,
+        note: `This code expires at ${challenge.code_expires_at}.`,
+        tone: 'orange',
+      },
+    ],
+    details: [
+      { label: 'Reference', value: reference },
+      { label: 'ZIP code', value: zipCode },
+    ],
+    footerText: 'You are receiving this message because you requested a verification code for your OxSteed Direct quote.',
+  });
+  await sendEmailOrThrow({
     to: request.email,
-    subject: `Your OxSteed Direct quote code for ${request.public_reference || request.id}`,
-    html: `
-      <h2>Your OxSteed Direct verification code</h2>
-      <p>Use this code to open your quote details.</p>
-      <p><strong>Reference:</strong> ${request.public_reference || request.id}</p>
-      <p><strong>ZIP code:</strong> ${request.service_zip_code || '-'}</p>
-      <p><strong>Verification code:</strong> <code>${code}</code></p>
-      <p>This code expires at ${challenge.code_expires_at}.</p>
-      <p>If you did not request this code, you can ignore this message.</p>
-    `,
+    subject: `Your OxSteed Direct quote code for ${reference}`,
+    html: rendered.html,
+    text: rendered.text,
   });
 }
 
@@ -667,13 +686,19 @@ async function sendDirectEmail({ to, subject, eyebrow, title, intro, details, id
       details,
       footerText: 'You are receiving this message because you have an OxSteed Direct request.',
     });
-    await sendEmail({
+    // Review P3-844: sendEmail reports delivery failure as { success: false }
+    // without throwing. This path stays fire-and-forget, but a failed send is
+    // a loud warn, never a silent drop.
+    const delivery = await sendEmail({
       to,
       subject,
       html: rendered.html,
       text: rendered.text,
       idempotencyKey,
     });
+    if (delivery?.success !== true) {
+      logger.warn('Direct email notification failed', { kind, requestId, error: delivery?.error || 'unknown' });
+    }
   } catch (emailErr) {
     logger.warn('Direct email notification failed', { kind, requestId, error: emailErr.message });
   }
@@ -1137,7 +1162,22 @@ exports.sendPublicLookupCode = async (req, res) => {
       return res.status(500).json({ error: 'Failed to create verification code' });
     }
 
-    await sendPublicLookupCodeEmail(request, challenge, code);
+    // Review P3-844: the challenge code is useless if the email never leaves.
+    // Fail loud (503) so the requester retries instead of waiting for a code
+    // that will never arrive.
+    try {
+      await sendPublicLookupCodeEmail(request, challenge, code);
+    } catch (emailErr) {
+      logger.error('sendPublicLookupCode email failed', {
+        error: emailErr.message,
+        code: emailErr instanceof EmailDeliveryError ? emailErr.code : undefined,
+        requestId: request.id,
+      });
+      return res.status(503).json({
+        error: 'Verification code email could not be sent. Please try again.',
+        code: 'email_send_failed',
+      });
+    }
 
     return res.json({
       success: true,

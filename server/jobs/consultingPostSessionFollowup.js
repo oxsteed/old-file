@@ -1,7 +1,7 @@
 const cron = require('node-cron');
 const crypto = require('crypto');
 const db = require('../db');
-const { sendEmail } = require('../utils/email');
+const { sendEmailOrThrow } = require('../utils/email');
 const logger = require('../utils/logger');
 
 /**
@@ -87,7 +87,7 @@ const startConsultingPostSessionFollowup = () => {
           }
 
           // Send follow-up email to customer
-          await sendEmail({
+          await sendEmailOrThrow({
             to: session.email,
             subject: 'Thank You for Your OxSteed Consulting Session',
             html: `

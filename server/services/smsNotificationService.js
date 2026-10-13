@@ -219,7 +219,8 @@ async function sendTwilioSMS(phoneNumber, messageBody) {
 
     return { sid: message.sid, status: message.status };
   } catch (error) {
-    logger.error('Twilio API error', { error, phoneNumber });
+    // Review P3-852: never log the raw recipient number (PII).
+    logger.error('Twilio API error', { error, maskedPhone: maskPhoneNumber(phoneNumber) });
     throw error;
   }
 }

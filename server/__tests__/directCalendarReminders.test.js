@@ -52,4 +52,29 @@ describe('direct calendar reminders', () => {
     expect(payload.html).toContain('&lt;img src=x&gt;');
     expect(payload.text).toContain('Scheduled service reminder');
   });
+
+  test('a {success:false} send is marked failed, never sent (P3-844)', async () => {
+    const scheduled = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+    db.query
+      .mockResolvedValueOnce({ rows: [{
+        id: 45,
+        first_name: 'Sam',
+        email: 'customer@example.com',
+        service_category: 'Plumbing',
+        service_location: 'On file',
+        scheduled_start_at: scheduled,
+        assignee_email: null,
+      }] })
+      .mockResolvedValueOnce({ rows: [{ id: 8 }] })
+      .mockResolvedValueOnce({ rows: [] });
+    // sendEmail reports failure without throwing; the reminder must not be
+    // marked 'sent' or it would be lost silently.
+    sendEmail.mockResolvedValueOnce({ success: false, error: 'provider down' });
+
+    await expect(processDirectCalendarReminders()).resolves.toEqual({ sent: 0, failed: 1 });
+
+    const updateSql = db.query.mock.calls.map(([sql]) => sql).join('\n');
+    expect(updateSql).toContain("status = 'failed'");
+    expect(updateSql).not.toContain("status = 'sent'");
+  });
 });

@@ -1,6 +1,6 @@
 const cron = require('node-cron');
 const db = require('../db');
-const { sendEmail } = require('../utils/email');
+const { sendEmailOrThrow } = require('../utils/email');
 const logger = require('../utils/logger');
 
 /**
@@ -45,7 +45,7 @@ const startConsultingNoShowFollowup = () => {
           const sessionDateTime = new Date(`${session.scheduled_date}T${session.scheduled_time}`);
 
           // Send no-show follow-up email to customer
-          await sendEmail({
+          await sendEmailOrThrow({
             to: session.email,
             subject: 'We Missed You - Your OxSteed Consulting Session',
             html: `
@@ -64,7 +64,7 @@ const startConsultingNoShowFollowup = () => {
 
           // Send admin notification about no-show
           if (session.consultant_first_name) {
-            await sendEmail({
+            await sendEmailOrThrow({
               to: process.env.ADMIN_EMAIL || 'admin@oxsteed.com',
               subject: `No-Show Alert: Consulting Session on ${sessionDateTime.toLocaleDateString('en-US')}`,
               html: `

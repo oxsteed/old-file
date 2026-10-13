@@ -311,7 +311,13 @@ async function sendEmail({ to, subject, text, html, from, fromName, idempotencyK
   }
 }
 
-async function sendWelcomeEmail(user, language = FALLBACK_LANGUAGE) {
+// Review P3-849: the idempotency key pins a welcome email to one (user,
+// created_at) pair so a duplicated signup attempt never double-sends. A
+// legitimate explicit re-send (e.g. an admin resending from the user record,
+// or a "resend welcome email" action) opts out with `forceResend: true` or a
+// caller-supplied `resendNonce`, which salts the key with a per-request
+// nonce while keeping default duplicate-send protection intact.
+async function sendWelcomeEmail(user, language = FALLBACK_LANGUAGE, options = {}) {
   const lang = normalizeEmailLanguage(language);
   const copy = EMAIL_COPY.welcome[lang] || EMAIL_COPY.welcome[FALLBACK_LANGUAGE];
   const safeName = textSafe(user.first_name) || textSafe(user.email);
@@ -329,12 +335,16 @@ async function sendWelcomeEmail(user, language = FALLBACK_LANGUAGE) {
   });
   const createdAt = user.created_at || user.createdAt || new Date().toISOString();
   const welcomeGeneration = new Date(createdAt).toISOString();
+  const forceResend = options.forceResend === true || options.resendNonce != null;
+  const nonce = forceResend
+    ? String(options.resendNonce || `${Date.now()}-${require('crypto').randomBytes(8).toString('hex')}`).slice(0, 64)
+    : '';
   return sendEmail({
     to: user.email,
     subject,
     text: rendered.text,
     html: rendered.html,
-    idempotencyKey: user.id ? `welcome:${user.id}:${welcomeGeneration}` : undefined,
+    idempotencyKey: user.id ? `welcome:${user.id}:${welcomeGeneration}${nonce ? `:${nonce}` : ''}` : undefined,
   });
 }
 

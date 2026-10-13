@@ -1,6 +1,6 @@
 const cron = require('node-cron');
 const db = require('../db');
-const { sendEmail } = require('../utils/email');
+const { sendEmailOrThrow } = require('../utils/email');
 const logger = require('../utils/logger');
 
 /**
@@ -60,7 +60,7 @@ const startConsultingSessionReminders = () => {
             body = `Your consulting session will start in approximately 1 hour at ${sessionDateTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}.`;
           }
 
-          await sendEmail({
+          await sendEmailOrThrow({
             to: session.email,
             subject,
             html: `
