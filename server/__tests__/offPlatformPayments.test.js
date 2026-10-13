@@ -427,3 +427,43 @@ describe('getPaymentRequest detail endpoint', () => {
     expect(mockQuery).not.toHaveBeenCalled();
   });
 });
+
+describe('getPolicies ?helper_id= read (P1-2-F11)', () => {
+  const helperRow = {
+    id: 3, helper_id: USER_B, oxsteed_enabled: true, custom_enabled: true,
+    custom_policy: { terms: 'Pay me direct' }, updated_at: '2026-01-01',
+  };
+
+  test("returns the helper's policies, not the requester's", async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [helperRow] });
+    const req = { query: { helper_id: USER_B }, user: { id: USER_A } };
+    const res = mockResponse();
+    await policiesCtrl.getPolicies(req, res, jest.fn());
+    expect(mockQuery.mock.calls[0][1]).toEqual([USER_B]);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+      success: true,
+      data: expect.objectContaining({ helper_id: USER_B, oxsteed_enabled: true }),
+    }));
+    expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO helper_cancellation_policies/.test(sql))).toBe(false);
+  });
+
+  test('never creates a row for another helper; reports assignHelper-consistent defaults', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [] });
+    const req = { query: { helper_id: USER_B }, user: { id: USER_A } };
+    const res = mockResponse();
+    await policiesCtrl.getPolicies(req, res, jest.fn());
+    expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO helper_cancellation_policies/.test(sql))).toBe(false);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ oxsteed_enabled: false, custom_enabled: true }),
+    }));
+  });
+
+  test('own lookup still auto-creates defaults', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [] }); // SELECT: none
+    mockQuery.mockResolvedValueOnce({ rows: [{ id: 1, helper_id: USER_A, oxsteed_enabled: true, custom_enabled: false, custom_policy: {} }] });
+    const req = { query: {}, user: { id: USER_A } };
+    const res = mockResponse();
+    await policiesCtrl.getPolicies(req, res, jest.fn());
+    expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO helper_cancellation_policies/.test(sql))).toBe(true);
+  });
+});
