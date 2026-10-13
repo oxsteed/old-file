@@ -139,3 +139,5 @@ Delivery-device follow-up: driver tracking devices now support owner pause and r
 
 Restaurant-device follow-up: paired restaurant credentials now expire after 90 days, pairing assigns the expiry, and an authorized restaurant manager can rotate a paired device token. Expired credentials are rejected before device routes run. Migration 786 adds the nullable expiry column and index for older installations.
 
+Session-chain follow-up: refresh rotation now records the consumed session id in both session-chain lineage columns when those nullable columns exist, preserving the existing absolute-deadline behavior and allowing refresh ancestry to be audited.
+

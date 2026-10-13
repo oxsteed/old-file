@@ -836,7 +836,7 @@ async function refreshToken(req, res, next) {
 
     const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
     const { rows: sessionRows } = await pool.query(
-      'SELECT s.user_id, s.is_valid, s.is_revoked, s.expires_at, s.absolute_expires_at, s.created_at FROM sessions s WHERE s.refresh_token = $1',
+      'SELECT s.id, s.user_id, s.is_valid, s.is_revoked, s.expires_at, s.absolute_expires_at, s.created_at FROM sessions s WHERE s.refresh_token = $1',
       [hashedToken]
     );
     if (!sessionRows[0]) {
@@ -919,10 +919,11 @@ async function refreshToken(req, res, next) {
     const tokens = generateTokens(user);
     const hashedRefresh = crypto.createHash('sha256').update(tokens.refreshToken).digest('hex');
     const { rows: newSessionRows } = await pool.query(
-      `INSERT INTO sessions (user_id, refresh_token, expires_at, absolute_expires_at, access_token_hash)
-       VALUES ($1, $2, LEAST(NOW() + interval '7 days', $3::timestamptz), $3::timestamptz, $4)
+      `INSERT INTO sessions (user_id, refresh_token, expires_at, absolute_expires_at, access_token_hash,
+                             parent_session_id, regenerated_from_session_id)
+       VALUES ($1, $2, LEAST(NOW() + interval '7 days', $3::timestamptz), $3::timestamptz, $4, $5, $5)
        RETURNING expires_at`,
-      [user.id, hashedRefresh, absoluteDeadline.toISOString(), crypto.createHash('sha256').update(tokens.accessToken).digest('hex')]
+      [user.id, hashedRefresh, absoluteDeadline.toISOString(), crypto.createHash('sha256').update(tokens.accessToken).digest('hex'), sessionRows[0].id || null]
     );
     await recordSessionContext(pool, hashedRefresh, req);
     const newExpiry = newSessionRows?.[0]?.expires_at ? new Date(newSessionRows[0].expires_at) : null;
