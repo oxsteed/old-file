@@ -266,13 +266,17 @@ async function recordLostDisputeFinancials(dispute, accountId) {
       [dispute.id]
     );
     if (!existingLoss[0]) {
+      // P3-1-F20: the chargeback debit lands on the helper's connected
+      // Stripe account, not on platform funds. Record it as a memorandum
+      // entry attributed to the payee (the connected-account owner) so the
+      // platform P&L is not overstated with a loss it did not absorb.
       await client.query(
-        `INSERT INTO platform_ledger (user_id, type, amount_cents, description, metadata)
-         VALUES ($1, 'dispute_lost', $2, $3, $4::jsonb)`,
+        `INSERT INTO platform_ledger (user_id, type, amount_cents, description, metadata, idempotency_key)
+         VALUES ($1, 'dispute_lost', $2, $3, $4::jsonb, $5)`,
         [
           payment.payee_id,
           -Math.abs(Number(dispute.amount || 0)),
-          `Lost dispute ${dispute.id} on charge ${chargeId || piId}`,
+          `Memo: lost dispute ${dispute.id} debited helper connected account (charge ${chargeId || piId})`,
           JSON.stringify({
             stripeDisputeId: dispute.id,
             paymentId: payment.id,
@@ -280,7 +284,10 @@ async function recordLostDisputeFinancials(dispute, accountId) {
             paymentIntentId: piId,
             stripeAccountId: accountId,
             reason: dispute.reason || null,
+            memo: true,
+            debit_location: 'connected_account',
           }),
+          `dispute-lost:${dispute.id}`,
         ]
       );
     }

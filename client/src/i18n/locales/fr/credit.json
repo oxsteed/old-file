@@ -1155,6 +1155,7 @@
   "adminDisputeResolveCustomer": "Résoudre en faveur du client",
   "adminDisputeBusinessDays": "{{count}} jours ouvrables",
   "adminDisputeSlaBreach": "SLA dépassé",
+  "adminDisputeSlaHoursLeft": "{{count}} h restantes",
   "adminDisputeProvisionalIssued": "{{amount}} provisoire émis",
   "adminDisputeProvisionalTitle": "Crédit provisoire (le litige reste ouvert)",
   "adminDisputeProvisionalAmount": "Montant du crédit provisoire en centimes",

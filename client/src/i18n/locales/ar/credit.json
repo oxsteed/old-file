@@ -1155,6 +1155,7 @@
   "adminDisputeResolveCustomer": "الحل لصالح العميل",
   "adminDisputeBusinessDays": "{{count}} أيام عمل",
   "adminDisputeSlaBreach": "تجاوز SLA",
+  "adminDisputeSlaHoursLeft": "متبقٍ {{count}} ساعة",
   "adminDisputeProvisionalIssued": "تم إصدار {{amount}} مؤقتًا",
   "adminDisputeProvisionalTitle": "رصيد مؤقت (يبقي النزاع مفتوحًا)",
   "adminDisputeProvisionalAmount": "مبلغ الرصيد المؤقت بالسنتات",

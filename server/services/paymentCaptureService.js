@@ -18,6 +18,41 @@ const { currencyExponent } = require('../validation/money');
  * amount or that ceiling.
  */
 /**
+ * P3-1-F08: the API layer checks for open disputes in a SERIALIZABLE
+ * transaction that COMMITs before Stripe capture, so a dispute opened in
+ * the gap would still be captured. Re-check with a fresh SELECT immediately
+ * before touching Stripe so the race window is milliseconds, not the whole
+ * HTTP round trip. Fail closed: a dispute blocks the capture.
+ */
+const DISPUTE_BLOCKING_STATUSES = Object.freeze(['open', 'under_review', 'in_progress']);
+
+async function assertNoOpenDispute(runner, { jobId, paymentId }) {
+  let resolvedJobId = jobId;
+  if (!resolvedJobId && paymentId) {
+    const { rows: payRows } = await runner.query('SELECT job_id FROM payments WHERE id = $1', [paymentId]);
+    resolvedJobId = payRows[0]?.job_id || null;
+  }
+  // Fail closed: if we cannot resolve the job, we cannot prove no dispute
+  // is open, so the capture must not proceed.
+  if (!resolvedJobId) {
+    const { AppError } = require('../middleware/errorHandler');
+    throw new AppError('Cannot verify dispute state for this payment. Capture blocked.', 409, 'dispute_check_failed');
+  }
+  const { rows } = await runner.query(
+    `SELECT id FROM disputes WHERE job_id = $1 AND status = ANY($2::text[]) LIMIT 1`,
+    [resolvedJobId, DISPUTE_BLOCKING_STATUSES]
+  );
+  if (rows[0]) {
+    const { AppError } = require('../middleware/errorHandler');
+    throw new AppError(
+      'Cannot capture payment while a dispute is open. Dispute must be resolved first.',
+      409,
+      'dispute_open'
+    );
+  }
+}
+
+/**
  * A change order raised the price above the authorization and the customer
  * has not re-authorized yet: capturing now would under-pay the helper and
  * close the job at the old price.
@@ -45,7 +80,7 @@ function captureCents(amount, captureAmountCents, currency = 'USD') {
  */
 async function captureAuthorizedPayment({ paymentId, jobId, amount }) {
   const paymentResult = await pool.query(
-    `SELECT id, stripe_payment_intent_id, stripe_account_id, status, capture_amount_cents, pending_increase_cents,
+    `SELECT id, job_id, stripe_payment_intent_id, stripe_account_id, status, capture_amount_cents, pending_increase_cents,
             charge_model, destination_account_id, currency, amount, platform_fee, metadata
        FROM payments WHERE id = $1`,
     [paymentId],
@@ -63,6 +98,10 @@ async function captureAuthorizedPayment({ paymentId, jobId, amount }) {
   if (!payment.stripe_payment_intent_id) {
     throw new Error(`No PaymentIntent for payment ${paymentId}`);
   }
+  // P3-1-F08: fresh dispute check immediately before any money movement.
+  // The API-layer check runs in a transaction that commits first, so a
+  // dispute opened in between must still block the capture/settle.
+  await assertNoOpenDispute(pool, { jobId: payment.job_id, paymentId });
   const model = chargeModel.modelOf(payment);
   if (model === 'direct' && !payment.stripe_account_id) {
     throw new Error(`No Stripe account for payment ${paymentId}`);
@@ -122,6 +161,11 @@ async function captureAuthorizedPaymentWithClient(client, paymentRow) {
   if (!paymentRow.stripe_payment_intent_id || (model === 'direct' && !paymentRow.stripe_account_id)) {
     throw new Error('Payment missing Stripe identifiers');
   }
+  // P3-1-F08: same fresh dispute gate as the standalone path, before any
+  // money movement including the platform_hold settle. This runs inside the
+  // caller's job-completion transaction; the SELECT is a current snapshot,
+  // not the API layer's earlier one.
+  await assertNoOpenDispute(client, { jobId: paymentRow.job_id, paymentId: paymentRow.id });
   if (model === 'platform_hold') return settlePlatformHold(client, paymentRow);
 
   // Audit fix: verify with Stripe that the PaymentIntent is actually in
@@ -258,4 +302,4 @@ async function settlePlatformHold(client, paymentRow) {
   return { paymentId: paymentRow.id, chargeId, transferId };
 }
 
-module.exports = { settlePlatformHold, captureAuthorizedPayment, captureAuthorizedPaymentWithClient, captureCents, assertNoPendingIncrease, reconcileJobAuthorizationFromStripe };
+module.exports = { settlePlatformHold, captureAuthorizedPayment, captureAuthorizedPaymentWithClient, captureCents, assertNoPendingIncrease, assertNoOpenDispute, DISPUTE_BLOCKING_STATUSES, reconcileJobAuthorizationFromStripe };

@@ -321,6 +321,11 @@ exports.createPaymentIntent = async (req, res, next) => {
     if (job.rows[0].client_id !== req.user.id) {
       throw new AppError('Not authorized to create payment for this job', 403, 'forbidden');
     }
+    // P3-1-F13: no payment intents on terminal jobs. Capturing on a
+    // completed or cancelled job would move money outside the job lifecycle.
+    if (['completed', 'cancelled'].includes(job.rows[0].status)) {
+      throw new AppError('Payments cannot be created for completed or cancelled jobs', 409, 'job_not_payable');
+    }
     if (!job.rows[0].job_value) {
       throw new AppError('No agreed price set for this job', 400, 'missing_job_value');
     }
@@ -721,14 +726,50 @@ exports.disconnectConnectAccount = async (req, res, next) => {
       success: true,
       message: 'No connected payout account found.'
     });
+    // P3-1-F14: refuse while money is in flight. Disconnecting with an
+    // authorized or unsettled payment would strand the capture/refund path.
+    const { rows: inflight } = await pool.query(
+      `SELECT id FROM payments
+        WHERE payee_id = $1
+          AND status IN ('pending', 'authorized', 'captured')
+          AND payment_hold_status NOT IN ('released', 'refunded')
+        LIMIT 1`,
+      [req.user.id]
+    );
+    if (inflight[0]) {
+      throw new AppError(
+        'You have payments still in progress. Wait until they settle before disconnecting your payout account.',
+        409,
+        'payments_in_flight'
+      );
+    }
     if (process.env.STRIPE_SECRET_KEY && account.stripe_account_id) {
       try {
         await stripe.accounts.del(account.stripe_account_id);
       } catch (stripeErr) {
-        logger.warn('Stripe account disconnect failed; removing local link', {
+        // P3-1-F14: a Stripe-side failure must NOT delete the local row.
+        // Otherwise the account reads "not connected" locally while Stripe
+        // still has it, and payouts silently stop routing. Fail closed,
+        // except when Stripe confirms the account is already gone.
+        const gone = stripeErr && (
+          stripeErr.code === 'resource_missing' ||
+          /no such account/i.test(stripeErr.message || '')
+        );
+        if (!gone) {
+          logger.error('Stripe account disconnect failed; keeping local link', {
+            userId: req.user.id,
+            accountId: account.stripe_account_id,
+            error: stripeErr.message
+          });
+          throw new AppError(
+            'Could not disconnect the payout account with the payment provider. Please try again.',
+            502,
+            'connect_disconnect_failed'
+          );
+        }
+        logger.warn('Stripe account already gone; removing local link', {
           userId: req.user.id,
-          accountId: account.stripe_account_id,
-          error: stripeErr.message
+          accountId: account.stripe_account_id
         });
       }
     }
@@ -743,6 +784,7 @@ exports.disconnectConnectAccount = async (req, res, next) => {
       userId: req.user?.id,
       error: err.message
     });
+    if (err instanceof AppError) return next(err);
     next(new AppError('Failed to disconnect payout account', 500, 'connect_disconnect_failed'));
   }
 };
@@ -836,6 +878,10 @@ exports.capturePayment = async (req, res, next) => {
           paymentId: paymentData.id,
           error: capErr.message
         });
+        // P3-1-F08: business-rule rejections from the capture service (e.g.
+        // a dispute opened mid-capture) keep their own status and code; only
+        // unexpected/provider failures become 502.
+        if (capErr instanceof AppError) throw capErr;
         throw new AppError(capErr.message || 'Could not capture payment. Please try again or contact support.', 502, 'payment_capture_failed');
       }
     } finally {

@@ -1,7 +1,7 @@
 const pool = require('../db');
 const logger = require('../utils/logger');
 const { sendError, sendValidationError } = require('../utils/apiError');
-const { logAdminAction } = require('../services/auditService');
+const { logAdminAction, logUserAction } = require('../services/auditService');
 
 // C9: Idempotency-Key must be caller-supplied, URL-safe, and bounded.
 function normalizeIdempotencyKey(value) {
@@ -11,6 +11,39 @@ function normalizeIdempotencyKey(value) {
 }
 
 class PayoutController {
+  // P3-1-F12: payout destination changes used to leave only a logger.info
+  // line, so an account-takeover payout redirection was silent. Every
+  // change now writes an audit row and notifies the account owner; both are
+  // best-effort after the mutation commits so they can never block it.
+  static async auditPayoutDestinationChange({ userId, methodId, methodType, detail, req }) {
+    try {
+      await logUserAction({
+        adminId: userId,
+        targetUserId: userId,
+        actionType: 'payout_destination_changed',
+        fieldName: 'payout_method',
+        oldValue: null,
+        newValue: `${methodType}:${methodId}`,
+        ipAddress: req?.ip || null,
+        notes: `self-service: ${detail}`,
+      });
+    } catch (auditErr) {
+      logger.error('Failed to audit payout destination change', { userId, methodId, error: auditErr.message });
+    }
+    try {
+      const { sendNotification } = require('../services/notificationService');
+      await sendNotification({
+        userId,
+        type: 'payout_destination_changed',
+        data: { payout_method_id: methodId },
+        action_url: '/settings/payouts',
+        idempotencyKey: `payout-destination:${methodId}:${Date.now()}`,
+      });
+    } catch (notifyErr) {
+      logger.warn('Failed to notify payout destination change', { userId, methodId, error: notifyErr.message });
+    }
+  }
+
   // Get all payouts for a helper
   static async getPayouts(req, res) {
     try {
@@ -228,6 +261,15 @@ class PayoutController {
 
       logger.info('Payout method created', { helper_id, method_id: result.rows[0].id });
 
+      // P3-1-F12: audit + notify on payout destination changes.
+      await PayoutController.auditPayoutDestinationChange({
+        userId: helper_id,
+        methodId: result.rows[0].id,
+        methodType: method_type,
+        detail: 'payout method added and set as primary',
+        req,
+      });
+
       res.status(201).json({
         success: true,
         payout_method: result.rows[0]
@@ -283,6 +325,16 @@ class PayoutController {
       if (!result.rows.length) {
         return sendError(res, 404, 'Payout method not found');
       }
+
+      // P3-1-F12: audit + notify on payout destination changes (primary
+      // switches and deactivations both redirect where money goes).
+      await PayoutController.auditPayoutDestinationChange({
+        userId: helper_id,
+        methodId: result.rows[0].id,
+        methodType: result.rows[0].method_type,
+        detail: `payout method updated (is_primary=${result.rows[0].is_primary}, status=${result.rows[0].status})`,
+        req,
+      });
 
       res.json({
         success: true,

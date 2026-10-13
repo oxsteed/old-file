@@ -1155,6 +1155,7 @@
   "adminDisputeResolveCustomer": "Rezoud pou kliyan an",
   "adminDisputeBusinessDays": "{{count}} jou ouvrab",
   "adminDisputeSlaBreach": "SLA depase",
+  "adminDisputeSlaHoursLeft": "{{count}}h ki rete",
   "adminDisputeProvisionalIssued": "{{amount}} pwovizwa bay",
   "adminDisputeProvisionalTitle": "Kredi pwovizwa (diskisyon an rete ouvè)",
   "adminDisputeProvisionalAmount": "Kantite kredi pwovizwa a an santim",

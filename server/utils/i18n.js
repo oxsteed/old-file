@@ -30,6 +30,23 @@ const T = {
       ar: 'راجع نشاط أمان بطاقتك الأخير. إذا لم تقم به، فاتصل بالدعم فورًا.',
     },
   },
+  // P3-1-F12: security notice when a payout destination is added or changed.
+  payout_destination_changed: {
+    title: {
+      en: 'Payout destination changed',
+      es: 'Destino de pago cambiado',
+      fr: 'Destination de paiement modifiée',
+      ht: 'Destinasyon peman chanje',
+      ar: 'تم تغيير وجهة الدفع',
+    },
+    body: {
+      en: 'Your payout destination was changed. If this was not you, contact support immediately.',
+      es: 'Tu destino de pago fue cambiado. Si no fuiste tú, contacta con soporte de inmediato.',
+      fr: 'Votre destination de paiement a été modifiée. Si vous ne les reconnaissez pas, contactez immédiatement le support.',
+      ht: 'Destinasyon peman ou chanje. Si se pa ou, kontakte sipò touswit.',
+      ar: 'تم تغيير وجهة الدفع الخاصة بك. إذا لم تقم بذلك، فاتصل بالدعم فورًا.',
+    },
+  },
   ...require('./localDeliveryNotifications').deliveryNotifications,
   ...require('./jobLifecycleNotificationTemplates').jobLifecycleNotifications,
   work_agreement_signature_requested: {
