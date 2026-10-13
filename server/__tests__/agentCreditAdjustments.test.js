@@ -281,32 +281,50 @@ describe('two-person rule', () => {
   });
 });
 
-describe('below-threshold single-admin apply', () => {
-  test('propose under $50 auto-applies in the same call with a reason', async () => {
+describe('all amounts require maker-checker approval', () => {
+  test('propose under $50 remains pending until a different admin approves', async () => {
     const row = pendingRow({ amount_cents: 4999 });
     mockQuery
       .mockResolvedValueOnce(emptyResult()) // advisory lock (propose)
       .mockResolvedValueOnce({ rows: [row], rowCount: 1 }) // INSERT propose
-      .mockResolvedValueOnce(emptyResult()) // audit proposed
-      .mockResolvedValueOnce({ rows: [row], rowCount: 1 }); // SELECT FOR UPDATE
-    queueApplyLeg({
-      beforeCents: '2000', afterCents: '6999',
-      appliedOverrides: { amount_cents: 4999, approved_by: ADMIN_A, before_balance_cents: 2000, after_balance_cents: 6999 },
-    });
+      .mockResolvedValueOnce(emptyResult()); // audit proposed
 
-    const res = resDouble();
+    const proposeRes = resDouble();
     await controller.proposeAdjustment(
       reqDouble({ body: { customerId: CUSTOMER, amountCents: 4999, reason: 'small goodwill credit', idempotencyKey: 'k-auto' } }),
-      res,
+      proposeRes,
       throwingNext
     );
 
-    expect(res.statusCode).toBe(201);
-    expect(res.payload.adjustment.status).toBe('applied');
-    expect(res.payload.adjustment.beforeBalanceCents).toBe(2000);
-    expect(res.payload.adjustment.afterBalanceCents).toBe(6999);
+    expect(proposeRes.statusCode).toBe(201);
+    expect(proposeRes.payload.adjustment.status).toBe('pending');
+    expect(proposeRes.payload.adjustment.requiresSecondApproval).toBe(true);
+    expect(creditService.adjustCustomerCreditInTransaction).not.toHaveBeenCalled();
+
+    mockQuery.mockReset();
+    mockQuery.mockImplementation(async () => ({ rows: [], rowCount: 0 }));
+    mockQuery
+      .mockResolvedValueOnce({ rows: [pendingRow({ amount_cents: 4999 })], rowCount: 1 })
+      .mockResolvedValueOnce({ rows: [pendingRow({ amount_cents: 4999, status: 'approved', approved_by: ADMIN_B })], rowCount: 1 })
+      .mockResolvedValueOnce(emptyResult());
+    queueApplyLeg({
+      beforeCents: '2000', afterCents: '6999',
+      appliedOverrides: { amount_cents: 4999, approved_by: ADMIN_B, before_balance_cents: 2000, after_balance_cents: 6999 },
+    });
+
+    const approveRes = resDouble();
+    await controller.approveAdjustment(
+      reqDouble({ params: { id: ADJ_ID }, user: { id: ADMIN_B } }),
+      approveRes,
+      throwingNext
+    );
+
+    expect(approveRes.statusCode).toBe(200);
+    expect(approveRes.payload.adjustment.status).toBe('applied');
+    expect(approveRes.payload.adjustment.beforeBalanceCents).toBe(2000);
+    expect(approveRes.payload.adjustment.afterBalanceCents).toBe(6999);
     expect(creditService.adjustCustomerCreditInTransaction).toHaveBeenCalledTimes(1);
-    expect(creditService.adjustCustomerCreditInTransaction.mock.calls[0][1].actorUserId).toBe(ADMIN_A);
+    expect(creditService.adjustCustomerCreditInTransaction.mock.calls[0][1].actorUserId).toBe(ADMIN_B);
     // The UUID ledger id must round-trip as a string, never Number(uuid).
     const updateCall = mockQuery.mock.calls.find(([sql]) => /ledger_transaction_id = \$5/.test(sql));
     expect(updateCall).toBeDefined();
@@ -364,14 +382,28 @@ describe('fail closed', () => {
     mockQuery
       .mockResolvedValueOnce(emptyResult()) // advisory lock (propose)
       .mockResolvedValueOnce({ rows: [row], rowCount: 1 }) // INSERT propose
-      .mockResolvedValueOnce(emptyResult()) // audit proposed
-      .mockResolvedValueOnce({ rows: [row], rowCount: 1 }); // SELECT FOR UPDATE
-      // rail assert throws here; the transaction aborts before any posting
+      .mockResolvedValueOnce(emptyResult()); // audit proposed
+
+    const proposeRes = resDouble();
+    await controller.proposeAdjustment(
+      reqDouble({ body: { customerId: CUSTOMER, amountCents: 4999, reason: 'rail is down', idempotencyKey: 'k-rail-down' } }),
+      proposeRes,
+      throwingNext
+    );
+    expect(proposeRes.payload.adjustment.status).toBe('pending');
+
+    mockQuery.mockReset();
+    mockQuery.mockImplementation(async () => ({ rows: [], rowCount: 0 }));
+    mockQuery
+      .mockResolvedValueOnce({ rows: [row], rowCount: 1 }) // SELECT FOR UPDATE
+      .mockResolvedValueOnce({ rows: [{ ...row, status: 'approved', approved_by: ADMIN_B }], rowCount: 1 }) // UPDATE -> approved
+      .mockResolvedValueOnce(emptyResult()); // audit approved
+    // rail assert throws here; the transaction aborts before any posting
 
     let error = null;
     try {
-      await controller.proposeAdjustment(
-        reqDouble({ body: { customerId: CUSTOMER, amountCents: 4999, reason: 'rail is down', idempotencyKey: 'k-rail-down' } }),
+      await controller.approveAdjustment(
+        reqDouble({ params: { id: ADJ_ID }, user: { id: ADMIN_B } }),
         resDouble(),
         throwingNext
       );
@@ -386,20 +418,30 @@ describe('fail closed', () => {
 });
 
 describe('audit trail', () => {
-  test('propose + auto-apply writes audit entries carrying actor, reason, amount and before/after balances', async () => {
+  test('proposal and second-admin apply write audit entries carrying actor, reason, amount and balances', async () => {
     const row = pendingRow({ amount_cents: 4999, reason: 'audit trail check' });
     mockQuery
       .mockResolvedValueOnce(emptyResult()) // advisory lock (propose)
       .mockResolvedValueOnce({ rows: [row], rowCount: 1 }) // INSERT propose
-      .mockResolvedValueOnce(emptyResult()) // audit proposed
-      .mockResolvedValueOnce({ rows: [row], rowCount: 1 }); // SELECT FOR UPDATE
-    queueApplyLeg({
-      beforeCents: '2000', afterCents: '6999',
-      appliedOverrides: { amount_cents: 4999, reason: 'audit trail check', approved_by: ADMIN_A, before_balance_cents: 2000, after_balance_cents: 6999 },
-    });
-
+      .mockResolvedValueOnce(emptyResult()); // audit proposed
     await controller.proposeAdjustment(
       reqDouble({ body: { customerId: CUSTOMER, amountCents: 4999, reason: 'audit trail check', idempotencyKey: 'k-audit' } }),
+      resDouble(),
+      throwingNext
+    );
+    mockQuery.mockReset();
+    mockQuery.mockImplementation(async () => ({ rows: [], rowCount: 0 }));
+    mockQuery
+      .mockResolvedValueOnce({ rows: [pendingRow({ amount_cents: 4999, reason: 'audit trail check' })], rowCount: 1 })
+      .mockResolvedValueOnce({ rows: [pendingRow({ amount_cents: 4999, reason: 'audit trail check', status: 'approved', approved_by: ADMIN_B })], rowCount: 1 })
+      .mockResolvedValueOnce(emptyResult());
+    queueApplyLeg({
+      beforeCents: '2000', afterCents: '6999',
+      appliedOverrides: { amount_cents: 4999, reason: 'audit trail check', approved_by: ADMIN_B, before_balance_cents: 2000, after_balance_cents: 6999 },
+    });
+
+    await controller.approveAdjustment(
+      reqDouble({ params: { id: ADJ_ID }, user: { id: ADMIN_B } }),
       resDouble(),
       throwingNext
     );
@@ -411,7 +453,7 @@ describe('audit trail', () => {
     const params = appliedAudit[1];
     expect(appliedAudit[0]).toMatch(/'credit_adjustment'/); // resource_type
     expect(params[0]).toBe('credit.agent_adjustment.applied');
-    expect(params[1]).toBe(ADMIN_A); // actor
+    expect(params[1]).toBe(ADMIN_B); // actor
     expect(params[2]).toBe(CUSTOMER); // customer
     expect(params[4]).toBe('audit trail check'); // reason
     expect(JSON.parse(params[7]).beforeBalanceCents).toBe(2000);
@@ -425,15 +467,27 @@ describe('daily cap', () => {
     mockQuery
       .mockResolvedValueOnce(emptyResult()) // advisory lock (propose)
       .mockResolvedValueOnce({ rows: [row], rowCount: 1 }) // INSERT propose
-      .mockResolvedValueOnce(emptyResult()) // audit proposed
+      .mockResolvedValueOnce(emptyResult()); // audit proposed
+
+    await controller.proposeAdjustment(
+      reqDouble({ body: { customerId: CUSTOMER, amountCents: 2000, reason: 'over the cap', idempotencyKey: 'k-cap' } }),
+      resDouble(),
+      throwingNext
+    );
+
+    mockQuery.mockReset();
+    mockQuery.mockImplementation(async () => ({ rows: [], rowCount: 0 }));
+    mockQuery
       .mockResolvedValueOnce({ rows: [row], rowCount: 1 }) // SELECT FOR UPDATE
+      .mockResolvedValueOnce({ rows: [{ ...row, status: 'approved', approved_by: ADMIN_B }], rowCount: 1 }) // UPDATE -> approved
+      .mockResolvedValueOnce(emptyResult()) // audit approved
       .mockResolvedValueOnce(emptyResult()) // advisory lock (apply)
       .mockResolvedValueOnce({ rows: [{ used_today: '49000' }] }); // daily cap -> 49000 + 2000 > 50000
 
     let error = null;
     try {
-      await controller.proposeAdjustment(
-        reqDouble({ body: { customerId: CUSTOMER, amountCents: 2000, reason: 'over the cap', idempotencyKey: 'k-cap' } }),
+      await controller.approveAdjustment(
+        reqDouble({ params: { id: ADJ_ID }, user: { id: ADMIN_B } }),
         resDouble(),
         throwingNext
       );
@@ -506,7 +560,7 @@ describe('listPendingAdjustments', () => {
     expect(res.statusCode).toBe(200);
     expect(res.payload.adjustments).toHaveLength(1);
     expect(res.payload.adjustments[0].proposedByName).toBe('Maya L');
-    expect(res.payload.thresholdCents).toBe(5000);
+    expect(res.payload.thresholdCents).toBe(0);
     expect(res.payload.dailyCapCents).toBe(50000);
   });
 });

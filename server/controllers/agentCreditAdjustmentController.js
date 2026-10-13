@@ -8,13 +8,10 @@
  *
  *   - Every propose requires a non-empty reason and a client-generated
  *     idempotency key (retries with the same key return the existing row,
- *     never a duplicate). No money moves at propose time unless the amount
- *     is below the auto-apply threshold.
- *   - TWO_PERSON_THRESHOLD_CENTS ($50.00): below it, the proposing admin may
- *     apply directly in the same call (still reasoned and fully audited).
- *     At or above it, propose() only creates a PENDING row and a DIFFERENT
- *     admin must approve() before anything posts. Self-approval is a hard
- *     403 in code (approver id !== proposer id), not just UI convention.
+ *     never a duplicate). No money moves at propose time.
+ *   - Every proposal creates a PENDING row and a DIFFERENT admin must approve
+ *     before anything posts. Self-approval is a hard 403 in code (approver id
+ *     !== proposer id), not just UI convention.
  *   - Money moves only inside a single transaction that also flips the row
  *     to 'applied' and records before/after balances. A disabled or frozen
  *     rail, or any posting failure, fails closed: the row stays pending and
@@ -33,15 +30,8 @@
  * Multi-currency is supported through assertSupportedCreditCurrency.
  *
  * Control-plane note: this console and the Super Admin adjustments endpoint
- * (POST /super/oxsteed-credit/customers/:customerId/adjustments) enforce the
- * SAME two-person policy through the SAME knob:
- * OXSTEED_CREDIT_MAKER_CHECKER_THRESHOLD_CENTS. Amounts below the threshold
- * may be applied by the proposing admin alone (fully reasoned and audited);
- * amounts at or above it need a different admin to approve. The Super Admin
- * path implements this via the generic maker-checker pending-action queue
- * (requestPendingAction); this console implements it inline with PENDING
- * rows and a hard self-approval 403. Default 5000 ($50.00): set the env var
- * to 0 to require two-person approval for every adjustment on both planes.
+ * both require maker-checker approval for every amount. There is no amount
+ * threshold or environment override that can bypass the two-person rule.
  */
 
 const pool = require('../db');
@@ -58,14 +48,10 @@ const {
   normalizeString,
 } = creditService;
 
-// Amounts at or above this need a second admin. Below it the proposing admin
-// may apply directly in the same call. Unified with the Super Admin
-// maker-checker plane: OXSTEED_CREDIT_MAKER_CHECKER_THRESHOLD_CENTS is the
-// single knob (default 5000 = $50.00 here; 0 = two-person for everything).
-const TWO_PERSON_THRESHOLD_CENTS = Math.max(
-  0,
-  Number.parseInt(process.env.OXSTEED_CREDIT_MAKER_CHECKER_THRESHOLD_CENTS || '5000', 10) || 5000
-);
+// Every credit adjustment requires a distinct proposer and approver. Keep a
+// named constant for response compatibility, but deliberately do not read an
+// environment threshold that could weaken maker-checker controls.
+const TWO_PERSON_THRESHOLD_CENTS = 0;
 // Per proposing admin, per UTC calendar day, on abs(amount) of applied rows.
 const DAILY_ADJUSTMENT_CAP_CENTS = 50000; // $500.00
 
@@ -140,7 +126,7 @@ function formatAdjustment(row) {
     decidedAt: row.decided_at,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
-    requiresSecondApproval: Math.abs(Number(row.amount_cents)) >= TWO_PERSON_THRESHOLD_CENTS,
+    requiresSecondApproval: true,
   };
 }
 
@@ -318,9 +304,8 @@ async function applyAdjustmentPosting(client, adjustment, {
 
 /**
  * POST /agent/credit-adjustments
- * Propose an adjustment. Below the $50 threshold the proposing admin applies
- * it immediately in the same call; at or above the threshold the row stays
- * PENDING for a different admin to approve. No money moves for pending rows.
+ * Propose an adjustment. The row stays PENDING until a different admin
+ * approves it. No money moves at proposal time.
  * Same idempotency key returns the existing row (replayed: true).
  */
 async function proposeAdjustment(req, res, next) {
@@ -371,18 +356,6 @@ async function proposeAdjustment(req, res, next) {
         });
       }
 
-      // Below the threshold the proposer may apply directly. At or above the
-      // threshold the row stays pending for a second admin.
-      const autoApply = Math.abs(Number(row.amount_cents)) < TWO_PERSON_THRESHOLD_CENTS;
-      if (!replayed && autoApply) {
-        const locked = await findAdjustmentForUpdate(client, row.id);
-        row = await applyAdjustmentPosting(client, locked, {
-          actorUserId: adminId,
-          approverId: adminId,
-          correlationId,
-          requestIp,
-        });
-      }
       return { row, replayed };
     }, 'agent_credit_adjustment_propose');
 
@@ -424,14 +397,6 @@ async function approveAdjustment(req, res, next) {
           'credit_adjustment_two_person_violation'
         );
       }
-      if (Math.abs(Number(adjustment.amount_cents)) < TWO_PERSON_THRESHOLD_CENTS) {
-        throw new AppError(
-          'Adjustments below the two-person threshold do not need approval',
-          409,
-          'credit_adjustment_no_approval_needed'
-        );
-      }
-
       const { rows } = await client.query(
         `UPDATE credit_adjustments
             SET status = 'approved', approved_by = $2, approved_at = NOW(), updated_at = NOW()
