@@ -15,6 +15,7 @@ router.post(
 );
 
 router.get('/my', authenticate, controller.listMyRequests);
+router.get('/assigned', authenticate, controller.listAssignedRequests);
 router.get('/business/:businessId', authenticate, controller.listBusinessRequests);
 router.get('/:id', authenticate, controller.getRequest);
 router.patch('/:id', authenticate, controller.updateRequest);

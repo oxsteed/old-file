@@ -169,6 +169,13 @@ exports.getPublicBusiness = async (req, res, next) => {
 exports.createRequest = async (req, res, next) => {
   try {
     const business = await getBusinessOrThrow(req.params.businessId);
+    const { rows: settingRows } = await pool.query(
+      'SELECT intake_enabled FROM property_operation_settings WHERE business_id = $1',
+      [business.id]
+    );
+    if (settingRows[0] && settingRows[0].intake_enabled === false) {
+      throw new AppError('Maintenance intake is currently closed', 409, 'intake_disabled');
+    }
     const fields = {};
     const title = trimString(req.body.title, 200);
     const description = trimString(req.body.description, 4000);
@@ -510,6 +517,25 @@ exports.listMyRequests = async (req, res, next) => {
        WHERE r.requester_id = $1
        ORDER BY r.created_at DESC
        LIMIT 100`,
+      [req.user.id]
+    );
+    return res.json({ requests: rows });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// Assigned helpers need a first-class queue; `/my` intentionally remains the
+// requester's history and must not silently change meaning by account role.
+exports.listAssignedRequests = async (req, res, next) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT r.*, b.business_name
+         FROM property_maintenance_requests r
+         JOIN businesses b ON b.id = r.business_id
+        WHERE r.assigned_helper_id = $1
+        ORDER BY COALESCE(r.scheduled_start_at, r.created_at) ASC
+        LIMIT 100`,
       [req.user.id]
     );
     return res.json({ requests: rows });
