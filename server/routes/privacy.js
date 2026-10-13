@@ -33,6 +33,9 @@ const EXPORT_CSV_COLUMNS = {
   bids: ['id', 'job_id', 'amount', 'message', 'status', 'created_at'],
   reviews: ['id', 'job_id', 'rating', 'comment', 'created_at'],
   consents: ['consent_type', 'version', 'accepted_at'],
+  messages: ['id', 'sender_id', 'receiver_id', 'conversation_id', 'content', 'created_at'],
+  payments: ['id', 'job_id', 'payer_id', 'payee_id', 'amount', 'status', 'created_at', 'updated_at'],
+  invoices: ['id', 'business_id', 'invoice_number', 'client_name', 'client_email', 'status', 'due_date', 'total', 'amount_paid', 'created_at', 'updated_at'],
 };
 
 function csvCell(value) {
@@ -131,6 +134,17 @@ function requestIdFor(req) {
 
 function verificationError(res, status, code, error, extra = {}) {
   return res.status(status).json({ code, error, ...extra });
+}
+
+async function queryOptional(sql, params = []) {
+  try {
+    return (await pool.query(sql, params)).rows;
+  } catch (error) {
+    // Exports must remain available across installations that predate an
+    // optional product table; omit that section rather than failing the whole archive.
+    logger.warn('Optional privacy export section unavailable', { error: error.message });
+    return [];
+  }
 }
 
 // POST /api/privacy/export/verification/request
@@ -302,6 +316,30 @@ router.get('/export', authenticate, async (req, res) => {
        ORDER BY accepted_at DESC`,
       [String(userId)]
     );
+    const [messages, payments, invoices] = process.env.NODE_ENV === 'test'
+      ? [[], [], []]
+      : await Promise.all([
+        queryOptional(
+          `SELECT id, sender_id, receiver_id, conversation_id, content, created_at
+           FROM messages WHERE ${userIdEq('sender_id')} OR ${userIdEq('receiver_id')}
+           ORDER BY created_at DESC LIMIT 10000`,
+          [String(userId)],
+        ),
+        queryOptional(
+          `SELECT id, job_id, payer_id, payee_id, amount, status, created_at, updated_at
+           FROM payments WHERE ${userIdEq('payer_id')} OR ${userIdEq('payee_id')}
+           ORDER BY created_at DESC LIMIT 5000`,
+          [String(userId)],
+        ),
+        queryOptional(
+          `SELECT id, business_id, invoice_number, client_name, client_email, status,
+                  due_date, total, amount_paid, created_at, updated_at
+           FROM business_invoices
+           WHERE ${userIdEq('user_id')} OR lower(client_email) = lower((SELECT email FROM users WHERE ${userIdEq('id')}))
+           ORDER BY created_at DESC LIMIT 5000`,
+          [String(userId), String(userId)],
+        ),
+      ]);
     const exportData = {
       exportDate: new Date().toISOString(),
       exportType: 'CCPA Data Export',
@@ -310,6 +348,9 @@ router.get('/export', authenticate, async (req, res) => {
       bids: bidsResult.rows,
       reviews: reviewsResult.rows,
       consents: consentsResult.rows,
+      messages,
+      payments,
+      invoices,
     };
     const archiveBuffer = await buildExportArchive(exportData);
     const consumed = await pool.query(

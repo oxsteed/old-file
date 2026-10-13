@@ -13,6 +13,10 @@ const db = require('../db');
 
 const TERMS_DOCUMENT_TYPE = 'terms_of_service';
 
+// User-facing CCPA/CPRA intake. Guests may submit an opt-out request by
+// email; authenticated users are bound to their account by the controller.
+router.post('/ccpa-requests', strictLimiter, ccpaController.createCCPARequest);
+
 // T56-F04: legal drafts are persisted in the database, not a process-local
 // Map, so restarts and multi-node deployments share the same state.
 
