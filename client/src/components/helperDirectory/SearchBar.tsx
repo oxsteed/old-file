@@ -1,7 +1,8 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Search, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { SuggestDropdown } from '../SuggestDropdown';
+import api from '../../api/axios';
 
 export interface SkillSuggestTile {
   id: string;
@@ -37,6 +38,21 @@ const SearchBar: React.FC<SearchBarProps> = ({
   // Typeahead items for the shared SuggestDropdown: skill tiles first, then
   // categories. The dropdown ranks title-prefix matches first and shows
   // localStorage recent searches when the input is focused and empty.
+  // Review P1-223: live skill suggestions from the server typeahead, merged
+  // after the local tiles/categories.
+  const [remoteSkills, setRemoteSkills] = useState<{ name: string }[]>([]);
+  useEffect(() => {
+    const term = (value || '').trim();
+    if (term.length < 2) { setRemoteSkills([]); return undefined; }
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      api.get('/helpers/skills', { params: { q: term, limit: 8 } })
+        .then(({ data }) => { if (!cancelled) setRemoteSkills(Array.isArray(data?.skills) ? data.skills : []); })
+        .catch(() => { if (!cancelled) setRemoteSkills([]); });
+    }, 250);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [value]);
+
   const suggestItems = useMemo(() => {
     const items: { id: string; title: string; icon?: React.ReactNode }[] = [];
     for (const tile of tiles || []) {
@@ -49,8 +65,15 @@ const SearchBar: React.FC<SearchBarProps> = ({
     for (const cat of categories || []) {
       items.push({ id: `category:${cat.key}`, title: cat.label });
     }
+    const seen = new Set(items.map((i) => i.title.toLowerCase()));
+    for (const skill of remoteSkills) {
+      const name = String(skill?.name || '');
+      if (!name || seen.has(name.toLowerCase())) continue;
+      seen.add(name.toLowerCase());
+      items.push({ id: `skill:${name}`, title: name });
+    }
     return items;
-  }, [tiles, categories]);
+  }, [tiles, categories, remoteSkills]);
 
   return (
     <div className="relative flex items-center">

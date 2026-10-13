@@ -308,11 +308,6 @@ export const performRestaurantKitchenItemAction = (restaurantId, orderItemId, pa
   ).then((r) => r.data);
 };
 
-export const updateFoodOrderPayment = (restaurantId, orderId, paymentStatus) =>
-  api
-    .patch(`/food/restaurants/${restaurantId}/orders/${orderId}/payment`, { paymentStatus })
-    .then((r) => r.data?.order);
-
 export const recordFoodOrderManualPayment = (restaurantId, orderId, payload) => {
   const idempotencyKey = payload.idempotencyKey || payload.idempotency_key;
   return api.post(

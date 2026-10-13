@@ -3832,11 +3832,15 @@ exports.listRestaurantOrders = async (req, res, next) => {
     } else if (scope === 'active') {
       // Merchant operations must not hide an unfinished order after midnight.
       filters.push(`fo.status IN ('received','accepted','preparing','ready')`);
+      // Review P1-236: unpaid pay_now checkouts are not kitchen work yet.
+      filters.push(`NOT (COALESCE(fo.metadata->>'paymentMode', '') = 'pay_now' AND fo.payment_status = 'requires_payment')`);
     } else if (scope === 'history') {
       filters.push(`fo.status IN ('completed','cancelled','refunded')`);
     } else if (req.query.active === '1' || req.query.active === 'true') {
       // Kitchen-display polling feed: only today's in-flight orders.
       filters.push(`fo.status IN ('received','accepted','preparing','ready')`);
+      // Review P1-236: unpaid pay_now checkouts are not kitchen work yet.
+      filters.push(`NOT (COALESCE(fo.metadata->>'paymentMode', '') = 'pay_now' AND fo.payment_status = 'requires_payment')`);
       filters.push(`(fo.created_at AT TIME ZONE COALESCE(
         (SELECT fr.timezone FROM food_restaurants fr WHERE fr.id = fo.restaurant_id), 'UTC'
       ))::date = (CURRENT_TIMESTAMP AT TIME ZONE COALESCE(
@@ -4079,6 +4083,10 @@ exports.updateOrderStatus = async (req, res, next) => {
            FROM current
           WHERE fo.id = current.id
             AND current.status = ANY($4::text[])
+            -- Review P1-236: the kitchen cannot start an unpaid pay_now order.
+            AND NOT ($1 IN ('accepted','preparing','ready','completed')
+                     AND COALESCE(current.metadata->>'paymentMode', '') = 'pay_now'
+                     AND current.payment_status = 'requires_payment')
             AND ($1 <> 'completed' OR current.fulfillment_type <> 'delivery'
                  OR EXISTS (SELECT 1 FROM restaurant_runner_tasks WHERE food_order_id = current.id AND status = 'Completed' AND handoff_at IS NOT NULL))
             AND (
@@ -4110,11 +4118,16 @@ exports.updateOrderStatus = async (req, res, next) => {
       );
       if (!order) {
         const { rows: existing } = await client.query(
-          `SELECT status, kitchen_stage, fulfillment_type
+          `SELECT status, kitchen_stage, fulfillment_type, payment_status, metadata
              FROM food_orders WHERE id = $1 AND restaurant_id = $2`,
           [orderId, restaurantId]
         );
         if (!existing[0]) throw new AppError('Order not found', 404, 'order_not_found');
+        if (['accepted', 'preparing', 'ready', 'completed'].includes(status)
+          && existing[0].payment_status === 'requires_payment'
+          && existing[0].metadata?.paymentMode === 'pay_now') {
+          throw new AppError('This order has not been paid yet', 409, 'order_payment_pending');
+        }
         if (status === 'completed' && existing[0].fulfillment_type === 'delivery') {
           throw new AppError(
             'Complete delivery orders through Runner handoff or proof submission',
@@ -4359,37 +4372,6 @@ exports.updateOrderStatus = async (req, res, next) => {
       payment: transitionResult.payment || null,
       replayed: Boolean(transitionResult.replayed),
     });
-  } catch (err) {
-    next(err);
-  }
-};
-
-exports.updateOrderPayment = async (req, res, next) => {
-  try {
-    const restaurantId = parsePositiveInt(req.params.restaurantId);
-    const orderId = parsePositiveInt(req.params.orderId);
-    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
-    await assertRestaurantPermission(restaurant, ['orders.manage', 'credit.manage', 'pos.manage']);
-    const paymentStatus = normalizeString(req.body.paymentStatus || req.body.payment_status, 24);
-    if (!VALID_PAYMENT_STATUS.has(paymentStatus)) {
-      throw new AppError('Validation failed', 400, 'validation_failed', {
-        paymentStatus: 'Must be one of unpaid, requires_payment, paid, failed, refunded',
-      });
-    }
-    const { rows: [order] } = await pool.query(
-      `SELECT id FROM food_orders WHERE id = $1 AND restaurant_id = $2`,
-      [orderId, restaurantId]
-    );
-    if (!order) throw new AppError('Order not found', 404, 'order_not_found');
-    throw new AppError(
-      'Record payments and refunds through the ledger-backed POS payment endpoints',
-      409,
-      'payment_transaction_required',
-      {
-        createPaymentPath: `/api/restaurants/${restaurantId}/pos/orders/${orderId}/payments`,
-        paymentStatusPath: `/api/restaurants/${restaurantId}/pos/payments/:paymentId`,
-      }
-    );
   } catch (err) {
     next(err);
   }

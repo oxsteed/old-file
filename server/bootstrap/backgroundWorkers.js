@@ -26,6 +26,7 @@ const { startScheduledDeletionJob } = require('../jobs/scheduledDeletionJob');
 const { startRecurringJobScheduler } = require('../jobs/recurringJobScheduler');
 const { startCustomerReengagementJob } = require('../jobs/customerReengagementJob');
 const { releaseExpiredInventoryReservations } = require('../services/restaurantInventoryOrderService');
+const { cancelAbandonedPayNowOrders } = require('../services/foodAbandonedOrderSweeper');
 const { cleanupExpiredWalletOperations } = require('../services/foodWalletOperationsService');
 const { startOxsteedCreditHoldExpiryJob } = require('../jobs/oxsteedCreditHoldExpiry');
 const { startDirectSlotHoldExpiryJob } = require('../jobs/directSlotHoldExpiry');
@@ -36,6 +37,7 @@ const { startOxsteedCreditEntitlementExpiryJob } = require('../jobs/oxsteedCredi
 const { startOxsteedCreditReconciliationJob } = require('../jobs/oxsteedCreditReconciliation');
 const { startOxsteedCreditTopupExpiryJob } = require('../jobs/oxsteedCreditTopupExpiry');
 const { startOxsteedCreditDualPostingBackfillJob } = require('../jobs/oxsteedCreditDualPostingBackfill');
+const { startOxsteedCreditHousekeepingJob } = require('../jobs/oxsteedCreditHousekeeping');
 const { startOxsteedCreditExternalReconciliationJob } = require('../jobs/oxsteedCreditExternalReconciliation');
 const { startOxsteedCreditComplianceMonitorJob } = require('../jobs/oxsteedCreditComplianceMonitor');
 const { startOxsteedCreditDisputeMonitorJob } = require('../jobs/oxsteedCreditDisputeMonitor');
@@ -108,6 +110,7 @@ class BackgroundWorkers {
       startOxsteedCreditReconciliationJob();
     startOxsteedCreditTopupExpiryJob();
       startOxsteedCreditDualPostingBackfillJob();
+      startOxsteedCreditHousekeepingJob();
       startOxsteedCreditExternalReconciliationJob();
       startOxsteedCreditComplianceMonitorJob();
       startOxsteedCreditDisputeMonitorJob();
@@ -181,6 +184,11 @@ class BackgroundWorkers {
           await bookingController.releaseStaleAcceptedBookings();
         } catch (err) {
           this.log.warn('Booking maintenance job failed', { error: err.message });
+        }
+        try {
+          await cancelAbandonedPayNowOrders();
+        } catch (err) {
+          this.log.warn('Abandoned pay_now order sweep failed', { error: err.message });
         }
       });
 

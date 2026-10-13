@@ -505,6 +505,20 @@ router.post('/super/oxsteed-credit/settlements/:settlementId/payout', requireSup
 router.post('/super/oxsteed-credit/pending-actions', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.requestAdminPendingAction);
 router.get('/super/oxsteed-credit/pending-actions', requireSuperAdmin, oxsteedCreditCtrl.listAdminPendingActions);
 router.post('/super/oxsteed-credit/pending-actions/:id/decision', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.decideAdminPendingAction);
+// Review P1-249: parked dual-posting backfill queue (list + requeue).
+router.get('/super/oxsteed-credit/backfill/parked', requireSuperAdmin, async (req, res, next) => {
+  try {
+    const { listParkedDualPostingBackfill } = require('../services/oxsteedCreditSubBankService');
+    res.json({ rows: await listParkedDualPostingBackfill(require('../db'), { limit: req.query.limit }) });
+  } catch (err) { next(err); }
+});
+router.post('/super/oxsteed-credit/backfill/requeue', requireSuperAdmin, creditAdminMutationLimiter, async (req, res, next) => {
+  try {
+    const { requeueParkedDualPostingBackfill } = require('../services/oxsteedCreditSubBankService');
+    const ids = Array.isArray(req.body?.ids) ? req.body.ids : null;
+    res.json(await requeueParkedDualPostingBackfill(require('../db'), { ids }));
+  } catch (err) { next(err); }
+});
 router.post('/super/oxsteed-credit/reconciliation', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.reconcileAdminCredit);
 // Phase 5 compliance queue: identity verifications, sanctions hits, cases.
 router.get('/super/oxsteed-credit/compliance-queue', requireSuperAdmin, oxsteedCreditCtrl.getAdminComplianceQueue);
