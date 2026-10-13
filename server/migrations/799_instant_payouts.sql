@@ -1,4 +1,4 @@
--- Migration 795: local ledger for instant payouts (review P3-1-F16).
+-- Migration 799: local ledger for instant payouts (review P3-1-F16).
 -- requestInstantPayout creates a row BEFORE calling Stripe so a Stripe-side
 -- failure is tracked locally instead of vanishing, and payout.* webhook
 -- events reconcile the row as Stripe settles the payout asynchronously.
