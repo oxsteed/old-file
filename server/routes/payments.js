@@ -17,6 +17,7 @@ const {
   getInvestorSummary,
 } = require('../controllers/paymentController');
 const { errorHandler } = require('../middleware/errorHandler');
+const checkRestrictions = require('../middleware/checkRestrictions');
 
 const requirePaymentsEnabled = requireFeatureEnabled('Payments', 'FEATURE_PAYMENTS_ENABLED');
 
@@ -30,9 +31,9 @@ router.get('/investor-summary', authenticate, requireAdmin, getInvestorSummary);
 
 // Payments
 router.get('/me', authenticate, requirePaymentsEnabled, getMyPayments);
-router.post('/intent', authenticate, requirePaymentsEnabled, paymentsLimiter, createPaymentIntent);
-router.post('/capture', authenticate, requirePaymentsEnabled, paymentsLimiter, capturePayment);
-router.post('/refund', authenticate, requirePaymentsEnabled, paymentsLimiter, requireAdmin, requirePermission('issue_refunds'), refundPayment);
+router.post('/intent', authenticate, requirePaymentsEnabled, checkRestrictions('checkout'), paymentsLimiter, createPaymentIntent);
+router.post('/capture', authenticate, requirePaymentsEnabled, checkRestrictions('checkout'), paymentsLimiter, capturePayment);
+router.post('/refund', authenticate, requirePaymentsEnabled, checkRestrictions('checkout'), paymentsLimiter, requireAdmin, requirePermission('issue_refunds'), refundPayment);
 router.get('/job/:job_id', authenticate, requirePaymentsEnabled, getJobPayment);
 
 // Route-local JSON error handler for consistent API responses when this router

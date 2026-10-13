@@ -117,13 +117,19 @@ function checkRestrictions(restrictionType) {
 
       next();
     } catch (err) {
-      // Log but don't block on DB error — restrictions are best-effort guards
+      // A restriction lookup failure must fail closed. Allowing a payment or
+      // other protected mutation through during a database outage defeats the
+      // enforcement record we are required to honor.
       logger.error('checkRestrictions middleware error', {
         userId: req.user?.id,
         restrictionType,
         error: err.message
       });
-      next(); // fail open (don't block the user on a DB timeout)
+      return res.status(503).json({
+        success: false,
+        error: 'Account restriction status is temporarily unavailable. Please retry.',
+        code: 'RESTRICTION_CHECK_UNAVAILABLE',
+      });
     }
   };
 }
