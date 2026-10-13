@@ -17,7 +17,7 @@ const sharp = require('sharp');
 const { fileTypeFromBuffer } = require('file-type');
 const fileScanService = require('../services/fileScanService');
 const { uploadFile, getSignedDownloadUrl, deleteFile } = require('../utils/storage');
-const { stripExif } = require('../utils/stripExif');
+const { stripExif, MAX_IMAGE_PIXELS } = require('../utils/stripExif');
 const AppError = require('../utils/appError');
 const mediaSafety = require('../services/mediaSafetyPolicy');
 const mediaTranscodeWorker = require('../services/mediaTranscodeWorker');
@@ -159,7 +159,7 @@ async function uploadPhoto(req, res) {
     }
 
     const cleanBuffer = await stripExif(file.buffer);
-    const thumbnail = await sharp(cleanBuffer)
+    const thumbnail = await sharp(cleanBuffer, { limitInputPixels: MAX_IMAGE_PIXELS })
       .resize({ width: 480, withoutEnlargement: true })
       .jpeg({ quality: 82 })
       .toBuffer({ resolveWithObject: true });
