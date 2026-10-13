@@ -114,6 +114,24 @@ describe('Didit v3 webhook', () => {
 
     expect(response.status).toBe(401);
   });
+
+  test('rejects a fresh header when it is not covered by the signed payload', async () => {
+    const payload = {
+      event_id: 'didit-unbound-timestamp',
+      session_id: 'didit-unbound-session',
+      status: 'Approved',
+      created_at: Math.floor(Date.now() / 1000) - 30,
+      metadata: { test_webhook: true },
+    };
+    const response = await request(buildApp())
+      .post('/api/webhooks/didit')
+      .set('content-type', 'application/json')
+      .set('x-timestamp', String(Math.floor(Date.now() / 1000)))
+      .set('x-signature-v2', sign(payload))
+      .send(JSON.stringify(payload));
+
+    expect(response.status).toBe(401);
+  });
 });
 
 describe('Didit v3 webhook unhappy paths', () => {

@@ -1453,6 +1453,13 @@ function diditTimestamp(req, body) {
   return req.headers['x-timestamp'] || body.created_at || body.timestamp;
 }
 
+function diditTimestampMatchesPayload(body, timestamp) {
+  const headerSeconds = parseDiditEventCreated({ timestamp });
+  const payloadSeconds = parseDiditEventCreated(body);
+  return headerSeconds !== null && payloadSeconds !== null
+    && Math.abs(headerSeconds - payloadSeconds) <= 1;
+}
+
 async function beginDiditWebhookEvent(body) {
   const eventId = body.event_id || body.id;
   if (!eventId) return { shouldProcess: true, receiptId: null };
@@ -1532,6 +1539,7 @@ function parseDiditEventCreated(body) {
   return null;
 }
 exports._parseDiditEventCreated = parseDiditEventCreated;
+exports._diditTimestampMatchesPayload = diditTimestampMatchesPayload;
 exports._beginDiditWebhookEvent = (body) => beginDiditWebhookEvent(body);
 
 // Didit identity webhook handler (v3 API)
@@ -1578,6 +1586,13 @@ exports.diditWebhook = async (req, res, next) => {
   const signatureSimple = req.headers['x-signature-simple'];
   const signatureOriginal = req.headers['x-signature'];
   const timestamp = diditTimestamp(req, body);
+
+  // The freshness value must be covered by the signed payload. A fresh
+  // header paired with a separately signed stale body is a replay vector.
+  if (!diditTimestampMatchesPayload(body, timestamp)) {
+    logger.warn('[Didit] Webhook timestamp is not bound to the signed payload');
+    return res.status(401).json({ error: 'Invalid signature', code: 'invalid_webhook_signature' });
+  }
 
   // Try verification methods in order: V2 -> Simple -> Original
   let isValid = false;

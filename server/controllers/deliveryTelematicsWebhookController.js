@@ -106,6 +106,19 @@ function parsedEvent(req) {
   return req.body && typeof req.body === 'object' ? req.body : null;
 }
 
+function parseTimestampSeconds(value) {
+  if (value === undefined || value === null || value === '') return null;
+  const numeric = Number(value);
+  if (Number.isFinite(numeric) && numeric > 0) return numeric > 1e12 ? numeric / 1000 : numeric;
+  const parsed = Date.parse(String(value));
+  return Number.isFinite(parsed) ? parsed / 1000 : null;
+}
+
+function isFreshTimestamp(value, now = Date.now() / 1000) {
+  const seconds = parseTimestampSeconds(value);
+  return seconds !== null && Math.abs(now - seconds) <= 300;
+}
+
 // Resolves the webhook secret for a connection WITHOUT ever logging or
 // returning the value. `webhook_secret_ref` is the environment variable name.
 function resolveWebhookSecret(connection) {
@@ -181,6 +194,9 @@ async function receiveWebhook(req, res) {
     const rawBody = rawBodyBytes(req);
     const signature = firstHeader(req, SIGNATURE_HEADERS);
     const timestamp = firstHeader(req, TIMESTAMP_HEADERS);
+    if (timestamp && !isFreshTimestamp(timestamp)) {
+      return res.status(401).json({ error: 'Stale webhook timestamp', code: 'telematics_stale_webhook' });
+    }
 
     // Verify against every active connection's secret; the first match wins.
     // Connections without a resolvable secret can never verify — skip them.
