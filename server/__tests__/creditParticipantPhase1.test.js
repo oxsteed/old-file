@@ -139,7 +139,11 @@ function installRouter() {
     if (sql.includes('FROM users WHERE id = ANY')) {
       const verified = global.__testOwnerDiditVerified !== false;
       return Promise.resolve({
-        rows: (params[0] || []).map((id) => ({ id, didit_status: verified ? 'verified' : 'pending' })),
+        rows: (params[0] || []).map((id) => ({
+          id,
+          didit_status: verified ? 'verified' : 'pending',
+          didit_verified_at: verified ? new Date().toISOString() : null,
+        })),
       });
     }
     // Business owner lookup

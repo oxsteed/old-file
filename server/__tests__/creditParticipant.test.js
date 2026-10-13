@@ -191,6 +191,15 @@ describe('assertParticipantActive', () => {
       .toThrow(expect.objectContaining({ code: 'credit_participant_didit_required' }));
   });
 
+  test('rejects participants with expired Didit verification', () => {
+    const resolved = {
+      participant: activeParticipantRow({ didit_verified_at: '2020-01-01T00:00:00.000Z' }),
+      partner: { id: 41, status: 'active' },
+    };
+    expect(() => assertParticipantActive(resolved))
+      .toThrow(expect.objectContaining({ code: 'credit_participant_didit_required' }));
+  });
+
   test('rejects missing participant', () => {
     expect(() => assertParticipantActive(null))
       .toThrow(expect.objectContaining({ code: 'credit_participant_not_found' }));

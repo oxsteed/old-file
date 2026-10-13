@@ -203,3 +203,5 @@ W16 upload follow-up: job creation no longer publishes a partial media set when 
 - W17 KYC/AML follow-up: dispute provisional credit now passes through the same compliance choke point before posting customer value.
 
 - W17 KYC/AML follow-up: restaurant wallet-load approvals now pass through shared identity, sanctions, rail, and issuance-capacity checks before the ledger write.
+
+- W17 identity follow-up: Didit verification is now valid for two years from `didit_verified_at`; API authentication, credit participant activation, and active participant gates fail closed for missing, malformed, or expired approval timestamps. Expired participant flags are revalidated against the linked owner before activation.

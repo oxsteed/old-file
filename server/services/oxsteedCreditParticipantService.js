@@ -43,6 +43,7 @@ const pool = require('../db');
 const { AppError } = require('../middleware/errorHandler');
 const { withTransaction } = require('../utils/transaction');
 const { insertAudit, transitionPartner } = require('./oxsteedCreditAdminService');
+const { isDiditVerificationFresh } = require('../utils/diditGate');
 
 const PARTICIPANT_TYPES = new Set([
   'restaurant', 'business', 'helper', 'subscription_merchant', 'qr_merchant',
@@ -133,11 +134,14 @@ async function assertOwnersDiditVerified(client, { ownerUserIds, participantId }
     );
   }
   const { rows } = await client.query(
-    `SELECT id, didit_status FROM users WHERE id = ANY($1::uuid[])`,
+    `SELECT id, didit_status, didit_verified_at FROM users WHERE id = ANY($1::uuid[])`,
     [uniqueIds]
   );
-  const byId = new Map(rows.map((r) => [String(r.id), r.didit_status]));
-  const unverified = uniqueIds.filter((id) => byId.get(id) !== 'verified');
+  const byId = new Map(rows.map((r) => [String(r.id), r]));
+  const unverified = uniqueIds.filter((id) => {
+    const owner = byId.get(id);
+    return owner?.didit_status !== 'verified' || !isDiditVerificationFresh(owner.didit_verified_at);
+  });
   if (unverified.length) {
     throw new AppError(
       'Owner identity verification (Didit) is required before this participant can be activated',
@@ -416,7 +420,7 @@ async function activateParticipantInTransaction(client, { participantId, actorUs
   }
   // Didit gate (LOCKED decision 12): participant flag first, then fall
   // back to the linked owners' users.didit_status.
-  if (participant.didit_verified !== true) {
+  if (participant.didit_verified !== true || !isDiditVerificationFresh(participant.didit_verified_at)) {
     const ownerIds = [];
     if (participant.user_id) ownerIds.push(participant.user_id);
     if (participant.business_id) {
