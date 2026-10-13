@@ -191,3 +191,5 @@ W16 image-processing follow-up: every Sharp decode/thumbnail path now applies a 
 W17 compliance follow-up: restaurant Stripe top-up intents now pass through the shared fiat funding compliance gate (rail, identity tier, sanctions, limits, and audit) before a pending top-up row can be created. Amount validation remains side-effect free and the existing eligibility/payout gates stay in place.
 
 W16 upload follow-up: job creation no longer publishes a partial media set when one upload fails. Successfully uploaded objects are cleaned up and the client receives a retryable `job_media_upload_failed` error with bounded failure counts.
+
+- W16 upload follow-up: beauty, maintenance, trades, and creative intake uploads now fail closed on any partial batch failure, delete successful keys during rollback, and return bounded retryable errors instead of persisting a partial media set.

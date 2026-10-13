@@ -1,7 +1,7 @@
 const pool = require('../db');
 const { AppError } = require('../middleware/errorHandler');
-const { uploadFile, getPublicUrl } = require('../utils/storage');
-const logger = require('../utils/logger');
+const { getPublicUrl } = require('../utils/storage');
+const { uploadFilesOrThrow } = require('../utils/uploadBatch');
 
 const VALID_STATUS = new Set(['new', 'consultation_ready', 'booked', 'confirmed', 'in_service', 'completed', 'rebooked', 'no_show', 'cancelled']);
 const VALID_STAGE = new Set(['intake', 'consultation', 'booking', 'prep', 'visit', 'follow_up', 'closed']);
@@ -292,14 +292,11 @@ exports.createIntakeRequest = async (req, res, next) => {
 
     let photoUrls = [];
     if (req.files?.length) {
-      const uploads = await Promise.allSettled(
-        req.files.slice(0, 5).map((file) => uploadFile(file.buffer, 'beauty-intakes', file.originalname, file.mimetype))
-      );
-      photoUrls = uploads
-        .filter((result) => result.status === 'fulfilled' && result.value)
-        .map((result) => getPublicUrl(result.value));
-      const failed = uploads.filter((result) => result.status === 'rejected' || !result.value).length;
-      if (failed) logger.warn('Beauty intake photo upload skipped', { failed, total: req.files.length });
+      const uploads = await uploadFilesOrThrow(req.files, 'beauty-intakes', {
+        code: 'beauty_intake_media_upload_failed',
+        label: 'beauty intake photo',
+      });
+      photoUrls = uploads.map((key) => getPublicUrl(key));
     }
 
     const templateSlug = trimString(req.body.template_slug, 60) || business.active_template || 'beauty_style';
