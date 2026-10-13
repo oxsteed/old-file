@@ -729,6 +729,79 @@ async function getAssignmentStatus(deliveryJobId) {
   };
 }
 
+/**
+ * Change a registered device's lifecycle state. Revoking or pausing a device
+ * also transitions any active assignment bound to it, so a device that has
+ * been removed cannot continue ingesting tracking data.
+ */
+async function setDeviceStatus({ deviceId, actorUserId, status, allowOperations = false }) {
+  if (!deviceId || !['active', 'paused', 'revoked'].includes(status)) {
+    throw trackingError('tracking_device_status_invalid', 'A valid device id and status are required');
+  }
+
+  return withTransaction(pool, async (client) => {
+    const { rows: deviceRows } = await client.query(
+      `SELECT id, kind, driver_user_id, vehicle_id, device_label, platform,
+              app_version, status, last_seen_at, created_at
+         FROM delivery_tracking_devices
+        WHERE id = $1
+        FOR UPDATE`,
+      [deviceId]
+    );
+    const device = deviceRows[0];
+    if (!device) {
+      throw trackingError('tracking_device_not_found', 'Tracking device not found', 404);
+    }
+    if (!allowOperations && (device.kind !== 'driver_phone'
+      || String(device.driver_user_id || '') !== String(actorUserId || ''))) {
+      throw trackingError('tracking_forbidden', 'Only the device owner or operations may manage this device', 403);
+    }
+    if (status === 'active' && device.status === 'revoked' && !allowOperations) {
+      throw trackingError('tracking_device_revoked', 'A revoked device must be re-registered by operations', 409);
+    }
+
+    const { rows: updatedRows } = await client.query(
+      `UPDATE delivery_tracking_devices
+          SET status = $2, updated_at = NOW()
+        WHERE id = $1
+        RETURNING id, kind, driver_user_id, vehicle_id, device_label, platform,
+                  app_version, status, last_seen_at, created_at`,
+      [deviceId, status]
+    );
+    const updated = updatedRows[0] || { ...device, status };
+
+    if (status === 'paused' || status === 'revoked') {
+      const { rows: assignmentRows } = await client.query(
+        `SELECT * FROM delivery_tracking_assignments
+          WHERE device_id = $1 AND status = 'active'
+          FOR UPDATE`,
+        [deviceId]
+      );
+      for (const assignment of assignmentRows) {
+        const assignmentStatus = status === 'revoked' ? 'revoked' : 'paused';
+        await client.query(
+          `UPDATE delivery_tracking_assignments
+              SET status = $2,
+                  ended_at = CASE WHEN $2 = 'revoked' THEN NOW() ELSE ended_at END,
+                  ended_reason = CASE WHEN $2 = 'revoked' THEN 'device_revoked' ELSE ended_reason END,
+                  updated_at = NOW()
+            WHERE id = $1`,
+          [assignment.id, assignmentStatus]
+        );
+        await insertTrackingEvent(client, {
+          deliveryJobId: assignment.delivery_job_id,
+          assignmentId: assignment.id,
+          eventType: status === 'revoked' ? 'tracking_stopped' : 'tracking_paused',
+          actorUserId,
+          payload: { reason: status === 'revoked' ? 'device_revoked' : 'device_paused', device_id: deviceId },
+        });
+      }
+    }
+
+    return updated;
+  }, 'set_tracking_device_status');
+}
+
 module.exports = {
   grantConsent,
   revokeConsent,
@@ -740,6 +813,7 @@ module.exports = {
   ingestLocationBatch,
   recordScan,
   getAssignmentStatus,
+  setDeviceStatus,
   // exported for testing
   _validatePoint: validatePoint,
   _haversineMeters: haversineMeters,

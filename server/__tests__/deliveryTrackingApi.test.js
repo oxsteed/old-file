@@ -35,6 +35,7 @@ jest.mock('../services/deliveryTrackingService', () => ({
   ingestLocationBatch: jest.fn(),
   recordScan: jest.fn(),
   getAssignmentStatus: jest.fn(),
+  setDeviceStatus: jest.fn(),
 }));
 
 jest.mock('../services/deliveryGeofenceService', () => ({
@@ -334,6 +335,27 @@ describe('delivery tracking API', () => {
 
     expect(res.status).toBe(403);
     expect(res.body.error).toBe('tracking_forbidden');
+  });
+
+  test('driver can pause and revoke an owned device', async () => {
+    authMock.__setUser(DRIVER);
+    trackingService.setDeviceStatus.mockResolvedValue({ id: 7, kind: 'driver_phone', status: 'paused' });
+
+    const paused = await request(buildApp())
+      .patch('/delivery/tracking/devices/7')
+      .send({ status: 'paused' });
+
+    expect(paused.status).toBe(200);
+    expect(trackingService.setDeviceStatus).toHaveBeenCalledWith({
+      deviceId: '7', actorUserId: DRIVER.id, status: 'paused', allowOperations: false,
+    });
+
+    trackingService.setDeviceStatus.mockResolvedValue({ id: 7, kind: 'driver_phone', status: 'revoked' });
+    const revoked = await request(buildApp()).delete('/delivery/tracking/devices/7');
+    expect(revoked.status).toBe(200);
+    expect(trackingService.setDeviceStatus).toHaveBeenLastCalledWith({
+      deviceId: '7', actorUserId: DRIVER.id, status: 'revoked', allowOperations: false,
+    });
   });
 
   test('unknown job returns 404', async () => {
