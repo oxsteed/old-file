@@ -145,3 +145,5 @@ Impersonation follow-up: impersonation requests now honor the target user's toke
 
 Session-management follow-up: signed-in users now have `/api/users/me/sessions` and `DELETE /api/users/me/sessions/:sessionId` for listing and revoking their own sessions, with current-session protection and the existing access-token denylist. The expiry sweeper predicate now references both session lifecycle flags while retaining expired-row cleanup.
 
+Email privacy follow-up: transactional email logs no longer include recipient addresses or full provider error payloads; subjects and bounded status/error fields remain available for operations. This closes the plaintext recipient PII finding without changing delivery behavior.
+

@@ -261,7 +261,7 @@ async function sendEmail({ to, subject, text, html, from, fromName, idempotencyK
     if (process.env.NODE_ENV === 'production') {
       logger.error('Email not sent - Resend not configured', { subject: String(subject || '').slice(0, 120) });
     } else {
-      logger.debug('Email not sent - Resend not configured', { to });
+      logger.debug('Email not sent - Resend not configured');
     }
     return { success: false, error: 'Email not configured', code: 'email_not_configured' };
   }
@@ -297,13 +297,16 @@ async function sendEmail({ to, subject, text, html, from, fromName, idempotencyK
 
     const data = await response.json();
     if (!response.ok) {
-      logger.error('Resend API error', { to, status: response.status, error: data });
+      logger.error('Resend API error', {
+        status: response.status,
+        error: data?.message || 'Email provider rejected the request',
+      });
       return { success: false, error: data.message || 'Email send failed' };
     }
-    logger.info('Email sent', { to, subject: safeSubject });
+    logger.info('Email sent', { subject: safeSubject });
     return { success: true, id: data.id };
   } catch (err) {
-    logger.error('Email send failed', { to, subject: safeSubject, error: err.message });
+    logger.error('Email send failed', { subject: safeSubject, error: err.message });
     return { success: false, error: err.message };
   }
 }
