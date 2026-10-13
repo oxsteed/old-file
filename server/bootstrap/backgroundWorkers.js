@@ -63,6 +63,7 @@ const { startBookingDepositSettlementJob } = require('../jobs/bookingDepositSett
 const { startSettingsChangeApplierJob } = require('../jobs/settingsChangeApplier');
 const { startProfileVisibilityScheduler } = require('../jobs/profileVisibilityScheduledActions');
 const { startProfileVisibilityNotificationRetryJob } = require('../jobs/profileVisibilityNotificationRetry');
+const { startReferralRewardRetryJob } = require('../jobs/referralRewardRetry');
 const { runSupportSlaMonitor } = require('../services/supportSlaMonitor');
 const { processSupportEmailOutbox } = require('../services/supportEmailOutbox');
 const { processSupportFollowUpReminders } = require('../services/supportFollowUpReminderWorker');
@@ -141,6 +142,7 @@ class BackgroundWorkers {
       startSettingsChangeApplierJob();
       startProfileVisibilityScheduler();
       startProfileVisibilityNotificationRetryJob();
+      startReferralRewardRetryJob();
       cron.schedule('*/10 * * * * *', () => {
         require('../services/supportWaitService').processWaiting().catch((error) => {
           this.log.error('Support waiting worker failed', { error: error.message });

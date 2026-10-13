@@ -35,6 +35,7 @@ const creditLedger = require('../services/referralCreditLedger');
 const { toLocalSubscriptionStatus } = require('../utils/subscriptionStatus');
 const jobPaymentReauth = require('../services/jobPaymentReauthorizationService');
 const paymentRailWebhooks = require('../services/paymentRails/webhooks');
+const { captureCents } = require('../services/paymentCaptureService');
 
 function extractFoodOrderId(metadata) {
   const raw = metadata?.food_order_id
@@ -1111,22 +1112,96 @@ async function handleVerifiedStripeEvent(event, destination, res, next) {
             });
           });
         } else if (jobId) {
-          const { rows: capturedPaymentRows } = await db.query(
-            `UPDATE payments SET status = 'captured', payment_hold_status = 'released',
-             captured_at = NOW(), released_at = NOW(), updated_at = NOW()
-             WHERE stripe_payment_intent_id = $1 AND status != 'captured'
-             RETURNING payer_id`,
-            [pi.id]
-          );
-          // Mark job escrow released
-          await db.query(
-            `UPDATE jobs SET escrow_status = 'released', updated_at = NOW() WHERE id = $1`,
-            [jobId]
-          );
-          logger.info(`[Stripe] PaymentIntent ${pi.id} captured - funds released for job ${jobId}`);
+          // Tier-3 capture (P3-1-F09). Verify the money before the ledger
+          // moves: the row must exist and be pre-capture, and Stripe's
+          // captured amount must equal what we authorized (partial captures
+          // are capped by capture_amount_cents, which the expectation
+          // accounts for). Anything else fails closed: a reconciliation
+          // exception is recorded and neither the payment nor the escrow
+          // changes state.
+          const capturedPayment = await withTransaction(db, async (client) => {
+            const { rows } = await client.query(
+              `SELECT id, payer_id, amount, currency, capture_amount_cents, status, metadata
+                 FROM payments WHERE stripe_payment_intent_id = $1 FOR UPDATE`,
+              [pi.id]
+            );
+            const payment = rows[0];
+            if (!payment) {
+              logger.error('[Stripe] payment_intent.succeeded for job with no payments row; escrow NOT released',
+                { intentId: pi.id, jobId });
+              await recordException({
+                domain: 'payment_capture',
+                referenceId: `stripe-pi:${pi.id}`,
+                severity: 'critical',
+                summary: 'Succeeded job PaymentIntent has no payments row; escrow not released',
+                details: { intentId: pi.id, jobId: String(jobId) },
+              });
+              return null;
+            }
+            if (!['pending', 'authorized'].includes(payment.status)) {
+              // Replay or late event for a terminal row (captured, refunded,
+              // failed, canceled): never flip it back to captured.
+              logger.warn('[Stripe] payment_intent.succeeded for non-capturable payment; ignored',
+                { intentId: pi.id, paymentId: payment.id, status: payment.status });
+              return null;
+            }
+            const expectedMinor = captureCents(payment.amount, payment.capture_amount_cents, payment.currency);
+            const receivedMinor = Number(pi.amount_received ?? pi.amount);
+            const currencyOk = String(pi.currency || '').toLowerCase() === String(payment.currency || '').toLowerCase();
+            if (!currencyOk || !Number.isSafeInteger(receivedMinor) || receivedMinor !== expectedMinor) {
+              logger.error('[Stripe] capture amount mismatch; payment NOT marked captured, escrow NOT released', {
+                intentId: pi.id, paymentId: payment.id, jobId,
+                expectedMinor, receivedMinor,
+                paymentCurrency: payment.currency, piCurrency: pi.currency,
+              });
+              await recordException({
+                domain: 'payment_capture',
+                referenceId: `payment:${payment.id}`,
+                severity: 'critical',
+                summary: 'Stripe captured amount does not match the payments row; escrow not released',
+                details: {
+                  intentId: pi.id, paymentId: payment.id, jobId: String(jobId),
+                  expectedMinor, receivedMinor,
+                  paymentCurrency: payment.currency, piCurrency: pi.currency,
+                },
+              });
+              return null;
+            }
+            // Credit backstop (mirrors amount_capturable_updated,
+            // P3-789/P3-889): the referral-credit deduction is idempotent
+            // per payment, so this is a no-op when intent creation already
+            // posted it, and closes the gap when it did not.
+            const meta = typeof payment.metadata === 'string'
+              ? JSON.parse(payment.metadata || '{}')
+              : (payment.metadata || {});
+            const appliedCents = Number(meta?.applied_credit_cents ?? meta?.appliedCreditCents ?? 0);
+            if (appliedCents > 0) {
+              await creditLedger.applyCreditToPayment(client, {
+                userId: payment.payer_id,
+                paymentId: payment.id,
+                amountCents: appliedCents,
+                jobId,
+                paymentIntentId: pi.id,
+              });
+            }
+            await client.query(
+              `UPDATE payments SET status = 'captured', payment_hold_status = 'released',
+                captured_at = NOW(), released_at = NOW(), updated_at = NOW()
+               WHERE id = $1`,
+              [payment.id]
+            );
+            // Mark job escrow released in the same transaction: the capture
+            // mark and the escrow release commit or roll back together.
+            await client.query(
+              `UPDATE jobs SET escrow_status = 'released', updated_at = NOW() WHERE id = $1`,
+              [jobId]
+            );
+            logger.info(`[Stripe] PaymentIntent ${pi.id} captured - funds released for job ${jobId}`);
+            return payment;
+          }, 'tier3_capture_webhook');
           // Notify helper that payment has been released
           const helperId = pi.metadata?.helper_id;
-          if (helperId && capturedPaymentRows.length > 0) {
+          if (helperId && capturedPayment) {
             const amountDollars = ((pi.amount_received || pi.amount) / 100).toFixed(2);
             sendNotification({
               userId: helperId,
@@ -1137,8 +1212,8 @@ async function handleVerifiedStripeEvent(event, destination, res, next) {
             }).catch(e => logger.warn('Failed to send payment released notification', { error: e.message }));
           }
           const payerId = pi.metadata?.client_id || pi.metadata?.payer_id;
-          const receiptUserId = capturedPaymentRows[0]?.payer_id || payerId;
-          if (receiptUserId) {
+          const receiptUserId = capturedPayment?.payer_id || payerId;
+          if (receiptUserId && capturedPayment) {
             sendNotification({
               userId: receiptUserId,
               type: 'payment_receipt',

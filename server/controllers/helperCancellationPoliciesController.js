@@ -164,10 +164,17 @@ async function recordPaymentPolicyHistory(helperId, changes, snapshot) {
 
 /**
  * Get helper's current cancellation policies
- * GET /api/helper-settings/policies
+ * GET /api/helper-settings/policies[?helper_id=]
+ *
+ * With ?helper_id= (used by the bid-acceptance modal), returns that helper's
+ * payment policies read-only: no row is ever created for another user, and
+ * the no-row defaults mirror what assignHelper enforces when it auto-creates
+ * the row at acceptance (protected payments off, direct payment on).
  */
 exports.getPolicies = async (req, res, next) => {  try {
-    const userId = req.user.id;
+    const requestedHelperId = String(req.query?.helper_id || '').trim();
+    const readOnly = Boolean(requestedHelperId) && requestedHelperId !== String(req.user.id);
+    const userId = readOnly ? requestedHelperId : req.user.id;
 
     const result = await pool.query(
       `SELECT * FROM helper_cancellation_policies WHERE helper_id = $1`,
@@ -176,8 +183,8 @@ exports.getPolicies = async (req, res, next) => {  try {
 
     let policies = result.rows[0];
 
-    // If no policies exist, create defaults
-    if (!policies) {
+    // If no policies exist, create defaults (own policies only)
+    if (!policies && !readOnly) {
       const insertResult = await pool.query(
         `INSERT INTO helper_cancellation_policies (helper_id, oxsteed_enabled, custom_enabled, custom_policy)
          VALUES ($1, TRUE, FALSE, '{}')
@@ -185,6 +192,22 @@ exports.getPolicies = async (req, res, next) => {  try {
         [userId]
       );
       policies = insertResult.rows[0];
+    }
+
+    // Read-only lookup for another helper with no row yet: report the same
+    // defaults assignHelper will enforce, without creating anything.
+    if (!policies) {
+      policies = {
+        id: null,
+        helper_id: userId,
+        oxsteed_enabled: false,
+        custom_enabled: true,
+        custom_policy: {
+          terms: 'Customer and helper arrange payment directly. OxSteed does not collect or hold job payment yet.',
+          payment_mode: 'direct',
+        },
+        updated_at: null,
+      };
     }
 
     res.json({

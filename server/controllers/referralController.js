@@ -3,6 +3,7 @@ const logger = require('../utils/logger');
 const { AppError } = require('../middleware/errorHandler');
 const { withTransaction } = require('../utils/transaction');
 const creditLedger = require('../services/referralCreditLedger');
+const { recordException } = require('../services/reconciliationExceptions');
 
 const REWARD_TYPE = process.env.REFERRAL_REWARD_TYPE || 'credit';
 
@@ -14,7 +15,11 @@ const REFEREE_CREDIT_CENTS  = parseInt(process.env.REFERRAL_REFEREE_CREDIT_CENTS
  * grantReferralReward(referrerId, newUserId)
  *
  * Called after a referred user successfully completes registration.
- * Fail-open — never throws so it can be fire-and-forget from auth.
+ * Never throws so it can be fire-and-forget from auth, but failures are
+ * NOT silent: they are recorded as reconciliation exceptions (domain
+ * 'credit', reference `referral-reward:<newUserId>`) and retried by the
+ * referral-reward-retry worker. Reward postings are idempotent per referred
+ * user, so recording + retrying can never double-grant.
  *
  * REWARD_TYPE options:
  *   'credit'  – platform_ledger credit for the referrer only
@@ -63,7 +68,22 @@ exports.grantReferralReward = async function grantReferralReward(referrerId, new
       return referrerPosted;
     }, 'referral_reward');
   } catch (err) {
-    logger.error('[referral] grantReferralReward failed (non-fatal)', { referrerId, newUserId, err: err.message });
+    logger.error('[referral] grantReferralReward failed; recorded for retry', { referrerId, newUserId, err: err.message });
+    // P2-6-F11: fail visible, not silent. recordException dedupes on the
+    // open reference, so repeated failures do not spam the queue, and the
+    // retry worker resolves the exception once the reward posts.
+    await recordException({
+      domain: 'credit',
+      referenceId: `referral-reward:${newUserId}`,
+      severity: 'warning',
+      summary: 'Referral reward grant failed; queued for automatic retry',
+      details: {
+        referrer_id: referrerId != null ? String(referrerId) : null,
+        new_user_id: newUserId != null ? String(newUserId) : null,
+        error: String(err?.message || err).slice(0, 500),
+      },
+      sourceRunId: 'grantReferralReward',
+    });
     return false;
   }
 };

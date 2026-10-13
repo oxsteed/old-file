@@ -128,29 +128,44 @@ exports.generateInvoice = async (req, res, next) => {
       if (!billingRow.rows.length) return { missing: true };
       const billing = billingRow.rows[0];
 
-      // Advance next_billing_date by one period (moved up: the duplicate
-      // guards below need the period length).
+      // Period length in days for this billing's frequency. Both the
+      // duplicate guard and the next_billing_date advance below use it.
       const freqMap = { weekly: 7, biweekly: 14, monthly: 30, quarterly: 90, annually: 365 };
       const days = freqMap[billing.frequency] || 30;
 
       // Per-billing-period duplicate guard (P3-9-F04). The invoice bills the
       // period ending on the current next_billing_date; the period start is
-      // derived in SQL so the guard and the INSERT below agree exactly. A
-      // retry after the first call advanced next_billing_date resolves to
-      // the same period start, so it replays instead of minting a second
-      // invoice for the period (or billing the next period early).
+      // derived in SQL so the guard and the INSERT below agree exactly.
+      //
+      // The guard compares against the LATEST billed period, not just the
+      // exact period start: next_billing_date is advanced by this same
+      // handler, so a retry after a successful call can never recompute the
+      // same period start. If the latest billed period is at or after the
+      // period this call would bill, minting another invoice would bill
+      // backwards (next_billing_date was rewound) or duplicate the period.
       const periodRow = await client.query(
         `SELECT (COALESCE($1::date, CURRENT_DATE) - make_interval(days => $2))::date AS period_start`,
         [billing.next_billing_date, days]
       );
       const periodStart = periodRow.rows[0].period_start;
-      const periodDuplicate = await client.query(
-        `SELECT * FROM business_invoices
-         WHERE recurring_billing_id = $1 AND billing_period_start = $2::date AND status <> 'cancelled'
-         LIMIT 1`,
+      const latestRow = await client.query(
+        `SELECT *,
+                (billing_period_start = $2::date) AS same_period,
+                (billing_period_start > $2::date) AS later_period_billed
+           FROM business_invoices
+          WHERE recurring_billing_id = $1 AND status <> 'cancelled'
+          ORDER BY billing_period_start DESC NULLS LAST, created_at DESC
+          LIMIT 1`,
         [billingId, periodStart]
       );
-      if (periodDuplicate.rows[0]) return { invoice: periodDuplicate.rows[0], replay: true };
+      const latest = latestRow.rows[0];
+      if (latest?.same_period) return { invoice: latest, replay: true };
+      if (latest?.later_period_billed) {
+        return {
+          alreadyBilled: true,
+          latest,
+        };
+      }
 
       // Legacy same-day guard: covers invoices minted before the period
       // columns existed (NULL recurring_billing_id) during rollout.
@@ -183,20 +198,37 @@ exports.generateInvoice = async (req, res, next) => {
     }]);
 
     const publicToken = randomUUID();
-    const invoiceRow = await client.query(
-      `INSERT INTO business_invoices
-         (user_id, business_id, invoice_number, client_name, client_email,
-          status, due_date, subtotal, invoice_tax_rate, tax_amount, total, line_items, notes, public_token,
-          recurring_billing_id, billing_period_start)
-       VALUES ($1,$2,$3,$4,$5,'draft',$6,$7,0,0,$7,$8,$9,$10,$11,$12)
-       RETURNING *`,
-      [
-        businessRow.rows[0].user_id, businessId, invoiceNumber,
-        billing.client_name, billing.client_email, dueDate, amount,
-        lineItems, `Generated from recurring billing ${billingId}`,
-        publicToken, billingId, periodStart,
-      ]
-    );
+    let invoiceRow;
+    try {
+      invoiceRow = await client.query(
+        `INSERT INTO business_invoices
+           (user_id, business_id, invoice_number, client_name, client_email,
+            status, due_date, subtotal, invoice_tax_rate, tax_amount, total, line_items, notes, public_token,
+            recurring_billing_id, billing_period_start)
+         VALUES ($1,$2,$3,$4,$5,'draft',$6,$7,0,0,$7,$8,$9,$10,$11,$12)
+         RETURNING *`,
+        [
+          businessRow.rows[0].user_id, businessId, invoiceNumber,
+          billing.client_name, billing.client_email, dueDate, amount,
+          lineItems, `Generated from recurring billing ${billingId}`,
+          publicToken, billingId, periodStart,
+        ]
+      );
+    } catch (err) {
+      // Fail-closed backstop (migration 798): the partial unique index on
+      // (recurring_billing_id, billing_period_start) fired, so this period
+      // was billed after all. Return the conflicting invoice as a replay
+      // instead of surfacing a 500 for a duplicate the guards missed.
+      if (err?.code !== '23505') throw err;
+      const conflict = await client.query(
+        `SELECT * FROM business_invoices
+          WHERE recurring_billing_id = $1 AND billing_period_start = $2::date AND status <> 'cancelled'
+          LIMIT 1`,
+        [billingId, periodStart]
+      );
+      if (conflict.rows[0]) return { invoice: conflict.rows[0], replay: true };
+      throw err;
+    }
 
     // Advance next_billing_date by one period
     await client.query(
@@ -211,6 +243,13 @@ exports.generateInvoice = async (req, res, next) => {
     }, 'generate_recurring_invoice');
     if (generated.missing) return res.status(404).json({ error: 'Not found' });
     if (generated.businessMissing) return res.status(404).json({ error: 'Business not found' });
+    if (generated.alreadyBilled) {
+      return res.status(409).json({
+        error: 'This billing period was already invoiced. Move the next billing date forward to bill a new period.',
+        code: 'billing_period_already_billed',
+        invoice: generated.latest,
+      });
+    }
     res.status(generated.replay ? 200 : 201).json(generated.invoice);
   } catch (err) { next(err); }
 };

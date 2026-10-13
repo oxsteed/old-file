@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import api from '../api/axios';
 import toast from 'react-hot-toast';
 import PaymentRailChooser from './PaymentRailChooser';
+import usePaymentLayersConfig from '../hooks/usePaymentLayersConfig';
 
 export default function BidAcceptanceModal({
   bid,
@@ -28,10 +29,24 @@ export default function BidAcceptanceModal({
     return () => { cancelled = true; };
   }, [bid?.job_id, bid?.id]);
 
-  // Direct payment is the launch-safe default. Stripe-style protected payment
-  // remains a future option, but it is not part of the launch flow.
+  // Direct payment is the launch-safe default. The protected OxSteed
+  // (Tier-3 escrow) option is offered only when the platform has launched
+  // protected job payments AND the helper accepts them. The server still
+  // enforces both (503 when unlaunched, 400 when the helper opted out),
+  // so a stale client can never sneak an escrow acceptance through.
   const policiesLoaded = helperPolicies != null;
   const canSelectCustom  = policiesLoaded ? (helperPolicies?.custom_enabled ?? true) : true;
+  const launchFlags = usePaymentLayersConfig();
+  const canSelectProtected = policiesLoaded
+    && Boolean(launchFlags?.PLATFORM_PAYMENTS)
+    && helperPolicies?.oxsteed_enabled === true;
+
+  // Cancellation fee cap for the protected option, mirroring assignHelper:
+  // 10% of the bid, capped at $100.
+  const bidCents = bid?.amount_cents ?? Math.round(Number(bid?.amount || 0) * 100);
+  const escrowFeeCapCents = Math.min(Math.round(bidCents * 0.1), 10000);
+  const escrowFeeCap = `$${(escrowFeeCapCents / 100).toFixed(2)}`;
+  const escrowHalfFee = `$${(Math.round(escrowFeeCapCents * 0.5) / 100).toFixed(2)}`;
 
   // Default to direct payment if it is available.
   React.useEffect(() => {
@@ -179,8 +194,65 @@ export default function BidAcceptanceModal({
             </div>
           )}
 
+          {/* Protected OxSteed payment (Tier-3 escrow). Offered only when the
+              platform launched protected job payments and the helper accepts
+              them (see canSelectProtected above). */}
+          {canSelectProtected && (
+            <div
+              onClick={() => setSelectedPaymentMethod('oxsteed')}
+              className={`border-2 rounded-lg p-4 cursor-pointer transition ${
+                selectedPaymentMethod === 'oxsteed'
+                  ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                  : 'border-gray-300 dark:border-gray-600 hover:border-blue-300 dark:hover:border-blue-700'
+              }`}
+            >
+              <div className="flex items-start gap-3">
+                <input
+                  type="radio"
+                  name="payment-method"
+                  value="oxsteed"
+                  checked={selectedPaymentMethod === 'oxsteed'}
+                  onChange={() => setSelectedPaymentMethod('oxsteed')}
+                  className="mt-1"
+                  aria-label={t('bidAcceptanceModal.oxsteadOption') || 'OxSteed platform payment'}
+                />
+                <div className="flex-1">
+                  <h3 className="font-semibold text-lg mb-1">
+                    {t('bidAcceptanceModal.oxsteadPayment') || 'OxSteed Platform Payment'}
+                  </h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+                    {t('bidAcceptanceModal.oxsteadDescription') || 'Pay via OxSteed with built-in cancellation protection'}
+                  </p>
+
+                  <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded border border-blue-200 dark:border-blue-700">
+                    <p className="text-sm font-semibold mb-2">
+                      {t('bidAcceptanceModal.youAndHelperProtected') || 'You and the helper are both protected'}
+                    </p>
+                    <p className="text-sm font-semibold">
+                      {t('bidAcceptanceModal.cancellationFeeStructure') || 'Cancellation Fee Structure:'}
+                    </p>
+                    <ul className="text-xs text-gray-600 dark:text-gray-400 space-y-1 mt-1">
+                      <li>
+                        <strong>{t('bidAcceptanceModal.threeDaysPlus') || '3+ days before'}:</strong>{' '}
+                        {t('bidAcceptanceModal.freeNoFee') || 'Free (no cancellation fee)'}
+                      </li>
+                      <li>
+                        <strong>{t('bidAcceptanceModal.twentyFourTo72') || '24h-3 days before'}:</strong>{' '}
+                        {escrowHalfFee}
+                      </li>
+                      <li>
+                        <strong>{t('bidAcceptanceModal.lessThan24') || '<24h before'}:</strong>{' '}
+                        {escrowFeeCap}
+                      </li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* No Valid Options */}
-          {!canSelectCustom && (
+          {!canSelectCustom && !canSelectProtected && (
             <div className="bg-red-50 dark:bg-red-900/20 p-4 rounded border border-red-200 dark:border-red-700">
               <p className="text-sm text-red-800 dark:text-red-200">
                 {t('bidAcceptanceModal.noPaymentMethods') || 'This helper has not configured any payment methods. Please contact support.'}
