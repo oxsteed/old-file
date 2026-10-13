@@ -13683,7 +13683,9 @@
     },
     "submit": "Submit Dispute",
     "submitting": "Submitting...",
-    "windowExpired": "The 30-day dispute window for this job has closed. Disputes must be opened within 30 days of job completion."
+    "windowExpired": "The 30-day dispute window for this job has closed. Disputes must be opened within 30 days of job completion.",
+    "warrantyClaimRequired": "This job has a signed work agreement. File a warranty claim on the agreement first, then open a dispute if it is not resolved there.",
+    "warrantyClaimRequiredCta": "Open the work agreement"
   },
   "enforcementPolicy": {
     "pageTitle": "Enforcement Policy & Reliability",

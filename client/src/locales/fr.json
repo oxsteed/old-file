@@ -13426,7 +13426,9 @@
     },
     "submit": "Soumettre le Litige",
     "submitting": "Envoi...",
-    "windowExpired": "Le délai de contestation de 30 jours pour ce travail est écoulé. Les litiges doivent être ouverts dans les 30 jours suivant l'achèvement du travail."
+    "windowExpired": "Le délai de contestation de 30 jours pour ce travail est écoulé. Les litiges doivent être ouverts dans les 30 jours suivant l'achèvement du travail.",
+    "warrantyClaimRequired": "Cette mission a un accord de travail signé. Déposez d’abord une réclamation de garantie sur l’accord, puis ouvrez un litige si le problème n’y est pas résolu.",
+    "warrantyClaimRequiredCta": "Ouvrir l’accord de travail"
   },
   "enforcementPolicy": {
     "pageTitle": "Politique d'Application",

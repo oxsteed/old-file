@@ -190,6 +190,88 @@ describe('versioning', () => {
   });
 });
 
+describe('anti-stall (P1-3-F07)', () => {
+  test('re-versioning right after the counterparty signs is rejected with a cooldown', async () => {
+    const justSigned = new Date().toISOString();
+    mockQuery
+      .mockResolvedValueOnce({ rows: [agreementRow({ status: 'pending_signatures' })] })
+      .mockResolvedValueOnce({})                        // BEGIN
+      .mockResolvedValueOnce({ rows: [{ status: 'pending_signatures' }] }) // FOR UPDATE lock
+      .mockResolvedValueOnce({ rows: [{ id: VERSION_ID, created_by: HELPER_ID, sig_count: 1, counter_signed_at: justSigned }] })
+      .mockResolvedValueOnce({ rows: [{ m: 1 }] })       // MAX(version_number)
+      .mockResolvedValueOnce({});                       // ROLLBACK
+    const res = await request(buildApp(HELPER_ID))
+      .post(`/api/work-agreements/${AGREEMENT_ID}/versions`)
+      .send({ content: { scope: 'Fix sink, again' } });
+    expect(res.status).toBe(409);
+    expect(res.body.code).toBe('version_cooldown');
+    expect(res.body.retry_after).toBeTruthy();
+    expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO work_agreement_versions/.test(String(sql)))).toBe(false);
+  });
+
+  test('re-versioning after the cooldown window is allowed', async () => {
+    const longAgo = new Date(Date.now() - 25 * 3600000).toISOString();
+    mockQuery
+      .mockResolvedValueOnce({ rows: [agreementRow({ status: 'pending_signatures' })] })
+      .mockResolvedValueOnce({})
+      .mockResolvedValueOnce({ rows: [{ status: 'pending_signatures' }] })
+      .mockResolvedValueOnce({ rows: [{ id: VERSION_ID, created_by: CUSTOMER_ID, sig_count: 1, counter_signed_at: longAgo }] })
+      .mockResolvedValueOnce({ rows: [{ m: 1 }] })
+      .mockResolvedValueOnce({ rows: [versionRow({ version_number: 2 })] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({});
+    const res = await request(buildApp(HELPER_ID))
+      .post(`/api/work-agreements/${AGREEMENT_ID}/versions`)
+      .send({ content: { scope: 'Fix sink, again' } });
+    expect(res.status).toBe(201);
+    expect(res.body.version.version_number).toBe(2);
+  });
+
+  test('a stale proposal auto-activates instead of accepting another version', async () => {
+    const eightDaysAgo = new Date(Date.now() - 8 * 86400000).toISOString();
+    mockQuery
+      .mockResolvedValueOnce({ rows: [agreementRow({ status: 'pending_signatures' })] })
+      .mockResolvedValueOnce({})
+      .mockResolvedValueOnce({ rows: [{ status: 'pending_signatures' }] })
+      .mockResolvedValueOnce({ rows: [{
+        id: VERSION_ID, created_by: HELPER_ID, sig_count: 1,
+        other_signed_at: eightDaysAgo, author_sig_count: 0,
+      }] })
+      .mockResolvedValueOnce({ rows: [{ id: AGREEMENT_ID }] }) // UPDATE status -> active
+      .mockResolvedValueOnce({});                              // COMMIT
+    const res = await request(buildApp(HELPER_ID))
+      .post(`/api/work-agreements/${AGREEMENT_ID}/versions`)
+      .send({ content: { scope: 'Stall attempt' } });
+    expect(res.status).toBe(409);
+    expect(res.body.code).toBe('proposal_auto_activated');
+    const activation = mockQuery.mock.calls.find(([sql]) => /UPDATE work_agreements SET status = 'active'/.test(String(sql)));
+    expect(activation).toBeTruthy();
+    expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO work_agreement_versions/.test(String(sql)))).toBe(false);
+  });
+
+  test('signing the proposer\u2019s terms notifies the proposer that the clock is running', async () => {
+    const agreement = agreementRow({ status: 'pending_signatures' });
+    const version = versionRow({ created_by: CUSTOMER_ID });
+    mockQuery
+      .mockResolvedValueOnce({ rows: [agreement] })
+      .mockResolvedValueOnce({ rows: [version] })
+      .mockResolvedValueOnce({})
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ c: 1 }] })
+      .mockResolvedValueOnce({});
+    const res = await request(buildApp(HELPER_ID))
+      .post(`/api/work-agreements/${AGREEMENT_ID}/sign`)
+      .send({ versionId: VERSION_ID, signatureData: SIG, role: 'helper' });
+    expect(res.status).toBe(200);
+    expect(res.body.activated).toBe(false);
+    const { sendNotification } = require('../services/notificationService');
+    expect(sendNotification).toHaveBeenCalledWith(expect.objectContaining({
+      userId: CUSTOMER_ID,
+      type: 'work_agreement_proposal_signed',
+    }));
+  });
+});
+
 describe('change orders', () => {
   const coRow = (over = {}) => ({
     id: 'co-1', agreement_id: AGREEMENT_ID, description: 'Add faucet replacement',

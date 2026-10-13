@@ -13426,7 +13426,9 @@
     },
     "submit": "Enviar Disputa",
     "submitting": "Enviando...",
-    "windowExpired": "El plazo de 30 días para disputas de este trabajo ha terminado. Las disputas deben abrirse dentro de los 30 días posteriores a la finalización del trabajo."
+    "windowExpired": "El plazo de 30 días para disputas de este trabajo ha terminado. Las disputas deben abrirse dentro de los 30 días posteriores a la finalización del trabajo.",
+    "warrantyClaimRequired": "Este trabajo tiene un acuerdo de trabajo firmado. Presenta primero una reclamación de garantía en el acuerdo y luego abre una disputa si no se resuelve allí.",
+    "warrantyClaimRequiredCta": "Abrir el acuerdo de trabajo"
   },
   "enforcementPolicy": {
     "pageTitle": "Política de Cumplimiento",

@@ -166,6 +166,35 @@ exports.openDispute = async (req, res, next) => {
         throw new AppError('A dispute is already open for this job', 409, 'already_exists');
       }
 
+      // Review P1-3-F08: complaint barrier. A signed work agreement is the
+      // first stop for work-quality complaints — the parties agreed to
+      // resolve through the agreement's warranty before OxSteed support, so
+      // a dispute cannot skip it. Safety and fraud skip the barrier: they
+      // need immediate platform attention, not a warranty process.
+      const BARRIER_BYPASS_REASONS = new Set([DISPUTE_REASONS.SAFETY_CONCERN, DISPUTE_REASONS.FRAUD]);
+      if (!BARRIER_BYPASS_REASONS.has(reason)) {
+        const { rows: agreementRows } = await client.query(
+          `SELECT a.id FROM work_agreements a
+             WHERE a.job_id = $1 AND a.status IN ('active', 'completed')
+             ORDER BY a.created_at DESC LIMIT 1`,
+          [jobId]
+        );
+        if (agreementRows[0]) {
+          const { rows: claimRows } = await client.query(
+            `SELECT id FROM work_agreement_warranty_claims WHERE agreement_id = $1 LIMIT 1`,
+            [agreementRows[0].id]
+          );
+          if (!claimRows.length) {
+            throw new AppError(
+              'This job has a signed work agreement. File a warranty claim on the agreement first, then open a dispute if it is not resolved there.',
+              409,
+              'warranty_claim_required',
+              { agreement_id: agreementRows[0].id }
+            );
+          }
+        }
+      }
+
       // Create dispute
       const { rows: disputeRows } = await client.query(
         clientRequestId

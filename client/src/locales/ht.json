@@ -13426,7 +13426,9 @@
     },
     "submit": "Soumèt Dispyt",
     "submitting": "Soumèt...",
-    "windowExpired": "Delè 30 jou pou kontestasyon travay sa a fèmen. Ou dwe louvri yon dispyt nan 30 jou apre travay la fini."
+    "windowExpired": "Delè 30 jou pou kontestasyon travay sa a fèmen. Ou dwe louvri yon dispyt nan 30 jou apre travay la fini.",
+    "warrantyClaimRequired": "Travay sa a gen yon akò travay ki siyen. Depoze yon reklamasyon garanti sou akò a anvan, apre sa louvri yon diskisyon si pwoblèm nan pa rezoud la.",
+    "warrantyClaimRequiredCta": "Louvri akò travay la"
   },
   "enforcementPolicy": {
     "pageTitle": "Politiki Aplikasyon",

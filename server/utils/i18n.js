@@ -48,6 +48,38 @@ const T = {
       ar: 'أنشأ الطرف الآخر أو حدّث اتفاقية عمل لوظيفتك. راجعها ووقّعها.',
     },
   },
+  work_agreement_proposal_signed: {
+    title: {
+      en: 'Work agreement signed by the other party',
+      es: 'La otra parte firmó el acuerdo de trabajo',
+      fr: 'L’autre partie a signé l’accord de travail',
+      ht: 'Lòt pati a siyen akò travay la',
+      ar: 'وقّع الطرف الآخر اتفاقية العمل',
+    },
+    body: {
+      en: 'The other party signed the terms you proposed. Sign within 7 days, or the agreement will activate automatically on your proposed terms.',
+      es: 'La otra parte firmó los términos que propusiste. Firma dentro de 7 días o el acuerdo se activará automáticamente con tus términos propuestos.',
+      fr: 'L’autre partie a signé les conditions que vous avez proposées. Signez sous 7 jours, sinon l’accord s’activera automatiquement selon vos conditions proposées.',
+      ht: 'Lòt pati a siyen kondisyon ou te pwopoze yo. Siyen nan 7 jou, sinon akò a ap aktive otomatikman sou kondisyon ou te pwopoze yo.',
+      ar: 'وقّع الطرف الآخر على الشروط التي اقترحتها. وقّع خلال 7 أيام، وإلا سيتم تفعيل الاتفاقية تلقائيًا وفق شروطك المقترحة.',
+    },
+  },
+  work_agreement_auto_activated: {
+    title: {
+      en: 'Work agreement activated',
+      es: 'Acuerdo de trabajo activado',
+      fr: 'Accord de travail activé',
+      ht: 'Akò travay la aktive',
+      ar: 'تم تفعيل اتفاقية العمل',
+    },
+    body: {
+      en: 'The proposed terms were signed and the response window passed with no changes. The agreement is now active.',
+      es: 'Los términos propuestos fueron firmados y el plazo de respuesta pasó sin cambios. El acuerdo ya está activo.',
+      fr: 'Les conditions proposées ont été signées et le délai de réponse est écoulé sans modification. L’accord est désormais actif.',
+      ht: 'Kondisyon yo te pwopoze yo te siyen epi delè repons lan pase san chanjman. Akò a aktive kounye a.',
+      ar: 'تم توقيع الشروط المقترحة وانتهت مهلة الرد دون تغييرات. الاتفاقية نشطة الآن.',
+    },
+  },
   bid_received: {
     title: {
       en: 'New bid on your job',

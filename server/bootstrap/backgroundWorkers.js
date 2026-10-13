@@ -24,6 +24,7 @@ const { startTemplateExpiryJob } = require('../jobs/templateExpiryJob');
 const { startAcceptedJobExpiryJob } = require('../jobs/acceptedJobExpiryJob');
 const { startHelperCompletionAutoConfirmJob } = require('../jobs/helperCompletionAutoConfirm');
 const { startScheduledDeletionJob } = require('../jobs/scheduledDeletionJob');
+const { startWorkAgreementProposalTimeoutJob } = require('../jobs/workAgreementProposalTimeout');
 const { startRecurringJobScheduler } = require('../jobs/recurringJobScheduler');
 const { startCustomerReengagementJob } = require('../jobs/customerReengagementJob');
 const { releaseExpiredInventoryReservations } = require('../services/restaurantInventoryOrderService');
@@ -103,6 +104,7 @@ class BackgroundWorkers {
       startTemplateExpiryJob();
       startAcceptedJobExpiryJob();
       startHelperCompletionAutoConfirmJob();
+      startWorkAgreementProposalTimeoutJob();
       startRecurringJobScheduler();
       startCustomerReengagementJob();
       startOxsteedCreditHoldExpiryJob();
