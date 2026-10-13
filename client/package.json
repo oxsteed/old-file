@@ -89,6 +89,7 @@
     "test:i18n-debt-gates": "node --test scripts/i18nDebtGates.test.mjs",
     "verify:dist-assets": "node scripts/verify-dist-assets.mjs",
     "test:media-profile-preview": "node --test scripts/mediaProfilePreview.test.mjs",
+    "test:safe-href": "node --test scripts/safeHref.test.mjs",
     "test:job-lifecycle-ui": "node --test scripts/jobLifecycleUi.test.mjs"
   },
   "dependencies": {

@@ -2296,8 +2296,6 @@
     "metaDesc": "Jwenn travay nan zòn ou pibliye pa pwopriyetè kay ak biznis. Fè òf sou travay ki matche ak ladrès ak orè ou."
   },
   "settings": {
-    "accountDeleteHasBalance": "Ou toujou gen yon balans, yon kenbe oswa yon peman ki an atant. Retire oswa itilize rès balans ou epi kite peman ki an atant yo fini anvan ou efase kont ou, oswa kontakte support@oxsteed.com.",
-    "accountDeleteSubscriptionRetry": "Nou pa t ka anile abònman ou kounye a, kidonk kont ou pa t efase. Tanpri eseye ankò nan kèk minit.",
     "title": "Paramèt",
     "tabProfile": "Pwofil",
     "tabSecurity": "Sekirite",
@@ -2569,7 +2567,9 @@
       "confirmDesc": "Aksyon sa a pa ka defè. Tout done ou yo ap efase definitif",
       "yesDelete": "Wi, Efase Kont Mwen"
     },
-    "tabPaymentPolicies": "Règleman peman"
+    "tabPaymentPolicies": "Règleman peman",
+    "accountDeleteHasBalance": "Ou toujou gen yon balans, yon kenbe oswa yon peman ki an atant. Retire oswa itilize rès balans ou epi kite peman ki an atant yo fini anvan ou efase kont ou, oswa kontakte support@oxsteed.com.",
+    "accountDeleteSubscriptionRetry": "Nou pa t ka anile abònman ou kounye a, kidonk kont ou pa t efase. Tanpri eseye ankò nan kèk minit."
   },
   "partsList": {
     "toolbarLabel": "Lis pyès",
@@ -4529,19 +4529,6 @@
     "whatHappensNextBody": "Lè travay la an dirèk, moun ki mache ak kote, kategori, ak kondisyon yo ka voye òf. Ou ka konpare òf, poze lòt kesyon, epi anboche lè ou pare."
   },
   "jobDetail": {
-    "completionRequested": "Make fini. Yo mande kliyan an konfime.",
-    "jobClosed": "Travay la fèmen.",
-    "closeBlockedDispute": "Rezoud diskisyon ki ouvè a anvan ou fèmen travay sa a.",
-    "closeBlockedPayment": "Gen yon peman k ap trete toujou pou travay sa a. Eseye ankò lè li fini.",
-    "completionPendingOwner": "Èd ou a make travay sa a fini. Konfime oswa louvri yon diskisyon. Peman an ap lage otomatikman le {{date}}.",
-    "completionPendingHelper": "Ou make travay sa a fini. N ap tann kliyan an konfime; l ap konfime otomatikman si li pa reponn.",
-    "helperMarkDone": "Make travay la fini",
-    "closeJob": "Fèmen travay la",
-    "openDispute": "Louvri yon diskisyon",
-    "disputeOpened": "Diskisyon an louvri. Nou avèti ekip nou an ak lòt pati a.",
-    "signWorkAgreement": "Revize epi siyen akò travay la",
-    "viewWorkAgreement": "Gade akò travay la",
-    "createWorkAgreement": "Kreye yon akò travay",
     "draftStatus": "Bouyon",
     "matchedStatus": "Korespondans jwenn",
     "negotiatingStatus": "Nan negosyasyon",
@@ -4740,17 +4727,22 @@
     "recordDirectPaymentTitle": "Anrejistre peman dirèk",
     "recordDirectPaymentSubtitle": "Anrejistre metòd peman an, nimewo konfimasyon an ak nenpòt lyen prèv pou toude pati yo ka verifye tranzaksyon an pita.",
     "jobPaymentFor": "Peman travay · {{title}}",
-    "jobPayment": "Peman travay"
+    "jobPayment": "Peman travay",
+    "completionRequested": "Make fini. Yo mande kliyan an konfime.",
+    "jobClosed": "Travay la fèmen.",
+    "closeBlockedDispute": "Rezoud diskisyon ki ouvè a anvan ou fèmen travay sa a.",
+    "closeBlockedPayment": "Gen yon peman k ap trete toujou pou travay sa a. Eseye ankò lè li fini.",
+    "completionPendingOwner": "Èd ou a make travay sa a fini. Konfime oswa louvri yon diskisyon. Peman an ap lage otomatikman le {{date}}.",
+    "completionPendingHelper": "Ou make travay sa a fini. N ap tann kliyan an konfime; l ap konfime otomatikman si li pa reponn.",
+    "helperMarkDone": "Make travay la fini",
+    "closeJob": "Fèmen travay la",
+    "openDispute": "Louvri yon diskisyon",
+    "disputeOpened": "Diskisyon an louvri. Nou avèti ekip nou an ak lòt pati a.",
+    "signWorkAgreement": "Revize epi siyen akò travay la",
+    "viewWorkAgreement": "Gade akò travay la",
+    "createWorkAgreement": "Kreye yon akò travay"
   },
   "myJobs": {
-    "assignedTab": "Asiyen ban mwen",
-    "assignedSubtitle": "Travay yo te anboche w pou yo",
-    "assignedLoading": "N ap chaje travay asiyen yo…",
-    "assignedFailed": "Nou pa t ka chaje travay asiyen ou yo.",
-    "assignedRetry": "Eseye ankò",
-    "assignedPayouts": "Peman",
-    "assignedEmpty": "Pa gen travay asiyen ba ou ankò.",
-    "assignedAwaitingConfirmation": "N ap tann konfimasyon kliyan an",
     "cancelUndoNote": "W ap gen 5 segonn pou defèt li apre konfimasyon.",
     "subtitle": "Travay ou pibliye yo",
     "bids": "{{count}} ofè",
@@ -4797,6 +4789,14 @@
     "counterAccepted": "Lè yo pwopoze a aksepte.",
     "counterDeclined": "Lè yo pwopoze a refize.",
     "errorCounterRespond": "Echwe pou reponn a lè yo pwopoze a",
+    "assignedTab": "Asiyen ban mwen",
+    "assignedSubtitle": "Travay yo te anboche w pou yo",
+    "assignedLoading": "N ap chaje travay asiyen yo…",
+    "assignedFailed": "Nou pa t ka chaje travay asiyen ou yo.",
+    "assignedRetry": "Eseye ankò",
+    "assignedPayouts": "Peman",
+    "assignedEmpty": "Pa gen travay asiyen ba ou ankò.",
+    "assignedAwaitingConfirmation": "N ap tann konfimasyon kliyan an",
     "assignedStatus": {
       "accepted": "Aksepte — poko kòmanse",
       "in_progress": "Ap fèt",
@@ -4804,7 +4804,7 @@
       "closed": "Fèmen",
       "cancelled": "Anile"
     }
-},
+  },
   "helpersDir": {
     "title": "Jwenn yon Pwofesyonèl Lokal",
     "subtitle": "Eksplore pwofesyonèl lokal verifye nan zòn ou",
@@ -9336,7 +9336,6 @@
   },
   "disputes": {
     "center": {
-      "openFromJob": "Louvri yon diskisyon nan yon travay",
       "title": "Sant Dispute",
       "noDisputes": "Pa gen dispute ouvè",
       "subtitle": "Wè ak jere dispute aktif ou yo",
@@ -9390,7 +9389,8 @@
         "bullet1": "Eseye klarifye dimansyon an nan mesaj yo.",
         "bullet2": "Sove foto, resi, ak detay l?.",
         "bullet3": "Sèvi ak eskalasyon sipò pou pwoblèm sekirite oswa peman ki ijan."
-      }
+      },
+      "openFromJob": "Louvri yon diskisyon nan yon travay"
     },
     "detail": {
       "notFound": "Dispute pa jwenn",
@@ -13558,21 +13558,6 @@
     "cartCheckout": "Kesye"
   },
   "myBids": {
-    "edit": "Modifye",
-    "editTitle": "Modifye òf ou",
-    "editAmount": "Pri (USD)",
-    "editEta": "Èdtan estime",
-    "editMessage": "Mesaj pou kliyan an",
-    "editCancel": "Anile",
-    "editSave": "Anrejistre chanjman yo",
-    "editSaving": "N ap anrejistre…",
-    "editSaved": "Òf la mete ajou.",
-    "editFailed": "Nou pa t ka mete òf la ajou. Eseye ankò.",
-    "editClosed": "Ou pa ka modifye òf sa a ankò.",
-    "editAmountInvalid": "Antre yon pri ki pi gran pase 0.",
-    "editAmountTooLarge": "Pri sa a twò gwo.",
-    "editEtaInvalid": "Antre èdtan ant 0 ak 10 000.",
-    "editMessageTooLong": "Mesaj la dwe mwens pase 2 000 karaktè.",
     "title": "Òf mwen yo",
     "subtitle": "Swiv estati tout òf ou yo",
     "totalBids": "Òf total",
@@ -13599,7 +13584,22 @@
     "withdrawConfirm": "Èske w sèten ou vle retire òf sa a?",
     "withdrawSuccess": "Òf retire.",
     "withdrawError": "Pa kapab retire òf la.",
-    "viewBid": "Wè òf la"
+    "viewBid": "Wè òf la",
+    "edit": "Modifye",
+    "editTitle": "Modifye òf ou",
+    "editAmount": "Pri (USD)",
+    "editEta": "Èdtan estime",
+    "editMessage": "Mesaj pou kliyan an",
+    "editCancel": "Anile",
+    "editSave": "Anrejistre chanjman yo",
+    "editSaving": "N ap anrejistre…",
+    "editSaved": "Òf la mete ajou.",
+    "editFailed": "Nou pa t ka mete òf la ajou. Eseye ankò.",
+    "editClosed": "Ou pa ka modifye òf sa a ankò.",
+    "editAmountInvalid": "Antre yon pri ki pi gran pase 0.",
+    "editAmountTooLarge": "Pri sa a twò gwo.",
+    "editEtaInvalid": "Antre èdtan ant 0 ak 10 000.",
+    "editMessageTooLong": "Mesaj la dwe mwens pase 2 000 karaktè."
   },
   "orders": {
     "helpTitle": "Jwenn èd pou kòmand sa a",
@@ -30264,22 +30264,9 @@
     "finalCtaSubtitle": "Gratis pou kreye. Pataje l nenpòt kote epi kòmanse touche jodi a."
   },
   "workAgreement": {
-    "scopeLabel": "Sa travay la gen ladan l",
-    "priceLabel": "Pri nou dakò a",
-    "timelineLabel": "Kalandriye",
-    "extraTermsLabel": "Lòt kondisyon",
-    "termTitle": "Tit",
-    "noWarrantyTerms": "Pa gen kondisyon garanti ki ekri.",
-    "claimNote": "Nòt (si ou vle)",
-    "claimWithdraw": "Make l rezoud",
-    "claimResolve": "Rezoud",
-    "claimDeny": "Refize reklamasyon an",
-    "claimResolveError": "Nou pa t ka mete reklamasyon an ajou.",
-    "claimStatus_filed": "Depoze",
-    "claimStatus_under_review": "Y ap egzamine l",
-    "claimStatus_resolved": "Rezoud",
-    "claimStatus_denied": "Refize",
-    "coAwaitingOther": "N ap tann lòt pati a deside.",
+    "fileUnavailable": "Fichye a pa disponib",
+    "chooseFile": "Chwazi yon fichye",
+    "fileUrlOptional": "Oswa kole yon lyen https",
     "signHere": "Desine siyati ou isit la",
     "signHint": "Desine siyati ou ak sourit oswa dwèt",
     "clearSignature": "Efase",
@@ -30360,7 +30347,23 @@
     "issueBody": "Gade kondisyon garanti yo anba a epi depoze yon reklamasyon isit la anvan. OxSteed anrejistre reklamasyon an; ou menm ak lòt pati a regle li.",
     "coSignTitle": "Siyen lòd chanjman an",
     "coSignWarning": "Siyati desine ou nesesè. Lòd chanjman yo vin obligatwa lè toulede pati yo siyen.",
-    "coSignSubmit": "Siyen epi voye"
+    "coSignSubmit": "Siyen epi voye",
+    "scopeLabel": "Sa travay la gen ladan l",
+    "priceLabel": "Pri nou dakò a",
+    "timelineLabel": "Kalandriye",
+    "extraTermsLabel": "Lòt kondisyon",
+    "termTitle": "Tit",
+    "noWarrantyTerms": "Pa gen kondisyon garanti ki ekri.",
+    "claimNote": "Nòt (si ou vle)",
+    "claimWithdraw": "Make l rezoud",
+    "claimResolve": "Rezoud",
+    "claimDeny": "Refize reklamasyon an",
+    "claimResolveError": "Nou pa t ka mete reklamasyon an ajou.",
+    "claimStatus_filed": "Depoze",
+    "claimStatus_under_review": "Y ap egzamine l",
+    "claimStatus_resolved": "Rezoud",
+    "claimStatus_denied": "Refize",
+    "coAwaitingOther": "N ap tann lòt pati a deside."
   },
   "adminSettings": {
     "title": "My Settings",

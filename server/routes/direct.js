@@ -8,7 +8,7 @@ const { requireAdmin, requirePermission } = require('../middleware/adminAuth');
 const { requireDg1StepUp } = require('../middleware/requireDg1StepUp');
 const upload = require('../middleware/upload');
 const validateFileUpload = require('../middleware/validateFileUpload');
-const { generalLimiter } = require('../middleware/rateLimiter');
+const { generalLimiter, createStoreOption } = require('../middleware/rateLimiter');
 const quoteCtrl = require('../controllers/quoteRequestsController');
 const ctrl = require('../controllers/directController');
 
@@ -17,6 +17,8 @@ const ctrl = require('../controllers/directController');
 // are now authenticated, so anonymous abuse is blocked at the gate before this
 // bucket is even reached.
 const directUploadLimiter = rateLimit({
+  // Review P3-1096: shared Redis store so the budget holds across replicas.
+  ...createStoreOption('rl:direct_upload:'),
   windowMs: 15 * 60 * 1000,
   max: 20,
   standardHeaders: true,
@@ -33,6 +35,8 @@ const directUploadLimiter = rateLimit({
 // purpose: a hold reserves real capacity for ~4 minutes, so 10 per 15 min
 // per IP is generous for legitimate use and painful for abuse.
 const directHoldLimiter = rateLimit({
+  // Review P3-1096: shared Redis store so the budget holds across replicas.
+  ...createStoreOption('rl:direct_hold:'),
   windowMs: 15 * 60 * 1000,
   max: 10,
   standardHeaders: true,
@@ -46,6 +50,8 @@ const directHoldLimiter = rateLimit({
 // limit. Booking creates real quote_requests, so it gets its own tight
 // bucket: 10 per 15 min per IP. Spam is throttled on top of the auth gate.
 const directBookLimiter = rateLimit({
+  // Review P3-1096: shared Redis store so the budget holds across replicas.
+  ...createStoreOption('rl:direct_book:'),
   windowMs: 15 * 60 * 1000,
   max: 10,
   standardHeaders: true,

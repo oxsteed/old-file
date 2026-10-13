@@ -231,14 +231,38 @@ class PayoutController {
       const helper_id = req.user?.id;
       const { is_primary, status } = req.body;
 
+      // Review P2-616: verification is set only by the payout processor or an
+      // admin. The owner may deactivate a method, and may make it primary only
+      // once it is verified or active.
+      if (status !== undefined && status !== null && status !== 'inactive') {
+        return sendError(res, 400, 'You can only deactivate a payout method. Verification is done by OxSteed.');
+      }
+      if (is_primary !== undefined && is_primary !== null && typeof is_primary !== 'boolean') {
+        return sendError(res, 400, 'is_primary must be true or false');
+      }
+
+      const existing = await pool.query(
+        'SELECT id, status FROM payout_methods WHERE id = $1 AND helper_id = $2',
+        [method_id, helper_id]
+      );
+      if (!existing.rows.length) {
+        return sendError(res, 404, 'Payout method not found');
+      }
+      const nextStatus = status || existing.rows[0].status;
+      if (is_primary === true && !['verified', 'active'].includes(String(nextStatus))) {
+        return sendError(res, 409, 'Only a verified payout method can be your primary method.');
+      }
+
       const query = `
         UPDATE payout_methods
-        SET is_primary = COALESCE($3, is_primary), status = COALESCE($4, status), updated_at = NOW()
+        SET is_primary = CASE WHEN $4::text = 'inactive' THEN FALSE ELSE COALESCE($3, is_primary) END,
+            status = COALESCE($4, status),
+            updated_at = NOW()
         WHERE id = $1 AND helper_id = $2
         RETURNING *
       `;
 
-      const result = await pool.query(query, [method_id, helper_id, is_primary || null, status || null]);
+      const result = await pool.query(query, [method_id, helper_id, typeof is_primary === 'boolean' ? is_primary : null, status || null]);
 
       if (!result.rows.length) {
         return sendError(res, 404, 'Payout method not found');

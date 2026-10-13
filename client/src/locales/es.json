@@ -2209,8 +2209,6 @@
     "metaDesc": "Encuentra trabajos en tu área publicados por propietarios y empresas. Haz ofertas en trabajos que coincidan con tus habilidades y horario."
   },
   "settings": {
-    "accountDeleteHasBalance": "Todavía tienes un saldo, una retención o un pago pendiente. Retira o usa tu saldo restante y espera a que terminen los pagos pendientes antes de eliminar tu cuenta, o escribe a support@oxsteed.com.",
-    "accountDeleteSubscriptionRetry": "No pudimos cancelar tu suscripción en este momento, así que tu cuenta no se eliminó. Inténtalo de nuevo en unos minutos.",
     "title": "Configuración",
     "tabProfile": "Perfil",
     "tabSecurity": "Seguridad",
@@ -2482,7 +2480,9 @@
       "confirmDesc": "Esta acción no se puede deshacer. Todos tus datos serán eliminados permanentemente.",
       "yesDelete": "Sí, Eliminar Mi Cuenta"
     },
-    "tabPaymentPolicies": "Políticas de pago"
+    "tabPaymentPolicies": "Políticas de pago",
+    "accountDeleteHasBalance": "Todavía tienes un saldo, una retención o un pago pendiente. Retira o usa tu saldo restante y espera a que terminen los pagos pendientes antes de eliminar tu cuenta, o escribe a support@oxsteed.com.",
+    "accountDeleteSubscriptionRetry": "No pudimos cancelar tu suscripción en este momento, así que tu cuenta no se eliminó. Inténtalo de nuevo en unos minutos."
   },
   "partsList": {
     "toolbarLabel": "Lista de materiales",
@@ -4442,19 +4442,6 @@
     "whatHappensNextBody": "Cuando el trabajo esté activo, los ayudantes que coincidan con la ubicación, categoría y requisitos podrán enviar ofertas. Puedes comparar propuestas, hacer preguntas y contratar cuando estés listo."
   },
   "jobDetail": {
-    "completionRequested": "Marcado como terminado. Se pidió al cliente que lo confirme.",
-    "jobClosed": "Trabajo cerrado.",
-    "closeBlockedDispute": "Resuelve la disputa abierta antes de cerrar este trabajo.",
-    "closeBlockedPayment": "Este trabajo aún tiene un pago en curso. Inténtalo de nuevo cuando se complete.",
-    "completionPendingOwner": "Tu ayudante marcó este trabajo como terminado. Confirma o abre una disputa. El pago se libera automáticamente el {{date}}.",
-    "completionPendingHelper": "Marcaste este trabajo como terminado. Esperando la confirmación del cliente; se confirma automáticamente si no responde.",
-    "helperMarkDone": "Marcar trabajo terminado",
-    "closeJob": "Cerrar trabajo",
-    "openDispute": "Abrir una disputa",
-    "disputeOpened": "Disputa abierta. Notificamos a nuestro equipo y a la otra parte.",
-    "signWorkAgreement": "Revisa y firma el acuerdo de trabajo",
-    "viewWorkAgreement": "Ver acuerdo de trabajo",
-    "createWorkAgreement": "Crear un acuerdo de trabajo",
     "draftStatus": "Borrador",
     "matchedStatus": "Coincidencia encontrada",
     "negotiatingStatus": "En negociación",
@@ -4653,17 +4640,22 @@
     "recordDirectPaymentTitle": "Registrar pago directo",
     "recordDirectPaymentSubtitle": "Registra el método de pago, número de confirmación y cualquier enlace de comprobante para que ambas partes puedan verificar el intercambio después.",
     "jobPaymentFor": "Pago del trabajo · {{title}}",
-    "jobPayment": "Pago del trabajo"
+    "jobPayment": "Pago del trabajo",
+    "completionRequested": "Marcado como terminado. Se pidió al cliente que lo confirme.",
+    "jobClosed": "Trabajo cerrado.",
+    "closeBlockedDispute": "Resuelve la disputa abierta antes de cerrar este trabajo.",
+    "closeBlockedPayment": "Este trabajo aún tiene un pago en curso. Inténtalo de nuevo cuando se complete.",
+    "completionPendingOwner": "Tu ayudante marcó este trabajo como terminado. Confirma o abre una disputa. El pago se libera automáticamente el {{date}}.",
+    "completionPendingHelper": "Marcaste este trabajo como terminado. Esperando la confirmación del cliente; se confirma automáticamente si no responde.",
+    "helperMarkDone": "Marcar trabajo terminado",
+    "closeJob": "Cerrar trabajo",
+    "openDispute": "Abrir una disputa",
+    "disputeOpened": "Disputa abierta. Notificamos a nuestro equipo y a la otra parte.",
+    "signWorkAgreement": "Revisa y firma el acuerdo de trabajo",
+    "viewWorkAgreement": "Ver acuerdo de trabajo",
+    "createWorkAgreement": "Crear un acuerdo de trabajo"
   },
   "myJobs": {
-    "assignedTab": "Asignados a mí",
-    "assignedSubtitle": "Trabajos para los que te contrataron",
-    "assignedLoading": "Cargando trabajos asignados…",
-    "assignedFailed": "No se pudieron cargar tus trabajos asignados.",
-    "assignedRetry": "Intentar de nuevo",
-    "assignedPayouts": "Pagos",
-    "assignedEmpty": "Aún no tienes trabajos asignados.",
-    "assignedAwaitingConfirmation": "Esperando confirmación del cliente",
     "cancelUndoNote": "Tendrás 5 segundos para deshacerlo después de confirmar.",
     "subtitle": "Trabajos que has publicado",
     "bids": "{{count}} oferta(s)",
@@ -4710,6 +4702,14 @@
     "counterAccepted": "Hora propuesta aceptada.",
     "counterDeclined": "Hora propuesta rechazada.",
     "errorCounterRespond": "No se pudo responder a la hora propuesta",
+    "assignedTab": "Asignados a mí",
+    "assignedSubtitle": "Trabajos para los que te contrataron",
+    "assignedLoading": "Cargando trabajos asignados…",
+    "assignedFailed": "No se pudieron cargar tus trabajos asignados.",
+    "assignedRetry": "Intentar de nuevo",
+    "assignedPayouts": "Pagos",
+    "assignedEmpty": "Aún no tienes trabajos asignados.",
+    "assignedAwaitingConfirmation": "Esperando confirmación del cliente",
     "assignedStatus": {
       "accepted": "Aceptado — sin iniciar",
       "in_progress": "En curso",
@@ -4717,7 +4717,7 @@
       "closed": "Cerrado",
       "cancelled": "Cancelado"
     }
-},
+  },
   "helpersDir": {
     "title": "Encuentra un ayudante local",
     "subtitle": "Explora ayudantes locales verificados en tu área",
@@ -9336,7 +9336,6 @@
   },
   "disputes": {
     "center": {
-      "openFromJob": "Abrir una disputa desde un trabajo",
       "title": "Centro de Disputas",
       "noDisputes": "Sin disputas abiertas",
       "subtitle": "Ver y administrar tus disputas activas",
@@ -9390,7 +9389,8 @@
         "bullet1": "Intenta aclarar el alcance en los mensajes.",
         "bullet2": "Guarda fotos, recibos y detalles de tiempo.",
         "bullet3": "Usa la escalación de soporte para problemas urgentes de seguridad o pago."
-      }
+      },
+      "openFromJob": "Abrir una disputa desde un trabajo"
     },
     "detail": {
       "notFound": "Disputa no encontrada",
@@ -13558,21 +13558,6 @@
     "cartCheckout": "Verificar"
   },
   "myBids": {
-    "edit": "Editar",
-    "editTitle": "Edita tu oferta",
-    "editAmount": "Precio (USD)",
-    "editEta": "Horas estimadas",
-    "editMessage": "Mensaje para el cliente",
-    "editCancel": "Cancelar",
-    "editSave": "Guardar cambios",
-    "editSaving": "Guardando…",
-    "editSaved": "Oferta actualizada.",
-    "editFailed": "No se pudo actualizar la oferta. Inténtalo de nuevo.",
-    "editClosed": "Esta oferta ya no se puede editar.",
-    "editAmountInvalid": "Ingresa un precio mayor que 0.",
-    "editAmountTooLarge": "Ese precio es demasiado alto.",
-    "editEtaInvalid": "Ingresa horas entre 0 y 10.000.",
-    "editMessageTooLong": "El mensaje debe tener menos de 2.000 caracteres.",
     "title": "Mis ofertas",
     "subtitle": "Realice un seguimiento del estado de todas sus ofertas",
     "totalBids": "Ofertas totales",
@@ -13599,7 +13584,22 @@
     "withdrawConfirm": "¿Estás seguro de que quieres retirar esta oferta?",
     "withdrawSuccess": "Oferta retirada.",
     "withdrawError": "No se pudo retirar la oferta.",
-    "viewBid": "Ver oferta"
+    "viewBid": "Ver oferta",
+    "edit": "Editar",
+    "editTitle": "Edita tu oferta",
+    "editAmount": "Precio (USD)",
+    "editEta": "Horas estimadas",
+    "editMessage": "Mensaje para el cliente",
+    "editCancel": "Cancelar",
+    "editSave": "Guardar cambios",
+    "editSaving": "Guardando…",
+    "editSaved": "Oferta actualizada.",
+    "editFailed": "No se pudo actualizar la oferta. Inténtalo de nuevo.",
+    "editClosed": "Esta oferta ya no se puede editar.",
+    "editAmountInvalid": "Ingresa un precio mayor que 0.",
+    "editAmountTooLarge": "Ese precio es demasiado alto.",
+    "editEtaInvalid": "Ingresa horas entre 0 y 10.000.",
+    "editMessageTooLong": "El mensaje debe tener menos de 2.000 caracteres."
   },
   "orders": {
     "helpTitle": "Obtener ayuda con este pedido",
@@ -30264,22 +30264,9 @@
     "finalCtaSubtitle": "Gratis de crear. Compártelo donde sea y empieza a cobrar hoy."
   },
   "workAgreement": {
-    "scopeLabel": "Alcance del trabajo",
-    "priceLabel": "Precio acordado",
-    "timelineLabel": "Plazos",
-    "extraTermsLabel": "Otras condiciones",
-    "termTitle": "Título",
-    "noWarrantyTerms": "No se añadieron condiciones de garantía por escrito.",
-    "claimNote": "Nota (opcional)",
-    "claimWithdraw": "Marcar como resuelto",
-    "claimResolve": "Resuelto",
-    "claimDeny": "Rechazar reclamación",
-    "claimResolveError": "No se pudo actualizar la reclamación.",
-    "claimStatus_filed": "Presentada",
-    "claimStatus_under_review": "En revisión",
-    "claimStatus_resolved": "Resuelta",
-    "claimStatus_denied": "Rechazada",
-    "coAwaitingOther": "Esperando la decisión de la otra parte.",
+    "fileUnavailable": "Archivo no disponible",
+    "chooseFile": "Elige un archivo",
+    "fileUrlOptional": "O pega un enlace https",
     "signHere": "Dibuja tu firma aquí",
     "signHint": "Dibuja tu firma con el mouse o el dedo",
     "clearSignature": "Borrar",
@@ -30360,7 +30347,23 @@
     "issueBody": "Revisa los términos de garantía abajo y presenta primero un reclamo aquí. OxSteed registra el reclamo; tú y la otra parte lo resuelven.",
     "coSignTitle": "Firmar la orden de cambio",
     "coSignWarning": "Se requiere tu firma dibujada. Las órdenes de cambio son vinculantes cuando ambas partes firman.",
-    "coSignSubmit": "Firmar y enviar"
+    "coSignSubmit": "Firmar y enviar",
+    "scopeLabel": "Alcance del trabajo",
+    "priceLabel": "Precio acordado",
+    "timelineLabel": "Plazos",
+    "extraTermsLabel": "Otras condiciones",
+    "termTitle": "Título",
+    "noWarrantyTerms": "No se añadieron condiciones de garantía por escrito.",
+    "claimNote": "Nota (opcional)",
+    "claimWithdraw": "Marcar como resuelto",
+    "claimResolve": "Resuelto",
+    "claimDeny": "Rechazar reclamación",
+    "claimResolveError": "No se pudo actualizar la reclamación.",
+    "claimStatus_filed": "Presentada",
+    "claimStatus_under_review": "En revisión",
+    "claimStatus_resolved": "Resuelta",
+    "claimStatus_denied": "Rechazada",
+    "coAwaitingOther": "Esperando la decisión de la otra parte."
   },
   "adminSettings": {
     "title": "My Settings",

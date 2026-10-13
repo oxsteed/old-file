@@ -64,6 +64,7 @@ function normalizedRegistrationRegion(country, value) {
 // not carry it); the explicit Authorization: Bearer header flow is untouched.
 // Cookie names/options live in utils/authCookies (shared with passkey,
 // internal-access and registration controllers).
+const { recordSessionContext } = require('../utils/sessionContext');
 const {
   REFRESH_COOKIE_NAME,
   setAccessTokenCookie,
@@ -417,6 +418,7 @@ async function login(req, res, next) {
       ? "INSERT INTO sessions (user_id, refresh_token, expires_at) VALUES ($1, $2, NOW() + interval '30 days')"
       : "INSERT INTO sessions (user_id, refresh_token, expires_at) VALUES ($1, $2, NOW() + interval '7 days')";
     await pool.query(sessionSql, [user.id, hashedRefresh]);
+    await recordSessionContext(pool, hashedRefresh, req);
 
     // H8d: web clients get the refresh token as an httpOnly cookie; the JSON
     // body still carries it for native/mobile clients.
@@ -628,6 +630,7 @@ async function loginWith2FA(req, res, next) {
       ? "INSERT INTO sessions (user_id, refresh_token, expires_at) VALUES ($1, $2, NOW() + interval '30 days')"
       : "INSERT INTO sessions (user_id, refresh_token, expires_at) VALUES ($1, $2, NOW() + interval '7 days')";
     await pool.query(sessionSql, [user.id, hashedRefresh]);
+    await recordSessionContext(pool, hashedRefresh, req);
 
     // H8d: refresh token as httpOnly cookie for web clients (JSON fallback kept).
     setRefreshTokenCookie(res, tokens.refreshToken, { rememberMe });
@@ -886,6 +889,7 @@ async function refreshToken(req, res, next) {
        VALUES ($1, $2, LEAST(NOW() + interval '7 days', $3::timestamptz), $3::timestamptz)`,
       [user.id, hashedRefresh, absoluteDeadline.toISOString()]
     );
+    await recordSessionContext(pool, hashedRefresh, req);
     // H8d: rotate the httpOnly refresh cookie alongside the session.
     setRefreshTokenCookie(res, tokens.refreshToken);
     // Set access token cookie (parity with login).

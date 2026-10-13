@@ -2209,8 +2209,6 @@
     "metaDesc": "ابحث عن الوظائف في منطقتك التي نشرها أصحاب المنازل والشركات. قم بالمزايدة على العمل الذي يتناسب مع مهاراتك وجدولك الزمني."
   },
   "settings": {
-    "accountDeleteHasBalance": "لا يزال لديك رصيد أو مبلغ محجوز أو دفعة معلقة. اسحب رصيدك المتبقي أو استخدمه وانتظر اكتمال الدفعات المعلقة قبل حذف حسابك، أو تواصل مع support@oxsteed.com.",
-    "accountDeleteSubscriptionRetry": "تعذّر علينا إلغاء اشتراكك الآن، لذلك لم يتم حذف حسابك. يرجى المحاولة مرة أخرى بعد بضع دقائق.",
     "title": "إعدادات",
     "tabProfile": "حساب تعريفي",
     "tabSecurity": "حماية",
@@ -2482,7 +2480,9 @@
       "yesDelete": "نعم، حذف حسابي"
     },
     "preferencesTab": "التفضيلات",
-    "tabPaymentPolicies": "سياسات الدفع"
+    "tabPaymentPolicies": "سياسات الدفع",
+    "accountDeleteHasBalance": "لا يزال لديك رصيد أو مبلغ محجوز أو دفعة معلقة. اسحب رصيدك المتبقي أو استخدمه وانتظر اكتمال الدفعات المعلقة قبل حذف حسابك، أو تواصل مع support@oxsteed.com.",
+    "accountDeleteSubscriptionRetry": "تعذّر علينا إلغاء اشتراكك الآن، لذلك لم يتم حذف حسابك. يرجى المحاولة مرة أخرى بعد بضع دقائق."
   },
   "partsList": {
     "toolbarLabel": "قائمة القطع",
@@ -4442,19 +4442,6 @@
     "whatHappensNextBody": "بعد نشر العمل، يمكن للأشخاص المطابقين للموقع والفئة والمتطلبات إرسال عروض. يمكنك مقارنة العروض وطرح الأسئلة والتوظيف عندما تكون جاهزًا."
   },
   "jobDetail": {
-    "completionRequested": "تم التحديد كمكتمل. طُلب من العميل التأكيد.",
-    "jobClosed": "تم إغلاق العمل.",
-    "closeBlockedDispute": "احلّ النزاع المفتوح قبل إغلاق هذا العمل.",
-    "closeBlockedPayment": "لا يزال لهذا العمل دفعة قيد المعالجة. حاول مجددًا بعد اكتمالها.",
-    "completionPendingOwner": "حدد المساعد هذا العمل كمكتمل. أكّد الاكتمال أو افتح نزاعًا. يُحرَّر الدفع تلقائيًا في {{date}}.",
-    "completionPendingHelper": "حددت هذا العمل كمكتمل. بانتظار تأكيد العميل؛ يُؤكَّد تلقائيًا إذا لم يرد.",
-    "helperMarkDone": "تحديد العمل كمكتمل",
-    "closeJob": "إغلاق العمل",
-    "openDispute": "فتح نزاع",
-    "disputeOpened": "تم فتح النزاع. تم إخطار فريقنا والطرف الآخر.",
-    "signWorkAgreement": "راجع اتفاقية العمل ووقّعها",
-    "viewWorkAgreement": "عرض اتفاقية العمل",
-    "createWorkAgreement": "إنشاء اتفاقية عمل",
     "draftStatus": "مسودة",
     "matchedStatus": "تمت المطابقة",
     "negotiatingStatus": "قيد التفاوض",
@@ -4653,17 +4640,22 @@
     "recordDirectPaymentTitle": "تسجيل الدفع المباشر",
     "recordDirectPaymentSubtitle": "سجّل طريقة الدفع ورقم التأكيد وأي رابط للإثبات حتى يتمكن الطرفان من التحقق من عملية الدفع لاحقًا.",
     "jobPaymentFor": "دفع المهمة · {{title}}",
-    "jobPayment": "دفع المهمة"
+    "jobPayment": "دفع المهمة",
+    "completionRequested": "تم التحديد كمكتمل. طُلب من العميل التأكيد.",
+    "jobClosed": "تم إغلاق العمل.",
+    "closeBlockedDispute": "احلّ النزاع المفتوح قبل إغلاق هذا العمل.",
+    "closeBlockedPayment": "لا يزال لهذا العمل دفعة قيد المعالجة. حاول مجددًا بعد اكتمالها.",
+    "completionPendingOwner": "حدد المساعد هذا العمل كمكتمل. أكّد الاكتمال أو افتح نزاعًا. يُحرَّر الدفع تلقائيًا في {{date}}.",
+    "completionPendingHelper": "حددت هذا العمل كمكتمل. بانتظار تأكيد العميل؛ يُؤكَّد تلقائيًا إذا لم يرد.",
+    "helperMarkDone": "تحديد العمل كمكتمل",
+    "closeJob": "إغلاق العمل",
+    "openDispute": "فتح نزاع",
+    "disputeOpened": "تم فتح النزاع. تم إخطار فريقنا والطرف الآخر.",
+    "signWorkAgreement": "راجع اتفاقية العمل ووقّعها",
+    "viewWorkAgreement": "عرض اتفاقية العمل",
+    "createWorkAgreement": "إنشاء اتفاقية عمل"
   },
   "myJobs": {
-    "assignedTab": "المسندة إليّ",
-    "assignedSubtitle": "الأعمال التي تم تعيينك لها",
-    "assignedLoading": "جارٍ تحميل الأعمال المسندة…",
-    "assignedFailed": "تعذر تحميل الأعمال المسندة إليك.",
-    "assignedRetry": "حاول مجددًا",
-    "assignedPayouts": "المدفوعات",
-    "assignedEmpty": "لا توجد أعمال مسندة إليك بعد.",
-    "assignedAwaitingConfirmation": "بانتظار تأكيد العميل",
     "cancelUndoNote": "سيكون لديك 5 ثوانٍ للتراجع بعد التأكيد.",
     "subtitle": "الوظائف التي نشرتها",
     "bids": "{{count}} عرض",
@@ -4710,6 +4702,14 @@
     "counterAccepted": "تم قبول الوقت المقترح.",
     "counterDeclined": "تم رفض الوقت المقترح.",
     "errorCounterRespond": "فشل الرد على الوقت المقترح",
+    "assignedTab": "المسندة إليّ",
+    "assignedSubtitle": "الأعمال التي تم تعيينك لها",
+    "assignedLoading": "جارٍ تحميل الأعمال المسندة…",
+    "assignedFailed": "تعذر تحميل الأعمال المسندة إليك.",
+    "assignedRetry": "حاول مجددًا",
+    "assignedPayouts": "المدفوعات",
+    "assignedEmpty": "لا توجد أعمال مسندة إليك بعد.",
+    "assignedAwaitingConfirmation": "بانتظار تأكيد العميل",
     "assignedStatus": {
       "accepted": "مقبول — لم يبدأ",
       "in_progress": "قيد التنفيذ",
@@ -4717,7 +4717,7 @@
       "closed": "مغلق",
       "cancelled": "ملغى"
     }
-},
+  },
   "helpersDir": {
     "title": "ابحث عن مساعد محلي",
     "subtitle": "تصفح المساعدين المحليين الذين تم التحقق منهم في منطقتك",
@@ -9336,7 +9336,6 @@
   },
   "disputes": {
     "center": {
-      "openFromJob": "فتح نزاع من إحدى المهام",
       "title": "نزاعاتي",
       "subtitle": "عرض وإدارة النزاعات النشطة الخاصة بك",
       "loading": "تحميل...",
@@ -9390,7 +9389,8 @@
         "bullet1": "حاول توضيح النطاق في الرسائل.",
         "bullet2": "حفظ الصور والإيصالات وتفاصيل الوقت.",
         "bullet3": "استخدم تصعيد الدعم لمشكلات الأمان أو الدفع العاجلة."
-      }
+      },
+      "openFromJob": "فتح نزاع من إحدى المهام"
     },
     "detail": {
       "loading": "جارٍ تحميل النزاع...",
@@ -13650,21 +13650,6 @@
     "cartCheckout": "الدفع"
   },
   "myBids": {
-    "edit": "تعديل",
-    "editTitle": "عدّل عرضك",
-    "editAmount": "السعر (دولار أمريكي)",
-    "editEta": "الساعات المقدرة",
-    "editMessage": "رسالة إلى العميل",
-    "editCancel": "إلغاء",
-    "editSave": "حفظ التغييرات",
-    "editSaving": "جارٍ الحفظ…",
-    "editSaved": "تم تحديث العرض.",
-    "editFailed": "تعذر تحديث العرض. حاول مجددًا.",
-    "editClosed": "لم يعد بالإمكان تعديل هذا العرض.",
-    "editAmountInvalid": "أدخل سعرًا أكبر من 0.",
-    "editAmountTooLarge": "هذا السعر كبير جدًا.",
-    "editEtaInvalid": "أدخل عدد ساعات بين 0 و10000.",
-    "editMessageTooLong": "يجب ألا تتجاوز الرسالة 2000 حرف.",
     "title": "عروض الأسعار الخاصة بي",
     "subtitle": "تتبع حالة جميع عروض الأسعار الخاصة بك",
     "totalBids": "إجمالي العطاءات",
@@ -13691,7 +13676,22 @@
     "withdrawConfirm": "هل أنت متأكد أنك تريد سحب هذا العرض؟",
     "withdrawSuccess": "تم سحب العطاء.",
     "withdrawError": "فشل في سحب العرض.",
-    "viewBid": "عرض العرض"
+    "viewBid": "عرض العرض",
+    "edit": "تعديل",
+    "editTitle": "عدّل عرضك",
+    "editAmount": "السعر (دولار أمريكي)",
+    "editEta": "الساعات المقدرة",
+    "editMessage": "رسالة إلى العميل",
+    "editCancel": "إلغاء",
+    "editSave": "حفظ التغييرات",
+    "editSaving": "جارٍ الحفظ…",
+    "editSaved": "تم تحديث العرض.",
+    "editFailed": "تعذر تحديث العرض. حاول مجددًا.",
+    "editClosed": "لم يعد بالإمكان تعديل هذا العرض.",
+    "editAmountInvalid": "أدخل سعرًا أكبر من 0.",
+    "editAmountTooLarge": "هذا السعر كبير جدًا.",
+    "editEtaInvalid": "أدخل عدد ساعات بين 0 و10000.",
+    "editMessageTooLong": "يجب ألا تتجاوز الرسالة 2000 حرف."
   },
   "orders": {
     "helpTitle": "الحصول على مساعدة بشأن هذا الطلب",
@@ -30275,22 +30275,9 @@
     "finalCtaSubtitle": "مجاناً. شاركه في أي مكان وابدأ القبض اليوم."
   },
   "workAgreement": {
-    "scopeLabel": "نطاق العمل",
-    "priceLabel": "السعر المتفق عليه",
-    "timelineLabel": "الجدول الزمني",
-    "extraTermsLabel": "شروط أخرى",
-    "termTitle": "العنوان",
-    "noWarrantyTerms": "لم تُضف شروط ضمان مكتوبة.",
-    "claimNote": "ملاحظة (اختياري)",
-    "claimWithdraw": "وضع علامة تم الحل",
-    "claimResolve": "تم الحل",
-    "claimDeny": "رفض المطالبة",
-    "claimResolveError": "تعذّر تحديث المطالبة.",
-    "claimStatus_filed": "مقدّمة",
-    "claimStatus_under_review": "قيد المراجعة",
-    "claimStatus_resolved": "تم حلها",
-    "claimStatus_denied": "مرفوضة",
-    "coAwaitingOther": "بانتظار قرار الطرف الآخر.",
+    "fileUnavailable": "الملف غير متاح",
+    "chooseFile": "اختر ملفًا",
+    "fileUrlOptional": "أو الصق رابط https",
     "signHere": "ارسم توقيعك هنا",
     "signHint": "ارسم توقيعك بالفأرة أو الإصبع",
     "clearSignature": "مسح",
@@ -30371,7 +30358,23 @@
     "issueBody": "راجع شروط الضمان أدناه وقدّم مطالبة هنا أولاً. تسجّل OxSteed المطالبة؛ وتتولى أنت والطرف الآخر حلّها.",
     "coSignTitle": "وقّع أمر التغيير",
     "coSignWarning": "توقيعك المرسوم مطلوب. تصبح أوامر التغيير ملزمة بمجرد توقيع الطرفين.",
-    "coSignSubmit": "التوقيع والإرسال"
+    "coSignSubmit": "التوقيع والإرسال",
+    "scopeLabel": "نطاق العمل",
+    "priceLabel": "السعر المتفق عليه",
+    "timelineLabel": "الجدول الزمني",
+    "extraTermsLabel": "شروط أخرى",
+    "termTitle": "العنوان",
+    "noWarrantyTerms": "لم تُضف شروط ضمان مكتوبة.",
+    "claimNote": "ملاحظة (اختياري)",
+    "claimWithdraw": "وضع علامة تم الحل",
+    "claimResolve": "تم الحل",
+    "claimDeny": "رفض المطالبة",
+    "claimResolveError": "تعذّر تحديث المطالبة.",
+    "claimStatus_filed": "مقدّمة",
+    "claimStatus_under_review": "قيد المراجعة",
+    "claimStatus_resolved": "تم حلها",
+    "claimStatus_denied": "مرفوضة",
+    "coAwaitingOther": "بانتظار قرار الطرف الآخر."
   },
   "adminSettings": {
     "title": "My Settings",
