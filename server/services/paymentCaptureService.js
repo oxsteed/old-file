@@ -200,6 +200,25 @@ async function reconcileJobAuthorizationFromStripe(client, jobId) {
  */
 async function settlePlatformHold(client, paymentRow) {
   if (!paymentRow.destination_account_id) throw new Error('Platform-held payment has no helper account');
+  // Tier-3 platform-held payments are released with a Stripe Transfer. Keep
+  // this gate at the release boundary as well as at intent creation: a helper
+  // can lose payout eligibility while a job is in progress. Missing or stale
+  // Connect state fails closed so funds remain on the platform for review.
+  const { rows: payoutRows } = await client.query(
+    `SELECT payouts_enabled
+       FROM connect_accounts
+      WHERE stripe_account_id = $1
+      LIMIT 1`,
+    [paymentRow.destination_account_id],
+  );
+  if (!payoutRows[0]?.payouts_enabled) {
+    const { AppError } = require('../middleware/errorHandler');
+    throw new AppError(
+      'The helper payout account is not enabled. Payouts must be enabled before escrow can be released.',
+      409,
+      'helper_payouts_not_ready',
+    );
+  }
   const pi = await stripe.paymentIntents.retrieve(paymentRow.stripe_payment_intent_id);
   if (pi.status !== 'succeeded') {
     throw new Error(`PaymentIntent ${pi.id} is ${pi.status}, not succeeded. Cannot settle platform hold.`);

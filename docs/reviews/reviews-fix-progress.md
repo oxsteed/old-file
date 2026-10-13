@@ -221,3 +221,5 @@ W16 upload follow-up: job creation no longer publishes a partial media set when 
 - W17 tax-identity follow-up: main-app tax documents now expose W-9 and fresh identity readiness, and 1099 downloads remain unavailable until both are complete. Affiliate and cancellation-fee payouts apply the same W-9 requirement before transfer.
 
 - W17 identity lifecycle follow-up: expired Credit identity verifications are now persisted as `expired` on the first effective-tier read, while preserving the fail-closed tier-zero result and avoiding changes to immutable review evidence.
+
+- W17 escrow follow-up: Tier-3 platform-held payment settlement now re-checks the helper Connect account's `payouts_enabled` flag immediately before creating the release transfer. Missing or disabled payout state fails closed and leaves the authorized payment unsettled.
