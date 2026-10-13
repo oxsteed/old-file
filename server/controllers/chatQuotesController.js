@@ -877,6 +877,20 @@ exports.reviseQuote = async (req, res, next) => {
       await assertConversationParticipant(userId, parent.conversation_id, { writable: true });
     }
 
+    // P2-10-F05: a quote that left the negotiable states must not be
+    // superseded. Revising an accepted/approved quote forks the chain: the
+    // customer holds an accepted v1 while a v2 circulates. Declined quotes
+    // stay revisable (the request-changes flow depends on it).
+    const parentChatStatus = toChatStatus(kind, parent.status);
+    if (parent.superseded_at || !['draft', 'sent', 'declined'].includes(parentChatStatus)) {
+      return bad(res, 409, 'This quote can no longer be revised', 'quote_locked');
+    }
+    // Defense in depth: a quote already linked to a booking request must not
+    // fork either, even if its status row is stale.
+    if (parent.booking_request_id) {
+      return bad(res, 409, 'This quote is already linked to a booking and cannot be revised', 'quote_locked');
+    }
+
     const normalized = normalizeLineItems(req.body?.line_items || req.body?.lineItems || parent.line_items);
     if (normalized.error) return bad(res, 400, normalized.error, 'validation_failed');
     const taxRate =
@@ -901,8 +915,9 @@ exports.reviseQuote = async (req, res, next) => {
       const { rows } = await pool.query(
         `INSERT INTO business_quotes
            (business_id, client_name, client_email, title, line_items, subtotal_cents, tax_rate, total_cents,
-            valid_until, token, status, conversation_id, guest_session_id, created_by, parent_quote_id, version)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'sent',$11,$12,$13,$14,$15)
+            valid_until, token, status, conversation_id, guest_session_id, created_by, parent_quote_id, version,
+            booking_request_id)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'sent',$11,$12,$13,$14,$15,$16)
          RETURNING *`,
         [
           parent.business_id,
@@ -920,6 +935,9 @@ exports.reviseQuote = async (req, res, next) => {
           userId,
           parent.id,
           nextVersion,
+          // P2-10-F05: carry the link so accept->schedule on a revised quote
+          // reuses the existing booking request instead of forking a second.
+          parent.booking_request_id || null,
         ],
       );
       created = rows[0];
@@ -928,8 +946,8 @@ exports.reviseQuote = async (req, res, next) => {
         `INSERT INTO helper_quotes
            (job_id, helper_id, line_items, tax_rate, subtotal_cents, tax_cents, total_cents,
             notes, status, valid_until, conversation_id, guest_session_id, client_user_id,
-            client_name, client_email, title, token, parent_quote_id, version)
-         VALUES ($1,$2,$3::jsonb,$4,$5,$6,$7,$8,'sent',$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)
+            client_name, client_email, title, token, parent_quote_id, version, booking_request_id)
+         VALUES ($1,$2,$3::jsonb,$4,$5,$6,$7,$8,'sent',$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)
          RETURNING *`,
         [
           parent.job_id,
@@ -950,6 +968,9 @@ exports.reviseQuote = async (req, res, next) => {
           token,
           parent.id,
           nextVersion,
+          // P2-10-F05: carry the link so accept->schedule on a revised quote
+          // reuses the existing booking request instead of forking a second.
+          parent.booking_request_id || null,
         ],
       );
       created = rows[0];
@@ -1190,7 +1211,7 @@ exports.scheduleFromQuote = async (req, res, next) => {
            conversation_id, guest_session_id, quote_kind, quote_id, source, client_request_id
          ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)
          ON CONFLICT (conversation_id, client_request_id)
-         WHERE client_request_id IS NOT NULL DO NOTHING
+         WHERE conversation_id IS NOT NULL AND client_request_id IS NOT NULL DO NOTHING
          RETURNING *`,
         [
           bookingId,
@@ -1230,7 +1251,34 @@ exports.scheduleFromQuote = async (req, res, next) => {
         if (!replayed) socketService.broadcastToUser(helperId, 'booking:requested', { booking });
       } catch { /* ignore */ }
     } else if (!booking) {
-      // Guest path — reuse messenger booking helper
+      // Guest path — reuse messenger booking helper.
+      // P2-10-F03: create the durable booking_request FIRST so a later
+      // appointment failure cannot orphan an appointment with no request row
+      // (and the quote link below can never point at an appointment id).
+      const chatBookingReq = require('./chatBookingRequestsController');
+      let guestBooking = null;
+      try {
+        guestBooking = await chatBookingReq.createGuestChatBookingRequest({
+          helperId,
+          businessId,
+          guestSessionId: guest?.id || quote.guest_session_id || null,
+          serviceName,
+          date,
+          start,
+          end,
+          description,
+          appointmentId: null,
+          clientRequestId,
+          source: 'quote_schedule',
+          conversationId: quote.conversation_id || null,
+        });
+      } catch (e) {
+        logger.error('[chatQuotes] guest booking_request create failed', { error: e.message });
+        return bad(res, 500, 'Could not create booking', 'booking_failed');
+      }
+      if (!guestBooking?.id) {
+        return bad(res, 500, 'Could not create booking', 'booking_failed');
+      }
       const startIso = body.startIso || `${date}T${start.length === 5 ? start + ':00' : start}`;
       const endIso = body.endIso || `${date}T${end.length === 5 ? end + ':00' : end}`;
       const { createAiBookingFromAction } = require('./chatController');
@@ -1259,36 +1307,20 @@ exports.scheduleFromQuote = async (req, res, next) => {
         return bad(res, 500, 'Could not create booking', 'booking_failed');
       }
       appointmentId = result.appointment?.id;
-      booking = result.appointment;
-      try {
-        const chatBookingReq = require('./chatBookingRequestsController');
-        const guestBooking = await chatBookingReq.createGuestChatBookingRequest({
-          helperId,
-          businessId,
-          guestSessionId: guest?.id || quote.guest_session_id || null,
-          serviceName,
-          date,
-          start,
-          end,
-          description,
+      // Link the appointment (and this quote) back to the durable request.
+      const linked = await chatBookingReq
+        .linkBookingToChat(guestBooking.id, {
           appointmentId,
-          clientRequestId,
+          quoteKind: kind,
+          quoteId: String(quote.id),
           source: 'quote_schedule',
-          conversationId: quote.conversation_id || null,
+        })
+        .catch((e) => {
+          logger.warn('[chatQuotes] guest booking link failed', { error: e.message });
+          return null;
         });
-        if (guestBooking?.id) {
-          bookingId = guestBooking.id;
-          booking = guestBooking;
-          await pool.query(
-            `UPDATE booking_requests
-                SET quote_kind = $2, quote_id = $3, updated_at = NOW()
-              WHERE id = $1`,
-            [guestBooking.id, kind, String(quote.id)],
-          );
-        }
-      } catch (e) {
-        logger.warn('[chatQuotes] guest booking_request create failed', { error: e.message });
-      }
+      bookingId = guestBooking.id;
+      booking = linked || { ...guestBooking, appointment_id: appointmentId };
     }
 
     if (!booking) return bad(res, 500, 'Could not create booking request', 'booking_failed');

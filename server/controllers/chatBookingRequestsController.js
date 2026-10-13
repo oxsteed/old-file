@@ -731,7 +731,7 @@ exports.createChatBookingRequest = async (req, res, next) => {
          $12, NULL, $13, $14, $15, $16, $17
        )
        ON CONFLICT (conversation_id, client_request_id)
-       WHERE client_request_id IS NOT NULL DO NOTHING
+       WHERE conversation_id IS NOT NULL AND client_request_id IS NOT NULL DO NOTHING
        RETURNING *`,
         [
           bookingId,

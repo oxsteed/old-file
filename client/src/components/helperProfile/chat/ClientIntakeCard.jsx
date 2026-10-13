@@ -11,7 +11,10 @@ export default function ClientIntakeCard({
 }) {
   const { t } = useTranslation();
   const fields = Array.isArray(intake?.fields) ? intake.fields : [];
-  const completed = intake?.status === 'completed' || Boolean(intake?.responses);
+  // A follow-up round reopens the intake with prior answers attached: keep
+  // the answer form (pre-filled) whenever the status is open.
+  const completed = intake?.status === 'completed'
+    || (Boolean(intake?.responses) && intake?.status !== 'open');
   const [responses, setResponses] = useState(intake?.responses || {});
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');

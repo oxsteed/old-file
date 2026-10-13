@@ -197,6 +197,39 @@ async function loadAgreement(id) {
   return rows[0] || null;
 }
 
+// P2-10-F11: fan the agreement status out to every live surface, including
+// token-only acceptances that never post a thread message (no userId) and so
+// previously produced no socket event at all. Mirrors respondQuote's
+// emitQuoteStatusToThread.
+async function emitAgreementStatusToThread({ conversationId, guestSessionId, helperId, customerId, content, meta }) {
+  const payload = {
+    conversationId: conversationId || null,
+    guestSessionId: guestSessionId || null,
+    guestInquiry: Boolean(guestSessionId),
+    message: {
+      content,
+      sender_type: 'system',
+      sender_name: 'OxSteed',
+      ...meta,
+    },
+    agreementEvent: true,
+    ...meta,
+  };
+  try {
+    if (conversationId) {
+      socketService.broadcastToConversation(conversationId, 'profile_chat:new_message', payload);
+      socketService.broadcastToConversation(conversationId, 'message:new', payload);
+    }
+    if (guestSessionId) {
+      socketService.io?.to?.(`guest_session_${guestSessionId}`)?.emit?.('profile_chat:new_message', payload);
+    }
+    if (helperId) socketService.broadcastToUser(helperId, 'profile_chat:new_message', payload);
+    if (customerId) socketService.broadcastToUser(customerId, 'profile_chat:new_message', payload);
+  } catch (e) {
+    logger.warn('[chatAgreements] status emit failed', { error: e.message });
+  }
+}
+
 async function assertProviderCanShare(userId, { conversationId, guestSessionId, businessId, helperId }) {
   if (conversationId) {
     const conv = await assertConversationParticipant(userId, conversationId, { writable: true });
@@ -593,6 +626,23 @@ exports.respondAgreement = async (req, res, next) => {
       });
     }
 
+    // Socket fan-out for every acceptance path, including token-only
+    // acceptance (no userId, no thread message possible since
+    // messages.sender_id is NOT NULL).
+    await emitAgreementStatusToThread({
+      conversationId: updated.conversation_id,
+      guestSessionId: updated.guest_session_id,
+      helperId: updated.helper_id,
+      customerId: updated.customer_id || null,
+      content: statusContent,
+      meta: {
+        agreementId: String(updated.id),
+        agreementStatus: nextStatus,
+        agreementVersion: updated.version,
+        title: updated.title,
+      },
+    });
+
     return res.json({
       agreement: toPublicAgreementCard(updated),
       evidence_recorded: true,
@@ -616,6 +666,24 @@ exports.reviseAgreement = async (req, res, next) => {
       helperId: parent.helper_id,
     });
     if (!access.ok) return bad(res, access.status || 403, access.error, 'forbidden');
+
+    // P2-10-F06: an accepted or acknowledged agreement is a settled record.
+    // Revising it would silently revert the thread to 'shared' and re-block
+    // scheduling (the gate treats accepted/acknowledged as clearing), with
+    // only a re-share message as notice. Fail closed: share a new agreement
+    // instead of mutating the settled one.
+    const parentStatus = String(parent.status || '').toLowerCase();
+    if (parent.superseded_at || parentStatus === 'superseded') {
+      return bad(res, 409, 'This agreement was already superseded', 'already_superseded');
+    }
+    if (parentStatus === 'accepted' || parentStatus === 'acknowledged') {
+      return bad(
+        res,
+        409,
+        'This agreement has already been accepted and cannot be revised. Share a new agreement instead.',
+        'agreement_locked',
+      );
+    }
 
     const normalized = normalizeAgreementPayload({
       title: req.body.title || parent.title,

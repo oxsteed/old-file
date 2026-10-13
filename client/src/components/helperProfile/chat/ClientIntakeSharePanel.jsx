@@ -20,19 +20,20 @@ const blank = () => ({
   options: [],
 });
 
-export default function ClientIntakeSharePanel({ open = false, onClose, guestSessionId, onShared }) {
+export default function ClientIntakeSharePanel({ open = false, onClose, guestSessionId, onShared, followUpFor = null }) {
   const { t } = useTranslation();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [fields, setFields] = useState([blank()]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const isFollowUp = Boolean(followUpFor);
 
   const filledFieldCount = useMemo(
     () => fields.filter((field) => field.label.trim()).length,
     [fields],
   );
-  const canShare = Boolean(guestSessionId && title.trim() && filledFieldCount > 0 && !busy);
+  const canShare = Boolean((isFollowUp || (guestSessionId && title.trim())) && filledFieldCount > 0 && !busy);
 
   if (!open) return null;
 
@@ -55,16 +56,25 @@ export default function ClientIntakeSharePanel({ open = false, onClose, guestSes
       const cleanedFields = fields
         .filter((field) => field.label.trim())
         .map((field) => ({ ...field, label: field.label.trim() }));
-      const { data } = await api.post('/chat/intakes', {
-        guestSessionId,
-        title: title.trim(),
-        description: description.trim(),
-        fields: cleanedFields,
-      });
+      const { data } = isFollowUp
+        ? await api.post(`/chat/intakes/${followUpFor}/follow-up`, { fields: cleanedFields })
+        : await api.post('/chat/intakes', {
+          guestSessionId,
+          title: title.trim(),
+          description: description.trim(),
+          fields: cleanedFields,
+        });
       onShared?.(data);
       onClose?.();
     } catch (err) {
-      setError(err?.response?.data?.error || t('messages.clientIntake.failed'));
+      const code = err?.response?.data?.code;
+      setError(
+        isFollowUp && code === 'intake_withdrawn'
+          ? t('messages.clientIntake.followUpWithdrawn')
+          : isFollowUp && code === 'validation_failed'
+            ? t('messages.clientIntake.followUpNeedsQuestion')
+            : err?.response?.data?.error || t('messages.clientIntake.failed'),
+      );
     } finally {
       setBusy(false);
     }
@@ -77,8 +87,8 @@ export default function ClientIntakeSharePanel({ open = false, onClose, guestSes
           <span className="client-intake-panel__icon" aria-hidden="true"><ClipboardList /></span>
           <div>
             <p className="client-intake-panel__eyebrow"><Sparkles aria-hidden="true" />{t('messages.clientIntake.eyebrow', { defaultValue: 'CLIENT INTAKE' })}</p>
-            <h3 id="client-intake-panel-title">{t('messages.clientIntake.shareTitle')}</h3>
-            <p className="client-intake-panel__subtitle">{t('messages.clientIntake.shareSubtitle', { defaultValue: 'Collect the details you need before the work begins.' })}</p>
+            <h3 id="client-intake-panel-title">{isFollowUp ? t('messages.clientIntake.followUpTitle') : t('messages.clientIntake.shareTitle')}</h3>
+            <p className="client-intake-panel__subtitle">{isFollowUp ? t('messages.clientIntake.followUpSubtitle') : t('messages.clientIntake.shareSubtitle', { defaultValue: 'Collect the details you need before the work begins.' })}</p>
           </div>
         </div>
         <button type="button" className="quote-share-panel__close client-intake-panel__close" onClick={onClose} aria-label={t('common.close')}><X aria-hidden="true" /></button>
@@ -90,6 +100,7 @@ export default function ClientIntakeSharePanel({ open = false, onClose, guestSes
       </div>
 
       <form className="quote-share-panel__body client-intake-panel__body" onSubmit={share}>
+        {!isFollowUp ? (
         <section className="client-intake-panel__section" aria-labelledby="client-intake-details-heading">
           <div className="client-intake-panel__section-heading">
             <div><p className="client-intake-panel__section-kicker">01</p><h4 id="client-intake-details-heading">{t('messages.clientIntake.detailsHeading', { defaultValue: 'Set the direction' })}</h4></div>
@@ -104,10 +115,11 @@ export default function ClientIntakeSharePanel({ open = false, onClose, guestSes
             <textarea className="client-intake-panel__input client-intake-panel__textarea" value={description} onChange={(event) => setDescription(event.target.value)} rows={3} maxLength={500} placeholder={t('messages.clientIntake.descriptionPlaceholder')} />
           </label>
         </section>
+        ) : null}
 
         <section className="client-intake-panel__section" aria-labelledby="client-intake-questions-heading">
           <div className="client-intake-panel__section-heading">
-            <div><p className="client-intake-panel__section-kicker">02</p><h4 id="client-intake-questions-heading">{t('messages.clientIntake.questionsHeading', { defaultValue: 'Ask what matters' })}</h4></div>
+            <div><p className="client-intake-panel__section-kicker">{isFollowUp ? '01' : '02'}</p><h4 id="client-intake-questions-heading">{t('messages.clientIntake.questionsHeading', { defaultValue: 'Ask what matters' })}</h4></div>
             <span>{t('messages.clientIntake.questionsHint', { defaultValue: 'Keep it focused' })}</span>
           </div>
 
@@ -147,7 +159,7 @@ export default function ClientIntakeSharePanel({ open = false, onClose, guestSes
           <p>{t('messages.clientIntake.sendHint', { defaultValue: 'The client will receive this form in the conversation.' })}</p>
           <div className="client-intake-panel__actions">
             <button type="button" className="client-intake-panel__cancel" onClick={onClose} disabled={busy}>{t('common.cancel', { defaultValue: 'Cancel' })}</button>
-            <button type="submit" className="client-intake-panel__submit" disabled={!canShare}><Send aria-hidden="true" />{busy ? t('common.saving') : t('messages.clientIntake.send')}</button>
+            <button type="submit" className="client-intake-panel__submit" disabled={!canShare}><Send aria-hidden="true" />{busy ? t('common.saving') : (isFollowUp ? t('messages.clientIntake.sendFollowUp') : t('messages.clientIntake.send'))}</button>
           </div>
         </footer>
       </form>

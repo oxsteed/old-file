@@ -366,8 +366,34 @@ async function loadPaymentRequest(id, client = pool) {
   return rows[0] || null;
 }
 
-async function attachQuotePaymentMetadata(client, { quoteKind, quoteId, amountCents, creditTxnId }) {
+// P2-10-F07: resolve a caller-supplied quote reference to its owning thread
+// so payment metadata can never be attached to an unrelated quote.
+async function loadChatQuote(quoteKind, quoteId, client = pool) {
+  if (!quoteKind || quoteId == null || String(quoteId).trim() === '') return null;
+  const table = quoteKind === 'business' ? 'business_quotes' : 'helper_quotes';
+  const idParam = quoteKind === 'business' ? '$1::bigint' : '$1';
+  const { rows } = await client.query(
+    `SELECT id, conversation_id, guest_session_id, business_id, helper_id,
+            status, total_cents, amount_paid_cents
+       FROM ${table} WHERE id = ${idParam} LIMIT 1`,
+    [String(quoteId)],
+  ).catch(() => ({ rows: [] }));
+  return rows[0] || null;
+}
+
+async function attachQuotePaymentMetadata(client, { quoteKind, quoteId, amountCents, creditTxnId, conversationId }) {
   if (!quoteKind || !quoteId) return null;
+  // Thread ownership check: the quote must belong to the conversation being
+  // paid in. On mismatch, skip the metadata attach (fail closed) while the
+  // payment itself still settles.
+  const quoted = await loadChatQuote(quoteKind, quoteId, client);
+  if (!quoted || String(quoted.conversation_id || '') !== String(conversationId || '')) {
+    logger.warn('[chatCreditPay] quote thread mismatch; skipping paid-metadata attach', {
+      quoteKind,
+      quoteId,
+    });
+    return null;
+  }
   const table = quoteKind === 'business' ? 'business_quotes' : 'helper_quotes';
   let row;
   try {
@@ -384,6 +410,44 @@ async function attachQuotePaymentMetadata(client, { quoteKind, quoteId, amountCe
     row = rows[0];
   } catch (e) {
     logger.warn('[chatCreditPay] quote payment metadata update skipped', {
+      quoteKind,
+      quoteId,
+      error: e.message,
+    });
+    return null;
+  }
+  if (!row) return null;
+  const paymentStatus = deriveQuotePaymentStatus(row.total_cents, row.amount_paid_cents);
+  try {
+    await client.query(`UPDATE ${table} SET payment_status = $2 WHERE id = $1`, [
+      row.id,
+      paymentStatus,
+    ]);
+  } catch {
+    /* payment_status column may be missing on older DBs mid-migrate */
+  }
+  return { ...row, payment_status: paymentStatus };
+}
+
+// P2-10-F08: mirror of attachQuotePaymentMetadata. A refund must roll the
+// quote's paid metadata back, otherwise the quote keeps
+// payment_status='paid' after the money was returned.
+async function decrementQuotePaymentMetadata(client, { quoteKind, quoteId, amountCents }) {
+  if (!quoteKind || !quoteId || !(amountCents > 0)) return null;
+  const table = quoteKind === 'business' ? 'business_quotes' : 'helper_quotes';
+  let row;
+  try {
+    const { rows } = await client.query(
+      `UPDATE ${table}
+          SET amount_paid_cents = GREATEST(0, COALESCE(amount_paid_cents, 0) - $2),
+              updated_at = NOW()
+        WHERE id = ${quoteKind === 'business' ? '$1::bigint' : '$1'}
+        RETURNING id, total_cents, amount_paid_cents, status`,
+      [String(quoteId), Math.round(amountCents)],
+    );
+    row = rows[0];
+  } catch (e) {
+    logger.warn('[chatCreditPay] quote payment metadata rollback skipped', {
       quoteKind,
       quoteId,
       error: e.message,
@@ -567,6 +631,7 @@ exports.payWithOxsteedCredit = async (req, res, next) => {
             quoteId,
             amountCents: normalized.amountCents,
             creditTxnId,
+            conversationId: normalized.conversationId,
           });
 
           const marker = buildPopMarker({
@@ -677,6 +742,27 @@ exports.requestPayment = async (req, res, next) => {
       if (!guestInquiry) return bad(res, 403, 'Not allowed for this guest inquiry', 'forbidden');
       helperId = guestInquiry.helper_id;
       businessId = businessId || guestInquiry.business_id;
+    }
+
+    // P2-10-F07: a quote bound to a payment request must belong to this thread
+    // and to this provider. A caller-supplied quote id is never trusted
+    // verbatim; on mismatch the request is refused (fail closed).
+    if (normalized.quoteKind && normalized.quoteId) {
+      const quoted = await loadChatQuote(normalized.quoteKind, normalized.quoteId);
+      if (!quoted) {
+        return bad(res, 404, 'Quote not found', 'not_found');
+      }
+      const threadMatches = normalized.conversationId
+        ? String(quoted.conversation_id || '') === String(normalized.conversationId)
+        : normalized.guestSessionId
+          ? String(quoted.guest_session_id || '') === String(normalized.guestSessionId)
+          : false;
+      const providerMatches = normalized.quoteKind === 'business'
+        ? businessId != null && String(quoted.business_id || '') === String(businessId)
+        : helperId != null && String(quoted.helper_id || '') === String(helperId);
+      if (!threadMatches || !providerMatches) {
+        return bad(res, 403, 'This quote does not belong to this conversation', 'quote_thread_mismatch');
+      }
     }
 
     // Idempotent replay for provider request. The message is repaired below if
@@ -1094,6 +1180,20 @@ exports.refundChatCreditPayment = async (req, res, next) => {
             [paymentRequest.id, fullyRefunded, newRefundedTotal, refundTxnId],
           );
           updatedPayReq = rows[0] || paymentRequest;
+        }
+
+        // P2-10-F08: roll the quote's paid metadata back by the refunded
+        // amount so a refunded quote does not keep payment_status='paid'.
+        // Idempotent replays return before this point, so a replay never
+        // decrements twice.
+        const refundQuoteKind = updatedPop?.quote_kind || updatedPayReq?.quote_kind || null;
+        const refundQuoteId = updatedPop?.quote_id || updatedPayReq?.quote_id || null;
+        if (refundQuoteKind && refundQuoteId) {
+          await decrementQuotePaymentMetadata(client, {
+            quoteKind: refundQuoteKind,
+            quoteId: refundQuoteId,
+            amountCents: refundAmount,
+          });
         }
 
         const { rows: refundRows } = await client.query(

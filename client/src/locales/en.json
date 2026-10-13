@@ -3027,7 +3027,8 @@
       "memo": "Memo",
       "memoPh": "e.g. Deposit for quote",
       "send": "Send payment request",
-      "failed": "Could not send payment request."
+      "failed": "Could not send payment request.",
+      "quoteMismatch": "This quote does not belong to this conversation."
     },
     "providerToolbar": {
       "aria": "Provider deal tools",
@@ -3068,7 +3069,13 @@
       "completed": "Completed",
       "waiting": "Waiting for the client to complete this intake.",
       "thanks": "Your information was sent to the provider.",
-      "failed": "Could not save this intake. Please try again."
+      "failed": "Could not save this intake. Please try again.",
+      "followUpButton": "Ask follow-up questions",
+      "followUpTitle": "Ask follow-up questions",
+      "followUpSubtitle": "Add another round of questions to this intake. Previous answers are kept.",
+      "sendFollowUp": "Send follow-up",
+      "followUpNeedsQuestion": "Add at least one follow-up question.",
+      "followUpWithdrawn": "This intake is withdrawn and cannot be reopened."
     },
     "creditRefund": {
       "title": "Refund OxSteed Credit",

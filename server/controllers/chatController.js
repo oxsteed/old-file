@@ -2053,51 +2053,88 @@ exports.createMessengerGuestBooking = async (req, res, next) => {
       if (timezone) descParts.push(`tz=${timezone}`);
       if (body.description) descParts.push(String(body.description));
       const conversationId = body.conversationId || body.conversation_id || null;
-      const { rows } = await pool.query(
-        `INSERT INTO booking_requests (
-           id, customer_id, helper_id, business_id, service_name, requested_date,
-           requested_start_time, requested_end_time, service_location,
-           description, expires_at, confirmation_hours,
-           conversation_id, source, service_id, timezone
-         ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
-         RETURNING *`,
-        [
-          bookingId,
-          req.user.id,
-          resolvedHelperId,
-          businessId || null,
-          serviceName,
-          date,
-          start.length === 5 ? `${start}:00` : start,
-          end.length === 5 ? `${end}:00` : end,
-          null,
-          descParts.join(' | ') || null,
-          expiresAt,
-          hours,
-          conversationId,
-          'messenger_picker',
-          serviceId != null ? String(serviceId) : null,
-          timezone || null,
-        ]
-      );
-      try {
-        socketService.broadcastToUser(resolvedHelperId, 'booking:requested', { booking: rows[0] });
-      } catch { /* ignore */ }
+
+      // P2-10-F02: honor clientRequestId on the authenticated branch too.
+      // The key is scoped to the customer (migration 806), mirroring the
+      // guest-session branch above and canonical createChatBookingRequest.
+      let replayedBooking = null;
+      if (clientRequestId) {
+        const { rows: existingRows } = await pool.query(
+          `SELECT * FROM booking_requests
+            WHERE customer_id = $1 AND client_request_id = $2
+            LIMIT 1`,
+          [req.user.id, clientRequestId],
+        );
+        replayedBooking = existingRows[0] || null;
+      }
+      let booking = replayedBooking;
+      if (!booking) {
+        const { rows } = await pool.query(
+          `INSERT INTO booking_requests (
+             id, customer_id, helper_id, business_id, service_name, requested_date,
+             requested_start_time, requested_end_time, service_location,
+             description, expires_at, confirmation_hours,
+             conversation_id, source, service_id, timezone, client_request_id
+           ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
+           ON CONFLICT (customer_id, client_request_id)
+           WHERE customer_id IS NOT NULL AND client_request_id IS NOT NULL DO NOTHING
+           RETURNING *`,
+          [
+            bookingId,
+            req.user.id,
+            resolvedHelperId,
+            businessId || null,
+            serviceName,
+            date,
+            start.length === 5 ? `${start}:00` : start,
+            end.length === 5 ? `${end}:00` : end,
+            null,
+            descParts.join(' | ') || null,
+            expiresAt,
+            hours,
+            conversationId,
+            'messenger_picker',
+            serviceId != null ? String(serviceId) : null,
+            timezone || null,
+            clientRequestId,
+          ]
+        );
+        booking = rows[0] || null;
+        if (!booking && clientRequestId) {
+          const { rows: replayRows } = await pool.query(
+            `SELECT * FROM booking_requests
+              WHERE customer_id = $1 AND client_request_id = $2
+              LIMIT 1`,
+            [req.user.id, clientRequestId],
+          );
+          booking = replayRows[0] || null;
+          replayedBooking = booking;
+        }
+      }
+      if (!booking) {
+        throw new AppError('Could not create booking request', 500, 'booking_failed');
+      }
+      if (!replayedBooking) {
+        try {
+          socketService.broadcastToUser(resolvedHelperId, 'booking:requested', { booking });
+        } catch { /* ignore */ }
+      }
       const marker = chatBookingReqCtl.buildBookingRequestMarker({
-        id: rows[0].id,
-        status: rows[0].status,
+        id: booking.id,
+        status: booking.status,
         date,
         start,
         end,
         serviceName,
         serviceId,
       });
-      return res.status(201).json({
+      return res.status(replayedBooking ? 200 : 201).json({
         success: true,
         type: 'booking_request',
-        bookingId: rows[0].id,
-        booking: rows[0],
+        bookingId: booking.id,
+        booking,
         marker,
+        idempotent: Boolean(replayedBooking),
       });
     }
 
@@ -2125,6 +2162,51 @@ exports.createMessengerGuestBooking = async (req, res, next) => {
       ].filter(Boolean).join(' | ') || null,
     };
 
+    // P2-10-F03: the durable booking_request must exist BEFORE the
+    // appointment. Creating the appointment first meant a mirror failure left
+    // an orphaned appointment no lifecycle action could ever see.
+    // Verify the slot is free before the request exists (mirrors the
+    // authenticated branch above).
+    const guestSlotCheck = await bookingLifecycle.validateBookingSlot({
+      helperId: businessId ? null : helperId,
+      businessId: businessId || null,
+      date,
+      start,
+      end,
+    });
+    if (!guestSlotCheck.ok) {
+      return res.status(409).json({ error: 'That time is no longer available', code: 'conflict' });
+    }
+
+    // Fail closed: if the durable request cannot be stored, nothing else is
+    // created and the caller gets a 500 it can safely retry (both creates
+    // below are idempotent on clientRequestId / ai_thread_id).
+    let bookingRow;
+    try {
+      bookingRow = await chatBookingReqCtl.createGuestChatBookingRequest({
+        helperId,
+        businessId,
+        guestSessionId: verifiedGuestSession?.id || null,
+        serviceName,
+        serviceId,
+        date,
+        start,
+        end,
+        timezone,
+        description: action.customer_notes,
+        appointmentId: null,
+        clientRequestId,
+        source: 'messenger_picker',
+        conversationId: body.conversationId || body.conversation_id || null,
+      });
+    } catch (e) {
+      logger.error('[MessengerBooking] durable booking_request create failed', { error: e.message });
+      throw new AppError('Could not create booking request', 500, 'booking_failed');
+    }
+    if (!bookingRow) {
+      throw new AppError('Could not create booking request', 500, 'booking_failed');
+    }
+
     const result = await createAiBookingFromAction(
       action,
       helperId,
@@ -2146,46 +2228,38 @@ exports.createMessengerGuestBooking = async (req, res, next) => {
       if (result?.reason === 'conflict') {
         return res.status(409).json({ error: 'That time is no longer available', code: 'conflict' });
       }
+      // The booking request stays pending in the provider inbox (visible and
+      // actionable via decline) rather than leaving an invisible orphaned
+      // appointment behind.
       throw new AppError('Could not create booking request', 500, 'booking_failed');
     }
 
     const appointment = result.appointment;
-    let bookingRow = null;
-    let marker = null;
+    // Link the appointment back to the durable request.
     try {
-      bookingRow = await chatBookingReqCtl.createGuestChatBookingRequest({
-        helperId,
-        businessId,
-        guestSessionId: verifiedGuestSession?.id || null,
-        serviceName,
-        serviceId,
-        date,
-        start,
-        end,
-        timezone,
-        description: action.customer_notes,
+      const linked = await chatBookingReqCtl.linkBookingToChat(bookingRow.id, {
         appointmentId: appointment.id,
-        clientRequestId,
         source: 'messenger_picker',
-        conversationId: body.conversationId || body.conversation_id || null,
       });
-      marker = chatBookingReqCtl.buildBookingRequestMarker({
-        id: bookingRow.id,
-        status: bookingRow.status,
-        date,
-        start,
-        end,
-        serviceName,
-        serviceId,
-      });
-      try {
-        socketService.broadcastToUser(helperId, 'booking:requested', {
-          booking: chatBookingReqCtl.toPublicBookingRequestCard(bookingRow),
-        });
-      } catch { /* ignore */ }
+      if (linked) bookingRow = linked;
     } catch (e) {
-      logger.warn('[MessengerBooking] durable booking_request create failed', { error: e.message });
+      logger.warn('[MessengerBooking] appointment link failed', { error: e.message, bookingId: bookingRow.id });
     }
+
+    const marker = chatBookingReqCtl.buildBookingRequestMarker({
+      id: bookingRow.id,
+      status: bookingRow.status,
+      date,
+      start,
+      end,
+      serviceName,
+      serviceId,
+    });
+    try {
+      socketService.broadcastToUser(helperId, 'booking:requested', {
+        booking: chatBookingReqCtl.toPublicBookingRequestCard(bookingRow),
+      });
+    } catch { /* ignore */ }
 
     // Mirror into guest chat so the helper inbox shows the request (+ durable marker when available)
     if (verifiedGuestSession?.id && appointment?.id) {
