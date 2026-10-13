@@ -4,7 +4,9 @@ const express = require('express');
 const request = require('supertest');
 const { mockQuery, resetMocks } = require('./setup');
 const { errorHandler } = require('../middleware/errorHandler');
+const { routeQueries } = require('./helpers/sqlRouter');
 
+jest.mock('../services/notificationService', () => ({ sendNotification: jest.fn().mockResolvedValue({ success: true }) }));
 const wa = require('../controllers/workAgreementController');
 
 const HELPER_ID = '11111111-1111-4111-8111-111111111111';
@@ -166,6 +168,8 @@ describe('versioning', () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [agreement] })
       .mockResolvedValueOnce({})                        // BEGIN
+      .mockResolvedValueOnce({ rows: [{ status: 'active' }] }) // FOR UPDATE lock
+      .mockResolvedValueOnce({ rows: [{ id: VERSION_ID, created_by: HELPER_ID, sig_count: 2 }] }) // latest version
       .mockResolvedValueOnce({ rows: [{ m: 1 }] })       // MAX(version_number)
       .mockResolvedValueOnce({ rows: [versionRow({ version_number: 2 })] })
       .mockResolvedValueOnce({ rows: [] })              // UPDATE status
@@ -238,16 +242,23 @@ describe('change orders', () => {
       .send({});
     expect(noSig.status).toBe(400);
 
-    // counterparty approves with signature
-    mockQuery
-      .mockResolvedValueOnce({ rows: [agreementRow({ status: 'active' })] })
-      .mockResolvedValueOnce({ rows: [coRow()] })
-      .mockResolvedValueOnce({ rows: [coRow({ status: 'approved' })] });
+    // counterparty approves with signature: decision + job money in one transaction
+    const calls = routeQueries(mockQuery, [
+      [/FROM work_agreements/, { rows: [agreementRow({ status: 'active' })] }],
+      [/FROM work_agreement_change_orders WHERE id = \$1::uuid AND agreement_id = \$2::uuid FOR UPDATE/, { rows: [coRow()] }],
+      [/UPDATE work_agreement_change_orders\s+SET status = \$2/, { rows: [coRow({ status: 'approved' })] }],
+      [/SELECT \* FROM jobs WHERE id = \$1 FOR UPDATE/, { rows: [{ id: JOB_ID, client_id: CUSTOMER_ID, job_value_cents: 10000, version: 3, revision: 1, metadata: {} }] }],
+      [/FROM payments WHERE job_id/, { rows: [] }],
+      [/SELECT version, revision FROM jobs/, { rows: [{ version: 4, revision: 1 }] }],
+    ]);
     const ok = await request(buildApp(CUSTOMER_ID))
       .post(`/api/work-agreements/${AGREEMENT_ID}/change-orders/co-1/approve`)
       .send({ signatureData: SIG });
     expect(ok.status).toBe(200);
     expect(ok.body.changeOrder.status).toBe('approved');
+    expect(ok.body.changeOrder.payment_adjustment).toMatchObject({ from_value_cents: 10000, to_value_cents: 12500 });
+    expect(calls.some((c) => /INSERT INTO job_revisions/.test(c.sql))).toBe(true);
+    expect(calls.some((c) => /INSERT INTO job_event_outbox/.test(c.sql))).toBe(true);
   });
 });
 
@@ -264,6 +275,7 @@ describe('warranty claims', () => {
 
     mockQuery
       .mockResolvedValueOnce({ rows: [agreementRow({ status: 'active' })] })
+      .mockResolvedValueOnce({ rows: [{ filed_by: CUSTOMER_ID }] })
       .mockResolvedValueOnce({ rows: [{ ...claim, status: 'resolved' }] });
     const resolved = await request(buildApp(HELPER_ID))
       .post(`/api/work-agreements/${AGREEMENT_ID}/warranty-claims/claim-1/resolve`)
@@ -299,5 +311,105 @@ describe('mutual completion (P1-164)', () => {
       .post(`/api/work-agreements/${AGREEMENT_ID}/sign`)
       .send({ versionId: 'v', signatureData: 'A'.repeat(200) });
     expect(res.status).toBe(409);
+  });
+});
+
+describe('review fixes (P1 area 3)', () => {
+  test('creation without content builds version 1 from the job and returns id', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ id: JOB_ID, client_id: CUSTOMER_ID, assigned_helper_id: HELPER_ID, title: 'Fix sink', description: 'Kitchen sink leaks', final_price_cents: 12000 }] })
+      .mockResolvedValueOnce({})
+      .mockResolvedValueOnce({ rows: [agreementRow()] })
+      .mockResolvedValueOnce({ rows: [versionRow()] })
+      .mockResolvedValueOnce({});
+    const res = await request(buildApp(HELPER_ID))
+      .post('/api/work-agreements')
+      .send({ jobId: JOB_ID, warrantyMonths: 3, warrantyTerms: 'Three months on parts' });
+    expect(res.status).toBe(201);
+    expect(res.body.id).toBe(AGREEMENT_ID);
+    const versionInsert = mockQuery.mock.calls.find(([sql]) => /INSERT INTO work_agreement_versions/.test(String(sql)));
+    const content = JSON.parse(versionInsert[1][1]);
+    expect(content).toMatchObject({ title: 'Fix sink', scope: 'Kitchen sink leaks', priceCents: 12000, warrantyMonths: 3, warrantyTerms: 'Three months on parts' });
+    const { sendNotification } = require('../services/notificationService');
+    expect(sendNotification).toHaveBeenCalledWith(expect.objectContaining({ userId: CUSTOMER_ID, type: 'work_agreement_signature_requested' }));
+  });
+
+  test('self-dealing job is rejected before creation', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [{ id: JOB_ID, client_id: HELPER_ID, assigned_helper_id: HELPER_ID, title: 'x' }] });
+    const res = await request(buildApp(HELPER_ID)).post('/api/work-agreements').send({ jobId: JOB_ID });
+    expect(res.status).toBe(400);
+  });
+
+  test('detail returns versions, evidence, documents, claims and signature images', async () => {
+    mockQuery.mockImplementation(async (sql) => {
+      const t = String(sql);
+      if (t.includes('FROM work_agreements WHERE id')) return { rows: [agreementRow()] };
+      if (t.includes('ORDER BY version_number DESC LIMIT 1')) return { rows: [versionRow()] };
+      if (t.includes('FROM work_agreement_signatures')) return { rows: [{ id: 's1', signer_role: 'helper', signature_data: SIG }] };
+      if (t.includes('FROM work_agreement_versions')) return { rows: [versionRow()] };
+      if (t.includes('FROM work_agreement_evidence')) return { rows: [{ id: 'e1' }] };
+      if (t.includes('FROM work_agreement_documents')) return { rows: [{ id: 'd1' }] };
+      if (t.includes('FROM work_agreement_warranty_claims')) return { rows: [{ id: 'c1' }] };
+      return { rows: [] };
+    });
+    const res = await request(buildApp(CUSTOMER_ID)).get(`/api/work-agreements/${AGREEMENT_ID}`);
+    expect(res.status).toBe(200);
+    expect(res.body.versions).toHaveLength(1);
+    expect(res.body.evidence).toHaveLength(1);
+    expect(res.body.documents).toHaveLength(1);
+    expect(res.body.warrantyClaims).toHaveLength(1);
+    expect(res.body.signatures[0].signature_data).toBe(SIG);
+    expect(res.body.myRole).toBe('customer');
+  });
+
+  test('an unsigned proposal by the same party is replaced, not stacked', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [agreementRow({ status: 'pending_signatures' })] })
+      .mockResolvedValueOnce({})
+      .mockResolvedValueOnce({ rows: [{ status: 'pending_signatures' }] })
+      .mockResolvedValueOnce({ rows: [{ id: VERSION_ID, created_by: CUSTOMER_ID, sig_count: 0 }] })
+      .mockResolvedValueOnce({ rows: [versionRow({ content: { scope: 'New scope' } })] })
+      .mockResolvedValueOnce({});
+    const res = await request(buildApp(CUSTOMER_ID))
+      .post(`/api/work-agreements/${AGREEMENT_ID}/versions`)
+      .send({ content: { scope: 'New scope' } });
+    expect(res.status).toBe(200);
+    expect(res.body.replaced).toBe(true);
+    expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO work_agreement_versions/.test(String(sql)))).toBe(false);
+  });
+
+  test('warranty claims need a signed agreement and an open window', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [agreementRow({ status: 'pending_signatures' })] });
+    const unsigned = await request(buildApp(CUSTOMER_ID))
+      .post(`/api/work-agreements/${AGREEMENT_ID}/warranty-claims`).send({ description: 'Sink leaks again after two weeks' });
+    expect(unsigned.status).toBe(409);
+
+    const longAgo = new Date(Date.now() - 400 * 86400000).toISOString();
+    mockQuery.mockResolvedValueOnce({ rows: [agreementRow({ status: 'completed', completed_at: longAgo, warranty_months: 6 })] });
+    const expired = await request(buildApp(CUSTOMER_ID))
+      .post(`/api/work-agreements/${AGREEMENT_ID}/warranty-claims`).send({ description: 'Sink leaks again after two weeks' });
+    expect(expired.status).toBe(409);
+    expect(expired.body.code).toBe('warranty_expired');
+  });
+
+  test('the filer cannot deny their own claim', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [agreementRow({ status: 'active' })] })
+      .mockResolvedValueOnce({ rows: [{ filed_by: CUSTOMER_ID }] });
+    const res = await request(buildApp(CUSTOMER_ID))
+      .post(`/api/work-agreements/${AGREEMENT_ID}/warranty-claims/claim-1/resolve`).send({ decision: 'denied' });
+    expect(res.status).toBe(403);
+  });
+
+  test('AI draft reads assigned_helper_id/client_id from jobs', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [{ id: JOB_ID, client_id: CUSTOMER_ID, assigned_helper_id: HELPER_ID, title: 'Fix sink' }] });
+    const app = express(); app.use(express.json());
+    app.use((req, _r, n) => { req.user = { id: STRANGER_ID }; n(); });
+    app.post('/draft', wa.draftAgreement);
+    const res = await request(app).post('/draft').send({ jobId: JOB_ID });
+    expect(res.status).toBe(403);
+    const sql = String(mockQuery.mock.calls[0][0]);
+    expect(sql).toMatch(/assigned_helper_id, client_id/);
+    expect(sql).not.toMatch(/helper_id, customer_id/);
   });
 });

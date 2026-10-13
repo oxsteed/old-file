@@ -11,6 +11,7 @@ const logger = require('../utils/logger');
 const { sendOTPEmail } = require('../utils/email');
 const tokenRevocationService = require('../services/tokenRevocationService');
 const socketService = require('../services/socketService');
+const deletionGuard = require('../services/accountDeletionGuard');
 /**
  * CCPA/CPRA Privacy Rights Routes
  * Provides data export, account deletion, and data portability
@@ -450,6 +451,32 @@ router.delete('/delete-account', strictLimiter, authenticate, async (req, res) =
       return res.status(409).json({
         error: 'Cannot delete your account while you have pending earnings. Please allow all pending payouts to complete first.',
       });
+    }
+
+    // Stored value / in-flight money blocks self-delete (P3-1040). We never
+    // forfeit or auto-refund: the user withdraws or spends it first, or
+    // support resolves it.
+    const financialBlockers = await deletionGuard.findFinancialBlockers(String(userId));
+    if (financialBlockers.length) {
+      return res.status(409).json({
+        error: 'You still have a balance, hold, or pending payout on your account. Please withdraw or use your remaining balance and let pending payouts finish before deleting your account, or contact support@oxsteed.com for help.',
+        code: 'account_has_balance',
+        blockers: financialBlockers,
+      });
+    }
+
+    // Cancel every live subscription at Stripe before anonymizing (P3-1039).
+    try {
+      await deletionGuard.cancelSubscriptionsForDeletion(String(userId));
+    } catch (err) {
+      if (err?.code === 'subscription_cancel_failed') {
+        return res.status(503).json({
+          error: 'We could not cancel your subscription right now, so your account was not deleted. Please retry in a few minutes.',
+          code: 'subscription_cancel_failed',
+          retryable: true,
+        });
+      }
+      throw err;
     }
 
     // Hash original email before anonymizing (one-way, for re-registration detection)

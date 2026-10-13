@@ -46,6 +46,51 @@ function requireOnboardingStep(minimumStep) {
   };
 }
 
+
+// Review P2-594: gate onboarding endpoints on what the helper has actually
+// done (see services/helperOnboarding.js), so every step is reachable.
+function requireHelperStep(step) {
+  return async (req, res, next) => {
+    try {
+      const { loadHelperOnboarding, missingFor } = require('../services/helperOnboarding');
+      const onboarding = await loadHelperOnboarding(req.user.id);
+      if (!onboarding || onboarding.user.role !== 'helper') {
+        return res.status(403).json({ error: 'Helper account required', code: 'helper_required' });
+      }
+      const missing = missingFor(step, onboarding);
+      if (missing.length) {
+        return res.status(403).json({ error: 'Finish the earlier onboarding steps first.', code: 'onboarding_step_missing', missing });
+      }
+      req.helperOnboarding = onboarding;
+      return next();
+    } catch (err) {
+      return next(err);
+    }
+  };
+}
+
+// Review P2-596: publishing a directory listing requires finished onboarding
+// (recorded terms, completed profile, verified identity). Unlisting is always
+// allowed.
+function requireListingEligible(req, res, next) {
+  if (!req.body || req.body.is_listed !== true) return next();
+  const { loadHelperOnboarding } = require('../services/helperOnboarding');
+  return loadHelperOnboarding(req.user.id).then((onboarding) => {
+    if (!onboarding || !['helper', 'helper_pro', 'broker'].includes(onboarding.user.role)) {
+      return res.status(403).json({ error: 'Helper account required', code: 'helper_required' });
+    }
+    if (!onboarding.user.onboarding_completed || !onboarding.canAppearInSearch) {
+      return res.status(403).json({
+        error: 'Finish onboarding before publishing your listing.',
+        code: 'listing_requires_onboarding',
+        missing: onboarding.user.onboarding_completed ? onboarding.missing : [...onboarding.missing, 'finalize'],
+      });
+    }
+    req.helperOnboarding = onboarding;
+    return next();
+  }).catch(next);
+}
+
 // ── Tier gating ─────────────────────────────────────────
 // Require minimum membership tier
 // NOTE: Checks effective tier (considers active trials) not just membership_tier
@@ -129,6 +174,8 @@ function requireHelperLimitedAccess(req, res, next) {
 }
 
 module.exports = {
+  requireHelperStep,
+  requireListingEligible,
   requireOnboardingStep,
   requireTier,
   requireCompletedHelperOnboarding,

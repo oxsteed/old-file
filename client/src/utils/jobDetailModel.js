@@ -27,6 +27,9 @@ export const JOB_STATUS_KEYS = {
   accepted: 'helperChosen', in_progress: 'inProgress', completed: 'completed', closed: 'closed', cancelled: 'cancelled',
 };
 
+// Open statuses still accept bids (shared with server/services/jobStatusPolicy.js).
+export const BIDDABLE_JOB_STATUSES = Object.freeze(['published', 'matched', 'negotiating']);
+
 export function jobDetailView({ job, user, bids = [], bidsStatus = 'idle', canApplyToJobs = false, needsOnboarding = false, reviewEligible = false }) {
   const isOwner = Boolean(user && samePartyId(user.id, job.client_id));
   const isAssignedHelper = Boolean(user && !isOwner && samePartyId(user.id, job.assigned_helper_id));
@@ -49,14 +52,32 @@ export function jobDetailView({ job, user, bids = [], bidsStatus = 'idle', canAp
   } else if (isAssignedHelper && isHelper && job.status === 'accepted') action = 'start';
   else if (isAssignedHelper && isHelper && job.status === 'in_progress') action = 'messages';
   else if (isHelper && hasAlreadyBid && bidsStatus === 'success') action = 'manageBid';
-  else if (isHelper && job.status === 'published') {
+  else if (isHelper && BIDDABLE_JOB_STATUSES.includes(job.status)) {
     if (bidsStatus === 'error') action = 'retry';
     else if (bidsStatus === 'success' && needsOnboarding) action = 'onboarding';
     else if (bidsStatus === 'success' && canApplyToJobs) action = 'bid';
   } else if (!user && job.status === 'published') action = 'signIn';
+  const completionPending = job.status === 'in_progress' && Boolean(job.completion_requested_at);
   return { isOwner, isAssignedHelper, isHelper, visibleBids, hasAlreadyBid, totalBids, action,
-    canSubmitBid: !isOwner && isHelper && job.status === 'published' && bidsStatus === 'success' && !hasAlreadyBid && canApplyToJobs,
+    completionPending,
+    // Review P2-478: the assigned helper can mark the job done.
+    canHelperComplete: isAssignedHelper && isHelper && job.status === 'in_progress' && !completionPending,
+    // Review P1-133: either party can close a completed job.
+    canClose: (isOwner || isAssignedHelper) && job.status === 'completed',
+    expiryDaysLeft: acceptedExpiryDaysLeft(job),
+    canSubmitBid: !isOwner && isHelper && BIDDABLE_JOB_STATUSES.includes(job.status) && bidsStatus === 'success' && !hasAlreadyBid && canApplyToJobs,
     canCancelBeforeAcceptance: isOwner && ['published', 'matched', 'negotiating'].includes(job.status),
     canCancelAfterAcceptance: (isOwner || (isAssignedHelper && isHelper)) && ['accepted', 'in_progress'].includes(job.status),
   };
+}
+
+// Review P1-132: days until the accepted-job auto-cancel (7 days after
+// acceptance unless work starts). null when not applicable.
+export const ACCEPTED_JOB_EXPIRY_DAYS = 7;
+export function acceptedExpiryDaysLeft(job, now = Date.now()) {
+  if (!job || job.status !== 'accepted' || !job.accepted_at || job.started_at) return null;
+  const acceptedMs = Date.parse(job.accepted_at);
+  if (!Number.isFinite(acceptedMs)) return null;
+  const elapsedDays = (now - acceptedMs) / 86_400_000;
+  return Math.max(0, Math.ceil(ACCEPTED_JOB_EXPIRY_DAYS - elapsedDays));
 }

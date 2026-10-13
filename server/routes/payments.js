@@ -13,6 +13,7 @@ const {
   getMyPayments,
   requestInstantPayout,
   disconnectConnectAccount,
+  getPayoutBalance,
   getInvestorSummary,
 } = require('../controllers/paymentController');
 const { errorHandler } = require('../middleware/errorHandler');
@@ -23,6 +24,7 @@ const requirePaymentsEnabled = requireFeatureEnabled('Payments', 'FEATURE_PAYMEN
 router.post('/connect', authenticate, requirePaymentsEnabled, connectAccountLimiter, createConnectAccount);
 router.get('/connect/status', authenticate, requirePaymentsEnabled, getConnectStatus);
 router.post('/connect/disconnect', authenticate, requirePaymentsEnabled, connectAccountLimiter, disconnectConnectAccount);
+router.get('/payout/balance', authenticate, requirePaymentsEnabled, getPayoutBalance);
 router.post('/payout/instant', authenticate, requirePaymentsEnabled, paymentsLimiter, requestInstantPayout);
 router.get('/investor-summary', authenticate, requireAdmin, getInvestorSummary);
 

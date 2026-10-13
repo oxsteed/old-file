@@ -7,6 +7,7 @@ const multer     = require('multer');
 const pool       = require('../db');
 const { authenticate } = require('../middleware/auth');
 const requireRole      = require('../middleware/requireRole');
+const { requireListingEligible } = require('../middleware/helperOnboardingMiddleware');
 const { generalLimiter } = require('../middleware/rateLimiter');
 const validateFileUpload = require('../middleware/validateFileUpload');
 const logger     = require('../utils/logger');
@@ -262,7 +263,7 @@ router.put('/visibility', helperOnly, generalLimiter, async (req, res) => {
 
 // ── PATCH /api/helper-profile/listing ─────────────────────────────────────────
 // Toggle the caller's own directory listing (draft/publish). Body: { is_listed: boolean }.
-router.patch('/listing', helperOnly, generalLimiter, async (req, res) => {
+router.patch('/listing', helperOnly, generalLimiter, requireListingEligible, async (req, res) => {
   try {
     const uid = req.user.id;
     const { is_listed } = req.body;

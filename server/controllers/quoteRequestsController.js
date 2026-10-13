@@ -1,6 +1,6 @@
 const db = require('../db');
 const logger = require('../utils/logger');
-const { sendEmail } = require('../utils/email');
+const { sendEmailOrThrow } = require('../utils/email');
 const escapeHtml = require('../utils/escapeHtml');
 const { renderOxSteedEmail } = require('../utils/emailTemplate');
 const {
@@ -136,7 +136,7 @@ async function notifySupport(request) {
     cta: { label: 'Open quote requests', url: '/dashboard' },
     footerText: 'This notification was sent to the OxSteed support team.',
   });
-  await sendEmail({
+  await sendEmailOrThrow({
     to: supportEmail,
     subject: `New OxSteed quote request from ${request.first_name} ${request.last_name}`,
     html: rendered.html,
@@ -167,7 +167,7 @@ async function sendConfirmationEmail(request) {
     ],
     cta: { label: 'View OxSteed', url: '/dashboard' },
   });
-  await sendEmail({
+  await sendEmailOrThrow({
     to: request.email,
     subject: 'We received your OxSteed quote request',
     html: rendered.html,
@@ -196,7 +196,7 @@ async function notifyCustomerOfQuote(request) {
       ],
       footerText: 'You are receiving this message because you have an OxSteed Direct request.',
     });
-    await sendEmail({
+    await sendEmailOrThrow({
       to: request.email,
       subject: `Your OxSteed quote is ready: ${amount}`,
       html: rendered.html,
@@ -490,7 +490,7 @@ exports.createQuoteRequest = async (req, res) => {
     try {
       await notifySupport(request);
     } catch (emailErr) {
-      logger.warn('Failed to notify support of quote request', {
+      logger.error('Failed to notify support of quote request', {
         quoteRequestId: request.id,
         error: emailErr.message,
       });
@@ -499,7 +499,7 @@ exports.createQuoteRequest = async (req, res) => {
     try {
       await sendConfirmationEmail(request);
     } catch (emailErr) {
-      logger.warn('Failed to send quote request confirmation', {
+      logger.error('Failed to send quote request confirmation', {
         quoteRequestId: request.id,
         error: emailErr.message,
       });

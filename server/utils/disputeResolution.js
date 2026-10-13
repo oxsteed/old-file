@@ -11,6 +11,7 @@ function mapResolutionToEscrowStatus(resolution) {
     'customer_wins': 'refunded',
     'split_resolution': 'split_refund',
     'helper_wins': 'released',
+    'dismissed': 'released',
     // default for any other value
   });
 

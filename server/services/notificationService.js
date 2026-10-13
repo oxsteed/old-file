@@ -223,6 +223,13 @@ exports.sendNotification = async ({
       'admin_warning',
       'oxsteed_credit_transaction', 'oxsteed_credit_card_security',
     ]);
+    // Review P3-845: money failures (and the ops alerts about them) must
+    // reach email too; they were missing from the allow-list, so they only
+    // ever produced an in-app row.
+    if (isMoneyCriticalEmailType(type)) {
+      if (!emailTypes.includes(type)) emailTypes.push(type);
+      transactionalEmailTypes.add(type);
+    }
     const emailAllowed = userEmail && emailTypes.includes(type)
       && (transactionalEmailTypes.has(type) ? true : !emailPrefOff)
       && !(unsubscribedAll && !transactionalEmailTypes.has(type));
@@ -259,6 +266,28 @@ exports.sendNotification = async ({
     return { success: false, error: err.message };
   }
 };
+
+// Review P3-845: notification types that report failed or reversed money
+// movement. They are transactional: the recipient cannot opt out by email
+// toggle, because each one asks them (or an operator) to act.
+const MONEY_CRITICAL_EMAIL_TYPES = new Set([
+  'payment_failed',
+  'payout_failed',
+  'refund',
+  'refund_failed',
+  'oxsteed_credit_withdrawal_failed',
+  'oxsteed_credit_withdrawal_paid_then_failed',
+  'oxsteed_credit_settlement_payout_failed',
+  'oxsteed_credit_chargeback_unlinked',
+  'oxsteed_credit_chargeback_terminal_conflict',
+  'restaurant_credit_failed_pos_payments',
+  'webhook_delivery_failed',
+]);
+const MONEY_CRITICAL_PATTERN = /^(oxsteed_credit|restaurant_credit|admin_audit)_[a-z_]*(failed|failure)$/;
+function isMoneyCriticalEmailType(type) {
+  const value = String(type || '');
+  return MONEY_CRITICAL_EMAIL_TYPES.has(value) || MONEY_CRITICAL_PATTERN.test(value);
+}
 
 // ─── PUSH NOTIFICATION (Expo) ─────────────────────────────────
 async function sendPushNotification(token, title, body, data, notifId) {
@@ -449,3 +478,4 @@ function isWithinQuietHours(startTime, endTime, enabled, timezone = 'UTC') {
     return nowMins >= startMin || nowMins < endMin;
   }
 }
+exports.isMoneyCriticalEmailType = isMoneyCriticalEmailType;

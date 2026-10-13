@@ -310,7 +310,9 @@ async function verifyAuthentication(req, res, next) {
     });
     if (!verification.verified) return res.status(401).json({ error: 'Passkey verification failed.' });
     const nextCounter = Number(verification.authenticationInfo.newCounter);
-    if (nextCounter <= Number(stored.counter)) return res.status(401).json({ error: 'Passkey counter validation failed.' });
+    // Review P1-111: synced passkeys (iCloud Keychain, Google Password Manager)
+    // always report counter 0; only enforce monotonicity once a counter is used.
+    if (Number(stored.counter) > 0 && nextCounter <= Number(stored.counter)) return res.status(401).json({ error: 'Passkey counter validation failed.' });
     await db.query(`UPDATE user_passkeys SET counter = $1, last_used_at = NOW() WHERE id = $2`, [nextCounter, stored.id]);
     // Parity with password login: if TOTP is enabled, require it.
     if (user.totp_enabled) {

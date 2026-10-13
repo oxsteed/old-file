@@ -196,7 +196,14 @@
     "next": "التالي",
     "scopeNote": "لكل منتج وحساب وعملة كشوفاته الخاصة. هذه سجلات حسابات ائتمانية وليست كشوفات مصرفية.",
     "correctionsUnavailable": "تصحيحات الحسابات عبر الإنترنت غير متاحة بعد لكشوف أرباح المساعدين أو كشوف الأعمال. لطلب المراجعة، تواصل مع الدعم واذكر الحساب وفترة الكشف.",
-    "contactSupport": "التواصل مع الدعم"
+    "contactSupport": "التواصل مع الدعم",
+    "entriesTitle": "المعاملات",
+    "showEntries": "عرض المعاملات",
+    "entriesLoading": "جارٍ تحميل المعاملات…",
+    "entriesError": "تعذر تحميل المعاملات.",
+    "entriesEmpty": "لا يحتوي هذا الكشف على معاملات.",
+    "investigate": "مراجعة أو إبلاغ",
+    "moreEntries": "عرض المزيد"
   },
   "statementInvestigation": {
     "title": "معاملة الكشف",
@@ -938,10 +945,10 @@
   "adminNoOutboundTransfers": "لا يُسمح بالتحويلات الصادرة",
   "adminCustomerReviews": "مراجعات العميل",
   "adminCreditDisputes": "نزاعات الائتمان",
-  "adminMediaOnly": "\u0646\u0632\u0627\u0639\u0627\u062a \u0645\u0646\u0634\u0626\u064a Media",
-  "adminMediaCreatorTip": "\u0625\u0643\u0631\u0627\u0645\u064a\u0629 \u0645\u0646\u0634\u0626 Media",
-  "adminMediaCreatorSponsorship": "\u0631\u0639\u0627\u064a\u0629 \u0645\u0646\u0634\u0626 Media",
-  "adminMediaPostBoost": "\u062a\u0639\u0632\u064a\u0632 \u0645\u0646\u0634\u0648\u0631 Media",
+  "adminMediaOnly": "نزاعات منشئي Media",
+  "adminMediaCreatorTip": "إكرامية منشئ Media",
+  "adminMediaCreatorSponsorship": "رعاية منشئ Media",
+  "adminMediaPostBoost": "تعزيز منشور Media",
   "adminNoCustomerDisputes": "لا توجد نزاعات ائتمانية مسجلة لهذا العميل.",
   "adminOxsteedCreditTransaction": "معاملة ائتمان OxSteed",
   "adminTransactionReference": "المعاملة {{id}} · فُتحت في {{date}}",
@@ -1951,5 +1958,11 @@
   "adminParticipantTypeProductSeller": "بائع المنتجات",
   "adminParticipantTypeRentalSeller": "بائع الإيجارات",
   "adminGuestCreditCaps": "حدود ائتمان الضيوف (سياسة ثابتة)",
-  "adminGuestCreditCapsDescription": "يمكن للضيوف إنفاق رصيد OxSteed حتى 25 دولارًا لكل طلب و50 دولارًا يوميًا و200 دولار مدى الحياة لكل جلسة. يتم تمويل إنفاق الضيوف من خزانة المنصة. هذه الحدود ثابتة وتنطبق على جميع المشاركين."
+  "adminGuestCreditCapsDescription": "يمكن للضيوف إنفاق رصيد OxSteed حتى 25 دولارًا لكل طلب و50 دولارًا يوميًا و200 دولار مدى الحياة لكل جلسة. يتم تمويل إنفاق الضيوف من خزانة المنصة. هذه الحدود ثابتة وتنطبق على جميع المشاركين.",
+  "walletTopup": {
+    "title": "إضافة رصيد",
+    "intro": "أضف رصيدًا إلى OxSteed Credit بالبطاقة. تتم إضافته بعد تأكيد الدفع.",
+    "credited": "تمت إضافة الرصيد إلى OxSteed Credit",
+    "invalidAmount": "أدخل {{min}} على الأقل."
+  }
 }

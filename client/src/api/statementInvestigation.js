@@ -1,16 +1,17 @@
 import api from './axios';
 
 // Statement transaction investigation endpoints. The router is mounted at
-// /api (see server/routes/statementInvestigation.js); the archive UI wires
-// drilldown links to the StatementTransactionView route.
+// /api (see server/routes/statementInvestigation.js); the axios client already
+// prefixes /api. The archive UI (StatementArchivePage) links each entry to the
+// StatementTransactionView route.
 function entryBase(documentId, entryId) {
   if (!documentId || !entryId) throw new Error('Invalid statement entry');
-  return `/api/statements/${encodeURIComponent(String(documentId))}/entries/${encodeURIComponent(String(entryId))}`;
+  return `/statements/${encodeURIComponent(String(documentId))}/entries/${encodeURIComponent(String(entryId))}`;
 }
 
 function documentBase(documentId) {
   if (!documentId) throw new Error('Invalid statement document');
-  return `/api/statements/${encodeURIComponent(String(documentId))}/entries`;
+  return `/statements/${encodeURIComponent(String(documentId))}/entries`;
 }
 
 export function listStatementEntries(documentId, { page = 1, pageSize = 25, signal } = {}) {

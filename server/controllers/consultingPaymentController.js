@@ -2,6 +2,7 @@ const db = require('../db');
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const logger = require('../utils/logger');
 const { processExternalRefund } = require('../services/externalRefundService');
+const { completeConsultingPaymentFromIntent } = require('../services/consultingPaymentService');
 
 // Get available consulting packages (public, for marketing pages)
 exports.getPackages = async (req, res) => {
@@ -69,10 +70,26 @@ exports.createPaymentIntent = async (req, res) => {
       [session.scheduled_id]
     );
     if (existingProcessing.length > 0) {
+      // Review P3-1067: let the owner resume the in-flight PaymentIntent
+      // instead of being stuck behind a 409 with no client secret.
+      const existing = existingProcessing[0];
+      if (existing.stripe_payment_intent_id) {
+        const livePi = await stripe.paymentIntents.retrieve(existing.stripe_payment_intent_id);
+        if (['requires_payment_method', 'requires_confirmation', 'requires_action'].includes(livePi.status)) {
+          return res.json({ clientSecret: livePi.client_secret, payment: { id: existing.id }, resumed: true });
+        }
+      }
       return res.status(409).json({
         error: 'Payment already in progress for this session',
-        paymentId: existingProcessing[0].id,
+        paymentId: existing.id,
       });
+    }
+    const { rows: paidRows } = await db.query(
+      `SELECT id FROM consulting_payments WHERE session_scheduled_id = $1 AND status = 'completed' LIMIT 1`,
+      [session.scheduled_id]
+    );
+    if (paidRows.length > 0) {
+      return res.status(409).json({ error: 'This session is already paid', code: 'already_paid', paymentId: paidRows[0].id });
     }
 
     // Get package details
@@ -102,6 +119,7 @@ exports.createPaymentIntent = async (req, res) => {
           sessionScheduledId: String(session.scheduled_id),
           packageId: String(pkg.id),
           userId: String(req.user.id),
+          consulting_payment: 'true',
         },
       },
       { idempotencyKey: `consulting:${session.scheduled_id}:${pkg.id}` }
@@ -153,78 +171,42 @@ exports.confirmPayment = async (req, res) => {
       return res.status(401).json({ error: 'Authentication required' });
     }
 
-    const { paymentId, stripePaymentIntentId } = req.body;
-
-    if (!paymentId || !stripePaymentIntentId) {
-      return res.status(400).json({ error: 'Payment ID and Stripe PI ID required' });
+    // Review P3-1067: the client knows its payment id; the PaymentIntent id
+    // is optional and, when sent, must match the stored one.
+    const { paymentId, stripePaymentIntentId } = req.body || {};
+    if (!paymentId) {
+      return res.status(400).json({ error: 'Payment ID required' });
     }
 
-    // Authorization: verify the payment belongs to a session the user owns (or admin).
     const { rows: ownership } = await db.query(
-      `SELECT cs.user_id, cp.amount_cents
+      `SELECT cs.user_id, cp.amount_cents, cp.stripe_payment_intent_id
        FROM consulting_payments cp
        JOIN consulting_sessions_scheduled css ON cp.session_scheduled_id = css.id
        JOIN consulting_sessions cs ON css.session_id = cs.id
-       WHERE cp.id = $1 AND cp.stripe_payment_intent_id = $2`,
-      [paymentId, stripePaymentIntentId]
+       WHERE cp.id = $1`,
+      [paymentId]
     );
-
-    if (ownership.length === 0) {
+    const owned = ownership[0];
+    if (!owned || !owned.stripe_payment_intent_id
+      || (stripePaymentIntentId && stripePaymentIntentId !== owned.stripe_payment_intent_id)) {
       return res.status(404).json({ error: 'Payment not found' });
     }
 
     const isAdmin = req.user.role === 'admin' || req.user.role === 'super_admin';
-    if (ownership[0].user_id !== req.user.id && !isAdmin) {
+    if (owned.user_id !== req.user.id && !isAdmin) {
       return res.status(403).json({ error: 'Not authorized for this payment' });
     }
 
-    // Verify with Stripe
-    const paymentIntent = await stripe.paymentIntents.retrieve(stripePaymentIntentId);
-    if (paymentIntent.status !== 'succeeded') {
-      return res.status(400).json({ error: 'Payment not completed' });
+    const paymentIntent = await stripe.paymentIntents.retrieve(owned.stripe_payment_intent_id);
+    const result = await completeConsultingPaymentFromIntent(paymentIntent, { paymentId });
+    if (result.status === 'not_succeeded') return res.status(400).json({ error: 'Payment not completed' });
+    if (result.status === 'mismatch') return res.status(409).json({ error: 'Payment amount or currency does not match this consulting payment.' });
+    if (result.status === 'not_found') return res.status(404).json({ error: 'Payment not found' });
+
+    if (result.status === 'completed') {
+      logger.info('Consulting payment completed', { paymentId, sessionScheduledId: result.row.session_scheduled_id });
     }
-    const expectedAmountCents = Number(ownership[0].amount_cents);
-    const paidAmountCents = Number(paymentIntent.amount_received ?? paymentIntent.amount);
-    const paidCurrency = String(paymentIntent.currency || '').toLowerCase();
-    if (!Number.isInteger(expectedAmountCents) || expectedAmountCents <= 0
-      || paidAmountCents !== expectedAmountCents || paidCurrency !== 'usd') {
-      logger.warn('Consulting payment amount or currency mismatch', {
-        paymentId,
-        stripePaymentIntentId,
-        expectedAmountCents,
-        paidAmountCents,
-        paidCurrency,
-      });
-      return res.status(409).json({ error: 'Payment amount or currency does not match this consulting payment.' });
-    }
-
-    // Conditional UPDATE: only transition processing → completed.
-    // If row was already 'completed', no rows are returned (no-op idempotency).
-    const { rows } = await db.query(
-      `UPDATE consulting_payments
-       SET status = 'completed', updated_at = NOW()
-       WHERE id = $1 AND status IN ('pending', 'processing')
-       RETURNING id, session_scheduled_id, amount_cents, service_tier, status, created_at, updated_at`,
-      [paymentId]
-    );
-
-    if (rows.length === 0) {
-      // Already completed - return current state idempotently.
-      const { rows: current } = await db.query(
-        `SELECT id, session_scheduled_id, amount_cents, service_tier, status, created_at, updated_at
-         FROM consulting_payments WHERE id = $1`,
-        [paymentId]
-      );
-      return res.json(current[0] || { id: paymentId, status: 'unknown' });
-    }
-
-    logger.info('Consulting payment completed', {
-      paymentId,
-      stripePaymentIntentId,
-      sessionScheduledId: rows[0].session_scheduled_id,
-    });
-
-    res.json(rows[0]);
+    res.json(result.row);
   } catch (err) {
     logger.error('Failed to confirm payment', { error: err.message });
     res.status(500).json({ error: 'Failed to confirm payment' });

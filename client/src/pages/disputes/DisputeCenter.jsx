@@ -107,6 +107,10 @@ export default function DisputeCenter() {
                 <MessageSquare size={17} aria-hidden="true" />
                 {t('disputes.center.openMessages')}
               </Link>
+              {/* P3-818: disputes are opened from the job they concern. */}
+              <Link to="/my-jobs" className="dispute-btn secondary">
+                {t('disputes.center.openFromJob')}
+              </Link>
               <Link to="/support/escalation" className="dispute-btn secondary">
                 {t('disputes.center.contactSupport')}
               </Link>

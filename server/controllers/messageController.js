@@ -3,6 +3,7 @@ const socketService = require('../services/socketService');
 const { broadcastGuestChatMessage } = socketService;
 const logger        = require('../utils/logger');
 const { sanitizeMessage, detectOffPlatformContact } = require('../utils/messageSanitizer');
+const contactMasking = require('../services/contactMaskingService');
 const { uploadFile, getSignedDownloadUrl, normalizeStorageKey } = require('../utils/storage');
 const { withTransaction } = require('../utils/transaction');
 const { verifyConversationAccess } = require('../utils/conversationAccess');
@@ -764,7 +765,7 @@ const sendMessage = async (req, res, next) => {
     }
 
     // Sanitize message to prevent XSS (also masks phone numbers in storage)
-    const content = sanitizeMessage(rawContent);
+    let content = sanitizeMessage(rawContent);
 
     // Off-platform contact deterrence: warn + mask, never block.
     const contactFlags = detectOffPlatformContact(rawContent);
@@ -804,6 +805,15 @@ const sendMessage = async (req, res, next) => {
       const conv = convResult.rows[0];
       if (conv.status === 'archived' || conv.archived_at) {
         throw new AppError('Conversation is archived', 409, 'conversation_archived');
+      }
+
+      // Contact details are hidden until a hire; gentle reminder after.
+      const masking = await contactMasking.evaluate(client, conv);
+      if (masking.mask && (warnings.length || contactMasking.hasContactDetails(rawContent))) {
+        content = contactMasking.maskContactDetails(content);
+        warnings.splice(0, warnings.length, 'contact_masked_before_hire');
+      } else if (masking.remind && warnings.length) {
+        warnings.splice(0, warnings.length, 'off_platform_reminder');
       }
 
       // Blocked users (either direction, including business reps) cannot

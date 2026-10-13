@@ -83,6 +83,7 @@ describe('M7 - consulting createPaymentIntent', () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [sessionRow] }) // session lookup
       .mockResolvedValueOnce({ rows: [] }) // fast-path guard: nothing processing
+      .mockResolvedValueOnce({ rows: [] }) // review P3-1067: not already paid
       .mockResolvedValueOnce({ rows: [packageRow] }) // package lookup
       .mockResolvedValueOnce({ rows: insertRows }); // atomic insert
   }
@@ -106,7 +107,7 @@ describe('M7 - consulting createPaymentIntent', () => {
     const createCall = stripeMock.paymentIntents.create.mock.calls[0];
     expect(createCall[1]).toEqual({ idempotencyKey: 'consulting:sched-1:pkg-9' });
 
-    const insertSql = mockQuery.mock.calls[3][0];
+    const insertSql = mockQuery.mock.calls[4][0];
     expect(insertSql).toMatch(/ON CONFLICT \(session_scheduled_id\)/);
     expect(insertSql).toMatch(/WHERE status IN \('pending', 'processing'\) DO NOTHING/);
 
@@ -126,7 +127,7 @@ describe('M7 - consulting createPaymentIntent', () => {
     const res = mockRes();
     await consultingPaymentController.createPaymentIntent(req, res);
 
-    expect(mockQuery).toHaveBeenCalledTimes(5);
+    expect(mockQuery).toHaveBeenCalledTimes(6);
     expect(res.status).toHaveBeenCalledWith(409);
     expect(res.json).toHaveBeenCalledWith({
       error: 'Payment already in progress for this session',
@@ -138,6 +139,8 @@ describe('M7 - consulting createPaymentIntent', () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [sessionRow] })
       .mockResolvedValueOnce({ rows: [{ id: 'pay-live', stripe_payment_intent_id: 'pi_live' }] });
+    // The in-flight intent is past the point a client can resume it.
+    stripeMock.paymentIntents.retrieve.mockResolvedValueOnce({ id: 'pi_live', status: 'processing' });
 
     const req = mockReq({ user: USER, body: { sessionId: 'sess-1', packageId: 'pkg-9' } });
     const res = mockRes();
@@ -148,6 +151,19 @@ describe('M7 - consulting createPaymentIntent', () => {
       error: 'Payment already in progress for this session',
       paymentId: 'pay-live',
     });
+    expect(stripeMock.paymentIntents.create).not.toHaveBeenCalled();
+  });
+});
+
+describe('Review P3-1067 - resume an in-flight consulting payment', () => {
+  test('returns the existing client secret when the intent still needs the customer', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ id: 'sess-1', user_id: 'user-1', scheduled_id: 'sched-1' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'pay-live', stripe_payment_intent_id: 'pi_live' }] });
+    stripeMock.paymentIntents.retrieve.mockResolvedValueOnce({ id: 'pi_live', status: 'requires_payment_method', client_secret: 'cs_live' });
+    const res = mockRes();
+    await consultingPaymentController.createPaymentIntent(mockReq({ user: { id: 'user-1', role: 'customer' }, body: { sessionId: 'sess-1', packageId: 'pkg-9' } }), res);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ clientSecret: 'cs_live', resumed: true }));
     expect(stripeMock.paymentIntents.create).not.toHaveBeenCalled();
   });
 });
