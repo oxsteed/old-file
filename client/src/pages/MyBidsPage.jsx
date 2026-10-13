@@ -6,6 +6,7 @@ import api from '../api/axios';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import PageMeta from '../components/PageMeta';
+import EditBidModal from '../components/jobs/EditBidModal';
 
 const BID_STATUS_FILTERS = ['all', 'pending', 'accepted', 'rejected', 'withdrawn'];
 
@@ -65,6 +66,7 @@ export default function MyBidsPage() {
   const [error, setError] = useState(false);
   const [filter, setFilter] = useState('all');
   const [withdrawing, setWithdrawing] = useState(null); // bid id currently being withdrawn
+  const [editingBid, setEditingBid] = useState(null);
 
   const fetchBids = useCallback(async () => {
     setLoading(true);
@@ -228,7 +230,7 @@ export default function MyBidsPage() {
             {displayed.map(bid => {
               const isAccepted = bid.status === 'accepted';
               const isPending  = bid.status === 'pending';
-              const jobStillOpen = bid.job_status === 'published' || bid.job_status === 'matched';
+              const jobStillOpen = ['published', 'matched', 'negotiating'].includes(bid.job_status);
               return (
                 <div
                   key={bid.id}
@@ -303,6 +305,15 @@ export default function MyBidsPage() {
                       )}
                       {isPending && jobStillOpen && (
                         <button
+                          type="button"
+                          onClick={() => setEditingBid(bid)}
+                          className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-gray-800 hover:bg-gray-700 text-orange-300 transition text-center"
+                        >
+                          {t('myBids.edit')}
+                        </button>
+                      )}
+                      {isPending && jobStillOpen && (
+                        <button
                           onClick={() => handleWithdraw(bid.id)}
                           disabled={withdrawing === bid.id}
                           className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-red-900/40 hover:bg-red-800/60 text-red-400 hover:text-red-300 border border-red-800/40 hover:border-red-700 transition disabled:opacity-50 disabled:cursor-not-allowed text-center"
@@ -318,6 +329,13 @@ export default function MyBidsPage() {
               );
             })}
           </div>
+        )}
+        {editingBid && (
+          <EditBidModal
+            bid={editingBid}
+            onClose={() => setEditingBid(null)}
+            onSaved={(saved) => setBids(prev => prev.map(b => (b.id === saved?.id ? { ...b, ...saved } : b)))}
+          />
         )}
       </main>
       <Footer />

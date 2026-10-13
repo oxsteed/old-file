@@ -4442,6 +4442,14 @@
     "whatHappensNextBody": "Once your job is live, helpers who match the location, category, and requirements can send bids. You can compare offers, ask follow-up questions, and hire when you are ready."
   },
   "jobDetail": {
+    "completionRequested": "Marked done. The customer has been asked to confirm.",
+    "jobClosed": "Job closed.",
+    "closeBlockedDispute": "Resolve the open dispute before closing this job.",
+    "closeBlockedPayment": "This job still has a payment in progress. Try again once it has settled.",
+    "completionPendingOwner": "Your helper marked this job done. Confirm completion or open a dispute. Payment is released automatically on {{date}}.",
+    "completionPendingHelper": "You marked this job done. Waiting for the customer to confirm; it confirms automatically if they don't respond.",
+    "helperMarkDone": "Mark job done",
+    "closeJob": "Close job",
     "openDispute": "Open a dispute",
     "disputeOpened": "Dispute opened. Our team and the other party have been notified.",
     "signWorkAgreement": "Review and sign the work agreement",
@@ -4648,6 +4656,14 @@
     "jobPayment": "Job payment"
   },
   "myJobs": {
+    "assignedTab": "Assigned to me",
+    "assignedSubtitle": "Jobs you were hired for",
+    "assignedLoading": "Loading assigned jobs…",
+    "assignedFailed": "Couldn't load your assigned jobs.",
+    "assignedRetry": "Try again",
+    "assignedPayouts": "Payouts",
+    "assignedEmpty": "No jobs are assigned to you yet.",
+    "assignedAwaitingConfirmation": "Awaiting customer confirmation",
     "cancelUndoNote": "You will have 5 seconds to undo after confirming.",
     "subtitle": "Jobs you have posted",
     "bids": "{{count}} bid(s)",
@@ -4693,8 +4709,15 @@
     "declineCounter": "Decline time",
     "counterAccepted": "Proposed time accepted.",
     "counterDeclined": "Proposed time declined.",
-    "errorCounterRespond": "Failed to respond to the proposed time"
-  },
+    "errorCounterRespond": "Failed to respond to the proposed time",
+    "assignedStatus": {
+      "accepted": "Accepted — not started",
+      "in_progress": "In progress",
+      "completed": "Completed",
+      "closed": "Closed",
+      "cancelled": "Cancelled"
+    }
+},
   "helpersDir": {
     "title": "Find a Local Helper",
     "subtitle": "Browse verified local helpers in your area",
@@ -13616,6 +13639,21 @@
     "cartCheckout": "Checkout"
   },
   "myBids": {
+    "edit": "Edit",
+    "editTitle": "Edit your bid",
+    "editAmount": "Price (USD)",
+    "editEta": "Estimated hours",
+    "editMessage": "Message to the customer",
+    "editCancel": "Cancel",
+    "editSave": "Save changes",
+    "editSaving": "Saving…",
+    "editSaved": "Bid updated.",
+    "editFailed": "Couldn't update the bid. Try again.",
+    "editClosed": "This bid can no longer be edited.",
+    "editAmountInvalid": "Enter a price greater than 0.",
+    "editAmountTooLarge": "That price is too large.",
+    "editEtaInvalid": "Enter hours between 0 and 10,000.",
+    "editMessageTooLong": "Keep the message under 2,000 characters.",
     "title": "My Bids",
     "subtitle": "Track the status of all your bids",
     "totalBids": "Total Bids",
@@ -30951,6 +30989,26 @@
     "managerCreateCodesBody": "Business owners create role-specific codes for the team in the Business Hub. If you manage a team and need to add someone, ask the owner for a code.",
     "managerTeamAccessStep1": "Ask the business owner for a code for the correct role.",
     "managerTroubleshootJoin": "If team members cannot join, ask the business owner for a fresh Vortex code for the correct role."
+  },
+  "helperPayouts": {
+    "title": "Payouts",
+    "loading": "Loading your balance…",
+    "loadFailed": "Couldn't load your payout balance.",
+    "retry": "Try again",
+    "notConnected": "Set up payouts to receive money for completed jobs.",
+    "setup": "Set up payouts",
+    "notEnabled": "Payouts aren't enabled yet. Finish your Stripe onboarding.",
+    "unconfigured": "Payouts aren't available in this environment.",
+    "available": "Available",
+    "pending": "Pending",
+    "instantAvailable": "Available for instant payout",
+    "limitNote": "Instant payouts are limited to {{max}} per request and one per day. Your bank may charge a fee.",
+    "requesting": "Requesting…",
+    "instantButton": "Pay out {{amount}} now",
+    "confirm": "Send {{amount}} to your bank now?",
+    "noBalance": "No balance is available for instant payout yet.",
+    "requested": "Instant payout of {{amount}} requested.",
+    "failed": "Couldn't request the payout. Try again later."
   },
   "jobEdit": {
     "editJob": "Edit job",

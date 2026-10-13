@@ -317,8 +317,9 @@ function validateBidRevision({ amount, message, eta_hours }) {
     if (!Number.isFinite(n) || n <= 0) fields.amount = 'Amount must be a positive number';
     else if (n > 10_000_000) fields.amount = 'Amount is too large';
   }
-  if (message !== undefined && message !== null && typeof message === 'string') {
-    if (message.trim().length === 0) fields.message = 'Message cannot be empty';
+  if (message !== undefined && message !== null) {
+    // Review P2-480: the edit path validates exactly like createBid.
+    if (typeof message !== 'string' || message.trim().length === 0) fields.message = 'Message cannot be empty';
     else if (message.length > 2000) fields.message = 'Message must be 2000 characters or fewer';
   }
   if (eta_hours !== undefined && eta_hours !== null && eta_hours !== '') {
@@ -335,7 +336,8 @@ function validateBidRevision({ amount, message, eta_hours }) {
  * explicit reconfirm endpoint.
  */
 async function reviseBid(req, { requireReconfirm }) {
-  const { amount, message, eta_hours } = req.body || {};
+  const { amount, message } = req.body || {};
+  const eta_hours = req.body?.eta_hours ?? req.body?.estimated_hours;
   validateBidRevision({ amount, message, eta_hours });
   const bidId = req.params.id;
   const userId = req.user.id;
@@ -363,7 +365,7 @@ async function reviseBid(req, { requireReconfirm }) {
     if (requireReconfirm && !stale) {
       throw new AppError('This bid already matches the latest job details.', 409, 'bid_already_current');
     }
-    if (stale && (job.deleted_at || !jobStatusPolicy.isBiddable(job.status))) {
+    if (job.deleted_at || !jobStatusPolicy.isBiddable(job.status)) {
       throw new AppError('Job is not accepting bids', 409, 'job_not_accepting_bids');
     }
     if (bid.expires_at && new Date(bid.expires_at).getTime() < Date.now()) {

@@ -151,7 +151,7 @@ describe('H1 requestInstantPayout', () => {
       return { rows: [], rowCount: 0 };
     });
     stripeMock.accounts.retrieve.mockResolvedValue({ charges_enabled: true, payouts_enabled: true, details_submitted: true, requirements: { currently_due: [] } });
-    stripeMock.balance.retrieve.mockResolvedValue({ available: [{ currency: 'usd', amount: 5000 }] });
+    stripeMock.balance.retrieve.mockResolvedValue({ available: [{ currency: 'usd', amount: 9000 }], instant_available: [{ currency: 'usd', amount: 5000 }] });
     stripeMock.payouts.create.mockResolvedValue({ id: 'po_123', status: 'pending' });
 
     const res = await request(payoutApp()).post('/payout');

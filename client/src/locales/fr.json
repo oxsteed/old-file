@@ -4442,6 +4442,14 @@
     "whatHappensNextBody": "Une fois l’annonce publiée, les prestataires correspondant au lieu, à la catégorie et aux exigences peuvent envoyer des offres. Comparez-les, posez des questions et engagez quelqu’un lorsque vous êtes prêt."
   },
   "jobDetail": {
+    "completionRequested": "Marqué comme terminé. Le client a été invité à confirmer.",
+    "jobClosed": "Travail clôturé.",
+    "closeBlockedDispute": "Résolvez le litige en cours avant de clôturer ce travail.",
+    "closeBlockedPayment": "Un paiement est encore en cours pour ce travail. Réessayez une fois qu'il est réglé.",
+    "completionPendingOwner": "Votre prestataire a marqué ce travail comme terminé. Confirmez ou ouvrez un litige. Le paiement sera libéré automatiquement le {{date}}.",
+    "completionPendingHelper": "Vous avez marqué ce travail comme terminé. En attente de la confirmation du client ; elle est automatique sans réponse.",
+    "helperMarkDone": "Marquer le travail terminé",
+    "closeJob": "Clôturer le travail",
     "openDispute": "Ouvrir un litige",
     "disputeOpened": "Litige ouvert. Notre équipe et l'autre partie ont été prévenues.",
     "signWorkAgreement": "Relire et signer l’accord de travail",
@@ -4648,6 +4656,14 @@
     "jobPayment": "Paiement de la mission"
   },
   "myJobs": {
+    "assignedTab": "Qui me sont attribués",
+    "assignedSubtitle": "Les travaux pour lesquels vous avez été engagé",
+    "assignedLoading": "Chargement des travaux attribués…",
+    "assignedFailed": "Impossible de charger vos travaux attribués.",
+    "assignedRetry": "Réessayer",
+    "assignedPayouts": "Versements",
+    "assignedEmpty": "Aucun travail ne vous est encore attribué.",
+    "assignedAwaitingConfirmation": "En attente de confirmation du client",
     "cancelUndoNote": "Vous aurez 5 secondes pour annuler après confirmation.",
     "subtitle": "Missions que vous avez publiées",
     "bids": "{{count}} offre(s)",
@@ -4693,8 +4709,15 @@
     "declineCounter": "Refuser l'horaire",
     "counterAccepted": "Horaire proposé accepté.",
     "counterDeclined": "Horaire proposé refusé.",
-    "errorCounterRespond": "Échec de la réponse à l'horaire proposé"
-  },
+    "errorCounterRespond": "Échec de la réponse à l'horaire proposé",
+    "assignedStatus": {
+      "accepted": "Accepté — non commencé",
+      "in_progress": "En cours",
+      "completed": "Terminé",
+      "closed": "Clôturé",
+      "cancelled": "Annulé"
+    }
+},
   "helpersDir": {
     "title": "Trouvez un prestataire local",
     "subtitle": "Parcourez les prestataires locaux vérifiés dans votre région",
@@ -13535,6 +13558,21 @@
     "cartCheckout": "Vérifier"
   },
   "myBids": {
+    "edit": "Modifier",
+    "editTitle": "Modifier votre offre",
+    "editAmount": "Prix (USD)",
+    "editEta": "Heures estimées",
+    "editMessage": "Message au client",
+    "editCancel": "Annuler",
+    "editSave": "Enregistrer",
+    "editSaving": "Enregistrement…",
+    "editSaved": "Offre mise à jour.",
+    "editFailed": "Impossible de mettre à jour l'offre. Réessayez.",
+    "editClosed": "Cette offre ne peut plus être modifiée.",
+    "editAmountInvalid": "Saisissez un prix supérieur à 0.",
+    "editAmountTooLarge": "Ce prix est trop élevé.",
+    "editEtaInvalid": "Saisissez un nombre d'heures entre 0 et 10 000.",
+    "editMessageTooLong": "Le message doit faire moins de 2 000 caractères.",
     "title": "Mes enchères",
     "subtitle": "Suivez le statut de toutes vos enchères",
     "totalBids": "Offres totales",
@@ -31036,6 +31074,26 @@
     "managerCreateCodesBody": "Les propriétaires d’entreprise créent des codes spécifiques à chaque rôle pour l’équipe dans le Business Hub. Si vous gérez une équipe et devez ajouter quelqu’un, demandez un code au propriétaire.",
     "managerTeamAccessStep1": "Demandez au propriétaire de l’entreprise un code pour le bon rôle.",
     "managerTroubleshootJoin": "Si les membres de l’équipe ne peuvent pas rejoindre, demandez au propriétaire un nouveau code Vortex pour le bon rôle."
+  },
+  "helperPayouts": {
+    "title": "Versements",
+    "loading": "Chargement de votre solde…",
+    "loadFailed": "Impossible de charger votre solde.",
+    "retry": "Réessayer",
+    "notConnected": "Configurez les versements pour recevoir l'argent des travaux terminés.",
+    "setup": "Configurer les versements",
+    "notEnabled": "Les versements ne sont pas encore activés. Terminez votre inscription Stripe.",
+    "unconfigured": "Les versements ne sont pas disponibles dans cet environnement.",
+    "available": "Disponible",
+    "pending": "En attente",
+    "instantAvailable": "Disponible en versement instantané",
+    "limitNote": "Les versements instantanés sont limités à {{max}} par demande et à un par jour. Votre banque peut facturer des frais.",
+    "requesting": "Demande en cours…",
+    "instantButton": "Verser {{amount}} maintenant",
+    "confirm": "Envoyer {{amount}} vers votre banque maintenant ?",
+    "noBalance": "Aucun solde n'est encore disponible pour un versement instantané.",
+    "requested": "Versement instantané de {{amount}} demandé.",
+    "failed": "Impossible de demander le versement. Réessayez plus tard."
   },
   "jobEdit": {
     "editJob": "Modifier la mission",

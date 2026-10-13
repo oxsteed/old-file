@@ -28,6 +28,7 @@ const T = {
     },
   },
   ...require('./localDeliveryNotifications').deliveryNotifications,
+  ...require('./jobLifecycleNotificationTemplates').jobLifecycleNotifications,
   work_agreement_signature_requested: {
     title: {
       en: 'Work agreement ready to sign',

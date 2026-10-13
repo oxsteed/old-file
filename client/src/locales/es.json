@@ -4442,6 +4442,14 @@
     "whatHappensNextBody": "Cuando el trabajo esté activo, los ayudantes que coincidan con la ubicación, categoría y requisitos podrán enviar ofertas. Puedes comparar propuestas, hacer preguntas y contratar cuando estés listo."
   },
   "jobDetail": {
+    "completionRequested": "Marcado como terminado. Se pidió al cliente que lo confirme.",
+    "jobClosed": "Trabajo cerrado.",
+    "closeBlockedDispute": "Resuelve la disputa abierta antes de cerrar este trabajo.",
+    "closeBlockedPayment": "Este trabajo aún tiene un pago en curso. Inténtalo de nuevo cuando se complete.",
+    "completionPendingOwner": "Tu ayudante marcó este trabajo como terminado. Confirma o abre una disputa. El pago se libera automáticamente el {{date}}.",
+    "completionPendingHelper": "Marcaste este trabajo como terminado. Esperando la confirmación del cliente; se confirma automáticamente si no responde.",
+    "helperMarkDone": "Marcar trabajo terminado",
+    "closeJob": "Cerrar trabajo",
     "openDispute": "Abrir una disputa",
     "disputeOpened": "Disputa abierta. Notificamos a nuestro equipo y a la otra parte.",
     "signWorkAgreement": "Revisa y firma el acuerdo de trabajo",
@@ -4648,6 +4656,14 @@
     "jobPayment": "Pago del trabajo"
   },
   "myJobs": {
+    "assignedTab": "Asignados a mí",
+    "assignedSubtitle": "Trabajos para los que te contrataron",
+    "assignedLoading": "Cargando trabajos asignados…",
+    "assignedFailed": "No se pudieron cargar tus trabajos asignados.",
+    "assignedRetry": "Intentar de nuevo",
+    "assignedPayouts": "Pagos",
+    "assignedEmpty": "Aún no tienes trabajos asignados.",
+    "assignedAwaitingConfirmation": "Esperando confirmación del cliente",
     "cancelUndoNote": "Tendrás 5 segundos para deshacerlo después de confirmar.",
     "subtitle": "Trabajos que has publicado",
     "bids": "{{count}} oferta(s)",
@@ -4693,8 +4709,15 @@
     "declineCounter": "Rechazar hora",
     "counterAccepted": "Hora propuesta aceptada.",
     "counterDeclined": "Hora propuesta rechazada.",
-    "errorCounterRespond": "No se pudo responder a la hora propuesta"
-  },
+    "errorCounterRespond": "No se pudo responder a la hora propuesta",
+    "assignedStatus": {
+      "accepted": "Aceptado — sin iniciar",
+      "in_progress": "En curso",
+      "completed": "Completado",
+      "closed": "Cerrado",
+      "cancelled": "Cancelado"
+    }
+},
   "helpersDir": {
     "title": "Encuentra un ayudante local",
     "subtitle": "Explora ayudantes locales verificados en tu área",
@@ -13535,6 +13558,21 @@
     "cartCheckout": "Verificar"
   },
   "myBids": {
+    "edit": "Editar",
+    "editTitle": "Edita tu oferta",
+    "editAmount": "Precio (USD)",
+    "editEta": "Horas estimadas",
+    "editMessage": "Mensaje para el cliente",
+    "editCancel": "Cancelar",
+    "editSave": "Guardar cambios",
+    "editSaving": "Guardando…",
+    "editSaved": "Oferta actualizada.",
+    "editFailed": "No se pudo actualizar la oferta. Inténtalo de nuevo.",
+    "editClosed": "Esta oferta ya no se puede editar.",
+    "editAmountInvalid": "Ingresa un precio mayor que 0.",
+    "editAmountTooLarge": "Ese precio es demasiado alto.",
+    "editEtaInvalid": "Ingresa horas entre 0 y 10.000.",
+    "editMessageTooLong": "El mensaje debe tener menos de 2.000 caracteres.",
     "title": "Mis ofertas",
     "subtitle": "Realice un seguimiento del estado de todas sus ofertas",
     "totalBids": "Ofertas totales",
@@ -31036,6 +31074,26 @@
     "managerCreateCodesBody": "Los propietarios de negocios crean códigos específicos por rol para el equipo en el Business Hub. Si gestionas un equipo y necesitas agregar a alguien, pide un código al propietario.",
     "managerTeamAccessStep1": "Pide al propietario del negocio un código para el rol correcto.",
     "managerTroubleshootJoin": "Si los miembros del equipo no pueden unirse, pida al propietario del negocio un nuevo código Vortex para el rol correcto."
+  },
+  "helperPayouts": {
+    "title": "Pagos",
+    "loading": "Cargando tu saldo…",
+    "loadFailed": "No se pudo cargar tu saldo de pagos.",
+    "retry": "Intentar de nuevo",
+    "notConnected": "Configura los pagos para recibir dinero por trabajos completados.",
+    "setup": "Configurar pagos",
+    "notEnabled": "Los pagos aún no están habilitados. Completa tu registro en Stripe.",
+    "unconfigured": "Los pagos no están disponibles en este entorno.",
+    "available": "Disponible",
+    "pending": "Pendiente",
+    "instantAvailable": "Disponible para pago instantáneo",
+    "limitNote": "Los pagos instantáneos están limitados a {{max}} por solicitud y uno por día. Tu banco puede cobrar una comisión.",
+    "requesting": "Solicitando…",
+    "instantButton": "Cobrar {{amount}} ahora",
+    "confirm": "¿Enviar {{amount}} a tu banco ahora?",
+    "noBalance": "Aún no hay saldo disponible para pago instantáneo.",
+    "requested": "Se solicitó un pago instantáneo de {{amount}}.",
+    "failed": "No se pudo solicitar el pago. Inténtalo más tarde."
   },
   "jobEdit": {
     "editJob": "Editar trabajo",
