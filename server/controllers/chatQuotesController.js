@@ -1136,6 +1136,20 @@ exports.scheduleFromQuote = async (req, res, next) => {
     }
     if (!helperId) return bad(res, 400, 'Could not resolve helper for booking', 'validation_failed');
 
+    // Review P1-6-F03: the helper's "allow booking" privacy switch must be
+    // enforced on quote-schedule too. Skipped for business quotes the same
+    // way bookingController does: business bookings follow the business's
+    // own listing state instead of the helper's privacy switch.
+    if (kind === 'helper' && !businessId) {
+      const prefRes = await pool.query(
+        'SELECT COALESCE(allow_booking, TRUE) AS allow_booking FROM helper_profiles WHERE user_id = $1',
+        [helperId],
+      );
+      if (prefRes.rows[0] && prefRes.rows[0].allow_booking === false) {
+        return bad(res, 403, 'This helper is not taking bookings right now', 'BOOKING_DISABLED');
+      }
+    }
+
     // A quote schedule commits to a concrete time: verify it is truly free
     // before the request exists (skipped for idempotent replays).
     if (!replayed) {

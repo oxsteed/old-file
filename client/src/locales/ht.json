@@ -9304,6 +9304,7 @@
       "slotBookingToast": "Demann rezèvasyon voye, founisè a toujou bezwen konfime.",
       "slotBookingFailed": "Pa t kapab kreye demann rezèvasyon an. Mesaj chat la te prepare kanmenm.",
       "slotBookingConflict": "Lè sa a pa disponib ankò. Chwazi yon lòt.",
+      "slotBookingDisabled": "Edan sa a pa pran rezèvasyon pou kounye a.",
       "guestSessionExpired": "Sesyon envite ou a ekspire. Tanpri verifye imèl ou ankò.",
       "slotBookingConfirmedPlain": "Demann rezèvasyon voye · {{when}}",
       "guestOtpExpired": "Kòd sa a ekspire. Peze Voye kòd ankò pou jwenn yon nouvo.",

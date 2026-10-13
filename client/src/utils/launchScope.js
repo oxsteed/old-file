@@ -135,7 +135,13 @@ export function getLaunchRedirect(pathname = '/') {
   const specialtyMatch = normalizedPath.match(
     /^\/business\/([^/]+)\/(?:maintenance-request|trades-request|beauty-intake|creative-intake|professional-intake|continuity-intake|ai-preview)(?:\/|$)/,
   );
-  if (specialtyMatch) return `/business/${specialtyMatch[1]}`;
+  // Review P2-9-F11: the specialty template-intake pages are launch-gated by
+  // specializedProfileTemplates (BusinessProfilePage only links them when the
+  // flag is on). Bounce them to the business profile only while the flag is
+  // off; when launched, the pages must be reachable.
+  if (specialtyMatch && !LAUNCH_VISIBILITY.specializedProfileTemplates) {
+    return `/business/${specialtyMatch[1]}`;
+  }
   if (matchesPathPrefix(normalizedPath, '/dashboard/ai-preview')) return '/dashboard';
 
   // The affiliate dashboard is launch-gated: while affiliateRewards is off,

@@ -15,6 +15,7 @@ const {
 const { chatLimiter, profileChatLimiter, authLimiter, paymentsLimiter } = require('../middleware/rateLimiter');
 const { authenticate } = require('../middleware/auth');
 const { rejectImpersonated } = require('../middleware/rejectImpersonated');
+const checkRestrictions = require('../middleware/checkRestrictions');
 const upload = require('../middleware/upload');
 const validateFileUpload = require('../middleware/validateFileUpload');
 const logger = require('../utils/logger');
@@ -142,7 +143,8 @@ router.post('/quotes/:kind/:id/schedule', chatLimiter, optionalAuth, chatQuotes.
 
 
 // ── In-chat OxSteed Credit payments ──────────────────────────────────────────
-router.post('/payments/oxsteed-credit', chatLimiter, authenticate, paymentsLimiter, rejectImpersonated, chatCreditPay.payWithOxsteedCredit);
+// Review P2-7-F07: in-chat OxSteed Credit payments are a checkout surface.
+router.post('/payments/oxsteed-credit', chatLimiter, authenticate, checkRestrictions('checkout'), paymentsLimiter, rejectImpersonated, chatCreditPay.payWithOxsteedCredit);
 router.post('/payments/request', chatLimiter, authenticate, chatCreditPay.requestPayment);
 router.get('/payments/request/:id', chatLimiter, authenticate, chatCreditPay.getPaymentRequest);
 router.post('/payments/:id/refund', chatLimiter, authenticate, paymentsLimiter, rejectImpersonated, chatCreditPay.refundChatCreditPayment);

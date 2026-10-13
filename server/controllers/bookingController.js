@@ -981,6 +981,16 @@ exports.createRecurringBooking = async (req, res) => {
       return sendError(res, 400, 'User is not accepting recurring services', 'INVALID_HELPER');
     }
 
+    // Review P1-6-F03: recurring subscriptions create bookings on an ongoing
+    // basis, so the helper's "allow booking" privacy switch applies here too.
+    const prefRes = await pool.query(
+      'SELECT COALESCE(allow_booking, TRUE) AS allow_booking FROM helper_profiles WHERE user_id = $1',
+      [helper_id]
+    );
+    if (prefRes.rows[0] && prefRes.rows[0].allow_booking === false) {
+      return sendError(res, 403, 'This helper is not taking bookings right now', 'BOOKING_DISABLED');
+    }
+
     const nextDate = nextDateForPreferredDay(preferred_day);
     const result = await pool.query(
       `INSERT INTO recurring_booking_subscriptions

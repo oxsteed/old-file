@@ -6,22 +6,18 @@ const { authenticate } = require('../middleware/auth');
 const requireEmailVerified = require('../middleware/requireEmailVerified');
 const { requireHelperStep } = require('../middleware/helperOnboardingMiddleware');
 const { authLimiter } = require('../middleware/rateLimiter');
-const upload = require('../middleware/upload');
-const validateFileUpload = require('../middleware/validateFileUpload');
 
 const {
   startRegistration,
   verifyOTP,
   resendOTP,
   getCategories,
-  saveTier,
   saveW9,
   acceptTerms,
   acceptPendingTerms,
   finalizeRegistration,
   submitOnboardingProfile,
   submitBackgroundCheck,
-  uploadProfilePhoto,
   getOnboardingStatus
 } = require('../controllers/helperRegistrationController');
 
@@ -37,7 +33,14 @@ router.post('/complete',    authLimiter, (_req, res) => res.status(410).json({
   error: 'This step is no longer used. Verify your code to finish creating your account.',
   code: 'endpoint_retired',
 }));
-router.post('/tier',        authenticate, saveTier);
+// Review P2-2-F08/P2-7-F05: POST /tier was a dead endpoint with no UI
+// caller. Tier selection is not part of the redesigned onboarding (W6);
+// finalizeRegistration does not require it and membership_tier is managed
+// by admins. Retired with 410 Gone rather than left as dead surface.
+router.post('/tier',        authenticate, (_req, res) => res.status(410).json({
+  error: 'Tier selection is no longer part of helper onboarding.',
+  code: 'endpoint_retired',
+}));
 router.post('/w9',          authenticate, saveW9);
 router.post('/accept-terms', authenticate, acceptTerms);
 // Review P2-477: records the signup checkbox against the pending registration
@@ -50,9 +53,13 @@ router.post('/finalize',    authenticate, requireHelperStep('finalize'), finaliz
 // superseded by PUT /onboarding/profile (which sets both profile_completed
 // and contact_completed); removed.
 
-// Authenticated - photo (the retired wizard's Step4 profile/contact split is
-// gone; PUT /onboarding/profile is the supported profile step)
-router.post('/profile-photo', authenticate, requireEmailVerified, upload.single('photo'), validateFileUpload, uploadProfilePhoto);
+// Review P2-2-F08/P2-7-F05: POST /profile-photo has no UI caller and was
+// superseded by PUT /api/helper-profile/photo (client-side upload flow).
+// Retired with 410 Gone rather than left as dead surface.
+router.post('/profile-photo', authenticate, (_req, res) => res.status(410).json({
+  error: 'Profile photo upload moved. Update your photo from your helper profile.',
+  code: 'endpoint_retired',
+}));
 
 // Authenticated + onboarding gated + email verified
 router.put('/onboarding/profile',

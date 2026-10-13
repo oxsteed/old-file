@@ -9,11 +9,10 @@ const { sendOTPEmail } = require('../utils/email');
 const { encrypt, hashTIN, maskTIN, hashIP } = require('../utils/encryption');
 const { TERMS_CONFIG } = require('../constants/termsConfig');
 const { trialDefaults, hasProAccess } = require('../utils/trial');
-const { uploadFile, getPublicUrl } = require('../utils/storage');
 const { validate, rules } = require('../utils/validate');
 const countriesUtil = require('../utils/countries');
 const logger = require('../utils/logger');
-const { ONBOARDING_COLUMNS, isIdentityVerified, deriveHelperOnboarding } = require('../services/helperOnboarding');
+const { ONBOARDING_COLUMNS, deriveHelperOnboarding } = require('../services/helperOnboarding');
 const TERMS_IP_HASH_MAX_LEN = 45;
 const SUPPORTED_LANGUAGE_CODES = new Set(['en', 'es', 'fr', 'ht', 'ar']);
 
@@ -544,117 +543,7 @@ async function getOnboardingStatus(req, res) {
 
 
 
-// ── 11. Upload Profile Photo ───────────────────────────
-// POST /api/helper-registration/profile-photo
-async function uploadProfilePhoto(req, res) {
-  try {
-    const userId = req.user.id;
-    if (!req.file) return res.status(400).json({ error: 'No photo uploaded' });
-
-    const allowedMime = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
-    if (!allowedMime.includes(req.file.mimetype)) {
-      return res.status(400).json({ error: 'Only JPEG, PNG, WebP, or GIF images allowed' });
-    }
-
-    // Upload to S3; fall back to base64 data-URL only if S3 is not configured
-    let photoUrl;
-    const s3Key = await uploadFile(req.file.buffer, 'avatars', req.file.originalname, req.file.mimetype);
-    if (s3Key) {
-      photoUrl = getPublicUrl(s3Key);
-    } else {
-      // S3 not configured - store compact base64 for dev/staging only
-      photoUrl = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
-    }
-
-    await pool.query(
-      'UPDATE users SET profile_photo_url = $1, avatar_url = $1 WHERE id = $2',
-      [photoUrl, userId]
-    );
-    await pool.query(
-      `INSERT INTO helper_profiles (user_id, profile_photo_url)
-       VALUES ($1, $2)
-       ON CONFLICT (user_id) DO UPDATE SET profile_photo_url = $2, updated_at = NOW()`,
-      [userId, photoUrl]
-    );
-    res.json({ message: 'Photo uploaded', photoUrl });
-  } catch (err) {
-    logger.error('uploadProfilePhoto error:', { err });
-    res.status(500).json({ error: 'Photo upload failed' });
-  }
-}
-
-// ── 12. Save selected tier ──────────────────────────────
-// POST /api/helper-registration/tier
-async function saveTier(req, res) {
-  let client;
-  try {
-    const userId = req.user.id;
-    const { tier } = req.body;
-    const allowed = new Set(['free', 'basic', 'pro', 'tier1', 'tier2']);
-    if (!allowed.has(String(tier || ''))) {
-      return res.status(400).json({ error: 'Invalid tier selection' });
-    }
-
-    // Normalize to canonical tier values: 'tier1' (free) or 'tier2' (paid)
-    const normalized = (tier === 'pro' || tier === 'basic' || tier === 'tier2') ? 'tier2' : 'tier1';
-
-    // ── SECURITY: Prevent tier upgrade bypass ────────────────────────────
-    // Users must complete identity verification before upgrading to paid tier.
-    // Fetch fresh DB state (not stale JWT) to prevent race conditions.
-    if (normalized === 'tier2') {
-      client = await pool.connect();
-      const { rows } = await client.query(
-        'SELECT id_verified, identity_verified, didit_status FROM users WHERE id = $1 AND role = $2 FOR UPDATE',
-        [userId, 'helper']
-      );
-      if (!rows.length) {
-        client.release();
-        return res.status(404).json({ error: 'Helper account not found' });
-      }
-      if (!isIdentityVerified(rows[0])) {
-        client.release();
-        return res.status(403).json({
-          error: 'Onboarding incomplete',
-          message: 'Complete identity verification before upgrading to paid tier',
-          required_step: 'id_verified'
-        });
-      }
-      client.release();
-      client = null;
-    }
-
-    // Update with canonical tier representation in both tables
-    const { rows: updateRows } = await pool.query(
-      `UPDATE users
-       SET tier_selected   = TRUE,
-           membership_tier = $1,
-           updated_at      = NOW()
-       WHERE id = $2 AND role = 'helper'
-       RETURNING id`,
-      [normalized, userId]
-    );
-    if (updateRows.length === 0) {
-      return res.status(404).json({ error: 'Helper account not found' });
-    }
-
-    await pool.query(
-      `INSERT INTO helper_profiles (user_id, tier)
-       VALUES ($1, $2)
-       ON CONFLICT (user_id) DO UPDATE SET tier = $2, updated_at = NOW()`,
-      [userId, normalized]
-    );
-
-    return res.json({ message: 'Tier saved', membership_tier: normalized });
-  } catch (err) {
-    if (client) {
-      try { client.release(); } catch (_) { /* ignore */ }
-    }
-    logger.error('saveTier error:', { err });
-    return res.status(500).json({ error: 'Failed to save tier' });
-  }
-}
-
-// ── 13. Save W9 information ────────────────────────────
+// ── 11. Save W9 information ────────────────────────────
 // POST /api/helper-registration/w9
 async function saveW9(req, res) {
   try {
@@ -703,7 +592,7 @@ async function saveW9(req, res) {
   }
 }
 
-// ── 14. Accept terms ──────────────────────────────────
+// ── 12. Accept terms ──────────────────────────────────
 // POST /api/helper-registration/accept-terms
 async function acceptTerms(req, res) {
   try {
@@ -764,7 +653,7 @@ async function acceptPendingTerms(req, res) {
   }
 }
 
-// ── 15. Finalize helper onboarding ──────────────────────
+// ── 13. Finalize helper onboarding ──────────────────────
 // POST /api/helper-registration/finalize
 async function finalizeRegistration(req, res) {
   try {
@@ -801,8 +690,6 @@ module.exports = {
   submitOnboardingProfile,
   submitBackgroundCheck,
   getOnboardingStatus,
-  uploadProfilePhoto,
-  saveTier,
   saveW9,
   acceptTerms,
   acceptPendingTerms,

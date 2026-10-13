@@ -9304,6 +9304,7 @@
       "slotBookingToast": "Demande de réservation envoyée, le prestataire doit encore confirmer.",
       "slotBookingFailed": "Impossible de créer la demande de réservation. Le message du chat a tout de même été préparé.",
       "slotBookingConflict": "Ce créneau n’est plus disponible. Choisissez-en un autre.",
+      "slotBookingDisabled": "Cet aidant n’accepte pas de réservations pour le moment.",
       "guestSessionExpired": "Votre session invité a expiré. Veuillez vérifier votre e-mail à nouveau.",
       "slotBookingConfirmedPlain": "Demande de réservation envoyée · {{when}}",
       "guestOtpExpired": "Ce code a expiré. Appuyez sur Renvoyer le code pour en obtenir un nouveau.",

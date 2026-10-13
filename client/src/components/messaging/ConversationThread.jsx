@@ -702,6 +702,8 @@ export default function ConversationThread({
                   );
                 } else if (code === 'conflict') {
                   toast.error(t('helperProfile.messenger.slotBookingConflict'));
+                } else if (code === 'BOOKING_DISABLED' || code === 'booking_disabled') {
+                  toast.error(t('helperProfile.messenger.slotBookingDisabled'));
                 } else {
                   toast.error(t('helperProfile.messenger.slotBookingFailed'));
                 }

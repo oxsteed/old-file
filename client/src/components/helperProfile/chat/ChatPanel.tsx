@@ -1870,7 +1870,9 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
                   toast.error(
                     code === 'conflict'
                       ? t('helperProfile.messenger.slotBookingConflict')
-                      : t('helperProfile.messenger.slotBookingFailed'),
+                      : code === 'BOOKING_DISABLED' || code === 'booking_disabled'
+                        ? t('helperProfile.messenger.slotBookingDisabled')
+                        : t('helperProfile.messenger.slotBookingFailed'),
                   );
                   return;
                 }

@@ -125,7 +125,9 @@ router.post('/restaurants/:restaurantId/customer-wallet-holds/:holdId/release', 
 // payment intent id.
 // Review P3-1095: card intents carry the per-user payments budget
 // (creditPurchaseLimiter skips every non-credit body).
-router.post('/card-payment/intent', authenticate, paymentsLimiter, ctrl.createCardPaymentIntent);
+// Review P2-7-F07: in-checkout card payments are a checkout surface; honor
+// admin checkout restrictions like the other payment-intent routes.
+router.post('/card-payment/intent', authenticate, checkRestrictions('checkout'), paymentsLimiter, ctrl.createCardPaymentIntent);
 router.get('/payment-methods', authenticate, ctrl.listSavedPaymentMethods);
 router.post('/restaurants/:restaurantId/orders', optionalAuth, creditPurchaseLimiter, ctrl.createOrder);
 
