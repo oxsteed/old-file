@@ -14,7 +14,9 @@ class PayoutController {
   // Get all payouts for a helper
   static async getPayouts(req, res) {
     try {
-      const { helper_id } = req.user;
+      // Review P3-786: auth never sets req.user.helper_id; payout methods and
+      // affiliate programs key on the user id.
+      const helper_id = req.user?.id;
       const { status, period_start, period_end, limit = 20, offset = 0 } = req.query;
 
       let query = `
@@ -28,8 +30,9 @@ class PayoutController {
           u.last_name
         FROM affiliate_payouts ap
         LEFT JOIN payout_methods pm ON ap.payout_method_id = pm.id
-        LEFT JOIN users u ON ap.helper_id = u.id
-        WHERE ap.helper_id = $1
+        LEFT JOIN affiliate_programs apg ON apg.id = ap.affiliate_program_id
+        LEFT JOIN users u ON apg.helper_id = u.id
+        WHERE ap.affiliate_program_id IN (SELECT id FROM affiliate_programs WHERE helper_id = $1)
       `;
 
       const params = [helper_id];
@@ -67,8 +70,8 @@ class PayoutController {
           SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed_count,
           SUM(CASE WHEN status = 'completed' THEN net_payout_cents ELSE 0 END) as total_paid_cents,
           SUM(CASE WHEN status IN ('pending', 'processing') THEN net_payout_cents ELSE 0 END) as total_pending_cents
-        FROM affiliate_payouts
-        WHERE helper_id = $1
+        FROM affiliate_payouts ap
+        WHERE ap.affiliate_program_id IN (SELECT id FROM affiliate_programs WHERE helper_id = $1)
       `;
 
       const statsResult = await pool.query(statsQuery, [helper_id]);
@@ -89,7 +92,9 @@ class PayoutController {
   static async getPayout(req, res) {
     try {
       const { payout_id } = req.params;
-      const { helper_id } = req.user;
+      // Review P3-786: auth never sets req.user.helper_id; payout methods and
+      // affiliate programs key on the user id.
+      const helper_id = req.user?.id;
 
       const query = `
         SELECT
@@ -101,7 +106,7 @@ class PayoutController {
           pm.stripe_account_id
         FROM affiliate_payouts ap
         LEFT JOIN payout_methods pm ON ap.payout_method_id = pm.id
-        WHERE ap.id = $1 AND ap.helper_id = $2
+        WHERE ap.id = $1 AND ap.affiliate_program_id IN (SELECT id FROM affiliate_programs WHERE helper_id = $2)
       `;
 
       const result = await pool.query(query, [payout_id, helper_id]);
@@ -148,7 +153,9 @@ class PayoutController {
   // List payout methods
   static async getPayoutMethods(req, res) {
     try {
-      const { helper_id } = req.user;
+      // Review P3-786: auth never sets req.user.helper_id; payout methods and
+      // affiliate programs key on the user id.
+      const helper_id = req.user?.id;
 
       const query = `
         SELECT *
@@ -172,11 +179,16 @@ class PayoutController {
   // Create payout method
   static async createPayoutMethod(req, res) {
     try {
-      const { helper_id } = req.user;
+      // Review P3-786: auth never sets req.user.helper_id; payout methods and
+      // affiliate programs key on the user id.
+      const helper_id = req.user?.id;
       const { method_type, account_holder_name, bank_name, account_last_four, routing_number_last_four, account_type, paypal_email } = req.body;
 
       if (!method_type) {
         return sendValidationError(res, { method_type: 'Required' });
+      }
+      if (!['bank_account', 'paypal', 'stripe_connect'].includes(method_type)) {
+        return sendValidationError(res, { method_type: 'Must be bank_account, paypal or stripe_connect' });
       }
 
       const query = `
@@ -214,7 +226,9 @@ class PayoutController {
   static async updatePayoutMethod(req, res) {
     try {
       const { method_id } = req.params;
-      const { helper_id } = req.user;
+      // Review P3-786: auth never sets req.user.helper_id; payout methods and
+      // affiliate programs key on the user id.
+      const helper_id = req.user?.id;
       const { is_primary, status } = req.body;
 
       // Review P2-616: verification is set only by the payout processor or an
@@ -268,7 +282,9 @@ class PayoutController {
   static async deletePayoutMethod(req, res) {
     try {
       const { method_id } = req.params;
-      const { helper_id } = req.user;
+      // Review P3-786: auth never sets req.user.helper_id; payout methods and
+      // affiliate programs key on the user id.
+      const helper_id = req.user?.id;
 
       const query = `
         DELETE FROM payout_methods
@@ -294,7 +310,9 @@ class PayoutController {
   // Get payout statistics
   static async getPayoutStats(req, res) {
     try {
-      const { helper_id } = req.user;
+      // Review P3-786: auth never sets req.user.helper_id; payout methods and
+      // affiliate programs key on the user id.
+      const helper_id = req.user?.id;
       // C2: validate days as a positive integer before it reaches SQL.
       const days = Math.min(Math.max(parseInt(req.query.days, 10) || 30, 1), 3650);
 
@@ -306,8 +324,8 @@ class PayoutController {
           AVG(CASE WHEN status = 'completed' THEN net_payout_cents ELSE NULL END) / 100.0 as average_payout,
           MAX(CASE WHEN status = 'completed' THEN period_end ELSE NULL END) as last_payout_date,
           COUNT(DISTINCT CASE WHEN created_at >= NOW() - make_interval(days => $2) THEN id ELSE NULL END) as payouts_this_period
-        FROM affiliate_payouts
-        WHERE helper_id = $1
+        FROM affiliate_payouts ap
+        WHERE ap.affiliate_program_id IN (SELECT id FROM affiliate_programs WHERE helper_id = $1)
       `;
 
       const result = await pool.query(query, [helper_id, days]);

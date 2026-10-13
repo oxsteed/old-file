@@ -534,6 +534,24 @@ const creditMutationLimiter = rateLimit({
   },
 });
 
+// Job edits: per-user bucket so edit spam (bumping, bait-and-switch probing)
+// cannot run unbounded. Material edits with bids are further capped per job
+// per day in services/jobEditService.js.
+const jobEditLimiter = rateLimit({
+  ...createStoreOption('rl:job_edit:'),
+  windowMs: 15 * 60 * 1000,
+  max: Number(process.env.JOB_EDIT_RATE_LIMIT_PER_15M || 30),
+  skip: (req) => !req.user,
+  keyGenerator: (req) => req.user?.id ? `user:${req.user.id}` : req.ip,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    error: 'Too many job edits. Please wait before trying again.',
+    code: 'job_edit_rate_limited',
+    retryAfter: '15 minutes',
+  },
+});
+
 // The restaurant wallet is a separate stored-value rail from OxSteed Credit,
 // but its holds, transfers, payment sessions, and load approvals are equally
 // sensitive. Keep a distinct bucket so wallet activity cannot consume the
@@ -728,6 +746,7 @@ module.exports = {
   paymentsLimiter,
   connectAccountLimiter,
   creditMutationLimiter,
+  jobEditLimiter,
   restaurantCreditMutationLimiter,
   restaurantTopupIntentLimiter,
   creditPurchaseLimiter,

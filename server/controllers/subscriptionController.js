@@ -253,8 +253,10 @@ exports.cancelSubscription = async (req, res, next) => {
     const subscription = await withTransaction(db, async (client) => {
       // Lock user's subscription row to prevent concurrent cancellations
       const { rows: subRows } = await client.query(
-        `SELECT stripe_subscription_id, id FROM subscriptions
-         WHERE user_id = $1 AND status IN ('active', 'trialing')
+        `SELECT stripe_subscription_id, id, payment_method, cancel_at_period_end, current_period_end
+           FROM subscriptions
+         WHERE user_id = $1 AND status IN ('active', 'trialing', 'past_due')
+         ORDER BY created_at DESC
          FOR UPDATE`,
         [userId]
       );
@@ -289,9 +291,29 @@ exports.cancelSubscription = async (req, res, next) => {
         throw err;
       }
 
+      // OxSteed Credit subscriptions have no Stripe subscription: cancelling
+      // is a local state change that stops the renewal worker at period end.
+      if (!subscription.stripe_subscription_id) {
+        await client.query(
+          `UPDATE subscriptions
+              SET cancel_at_period_end = TRUE, updated_at = NOW()
+            WHERE id = $1`,
+          [subscription.id]
+        );
+        return { ...subscription, localOnly: true };
+      }
+
       // Return subscription for Stripe call (outside transaction)
       return subscription;
     }, 'cancel_subscription');
+
+    if (subscription.localOnly) {
+      const end = subscription.current_period_end ? new Date(subscription.current_period_end) : null;
+      return res.json({
+        message: 'Subscription cancellation scheduled successfully.',
+        cancel_at: end && !Number.isNaN(end.getTime()) ? end.toISOString() : null,
+      });
+    }
 
     // Call Stripe API OUTSIDE transaction (don't hold DB lock during external API call)
     let stripeSub;
@@ -466,3 +488,61 @@ async function createCreditSubscription(req, res, next, plan, userId) {
     return next(err);
   }
 }
+
+
+// POST /api/admin/subscriptions/:id/cancel — super-admin cancel for any
+// subscription (review P2-569). Credit subscriptions end immediately (no
+// further renewal); Stripe subscriptions are cancelled at Stripe first.
+exports.adminCancelSubscription = async (req, res, next) => {
+  try {
+    const subscriptionId = String(req.params.id || '').trim();
+    const reason = typeof req.body?.reason === 'string' ? req.body.reason.trim().slice(0, 1000) : '';
+    if (!subscriptionId) throw new AppError('Subscription id is required', 400, 'validation_failed');
+    if (!reason) throw new AppError('A reason is required', 400, 'reason_required');
+
+    const { rows: [sub] } = await db.query(
+      'SELECT id, user_id, status, payment_method, stripe_subscription_id FROM subscriptions WHERE id = $1',
+      [subscriptionId]
+    );
+    if (!sub) throw new AppError('Subscription not found', 404, 'not_found');
+    if (sub.status === 'cancelled') return res.json({ subscription: sub, alreadyCancelled: true });
+
+    if (sub.stripe_subscription_id) {
+      try {
+        await stripe.subscriptions.cancel(sub.stripe_subscription_id);
+      } catch (stripeErr) {
+        if (stripeErr?.code !== 'resource_missing') {
+          throw new AppError('Failed to cancel subscription with payment processor', 502, 'external_service_error');
+        }
+      }
+    }
+
+    const updated = await withTransaction(db, async (client) => {
+      const { rows: [row] } = await client.query(
+        `UPDATE subscriptions
+            SET status = 'cancelled', cancel_at_period_end = TRUE, updated_at = NOW()
+          WHERE id = $1 AND status <> 'cancelled'
+          RETURNING id, user_id, status, payment_method`,
+        [sub.id]
+      );
+      const { logAdminAction } = require('../services/auditService');
+      await logAdminAction({
+        client,
+        adminId: req.user?.id || null,
+        action: 'subscription.cancel',
+        targetType: 'subscription',
+        targetId: String(sub.id),
+        description: reason,
+        before: { status: sub.status, payment_method: sub.payment_method },
+        after: { status: 'cancelled' },
+        req,
+        throwOnError: true,
+      });
+      return row || { ...sub, status: 'cancelled' };
+    }, 'admin_cancel_subscription');
+
+    return res.json({ subscription: updated });
+  } catch (err) {
+    return next(err);
+  }
+};

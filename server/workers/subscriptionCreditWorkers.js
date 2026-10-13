@@ -57,6 +57,7 @@ async function renewSubscriptionCredit({ limit } = {}) {
   let renewed = 0;
   let failed = 0;
   let pastDue = 0;
+  let ended = 0;
 
   for (const sub of due) {
     try {
@@ -69,6 +70,16 @@ async function renewSubscriptionCredit({ limit } = {}) {
         if (!locked[0] || locked[0].status !== 'active') return;
         // Skip if another run already rolled the period forward.
         if (new Date(locked[0].current_period_end) > new Date()) return;
+        // Cancelled by the subscriber: the period has ended, so end the
+        // subscription instead of charging again (review P2-569).
+        if (locked[0].cancel_at_period_end === true) {
+          await client.query(
+            `UPDATE subscriptions SET status = 'cancelled', updated_at = NOW() WHERE id = $1`,
+            [sub.id]
+          );
+          ended += 1;
+          return;
+        }
 
         const amountCents = Number(sub.amount_cents);
         if (!Number.isSafeInteger(amountCents) || amountCents <= 0) {
@@ -146,7 +157,7 @@ async function renewSubscriptionCredit({ limit } = {}) {
     }
   }
 
-  return { renewed, failed, pastDue, checked: due.length };
+  return { renewed: renewed - ended, ended, failed, pastDue, checked: due.length };
 }
 
 module.exports = { renewSubscriptionCredit };
