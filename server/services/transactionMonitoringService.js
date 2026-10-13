@@ -370,6 +370,48 @@ async function checkComplianceCaseSla({ now = new Date(), client: providedClient
   }
 }
 
+/**
+ * Raise incidents for overdue identity and sanctions reviews. These rows are
+ * intentionally not auto-resolved; the compliance queue remains the source
+ * of truth for the decision. Incident dedupe keys keep the nightly sweep
+ * quiet after the first escalation.
+ */
+async function checkVerificationSla({ now = new Date(), client: providedClient = null } = {}) {
+  const run = async (client) => {
+    const { rows } = await client.query(
+      `SELECT 'identity_verification' AS review_type, id, customer_id::text AS subject_id, sla_due_at
+         FROM oxsteed_credit_identity_verifications
+        WHERE status = 'pending' AND sla_due_at IS NOT NULL AND sla_due_at < $1
+       UNION ALL
+       SELECT 'sanctions_screening' AS review_type, id, subject_id, sla_due_at
+         FROM oxsteed_credit_sanctions_screenings
+        WHERE result = 'hit' AND cleared_at IS NULL AND sla_due_at IS NOT NULL AND sla_due_at < $1
+       ORDER BY sla_due_at ASC`,
+      [now]
+    );
+    const incidents = [];
+    for (const row of rows) {
+      const incident = await recordIncident({
+        type: `oxsteed_credit_${row.review_type}_sla_breach`,
+        severity: 'critical',
+        message: `${row.review_type} ${row.id} breached its review SLA`,
+        dedupeKey: `credit-${row.review_type}-sla:${row.id}`,
+        details: {
+          reviewType: row.review_type,
+          reviewId: String(row.id),
+          subjectId: String(row.subject_id),
+          slaDueAt: row.sla_due_at,
+        },
+      });
+      if (incident) incidents.push(incident);
+    }
+    return { breachedCount: rows.length, incidents };
+  };
+  if (providedClient) return run(providedClient);
+  const client = await pool.connect();
+  try { return await run(client); } finally { client.release(); }
+}
+
 module.exports = {
   STRUCTURING_THRESHOLD_CENTS,
   STRUCTURING_WINDOW_HOURS,
@@ -384,4 +426,5 @@ module.exports = {
   detectNewDestinationPayouts,
   runTransactionMonitoring,
   checkComplianceCaseSla,
+  checkVerificationSla,
 };

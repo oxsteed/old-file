@@ -27,6 +27,7 @@ const { openComplianceCase } = require('../services/complianceCaseService');
 const {
   runTransactionMonitoring,
   checkComplianceCaseSla,
+  checkVerificationSla,
 } = require('../services/transactionMonitoringService');
 const { verifyStepupChallenge } = require('../services/stepupChallengeService');
 
@@ -397,6 +398,34 @@ describe('compliance case SLA breaches', () => {
     const result = await checkComplianceCaseSla({ client: fakeClient() });
     expect(result.breachedCount).toBe(0);
     expect(result.incidents).toHaveLength(0);
+  });
+});
+
+describe('identity and sanctions review SLA breaches', () => {
+  test('raises incidents for overdue pending reviews', async () => {
+    const due = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+    mockQuery.mockImplementation(async (text) => {
+      const sql = String(text);
+      if (sql.includes('oxsteed_credit_identity_verifications') && sql.includes('UNION ALL')) {
+        return { rows: [
+          { review_type: 'identity_verification', id: 'iv-1', subject_id: CUSTOMER_ID, sla_due_at: due },
+          { review_type: 'sanctions_screening', id: 'ss-1', subject_id: '42', sla_due_at: due },
+        ] };
+      }
+      if (sql.includes('INSERT INTO incident_log')) return { rows: [{ id: 'inc-verification' }] };
+      if (sql.includes('UPDATE incident_log')) return { rows: [] };
+      return { rows: [], rowCount: 0 };
+    });
+    const result = await checkVerificationSla({ client: fakeClient() });
+    expect(result.breachedCount).toBe(2);
+    expect(result.incidents).toHaveLength(2);
+    const types = mockQuery.mock.calls
+      .filter(([sql]) => String(sql).includes('INSERT INTO incident_log'))
+      .map(([, params]) => params[0]);
+    expect(types).toEqual(expect.arrayContaining([
+      'oxsteed_credit_identity_verification_sla_breach',
+      'oxsteed_credit_sanctions_screening_sla_breach',
+    ]));
   });
 });
 
