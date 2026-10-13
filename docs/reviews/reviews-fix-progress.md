@@ -113,3 +113,7 @@ Reconciled the 44 W15 IDs against `resolution-audit-v2-2026-10-13.md` before imp
 
 Reconciled the 38 W16 IDs against `resolution-audit-v2-2026-10-13.md`; no matching ID rows were present in the audit snapshot, so the handoff list remains authoritative. This batch validates job media URLs against the existing storage allowlist, allows authenticated customers to reach the booking endpoint while binding appointments to their account, and enforces legal appointment status transitions with row locking. Remaining upload, feature-flag, and booking items stay open for follow-up batches.
 
+## W17 reconciliation (2026-10-13)
+
+Reconciled the 33 W17 IDs against `resolution-audit-v2-2026-10-13.md`; no matching ID rows were present in that snapshot, so the handoff list remains authoritative. This batch makes recurring invoice generation transactional and idempotent per billing record, with a database fence and same-day replay protection. Remaining loyalty, receipt, and KYC/AML findings stay open for follow-up batches.
+
