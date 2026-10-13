@@ -152,6 +152,10 @@ async function hardDeleteExpiredAccounts() {
 }
 
 async function cleanupExpiredSessionData() {
+  const configuredRetention = Number.parseInt(process.env.NOTIFICATION_RETENTION_DAYS || '180', 10);
+  const notificationRetentionDays = Number.isFinite(configuredRetention)
+    ? Math.min(730, Math.max(30, configuredRetention))
+    : 180;
   const cleanups = [
     // Keep both lifecycle flags in the cleanup predicate so the sweeper
     // remains compatible with the session-read contract and never treats a
@@ -161,10 +165,15 @@ async function cleanupExpiredSessionData() {
          AND (is_valid IS NOT NULL OR is_revoked IS NOT NULL)`],
     ['privacy_export_verifications', `DELETE FROM privacy_export_verifications WHERE expires_at <= NOW() OR (consumed_at IS NOT NULL AND consumed_at < NOW() - INTERVAL '1 day')`],
     ['restaurant_app_devices', `DELETE FROM restaurant_app_devices WHERE pairing_code IS NOT NULL AND pairing_code_expires_at IS NOT NULL AND pairing_code_expires_at <= NOW()`],
+    // Retain unread notifications longer so an infrequent user can still
+    // review them; read rows follow the configured bounded retention window.
+    ['notifications', `DELETE FROM notifications
+       WHERE created_at < NOW() - ($1::int * INTERVAL '1 day')
+         AND (is_read = TRUE OR created_at < NOW() - INTERVAL '365 days')`, [notificationRetentionDays]],
   ];
-  for (const [name, sql] of cleanups) {
+  for (const [name, sql, params] of cleanups) {
     try {
-      const result = await pool.query(sql);
+      const result = await pool.query(sql, params);
       if (result.rowCount) logger.info('scheduledDeletionJob: expired session data cleaned', { table: name, count: result.rowCount });
     } catch (error) {
       logger.warn('scheduledDeletionJob: optional session cleanup skipped', { table: name, error: error.message });

@@ -1,9 +1,21 @@
 'use strict';
 
 const { mockQuery, resetMocks } = require('./setup');
-const { hardDeleteExpiredAccounts } = require('../jobs/scheduledDeletionJob');
+const { hardDeleteExpiredAccounts, cleanupExpiredSessionData } = require('../jobs/scheduledDeletionJob');
 
 beforeEach(resetMocks);
+
+test('purges old read notifications with a bounded retention window', async () => {
+  process.env.NOTIFICATION_RETENTION_DAYS = '120';
+  mockQuery.mockResolvedValue({ rows: [], rowCount: 0 });
+
+  await cleanupExpiredSessionData();
+
+  const purge = mockQuery.mock.calls.find(([sql]) => String(sql).includes('DELETE FROM notifications'));
+  expect(purge).toBeTruthy();
+  expect(purge[1]).toEqual([120]);
+  delete process.env.NOTIFICATION_RETENTION_DAYS;
+});
 
 test('anonymizes users with OxSteed Credit records instead of deleting financial identity', async () => {
   const user = {

@@ -159,3 +159,5 @@ Refund notification follow-up: successful and failed Tier-3 refund/void settleme
 
 Dispute email follow-up: counterparty, under-review, and resolved dispute events now use localized notification templates in the email allow-list. The legacy resolution path now supplies `body`, action data, and per-party idempotency keys instead of dropping its message field.
 
+Notification retention follow-up: the scheduled deletion worker now purges read notifications after a bounded configurable window (default 180 days, clamped to 30–730), while retaining unread rows until one year. The cleanup is optional-safe on older installations.
+
