@@ -84,8 +84,26 @@ async function send({ to, subject, html, from, smtpConfig }) {
     // --- platform fallback path ---
     transporter = getPlatformTransport();
     if (!transporter) {
-      logger.warn('emailService: no SMTP config available - email skipped', { to, subject });
-      return null;
+      // Review P3-843: production has Resend but usually no SMTP, so these
+      // appointment, calendar, food-guest and credit emails were silently
+      // dropped. Route them through Resend; a failed send throws.
+      const resend = require('../utils/email');
+      const result = await resend.sendEmail({
+        to,
+        subject,
+        html,
+        text: String(html || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim(),
+        ...(from ? { from: String(from).match(/<([^>]+)>/)?.[1] || from } : {}),
+      });
+      if (result?.success === true) {
+        logger.info('emailService: sent via Resend', { messageId: result.id });
+        return { messageId: result.id, provider: 'resend' };
+      }
+      if (result?.code === 'email_not_configured') {
+        logger.error('emailService: neither SMTP nor Resend is configured - email not sent', { subject });
+        return null;
+      }
+      throw new resend.EmailDeliveryError(result?.error || 'Email send failed', result?.code);
     }
     fromAddress = from ||
       process.env.SMTP_FROM ||

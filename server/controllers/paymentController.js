@@ -27,8 +27,17 @@ const {
 } = require('../services/auditService');
 
 /** When true, capture is queued to Redis (requires worker). Default false = capture in-request so funds release without a separate process. */
+// Review P3-790 / P3-871: the capture queue is consumed only by workerMain.js.
+// Without DEDICATED_WORKER_PROCESS=true nothing drains it, so capture in-request.
+let warnedAsyncCaptureWithoutWorker = false;
 function isAsyncPaymentCapture() {
-  return String(process.env.PAYMENT_CAPTURE_ASYNC || '').toLowerCase() === 'true';
+  if (String(process.env.PAYMENT_CAPTURE_ASYNC || '').toLowerCase() !== 'true') return false;
+  if (require('../utils/workerTopology').dedicatedWorkerProcess()) return true;
+  if (!warnedAsyncCaptureWithoutWorker) {
+    warnedAsyncCaptureWithoutWorker = true;
+    logger.error('PAYMENT_CAPTURE_ASYNC=true ignored: no dedicated worker process (set DEDICATED_WORKER_PROCESS=true when workerMain.js runs). Capturing in-request.');
+  }
+  return false;
 }
 function getAppBaseUrl() {
   return process.env.APP_URL || process.env.CLIENT_URL || 'https://oxsteed.com';

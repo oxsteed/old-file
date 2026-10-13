@@ -367,6 +367,7 @@ module.exports = {
   deleteFile,
   getPublicUrl,
   normalizeStoredPublicUrl,
+  knownObjectKeyFromUrl,
   resolveLocalStoragePath,
   getObjectStream,
   downloadObjectToFile,

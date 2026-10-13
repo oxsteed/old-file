@@ -25,21 +25,7 @@ const {
   processNotification,
 } = require('./workers/paymentWorker');
 const { pollTranslationJobs } = require('./modules/jobs/translationJobWorker');
-const { pollIssuanceCycle } = require('./jobs/statementIssuanceScheduler');
-const {
-  normalizeLocations,
-  refreshEtas,
-  evaluateGeofences,
-  retryProviderWebhooks,
-  reconcileCursors,
-  detectStaleTrackers,
-  cleanupTrackingLinks,
-  enforceRetention,
-} = require('./workers/deliveryTrackingWorkers');
-const { clearStaleAvailableNow } = require('./workers/availabilityWorkers');
-const { publishDueGuideVideos } = require('./controllers/learnController');
-const { expireVortexTokens } = require('./workers/vortexTokenWorkers');
-const { renewSubscriptionCredit } = require('./workers/subscriptionCreditWorkers');
+const { SCHEDULED_WORKERS, runScheduledWorkerOnce } = require('./workers/scheduledWorkerSchedule');
 
 // Map queue to processor function
 const processors = {
@@ -182,43 +168,16 @@ const scheduleTrackingWorker = (name, workerFn, intervalMs, options) => {
     if (stopping || trackingInFlight.has(name)) return;
     trackingInFlight.add(name);
     Promise.resolve()
-      .then(() => workerFn(options))
-      .then((summary) => logger.info('Tracking worker completed', { worker: name, summary }))
-      .catch((err) => logger.error('Tracking worker failed', { worker: name, error: err.message }))
+      .then(() => runScheduledWorkerOnce([name, workerFn, intervalMs, options], { log: logger }))
       .finally(() => trackingInFlight.delete(name));
   }, intervalMs);
   timer.unref?.();
   trackingIntervals.push(timer);
 };
 
-const TRACKING_WORKER_SCHEDULE = [
-  // [name, workerFn, intervalMs, options]
-  ['normalizeLocations', normalizeLocations, 2 * 60 * 1000, { limit: 200 }],
-  ['refreshEtas', refreshEtas, 60 * 1000, { limit: 100 }],
-  ['evaluateGeofences', evaluateGeofences, 2 * 60 * 1000, { limit: 100 }],
-  ['retryProviderWebhooks', retryProviderWebhooks, 5 * 60 * 1000, { limit: 25 }],
-  ['reconcileCursors', reconcileCursors, 5 * 60 * 1000, { limit: 100 }],
-  ['detectStaleTrackers', detectStaleTrackers, 5 * 60 * 1000, { limit: 200 }],
-  ['cleanupTrackingLinks', cleanupTrackingLinks, 5 * 60 * 1000, { limit: 200 }],
-  ['enforceRetention', enforceRetention, 60 * 60 * 1000, { limit: 5000 }],
-  // Clear stale "available now" readiness flags (12h TTL), every 15 minutes.
-  ['clearStaleAvailableNow', clearStaleAvailableNow, 15 * 60 * 1000, { limit: 500 }],
-  // Publish Learn guide video submissions pending 24h without an admin
-  // block (Emile's decision 2026-10-01), every 5 minutes.
-  ['publishDueGuideVideos', publishDueGuideVideos, 5 * 60 * 1000, { limit: 100 }],
-  // Monthly statement issuance: discovers eligible accounts for the latest
-  // closed UTC month and issues originals in bounded batches; always drains
-  // the statement.ready outbox so notifications never stall. Every 5 minutes.
-  ['statementIssuanceCycle',
-    (options) => pollIssuanceCycle({ workerId: options.workerId, maxJobsPerProduct: options.maxJobsPerProduct }),
-    5 * 60 * 1000, { workerId: 'worker-main', maxJobsPerProduct: 50 }],
-  // Expire unused legacy Vortex invite tokens past their expires_at, hourly.
-  ['expireVortexTokens', expireVortexTokens, 60 * 60 * 1000, { limit: 500 }],  // Expire unused legacy Vortex invite tokens past their expires_at, hourly.
-  ['expireVortexTokens', expireVortexTokens, 60 * 60 * 1000, { limit: 500 }],
-  // Renew OxSteed Credit subscriptions past period end, daily (Phase 5).
-  // No-op unless SUBSCRIPTIONS_CREDIT_ENABLED=true.
-  ['renewSubscriptionCredit', renewSubscriptionCredit, 24 * 60 * 60 * 1000, { limit: 100 }],
-];
+// Shared with the API process (bootstrap/backgroundWorkers.js); see
+// workers/scheduledWorkerSchedule.js.
+const TRACKING_WORKER_SCHEDULE = SCHEDULED_WORKERS;
 
 /**
  * Main worker loop

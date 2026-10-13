@@ -156,6 +156,43 @@ async function captureAuthorizedPaymentWithClient(client, paymentRow) {
 }
 
 /**
+ * Review P3-791: the payment row reaches `authorized` only through the Connect
+ * webhook. When that webhook is missing or late, ask Stripe directly: if the
+ * job's latest open PaymentIntent is in requires_capture, mark the row
+ * authorized (inside the caller's transaction) and return it. Returns null
+ * when there is nothing to reconcile.
+ */
+async function reconcileJobAuthorizationFromStripe(client, jobId) {
+  const { rows } = await client.query(
+    `SELECT id, amount, stripe_payment_intent_id, stripe_account_id, status
+       FROM payments
+      WHERE job_id = $1
+        AND status IN ('pending', 'requires_payment_method', 'requires_confirmation', 'requires_action', 'processing')
+        AND stripe_payment_intent_id IS NOT NULL
+        AND stripe_account_id IS NOT NULL
+      ORDER BY created_at DESC
+      LIMIT 1
+      FOR UPDATE`,
+    [jobId],
+  );
+  const row = rows[0];
+  if (!row) return null;
+  const pi = await stripe.paymentIntents.retrieve(row.stripe_payment_intent_id, { stripeAccount: row.stripe_account_id });
+  if (pi.status !== 'requires_capture') return null;
+  const updated = await client.query(
+    `UPDATE payments SET status = 'authorized', updated_at = now()
+      WHERE id = $1 AND status = $2
+      RETURNING id, amount, stripe_payment_intent_id, stripe_account_id, status, capture_amount_cents, pending_increase_cents,
+                charge_model, destination_account_id, currency, metadata`,
+    [row.id, row.status],
+  );
+  if (!updated.rows[0]) return null;
+  logger.warn('Payment authorization reconciled from Stripe (Connect webhook missing or late)', {
+    paymentId: row.id, jobId, paymentIntentId: row.stripe_payment_intent_id,
+  });
+  return updated.rows[0];
+}
+/**
  * platform_hold payments were charged up front and the money sits on the
  * platform. Completion pays the helper with a Transfer (net of the platform
  * fee) tied to the original charge, and refunds anything a change order
@@ -202,4 +239,4 @@ async function settlePlatformHold(client, paymentRow) {
   return { paymentId: paymentRow.id, chargeId, transferId };
 }
 
-module.exports = { settlePlatformHold, captureAuthorizedPayment, captureAuthorizedPaymentWithClient, captureCents, assertNoPendingIncrease };
+module.exports = { settlePlatformHold, captureAuthorizedPayment, captureAuthorizedPaymentWithClient, captureCents, assertNoPendingIncrease, reconcileJobAuthorizationFromStripe };

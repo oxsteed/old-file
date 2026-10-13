@@ -63,6 +63,7 @@ const { processSupportEmailOutbox } = require('../services/supportEmailOutbox');
 const { processSupportFollowUpReminders } = require('../services/supportFollowUpReminderWorker');
 const { processBusinessInvoicePaymentReminders } = require('../services/businessInvoicePaymentReminderWorker');
 const { recoverStaleSupportChannelDeliveries } = require('../services/supportChannelDeliveryRecovery');
+const { dedicatedWorkerProcess } = require('../utils/workerTopology');
 
 class BackgroundWorkers {
   constructor({ log = logger } = {}) {
@@ -220,6 +221,12 @@ class BackgroundWorkers {
       this.captureCronTasks(existingTaskIds);
 
       this.handles.push(startLocalDeliveryEventWorker({ log: this.log }));
+      // Review P1-344 / P2-573 / P3-869 / P3-872: the interval workers used to
+      // run only in workerMain.js, which production never started. The API
+      // runs them unless a dedicated worker process is declared.
+      if (!dedicatedWorkerProcess()) {
+        this.handles.push(require('../workers/scheduledWorkerSchedule').startScheduledWorkers({ log: this.log }));
+      }
       this.started = true;
       this.log.info('Background workers started', {
         cronTasks: this.cronTaskIds.size,
