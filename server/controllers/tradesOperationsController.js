@@ -1,7 +1,7 @@
 const pool = require('../db');
 const { AppError } = require('../middleware/errorHandler');
-const { uploadFile, getPublicUrl } = require('../utils/storage');
-const logger = require('../utils/logger');
+const { getPublicUrl } = require('../utils/storage');
+const { uploadFilesOrThrow } = require('../utils/uploadBatch');
 
 const VALID_STATUS = new Set(['new', 'triaged', 'scheduled', 'diagnosing', 'quoted', 'approved', 'completed', 'declined', 'cancelled']);
 const VALID_WORKFLOW_STAGE = new Set(['intake', 'triage', 'visit_scheduled', 'diagnostic', 'estimate', 'repair', 'closed']);
@@ -281,14 +281,11 @@ exports.createDiagnosticRequest = async (req, res, next) => {
 
     let photoUrls = [];
     if (req.files?.length) {
-      const uploads = await Promise.allSettled(
-        req.files.slice(0, 5).map((file) => uploadFile(file.buffer, 'trades-diagnostics', file.originalname, file.mimetype))
-      );
-      photoUrls = uploads
-        .filter((result) => result.status === 'fulfilled' && result.value)
-        .map((result) => getPublicUrl(result.value));
-      const failed = uploads.filter((result) => result.status === 'rejected' || !result.value).length;
-      if (failed) logger.warn('Trades diagnostic photo upload skipped', { failed, total: req.files.length });
+      const uploads = await uploadFilesOrThrow(req.files, 'trades-diagnostics', {
+        code: 'trades_diagnostic_media_upload_failed',
+        label: 'diagnostic photo',
+      });
+      photoUrls = uploads.map((key) => getPublicUrl(key));
     }
 
     const urgency = VALID_URGENCY.has(req.body.urgency) ? req.body.urgency : 'normal';

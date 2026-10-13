@@ -1,8 +1,8 @@
 const pool = require('../db');
 const { AppError } = require('../middleware/errorHandler');
 const { canAccessBusinessTeam } = require('../utils/businessOwnership');
-const { uploadFile, getPublicUrl } = require('../utils/storage');
-const logger = require('../utils/logger');
+const { getPublicUrl } = require('../utils/storage');
+const { uploadFilesOrThrow } = require('../utils/uploadBatch');
 
 const VALID_STATUSES = new Set([
   'reported',
@@ -201,14 +201,11 @@ exports.createRequest = async (req, res, next) => {
       if (nonImage) {
         throw new AppError('Only image files can be attached to maintenance requests', 400, 'invalid_file_type');
       }
-      const uploads = await Promise.allSettled(
-        req.files.slice(0, 5).map((file) => uploadFile(file.buffer, 'maintenance-requests', file.originalname, file.mimetype))
-      );
-      photoUrls = uploads
-        .filter((result) => result.status === 'fulfilled' && result.value)
-        .map((result) => getPublicUrl(result.value));
-      const failed = uploads.filter((result) => result.status === 'rejected' || !result.value).length;
-      if (failed) logger.warn('Maintenance request photo upload skipped', { failed, total: req.files.length });
+      const uploads = await uploadFilesOrThrow(req.files, 'maintenance-requests', {
+        code: 'maintenance_request_media_upload_failed',
+        label: 'maintenance request photo',
+      });
+      photoUrls = uploads.map((key) => getPublicUrl(key));
     }
 
     const client = await pool.connect();
