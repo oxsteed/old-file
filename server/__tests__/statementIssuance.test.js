@@ -35,6 +35,16 @@ test('statement-ready action URLs match registered client routes', () => {
   expect(issuance.PRODUCT_ACTION_URLS.business).toBe('/business/statements');
 });
 
+test('assertIssuanceGraceElapsed fails closed before the grace window elapses (P2-5-F04)', () => {
+  // On-demand runs must honor the same 72h grace the background scheduler uses.
+  expect(() => issuance.assertIssuanceGraceElapsed('2026-09-30', new Date('2026-10-03T23:59:59.000Z')))
+    .toThrow(expect.objectContaining({ status: 409, code: 'statement_run_grace_not_elapsed' }));
+  expect(() => issuance.assertIssuanceGraceElapsed('2026-09-30', new Date('2026-10-04T00:00:00.000Z')))
+    .not.toThrow();
+  expect(() => issuance.assertIssuanceGraceElapsed('not-a-date', new Date('2026-10-04T00:00:00.000Z')))
+    .toThrow(expect.objectContaining({ code: 'statement_run_grace_not_elapsed' }));
+});
+
 if (CAN_RUN_DB) {
   process.env.DATABASE_URL = RAW_URL;
   process.env.NODE_ENV = 'test';

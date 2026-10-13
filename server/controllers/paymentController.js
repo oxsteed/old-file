@@ -8,6 +8,7 @@ const logger = require('../utils/logger');
 const creditLedger = require('../services/referralCreditLedger');
 const stripeRail = require('../services/paymentRails/stripeRail');
 const chargeModel = require('../services/stripeChargeModel');
+const { applyPlatformFundedDiscount } = require('../utils/feeCalculator');
 const { currencyExponent } = require('../validation/money');
 const {
   withTransaction,
@@ -385,10 +386,21 @@ exports.createPaymentIntent = async (req, res, next) => {
       const availableCreditCents = plan.currency === 'USD'
         ? Math.max(0, parseInt(creditResult.rows?.[0]?.balance_cents || '0', 10))
         : 0;
-      // Cap credit at job value — can't go below $0.50 (Stripe minimum)
-      const appliedCreditCents = Math.min(availableCreditCents, Math.max(0, rawJobValueCents - 50));
-      const jobValueCents = rawJobValueCents - appliedCreditCents;
-      const fees = await stripeRail.feesFor(client, plan, jobValueCents);
+      // P2-6-F09: fees are computed on the GROSS job value and the discount
+      // is funded by the platform out of its own fee, never by the helper.
+      // The helper's net is identical with or without the discount. The
+      // credit can never exceed the platform's fee on the job (fail-closed:
+      // the platform never goes negative funding a discount), and the
+      // customer charge never drops below the $0.50 Stripe minimum.
+      const fees = await stripeRail.feesFor(client, plan, rawJobValueCents);
+      const discount = applyPlatformFundedDiscount({
+        rawJobValueCents,
+        availableCreditCents,
+        platformFeeCents: fees.platform_fee_cents,
+        applicationFeeCents: fees.application_fee_cents,
+      });
+      const appliedCreditCents = discount.appliedCreditCents;
+      const jobValueCents = discount.chargeCents;
 
       // Check for existing payment to prevent duplicates (idempotency).
       // We must return the actual `client_secret` from Stripe — not the PaymentIntent
@@ -448,7 +460,7 @@ exports.createPaymentIntent = async (req, res, next) => {
         model: plan.model,
         amountMinor: jobValueCents,
         currency: plan.currency,
-        applicationFeeMinor: fees.application_fee_cents,
+        applicationFeeMinor: discount.applicationFeeCents,
         helperAccountId: freshConnect.stripe_account_id,
         paymentMethodTypes: plan.paymentMethodTypes,
         metadata: {
@@ -456,7 +468,10 @@ exports.createPaymentIntent = async (req, res, next) => {
           client_id: req.user.id.toString(),
           helper_id: job.rows[0].assigned_helper_id.toString(),
           tier: 'tier3',
-          platform_fee_cents: fees.platform_fee_cents.toString()
+          // Net platform take after funding the discount; the gross fee is
+          // kept alongside for audit.
+          platform_fee_cents: discount.applicationFeeCents.toString(),
+          gross_platform_fee_cents: fees.platform_fee_cents.toString()
         }
       });
       if (plan.model === 'direct' && !plan.feeCountry) delete built.params.metadata.charge_model;
@@ -477,12 +492,13 @@ exports.createPaymentIntent = async (req, res, next) => {
              amount, platform_fee, status, payment_hold_status, stripe_account_id, metadata,
              currency, charge_model, destination_account_id, fee_country)
            VALUES ($1, $2, $3, $4, $5, $6, 'pending', 'pending', $7, $8::jsonb, $9, $10, $11, $12)
-           RETURNING id`, [job_id, req.user.id, job.rows[0].assigned_helper_id, paymentIntent.id, jobValueCents / minorScale, fees.platform_fee_cents / minorScale,
+           RETURNING id`, [job_id, req.user.id, job.rows[0].assigned_helper_id, paymentIntent.id, jobValueCents / minorScale, discount.applicationFeeCents / minorScale,
           plan.model === 'direct' ? freshConnect.stripe_account_id : null, JSON.stringify({
           discounted_amount_cents: jobValueCents,
           raw_job_value_cents: rawJobValueCents,
           appliedCreditCents: appliedCreditCents,
-          platform_fee_cents: fees.platform_fee_cents,
+          platform_fee_cents: discount.applicationFeeCents,
+          gross_platform_fee_cents: fees.platform_fee_cents,
           applied_credit_cents: appliedCreditCents
         }), plan.currency.toLowerCase(), plan.model, plan.model === 'direct' ? null : freshConnect.stripe_account_id, plan.feeCountry]));
         // Audit fix: payment starts as 'pending', not 'authorized'. The

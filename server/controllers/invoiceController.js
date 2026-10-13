@@ -158,6 +158,18 @@ const createInvoice = async (req, res) => {
       });
     }
 
+    // P3-12-F09: the owner must accept the per-booking rental terms before
+    // the first invoice. Fail closed: an invoice request from a client that
+    // skipped the terms modal is refused rather than silently issued.
+    const termsResult = await client.query(
+      `SELECT 1 FROM tool_rental_terms_acceptance WHERE booking_id = $1 AND user_role = 'owner'`,
+      [bookingId]
+    );
+    if (termsResult.rows.length === 0) {
+      client.release();
+      return res.status(409).json({ error: 'owner_terms_not_accepted' });
+    }
+
     // Get owner's payment method
     const paymentResult = await client.query(
       `SELECT id, payment_type, payment_identifier, payment_identifier_encrypted

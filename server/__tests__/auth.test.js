@@ -156,6 +156,58 @@ describe('POST /api/auth/register/start', () => {
     expect(insertArgs[9]).toBe('OH');
   });
 
+  test('rejects an unknown referral code instead of failing silently (P2-6-F08)', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [] }); // referral code lookup: no match
+
+    const res = await request(buildApp())
+      .post('/api/auth/register/start')
+      .send({
+        email: 'ref-bad@example.com',
+        password: 'Str0ng!Pass',
+        firstName: 'Ref',
+        lastName: 'Bad',
+        phone: '+15551112222',
+        addressLine1: '123 Main St',
+        city: 'Springfield',
+        state: 'OH',
+        country: 'US',
+        zip: '12345',
+        ageConfirmed: true,
+        ref: 'typo-code',
+      });
+
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual(expect.objectContaining({ code: 'invalid_referral_code' }));
+  });
+
+  test('accepts a known referral code and stores it', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ id: 'referrer-1' }] }) // referral code lookup
+      .mockResolvedValueOnce({ rows: [] }) // check existing email
+      .mockResolvedValueOnce({ rows: [{ id: 125 }] }); // insert/update pending registration
+
+    const res = await request(buildApp())
+      .post('/api/auth/register/start')
+      .send({
+        email: 'ref-good@example.com',
+        password: 'Str0ng!Pass',
+        firstName: 'Ref',
+        lastName: 'Good',
+        phone: '+15551112222',
+        addressLine1: '123 Main St',
+        city: 'Springfield',
+        state: 'OH',
+        country: 'US',
+        zip: '12345',
+        ageConfirmed: true,
+        ref: 'good-code',
+      });
+
+    expect(res.status).toBe(200);
+    const insertArgs = mockQuery.mock.calls[2][1];
+    expect(insertArgs[13]).toBe('good-code');
+  });
+
   test('accepts exact-cased predefined region names', async () => {
     registrationsOpenMock();
     mockQuery

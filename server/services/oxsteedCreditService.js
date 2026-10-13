@@ -3720,6 +3720,45 @@ async function getCustomerCreditStatementPeriods(customerId, { currencyCode = CR
   });
 }
 
+// P2-5-F05: resolve the latest issued monthly statement document for an
+// OxSteed Credit customer wallet. Returns the frozen original's period and
+// closing balance, or the latest amendment revision's closing balance when
+// published versions exist. Null when no document was issued yet.
+async function getIssuedLastStatement(customerId, accountId, currency) {
+  if (!accountId) return null;
+  const { rows: docRows } = await pool.query(
+    `SELECT id, period_from, period_to, document
+       FROM credit_statement_documents
+      WHERE customer_id = $1 AND product = 'oxsteed'
+        AND account_id = $2 AND currency_code = $3
+      ORDER BY period_to DESC, generated_at DESC
+      LIMIT 1`,
+    [customerId, accountId, currency]
+  );
+  const doc = docRows[0];
+  if (!doc) return null;
+  const { rows: versionRows } = await pool.query(
+    `SELECT revised_closing_minor
+       FROM statement_amendment_versions
+      WHERE original_document_id = $1
+      ORDER BY revision_number DESC
+      LIMIT 1`,
+    [doc.id]
+  );
+  const payload = doc.document || {};
+  const formatDate = (value) => (value instanceof Date
+    ? value.toISOString().slice(0, 10) : String(value).slice(0, 10));
+  return {
+    from: formatDate(doc.period_from),
+    to: formatDate(doc.period_to),
+    balanceCents: versionRows.length
+      ? Number(versionRows[0].revised_closing_minor || 0)
+      : Number(payload.closingBalanceCents || 0),
+    documentId: doc.id,
+    amended: versionRows.length > 0,
+  };
+}
+
 // Account-details depth for the Wallet overview: last closed statement,
 // pending and last deposits (top-ups), and pending withdrawals. All reads
 // over the customer's own records.
@@ -3741,6 +3780,20 @@ async function getCustomerCreditAccountDetails(customerId, { currencyCode = CRED
   const pad = (value) => String(value).padStart(2, '0');
   const lastStatementFrom = `${lastMonthYear}-${pad(lastMonth)}-01`;
   const lastStatementTo = `${lastMonthYear}-${pad(lastMonth)}-${pad(lastMonthLastDay.getUTCDate())}`;
+
+  // P2-5-F05: the "last statement" fields describe the issued monthly
+  // document, not a live journal computation. Prefer the latest issued
+  // original for this account; when it carries published amendment versions,
+  // the latest revision's closing balance is the authoritative figure.
+  // Falls back to the live computation only when no document was issued yet
+  // (or the archive tables are unavailable); the wallet must keep working.
+  const issuedStatement = await getIssuedLastStatement(customerId, account?.id || null, currency)
+    .catch((error) => {
+      logger.warn('Falling back to live last-statement computation', {
+        customerId, currency, error: error?.message,
+      });
+      return null;
+    });
 
   const [balanceRow, pendingDepositsRow, lastDepositRow, pendingWithdrawalsRow] = await Promise.all([
     account ? pool.query(
@@ -3780,13 +3833,13 @@ async function getCustomerCreditAccountDetails(customerId, { currencyCode = CRED
 
   return {
     currencyCode: currency,
-    lastStatement: balanceRow
+    lastStatement: issuedStatement || (balanceRow
       ? {
           from: lastStatementFrom,
           to: lastStatementTo,
           balanceCents: Number(balanceRow.balance_after_cents || 0),
         }
-      : null,
+      : null),
     pendingDeposits: {
       totalCents: Number(pendingDepositsRow.total_cents || 0),
       count: Number(pendingDepositsRow.deposit_count || 0),

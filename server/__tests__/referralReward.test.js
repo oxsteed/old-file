@@ -39,3 +39,25 @@ test('a failed grant records a reconciliation exception for retry instead of fai
   expect(exCall[1][0]).toBe('credit');
   expect(exCall[1][1]).toBe('referral-reward:new');
 });
+
+test('self-referral never earns (P2-6-F12)', async () => {
+  mockQuery.mockImplementation(async () => ({ rows: [], rowCount: 0 }));
+  await expect(grantReferralReward('same-user', 'same-user')).resolves.toBe(false);
+  expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO platform_ledger/.test(sql))).toBe(false);
+});
+
+test('velocity cap withholds the reward and records a visible exception (P2-6-F12)', async () => {
+  mockQuery.mockImplementation(async (sql) => {
+    if (/FROM platform_ledger/.test(sql) && /referral_credit/.test(sql)) return { rows: [{ count: 10 }] };
+    if (/FROM reconciliation_exceptions/.test(sql)) return { rows: [] };
+    if (/INSERT INTO reconciliation_exceptions/.test(sql)) return { rows: [{ id: 10 }] };
+    return { rows: [], rowCount: 0 };
+  });
+  await expect(grantReferralReward('ref', 'new')).resolves.toBe(false);
+  // No reward posted...
+  expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO platform_ledger/.test(sql))).toBe(false);
+  // ...but the refusal is visible, not silent.
+  const exCall = mockQuery.mock.calls.find(([sql]) => /INSERT INTO reconciliation_exceptions/.test(sql));
+  expect(exCall).toBeDefined();
+  expect(exCall[1][1]).toBe('referral-velocity:ref:new');
+});

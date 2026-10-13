@@ -139,3 +139,42 @@ exports.FEES = FEES;
 // compatibility but do nothing meaningful (I-15).
 exports.DEFAULTS = DEFAULTS;
 exports.invalidateCache = invalidateCache;
+
+/**
+ * Apply a platform-credit discount (referral/promo credit) to a job payment.
+ *
+ * The discount is funded by the PLATFORM out of its own fee, never by the
+ * helper (P2-6-F09). Fees are computed on the gross job value; the helper's
+ * net (gross minus platform fee minus Stripe processing) is identical with
+ * or without the discount.
+ *
+ * Fail-closed bounds:
+ * - the discount can never exceed the platform's fee on the job (the
+ *   platform cannot fund more than it earns; applicationFeeCents >= 0);
+ * - the customer charge never drops below the $0.50 Stripe minimum.
+ *
+ * @param {object} args
+ * @param {number} args.rawJobValueCents - agreed gross job value
+ * @param {number} args.availableCreditCents - customer's spendable credit balance
+ * @param {number} args.platformFeeCents - platform fee computed on the GROSS value
+ * @param {number} args.applicationFeeCents - Stripe application fee on the GROSS value
+ * @returns {{ appliedCreditCents: number, chargeCents: number, applicationFeeCents: number }}
+ */
+exports.applyPlatformFundedDiscount = ({
+  rawJobValueCents,
+  availableCreditCents,
+  platformFeeCents,
+  applicationFeeCents,
+}) => {
+  const raw = Math.max(0, Math.round(Number(rawJobValueCents) || 0));
+  const available = Math.max(0, Math.round(Number(availableCreditCents) || 0));
+  const platformFee = Math.max(0, Math.round(Number(platformFeeCents) || 0));
+  const applicationFee = Math.max(0, Math.round(Number(applicationFeeCents) || 0));
+  if (raw <= 0) throw new Error('Job value must be a positive number.');
+  const appliedCreditCents = Math.min(available, Math.max(0, raw - 50), platformFee);
+  return {
+    appliedCreditCents,
+    chargeCents: raw - appliedCreditCents,
+    applicationFeeCents: Math.max(0, applicationFee - appliedCreditCents),
+  };
+};

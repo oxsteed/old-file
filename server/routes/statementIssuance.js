@@ -22,6 +22,7 @@ const { requireAdmin, requirePermission } = require('../middleware/adminAuth');
 const { AppError } = require('../middleware/errorHandler');
 const jobs = require('../services/statementJobService');
 const scheduler = require('../jobs/statementIssuanceScheduler');
+const issuance = require('../services/statementIssuanceService');
 const policy = require('../services/statementIssuancePolicy');
 
 const router = express.Router();
@@ -53,6 +54,10 @@ function checkClosedPeriod(periodFrom, periodTo) {
   if (periodTo >= today) {
     throw new AppError('Only closed periods can be issued (periodTo must be before today, UTC)', 400, 'statement_run_period_not_closed');
   }
+  // On-demand runs honor the same 72-hour grace window as the background
+  // scheduler (P2-5-F04): issuing earlier freezes statements before
+  // late-posting ledger entries settle.
+  issuance.assertIssuanceGraceElapsed(periodTo);
   return { periodFrom, periodTo };
 }
 
