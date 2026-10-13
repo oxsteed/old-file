@@ -22,6 +22,7 @@
  */
 
 const { AppError } = require('../middleware/errorHandler');
+const { evaluateFundingCompliance } = require('../services/fiatComplianceService');
 const { verifyStepupChallenge, issueStepupChallenge } = require('../services/stepupChallengeService');
 const topupService = require('../services/restaurantTopupService');
 const pool = require('../db');
@@ -96,6 +97,9 @@ async function createTopup(req, res, next) {
     const restaurantId = req.restaurantId || req.params.restaurantId;
     const idempotencyKey = getIdempotencyKey(req);
     const { amountCents } = req.body || {};
+    // Keep cheap amount failures side-effect free and preserve the service's
+    // canonical bounds before loading restaurant state or running compliance.
+    topupService.validateTopupAmount(amountCents);
 
     // Step-up authentication (mirrors the OxSteed Credit pattern): large
     // top-ups require a fresh single-use challenge verified before any
@@ -108,6 +112,34 @@ async function createTopup(req, res, next) {
         code: req.body?.stepupCode || req.body?.stepup_code,
       });
     }
+
+    // Restaurant top-ups are fiat funding too. Resolve and validate the
+    // active restaurant before the intent service can insert a pending row,
+    // then run the shared identity/sanctions/rail compliance choke point.
+    const { rows: restaurantRows } = await pool.query(
+      `SELECT id, status, currency_code FROM food_restaurants WHERE id = $1`,
+      [restaurantId]
+    );
+    const restaurant = restaurantRows[0];
+    if (!restaurant) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
+    if (restaurant.status !== 'active') {
+      throw new AppError(
+        'Restaurant top-ups are not available for this restaurant right now.',
+        409,
+        'restaurant_topup_restaurant_inactive',
+        { restaurantStatus: restaurant.status }
+      );
+    }
+
+    await evaluateFundingCompliance({
+      customerId: userId,
+      amountCents,
+      currencyCode: restaurant.currency_code,
+      fundingMethod: 'restaurant_topup',
+      actorUserId: userId,
+      requestIp: req.ip || null,
+      correlationId: req.correlationId || req.get('X-Request-ID') || null,
+    });
 
     const { topup, clientSecret, replayed } = await topupService.createTopupIntent({
       userId,

@@ -41,6 +41,9 @@ jest.mock('../services/stepupChallengeService', () => ({
   verifyStepupChallenge: jest.fn(),
   issueStepupChallenge: jest.fn(),
 }));
+jest.mock('../services/fiatComplianceService', () => ({
+  evaluateFundingCompliance: jest.fn().mockResolvedValue({ allowed: true }),
+}));
 
 // Dual-posting to the central journal is out of scope for these tests; the
 // wallet ledger write itself is asserted through the mocked query stream.
@@ -70,6 +73,7 @@ const adminRestaurantTopupRoutes = require('../routes/adminRestaurantTopups');
 const stepupService = require('../services/stepupChallengeService');
 const subBankService = require('../services/oxsteedCreditSubBankService');
 const incidentStore = require('../services/incidentStore');
+const complianceService = require('../services/fiatComplianceService');
 
 const USER_ID = '11111111-1111-4111-8111-111111111111';
 const OTHER_USER_ID = '33333333-3333-4333-8333-333333333333';
@@ -197,6 +201,7 @@ beforeEach(() => {
   stripe.paymentIntents.retrieve.mockResolvedValue({ id: 'pi_test_1', client_secret: 'cs_test_1' });
   subBankService.postFoodWalletDualEntry.mockResolvedValue({ posted: true });
   incidentStore.recordIncident.mockResolvedValue({ id: 'incident-1' });
+  complianceService.evaluateFundingCompliance.mockResolvedValue({ allowed: true });
 });
 
 afterEach(() => {
@@ -364,7 +369,7 @@ describe('GET /api/restaurants/:restaurantId/topup-eligibility', () => {
 // ── Top-up intent creation ──────────────────────────────────────────────────
 describe('POST /api/restaurants/:restaurantId/topups', () => {
   function intentQueries({ restaurant = ACTIVE_RESTAURANT, eligibility = ELIGIBILITY_APPROVED, dailyCap = DAILY_CAP_ZERO, inserted = true, existingRow = null } = {}) {
-    const queries = [restaurant, eligibility, dailyCap];
+    const queries = [restaurant, restaurant, eligibility, dailyCap];
     if (inserted) {
       queries.push({ rows: [baseTopupRow()] }); // INSERT ... RETURNING *
     } else {
@@ -465,6 +470,13 @@ describe('POST /api/restaurants/:restaurantId/topups', () => {
     expect(res.body.topup.status).toBe('pending');
     expect(res.body.clientSecret).toBe('cs_test_1');
     expect(res.body.replayed).toBe(false);
+    expect(complianceService.evaluateFundingCompliance).toHaveBeenCalledWith(expect.objectContaining({
+      customerId: USER_ID,
+      amountCents: 5000,
+      currencyCode: 'USD',
+      fundingMethod: 'restaurant_topup',
+      actorUserId: USER_ID,
+    }));
     // The Stripe intent carries the restaurant top-up metadata and a
     // deterministic idempotency key.
     expect(stripe.paymentIntents.create).toHaveBeenCalledWith(
@@ -526,7 +538,7 @@ describe('POST /api/restaurants/:restaurantId/topups', () => {
   test('creates a large top-up once the step-up challenge verifies', async () => {
     const withIntent = { ...baseTopupRow({ amount_cents: 30000 }), stripe_payment_intent_id: 'pi_test_1' };
     mockAuthed(
-      {}, ACTIVE_RESTAURANT, ELIGIBILITY_APPROVED, DAILY_CAP_ZERO,
+      {}, ACTIVE_RESTAURANT, ACTIVE_RESTAURANT, ELIGIBILITY_APPROVED, DAILY_CAP_ZERO,
       { rows: [baseTopupRow({ amount_cents: 30000 })] },
       { rows: [] },
       { rows: [withIntent] }
@@ -592,7 +604,7 @@ describe('GET /api/restaurants/:restaurantId/topups/:topupId', () => {
   test('S3: without a webhook the top-up stays pending and nothing is credited', async () => {
     const withIntent = { ...baseTopupRow(), stripe_payment_intent_id: 'pi_test_1' };
     mockAuthed(
-      {}, ACTIVE_RESTAURANT, ELIGIBILITY_APPROVED, DAILY_CAP_ZERO,
+      {}, ACTIVE_RESTAURANT, ACTIVE_RESTAURANT, ELIGIBILITY_APPROVED, DAILY_CAP_ZERO,
       { rows: [baseTopupRow()] },
       { rows: [] },
       { rows: [withIntent] } // intent created; Stripe holds the money, no webhook yet

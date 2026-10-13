@@ -187,3 +187,5 @@ W17 receipt follow-up: completed OxSteed Credit Stripe top-ups now emit a locali
 W16 media follow-up: support conversation attachments now accept only first-party storage paths or hosts on the shared media allowlist. Arbitrary external HTTPS links and unrelated storage paths are rejected on both the modern message route and the legacy attachment route.
 
 W16 image-processing follow-up: every Sharp decode/thumbnail path now applies a 40-megapixel `limitInputPixels` guard before metadata stripping or resizing, preventing decompression-bomb images from exhausting memory.
+
+W17 compliance follow-up: restaurant Stripe top-up intents now pass through the shared fiat funding compliance gate (rail, identity tier, sanctions, limits, and audit) before a pending top-up row can be created. Amount validation remains side-effect free and the existing eligibility/payout gates stay in place.
