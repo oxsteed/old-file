@@ -41,6 +41,7 @@
     "test:job-detail-browser": "node --test scripts/jobDetail.browser-check.cjs",
     "test:job-edit-browser": "node --test scripts/jobEdit.browser-check.cjs",
     "test:footer-navigation": "node --test scripts/footerNavigation.test.mjs",
+    "test:launch-scope-visibility": "node --test scripts/launchScopeVisibility.test.mjs",
     "test:footer-navigation-browser": "node --test scripts/footerNavigation.browser-check.cjs",
     "test:navbar-navigation": "node --test scripts/navbarNavigation.test.mjs",
     "test:navbar-navigation-browser": "node --test scripts/navbarNavigation.browser-check.cjs",

@@ -20,6 +20,7 @@ jest.mock('../middleware/upload', () => ({
 }));
 
 const helperRegistrationRoutes = require('../routes/helperRegistration');
+const settingsCache = require('../services/platformSettingsCache');
 
 function buildApp() {
   const app = express();
@@ -28,10 +29,21 @@ function buildApp() {
   return app;
 }
 
-beforeEach(() => resetMocks());
+beforeEach(() => {
+  resetMocks();
+  // Review P3-7-F07: the registration gate reads platform_settings first;
+  // clear the TTL cache so each test's mock sequence starts fresh.
+  settingsCache._clearCacheForTests();
+});
+
+// The registration gate (requireRegistrationsOpen) issues the first query:
+// SELECT value FROM platform_settings WHERE key = 'new_user_registrations'.
+const registrationsOpenMock = () =>
+  mockQuery.mockResolvedValueOnce({ rows: [{ value: 'true' }] });
 
 describe('POST /api/helper-registration/start', () => {
   test('normalizes trimmed fields before DB insert', async () => {
+    registrationsOpenMock();
     mockQuery
       .mockResolvedValueOnce({ rows: [] }) // duplicate email check
       .mockResolvedValueOnce({ rows: [{ '?column?': 1 }] }) // pendingRegistrationsHasRoleColumn
@@ -56,7 +68,7 @@ describe('POST /api/helper-registration/start', () => {
     expect(res.status).toBe(201);
     expect(res.body).toHaveProperty('token');
 
-    const insertArgs = mockQuery.mock.calls[3][1];
+    const insertArgs = mockQuery.mock.calls[4][1];
     expect(insertArgs[1]).toBe('helper@example.com');
     expect(insertArgs[3]).toBe('Helper');
     expect(insertArgs[4]).toBe('User');
@@ -68,6 +80,7 @@ describe('POST /api/helper-registration/start', () => {
   });
 
   test('returns 400 for DB field length overflow instead of 500', async () => {
+    registrationsOpenMock();
     mockQuery
       .mockResolvedValueOnce({ rows: [] }) // duplicate email check
       .mockResolvedValueOnce({ rows: [{ '?column?': 1 }] }) // pendingRegistrationsHasRoleColumn

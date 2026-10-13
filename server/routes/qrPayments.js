@@ -420,6 +420,13 @@ router.get('/pay/:code', strictLimiter, async (req, res, next) => {
 });
 
 // ── Create a Stripe Checkout Session for a code ──────────────────
+// Review P3-7-F12: this public checkout is intentionally NOT gated by
+// FEATURE_PAYMENTS_ENABLED. That flag governs the PLATFORM (escrow/job)
+// payment surface; QR codes are direct helper/business Stripe charges with
+// no platform escrow, a standalone shipped product. Gating it here would
+// silently disable that product whenever the platform flag is off. Abuse
+// protection is the dedicated per-IP qrCheckoutLimiter above. See
+// services/paymentLayerFlags.js for the documented flag scope.
 router.post('/pay/:code/checkout', qrCheckoutLimiter, async (req, res, next) => {
   try {
     const clientRequestId = String(

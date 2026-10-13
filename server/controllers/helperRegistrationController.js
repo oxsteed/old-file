@@ -10,6 +10,7 @@ const { encrypt, hashTIN, maskTIN, hashIP } = require('../utils/encryption');
 const { TERMS_CONFIG } = require('../constants/termsConfig');
 const { trialDefaults, hasProAccess } = require('../utils/trial');
 const { validate, rules } = require('../utils/validate');
+const { assertRegistrationsOpen } = require('../middleware/maintenanceGate'); // Review P3-7-F07
 const countriesUtil = require('../utils/countries');
 const logger = require('../utils/logger');
 const { ONBOARDING_COLUMNS, deriveHelperOnboarding } = require('../services/helperOnboarding');
@@ -130,6 +131,11 @@ async function startRegistration(req, res) {
       });
       return res.status(400).json({ error: 'validation_failed', fields: errs });
     }
+
+    // Review P3-7-F07: 'new_user_registrations' kill-switch. Checked after
+    // input validation (so invalid input still 400s without a settings
+    // lookup) but before any account state is created.
+    await assertRegistrationsOpen();
 
     // Check for existing user
     const dup = await pool.query(

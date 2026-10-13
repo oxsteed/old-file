@@ -109,6 +109,12 @@ services:
       SUPPORT_AI_TIMEOUT_MS: ${SUPPORT_AI_TIMEOUT_MS:-2500}
       # Production path is Cloudflare -> Traefik -> app.
       TRUST_PROXY_HOPS: ${TRUST_PROXY_HOPS:-2}
+      # Review P3-13-F16: required in production. The origin lock rejects
+      # direct-to-origin traffic (forgeable X-Forwarded-For) unless the
+      # request carries this secret via the Cloudflare transform rule.
+      # The server refuses to boot in production without it unless
+      # ORIGIN_LOCK_DISABLED=true is set explicitly.
+      ORIGIN_SHARED_SECRET: ${ORIGIN_SHARED_SECRET}
       STRIPE_CONNECT_CLIENT_ID: ${STRIPE_CONNECT_CLIENT_ID}
       STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY}
       STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET}

@@ -222,6 +222,18 @@ function resolveTrustProxyHops() {
 app.set('trust proxy', resolveTrustProxyHops());
 // Review P3-1107: reject requests that bypass the CDN, where XFF is forgeable.
 app.use(require('./middleware/originLock').createOriginLock());
+// Review P3-13-F16: fail closed in production. When the origin is directly
+// reachable, X-Forwarded-For is forgeable and every IP-keyed rate limiter can
+// be rotated past. The origin lock above only works when ORIGIN_SHARED_SECRET
+// is set (Cloudflare transform rule adds the header), so booting production
+// without it silently disables that protection. The boot check itself runs
+// below, after the isProduction definition.
+// Review P3-13-F19: bound server-side timeouts so slowloris-style attacks do
+// not depend entirely on the proxy. headersTimeout < requestTimeout is
+// required by Node; values stay generous enough for large legitimate uploads.
+httpServer.headersTimeout = 30 * 1000;    // slow-header (slowloris) ceiling
+httpServer.requestTimeout = 120 * 1000;   // full request (headers + body) ceiling
+httpServer.keepAliveTimeout = 5 * 1000;   // idle keep-alive ceiling
 const PORT = process.env.PORT || 5000;
 const canonicalHostRedirect = require('./middleware/canonicalHost');
 app.use(canonicalHostRedirect);
@@ -244,6 +256,17 @@ if (isProduction && rawAllowedOrigins.length !== allowedOrigins.length) {
 
 if (allowedOrigins.length === 0) {
   logger.error('CORS: no allowed origins configured', { rawAllowedOrigins, allowedOrigins });
+}
+
+// Review P3-13-F16: fail closed in production (see assertOriginLockBoot in
+// middleware/originLock.js). Refuse to boot when the origin lock cannot
+// engage, unless the operator explicitly opts out.
+try {
+  require('./middleware/originLock').assertOriginLockBoot();
+} catch (err) {
+  // eslint-disable-next-line no-console
+  console.error(`FATAL: ${err.message}`);
+  process.exit(1);
 }
 
 // ── REALTIME BOOTSTRAP ─────────────────────────────────────────
@@ -318,6 +341,11 @@ const telematicsWebhookCtrl = require('./controllers/deliveryTelematicsWebhookCo
 app.post('/api/delivery/webhooks/telematics/:provider', webhookRateLimit, express.raw({ type: 'application/json' }), telematicsWebhookCtrl.receiveWebhook);
 
 // ── RATE LIMITING ────────────────────────────────────────────
+// Review P3-7-F07: maintenance_mode now has a real runtime reader. The gate
+// sits after the webhook mounts (provider webhooks carry their own HMAC auth
+// and must keep flowing during maintenance) and after CORS (so preflights
+// and the 503 JSON stay readable cross-origin).
+app.use(require('./middleware/maintenanceGate').createMaintenanceGate());
 // Unauthenticated requests: 200 req / 15 min / IP
 // Authenticated requests:   500 req / 15 min / user ID
 // Each limiter skips the other's traffic so they don't double-count.
@@ -452,6 +480,18 @@ app.get('/health', (req, res) => {
   res.json({
     status: 'ok',
     uptimeSeconds: Math.floor(process.uptime()),
+  });
+});
+
+// Review P3-7-F09: public launch-state snapshot. The client used to hardcode
+// oxsteedMedia:true while the server required OXSTEED_MEDIA_LAUNCHED=true,
+// so the client rendered Media UI against 404 APIs. The server is the single
+// source of truth; the client fetches this at boot and overrides its
+// build-time defaults. Public and cheap (env reads only).
+app.get('/api/launch-visibility', (req, res) => {
+  const { envFlagEnabled } = require('./middleware/featureFlags');
+  res.json({
+    media: envFlagEnabled('OXSTEED_MEDIA_LAUNCHED', false),
   });
 });
 
