@@ -21,6 +21,7 @@ const { startDirectCalendarReminderJob } = require('../jobs/directCalendarRemind
 const { startAffiliateCommissionBatchJob } = require('../jobs/affiliateCommissionBatch');
 const { startTemplateExpiryJob } = require('../jobs/templateExpiryJob');
 const { startAcceptedJobExpiryJob } = require('../jobs/acceptedJobExpiryJob');
+const { startHelperCompletionAutoConfirmJob } = require('../jobs/helperCompletionAutoConfirm');
 const { startScheduledDeletionJob } = require('../jobs/scheduledDeletionJob');
 const { startRecurringJobScheduler } = require('../jobs/recurringJobScheduler');
 const { startCustomerReengagementJob } = require('../jobs/customerReengagementJob');
@@ -28,6 +29,9 @@ const { releaseExpiredInventoryReservations } = require('../services/restaurantI
 const { cleanupExpiredWalletOperations } = require('../services/foodWalletOperationsService');
 const { startOxsteedCreditHoldExpiryJob } = require('../jobs/oxsteedCreditHoldExpiry');
 const { startDirectSlotHoldExpiryJob } = require('../jobs/directSlotHoldExpiry');
+const { startJobEventOutboxJob } = require('../jobs/jobEventOutbox');
+const { startJobRevisionMaintenanceJob } = require('../jobs/jobRevisionMaintenance');
+const { startPaymentLayersWorker } = require('../jobs/paymentLayersWorker');
 const { startOxsteedCreditEntitlementExpiryJob } = require('../jobs/oxsteedCreditEntitlementExpiry');
 const { startOxsteedCreditReconciliationJob } = require('../jobs/oxsteedCreditReconciliation');
 const { startOxsteedCreditTopupExpiryJob } = require('../jobs/oxsteedCreditTopupExpiry');
@@ -48,6 +52,9 @@ const { startExternalRefundReconciliationJob } = require('../jobs/externalRefund
 const { startPayoutSettlementReconciliationJob } = require('../jobs/payoutSettlementReconciliation');
 const { startRestaurantPayoutReconciliationJob } = require('../jobs/restaurantPayoutReconciliation');
 const { startWebhookRetryJob } = require('../jobs/webhookRetryWorker');
+const { startChargebackEvidenceDeadlineJob } = require('../jobs/chargebackEvidenceDeadline');
+const { startWebhookReceiptRecoveryJob } = require('../jobs/webhookReceiptRecovery');
+const { startBookingDepositSettlementJob } = require('../jobs/bookingDepositSettlement');
 const { startSettingsChangeApplierJob } = require('../jobs/settingsChangeApplier');
 const { startProfileVisibilityScheduler } = require('../jobs/profileVisibilityScheduledActions');
 const { startProfileVisibilityNotificationRetryJob } = require('../jobs/profileVisibilityNotificationRetry');
@@ -92,6 +99,7 @@ class BackgroundWorkers {
       startScheduledDeletionJob();
       startTemplateExpiryJob();
       startAcceptedJobExpiryJob();
+      startHelperCompletionAutoConfirmJob();
       startRecurringJobScheduler();
       startCustomerReengagementJob();
       startOxsteedCreditHoldExpiryJob();
@@ -110,12 +118,18 @@ class BackgroundWorkers {
       startOxsteedCreditWorkerWatchdog();
       startRestaurantWalletWatchdog();
       startMessageNotificationOutboxJob();
+      startJobEventOutboxJob();
+      startJobRevisionMaintenanceJob();
+      startPaymentLayersWorker();
       startMarketplaceRefundReconciliationJob();
       startPaymentRefundReconciliationJob();
       startExternalRefundReconciliationJob();
       startPayoutSettlementReconciliationJob();
       startRestaurantPayoutReconciliationJob();
       startWebhookRetryJob();
+      startChargebackEvidenceDeadlineJob();
+      startWebhookReceiptRecoveryJob();
+      startBookingDepositSettlementJob();
       startSettingsChangeApplierJob();
       startProfileVisibilityScheduler();
       startProfileVisibilityNotificationRetryJob();

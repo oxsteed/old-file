@@ -14,7 +14,6 @@ const {
   verifyOTP,
   resendOTP,
   getCategories,
-  completeRegistration,
   saveTier,
   saveW9,
   acceptTerms,
@@ -35,7 +34,12 @@ router.post('/verify-otp',  authLimiter, verifyOTP);
 router.post('/resend-otp',  authLimiter, resendOTP);
 router.post('/send-otp',    authLimiter, resendOTP);  // alias for frontend
 router.get('/categories',   getCategories);
-router.post('/complete',    authLimiter, completeRegistration);
+// Review P2-482: the deprecated completion endpoint created accounts from an
+// email alone and returned 500s. Account creation happens in /verify-otp now.
+router.post('/complete',    authLimiter, (_req, res) => res.status(410).json({
+  error: 'This step is no longer used. Verify your code to finish creating your account.',
+  code: 'endpoint_retired',
+}));
 router.post('/tier',        authenticate, saveTier);
 router.post('/w9',          authenticate, saveW9);
 router.post('/accept-terms', authenticate, acceptTerms);

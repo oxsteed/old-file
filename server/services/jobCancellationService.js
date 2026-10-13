@@ -82,6 +82,22 @@ async function cancelJobTransaction({ jobId, actorId, actorKind = 'auto', reason
       const isHelper = job.assigned_helper_id === actorId;
 
       let kind = actorKind;
+      // Review P1-131: 'system' is the accepted-job expiry sweep. It never
+      // charges a fee, only cancels jobs still in 'accepted', and refuses
+      // when a live payment hold exists (an operator must release it first).
+      if (kind === 'system') {
+        if (job.status !== 'accepted') {
+          throw new AppError('Job is no longer awaiting start', 409, 'state_conflict');
+        }
+        const { rows: liveHolds } = await client.query(`
+          SELECT id FROM payments
+          WHERE job_id = $1 AND status IN ('authorized','captured')
+            AND escrow_status IN ('authorized','held','disputed')
+        `, [jobId]);
+        if (liveHolds.length > 0) {
+          throw new AppError('Job has a live payment hold', 409, 'pending_payments');
+        }
+      }
       if (kind === 'auto') {
         if (isCustomer) kind = 'customer';
         else if (isHelper) kind = 'helper';
@@ -215,16 +231,21 @@ async function cancelJobTransaction({ jobId, actorId, actorKind = 'auto', reason
         });
       }
 
-      // 6. Update job status to cancelled
-      await client.query(
+      // 6. Update job status to cancelled (guarded: a concurrent start,
+      //    completion or cancel wins the row and this one 409s).
+      const { rows: cancelledRows } = await client.query(
         `UPDATE jobs SET
           status = 'cancelled',
           cancelled_at = NOW(),
           cancellation_reason = $1,
           updated_at = NOW()
-         WHERE id = $2`,
-        [reason || null, jobId]
+         WHERE id = $2 AND status::text = ANY($3::text[])
+         RETURNING id`,
+        [reason || null, jobId, kind === 'system' ? ['accepted'] : POST_ACCEPTANCE_STATUSES]
       );
+      if (!cancelledRows.length) {
+        throw new AppError('Job state changed during cancellation', 409, 'state_conflict');
+      }
 
       // 7. Update bid with fee information
       if (paymentMethod === 'oxsteed' && feeToPay > 0) {
@@ -250,7 +271,8 @@ async function cancelJobTransaction({ jobId, actorId, actorKind = 'auto', reason
       // 9. Write cancellation audit log
       const feeReason = asCustomer
         ? (feeToPay > 0 ? `customer_initiated_fee_${feePercentage}pct` : 'no_fee_advance')
-        : (isAdmin ? 'admin_initiated_no_fee' : 'helper_initiated_no_fee');
+        : (isAdmin ? 'admin_initiated_no_fee'
+          : (kind === 'system' ? 'system_expiry_no_fee' : 'helper_initiated_no_fee'));
 
       const hoursBeforeStart = job.scheduled_date
         ? (new Date(job.scheduled_date) - Date.now()) / (1000 * 60 * 60)
@@ -265,7 +287,7 @@ async function cancelJobTransaction({ jobId, actorId, actorKind = 'auto', reason
         RETURNING id`,
         [
           jobId,
-          actorId,
+          kind === 'system' ? null : actorId,
           kind,
           asCustomer ? job.assigned_helper_id : job.client_id,
           feeReason,
@@ -389,6 +411,16 @@ async function finalizeJobCancellation(result) {
     releaseJobCreditCollateral(result.job_id).catch((err) =>
       logger.warn('Failed to release job Credit collateral', { jobId: result.job_id, error: err.message })
     );
+  } catch (_) { /* non-fatal */ }
+
+  // Payment layers: release a Credit payment hold / refund a platform-held
+  // charge. Logged, retried by the next cancellation sweep if it fails.
+  try {
+    if (result.job_id) {
+      require('./paymentRails').onCancelled(result.job_id).catch((err) =>
+        logger.warn('Failed to release payment-rail funds after cancellation', { jobId: result.job_id, error: err.message })
+      );
+    }
   } catch (_) { /* non-fatal */ }
 
   logger.info('Job cancellation recorded', {

@@ -1,132 +1,118 @@
 // server/jobs/acceptedJobExpiryJob.js
-// Daily cron: auto-cancel jobs that remain in 'accepted' status for 7+ days without moving to 'in_progress'
-// Prevents helpers from accepting and never starting work; prevents customers from having jobs stuck in limbo
+// Review P1-131: daily sweep for jobs accepted but never started.
+//  - day WARNING_DAYS: both parties are warned once (in-app/push/email).
+//  - day EXPIRY_DAYS: the job is cancelled through the shared cancellation
+//    core as a 'system' actor (no fee, audited in cancellation_audit_log).
+//  - a job with a live payment hold is never auto-cancelled; it is raised as
+//    a reconciliation exception for an operator to release the hold first.
+// Failures are counted and returned; the run throws if every attempt failed.
 
 const pool = require('../db');
 const logger = require('../utils/logger');
 const { sendNotification } = require('../services/notificationService');
+const { cancelJobTransaction, finalizeJobCancellation } = require('../services/jobCancellationService');
+const { withFencedJobLock } = require('./jobLockingService');
 
-const CRON_EXPRESSION = '0 2 * * *'; // 02:00 UTC daily
-const EXPIRY_DAYS = 7; // Jobs accepted 7+ days ago auto-cancel
+const JOB_NAME = 'accepted-job-expiry';
+const CRON_EXPRESSION = '0 * * * *'; // hourly; each job is acted on once
+const EXPIRY_DAYS = 7;
+const WARNING_DAYS = 5;
+const BATCH_SIZE = 200;
 
-async function runAcceptedJobExpiryJob() {
-  logger.info('Accepted job expiry job started');
-  let expired = 0;
-  let notificationErrors = 0;
+async function notifyBoth(job, type, data) {
+  let failures = 0;
+  for (const userId of [job.client_id, job.assigned_helper_id].filter(Boolean)) {
+    try {
+      await sendNotification({
+        userId,
+        type,
+        data: { job_id: job.id, title: job.title || '', ...data },
+        action_url: `/jobs/${job.id}`,
+        idempotencyKey: `${type}:${job.id}:${userId}`,
+      });
+    } catch (err) {
+      failures += 1;
+      logger.warn('Accepted job expiry notification failed', { jobId: job.id, type, error: err.message });
+    }
+  }
+  return failures;
+}
 
-  try {
-    // Find all jobs in 'accepted' status that were accepted 7+ days ago
-    const { rows: staleJobs } = await pool.query(
-      `SELECT
-         j.id,
-         j.client_id,
-         j.assigned_helper_id,
-         j.title,
-         j.accepted_at,
-         u_helper.first_name AS helper_first_name,
-         u_helper.last_name AS helper_last_name,
-         u_client.first_name AS client_first_name,
-         u_client.last_name AS client_last_name
-       FROM jobs j
-       JOIN users u_helper ON j.assigned_helper_id = u_helper.id
-       JOIN users u_client ON j.client_id = u_client.id
-       WHERE j.status = $1
-         AND j.accepted_at IS NOT NULL
-         AND j.accepted_at <= NOW() - INTERVAL '${EXPIRY_DAYS} days'
-       ORDER BY j.accepted_at ASC`,
-      ['accepted']
-    );
+async function sweep(db) {
+  const result = { warned: 0, cancelled: 0, held: 0, failed: 0, notificationErrors: 0 };
 
-    logger.info('Found stale accepted jobs', { count: staleJobs.length });
+  const { rows: warnJobs } = await db.query(
+    `UPDATE jobs SET expiry_warning_sent_at = NOW()
+      WHERE id IN (
+        SELECT id FROM jobs
+         WHERE status = 'accepted' AND accepted_at IS NOT NULL
+           AND started_at IS NULL AND expiry_warning_sent_at IS NULL
+           AND accepted_at <= NOW() - make_interval(days => $1)
+           AND accepted_at >  NOW() - make_interval(days => $2)
+         LIMIT $3)
+      RETURNING id, title, client_id, assigned_helper_id`,
+    [WARNING_DAYS, EXPIRY_DAYS, BATCH_SIZE]
+  );
+  for (const job of warnJobs) {
+    result.notificationErrors += await notifyBoth(job, 'job_auto_cancel_warning', { days: EXPIRY_DAYS - WARNING_DAYS });
+    result.warned += 1;
+  }
 
-    // Auto-cancel each job
-    for (const job of staleJobs) {
-      try {
-        await pool.query(
-          `UPDATE jobs
-           SET status = $1, updated_at = NOW()
-           WHERE id = $2`,
-          ['cancelled', job.id]
-        );
+  const { rows: staleJobs } = await db.query(
+    `SELECT id, title, client_id, assigned_helper_id, accepted_at
+       FROM jobs
+      WHERE status = 'accepted' AND accepted_at IS NOT NULL AND started_at IS NULL
+        AND accepted_at <= NOW() - make_interval(days => $1)
+      ORDER BY accepted_at
+      LIMIT $2`,
+    [EXPIRY_DAYS, BATCH_SIZE]
+  );
 
-        // Log the auto-cancellation for audit trail
-        await pool.query(
-          `INSERT INTO cancellation_audit_log (
-            user_id, job_id, role, reason, fee_percentage, cancelled_by, cancelled_at
-          ) VALUES ($1, $2, $3, $4, $5, $6, NOW())`,
-          [
-            job.client_id,
-            job.id,
-            'system_auto_cancel',
-            'Job auto-cancelled after 7 days in accepted status without progress',
-            0, // No fees for system auto-cancel
-            null // system auto-cancel, not a user action
-          ]
-        );
-
-        // Notify helper
-        try {
-          const helperName = `${job.helper_first_name} ${job.helper_last_name}`;
-          await sendNotification({
-            userId: job.assigned_helper_id,
-            type: 'job_auto_cancelled',
-            title: 'Job Auto-Cancelled',
-            body: `"${job.title}" was automatically cancelled because it remained unstarted for 7 days after acceptance.`,
-            data: { jobId: job.id },
-            action_url: `/jobs/${job.id}`
-          });
-        } catch (notifErr) {
-          logger.warn('Failed to notify helper of auto-cancellation', {
-            jobId: job.id,
-            helperId: job.assigned_helper_id,
-            error: notifErr.message
-          });
-          notificationErrors++;
-        }
-
-        // Notify customer
-        try {
-          await sendNotification({
-            userId: job.client_id,
-            type: 'job_auto_cancelled',
-            title: 'Job Auto-Cancelled',
-            body: `Your job "${job.title}" was automatically cancelled because the accepted helper did not start the work within 7 days.`,
-            data: { jobId: job.id },
-            action_url: `/jobs/${job.id}`
-          });
-        } catch (notifErr) {
-          logger.warn('Failed to notify customer of auto-cancellation', {
-            jobId: job.id,
-            customerId: job.client_id,
-            error: notifErr.message
-          });
-          notificationErrors++;
-        }
-
-        expired++;
-        logger.info('Auto-cancelled stale job', {
-          jobId: job.id,
-          title: job.title,
-          acceptedDays: EXPIRY_DAYS
+  for (const job of staleJobs) {
+    try {
+      const cancelled = await cancelJobTransaction({
+        jobId: job.id,
+        actorId: null,
+        actorKind: 'system',
+        reason: `Auto-cancelled: work did not start within ${EXPIRY_DAYS} days of acceptance`,
+      });
+      await finalizeJobCancellation(cancelled);
+      result.notificationErrors += await notifyBoth(job, 'job_auto_cancelled', { days: EXPIRY_DAYS });
+      result.cancelled += 1;
+    } catch (err) {
+      if (err.code === 'pending_payments') {
+        result.held += 1;
+        const { recordException } = require('../services/reconciliationExceptions');
+        await recordException({
+          domain: 'payment_refund',
+          referenceId: `stale_accepted_job:${job.id}`,
+          severity: 'warning',
+          summary: `Job ${job.id} has been accepted for ${EXPIRY_DAYS}+ days without starting and holds a live payment. Release or refund it, then cancel.`,
+          details: { job_id: job.id, accepted_at: job.accepted_at },
         });
-      } catch (jobErr) {
-        logger.error('Failed to auto-cancel job', {
-          jobId: job.id,
-          error: jobErr.message
-        });
+      } else if (err.code === 'state_conflict') {
+        // Started, completed or cancelled concurrently: nothing to do.
+      } else {
+        result.failed += 1;
+        logger.error('Failed to auto-cancel stale accepted job', { jobId: job.id, error: err.message });
       }
     }
-
-    logger.info('Accepted job expiry job completed', {
-      cancelled: expired,
-      notificationErrors
-    });
-
-    return { cancelled: expired, notificationErrors };
-  } catch (err) {
-    logger.error('Accepted job expiry job failed', { error: err.message });
-    throw err;
   }
+
+  if (result.failed > 0 && result.failed === staleJobs.length) {
+    throw new Error(`Accepted job expiry failed for all ${result.failed} due job(s)`);
+  }
+  return result;
+}
+
+async function runAcceptedJobExpiryJob(db = pool) {
+  let result = { locked: false };
+  await withFencedJobLock(JOB_NAME, async (fence) => {
+    fence.assertActive();
+    result = { locked: true, ...(await sweep(db)) };
+  }, 900, { throwOnError: true });
+  logger.info('Accepted job expiry run finished', result);
+  return result;
 }
 
 function startAcceptedJobExpiryJob() {
@@ -145,5 +131,6 @@ module.exports = {
   startAcceptedJobExpiryJob,
   runAcceptedJobExpiryJob,
   cronExpression: CRON_EXPRESSION,
-  EXPIRY_DAYS
+  EXPIRY_DAYS,
+  WARNING_DAYS,
 };

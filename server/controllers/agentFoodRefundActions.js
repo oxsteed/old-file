@@ -69,6 +69,7 @@ const PAYMENT_MODE_ALIASES = {
   oxsteedCredit: 'oxsteed_credit',
   credit: 'oxsteed_credit',
   pay_now: 'pay_now',
+  card: 'card',
   direct: 'direct_payment',
   direct_payment: 'direct_payment',
   off_platform: 'direct_payment',
@@ -231,13 +232,8 @@ async function refundFoodOrder(req, res, next) {
           balanceBeforeCents: balanceAfterCents != null ? balanceAfterCents - amountCents : null,
         };
       } else if (paymentMethod === 'oxsteed_credit') {
-        if (!order.customer_id) {
-          throw new AppError(
-            'This OxSteed-credit order has no customer account to re-credit; settle it manually',
-            422,
-            'refund_credit_no_customer'
-          );
-        }
+        // Guest Credit orders refund against the original Credit purchase
+        // (keyed by order reference), so no customer account is required.
         if (totalCents <= 0) {
           throw new AppError(
             'This order has a zero total, so there is nothing to refund',
@@ -285,12 +281,28 @@ async function refundFoodOrder(req, res, next) {
             ? 'Marked refunded. Manual settlement required: this order was set to pay at the restaurant, so no money moved automatically. Settle with the customer and the restaurant out of band.'
             : 'Marked refunded. Manual settlement required: this order was paid directly (off platform), so no money moved automatically. Settle with the customer out of band.',
         };
-      } else if (paymentMethod === 'pay_now') {
-        throw new AppError(
-          'Card (pay_now) food orders are refunded through the restaurant card-refund flow, not the agent console',
-          422,
-          'refund_pay_now_unsupported'
-        );
+      } else if (paymentMethod === 'pay_now' || paymentMethod === 'card') {
+        if (order.payment_status !== 'paid' || !order.stripe_payment_intent_id) {
+          throw new AppError(
+            'This card order has no captured card payment to refund',
+            422,
+            'refund_card_not_paid'
+          );
+        }
+        const { refundFoodOrderCardPayment } = require('./foodController');
+        const cardRefund = await refundFoodOrderCardPayment(client, {
+          order,
+          createdByUserId: req.user?.id || null,
+          status: targetStatus,
+          destinationCharge: paymentMethod === 'card',
+        });
+        money = {
+          kind: 'card',
+          amountCents: Number(cardRefund.refund?.amount ?? totalCents),
+          currencyCode,
+          refundId: cardRefund.refund?.id || null,
+          stripeChargeId: cardRefund.chargeId || null,
+        };
       } else {
         throw new AppError(
           `Payment method '${paymentMethod}' is not supported for agent food refunds`,

@@ -64,6 +64,7 @@ function normalizedRegistrationRegion(country, value) {
 // not carry it); the explicit Authorization: Bearer header flow is untouched.
 // Cookie names/options live in utils/authCookies (shared with passkey,
 // internal-access and registration controllers).
+const { recordSessionContext } = require('../utils/sessionContext');
 const {
   REFRESH_COOKIE_NAME,
   setAccessTokenCookie,
@@ -417,6 +418,7 @@ async function login(req, res, next) {
       ? "INSERT INTO sessions (user_id, refresh_token, expires_at) VALUES ($1, $2, NOW() + interval '30 days')"
       : "INSERT INTO sessions (user_id, refresh_token, expires_at) VALUES ($1, $2, NOW() + interval '7 days')";
     await pool.query(sessionSql, [user.id, hashedRefresh]);
+    await recordSessionContext(pool, hashedRefresh, req);
 
     // H8d: web clients get the refresh token as an httpOnly cookie; the JSON
     // body still carries it for native/mobile clients.
@@ -628,6 +630,7 @@ async function loginWith2FA(req, res, next) {
       ? "INSERT INTO sessions (user_id, refresh_token, expires_at) VALUES ($1, $2, NOW() + interval '30 days')"
       : "INSERT INTO sessions (user_id, refresh_token, expires_at) VALUES ($1, $2, NOW() + interval '7 days')";
     await pool.query(sessionSql, [user.id, hashedRefresh]);
+    await recordSessionContext(pool, hashedRefresh, req);
 
     // H8d: refresh token as httpOnly cookie for web clients (JSON fallback kept).
     setRefreshTokenCookie(res, tokens.refreshToken, { rememberMe });
@@ -789,6 +792,21 @@ async function verifyOTP(req, res) {
   }
 }
 
+// Hard cap on a refresh-token family (P1-109). Configurable; rotation carries
+// the original deadline forward instead of sliding it.
+function sessionAbsoluteMaxDays() {
+  const n = Number(process.env.SESSION_ABSOLUTE_MAX_DAYS || 90);
+  return Number.isFinite(n) && n > 0 ? n : 90;
+}
+
+function resolveSessionAbsoluteDeadline(session) {
+  const explicit = session.absolute_expires_at ? new Date(session.absolute_expires_at) : null;
+  if (explicit && !Number.isNaN(explicit.getTime())) return explicit;
+  const startedRaw = session.created_at ? new Date(session.created_at) : new Date();
+  const started = Number.isNaN(startedRaw.getTime()) ? new Date() : startedRaw;
+  return new Date(started.getTime() + sessionAbsoluteMaxDays() * 86400000);
+}
+
 async function refreshToken(req, res, next) {
   try {
     // H8d: accept the refresh token from the JSON body (native/mobile and
@@ -800,7 +818,7 @@ async function refreshToken(req, res, next) {
 
     const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
     const { rows: sessionRows } = await pool.query(
-      'SELECT s.user_id, s.is_valid, s.is_revoked FROM sessions s WHERE s.refresh_token = $1',
+      'SELECT s.user_id, s.is_valid, s.is_revoked, s.expires_at, s.absolute_expires_at, s.created_at FROM sessions s WHERE s.refresh_token = $1',
       [hashedToken]
     );
     if (!sessionRows[0]) {
@@ -823,11 +841,22 @@ async function refreshToken(req, res, next) {
     if (!sessionRows[0].is_valid) {
       throw new AppError('Your session has expired. Please log in again.', 401, 'token_expired');
     }
+    // Server-side absolute expiry: the session row's expires_at is
+    // authoritative, independent of any client cookie Max-Age.
+    const sessionExpiresAt = sessionRows[0].expires_at ? new Date(sessionRows[0].expires_at) : null;
+    if (sessionExpiresAt && !Number.isNaN(sessionExpiresAt.getTime()) && sessionExpiresAt.getTime() <= Date.now()) {
+      throw new AppError('Your session has expired. Please log in again.', 401, 'token_expired');
+    }
+    // Absolute family deadline: rotation can never extend a session past it.
+    const absoluteDeadline = resolveSessionAbsoluteDeadline(sessionRows[0]);
+    if (absoluteDeadline.getTime() <= Date.now()) {
+      throw new AppError('Your session has expired. Please log in again.', 401, 'token_expired');
+    }
 
     // Consume the token atomically. Two requests that pass the SELECT above
     // must not both rotate the same credential and create two live sessions.
     const { rows: invalidateRows } = await pool.query(
-      'UPDATE sessions SET is_valid = false, is_revoked = true WHERE refresh_token = $1 AND is_valid = true AND is_revoked = false RETURNING id',
+      'UPDATE sessions SET is_valid = false, is_revoked = true WHERE refresh_token = $1 AND is_valid = true AND is_revoked = false AND (expires_at IS NULL OR expires_at > NOW()) RETURNING id',
       [hashedToken]
     );
     if (invalidateRows.length === 0) {
@@ -856,9 +885,11 @@ async function refreshToken(req, res, next) {
     const tokens = generateTokens(user);
     const hashedRefresh = crypto.createHash('sha256').update(tokens.refreshToken).digest('hex');
     await pool.query(
-      "INSERT INTO sessions (user_id, refresh_token, expires_at) VALUES ($1, $2, NOW() + interval '7 days')",
-      [user.id, hashedRefresh]
+      `INSERT INTO sessions (user_id, refresh_token, expires_at, absolute_expires_at)
+       VALUES ($1, $2, LEAST(NOW() + interval '7 days', $3::timestamptz), $3::timestamptz)`,
+      [user.id, hashedRefresh, absoluteDeadline.toISOString()]
     );
+    await recordSessionContext(pool, hashedRefresh, req);
     // H8d: rotate the httpOnly refresh cookie alongside the session.
     setRefreshTokenCookie(res, tokens.refreshToken);
     // Set access token cookie (parity with login).

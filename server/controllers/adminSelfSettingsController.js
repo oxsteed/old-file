@@ -4,6 +4,7 @@
 // sessions, notification preferences, and API keys.
 
 const db = require('../db');
+const { currentRefreshHash } = require('../utils/sessionContext');
 const crypto = require('crypto');
 const { AppError } = require('../middleware/errorHandler');
 const logger = require('../utils/logger');
@@ -46,12 +47,15 @@ async function updateMyProfile(req, res, next) {
 async function listMySessions(req, res, next) {
   try {
     const { rows } = await db.query(
-      `SELECT id, created_at, expires_at, last_used_at, ip_address, user_agent,
-              (id = $2) AS is_current
+      `SELECT id, created_at, expires_at,
+              COALESCE(last_used_at, created_at) AS last_used_at,
+              ip_address, COALESCE(user_agent, device_info) AS user_agent,
+              (refresh_token = $2) AS is_current
        FROM sessions
        WHERE user_id = $1 AND is_valid = true AND is_revoked = false
-       ORDER BY last_used_at DESC NULLS LAST`,
-      [req.user.id, req.sessionId || null]
+         AND (expires_at IS NULL OR expires_at > NOW())
+       ORDER BY COALESCE(last_used_at, created_at) DESC NULLS LAST`,
+      [req.user.id, currentRefreshHash(req)]
     );
     res.json({ sessions: rows });
   } catch (err) { next(err); }
@@ -60,11 +64,16 @@ async function listMySessions(req, res, next) {
 async function revokeMySession(req, res, next) {
   try {
     const { sessionId } = req.params;
-    if (sessionId === req.sessionId) {
+    if (!/^\d+$/.test(String(sessionId))) throw new AppError('Session not found', 404, 'not_found');
+    const current = currentRefreshHash(req);
+    const { rows: [target] } = await db.query(
+      'SELECT refresh_token FROM sessions WHERE id = $1 AND user_id = $2', [sessionId, req.user.id]);
+    if (!target) throw new AppError('Session not found', 404, 'not_found');
+    if (current && target.refresh_token === current) {
       throw new AppError('Cannot revoke your current session', 400, 'cannot_revoke_current');
     }
     const { rowCount } = await db.query(
-      `UPDATE sessions SET is_valid = false, is_revoked = true
+      `UPDATE sessions SET is_valid = false, is_revoked = true, revoked_at = NOW()
        WHERE id = $1 AND user_id = $2`,
       [sessionId, req.user.id]
     );

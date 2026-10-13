@@ -83,7 +83,7 @@ async function reservePaymentRefund({ paymentId, requestedAmountCents, reason, r
     }
     const dispute = await client.query(
       `SELECT id FROM disputes
-        WHERE job_id = $1 AND status IN ('open', 'in_progress')
+        WHERE job_id = $1 AND status IN ('open', 'under_review', 'in_progress')
         LIMIT 1`,
       [payment.job_id]
     );
@@ -99,13 +99,19 @@ async function reservePaymentRefund({ paymentId, requestedAmountCents, reason, r
       throw new AppError('Refund amount must be a positive whole-cent amount no greater than the remaining payment', 400, 'invalid_refund_amount');
     }
 
+    // P3-788: an authorized (uncaptured) intent cannot be refunded; it is
+    // voided in full instead.
+    const kind = payment.status === 'authorized' ? 'void' : 'refund';
+    if (kind === 'void' && amountCents !== remainingCents) {
+      throw new AppError('An authorized payment can only be released in full', 400, 'partial_void_unsupported');
+    }
     const inserted = await client.query(
       `INSERT INTO payment_refund_attempts
-        (payment_id, amount_cents, reason, reverse_application_fee, idempotency_key, actor_user_id)
-       VALUES ($1, $2, $3, $4, $5, $6)
+        (payment_id, amount_cents, reason, reverse_application_fee, idempotency_key, actor_user_id, kind)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
        RETURNING *`,
       [paymentId, amountCents, reason ? String(reason).trim().slice(0, 1000) : null,
-        !!reverseApplicationFee, idempotencyKey, actorUserId || null]
+        !!reverseApplicationFee, idempotencyKey, actorUserId || null, kind]
     );
     return { payment, attempt: inserted.rows[0], replay: false };
   }, 'payment_refund_reservation');
@@ -209,6 +215,65 @@ async function settlePaymentRefund(reservation, providerRefund) {
   }, 'payment_refund_settlement');
 }
 
+async function providerVoid(reservation) {
+  if (!stripe) throw new AppError('Refunds are temporarily unavailable. Please contact support', 503, 'refund_unavailable');
+  const opts = reservation.payment.stripe_account_id ? { stripeAccount: reservation.payment.stripe_account_id } : {};
+  const piId = reservation.payment.stripe_payment_intent_id;
+  const current = await stripe.paymentIntents.retrieve(piId, opts);
+  if (current?.status === 'canceled' || current?.status === 'succeeded') return current;
+  return stripe.paymentIntents.cancel(piId, { cancellation_reason: 'requested_by_customer' }, {
+    ...opts,
+    idempotencyKey: reservation.attempt.idempotency_key,
+  });
+}
+
+async function settlePaymentVoid(reservation, intent) {
+  if (intent?.id !== reservation.payment.stripe_payment_intent_id) {
+    throw new AppError('Void intent identity mismatch', 503, 'payment_refund_reconciliation_required');
+  }
+  return withTransaction(pool, async (client) => {
+    const { rows: [attempt] } = await client.query(
+      'SELECT * FROM payment_refund_attempts WHERE id = $1 FOR UPDATE', [reservation.attempt.id]
+    );
+    if (!attempt) throw new AppError('Refund reservation was not found', 503, 'payment_refund_reconciliation_required');
+    if (attempt.status === 'succeeded') return { payment: reservation.payment, attempt, replay: true };
+
+    if (intent.status === 'succeeded') {
+      // Captured in the meantime: finish it as a normal refund next run.
+      const { rows: [converted] } = await client.query(
+        `UPDATE payment_refund_attempts SET kind = 'refund', updated_at = CURRENT_TIMESTAMP
+          WHERE id = $1 RETURNING *`, [attempt.id]
+      );
+      return { payment: reservation.payment, attempt: converted, replay: false, converted: true };
+    }
+    if (intent.status !== 'canceled') {
+      throw new AppError('Void needs reconciliation', 503, 'payment_refund_reconciliation_required');
+    }
+    const { rows: [updatedAttempt] } = await client.query(
+      `UPDATE payment_refund_attempts
+          SET status = 'succeeded', provider_payload = $2,
+              settled_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+        WHERE id = $1 RETURNING *`,
+      [attempt.id, JSON.stringify({ id: intent.id, status: intent.status, object: 'payment_intent' })]
+    );
+    const { rows: [updatedPayment] } = await client.query(
+      `UPDATE payments
+          SET status = 'canceled', payment_hold_status = 'released',
+              refund_reason = $2, updated_at = CURRENT_TIMESTAMP
+        WHERE id = $1 AND status IN ('authorized', 'pending')
+        RETURNING *`,
+      [attempt.payment_id, attempt.reason]
+    );
+    await logAdminAction({
+      client, adminId: attempt.actor_user_id,
+      action: 'void_payment',
+      targetType: 'payment', targetId: attempt.payment_id,
+      after: { amount_cents: Number(attempt.amount_cents), payment_intent: intent.id, reason: attempt.reason },
+    });
+    return { payment: updatedPayment || reservation.payment, attempt: updatedAttempt, replay: false };
+  }, 'payment_void_settlement');
+}
+
 async function providerRefund(reservation) {
   if (!stripe) throw new AppError('Refunds are temporarily unavailable. Please contact support', 503, 'refund_unavailable');
   const requestOptions = {
@@ -237,6 +302,16 @@ async function recordProviderError(attemptId, error) {
 async function processPaymentRefund(params) {
   const reservation = await reservePaymentRefund(params);
   if (reservation.attempt.status === 'succeeded') return { ...reservation, replay: true };
+  if (reservation.attempt.kind === 'void') {
+    let intent;
+    try {
+      intent = await providerVoid(reservation);
+    } catch (error) {
+      await recordProviderError(reservation.attempt.id, error);
+      throw new AppError('Refund provider result requires reconciliation before retry', 503, 'payment_refund_reconciliation_required');
+    }
+    return settlePaymentVoid(reservation, intent);
+  }
   let providerResult;
   try {
     providerResult = await providerRefund(reservation);
@@ -252,6 +327,16 @@ async function reconcilePaymentRefundAttempt(reservation) {
     throw new AppError('Refund reservation is incomplete', 503, 'payment_refund_reconciliation_required');
   }
   if (reservation.attempt.status === 'succeeded') return { ...reservation, replay: true };
+  if (reservation.attempt.kind === 'void') {
+    let intent;
+    try {
+      intent = await providerVoid(reservation);
+    } catch (error) {
+      await recordProviderError(reservation.attempt.id, error);
+      throw new AppError('Refund provider result requires reconciliation before retry', 503, 'payment_refund_reconciliation_required');
+    }
+    return settlePaymentVoid(reservation, intent);
+  }
   let providerResult;
   try {
     providerResult = await providerRefund(reservation);
@@ -267,5 +352,6 @@ module.exports = {
   reconcilePaymentRefundAttempt,
   reservePaymentRefund,
   settlePaymentRefund,
+  settlePaymentVoid,
   refundIdempotencyKey,
 };
