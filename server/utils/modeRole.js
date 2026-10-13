@@ -13,6 +13,7 @@
 'use strict';
 
 const crypto = require('crypto');
+const tokenRevocationService = require('../services/tokenRevocationService');
 
 // ── Mode → DB role mapping ───────────────────────────────────────────────────
 // 'helper' role unlocks: helper_profiles row, bidding, listing in directory,
@@ -172,10 +173,16 @@ async function applyModeSwitch(client, userId, newMode) {
  * want the new role to take effect immediately on every device.
  */
 async function invalidateUserSessions(client, userId) {
-  await client.query(
-    'UPDATE sessions SET is_valid = false WHERE user_id::text = $1',
+  const { rows } = await client.query(
+    `SELECT access_token_hash FROM sessions
+      WHERE user_id::text = $1 AND access_token_hash IS NOT NULL`,
     [String(userId)],
   );
+  await client.query(
+    'UPDATE sessions SET is_valid = false, is_revoked = true, revoked_at = NOW() WHERE user_id::text = $1',
+    [String(userId)],
+  );
+  await Promise.all(rows.map((row) => tokenRevocationService.revokeAccessTokenId(row.access_token_hash)));
 }
 
 module.exports = {

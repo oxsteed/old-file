@@ -165,6 +165,9 @@ async function cleanupExpiredSessionData() {
          AND (is_valid IS NOT NULL OR is_revoked IS NOT NULL)`],
     ['privacy_export_verifications', `DELETE FROM privacy_export_verifications WHERE expires_at <= NOW() OR (consumed_at IS NOT NULL AND consumed_at < NOW() - INTERVAL '1 day')`],
     ['restaurant_app_devices', `DELETE FROM restaurant_app_devices WHERE pairing_code IS NOT NULL AND pairing_code_expires_at IS NOT NULL AND pairing_code_expires_at <= NOW()`],
+    ['restaurant_app_devices_tokens', `UPDATE restaurant_app_devices
+       SET status = 'revoked', device_token_hash = NULL, updated_at = NOW()
+     WHERE status = 'paired' AND device_token_expires_at IS NOT NULL AND device_token_expires_at <= NOW()`],
     ['pending_registrations', `DELETE FROM pending_registrations WHERE expires_at IS NOT NULL AND expires_at <= NOW()`],
     ['password_reset_attempts', `DELETE FROM password_reset_attempts WHERE created_at < NOW() - INTERVAL '30 days'`],
     // Retain unread notifications longer so an infrequent user can still
