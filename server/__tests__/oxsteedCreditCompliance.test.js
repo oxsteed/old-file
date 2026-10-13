@@ -25,6 +25,7 @@ const {
   assertSanctionsClear,
   SCREENING_PROVIDERS,
   loadSubjectAttributes,
+  listPendingSanctionHits,
 } = require('../services/sanctionsScreeningService');
 const { openComplianceCase } = require('../services/complianceCaseService');
 const {
@@ -217,6 +218,17 @@ function screeningRow(overrides = {}) {
 }
 
 describe('sanctions screening', () => {
+  test('lists partner hits with restaurant or business identity details', async () => {
+    mockQuery.mockResolvedValue({ rows: [{
+      id: 'ss-1', subject_type: 'partner', subject_id: '42', provider: 'manual_review',
+      result: 'hit', hit_context: 'manual_review_required', screened_at: new Date().toISOString(),
+      subject_name: 'Corner Cafe', subject_email: 'owner@example.com',
+    }] });
+    const hits = await listPendingSanctionHits(fakeClient());
+    expect(hits[0]).toMatchObject({ subjectType: 'partner', subjectId: '42', subjectName: 'Corner Cafe', subjectEmail: 'owner@example.com' });
+    expect(mockQuery.mock.calls[0][0]).toContain('oxsteed_credit_partners');
+  });
+
   test('loads identity attributes for the screening provider without persisting them', async () => {
     mockQuery.mockImplementation(async (text) => {
       const sql = String(text);
