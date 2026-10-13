@@ -4,6 +4,7 @@
 const pool = require('../db');
 const { AppError } = require('../utils/apiError');
 const logger = require('../utils/logger');
+const { maybeUnpublishBusinessIfIncomplete } = require('./businessController');
 
 // Get all services for a business
 async function listServices(req, res, next) {
@@ -25,7 +26,7 @@ async function listServices(req, res, next) {
         ))
          FROM business_service_staff bss WHERE bss.service_id = bs.id LIMIT 5) as staff
       FROM business_services bs
-      WHERE bs.business_id = $1 AND (bs.is_active = true OR $2 = true)
+      WHERE bs.business_id = $1 AND bs.deleted_at IS NULL AND (bs.is_active = true OR $2 = true)
       ORDER BY bs.created_at DESC
     `;
 
@@ -112,7 +113,7 @@ async function updateService(req, res, next) {
     const query = `
       UPDATE business_services
       SET ${setClause.join(', ')}, updated_at = NOW()
-      WHERE id = $${paramCount} AND business_id = $${paramCount + 1}
+      WHERE id = $${paramCount} AND business_id = $${paramCount + 1} AND deleted_at IS NULL
       RETURNING *
     `;
 
@@ -122,7 +123,18 @@ async function updateService(req, res, next) {
       return next(new AppError('Service not found', 404));
     }
 
-    res.json(result.rows[0]);
+    // Audit fix (P2-3-F13): deactivating services can break publish
+    // readiness. Re-check and auto-unpublish if the business is now
+    // incomplete.
+    const { unpublished, missing } = await maybeUnpublishBusinessIfIncomplete(pool, req.params.businessId, {
+      actorUserId: req.user?.id || null, actorRole: 'owner',
+    });
+    const payload = result.rows[0];
+    if (unpublished) {
+      payload.businessUnpublished = true;
+      payload.unpublishMissing = missing;
+    }
+    res.json(payload);
   } catch (error) {
     logger.error('Error updating service', { error, serviceId: req.params.serviceId });
     next(new AppError('Failed to update service', 500));

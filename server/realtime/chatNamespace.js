@@ -163,10 +163,17 @@ function createChatAuthenticator({ pool, jwtSecret, allowedOrigins } = {}) {
         return next(new Error('Token has been revoked'));
       }
       const { rows } = await pool.query(
-        'SELECT is_active, role, logistics_role FROM users WHERE id = $1 AND deleted_at IS NULL',
+        'SELECT is_active, role, logistics_role, COALESCE(is_suspended, FALSE) AS is_suspended, suspended_until FROM users WHERE id = $1 AND deleted_at IS NULL',
         [decoded.id]
       );
       if (!rows[0]?.is_active) return next(new Error('Account suspended'));
+      // Audit fix (P2-1-F05): the HTTP auth middleware 403s suspended users on
+      // every request; the chat socket must not be a bypass. Enforcement
+      // suspensions set is_suspended without flipping is_active.
+      if (rows[0].is_suspended) {
+        const suspensionActive = !rows[0].suspended_until || new Date(rows[0].suspended_until) > new Date();
+        if (suspensionActive) return next(new Error('Account suspended'));
+      }
 
       socket.userId = decoded.id;
       socket.userRole = rows[0].role;

@@ -390,12 +390,18 @@ const optionalAuth = async (req, res, next) => {
 
     const { rows } = await pool.query(
         `SELECT u.id, u.first_name, u.last_name, u.email, u.role, u.is_active,
-                u.default_mode, u.logistics_role, u.preferred_language
+                u.default_mode, u.logistics_role, u.preferred_language,
+                COALESCE(u.is_suspended, FALSE) AS is_suspended, u.suspended_until
          FROM users u WHERE u.id = $1`,
       [decoded.id]
     );
     const user = rows[0];
-    if (user && user.is_active) {
+    // Audit fix (P2-1-F05): suspended users get unauthenticated treatment on
+    // public GETs too; otherwise a suspended account keeps owner-gated views
+    // and authenticated behavior on optional-auth routes.
+    const suspensionActive = user?.is_suspended
+      && (!user.suspended_until || new Date(user.suspended_until) > new Date());
+    if (user && user.is_active && !suspensionActive) {
       user.internal_access_route = decoded.internalAccessRoute || null;
       user.internal_access_id = decoded.internalAccessId || null;
       req.user = user;

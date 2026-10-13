@@ -151,6 +151,8 @@ async function createAppointment(req, res, next) {
     const appointment = await withTransaction(pool, async (client) => {
       // Check service exists and take a row-level claim so concurrent
       // creates for the same service serialize instead of racing.
+      // Audit fix (P2-3-F12): soft-deleted services must not accept new
+      // appointments (matches enforceBookingRules' 410 contract).
       const serviceResult = await client.query(
         'SELECT * FROM business_services WHERE id = $1 AND business_id = $2 FOR UPDATE',
         [service_id, businessId]
@@ -158,6 +160,12 @@ async function createAppointment(req, res, next) {
 
       if (!serviceResult.rows.length) {
         throw new AppError('Service not found', 404);
+      }
+      if (serviceResult.rows[0].deleted_at) {
+        throw new AppError('Service has been deleted', 410, 'service_deleted');
+      }
+      if (serviceResult.rows[0].is_active === false) {
+        throw new AppError('Service is inactive', 409, 'service_inactive');
       }
 
       // Conflict / capacity / staff double-booking / blocked-time guards.
@@ -219,7 +227,9 @@ async function getAppointment(req, res, next) {
       return next(new AppError('Appointment not found', 404));
     }
 
-    await notifyAppointmentParticipants(result.rows[0], 'appointment_status_changed');
+    // Audit fix (P2-3-F04): reading an appointment must not notify
+    // participants. Lifecycle notifications fire on create, status change
+    // (incl. no-show), cancel, and reschedule only.
     res.json(result.rows[0]);
   } catch (error) {
     logger.error('Error getting appointment', { error });
@@ -450,11 +460,19 @@ async function rescheduleAppointment(req, res, next) {
         );
       }
 
-      const serviceResult = await client.query(
+      const { rows: svcRows } = await client.query(
         `SELECT id, duration_minutes, min_notice_hours, is_active, deleted_at
            FROM business_services WHERE id = $1 AND business_id = $2 FOR UPDATE`,
         [orig.service_id, businessId]
       );
+      if (!svcRows.length) {
+        throw new AppError('Service not found', 404);
+      }
+      // Audit fix (P2-3-F12): a soft-deleted service cannot receive
+      // rescheduled appointments.
+      if (svcRows[0].deleted_at) {
+        throw new AppError('Service has been deleted', 410, 'service_deleted');
+      }
 
       // Same window rules as create (enforceBookingRules does not run on
       // this route): service bookable, duration match, min/max advance,

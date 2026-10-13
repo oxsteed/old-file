@@ -29479,6 +29479,8 @@
     "colOwner": "PROPIETARIO",
     "colStatus": "ESTADO",
     "inactiveBadge": "Inactivo",
+    "flaggedBadge": "Marcado",
+    "statusFlagged": "Marcado para revisión",
     "loading": "Cargando…",
     "modalTitle": "{{action}} negocio",
     "moreActions": "Más acciones",

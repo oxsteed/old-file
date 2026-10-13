@@ -23,6 +23,7 @@ const {
   consumeInventoryForOrder,
 } = require('../services/restaurantInventoryOrderService');
 const permissionsService = require('../services/permissionsService');
+const { maybeUnpublishBusinessIfIncomplete } = require('./businessController');
 const { debitFoodWallet, refundWalletDebitForReference, formatLedgerRow } = require('../services/foodWalletService');
 const {
   refundCreditForReferenceInTransaction,
@@ -5086,7 +5087,21 @@ exports.updateMenuItem = async (req, res, next) => {
       params
     );
     if (!item) throw new AppError('Menu item not found', 404, 'menu_item_not_found');
-    res.json({ item });
+    // Audit fix (P2-3-F13): availability/menu edits can break publish
+    // readiness (restaurants need at least one available menu item).
+    // Re-check and auto-unpublish if the business is now incomplete.
+    let unpublishedByMenuEdit = false;
+    let unpublishMissing = [];
+    if (restaurant.business_id) {
+      const guard = await maybeUnpublishBusinessIfIncomplete(pool, restaurant.business_id, {
+        actorUserId: req.user.id, actorRole: 'owner',
+      });
+      unpublishedByMenuEdit = guard.unpublished;
+      unpublishMissing = guard.missing;
+    }
+    res.json(unpublishedByMenuEdit
+      ? { item, businessUnpublished: true, unpublishMissing }
+      : { item });
   } catch (err) {
     next(err);
   }
@@ -5103,6 +5118,14 @@ exports.deleteMenuItem = async (req, res, next) => {
       [itemId, restaurantId]
     );
     if (!rowCount) throw new AppError('Menu item not found', 404, 'menu_item_not_found');
+    // Audit fix (P2-3-F13): deleting menu items can break publish readiness.
+    // The 204 contract has no body, so the guard's audit log + server log are
+    // the feedback channel here.
+    if (restaurant.business_id) {
+      await maybeUnpublishBusinessIfIncomplete(pool, restaurant.business_id, {
+        actorUserId: req.user.id, actorRole: 'owner',
+      });
+    }
     res.status(204).end();
   } catch (err) {
     next(err);

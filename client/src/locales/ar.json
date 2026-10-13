@@ -29490,6 +29490,8 @@
     "colOwner": "المالك",
     "colStatus": "الحالة",
     "inactiveBadge": "غير نشط",
+    "flaggedBadge": "مميز",
+    "statusFlagged": "مميز للمراجعة",
     "loading": "جارٍ التحميل...",
     "modalTitle": "{{action}} النشاط التجاري",
     "moreActions": "المزيد من الإجراءات",
