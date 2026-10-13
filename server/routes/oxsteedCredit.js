@@ -28,6 +28,7 @@ router.get('/holds', controller.listMyHolds);
 router.get('/eligibility', controller.getCustomerEligibility);
 router.get('/identity-verification', controller.getMyIdentityVerification);
 router.post('/identity-verification', creditMutationLimiter, rejectImpersonated, controller.requestMyIdentityVerification);
+router.post('/identity-verification/:id/appeal', creditMutationLimiter, rejectImpersonated, controller.appealMyIdentityVerification);
 router.get('/eligible-partners', controller.getEligiblePartners);
 router.get('/statement.csv', creditExportLimiter, controller.downloadMyStatement);
 router.get('/statement', controller.getMyStatement);

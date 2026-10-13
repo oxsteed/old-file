@@ -210,6 +210,11 @@ exports.sendNotification = async ({
       'dispute_update', 'dispute_opened_against', 'dispute_under_review', 'dispute_resolved',
       'payout_deposited', 'account_banned',
       'oxsteed_credit_transaction', 'oxsteed_credit_card_security',
+      'credit_identity_verification_requested', 'credit_identity_verification_approved',
+      'credit_identity_verification_rejected', 'credit_sanctions_review_required',
+      'credit_sanctions_cleared', 'credit_sanctions_confirmed',
+      'credit_identity_verification_appeal_submitted', 'credit_identity_verification_appeal_approved',
+      'credit_identity_verification_appeal_rejected',
       // Monthly statement issuance: generic authenticated-link email, no
       // amounts or attachments. Respects the user's email preference toggle.
       'statement_ready',
@@ -232,6 +237,11 @@ exports.sendNotification = async ({
       'account_deletion_scheduled',
       'admin_warning',
       'oxsteed_credit_transaction', 'oxsteed_credit_card_security',
+      'credit_identity_verification_requested', 'credit_identity_verification_approved',
+      'credit_identity_verification_rejected', 'credit_sanctions_review_required',
+      'credit_sanctions_cleared', 'credit_sanctions_confirmed',
+      'credit_identity_verification_appeal_submitted', 'credit_identity_verification_appeal_approved',
+      'credit_identity_verification_appeal_rejected',
     ]);
     // Review P3-845: money failures (and the ops alerts about them) must
     // reach email too; they were missing from the allow-list, so they only
