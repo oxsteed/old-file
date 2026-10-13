@@ -32,6 +32,15 @@ describe('migration recovery (2026-09-30 outage)', () => {
     expect(resolveMigrationPlan({ status: 'something-new' })).toBe('apply');
   });
 
+  test('bounded rehearsal excludes later migrations and rejects unknown boundaries', () => {
+    const files = listMigrationFiles(MIGRATIONS_DIR);
+    const boundary = files.find(file => file.startsWith('784_'));
+    expect(boundary).toBeDefined();
+    expect(listMigrationFiles(MIGRATIONS_DIR, boundary)).toEqual(files.slice(0, files.indexOf(boundary) + 1));
+    expect(listMigrationFiles(MIGRATIONS_DIR, files[0])).toEqual([files[0]]);
+    expect(() => listMigrationFiles(MIGRATIONS_DIR, 'not-a-migration.sql')).toThrow('Unknown migration boundary');
+  });
+
   test('repair migration sorts between 610 and 611', () => {
     const files = listMigrationFiles(MIGRATIONS_DIR);
     const repairIdx = files.indexOf(REPAIR_FILE);

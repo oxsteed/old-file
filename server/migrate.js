@@ -1,5 +1,6 @@
 // Migration runner for OxSteed v2
 // Runs all SQL migration files in order, skipping already-applied ones
+// Rehearsal may pass --through <exact-filename> to stop at a historical base.
 require('dotenv').config();
 const { Pool } = require('pg');
 const fs = require('fs');
@@ -24,10 +25,14 @@ function migrationChecksum(sql) {
   return crypto.createHash('sha256').update(String(sql)).digest('hex');
 }
 
-function listMigrationFiles(migrationsDir) {
-  return fs.readdirSync(migrationsDir)
+function listMigrationFiles(migrationsDir, through = null) {
+  const files = fs.readdirSync(migrationsDir)
     .filter((file) => file.endsWith('.sql'))
     .sort();
+  if (through === null) return files;
+  const last = files.indexOf(through);
+  if (last < 0) throw new Error(`Unknown migration boundary: ${through}`);
+  return files.slice(0, last + 1);
 }
 
 // Decides what to do with a migration file given its recorded state.
@@ -47,12 +52,14 @@ function resolveMigrationPlan(state) {
   return 'apply';
 }
 
-async function migrate() {
+async function migrate({ through = null } = {}) {
   // Hold one database-level lock for the complete run. This protects both the
   // pending-migration read and the marker writes across multiple deploy
   // processes or application replicas.
   let lockClient;
   try {
+    const migrationsDir = path.join(__dirname, 'migrations');
+    const files = listMigrationFiles(migrationsDir, through);
     lockClient = await pool.connect();
     await lockClient.query('SELECT pg_advisory_lock($1::bigint)', [MIGRATION_LOCK_KEY]);
     await lockClient.query(`
@@ -78,8 +85,6 @@ async function migrate() {
       'SELECT filename, status, checksum FROM _migrations ORDER BY filename'
     );
     const migrationStates = new Map(applied.map((row) => [row.filename, row]));
-    const migrationsDir = path.join(__dirname, 'migrations');
-    const files = listMigrationFiles(migrationsDir);
 
     logger.info('Migration runner started', {
       totalFiles: files.length,
@@ -164,7 +169,11 @@ async function migrate() {
 
 module.exports = { MIGRATION_LOCK_KEY, migrationChecksum, listMigrationFiles, resolveMigrationPlan, migrate };
 
-if (require.main === module) migrate().catch(async (err) => {
+if (require.main === module) migrate({
+  through: process.argv.length === 2 ? null
+    : process.argv.length === 4 && process.argv[2] === '--through' ? process.argv[3]
+      : '__invalid_migration_arguments__',
+}).catch(async (err) => {
   const databaseFailure = classifyDatabaseError(err);
   const databaseTarget = describeDatabaseTarget(process.env.DATABASE_URL);
   logger.error('Migration process failed', {

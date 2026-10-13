@@ -100,10 +100,24 @@ must be matched by behavior when it has no explicit ID row.
 - Real migrated-DB controller/schema follow-up: 6 tests passed, including
   processor-backed promotion/completion and disabled/inactive refusal with
   synthetic Connect accounts and mocked Stripe transfers.
-- Complete server Jest was run against the disposable DB and remains active.
-  The unchanged million-row export test hit PostgreSQL statement timeout locally;
-  a statement-amendment fixture then lacked its generated document UUID;
-  that is a failed local check, not a pass. No export threshold or test was
-  relaxed. Remaining results and remote CI must be checked before closure.
-- Remote follow-up and full migration rehearsal remain pending; do not infer
-  completion from these focused batches.
+- Complete local server Jest finished: 556 suites passed, two failed, five skipped;
+  6,030 tests passed and two failed. The unchanged million-row export hit its
+  PostgreSQL statement timeout locally, and an amendment fixture lacked its
+  generated document UUID. No export threshold or test was relaxed.
+- Isolated amendment rerun: all 16 tests passed. This does not erase the full-run
+  failure or establish its cause.
+- The required migration rehearsal exposed harness defects: it invoked the
+  entire chain once per file, did not bind a disposable container to a host port,
+  required unavailable host `psql`, and treated zero enabled guards as present.
+  The harness now runs bounded baseline/catch-up phases and checksum replay,
+  uses PostGIS on a random loopback port and the installed PostgreSQL driver,
+  and fails for disabled/missing guards or unexpected states. Default production
+  migration behavior and all applied SQL remain unchanged.
+- `node --test scripts/migration-rehearsal.test.cjs`: 11 tests passed; server
+  `migrationRecovery.test.js`: five passed, including boundary validation.
+- `REHEARSAL_DATABASE_URL=<synthetic disposable target> NODE_ENV=test node
+  scripts/migration-rehearsal.cjs --from 785`: passed all 793 migrations in 63.7s
+  on a newly created isolated database. Phase 1 applied 786 files preceding 785;
+  phase 2 applied seven remaining files; replay and all eight guard checks passed.
+  CI now exercises this command and its regression suite.
+- Remote follow-up remains pending; do not infer completion from local checks.
