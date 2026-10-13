@@ -153,3 +153,5 @@ Food-order notification follow-up: signed-in `food_order_ready` notifications no
 
 Tier-3 payment follow-up: successful job-payment webhooks now emit a localized, idempotent `payment_receipt` notification to the payer, using the persisted payer id and the payment intent as the delivery key. Focused Stripe webhook and food-card suites pass.
 
+Calendar notification follow-up: failed calendar reminders now retain bounded retry metadata and are retried with exponential backoff. Operators can list failures and requeue one through authenticated, permission-gated admin endpoints. Migration 787 is idempotent.
+

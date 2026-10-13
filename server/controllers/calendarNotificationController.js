@@ -105,6 +105,45 @@ exports.getNotificationStats = async (req, res, next) => {
   }
 };
 
+// Operator visibility for failed reminders. Keep this separate from the
+// user-facing feed so an operator can distinguish provider failures from
+// unread in-app notifications.
+exports.getFailedNotifications = async (req, res, next) => {
+  try {
+    const result = await pool.query(
+      `SELECT cn.id, cn.user_id, cn.appointment_id, cn.notification_type,
+              cn.channel, cn.status, cn.attempts, cn.last_attempt_at,
+              cn.next_attempt_at, cn.error_message, cn.created_at
+         FROM calendar_notifications cn
+        WHERE cn.status = 'failed'
+        ORDER BY cn.created_at DESC
+        LIMIT 100`
+    );
+    res.json(result.rows);
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.retryFailedNotification = async (req, res, next) => {
+  const id = String(req.params.id || '');
+  if (!/^\d+$/.test(id)) return next(new AppError('Invalid notification id', 400, 'validation_failed'));
+  try {
+    const result = await pool.query(
+      `UPDATE calendar_notifications
+          SET status = 'pending', attempts = 0, last_attempt_at = NULL,
+              next_attempt_at = NOW(), error_message = NULL
+        WHERE id = $1 AND status = 'failed'
+        RETURNING *`,
+      [id]
+    );
+    if (!result.rows.length) throw new AppError('Failed notification not found', 404, 'not_found');
+    res.json(result.rows[0]);
+  } catch (err) {
+    next(err);
+  }
+};
+
 // ─── CRON: dispatch due notifications ────────────────────────
 exports.processReminderNotifications = async () => {
   let dueRows;
@@ -133,8 +172,9 @@ exports.processReminderNotifications = async () => {
          LEFT JOIN users cust  ON cust.id = a.customer_id
          LEFT JOIN users hlp   ON hlp.id  = a.helper_id
          LEFT JOIN notification_preferences np ON np.user_id = cn.user_id
-        WHERE cn.status = 'pending'
-          AND cn.scheduled_send_at <= now()
+        WHERE cn.status IN ('pending', 'failed')
+          AND COALESCE(cn.next_attempt_at, cn.scheduled_send_at) <= now()
+          AND cn.attempts < 5
           AND a.status IN ('requested','confirmed','in_progress')
         ORDER BY cn.scheduled_send_at
         LIMIT 100`
@@ -147,6 +187,12 @@ exports.processReminderNotifications = async () => {
 
   for (const row of dueRows) {
     try {
+      await pool.query(
+        `UPDATE calendar_notifications
+            SET attempts = attempts + 1, last_attempt_at = NOW()
+          WHERE id = $1 AND status IN ('pending', 'failed')`,
+        [row.notification_id]
+      );
       await dispatchNotification(row);
     } catch (err) {
       // dispatchNotification already updates cn.status = 'failed';
@@ -279,7 +325,11 @@ async function dispatchNotification(row) {
     `UPDATE calendar_notifications
         SET status        = $1,
             sent_at       = CASE WHEN $1 = 'sent' THEN now() ELSE sent_at END,
-            error_message = $2
+            error_message = $2,
+            next_attempt_at = CASE
+              WHEN $1 = 'failed' THEN NOW() + LEAST(60, POWER(2, GREATEST(attempts - 1, 0))) * INTERVAL '1 minute'
+              ELSE NULL
+            END
       WHERE id = $3`,
     [sent ? 'sent' : 'failed', lastError, notification_id]
   );

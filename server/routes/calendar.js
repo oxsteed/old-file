@@ -7,6 +7,7 @@ const calendarNotificationController = require('../controllers/calendarNotificat
 
 const authenticate = require('../middleware/auth').authenticate;
 const rateLimiter = require('../middleware/rateLimiter').generalLimiter;
+const { requireAdmin, requirePermission } = require('../middleware/adminAuth');
 
 // Appointments
 router.post('/appointments', authenticate, rateLimiter, appointmentController.createAppointment);
@@ -38,5 +39,7 @@ router.put('/notification-preferences', authenticate, rateLimiter, availabilityC
 router.get('/notifications', authenticate, calendarNotificationController.getPendingNotifications);
 router.post('/notifications/:id/read', authenticate, rateLimiter, calendarNotificationController.markNotificationAsRead);
 router.get('/notifications/stats', authenticate, calendarNotificationController.getNotificationStats);
+router.get('/admin/notifications/failed', authenticate, requireAdmin, requirePermission('manage_operations'), calendarNotificationController.getFailedNotifications);
+router.post('/admin/notifications/:id/retry', authenticate, requireAdmin, requirePermission('manage_operations'), rateLimiter, calendarNotificationController.retryFailedNotification);
 
 module.exports = router;
