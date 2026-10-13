@@ -3,6 +3,9 @@ const { AppError } = require('../middleware/errorHandler');
 const { canAccessBusinessTeam } = require('../utils/businessOwnership');
 const { getPublicUrl } = require('../utils/storage');
 const { uploadFilesOrThrow } = require('../utils/uploadBatch');
+const { notifyIntakeReceived } = require('../utils/intakeNotifications');
+const { sendNotification } = require('../services/notificationService');
+const logger = require('../utils/logger');
 
 const VALID_STATUSES = new Set([
   'reported',
@@ -247,6 +250,9 @@ exports.createRequest = async (req, res, next) => {
       );
       await insertEvent(client, request.id, req.user.id, 'created', null, 'reported', 'Tenant submitted maintenance request');
       await client.query('COMMIT');
+      // Notify the business owner: submitted maintenance intakes must be observable.
+      // Fire-and-forget: the helper never throws and never blocks the response.
+      notifyIntakeReceived({ businessId: business.id, intakeId: request.id, area: 'maintenance' });
       return res.status(201).json({ request });
     } catch (err) {
       await client.query('ROLLBACK');
@@ -418,6 +424,27 @@ exports.updateRequest = async (req, res, next) => {
       tenantVisibleNotes || ownerNotes || null
     );
     await client.query('COMMIT');
+    // A newly assigned helper must be able to discover the assignment:
+    // notify them (the assigned queue at GET /assigned is the durable
+    // surface; this is the push). Fire-and-forget: never blocks the update.
+    const prevAssignee = existing.assigned_helper_id || null;
+    const nextAssignee = request.assigned_helper_id || null;
+    if (nextAssignee && String(nextAssignee) !== String(prevAssignee)) {
+      sendNotification({
+        userId: nextAssignee,
+        type: 'maintenance_request_assigned',
+        data: {
+          request_id: String(request.id),
+          business_id: String(request.business_id),
+          title: request.title || '',
+        },
+        action_url: '/helper-dashboard?tab=pulse',
+        idempotencyKey: `maintenance-assigned:${request.id}:${nextAssignee}`,
+      }).catch((err) => logger.warn('[maintenance] assignment notification failed', {
+        requestId: request.id,
+        error: err.message,
+      }));
+    }
     return res.json({ request });
   } catch (err) {
     await client.query('ROLLBACK');

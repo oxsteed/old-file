@@ -12,6 +12,40 @@ const { maskEmail } = require('../utils/directQuote');
 
 const expo = new Expo({ accessToken: process.env.EXPO_ACCESS_TOKEN });
 
+// ─── Preference aliases ─────────────────────────────────────────
+// The settings UI exposes friendly toggle names that do not match the
+// canonical notification type sent by the backend (e.g. the "New bid on my
+// job" toggle is stored as in_app_new_bid/push_new_bid while the event is
+// bid_received). Each alias below acts as an ADDITIONAL kill-switch for the
+// mapped canonical types: turning the friendly toggle off suppresses the
+// channel for that type, same as the canonical pref key.
+const PREF_ALIASES = {
+  in_app: {
+    bid_received: ['in_app_new_bid'],
+    subscription_renewed: ['in_app_subscription'],
+    subscription_cancelled: ['in_app_subscription'],
+    subscription_past_due: ['in_app_subscription'],
+  },
+  push: {
+    bid_received: ['push_new_bid'],
+  },
+  email: {
+    subscription_renewed: ['email_subscription'],
+    subscription_cancelled: ['email_subscription'],
+    subscription_past_due: ['email_subscription'],
+  },
+};
+
+// A channel is allowed for a type when neither the canonical pref key nor
+// any of its UI aliases is explicitly false. Absent columns/keys default to
+// allowed (opt-out semantics, matching the existing `!== false` convention).
+function prefAllows(prefs, channel, type) {
+  const key = `${channel}_${String(type).replace(':', '_')}`;
+  if (prefs[key] === false) return false;
+  const aliases = (PREF_ALIASES[channel] || {})[type] || [];
+  return aliases.every((alias) => prefs[alias] !== false);
+}
+
 function redactPushToken(token) {
   if (!token || typeof token !== 'string') return null;
   if (token.length <= 12) return '[redacted]';
@@ -90,8 +124,7 @@ exports.sendNotification = async ({
     );
 
     // ── 1. Save to DB (in-app) ────────────────────────────────
-    const prefKey    = `in_app_${type.replace(':', '_')}`;
-    const inAppEnabled = prefs[prefKey] !== false; // default true
+    const inAppEnabled = prefAllows(prefs, 'in_app', type); // default true
     let notifId = null;
     let notificationRow = null;
     if (inAppEnabled) {
@@ -129,8 +162,12 @@ exports.sendNotification = async ({
     }
 
     // ── 3. Push notification (Expo - native mobile) ───────────
-    const pushKey     = `push_${type.replace(':', '_')}`;
-    const pushEnabled = prefs[pushKey] !== false && !inQuietHours;
+    // The push_notifications master toggle gates every push channel
+    // (Expo, Web Push, native APNs/FCM): it is checked here because the
+    // Web Push and native mobile blocks below both build on pushEnabled.
+    const pushEnabled = prefs.push_notifications !== false
+      && prefAllows(prefs, 'push', type)
+      && !inQuietHours;
     // Tracks delivery across channels in this call. notificationRow is the
     // INSERT..RETURNING snapshot and never sees the UPDATEs below, so checking
     // it alone let Expo, Web Push and native push all fire for one event.
@@ -201,14 +238,17 @@ exports.sendNotification = async ({
     }
 
     // ── 4. Email notification (via Resend) ────────────────────
-    const emailKey   = `email_${type.replace(':', '_')}`;
-    const emailPrefOff = prefs[emailKey] === false;
+    const emailPrefOff = !prefAllows(prefs, 'email', type);
     // Respect global unsubscribe: if user opted out of all, skip non-transactional.
     const unsubscribedAll = !!prefs.unsubscribe_all;
     const emailTypes = [
       'bid_accepted', 'payment_released', 'payment_receipt', 'food_order_ready', 'subscription_renewed',
       'subscription_cancelled', 'subscription_past_due',
       'dispute_update', 'dispute_opened_against', 'dispute_under_review', 'dispute_resolved',
+      // Chat messages: gated by the user's email_new_message preference
+      // toggle (previously the toggle existed in settings but the type was
+      // never attempted, so the toggle was dead).
+      'new_message',
       'payout_deposited', 'account_banned',
       'oxsteed_credit_transaction', 'oxsteed_credit_card_security',
       'credit_identity_verification_requested', 'credit_identity_verification_approved',

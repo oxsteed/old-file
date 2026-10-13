@@ -35,9 +35,9 @@ export default function PaymentRequestCard({
   const [error, setError] = useState(null);
   const [showPay, setShowPay] = useState(false);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async ({ silent = false } = {}) => {
     if (!requestId) return;
-    setLoading(true);
+    if (!silent) setLoading(true);
     setError(null);
     try {
       const { data } = await api.get(`/chat/payments/request/${requestId}`);
@@ -53,17 +53,29 @@ export default function PaymentRequestCard({
           quote_kind: parsed.quoteKind,
           quote_id: parsed.quoteId,
         });
-      } else {
+      } else if (!silent) {
         setError(t('helperProfile.messenger.paymentRequestLoadError'));
       }
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, [requestId, parsed, t]);
 
   useEffect(() => {
     if (!initialRequest) load();
   }, [initialRequest, load]);
+
+  // While the request is open, re-check its status periodically so the Pay
+  // button hides after payment on EVERY path (credit, off-platform POP
+  // confirm, refund), not just the payment this client initiated. Stops as
+  // soon as the request leaves the open state.
+  useEffect(() => {
+    if (readOnly || status !== 'open' || !requestId) return undefined;
+    const timer = setInterval(() => {
+      load({ silent: true }).catch(() => {});
+    }, 30000);
+    return () => clearInterval(timer);
+  }, [readOnly, status, requestId, load]);
 
   const status = req?.status || parsed?.status || 'open';
   const amount = req?.amount_cents ?? parsed?.amountCents ?? 0;

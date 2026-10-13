@@ -472,6 +472,22 @@ describe('idempotency', () => {
     expect(logAdminAction).not.toHaveBeenCalled();
   });
 
+  test('unknown payment mode is rejected with 422', async () => {
+    routeQueries({ order: orderFixture({ metadata: { paymentMode: 'pigeon_post' } }) });
+    const res = await request(buildApp()).post('/agent/food-orders/101/refund').send({ reason: 'mystery money' });
+    expect(res.status).toBe(422);
+    expect(res.body.code).toBe('refund_payment_mode_unknown');
+    expect(updateCalls()).toHaveLength(0);
+  });
+
+  test('non-refundable order status is rejected with 409', async () => {
+    routeQueries({ order: orderFixture({ status: 'delivered', metadata: { paymentMode: 'restaurant_credit' } }) });
+    const res = await request(buildApp()).post('/agent/food-orders/101/refund').send({ reason: 'status guard' });
+    expect(res.status).toBe(409);
+    expect(res.body.code).toBe('refund_invalid_order_status');
+    expect(updateCalls()).toHaveLength(0);
+  });
+
   test('orders cancelled by the kitchen resolve to the refunded terminal state', async () => {
     routeQueries({
       order: orderFixture({ status: 'cancelled', payment_status: 'paid' }),
@@ -489,5 +505,69 @@ describe('idempotency', () => {
     expect(res.status).toBe(200);
     expect(res.body.data.orderStatus).toBe('refunded');
     expect(refundWalletDebitForReference).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('getFoodOrderRefundEligibility (client button gating)', () => {
+  const { getFoodOrderRefundEligibility } = require('../controllers/agentFoodRefundActions');
+
+  const base = (overrides = {}) => ({
+    id: 101,
+    status: 'completed',
+    payment_status: 'paid',
+    customer_id: 'cust-1',
+    total_cents: 1944,
+    stripe_payment_intent_id: null,
+    metadata: { paymentMode: 'restaurant_credit' },
+    ...overrides,
+  });
+
+  test.each(['received', 'accepted', 'preparing', 'ready', 'completed', 'cancelled'])(
+    'eligible for status %s',
+    (status) => {
+      expect(getFoodOrderRefundEligibility(base({ status }))).toEqual({ eligible: true, reason: null });
+    }
+  );
+
+  test('already-refunded orders are not eligible', () => {
+    expect(getFoodOrderRefundEligibility(base({ status: 'refunded' })))
+      .toEqual({ eligible: false, reason: 'already_refunded' });
+    expect(getFoodOrderRefundEligibility(base({ payment_status: 'refunded' })))
+      .toEqual({ eligible: false, reason: 'already_refunded' });
+  });
+
+  test('unknown payment mode is not eligible', () => {
+    expect(getFoodOrderRefundEligibility(base({ metadata: {} })))
+      .toEqual({ eligible: false, reason: 'refund_payment_mode_unknown' });
+  });
+
+  test('legacy aliases normalize to eligible modes', () => {
+    expect(getFoodOrderRefundEligibility(base({ metadata: { paymentMode: 'pay_at_counter' } })).eligible).toBe(true);
+    expect(getFoodOrderRefundEligibility(base({ metadata: { paymentMode: 'off_platform' } })).eligible).toBe(true);
+  });
+
+  test('non-refundable status is not eligible', () => {
+    expect(getFoodOrderRefundEligibility(base({ status: 'delivered' })))
+      .toEqual({ eligible: false, reason: 'refund_invalid_order_status' });
+  });
+
+  test('restaurant_credit without a customer wallet is not eligible', () => {
+    expect(getFoodOrderRefundEligibility(base({ customer_id: null })))
+      .toEqual({ eligible: false, reason: 'refund_wallet_no_customer' });
+  });
+
+  test('oxsteed_credit with zero total is not eligible', () => {
+    expect(getFoodOrderRefundEligibility(base({ metadata: { paymentMode: 'oxsteed_credit' }, total_cents: 0 })))
+      .toEqual({ eligible: false, reason: 'refund_zero_total' });
+  });
+
+  test.each(['pay_now', 'card'])('%s requires a captured card payment', (mode) => {
+    const order = base({ metadata: { paymentMode: mode } });
+    expect(getFoodOrderRefundEligibility({ ...order, payment_status: 'paid', stripe_payment_intent_id: 'pi_1' }))
+      .toEqual({ eligible: true, reason: null });
+    expect(getFoodOrderRefundEligibility({ ...order, payment_status: 'unpaid', stripe_payment_intent_id: 'pi_1' }))
+      .toEqual({ eligible: false, reason: 'refund_card_not_paid' });
+    expect(getFoodOrderRefundEligibility({ ...order, payment_status: 'paid', stripe_payment_intent_id: null }))
+      .toEqual({ eligible: false, reason: 'refund_card_not_paid' });
   });
 });

@@ -8,6 +8,12 @@ import Navbar from '../../components/Navbar';
 import Footer from '../../components/Footer';
 import { BrowserPushPanel } from '../../components/NotificationPreferences';
 
+// Master toggles gate whole channels: push_notifications covers every push
+// channel (Expo, Web Push, native), sms_notifications covers all SMS.
+// Removed (review P2-8-F03): in_app_message_mention, push_message_mention
+// (no mention events exist) and push_new_job_nearby (no nearby-job events).
+const MASTER_PREFS = ['push_notifications', 'sms_notifications'];
+
 const PREF_GROUPS = [
   {
     key: 'in_app',
@@ -21,19 +27,16 @@ const PREF_GROUPS = [
       'in_app_dispute_update',
       'in_app_subscription',
       'in_app_new_message',
-      'in_app_message_mention',
     ],
   },
   {
     key: 'push',
     prefs: [
-      'push_new_job_nearby',
       'push_new_bid',
       'push_bid_accepted',
       'push_payment_released',
       'push_dispute_update',
       'push_new_message',
-      'push_message_mention',
     ],
   },
   {
@@ -141,6 +144,43 @@ export default function NotificationSettings() {
           </div>
 
           <BrowserPushPanel />
+
+          {/* Master channel toggles */}
+          {!loading && (
+            <div className="notification-settings__preference-list rounded-2xl mb-6">
+              <div className="px-6 py-4 border-b" style={{ borderBottomColor: 'var(--color-border)' }}>
+                <h2 className="notification-settings__section-title">{t('notifications.groups.masters.label')}</h2>
+                <p className="notification-settings__muted text-xs mt-0.5">{t('notifications.groups.masters.description')}</p>
+              </div>
+              <div>
+                {MASTER_PREFS.map((prefKey, idx) => {
+                  const enabled = prefs?.[prefKey] ?? true;
+                  return (
+                    <div
+                      key={prefKey}
+                      className={`notification-settings__preference-row ${idx !== MASTER_PREFS.length - 1 ? 'has-border' : ''}`}
+                    >
+                      <div>
+                        <label
+                          htmlFor={prefKey}
+                          className="notification-settings__row-title cursor-pointer select-none"
+                        >
+                          {t(`notifications.prefs.${prefKey}`)}
+                        </label>
+                        <p className="notification-settings__muted text-xs mt-0.5">{t(`notifications.prefs.${prefKey}Desc`)}</p>
+                      </div>
+                      <Toggle
+                        checked={enabled}
+                        onChange={(val) => handleToggle(prefKey, val)}
+                        disabled={saving}
+                        ariaLabel={t(`notifications.prefs.${prefKey}`)}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {/* Content */}
           {loading ? (

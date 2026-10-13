@@ -408,6 +408,38 @@ const T = {
       ar: 'فاتورتك',
     },
   },
+  intake_request_received: {
+    title: {
+      en: 'New intake request',
+      fr: 'Nouvelle demande d\u2019admission',
+      es: 'Nueva solicitud de admisión',
+      ht: 'Nouvo demann admisyon',
+      ar: 'طلب استلام جديد',
+    },
+    body: {
+      en: 'A new intake request needs triage. Open your operations tab to review it.',
+      fr: 'Une nouvelle demande d\u2019admission doit \u00eatre tri\u00e9e. Ouvrez votre onglet op\u00e9rations pour l\u2019examiner.',
+      es: 'Una nueva solicitud de admisión necesita clasificación. Abre tu pestaña de operaciones para revisarla.',
+      ht: 'Yon nouvo demann admisyon bezwen triyaj. Louvri onglet operasyon ou a pou verifye li.',
+      ar: 'طلب استلام جديد يحتاج إلى فرز. افتح علامة تبويب العمليات لمراجعته.',
+    },
+  },
+  maintenance_request_assigned: {
+    title: {
+      en: 'Maintenance request assigned to you',
+      fr: 'Demande de maintenance assignée',
+      es: 'Solicitud de mantenimiento asignada',
+      ht: 'Demann antretyen asiyen ba ou',
+      ar: 'تم إسناد طلب صيانة إليك',
+    },
+    body: {
+      en: 'A maintenance request was assigned to you. Open your assigned queue to review it.',
+      fr: 'Une demande de maintenance vous a été assignée. Ouvrez votre file assignée pour l\u2019examiner.',
+      es: 'Se te asignó una solicitud de mantenimiento. Abre tu cola de asignaciones para revisarla.',
+      ht: 'Yo asiyen yon demann antretyen ba ou. Louvri lis asiyen ou a pou verifye li.',
+      ar: 'تم إسناد طلب صيانة إليك. افتح قائمة المهام المسندة لمراجعته.',
+    },
+  },
   job_recurring_posted: {
     title: {
       en: 'Recurring job reposted',

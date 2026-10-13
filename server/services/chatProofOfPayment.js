@@ -124,6 +124,7 @@ function normalizePopPayload(body = {}) {
     quoteKind: quoteKind ? String(quoteKind) : null,
     quoteId: quoteId != null && String(quoteId).trim() ? String(quoteId).trim() : null,
     bookingRequestId: body.booking_request_id || body.bookingRequestId || null,
+    paymentRequestId: body.payment_request_id || body.paymentRequestId || null,
   };
 }
 
@@ -141,6 +142,7 @@ function toPublicPopCard(row, { includeAttachmentMeta = true } = {}) {
     quote_kind: row.quote_kind,
     quote_id: row.quote_id,
     booking_request_id: row.booking_request_id,
+    payment_request_id: row.payment_request_id != null ? String(row.payment_request_id) : null,
     conversation_id: row.conversation_id,
     guest_session_id: row.guest_session_id,
     has_attachment: Boolean(row.attachment_key),

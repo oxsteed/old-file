@@ -22,6 +22,7 @@ const { startDirectCalendarReminderJob } = require('../jobs/directCalendarRemind
 const { startAffiliateCommissionBatchJob } = require('../jobs/affiliateCommissionBatch');
 const { startTemplateExpiryJob } = require('../jobs/templateExpiryJob');
 const { startAcceptedJobExpiryJob } = require('../jobs/acceptedJobExpiryJob');
+const { startChatQuoteExpiryJob } = require('../jobs/chatQuoteExpiryJob');
 const { startHelperCompletionAutoConfirmJob } = require('../jobs/helperCompletionAutoConfirm');
 const { startScheduledDeletionJob } = require('../jobs/scheduledDeletionJob');
 const { startWorkAgreementProposalTimeoutJob } = require('../jobs/workAgreementProposalTimeout');
@@ -103,6 +104,7 @@ class BackgroundWorkers {
       startScheduledDeletionJob();
       startTemplateExpiryJob();
       startAcceptedJobExpiryJob();
+      startChatQuoteExpiryJob();
       startHelperCompletionAutoConfirmJob();
       startWorkAgreementProposalTimeoutJob();
       startRecurringJobScheduler();

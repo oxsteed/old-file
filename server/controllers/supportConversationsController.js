@@ -18,6 +18,7 @@ const { withTransaction } = require('../utils/transaction');
 const supportConversationStateMachine = require('../services/supportConversationStateMachine');
 const supportChannelDeliveryService = require('../services/supportChannelDeliveryService');
 const { sendNotification } = require('../services/notificationService');
+const { getFoodOrderRefundEligibility } = require('./agentFoodRefundActions');
 const { renderOxSteedEmail } = require('../utils/emailTemplate');
 const { isTerminalConversationStatus } = require('../services/supportConversationTerminal');
 const { getClientRequestId } = require('../utils/idempotency');
@@ -643,6 +644,7 @@ async function getCustomer360(req, res) {
       ),
       queryOptional(
         `SELECT fo.id, fo.status, fo.payment_status, fo.total_cents, fo.currency_code,
+                fo.metadata, fo.stripe_payment_intent_id, fo.customer_id,
                 fo.created_at, fo.updated_at
          FROM food_orders fo
          WHERE fo.customer_id = $1
@@ -773,6 +775,14 @@ async function getCustomer360(req, res) {
         .map((row) => [row.agent_id, { id: row.agent_id, name: row.agent_name }]),
     ]).values());
 
+    // Agent console refund buttons must only render when the server would
+    // accept the attempt: mirror the refund endpoint's eligibility check so
+    // the button never invites an action the server will reject.
+    const foodOrdersWithEligibility = foodOrders.map((row) => {
+      const { eligible, reason } = getFoodOrderRefundEligibility(row);
+      return { ...row, refundable: eligible, refund_block_reason: reason };
+    });
+
     const credit = {
       accounts: creditAccounts.map((row) => ({
         id: String(row.id),
@@ -858,7 +868,7 @@ async function getCustomer360(req, res) {
         jobs,
         bookings,
         payments,
-        orders: { marketplace: marketplaceOrders, food: foodOrders },
+        orders: { marketplace: marketplaceOrders, food: foodOrdersWithEligibility },
         attachments,
         emailHistory,
         assignmentHistory,
