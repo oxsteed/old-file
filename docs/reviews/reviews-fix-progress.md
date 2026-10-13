@@ -161,3 +161,5 @@ Dispute email follow-up: counterparty, under-review, and resolved dispute events
 
 Notification retention follow-up: the scheduled deletion worker now purges read notifications after a bounded configurable window (default 180 days, clamped to 30–730), while retaining unread rows until one year. The cleanup is optional-safe on older installations.
 
+Email reliability follow-up: welcome-email provider idempotency now includes the account creation timestamp, and direct calendar reminders use the shared escaped OxSteed template with a stable per-recipient delivery key. Focused reminder and welcome-idempotency tests pass.
+
