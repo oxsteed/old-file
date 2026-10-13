@@ -1258,7 +1258,7 @@ exports.completeJob = async (req, res, next) => {
       await paymentRails.assertCompletable(client, job);
       if (job.client_id === req.user.id && paymentRails.railOf(job) === 'credit') {
         const dispute = await client.query(
-          `SELECT id FROM disputes WHERE job_id = $1 AND status IN ('open', 'in_progress')`,
+          `SELECT id FROM disputes WHERE job_id = $1 AND status IN ('open', 'under_review', 'in_progress')`,
           [id],
         );
         if (dispute.rows[0]) {

@@ -26,7 +26,7 @@ async function releaseDueCreditPayments(limit = 50) {
       WHERE j.payment_rail = 'credit'
         AND j.status = 'completed'
         AND j.completed_at < NOW() - make_interval(hours => $1::int)
-        AND NOT EXISTS (SELECT 1 FROM disputes d WHERE d.job_id = j.id AND d.status IN ('open', 'in_progress'))
+        AND NOT EXISTS (SELECT 1 FROM disputes d WHERE d.job_id = j.id AND d.status IN ('open', 'under_review', 'in_progress'))
       ORDER BY j.completed_at
       LIMIT $2`,
     [Math.round(reviewHours()), limit]
