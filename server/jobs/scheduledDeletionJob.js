@@ -170,6 +170,11 @@ async function cleanupExpiredSessionData() {
     ['notifications', `DELETE FROM notifications
        WHERE created_at < NOW() - ($1::int * INTERVAL '1 day')
          AND (is_read = TRUE OR created_at < NOW() - INTERVAL '365 days')`, [notificationRetentionDays]],
+    ['webhook_event_receipts', `DELETE FROM webhook_event_receipts
+       WHERE last_seen_at < NOW() - INTERVAL '365 days'
+         AND status IN ('processed', 'failed')`],
+    ['webhook_event_watermarks', `DELETE FROM webhook_event_watermarks
+       WHERE updated_at < NOW() - INTERVAL '365 days'`],
   ];
   for (const [name, sql, params] of cleanups) {
     try {

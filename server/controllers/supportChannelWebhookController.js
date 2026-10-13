@@ -116,9 +116,12 @@ async function ingestChannelWebhook(req, res) {
       );
       if (!event.rows.length) {
         const existing = await client.query(
-          `SELECT conversation_id FROM support_channel_events WHERE channel = $1 AND event_id = $2`,
+          `SELECT conversation_id, payload_hash FROM support_channel_events WHERE channel = $1 AND event_id = $2`,
           [payload.channel, payload.eventId]
         );
+        if (existing.rows[0]?.payload_hash && existing.rows[0].payload_hash !== payloadHash) {
+          return { conflict: true, conversationId: existing.rows[0]?.conversation_id || null };
+        }
         return { duplicate: true, conversationId: existing.rows[0]?.conversation_id || null };
       }
 
@@ -245,6 +248,9 @@ async function ingestChannelWebhook(req, res) {
       return { duplicate: false, conversationId: destinationConversationId, messageId: message.rows[0]?.id || null };
     }, 'ingest_support_channel_webhook');
 
+    if (result.conflict) {
+      return res.status(409).json({ error: 'Webhook event id was already used with a different payload', code: 'support_webhook_payload_conflict' });
+    }
     if (!result.duplicate) {
       WebSocketService.broadcastToAdmins('support:conversation-updated', {
         conversationId: result.conversationId,

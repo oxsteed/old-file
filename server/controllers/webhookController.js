@@ -1037,13 +1037,14 @@ async function handleVerifiedStripeEvent(event, destination, res, next) {
           logger.info(`[Stripe] PaymentIntent ${pi.id} captured - funds released for job ${jobId}`);
           // Notify helper that payment has been released
           const helperId = pi.metadata?.helper_id;
-          if (helperId) {
+          if (helperId && capturedPaymentRows.length > 0) {
             const amountDollars = ((pi.amount_received || pi.amount) / 100).toFixed(2);
             sendNotification({
               userId: helperId,
               type: 'payment_released',
               data: { job_id: jobId, amount: amountDollars },
               action_url: `/jobs/${jobId}`,
+              idempotencyKey: `payment-released:${pi.id}:${jobId}:${helperId}`,
             }).catch(e => logger.warn('Failed to send payment released notification', { error: e.message }));
           }
           const payerId = pi.metadata?.client_id || pi.metadata?.payer_id;
