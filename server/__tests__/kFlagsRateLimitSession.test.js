@@ -130,13 +130,20 @@ describe('P3-7-F07: maintenance gate', () => {
 
   test('lets health checks, admin API and the admin UI through during maintenance', async () => {
     settingRow('true');
-    for (const p of ['/health', '/readyz', '/api/health', '/api/admin/super/users', '/admin/login', '/admin/dashboard']) {
+    for (const p of ['/health', '/ready', '/api/ready', '/readyz', '/api/health', '/api/admin/super/users', '/admin/login', '/admin/dashboard']) {
       const res = responseDouble();
       const next = jest.fn();
       await createMaintenanceGate()({ path: p }, res, next);
       expect(next).toHaveBeenCalled();
       expect(res.status).not.toHaveBeenCalled();
       settingsCache._clearCacheForTests();
+    }
+    for (const p of ['/ready/other', '/ready-other', '/api/ready/other']) {
+      const res = responseDouble();
+      const next = jest.fn();
+      await createMaintenanceGate()({ path: p }, res, next);
+      expect(next).not.toHaveBeenCalled();
+      expect(res.status).toHaveBeenCalledWith(503);
     }
   });
 

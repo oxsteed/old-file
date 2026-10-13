@@ -11,7 +11,7 @@
 const AppError = require('../utils/appError');
 const { isMaintenanceMode, areNewUserRegistrationsEnabled } = require('../services/platformSettingsCache');
 
-const EXEMPT_PATHS = new Set(['/health', '/healthz', '/readyz', '/api/health', '/api/health/deep']);
+const EXEMPT_PATHS = new Set(['/health', '/healthz', '/ready', '/api/ready', '/readyz', '/api/health', '/api/health/deep']);
 const ADMIN_API_PREFIX = '/api/admin/';
 // The admin SPA itself must stay reachable during maintenance, otherwise no
 // operator could load the UI to turn the flag back off (the admin API alone

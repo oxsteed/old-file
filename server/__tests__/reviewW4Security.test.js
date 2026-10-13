@@ -74,6 +74,23 @@ describe('P3-1107 origin lock', () => {
     expect(call(mw, { headers: { 'x-origin-auth': 's3cret' } }).next).toHaveBeenCalled();
     expect(call(mw, { path: '/api/health' }).next).toHaveBeenCalled();
   });
+  test('the deployed readiness probe passes without a secret while other paths stay locked', async () => {
+    const express = require('express');
+    const request = require('supertest');
+    const app = express();
+    app.use(createOriginLock({ secret: 'synthetic-origin-secret' }));
+    app.get(['/ready', '/api/ready'], (_req, response) => response.json({ ready: true }));
+    app.get('/api/jobs', (_req, response) => response.json({ jobs: [] }));
+
+    await request(app).get('/ready').expect(200, { ready: true });
+    await request(app).get('/ready?probe=coolify').expect(200, { ready: true });
+    await request(app).get('/api/ready').expect(200, { ready: true });
+    for (const path of ['/api/jobs', '/ready/other', '/ready-other']) {
+      const response = await request(app).get(path).set('X-Forwarded-For', '203.0.113.1').expect(403);
+      expect(response.body.code).toBe('origin_locked');
+    }
+    await request(app).get('/api/jobs').set('x-origin-auth', 'synthetic-origin-secret').expect(200);
+  });
 });
 
 describe('P2-653 / P2-654 public intakes', () => {
