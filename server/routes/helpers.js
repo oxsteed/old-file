@@ -39,6 +39,24 @@ router.get('/',              directoryLimiter, listHelpers);
 router.get('/list',          directoryLimiter, listHelpers);
 router.get('/skills',        generalLimiter, searchSkills);
 router.get('/licenses',      generalLimiter, searchLicenses);
+// Review P1-202: every public /:id route accepts the vanity profile_slug too
+// (the profile page is reached by slug, and its pricing/availability/slots/
+// status calls used to 404 on it).
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+router.param('id', async (req, res, next, raw) => {
+  try {
+    if (UUID_RE.test(String(raw))) return next();
+    const { rows } = await require('../db').query(
+      'SELECT user_id FROM helper_profiles WHERE profile_slug = $1',
+      [String(raw).toLowerCase()]
+    );
+    if (!rows[0]) return res.status(404).json({ error: 'Helper not found', code: 'not_found' });
+    req.params.id = rows[0].user_id;
+    return next();
+  } catch (err) {
+    return next(err);
+  }
+});
 router.get('/:id/status',    generalLimiter, getHelperStatus);
 router.get('/:id/profile-qr.png', generalLimiter, getHelperProfileQRCodePng);
 router.get('/:id/profile',   generalLimiter, getHelperProfile);

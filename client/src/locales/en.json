@@ -9716,6 +9716,7 @@
     "step2": "2. Identity Verification"
   },
   "publicProfile": {
+    "viewFullProfile": "View full profile, book, or message",
     "loading": "Loading profile...",
     "notFound": "Profile not found.",
     "noRatings": "No ratings",

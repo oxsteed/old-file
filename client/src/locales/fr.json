@@ -9716,6 +9716,7 @@
     "step2": "2. Vérification d'identité"
   },
   "publicProfile": {
+    "viewFullProfile": "Voir le profil complet, réserver ou écrire",
     "loading": "Chargement du profil...",
     "notFound": "Profil introuvable.",
     "noRatings": "Aucune note",

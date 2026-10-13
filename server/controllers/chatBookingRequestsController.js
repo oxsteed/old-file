@@ -645,6 +645,17 @@ exports.createChatBookingRequest = async (req, res, next) => {
     if (!helperId) {
       return bad(res, 400, 'Could not resolve helper for booking', 'validation_failed');
     }
+    // Review P1-204: customers can't book a helper who switched booking off
+    // (the provider can still schedule on the customer's behalf).
+    if (!isProvider && !businessId) {
+      const { rows: [pref] } = await pool.query(
+        'SELECT COALESCE(allow_booking, TRUE) AS allow_booking FROM helper_profiles WHERE user_id = $1',
+        [helperId]
+      );
+      if (pref && pref.allow_booking === false) {
+        return bad(res, 403, 'This helper is not taking bookings right now', 'booking_disabled');
+      }
+    }
 
     // Customer books themselves; provider schedules on behalf of the conversation customer.
     let customerId;

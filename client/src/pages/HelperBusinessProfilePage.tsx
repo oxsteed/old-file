@@ -116,25 +116,43 @@ const HelperBusinessProfilePage: React.FC<{ customerSnapshot?: HelperProfileData
     return () => controller.abort();
   }, [loadProfile]);
 
+  // Review P1-202: sub-resources (pricing, availability, slots, pay link) key
+  // on the helper's user id, never on the vanity slug from the URL.
+  const helperUuid: string | undefined = ((data as any)?.helper?.id as string | undefined) || id;
+  // Review P1-204: honour the helper's "allow booking" switch in every Book CTA.
+  const bookingAllowed = (data as any)?.helper?.allowBooking !== false;
+
+  // Review P1-213: one canonical URL per helper (/helpers/<slug> when set).
+  useEffect(() => {
+    if (customerSnapshot || !id) return;
+    const helper = (data as any)?.helper;
+    if (!helper?.id) return;
+    const canonical = String(helper.profileSlug || helper.id);
+    if (String(id) !== canonical) {
+      navigate(`/helpers/${encodeURIComponent(canonical)}${window.location.search}${window.location.hash}`, { replace: true });
+    }
+  }, [customerSnapshot, data, id, navigate]);
+
   // Track this profile in the client-side "recently viewed" store so the
   // home and discover pages can resume where the user left off.
   useEffect(() => {
-    if (!data?.helper || !id) return;
+    if (!data?.helper || !helperUuid) return;
+    const canonicalKey = String((data.helper as any).profileSlug || helperUuid);
     recordView('helpers', {
-      id,
+      id: helperUuid,
       title: data.helper.businessName || data.helper.ownerName || '',
       subtitle: '',
       image: data.helper.avatar || null,
-      href: `/helpers/${id}`,
+      href: `/helpers/${canonicalKey}`,
     });
-  }, [data, id]);
+  }, [data, helperUuid]);
 
   useEffect(() => {
-    if (!id) return;
+    if (!helperUuid || !(data as any)?.helper?.id) return;
     let cancelled = false;
     // Recipient's public QR pay link; the header shows a Pay button when present.
     api
-      .get(`/qr-payments/public/user/${encodeURIComponent(id)}/pay-code`)
+      .get(`/qr-payments/public/user/${encodeURIComponent(helperUuid)}/pay-code`)
       .then((res) => {
         if (!cancelled && res.data?.pay_url) setPayUrl(res.data.pay_url);
       })
@@ -142,7 +160,7 @@ const HelperBusinessProfilePage: React.FC<{ customerSnapshot?: HelperProfileData
         /* no pay link; the Pay button stays hidden */
       });
     return () => { cancelled = true; };
-  }, [id]);
+  }, [helperUuid, data]);
 
   useEffect(() => {
     if (!user || !id) {
@@ -154,38 +172,38 @@ const HelperBusinessProfilePage: React.FC<{ customerSnapshot?: HelperProfileData
       try {
         const { data: saved } = await api.get('/life/saved-helpers');
         if (cancelled) return;
-        const match = (saved.saved_helpers || []).find((item: any) => String(item.helper_id) === String(id));
+        const match = (saved.saved_helpers || []).find((item: any) => String(item.helper_id) === String(helperUuid));
         setSavedHelperId(match?.id ?? null);
       } catch {
         if (!cancelled) setSavedHelperId(null);
       }
     })();
     return () => { cancelled = true; };
-  }, [id, user]);
+  }, [helperUuid, user]);
 
   // Service selection - placeholder for routing to booking flow
   const handleSelectService = useCallback(
     (service: Service) => {
       const hint = encodeURIComponent(service.name || '');
-      navigate(`/book/${id}?serviceHint=${hint}`);
+      navigate(`/book/${helperUuid}?serviceHint=${hint}`);
     },
-    [id, navigate]
+    [helperUuid, navigate]
   );
 
   const handleBookNow = useCallback(() => {
     const params = new URLSearchParams({
       helperName: data?.helper.businessName || '',
     });
-    navigate(`/book/${id}?${params.toString()}`);
-  }, [id, data, navigate]);
+    navigate(`/book/${helperUuid}?${params.toString()}`);
+  }, [helperUuid, data, navigate]);
 
   const handlePostJobPublic = useCallback(() => {
     const params = new URLSearchParams({
-      helperId: id!,
+      helperId: helperUuid!,
       helperName: data?.helper.businessName || '',
     });
     navigate(`/post-job?${params.toString()}`);
-  }, [id, data, navigate]);
+  }, [helperUuid, data, navigate]);
 
   const handleTemplatePrimaryAction = useCallback(() => {
     if (!LAUNCH_VISIBILITY.specializedProfileTemplates) {
@@ -195,7 +213,7 @@ const HelperBusinessProfilePage: React.FC<{ customerSnapshot?: HelperProfileData
     const behavior = getTemplateBehavior(activeTemplate);
     if (behavior.primaryIntent === 'maintenance_request') {
       const params = new URLSearchParams({
-        helperId: id!,
+        helperId: helperUuid!,
         helperName: data?.helper.businessName || '',
         mode: 'maintenance_request',
       });
@@ -215,7 +233,7 @@ const HelperBusinessProfilePage: React.FC<{ customerSnapshot?: HelperProfileData
       navigate('/login', { state: { from: `/helpers/${id}` } });
       return;
     }
-    if (String(user.id) === String(id)) {
+    if (String(user.id) === String(helperUuid)) {
       toast.error(t('helperProfile.header.cannotSaveSelf'));
       return;
     }
@@ -309,13 +327,13 @@ const HelperBusinessProfilePage: React.FC<{ customerSnapshot?: HelperProfileData
             entityLabel: 'helper',
           })}
           image={helper.coverImage || helper.avatar}
-          url={`${getPublicSiteUrl()}/helpers/${id}`}
+          url={`${getPublicSiteUrl()}/helpers/${(data as any)?.helper?.profileSlug || helperUuid}`}
           type="profile"
         />}
         <Navbar />
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 pb-2">
           <ProfileShareControls
-            shareUrl={`${getPublicSiteUrl()}/helpers/${id}`}
+            shareUrl={`${getPublicSiteUrl()}/helpers/${(helper as any).profileSlug || helperUuid}`}
             shareTitle={helper.businessName || helper.ownerName}
           />
         </div>
@@ -338,12 +356,12 @@ const HelperBusinessProfilePage: React.FC<{ customerSnapshot?: HelperProfileData
           entityLabel: 'helper',
         })}
         image={helper.coverImage || helper.avatar}
-        url={`${getPublicSiteUrl()}/helpers/${id}`}
+        url={`${getPublicSiteUrl()}/helpers/${(data as any)?.helper?.profileSlug || helperUuid}`}
         type="profile"
       />}
       {!customerSnapshot && <ProfileJsonLd
         variant="helper"
-        helperId={id!}
+        helperId={helperUuid!}
         helper={helper}
         location={location}
         services={services}
@@ -352,26 +370,28 @@ const HelperBusinessProfilePage: React.FC<{ customerSnapshot?: HelperProfileData
 
       {/* Helper hero — PublicProfileSummaryCard via BusinessHeader / PublicProfileHero */}
       <BusinessHeader
-        helperId={id}
+        helperId={helperUuid}
         helper={helper}
-        onBookNow={handleBookNow}
+        onBookNow={bookingAllowed ? handleBookNow : undefined}
         onPostJobPublic={handlePostJobPublic}
         onToggleSaved={handleToggleSavedHelper}
         isSaved={!!savedHelperId}
         savingHelper={savingHelper}
         payUrl={payUrl}
-        shareUrl={`${getPublicSiteUrl()}/helpers/${id}`}
+        shareUrl={`${getPublicSiteUrl()}/helpers/${(helper as any).profileSlug || helperUuid}`}
         shareTitle={helper.businessName || helper.ownerName}
       />
 
       {/* Sticky section nav — only tabs whose sections actually render */}
       <SectionNav
         visibleSections={[
+          // Review P1-207: a tab only appears when its section has content
+          // (empty gallery/faq/policy sections render nothing to scroll to).
           ...(visibility?.services ? ['services'] : []),
-          ...(visibility?.gallery ? ['gallery'] : []),
+          ...(visibility?.gallery && (gallery?.length ?? 0) > 0 ? ['gallery'] : []),
           'reviews',
-          ...(visibility?.faqs ? ['faqs'] : []),
-          ...(visibility?.policies ? ['policies'] : []),
+          ...(visibility?.faqs && (faqs?.length ?? 0) > 0 ? ['faqs'] : []),
+          ...(visibility?.policies && (policies?.length ?? 0) > 0 ? ['policies'] : []),
         ]}
       />
 
@@ -426,9 +446,9 @@ const HelperBusinessProfilePage: React.FC<{ customerSnapshot?: HelperProfileData
               services={services}
               onBookNow={handleTemplatePrimaryAction}
               onMessageHelper={handleMessageHelper}
-              hasServices={services.length > 0}
+              hasServices={bookingAllowed && services.length > 0}
               primaryLabel={templateBehavior.primaryCta}
-              allowPrimaryWithoutServices={templateBehavior.allowPrimaryWithoutServices}
+              allowPrimaryWithoutServices={bookingAllowed && templateBehavior.allowPrimaryWithoutServices}
             />
 
             <MediaProfilePreview
@@ -448,7 +468,7 @@ const HelperBusinessProfilePage: React.FC<{ customerSnapshot?: HelperProfileData
 
             {/* True availability (one system) + Location */}
             {visibility?.hours && id && (
-              customerSnapshot ? <HoursSection hours={data.hours || []} /> : <AvailabilitySection helperId={id} />
+              customerSnapshot ? <HoursSection hours={data.hours || []} /> : <AvailabilitySection helperId={helperUuid} />
             )}
             <LocationSection location={location} customerSnapshot={Boolean(customerSnapshot)} />
 
@@ -457,7 +477,7 @@ const HelperBusinessProfilePage: React.FC<{ customerSnapshot?: HelperProfileData
             )}
 
             {/* ── Dynamic blocks (Issue #35) ── fetched client-side after page load ── */}
-            {!customerSnapshot && <PricingBlock helperId={id!} />}
+            {!customerSnapshot && <PricingBlock helperId={helperUuid!} />}
 
             {/* Helper reliability & job acceptance history */}
             {!customerSnapshot && id && (
@@ -524,11 +544,11 @@ const HelperBusinessProfilePage: React.FC<{ customerSnapshot?: HelperProfileData
         aria-label={t('businessProfile.quickActionsAria')}
       >
         <button
-          onClick={handleBookNow}
+          onClick={bookingAllowed ? handleBookNow : handleMessageHelper}
           className="flex-1 py-2.5 rounded-xl bg-green-600 hover:bg-green-700 text-white font-semibold text-sm transition-colors shadow-lg shadow-green-600/20 active:bg-green-800"
-          aria-label={t('businessProfile.bookBusinessAria')}
+          aria-label={bookingAllowed ? t('businessProfile.bookBusinessAria') : t('helperProfile.cta.contactForPricing')}
         >
-          {t('businessProfile.bookNow')}
+          {bookingAllowed ? t('businessProfile.bookNow') : t('helperProfile.cta.contactForPricing')}
         </button>
         <button
           onClick={handleOpenChat}

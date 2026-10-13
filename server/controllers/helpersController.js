@@ -213,13 +213,15 @@ async function listHelpers(req, res, next) {
     const conditions = [
       'u.deleted_at IS NULL',
       'u.is_active = TRUE',
-      'u.role = $1',
+      // Review P1-203: the profile endpoint serves helper/helper_pro/broker,
+      // so the directory lists all three.
+      'u.role = ANY($1::text[])',
       'u.email_verified = TRUE',
       'u.onboarding_completed = TRUE',
       'COALESCE(hp.is_listed, TRUE) = TRUE',
       'COALESCE(hp.is_hidden_by_admin, FALSE) = FALSE',
     ];
-    const params     = ['helper'];
+    const params     = [['helper', 'helper_pro', 'broker']];
     let pIdx         = 2;
 
     if (query) {
@@ -483,7 +485,7 @@ async function listHelpers(req, res, next) {
       const displayName = resolvePublicDisplayName(h);
       return {
         id:               h.id,
-        profileUrl:       h.profile_slug ? `/h/${h.profile_slug}` : `/helpers/${h.id}`,
+        profileUrl:       h.profile_slug ? `/helpers/${h.profile_slug}` : `/helpers/${h.id}`, // P1-225: no /h/ redirect hop
         businessName:     displayName,
         ownerName:        displayName,
         avatar:           h.profile_photo_url || '',
@@ -528,6 +530,9 @@ async function listHelpers(req, res, next) {
         // Visibility is controlled by the business's own flag - independent of
         // the owner's helper_profile.is_listed. See migration 214.
         'COALESCE(b.is_listed, TRUE) = TRUE',
+        // Review P1-205: admin-hidden businesses 404 on their profile, so they
+        // must not appear as directory cards either.
+        'COALESCE(b.is_hidden_by_admin, FALSE) = FALSE',
         "b.business_name IS NOT NULL",
         "b.business_name != ''",
         'u.deleted_at IS NULL',
@@ -934,7 +939,7 @@ async function respondHelperProfile(req, res, next, adminPreview) {
       helper: {
         id:           h.id,
         profileSlug:  h.profile_slug || null,
-        profileUrl:   h.profile_slug ? `/h/${h.profile_slug}` : `/helpers/${h.id}`,
+        profileUrl:   h.profile_slug ? `/helpers/${h.profile_slug}` : `/helpers/${h.id}`,
         businessName: publicDisplayName,
         ownerName:    publicDisplayName,
         tagline:      h.profile_headline || '',
@@ -968,9 +973,11 @@ async function respondHelperProfile(req, res, next, adminPreview) {
         totalJobs:         totalJobsCount,
         completionRate,
       },
-      services,
-      gallery,
-      hours,
+      // Review P1-206: hidden sections are withheld by the API (not just the
+      // client), matching the server-enforced business profile.
+      services: (adminPreview || h.show_services) ? services : [],
+      gallery:  (adminPreview || h.show_gallery) ? gallery : [],
+      hours:    (adminPreview || h.show_hours) ? hours : [],
       location: {
         city:          h.service_city  || '',
         state:         h.service_state || '',
@@ -981,9 +988,9 @@ async function respondHelperProfile(req, res, next, adminPreview) {
         serviceLat:    h.service_lat != null ? parseFloat(h.service_lat) : null,
         serviceLng:    h.service_lng != null ? parseFloat(h.service_lng) : null,
       },
-      policies,
+      policies: (adminPreview || h.show_policies) ? policies : [],
       reviews,
-      faqs,
+      faqs:     (adminPreview || h.show_faqs) ? faqs : [],
       visibility: {
         services: !!h.show_services,
         gallery:  !!h.show_gallery,

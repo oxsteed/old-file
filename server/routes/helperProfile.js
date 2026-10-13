@@ -263,29 +263,14 @@ router.put('/visibility', helperOnly, generalLimiter, async (req, res) => {
 
 // ── PATCH /api/helper-profile/listing ─────────────────────────────────────────
 // Toggle the caller's own directory listing (draft/publish). Body: { is_listed: boolean }.
-router.patch('/listing', helperOnly, generalLimiter, requireListingEligible, async (req, res) => {
-  try {
-    const uid = req.user.id;
-    const { is_listed } = req.body;
-
-    if (typeof is_listed !== 'boolean') {
-      return res.status(400).json({ error: 'is_listed must be a boolean' });
-    }
-
-    const { rows: [row] } = await pool.query(
-      `UPDATE helper_profiles
-       SET is_listed = $1, updated_at = NOW()
-       WHERE user_id = $2
-       RETURNING is_listed`,
-      [is_listed, uid],
-    );
-    if (!row) return res.status(404).json({ error: 'Helper profile not found' });
-
-    res.json({ ok: true, is_listed: row.is_listed });
-  } catch (err) {
-    logger.error('[helperProfile] PATCH /listing error', { err: err.message });
-    res.status(500).json({ error: 'Failed to update listing status' });
-  }
+// Review P1-209: one listing toggle. This route is kept for existing clients
+// but delegates to the same implementation as PUT /api/helpers/me/listing
+// (which also fans out saved-search alerts when a profile goes live).
+router.patch('/listing', helperOnly, generalLimiter, requireListingEligible, (req, res, next) => {
+  const { toggleListing } = require('../controllers/helpersController');
+  const json = res.json.bind(res);
+  res.json = (body) => json({ ok: body?.success === true, ...body });
+  return toggleListing(req, res, next);
 });
 
 // ── PUT /api/helper-profile/photo ─────────────────────────────────────────────

@@ -187,7 +187,6 @@ const MyJobsPage = lazyWithRetry(() => import('./pages/MyJobsPage'));
 const MyBidsPage = lazyWithRetry(() => import('./pages/MyBidsPage'));
 const HelperPayoutsPage = lazyWithRetry(() => import('./pages/helper/HelperPayoutsPage'));
 const EnforcementPolicyPage = lazyWithRetry(() => import('./pages/EnforcementPolicyPage'));
-const HelperProfileEditPage = lazyWithRetry(() => import('./pages/HelperProfileEditPage'));
 const FeatureGuidePage = lazyWithRetry(() => import('./pages/FeatureGuidePage'));
 const ExperienceGuidePage = lazyWithRetry(() => import('./pages/ExperienceGuidePage'));
 const LearnModePage = lazyWithRetry(() => import('./pages/LearnModePage'));
@@ -567,7 +566,8 @@ export default function App() {
                     <Route path="/settings/notifications" element={<Guarded><ProtectedRoute><NotificationSettings /></ProtectedRoute></Guarded>} />
                     <Route path="/settings/country" element={<Guarded><CountrySettings /></Guarded>} />
                     <Route path="/settings/payment-policies" element={<Guarded><ProtectedRoute><HelperCancellationSettings /></ProtectedRoute></Guarded>} />
-                    <Route path="/dashboard/edit-profile" element={<Guarded><ProtectedRoute><RouteErrorBoundary><HelperProfileEditPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
+                    {/* Review P1-208: the stub editor is retired; the dashboard tab is the real editor. */}
+                    <Route path="/dashboard/edit-profile" element={<Guarded><ProtectedRoute><Navigate to="/dashboard?tab=editprofile" replace /></ProtectedRoute></Guarded>} />
                     {/* Retired: the legacy business profile editor is superseded by the
                         Business Hub profile tab; keep the old URL working as a redirect. */}
                     <Route path="/business/edit-profile" element={<Guarded><ProtectedRoute><Navigate to="/business-hub?tab=profile" replace /></ProtectedRoute></Guarded>} />
