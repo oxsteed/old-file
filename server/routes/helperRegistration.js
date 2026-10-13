@@ -4,6 +4,7 @@ const router  = express.Router();
 
 const { authenticate } = require('../middleware/auth');
 const requireEmailVerified = require('../middleware/requireEmailVerified');
+const requireTermsAcceptance = require('../middleware/requireTermsAcceptance');
 const { requireHelperStep } = require('../middleware/helperOnboardingMiddleware');
 const { authLimiter } = require('../middleware/rateLimiter');
 
@@ -62,9 +63,11 @@ router.post('/profile-photo', authenticate, (_req, res) => res.status(410).json(
 }));
 
 // Authenticated + onboarding gated + email verified
+// Review P2-7-F08: server-side terms gate (was client-side only).
 router.put('/onboarding/profile',
   authenticate,
   requireEmailVerified,
+  requireTermsAcceptance,
   requireHelperStep('profile'),
   submitOnboardingProfile
 );
@@ -74,6 +77,7 @@ router.put('/onboarding/profile',
 router.put('/onboarding/background-check',
   authenticate,
   requireEmailVerified,
+  requireTermsAcceptance,
   requireHelperStep('background'),
   submitBackgroundCheck
 );

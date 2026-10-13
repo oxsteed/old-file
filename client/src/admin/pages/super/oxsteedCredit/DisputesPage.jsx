@@ -186,12 +186,20 @@ export default function OxsteedCreditDisputesPage() {
     }
     setBusy(true); setNotice(''); setError('');
     try {
-      await adminApi.post(`/admin/super/oxsteed-credit/disputes/${dispute.id}/resolve`, {
+      // Review P2-1-F07: resolutions queue for checker approval (maker-checker);
+      // the server answers 202 with the pending action.
+      const response = await adminApi.post(`/admin/super/oxsteed-credit/disputes/${dispute.id}/resolve`, {
         status,
         resolution: resolution || undefined,
         compensationCents: status === 'resolved_customer' ? compensationCents : undefined,
+      }, {
+        headers: { 'Idempotency-Key': crypto.randomUUID() },
       });
-      setNotice(t('adminDisputeStatusChanged', { id: dispute.id.slice(0, 8), status: localizeCreditStatus(status, t) }));
+      if (response.status === 202) {
+        setNotice(t('adminDisputeQueuedForApproval', { id: dispute.id.slice(0, 8) }));
+      } else {
+        setNotice(t('adminDisputeStatusChanged', { id: dispute.id.slice(0, 8), status: localizeCreditStatus(status, t) }));
+      }
       setDisputeResolutionDrafts((current) => ({ ...current, [dispute.id]: '' }));
       setDisputeCompensationDrafts((current) => ({ ...current, [dispute.id]: '' }));
       await load({ quiet: true });
@@ -219,11 +227,19 @@ export default function OxsteedCreditDisputesPage() {
     if (!confirmed) return;
     setBusy(true); setNotice(''); setError('');
     try {
-      await adminApi.post(`/admin/super/oxsteed-credit/disputes/${dispute.id}/provisional-credit`, {
+      // Review P2-1-F07: provisional credit queues for checker approval; the
+      // server answers 202 with the pending action.
+      const response = await adminApi.post(`/admin/super/oxsteed-credit/disputes/${dispute.id}/provisional-credit`, {
         amountCents,
         reason: resolution,
+      }, {
+        headers: { 'Idempotency-Key': crypto.randomUUID() },
       });
-      setNotice(t('adminDisputeProvisionalNotice', { id: dispute.id.slice(0, 8), amount: money(amountCents, dispute.currencyCode || 'USD') }));
+      if (response.status === 202) {
+        setNotice(t('adminDisputeQueuedForApproval', { id: dispute.id.slice(0, 8) }));
+      } else {
+        setNotice(t('adminDisputeProvisionalNotice', { id: dispute.id.slice(0, 8), amount: money(amountCents, dispute.currencyCode || 'USD') }));
+      }
       setDisputeProvisionalDrafts((current) => ({ ...current, [dispute.id]: '' }));
       await load({ quiet: true });
     } catch (err) {

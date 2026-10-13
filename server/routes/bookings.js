@@ -1,10 +1,14 @@
 const express = require('express');
 const { requireAuth } = require('../middleware/auth');
+const requireEmailVerified = require('../middleware/requireEmailVerified');
+const requireTermsAcceptance = require('../middleware/requireTermsAcceptance');
 const bookingController = require('../controllers/bookingController');
 
 const router = express.Router();
 
-router.post('/', requireAuth, bookingController.createBookingRequest);
+// Review P2-7-F06/F08: booking requests lead to payment; require verified
+// email and current terms acceptance.
+router.post('/', requireAuth, requireEmailVerified, requireTermsAcceptance, bookingController.createBookingRequest);
 router.get('/', requireAuth, bookingController.getMyBookingRequests);
 router.get('/incoming', requireAuth, bookingController.getIncomingBookingRequests);
 

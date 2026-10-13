@@ -1462,6 +1462,7 @@
   "adminNotificationRetryFailed": "فشلت إعادة محاولة إشعار Credit.",
   "adminDisputeResolutionRequired": "أضف ملاحظة تغيير الحالة قبل تحديث نزاع Credit.",
   "adminDisputeStatusChanged": "تم نقل النزاع {{id}} إلى {{status}}.",
+  "adminDisputeQueuedForApproval": "تم إدراج النزاع {{id}} في قائمة الانتظار. يجب أن يوافق عليه مدير ثانٍ قبل أن يدخل حيز التنفيذ.",
   "adminDisputeUpdateFailed": "فشل تحديث النزاع.",
   "adminPostedPurchaseOnly": "يمكن استرداد عملية شراء Credit المسجلة فقط من هذا العرض.",
   "adminRefundAmountRequired": "أدخل مبلغ استرداد موجباً بعملة {{currency}}.",

@@ -856,16 +856,16 @@ async function resolveAdminDispute(req, res, next) {
     // (with optional compensation) and resolved_merchant. Disputes are
     // never auto-resolved in the customer's favor.
     const decision = rawStatus === 'resolved' ? 'resolved_merchant' : rawStatus;
-    const result = await resolveDisputeWithCompensation({
+    // Review P2-1-F07: resolutions (and their compensation legs) are money
+    // movement: they queue as a pending action for a different admin to
+    // decide instead of executing immediately.
+    const result = await requestMoneyMovement(req, 'credit_dispute_resolve', {
       disputeId,
-      adminId: req.user.id,
       decision,
       reason: req.body?.resolution || req.body?.reason,
       compensationCents: req.body?.compensationCents ?? req.body?.compensation_cents ?? 0,
-      requestIp: req.ip || null,
-      correlationId: req.correlationId || req.get('X-Request-ID') || null,
     });
-    res.json(result);
+    sendMoneyMovementResult(res, result);
   } catch (error) {
     next(error);
   }
@@ -873,22 +873,20 @@ async function resolveAdminDispute(req, res, next) {
 
 /**
  * POST /admin/super/oxsteed-credit/disputes/:disputeId/provisional-credit
- * Super-admin only: issue provisional credit while a dispute is in_review.
- * The dispute stays open; the cumulative provisional total is tracked on
- * the dispute and reduces the final-resolution compensation cap.
+ * Maker endpoint: queue provisional credit for checker approval while a
+ * dispute is in_review. The dispute stays open; the cumulative provisional
+ * total is tracked on the dispute and reduces the final-resolution
+ * compensation cap. Review P2-1-F07: this used to execute immediately.
  */
 async function issueAdminProvisionalCredit(req, res, next) {
   try {
     const disputeId = parseUuid(req.params.disputeId, 'disputeId');
-    const result = await issueProvisionalCredit({
+    const result = await requestMoneyMovement(req, 'credit_dispute_provisional_credit', {
       disputeId,
-      adminId: req.user.id,
       amountCents: req.body?.amountCents ?? req.body?.amount_cents,
       reason: req.body?.reason,
-      requestIp: req.ip || null,
-      correlationId: req.correlationId || req.get('X-Request-ID') || null,
     });
-    res.json(result);
+    sendMoneyMovementResult(res, result);
   } catch (error) {
     next(error);
   }

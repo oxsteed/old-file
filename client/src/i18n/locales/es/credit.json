@@ -1462,6 +1462,7 @@
   "adminNotificationRetryFailed": "El reintento de la notificación de Credit falló.",
   "adminDisputeResolutionRequired": "Añade una nota de cambio de estado antes de actualizar una disputa de Credit.",
   "adminDisputeStatusChanged": "La disputa {{id}} cambió a {{status}}.",
+  "adminDisputeQueuedForApproval": "Disputa {{id}} en cola. Otro administrador debe aprobarla antes de que entre en vigor.",
   "adminDisputeUpdateFailed": "La actualización de la disputa falló.",
   "adminPostedPurchaseOnly": "Desde esta vista solo se puede reembolsar una compra de Credit contabilizada.",
   "adminRefundAmountRequired": "Introduce un importe de reembolso positivo en {{currency}}.",

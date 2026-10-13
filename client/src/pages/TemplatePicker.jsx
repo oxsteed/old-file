@@ -144,8 +144,7 @@ const PreviewModal = ({ template, slug, pricing, hasAccess, trialExpiry, isActiv
   const { t } = useTranslation();
   if (!template) return null;
 
-  const price = pricing?.[slug];
-  const monthly = price ? (price.monthly_price_cents / 100).toFixed(2) : '0.99';
+  // Review P2-9-F12: monthly price removed; no billing model exists.
   const workflowSystem = getTemplateWorkflowSystem(slug, template.category);
 
   return (
@@ -215,11 +214,12 @@ const PreviewModal = ({ template, slug, pricing, hasAccess, trialExpiry, isActiv
               {t('templatePicker.unlocked')}
             </p>
           ) : (
+            // Review P2-9-F12: no monthly billing exists, so no "$X/mo" price
+            // is advertised. Access is through free trials and admin grants.
             <div className="bg-blue-600/20 border border-blue-500/30 rounded-xl p-4 mb-4 text-center">
-              <div className="text-blue-400 text-[11px] mb-1.5 font-semibold uppercase tracking-wide">{t('templatePicker.pricingLabel', { defaultValue: 'Pricing' })}</div>
-              <div className="text-white font-bold text-2xl">${monthly}</div>
-              <div className="text-blue-300 text-xs mt-1">{t('templatePicker.perMonth')}</div>
-              <div className="text-blue-300/70 text-[11px] mt-2.5">+ {t('templatePicker.freeTrialOneYear', { defaultValue: '1-year free trial' })}</div>
+              <div className="text-blue-400 text-[11px] mb-1.5 font-semibold uppercase tracking-wide">{t('templatePicker.accessLabel', { defaultValue: 'Access' })}</div>
+              <div className="text-blue-300 text-xs mt-1">{t('templatePicker.freeTrialOneYear', { defaultValue: '1-year free trial' })}</div>
+              <div className="text-blue-300/70 text-[11px] mt-2.5">{t('templatePicker.trialGrantNote', { defaultValue: 'Included with your account' })}</div>
             </div>
           )}
 

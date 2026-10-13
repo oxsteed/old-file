@@ -188,10 +188,13 @@ exports.activateTemplate = async (req, res, next) => {
 };
 
 // ── Auth: purchase a template (DEPRECATED - lifetime deals removed)
-// All templates now use monthly subscription model only
+// Review P2-9-F12: the "$0.99/month" billing model was advertised (here and
+// in the template picker) but no charging code ever existed, so the claim
+// was removed. Template access is currently granted through free trials
+// and admin grants; there is no paid subscription to purchase yet.
 exports.purchaseLifetime = async (req, res, next) => {
   try {
-    throw new AppError('Lifetime template purchases are no longer available. All templates are $0.99/month with 1-year free trial on signup.', 400, 'lifetime_deal_removed');
+    throw new AppError('Lifetime template purchases are no longer available. Template access is currently provided through free trials.', 400, 'lifetime_deal_removed');
   } catch (err) {
     next(err);
   }

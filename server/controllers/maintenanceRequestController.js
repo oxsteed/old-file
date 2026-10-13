@@ -1,6 +1,7 @@
 const pool = require('../db');
 const path = require('path');
 const { AppError } = require('../middleware/errorHandler');
+const jobSchema = require('../validation/jobSchema');
 const { canAccessBusinessTeam } = require('../utils/businessOwnership');
 const { toPrivatePhotoRef, withHydratedPhotos, withHydratedPhotosList, resolvePhotoKey } = require('../utils/intakeMedia');
 const { copyObject, deleteFile, getPublicUrl } = require('../utils/storage');
@@ -474,14 +475,41 @@ exports.convertToJob = async (req, res, next) => {
     if (!access) throw new AppError('Not authorized', 403, 'forbidden');
     if (request.job_id) throw new AppError('Request already has a job', 409, 'state_conflict');
 
-    const description = [
-      request.description,
-      request.property_label ? `Property: ${request.property_label}` : '',
-      request.unit_label ? `Unit: ${request.unit_label}` : '',
-      request.access_notes ? `Access notes: ${request.access_notes}` : '',
-      request.preferred_times ? `Preferred times: ${request.preferred_times}` : '',
-      request.permission_to_enter ? 'Tenant granted permission to enter if required.' : '',
-    ].filter(Boolean).join('\n\n');
+    // Review P2-9-F10: this used to INSERT into jobs directly, skipping the
+    // shared job-posting validation. Run the constructed input through the
+    // same schema POST /api/jobs uses so invalid jobs fail fast at 422.
+    const jobInput = {
+      title: request.title,
+      description: [
+        request.description,
+        request.property_label ? `Property: ${request.property_label}` : '',
+        request.unit_label ? `Unit: ${request.unit_label}` : '',
+        request.access_notes ? `Access notes: ${request.access_notes}` : '',
+        request.preferred_times ? `Preferred times: ${request.preferred_times}` : '',
+        request.permission_to_enter ? 'Tenant granted permission to enter if required.' : '',
+      ].filter(Boolean).join('\n\n'),
+      category_name: request.issue_category,
+      budget_type: 'open',
+      urgency: request.urgency === 'emergency' || request.urgency === 'urgent' ? 'asap' : 'flexible',
+      location_address: request.property_label || request.address_street || null,
+      location_city: request.address_city || null,
+      location_state: request.address_state || null,
+      location_zip: request.address_zip || null,
+      location_country: request.address_country || null,
+      scheduled_date: request.scheduled_start_at ? new Date(request.scheduled_start_at).toISOString().slice(0, 10) : null,
+      scheduled_time: request.scheduled_start_at || null,
+    };
+    const { patch: canonicalInput } = jobSchema.normalizeJobInput(jobInput, { mode: 'legacy' });
+    for (const key of ['title', 'description', 'location_city', 'location_country']) {
+      if (!Object.prototype.hasOwnProperty.call(canonicalInput, key)) canonicalInput[key] = null;
+    }
+    const schemaErrs = jobSchema.validateJobFields(canonicalInput, { mode: 'create' });
+    if (Object.keys(schemaErrs).length) {
+      if (schemaErrs.location_city) schemaErrs.location = schemaErrs.location_city;
+      throw new AppError('Validation failed', 422, 'validation_failed', schemaErrs);
+    }
+
+    const description = jobInput.description;
 
     const { rows: [job] } = await client.query(
       `INSERT INTO jobs (
@@ -489,9 +517,9 @@ exports.convertToJob = async (req, res, next) => {
          site_access, job_type_label, notes, location_address, location_city,
          location_state, location_zip, location_country, media_urls,
          preferred_helper_id, preferred_helper_name, scheduled_date, scheduled_time,
-         status, expires_at
+         status, expires_at, metadata
        )
-       VALUES ($1,$2,$3,$4,'open',$5,$6,'standard','one_time',$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,'published',now() + interval '30 days')
+       VALUES ($1,$2,$3,$4,'open',$5,$6,'standard','one_time',$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,'published',now() + interval '30 days',$18)
        RETURNING *`,
       [
         request.business_owner_id,
@@ -511,6 +539,13 @@ exports.convertToJob = async (req, res, next) => {
         request.vendor_name || null,
         request.scheduled_start_at ? new Date(request.scheduled_start_at).toISOString().slice(0, 10) : null,
         request.scheduled_start_at || null,
+        // Review P2-9-F10: keep the tenant (requester) linked on the job;
+        // the job is posted by the business owner but originated from them.
+        JSON.stringify({
+          maintenance_request_id: request.id,
+          tenant_requester_id: request.requester_id || null,
+          converted_from: 'property_maintenance_request',
+        }),
       ]
     );
 

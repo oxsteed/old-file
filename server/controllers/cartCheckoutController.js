@@ -367,6 +367,24 @@ async function confirmPayment(req, res) {
         logger.error('Marketplace order audit write failed', { orderId, error: auditErr.message });
         return sendError(res, 500, 'Order was paid but could not be audited; contact support');
       }
+      // Review P2-9-F13: franchise royalties accrue on marketplace sales too,
+      // not just job completion. Non-blocking; the royalty service is
+      // idempotent per order.
+      try {
+        const { accrueTerritoryRoyalty } = require('../services/franchiseRoyaltyService');
+        const shipAddr = order.rows[0].shipping_address || {};
+        await accrueTerritoryRoyalty({
+          client: pool,
+          amountCents: Number(order.rows[0].total_cents || 0),
+          city: shipAddr.city || null,
+          region: shipAddr.state || null,
+          sourceType: 'marketplace_sale',
+          sourceId: String(orderId),
+          description: `Territory royalty — marketplace order #${orderId}`,
+        });
+      } catch (royaltyErr) {
+        logger.warn('Failed to accrue franchise royalty for marketplace order (non-fatal)', { error: royaltyErr.message, orderId });
+      }
 
       // Send confirmation and payment emails (async, don't block response)
       setImmediate(async () => {

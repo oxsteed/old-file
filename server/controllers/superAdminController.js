@@ -2346,44 +2346,38 @@ exports.getSettings = async (req, res) => {
   } catch (err) { logger.error('getSettings error', { err }); res.status(500).json({ error: 'Failed to fetch settings.' }); }
 };
 
+// Review P2-1-F06: this endpoint used to apply setting changes immediately,
+// bypassing the settings change-request maker-checker. It now proposes a
+// change request (status 'proposed'); a different admin must approve it via
+// POST /admin/settings-changes/:id/approve before anything is applied.
+// Returns 202 with the pending request. The direct-apply path is gone.
 exports.updateSetting = async (req, res) => {
-  let client;
   try {
-    client = await db.connect();
     const { key } = req.params;
-    const { value } = req.body;
+    const { value, reason } = req.body || {};
     const adminId = req.user.id;
-    await client.query('BEGIN');
-    const { rows: before } = await client.query('SELECT * FROM platform_settings WHERE key = $1 FOR UPDATE', [key]);
-    if (before.length === 0) {
-      await client.query('ROLLBACK');
-      return res.status(404).json({ error: `Setting "${key}" not found.` });
-    }
-    const parsed = parsePlatformSettingValue(before[0], value);
-    if (parsed.error) {
-      await client.query('ROLLBACK');
-      return res.status(400).json({ error: parsed.error, code: 'invalid_setting_value' });
-    }
-    await client.query('UPDATE platform_settings SET value = $1, version = COALESCE(version, 1) + 1, updated_by = $2, updated_at = now() WHERE key = $3', [parsed.value, adminId, key]);
-    await logAdminAction({
-      client,
-      adminId,
-      action: 'platform_setting_updated',
-      targetType: 'platform_setting',
-      targetKey: key,
-      description: `Setting "${key}" updated`,
-      before: { value: before[0].value, version: before[0].version || 1 },
-      after: { value: parsed.value, version: (before[0].version || 1) + 1 },
+    const { createChangeRequest } = require('./settingsChangeController');
+    const request = await createChangeRequest({
+      kind: 'setting',
+      key,
+      proposedValue: value,
+      reason: (reason || '').trim() || `Direct change submitted from Platform Settings for "${key}"`,
+      proposedBy: adminId,
       req,
-      throwOnError: true,
     });
-    await client.query('COMMIT');
-    res.json({ message: `Setting "${key}" updated.` });
+    return res.status(202).json({
+      message: `Change to setting "${key}" proposed and awaiting approval.`,
+      code: 'change_proposed',
+      change_request_id: request.id,
+      request,
+    });
   } catch (err) {
-    try { await client.query('ROLLBACK'); } catch {}
+    if (Number.isInteger(err.statusCode)) {
+      return res.status(err.statusCode).json({ error: err.message, ...(err.code ? { code: err.code } : {}) });
+    }
     logger.error('updateSetting error', { err });
-    res.status(err.code === '22P02' ? 400 : 500).json({ error: err.code === '22P02' ? 'Invalid setting value.' : 'Failed to update setting.' });
-  } finally { client?.release(); }
+    res.status(500).json({ error: 'Failed to propose setting change.' });
+  }
 };
 
 // Restore the immediately previous audited value. Rollback is itself a new
@@ -2464,40 +2458,36 @@ exports.updateFeatureFlag = async (req, res) => {
       code: 'flag_rail_controlled',
     });
   }
-  const { enabled } = req.body;
-  const newEnabled = parseStrictBoolean(enabled);
-  if (newEnabled === null) return res.status(400).json({ error: 'Feature flags must be true or false.', code: 'invalid_feature_flag_value' });
-  let client;
+  // Review P2-1-F06: this endpoint used to flip feature flags immediately,
+  // bypassing the change-request maker-checker. It now proposes a change
+  // request (status 'proposed'); a different admin must approve it before
+  // anything is applied. Returns 202 with the pending request.
   try {
-    client = await db.connect();
     const { key } = req.params;
+    const { enabled, reason } = req.body || {};
     const adminId = req.user.id;
-    await client.query('BEGIN');
-    const { rows: before } = await client.query('SELECT is_enabled FROM feature_flags WHERE key = $1 FOR UPDATE', [key]);
-    if (before.length === 0) {
-      await client.query('ROLLBACK');
-      return res.status(404).json({ error: `Feature flag "${key}" not found.` });
-    }
-    await client.query('UPDATE feature_flags SET is_enabled = $1, updated_by = $2, updated_at = now() WHERE key = $3', [newEnabled, adminId, key]);
-    await logAdminAction({
-      client,
-      adminId,
-      action: 'feature_flag_updated',
-      targetType: 'feature_flag',
-      targetKey: key,
-      description: `Feature flag "${key}" set to ${newEnabled}`,
-      before: { is_enabled: before[0].is_enabled },
-      after: { is_enabled: newEnabled },
+    const { createChangeRequest } = require('./settingsChangeController');
+    const request = await createChangeRequest({
+      kind: 'flag',
+      key,
+      proposedValue: enabled,
+      reason: (reason || '').trim() || `Direct change submitted from Platform Settings for flag "${key}"`,
+      proposedBy: adminId,
       req,
-      throwOnError: true,
     });
-    await client.query('COMMIT');
-    res.json({ message: `Feature flag "${key}" set to ${newEnabled}.` });
+    return res.status(202).json({
+      message: `Change to feature flag "${key}" proposed and awaiting approval.`,
+      code: 'change_proposed',
+      change_request_id: request.id,
+      request,
+    });
   } catch (err) {
-    try { await client.query('ROLLBACK'); } catch {}
+    if (Number.isInteger(err.statusCode)) {
+      return res.status(err.statusCode).json({ error: err.message, ...(err.code ? { code: err.code } : {}) });
+    }
     logger.error('updateFeatureFlag error', { err });
-    res.status(500).json({ error: 'Failed to update feature flag.' });
-  } finally { client?.release(); }
+    res.status(500).json({ error: 'Failed to propose feature flag change.' });
+  }
 };
 
 exports.rollbackFeatureFlag = async (req, res) => {

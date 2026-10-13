@@ -1462,6 +1462,7 @@
   "adminNotificationRetryFailed": "La relance de la notification Credit a échoué.",
   "adminDisputeResolutionRequired": "Ajoutez une note de changement de statut avant de mettre à jour un litige Credit.",
   "adminDisputeStatusChanged": "Le litige {{id}} est passé à {{status}}.",
+  "adminDisputeQueuedForApproval": "Litige {{id}} mis en file d’attente. Un deuxième administrateur doit l’approuver avant son entrée en vigueur.",
   "adminDisputeUpdateFailed": "La mise à jour du litige a échoué.",
   "adminPostedPurchaseOnly": "Seul un achat Credit comptabilisé peut être remboursé depuis cette vue.",
   "adminRefundAmountRequired": "Saisissez un montant de remboursement positif en {{currency}}.",
