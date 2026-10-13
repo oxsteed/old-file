@@ -56,7 +56,12 @@ export default function PaymentRequestSharePanel({
       onShared?.(data);
       onClose?.();
     } catch (err) {
-      setError(err?.response?.data?.error || t('messages.paymentRequestShare.failed'));
+      const code = err?.response?.data?.code;
+      setError(
+        code === 'quote_thread_mismatch'
+          ? t('messages.paymentRequestShare.quoteMismatch')
+          : err?.response?.data?.error || t('messages.paymentRequestShare.failed'),
+      );
     } finally {
       setSharing(false);
     }

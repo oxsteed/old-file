@@ -3027,7 +3027,8 @@
       "memo": "Mémo",
       "memoPh": "ex. Acompte pour devis",
       "send": "Envoyer la demande de paiement",
-      "failed": "Impossible d'envoyer la demande de paiement."
+      "failed": "Impossible d'envoyer la demande de paiement.",
+      "quoteMismatch": "Ce devis n'appartient pas à cette conversation."
     },
     "providerToolbar": {
       "aria": "Outils prestataire",
@@ -3068,7 +3069,13 @@
       "completed": "Terminé",
       "waiting": "En attente de la réponse du client.",
       "thanks": "Les informations ont été envoyées au prestataire.",
-      "failed": "Impossible d’enregistrer le formulaire. Réessayez."
+      "failed": "Impossible d’enregistrer le formulaire. Réessayez.",
+      "followUpButton": "Poser des questions de suivi",
+      "followUpTitle": "Poser des questions de suivi",
+      "followUpSubtitle": "Ajoutez une autre série de questions à ce formulaire. Les réponses précédentes sont conservées.",
+      "sendFollowUp": "Envoyer le suivi",
+      "followUpNeedsQuestion": "Ajoutez au moins une question de suivi.",
+      "followUpWithdrawn": "Ce formulaire est retiré et ne peut pas être rouvert."
     },
     "creditRefund": {
       "title": "Rembourser OxSteed Credit",

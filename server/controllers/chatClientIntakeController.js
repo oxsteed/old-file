@@ -11,7 +11,7 @@ function cleanText(value, max) {
   return String(value || '').trim().slice(0, max);
 }
 
-function normalizeFields(raw) {
+function normalizeFields(raw, startIndex = 0) {
   if (!Array.isArray(raw)) return [];
   return raw.slice(0, 12).map((field, index) => {
     const type = ['text', 'textarea', 'number', 'date', 'select'].includes(field?.type)
@@ -20,8 +20,8 @@ function normalizeFields(raw) {
       ? field.options.map((option) => cleanText(option, 80)).filter(Boolean).slice(0, 20)
       : [];
     return {
-      id: cleanText(field?.id || `field_${index + 1}`, 60).replace(/[^a-zA-Z0-9_-]/g, '_'),
-      label: cleanText(field?.label, 160) || `Question ${index + 1}`,
+      id: cleanText(field?.id || `field_${startIndex + index + 1}`, 60).replace(/[^a-zA-Z0-9_-]/g, '_'),
+      label: cleanText(field?.label, 160) || `Question ${startIndex + index + 1}`,
       type,
       required: field?.required !== false,
       options,
@@ -111,6 +111,89 @@ async function createIntake(req, res, next) {
   }
 }
 
+// P2-10-F13: intakes were one-shot — a second round of questions needed a
+// brand-new intake. The provider can now append a follow-up round to the
+// same intake; it reopens for answers with prior responses preserved.
+async function addFollowUpRound(req, res, next) {
+  try {
+    const intakeId = String(req.params.id || '').trim();
+    if (!intakeId) return res.status(400).json({ error: 'Intake id is required' });
+    const { rows } = await pool.query(
+      'SELECT * FROM guest_profile_chat_intakes WHERE id = $1',
+      [intakeId],
+    );
+    const intake = rows[0];
+    if (!intake) return res.status(404).json({ error: 'Intake not found' });
+    const session = await assertProviderAccess(req.user.id, intake.session_id);
+    if (!session) return res.status(404).json({ error: 'Guest session not found' });
+    if (intake.status === 'withdrawn') {
+      return res.status(409).json({ error: 'This intake is withdrawn and cannot be reopened', code: 'intake_withdrawn' });
+    }
+
+    const body = req.body || {};
+    const existingFields = Array.isArray(intake.fields) ? intake.fields : [];
+    const newFields = normalizeFields(body.fields, existingFields.length);
+    if (!newFields.length) {
+      return res.status(400).json({ error: 'Add at least one follow-up question', code: 'validation_failed' });
+    }
+    // Follow-up field ids must not collide with existing ones.
+    const seenIds = new Set(existingFields.map((field) => field.id));
+    for (const field of newFields) {
+      let candidate = field.id;
+      let suffix = 2;
+      while (seenIds.has(candidate)) candidate = `${field.id}_${suffix++}`;
+      field.id = candidate;
+      seenIds.add(candidate);
+    }
+    const mergedFields = [...existingFields, ...newFields];
+
+    const { rows: updatedRows } = await pool.query(
+      `UPDATE guest_profile_chat_intakes
+          SET fields = $2::jsonb, status = 'open', completed_at = NULL, updated_at = NOW()
+        WHERE id = $1
+        RETURNING id, session_id, helper_id, business_id, title, description,
+                  fields, responses, status, created_at`,
+      [intake.id, JSON.stringify(mergedFields)],
+    );
+    const updated = updatedRows[0];
+    const senderName = `${req.user.first_name || ''} ${req.user.last_name || ''}`.trim() || 'Helper';
+    const marker = encodeMarker(INTAKE_MARKER, {
+      id: updated.id,
+      title: cleanText(body.title, 160) || updated.title,
+      description: cleanText(body.description, 1000) || updated.description,
+      fields: updated.fields,
+      responses: updated.responses || {},
+      status: updated.status,
+      followUp: true,
+    });
+    const message = await pool.query(
+      `INSERT INTO guest_profile_chat_messages (session_id, sender_type, sender_name, message)
+       VALUES ($1, 'helper', $2, $3)
+       RETURNING id, created_at`,
+      [intake.session_id, senderName, marker],
+    );
+    await pool.query(
+      `UPDATE guest_profile_chat_inbound
+          SET last_helper_message_at = NOW(), last_activity_at = NOW(),
+              helper_messages_count = COALESCE(helper_messages_count, 0) + 1
+        WHERE id = $1`,
+      [intake.session_id],
+    );
+    const msg = message.rows[0];
+    broadcastGuestChatMessage(intake.session_id, {
+      messageId: msg.id,
+      senderType: 'helper',
+      senderName,
+      message: marker,
+      createdAt: msg.created_at instanceof Date ? msg.created_at.toISOString() : msg.created_at,
+    });
+    res.status(201).json({ intake: updated, messageId: msg.id });
+  } catch (error) {
+    if (error.status) return res.status(error.status).json({ error: error.message });
+    next(error);
+  }
+}
+
 async function getIntake(req, res, next) {
   try {
     const { rows } = await pool.query(
@@ -150,11 +233,16 @@ async function respondToIntake(req, res, next) {
     if (!intake) return res.status(404).json({ error: 'Intake not found' });
     if (intake.status !== 'open') return res.status(409).json({ error: 'This intake is no longer accepting responses' });
     const input = req.body?.responses && typeof req.body.responses === 'object' ? req.body.responses : {};
+    // P2-10-F13: follow-up rounds reopen the intake with prior answers kept.
+    // Merge with existing responses so the guest only answers what is new;
+    // required validation runs against the merged values.
+    const existingResponses = intake.responses && typeof intake.responses === 'object' ? intake.responses : {};
     const responses = {};
     for (const field of Array.isArray(intake.fields) ? intake.fields : []) {
       const value = cleanText(input[field.id], field.type === 'textarea' ? 3000 : 500);
-      if (field.required && !value) return res.status(400).json({ error: `${field.label} is required`, field: field.id });
-      responses[field.id] = value;
+      const effective = value || cleanText(existingResponses[field.id], field.type === 'textarea' ? 3000 : 500);
+      if (field.required && !effective) return res.status(400).json({ error: `${field.label} is required`, field: field.id });
+      responses[field.id] = effective;
     }
     await pool.query(
       `UPDATE guest_profile_chat_intakes
@@ -192,4 +280,4 @@ async function respondToIntake(req, res, next) {
   } catch (error) { next(error); }
 }
 
-module.exports = { createIntake, getIntake, respondToIntake, INTAKE_MARKER, RESPONSE_MARKER };
+module.exports = { createIntake, getIntake, respondToIntake, addFollowUpRound, INTAKE_MARKER, RESPONSE_MARKER };

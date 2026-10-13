@@ -3027,7 +3027,8 @@
       "memo": "Nota",
       "memoPh": "p. ej. Depósito de cotización",
       "send": "Enviar solicitud de pago",
-      "failed": "No se pudo enviar la solicitud de pago."
+      "failed": "No se pudo enviar la solicitud de pago.",
+      "quoteMismatch": "Esta cotización no pertenece a esta conversación."
     },
     "providerToolbar": {
       "aria": "Herramientas del proveedor",
@@ -3068,7 +3069,13 @@
       "completed": "Completado",
       "waiting": "Esperando que el cliente complete este formulario.",
       "thanks": "La información se envió al proveedor.",
-      "failed": "No se pudo guardar el formulario. Inténtalo de nuevo."
+      "failed": "No se pudo guardar el formulario. Inténtalo de nuevo.",
+      "followUpButton": "Hacer preguntas de seguimiento",
+      "followUpTitle": "Hacer preguntas de seguimiento",
+      "followUpSubtitle": "Agregue otra ronda de preguntas a este formulario. Las respuestas anteriores se conservan.",
+      "sendFollowUp": "Enviar seguimiento",
+      "followUpNeedsQuestion": "Agregue al menos una pregunta de seguimiento.",
+      "followUpWithdrawn": "Este formulario fue retirado y no se puede reabrir."
     },
     "creditRefund": {
       "title": "Reembolsar OxSteed Credit",
