@@ -20,22 +20,46 @@ describe('P3-6-F12 shared attachment reference normalization', () => {
     return mod;
   }
 
-  test('accepts app-minted relative storage references', () => {
+  test('accepts public relative storage references, query stripped', () => {
     const { normalizeAttachmentReference } = loadValidation();
-    expect(normalizeAttachmentReference('/api/storage/files/support-conversations/a.png?exp=1&sig=2', 'a.png'))
-      .toEqual({ url: '/api/storage/files/support-conversations/a.png?exp=1&sig=2', name: 'a.png' });
-    expect(normalizeAttachmentReference('/api/storage/public/business-covers/b.jpg', null).url)
-      .toBe('/api/storage/public/business-covers/b.jpg');
+    expect(normalizeAttachmentReference('/api/storage/public/business-covers/b.jpg', null))
+      .toEqual({ url: '/api/storage/public/business-covers/b.jpg', name: null });
+    // A query string on a public ref is meaningless to the public route and
+    // must not smuggle a signature into the stored value.
+    expect(normalizeAttachmentReference('/api/storage/public/business-covers/b.jpg?exp=1&sig=2', 'b.jpg'))
+      .toEqual({ url: '/api/storage/public/business-covers/b.jpg', name: 'b.jpg' });
   });
 
-  test('rejects arbitrary /api/storage paths and off-allowlist hosts', () => {
+  test('rejects relative signed download references (bearer laundering)', () => {
     const { normalizeAttachmentReference } = loadValidation();
+    // With a signature: a bearer token minted in another context.
+    expect(normalizeAttachmentReference('/api/storage/files/support-conversations/a.png?exp=1&sig=2', 'a.png').error)
+      .toMatch(/signed download links cannot be attached/i);
+    // Without one: dead on the files route, so there is no safe reading.
+    expect(normalizeAttachmentReference('/api/storage/files/support-conversations/a.png', 'a.png').error)
+      .toMatch(/signed download links cannot be attached/i);
     expect(normalizeAttachmentReference('/api/storage/admin/secret', 'x').error)
-      .toMatch(/must reference an OxSteed storage object/i);
-    expect(normalizeAttachmentReference('https://evil.example/x.png', 'x').error)
       .toBeTruthy();
+  });
+
+  test('rejects absolute bearer-token shapes, keeps plain allowlisted URLs', () => {
+    process.env.APP_URL = 'https://app.example.com';
+    process.env.AWS_S3_BUCKET = 'oxsteed-uploads';
+    process.env.AWS_REGION = 'us-east-1';
+    const { normalizeAttachmentReference } = loadValidation();
+    // This app's own signed download route in absolute form.
+    expect(normalizeAttachmentReference('https://app.example.com/api/storage/files/k/x.jpg?exp=1&sig=abc', 'x').error)
+      .toMatch(/signed download links cannot be attached/i);
+    // S3 presigned URLs are bearer tokens for private objects.
+    expect(normalizeAttachmentReference('https://oxsteed-uploads.s3.us-east-1.amazonaws.com/k/x.jpg?X-Amz-Signature=abc', 'x').error)
+      .toMatch(/presigned storage links cannot be attached/i);
+    delete process.env.AWS_S3_BUCKET;
+    delete process.env.AWS_REGION;
+    // Plain allowlisted https URLs still work.
     expect(normalizeAttachmentReference('https://cdn.example.com/x.png', 'x').url)
       .toBe('https://cdn.example.com/x.png');
+    expect(normalizeAttachmentReference('https://evil.example/x.png', 'x').error)
+      .toBeTruthy();
   });
 
   test('empty reference normalizes to null; oversized is rejected', () => {
