@@ -14,12 +14,19 @@
  * - assertCreditRailEnabled() runs first on every path (503 when frozen).
  * - The checker must prove a fresh step-up challenge
  *   (actionType 'pending_action_approve') before execution.
- * - Self-approval is 403 credit_self_approval_forbidden.
+ * - Self-approval is 403 credit_self_approval_forbidden, except for the
+ *   single-super-admin break-glass (P1-9-F05): when the
+ *   credit_single_admin_self_approval feature flag is ON and fewer than 2
+ *   active super admins exist, the maker may self-approve, but only with a
+ *   fresh step-up challenge, and the decision is audit-marked
+ *   selfApproved: true. The flag defaults OFF (fails closed); with 2+
+ *   super admins the 403 stands regardless of the flag.
  * - Rejection requires a reason (400 credit_decision_reason_required).
  * - Lazy expiry: deciding an expired pending action marks it expired and
  *   returns 409 credit_pending_action_expired; it can never execute.
- * - Every money movement requires a distinct checker. There is no amount,
- *   environment, or break-glass bypass for maker-checker.
+ * - Every money movement requires a distinct checker, unless the
+ *   single-super-admin break-glass above applies. There is no amount or
+ *   environment bypass for maker-checker.
  * - Idempotency: the caller's Idempotency-Key is the pending action's
  *   idempotency key, so a retried request replays the existing receipt
  *   instead of queueing a duplicate.
@@ -68,6 +75,27 @@ function normalizeText(value, max) {
 function parseAmount(value) {
   const n = Number(value);
   return Number.isSafeInteger(n) && n >= 0 ? n : null;
+}
+
+/**
+ * Single-super-admin break-glass (P1-9-F05). An org with one super admin can
+ * otherwise never complete a pending action: every route requires a super
+ * admin and self-approval is forbidden. This gate opens only when BOTH hold:
+ *   1. the credit_single_admin_self_approval feature flag is ON (default
+ *      OFF, seeded by migration 809; fails closed), and
+ *   2. fewer than 2 active super admins exist right now.
+ * With 2+ super admins the two-person rule stands regardless of the flag.
+ */
+async function singleAdminBreakGlassAllowed(client) {
+  const { rows: flagRows } = await client.query(
+    `SELECT is_enabled FROM feature_flags WHERE key = 'credit_single_admin_self_approval' LIMIT 1`
+  );
+  if (!flagRows[0] || flagRows[0].is_enabled !== true) return false;
+  const { rows } = await client.query(
+    `SELECT COUNT(*)::int AS n FROM users
+      WHERE role = 'super_admin' AND is_active = TRUE AND deleted_at IS NULL`
+  );
+  return (rows[0] ? rows[0].n : 0) < 2;
 }
 
 function formatPendingAction(row) {
@@ -441,6 +469,7 @@ async function decidePendingAction({ actionId, decidedBy, decision, reason, step
   const normalizedDecision = decision === 'rejected' || decision === 'reject' ? 'rejected' : 'approved';
   if (!decidedBy) throw new AppError('A deciding administrator is required', 403, 'credit_pending_action_actor_required');
   const normalizedReason = normalizeText(reason, 2000);
+  let selfApproved = false;
 
   return withTransaction(pool, async (client) => {
     const { rows } = await client.query(
@@ -478,10 +507,15 @@ async function decidePendingAction({ actionId, decidedBy, decision, reason, step
       throw new AppError('Pending action has expired and can no longer be decided', 409, 'credit_pending_action_expired');
     }
     if (String(action.requested_by) === String(decidedBy)) {
-      // Maker-checker is absolute: every decision (including mark-paid and
-      // approvals) needs a second, distinct administrator. There is no
-      // single-admin override.
-      throw new AppError('The requesting administrator cannot approve their own action', 403, 'credit_self_approval_forbidden');
+      // Maker-checker is absolute by default: every decision needs a second,
+      // distinct administrator. The single-super-admin break-glass (P1-9-F05)
+      // opens only when the feature flag is ON and fewer than 2 active super
+      // admins exist; the step-up challenge below still applies and the
+      // decision is audit-marked selfApproved.
+      if (!(await singleAdminBreakGlassAllowed(client))) {
+        throw new AppError('The requesting administrator cannot approve their own action', 403, 'credit_self_approval_forbidden');
+      }
+      selfApproved = true;
     }
     if (normalizedDecision === 'rejected' && !normalizedReason) {
       throw new AppError('A reason is required to reject a pending action', 400, 'credit_decision_reason_required');
@@ -503,7 +537,7 @@ async function decidePendingAction({ actionId, decidedBy, decision, reason, step
         reason: normalizedReason,
         correlationId: correlationId || null,
         requestIp: requestIp || null,
-        metadata: { actionType: action.action_type, decision: 'rejected', requestedBy: action.requested_by },
+        metadata: { actionType: action.action_type, decision: 'rejected', requestedBy: action.requested_by, selfApproved },
       });
       const { rows: rejectedRows } = await client.query(
         `SELECT * FROM oxsteed_credit_pending_actions WHERE id = $1`,
@@ -544,10 +578,10 @@ async function decidePendingAction({ actionId, decidedBy, decision, reason, step
       actorUserId: decidedBy,
       resourceType: 'pending_action',
       resourceId: String(action.id),
-      reason: normalizedReason || `Checker approved ${action.action_type}`,
+      reason: normalizedReason || (selfApproved ? `Single-admin break-glass: maker approved ${action.action_type}` : `Checker approved ${action.action_type}`),
       correlationId: correlationId || null,
       requestIp: requestIp || null,
-      metadata: { actionType: action.action_type, decision: 'approved', requestedBy: action.requested_by },
+      metadata: { actionType: action.action_type, decision: 'approved', requestedBy: action.requested_by, selfApproved },
     });
     const { rows: approvedRows } = await client.query(
       `SELECT * FROM oxsteed_credit_pending_actions WHERE id = $1`,

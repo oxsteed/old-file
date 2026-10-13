@@ -1504,24 +1504,99 @@ exports.expirePendingBookingRequests = async () => {
  * Also releases request-only bookings that were accepted but never got an agreed time (stranded),
  * and cancels the linked appointment (helper or business) for every released booking.
  * Notifies both parties.
+ *
+ * P3-8-F11: never release a booking whose service was delivered. A linked
+ * appointment in 'completed' status is delivery evidence: the booking moves
+ * to 'completed' instead of 'accepted_cancelled', and the linked appointment
+ * is left alone. A linked appointment still 'in_progress' is left to the
+ * appointment lifecycle (not swept here).
  */
 exports.releaseStaleAcceptedBookings = async () => {
   try {
+    // Delivery evidence: the linked helper or business appointment reached
+    // 'completed'. Those bookings are done, not abandoned.
+    const deliveredCondition = `
+      (
+        (br.appointment_id IS NOT NULL AND EXISTS (
+          SELECT 1 FROM appointments a
+          WHERE a.id = br.appointment_id AND a.status = 'completed'
+        ))
+        OR (br.business_appointment_id IS NOT NULL AND EXISTS (
+          SELECT 1 FROM business_appointments ba
+          WHERE ba.id = br.business_appointment_id AND ba.status = 'completed'
+        ))
+      )`;
+    const inProgressCondition = `
+      (
+        (br.appointment_id IS NOT NULL AND EXISTS (
+          SELECT 1 FROM appointments a
+          WHERE a.id = br.appointment_id AND a.status = 'in_progress'
+        ))
+        OR (br.business_appointment_id IS NOT NULL AND EXISTS (
+          SELECT 1 FROM business_appointments ba
+          WHERE ba.id = br.business_appointment_id AND ba.status = 'in_progress'
+        ))
+      )`;
+    const staleCondition = `
+      status = 'accepted'
+      AND (
+        (requested_end_time IS NOT NULL
+          AND (requested_date::timestamp + requested_end_time::interval) < NOW())
+        OR (requested_end_time IS NULL
+          AND updated_at < NOW() - INTERVAL '7 days')
+      )`;
+
+    // 1) Delivered bookings: accepted -> completed (never cancelled).
+    const completed = await pool.query(
+      `UPDATE booking_requests br
+       SET status = 'completed',
+           helper_response_reason = COALESCE(
+             helper_response_reason,
+             'Service delivered; booking completed automatically'
+           ),
+           updated_at = CURRENT_TIMESTAMP
+       WHERE ${staleCondition} AND ${deliveredCondition}
+       RETURNING id, customer_id, helper_id, business_id, service_name, requested_date,
+                 appointment_id, business_appointment_id`
+    );
+    if (completed.rowCount > 0) {
+      logger.info('Auto-completed delivered bookings past scheduled end', { count: completed.rowCount });
+      for (const row of completed.rows) {
+        await logBookingAudit(row.id, 'auto_completed', null, 'system', 'accepted', 'completed');
+        broadcastToUser(row.customer_id, 'booking:updated', { bookingId: row.id, status: 'completed' });
+        broadcastToUser(row.helper_id, 'booking:updated', { bookingId: row.id, status: 'completed' });
+
+        sendNotification({
+          userId: row.customer_id,
+          type: 'booking_auto_completed',
+          body: `${row.service_name}, ${row.requested_date}`,
+          data: { bookingId: row.id },
+          action_url: '/my-bookings',
+        }).catch((err) => logger.warn('Failed auto-complete customer notification', { error: err.message }));
+
+        sendNotification({
+          userId: row.helper_id,
+          type: 'booking_auto_completed',
+          body: `${row.service_name}, ${row.requested_date}`,
+          data: { bookingId: row.id },
+          action_url: '/calendar',
+        }).catch((err) => logger.warn('Failed auto-complete helper notification', { error: err.message }));
+      }
+    }
+
+    // 2) Genuinely stale bookings: accepted -> accepted_cancelled, excluding
+    // delivered work (handled above) and appointments still in progress.
     const r = await pool.query(
-      `UPDATE booking_requests
+      `UPDATE booking_requests br
        SET status = 'accepted_cancelled',
            helper_response_reason = COALESCE(
              helper_response_reason,
              'Automatically released after scheduled time passed'
            ),
            updated_at = CURRENT_TIMESTAMP
-       WHERE status = 'accepted'
-         AND (
-           (requested_end_time IS NOT NULL
-             AND (requested_date::timestamp + requested_end_time::interval) < NOW())
-           OR (requested_end_time IS NULL
-             AND updated_at < NOW() - INTERVAL '7 days')
-         )
+       WHERE ${staleCondition}
+         AND NOT (${deliveredCondition})
+         AND NOT (${inProgressCondition})
        RETURNING id, customer_id, helper_id, business_id, service_name, requested_date,
                  appointment_id, business_appointment_id`
     );
