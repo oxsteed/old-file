@@ -127,6 +127,7 @@ describe('POST /api/payments/intent', () => {
     expect(res.status).toBe(200);
     expect(res.body).toHaveProperty('client_secret');
     expect(res.body).toHaveProperty('payment_intent_id', 'pi_test123');
+    expect(stripe.paymentIntents.create.mock.calls[0][0].receipt_email).toBe('c@test.com');
   });
 });
 

@@ -163,3 +163,5 @@ Notification retention follow-up: the scheduled deletion worker now purges read 
 
 Email reliability follow-up: welcome-email provider idempotency now includes the account creation timestamp, and direct calendar reminders use the shared escaped OxSteed template with a stable per-recipient delivery key. Focused reminder and welcome-idempotency tests pass.
 
+Tier-3 receipt follow-up: protected job PaymentIntents now set Stripe `receipt_email` from the authenticated payer, alongside the in-app receipt notification, so provider receipts do not depend on our notification pipeline.
+
