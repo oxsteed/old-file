@@ -20,6 +20,7 @@ const { isSignupPasswordValid } = require('../utils/signupValidation');
 const logger = require('../utils/logger');
 const tokenRevocationService = require('../services/tokenRevocationService');
 const { AppError } = require('../middleware/errorHandler');
+const { assertRegistrationsOpen } = require('../middleware/maintenanceGate'); // Review P3-7-F07
 const { grantFreeTrialToUser } = require('./templateController');
 const { checkAndAlertNewLogin } = require('../services/loginAlertService');
 const { invalidateGuestHistoryAccessCodesForEmail } = require('../services/guestProfileChatVerification');
@@ -1167,6 +1168,11 @@ async function startRegistration(req, res) {
         ? '+' + phoneClean
         : (dial ? `+${dial}${phoneClean}` : '+' + phoneClean);
     }
+    // Review P3-7-F07: 'new_user_registrations' kill-switch. Checked after
+    // input validation (so invalid input still 400s without a settings
+    // lookup) but before any account state is created.
+    await assertRegistrationsOpen();
+
     const existing = await pool.query('SELECT id FROM users WHERE email = $1', [normalized.email]);
     if (existing.rows.length > 0) return res.status(409).json({ error: 'Email already registered', code: 'email_registered' });
     const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);

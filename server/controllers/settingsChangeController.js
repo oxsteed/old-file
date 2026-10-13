@@ -26,6 +26,7 @@ const { parseBoundedPagination } = require('../utils/pagination');
 const {
   parsePlatformSettingValue,
   parseStrictBoolean,
+  RAIL_CONTROLLED_FLAGS,
 } = require('./superAdminController');
 
 const KINDS = ['setting', 'flag'];
@@ -39,7 +40,8 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-
 const AFFECTED_CONSUMERS = {
   maintenance_mode: 'request pipeline (maintenance gate), public site availability',
   new_user_registrations: 'registration flows (helper/customer/business signup)',
-  require_id_verification: 'identity verification gating at onboarding',
+  // Review P3-7-F07: 'require_id_verification' was removed (migration 825);
+  // helper ID verification is already unconditional at finalize/listing/Tier-3.
   platform_fee_starter: 'feeService: job pricing and payout fee computation',
   platform_fee_pro: 'feeService: job pricing and payout fee computation',
   platform_fee_elite: 'feeService: job pricing and payout fee computation',
@@ -192,32 +194,72 @@ async function applyChangeRequest(client, request, adminId, auditSource = 'admin
       if (newEnabled === null) {
         throw changeError(400, 'invalid_feature_flag_value', 'Feature flags must be true or false.');
       }
+      const isRailFlag = RAIL_CONTROLLED_FLAGS.has(String(change.key || '').toLowerCase());
+      // For rail-controlled flags the existence check must NOT take FOR
+      // UPDATE: setCreditRailStatus below runs on its own connection and
+      // locks the same row, so holding the lock here would self-deadlock.
+      // The rail's own transaction is the serialization point.
       const { rows: before } = await client.query(
-        'SELECT is_enabled FROM feature_flags WHERE key = $1 FOR UPDATE',
+        isRailFlag
+          ? 'SELECT is_enabled FROM feature_flags WHERE key = $1'
+          : 'SELECT is_enabled FROM feature_flags WHERE key = $1 FOR UPDATE',
         [change.key]
       );
       if (!before.length) {
         throw changeError(404, 'flag_not_found', `Feature flag "${change.key}" not found.`);
       }
-      await client.query(
-        'UPDATE feature_flags SET is_enabled = $1, updated_by = $2, updated_at = now() WHERE key = $3',
-        [newEnabled, actorId, change.key]
-      );
-      const flagAudit = withAuditSource({
-        description: `Feature flag "${change.key}" set to ${newEnabled} via change request ${change.id}`,
-        after: { is_enabled: newEnabled },
-      }, auditSource);
-      await logAdminAction({
-        client,
-        adminId: actorId,
-        action: 'feature_flag_updated',
-        targetType: 'feature_flag',
-        targetKey: change.key,
-        description: flagAudit.description,
-        before: { is_enabled: before[0].is_enabled },
-        after: flagAudit.after,
-        throwOnError: true,
-      });
+      // Review P3-7-F10: rail-controlled flags (the money rail) must never
+      // flip via a raw UPDATE. Route through the rail's own gated control
+      // path (prerequisite checks, required reason, dedicated credit audit)
+      // so the two-person approval recorded on this change request is what
+      // authorizes the activation. setCreditRailStatus runs in its own
+      // transaction and is idempotent on replay (changed:false when the rail
+      // is already in the requested state), so a retried apply is safe.
+      if (isRailFlag) {
+        const { setCreditRailStatus } = require('../services/oxsteedCreditService');
+        const railResult = await setCreditRailStatus({
+          enabled: newEnabled,
+          actorUserId: actorId,
+          reason: change.reason || `Applied via change request ${change.id}`,
+          correlationId: null,
+          requestIp: null,
+        });
+        const railAudit = withAuditSource({
+          description: `Credit rail flag "${change.key}" set to ${newEnabled} via change request ${change.id} (two-person approval)`,
+          after: { is_enabled: newEnabled, railChanged: railResult.changed !== false },
+        }, auditSource);
+        await logAdminAction({
+          client,
+          adminId: actorId,
+          action: 'feature_flag_updated',
+          targetType: 'feature_flag',
+          targetKey: change.key,
+          description: railAudit.description,
+          before: { is_enabled: before[0].is_enabled },
+          after: railAudit.after,
+          throwOnError: true,
+        });
+      } else {
+        await client.query(
+          'UPDATE feature_flags SET is_enabled = $1, updated_by = $2, updated_at = now() WHERE key = $3',
+          [newEnabled, actorId, change.key]
+        );
+        const flagAudit = withAuditSource({
+          description: `Feature flag "${change.key}" set to ${newEnabled} via change request ${change.id}`,
+          after: { is_enabled: newEnabled },
+        }, auditSource);
+        await logAdminAction({
+          client,
+          adminId: actorId,
+          action: 'feature_flag_updated',
+          targetType: 'feature_flag',
+          targetKey: change.key,
+          description: flagAudit.description,
+          before: { is_enabled: before[0].is_enabled },
+          after: flagAudit.after,
+          throwOnError: true,
+        });
+      }
     } else {
       throw changeError(400, 'invalid_change_kind', `Unknown change kind "${change.kind}".`);
     }

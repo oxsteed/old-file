@@ -8,6 +8,7 @@ import './index.css';
 import { initMobileBridge } from './utils/mobileBridge';
 import { i18nReady } from './i18n';
 import { installGlobalChunkReload } from './utils/lazyWithRetry';
+import { applyServerLaunchVisibility } from './utils/launchScope';
 import {
   clearBootstrapRecoveryMarker,
   recoverFromBootstrapFailure,
@@ -87,7 +88,27 @@ registerServiceWorker();
 initPwaInstall();
 installGlobalChunkReload();
 warmServiceWorkerAssets();
-i18nReady.then(() => {
+
+// Review P3-7-F09: the server is the single source of truth for launch
+// state (e.g. OXSTEED_MEDIA_LAUNCHED). Fetch it before first render so the
+// client does not render product UI whose APIs the server 404s. Never blocks
+// boot: a 3s timeout or any failure fails open to the build-time defaults,
+// and the server-side launch gates stay fail-closed regardless.
+async function fetchServerLaunchVisibility() {
+  try {
+    const res = await fetch('/api/launch-visibility', { credentials: 'same-origin' });
+    if (!res.ok) return;
+    applyServerLaunchVisibility(await res.json());
+  } catch {
+    // Fail open to build-time defaults; server gates stay fail-closed.
+  }
+}
+const launchVisibilityReady = Promise.race([
+  fetchServerLaunchVisibility(),
+  new Promise((resolve) => setTimeout(resolve, 3000)),
+]);
+
+Promise.all([i18nReady, launchVisibilityReady]).then(() => {
   clearBootstrapRecoveryMarker();
   ReactDOM.createRoot(document.getElementById('root')).render(
     <React.StrictMode>

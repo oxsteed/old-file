@@ -1165,11 +1165,32 @@ async function getAdminCreditRail(req, res, next) {
 
 async function updateAdminCreditRail(req, res, next) {
   try {
+    const enabled = parseBoolean(req.body?.enabled, 'enabled');
+    let expectedEnabled = req.body?.expectedEnabled === undefined && req.body?.expected_enabled === undefined
+      ? undefined
+      : parseBoolean(req.body?.expectedEnabled ?? req.body?.expected_enabled, 'expectedEnabled');
+    // Review P3-7-F10: activating the money rail requires two-person
+    // approval. A single admin may still SUSPEND it (the emergency stop
+    // stays unilateral and fast), but flipping false -> true must go through
+    // the settings change-request flow: propose, then approve by a different
+    // admin, which applies via the rail's gated control path. An enable
+    // request while the rail is already enabled is an idempotent replay and
+    // is allowed through, with the expectation pinned so a concurrent
+    // suspend between the check and the apply below surfaces as a state
+    // conflict instead of silently re-enabling the rail.
+    if (enabled === true) {
+      const current = await getCreditRailStatus();
+      if (!current.enabled) {
+        return res.status(409).json({
+          error: 'Activating the OxSteed Credit rail requires approval from a second administrator. Propose it in Platform Settings > Change Requests.',
+          code: 'credit_rail_enable_requires_approval',
+        });
+      }
+      if (expectedEnabled === undefined) expectedEnabled = true;
+    }
     const result = await setCreditRailStatus({
-      enabled: parseBoolean(req.body?.enabled, 'enabled'),
-      expectedEnabled: req.body?.expectedEnabled === undefined && req.body?.expected_enabled === undefined
-        ? undefined
-        : parseBoolean(req.body?.expectedEnabled ?? req.body?.expected_enabled, 'expectedEnabled'),
+      enabled,
+      expectedEnabled,
       actorUserId: req.user.id,
       reason: req.body?.reason,
       correlationId: req.correlationId || req.get('X-Request-ID') || null,

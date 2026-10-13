@@ -52,7 +52,9 @@ function revenueCsvEscape(val) {
 const BOOLEAN_SETTING_KEYS = new Set([
   'maintenance_mode',
   'new_user_registrations',
-  'require_id_verification',
+  // Review P3-7-F07: 'require_id_verification' was removed (migration 825).
+  // Helper ID verification is already unconditionally required at
+  // finalize/listing/Tier-3 gates, so the toggle could never change behavior.
 ]);
 
 const NUMERIC_SETTING_LIMITS = {
@@ -2294,6 +2296,32 @@ exports.getMoneyOverview = async (req, res) => {
 };
 
 // PLATFORM SETTINGS
+// Review P3-7-F10: read-only snapshot of deployment-time (env) flags for the
+// admin surface. Env flags are not flippable at runtime and have no audit
+// trail; surfacing their effective values (never secret values) lets
+// operators see the full launch state next to the DB flags/settings.
+function readOnlyEnvFlagSnapshot() {
+  const { envFlagEnabled } = require('../middleware/featureFlags');
+  const { snapshot: paymentLayersSnapshot } = require('../services/paymentLayerFlags');
+  return {
+    paymentLayers: paymentLayersSnapshot(),
+    launch: {
+      OXSTEED_MEDIA_LAUNCHED: envFlagEnabled('OXSTEED_MEDIA_LAUNCHED', false),
+      VORTEX_ENABLED: envFlagEnabled('VORTEX_ENABLED', false),
+      AFFILIATE_ENABLED: envFlagEnabled('AFFILIATE_ENABLED', false),
+      CONSULTING_ENABLED: envFlagEnabled('CONSULTING_ENABLED', false),
+      SUBSCRIPTIONS_ENABLED: envFlagEnabled('SUBSCRIPTIONS_ENABLED', false),
+    },
+    security: {
+      // Secret material is never returned; only whether the origin lock can
+      // actually engage (see middleware/originLock.js).
+      ORIGIN_SHARED_SECRET_CONFIGURED: Boolean(process.env.ORIGIN_SHARED_SECRET),
+      ORIGIN_LOCK_DISABLED: envFlagEnabled('ORIGIN_LOCK_DISABLED', false),
+      TRUST_PROXY_HOPS: process.env.TRUST_PROXY_HOPS || '2',
+    },
+  };
+}
+
 exports.getSettings = async (req, res) => {
   try {
     if (!(await tableExists('platform_settings')) || !(await tableExists('feature_flags'))) {
@@ -2306,7 +2334,11 @@ exports.getSettings = async (req, res) => {
       db.query('SELECT * FROM platform_settings ORDER BY key ASC'),
       db.query('SELECT * FROM feature_flags ORDER BY key ASC'),
     ]);
-    res.json({ settings, flags });
+    // Review P3-7-F10: environment flags had no admin surface and no audit.
+    // They are deployment-time configuration and cannot be flipped at
+    // runtime, so they are exposed read-only here (effective values only;
+    // secret material is never returned, only whether it is configured).
+    res.json({ settings, flags, envFlags: readOnlyEnvFlagSnapshot() });
   } catch (err) { logger.error('getSettings error', { err }); res.status(500).json({ error: 'Failed to fetch settings.' }); }
 };
 
@@ -3202,6 +3234,41 @@ exports.forceLogout = async (req, res) => {
   } catch (err) {
     logger.error('forceLogout error', { err });
     res.status(500).json({ error: 'Failed to force logout.' });
+  }
+};
+
+// Review P3-14-F15: GET /admin/super/users/:userId/sessions - list another
+// user's sessions so force-logout is no longer blind. Super-admin only and
+// audited. Token material (refresh_token, access_token_hash) is never
+// returned; ids are the numeric row ids, scoped to the target user.
+exports.listUserSessions = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { rows: users } = await db.query('SELECT id, email FROM users WHERE id = $1', [userId]);
+    if (!users.length) return res.status(404).json({ error: 'User not found.' });
+    const { rows: sessions } = await db.query(
+      `SELECT id, created_at, expires_at, absolute_expires_at,
+              COALESCE(last_used_at, created_at) AS last_used_at,
+              ip_address, COALESCE(user_agent, device_info) AS user_agent,
+              is_valid, is_revoked, revoked_at
+         FROM sessions
+        WHERE user_id = $1
+        ORDER BY COALESCE(last_used_at, created_at) DESC NULLS LAST
+        LIMIT 100`,
+      [userId]
+    );
+    await logAdminAction({
+      adminId: req.user.id,
+      action: 'user_sessions_viewed',
+      targetType: 'user',
+      targetId: userId,
+      description: `Viewed sessions for ${users[0].email}`,
+      req,
+    });
+    res.json({ user: { id: users[0].id, email: users[0].email }, sessions });
+  } catch (err) {
+    logger.error('listUserSessions error', { err });
+    res.status(500).json({ error: 'Failed to list user sessions.' });
   }
 };
 

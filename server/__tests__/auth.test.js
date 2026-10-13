@@ -13,6 +13,7 @@
 'use strict';
 
 const { mockQuery, resetMocks } = require('./setup');
+const settingsCache = require('../services/platformSettingsCache');
 
 jest.mock('@otplib/v12-adapter', () => ({
   authenticator: {
@@ -44,7 +45,17 @@ const TEST_TOKEN = jwt.sign(
   process.env.JWT_SECRET
 );
 
-beforeEach(() => resetMocks());
+beforeEach(() => {
+  resetMocks();
+  // Review P3-7-F07: the registration gate reads platform_settings first;
+  // clear the TTL cache so each test's mock sequence starts fresh.
+  settingsCache._clearCacheForTests();
+});
+
+// The registration gate (assertRegistrationsOpen) issues the first query:
+// SELECT value FROM platform_settings WHERE key = 'new_user_registrations'.
+const registrationsOpenMock = () =>
+  mockQuery.mockResolvedValueOnce({ rows: [{ value: 'true' }] });
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -115,6 +126,7 @@ describe('POST /api/auth/register/start', () => {
   });
 
   test('normalizes and stores trimmed registration fields', async () => {
+    registrationsOpenMock();
     mockQuery
       .mockResolvedValueOnce({ rows: [] }) // check existing email
       .mockResolvedValueOnce({ rows: [{ id: 123 }] }); // insert/update pending registration
@@ -135,7 +147,7 @@ describe('POST /api/auth/register/start', () => {
       });
 
     expect(res.status).toBe(200);
-    const insertArgs = mockQuery.mock.calls[1][1];
+    const insertArgs = mockQuery.mock.calls[2][1];
     expect(insertArgs[1]).toBe('customer@example.com');
     expect(insertArgs[3]).toBe('Customer');
     expect(insertArgs[4]).toBe('User');
@@ -145,6 +157,7 @@ describe('POST /api/auth/register/start', () => {
   });
 
   test('accepts exact-cased predefined region names', async () => {
+    registrationsOpenMock();
     mockQuery
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [{ id: 124 }] });
@@ -167,12 +180,13 @@ describe('POST /api/auth/register/start', () => {
       });
 
     expect(res.status).toBe(200);
-    const insertArgs = mockQuery.mock.calls[1][1];
+    const insertArgs = mockQuery.mock.calls[2][1];
     expect(insertArgs[9]).toBe('Île-de-France');
     expect(insertArgs[14]).toBe('restaurant_staff');
   });
 
   test('allows empty postal code when the selected country does not require one', async () => {
+    registrationsOpenMock();
     mockQuery
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [{ id: 125 }] });
@@ -194,13 +208,14 @@ describe('POST /api/auth/register/start', () => {
       });
 
     expect(res.status).toBe(200);
-    const insertArgs = mockQuery.mock.calls[1][1];
+    const insertArgs = mockQuery.mock.calls[2][1];
     expect(insertArgs[6]).toBeNull();
     expect(insertArgs[9]).toBeNull();
     expect(insertArgs[10]).toBe('HT');
   });
 
   test('returns 400 for DB field length overflow instead of 500', async () => {
+    registrationsOpenMock();
     mockQuery
       .mockResolvedValueOnce({ rows: [] }) // check existing email
       .mockRejectedValueOnce({ code: '22001' }); // insert pending registration

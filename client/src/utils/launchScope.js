@@ -47,7 +47,7 @@ export const LAUNCH_BUSINESS_HUB_TABS = new Set([
   'hiring',
 ]);
 
-export const LAUNCH_VISIBILITY = Object.freeze({
+export const LAUNCH_DEFAULTS = Object.freeze({
   affiliateRewards: false,
   aiKnowledge: false,
   backgroundChecks: false,
@@ -62,6 +62,9 @@ export const LAUNCH_VISIBILITY = Object.freeze({
   // Review P3-943: the Vortex APIs return 503 unless the server sets
   // VORTEX_ENABLED. The client mirrors it via VITE_VORTEX_ENABLED (set both).
   businessHubVortexAccess: VORTEX_CLIENT_ENABLED,
+  // Review P3-7-F09: build-time default only. The server is the single source
+  // of truth; main.jsx fetches /api/launch-visibility at boot and overrides
+  // this via applyServerLaunchVisibility().
   oxsteedMedia: true,
   discoverEverything: false,
   footerUtilityPills: true,
@@ -81,6 +84,20 @@ export const LAUNCH_VISIBILITY = Object.freeze({
   toolRentals: true,
   vortexWorkspaceEntry: VORTEX_CLIENT_ENABLED,
 });
+
+// Review P3-7-F09: the server is the single source of truth for launch state.
+// main.jsx fetches /api/launch-visibility at boot and calls
+// applyServerLaunchVisibility() before first render, which mutates this
+// object in place. It is intentionally NOT frozen: every existing
+// `LAUNCH_VISIBILITY.x` read pattern (render-time reads, default parameters,
+// getLaunchRedirect) then sees the server-supplied values. LAUNCH_DEFAULTS
+// stays frozen as the pristine build-time reference.
+export const LAUNCH_VISIBILITY = { ...LAUNCH_DEFAULTS };
+
+export function applyServerLaunchVisibility(patch) {
+  if (!patch || typeof patch !== 'object') return;
+  if (typeof patch.media === 'boolean') LAUNCH_VISIBILITY.oxsteedMedia = patch.media;
+}
 
 export function isBusinessHubTabLaunched(tab) {
   if (tab === 'media') return LAUNCH_VISIBILITY.oxsteedMedia;
@@ -131,7 +148,10 @@ export function getLaunchRedirect(pathname = '/') {
   const normalizedPath = pathname.startsWith('/') ? pathname : `/${pathname}`;
   const mediaRedirect = mediaLaunchRedirect(normalizedPath);
   if (mediaRedirect) return mediaRedirect;
-  if (/^\/orders\/[^/]+(?:\/|$)/.test(normalizedPath)) return '/orders';
+  // Review P3-7-F14: removed the unconditional /orders/:id -> /orders
+  // rewrite. It fired in LaunchScopeRouteGate before the route's own
+  // OrderIdRedirect, so order-detail deep links bounced to the order list
+  // instead of the canonical /food/orders/:id. The router owns that mapping.
   const specialtyMatch = normalizedPath.match(
     /^\/business\/([^/]+)\/(?:maintenance-request|trades-request|beauty-intake|creative-intake|professional-intake|continuity-intake|ai-preview)(?:\/|$)/,
   );

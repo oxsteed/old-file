@@ -5,6 +5,21 @@
  * (docs/payment-layers.md). Every flag defaults OFF so the existing US
  * behaviour is unchanged until ops turns a layer on. Flags are read on every
  * call so tests and ops toggles take effect without a restart.
+ *
+ * Review P3-7-F12: PLATFORM_PAYMENTS scope is explicit. When OFF it gates the
+ * PLATFORM payment surface: routes/payments.js (Connect onboarding, payment
+ * intents, captures, refunds, instant payouts), the job payment-reauthorization
+ * endpoints (except Credit-method), routes/restaurantPayouts.js, and the
+ * local-delivery payment service. It intentionally does NOT gate:
+ *   - QR direct payments (routes/qrPayments.js): a standalone shipped
+ *     product (helper/business direct Stripe charges, no platform escrow).
+ *     Gating it here would silently disable that product; see the note on
+ *     the checkout route.
+ *   - OxSteed Credit rail: governed by its own oxsteed_credit_enabled flag
+ *     and two-person rail controls, not by this env flag.
+ * The client reads the effective payment-layer state from
+ * GET /api/payment-layers/config (usePaymentLayersConfig) instead of
+ * guessing from this flag.
  */
 
 const FLAGS = Object.freeze({

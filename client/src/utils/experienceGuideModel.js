@@ -87,7 +87,9 @@ const AREAS = Object.freeze({
     defaultRole: 'customer',
   },
   media: {
-    enabled: LAUNCH_VISIBILITY.oxsteedMedia,
+    // Review P3-7-F09: read live (getter) so the server-supplied launch state
+    // applied at boot is honored; a module-scope snapshot would go stale.
+    get enabled() { return LAUNCH_VISIBILITY.oxsteedMedia; },
     roles: {
       customer: { steps: ['discover', 'connect', 'complete'], cards: ['openMedia', 'browseRestaurants', 'postJob'] },
       helper: { steps: ['discover', 'connect', 'complete'], cards: ['openMedia', 'helperProfile', 'browseJobs'] },
