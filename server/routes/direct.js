@@ -9,6 +9,7 @@ const { requireDg1StepUp } = require('../middleware/requireDg1StepUp');
 const upload = require('../middleware/upload');
 const validateFileUpload = require('../middleware/validateFileUpload');
 const { generalLimiter, strictLimiter, createStoreOption } = require('../middleware/rateLimiter');
+const checkRestrictions = require('../middleware/checkRestrictions');
 const quoteCtrl = require('../controllers/quoteRequestsController');
 const ctrl = require('../controllers/directController');
 
@@ -112,7 +113,8 @@ router.get('/requests/:id', authenticate, ctrl.getRequestDetail);
 router.get('/requests/:id/messages', authenticate, ctrl.getRequestMessages);
 router.post('/requests/:id/messages', authenticate, requireDg1StepUp, ctrl.addMessage);
 router.post('/requests/:id/accept', authenticate, requireDg1StepUp, ctrl.acceptRequest);
-router.post('/requests/:id/pay-credit', strictLimiter, authenticate, requireDg1StepUp, ctrl.payQuoteWithCredit);
+// Review P2-7-F07: paying with credit honors admin checkout restrictions.
+router.post('/requests/:id/pay-credit', strictLimiter, authenticate, requireDg1StepUp, checkRestrictions('checkout'), ctrl.payQuoteWithCredit);
 router.post('/requests/:id/reject', authenticate, requireDg1StepUp, ctrl.rejectRequest);
 router.post('/requests/:id/schedule', authenticate, requireDg1StepUp, ctrl.scheduleRequest);
 router.post('/requests/:id/change', authenticate, requireDg1StepUp, ctrl.changeRequest);

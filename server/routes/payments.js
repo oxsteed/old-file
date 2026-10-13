@@ -18,15 +18,21 @@ const {
 } = require('../controllers/paymentController');
 const { errorHandler } = require('../middleware/errorHandler');
 const checkRestrictions = require('../middleware/checkRestrictions');
+const { requireOnboardingStep, requireTaxIdentity } = require('../middleware/helperOnboardingMiddleware');
 
 const requirePaymentsEnabled = requireFeatureEnabled('Payments', 'FEATURE_PAYMENTS_ENABLED');
 
 // Connect account
-router.post('/connect', authenticate, requirePaymentsEnabled, connectAccountLimiter, createConnectAccount);
+// Review P2-2-F01: creating a payout rail requires finished helper
+// onboarding; tax identity (W-9 + fresh Didit) is enforced at payout time,
+// not account creation, so helpers are never deadlocked out of onboarding.
+router.post('/connect', authenticate, requirePaymentsEnabled, requireOnboardingStep('active'), connectAccountLimiter, createConnectAccount);
 router.get('/connect/status', authenticate, requirePaymentsEnabled, getConnectStatus);
 router.post('/connect/disconnect', authenticate, requirePaymentsEnabled, connectAccountLimiter, disconnectConnectAccount);
 router.get('/payout/balance', authenticate, requirePaymentsEnabled, getPayoutBalance);
-router.post('/payout/instant', authenticate, requirePaymentsEnabled, paymentsLimiter, requestInstantPayout);
+// Review P2-2-F01 / P2-2-F11: instant payouts move money, so they require
+// finished onboarding AND tax identity (W-9 on file, fresh Didit).
+router.post('/payout/instant', authenticate, requirePaymentsEnabled, requireOnboardingStep('active'), requireTaxIdentity, paymentsLimiter, requestInstantPayout);
 router.get('/investor-summary', authenticate, requireAdmin, getInvestorSummary);
 
 // Payments

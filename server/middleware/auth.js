@@ -246,6 +246,26 @@ async function authenticate(req, res, next) {
       !isDiditIdentitySatisfied(user) &&
       !isDiditExempt
     ) {
+      // Review P2-7-F13: a duplicate identity is not "verify again"; it is a
+      // recovery flow. Return the actionable in-app message with locale keys
+      // the client can render, instead of the generic verification-required
+      // body. The error string stays in English for logs/API consumers.
+      if ((user.didit_status || '').toLowerCase() === 'duplicate') {
+        return res.status(403).json({
+          error: 'This identity is already linked to an existing OxSteed account. Please sign in with that account instead.',
+          code: 'DIDIT_DUPLICATE_IDENTITY',
+          didit_status: 'duplicate',
+          didit_enforcement_required: !!user.didit_enforcement_required,
+          message_key: 'didit.duplicateGateMessage',
+          recovery_steps: [
+            { key: 'didit.duplicateRecoverySignIn' },
+            { key: 'didit.duplicateRecoveryReset' },
+            { key: 'didit.duplicateRecoverySupport' },
+          ],
+          sign_in_url: '/login',
+          support_url: '/support',
+        });
+      }
       return res.status(403).json({
         error: 'identity_verification_required',
         code: 'DIDIT_REQUIRED',
