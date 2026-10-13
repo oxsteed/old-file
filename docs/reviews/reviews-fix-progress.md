@@ -149,3 +149,5 @@ Email privacy follow-up: transactional email logs no longer include recipient ad
 
 Support alert follow-up: live-support wait alerts now use `SUPPORT_ALERT_EMAIL`, then `SUPPORT_EMAIL`, with `support@oxsteed.com` as the safe default. The alert remains idempotent and retryable without a founder-specific recipient embedded in code.
 
+Food-order notification follow-up: signed-in `food_order_ready` notifications now carry a stable delivery key and are included in the transactional email allow-list, so the ready event reaches email and retries remain idempotent. Focused `foodOrderLoop` regression tests pass.
+

@@ -1580,6 +1580,7 @@ async function notifyFoodOrderReady(order, restaurant) {
         body,
         data,
         action_url: trackUrl,
+        idempotencyKey: `food-order-ready:${order.id}`,
       });
       logger.info('notifyFoodOrderReady sent', {
         orderId: order.id,

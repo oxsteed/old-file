@@ -414,6 +414,7 @@ describe('food order loop E2E (F7)', () => {
         status: 'ready',
         queueNumber: '7',
       }),
+      idempotencyKey: `food-order-ready:${ORDER_ID}`,
     }));
     expect(smsNotificationService.sendDirectSMS).not.toHaveBeenCalled();
   });
