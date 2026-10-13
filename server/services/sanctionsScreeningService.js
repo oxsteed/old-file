@@ -43,6 +43,10 @@ const SCREENING_TTL_HOURS = Math.max(
   1,
   Number.parseInt(process.env.OXSTEED_CREDIT_SANCTIONS_SCREENING_TTL_HOURS || '24', 10) || 24
 );
+const SANCTIONS_REVIEW_SLA_HOURS = Math.max(
+  1,
+  Number.parseInt(process.env.OXSTEED_CREDIT_SANCTIONS_REVIEW_SLA_HOURS || '24', 10) || 24
+);
 
 const MANUAL_REVIEW_HIT_CONTEXT = 'manual_review_required';
 
@@ -70,6 +74,7 @@ function formatScreening(row) {
     clearedAt: row.cleared_at,
     clearedBy: row.cleared_by ? String(row.cleared_by) : null,
     clearReason: row.clear_reason,
+    slaDueAt: row.sla_due_at,
     createdAt: row.created_at,
   };
 }
@@ -137,8 +142,9 @@ async function screenSubjectIfStale(client, { subjectType, subjectId, attributes
   const result = outcome?.result === 'clear' || outcome?.result === 'hit' ? outcome.result : 'error';
   const { rows } = await client.query(
     `INSERT INTO oxsteed_credit_sanctions_screenings
-       (subject_type, subject_id, provider, result, hit_context, payload_hash)
-     VALUES ($1, $2, $3, $4, $5, $6)
+       (subject_type, subject_id, provider, result, hit_context, payload_hash, sla_due_at)
+     VALUES ($1, $2, $3, $4, $5, $6,
+             CASE WHEN $4 = 'hit' THEN NOW() + ($7 * INTERVAL '1 hour') ELSE NULL END)
      RETURNING *`,
     [
       subjectType,
@@ -147,6 +153,7 @@ async function screenSubjectIfStale(client, { subjectType, subjectId, attributes
       result,
       normalizeString(outcome?.hitContext || outcome?.details?.error || null, 1000) || null,
       payloadHash({ subjectType, subjectId, attributes, reference: outcome?.reference || null }),
+      SANCTIONS_REVIEW_SLA_HOURS,
     ]
   );
   return rows[0];
@@ -280,6 +287,7 @@ async function listPendingSanctionHits(client, { limit = 50, offset = 0 } = {}) 
 module.exports = {
   SANCTIONS_PROVIDER_NAME,
   SCREENING_TTL_HOURS,
+  SANCTIONS_REVIEW_SLA_HOURS,
   MANUAL_REVIEW_HIT_CONTEXT,
   SCREENING_PROVIDERS,
   getScreeningProvider,

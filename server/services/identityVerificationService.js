@@ -50,6 +50,10 @@ const VERIFICATION_TTL_DAYS = Math.max(
   1,
   Number.parseInt(process.env.OXSTEED_CREDIT_IDENTITY_VERIFICATION_TTL_DAYS || '730', 10) || 730
 );
+const VERIFICATION_REVIEW_SLA_HOURS = Math.max(
+  1,
+  Number.parseInt(process.env.OXSTEED_CREDIT_IDENTITY_REVIEW_SLA_HOURS || '72', 10) || 72
+);
 
 const VERIFIED_TIER_FOR_REQUEST = { 1: 1, 2: 2 };
 
@@ -72,12 +76,13 @@ const manualReviewProvider = {
     const providerReference = `manual:${customerId}:${Date.now()}`;
     const { rows } = await client.query(
       `INSERT INTO oxsteed_credit_identity_verifications
-         (customer_id, requested_tier, tier, status, provider, provider_reference)
-       VALUES ($1, $2, 0, 'pending', 'manual_review', $3)
+         (customer_id, requested_tier, tier, status, provider, provider_reference, sla_due_at)
+       VALUES ($1, $2, 0, 'pending', 'manual_review', $3,
+               NOW() + ($4 * INTERVAL '1 hour'))
        ON CONFLICT (customer_id) WHERE status IN ('pending', 'verified')
        DO NOTHING
        RETURNING id, status`,
-      [customerId, requestedTier, providerReference]
+      [customerId, requestedTier, providerReference, VERIFICATION_REVIEW_SLA_HOURS]
     );
     if (!rows[0]) {
       const existing = await client.query(
@@ -225,6 +230,7 @@ function formatVerification(row) {
     reviewedAt: row.reviewed_at,
     reviewReason: row.review_reason,
     expiresAt: row.expires_at,
+    slaDueAt: row.sla_due_at,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -314,7 +320,7 @@ async function reviewIdentityVerification({ verificationId, decision, actorUserI
     const { rows: updated } = await client.query(
       `UPDATE oxsteed_credit_identity_verifications
           SET tier = $2, status = $3, reviewed_by = $4, reviewed_at = NOW(),
-              review_reason = $5, expires_at = $6, updated_at = NOW()
+              review_reason = $5, expires_at = $6, sla_due_at = NULL, updated_at = NOW()
         WHERE id = $1 AND status = 'pending'
         RETURNING *`,
       [verificationId, grantedTier, newStatus, actorUserId, normalizedReason, expiresAt]
@@ -387,6 +393,7 @@ module.exports = {
   TIER1_TOPUP_MAX_CENTS,
   TIER2_TOPUP_MAX_CENTS,
   VERIFICATION_TTL_DAYS,
+  VERIFICATION_REVIEW_SLA_HOURS,
   VERIFICATION_PROVIDERS,
   getVerificationProvider,
   getCustomerVerificationTier,

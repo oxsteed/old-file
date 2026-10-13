@@ -21,6 +21,7 @@ const { isCreditRailEnabled, SUPPORTED_CREDIT_CURRENCIES } = require('../service
 const {
   runTransactionMonitoring,
   checkComplianceCaseSla,
+  checkVerificationSla,
 } = require('../services/transactionMonitoringService');
 const incidentStore = require('../services/incidentStore');
 const { recordOxsteedCreditWorkerRun } = require('../services/oxsteedCreditWorkerHeartbeat');
@@ -79,7 +80,8 @@ async function runOxsteedCreditComplianceMonitor({ now = new Date(), getPool = n
       locked = true;
       const monitoring = await runTransactionMonitoring({ periodStart: period.start, periodEnd: period.end });
       const sla = await checkComplianceCaseSla({ now });
-      outcome = { monitoring, sla };
+      const verificationSla = await checkVerificationSla({ now });
+      outcome = { monitoring, sla, verificationSla };
     }, 300, { throwOnLockError: true });
   } catch (error) {
     const incident = await recordLockFailure(error, period);
@@ -97,6 +99,7 @@ async function runOxsteedCreditComplianceMonitor({ now = new Date(), getPool = n
     locked,
     monitoring: outcome?.monitoring || null,
     sla: outcome?.sla || null,
+    verificationSla: outcome?.verificationSla || null,
     period: {
       start: period.start.toISOString(),
       end: period.end.toISOString(),
@@ -105,9 +108,10 @@ async function runOxsteedCreditComplianceMonitor({ now = new Date(), getPool = n
   if (locked) {
     const casesOpened = Number(result.monitoring?.casesOpened || 0);
     const breached = Number(result.sla?.breachedCount || 0);
+    const verificationBreached = Number(result.verificationSla?.breachedCount || 0);
     await recordOxsteedCreditWorkerRun({
       jobName: JOB_NAME,
-      result: { casesOpened, slaBreached: breached },
+      result: { casesOpened, slaBreached: breached + verificationBreached },
       error: null,
     });
   }
