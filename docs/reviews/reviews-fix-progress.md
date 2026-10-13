@@ -213,3 +213,5 @@ W16 upload follow-up: job creation no longer publishes a partial media set when 
 - W17 sanctions follow-up: the screening provider now receives a minimal subject identity profile for customers and partners, including verified-name and contact/country attributes when available. Raw identity documents and hashes remain excluded from provider payloads and stored screening evidence.
 
 - W17 conversion follow-up: customer currency conversions now re-run the shared sanctions gate after quote ownership, expiry, and amount checks and before any wallet or ledger write, so quote reuse cannot bypass a stale or missing screening.
+
+- W17 payout follow-up: cancellation-fee helper shares now fail closed before charging unless the helper has fresh Didit verification, an active Connect account with `payouts_enabled`, and a clear sanctions screening. Ineligible fees remain pending for reconciliation.
