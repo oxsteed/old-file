@@ -159,11 +159,22 @@ function validateMediaUrl(url, field) {
  * stored value. Exactly one policy, shared by every support-message creation
  * path so the rule cannot drift between call sites.
  *
- * Accepts either:
- *  - a relative /api/storage/(public|files)/<key> reference minted by this
- *    app (never an arbitrary /api/storage path that could point at an
- *    unrelated object), or
- *  - an absolute https URL on the media allowlist (validateMediaUrl).
+ * Signed download URLs are bearer tokens: the signature is bound to the key
+ * and expiry only, not to the conversation they were minted for. Storing one
+ * verbatim as a support attachment launders it into a new context, where
+ * every thread viewer can use it to fetch a private object from elsewhere.
+ * This normalizer therefore never accepts a bearer token:
+ *  - relative /api/storage/public/<key> references are accepted with any
+ *    query string stripped (the public route ignores it; a signature there
+ *    is either meaningless or smuggled);
+ *  - relative /api/storage/files/<key> references are rejected outright: the
+ *    files route requires a signature, so a reference without one is dead
+ *    and a reference with one is a laundered bearer token. The supported
+ *    path is uploading the file directly (multipart), after which the server
+ *    mints its own scoped signed URL;
+ *  - absolute https URLs go through validateMediaUrl, then bearer shapes are
+ *    rejected: this app's own signed download route (/api/storage/files/ on
+ *    an app host) and S3-style presigned URLs (X-Amz-Signature query).
  *
  * Returns { url, name } on success or { error } when the reference is unsafe.
  */
@@ -173,23 +184,59 @@ function normalizeAttachmentReference(attachmentUrl, attachmentName) {
   if (!rawUrl) return { url: null, name: rawName.slice(0, 255) || null };
   if (rawUrl.length > MAX_URL_LENGTH) return { error: 'Attachment URL is too long' };
 
-  // Legacy clients may send a relative storage URL, but never accept an
-  // arbitrary /api/storage path that could point at an unrelated object.
+  const name = rawName.slice(0, 255) || null;
+
+  // Relative storage references minted by this app. Never accept an arbitrary
+  // /api/storage path that could point at an unrelated object, and never
+  // accept the signed (bearer) route.
   if (rawUrl.startsWith('/api/storage/')) {
-    if (!/^\/api\/storage\/(?:public|files)\/[^?#]+(?:\?[^#]*)?$/.test(rawUrl)) {
-      return { error: 'Attachment URL must reference an OxSteed storage object' };
+    const pathOnly = rawUrl.split('?')[0].split('#')[0];
+    const publicMatch = /^\/api\/storage\/public\/(.+)$/.exec(pathOnly);
+    if (!publicMatch || !publicMatch[1]) {
+      return { error: 'Signed download links cannot be attached. Upload the file directly instead.' };
     }
-    return { url: rawUrl, name: rawName.slice(0, 255) || null };
+    return { url: pathOnly, name };
   }
 
+  let validated;
   try {
-    return {
-      url: validateMediaUrl(rawUrl, 'attachment URL'),
-      name: rawName.slice(0, 255) || null,
-    };
+    validated = validateMediaUrl(rawUrl, 'attachment URL');
   } catch (err) {
     return { error: err.message || 'Attachment URL is not allowed' };
   }
+
+  // Bearer-token shapes over the absolute form: this app's own signed
+  // download route, or an S3-style presigned URL. Both would launder private
+  // object access into the support thread.
+  let parsed;
+  try {
+    parsed = new URL(validated);
+  } catch {
+    return { error: 'Attachment URL is not allowed' };
+  }
+  const host = stripTrailingDot(parsed.hostname.toLowerCase().replace(/^\[|\]$/g, ''));
+  if (appStorageHosts().has(host) && parsed.pathname.startsWith('/api/storage/files/')) {
+    return { error: 'Signed download links cannot be attached. Upload the file directly instead.' };
+  }
+  for (const [param] of parsed.searchParams) {
+    const lower = param.toLowerCase();
+    if (lower === 'x-amz-signature' || lower === 'x-amz-credential') {
+      return { error: 'Presigned storage links cannot be attached. Upload the file directly instead.' };
+    }
+  }
+
+  return { url: validated, name };
+}
+
+// Hosts that serve this app's /api/storage routes: a signed download URL on
+// any of them is a bearer token for a private object.
+function appStorageHosts() {
+  const hosts = new Set(['oxsteed.com', 'www.oxsteed.com']);
+  for (const raw of [process.env.APP_URL, process.env.CLIENT_URL]) {
+    const host = hostFromUrlString(raw);
+    if (host) hosts.add(stripTrailingDot(host));
+  }
+  return hosts;
 }
 
 module.exports = {

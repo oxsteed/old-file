@@ -100,7 +100,10 @@ async function enqueueStorageDeletion(keyOrUrl, reason, { client = db, graceHour
 // Tables and columns that may still point at a queued object. A key that is
 // referenced again (e.g. the owner re-selected it) is dropped from the queue.
 // Covers every profile-media column the upload paths can replace or clear,
-// plus qr_codes.logo_url (a QR can embed a storage-hosted logo URL).
+// plus qr_codes.logo_url (a QR can embed a storage-hosted logo URL), plus
+// support_conversation_messages.attachment_url: the retention jobs queue
+// attachment objects for deletion, and the drain must not remove one that a
+// live (not yet expired) support message still references.
 const REFERENCE_CHECKS = [
   ['businesses', 'cover_image_url'],
   ['businesses', 'cover_photo_url'],
@@ -111,6 +114,7 @@ const REFERENCE_CHECKS = [
   ['users', 'profile_photo_url'],
   ['users', 'avatar_url'],
   ['qr_codes', 'logo_url'],
+  ['support_conversation_messages', 'attachment_url'],
 ];
 
 async function stillReferenced(key) {
