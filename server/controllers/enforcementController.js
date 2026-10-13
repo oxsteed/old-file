@@ -14,6 +14,7 @@ const pool = require('../db');
 const { AppError } = require('../utils/apiError');
 const logger = require('../utils/logger');
 const socketService = require('../services/socketService');
+const tokenRevocationService = require('../services/tokenRevocationService');
 const { sendValidationError, sendError } = require('../utils/apiError');
 
 // ─── Internal helpers ──────────────────────────────────────────────────────────
@@ -194,6 +195,21 @@ async function issueEnforcementAction(req, res) {
       adminId,
       expiresAt
     });
+
+    if (actionType === 'suspension') {
+      // Audit fix (P2-1-F05/F13): a full account lock must also kill live
+      // sessions. Revoke all tokens (defense in depth behind the middleware
+      // suspension 403) and force-disconnect sockets so an existing chat
+      // connection cannot keep operating after the suspension lands.
+      try {
+        await tokenRevocationService.revokeAllUserTokens(userId);
+      } catch (revErr) {
+        // The suspension itself is durable; the middleware 403 is the primary
+        // enforcement. Log loudly so the revocation failure is actionable.
+        logger.error('suspension token revocation failed', { userId, error: revErr.message });
+      }
+      socketService.disconnectUserSockets(userId);
+    }
 
     res.status(201).json({
       success: true,
@@ -522,6 +538,9 @@ async function addUserRestriction(userId, opts) {
  */
 async function suspendUser(userId, opts = {}) {
   const { expiry, reason } = opts;
+  // Revoke first (fail closed): a revocation failure aborts before any state
+  // change so no live token survives on a suspended account.
+  await tokenRevocationService.revokeAllUserTokens(userId);
   await pool.query(
     `UPDATE users
        SET is_suspended = true, suspended_until = $2, suspended_reason = $3, updated_at = NOW()

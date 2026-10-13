@@ -29475,6 +29475,8 @@
     "colOwner": "PWOPRIYETÈ",
     "colStatus": "ESTATI",
     "inactiveBadge": "Pa aktif",
+    "flaggedBadge": "Make",
+    "statusFlagged": "Make pou revizyon",
     "loading": "Ap chaje…",
     "modalTitle": "{{action}} biznis la",
     "moreActions": "Plis aksyon",

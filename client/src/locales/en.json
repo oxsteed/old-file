@@ -29475,6 +29475,8 @@
     "colOwner": "OWNER",
     "colStatus": "STATUS",
     "inactiveBadge": "Inactive",
+    "flaggedBadge": "Flagged",
+    "statusFlagged": "Flagged for Review",
     "loading": "Loading…",
     "modalTitle": "{{action}} business",
     "moreActions": "More actions",

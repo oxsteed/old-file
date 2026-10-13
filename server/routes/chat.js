@@ -65,12 +65,17 @@ const optionalAuth = async (req, res, next) => {
     const token = header.split(' ')[1];
     const decoded = jwt.verify(token, process.env.JWT_SECRET, { algorithms: ['HS256'] });
     const { rows } = await pool.query(
-      `SELECT u.id, u.first_name, u.last_name, u.email, u.role, u.is_active
+      `SELECT u.id, u.first_name, u.last_name, u.email, u.role, u.is_active,
+              COALESCE(u.is_suspended, FALSE) AS is_suspended, u.suspended_until
          FROM users u WHERE u.id = $1`,
       [decoded.id]
     );
     const user = rows[0];
-    if (user && user.is_active) req.user = user;
+    // Audit fix (P2-1-F05): a suspended user must not be treated as
+    // authenticated here; that would keep the paid Meta-first provider chain.
+    const suspensionActive = user?.is_suspended
+      && (!user.suspended_until || new Date(user.suspended_until) > new Date());
+    if (user && user.is_active && !suspensionActive) req.user = user;
   } catch {
     // Expired, invalid, or DB error - continue as unauthenticated
   }

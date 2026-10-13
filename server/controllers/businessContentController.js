@@ -3,6 +3,7 @@ const { sendError, sendSuccess } = require('../utils/apiError');
 const logger = require('../utils/logger');
 const { canAccessBusiness } = require('../utils/businessOwnership');
 const { validateMediaUrl } = require('../utils/mediaUrlValidation');
+const { maybeUnpublishBusinessIfIncomplete } = require('./businessController');
 
 function parsePositiveInt(value) {
   if (value === undefined || value === null || value === '') return null;
@@ -145,6 +146,7 @@ exports.getBusinessServices = async (req, res) => {
       const query = `SELECT ${SERVICE_SELECT}
          FROM business_services
          WHERE business_id = $1
+         AND deleted_at IS NULL
          ${!showAll ? 'AND is_active = true' : ''}
          ORDER BY sort_order ASC, created_at DESC`;
 
@@ -248,7 +250,7 @@ exports.updateBusinessService = async (req, res) => {
              min_notice_hours = COALESCE($12, min_notice_hours),
              cancellation_policy_hours = COALESCE($13, cancellation_policy_hours),
              updated_at = NOW()
-         WHERE id = $14 AND business_id = $15
+         WHERE id = $14 AND business_id = $15 AND deleted_at IS NULL
          RETURNING *`,
         [
           fields.name || null,
@@ -270,7 +272,18 @@ exports.updateBusinessService = async (req, res) => {
       );
 
       if (result.rows.length === 0) return sendError(res, 404, 'Service not found');
-      sendSuccess(res, result.rows[0]);
+      // Audit fix (P2-3-F13): deactivating services can break publish
+      // readiness. Re-check and auto-unpublish if the business is now
+      // incomplete.
+      const { unpublished, missing } = await maybeUnpublishBusinessIfIncomplete(db, businessId, {
+        actorUserId: req.user.id, actorRole: 'owner',
+      });
+      const payload = result.rows[0];
+      if (unpublished) {
+        payload.businessUnpublished = true;
+        payload.unpublishMissing = missing;
+      }
+      sendSuccess(res, payload);
     } finally {
       client.release();
     }
@@ -290,12 +303,31 @@ exports.deleteBusinessService = async (req, res) => {
 
     const client = await db.connect();
     try {
-      await client.query(
-        `DELETE FROM business_services WHERE id = $1 AND business_id = $2`,
+      // Audit fix (P2-3-F12): soft-delete instead of hard-delete.
+      // business_appointments.service_id is ON DELETE RESTRICT, so a hard
+      // delete 500s whenever appointments exist; a soft delete preserves
+      // history and keeps past appointments readable. Deleted rows are also
+      // deactivated so every is_active-filtered read path hides them.
+      const result = await client.query(
+        `UPDATE business_services
+            SET deleted_at = NOW(), is_active = false, updated_at = NOW()
+          WHERE id = $1 AND business_id = $2 AND deleted_at IS NULL
+          RETURNING id`,
         [serviceId, businessId]
       );
 
-      sendSuccess(res, { deleted: true });
+      if (!result.rows.length) {
+        return sendError(res, 404, 'Service not found');
+      }
+
+      // Audit fix (P2-3-F13): deleting the last active service breaks publish
+      // readiness. Re-check and auto-unpublish if the business is now
+      // incomplete.
+      const { unpublished, missing } = await maybeUnpublishBusinessIfIncomplete(db, businessId, {
+        actorUserId: req.user.id, actorRole: 'owner',
+      });
+
+      sendSuccess(res, unpublished ? { deleted: true, businessUnpublished: true, unpublishMissing: missing } : { deleted: true });
     } finally {
       client.release();
     }

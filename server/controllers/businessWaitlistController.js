@@ -81,7 +81,7 @@ exports.addToWaitlist = async (req, res, next) => {
     if (!service_id) return res.status(400).json({ error: 'Service is required', code: 'validation_failed' });
 
     const service = await pool.query(
-      'SELECT id FROM business_services WHERE id = $1 AND business_id = $2',
+      'SELECT id FROM business_services WHERE id = $1 AND business_id = $2 AND deleted_at IS NULL',
       [service_id, businessId]
     );
     if (!service.rows.length) return res.status(404).json({ error: 'Service not found', code: 'not_found' });
