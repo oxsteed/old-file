@@ -3,7 +3,7 @@ const { authenticate } = require('../middleware/auth');
 const requireEmailVerified = require('../middleware/requireEmailVerified');
 const requireTermsAcceptance = require('../middleware/requireTermsAcceptance');
 const { generalLimiter } = require('../middleware/rateLimiter');
-const { requireOnboardingStep } = require('../middleware/helperOnboardingMiddleware');
+const { requireOnboardingStep, requireHelperWorkEligible } = require('../middleware/helperOnboardingMiddleware');
 const checkRestrictions = require('../middleware/checkRestrictions');
 const { errorHandler } = require('../middleware/errorHandler');
 const { createBid, getBid, getJobBids, getMyBids, updateBid, reconfirmBid, withdrawBid, getRecentBids } = require('../controllers/bidController');
@@ -23,7 +23,10 @@ router.post('/:id/reconfirm', authenticate, rejectImpersonated, checkRestriction
 // Launch bidding is available to fully onboarded helpers without a paid tier.
 // checkRestrictions('bidding') blocks helpers with active bidding restrictions
 // Review P2-7-F08: server-side terms gate (was client-side only).
-router.post('/', authenticate, requireEmailVerified, requireTermsAcceptance, requireOnboardingStep('active'), checkRestrictions('bidding'), createBid);
+// Review P2-7-F01: requireHelperWorkEligible re-derives onboarding from DB
+// facts (verified identity), so a customer who self-selected helper mode
+// cannot bid until helper onboarding is actually complete.
+router.post('/', authenticate, requireEmailVerified, requireTermsAcceptance, requireOnboardingStep('active'), requireHelperWorkEligible, checkRestrictions('bidding'), createBid);
 
 // Route-local JSON error handler for consistent API responses when this router
 // is mounted without the global server error handler (tests, serverless, etc.).

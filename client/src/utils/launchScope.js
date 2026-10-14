@@ -33,6 +33,10 @@ export const LAUNCH_SETTINGS_TABS = new Set([
   'privacy',
   'account',
   'danger',
+  // Review P2-2-F08: W-9 tax documents tab (helper-only; SettingsPage
+  // filters it by role). The requireTaxIdentity payout gate is otherwise
+  // unsatisfiable in-app.
+  'tax',
 ]);
 
 export const LAUNCH_BUSINESS_HUB_TABS = new Set([
@@ -45,6 +49,16 @@ export const LAUNCH_BUSINESS_HUB_TABS = new Set([
   'invoices',
   'team',
   'hiring',
+  // Review P2-9-F04: intake triage tabs. Submitted intakes notify the owner
+  // with a deep link to the matching operations tab; without these entries
+  // isBusinessHubTabLaunched bounced the link to overview and owners could
+  // not open the intake in-product.
+  'beauty-ops',
+  'creative-ops',
+  'continuity-ops',
+  'professional-ops',
+  'trades-ops',
+  'maintenance',
 ]);
 
 export const LAUNCH_DEFAULTS = Object.freeze({

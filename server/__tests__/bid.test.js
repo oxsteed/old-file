@@ -7,6 +7,7 @@ const { routeQueries } = require('./helpers/sqlRouter');
 // helperOnboardingMiddleware requires DB + tier checks - mock it to pass
 jest.mock('../middleware/helperOnboardingMiddleware', () => ({
   requireOnboardingStep: () => (req, res, next) => next(),
+  requireHelperWorkEligible: (req, res, next) => next(), // Review P2-7-F01
   requireTier:           () => (req, res, next) => next(),
 }));
 

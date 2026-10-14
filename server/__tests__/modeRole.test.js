@@ -25,6 +25,15 @@ describe('mode role policy', () => {
     client.query
       .mockResolvedValueOnce({ rows: [{ id: 'user-1', role: 'customer', default_mode: 'customer' }] })
       .mockResolvedValueOnce({ rows: [] })
+      // Review P2-7-F01: onboarding truth is re-derived from DB facts.
+      .mockResolvedValueOnce({ rows: [{
+        id: 'user-1', role: 'customer', email_verified: true,
+        profile_completed: true, contact_completed: true,
+        terms_accepted: true, terms_accepted_at: new Date(), terms_version: '2026-03-20',
+        id_verified: true, identity_verified: true, didit_status: 'verified',
+        background_check_status: null, background_check_passed: false,
+        onboarding_completed: false, onboarding_status: 'verified_pending_onboarding',
+      }] })
       .mockResolvedValueOnce({ rows: [{ id: 'user-1' }] })
       .mockResolvedValueOnce({ rows: [{ id: 'user-1', role: 'helper', default_mode: 'helper' }] });
 
@@ -32,7 +41,37 @@ describe('mode role policy', () => {
 
     expect(user).toMatchObject({ id: 'user-1', role: 'helper', default_mode: 'helper' });
     expect(client.query.mock.calls[1][0]).toMatch(/INSERT INTO helper_profiles/);
-    expect(client.query.mock.calls[2][0]).toMatch(/UPDATE users/);
+    expect(client.query.mock.calls[3][0]).toMatch(/UPDATE users/);
+    // Facts are complete, so the switch keeps onboarding complete.
+    expect(client.query.mock.calls[3][1]).toEqual(
+      expect.arrayContaining(['user-1', 'helper', 'helper', true, 'onboarding_complete'])
+    );
+  });
+
+  test('P2-7-F01: switching into helper mode with incomplete onboarding marks it incomplete', async () => {
+    const client = { query: jest.fn() };
+    client.query
+      .mockResolvedValueOnce({ rows: [{ id: 'user-1', role: 'customer', default_mode: 'customer' }] })
+      .mockResolvedValueOnce({ rows: [] })
+      // No verified identity in the facts: the customer-era flag must not survive.
+      .mockResolvedValueOnce({ rows: [{
+        id: 'user-1', role: 'customer', email_verified: true,
+        profile_completed: false, contact_completed: false,
+        terms_accepted: true, terms_accepted_at: new Date(), terms_version: '2026-03-20',
+        id_verified: false, identity_verified: false, didit_status: 'pending',
+        background_check_status: null, background_check_passed: false,
+        onboarding_completed: true, onboarding_status: 'onboarding_complete',
+      }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'user-1' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'user-1', role: 'helper', default_mode: 'helper' }] });
+
+    await modeRole.applyModeSwitch(client, 'user-1', 'helper');
+
+    const updateCall = client.query.mock.calls[3];
+    expect(updateCall[0]).toMatch(/UPDATE users/);
+    expect(updateCall[1]).toEqual(
+      expect.arrayContaining(['user-1', 'helper', 'helper', false, 'verified_pending_onboarding'])
+    );
   });
 
   test('does not let a regular user enter admin mode', async () => {
@@ -74,6 +113,7 @@ describe('mode role policy', () => {
       .mockResolvedValueOnce({ rows: [] }) // BEGIN
       .mockResolvedValueOnce({ rows: [{ id: 'user-1', role: 'customer', default_mode: 'customer' }] })
       .mockResolvedValueOnce({ rows: [] }) // helper_profiles
+      .mockResolvedValueOnce({ rows: [] }) // P2-7-F01: onboarding fact re-derivation
       .mockResolvedValueOnce({ rows: [{ id: 'user-1' }] }) // users update
       .mockResolvedValueOnce({ rows: [{
         id: 'user-1',
@@ -114,6 +154,7 @@ describe('mode role policy', () => {
       .mockResolvedValueOnce({ rows: [] }) // BEGIN
       .mockResolvedValueOnce({ rows: [{ id: 'user-1', role: 'customer', default_mode: 'customer' }] })
       .mockResolvedValueOnce({ rows: [] }) // helper_profiles
+      .mockResolvedValueOnce({ rows: [] }) // P2-7-F01: onboarding fact re-derivation
       .mockRejectedValueOnce(Object.assign(new Error('A user with OxSteed Credit activity must remain a customer'), { code: '23514' }));
 
     await authController.switchRole(req, res);

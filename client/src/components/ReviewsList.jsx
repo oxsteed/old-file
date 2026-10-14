@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Star } from 'lucide-react';
+import { Star, Flag } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { getBusinessReviews, deleteReview } from '../api/businessReviews';
+import ReviewReportModal from './ReviewReportModal';
 
 export default function ReviewsList({ businessId, maxReviews = 10 }) {
   const { t } = useTranslation();
@@ -13,6 +14,8 @@ export default function ReviewsList({ businessId, maxReviews = 10 }) {
   const [sortBy, setSortBy] = useState('recent');
   const [pagination, setPagination] = useState({});
   const [stats, setStats] = useState(null);
+  // Review P2-8-F18: in-app report path for business reviews.
+  const [reportReviewId, setReportReviewId] = useState(null);
 
   useEffect(() => {
     loadReviews();
@@ -180,9 +183,28 @@ export default function ReviewsList({ businessId, maxReviews = 10 }) {
                 <p className="text-sm text-gray-300">{review.response}</p>
               </div>
             )}
+
+            {/* Report (P2-8-F18) */}
+            <div className="flex justify-end">
+              <button
+                type="button"
+                onClick={() => setReportReviewId(review.id)}
+                className="inline-flex items-center gap-1 text-xs text-gray-500 hover:text-red-400 transition-colors"
+              >
+                <Flag size={12} />
+                {t('reviewReport.report')}
+              </button>
+            </div>
           </div>
         ))}
       </div>
+
+      <ReviewReportModal
+        reviewId={reportReviewId}
+        reviewType="business"
+        isOpen={reportReviewId !== null}
+        onClose={() => setReportReviewId(null)}
+      />
 
       {/* Pagination */}
       {pagination.total > maxReviews && (

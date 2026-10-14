@@ -15,6 +15,9 @@ export default function HelperPayoutsPage() {
   const { t } = useTranslation();
   const [state, setState] = useState({ status: 'loading', data: null });
   const [paying, setPaying] = useState(false);
+  // Review P2-2-F08: the requireTaxIdentity gate 403s with code
+  // tax_identity_required; surface the W-9 path instead of a dead end.
+  const [taxBlocked, setTaxBlocked] = useState(false);
 
   const load = useCallback(async () => {
     setState({ status: 'loading', data: null });
@@ -38,7 +41,14 @@ export default function HelperPayoutsPage() {
       load();
     } catch (err) {
       const code = err.response?.data?.code;
-      toast.error(code === 'payouts_not_enabled' ? t('helperPayouts.notEnabled') : t('helperPayouts.failed'));
+      // Review P2-2-F08: point helpers at the in-app W-9 form instead of a
+      // generic failure when the tax-identity gate blocks the payout.
+      if (code === 'tax_identity_required') {
+        setTaxBlocked(true);
+        toast.error(t('helperPayouts.taxIdentityRequired'));
+      } else {
+        toast.error(code === 'payouts_not_enabled' ? t('helperPayouts.notEnabled') : t('helperPayouts.failed'));
+      }
     } finally {
       setPaying(false);
     }
@@ -51,6 +61,16 @@ export default function HelperPayoutsPage() {
       <Navbar />
       <main className="flex-1 max-w-2xl mx-auto w-full px-4 py-8 space-y-4">
         <h1 className="text-2xl font-bold text-white">{t('helperPayouts.title')}</h1>
+        {/* Review P2-2-F08: W-9 compliance path when the tax-identity gate blocks payouts. */}
+        {taxBlocked && (
+          <div role="alert" className="rounded-2xl border border-amber-700 bg-amber-950/50 p-5 text-amber-200">
+            <p className="font-semibold text-sm">{t('helperPayouts.taxBlockedTitle')}</p>
+            <p className="text-sm mt-1 text-amber-200/80">{t('helperPayouts.taxBlockedCopy')}</p>
+            <Link to="/settings?tab=tax" className="mt-3 inline-block rounded-lg bg-amber-500 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-600">
+              {t('helperPayouts.taxBlockedCta')}
+            </Link>
+          </div>
+        )}
         {state.status === 'loading' && <p role="status" className="text-gray-400">{t('helperPayouts.loading')}</p>}
         {state.status === 'error' && (
           <div role="alert" className="text-gray-300">

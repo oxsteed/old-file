@@ -27,9 +27,21 @@ const REFEREE_CREDIT_CENTS  = parseInt(process.env.REFERRAL_REFEREE_CREDIT_CENTS
 // - Grants per referrer are capped per rolling window (env-overridable).
 // - Grants are refused when too many of one referrer's referees signed up
 //   from the same IP in the trailing week (shared-device/IP farming).
+// - v7 residual: grants are also refused when too many of one referrer's
+//   referees share a signup device fingerprint (X-Device-Fingerprint,
+//   migration 845), and when too many rewarded referees share a signup IP
+//   across referrer codes (farming rings spreading signups over many codes).
+//   Missing IP/fingerprint data fails open; the first-job value event is the
+//   primary guard.
 const REFERRAL_MAX_REWARDS_PER_DAY = parseInt(process.env.REFERRAL_MAX_REWARDS_PER_DAY || '10', 10);
 const REFERRAL_MAX_REWARDS_PER_WEEK = parseInt(process.env.REFERRAL_MAX_REWARDS_PER_WEEK || '50', 10);
 const REFERRAL_MAX_REFERRED_PER_IP_PER_WEEK = parseInt(process.env.REFERRAL_MAX_REFERRED_PER_IP_PER_WEEK || '5', 10);
+// P2-6-F12 (v7 residual): the per-referrer caps above do not stop a farming
+// ring that spreads signups across many referrer codes. These two guards are
+// referrer-agnostic: they look at the signup IP and the device fingerprint
+// of the referees who were actually rewarded.
+const REFERRAL_MAX_REWARDS_PER_IP_PER_WEEK = parseInt(process.env.REFERRAL_MAX_REWARDS_PER_IP_PER_WEEK || '5', 10);
+const REFERRAL_MAX_REFERRED_PER_DEVICE_PER_WEEK = parseInt(process.env.REFERRAL_MAX_REFERRED_PER_DEVICE_PER_WEEK || '5', 10);
 
 /**
  * Count referrer-side referral rewards posted in the trailing window.
@@ -75,6 +87,64 @@ async function referralIpFarmingExceeded(client, referrerId, newUserId) {
     [referrerId, newUserId, ip]
   );
   return Number(count || 0) >= REFERRAL_MAX_REFERRED_PER_IP_PER_WEEK ? ip : null;
+}
+
+/**
+ * P2-6-F12 (v7 residual): shared-device farming check. Many rewarded
+ * referees for one code from a single device in a week is a farming pattern,
+ * not word of mouth. Missing fingerprint data fails open (same rationale as
+ * the IP check): the first-job value event is the primary guard.
+ */
+async function referralDeviceFarmingExceeded(client, referrerId, newUserId) {
+  const { rows: [user] } = await client.query(
+    'SELECT signup_device_fingerprint FROM users WHERE id = $1',
+    [newUserId]
+  );
+  const fp = user && typeof user.signup_device_fingerprint === 'string'
+    ? user.signup_device_fingerprint.trim()
+    : '';
+  if (!fp) return null;
+  const { rows: [{ count }] } = await client.query(
+    `SELECT COUNT(*)::int AS count FROM users
+      WHERE referred_by = $1 AND id <> $2
+        AND signup_device_fingerprint = $3
+        AND created_at > NOW() - INTERVAL '7 days'`,
+    [referrerId, newUserId, fp]
+  );
+  return Number(count || 0) >= REFERRAL_MAX_REFERRED_PER_DEVICE_PER_WEEK ? fp : null;
+}
+
+/**
+ * P2-6-F12 (v7 residual): cross-referrer farming-ring check. Counts distinct
+ * referees rewarded in the trailing week whose signup IP matches the new
+ * referee's, regardless of which referrer code they used. A ring spreading
+ * throwaway signups across many codes still shares devices/IPs; once the
+ * cap is hit, further rewards from that IP stop earning.
+ */
+async function referralRingIpExceeded(client, newUserId) {
+  const { rows: [user] } = await client.query(
+    'SELECT terms_acceptance_ip FROM users WHERE id = $1',
+    [newUserId]
+  );
+  const ip = user && typeof user.terms_acceptance_ip === 'string'
+    ? user.terms_acceptance_ip.trim()
+    : '';
+  if (!ip) return null;
+  const { rows: [{ count }] } = await client.query(
+    `SELECT COUNT(DISTINCT pl.metadata ->> 'new_user_id')::int AS count
+       FROM platform_ledger pl
+      WHERE pl.type = 'referral_credit'
+        AND pl.metadata ->> 'reward_type' = 'referrer'
+        AND pl.created_at > NOW() - INTERVAL '7 days'
+        AND (pl.metadata ->> 'new_user_id') <> $2
+        AND EXISTS (
+          SELECT 1 FROM users u
+           WHERE u.id::text = pl.metadata ->> 'new_user_id'
+             AND u.terms_acceptance_ip = $1
+        )`,
+    [ip, String(newUserId)]
+  );
+  return Number(count || 0) >= REFERRAL_MAX_REWARDS_PER_IP_PER_WEEK ? ip : null;
 }
 
 /**
@@ -144,6 +214,43 @@ exports.grantReferralReward = async function grantReferralReward(referrerId, new
             referrer_id: String(referrerId),
             new_user_id: String(newUserId),
             signup_ip: farmingIp,
+          },
+          sourceRunId: 'grantReferralReward',
+        });
+        return false;
+      }
+      // P2-6-F12 (v7 residual): shared-device farming check. Many rewarded
+      // referees for one code from a single device in a week is a farming
+      // pattern, not word of mouth.
+      const farmingDevice = await referralDeviceFarmingExceeded(client, referrerId, newUserId);
+      if (farmingDevice) {
+        logger.warn('[referral] shared-device farming pattern; reward withheld', { referrerId, newUserId });
+        await recordException({
+          domain: 'credit',
+          referenceId: `referral-device-farm:${referrerId}:${newUserId}`,
+          severity: 'warning',
+          summary: 'Referral reward withheld: shared signup device across referees',
+          details: {
+            referrer_id: String(referrerId),
+            new_user_id: String(newUserId),
+          },
+          sourceRunId: 'grantReferralReward',
+        });
+        return false;
+      }
+      // P2-6-F12 (v7 residual): cross-referrer ring check. Spreading signups
+      // across many codes does not help when the rewards share a signup IP.
+      const ringIp = await referralRingIpExceeded(client, newUserId);
+      if (ringIp) {
+        logger.warn('[referral] cross-referrer IP farming ring; reward withheld', { referrerId, newUserId });
+        await recordException({
+          domain: 'credit',
+          referenceId: `referral-ring-ip:${newUserId}`,
+          severity: 'warning',
+          summary: 'Referral reward withheld: signup IP shared across referral rewards',
+          details: {
+            referrer_id: String(referrerId),
+            new_user_id: String(newUserId),
           },
           sourceRunId: 'grantReferralReward',
         });

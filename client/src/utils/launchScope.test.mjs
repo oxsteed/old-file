@@ -36,3 +36,9 @@ test('Business Hub media tab follows oxsteedMedia launch flag', () => {
   assert.equal(isBusinessHubTabLaunched('media'), true);
   assert.equal(LAUNCH_BUSINESS_HUB_TABS.has('media'), false);
 });
+
+test('P2-9-F04: intake triage tabs are launched so notification deep links open in-product', () => {
+  for (const tab of ['beauty-ops', 'creative-ops', 'continuity-ops', 'professional-ops', 'trades-ops', 'maintenance']) {
+    assert.equal(isBusinessHubTabLaunched(tab), true, `${tab} should be launched`);
+  }
+});

@@ -14,6 +14,7 @@ const { assertRegistrationsOpen } = require('../middleware/maintenanceGate'); //
 const countriesUtil = require('../utils/countries');
 const logger = require('../utils/logger');
 const { ONBOARDING_COLUMNS, deriveHelperOnboarding } = require('../services/helperOnboarding');
+const { readDeviceFingerprint } = require('../utils/deviceFingerprint'); // Review P2-6-F12
 const TERMS_IP_HASH_MAX_LEN = 45;
 const SUPPORTED_LANGUAGE_CODES = new Set(['en', 'es', 'fr', 'ht', 'ar']);
 
@@ -238,7 +239,8 @@ async function verifyOTP(req, res) {
       `SELECT id, email, password_hash, first_name, last_name, phone, zip_code,
               address_line1, city, state,
               otp_code, otp_expires_at, otp_attempts, otp_locked_until, user_id, account_created,
-              terms_accepted_at, terms_version, terms_acceptance_ip, terms_acceptance_ua
+              terms_accepted_at, terms_version, terms_acceptance_ip, terms_acceptance_ua,
+              signup_device_fingerprint
        FROM pending_registrations
        WHERE token = $1 AND role = 'helper'`,
       [token]
@@ -309,18 +311,18 @@ async function verifyOTP(req, res) {
                            role, email_verified, onboarding_status, onboarding_completed,
                            membership_tier, profile_completed, tier_selected, terms_accepted, contact_completed,
                            terms_accepted_at, terms_version, terms_acceptance_ip, terms_acceptance_ua,
-                           trial_started_at, trial_ends_at)
+                           trial_started_at, trial_ends_at, signup_device_fingerprint)
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'helper', true, 'verified_pending_onboarding', FALSE,
                 'tier1', FALSE, TRUE, TRUE, $12,
                 $13, $14, $15, $16,
-                $17, $18)
+                $17, $18, $19)
         RETURNING id
       `, [reg.email, reg.password_hash, reg.first_name, reg.last_name,
           reg.phone || null, reg.zip_code || null,
           cityU, stateU, addr1, countryU, preferredCurrency,
           Boolean(reg.phone && reg.zip_code),
           reg.terms_accepted_at, reg.terms_version, reg.terms_acceptance_ip || null, reg.terms_acceptance_ua || null,
-          trial_started_at, trial_ends_at]);
+          trial_started_at, trial_ends_at, reg.signup_device_fingerprint || null]);
 
       userId = userResult.rows[0].id;
 
@@ -537,6 +539,7 @@ async function getOnboardingStatus(req, res) {
       profile_complete:        onboarding.steps.profile,
       terms_accepted:          onboarding.steps.terms,
       onboarding_completed:    Boolean(u.onboarding_completed),
+      w9_completed:            Boolean(u.w9_completed), // Review P2-2-F08: W9Form filed-state
       canBrowseJobs:           true,
       canApplyToJobs:          Boolean(u.onboarding_completed && onboarding.complete),
       canAppearInSearch:       Boolean(u.onboarding_completed && onboarding.canAppearInSearch),
@@ -644,12 +647,14 @@ async function acceptPendingTerms(req, res) {
        SET terms_accepted_at   = NOW(),
            terms_version       = $2,
            terms_acceptance_ip = $3,
-           terms_acceptance_ua = $4
+           terms_acceptance_ua = $4,
+           signup_device_fingerprint = $5
        WHERE token = $1 AND role = 'helper' AND COALESCE(account_created, false) = false
        RETURNING id`,
       [token, termsVersion,
         hashIP(req.ip || 'unknown')?.slice(0, TERMS_IP_HASH_MAX_LEN) || null,
-        String(req.headers['user-agent'] || '').slice(0, 500)]
+        String(req.headers['user-agent'] || '').slice(0, 500),
+        readDeviceFingerprint(req)] // Review P2-6-F12
     );
     if (!rows.length) return res.status(404).json({ error: 'No pending registration found' });
     return res.json({ message: 'Terms accepted', terms_version: termsVersion });

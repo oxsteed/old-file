@@ -131,6 +131,15 @@ async function applyModeSwitch(client, userId, newMode) {
 
   // If switching INTO a helper-class mode, make sure a helper_profiles row
   // exists so the user can immediately start using helper features.
+  //
+  // Review P2-7-F01: never mark onboarding complete blindly here. A customer
+  // who self-selects helper mode must still finish helper onboarding (terms
+  // recorded, profile completed, identity verified) before bidding or
+  // accepting work. The flag is derived from DB facts via the canonical
+  // helperOnboarding service; the onboarding checklist picks up anything
+  // missing. Fails closed: if the derivation errors, the flag stays FALSE.
+  let onboardingCompleted = true;
+  let onboardingStatus = 'onboarding_complete';
   if (newRole === 'helper') {
     await client.query(
       `INSERT INTO helper_profiles (user_id, is_listed)
@@ -138,18 +147,33 @@ async function applyModeSwitch(client, userId, newMode) {
        ON CONFLICT (user_id) DO NOTHING`,
       [userId],
     );
+    try {
+      const { loadHelperOnboarding } = require('../services/helperOnboarding');
+      const onboarding = await loadHelperOnboarding(userId, client);
+      if (onboarding && onboarding.complete) {
+        onboardingCompleted = true;
+        onboardingStatus = 'onboarding_complete';
+      } else {
+        onboardingCompleted = false;
+        onboardingStatus = 'verified_pending_onboarding';
+      }
+    } catch (onboardingErr) {
+      onboardingCompleted = false;
+      onboardingStatus = 'verified_pending_onboarding';
+    }
   }
 
   const { rows: updateRows } = await client.query(
     `UPDATE users
         SET default_mode = $2,
             role         = $3,
-            onboarding_completed = TRUE,
+            onboarding_completed = $4,
+            onboarding_status    = $5,
             membership_tier = COALESCE(membership_tier, 'tier1'),
             updated_at = NOW()
       WHERE id = $1
       RETURNING id`,
-    [userId, newMode, newRole],
+    [userId, newMode, newRole, onboardingCompleted, onboardingStatus],
   );
   if (updateRows.length === 0) return null;
 
