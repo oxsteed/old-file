@@ -29689,6 +29689,7 @@
     "actionFlag": "Flag for Review",
     "actionReactivate": "Reactivate",
     "actionSuspend": "Suspend",
+    "actionUnflag": "Clear Review Flag",
     "activeBadge": "Active",
     "colActions": "ACTIONS",
     "colBusiness": "BUSINESS",
@@ -29720,6 +29721,7 @@
     "statTotal": "TOTAL",
     "subtitle": "Manage and monitor all businesses on the platform",
     "title": "Business Moderation",
+    "unflagConfirm": "Clear the review flag? The business will leave the flagged queue.",
     "unknownType": "Unknown",
     "viewProfile": "View Profile"
   },

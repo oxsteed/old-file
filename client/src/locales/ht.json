@@ -29689,6 +29689,7 @@
     "actionFlag": "Make pou revizyon",
     "actionReactivate": "Reaktive",
     "actionSuspend": "Sispann",
+    "actionUnflag": "Retire mak revizyon an",
     "activeBadge": "Aktif",
     "colActions": "AKSYON",
     "colBusiness": "BIZNIS",
@@ -29720,6 +29721,7 @@
     "statTotal": "TOTAL",
     "subtitle": "Jere epi siveye tout biznis sou platfòm nan",
     "title": "Moderasyon biznis",
+    "unflagConfirm": "Retire mak revizyon an? Biznis la ap soti nan ke mak yo.",
     "unknownType": "Enkoni",
     "viewProfile": "Wè pwofil"
   },

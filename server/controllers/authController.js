@@ -1512,15 +1512,22 @@ async function resendRegistrationOTP(req, res) {
     const otp = crypto.randomInt(100000, 1000000).toString();
     const otpHash = crypto.createHash('sha256').update(otp).digest('hex');
     const otpExpires = new Date(Date.now() + 15 * 60 * 1000);
-    const sentAt = new Date();
     await pool.query(
       `UPDATE pending_registrations
           SET otp_code = $2, otp_expires_at = $3, otp_attempts = 0,
-              otp_locked_until = NULL, otp_last_sent_at = NOW()
+              otp_locked_until = NULL
         WHERE token = $1`,
       [token, otpHash, otpExpires]
     );
-    await sendOTPEmail(pending.email, otp, resolveRequestLanguage(req));
+    // P3-3-F16: the resend cooldown must only start after the new code was
+    // actually delivered. Writing otp_last_sent_at before the send meant a
+    // provider outage still blocked the retry for 60s.
+    const delivery = await sendOTPEmail(pending.email, otp, resolveRequestLanguage(req));
+    if (!delivery || delivery.success === false) {
+      return res.status(503).json({ error: 'Unable to send OTP. Please try again.', code: 'otp_send_failed' });
+    }
+    const sentAt = new Date();
+    await pool.query('UPDATE pending_registrations SET otp_last_sent_at = NOW() WHERE token = $1', [token]);
     res.json({ message: 'OTP resent', ...registrationMetadata(pending, sentAt, otpExpires) });
   } catch (err) {
     logger.error('Resend OTP error', { err });

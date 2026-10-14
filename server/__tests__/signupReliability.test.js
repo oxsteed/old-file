@@ -92,6 +92,17 @@ describe('verification metadata and recovery', () => {
     expect(res.body.code).toBe('resend_cooldown'); expect(res.body.retryAfterMs).toBeGreaterThan(58000); expect(res.body.resendAvailableAt).toBeTruthy();
     expect(mockQuery).toHaveBeenCalledTimes(1); expect(sendOTPEmail).not.toHaveBeenCalled();
   });
+  test('P3-3-F16: resendRegistrationOTP does not start the cooldown when the send fails', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [pending()] }).mockResolvedValueOnce({ rows: [{ id: 1 }] });
+    sendOTPEmail.mockResolvedValueOnce({ success: false, error: 'Resend outage' });
+    const res = await call('resendRegistrationOTP', { token: 'synthetic' });
+    expect(res.statusCode).toBe(503);
+    expect(res.body.code).toBe('otp_send_failed');
+    // The OTP row may be rotated, but the cooldown timestamp must not be
+    // written: a provider outage must not block the retry for 60s.
+    const cooldownWrite = mockQuery.mock.calls.find(([sql]) => /otp_last_sent_at/.test(sql));
+    expect(cooldownWrite).toBeUndefined();
+  });
   test.each(['acceptTerms', 'resendRegistrationOTP', 'verifyRegistrationOTP'])('%s preserves active lockouts', async method => {
     const lock = future(3600000); mockQuery.mockResolvedValueOnce({ rows: [pending({ otp_locked_until: lock })] });
     const res = await call(method, { token: 'synthetic', otp: '123456' }); expect(res.statusCode).toBe(429);

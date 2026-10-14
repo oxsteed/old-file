@@ -13,8 +13,14 @@ const MAX_ATTEMPTS = 12;
 let timer = null;
 let running = false;
 
+// P3-6-F03: revoked media must not linger in storage by default. The worker
+// runs unless explicitly paused (e.g. MEDIA_ASSET_CLEANUP_WORKER_ENABLED=false),
+// matching the storage deletion queue's opt-out convention. It only ever
+// processes revocation jobs enqueued by explicit takedown paths (the table
+// is created by migration 757, so it exists on every migrated database).
 function enabled() {
-  return String(process.env.MEDIA_ASSET_CLEANUP_WORKER_ENABLED || '').trim() === '1';
+  const raw = String(process.env.MEDIA_ASSET_CLEANUP_WORKER_ENABLED || '').trim().toLowerCase();
+  return !['false', '0', 'no', 'off'].includes(raw);
 }
 
 function pollMs() {
