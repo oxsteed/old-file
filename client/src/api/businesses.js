@@ -136,3 +136,9 @@ export const updateBusinessHours   = (bizId, payload)    => api.put(`/businesses
 // ── Business content: Skills ───────────────────────────────────────────────────
 export const listBusinessSkills    = (bizId)             => api.get(`/businesses/${bizId}/skills`).then(r => r.data || []);
 export const updateBusinessSkills  = (bizId, payload)    => api.put(`/businesses/${bizId}/skills`, payload).then(r => r.data);
+
+// ── Attention inbox ───────────────────────────────────────────────────────────
+// GET /api/businesses/attention — aggregated open items across the owner's
+// businesses. Pass an AbortSignal to cancel obsolete requests.
+export const getAttention = (params = {}, signal) =>
+  api.get('/businesses/attention', { params, signal }).then(r => r.data);

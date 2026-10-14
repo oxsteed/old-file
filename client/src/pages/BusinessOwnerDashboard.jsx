@@ -13,13 +13,15 @@
 // (so the experience is consistent and the "Add another business" CTA is
 // always visible) but it's a single card occupying the full row.
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import api from '../api/axios';
 import { getMyBusinesses } from '../api/vortex';
+import { getAttention } from '../api/businesses';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
+import AttentionModal from '../components/attention/AttentionModal';
 import DashboardQuickLinks, { DASHBOARD_QUICK_LINKS } from '../components/DashboardQuickLinks';
 import { LAUNCH_VISIBILITY } from '../utils/launchScope';
 import {
@@ -294,6 +296,53 @@ export default function BusinessOwnerDashboard() {
   const [businesses, setBusinesses] = useState([]);
   const [loaded, setLoaded] = useState(false);
   const [workspaceSignals, setWorkspaceSignals] = useState({});
+  const [attentionSummary, setAttentionSummary] = useState(null);
+  const [attentionStatus, setAttentionStatus] = useState('idle');
+  const [attentionOpen, setAttentionOpen] = useState(false);
+  const attentionAbortRef = useRef(null);
+
+  // Attention inbox totals (GET /api/businesses/attention). Cheap totals-only
+  // fetch: limit=1 still returns the full totals block. Refreshed on mount,
+  // every 60s while the tab is visible, on focus/visibility regain, and after
+  // successful task actions inside the modal. Obsolete requests are aborted.
+  const refreshAttention = async () => {
+    attentionAbortRef.current?.abort();
+    const controller = new AbortController();
+    attentionAbortRef.current = controller;
+    setAttentionStatus((prev) => (prev === 'idle' ? 'loading' : prev));
+    try {
+      const data = await getAttention({ limit: 1 }, controller.signal);
+      if (controller.signal.aborted) return;
+      setAttentionSummary({
+        total: Number(data?.totals?.total || 0),
+        affectedBusinesses: Number(data?.totals?.affectedBusinesses || 0),
+        partial: Array.isArray(data?.partialFailures) && data.partialFailures.length > 0,
+      });
+      setAttentionStatus('ready');
+    } catch {
+      if (controller.signal.aborted) return;
+      // Never render a reassuring zero when the source is unavailable.
+      setAttentionStatus('error');
+    }
+  };
+
+  useEffect(() => {
+    refreshAttention();
+    const interval = setInterval(() => {
+      if (!document.hidden) refreshAttention();
+    }, 60000);
+    const onVisible = () => {
+      if (!document.hidden) refreshAttention();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('focus', onVisible);
+    return () => {
+      attentionAbortRef.current?.abort();
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('focus', onVisible);
+    };
+  }, []);
 
   // 1. Load the unified business list (cheap — one round-trip).
   useEffect(() => {
@@ -415,12 +464,7 @@ export default function BusinessOwnerDashboard() {
   const totals = useMemo(() => {
     const restaurants = businesses.filter((b) => getBusinessKind(b) === 'restaurant').length;
     const services = businesses.filter((b) => getBusinessKind(b) === 'service').length;
-    const attention = businesses.filter((b) => (
-      getBusinessKind(b) === 'restaurant'
-        ? getRestaurantReadiness(b).key !== 'live'
-        : b.setup_status !== 'active'
-    )).length;
-    return { restaurants, services, attention, count: businesses.length };
+    return { restaurants, services, count: businesses.length };
   }, [businesses]);
 
   if (!loaded) {
@@ -516,18 +560,32 @@ export default function BusinessOwnerDashboard() {
             </div>
             <div className="text-2xl font-bold mt-1">{totals.services}</div>
           </div>
-          <div
-            className="rounded-xl border p-4"
+          <button
+            type="button"
+            onClick={() => setAttentionOpen(true)}
+            className="rounded-xl border p-4 text-start w-full cursor-pointer"
             style={{
-              borderColor: totals.attention > 0 ? 'rgba(249,115,22,0.4)' : 'var(--color-border)',
-              background: totals.attention > 0 ? 'rgba(249,115,22,0.08)' : 'var(--color-surface)',
+              borderColor: (attentionSummary?.total > 0 || attentionStatus === 'error') ? 'rgba(249,115,22,0.4)' : 'var(--color-border)',
+              background: (attentionSummary?.total > 0 || attentionStatus === 'error') ? 'rgba(249,115,22,0.08)' : 'var(--color-surface)',
             }}
+            aria-haspopup="dialog"
           >
             <div className="text-[10px] uppercase tracking-wider flex items-center gap-1" style={{ color: 'var(--color-text-muted)' }}>
-              <AlertCircle size={11} /> {t('dashboards.businessOwner.needsAttention', { defaultValue: 'Needs setup' })}
+              <AlertCircle size={11} /> {t('dashboards.businessOwner.needsAttention', { defaultValue: 'Needs attention' })}
             </div>
-            <div className="text-2xl font-bold mt-1">{totals.attention}</div>
-          </div>
+            <div className="text-2xl font-bold mt-1">
+              {attentionStatus === 'ready'
+                ? attentionSummary.total
+                : attentionStatus === 'loading' || attentionStatus === 'idle'
+                  ? '…'
+                  : '—'}
+            </div>
+            {attentionStatus === 'ready' && attentionSummary.affectedBusinesses > 0 && (
+              <div className="text-xs mt-1" style={{ color: 'var(--color-text-muted)' }}>
+                {t('attention:list.affectedBusinesses', { count: attentionSummary.affectedBusinesses })}
+              </div>
+            )}
+          </button>
         </section>
 
         {/* Per-business cards */}
@@ -567,6 +625,14 @@ export default function BusinessOwnerDashboard() {
         <DashboardQuickLinks items={DASHBOARD_QUICK_LINKS.businessOwner} />
       </main>
       <Footer />
+      {/* Attention inbox overlays the dashboard: the page stays mounted so
+          scroll position, business selection, and filters are preserved. */}
+      <AttentionModal
+        open={attentionOpen}
+        onClose={() => setAttentionOpen(false)}
+        businesses={businesses}
+        onAction={refreshAttention}
+      />
     </div>
   );
 }
