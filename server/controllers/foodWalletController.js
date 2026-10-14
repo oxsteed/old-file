@@ -6,6 +6,7 @@ const { AppError } = require('../middleware/errorHandler');
 const { withTransaction } = require('../utils/transaction');
 const { logFoodWalletOperatorAudit } = require('../services/foodWalletAuditService');
 const { evaluateFundingCompliance } = require('../services/fiatComplianceService');
+const foodCreditFraudService = require('../services/foodCreditFraudService');
 const {
   creditFoodWallet,
   loadWalletAccountsForUser,
@@ -885,6 +886,15 @@ exports.createMyWalletLoadRequest = async (req, res, next) => {
         paymentProof: 'Add a payment reference, proof attachment, or note for the restaurant',
       });
     }
+    // Phase 3 fraud controls: customer/restaurant velocity limits and the
+    // identity-verification gate for large requests. Blocks throw AppError
+    // (429/403) and fail closed; unexpected infra errors inside the service
+    // fail open so a logging outage cannot wedge legitimate requests.
+    await foodCreditFraudService.screenLoadRequest(pool, {
+      customerId: req.user.id,
+      restaurantId,
+      amountCents,
+    });
     let requestRow = null;
     let replayed = false;
     const existingResult = await pool.query(
@@ -953,6 +963,17 @@ exports.createMyWalletLoadRequest = async (req, res, next) => {
       }
     }
     res.status(replayed ? 200 : 201).json({ loadRequest: formatWalletLoadRequest(requestRow), replayed });
+    // Phase 3 anomaly detection: logs warn-only fraud signals for freshly
+    // created requests. Never blocks; fail-open by design. Skipped on
+    // idempotency replays so a retried request is not scored twice.
+    if (!replayed && requestRow) {
+      await foodCreditFraudService.screenPostCreateAnomalies(pool, {
+        customerId: req.user.id,
+        restaurantId,
+        amountCents,
+        loadRequestId: requestRow.id,
+      });
+    }
   } catch (err) {
     next(err);
   }
@@ -994,6 +1015,67 @@ exports.cancelMyWalletLoadRequest = async (req, res, next) => {
     );
     if (!rows[0]) throw new AppError('Pending wallet load request not found', 404, 'wallet_load_request_not_found');
     res.json({ loadRequest: formatWalletLoadRequest(rows[0]) });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// Phase 3 fraud controls: admin review surface for food_credit_fraud_signals.
+// Mounted at GET /api/food/admin/fraud-signals behind requireAdmin.
+exports.listFraudSignals = async (req, res, next) => {
+  try {
+    const reviewedParam = String(req.query.reviewed ?? '').toLowerCase();
+    const severities = String(req.query.severity ?? '')
+      .split(',')
+      .map((s) => s.trim().toLowerCase())
+      .filter((s) => ['info', 'warn', 'block'].includes(s));
+    const limit = Math.min(Math.max(Number.parseInt(req.query.limit, 10) || 50, 1), 200);
+    const offset = Math.max(Number.parseInt(req.query.offset, 10) || 0, 0);
+    const conditions = [];
+    const params = [];
+    if (reviewedParam === 'true' || reviewedParam === 'false') {
+      params.push(reviewedParam === 'true');
+      conditions.push(`s.reviewed = $${params.length}`);
+    }
+    if (severities.length) {
+      params.push(severities);
+      conditions.push(`s.severity = ANY($${params.length})`);
+    }
+    const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+    params.push(limit, offset);
+    const { rows } = await pool.query(
+      `SELECT s.*, fr.display_name AS restaurant_name, u.email AS customer_email
+         FROM food_credit_fraud_signals s
+         LEFT JOIN food_restaurants fr ON fr.id = s.restaurant_id
+         LEFT JOIN users u ON u.id = s.customer_id
+        ${where}
+        ORDER BY s.created_at DESC
+        LIMIT $${params.length - 1} OFFSET $${params.length}`,
+      params
+    );
+    res.json({ signals: rows, limit, offset });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// Phase 3 fraud controls: mark a signal reviewed.
+// Mounted at POST /api/food/admin/fraud-signals/:id/review behind requireAdmin.
+exports.reviewFraudSignal = async (req, res, next) => {
+  try {
+    const id = Number.parseInt(req.params.id, 10);
+    if (!Number.isInteger(id) || id <= 0) {
+      throw new AppError('Fraud signal not found', 404, 'fraud_signal_not_found');
+    }
+    const { rows } = await pool.query(
+      `UPDATE food_credit_fraud_signals
+          SET reviewed = TRUE
+        WHERE id = $1
+        RETURNING *`,
+      [id]
+    );
+    if (!rows[0]) throw new AppError('Fraud signal not found', 404, 'fraud_signal_not_found');
+    res.json({ signal: rows[0] });
   } catch (err) {
     next(err);
   }
