@@ -325,7 +325,8 @@ function parseEffectiveAt(raw) {
   return Number.isNaN(when.getTime()) ? 'invalid' : when;
 }
 
-// POST /  body: { kind, key, proposed_value, reason, effective_at?, rollout_percent?, rollout_segment? }
+// POST /  body: { kind, key, proposed_value, reason, effective_at? }
+// ADM-104: rollout_percent/rollout_segment are rejected (rollout_not_supported).
 /**
  * Core change-request creation shared by the propose endpoint and the
  * legacy direct PUT routes (PUT /admin/settings/:key,
@@ -362,13 +363,17 @@ async function createChangeRequest({
   if (when === 'invalid') {
     throw changeError(400, 'invalid_effective_at', 'effective_at must be a valid date.');
   }
-  let parsedRollout = null;
-  if (rolloutPercent !== undefined && rolloutPercent !== null && rolloutPercent !== '') {
-    const n = Number(rolloutPercent);
-    if (!Number.isInteger(n) || n < 0 || n > 100) {
-      throw changeError(400, 'invalid_rollout_percent', 'rollout_percent must be an integer between 0 and 100.');
-    }
-    parsedRollout = n;
+  // ADM-104: staged rollouts were accepted, stored, and displayed, but never
+  // enforced: a "10% rollout" applied to 100% of traffic. The control is
+  // removed rather than left misleading. Reject explicitly so API callers
+  // learn it is unsupported instead of being silently ignored.
+  if ((rolloutPercent !== undefined && rolloutPercent !== null && rolloutPercent !== '')
+      || (rolloutSegment !== undefined && rolloutSegment !== null && rolloutSegment !== '')) {
+    throw changeError(
+      400,
+      'rollout_not_supported',
+      'Staged rollouts are not supported: approved changes apply to 100% of traffic. Omit rollout_percent/rollout_segment.'
+    );
   }
 
   // Validate the proposed value up front through the same parse path the
@@ -402,10 +407,12 @@ async function createChangeRequest({
   // so a proposer can never schedule a change that applies itself without
   // independent review (separation of duties).
   const status = 'proposed';
+  // ADM-104: rollout columns are no longer written (see the rejection above).
+  // The columns stay in the schema for historical rows; nothing reads them.
   const { rows: created } = await db.query(
     `INSERT INTO settings_change_requests
-       (kind, key, proposed_value, reason, status, proposed_by, effective_at, rollout_percent, rollout_segment)
-     VALUES ($1, $2, $3::jsonb, $4, $5, $6, $7, $8, $9::jsonb)
+       (kind, key, proposed_value, reason, status, proposed_by, effective_at)
+     VALUES ($1, $2, $3::jsonb, $4, $5, $6, $7)
      RETURNING *`,
     [
       kind,
@@ -415,8 +422,6 @@ async function createChangeRequest({
       status,
       proposedBy,
       when ? when.toISOString() : null,
-      parsedRollout,
-      rolloutSegment === undefined || rolloutSegment === null ? null : JSON.stringify(rolloutSegment),
     ]
   );
   const request = created[0];
@@ -684,6 +689,13 @@ async function rejectChange(req, res) {
 }
 
 // POST /:id/schedule  body: { effective_at } (must be in the future)
+//
+// ADM-001: scheduling is an approval act. A request that is still 'proposed'
+// may only be scheduled by a DIFFERENT admin than the proposer (separation
+// of duties); the scheduler is recorded as reviewed_by, so the applier and
+// the audit trail attribute the approval correctly. A request that is
+// already 'approved' satisfied SoD at approval time and may be scheduled by
+// any admin holding approve_settings.
 async function scheduleChange(req, res) {
   try {
     const { id } = req.params;
@@ -701,9 +713,22 @@ async function scheduleChange(req, res) {
         code: 'change_request_not_applicable',
       });
     }
+    if (request.status === 'proposed' && request.proposed_by === req.user.id) {
+      return res.status(403).json({
+        error: 'The admin who proposed a change cannot schedule it (separation of duties). Ask a different admin to approve or schedule it.',
+        code: 'separation_of_duties',
+      });
+    }
     const { rows: updated } = await db.query(
-      'UPDATE settings_change_requests SET status = $1, effective_at = $2, updated_at = now() WHERE id = $3 RETURNING *',
-      ['scheduled', when.toISOString(), id]
+      `UPDATE settings_change_requests
+          SET status = $1,
+              effective_at = $2,
+              reviewed_by = CASE WHEN status = 'proposed' THEN $3 ELSE reviewed_by END,
+              decided_at = CASE WHEN status = 'proposed' THEN now() ELSE decided_at END,
+              updated_at = now()
+        WHERE id = $4
+        RETURNING *`,
+      ['scheduled', when.toISOString(), req.user.id, id]
     );
     await auditChangeRequest({
       req,
@@ -711,7 +736,7 @@ async function scheduleChange(req, res) {
       action: 'settings_change_scheduled',
       request,
       before: { status: request.status, effective_at: request.effective_at },
-      after: { status: 'scheduled', effective_at: when.toISOString() },
+      after: { status: 'scheduled', effective_at: when.toISOString(), reviewed_by: updated[0].reviewed_by },
     });
     return res.json({ request: updated[0] });
   } catch (err) {

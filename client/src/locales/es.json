@@ -25429,7 +25429,9 @@
     "confirmTitle": "Guardar cambio de comisión",
     "invalidNumber": "Ingresa un número válido.",
     "valueOutOfRange": "El valor debe estar entre {{min}} y {{max}}.",
-    "valueOutsideRange": "El valor está fuera del rango permitido."
+    "valueOutsideRange": "El valor está fuera del rango permitido.",
+    "stripeSyncFailed": "Tarifa guardada, pero falló la sincronización del precio de Stripe. El precio de Stripe no se actualizó.",
+    "stripeSyncFailedReset": "Tarifas restablecidas a los valores predeterminados, pero falló la sincronización de precios de Stripe. Algunos precios de Stripe no se actualizaron."
   },
   "superFinancials": {
     "colAmount": "Monto",

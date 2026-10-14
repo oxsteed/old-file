@@ -25430,7 +25430,9 @@
     "confirmTitle": "Anrejistre chanjman frè a",
     "invalidNumber": "Antre yon nimewo ki valab.",
     "valueOutOfRange": "Valè a dwe ant {{min}} ak {{max}}.",
-    "valueOutsideRange": "Valè a deyò limit yo otorize a."
+    "valueOutsideRange": "Valè a deyò limit yo otorize a.",
+    "stripeSyncFailed": "Frè yo anrejistre, men senkronizasyon pri Stripe a echwe. Pri Stripe a pa t mete ajou.",
+    "stripeSyncFailedReset": "Frè yo retounen nan valè defo yo, men senkronizasyon pri Stripe a echwe. Kèk pri Stripe pa t mete ajou."
   },
   "superFinancials": {
     "colAmount": "Montan",

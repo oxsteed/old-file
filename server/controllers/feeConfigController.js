@@ -252,6 +252,11 @@ exports.previewFees = async (req, res, next) => {
 };
 
 // --- Reset all fees to defaults -----------------------
+// ADM-099: the reset is transactional (all rows + log rows commit or roll
+// back together), syncs subscription prices to Stripe like updateFeeConfig
+// does, and invalidates the trial-duration cache when that key resets.
+// A Stripe sync failure is surfaced as 202 (DB committed, provider diverged),
+// never as silent success.
 exports.resetToDefaults = async (req, res, next) => {
   const adminId = req.user.id;
   const { reason } = req.body;
@@ -259,12 +264,15 @@ exports.resetToDefaults = async (req, res, next) => {
   try {
     // Get current values for logging
     const { rows: current } = await db.query('SELECT * FROM fee_config');
+    const changed = current.filter(
+      (row) => DEFAULTS[row.key] !== undefined && parseFloat(row.value) !== DEFAULTS[row.key]
+    );
 
-    for (const row of current) {
-      const defaultVal = DEFAULTS[row.key];
-      if (defaultVal !== undefined && parseFloat(row.value) !== defaultVal) {
+    await withTransaction(db, async (client) => {
+      for (const row of changed) {
+        const defaultVal = DEFAULTS[row.key];
         // Log change
-        await db.query(
+        await client.query(
           `INSERT INTO fee_change_log
             (config_key, old_value, new_value, changed_by, reason)
            VALUES ($1, $2, $3, $4, $5)`,
@@ -272,16 +280,42 @@ exports.resetToDefaults = async (req, res, next) => {
         );
 
         // Update value
-        await db.query(
+        await client.query(
           `UPDATE fee_config
            SET value = $1, updated_by = $2, updated_at = now()
            WHERE key = $3`,
           [defaultVal, adminId, row.key]
         );
       }
-    }
+    }, 'fee_config_reset');
 
     invalidateCache();
+    if (changed.some((row) => row.key === 'trial_duration_days')) {
+      invalidateTrialCache();
+    }
+
+    // Sync subscription prices to Stripe, mirroring updateFeeConfig. The fee
+    // change is already committed, so a provider sync failure is surfaced
+    // explicitly (202 with pending-sync state), never reported as success.
+    let stripeSyncFailed = false;
+    for (const row of changed) {
+      if (!row.key.includes('subscription')) continue;
+      try {
+        await syncSubscriptionToStripe(row.key, DEFAULTS[row.key]);
+      } catch (err) {
+        logger.error('[FeeConfig] Stripe sync failed on reset:', { err: err.message, key: row.key });
+        stripeSyncFailed = true;
+      }
+    }
+
+    if (stripeSyncFailed) {
+      return res.status(202).json({
+        success: false,
+        stripe_sync: 'failed',
+        message: 'Fees reset to defaults, but the Stripe provider sync failed. Some Stripe prices were not updated; retry the reset or sync them manually.',
+      });
+    }
+
     res.json({ success: true, message: 'All fees reset to defaults.' });
   } catch (err) {
     next(err);

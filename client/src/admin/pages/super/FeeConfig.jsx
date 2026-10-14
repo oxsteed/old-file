@@ -79,11 +79,19 @@ function FeeRow({ row, onSave }) {
   const doSave = async () => {
     const sendValue = inputToStored(row, parseFloat(rawInput.trim()));
     try {
-      await api.put('/fee-config', {
+      // ADM-098: the server returns 202 with stripe_sync:'failed' when the DB
+      // write succeeded but the Stripe provider sync did not. Surface that
+      // divergence instead of reporting success.
+      const { data } = await api.put('/fee-config', {
         key: row.key,
         value: sendValue,
         reason: reason || undefined,
       });
+      if (data && data.stripe_sync === 'failed') {
+        toast.error(data.message || t('superFeeConfig.stripeSyncFailed'));
+        onSave();
+        return;
+      }
     } catch (err) {
       toast.error(err.response?.data?.error || t('superFeeConfig.updateFailed'));
       throw err; // keep the dialog open on failure
@@ -274,12 +282,18 @@ export default function FeeConfig() {
     setResetting(true);
     setActionError('');
     try {
-      await api.post('/fee-config/reset', {
+      // ADM-099: the server returns 202 with stripe_sync:'failed' when the DB
+      // reset committed but the Stripe provider sync did not. Surface the
+      // divergence instead of reporting success.
+      const { data } = await api.post('/fee-config/reset', {
         reason: resetReason || t('superFeeConfig.defaultResetReason'),
       });
       setShowReset(false);
       setResetReason('');
       reload();
+      if (data && data.stripe_sync === 'failed') {
+        setActionError(t('superFeeConfig.stripeSyncFailedReset'));
+      }
     } catch (err) {
       setActionError(err.response?.data?.error || t('superFeeConfig.errorReset'));
     } finally {

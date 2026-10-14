@@ -62,9 +62,10 @@ exports.updatePricingOverride = async (req, res, next) => {
     const { price_cents, currency_code, reason } = req.body;
 
     // Validation
+    // ADM-206: a zero price (free tier) is valid; only null/negative are rejected.
     const errors = {};
-    if (!price_cents || price_cents < 0) {
-      errors.price_cents = 'Price must be a positive number';
+    if (price_cents === undefined || price_cents === null || price_cents < 0) {
+      errors.price_cents = 'Price must be a non-negative number';
     }
     if (!currency_code || currency_code.length !== 3) {
       errors.currency_code = 'Currency code must be 3 characters (e.g., USD)';
@@ -133,6 +134,18 @@ exports.batchUpdatePricing = async (req, res, next) => {
     if (!Array.isArray(updates) || updates.length === 0) {
       throw new AppError('updates must be a non-empty array', 400, 'validation_failed');
     }
+    // ADM-165: bound the batch. Each entry can trigger DB writes and outbound
+    // Stripe calls; an unbounded array risks rate limits, long requests, and
+    // partial application inside a single HTTP request.
+    const MAX_BATCH_UPDATES = 100;
+    if (updates.length > MAX_BATCH_UPDATES) {
+      throw new AppError(
+        `updates must contain at most ${MAX_BATCH_UPDATES} entries`,
+        400,
+        'validation_failed',
+        { max: MAX_BATCH_UPDATES, received: updates.length }
+      );
+    }
 
     const results = [];
     const errors = [];
@@ -141,10 +154,11 @@ exports.batchUpdatePricing = async (req, res, next) => {
       try {
         const { country_code, price_cents, currency_code } = update;
 
-        if (!country_code || !price_cents || !currency_code) {
+        // ADM-206: price_cents=0 (free tier) is valid; only null/negative are rejected.
+        if (!country_code || price_cents === undefined || price_cents === null || price_cents < 0 || !currency_code) {
           errors.push({
             country_code,
-            error: 'Missing required fields (country_code, price_cents, currency_code)'
+            error: 'Missing required fields (country_code, price_cents, currency_code); price_cents must be non-negative'
           });
           continue;
         }

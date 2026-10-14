@@ -2380,25 +2380,26 @@ exports.updateSetting = async (req, res) => {
   }
 };
 
-// Restore the immediately previous audited value. Rollback is itself a new
-// forward change, so the audit trail remains append-only and another rollback
-// can recover the prior state if an operator changes their mind.
+// Restore the immediately previous audited value.
+//
+// ADM-034/ADM-128: rollback used to apply immediately with only the
+// manage_settings grant, bypassing the maker-checker that the direct PUT
+// routes now honor. Rollback is now a *proposal*: it creates a change request
+// restoring the previous audited value, and a different admin must approve it
+// (approve_settings + separation of duties) before anything is applied.
+// Returns 202 with the pending request, mirroring updateSetting.
 exports.rollbackSetting = async (req, res) => {
-  let client;
   try {
-    client = await db.connect();
     const { key } = req.params;
     const adminId = req.user.id;
-    await client.query('BEGIN');
-    const { rows: currentRows } = await client.query(
-      'SELECT * FROM platform_settings WHERE key = $1 FOR UPDATE',
+    const { rows: currentRows } = await db.query(
+      'SELECT * FROM platform_settings WHERE key = $1',
       [key],
     );
     if (!currentRows.length) {
-      await client.query('ROLLBACK');
       return res.status(404).json({ error: `Setting "${key}" not found.` });
     }
-    const { rows: history } = await client.query(
+    const { rows: history } = await db.query(
       `SELECT before_state
          FROM admin_audit_log
         WHERE target_type = 'platform_setting'
@@ -2412,38 +2413,34 @@ exports.rollbackSetting = async (req, res) => {
     );
     const previousValue = history[0]?.before_state?.value;
     if (previousValue === undefined) {
-      await client.query('ROLLBACK');
       return res.status(409).json({ error: 'No audited previous value is available for rollback.', code: 'rollback_unavailable' });
     }
     const parsed = parsePlatformSettingValue(currentRows[0], previousValue);
     if (parsed.error) {
-      await client.query('ROLLBACK');
       return res.status(409).json({ error: 'The audited value is no longer valid under current platform bounds.', code: 'rollback_invalidated' });
     }
-    const previousVersion = currentRows[0].version || 1;
-    await client.query(
-      'UPDATE platform_settings SET value = $1, version = COALESCE(version, 1) + 1, updated_by = $2, updated_at = now() WHERE key = $3',
-      [parsed.value, adminId, key],
-    );
-    await logAdminAction({
-      client,
-      adminId,
-      action: 'platform_setting_rollback',
-      targetType: 'platform_setting',
-      targetKey: key,
-      description: `Setting "${key}" rolled back`,
-      before: { value: currentRows[0].value, version: previousVersion },
-      after: { value: parsed.value, version: previousVersion + 1 },
+    const { createChangeRequest } = require('./settingsChangeController');
+    const request = await createChangeRequest({
+      kind: 'setting',
+      key,
+      proposedValue: parsed.value,
+      reason: (req.body?.reason || '').trim() || `Rollback to previous audited value for "${key}"`,
+      proposedBy: adminId,
       req,
-      throwOnError: true,
     });
-    await client.query('COMMIT');
-    return res.json({ message: `Setting "${key}" rolled back.`, value: parsed.value });
+    return res.status(202).json({
+      message: `Rollback of setting "${key}" proposed and awaiting approval.`,
+      code: 'change_proposed',
+      change_request_id: request.id,
+      request,
+    });
   } catch (err) {
-    try { await client.query('ROLLBACK'); } catch {}
+    if (Number.isInteger(err.statusCode)) {
+      return res.status(err.statusCode).json({ error: err.message, ...(err.code ? { code: err.code } : {}) });
+    }
     logger.error('rollbackSetting error', { err });
-    return res.status(500).json({ error: 'Failed to roll back setting.' });
-  } finally { client?.release(); }
+    res.status(500).json({ error: 'Failed to propose setting rollback.' });
+  }
 };
 
 // Review P3-941: rail-controlling flags change only through their dedicated,
@@ -2494,21 +2491,21 @@ exports.rollbackFeatureFlag = async (req, res) => {
   if (RAIL_CONTROLLED_FLAGS.has(String(req.params?.key || '').toLowerCase())) {
     return res.status(409).json({ error: 'This flag is controlled by the OxSteed Credit rail. Use the rail controls.', code: 'flag_rail_controlled' });
   }
-  let client;
+  // ADM-034/ADM-128: rollback used to flip the flag immediately with only the
+  // manage_settings grant, bypassing maker-checker. It now proposes a change
+  // request restoring the previous audited state; a different admin must
+  // approve it (approve_settings + separation of duties). Returns 202.
   try {
-    client = await db.connect();
     const { key } = req.params;
     const adminId = req.user.id;
-    await client.query('BEGIN');
-    const { rows: currentRows } = await client.query(
-      'SELECT is_enabled FROM feature_flags WHERE key = $1 FOR UPDATE',
+    const { rows: currentRows } = await db.query(
+      'SELECT is_enabled FROM feature_flags WHERE key = $1',
       [key],
     );
     if (!currentRows.length) {
-      await client.query('ROLLBACK');
       return res.status(404).json({ error: `Feature flag "${key}" not found.` });
     }
-    const { rows: history } = await client.query(
+    const { rows: history } = await db.query(
       `SELECT before_state
          FROM admin_audit_log
         WHERE target_type = 'feature_flag'
@@ -2523,32 +2520,30 @@ exports.rollbackFeatureFlag = async (req, res) => {
     const previousValue = history[0]?.before_state?.is_enabled;
     const previousEnabled = parseStrictBoolean(previousValue);
     if (previousEnabled === null) {
-      await client.query('ROLLBACK');
       return res.status(409).json({ error: 'No audited previous flag state is available for rollback.', code: 'rollback_unavailable' });
     }
-    await client.query(
-      'UPDATE feature_flags SET is_enabled = $1, updated_by = $2, updated_at = now() WHERE key = $3',
-      [previousEnabled, adminId, key],
-    );
-    await logAdminAction({
-      client,
-      adminId,
-      action: 'feature_flag_rollback',
-      targetType: 'feature_flag',
-      targetKey: key,
-      description: `Feature flag "${key}" rolled back`,
-      before: { is_enabled: currentRows[0].is_enabled },
-      after: { is_enabled: previousEnabled },
+    const { createChangeRequest } = require('./settingsChangeController');
+    const request = await createChangeRequest({
+      kind: 'flag',
+      key,
+      proposedValue: previousEnabled,
+      reason: (req.body?.reason || '').trim() || `Rollback to previous audited state for flag "${key}"`,
+      proposedBy: adminId,
       req,
-      throwOnError: true,
     });
-    await client.query('COMMIT');
-    return res.json({ message: `Feature flag "${key}" rolled back.`, enabled: previousEnabled });
+    return res.status(202).json({
+      message: `Rollback of feature flag "${key}" proposed and awaiting approval.`,
+      code: 'change_proposed',
+      change_request_id: request.id,
+      request,
+    });
   } catch (err) {
-    try { await client.query('ROLLBACK'); } catch {}
+    if (Number.isInteger(err.statusCode)) {
+      return res.status(err.statusCode).json({ error: err.message, ...(err.code ? { code: err.code } : {}) });
+    }
     logger.error('rollbackFeatureFlag error', { err });
-    return res.status(500).json({ error: 'Failed to roll back feature flag.' });
-  } finally { client?.release(); }
+    return res.status(500).json({ error: 'Failed to propose feature flag rollback.' });
+  }
 };
 
 // AUDIT LOG

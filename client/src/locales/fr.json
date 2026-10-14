@@ -25430,7 +25430,9 @@
     "confirmTitle": "Enregistrer la modification de commission",
     "invalidNumber": "Saisissez un nombre valide.",
     "valueOutOfRange": "La valeur doit être comprise entre {{min}} et {{max}}.",
-    "valueOutsideRange": "La valeur est hors de la plage autorisée."
+    "valueOutsideRange": "La valeur est hors de la plage autorisée.",
+    "stripeSyncFailed": "Frais enregistrés, mais la synchronisation du prix Stripe a échoué. Le prix Stripe n’a pas été mis à jour.",
+    "stripeSyncFailedReset": "Frais réinitialisés aux valeurs par défaut, mais la synchronisation des prix Stripe a échoué. Certains prix Stripe n’ont pas été mis à jour."
   },
   "superFinancials": {
     "colAmount": "Montant",

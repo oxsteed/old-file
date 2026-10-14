@@ -25429,7 +25429,9 @@
     "confirmTitle": "Save fee change",
     "invalidNumber": "Enter a valid number.",
     "valueOutOfRange": "Value must be between {{min}} and {{max}}.",
-    "valueOutsideRange": "Value is outside the allowed range."
+    "valueOutsideRange": "Value is outside the allowed range.",
+    "stripeSyncFailed": "Fee saved, but the Stripe price sync failed. The Stripe price was not updated.",
+    "stripeSyncFailedReset": "Fees reset to defaults, but the Stripe price sync failed. Some Stripe prices were not updated."
   },
   "superFinancials": {
     "colAmount": "Amount",

@@ -25440,7 +25440,9 @@
     "confirmTitle": "حفظ تغيير الرسم",
     "invalidNumber": "أدخل رقمًا صالحًا.",
     "valueOutOfRange": "يجب أن تكون القيمة بين {{min}} و{{max}}.",
-    "valueOutsideRange": "القيمة خارج النطاق المسموح."
+    "valueOutsideRange": "القيمة خارج النطاق المسموح.",
+    "stripeSyncFailed": "تم حفظ الرسوم، لكن فشلت مزامنة سعر Stripe. لم يتم تحديث سعر Stripe.",
+    "stripeSyncFailedReset": "تمت إعادة تعيين الرسوم إلى القيم الافتراضية، لكن فشلت مزامنة أسعار Stripe. لم يتم تحديث بعض أسعار Stripe."
   },
   "superFinancials": {
     "colAmount": "المبلغ",
