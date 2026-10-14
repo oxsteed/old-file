@@ -25,6 +25,7 @@ const { grantFreeTrialToUser } = require('./templateController');
 const { checkAndAlertNewLogin } = require('../services/loginAlertService');
 const { invalidateGuestHistoryAccessCodesForEmail } = require('../services/guestProfileChatVerification');
 const { logSecurityEvent, extractRequestDetails } = require('../services/auditLoggerService');
+const { recordLoginAgreement } = require('../services/loginAgreementService'); // Review P1-1-F05
 const modeRoleUtil = require('../utils/modeRole');
 const { normalizeStoredPublicUrl } = require('../utils/storage');
 const SALT_ROUNDS = 12;
@@ -395,8 +396,18 @@ async function login(req, res, next) {
     }
 
     if (user.totp_enabled) {
+      // Review P1-1-F05: carry the per-login digital signature into the MFA
+      // token so the 2FA completion leg can write the same login_agreements
+      // and user_consents records as the direct login path (TOTP-enabled
+      // users previously skipped them entirely). Admins are exempt from the
+      // signature, so no name is carried for them.
       const mfaToken = jwt.sign(
-        { id: user.id, isMfaToken: true, rememberMe: rememberMe === true },
+        {
+          id: user.id,
+          isMfaToken: true,
+          rememberMe: rememberMe === true,
+          ...(isAdminUser ? {} : { agreementName: String(agreementName).trim() }),
+        },
         JWT_SECRET,
         { expiresIn: '15m' }
       );
@@ -550,11 +561,15 @@ async function loginWith2FA(req, res, next) {
 
     let userId;
     let rememberMe = false;
+    let agreementName = null;
     try {
       const decoded = jwt.verify(mfaToken, JWT_SECRET, { algorithms: ['HS256'] });
       if (!decoded.isMfaToken) throw new Error('Invalid token type');
       userId = decoded.id;
       rememberMe = decoded.rememberMe === true;
+      agreementName = typeof decoded.agreementName === 'string' && decoded.agreementName.trim()
+        ? decoded.agreementName.trim()
+        : null;
       req.internalAccessId = decoded.internalAccessId || null;
       req.internalAccessRoute = decoded.internalAccessRoute || null;
     } catch (err) {
@@ -651,6 +666,15 @@ async function loginWith2FA(req, res, next) {
       : "INSERT INTO sessions (user_id, refresh_token, access_token_hash, expires_at, remember_me) VALUES ($1, $2, $3, NOW() + interval '7 days', FALSE)";
     await pool.query(sessionSql, [user.id, hashedRefresh, accessHash]);
     await recordSessionContext(pool, hashedRefresh, req);
+
+    // Review P1-1-F05: write the same per-login digital signature and
+    // consent records as the direct login path. The signature name was
+    // asserted in the first leg (password or passkey) and carried in the
+    // signed MFA token; without this, every TOTP-enabled user skipped the
+    // records entirely. recordLoginAgreement is non-fatal internally.
+    if (agreementName) {
+      await recordLoginAgreement(req, user, agreementName);
+    }
 
     // H8d: refresh token as httpOnly cookie for web clients (JSON fallback kept).
     setRefreshTokenCookie(res, tokens.refreshToken, { rememberMe });

@@ -317,8 +317,17 @@ async function verifyAuthentication(req, res, next) {
     await db.query(`UPDATE user_passkeys SET counter = $1, last_used_at = NOW() WHERE id = $2`, [nextCounter, stored.id]);
     // Parity with password login: if TOTP is enabled, require it.
     if (user.totp_enabled) {
+      // Review P1-1-F05: carry the asserted signature name in the MFA token
+      // so the 2FA completion leg writes the same login_agreements and
+      // user_consents records as the direct login path (admins exempt).
+      const isAdmin = ['admin', 'super_admin'].includes(user.role);
       const mfaToken = jwt.sign(
-        { id: user.id, isMfaToken: true, authMethod: 'passkey' },
+        {
+          id: user.id,
+          isMfaToken: true,
+          authMethod: 'passkey',
+          ...(isAdmin ? {} : { agreementName: String(req.body.agreementName || '').trim() }),
+        },
         process.env.JWT_SECRET,
         { expiresIn: '15m' }
       );
