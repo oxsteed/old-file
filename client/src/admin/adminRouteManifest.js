@@ -112,6 +112,8 @@ export const ADMIN_ROUTE_MANIFEST = Object.freeze({
 
   superDashboard: defineRoute('/admin/super/dashboard', { superOnly: true }),
   money: defineRoute('/admin/super/money', { grant: 'view_financials' }),
+  // ADM-016: dual-approval queue for above-threshold money movements.
+  moneyApprovals: defineRoute('/admin/super/money-approvals', { grant: 'manage_financials' }),
   restaurantCredit: defineRoute('/admin/super/restaurant-credit', { superOnly: true }),
   restaurantTopupApprovals: defineRoute('/admin/super/restaurant-topups', { grant: 'manage_financials' }),
   featuredPlacements: defineRoute('/admin/super/featured-placements', { grant: 'manage_marketing' }),

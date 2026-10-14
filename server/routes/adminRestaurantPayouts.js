@@ -10,6 +10,7 @@
 
 const router = require('express').Router();
 const { requireAdmin, requireSuperAdminOrPermission } = require('../middleware/adminAuth');
+const { rejectImpersonated } = require('../middleware/rejectImpersonated');
 const { errorHandler } = require('../middleware/errorHandler');
 const ctrl = require('../controllers/adminRestaurantPayoutController');
 
@@ -20,8 +21,9 @@ const moneyGate = requireSuperAdminOrPermission('manage_financials');
 router.get('/', moneyGate, ctrl.listQueue);
 // ADM-113: step-up challenges for the approve path (same gate as approve).
 router.post('/stepup-challenges', moneyGate, ctrl.issueApproveStepupChallenge);
-router.post('/:payoutId/approve', moneyGate, ctrl.approve);
-router.post('/:payoutId/reject', moneyGate, ctrl.reject);
+// ADM-040: payouts move money via Stripe Transfer; impersonated sessions are blocked.
+router.post('/:payoutId/approve', moneyGate, rejectImpersonated, ctrl.approve);
+router.post('/:payoutId/reject', moneyGate, rejectImpersonated, ctrl.reject);
 
 router.use(errorHandler);
 

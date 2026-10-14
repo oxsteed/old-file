@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { requireAuth } = require('../middleware/auth');
 const { requireAdmin, requirePermission } = require('../middleware/adminAuth');
+const { rejectImpersonated } = require('../middleware/rejectImpersonated');
 const agentFoodRefundActions = require('../controllers/agentFoodRefundActions');
 const { strictLimiter } = require('../middleware/rateLimiter');
 
@@ -14,6 +15,7 @@ router.use(requireAuth, requireAdmin);
  * POST /agent/food-orders/:id/refund
  * Agent-issued food order refund. Grant-gated with issue_refunds.
  */
-router.post('/food-orders/:id/refund', strictLimiter, requirePermission('issue_refunds'), agentFoodRefundActions.refundFoodOrder);
+// ADM-040: impersonated sessions cannot issue refunds.
+router.post('/food-orders/:id/refund', strictLimiter, rejectImpersonated, requirePermission('issue_refunds'), agentFoodRefundActions.refundFoodOrder);
 
 module.exports = router;

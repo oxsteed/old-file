@@ -150,8 +150,9 @@ describe('agent food refund route wiring', () => {
       }));
     const refund = routes.find((l) => l.path === '/food-orders/:id/refund' && l.method === 'post');
     expect(refund).toBeDefined();
-    // strictLimiter + requirePermission('issue_refunds') + controller
-    expect(refund.chainLength).toBe(3);
+    // ADM-040: strictLimiter + requirePermission('issue_refunds') +
+    // rejectImpersonated + controller
+    expect(refund.chainLength).toBe(4);
   });
 });
 

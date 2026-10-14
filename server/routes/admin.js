@@ -38,6 +38,12 @@ const oxsteedCreditRestaurantConversionPolicyService = require('../services/oxst
 const { verifyStepupChallenge } = require('../services/stepupChallengeService');
 const { AppError } = require('../middleware/errorHandler');
 const { creditAdminMutationLimiter, creditExportLimiter, adminPhoneVerificationLimiter, strictLimiter } = require('../middleware/rateLimiter');
+const moneyApprovalCtrl = require('../controllers/moneyApprovalController');
+// ADM-016: register the dual-approval executors for the five money rails
+// (job/marketplace/dispute refunds, restaurant + affiliate payouts) once at
+// startup. requestMoneyMovementApproval also self-heals if a rail is reached
+// without this wiring, failing closed rather than skipping dual approval.
+require('../services/moneyMovementExecutors').registerMoneyMovementExecutors();
 
 function noStoreCreditResponse(_req, res, next) {
   res.set('Cache-Control', 'private, no-store');
@@ -92,13 +98,15 @@ router.get('/moderation-queue',  requireAdmin, requirePermission('moderate_conte
 // Jobs (read + moderate - all admins)
 router.get('/jobs',                    requireAdmin, requirePermission('manage_operations'),      superCtrl.getJobs);
 router.get('/jobs/:jobId',             requireAdmin, requirePermission('manage_operations'),      superCtrl.getJobDetail);
-router.post('/jobs/:jobId/action',     requireAdmin, requirePermission('manage_operations'),      superCtrl.forceJobAction);
+// ADM-040: impersonated sessions must not touch money routes. forceJobAction
+// can trigger fee/reconciliation logic; deleteJob guards a money trail.
+router.post('/jobs/:jobId/action',     requireAdmin, rejectImpersonated, requirePermission('manage_operations'),      superCtrl.forceJobAction);
 // Job edit tooling: reason required, revision history, rollback (docs/job-editing.md)
 router.patch('/jobs/:jobId',           requireAdmin, requirePermission('manage_operations'), rejectImpersonated, adminJobEditCtrl.editJob);
 router.get('/jobs/:jobId/revisions',   requireAdmin, requirePermission('manage_operations'),      adminJobEditCtrl.listRevisions);
 router.post('/jobs/:jobId/revisions/:revisionId/rollback', requireAdmin, requirePermission('manage_operations'), rejectImpersonated, adminJobEditCtrl.rollbackRevision);
 // Hard delete - delegatable via delete_jobs grant
-router.delete('/jobs/:jobId',          requireAdmin, requirePermission('delete_jobs'), superCtrl.deleteJob);
+router.delete('/jobs/:jobId',          requireAdmin, rejectImpersonated, requirePermission('delete_jobs'), superCtrl.deleteJob);
 
 // Content removal - bids and reviews (always logged for super-admin review)
 router.get('/content',                         requireAdmin, requirePermission('moderate_content'), adminCtrl.getContent);
@@ -321,11 +329,35 @@ router.get('/payouts',               requireAdmin, requirePermission('view_finan
 router.get('/super/money',           requireAdmin, requirePermission('view_financials'), superCtrl.getMoneyOverview);
 router.get('/super/revenue',         requireAdmin, requirePermission('view_financials'), superCtrl.getRevenueSummary);
 router.get('/super/revenue/export',  requireAdmin, requirePermission('view_financials'), superCtrl.getRevenueExport);
-router.post('/jobs/:jobId/refund',   strictLimiter, requireAdmin, requirePermission('issue_refunds'),   superCtrl.issueManualRefund);
+// ADM-040: job refunds move money via Stripe; impersonated sessions are blocked.
+router.post('/jobs/:jobId/refund',   strictLimiter, requireAdmin, rejectImpersonated, requirePermission('issue_refunds'),   superCtrl.issueManualRefund);
 // ADM-112: step-up challenge issuance for manual refunds, scoped to the
 // issue_refunds grant (the super-admin challenge route is not reachable by
 // non-super-admin refunders).
-router.post('/stepup-challenges/manual-refund', strictLimiter, requireAdmin, requirePermission('issue_refunds'), superCtrl.issueRefundStepupChallenge);
+router.post('/stepup-challenges/manual-refund', strictLimiter, requireAdmin, rejectImpersonated, requirePermission('issue_refunds'), superCtrl.issueRefundStepupChallenge);
+
+// ADM-016: dual-approval queue for above-threshold money movements. The
+// checker needs one of the money grants (manage_financials or
+// issue_refunds); super-admins bypass the grant check. Impersonated
+// sessions are blocked. A checker must differ from the requesting admin
+// (enforced in the service, not just here).
+const requireMoneyApprovalGrant = async (req, res, next) => {
+  try {
+    if (req.isSuper) return next();
+    const { hasGlobalGrant } = require('../middleware/adminAuth');
+    const adminId = req.user?.id;
+    if (!adminId) return res.status(401).json({ error: 'Unauthorized.' });
+    if (await hasGlobalGrant(adminId, 'manage_financials')) return next();
+    if (await hasGlobalGrant(adminId, 'issue_refunds')) return next();
+    return res.status(403).json({ error: 'A financial grant is required.', code: 'grant_required' });
+  } catch (err) {
+    return next(err);
+  }
+};
+router.get('/money-approvals', requireAdmin, requireMoneyApprovalGrant, moneyApprovalCtrl.list);
+router.post('/money-approvals/:id/approve', strictLimiter, requireAdmin, rejectImpersonated, requireMoneyApprovalGrant, moneyApprovalCtrl.approve);
+router.post('/money-approvals/:id/reject', strictLimiter, requireAdmin, rejectImpersonated, requireMoneyApprovalGrant, moneyApprovalCtrl.reject);
+router.post('/stepup-challenges/money-approval', strictLimiter, requireAdmin, rejectImpersonated, requireMoneyApprovalGrant, moneyApprovalCtrl.issueApproveStepupChallenge);
 
 // Platform settings - super-admin direct, or admin with manage_settings grant
 router.get('/settings',              requireAdmin, requirePermission('manage_settings'), superCtrl.getSettings);
@@ -460,12 +492,13 @@ router.get('/super/oxsteed-credit/accounts/:customerId', requireSuperAdmin, oxst
 router.get('/super/oxsteed-credit/transactions', requireSuperAdmin, oxsteedCreditCtrl.listAdminTransactions);
 router.get('/super/oxsteed-credit/transactions.csv', requireSuperAdmin, creditExportLimiter, oxsteedCreditCtrl.downloadAdminTransactions);
 router.get('/super/oxsteed-credit/transactions/:transactionId', requireSuperAdmin, oxsteedCreditCtrl.getAdminTransaction);
-router.post('/super/oxsteed-credit/transactions/:transactionId/refund', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.refundAdminCredit);
+// ADM-040: credit fund-movement routes also reject impersonated sessions.
+router.post('/super/oxsteed-credit/transactions/:transactionId/refund', requireSuperAdmin, rejectImpersonated, creditAdminMutationLimiter, oxsteedCreditCtrl.refundAdminCredit);
 router.get('/super/oxsteed-credit/partners', requireSuperAdmin, oxsteedCreditCtrl.listAdminPartners);
 router.get('/super/oxsteed-credit/partners/directory', requireSuperAdmin, oxsteedCreditCtrl.listAdminPartnerDirectory);
 router.get('/super/oxsteed-credit/partners.csv', requireSuperAdmin, creditExportLimiter, oxsteedCreditCtrl.downloadAdminPartners);
 router.get('/super/oxsteed-credit/partners/:partnerId/ledger', requireSuperAdmin, noStoreCreditResponse, oxsteedCreditCtrl.getAdminPartnerLedger);
-router.post('/super/oxsteed-credit/partners/:partnerId/funding', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.recordAdminPartnerFunding);
+router.post('/super/oxsteed-credit/partners/:partnerId/funding', requireSuperAdmin, rejectImpersonated, creditAdminMutationLimiter, oxsteedCreditCtrl.recordAdminPartnerFunding);
 router.post('/super/oxsteed-credit/currency-quotes', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.createAdminCurrencyQuote);
 router.get('/super/oxsteed-credit/currency-quotes/:quoteId', requireSuperAdmin, oxsteedCreditCtrl.getAdminCurrencyQuote);
 router.get('/super/oxsteed-credit/agreements', requireSuperAdmin, oxsteedCreditCtrl.listAdminAgreements);
@@ -483,13 +516,13 @@ router.post('/super/oxsteed-credit/partners/:partnerId/agreements', requireSuper
 router.post('/super/oxsteed-credit/agreements/:agreementId/transition', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.transitionAdminAgreement);
 router.post('/super/oxsteed-credit/agreements/:agreementId/entitlements', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.upsertAdminEntitlement);
 router.get('/super/oxsteed-credit/entitlements.csv', requireSuperAdmin, creditExportLimiter, oxsteedCreditCtrl.downloadAdminEntitlements);
-router.post('/super/oxsteed-credit/customers/:customerId/loads', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.adminLoadCredit);
-router.post('/super/oxsteed-credit/customers/:customerId/adjustments', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.adminAdjustCredit);
+router.post('/super/oxsteed-credit/customers/:customerId/loads', requireSuperAdmin, rejectImpersonated, creditAdminMutationLimiter, oxsteedCreditCtrl.adminLoadCredit);
+router.post('/super/oxsteed-credit/customers/:customerId/adjustments', requireSuperAdmin, rejectImpersonated, creditAdminMutationLimiter, oxsteedCreditCtrl.adminAdjustCredit);
 router.post('/super/oxsteed-credit/customers/:customerId/status', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.adminUpdateCreditAccountStatus);
 router.get('/super/oxsteed-credit/disputes', requireSuperAdmin, oxsteedCreditCtrl.listAdminDisputes);
 router.get('/super/oxsteed-credit/disputes.csv', requireSuperAdmin, creditExportLimiter, oxsteedCreditCtrl.downloadAdminCreditDisputes);
-router.post('/super/oxsteed-credit/disputes/:disputeId/resolve', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.resolveAdminDispute);
-router.post('/super/oxsteed-credit/disputes/:disputeId/provisional-credit', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.issueAdminProvisionalCredit);
+router.post('/super/oxsteed-credit/disputes/:disputeId/resolve', requireSuperAdmin, rejectImpersonated, creditAdminMutationLimiter, oxsteedCreditCtrl.resolveAdminDispute);
+router.post('/super/oxsteed-credit/disputes/:disputeId/provisional-credit', requireSuperAdmin, rejectImpersonated, creditAdminMutationLimiter, oxsteedCreditCtrl.issueAdminProvisionalCredit);
 router.get('/super/oxsteed-credit/audit-events', requireSuperAdmin, oxsteedCreditCtrl.listAdminCreditAuditEvents);
 router.get('/super/oxsteed-credit/audit-events.csv', requireSuperAdmin, creditExportLimiter, oxsteedCreditCtrl.downloadAdminCreditAuditEvents);
 router.get('/super/oxsteed-credit/settlements', requireSuperAdmin, oxsteedCreditCtrl.listAdminSettlements);
@@ -498,14 +531,14 @@ router.get('/super/oxsteed-credit/reconciliation', requireSuperAdmin, oxsteedCre
 router.get('/super/oxsteed-credit/reconciliation.csv', requireSuperAdmin, creditExportLimiter, oxsteedCreditCtrl.downloadAdminCreditReconciliationRuns);
 router.post('/super/oxsteed-credit/settlements', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.createAdminSettlement);
 router.post('/super/oxsteed-credit/settlements/:settlementId/status', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.transitionAdminSettlement);
-router.post('/super/oxsteed-credit/settlements/:settlementId/reversal', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.reverseAdminSettlement);
+router.post('/super/oxsteed-credit/settlements/:settlementId/reversal', requireSuperAdmin, rejectImpersonated, creditAdminMutationLimiter, oxsteedCreditCtrl.reverseAdminSettlement);
 // Verified Stripe payout for an approved settlement. The manual mark-paid path
 // above stays untouched as the fallback for non-Stripe payouts.
 //
 // Phase 7 (gap 9): the maker still proves a fresh step-up challenge here
 // (intent), but the payout now queues as a pending action for a second
 // admin to decide instead of executing immediately.
-router.post('/super/oxsteed-credit/settlements/:settlementId/payout', requireSuperAdmin, creditAdminMutationLimiter, async (req, res, next) => {
+router.post('/super/oxsteed-credit/settlements/:settlementId/payout', requireSuperAdmin, rejectImpersonated, creditAdminMutationLimiter, async (req, res, next) => {
   try {
     // Phase 5: payout initiation always requires a fresh step-up challenge
     // for the acting admin, verified before any money moves.

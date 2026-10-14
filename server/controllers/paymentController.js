@@ -942,6 +942,7 @@ exports.refundPayment = async (req, res, next) => {
       payment_id,
       reason,
       amount,
+      fullRefund,
       reverse_application_fee
     } = req.body;
     const hasRequestedAmount = amount !== undefined && amount !== null && String(amount).trim() !== '';
@@ -951,14 +952,41 @@ exports.refundPayment = async (req, res, next) => {
     if (reason !== undefined && reason !== null && String(reason).length > 1000) {
       throw new AppError('Refund reason is too long.', 400, 'invalid_refund_reason');
     }
+    // ADM-009: fail closed on ambiguous amounts. No amount means the caller
+    // must explicitly declare fullRefund: true; it never silently refunds
+    // the full remaining balance.
+    const refundRequestId = req.get('Idempotency-Key') || req.body?.idempotencyKey
+      || `admin-payment-refund-${payment_id}-${Date.now()}`;
     const result = await processPaymentRefund({
       paymentId: payment_id,
       requestedAmountCents: hasRequestedAmount ? Math.round(Number(amount) * 100) : null,
+      fullRefund: fullRefund === true,
       reason,
       reverseApplicationFee: !!reverse_application_fee,
       actorUserId: req.user.id,
-      requestId: req.get('Idempotency-Key') || req.body?.idempotencyKey
+      requestId: refundRequestId,
+      // ADM-016: above-threshold payment refunds queue for a second admin
+      // instead of moving money on this single approval.
+      dualApproval: {
+        movementType: 'job_refund',
+        referenceKey: `payment:${payment_id}`,
+        requestedBy: req.user.id,
+        idempotencyKey: refundRequestId,
+        payload: {
+          paymentId: payment_id,
+          amountCents: hasRequestedAmount ? Math.round(Number(amount) * 100) : null,
+          fullRefund: fullRefund === true,
+          reason,
+          requestId: refundRequestId,
+          makerAdminId: req.user.id,
+        },
+      },
     });
+    // ADM-016: queued for dual approval — no money moved yet.
+    if (result.dualApproval) {
+      const { sendMoneyMovementGateResult } = require('../utils/dualApprovalHttp');
+      return sendMoneyMovementGateResult(res, result.dualApproval);
+    }
     const responseStatus = result.attempt.status === 'succeeded' ? 200 : 202;
     return res.status(responseStatus).json({
       message: result.attempt.status === 'succeeded' ? 'Refund processed' : 'Refund is being reconciled',

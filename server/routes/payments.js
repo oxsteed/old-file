@@ -21,6 +21,7 @@ const checkRestrictions = require('../middleware/checkRestrictions');
 const requireEmailVerified = require('../middleware/requireEmailVerified');
 const requireTermsAcceptance = require('../middleware/requireTermsAcceptance');
 const { requireOnboardingStep, requireTaxIdentity } = require('../middleware/helperOnboardingMiddleware');
+const { rejectImpersonated } = require('../middleware/rejectImpersonated');
 
 const requirePaymentsEnabled = requireFeatureEnabled('Payments', 'FEATURE_PAYMENTS_ENABLED');
 
@@ -43,7 +44,8 @@ router.get('/investor-summary', authenticate, requireAdmin, getInvestorSummary);
 router.get('/me', authenticate, requirePaymentsEnabled, getMyPayments);
 router.post('/intent', authenticate, requireEmailVerified, requireTermsAcceptance, requirePaymentsEnabled, checkRestrictions('checkout'), paymentsLimiter, createPaymentIntent);
 router.post('/capture', authenticate, requireEmailVerified, requireTermsAcceptance, requirePaymentsEnabled, checkRestrictions('checkout'), paymentsLimiter, capturePayment);
-router.post('/refund', authenticate, requirePaymentsEnabled, checkRestrictions('checkout'), paymentsLimiter, requireAdmin, requirePermission('issue_refunds'), refundPayment);
+// ADM-040: impersonated sessions cannot issue refunds.
+router.post('/refund', authenticate, requirePaymentsEnabled, checkRestrictions('checkout'), paymentsLimiter, requireAdmin, rejectImpersonated, requirePermission('issue_refunds'), refundPayment);
 router.get('/job/:job_id', authenticate, requirePaymentsEnabled, getJobPayment);
 
 // Route-local JSON error handler for consistent API responses when this router

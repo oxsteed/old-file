@@ -12,8 +12,34 @@ export default function OrderDetailModal({ order, onClose, onRefresh }) {
   const [showRefund, setShowRefund] = useState(false);
   const [trackingNumber, setTrackingNumber] = useState('');
   const [refundReason, setRefundReason] = useState('');
-  const [refundAmount, setRefundAmount] = useState(order.totalCents);
+  // ADM-009: keep the raw input as a string so a cleared field is
+  // distinguishable from a zero amount. NaN/empty is rejected with an
+  // explicit error and never submitted (NaN serializes to null over JSON,
+  // which the server used to interpret as a silent FULL refund).
+  const [refundAmountInput, setRefundAmountInput] = useState(
+    order.totalCents != null ? (order.totalCents / 100).toFixed(2) : ''
+  );
+  const [refundAmountError, setRefundAmountError] = useState('');
   const refundIdempotencyKeysRef = useRef(createStableIdempotencyKeyStore());
+
+  // Parse the refund amount input into whole cents. Returns { ok, cents }.
+  const parseRefundAmountCents = (raw) => {
+    const trimmed = String(raw ?? '').trim();
+    if (!trimmed || !/^\d+(\.\d{1,2})?$/.test(trimmed)) return { ok: false };
+    const cents = Math.round(parseFloat(trimmed) * 100);
+    if (!Number.isSafeInteger(cents) || cents <= 0) return { ok: false };
+    return { ok: true, cents };
+  };
+
+  const submitRefund = () => {
+    const parsed = parseRefundAmountCents(refundAmountInput);
+    if (!parsed.ok) {
+      setRefundAmountError(t('adminOrderDetail.refundAmountInvalid'));
+      return;
+    }
+    setRefundAmountError('');
+    refundMutation.mutate({ reason: refundReason, amountCents: parsed.cents });
+  };
 
   // Fetch full order details
   const { data: fullOrder, isLoading } = useQuery({
@@ -51,19 +77,24 @@ export default function OrderDetailModal({ order, onClose, onRefresh }) {
         amountCents,
       };
       const idempotencyKey = refundIdempotencyKeysRef.current.get('marketplace-refund', keyPayload);
-      await api.post(`/admin/orders/${order.id}/refund`, {
+      const { data } = await api.post(`/admin/orders/${order.id}/refund`, {
         reason,
         refundAmount: amountCents,
       }, {
         headers: { 'Idempotency-Key': idempotencyKey },
       });
-      return { keyPayload };
+      return { keyPayload, data };
     },
-    onSuccess: (_result, variables) => {
+    onSuccess: (result, variables) => {
       refundIdempotencyKeysRef.current.clear('marketplace-refund', variables.keyPayload);
       setShowRefund(false);
       setRefundReason('');
-      toast.success(t('adminOrderDetail.refundProcessed'));
+      // ADM-016: above-threshold refunds queue for a second admin (202).
+      if (result?.data?.code === 'money_movement_pending_approval') {
+        toast.success(t('adminOrderDetail.refundPendingApproval'));
+      } else {
+        toast.success(t('adminOrderDetail.refundProcessed'));
+      }
       onRefresh();
     },
     onError: (error) => {
@@ -261,7 +292,10 @@ export default function OrderDetailModal({ order, onClose, onRefresh }) {
 
         {activeTab === 'actions' && (
           <div className="space-y-4">
-            {!d.shipping?.trackingNumber && d.status !== 'cancelled' && d.status !== 'refunded' && (
+            {/* ADM-063: only paid (or already-processing, for tracking updates)
+                orders can be marked shipped. Unpaid, completed, cancelled
+                and refunded orders are rejected server-side with 409. */}
+            {!d.shipping?.trackingNumber && ['paid', 'processing'].includes(d.status) && (
               <div className="p-4 bg-blue-50 dark:bg-blue-900 rounded-lg">
                 {!showMarkShipped ? (
                   <button
@@ -317,11 +351,15 @@ export default function OrderDetailModal({ order, onClose, onRefresh }) {
                       <label className="block text-sm font-medium mb-1">{t('adminOrderDetail.refundAmount')}</label>
                       <input
                         type="number"
-                        value={refundAmount / 100}
-                        onChange={(e) => setRefundAmount(Math.round(parseFloat(e.target.value) * 100))}
+                        value={refundAmountInput}
+                        onChange={(e) => { setRefundAmountInput(e.target.value); setRefundAmountError(''); }}
                         step="0.01"
+                        min="0.01"
                         className="w-full rounded border border-gray-300 px-3 py-2 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                       />
+                      {refundAmountError && (
+                        <p className="mt-1 text-sm text-red-600 dark:text-red-400">{refundAmountError}</p>
+                      )}
                     </div>
                     <div>
                       <label className="block text-sm font-medium mb-1">{t('adminOrderDetail.reason')}</label>
@@ -335,7 +373,7 @@ export default function OrderDetailModal({ order, onClose, onRefresh }) {
                     </div>
                     <div className="flex gap-2">
                       <button
-                        onClick={() => refundMutation.mutate({ reason: refundReason, amountCents: refundAmount })}
+                        onClick={submitRefund}
                         disabled={!refundReason || refundMutation.isPending}
                         className="flex-1 rounded bg-orange-600 px-4 py-2 text-white hover:bg-orange-700 disabled:opacity-50 font-medium"
                       >

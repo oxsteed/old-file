@@ -730,8 +730,9 @@
         "reasonPlaceholder": "Razón del reembolso…",
         "stepupPrompt": "Se envio un codigo de verificacion a tu correo. Ingresalo para autorizar este reembolso:",
         "stepupFailed": "No se pudo emitir un desafio de verificacion. El reembolso no fue procesado.",
-        "stepupRequired": "Se requiere un codigo de verificacion para emitir el reembolso."
-      },
+        "stepupRequired": "Se requiere un codigo de verificacion para emitir el reembolso.",
+          "pendingApproval": "Reembolso en cola para la aprobación de un segundo administrador. Aún no se han movido fondos."
+          },
       "delete": {
         "title": "Eliminar trabajo permanentemente",
         "description": "Esto no se puede deshacer. Se eliminarán todas las ofertas y datos asociados.",
@@ -24696,6 +24697,7 @@
     "confirmRevokeTitle": "Revocar aceptación"
   },
   "adminNav": {
+    "moneyApprovals": "Aprobaciones de dinero",
     "adminAccounts": "Cuentas de administrador",
     "auditLog": "Registro de auditoría",
     "businessLaunch": "Lanzamiento de negocio",
@@ -28037,10 +28039,44 @@
     "processRefund": "Procesar reembolso",
     "refundAmount": "Importe del reembolso",
     "refundAmountInvalid": "Ingrese un importe de reembolso válido mayor a $0.",
+    "refundPendingApproval": "Reembolso en cola para la aprobación de un segundo administrador. Aún no se han movido fondos.",
     "refundReasonPlaceholder": "Motivo del reembolso...",
     "processing": "Procesando...",
     "cancelOrder": "Cancelar pedido",
     "cancelling": "Cancelando..."
+  },
+  "adminMoneyApprovals": {
+    "title": "Aprobaciones de dinero",
+    "subtitle": "Los movimientos de dinero por encima del umbral esperan aquí a un segundo administrador. Nada se mueve hasta su aprobación.",
+    "loading": "Cargando aprobaciones pendientes...",
+    "empty": "No hay movimientos de dinero esperando aprobación.",
+    "refresh": "Actualizar",
+    "type": "Tipo",
+    "reference": "Referencia",
+    "amount": "Importe",
+    "requestedBy": "Solicitado por",
+    "requestedAt": "Solicitado el",
+    "actions": "Acciones",
+    "approve": "Aprobar",
+    "reject": "Rechazar",
+    "ownRequest": "tu solicitud",
+    "cannotApproveOwn": "No puedes aprobar tu propia solicitud. Otro administrador debe aprobarla.",
+    "stepupPrompt": "Ingrese el código de verificación enviado para aprobar este movimiento de dinero:",
+    "stepupFailed": "No se pudo iniciar la verificación. Inténtelo de nuevo.",
+    "stepupRequired": "Se requiere un código de verificación para aprobar.",
+    "approved": "Movimiento de dinero aprobado y ejecutado.",
+    "rejected": "Movimiento de dinero rechazado.",
+    "approveFailed": "La aprobación falló.",
+    "rejectFailed": "El rechazo falló.",
+    "rejectReasonPrompt": "Motivo del rechazo de este movimiento de dinero:",
+    "rejectReasonRequired": "Se requiere un motivo para rechazar.",
+    "loadFailed": "No se pudieron cargar las aprobaciones pendientes.",
+    "thresholdNote": "Los movimientos iguales o superiores al umbral de aprobación doble (predeterminado $500, ajustable con money_dual_approval_threshold_cents) requieren dos administradores. El umbral exacto está sujeto a confirmación.",
+    "typeJobRefund": "Reembolso de trabajo",
+    "typeMarketplaceRefund": "Reembolso de marketplace",
+    "typeDisputeRefund": "Reembolso de disputa",
+    "typeRestaurantPayout": "Pago a restaurante",
+    "typeAffiliatePayout": "Pago de afiliado"
   },
   "adminOrderFilters": {
     "searchOrders": "Buscar pedidos",
@@ -30494,6 +30530,7 @@
     },
     "stepupFailed": "No se pudo emitir un desafío de verificación.",
     "stepupPrompt": "Se envió un código de verificación a tu correo electrónico. Introdúcelo para aprobar este pago:",
+    "pendingApproval": "Pago en cola para la aprobación de un segundo administrador. No se han movido fondos.",
     "stepupRequired": "Se requiere un código de verificación para aprobar el pago."
   },
   "statementOps": {

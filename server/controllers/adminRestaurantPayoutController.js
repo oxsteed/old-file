@@ -38,10 +38,39 @@ exports.approve = async (req, res, next) => {
       actionType: 'restaurant_payout_approve',
       code: req.body?.stepupCode || req.body?.stepup_code,
     });
+    // ADM-016: above-threshold payouts queue for a second admin instead of
+    // moving money on this single approval. The amount is read here so the
+    // gate can decide before approvePayout journals anything.
+    const { rows: amountRows } = await db.query(
+      'SELECT amount_cents, currency_code FROM restaurant_payouts WHERE id = $1',
+      [req.params.payoutId]
+    );
+    if (!amountRows.length) {
+      throw new AppError('Payout not found', 404, 'payout_not_found');
+    }
+    const { requestMoneyMovementApproval } = require('../services/dualApprovalService');
+    const { sendMoneyMovementGateResult } = require('../utils/dualApprovalHttp');
+    const reviewNote = req.body.reviewNote || req.body.review_note;
+    const gate = await requestMoneyMovementApproval({
+      movementType: 'restaurant_payout',
+      referenceKey: `restaurant-payout:${req.params.payoutId}`,
+      amountCents: Number(amountRows[0].amount_cents),
+      currencyCode: amountRows[0].currency_code || 'USD',
+      requestedBy: req.user.id,
+      idempotencyKey: req.get('Idempotency-Key') || req.body?.idempotencyKey || `restaurant-payout-approve-${req.params.payoutId}`,
+      payload: {
+        payoutId: req.params.payoutId,
+        reviewNote: reviewNote || null,
+        makerAdminId: req.user.id,
+      },
+    });
+    if (gate.queued) {
+      return sendMoneyMovementGateResult(res, gate);
+    }
     const payout = await payoutService.approvePayout({
       payoutId: req.params.payoutId,
       adminUserId: req.user.id,
-      reviewNote: req.body.reviewNote || req.body.review_note,
+      reviewNote,
     });
     res.json({ payout });
   } catch (err) {

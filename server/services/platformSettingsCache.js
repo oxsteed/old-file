@@ -58,5 +58,6 @@ module.exports = {
   isMaintenanceMode,
   areNewUserRegistrationsEnabled,
   parseBooleanSetting,
+  readSettingRaw,
   _clearCacheForTests,
 };

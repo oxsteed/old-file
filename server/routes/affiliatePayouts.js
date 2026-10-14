@@ -3,6 +3,7 @@ const router = express.Router();
 const { requireAuth } = require('../middleware/auth');
 const { requireAdmin, requirePermission } = require('../middleware/adminAuth');
 const { strictLimiter } = require('../middleware/rateLimiter');
+const { rejectImpersonated } = require('../middleware/rejectImpersonated');
 const { requireFeatureEnabled } = require('../middleware/featureFlags');
 const affiliatePayoutsController = require('../controllers/affiliatePayoutsController');
 const AffiliateAnalyticsController = require('../controllers/AffiliateAnalyticsController');
@@ -19,9 +20,11 @@ router.get('/schedule', requireAuth, affiliatePayoutsController.getPayoutsSchedu
 router.post('/calculate', strictLimiter, requireAuth, affiliatePayoutsController.calculateAndCreatePayout);
 // Review P3-787: processing moves real money, so it is an admin action with
 // the financials grant, rate-limited and audited.
+// ADM-040: processing moves real money; impersonated sessions are blocked.
 router.post(
   '/:payoutId/process',
   requireAdmin,
+  rejectImpersonated,
   requirePermission('view_financials'),
   strictLimiter,
   affiliatePayoutsController.processPayout

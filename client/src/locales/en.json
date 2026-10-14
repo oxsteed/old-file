@@ -730,8 +730,9 @@
         "reasonPlaceholder": "Reason for refund…",
         "stepupPrompt": "A verification code was sent to your email. Enter it to authorize this refund:",
         "stepupFailed": "Could not issue a verification challenge. The refund was not processed.",
-        "stepupRequired": "A verification code is required to issue the refund."
-      },
+        "stepupRequired": "A verification code is required to issue the refund.",
+          "pendingApproval": "Refund queued for second-admin approval (dual approval). No funds have moved yet."
+          },
       "delete": {
         "title": "Permanently Delete Job",
         "description": "This cannot be undone. All associated bids and data will be removed.",
@@ -24696,6 +24697,7 @@
     "confirmRevokeTitle": "Revoke Acceptance"
   },
   "adminNav": {
+    "moneyApprovals": "Money approvals",
     "adminAccounts": "Admin Accounts",
     "auditLog": "Audit Log",
     "businessLaunch": "Business Launch",
@@ -28037,10 +28039,44 @@
     "processRefund": "Process Refund",
     "refundAmount": "Refund Amount",
     "refundAmountInvalid": "Enter a valid refund amount greater than $0.",
+    "refundPendingApproval": "Refund queued for second-admin approval (dual approval). No funds have moved yet.",
     "refundReasonPlaceholder": "Reason for refund...",
     "processing": "Processing...",
     "cancelOrder": "Cancel Order",
     "cancelling": "Cancelling..."
+  },
+  "adminMoneyApprovals": {
+    "title": "Money approvals",
+    "subtitle": "Above-threshold money movements wait here for a second admin. Nothing moves until approved.",
+    "loading": "Loading pending approvals...",
+    "empty": "No money movements are waiting for approval.",
+    "refresh": "Refresh",
+    "type": "Type",
+    "reference": "Reference",
+    "amount": "Amount",
+    "requestedBy": "Requested by",
+    "requestedAt": "Requested at",
+    "actions": "Actions",
+    "approve": "Approve",
+    "reject": "Reject",
+    "ownRequest": "your request",
+    "cannotApproveOwn": "You cannot approve your own request. A different admin must approve it.",
+    "stepupPrompt": "Enter the verification code sent to you to approve this money movement:",
+    "stepupFailed": "Could not start verification. Please try again.",
+    "stepupRequired": "A verification code is required to approve.",
+    "approved": "Money movement approved and executed.",
+    "rejected": "Money movement rejected.",
+    "approveFailed": "Approval failed.",
+    "rejectFailed": "Rejection failed.",
+    "rejectReasonPrompt": "Reason for rejecting this money movement:",
+    "rejectReasonRequired": "A reason is required to reject.",
+    "loadFailed": "Could not load pending approvals.",
+    "thresholdNote": "Movements at or above the dual-approval threshold (default $500, tunable via the money_dual_approval_threshold_cents setting) require two admins. The exact threshold is subject to confirmation.",
+    "typeJobRefund": "Job refund",
+    "typeMarketplaceRefund": "Marketplace refund",
+    "typeDisputeRefund": "Dispute refund",
+    "typeRestaurantPayout": "Restaurant payout",
+    "typeAffiliatePayout": "Affiliate payout"
   },
   "adminOrderFilters": {
     "searchOrders": "Search Orders",
@@ -30494,6 +30530,7 @@
     },
     "stepupFailed": "Could not issue a verification challenge.",
     "stepupPrompt": "A verification code was sent to your email. Enter it to approve this payout:",
+    "pendingApproval": "Payout queued for second-admin approval (dual approval). No funds have moved.",
     "stepupRequired": "A verification code is required to approve the payout."
   },
   "statementOps": {

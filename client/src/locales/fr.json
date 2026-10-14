@@ -730,8 +730,9 @@
         "reasonPlaceholder": "Raison du remboursement…",
         "stepupPrompt": "Un code de verification a ete envoye a votre e-mail. Saisissez-le pour autoriser ce remboursement :",
         "stepupFailed": "Impossible d'emettre un defi de verification. Le remboursement n'a pas ete traite.",
-        "stepupRequired": "Un code de verification est requis pour emettre le remboursement."
-      },
+        "stepupRequired": "Un code de verification est requis pour emettre le remboursement.",
+          "pendingApproval": "Remboursement en attente d'approbation par un second administrateur. Aucun fonds n'a encore bougé."
+          },
       "delete": {
         "title": "Supprimer définitivement la mission",
         "description": "Cette action est irréversible. Toutes les offres et données associées seront supprimées.",
@@ -24697,6 +24698,7 @@
     "confirmRevokeTitle": "Révoquer l'acceptation"
   },
   "adminNav": {
+    "moneyApprovals": "Approbations monétaires",
     "adminAccounts": "Comptes admin",
     "auditLog": "Journal d’audit",
     "businessLaunch": "Lancement d’entreprise",
@@ -28038,10 +28040,44 @@
     "processRefund": "Traiter le remboursement",
     "refundAmount": "Montant du remboursement",
     "refundAmountInvalid": "Saisissez un montant de remboursement valide supérieur à 0 $.",
+    "refundPendingApproval": "Remboursement en attente d'approbation par un second administrateur. Aucun fonds n'a encore bougé.",
     "refundReasonPlaceholder": "Motif du remboursement...",
     "processing": "Traitement...",
     "cancelOrder": "Annuler la commande",
     "cancelling": "Annulation..."
+  },
+  "adminMoneyApprovals": {
+    "title": "Approbations monétaires",
+    "subtitle": "Les mouvements de fonds atteignant le seuil attendent ici un second administrateur. Rien ne bouge avant approbation.",
+    "loading": "Chargement des approbations en attente...",
+    "empty": "Aucun mouvement de fonds en attente d'approbation.",
+    "refresh": "Actualiser",
+    "type": "Type",
+    "reference": "Référence",
+    "amount": "Montant",
+    "requestedBy": "Demandé par",
+    "requestedAt": "Demandé le",
+    "actions": "Actions",
+    "approve": "Approuver",
+    "reject": "Rejeter",
+    "ownRequest": "votre demande",
+    "cannotApproveOwn": "Vous ne pouvez pas approuver votre propre demande. Un autre administrateur doit l'approuver.",
+    "stepupPrompt": "Saisissez le code de vérification envoyé pour approuver ce mouvement de fonds :",
+    "stepupFailed": "Impossible de démarrer la vérification. Veuillez réessayer.",
+    "stepupRequired": "Un code de vérification est requis pour approuver.",
+    "approved": "Mouvement de fonds approuvé et exécuté.",
+    "rejected": "Mouvement de fonds rejeté.",
+    "approveFailed": "L'approbation a échoué.",
+    "rejectFailed": "Le rejet a échoué.",
+    "rejectReasonPrompt": "Motif du rejet de ce mouvement de fonds :",
+    "rejectReasonRequired": "Un motif est requis pour rejeter.",
+    "loadFailed": "Impossible de charger les approbations en attente.",
+    "thresholdNote": "Les mouvements atteignant le seuil d'approbation double (500 $ par défaut, réglable via money_dual_approval_threshold_cents) exigent deux administrateurs. Le seuil exact doit être confirmé.",
+    "typeJobRefund": "Remboursement de mission",
+    "typeMarketplaceRefund": "Remboursement marketplace",
+    "typeDisputeRefund": "Remboursement de litige",
+    "typeRestaurantPayout": "Paiement au restaurant",
+    "typeAffiliatePayout": "Paiement d'affilié"
   },
   "adminOrderFilters": {
     "searchOrders": "Rechercher des commandes",
@@ -30495,6 +30531,7 @@
     },
     "stepupFailed": "Impossible d'émettre un défi de vérification.",
     "stepupPrompt": "Un code de vérification a été envoyé à votre adresse e-mail. Saisissez-le pour approuver ce paiement :",
+    "pendingApproval": "Paiement en attente d'approbation par un second administrateur. Aucun fonds n'a bougé.",
     "stepupRequired": "Un code de vérification est requis pour approuver le paiement."
   },
   "statementOps": {

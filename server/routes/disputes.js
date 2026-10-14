@@ -1,6 +1,7 @@
 const router      = require('express').Router();
 const { authenticate } = require('../middleware/auth');
 const { requireAdmin, requirePermission } = require('../middleware/adminAuth');
+const { rejectImpersonated } = require('../middleware/rejectImpersonated');
 const disputeCtrl = require('../controllers/disputeController');
 const adminDisputeCtrl = require('../controllers/disputeAdminController');
 const upload      = require('../middleware/upload');
@@ -47,9 +48,12 @@ router.post('/admin/:disputeId/reopen',
   adminDisputeCtrl.reopenDispute
 );
 
+// ADM-040: resolving with a refund moves money via Stripe; impersonated
+// sessions are blocked.
 router.post('/admin/:disputeId/resolve',
   authenticate,
   requireAdmin,
+  rejectImpersonated,
   requirePermission('issue_refunds'),
   adminDisputeCtrl.resolveDispute
 );

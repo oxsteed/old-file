@@ -37,6 +37,8 @@ const ModeApprovals = lazyWithRetry(() => import('./pages/super/ModeApprovals'))
 const GovernancePage = lazyWithRetry(() => import('./pages/super/workspaces/GovernancePage'));
 const Revenue = lazyWithRetry(() => import('./pages/super/Revenue'));
 const MoneyPage = lazyWithRetry(() => import('./pages/super/MoneyPage'));
+// ADM-016: dual-approval queue for above-threshold money movements.
+const MoneyApprovals = lazyWithRetry(() => import('./pages/super/MoneyApprovals'));
 const Payouts = lazyWithRetry(() => import('./pages/super/Payouts'));
 const RestaurantPayouts = lazyWithRetry(() => import('./pages/super/RestaurantPayouts'));
 const TreasuryPage = lazyWithRetry(() => import('./pages/super/workspaces/TreasuryPage'));
@@ -330,6 +332,9 @@ export default function AdminApp() {
           } />
           <Route path={adminRoute('money').relative} element={
             <GrantGuard grant={adminRoute('money').grant}><MoneyPage /></GrantGuard>
+          } />
+          <Route path={adminRoute('moneyApprovals').relative} element={
+            <GrantGuard grants={['manage_financials', 'issue_refunds']}><MoneyApprovals /></GrantGuard>
           } />
           <Route path={adminRoute('restaurantCredit').relative} element={
             <AdminGuard superOnly={adminRoute('restaurantCredit').superOnly}><RestaurantCreditAdmin /></AdminGuard>

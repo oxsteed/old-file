@@ -124,6 +124,8 @@ export default function JobDetail() {
   const [modalReason, setModalReason] = useState('');
   const [modalErr,    setModalErr]    = useState('');
   const [modalBusy,   setModalBusy]   = useState(false);
+  // ADM-016: above-threshold refunds queue for a second admin (202).
+  const [refundNotice, setRefundNotice] = useState('');
 
   // Abortable detail load.
   const { data, error, loading, reload } = useAbortableFetch(async (signal) => {
@@ -182,11 +184,21 @@ export default function JobDetail() {
     if (!challengeId) throw new Error(t('adminJobDetail.modals.refund.stepupFailed'));
     const code = window.prompt(t('adminJobDetail.modals.refund.stepupPrompt'));
     if (!code || !code.trim()) throw new Error(t('adminJobDetail.modals.refund.stepupRequired'));
-    await adminApi.post(`/admin/jobs/${jobId}/refund`, {
+    // ADM-009: this flow is always a full refund of the remaining balance;
+    // declare it explicitly. The server rejects a missing amount without
+    // the flag instead of silently assuming a full refund.
+    // ADM-016: above-threshold refunds queue for a second admin (202).
+    const { data } = await adminApi.post(`/admin/jobs/${jobId}/refund`, {
       reason,
+      fullRefund: true,
       stepupChallengeId: challengeId,
       stepupCode: code.trim(),
     });
+    if (data?.code === 'money_movement_pending_approval') {
+      setRefundNotice(t('adminJobDetail.modals.refund.pendingApproval'));
+    } else {
+      setRefundNotice('');
+    }
     reload();
   };
 
@@ -219,6 +231,13 @@ export default function JobDetail() {
         className="inline-flex items-center gap-1.5 text-sm text-gray-400 hover:text-white mb-6 transition">
         <ArrowLeft size={14} /> {t('adminJobDetail.backToJobs')}
       </Link>
+
+      {/* ADM-016: refund queued for second-admin approval */}
+      {refundNotice && (
+        <div className="mb-6 rounded border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-300">
+          {refundNotice}
+        </div>
+      )}
 
       {/* Header */}
       <div className="flex flex-wrap items-start justify-between gap-4 mb-6">

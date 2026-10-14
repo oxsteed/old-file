@@ -71,13 +71,19 @@ export default function Customer360Panel({ data, loading, lifecycle = [], lifecy
   const refundPayment = (payment) => runResolutionAction({
     key: `payment-${payment.id}`,
     promptMessage: copy('resolution.refundPaymentPrompt', { defaultValue: 'Refund payment #{{id}} to the customer? Type the reason and choose OK to confirm:', id: payment.id }),
-    request: (reason) => api.post('/payments/refund', { payment_id: payment.id, reason }),
+    // ADM-009: declare the full refund explicitly; the server rejects a
+    // missing amount without the flag instead of silently assuming one.
+    request: (reason) => api.post('/payments/refund', { payment_id: payment.id, reason, fullRefund: true }),
   });
 
   const refundMarketplaceOrder = (order) => runResolutionAction({
     key: `morder-refund-${order.id}`,
     promptMessage: copy('resolution.refundOrderPrompt', { defaultValue: 'Refund marketplace order #{{id}} ({{amount}})? Type the reason and choose OK to confirm:', id: order.id, amount: formatMoney(order.total_cents) }),
-    request: (reason) => api.post(`/admin/orders/${order.id}/refund`, { reason }),
+    // ADM-009: explicit full refund + idempotency key (the endpoint
+    // requires both; without the key the request was rejected).
+    request: (reason) => api.post(`/admin/orders/${order.id}/refund`, { reason, fullRefund: true }, {
+      headers: { 'Idempotency-Key': `support-panel-${order.id}-${Date.now()}` },
+    }),
   });
 
   const cancelMarketplaceOrder = (order) => runResolutionAction({

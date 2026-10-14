@@ -12,6 +12,7 @@ const { parseBoundedPagination } = require('../utils/pagination');
 const { cancelJobTransaction, finalizeJobCancellation } = require('../services/jobCancellationService');
 const AppError = require('../utils/appError');
 const { issueStepupChallenge, verifyStepupChallenge } = require('../services/stepupChallengeService');
+const { sendMoneyMovementGateResult } = require('../utils/dualApprovalHttp');
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -1520,7 +1521,48 @@ exports.issueManualRefund = async (req, res) => {
       reason,
       actorUserId: adminId,
       requestId,
+      // ADM-016: above-threshold refunds queue for a second admin instead
+      // of moving money on this single approval.
+      dualApproval: {
+        movementType: 'job_refund',
+        referenceKey: `job:${jobId}`,
+        requestedBy: adminId,
+        idempotencyKey: req.get('Idempotency-Key') || requestId,
+        payload: {
+          jobId,
+          paymentId: payment.id,
+          amountCents: refundAmountCents,
+          fullRefund: fullRefund === true,
+          reason,
+          requestId,
+          makerAdminId: adminId,
+        },
+      },
     });
+    // ADM-016: queued for dual approval — no money moved yet.
+    if (refundResult.dualApproval) {
+      try {
+        await logAdminAction({
+          adminId,
+          action: 'manual_refund_approval_requested',
+          targetType: 'payment',
+          targetId: String(payment.id),
+          description: `Manual refund for job ${jobId} queued for second-admin approval: ${reason}`,
+          before: { captured_cents: capturedCents },
+          after: {
+            refund_cents: refundAmountCents == null ? capturedCents : refundAmountCents,
+            request_id: requestId,
+            approval_id: refundResult.dualApproval.approval.id,
+          },
+          req,
+        });
+      } catch (e) {
+        logger.error('manual_refund_approval_requested audit write failed', {
+          jobId, paymentId: payment.id, adminId, error: e.message,
+        });
+      }
+      return sendMoneyMovementGateResult(res, refundResult.dualApproval);
+    }
     if (refundResult.attempt.status !== 'succeeded') {
       return res.status(202).json({
         message: 'Refund accepted for provider reconciliation.',
