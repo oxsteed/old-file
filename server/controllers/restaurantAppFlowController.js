@@ -5040,12 +5040,12 @@ exports.recordPosPayment = async (req, res, next) => {
     // P3-3-F07: a recorded POS refund notifies the customer in-app + email.
     // Replays are deduped by the notification idempotency key; best-effort
     // so a notification outage never blocks the refund response.
-    if (paymentType === 'refund' && !result.replayed && order?.customer_id) {
+    if (paymentType === 'refund' && !result.replayed && result.order?.customer_id) {
       notifyRefundIssued({
-        userId: order.customer_id,
+        userId: result.order.customer_id,
         idempotencyKey: `pos-refund:${restaurantId}:${orderId}:${idempotencyKey || result.payment?.id || 'noref'}:issued`,
         amountCents,
-        currency: order.currency_code,
+        currency: result.order.currency_code,
         surface: 'pos_refund',
         referenceId: orderId,
         refundId: result.payment?.id || null,

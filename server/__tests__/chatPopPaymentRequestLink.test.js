@@ -225,7 +225,8 @@ describe('confirmPop closes the linked payment request', () => {
     );
     expect(closeCall).toBeDefined();
     expect(closeCall[0]).toContain("AND status = 'open'");
-    expect(closeCall[1]).toEqual([PAY_REQ_ID, 'pop-1']);
+    expect(closeCall[0]).toContain('expires_at > NOW()');
+    expect(closeCall[1]).toEqual([PAY_REQ_ID, 'pop-1', null]);
   });
 
   test('reject leaves the request open (no close)', async () => {

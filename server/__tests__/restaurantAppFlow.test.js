@@ -9,10 +9,14 @@ jest.mock('../services/socketService', () => ({
   broadcastToBusinessInbox: jest.fn(),
   broadcastToRestaurantDisplay: jest.fn(),
 }));
+jest.mock('../services/refundNotification', () => ({
+  notifyRefundIssued: jest.fn().mockResolvedValue({ notified: true }),
+}));
 
 const appFlow = require('../controllers/restaurantAppFlowController');
 const food = require('../controllers/foodController');
 const inventory = require('../controllers/restaurantInventoryController');
+const { notifyRefundIssued } = require('../services/refundNotification');
 
 const USER_ID = '00000000-0000-4000-8000-000000000123';
 const RESTAURANT_ID = 3;
@@ -129,7 +133,10 @@ function buildDeviceApp() {
   return app;
 }
 
-beforeEach(() => resetMocks());
+beforeEach(() => {
+  resetMocks();
+  notifyRefundIssued.mockClear();
+});
 
 describe('restaurant app-flow backend', () => {
   test('requires all supplied POS customer identity fields to match', async () => {
@@ -842,7 +849,7 @@ describe('restaurant app-flow backend', () => {
     expect(res.body.order.payment_status).toBe('paid');
   });
 
-  test('records direct-payment alias and manual refund through ledger-backed POS endpoints', async () => {
+  test.each([null, '00000000-0000-4000-8000-000000000456'])('records direct-payment alias and manual refund for customer %s', async (customerId) => {
     mockQuery
       .mockResolvedValueOnce({ rows: [accessRow()] })
       .mockResolvedValueOnce({
@@ -887,7 +894,7 @@ describe('restaurant app-flow backend', () => {
       .mockResolvedValueOnce({ rows: [{ id: 602, amount_cents: 300, payment_type: 'refund' }] })
       .mockResolvedValueOnce({ rows: [{ id: ORDER_ID, total_cents: 1200, payment_status: 'paid', pos_ticket_state: 'closed' }] })
       .mockResolvedValueOnce({ rows: [{ paid_cents: 1200, refunded_cents: 300, pending_payments: 0 }] })
-      .mockResolvedValueOnce({ rows: [{ id: ORDER_ID, payment_status: 'unpaid', pos_ticket_state: 'open' }] });
+      .mockResolvedValueOnce({ rows: [{ id: ORDER_ID, payment_status: 'unpaid', pos_ticket_state: 'open', customer_id: customerId, currency_code: 'USD' }] });
 
     const refundRes = await request(buildApp())
       .post(`/api/restaurants/${RESTAURANT_ID}/pos/orders/${ORDER_ID}/refund`)
@@ -897,6 +904,15 @@ describe('restaurant app-flow backend', () => {
     expect(refundRes.status).toBe(201);
     expect(refundRes.body.payment.payment_type).toBe('refund');
     expect(mockQuery.mock.calls.some(([, params]) => JSON.stringify(params).includes('payment_refunded'))).toBe(true);
+    if (customerId) {
+      expect(notifyRefundIssued).toHaveBeenCalledTimes(1);
+      expect(notifyRefundIssued).toHaveBeenCalledWith(expect.objectContaining({
+        userId: customerId, amountCents: 300, currency: 'USD',
+        idempotencyKey: `pos-refund:${RESTAURANT_ID}:${ORDER_ID}:refund-guest-adjustment-1:issued`,
+      }));
+    } else {
+      expect(notifyRefundIssued).not.toHaveBeenCalled();
+    }
   });
 
   test('requires an idempotency key for manual POS refunds', async () => {

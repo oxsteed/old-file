@@ -1,6 +1,7 @@
 'use strict';
 const { mockQuery, resetMocks } = require('./setup');
 jest.mock('../services/notificationService', () => ({ sendNotification: jest.fn().mockResolvedValue({ success: true }) }));
+jest.mock('../services/auditService', () => ({ logAdminAction: jest.fn().mockResolvedValue(undefined) }));
 jest.mock('../services/localDeliveryPaymentService', () => ({ handleStripeEvent: jest.fn().mockResolvedValue({ handled: false }) }));
 jest.mock('../controllers/verificationController', () => ({ recalculateBadges: jest.fn().mockResolvedValue(true) }));
 jest.mock('../services/restaurantInventoryOrderService', () => ({ releaseInventoryForOrder: jest.fn().mockResolvedValue({}) }));
@@ -9,6 +10,7 @@ const express = require('express');
 const request = require('supertest');
 const stripe = require('stripe')();
 const { sendNotification } = require('../services/notificationService');
+const { logAdminAction } = require('../services/auditService');
 const routes = require('../routes/webhook');
 function app() { const a = express(); a.use('/api/webhooks', routes); return a; }
 function send(type, object, id = 'evt_lifecycle') {
@@ -19,7 +21,7 @@ beforeEach(() => {
   resetMocks(); jest.clearAllMocks();
   mockQuery.mockImplementation(async (sql) => {
     if (/INSERT INTO webhook_event_(receipts|watermarks)/.test(sql)) return { rows: [{ id: 90 }] };
-    if (/FROM subscriptions WHERE stripe_subscription_id/.test(sql)) return { rows: [{ user_id: 'customer', plan_id: null }] };
+    if (/FROM subscriptions\s+WHERE stripe_subscription_id/.test(sql)) return { rows: [{ id: 'subscription-row', user_id: 'customer', plan_id: null, status: 'active', cancel_at_period_end: false }] };
     if (/UPDATE food_orders/.test(sql)) return { rows: [{ id: 8, customer_id: 'food-customer', restaurant_id: 2 }] };
     return { rows: [] };
   });
@@ -37,6 +39,12 @@ test.each([
   expect(require('fs').readFileSync(require('path').resolve(__dirname, '../../client/src/App.jsx'), 'utf8')).toMatch(/Route path="\/settings"/);
   expect(sendNotification).toHaveBeenCalledTimes(1);
   expect(sendNotification).toHaveBeenCalledWith(expect.objectContaining({ userId: 'customer', type, idempotencyKey: key, action_url: '/settings' }));
+  if (event === 'customer.subscription.updated' || event === 'invoice.payment_failed') {
+    expect(logAdminAction).toHaveBeenCalledWith(expect.objectContaining({
+      action: event === 'customer.subscription.updated' ? 'subscription.updated' : 'subscription.payment_failed',
+      targetId: 'subscription-row', client: expect.any(Object), throwOnError: true,
+    }));
+  }
 });
 test('failed food-card payment waits for notification delivery before acknowledging the webhook', async () => {
   let resolve;
