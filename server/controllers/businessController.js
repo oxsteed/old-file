@@ -1108,7 +1108,7 @@ async function getBusinessAnalytics(req, res, next) {
               COALESCE(SUM(helper_payout), 0) AS revenue
             FROM payments
             WHERE payee_id = $1
-              AND status IN ('captured','released')
+              AND status = 'captured'
               AND COALESCE(captured_at, released_at) >= NOW() - INTERVAL '6 months'
             GROUP BY 1
             ORDER BY 1
@@ -1137,7 +1137,7 @@ async function getBusinessAnalytics(req, res, next) {
               COALESCE(MAX(helper_payout), 0) AS max_job_value
             FROM payments
             WHERE payee_id = $1
-              AND status IN ('captured','released')
+              AND status = 'captured'
               AND COALESCE(captured_at, released_at) >= NOW() - INTERVAL '6 months'
           `, [ownerId], [{ jobs_completed: 0, avg_job_value: 0, max_job_value: 0 }])
         : Promise.resolve({ rows: [{ jobs_completed: 0, avg_job_value: 0, max_job_value: 0 }] }),
@@ -1256,7 +1256,7 @@ async function refreshTaxEstimates(req, res) {
               SELECT COALESCE(SUM(helper_payout), 0) AS total
               FROM payments
               WHERE payee_id = $1
-                AND status IN ('captured','released')
+                AND status = 'captured'
                 AND COALESCE(captured_at, released_at) BETWEEN $2::date AND $3::date + INTERVAL '1 day'
             `, [userId, qStart, qEnd])
           : Promise.resolve({ rows: [{ total: 0 }] }),

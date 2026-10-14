@@ -54,6 +54,7 @@ const {
   hashDocument,
   reconcileRows,
   MAX_ROWS,
+  assertIssuanceGraceElapsed,
 } = require('./creditStatementService');
 
 const PRODUCTS = ['restaurant_settlement', 'helper_earnings', 'business'];
@@ -738,6 +739,16 @@ async function buildStatement(client, requesterId, options) {
       }
       return saved.document;
     }
+  }
+
+  // P2-5-F04 (fail closed): monthly statement builds archive the monthly
+  // original, so they honor the same 72h grace window as the operator
+  // issuance plane (and as the credit statement path). Building earlier would
+  // freeze the period before late-posting journal entries settle. Archived
+  // reads above already returned, and rederive is an explicit admin rebuild
+  // of an already-issued period, so neither is gated here.
+  if (period.kind === 'monthly' && !rederive) {
+    assertIssuanceGraceElapsed(period.to, new Date(now));
   }
 
   const builder = product === 'restaurant_settlement' ? buildRestaurantSettlement

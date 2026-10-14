@@ -66,4 +66,43 @@ describe('admin passkey controls', () => {
     expect(res.status).toHaveBeenCalledWith(401);
     expect(mockQuery).not.toHaveBeenCalled();
   });
+
+  test('verifyRegistration resolves the admin from the users table (no admin_users dead end, P1-1-F02)', async () => {
+    const bcrypt = require('bcrypt');
+    const { verifyRegistrationResponse } = require('@simplewebauthn/server');
+    const passwordHash = await bcrypt.hash('AdminPass123!', 4);
+    verifyRegistrationResponse.mockResolvedValueOnce({
+      verified: true,
+      registrationInfo: {
+        credential: { publicKey: new Uint8Array([1, 2, 3]), counter: 0 },
+        aaguid: 'test-aaguid',
+      },
+    });
+    const clientData = Buffer.from(JSON.stringify({ challenge: 'c' })).toString('base64url');
+    const responseBody = { id: 'cred-1', response: { clientDataJSON: clientData, transports: [] } };
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ id: ADMIN_ID, email: 'admin@example.com', first_name: 'Admin', last_name: 'User', role: 'super_admin', is_active: true, totp_enabled: true }] })
+      .mockResolvedValueOnce({ rows: [{ password_hash: passwordHash }] })
+      .mockResolvedValueOnce({ rows: [{ challenge: 'c' }] })
+      .mockResolvedValueOnce({ rows: [{ challenge: 'c' }] })
+      .mockResolvedValueOnce({ rows: [], rowCount: 0 })
+      .mockResolvedValueOnce({ rows: [], rowCount: 1 });
+    const res = response();
+    const req = {
+      user: { id: ADMIN_ID },
+      body: { response: responseBody, deviceName: 'MacBook', password: 'AdminPass123!' },
+      headers: {},
+      ip: '127.0.0.1',
+    };
+
+    await controller.verifyRegistration(req, res, jest.fn());
+
+    expect(res.status).toHaveBeenCalledWith(201);
+    const adminLookup = mockQuery.mock.calls[0][0];
+    expect(adminLookup).toContain('FROM users');
+    expect(adminLookup).toContain("role IN ('admin', 'super_admin')");
+    expect(mockQuery.mock.calls.some(([sql]) => String(sql).includes('admin_users'))).toBe(false);
+    const insert = mockQuery.mock.calls.find(([sql]) => String(sql).includes('INSERT INTO admin_passkeys'))?.[0];
+    expect(insert).toBeTruthy();
+  });
 });

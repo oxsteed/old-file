@@ -746,21 +746,57 @@ exports.updateQuoteRequestAdmin = async (req, res) => {
             calendarBlock: item,
           });
         }
-        const conflict = await db.query(
-          `SELECT id, first_name, last_name, scheduled_start_at, scheduled_end_at, assigned_to
-             FROM quote_requests
-            WHERE id <> $1
-              AND COALESCE(metadata->>'flow', 'direct') = 'direct'
-              AND status NOT IN ('cancelled', 'closed', 'completed')
-              AND assigned_to IS NOT DISTINCT FROM $4::uuid
-              AND scheduled_start_at IS NOT NULL
-              AND scheduled_end_at IS NOT NULL
-              AND scheduled_start_at < $3
-              AND scheduled_end_at > $2
-            ORDER BY scheduled_start_at ASC
-            LIMIT 1`,
-          [id, effectiveStart, effectiveEnd, effectiveAssignee]
+        // Review P1-4-F02: when the admin explicitly (re)assigns the request,
+        // rebuild the crew junction to the new assignment BEFORE the
+        // conflict check and the request UPDATE. The PATCH only takes a
+        // single assignee, so stale junction rows would otherwise
+        // phantom-block capacity (or let removed crew stay double-booked)
+        // in the full-crew guards below and in the DB trigger.
+        if (assignmentProvided) {
+          if (assignedTo) {
+            await db.query('DELETE FROM quote_request_crew WHERE quote_request_id = $1', [id]);
+            await db.query(
+              `INSERT INTO quote_request_crew (quote_request_id, user_id)
+               VALUES ($1, $2::uuid) ON CONFLICT DO NOTHING`,
+              [id, assignedTo]
+            );
+          } else {
+            await db.query('DELETE FROM quote_request_crew WHERE quote_request_id = $1', [id]);
+          }
+        }
+        // Review P1-4-F02: the conflict check must cover the request's full
+        // crew (quote_request_crew), not just the lead assignee, or an admin
+        // reschedule can double-book crew members 2..N.
+        const { rows: crewRows } = await db.query(
+          'SELECT user_id FROM quote_request_crew WHERE quote_request_id = $1',
+          [id]
         );
+        const crewIds = new Set();
+        if (effectiveAssignee) crewIds.add(String(effectiveAssignee));
+        for (const row of crewRows) {
+          if (row.user_id) crewIds.add(String(row.user_id));
+        }
+        const crew = [...crewIds];
+        const conflict = crew.length
+          ? await db.query(
+            `SELECT id, first_name, last_name, scheduled_start_at, scheduled_end_at, assigned_to
+               FROM quote_requests
+              WHERE id <> $1
+                AND COALESCE(metadata->>'flow', 'direct') = 'direct'
+                AND status NOT IN ('cancelled', 'closed', 'completed')
+                AND (assigned_to = ANY($4::uuid[])
+                     OR EXISTS (SELECT 1 FROM quote_request_crew c
+                                 WHERE c.quote_request_id = quote_requests.id
+                                   AND c.user_id = ANY($4::uuid[])))
+                AND scheduled_start_at IS NOT NULL
+                AND scheduled_end_at IS NOT NULL
+                AND scheduled_start_at < $3
+                AND scheduled_end_at > $2
+              ORDER BY scheduled_start_at ASC
+              LIMIT 1`,
+            [id, effectiveStart, effectiveEnd, crew]
+          )
+          : { rows: [] };
         if (conflict.rows.length) {
           const item = conflict.rows[0];
           return res.status(409).json({

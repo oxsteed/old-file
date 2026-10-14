@@ -38,9 +38,9 @@ test('granted business roles use workspace navigation; support and admin retain 
 });
 test('Account keeps personal tasks and permission-gated support out of the primary row', () => {
   const customer = navbarNavigation({ default_mode: 'customer' });
-  assert.deepEqual(customer.account.map(item => item.id), ['dashboard', 'foodOrders', 'settings', 'statements']);
+  assert.deepEqual(customer.account.map(item => item.id), ['dashboard', 'foodOrders', 'settings', 'wallet', 'statements']);
   assert.equal(customer.account.some(item => item.id === 'workspace'), false);
-  assert.deepEqual(navbarNavigation({ default_mode: 'helper' }).account.map(item => item.id), ['workspace', 'settings', 'statements']);
+  assert.deepEqual(navbarNavigation({ default_mode: 'helper' }).account.map(item => item.id), ['workspace', 'settings', 'wallet', 'statements']);
   assert.equal(navbarNavigation({ default_mode: 'customer' }, { showSupportWorkspace: true }).account.at(-1).to, '/support/agent');
 });
 test('workspace URL wins over saved selection and never invents a business for new owners', () => {

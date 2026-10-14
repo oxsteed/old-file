@@ -817,7 +817,11 @@ exports.getHelperAvailableSlots = async (req, res, next) => {
 exports.getBusinessAvailableSlots = async (req, res) => {
   try {
     const businessId = Number.parseInt(req.params.businessId, 10);
-    const { date, serviceId } = req.query;
+    // Review P2-3-F08: optional staffId makes the listing staff-aware. When
+    // a staff member is chosen, the same availability_blocks predicate the
+    // booking gate and the appointment writer use is subtracted here, so the
+    // offered slots and the create-time check cannot disagree.
+    const { date, serviceId, staffId } = req.query;
     if (!Number.isInteger(businessId) || businessId <= 0) {
       return sendValidationError(res, { businessId: 'Invalid business ID' });
     }
@@ -930,6 +934,23 @@ exports.getBusinessAvailableSlots = async (req, res) => {
     );
     for (const row of blockedResult.rows) {
       busy.push({ start: row.start_time, end: row.end_time });
+    }
+    // Review P2-3-F08: when a staff member is selected, subtract their
+    // personal availability blocks with the shared predicate, so this
+    // listing agrees with enforceBookingRules and assertAppointmentWindowFree.
+    if (staffId) {
+      const staffBlocks = await pool.query(
+        `SELECT to_char(start_time, 'HH24:MI:SS') AS start_time,
+                to_char(end_time, 'HH24:MI:SS') AS end_time
+           FROM availability_blocks
+          WHERE helper_id = $1 AND type IN ('unavailable', 'busy')
+            AND end_time > $2::timestamptz
+            AND start_time < (($2::date + INTERVAL '1 day')::timestamptz)`,
+        [String(staffId), date]
+      );
+      for (const row of staffBlocks.rows) {
+        busy.push({ start: row.start_time, end: row.end_time });
+      }
     }
     const slots = [];
     for (const block of effectiveHours) {

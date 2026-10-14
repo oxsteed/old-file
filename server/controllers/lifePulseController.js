@@ -152,7 +152,7 @@ exports.getLifePulse = async (req, res) => {
         SELECT COALESCE(SUM(helper_payout), 0) AS oxsteed_income_90d
         FROM payments
         WHERE payee_id = $1
-          AND status IN ('captured', 'released')
+          AND status = 'captured'
           AND COALESCE(captured_at, released_at) >= NOW() - INTERVAL '90 days'
       `, [userId]),
 

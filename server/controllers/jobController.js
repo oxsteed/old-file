@@ -1204,6 +1204,26 @@ exports.startJob = async (req, res, next) => {
       throw new AppError('Job has expired and cannot be started', 400, 'job_expired');
     }
 
+    // Review P2-7-F01: starting work is accepting work. When the caller acts
+    // as the assigned helper (not the client), helper onboarding must be
+    // complete per DB facts (verified identity) — a customer who
+    // self-selected helper mode cannot start jobs with zero verification.
+    // Fails closed: derivation errors deny the start.
+    const callerIsHelper = String(job.assigned_helper_id) === String(req.user.id)
+      && String(job.client_id) !== String(req.user.id);
+    if (callerIsHelper) {
+      const { loadHelperOnboarding } = require('../services/helperOnboarding');
+      let onboarding = null;
+      try {
+        onboarding = await loadHelperOnboarding(req.user.id);
+      } catch (onboardingErr) {
+        onboarding = null;
+      }
+      if (!onboarding || !onboarding.complete) {
+        throw new AppError('Finish helper onboarding before starting work.', 403, 'helper_onboarding_incomplete');
+      }
+    }
+
     // Wrap state transition in transaction for atomicity
     const result = await withJobTransaction(pool, async (client) => {
       const { rows } = await client.query(`
@@ -1295,7 +1315,7 @@ async function completeJobCore({ job, jobId, asClient, actorUserId = null }) {
       // authorized, reconcile from Stripe; otherwise refuse loudly.
       if (!payRows[0]) {
         const { rows: settled } = await client.query(
-          `SELECT id FROM payments WHERE job_id = $1 AND status IN ('captured', 'released') LIMIT 1`,
+          `SELECT id FROM payments WHERE job_id = $1 AND status = 'captured' LIMIT 1`,
           [jobId],
         );
         if (!settled[0]) {
@@ -1589,6 +1609,7 @@ async function autoConfirmHelperCompletions({ limit = 50 } = {}) {
 }
 
 exports.completeJobCore = completeJobCore;
+exports.afterJobCompleted = afterJobCompleted;
 exports.autoConfirmHelperCompletions = autoConfirmHelperCompletions;
 exports.HELPER_COMPLETION_CONFIRM_HOURS = HELPER_COMPLETION_CONFIRM_HOURS;
 
@@ -1621,10 +1642,11 @@ exports.closeJob = async (req, res, next) => {
       );
     }
 
-    // Check payment status for tier-3 jobs (must be captured/released)
+    // Check payment status for tier-3 jobs (must be captured; released funds are
+    // tracked in payment_hold_status on captured rows, never in payments.status)
     const { rows: paymentRows } = await pool.query(`
       SELECT id, status FROM payments
-      WHERE job_id = $1 AND status NOT IN ('captured', 'released', 'refunded')
+      WHERE job_id = $1 AND status NOT IN ('captured', 'refunded')
     `, [id]);
 
     if (paymentRows.length > 0) {

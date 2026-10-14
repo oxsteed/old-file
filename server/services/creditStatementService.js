@@ -3,6 +3,7 @@
 const crypto = require('crypto');
 const pool = require('../db');
 const { AppError } = require('../middleware/errorHandler');
+const policy = require('./statementIssuancePolicy');
 const MAX_ROWS = 5000;
 
 function periodFor(from, to, now = new Date()) {
@@ -26,6 +27,26 @@ function periodFor(from, to, now = new Date()) {
   const startDate = new Date(start);
   const monthEnd = new Date(Date.UTC(startDate.getUTCFullYear(), startDate.getUTCMonth() + 1, 0)).toISOString().slice(0, 10);
   return { from: start, to: end, kind: start.endsWith('-01') && end === monthEnd && end < today ? 'monthly' : 'interim' };
+}
+
+/**
+ * P2-5-F04 (fail closed): on-demand monthly statement builds honor the same
+ * ISSUANCE_GRACE_HOURS window the operator control plane enforces. Building
+ * earlier would freeze the period before late-posting ledger entries settle.
+ * Interim (ad-hoc) statements are never frozen, so they are not gated.
+ * Throws AppError 409 otherwise.
+ */
+function assertIssuanceGraceElapsed(periodTo, now) {
+  const monthEnd = Date.parse(`${periodTo}T00:00:00.000Z`) + 24 * 60 * 60 * 1000;
+  const nowMs = now instanceof Date ? now.getTime() : Date.parse(String(now));
+  if (!Number.isFinite(monthEnd) || !Number.isFinite(nowMs)
+      || nowMs < monthEnd + Number(policy.ISSUANCE_GRACE_HOURS) * 60 * 60 * 1000) {
+    throw new AppError(
+      `The ${policy.ISSUANCE_GRACE_HOURS}-hour issuance grace window has not elapsed for this period; wait until late postings settle before generating the statement`,
+      409,
+      'statement_grace_not_elapsed'
+    );
+  }
 }
 
 function exactMoney(value) {
@@ -108,6 +129,13 @@ async function buildStatement(client, customerId, options) {
       }
       return saved.document;
     }
+  }
+  // P2-5-F04: monthly statement builds freeze the period, so they honor the
+  // same 72h grace window as the operator issuance plane. Archived reads
+  // above already returned, and rederive is an explicit admin rebuild of an
+  // already-issued period, so neither is gated here.
+  if (period.kind === 'monthly' && !rederive) {
+    assertIssuanceGraceElapsed(period.to, new Date(now));
   }
   // Explicit UTC boundaries, independent of the DB session's local time zone.
   const start = `${period.from}T00:00:00.000Z`;
@@ -273,4 +301,4 @@ async function materializeExportSource(client, job, { maxRows = 1000000 } = {}) 
     holdsUnavailable:true };
 }
 
-module.exports = { getStatement, periodFor, reconcileRows, exactMoney, hashDocument, MAX_ROWS, materializeExportSource };
+module.exports = { getStatement, periodFor, reconcileRows, exactMoney, hashDocument, MAX_ROWS, materializeExportSource, assertIssuanceGraceElapsed };

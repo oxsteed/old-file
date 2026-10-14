@@ -6,6 +6,7 @@ const escapeHtml = require('../utils/escapeHtml');
 const { sendEmail, sendEmailOrThrow, EmailDeliveryError } = require('../utils/email');
 const { renderOxSteedEmail } = require('../utils/emailTemplate');
 const { withTransaction } = require('../utils/transaction');
+const { sendNotification } = require('../services/notificationService'); // Review P1-4-F05
 const { uploadFile, getSignedDownloadUrl } = require('../utils/storage');
 const {
   generateLookupCode,
@@ -448,17 +449,33 @@ async function checkDirectScheduleWindow(request, startAt, endAt) {
   if (blocks[0]) {
     return { status: 409, body: { error: 'That time is not available. Please choose another time.', code: 'calendar_blocked' } };
   }
-  if (request.assigned_to) {
+  // Review P1-4-F02 / P1-4-F08: the overlap check must cover the request's
+  // full crew, not just the lead assignee. Crew members 2..N are persisted
+  // in quote_request_crew (migration 784); checking only assigned_to let a
+  // reschedule double-book the rest of the crew.
+  const crewIds = new Set();
+  if (request.assigned_to) crewIds.add(String(request.assigned_to));
+  if (request.id !== undefined && request.id !== null) {
+    const { rows: crewRows } = await db.query(
+      'SELECT user_id FROM quote_request_crew WHERE quote_request_id = $1',
+      [request.id]
+    );
+    for (const row of crewRows) {
+      if (row.user_id) crewIds.add(String(row.user_id));
+    }
+  }
+  const crew = [...crewIds];
+  if (crew.length) {
     const { rows: overlaps } = await db.query(
       `SELECT qr.id FROM quote_requests qr
         WHERE qr.id <> $1
           AND COALESCE(qr.metadata->>'flow', 'direct') = 'direct'
           AND qr.status NOT IN ('cancelled', 'closed', 'completed')
           AND qr.scheduled_start_at < $3 AND qr.scheduled_end_at > $2
-          AND (qr.assigned_to = $4::uuid
-               OR EXISTS (SELECT 1 FROM quote_request_crew c WHERE c.quote_request_id = qr.id AND c.user_id = $4::uuid))
+          AND (qr.assigned_to = ANY($4::uuid[])
+               OR EXISTS (SELECT 1 FROM quote_request_crew c WHERE c.quote_request_id = qr.id AND c.user_id = ANY($4::uuid[])))
         LIMIT 1`,
-      [request.id, start.toISOString(), end.toISOString(), request.assigned_to]
+      [request.id, start.toISOString(), end.toISOString(), crew]
     );
     if (overlaps[0]) {
       return { status: 409, body: { error: 'That time is already booked. Please choose another time.', code: 'schedule_conflict' } };
@@ -1360,6 +1377,60 @@ exports.updateAdminServiceArea = async (req, res) => {
       error: err.message || 'Failed to update Direct service area',
       code: err.code || 'service_area_update_failed',
     });
+  }
+};
+
+// Review P1-4-F01: guests submit quote requests with user_id NULL and then
+// hit 403 on every lifecycle action. A signed-in customer whose verified
+// account email matches the request's contact email can claim the request,
+// linking it as owner. New registrations auto-claim via
+// quoteRequestClaim.claimGuestQuoteRequestsForUser (see authController).
+exports.claimGuestRequest = async (req, res) => {
+  try {
+    const userId = req.user?.id;
+    const userEmail = String(req.user?.email || '').trim().toLowerCase();
+    if (!userId || !userEmail) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+    const request = await loadRequestByPublicReference(
+      req.body?.publicReference || req.body?.referenceId || req.body?.reference
+    );
+    if (!request) {
+      return res.status(404).json({ error: 'Request not found' });
+    }
+    if (request.user_id) {
+      if (String(request.user_id) === String(userId)) {
+        return res.json({ success: true, requestId: String(request.id), alreadyOwned: true });
+      }
+      // Owned by someone else: do not confirm the reference is valid.
+      return res.status(404).json({ error: 'Request not found' });
+    }
+    const requestEmail = String(request.email || '').trim().toLowerCase();
+    if (!requestEmail || requestEmail !== userEmail) {
+      return res.status(403).json({ error: 'This request was submitted with a different email address' });
+    }
+    const { rows } = await db.query(
+      `UPDATE quote_requests
+          SET user_id = $1, updated_at = NOW()
+        WHERE id = $2 AND user_id IS NULL
+        RETURNING id`,
+      [userId, request.id]
+    );
+    if (!rows.length) {
+      return res.status(409).json({ error: 'Request was already claimed' });
+    }
+    await appendEvent({
+      quoteRequestId: request.id,
+      actorUserId: userId,
+      actorRole: 'customer',
+      eventType: 'request_claimed',
+      title: 'Request claimed',
+      details: 'The customer claimed this guest request after signing in.',
+    });
+    return res.json({ success: true, requestId: String(request.id) });
+  } catch (err) {
+    logger.error('claimGuestRequest error', { error: err.message, userId: req.user?.id });
+    return res.status(500).json({ error: 'Failed to claim request' });
   }
 };
 
@@ -2920,19 +2991,54 @@ exports.bookServiceSlot = async (req, res) => {
       details: bookedDetails,
       idempotencyKey: `direct:book:customer:${booked.id}`,
     });
-    if (booked.assigned_to) {
-      const { rows: [assignee] } = await db.query('SELECT email FROM users WHERE id = $1', [booked.assigned_to]).catch(() => ({ rows: [] }));
-      await sendDirectEmail({
-        to: assignee?.email,
-        kind: 'crew',
-        requestId: booked.id,
-        subject: `New Direct booking assigned (${publicReferenceFromRow(booked) || booked.id})`,
-        eyebrow: 'NEW BOOKING',
-        title: 'A Direct visit was booked for you',
-        intro: 'A customer booked an instant Direct slot assigned to you.',
-        details: bookedDetails,
-        idempotencyKey: `direct:book:crew:${booked.id}`,
-      });
+    // Review P1-4-F05: the dispatch notice goes to every crew member, not
+    // just the lead (crew 2..N are persisted in quote_request_crew). Each
+    // member also gets an in-app/socket notification via the shared
+    // notification service. All best-effort: notification failures never
+    // fail the booking.
+    const crewIds = [...new Set(
+      [...(result.assignedCrew || []), booked.assigned_to].filter(Boolean).map(String)
+    )];
+    if (crewIds.length) {
+      const { rows: crewRows } = await db.query(
+        'SELECT id, email FROM users WHERE id = ANY($1::uuid[])',
+        [crewIds]
+      ).catch(() => ({ rows: [] }));
+      for (const member of crewRows) {
+        const memberId = String(member.id);
+        await sendDirectEmail({
+          to: member.email,
+          kind: 'crew',
+          requestId: booked.id,
+          subject: `New Direct booking assigned (${publicReferenceFromRow(booked) || booked.id})`,
+          eyebrow: 'NEW BOOKING',
+          title: 'A Direct visit was booked for you',
+          intro: 'A customer booked an instant Direct slot assigned to you.',
+          details: bookedDetails,
+          idempotencyKey: `direct:book:crew:${booked.id}:${memberId}`,
+        });
+        try {
+          await sendNotification({
+            userId: memberId,
+            type: 'direct_crew_booking',
+            title: 'New Direct booking assigned',
+            body: `A customer booked a Direct visit (${publicReferenceFromRow(booked) || booked.id}).`,
+            data: {
+              quote_request_id: String(booked.id),
+              reference: publicReferenceFromRow(booked) || String(booked.id),
+            },
+            action_url: `/direct/requests/${booked.id}`,
+            idempotencyKey: `direct:book:crew:inapp:${booked.id}:${memberId}`,
+          });
+        } catch (notifErr) {
+          logger.warn('Direct crew in-app notification failed', {
+            kind: 'crew-inapp',
+            requestId: booked.id,
+            userId: memberId,
+            error: notifErr.message,
+          });
+        }
+      }
     }
     await notifyDirectSupport(booked, {
       subject: `Direct instant booking (${publicReferenceFromRow(booked) || booked.id})`,

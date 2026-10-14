@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import {
   Building2, ToggleLeft, ToggleRight, X, Eye, Edit2, Users,
-  MessageSquare, Trash2, Flag, AlertCircle, TrendingUp
+  MessageSquare, Trash2, Flag, FlagOff, AlertCircle, TrendingUp
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { SuggestDropdown } from '../../components/SuggestDropdown';
@@ -100,9 +100,13 @@ function ReasonModal({ business, actionType, onConfirm, onClose, loading }) {
     suspend: t('adminBusinessModeration.actionSuspend', { defaultValue: 'Suspend' }),
     delete: t('adminBusinessModeration.actionDelete', { defaultValue: 'Delete' }),
     flag: t('adminBusinessModeration.actionFlag', { defaultValue: 'Flag for Review' }),
+    // P2-1-F08: catalog key exists in all five locales; no defaultValue fallback.
+    unflag: t('adminBusinessModeration.actionUnflag'),
   };
 
   const handle = () => {
+    // Clearing a flag needs no reason: it is a confirmation, not an accusation.
+    if (actionType === 'unflag') { onConfirm(''); return; }
     if (!reason.trim()) { setError(t('adminBusinessModeration.reasonRequired', { defaultValue: 'A reason is required.' })); return; }
     onConfirm(reason.trim());
   };
@@ -136,6 +140,12 @@ function ReasonModal({ business, actionType, onConfirm, onClose, loading }) {
         </div>
 
         <div className="mb-4">
+          {actionType === 'unflag' ? (
+            <p className="text-sm text-gray-300">
+              {t('adminBusinessModeration.unflagConfirm')}
+            </p>
+          ) : (
+          <>
           <label className="block text-sm font-medium text-gray-300 mb-1.5">
             {t('adminBusinessModeration.reasonLabel', { defaultValue: 'Reason' })} <span className="text-red-400">*</span>
           </label>
@@ -148,6 +158,8 @@ function ReasonModal({ business, actionType, onConfirm, onClose, loading }) {
                        p-2.5 placeholder-gray-500 focus:border-orange-500 focus:outline-none resize-none"
           />
           {error && <p className="text-red-400 text-xs mt-1">{error}</p>}
+          </>
+          )}
         </div>
 
         <div className="flex gap-3">
@@ -161,7 +173,7 @@ function ReasonModal({ business, actionType, onConfirm, onClose, loading }) {
           </button>
           <button
             onClick={handle}
-            disabled={loading || !reason.trim()}
+            disabled={loading || (actionType !== 'unflag' && !reason.trim())}
             className={`flex-1 px-4 py-2 rounded-lg text-sm font-semibold transition
                         disabled:opacity-50 disabled:cursor-not-allowed text-white
                         ${actionType === 'delete'
@@ -180,7 +192,7 @@ function ReasonModal({ business, actionType, onConfirm, onClose, loading }) {
 
 // ─── Action Menu ──────────────────────────────────────────────────────────────
 
-function ActionMenu({ business, onToggle, onSuspend, onDelete, onFlag, onViewProfile }) {
+function ActionMenu({ business, onToggle, onSuspend, onDelete, onFlag, onUnflag, onViewProfile }) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
 
@@ -216,6 +228,14 @@ function ActionMenu({ business, onToggle, onSuspend, onDelete, onFlag, onViewPro
           >
             <Flag size={14} /> {t('adminBusinessModeration.actionFlag', { defaultValue: 'Flag for Review' })}
           </button>
+          {business.admin_review_reason && (
+            <button
+              onClick={() => { onUnflag(); setOpen(false); }}
+              className="w-full text-left px-4 py-2.5 text-sm text-emerald-400 hover:bg-gray-700 flex items-center gap-2 border-b border-gray-700"
+            >
+              <FlagOff size={14} /> {t('adminBusinessModeration.actionUnflag')}
+            </button>
+          )}
           <button
             onClick={() => { onDelete(); setOpen(false); }}
             className="w-full text-left px-4 py-2.5 text-sm text-red-400 hover:bg-gray-700 flex items-center gap-2"
@@ -295,7 +315,10 @@ export default function BusinessModeration() {
         : `/admin/businesses/${modal.business.id}/${actionType}`;
 
       // T18-F01: the delete endpoint requires explicit confirmation.
-      const payload = actionType === 'delete' ? { reason, confirmed: true } : { reason };
+      // Clearing a review flag carries no payload.
+      const payload = actionType === 'delete' ? { reason, confirmed: true }
+        : actionType === 'unflag' ? {}
+        : { reason };
       await adminApi.put(endpoint, payload);
 
       setModal(null);
@@ -486,6 +509,7 @@ export default function BusinessModeration() {
                       onSuspend={() => setModal({ business: b, actionType: 'suspend' })}
                       onDelete={() => setModal({ business: b, actionType: 'delete' })}
                       onFlag={() => setModal({ business: b, actionType: 'flag' })}
+                      onUnflag={() => setModal({ business: b, actionType: 'unflag' })}
                       onViewProfile={() => navigate(`/admin/businesses/${b.id}`)}
                     />
                   </td>

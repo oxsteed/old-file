@@ -10,10 +10,21 @@ import api from '../api/axios';
 
 interface ReviewReportModalProps {
   reviewId: string | number;
+  /** Review P2-8-F18: which review surface the report targets. Selects the
+   *  matching report endpoint so job, business, food and product reviews are
+   *  all reportable from the UI. */
+  reviewType?: 'product' | 'business' | 'food' | 'job';
   isOpen: boolean;
   onClose: () => void;
   onSuccess?: () => void;
 }
+
+const REPORT_ENDPOINTS: Record<string, (id: string | number) => string> = {
+  product: (id) => `/reviews/${id}/report`,
+  business: (id) => `/business-reviews/${id}/report`,
+  food: (id) => `/food/reviews/${id}/report`,
+  job: (id) => `/job-reviews/${id}/report`,
+};
 
 const REPORT_REASONS = [
   'false_review',
@@ -26,6 +37,7 @@ const REPORT_REASONS = [
 
 const ReviewReportModal: React.FC<ReviewReportModalProps> = ({
   reviewId,
+  reviewType = 'product',
   isOpen,
   onClose,
   onSuccess,
@@ -47,7 +59,8 @@ const ReviewReportModal: React.FC<ReviewReportModalProps> = ({
 
     setIsSubmitting(true);
     try {
-      await api.post(`/reviews/${reviewId}/report`, {
+      const endpoint = (REPORT_ENDPOINTS[reviewType] || REPORT_ENDPOINTS.product)(reviewId);
+      await api.post(endpoint, {
         reason: selectedReason,
         description: description.trim(),
       });

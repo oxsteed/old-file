@@ -9,15 +9,17 @@
 // (id_verified / identity_verified + didit_status / helper_profiles.is_identity_verified,
 // and background_check_passed / background_check_status). Every flow that
 // marks identity verified MUST write the full set together:
-//   - Didit webhook (diditController): didit_status + id_verified + identity_verified
-//   - legacy Didit webhook (webhookController): same three
-//   - Stripe Identity webhook (verificationController): identity_verified + id_verified
+//   - Didit webhook (diditController): didit_status + id_verified + identity_verified + helper_profiles.is_identity_verified
+//   - legacy Didit webhook (webhookController): same four
+//   - Stripe Identity webhook (verificationController): identity_verified + id_verified + helper_profiles.is_identity_verified
 //   - superAdmin verifyUser: all of the above + is_verified
 // Every flow that resolves a background check MUST write both
 // background_check_status and background_check_passed (Checkr webhook,
 // superAdmin). Readers must use the derived helpers below (isIdentityVerified,
 // backgroundState), never a single column, so a future single-column write
-// cannot silently split the gates.
+// cannot silently split the gates. The directory's verified filter reads
+// helper_profiles.is_identity_verified directly, which is why webhooks must
+// reconcile it too.
 const db = require('../db');
 
 const ONBOARDING_COLUMNS = `id, role, email_verified, profile_completed, contact_completed,

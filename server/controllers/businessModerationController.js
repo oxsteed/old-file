@@ -417,6 +417,47 @@ exports.flagBusiness = async (req, res) => {
   }
 };
 
+exports.unflagBusiness = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const { rows } = await db.query(
+      'SELECT id, business_name, admin_review_reason FROM businesses WHERE id = $1', [id]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Business not found.' });
+    if (!rows[0].admin_review_reason) {
+      return res.status(409).json({ error: 'Business is not flagged for review.', code: 'not_flagged' });
+    }
+    const previousReason = String(rows[0].admin_review_reason).slice(0, 500);
+
+    await db.query(
+      `UPDATE businesses
+          SET admin_review_reason = NULL, admin_reviewed_at = NULL, updated_at = NOW()
+        WHERE id = $1`,
+      [id],
+    );
+
+    try {
+      await logAdminAction({
+        adminId: req.user.id,
+        action: 'business_flag_cleared',
+        targetType: 'business',
+        targetId: String(id),
+        description: `Review flag cleared (was: ${previousReason})`,
+        req,
+      });
+    } catch (e) {
+      logger.error('business unflag audit failed', { businessId: id, error: e.message });
+      return res.status(503).json({ error: 'Flag cleared, but the audit record could not be written. Retry after the audit service recovers.', code: 'audit_unavailable' });
+    }
+
+    res.json({ message: 'Review flag cleared.' });
+  } catch (err) {
+    logger.error('unflagBusiness error', { err, businessId: req.params?.id, adminId: req.user?.id });
+    res.status(500).json({ error: 'Failed to clear review flag.' });
+  }
+};
+
 exports.updateAdminNotes = async (req, res) => {
   try {
     const { id } = req.params;

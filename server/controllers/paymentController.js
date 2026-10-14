@@ -1046,7 +1046,8 @@ exports.getInvestorSummary = async (_req, res) => {
       return 0;
     }
   };
-  const [helpersFunded, activeOpportunities, revenueShareCents] = await Promise.all([safeCount(`SELECT COUNT(DISTINCT payee_id) AS count FROM payments WHERE status IN ('authorized','captured','released')`), safeCount(`SELECT COUNT(*) AS count FROM jobs WHERE status IN ('published','open','in_progress')`), safeCount(`SELECT COALESCE(SUM(platform_fee * 100), 0)::bigint AS total FROM payments WHERE status IN ('captured','released')`)]);
+  const [helpersFunded, activeOpportunities, revenueShareCents] = await Promise.all([safeCount(`SELECT COUNT(DISTINCT payee_id) AS count FROM payments WHERE status IN ('authorized','captured')`), safeCount(`SELECT COUNT(*) AS count FROM jobs WHERE status IN ('published','open','in_progress')`), safeCount(`SELECT COALESCE(SUM(platform_fee * 100), 0)::bigint AS total FROM payments WHERE status = 'captured'`)]);
+  // P3-1-F19: payments.status is never 'released'; release is tracked in payment_hold_status (captured rows cover released funds).
   res.json({
     total_invested_cents: revenueShareCents,
     helpers_funded: helpersFunded,

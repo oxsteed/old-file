@@ -76,7 +76,9 @@ async function reservePaymentRefund({ paymentId, requestedAmountCents, reason, r
       return { payment, attempt, replay: true };
     }
 
-    if (!['authorized', 'captured', 'released'].includes(payment.status)) {
+    // P3-1-F19: 'released' is never written to payments.status (release lives in
+    // payment_hold_status), so it is not a valid refundable state here.
+    if (!['authorized', 'captured'].includes(payment.status)) {
       throw new AppError(`Payment cannot be refunded in '${payment.status}' status`, 409, 'payment_refund_invalid_state');
     }
     if (!payment.stripe_payment_intent_id) {

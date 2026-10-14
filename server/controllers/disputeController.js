@@ -156,14 +156,24 @@ exports.openDispute = async (req, res, next) => {
         );
       }
 
-      // Check for existing disputes AFTER locking
+      // Check for existing disputes AFTER locking. P3-2-F09: a resolved
+      // dispute is terminal and cannot be re-opened; an open or under-review
+      // dispute also blocks (one active dispute per job). A 'closed' dispute
+      // (withdrawn with no decision on the merits) does not block a fresh one.
       const { rows: existRows } = await client.query(
-        `SELECT id FROM disputes WHERE job_id = $1 AND status NOT IN ($2,$3)`,
-        [jobId, DISPUTE_STATUSES.RESOLVED, DISPUTE_STATUSES.CLOSED]
+        `SELECT id, status FROM disputes WHERE job_id = $1 AND status <> $2`,
+        [jobId, DISPUTE_STATUSES.CLOSED]
       );
 
       if (existRows.length) {
-        throw new AppError('A dispute is already open for this job', 409, 'already_exists');
+        const resolved = existRows.some((r) => r.status === DISPUTE_STATUSES.RESOLVED);
+        throw new AppError(
+          resolved
+            ? 'This job already has a resolved dispute, which cannot be re-opened.'
+            : 'A dispute is already open for this job',
+          409,
+          resolved ? 'dispute_already_resolved' : 'already_exists'
+        );
       }
 
       // Review P1-3-F08: complaint barrier. A signed work agreement is the

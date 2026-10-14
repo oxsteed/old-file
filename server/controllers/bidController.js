@@ -36,6 +36,13 @@ exports.createBid = async (req, res, next) => {
     const { job_id, amount, message, eta_hours } = req.body;
     const estimated_hours = req.body.estimated_hours ?? eta_hours;
 
+    // Review P2-7-F01: bids are helper work. The route also mounts
+    // requireHelperWorkEligible (DB-fact onboarding check); this role check
+    // is defense in depth so the controller never assumes the caller.
+    if (!['helper', 'helper_pro', 'broker'].includes(req.user?.role)) {
+      throw new AppError('Only helpers can place bids', 403, 'helper_required');
+    }
+
     // Input validation
     const fields = {};
     if (!job_id) fields.job_id = 'Job ID is required';

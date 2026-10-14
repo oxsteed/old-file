@@ -2334,6 +2334,7 @@
     "tabBusinesses": "Businesses",
     "tabNotifications": "Notifications",
     "tabReferral": "Referral",
+    "tabTax": "Tax documents",
     "tabPrivacy": "Privacy & Data",
     "tabAccount": "Account Type",
     "tabDanger": "Danger Zone",
@@ -13845,6 +13846,7 @@
   },
   "reviewReport": {
     "title": "Report This Review",
+    "report": "Report",
     "info": "Help us maintain community quality by reporting reviews that violate our guidelines. False reports may affect your account.",
     "reasonLabel": "Why are you reporting this?",
     "reason": {
@@ -16841,7 +16843,9 @@
         "assignment_failed": "Assignment failed",
         "claimed": "Claimed",
         "released": "Released"
-      }
+      },
+      "onboardingRequired": "Complete driver onboarding below to claim deliveries.",
+      "approvalPending": "Your driver profile is pending operations approval. You can claim deliveries once it is approved."
     },
     "proofTypes": {
       "recipient_confirmation": "Recipient confirmation",
@@ -17364,6 +17368,21 @@
         "approaching": "Approaching destination",
         "delivered": "Delivered"
       }
+    },
+    "driver": {
+      "title": "Drive with OxSteed",
+      "body": "Register your vehicle to claim parcel deliveries. Operations reviews each profile before approval.",
+      "equipment": "Equipment",
+      "equipmentPlaceholder": "Dollies, straps, insulated bags",
+      "serviceArea": "Service area",
+      "serviceAreaPlaceholder": "City or ZIP codes you cover",
+      "insuranceAck": "I confirm I carry valid auto insurance for delivery work.",
+      "insuranceRequired": "You must confirm your insurance to continue.",
+      "submit": "Submit for approval",
+      "submitting": "Submitting...",
+      "verified": "Driver verified",
+      "pendingTitle": "Approval pending",
+      "pendingBody": "Your driver profile was submitted. Operations will review it shortly, and you can claim deliveries once it is approved."
     }
   },
   "aboutPage": {
@@ -18345,6 +18364,9 @@
     "fieldPrice": "Base price",
     "fieldCapacity": "Max capacity",
     "fieldNotice": "Minimum notice (hours)",
+    "fieldBuffer": "Buffer between appointments (minutes)",
+    "bufferHint": "Blocked before and after each appointment so bookings never touch.",
+    "bufferPrefix": "Buffer:",
     "capacityPrefix": "Capacity:",
     "staffAssigned": "staff assigned",
     "btnCancel": "Cancel",
@@ -20265,7 +20287,9 @@
       "refundReasonPlaceholder": "Reason (required)",
       "refundConfirm": "Issue Refund",
       "refundSuccess": "Refund issued",
-      "refundError": "Unable to issue refund."
+      "refundError": "Unable to issue refund.",
+      "cardPartialRefundUnsupported": "Partial refunds are not available for online card orders. Refund the full order or ask support for help.",
+      "cardRefundUseCancel": "Card orders are refunded by cancelling the order. The card refund happens automatically."
     },
     "onboarding": {
       "eyebrow": "Opening Night",
@@ -21854,7 +21878,8 @@
         },
         "schedule": {
           "title": "2. Schedule",
-          "body": "You can accept the quote and lock in a schedule window."
+          "body": "You can accept the quote and lock in a schedule window.",
+          "bodyGuest": "Sign in or create an account to claim this request, then you can accept the quote and lock in a schedule window."
         },
         "proof": {
           "title": "3. Proof & receipt",
@@ -29690,6 +29715,7 @@
     "actionFlag": "Flag for Review",
     "actionReactivate": "Reactivate",
     "actionSuspend": "Suspend",
+    "actionUnflag": "Clear Review Flag",
     "activeBadge": "Active",
     "colActions": "ACTIONS",
     "colBusiness": "BUSINESS",
@@ -29721,6 +29747,7 @@
     "statTotal": "TOTAL",
     "subtitle": "Manage and monitor all businesses on the platform",
     "title": "Business Moderation",
+    "unflagConfirm": "Clear the review flag? The business will leave the flagged queue.",
     "unknownType": "Unknown",
     "viewProfile": "View Profile"
   },
@@ -30650,6 +30677,8 @@
     "awaitingCounterparty": "You confirmed. Waiting for the other party to confirm.",
     "completeBody": "Both of you confirm before the agreement is marked complete.",
     "confirmComplete": "Confirm complete",
+    "paymentReleased": "Payment released to the helper.",
+    "paymentHeld": "The agreement is complete, but the job payment is still held. It will be released once any open issues are resolved.",
     "signHere": "Draw your signature here",
     "signHint": "Draw your signature with mouse or finger",
     "clearSignature": "Clear",
@@ -31536,7 +31565,11 @@
     "confirm": "Send {{amount}} to your bank now?",
     "noBalance": "No balance is available for instant payout yet.",
     "requested": "Instant payout of {{amount}} requested.",
-    "failed": "Couldn't request the payout. Try again later."
+    "failed": "Couldn't request the payout. Try again later.",
+    "taxIdentityRequired": "Payout blocked: tax identity required.",
+    "taxBlockedTitle": "Tax documents required",
+    "taxBlockedCopy": "Before payouts can be released, complete your W-9 tax form. It takes a minute.",
+    "taxBlockedCta": "Complete W-9"
   },
   "jobEdit": {
     "editJob": "Edit job",
@@ -31845,5 +31878,41 @@
       "impersonation_blocked": "Not allowed in an impersonated session.",
       "feature_disabled": "Not available."
     }
+  },
+  "w9": {
+    "title": "Tax documents (W-9)",
+    "subtitle": "File your W-9 so payouts can be released. Your tax ID is stored encrypted.",
+    "intro": "Complete the W-9 below. Your taxpayer identification number is encrypted before storage, and only the last four digits are ever shown back to you.",
+    "legalName": "Legal name",
+    "legalNamePlaceholder": "Full legal name as shown on your tax return",
+    "businessName": "Business name (optional)",
+    "businessNamePlaceholder": "Disregarded entity or business name, if different",
+    "taxClassification": "Federal tax classification",
+    "classification": {
+      "individual": "Individual / sole proprietor",
+      "c_corp": "C Corporation",
+      "s_corp": "S Corporation",
+      "partnership": "Partnership",
+      "trust_estate": "Trust / estate",
+      "llc": "Limited liability company (LLC)"
+    },
+    "tin": "Taxpayer identification number",
+    "tinPlaceholder": "SSN or EIN, digits only",
+    "tinHelp": "Your Social Security number or Employer Identification number. Stored encrypted.",
+    "tinInvalid": "Enter a valid taxpayer identification number (at least 9 digits).",
+    "street": "Street address",
+    "city": "City",
+    "state": "State",
+    "zip": "ZIP code",
+    "signature": "Draw your signature",
+    "signatureRequired": "Please draw your signature before submitting.",
+    "certify": "Under penalties of perjury, I certify that the information on this form is correct and that I am a U.S. person for tax purposes.",
+    "certifyRequired": "Please check the certification box to continue.",
+    "submit": "Submit W-9",
+    "submitting": "Submitting...",
+    "success": "W-9 submitted. Your tax documents are on file.",
+    "error": "Could not submit your W-9. Please try again.",
+    "filedTitle": "W-9 on file",
+    "filedCopy": "Your W-9 tax form has been received. You do not need to submit it again."
   }
 }

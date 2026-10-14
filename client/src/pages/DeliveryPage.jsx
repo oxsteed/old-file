@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
@@ -24,6 +24,8 @@ import {
   listDeliveryJobs,
   quoteDelivery,
   updateDeliveryStatus,
+  getDriverProfile,
+  registerDriverProfile,
   deliveryMoney, deliveryUnit, deliveryError,
 } from '../api/delivery';
 import '../styles/DeliveryPage.css';
@@ -342,6 +344,115 @@ function CustomerDelivery({ t }) {
   );
 }
 
+const DRIVER_VEHICLE_TYPES = ['car', 'van', 'pickup', 'box_truck', 'cargo_bike'];
+
+// P2-4-F10: self-serve driver onboarding. Helpers without an ops-provisioned
+// driver profile register their own capability profile here; the profile is
+// created pending operations approval, and claiming stays gated until then.
+function DriverOnboarding({ t, profile, onRegistered }) {
+  const [form, setForm] = useState({
+    vehicleType: 'car',
+    maxPayloadLbs: '',
+    cargoLengthIn: '',
+    cargoWidthIn: '',
+    cargoHeightIn: '',
+    equipment: '',
+    serviceArea: '',
+    insuranceAcknowledged: false,
+  });
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
+  const [done, setDone] = useState(false);
+
+  const set = (key, value) => setForm((prev) => ({ ...prev, [key]: value }));
+
+  const submit = async (event) => {
+    event.preventDefault();
+    if (!form.insuranceAcknowledged) {
+      setError(t('delivery.driver.insuranceRequired'));
+      return;
+    }
+    setSubmitting(true);
+    setError('');
+    try {
+      const result = await registerDriverProfile({
+        vehicleType: form.vehicleType,
+        maxPayloadLbs: form.maxPayloadLbs === '' ? null : Number(form.maxPayloadLbs),
+        cargoLengthIn: form.cargoLengthIn === '' ? null : Number(form.cargoLengthIn),
+        cargoWidthIn: form.cargoWidthIn === '' ? null : Number(form.cargoWidthIn),
+        cargoHeightIn: form.cargoHeightIn === '' ? null : Number(form.cargoHeightIn),
+        equipment: form.equipment,
+        serviceArea: form.serviceArea,
+        insuranceAcknowledged: true,
+      });
+      setDone(true);
+      onRegistered(result.profile || null);
+    } catch (requestError) {
+      setError(deliveryError(requestError, t, 'delivery.errors.status'));
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  if ((profile && profile.approved !== true) || done) {
+    return (
+      <section className="delivery-panel delivery-onboard" aria-live="polite">
+        <div className="delivery-panel__heading">
+          <div className="delivery-icon-badge"><Clock3 size={20} aria-hidden="true" /></div>
+          <div><h2>{t('delivery.driver.pendingTitle')}</h2><p>{t('delivery.driver.pendingBody')}</p></div>
+        </div>
+      </section>
+    );
+  }
+
+  return (
+    <section className="delivery-panel delivery-onboard" aria-live="polite">
+      <div className="delivery-panel__heading">
+        <div className="delivery-icon-badge delivery-icon-badge--green"><Truck size={20} aria-hidden="true" /></div>
+        <div><h2>{t('delivery.driver.title')}</h2><p>{t('delivery.driver.body')}</p></div>
+      </div>
+      <form className="delivery-form" onSubmit={submit}>
+        <div className="delivery-options-grid">
+          <label className="delivery-field">{t('delivery.ui.vehicleType')}
+            <select className="delivery-input" value={form.vehicleType} onChange={(event) => set('vehicleType', event.target.value)}>
+              {DRIVER_VEHICLE_TYPES.map((type) => <option key={type} value={type}>{t(`delivery.ui.vehicleTypes.${type}`)}</option>)}
+            </select>
+          </label>
+          <label className="delivery-field">{t('delivery.ui.maxPayloadLbs')}
+            <input className="delivery-input" type="number" min="0" step="any" value={form.maxPayloadLbs} onChange={(event) => set('maxPayloadLbs', event.target.value)} />
+          </label>
+        </div>
+        <div className="delivery-options-grid">
+          <label className="delivery-field">{t('delivery.ui.cargoLengthIn')}
+            <input className="delivery-input" type="number" min="0" step="any" value={form.cargoLengthIn} onChange={(event) => set('cargoLengthIn', event.target.value)} />
+          </label>
+          <label className="delivery-field">{t('delivery.ui.cargoWidthIn')}
+            <input className="delivery-input" type="number" min="0" step="any" value={form.cargoWidthIn} onChange={(event) => set('cargoWidthIn', event.target.value)} />
+          </label>
+          <label className="delivery-field">{t('delivery.ui.cargoHeightIn')}
+            <input className="delivery-input" type="number" min="0" step="any" value={form.cargoHeightIn} onChange={(event) => set('cargoHeightIn', event.target.value)} />
+          </label>
+        </div>
+        <label className="delivery-field">{t('delivery.driver.equipment')}
+          <input className="delivery-input" value={form.equipment} onChange={(event) => set('equipment', event.target.value)} placeholder={t('delivery.driver.equipmentPlaceholder')} />
+        </label>
+        <label className="delivery-field">{t('delivery.driver.serviceArea')}
+          <input className="delivery-input" value={form.serviceArea} onChange={(event) => set('serviceArea', event.target.value)} placeholder={t('delivery.driver.serviceAreaPlaceholder')} />
+        </label>
+        <label className="delivery-check">
+          <input type="checkbox" checked={form.insuranceAcknowledged} onChange={(event) => set('insuranceAcknowledged', event.target.checked)} />
+          <span>{t('delivery.driver.insuranceAck')}</span>
+        </label>
+        {error && <p className="delivery-alert delivery-alert--error" role="alert">{error}</p>}
+        <button type="submit" className="delivery-button delivery-button--primary delivery-button--wide" disabled={submitting}>
+          {submitting ? <Loader2 size={17} className="delivery-spin" aria-hidden="true" /> : <Truck size={17} aria-hidden="true" />}
+          {submitting ? t('delivery.driver.submitting') : t('delivery.driver.submit')}
+        </button>
+      </form>
+    </section>
+  );
+}
+
 function HelperDelivery({ t }) {
   const { user } = useAuth();
   const [marketplaceHelper, setMarketplaceHelper] = useState(false);
@@ -349,6 +460,22 @@ function HelperDelivery({ t }) {
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState(null);
   const [error, setError] = useState('');
+  // P2-4-F10: the helper's driver profile; claiming stays gated until ops
+  // approves a profile (self-serve registration below).
+  const [driverProfile, setDriverProfile] = useState(null);
+  const [onboardingForced, setOnboardingForced] = useState(false);
+  const onboardingRef = useRef(null);
+
+  const loadDriverProfile = useCallback(async () => {
+    try {
+      const response = await getDriverProfile();
+      setDriverProfile(response.profile || null);
+    } catch {
+      setDriverProfile(null);
+    }
+  }, []);
+
+  useEffect(() => { loadDriverProfile(); }, [loadDriverProfile]);
 
   const loadJobs = useCallback(async () => {
     setLoading(true);
@@ -369,7 +496,18 @@ function HelperDelivery({ t }) {
   const claim = async (id) => {
     setBusyId(String(id));
     setError('');
-    try { await claimDeliveryJob(id); await loadJobs(); } catch (requestError) { setError(deliveryError(requestError, t, 'delivery.errors.claim')); } finally { setBusyId(null); }
+    try {
+      await claimDeliveryJob(id);
+      await loadJobs();
+    } catch (requestError) {
+      // P2-4-F10: a helper with no driver profile gets a registration path
+      // instead of a dead-end 409.
+      if (requestError?.response?.data?.code === 'delivery_driver_onboarding_required') {
+        setOnboardingForced(true);
+        requestAnimationFrame(() => onboardingRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+      }
+      setError(deliveryError(requestError, t, 'delivery.errors.claim'));
+    } finally { setBusyId(null); }
   };
 
   const move = async (id, status, proof = {}) => {
@@ -390,6 +528,18 @@ function HelperDelivery({ t }) {
       {error && <p className="delivery-alert delivery-alert--error" role="alert">{error}</p>}
       {loading ? <div className="delivery-loading"><Loader2 className="delivery-spin" size={24} aria-hidden="true" />{t('delivery.helper.loading')}</div> : (
         <>
+          {marketplaceHelper && (driverProfile?.approved !== true || onboardingForced) && (
+            <div ref={onboardingRef}>
+              <DriverOnboarding
+                t={t}
+                profile={onboardingForced ? null : driverProfile}
+                onRegistered={(profile) => { setDriverProfile(profile); setOnboardingForced(false); }}
+              />
+            </div>
+          )}
+          {marketplaceHelper && driverProfile?.approved === true && !onboardingForced && (
+            <p className="delivery-onboard-badge"><ShieldCheck size={15} aria-hidden="true" />{t('delivery.driver.verified')}</p>
+          )}
           {marketplaceHelper && <section><div className="delivery-section-title"><h3>{t('delivery.helper.open')}</h3><span>{openJobs.length}</span></div>{openJobs.length ? <div className="delivery-job-grid">{openJobs.map((job) => <DeliveryCard key={job.id} job={job} helper onClaim={claim} onStatus={move} busyId={busyId} t={t} />)}</div> : <p className="delivery-empty-copy">{t('delivery.helper.empty')}</p>}</section>}
           <section><div className="delivery-section-title"><h3>{t('delivery.helper.myDeliveries')}</h3><span>{myJobs.length}</span></div>{myJobs.length ? <div className="delivery-job-grid">{myJobs.map((job) => <DeliveryCard key={job.id} job={job} helper={marketplaceHelper && job.is_assigned_operator === true} onClaim={claim} onStatus={move} busyId={busyId} t={t} />)}</div> : !error && <p className="delivery-empty-copy">{t('delivery.ui.noDeliveries')}</p>}</section>
         </>

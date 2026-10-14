@@ -1270,7 +1270,10 @@ function BusinessHubInner() {
   // separate from profile-edit permissions so representatives can respond to
   // customers without gaining access to business configuration.
   const canAccessMessages = ['owner', 'manager', 'representative', 'support_agent', 'employee'].includes(currentRole);
-  const canViewFinanceHub = currentRole !== 'representative';
+  // Review P2-3-F05: the server finance gate (canManageBusinessFinance)
+  // allows only owner/manager, so the tabs must match. Showing them to
+  // employee/support_agent only produced 404s.
+  const canViewFinanceHub = currentRole === 'owner' || currentRole === 'manager';
   const isRestaurantBusiness = currentBiz?.business_kind === 'restaurant'
     || (!currentBiz?.business_kind && currentBiz?.business_mode === 'food');
 

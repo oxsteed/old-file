@@ -16,6 +16,8 @@ function normaliseService(s) {
     category: s.category || '',
     // new schema uses duration_minutes; old schema uses duration (in minutes)
     duration_minutes: s.duration_minutes ?? s.duration ?? 60,
+    // Review P1-5-F04: between-appointment buffer the slot engine applies.
+    preparation_minutes: s.preparation_minutes ?? 0,
     // new schema uses base_price_cents; old schema uses price (float dollars)
     base_price_cents: s.base_price_cents ?? (s.price != null ? Math.round(parseFloat(s.price) * 100) : 0),
     max_capacity: s.max_capacity ?? 1,
@@ -40,7 +42,8 @@ export function BusinessServicesTab({ businessId }) {
     base_price_cents: 0,
     max_capacity: 1,
     min_notice_hours: 24,
-    cancellation_policy_hours: 24
+    cancellation_policy_hours: 24,
+    preparation_minutes: 0
   });
 
   useEffect(() => {
@@ -68,16 +71,19 @@ export function BusinessServicesTab({ businessId }) {
       toast.error(t('businessServices.toastInvalidFields'));
       return;
     }
+    // Review P1-5-F04: the buffer is server-clamped to 0..240 as well.
+    const buffer = Math.max(0, Math.min(240, parseInt(formData.preparation_minutes, 10) || 0));
+    const payload = { ...formData, preparation_minutes: buffer };
 
     try {
       if (selectedService) {
         await api.put(
           `/businesses/${businessId}/services/${selectedService.id}`,
-          formData
+          payload
         );
         toast.success(t('businessServices.toastUpdated'));
       } else {
-        await api.post(`/businesses/${businessId}/services`, formData);
+        await api.post(`/businesses/${businessId}/services`, payload);
         toast.success(t('businessServices.toastCreated'));
       }
       setShowForm(false);
@@ -90,7 +96,8 @@ export function BusinessServicesTab({ businessId }) {
         base_price_cents: 0,
         max_capacity: 1,
         min_notice_hours: 24,
-        cancellation_policy_hours: 24
+        cancellation_policy_hours: 24,
+        preparation_minutes: 0
       });
       loadServices();
     } catch (error) {
@@ -121,7 +128,8 @@ export function BusinessServicesTab({ businessId }) {
       base_price_cents: service.base_price_cents,
       max_capacity: service.max_capacity,
       min_notice_hours: service.min_notice_hours,
-      cancellation_policy_hours: service.cancellation_policy_hours
+      cancellation_policy_hours: service.cancellation_policy_hours,
+      preparation_minutes: service.preparation_minutes ?? 0
     });
     setShowForm(true);
   };
@@ -136,7 +144,8 @@ export function BusinessServicesTab({ businessId }) {
       base_price_cents: 0,
       max_capacity: 1,
       min_notice_hours: 24,
-      cancellation_policy_hours: 24
+      cancellation_policy_hours: 24,
+      preparation_minutes: 0
     });
     setShowForm(true);
   };
@@ -224,6 +233,17 @@ export function BusinessServicesTab({ businessId }) {
                 onChange={(e) => setFormData({ ...formData, min_notice_hours: parseInt(e.target.value) || 0 })}
               />
             </div>
+            <div className="bst-form-group">
+              <label>{t('businessServices.fieldBuffer')}</label>
+              <input
+                type="number"
+                min="0"
+                max="240"
+                value={formData.preparation_minutes}
+                onChange={(e) => setFormData({ ...formData, preparation_minutes: parseInt(e.target.value) || 0 })}
+              />
+              <small>{t('businessServices.bufferHint')}</small>
+            </div>
           </div>
           <div className="bst-form-buttons">
             <button onClick={() => setShowForm(false)} className="bst-btn-cancel">{t('businessServices.btnCancel')}</button>
@@ -282,6 +302,11 @@ export function BusinessServicesTab({ businessId }) {
                   <div className="bst-detail">
                     <span className="bst-capacity">{t('businessServices.capacityPrefix')} {service.max_capacity}</span>
                   </div>
+                  {service.preparation_minutes > 0 ? (
+                    <div className="bst-detail">
+                      <span>{t('businessServices.bufferPrefix')} {service.preparation_minutes} min</span>
+                    </div>
+                  ) : null}
                 </div>
                 {service.staff_count > 0 ? (
                   <div className="bst-staff-info">

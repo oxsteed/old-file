@@ -27,6 +27,7 @@ const { refundFoodOrder } = require('../controllers/agentFoodRefundActions');
 
 jest.mock('../controllers/foodController', () => ({
   refundFoodOrderCardPayment: jest.fn().mockResolvedValue({ refund: { id: 're_1', amount: 2500 }, chargeId: 'ch_1' }),
+  _clawBackFoodLoyaltyOnRefund: jest.fn().mockResolvedValue(null),
 }));
 jest.mock('../services/foodWalletService', () => ({
   ...jest.requireActual('../services/foodWalletService'),
@@ -55,6 +56,7 @@ const {
   recordWalletCreditRefundForOrder,
 } = require('../services/restaurantPosPaymentLedgerService');
 const { logAdminAction } = require('../services/auditService');
+const { _clawBackFoodLoyaltyOnRefund } = require('../controllers/foodController');
 
 const ADMIN_ID = '00000000-0000-4000-8000-000000000999';
 const CUSTOMER_ID = '00000000-0000-4000-8000-000000000456';
@@ -281,6 +283,10 @@ describe('restaurant_credit refunds', () => {
       amountCents: 1944,
       manualSettlementRequired: false,
     });
+
+    // P3-9-F02: loyalty reconciliation runs in the same transaction.
+    expect(_clawBackFoodLoyaltyOnRefund).toHaveBeenCalledTimes(1);
+    expect(_clawBackFoodLoyaltyOnRefund.mock.calls[0][1]).toMatchObject({ id: 101 });
 
     // Fail-closed audit: called with the transaction client, before/after
     // states, and wallet balances.

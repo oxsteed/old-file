@@ -20,12 +20,15 @@ jest.unmock('pg');
 // setup.js stubs transactions for mocked-pg tests; this file needs real ones.
 jest.unmock('../utils/transaction');
 jest.mock('../middleware/auth', () => ({
-  authenticate: (req, _res, next) => { req.user = { id: req.headers['x-test-actor'], role: 'customer' }; next(); },
+  authenticate: (req, _res, next) => { req.user = { id: req.headers['x-test-actor'], role: req.headers['x-test-role'] || 'customer' }; next(); },
   optionalAuth: (_req, _res, next) => next(),
   requireRole: () => (_req, _res, next) => next(),
 }));
 jest.mock('../middleware/requireEmailVerified', () => (_req, _res, next) => next());
-jest.mock('../middleware/helperOnboardingMiddleware', () => ({ requireOnboardingStep: () => (_req, _res, next) => next() }));
+jest.mock('../middleware/helperOnboardingMiddleware', () => ({
+  requireOnboardingStep: () => (_req, _res, next) => next(),
+  requireHelperWorkEligible: (_req, _res, next) => next(),
+}));
 jest.mock('../middleware/checkRestrictions', () => () => (_req, _res, next) => next());
 jest.mock('../services/notificationService', () => ({ sendNotification: jest.fn().mockResolvedValue({ success: true }) }));
 jest.mock('../services/socketService', () => ({ broadcastToUser: jest.fn(), emitToUser: jest.fn(), getIO: () => null }));
@@ -217,7 +220,7 @@ describeDb('job edit foundation on real Postgres', () => {
 
   test('bid → material edit → helper reconfirms → owner can hire (real SQL)', async () => {
     const { job } = await makeJob();
-    const placed = await request(app).post('/api/bids').set('x-test-actor', helpers[1])
+    const placed = await request(app).post('/api/bids').set('x-test-actor', helpers[1]).set('x-test-role', 'helper')
       .send({ job_id: job.id, amount: 190, message: 'I can do this tomorrow morning.', eta_hours: 3, job_revision: 1 });
     expect([200, 201]).toContain(placed.status);
     const bidId = placed.body.id || placed.body.bid?.id;
@@ -227,14 +230,14 @@ describeDb('job edit foundation on real Postgres', () => {
     expect(edit.body.bids_flagged_for_reconfirm).toBe(2);
     const bids = await request(app).get(`/api/bids/job/${job.id}`).set('x-test-actor', customer);
     expect(bids.status).toBe(200);
-    const revs = await request(app).get(`/api/jobs/${job.id}/revisions`).set('x-test-actor', helpers[1]);
+    const revs = await request(app).get(`/api/jobs/${job.id}/revisions`).set('x-test-actor', helpers[1]).set('x-test-role', 'helper');
     expect(revs.status).toBe(200);
     expect(revs.body.revisions[0].changes.title).toBeTruthy();
     const blocked = await request(app).post('/api/jobs/assign').set('x-test-actor', customer)
       .send({ bid_id: bidId, payment_method: 'off_platform' });
     expect(blocked.status).toBe(409);
     expect(blocked.body.code).toBe('bid_needs_reconfirm');
-    const reconfirmed = await request(app).post(`/api/bids/${bidId}/reconfirm`).set('x-test-actor', helpers[1]).send({});
+    const reconfirmed = await request(app).post(`/api/bids/${bidId}/reconfirm`).set('x-test-actor', helpers[1]).set('x-test-role', 'helper').send({});
     expect(reconfirmed.status).toBe(200);
     const hired = await request(app).post('/api/jobs/assign').set('x-test-actor', customer)
       .send({ bid_id: bidId, payment_method: 'off_platform' });
@@ -324,10 +327,10 @@ describeDb('job edit foundation on real Postgres', () => {
     const state = await request(app).get(`/api/jobs/${job.id}/payment-reauthorization`).set('x-test-actor', customer);
     expect(state.status).toBe(200);
     expect(state.body).toMatchObject({ required: true, can_authorize: true, requirement: { card: 'reauthorization_required', authorized_cents: 18000, increase_cents: 2500, target_cents: 20500 } });
-    const helperView = await request(app).get(`/api/jobs/${job.id}/payment-reauthorization`).set('x-test-actor', helpers[0]);
+    const helperView = await request(app).get(`/api/jobs/${job.id}/payment-reauthorization`).set('x-test-actor', helpers[0]).set('x-test-role', 'helper');
     expect(helperView.body).toMatchObject({ required: true, can_authorize: false });
     expect(helperView.body.requirement.target_cents).toBeUndefined();
-    const stranger = await request(app).post(`/api/jobs/${job.id}/payment-reauthorization`).set('x-test-actor', helpers[0]).send({});
+    const stranger = await request(app).post(`/api/jobs/${job.id}/payment-reauthorization`).set('x-test-actor', helpers[0]).set('x-test-role', 'helper').send({});
     expect(stranger.status).toBe(403);
 
     stripe.paymentIntents.create.mockResolvedValueOnce({ id: newPi, client_secret: `${newPi}_secret`, status: 'requires_payment_method' });

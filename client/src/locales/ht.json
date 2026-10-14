@@ -2446,6 +2446,7 @@
     "tabBusinesses": "Biznis",
     "tabNotifications": "Notifikasyon",
     "tabReferral": "Referans",
+    "tabTax": "Dokiman taks",
     "tabPrivacy": "Konfidansyalite ak Done",
     "tabAccount": "Kalite Kont",
     "tabDanger": "Zòn Danjere",
@@ -13588,6 +13589,7 @@
   },
   "reviewReport": {
     "title": "Rapoté Review Sa a",
+    "report": "Rapote",
     "info": "Ede nou kenbe kalite an raportant review ki vyole dirèktiv nou yo.",
     "reasonLabel": "Poukisa w ap raporte sa?",
     "reason": {
@@ -16841,7 +16843,9 @@
         "assignment_failed": "Distribisyon echwe",
         "claimed": "Reklame",
         "released": "Libere"
-      }
+      },
+      "onboardingRequired": "Konplete enskripsyon chofè a anba a pou w ka pran livrezon.",
+      "approvalPending": "Pwofil chofè w la ap tann apwobasyon operasyon yo. W ap ka pran livrezon lè li apwouve."
     },
     "packageTypes": {
       "small": "Ti · jiska 25 lb",
@@ -17364,6 +17368,21 @@
         "approaching": "Ap pwoche destinasyon",
         "delivered": "Livre"
       }
+    },
+    "driver": {
+      "title": "Kondwi ak OxSteed",
+      "body": "Enskri machin ou pou w ka pran livrezon pakè. Operasyon yo verifye chak pwofil anvan yo apwouve li.",
+      "equipment": "Ekipman",
+      "equipmentPlaceholder": "Charyo, kòd, sak izole",
+      "serviceArea": "Zòn sèvis",
+      "serviceAreaPlaceholder": "Vil oswa kòd postal ou kouvri",
+      "insuranceAck": "Mwen konfime mwen gen yon asirans machin ki valab pou travay livrezon.",
+      "insuranceRequired": "Ou dwe konfime asirans ou pou w kontinye.",
+      "submit": "Voye pou apwobasyon",
+      "submitting": "Ap voye...",
+      "verified": "Chofè verifye",
+      "pendingTitle": "Apwobasyon an atant",
+      "pendingBody": "Pwofil chofè w la te voye. Operasyon yo pral verifye li byento, epi w ap ka pran livrezon lè li apwouve."
     }
   },
   "aboutPage": {
@@ -18345,6 +18364,10 @@
     "fieldPrice": "Pri baz",
     "fieldCapacity": "Kapasite maksimòm",
     "fieldNotice": "Avètisman minimòm (èdtan)",
+    "fieldBuffer": "Marge ant randevou yo (minit)",
+    "bufferHint": "Bloke anvan ak apre chak randevou pou rezervasyon yo pa janm kole.",
+    "bufferPrefix": "Marge:",
+
     "capacityPrefix": "Kapasite :",
     "staffAssigned": "anplwaye ki asiyen",
     "btnCancel": "Anile",
@@ -20265,7 +20288,9 @@
       "refundReasonPlaceholder": "Rezon (obligatwa)",
       "refundConfirm": "Bay ranbousman an",
       "refundSuccess": "Ranbousman bay",
-      "refundError": "Pa ka bay ranbousman an."
+      "refundError": "Pa ka bay ranbousman an.",
+      "cardPartialRefundUnsupported": "Ranbousman pasyèl pa disponib pou kòmann kat sou entènèt. Ranbouse tout kòmann lan oswa mande sipò èd.",
+      "cardRefundUseCancel": "Kòmann kat yo ranbouse lè ou anile kòmann lan. Ranbousman kat la fèt otomatikman."
     },
     "onboarding": {
       "eyebrow": "Sware Ouvèti",
@@ -21854,7 +21879,8 @@
         },
         "schedule": {
           "title": "2. Pwograme",
-          "body": "Ou ka aksepte quote a epi fikse yon fenèt pou randevou."
+          "body": "Ou ka aksepte quote a epi fikse yon fenèt pou randevou.",
+          "bodyGuest": "Konekte oswa kreye yon kont pou reklame demann sa a, apre sa ou ka aksepte quote a epi fikse yon fenèt pou randevou."
         },
         "proof": {
           "title": "3. Prèv ak resi",
@@ -29690,6 +29716,7 @@
     "actionFlag": "Make pou revizyon",
     "actionReactivate": "Reaktive",
     "actionSuspend": "Sispann",
+    "actionUnflag": "Retire mak revizyon an",
     "activeBadge": "Aktif",
     "colActions": "AKSYON",
     "colBusiness": "BIZNIS",
@@ -29721,6 +29748,7 @@
     "statTotal": "TOTAL",
     "subtitle": "Jere epi siveye tout biznis sou platfòm nan",
     "title": "Moderasyon biznis",
+    "unflagConfirm": "Retire mak revizyon an? Biznis la ap soti nan ke mak yo.",
     "unknownType": "Enkoni",
     "viewProfile": "Wè pwofil"
   },
@@ -30650,6 +30678,8 @@
     "awaitingCounterparty": "Ou konfime. N ap tann lòt moun nan konfime.",
     "completeBody": "Nou toude dwe konfime anvan akò a make fini.",
     "confirmComplete": "Konfime li fini",
+    "paymentReleased": "Peman an lage bay asistan an.",
+    "paymentHeld": "Akò a fini, men peman travay la toujou kenbe. L ap lage lè tout pwoblèm ki louvri yo rezoud.",
     "signHere": "Desine siyati ou isit la",
     "signHint": "Desine siyati ou ak sourit oswa dwèt",
     "clearSignature": "Efase",
@@ -31536,7 +31566,11 @@
     "confirm": "Voye {{amount}} nan bank ou kounye a?",
     "noBalance": "Poko gen balans disponib pou peman imedya.",
     "requested": "Yo mande yon peman imedya {{amount}}.",
-    "failed": "Nou pa t ka mande peman an. Eseye ankò pita."
+    "failed": "Nou pa t ka mande peman an. Eseye ankò pita.",
+    "taxIdentityRequired": "Peman bloke: idantite taks obligatwa.",
+    "taxBlockedTitle": "Dokiman taks obligatwa",
+    "taxBlockedCopy": "Anvan peman yo lage, ranpli fom taks W-9 ou a. Sa pran yon minit.",
+    "taxBlockedCta": "Ranpli W-9"
   },
   "jobEdit": {
     "editJob": "Modifye travay la",
@@ -31845,5 +31879,41 @@
       "impersonation_blocked": "Sa pa pèmèt nan yon sesyon anpridantite.",
       "feature_disabled": "Pa disponib."
     }
+  },
+  "w9": {
+    "title": "Dokiman taks (W-9)",
+    "subtitle": "Soumet fom W-9 ou pou peman yo ka lage. Nimewo taks ou an estoke chifre.",
+    "intro": "Ranpli W-9 la anba a. Nimewo idantifikasyon taks ou an chifre anvan yo estoke l, epi se selman kat denye chif yo ki janm montre.",
+    "legalName": "Non legal",
+    "legalNamePlaceholder": "Non legal konple jan li paret sou deklarasyon taks ou",
+    "businessName": "Non biznis (si ou vle)",
+    "businessNamePlaceholder": "Non antite oswa biznis, si li diferan",
+    "taxClassification": "Klasifikasyon taks federal",
+    "classification": {
+      "individual": "Endividi / pwopryete inik",
+      "c_corp": "Korporasyon C",
+      "s_corp": "Korporasyon S",
+      "partnership": "Patenarya",
+      "trust_estate": "Trust / eritay",
+      "llc": "Konpayi responsabilite limite (LLC)"
+    },
+    "tin": "Nimewo idantifikasyon taks",
+    "tinPlaceholder": "SSN oswa EIN, chif selman",
+    "tinHelp": "Nimewo Sekirite Sosyal ou oswa nimewo idantifikasyon anplwaye. Estoke chifre.",
+    "tinInvalid": "Antre yon nimewo idantifikasyon taks ki valid (omwen 9 chif).",
+    "street": "Adres",
+    "city": "Vil",
+    "state": "Eta",
+    "zip": "Kod postal",
+    "signature": "Desinen siyati ou",
+    "signatureRequired": "Tanpri desinen siyati ou anvan ou soumet.",
+    "certify": "Sou pen parji, mwen setifye enfomasyon sou fom sa a korek epi mwen se yon moun ameriken pou rezon taks.",
+    "certifyRequired": "Tcheke kaz setifikasyon an pou kontinye.",
+    "submit": "Soumet W-9",
+    "submitting": "Ap soumet...",
+    "success": "W-9 soumet. Dokiman taks ou yo anrejistre.",
+    "error": "Nou pa t ka soumet W-9 ou a. Tanpri eseye anko.",
+    "filedTitle": "W-9 anrejistre",
+    "filedCopy": "Nou resevwa fom taks W-9 ou a. Ou pa bezwen soumet li anko."
   }
 }

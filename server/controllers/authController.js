@@ -23,9 +23,12 @@ const { AppError } = require('../middleware/errorHandler');
 const { assertRegistrationsOpen } = require('../middleware/maintenanceGate'); // Review P3-7-F07
 const { grantFreeTrialToUser } = require('./templateController');
 const { checkAndAlertNewLogin } = require('../services/loginAlertService');
+const { claimGuestQuoteRequestsForUser } = require('../services/quoteRequestClaim'); // Review P1-4-F01
 const { invalidateGuestHistoryAccessCodesForEmail } = require('../services/guestProfileChatVerification');
 const { logSecurityEvent, extractRequestDetails } = require('../services/auditLoggerService');
+const { recordLoginAgreement } = require('../services/loginAgreementService'); // Review P1-1-F05
 const modeRoleUtil = require('../utils/modeRole');
+const { readDeviceFingerprint } = require('../utils/deviceFingerprint'); // Review P2-6-F12
 const { normalizeStoredPublicUrl } = require('../utils/storage');
 const SALT_ROUNDS = 12;
 const TERMS_IP_HASH_MAX_LEN = 45;
@@ -395,8 +398,18 @@ async function login(req, res, next) {
     }
 
     if (user.totp_enabled) {
+      // Review P1-1-F05: carry the per-login digital signature into the MFA
+      // token so the 2FA completion leg can write the same login_agreements
+      // and user_consents records as the direct login path (TOTP-enabled
+      // users previously skipped them entirely). Admins are exempt from the
+      // signature, so no name is carried for them.
       const mfaToken = jwt.sign(
-        { id: user.id, isMfaToken: true, rememberMe: rememberMe === true },
+        {
+          id: user.id,
+          isMfaToken: true,
+          rememberMe: rememberMe === true,
+          ...(isAdminUser ? {} : { agreementName: String(agreementName).trim() }),
+        },
         JWT_SECRET,
         { expiresIn: '15m' }
       );
@@ -512,6 +525,10 @@ async function login(req, res, next) {
     const alertUa = req.headers['user-agent'] || null;
     checkAndAlertNewLogin(user.id, alertIp, alertUa).catch(() => {});
 
+    // Review P1-4-F01: attach the customer's prior guest quote requests so
+    // they can manage them. Fire-and-forget; the helper never throws.
+    claimGuestQuoteRequestsForUser(user.id, user.email);
+
     // Audit fix: set the access token as an httpOnly cookie. The token is
     // no longer only in localStorage (XSS vector). The response still
     // includes it for backward compat during the migration.
@@ -550,11 +567,15 @@ async function loginWith2FA(req, res, next) {
 
     let userId;
     let rememberMe = false;
+    let agreementName = null;
     try {
       const decoded = jwt.verify(mfaToken, JWT_SECRET, { algorithms: ['HS256'] });
       if (!decoded.isMfaToken) throw new Error('Invalid token type');
       userId = decoded.id;
       rememberMe = decoded.rememberMe === true;
+      agreementName = typeof decoded.agreementName === 'string' && decoded.agreementName.trim()
+        ? decoded.agreementName.trim()
+        : null;
       req.internalAccessId = decoded.internalAccessId || null;
       req.internalAccessRoute = decoded.internalAccessRoute || null;
     } catch (err) {
@@ -652,6 +673,15 @@ async function loginWith2FA(req, res, next) {
     await pool.query(sessionSql, [user.id, hashedRefresh, accessHash]);
     await recordSessionContext(pool, hashedRefresh, req);
 
+    // Review P1-1-F05: write the same per-login digital signature and
+    // consent records as the direct login path. The signature name was
+    // asserted in the first leg (password or passkey) and carried in the
+    // signed MFA token; without this, every TOTP-enabled user skipped the
+    // records entirely. recordLoginAgreement is non-fatal internally.
+    if (agreementName) {
+      await recordLoginAgreement(req, user, agreementName);
+    }
+
     // H8d: refresh token as httpOnly cookie for web clients (JSON fallback kept).
     setRefreshTokenCookie(res, tokens.refreshToken, { rememberMe });
 
@@ -702,6 +732,9 @@ async function loginWith2FA(req, res, next) {
     if (fullRows[0] && req.internalAccessRoute) {
       fullRows[0].internal_access_route = req.internalAccessRoute;
     }
+    // Review P1-4-F01: attach the customer's prior guest quote requests so
+    // they can manage them. Fire-and-forget; the helper never throws.
+    if (fullRows[0]) claimGuestQuoteRequestsForUser(fullRows[0].id, fullRows[0].email);
     res.json({
       success: true,
       message: 'Login successful',
@@ -1274,9 +1307,10 @@ async function acceptTerms(req, res) {
       `UPDATE pending_registrations
           SET terms_accepted_at = NOW(), terms_version = $2, terms_acceptance_ip = $3,
               terms_acceptance_ua = $4, otp_code = $5, otp_expires_at = $6,
+              signup_device_fingerprint = $7,
               otp_attempts = COALESCE(otp_attempts, 0)
         WHERE token = $1`,
-      [token, termsVersion, ip, userAgent, otpHash, otpExpires]
+      [token, termsVersion, ip, userAgent, otpHash, otpExpires, readDeviceFingerprint(req)]
     );
     const delivery = await sendOTPEmail(pending.email, otp, resolveRequestLanguage(req));
     if (!delivery || delivery.success === false) {
@@ -1364,7 +1398,7 @@ async function verifyRegistrationOTP(req, res) {
          terms_accepted_at, terms_version, terms_acceptance_ip, terms_acceptance_ua, referral_code,
          trial_started_at, trial_ends_at, referred_by,
          onboarding_status, onboarding_completed, profile_completed, tier_selected, terms_accepted,
-         contact_completed, membership_tier, default_mode
+         contact_completed, membership_tier, default_mode, signup_device_fingerprint
        ) VALUES (
          $1,$2,$3,$4,$5,$6,$7,$8,$9,
          $10,$11,
@@ -1372,7 +1406,7 @@ async function verifyRegistrationOTP(req, res) {
          $13,$14,$15,$16,$17,
          $18,$19,$20,
          'onboarding_complete', TRUE, TRUE, TRUE, TRUE,
-         TRUE, 'tier1', $22
+         TRUE, 'tier1', $22, pending.signup_device_fingerprint
        ) RETURNING *`,
       [
         pending.email, pending.password_hash, pending.first_name, pending.last_name, pending.phone, pending.zip_code,
@@ -1397,6 +1431,10 @@ async function verifyRegistrationOTP(req, res) {
     invalidateGuestHistoryAccessCodesForEmail(user.email).catch((claimErr) =>
       logger.warn('Failed to invalidate guest chat access codes after verified registration', { userId: user.id, error: claimErr.message })
     );
+    // Review P1-4-F01: attach the customer's prior guest quote requests so
+    // they can manage them (my requests, accept/schedule/change). The helper
+    // never throws, so signup cannot break here.
+    claimGuestQuoteRequestsForUser(user.id, user.email);
     const { rows: delRows } = await pool.query('DELETE FROM pending_registrations WHERE token = $1 RETURNING id', [token]);
     if (delRows.length === 0) {
       logger.warn('Pending registration cleanup failed', { token, userId: user.id });
@@ -1512,15 +1550,22 @@ async function resendRegistrationOTP(req, res) {
     const otp = crypto.randomInt(100000, 1000000).toString();
     const otpHash = crypto.createHash('sha256').update(otp).digest('hex');
     const otpExpires = new Date(Date.now() + 15 * 60 * 1000);
-    const sentAt = new Date();
     await pool.query(
       `UPDATE pending_registrations
           SET otp_code = $2, otp_expires_at = $3, otp_attempts = 0,
-              otp_locked_until = NULL, otp_last_sent_at = NOW()
+              otp_locked_until = NULL
         WHERE token = $1`,
       [token, otpHash, otpExpires]
     );
-    await sendOTPEmail(pending.email, otp, resolveRequestLanguage(req));
+    // P3-3-F16: the resend cooldown must only start after the new code was
+    // actually delivered. Writing otp_last_sent_at before the send meant a
+    // provider outage still blocked the retry for 60s.
+    const delivery = await sendOTPEmail(pending.email, otp, resolveRequestLanguage(req));
+    if (!delivery || delivery.success === false) {
+      return res.status(503).json({ error: 'Unable to send OTP. Please try again.', code: 'otp_send_failed' });
+    }
+    const sentAt = new Date();
+    await pool.query('UPDATE pending_registrations SET otp_last_sent_at = NOW() WHERE token = $1', [token]);
     res.json({ message: 'OTP resent', ...registrationMetadata(pending, sentAt, otpExpires) });
   } catch (err) {
     logger.error('Resend OTP error', { err });

@@ -387,6 +387,7 @@ describe('POST /api/auth/login', () => {
       id: 7,
       isMfaToken: true,
       rememberMe: true,
+      agreementName: 'Jane Doe',
     });
   });
 });
@@ -452,6 +453,92 @@ describe('POST /api/auth/login/2fa', () => {
     const fullUserSql = mockQuery.mock.calls.find(([sql]) => String(sql).includes('SELECT u.id, u.first_name'))?.[0];
     expect(fullUserSql).toMatch(/u\.default_mode/i);
     expect(fullUserSql).toMatch(/LEFT JOIN connect_accounts ca/i);
+  });
+
+  test('writes login_agreements and user_consents on 2FA completion when the MFA token carries the signature (P1-1-F05)', async () => {
+    const mfaToken = jwt.sign(
+      { id: 9, isMfaToken: true, agreementName: 'Maya Chen' },
+      process.env.JWT_SECRET,
+      { expiresIn: '15m' },
+    );
+    const fullUser = {
+      id: 9,
+      first_name: 'Maya',
+      last_name: 'Chen',
+      email: 'maya@example.com',
+      role: 'helper',
+      email_verified: true,
+      is_verified: true,
+      default_mode: 'helper',
+      connect_onboarding_complete: false,
+    };
+
+    mockQuery.mockImplementation(async (sql) => {
+      const text = String(sql);
+      if (text.includes('COUNT(*) FROM two_factor_audit_log')) return { rows: [{ count: '0' }] };
+      if (text.includes('SELECT id, email, role, is_active, totp_secret')) {
+        return { rows: [{
+          id: 9,
+          email: 'maya@example.com',
+          role: 'helper',
+          is_active: true,
+          totp_secret: encrypt('TESTSECRET'),
+          totp_enabled: true,
+          backup_codes: [],
+        }] };
+      }
+      if (text.includes('SELECT u.id, u.first_name')) return { rows: [fullUser] };
+      return { rows: [], rowCount: 0 };
+    });
+
+    const res = await request(buildApp())
+      .post('/api/auth/login/2fa')
+      .send({ mfaToken, token: '123456', isBackupCode: false });
+
+    expect(res.status).toBe(200);
+    const agreementCall = mockQuery.mock.calls.find(([sql]) => String(sql).includes('INSERT INTO login_agreements'));
+    expect(agreementCall).toBeTruthy();
+    expect(agreementCall[1][0]).toBe(9);
+    expect(agreementCall[1][1]).toBe('Maya Chen');
+    const consentCalls = mockQuery.mock.calls.filter(([sql]) => String(sql).includes('INSERT INTO user_consents'));
+    expect(consentCalls).toHaveLength(2);
+    expect(consentCalls.map((call) => call[1][1]).sort()).toEqual(['privacy_policy', 'terms_of_service']);
+  });
+
+  test('skips the signature/consent records on 2FA completion when the MFA token carries no signature name', async () => {
+    const mfaToken = jwt.sign(
+      { id: 10, isMfaToken: true },
+      process.env.JWT_SECRET,
+      { expiresIn: '15m' },
+    );
+
+    mockQuery.mockImplementation(async (sql) => {
+      const text = String(sql);
+      if (text.includes('COUNT(*) FROM two_factor_audit_log')) return { rows: [{ count: '0' }] };
+      if (text.includes('SELECT id, email, role, is_active, totp_secret')) {
+        return { rows: [{
+          id: 10,
+          email: 'admin@example.com',
+          role: 'admin',
+          is_active: true,
+          totp_secret: encrypt('TESTSECRET'),
+          totp_enabled: true,
+          backup_codes: [],
+        }] };
+      }
+      if (text.includes('SELECT u.id, u.first_name')) {
+        return { rows: [{ id: 10, first_name: 'Admin', last_name: 'User', email: 'admin@example.com', role: 'admin' }] };
+      }
+      return { rows: [], rowCount: 0 };
+    });
+
+    const res = await request(buildApp())
+      .post('/api/auth/login/2fa')
+      .send({ mfaToken, token: '123456', isBackupCode: false });
+
+    expect(res.status).toBe(200);
+    expect(mockQuery.mock.calls.some(([sql]) => String(sql).includes('INSERT INTO login_agreements'))).toBe(false);
+    expect(mockQuery.mock.calls.some(([sql]) => String(sql).includes('INSERT INTO user_consents'))).toBe(false);
   });
 });
 

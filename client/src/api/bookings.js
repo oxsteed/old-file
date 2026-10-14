@@ -27,9 +27,15 @@ export async function getAvailableSlots(helperId, dateStr) {
   return data;
 }
 
-export async function getBusinessAvailableSlots(businessId, dateStr, serviceId) {
+export async function getBusinessAvailableSlots(businessId, dateStr, serviceId, staffId) {
   const { data } = await api.get(`/bookings/business/${businessId}/available-slots`, {
-    params: { date: dateStr, ...(serviceId ? { serviceId } : {}) },
+    params: {
+      date: dateStr,
+      ...(serviceId ? { serviceId } : {}),
+      // Review P2-3-F08: when a staff member is chosen, the listing subtracts
+      // their personal availability blocks, matching the booking gate.
+      ...(staffId ? { staffId } : {}),
+    },
   });
   return data;
 }

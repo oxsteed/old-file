@@ -1239,7 +1239,7 @@ exports.getStats = async (req, res) => {
       const { rows } = await client.query(
         `SELECT COUNT(*)::int AS total_payments,
                 COUNT(*) FILTER (WHERE p.status IN ('pending', 'authorized'))::int AS pending_payments,
-                COUNT(*) FILTER (WHERE p.status IN ('captured', 'released'))::int AS completed_payments
+                COUNT(*) FILTER (WHERE p.status = 'captured')::int AS completed_payments
          FROM payments p
          JOIN users payer ON payer.id = p.payer_id
          ${paymentWhere}`,
@@ -1253,7 +1253,7 @@ exports.getStats = async (req, res) => {
       // The column default is 'usd', so a blank currency coalesces to USD.
       const { rows: volumeRows } = await client.query(
         `SELECT UPPER(COALESCE(NULLIF(TRIM(p.currency), ''), 'USD')) AS currency,
-                COALESCE(SUM(CASE WHEN p.status IN ('captured', 'released') THEN p.amount ELSE 0 END), 0) AS volume_amount
+                COALESCE(SUM(CASE WHEN p.status = 'captured' THEN p.amount ELSE 0 END), 0) AS volume_amount
          FROM payments p
          JOIN users payer ON payer.id = p.payer_id
          ${paymentWhere}

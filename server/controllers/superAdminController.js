@@ -1397,7 +1397,7 @@ exports.issueManualRefund = async (req, res) => {
        FROM payments
        WHERE job_id = $1
          AND stripe_payment_intent_id IS NOT NULL
-         AND status IN ('authorized', 'captured', 'released')
+         AND status IN ('authorized', 'captured')
        ORDER BY created_at DESC
        LIMIT 1`,
       [jobId]
@@ -1867,11 +1867,11 @@ exports.getMoneyOverview = async (req, res) => {
     if (hasPayments) {
       const { rows } = await db.query(`
         SELECT
-          COALESCE(SUM(CASE WHEN status IN ('captured', 'released') AND created_at >= now() - $1::interval THEN platform_fee * 100 ELSE 0 END), 0) AS captured_period_cents,
-          COALESCE(SUM(CASE WHEN status IN ('captured', 'released') THEN platform_fee * 100 ELSE 0 END), 0) AS captured_lifetime_cents,
+          COALESCE(SUM(CASE WHEN status = 'captured' AND created_at >= now() - $1::interval THEN platform_fee * 100 ELSE 0 END), 0) AS captured_period_cents,
+          COALESCE(SUM(CASE WHEN status = 'captured' THEN platform_fee * 100 ELSE 0 END), 0) AS captured_lifetime_cents,
           COALESCE(SUM(CASE WHEN status IN ('pending', 'authorized') THEN amount * 100 ELSE 0 END), 0) AS pending_volume_cents,
           COALESCE(SUM(CASE WHEN status = 'refunded' AND refunded_at >= now() - $1::interval THEN refund_amount * 100 ELSE 0 END), 0) AS refunds_period_cents,
-          COUNT(*) FILTER (WHERE status IN ('captured', 'released')) AS captured_count
+          COUNT(*) FILTER (WHERE status = 'captured') AS captured_count
         FROM payments
       `, [interval]);
       servicePayments = {
