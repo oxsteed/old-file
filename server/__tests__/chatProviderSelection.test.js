@@ -1,24 +1,16 @@
 'use strict';
 
 /**
- * Fix 1 (Meta tokens on unauthenticated requests) + Fix 7 (handoff heuristic).
+ * Provider selection for chat requests.
  *
- * - Anonymous POST /api/chat/message requests must never select the Meta
- *   provider (paid Contributor tier); they use the free-tier chain instead.
- * - Signed-in requests keep the existing Meta-first chain.
+ * - All requests use OpenRouter (no Meta provider).
  * - The AI chat response carries handoff_suggested when the heuristic fires.
  */
 
 const { mockQuery, resetMocks } = require('./setup');
 
-jest.mock('../services/aiChatProvider', () => ({
-  isMetaConfigured: jest.fn().mockReturnValue(true),
-  getMetaModel: jest.fn().mockReturnValue('muse-spark-test'),
-  fetchMetaChat: jest.fn(),
-}));
 jest.mock('../utils/logger', () => ({ info: jest.fn(), warn: jest.fn(), error: jest.fn() }));
 
-const { fetchMetaChat, isMetaConfigured } = require('../services/aiChatProvider');
 const chatController = require('../controllers/chatController');
 
 function responseDouble() {
@@ -32,12 +24,10 @@ beforeEach(() => {
   resetMocks();
   jest.clearAllMocks();
   process.env.OPENROUTER_API_KEY = 'test-openrouter-key';
-  isMetaConfigured.mockReturnValue(true);
-  fetchMetaChat.mockResolvedValue({ ok: true, reply: 'meta reply' });
-  // Free-tier OpenRouter success response.
+  // OpenRouter success response.
   global.fetch = jest.fn().mockResolvedValue({
     ok: true,
-    json: async () => ({ choices: [{ message: { content: 'free tier reply' } }] }),
+    json: async () => ({ choices: [{ message: { content: 'openrouter reply' } }] }),
   });
 });
 
@@ -46,23 +36,22 @@ afterEach(() => {
 });
 
 describe('anonymous chat provider selection', () => {
-  test('never selects the Meta provider for anonymous requests', async () => {
+  test('anonymous requests use OpenRouter', async () => {
     const req = { body: { messages: [{ role: 'user', content: 'Hello, I need help' }] } };
     const res = responseDouble();
 
     await chatController.chatMessage(req, res, jest.fn());
 
-    expect(fetchMetaChat).not.toHaveBeenCalled();
     expect(global.fetch).toHaveBeenCalledWith(
       'https://openrouter.ai/api/v1/chat/completions',
       expect.objectContaining({ method: 'POST' })
     );
     expect(res.json).toHaveBeenCalledWith(
-      expect.objectContaining({ reply: 'free tier reply' })
+      expect.objectContaining({ reply: 'openrouter reply' })
     );
   });
 
-  test('keeps the Meta-first chain for signed-in requests', async () => {
+  test('signed-in requests use OpenRouter (no Meta provider)', async () => {
     const req = {
       user: { id: 'user-1' },
       body: { messages: [{ role: 'user', content: 'Hello, I need help' }] },
@@ -71,14 +60,16 @@ describe('anonymous chat provider selection', () => {
 
     await chatController.chatMessage(req, res, jest.fn());
 
-    expect(fetchMetaChat).toHaveBeenCalledTimes(1);
-    expect(global.fetch).not.toHaveBeenCalled();
+    expect(global.fetch).toHaveBeenCalledWith(
+      'https://openrouter.ai/api/v1/chat/completions',
+      expect.objectContaining({ method: 'POST' })
+    );
     expect(res.json).toHaveBeenCalledWith(
-      expect.objectContaining({ reply: 'meta reply' })
+      expect.objectContaining({ reply: 'openrouter reply' })
     );
   });
 
-  test('an invalid token still counts as anonymous (no Meta spend)', async () => {
+  test('an invalid token still counts as anonymous (OpenRouter)', async () => {
     // optionalAuth leaves req.user undefined for bad tokens; the handler must
     // treat that exactly like a signed-out request.
     const req = { body: { messages: [{ role: 'user', content: 'Hello' }] } };
@@ -86,9 +77,8 @@ describe('anonymous chat provider selection', () => {
 
     await chatController.chatMessage(req, res, jest.fn());
 
-    expect(fetchMetaChat).not.toHaveBeenCalled();
     expect(res.json).toHaveBeenCalledWith(
-      expect.objectContaining({ reply: 'free tier reply' })
+      expect.objectContaining({ reply: 'openrouter reply' })
     );
   });
 });
