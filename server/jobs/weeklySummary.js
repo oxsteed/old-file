@@ -47,7 +47,10 @@ const startWeeklySummaryJob = () => {
             SELECT SUM(COALESCE(p.helper_payout, 0))
               FROM payments p
              WHERE p.payee_id = u.id
-               AND p.status IN ('captured', 'released')
+               -- P3-1-F19: 'released' is never written to payments.status
+               -- (release is tracked in payment_hold_status), so filter on
+               -- captured only.
+               AND p.status = 'captured'
                AND COALESCE(
                      -- P3-1-F19: release is tracked in payment_hold_status, not status.
                      CASE WHEN p.payment_hold_status = 'released' THEN p.released_at ELSE p.captured_at END,
