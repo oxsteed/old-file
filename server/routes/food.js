@@ -76,6 +76,11 @@ router.get('/customer/wallets/:restaurantId/load-requests', walletCtrl.listMyWal
 router.post('/customer/wallets/:restaurantId/load-requests/:requestId/cancel', restaurantCreditMutationLimiter, walletCtrl.cancelMyWalletLoadRequest);
 router.post('/customer/wallets/:restaurantId/load-requests/:requestId/disputes', restaurantCreditMutationLimiter, disputeCtrl.createDispute);
 router.get('/customer/wallets/:restaurantId/disputes', disputeCtrl.listMyDisputes);
+// Phase 3 restaurant-credit fraud controls: admin-only review surface for
+// food_credit_fraud_signals. requireAdmin verifies the admin token itself,
+// the same gating used by server/routes/admin.js.
+router.get('/admin/fraud-signals', requireAdmin, walletCtrl.listFraudSignals);
+router.post('/admin/fraud-signals/:id/review', requireAdmin, walletCtrl.reviewFraudSignal);
 router.get('/customer/favorites', authenticate, ctrl.listCustomerFavoriteRestaurants);
 router.post('/customer/favorites/:restaurantId/toggle', authenticate, ctrl.toggleCustomerFavoriteRestaurant);
 router.get('/customer/favorite-items', authenticate, ctrl.listCustomerFavoriteItems);
