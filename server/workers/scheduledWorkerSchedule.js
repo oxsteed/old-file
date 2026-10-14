@@ -26,6 +26,7 @@ function buildSchedule() {
   const { pollIssuanceCycle } = require('../jobs/statementIssuanceScheduler');
   const { processEmailDigest } = require('../jobs/emailDigestBatch');
   const { cleanupExpiredChallenges } = require('./passkeyWorkers');
+  const { processRevocationGracePeriods } = require('../services/restaurantCreditRevocationService');
 
   return [
     // [name, workerFn, intervalMs, options]
@@ -73,6 +74,10 @@ function buildSchedule() {
       if (new Date().getUTCDay() !== 1) return Promise.resolve({ skipped: true, reason: 'not_monday' });
       return processEmailDigest('weekly');
     }, 24 * 60 * 60 * 1000, {}],
+    // Phase 6 (restaurant credit protection): migrate remaining customer
+    // balances to OxSteed Credit once a revoked restaurant's 30-day grace
+    // period ends. Hourly; each run is fenced and the worker is idempotent.
+    ['processRevocationGracePeriods', processRevocationGracePeriods, 60 * 60 * 1000, { limit: 100 }],
   ];
 }
 

@@ -31936,5 +31936,21 @@
     "error": "تعذّر إرسال نموذج W-9. حاول مرة أخرى.",
     "filedTitle": "W-9 محفوظ",
     "filedCopy": "تم استلام نموذجك الضريبي W-9. لا حاجة لإعادة إرساله."
-  }
+  },
+  "adminCreditApprovalTitle": "اعتماد الائتمان للمنصة",
+  "adminCreditApprovalDetail": "يتحكم فيما إذا كان هذا المطعم يمكنه إصدار ائتمان جديد. يؤدي الإلغاء إلى بدء فترة سماح مدتها 30 يومًا؛ ثم يتم ترحيل الأرصدة المتبقية تلقائيًا إلى OxSteed Credit.",
+  "adminCreditApprovalStatusLabel": "حالة الاعتماد",
+  "adminCreditApprovalStatusRevoked": "ملغى",
+  "adminCreditApprovalNewStatus": "الحالة الجديدة",
+  "adminCreditApprovalReason": "السبب",
+  "adminCreditApprovalReasonRequired": "السبب مطلوب للتعليق أو الإلغاء.",
+  "adminCreditApprovalReasonPlaceholder": "لماذا يفقد هذا المطعم اعتماد الائتمان؟",
+  "adminCreditApprovalUpdate": "تحديث الاعتماد",
+  "adminCreditApprovalUpdated": "تم تحديث اعتماد الائتمان.",
+  "adminCreditApprovalLoadFailed": "تعذر تحميل اعتماد الائتمان.",
+  "adminCreditApprovalUpdateFailed": "تعذر تحديث اعتماد الائتمان.",
+  "adminCreditApprovalGraceEnds": "تنتهي فترة السماح",
+  "adminCreditApprovalRevokedAt": "أُلغي في",
+  "adminCreditApprovalMigratedAt": "تم ترحيل الأرصدة",
+  "adminCreditApprovalGrandfathered": "معتمد (لا يوجد سجل اعتماد)"
 }

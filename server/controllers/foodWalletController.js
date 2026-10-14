@@ -12,6 +12,7 @@ const foodCreditFraudService = require('../services/foodCreditFraudService');
 // row are capped at issuance; restaurants without one continue under the
 // trial-tier cap (Phase 5 owns that).
 const { debitCreditReserveForIssuance } = require('../services/restaurantCreditReserveService');
+const revocationService = require('../services/restaurantCreditRevocationService');
 const {
   creditFoodWallet,
   debitFoodWallet,
@@ -877,6 +878,9 @@ exports.createMyWalletLoadRequest = async (req, res, next) => {
     if (!restaurant || restaurant.status !== 'active') {
       throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
     }
+    // Phase 6 revocation path: a revoked or suspended restaurant (or one that
+    // was never approved) cannot take new credit requests. Fail closed.
+    await revocationService.assertNewRestaurantCreditAllowed(pool, restaurantId);
     const amountCents = parsePositiveMoneyCents(req.body);
     const idempotencyKey = normalizeString(req.body?.idempotencyKey || req.body?.idempotency_key, 120);
     if (!idempotencyKey) {
@@ -1490,6 +1494,9 @@ exports.approveCustomerWalletLoadRequest = async (req, res, next) => {
     }
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
     assertWalletOperator(restaurant);
+    // Phase 6 revocation path: cannot approve new credit while the
+    // restaurant's platform approval is revoked/suspended. Fail closed.
+    await revocationService.assertNewRestaurantCreditAllowed(pool, restaurantId);
     const approvalNote = normalizeString(req.body?.approvalNote || req.body?.approval_note, 500);
     const result = await withTransaction(pool, async (client) => {
       const { rows: [requestRow] } = await client.query(
@@ -2647,3 +2654,203 @@ exports.listMyWalletRefunds = async (req, res, next) => {
 // assertWalletOperator) on the reserve purchase/balance/ledger endpoints.
 exports.requireRestaurantAccess = requireRestaurantAccess;
 exports.assertWalletOperator = assertWalletOperator;
+
+// ── Phase 6: restaurant credit approvals (the revocation path) ──────────────
+// Admins set a restaurant's platform approval to offer credit; customers and
+// merchants are blocked from new credit while approval is not 'approved'
+// (see revocationService.assertNewRestaurantCreditAllowed).
+
+const CREDIT_APPROVAL_ADMIN_STATUSES = new Set(['approved', 'suspended', 'revoked']);
+
+function formatCreditApprovalResponse(approvalRow, restaurant) {
+  const approval = revocationService.formatApproval(approvalRow);
+  return {
+    ...approval,
+    restaurantId: Number(restaurant.id),
+    restaurantName: restaurant.display_name || null,
+  };
+}
+
+exports.setRestaurantCreditApproval = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    if (!restaurantId) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
+    const status = (req.body?.status || '').toString().trim().toLowerCase();
+    if (!CREDIT_APPROVAL_ADMIN_STATUSES.has(status)) {
+      throw new AppError('Validation failed', 400, 'validation_failed', {
+        status: 'status must be one of approved, suspended, revoked',
+      });
+    }
+    const reason = normalizeString(req.body?.reason, 500);
+    if ((status === 'revoked' || status === 'suspended') && !reason) {
+      throw new AppError('Validation failed', 400, 'validation_failed', {
+        reason: `A reason is required when setting status to ${status}`,
+      });
+    }
+    const { rows: restaurantRows } = await pool.query(
+      `SELECT id, business_id, display_name FROM food_restaurants WHERE id = $1 LIMIT 1`,
+      [restaurantId]
+    );
+    const restaurant = restaurantRows[0];
+    if (!restaurant) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
+
+    const approval = await withTransaction(pool, async (client) => {
+      let approvalRow;
+      if (status === 'revoked') {
+        // Revocation starts the 30-day grace clock immediately and resets any
+        // prior migration marker so the grace-period worker picks it up.
+        const { rows } = await client.query(
+          `INSERT INTO restaurant_credit_approvals
+             (restaurant_id, status, revoked_at, revocation_reason,
+              grace_period_ends_at, approved_at, migrated_at, updated_by_user_id, updated_at)
+           VALUES ($1, 'revoked', NOW(), $2, NOW() + INTERVAL '30 days', NULL, NULL, $3, NOW())
+           ON CONFLICT (restaurant_id) DO UPDATE
+             SET status = 'revoked',
+                 revoked_at = NOW(),
+                 revocation_reason = EXCLUDED.revocation_reason,
+                 grace_period_ends_at = NOW() + INTERVAL '30 days',
+                 approved_at = NULL,
+                 migrated_at = NULL,
+                 updated_by_user_id = EXCLUDED.updated_by_user_id,
+                 updated_at = NOW()
+           RETURNING *`,
+          [restaurantId, reason, req.user.id]
+        );
+        approvalRow = rows[0];
+      } else if (status === 'suspended') {
+        // Suspension is reversible: it blocks new credit but does not start
+        // (or reset) the grace clock.
+        const { rows } = await client.query(
+          `INSERT INTO restaurant_credit_approvals
+             (restaurant_id, status, revocation_reason, approved_at, updated_by_user_id, updated_at)
+           VALUES ($1, 'suspended', $2, NULL, $3, NOW())
+           ON CONFLICT (restaurant_id) DO UPDATE
+             SET status = 'suspended',
+                 revocation_reason = EXCLUDED.revocation_reason,
+                 approved_at = NULL,
+                 updated_by_user_id = EXCLUDED.updated_by_user_id,
+                 updated_at = NOW()
+           RETURNING *`,
+          [restaurantId, reason, req.user.id]
+        );
+        approvalRow = rows[0];
+      } else {
+        // Re-approval clears the revoked/suspended state (and the grace
+        // clock). Money already migrated stays migrated.
+        const { rows } = await client.query(
+          `INSERT INTO restaurant_credit_approvals
+             (restaurant_id, status, approved_at, revoked_at, revocation_reason,
+              grace_period_ends_at, updated_by_user_id, updated_at)
+           VALUES ($1, 'approved', NOW(), NULL, NULL, NULL, $2, NOW())
+           ON CONFLICT (restaurant_id) DO UPDATE
+             SET status = 'approved',
+                 approved_at = NOW(),
+                 revoked_at = NULL,
+                 revocation_reason = NULL,
+                 grace_period_ends_at = NULL,
+                 updated_by_user_id = EXCLUDED.updated_by_user_id,
+                 updated_at = NOW()
+           RETURNING *`,
+          [restaurantId, req.user.id]
+        );
+        approvalRow = rows[0];
+      }
+
+      await logFoodWalletOperatorAudit(client, {
+        restaurantId,
+        businessId: restaurant.business_id,
+        walletAccountId: null,
+        customerId: null,
+        operatorUserId: req.user.id,
+        actionType: 'credit_approval_changed',
+        amountCents: null,
+        currencyCode: null,
+        correlationId: `credit-approval:${restaurantId}:${Date.now()}`,
+        requestIp: req.ip || null,
+        metadata: {
+          status,
+          reason: reason || null,
+          gracePeriodEndsAt: approvalRow.grace_period_ends_at
+            ? new Date(approvalRow.grace_period_ends_at).toISOString()
+            : null,
+        },
+      });
+      return approvalRow;
+    }, 'food_credit_approval_update');
+
+    res.json({ approval: formatCreditApprovalResponse(approval, restaurant) });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.getRestaurantCreditApproval = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    if (!restaurantId) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
+    const { rows: restaurantRows } = await pool.query(
+      `SELECT id, display_name FROM food_restaurants WHERE id = $1 LIMIT 1`,
+      [restaurantId]
+    );
+    if (!restaurantRows[0]) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
+    const approval = await revocationService.getCreditApproval(pool, restaurantId);
+    res.json({ approval: formatCreditApprovalResponse(approval, restaurantRows[0]) });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// Merchant read model: every restaurant the signed-in operator can access,
+// with its platform credit-approval status so they know where they stand.
+exports.getMyRestaurantCreditApproval = async (req, res, next) => {
+  try {
+    const { rows: restaurants } = await pool.query(
+      `SELECT fr.id, fr.display_name, fr.currency_code,
+              CASE
+                WHEN b.user_id = $1 OR fr.owner_user_id = $1 THEN 'owner'
+                ELSE (
+                  SELECT bm.role
+                    FROM business_members bm
+                   WHERE bm.business_id = fr.business_id
+                     AND bm.member_id = $1
+                     AND bm.status = 'active'
+                   LIMIT 1
+                )
+              END AS effective_role
+         FROM food_restaurants fr
+         JOIN businesses b ON b.id = fr.business_id
+        WHERE b.user_id = $1
+           OR fr.owner_user_id = $1
+           OR EXISTS (
+             SELECT 1 FROM business_members bm
+              WHERE bm.business_id = fr.business_id
+                AND bm.member_id = $1
+                AND bm.status = 'active'
+           )
+        ORDER BY fr.display_name ASC`,
+      [req.user.id]
+    );
+    const restaurantIds = restaurants.map((row) => Number(row.id));
+    let approvalsByRestaurant = {};
+    if (restaurantIds.length) {
+      const { rows: approvals } = await pool.query(
+        `SELECT * FROM restaurant_credit_approvals WHERE restaurant_id = ANY($1::bigint[])`,
+        [restaurantIds]
+      );
+      approvalsByRestaurant = Object.fromEntries(
+        approvals.map((row) => [Number(row.restaurant_id), row])
+      );
+    }
+    res.json({
+      restaurants: restaurants.map((row) => ({
+        ...revocationService.formatApproval(approvalsByRestaurant[Number(row.id)] || null),
+        restaurantId: Number(row.id),
+        restaurantName: row.display_name,
+        currencyCode: row.currency_code,
+        effectiveRole: row.effective_role,
+      })),
+    });
+  } catch (err) {
+    next(err);
+  }
+};
