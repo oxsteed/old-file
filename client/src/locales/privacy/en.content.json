@@ -1,7 +1,7 @@
 {
   "sections": {
     "1": {
-      "search": "1 introduction oxsteed personal information collect",
+      "search": "1. Introduction OxSteed LLC provides local service listings, jobs and bids, business workspaces, food ordering, delivery, media, and related account and payment tools. This policy describes information processed when you use these features, including guest contact and support. Availability depends on the feature, account, region, and service provider.",
       "blocks": [
         {
           "type": "h2",
@@ -9,130 +9,25 @@
         },
         {
           "type": "p",
-          "text": "OxSteed LLC (\"OxSteed,\" \"we,\" \"us,\" or \"our\") operates the OxSteed platform at oxsteed.com. This Privacy Policy explains what personal information we collect, how we use it, how we share it, and your rights regarding your data."
-        },
-        {
-          "type": "p",
-          "text": "By creating an account or using OxSteed, you consent to the collection and use of your information as described in this Privacy Policy. If you do not agree, do not use the platform."
+          "text": "OxSteed LLC provides local service listings, jobs and bids, business workspaces, food ordering, delivery, media, and related account and payment tools. This policy describes information processed when you use these features, including guest contact and support. Availability depends on the feature, account, region, and service provider."
         }
       ]
     },
     "2": {
-      "search": "2 information collect registration stripe checkr cookies device",
+      "search": "2. Information We Collect We process information you provide: contact and account details, profile and business information, job and order details, messages, support requests, reviews, uploaded media, payment records, and verification information where required. We also process device and request information, such as IP addresses, browser details, security logs, and consented usage events. Location may come from an address you enter, your profile, or device permission. Payment providers may collect payment credentials directly.",
       "blocks": [
         {
           "type": "h2",
           "text": "2. Information We Collect"
         },
         {
-          "type": "h3",
-          "text": "2.1 Information You Provide"
-        },
-        {
-          "type": "ul",
-          "items": [
-            [
-              {
-                "strong": "Account registration:"
-              },
-              " Name, email address, phone number, password, role (Customer or Helper), and location (city, state, zip code)."
-            ],
-            [
-              {
-                "strong": "Profile information:"
-              },
-              " Profile photo, bio, skills, service categories, hourly rates, and availability."
-            ],
-            [
-              {
-                "strong": "Payment information:"
-              },
-              " Stripe processes all payments. OxSteed does not store credit card numbers. We store Stripe customer IDs and connected account IDs."
-            ],
-            [
-              {
-                "strong": "Background check data:"
-              },
-              " If you elect a background check, Checkr, Inc. collects and processes your personal data under its own privacy policy. OxSteed receives only pass/fail status and badge eligibility."
-            ],
-            [
-              {
-                "strong": "Communications:"
-              },
-              " Messages sent through the platform, support requests, and feedback."
-            ],
-            [
-              {
-                "strong": "Job and bid data:"
-              },
-              " Job descriptions, bid amounts, completion status, and reviews."
-            ],
-            [
-              {
-                "strong": "Tax information:"
-              },
-              " IRS Form W-9 data (name, address, SSN/EIN) for Helpers earning $600+ annually through Tier 3."
-            ]
-          ]
-        },
-        {
-          "type": "h3",
-          "text": "2.2 Information Collected Automatically"
-        },
-        {
-          "type": "ul",
-          "items": [
-            [
-              {
-                "strong": "Device and browser data:"
-              },
-              " IP address, browser type, operating system, device identifiers, and screen resolution."
-            ],
-            [
-              {
-                "strong": "Usage data:"
-              },
-              " Pages viewed, features used, search queries, click patterns, and session duration."
-            ],
-            [
-              {
-                "strong": "Location data:"
-              },
-              " Approximate location derived from IP address and zip code provided during registration."
-            ],
-            [
-              {
-                "strong": "Cookies and tracking:"
-              },
-              " We use essential cookies for authentication and session management. See Section 8 for details."
-            ]
-          ]
-        },
-        {
-          "type": "h3",
-          "text": "2.3 Information from Third Parties"
-        },
-        {
-          "type": "ul",
-          "items": [
-            [
-              {
-                "strong": "Stripe:"
-              },
-              " Payment status, transaction IDs, and connected account status."
-            ],
-            [
-              {
-                "strong": "Checkr:"
-              },
-              " Background check completion status and badge eligibility (not the underlying report details)."
-            ]
-          ]
+          "type": "p",
+          "text": "We process information you provide: contact and account details, profile and business information, job and order details, messages, support requests, reviews, uploaded media, payment records, and verification information where required. We also process device and request information, such as IP addresses, browser details, security logs, and consented usage events. Location may come from an address you enter, your profile, or device permission. Payment providers may collect payment credentials directly."
         }
       ]
     },
     "3": {
-      "search": "3 how we use information account payments tax advertising sell",
+      "search": "3. How We Use Your Information We use information to operate accounts and workspaces; match jobs and services; fulfill orders; deliver messages and notifications; process and reconcile payments; handle support, disputes, and privacy requests; prevent abuse; and meet legal obligations. Optional analytics helps us understand usage. If you use AI-assisted features, your prompt and relevant feature context may be sent to the configured AI provider to produce a response. Avoid submitting unnecessary sensitive information; AI output can be inaccurate.",
       "blocks": [
         {
           "type": "h2",
@@ -140,56 +35,12 @@
         },
         {
           "type": "p",
-          "text": "We use the information we collect for the following purposes:"
-        },
-        {
-          "type": "ul",
-          "items": [
-            [
-              "To create, maintain, and secure your account;"
-            ],
-            [
-              "To connect Customers with Helpers and facilitate service transactions;"
-            ],
-            [
-              "To process payments through Stripe (Tier 3 escrow);"
-            ],
-            [
-              "To facilitate background checks through Checkr;"
-            ],
-            [
-              "To send transactional emails (job alerts, payment confirmations, account notifications);"
-            ],
-            [
-              "To comply with tax reporting obligations (IRS Form 1099-NEC);"
-            ],
-            [
-              "To enforce our Terms of Service and prevent fraud;"
-            ],
-            [
-              "To improve and develop the platform;"
-            ],
-            [
-              "To respond to legal requests and prevent harm;"
-            ],
-            [
-              "To send service-related communications (you may not opt out of these while your account is active)."
-            ]
-          ]
-        },
-        {
-          "type": "p",
-          "segments": [
-            {
-              "strong": "We do not sell your personal information."
-            },
-            " We do not use your data for targeted advertising. We do not share your data with data brokers."
-          ]
+          "text": "We use information to operate accounts and workspaces; match jobs and services; fulfill orders; deliver messages and notifications; process and reconcile payments; handle support, disputes, and privacy requests; prevent abuse; and meet legal obligations. Optional analytics helps us understand usage. If you use AI-assisted features, your prompt and relevant feature context may be sent to the configured AI provider to produce a response. Avoid submitting unnecessary sensitive information; AI output can be inaccurate."
         }
       ]
     },
     "4": {
-      "search": "4 share information stripe checkr resend law enforcement address",
+      "search": "4. How We Share Your Information Information is disclosed to the participants and businesses needed to provide your requested service, authorized staff, and service providers for payments, hosting and storage, content delivery and security, email or other notifications, maps, and AI features. Integrations include Stripe and Cloudflare; other providers depend on the feature and configuration. Public profiles, listings, reviews, and published media are visible to their intended audience. Legal disclosures and business transfers may also require sharing. Optional analytics or advertising integrations are described in the Cookie Policy.",
       "blocks": [
         {
           "type": "h2",
@@ -197,53 +48,12 @@
         },
         {
           "type": "p",
-          "text": "We share your personal information only in the following circumstances:"
-        },
-        {
-          "type": "ul",
-          "items": [
-            [
-              {
-                "strong": "With other users:"
-              },
-              " Your profile information (name, photo, skills, reviews, badge status) is visible to other users. Your full address is shared only with Helpers who have accepted a job, and only within 12 hours of the job start time."
-            ],
-            [
-              {
-                "strong": "With Stripe, Inc.:"
-              },
-              " Payment and identity data necessary to process transactions and manage connected accounts."
-            ],
-            [
-              {
-                "strong": "With Checkr, Inc.:"
-              },
-              " Personal data necessary to conduct background checks (only with your separate, affirmative consent under FCRA)."
-            ],
-            [
-              {
-                "strong": "With Resend:"
-              },
-              " Email address and name for transactional email delivery."
-            ],
-            [
-              {
-                "strong": "With law enforcement:"
-              },
-              " When required by law, subpoena, court order, or to protect the rights, property, or safety of OxSteed, its users, or the public."
-            ],
-            [
-              {
-                "strong": "In a business transfer:"
-              },
-              " If OxSteed is acquired, merged, or sells assets, user data may be transferred to the successor entity. We will notify you by email before your data is subject to a different privacy policy."
-            ]
-          ]
+          "text": "Information is disclosed to the participants and businesses needed to provide your requested service, authorized staff, and service providers for payments, hosting and storage, content delivery and security, email or other notifications, maps, and AI features. Integrations include Stripe and Cloudflare; other providers depend on the feature and configuration. Public profiles, listings, reviews, and published media are visible to their intended audience. Legal disclosures and business transfers may also require sharing. Optional analytics or advertising integrations are described in the Cookie Policy."
         }
       ]
     },
     "5": {
-      "search": "5 address privacy masking street 12 hours helper job",
+      "search": "5. Address Privacy and Data Masking Job location visibility depends on your role, assignment, schedule, and the applicable access checks. Order and delivery details are shared with the business and participants who need them for fulfillment. Information you place in public descriptions, photos, reviews, or media may reveal an address even when structured address fields are restricted. Do not publish private addresses or access instructions in public content.",
       "blocks": [
         {
           "type": "h2",
@@ -251,89 +61,25 @@
         },
         {
           "type": "p",
-          "text": "When a Customer posts a job, their full street address is never displayed publicly. A Helper receives the Customer's full address only after:"
-        },
-        {
-          "type": "ul",
-          "items": [
-            [
-              "The Helper has been accepted for the job; AND"
-            ],
-            [
-              "The job is scheduled to begin within 12 hours."
-            ]
-          ]
-        },
-        {
-          "type": "p",
-          "text": "All address reveals are logged with timestamps, user IDs, and IP addresses for security and audit purposes."
+          "text": "Job location visibility depends on your role, assignment, schedule, and the applicable access checks. Order and delivery details are shared with the business and participants who need them for fulfillment. Information you place in public descriptions, photos, reviews, or media may reveal an address even when structured address fields are restricted. Do not publish private addresses or access instructions in public content."
         }
       ]
     },
     "6": {
-      "search": "6 data retention w-9 1099 escrow audit logs closed account",
+      "search": "6. Data Retention Retention varies by record and purpose. Account, order, message, security, and media records have different lifecycles. Financial ledgers, payment and settlement records, consent evidence, and audit history may remain after account closure for accounting, disputes, fraud prevention, and legal obligations. Deletion may be delayed by active work, held funds, disputes, required audit evidence, or backup lifecycles. We do not promise that closing an account immediately erases every record or third-party copy.",
       "blocks": [
         {
           "type": "h2",
           "text": "6. Data Retention"
         },
         {
-          "type": "ul",
-          "items": [
-            [
-              {
-                "strong": "Active accounts:"
-              },
-              " Data is retained for as long as your account is active."
-            ],
-            [
-              {
-                "strong": "Closed accounts:"
-              },
-              " Account data is retained for 3 years after account closure for tax compliance, legal obligations, and dispute resolution purposes."
-            ],
-            [
-              {
-                "strong": "Tax records (W-9, 1099-NEC):"
-              },
-              " Retained for 7 years as required by IRS regulations."
-            ],
-            [
-              {
-                "strong": "Escrow transaction records:"
-              },
-              " Retained for 5 years after the transaction date."
-            ],
-            [
-              {
-                "strong": "Financial records:"
-              },
-              " Platform ledger entries, payment records, and off-platform payment audit history are retained for 7 years."
-            ],
-            [
-              {
-                "strong": "Payment settings history:"
-              },
-              " Records of changes to how you receive payment are retained for 7 years."
-            ],
-            [
-              {
-                "strong": "Audit logs:"
-              },
-              " Security and access logs are retained for 2 years."
-            ],
-            [
-              {
-                "strong": "Background check status:"
-              },
-              " Badge expiration is 12 months. Underlying check data is held by Checkr under its own retention policy."
-            ]
-          ]
+          "type": "p",
+          "text": "Retention varies by record and purpose. Account, order, message, security, and media records have different lifecycles. Financial ledgers, payment and settlement records, consent evidence, and audit history may remain after account closure for accounting, disputes, fraud prevention, and legal obligations. Deletion may be delayed by active work, held funds, disputes, required audit evidence, or backup lifecycles. We do not promise that closing an account immediately erases every record or third-party copy."
         }
       ]
     },
     "7": {
-      "search": "7 your rights delete correct california ccpa cpra opt out",
+      "search": "7. Your Rights Depending on applicable law, you may request access, correction, deletion, portability, limits on sensitive information use, or an opt-out of sale, sharing, or targeted advertising. You may contact privacy@oxsteed.com or use /do-not-sell without signing in. We may verify identity for access or deletion and explain any applicable exceptions. We will handle requests within applicable legal deadlines and will not discriminate for exercising privacy rights.",
       "blocks": [
         {
           "type": "h2",
@@ -341,72 +87,12 @@
         },
         {
           "type": "p",
-          "text": "Depending on your state of residence, you may have the following rights regarding your personal information:"
-        },
-        {
-          "type": "ul",
-          "items": [
-            [
-              {
-                "strong": "Right to know:"
-              },
-              " Request a copy of the personal information we hold about you."
-            ],
-            [
-              {
-                "strong": "Right to delete:"
-              },
-              " Request deletion of your personal information, subject to the legal retention obligations described in Section 6."
-            ],
-            [
-              {
-                "strong": "Right to correct:"
-              },
-              " Request correction of inaccurate personal information."
-            ],
-            [
-              {
-                "strong": "Right to opt out of sale:"
-              },
-              " We do not sell personal information. No action is needed."
-            ],
-            [
-              {
-                "strong": "Right to non-discrimination:"
-              },
-              " We will not discriminate against you for exercising your privacy rights."
-            ]
-          ]
-        },
-        {
-          "type": "p",
-          "segments": [
-            "To exercise any of these rights, email ",
-            {
-              "mailto": "legal@oxsteed.com"
-            },
-            " with the subject line \"Privacy Rights Request.\" We will respond within 30 days. We may need to verify your identity before processing your request."
-          ]
-        },
-        {
-          "type": "note",
-          "variant": "yellow",
-          "strong": "California residents (CCPA/CPRA):",
-          "segments": [
-            " You have additional rights under the California Consumer Privacy Act and the California Privacy Rights Act. See our ",
-            {
-              "routeLink": {
-                "to": "/do-not-sell",
-                "label": "Do Not Sell or Share My Personal Information"
-              }
-            },
-            " page for details."
-          ]
+          "text": "Depending on applicable law, you may request access, correction, deletion, portability, limits on sensitive information use, or an opt-out of sale, sharing, or targeted advertising. You may contact privacy@oxsteed.com or use /do-not-sell without signing in. We may verify identity for access or deletion and explain any applicable exceptions. We will handle requests within applicable legal deadlines and will not discriminate for exercising privacy rights."
         }
       ]
     },
     "8": {
-      "search": "8 cookies tracking essential functional advertising",
+      "search": "8. Cookies and Tracking Technologies Essential cookies and browser storage support sign-in, security, consent choices, and requested features. Manage Cookies controls optional analytics, marketing, and additional functional integrations in this browser. Analytics may include first-party pageview events and Google Analytics; marketing may include Meta Pixel when configured. Basic settings and drafts may use browser storage independently of optional integrations. See the Cookie Policy for controls and limitations.",
       "blocks": [
         {
           "type": "h2",
@@ -414,39 +100,12 @@
         },
         {
           "type": "p",
-          "text": "OxSteed uses the following categories of cookies:"
-        },
-        {
-          "type": "ul",
-          "items": [
-            [
-              {
-                "strong": "Essential cookies:"
-              },
-              " Required for authentication, session management, and security. These cannot be disabled."
-            ],
-            [
-              {
-                "strong": "Functional cookies:"
-              },
-              " Remember your preferences (e.g., dark mode, location). You may disable these in your browser settings."
-            ]
-          ]
-        },
-        {
-          "type": "p",
-          "segments": [
-            "OxSteed does ",
-            {
-              "strong": "not"
-            },
-            " use advertising cookies, retargeting pixels, or third-party tracking scripts. We do not participate in ad networks or sell data to advertisers."
-          ]
+          "text": "Essential cookies and browser storage support sign-in, security, consent choices, and requested features. Manage Cookies controls optional analytics, marketing, and additional functional integrations in this browser. Analytics may include first-party pageview events and Google Analytics; marketing may include Meta Pixel when configured. Basic settings and drafts may use browser storage independently of optional integrations. See the Cookie Policy for controls and limitations."
         }
       ]
     },
     "9": {
-      "search": "9 security breach notification tls bcrypt jwt 72 hours",
+      "search": "9. Data Security and Breach Notification We use access controls, password hashing, session protections, validation, rate limits, and security logging. No system is completely secure. Coverage depends on the service and configuration; this policy does not certify every data store or third-party service. If an incident requires notice, we will notify affected people and authorities as required by applicable law. See /security for reporting guidance.",
       "blocks": [
         {
           "type": "h2",
@@ -454,44 +113,12 @@
         },
         {
           "type": "p",
-          "text": "OxSteed implements commercially reasonable security measures to protect your personal information, including:"
-        },
-        {
-          "type": "ul",
-          "items": [
-            [
-              "Encryption in transit (TLS/HTTPS) and at rest for sensitive data;"
-            ],
-            [
-              "Bcrypt password hashing with salting;"
-            ],
-            [
-              "JWT-based authentication with secure, HTTP-only cookies;"
-            ],
-            [
-              "Rate limiting on authentication endpoints;"
-            ],
-            [
-              "Role-based access controls;"
-            ],
-            [
-              "Audit logging of security-sensitive actions."
-            ]
-          ]
-        },
-        {
-          "type": "p",
-          "segments": [
-            {
-              "strong": "Breach notification:"
-            },
-            " In the event of a data breach that compromises your personal information, OxSteed will notify affected users by email within 72 hours of discovering the breach and will notify applicable state attorneys general as required by law."
-          ]
+          "text": "We use access controls, password hashing, session protections, validation, rate limits, and security logging. No system is completely secure. Coverage depends on the service and configuration; this policy does not certify every data store or third-party service. If an incident requires notice, we will notify affected people and authorities as required by applicable law. See /security for reporting guidance."
         }
       ]
     },
     "10": {
-      "search": "10 account deletion profile anonymized escrow tier 3",
+      "search": "10. Account Deletion Request account deletion through available account settings or privacy@oxsteed.com. Deletion can remove or anonymize personal fields while retaining necessary transaction and audit records. Active obligations may need resolution first. Copies already received by other users or providers are subject to their own obligations. Contact us for the scope and status of your request.",
       "blocks": [
         {
           "type": "h2",
@@ -499,54 +126,7 @@
         },
         {
           "type": "p",
-          "segments": [
-            "You may request deletion of your account at any time through your account settings or by emailing ",
-            {
-              "mailto": "legal@oxsteed.com"
-            },
-            "."
-          ]
-        },
-        {
-          "type": "p",
-          "text": "Deleting your account removes your profile and scrubs your personal data, but it does not erase records we are legally required to keep. See Section 6 for our full retention schedule."
-        },
-        {
-          "type": "p",
-          "text": "Upon deletion:"
-        },
-        {
-          "type": "ul",
-          "items": [
-            [
-              "Your profile, messages, and personal data will be permanently removed within 30 days;"
-            ],
-            [
-              "Reviews you have left for others will be anonymized but not deleted;"
-            ],
-            [
-              "Tax records (W-9, 1099-NEC) will be retained for the legally required period;"
-            ],
-            [
-              "Escrow transaction records will be retained for audit purposes;"
-            ],
-            [
-              "Off-platform payment records and their audit history will be retained for 7 years as financial records;"
-            ],
-            [
-              "Records of changes to your payment receiving settings will be retained for 7 years;"
-            ],
-            [
-              "Platform financial ledger entries will be retained for 7 years;"
-            ],
-            [
-              "Active Tier 3 escrow transactions must be completed or resolved before deletion can proceed."
-            ]
-          ]
-        },
-        {
-          "type": "p",
-          "text": "Retained records are stripped of unnecessary personal data where possible, and access is restricted to legal compliance, fraud prevention, and dispute resolution."
+          "text": "Request account deletion through available account settings or privacy@oxsteed.com. Deletion can remove or anonymize personal fields while retaining necessary transaction and audit records. Active obligations may need resolution first. Copies already received by other users or providers are subject to their own obligations. Contact us for the scope and status of your request."
         }
       ]
     },

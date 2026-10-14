@@ -16,7 +16,7 @@ export default function AccessibilityPage({ embedded = false }: { embedded?: boo
     <LegalPageLayout
       title={t('accessibilityPage.title')}
       description={t('accessibilityPage.overview')}
-      effectiveDate="2026-03-23"
+      effectiveDate="2026-10-13"
       embedded={embedded}
     >
       <section className="mb-8">
@@ -41,7 +41,7 @@ export default function AccessibilityPage({ embedded = false }: { embedded?: boo
         <h2 className="text-lg font-bold text-orange-400 mb-3">
           {t('accessibilityPage.sections.measures')}
         </h2>
-        <ul className="list-disc ml-5 space-y-2 mb-3">
+        <ul className="list-disc ms-5 space-y-2 mb-3">
           {measures.map((item) => (
             <li key={item}>{item}</li>
           ))}

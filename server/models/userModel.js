@@ -2,6 +2,7 @@ const db      = require('../db');
 const bcrypt = require('bcrypt');
 const crypto  = require('crypto');
 const { ROLES } = require('../constants/roles');
+const { TERMS_CONFIG } = require('../constants/termsConfig');
 const { hashIP } = require('../utils/encryption');
 
 const SALT_ROUNDS = 12;
@@ -161,7 +162,7 @@ exports.create = async ({
   await exports.recordConsent({
     userId:       user.id,
     consentType:  'terms_of_service',
-    version:      '2026-03-20',
+    version:      TERMS_CONFIG.terms_of_service.version,
     ip,
     userAgent,
   });
@@ -169,7 +170,7 @@ exports.create = async ({
   await exports.recordConsent({
     userId:       user.id,
     consentType:  'privacy_policy',
-    version:      '2026-03-20',
+    version:      TERMS_CONFIG.privacy_policy.version,
     ip,
     userAgent,
   });

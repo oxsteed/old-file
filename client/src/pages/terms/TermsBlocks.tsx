@@ -87,14 +87,14 @@ export function TermsBlocks({
             return (
               <ul
                 key={i}
-                className={b.className ?? 'list-disc ml-5 space-y-2 mb-3'}
+                className={b.className ?? 'list-disc ms-5 space-y-2 mb-3'}
               >
                 {renderUlItems(b.items)}
               </ul>
             );
           case 'ol':
             return (
-              <ol key={i} className="list-decimal ml-5 space-y-2 mb-3">
+              <ol key={i} className="list-decimal ms-5 space-y-2 mb-3">
                 {renderUlItems(b.items)}
               </ol>
             );

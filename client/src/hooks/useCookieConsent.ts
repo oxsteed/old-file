@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
-import { bootConsentedScripts, initAnalytics, disableAnalytics, initMarketing, initFunctional } from '../utils/consentScripts';
+import { bootConsentedScripts, initAnalytics, disableAnalytics, initMarketing, disableMarketing, initFunctional, hasGlobalPrivacyControl } from '../utils/consentScripts';
 
 const COOKIE_KEY = 'oxsteed_cookie_consent';
-const CONSENT_VERSION = '2025-06-01';
+const CONSENT_VERSION = '2026-10-13';
 
 export interface CookiePreferences {
   essential: boolean;    // always true, cannot be disabled
@@ -38,10 +38,16 @@ export function useCookieConsent() {
           setShowBanner(true);
           setPreferences(null);
         } else {
-          setPreferences(parsed);
+          const normalized = {
+            ...DEFAULT_PREFERENCES, ...parsed, essential: true,
+            analytics: parsed.analytics === true,
+            marketing: parsed.marketing === true && !hasGlobalPrivacyControl(),
+            functional: parsed.functional === true,
+          };
+          setPreferences(normalized);
           setShowBanner(false);
           // Re-initialize scripts that user previously consented to
-          bootConsentedScripts(parsed);
+          bootConsentedScripts(normalized);
         }
       } else {
         setShowBanner(true);
@@ -56,10 +62,14 @@ export function useCookieConsent() {
       ...DEFAULT_PREFERENCES,
       ...prefs,
       essential: true, // always enforced
+      analytics: prefs.analytics === true,
+      marketing: prefs.marketing === true && !hasGlobalPrivacyControl(),
+      functional: prefs.functional === true,
       version: CONSENT_VERSION,
       timestamp: new Date().toISOString(),
     };
-    localStorage.setItem(COOKIE_KEY, JSON.stringify(full));
+    // Browser privacy settings may block persistence; still apply this visit's choice.
+    try { localStorage.setItem(COOKIE_KEY, JSON.stringify(full)); } catch { /* session only */ }
     setPreferences(full);
     setShowBanner(false);
     setShowSettings(false);
@@ -68,7 +78,7 @@ export function useCookieConsent() {
     if (full.analytics)  initAnalytics();
     else                 { disableAnalytics(); removeAnalyticsCookies(); }
     if (full.marketing)  initMarketing();
-    else                 removeMarketingCookies();
+    else                 { disableMarketing(); removeMarketingCookies(); }
     if (full.functional) initFunctional();
   }, []);
 
@@ -93,6 +103,8 @@ export function useCookieConsent() {
 
   const hasConsent = useCallback(
     (category: keyof Omit<CookiePreferences, 'version' | 'timestamp'>) => {
+      if (category === 'essential') return true;
+      if (category === 'marketing' && hasGlobalPrivacyControl()) return false;
       return preferences?.[category] ?? false;
     },
     [preferences]
