@@ -1,4 +1,45 @@
 {
+  "attention": {
+    "onboarding": {
+      "title": "Configurer {{name}}",
+      "intro": "Complétez les informations obligatoires, puis publiez lorsque tout est prêt.",
+      "live": "Votre entreprise est en ligne et la configuration obligatoire est terminée.",
+      "ready": "Les informations obligatoires sont complètes. Le propriétaire peut publier cette entreprise.",
+      "remaining": "Points à compléter : {{count}}",
+      "lastSaved": "Progression enregistrée : {{date}}",
+      "loading": "Chargement de la configuration…",
+      "error": "Impossible de charger la configuration de cette entreprise.",
+      "unavailable": "Cette entreprise est indisponible ou vous ne pouvez pas gérer sa configuration.",
+      "manage": "Gérer cette étape",
+      "details": "Informations de l’entreprise",
+      "done": "Terminé",
+      "todo": "À faire",
+      "save": "Enregistrer les informations",
+      "saving": "Enregistrement…",
+      "saved": "Informations et progression enregistrées.",
+      "refresh": "Actualiser les exigences",
+      "publish": "Publier l’entreprise",
+      "published": "Entreprise publiée.",
+      "incomplete": "Les exigences ont changé. Actualisez-les et complétez les étapes manquantes.",
+      "saveError": "Impossible d’enregistrer les modifications. Réessayez.",
+      "ownerOnly": "Seul le propriétaire peut publier cette entreprise.",
+      "workspace": "Ouvrir l’espace de travail",
+      "checks": {
+        "name": "Nom de l’entreprise",
+        "category": "Catégorie de l’entreprise",
+        "location": "Ville ou lieu de prestation",
+        "description": "Description",
+        "service": "Au moins un service actif",
+        "restaurant_profile": "Profil du restaurant",
+        "menu": "Au moins un article disponible au menu"
+      },
+      "fields": {
+        "business_name": "Nom de l’entreprise",
+        "address_city": "Ville ou lieu de prestation",
+        "description": "Description"
+      }
+    }
+  },
   "reviewW11Learn": {
     "flagNotFound": "Signalement de vidéo introuvable.",
     "flagAlreadyDecided": "Ce signalement de vidéo a déjà été examiné.",

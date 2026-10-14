@@ -6,6 +6,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const http = require('node:http');
 const path = require('node:path');
+const { readFileSync } = require('node:fs');
 const { build } = require('esbuild');
 const { chromium } = require('playwright-core');
 
@@ -49,6 +50,11 @@ const I18N_DICT = {
   'creditRail.restaurant': 'Restaurant',
   'taskView.routeOnly': 'This task is handled on its own page.',
 };
+function flattenLabels(value, prefix = '') {
+  return Object.entries(value).flatMap(([key, text]) => typeof text === 'object'
+    ? flattenLabels(text, `${prefix}${key}.`) : [[`${prefix}${key}`, text]]);
+}
+Object.assign(I18N_DICT, Object.fromEntries(flattenLabels(require('../src/i18n/locales/en/attention.json').onboarding, 'onboarding.')));
 
 const YESTERDAY = new Date(Date.now() - 86400000).toISOString();
 
@@ -89,7 +95,7 @@ const PAYLOAD = {
       reason: 'attention.reasons.launchStep', reasonParams: {},
       urgency: 'low', createdAt: new Date().toISOString(), deadlineAt: null, ageDays: 5,
       amountCents: null, currencyCode: 'USD', creditRail: null,
-      taskDestination: { type: 'route', route: '/business/biz_2/setup', params: {} },
+      taskDestination: { type: 'component', component: 'BusinessOnboarding', route: '/business/biz_2/onboarding', params: {} },
     },
   ],
   freshness: [],
@@ -106,8 +112,21 @@ test('attention inbox modal renders, filters, opens tasks, and guards dirty form
     // real module so the axios import.meta chain never evaluates under iife.
     '../../api/businesses': {
       loader: 'js',
-      contents: `export const getAttention = async () => { throw new Error('unmocked getAttention'); };`,
+      contents: `export const getAttention = async () => { throw new Error('unmocked getAttention'); };
+        const setup = () => ({business:{id:'biz_2',business_name:'FixIt Co',address_city:'Springfield',description:window.__setupDescription||'',business_kind:'service',setup_status:window.__setupPublished?'active':'in_progress'},
+          checks:[{id:'description',complete:Boolean(window.__setupDescription)}],progress:{current_step:'description'},permissions:{canEdit:true,canPublish:window.__setupMode!=='manager'},readyToPublish:Boolean(window.__setupDescription)});
+        export const getBusinessOnboarding = async () => {
+          if(window.__setupMode==='error') throw new Error('Unavailable');
+          if(window.__setupMode==='forbidden') {const error=new Error('Forbidden');error.response={status:403};throw error;}
+          return setup();
+        };
+        export const updateBusiness = async (id, form) => { window.__setupDescription=form.description; return setup().business; };
+        export const saveBusinessOnboarding = async (id, payload) => {window.__savedSetup=payload;return {progress:payload};};
+        export const completeBusinessOnboarding = async () => {window.__setupPublished=true;return {};};`,
     },
+    '../../context/AuthContext': {loader:'js',contents:`export const useAuth=()=>({user:{id:'owner'}});`},
+    '../components/Navbar': {loader:'jsx',contents:`export default function Navbar(){return null;}`},
+    '../components/Footer': {loader:'jsx',contents:`export default function Footer(){return null;}`},
     'react-i18next': {
       loader: 'js',
       contents: `
@@ -115,7 +134,7 @@ test('attention inbox modal renders, filters, opens tasks, and guards dirty form
         const interpolate = (value, opts) => String(value).replace(/{{(\\w+)}}/g, (_, k) =>
           opts && opts[k] !== undefined ? String(opts[k]) : '');
         const t = (key, opts) => interpolate(dict[key] !== undefined ? dict[key] : key, opts);
-        export const useTranslation = () => ({ t, i18n: { exists: (key) => dict[key] !== undefined } });
+        export const useTranslation = () => ({ t, i18n: { exists: (key) => dict[key] !== undefined, dir:()=>document.documentElement.dir||'ltr', language:'en' } });
       `,
     },
     '../../pages/food/RestaurantCreditManager.jsx': {
@@ -139,8 +158,9 @@ test('attention inbox modal renders, filters, opens tasks, and guards dirty form
 
   const result = await build({
     stdin: {
-      contents: `import React from 'react'; import {createRoot} from 'react-dom/client'; import {MemoryRouter} from 'react-router-dom';
+      contents: `import React from 'react'; import {createRoot} from 'react-dom/client'; import {MemoryRouter,Routes,Route} from 'react-router-dom';
         import AttentionModal from './src/components/attention/AttentionModal.jsx';
+        import BusinessOnboardingPage from './src/pages/BusinessOnboardingPage.jsx';
         // The mode survives reloads via the URL (?mode=forbidden|error); a
         // plain reload wipes window.* state.
         window.__attentionMode = new URLSearchParams(window.location.search).get('mode') || 'ok';
@@ -159,11 +179,12 @@ test('attention inbox modal renders, filters, opens tasks, and guards dirty form
           return JSON.parse(JSON.stringify(${JSON.stringify(PAYLOAD)}));
         };
         createRoot(document.getElementById('root')).render(
-          <MemoryRouter><AttentionModal open={true}
+          <MemoryRouter><Routes><Route path="/" element={<AttentionModal open={true}
             onClose={() => { window.__closed = true; }}
             businesses={window.__businesses}
             fetchAttention={fetchAttention}
-            onAction={() => { window.__actionCount += 1; }} /></MemoryRouter>);`,
+            onAction={() => { window.__actionCount += 1; }} />} />
+            <Route path="/business/:businessId/onboarding" element={<BusinessOnboardingPage/>}/></Routes></MemoryRouter>);`,
       resolveDir: path.resolve(__dirname, '..'),
       loader: 'jsx',
     },
@@ -197,7 +218,9 @@ test('attention inbox modal renders, filters, opens tasks, and guards dirty form
       res.setHeader('Content-Type', 'text/javascript');
       res.end(result.outputFiles[0].contents);
     } else {
-      res.end('<html class="dark" dir="ltr"><body><div id="root"></div><script src="/app.js"></script></body></html>');
+      const css = ['AttentionModal.css', '../businessHub/BusinessOnboarding.css']
+        .map(file => readFileSync(path.join(__dirname, '../src/components/attention', file), 'utf8')).join('\n');
+      res.end(`<html class="dark" dir="ltr"><head><style>${css}</style></head><body><div id="root"></div><script src="/app.js"></script></body></html>`);
     }
   });
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
@@ -243,6 +266,21 @@ test('attention inbox modal renders, filters, opens tasks, and guards dirty form
     // Back to the list.
     await page.click('text=Back to attention');
     await page.waitForSelector('.attention-row');
+    // The actual setup workflow renders inside the modal, not a route-only
+    // placeholder. Its save uses the existing APIs and dirty-form guard.
+    await page.click('.attention-list > li:nth-child(4) .attention-row');
+    await page.waitForSelector('#setup-biz_2-description');
+    assert.ok(!(await page.content()).includes('This task is handled on its own page.'));
+    await page.fill('#setup-biz_2-description', 'Local repairs');
+    await page.click('text=Back to attention');
+    await page.waitForSelector('.attention-confirm');
+    await page.click('text=Keep editing');
+    await page.getByRole('button', { name: 'Save details', exact: true }).click();
+    await page.waitForFunction(() => window.__savedSetup?.currentStep === 'publish');
+    await page.waitForFunction(() => window.__actionCount === 1);
+    assert.deepEqual(await page.evaluate(() => window.__savedSetup.completedSteps), ['description']);
+    await page.click('text=Back to attention');
+    await page.waitForSelector('.attention-row');
 
     // Component-type destination: lazy workflow mounts with derived props.
     await page.click('.attention-list > li:first-child .attention-row');
@@ -265,7 +303,7 @@ test('attention inbox modal renders, filters, opens tasks, and guards dirty form
     await page.click('.attention-list > li:first-child .attention-row');
     await page.waitForSelector('#mock-action');
     await page.click('#mock-action');
-    assert.equal(await page.evaluate(() => window.__actionCount), 1);
+    assert.equal(await page.evaluate(() => window.__actionCount), 2);
 
     // Escape closes a clean modal; backdrop click too.
     await page.click('text=Back to attention');
@@ -305,6 +343,36 @@ test('attention inbox modal renders, filters, opens tasks, and guards dirty form
     await page.waitForSelector('#mock-credit-manager');
     overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
     assert.ok(overflow <= 1, `RTL task view overflow ${overflow}px`);
+
+    await page.click('text=Back to attention');
+    await page.click('.attention-list > li:nth-child(4) .attention-row');
+    await page.waitForSelector('#setup-biz_2-description');
+    await page.locator('.attention-task__header button').filter({hasText:'Open full page'}).click();
+    await page.waitForFunction(() => document.querySelector('#main-content .business-onboarding'));
+    assert.equal(await page.locator('.attention-dialog').count(), 0);
+    // The new full-page route reuses the actual form and publishes through
+    // the same existing server endpoint used by the embedded workflow.
+    await page.fill('#setup-biz_2-description', 'Ready to publish');
+    await page.getByRole('button', { name: 'Save details', exact: true }).click();
+    await page.waitForFunction(() => window.__setupDescription === 'Ready to publish');
+    await page.getByRole('button', { name: 'Publish business', exact: true }).click();
+    await page.waitForFunction(() => window.__setupPublished === true);
+    await page.waitForSelector('text=Your business is live');
+    for (const width of [320,390,768,1360,1600]) {
+      await page.setViewportSize({ width, height:800 });
+      assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1), `setup overflow at ${width}px`);
+    }
+    await page.evaluate(() => {window.__setupMode='manager';window.__setupPublished=false;});
+    await page.getByRole('button',{name:'Refresh readiness',exact:true}).click();
+    await page.waitForSelector('text=Only the business owner can publish.');
+    assert.equal(await page.getByRole('button',{name:'Publish business',exact:true}).count(),0);
+    await page.evaluate(() => {window.__setupMode='error';});
+    await page.getByRole('button',{name:'Refresh readiness',exact:true}).click();
+    await page.waitForSelector('text=Business setup could not be loaded.');
+    await page.evaluate(() => {window.__setupMode='forbidden';});
+    await page.getByRole('button',{name:'Try again',exact:true}).click();
+    await page.waitForSelector('text=This business is unavailable');
+    assert.equal(await page.locator('.business-onboarding form').count(),0);
 
     assert.deepEqual(errors, []);
   } finally {

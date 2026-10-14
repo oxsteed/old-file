@@ -1,4 +1,45 @@
 {
+  "attention": {
+    "onboarding": {
+      "title": "Konfigire {{name}}",
+      "intro": "Ranpli enfòmasyon biznis ki obligatwa yo, epi pibliye lè tout bagay pare.",
+      "live": "Biznis ou an piblik epi konfigirasyon obligatwa a fini.",
+      "ready": "Enfòmasyon obligatwa yo konplè. Pwopriyetè a ka pibliye biznis la.",
+      "remaining": "Kondisyon ki poko ranpli: {{count}}",
+      "lastSaved": "Pwogrè anrejistre: {{date}}",
+      "loading": "Ap chaje konfigirasyon biznis la…",
+      "error": "Nou pa t kapab chaje konfigirasyon biznis la.",
+      "unavailable": "Biznis sa a pa disponib oswa ou pa gen pèmisyon pou jere konfigirasyon li.",
+      "manage": "Jere etap sa a",
+      "details": "Enfòmasyon biznis",
+      "done": "Fini",
+      "todo": "Pou fè",
+      "save": "Anrejistre enfòmasyon",
+      "saving": "Ap anrejistre…",
+      "saved": "Enfòmasyon ak pwogrè anrejistre.",
+      "refresh": "Rafrechi kondisyon yo",
+      "publish": "Pibliye biznis la",
+      "published": "Biznis la pibliye.",
+      "incomplete": "Kondisyon yo chanje. Rafrechi yo epi ranpli etap ki manke yo.",
+      "saveError": "Nou pa t kapab anrejistre chanjman yo. Eseye ankò.",
+      "ownerOnly": "Se sèlman pwopriyetè biznis la ki ka pibliye li.",
+      "workspace": "Louvri espas travay la",
+      "checks": {
+        "name": "Non biznis",
+        "category": "Kategori biznis",
+        "location": "Vil oswa kote sèvis la fèt",
+        "description": "Deskripsyon",
+        "service": "Omwen yon sèvis aktif",
+        "restaurant_profile": "Pwofil restoran",
+        "menu": "Omwen yon atik disponib nan meni an"
+      },
+      "fields": {
+        "business_name": "Non biznis",
+        "address_city": "Vil oswa kote sèvis la fèt",
+        "description": "Deskripsyon"
+      }
+    }
+  },
   "reviewW11Learn": {
     "flagNotFound": "Nou pa jwenn rapò videyo a.",
     "flagAlreadyDecided": "Yo deja revize rapò videyo sa a.",

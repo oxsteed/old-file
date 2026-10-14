@@ -1,1 +1,166 @@
-{"actions":{"accessRevoked":"Accès révoqué","backToAttention":"Retour à la boîte d'attention","close":"Fermer","confirmDiscard":"Supprimer les modifications non enregistrées ?","discardChanges":"Supprimer les modifications","keepEditing":"Continuer la modification","openFullPage":"Ouvrir la page complète","resolvedTask":"Tâche résolue"},"age":{"daysAgo":"il y a {{days}} jours","dueIn":"Échéance dans {{days}} jours","overdue":"En retard"},"categories":{"agreements_warranties":"Contrats et garanties","bookings_scheduling":"Réservations et planning","customer_followup":"Suivi client","devices_integrations":"Appareils et intégrations","inventory_offerings":"Inventaire et offres","invoices_billing":"Factures et facturation","leads_quotes":"Prospects et devis","messages":"Messages","orders_fulfillment":"Commandes et exécution","payments_settlements":"Paiements et règlements","pickup_delivery":"Retrait et livraison","refunds_disputes":"Remboursements et litiges","restaurant_credit":"Crédit restaurant","service_jobs":"Travaux de service","setup_verification":"Configuration et vérification","team_access":"Équipe et accès"},"creditRail":{"oxsteed":"OxSteed","restaurant":"Restaurant"},"list":{"affectedBusinesses":"{{count}} établissements","empty":"Rien ne nécessite votre attention pour le moment.","filters":{"all":"Tous","business":"Établissement","category":"Catégorie","urgency":"Urgence"},"loading":"Chargement des éléments…","partialFailure":"Certains éléments n'ont pas pu être chargés.","retry":"Réessayer","sort":{"urgentFirst":"Urgent d'abord"},"pagination":{"previous":"Précédent","next":"Suivant"},"staleSource":"Certaines données peuvent être obsolètes.","subtitle":"Tous vos éléments ouverts, au même endroit.","title":"Boîte d'attention"},"reasons":{"amendmentRequest":"Demande de modification","approvalRestricted":"Approbation restreinte","atCapacity":"Capacité maximale atteinte","awaitingResponse":"En attente de votre réponse","bookingConflict":"Conflit de réservation","complaintAwaiting":"Réclamation en attente de réponse","completionApproval":"Achèvement à approuver","creditDispute":"Litige de crédit","creditRequestPending":"Demande de crédit en attente","disputeOpen":"Litige ouvert","evidenceDeadline":"Échéance de preuve","exposureWarning":"Alerte d'exposition","failedCharge":"Paiement échoué","failedDelivery":"Livraison échouée","failedFulfillment":"Exécution échouée","failedPayout":"Versement échoué","flaggedTransaction":"Transaction signalée","followupDeadline":"Échéance de suivi","fundingProofReview":"Preuve de fonds en cours de vérification","healthAlert":"Alerte sanitaire","integrationDisconnected":"Intégration déconnectée","inviteFailed":"Invitation échouée","jobAssignment":"Tâche à assigner","jobChangeRequest":"Demande de modification de tâche","launchStep":"Étape de lancement incomplète","lowStock":"Stock bas","membershipApproval":"Approbation d'adhésion requise","missedDelivery":"Livraison manquée","newOrder":"Nouvelle commande","offeringCorrection":"Offre à corriger","overdueFulfillment":"Exécution en retard","overdueInvoice":"Facture en retard","overdueJob":"Tâche en retard","payoutBlocked":"Versement bloqué","pendingBooking":"Demande de réservation en attente","quoteApproval":"Devis à approuver","quoteRequest":"Demande de devis","reconciliationDiff":"Écart de rapprochement","refundDecision":"Remboursement à décider","rescheduleApproval":"Replanification à approuver","reserveLow":"Réserve faible","signatureRequired":"Signature requise","stalledFulfillment":"Exécution bloquée","submissionRejected":"Soumission rejetée","syncFailed":"Synchronisation échouée","unassignedDelivery":"Livraison non assignée","unreadMessages":"Messages non lus","verificationExpired":"Vérification expirée","warrantyClaim":"Réclamation de garantie","other":"Un élément nécessite votre attention"},"taskView":{"routeOnly":"Cette tâche est traitée sur sa propre page.","resolvedTitle":"Cette tâche est maintenant résolue","resolvedBody":"L'élément concerné a été traité ou ne nécessite plus d'attention.","loadFailed":"Ce flux de travail n'a pas pu être chargé.","loadFailedBody":"Un problème est survenu lors de l'ouverture de cette tâche. Réessayez ou ouvrez la page complète."},"urgency":{"high":"Élevée","low":"Faible","normal":"Normale","urgent":"Urgent"}}
+{
+  "actions": {
+    "accessRevoked": "Accès révoqué",
+    "backToAttention": "Retour à la boîte d'attention",
+    "close": "Fermer",
+    "confirmDiscard": "Supprimer les modifications non enregistrées ?",
+    "discardChanges": "Supprimer les modifications",
+    "keepEditing": "Continuer la modification",
+    "openFullPage": "Ouvrir la page complète",
+    "resolvedTask": "Tâche résolue"
+  },
+  "age": {
+    "daysAgo": "il y a {{days}} jours",
+    "dueIn": "Échéance dans {{days}} jours",
+    "overdue": "En retard"
+  },
+  "categories": {
+    "agreements_warranties": "Contrats et garanties",
+    "bookings_scheduling": "Réservations et planning",
+    "customer_followup": "Suivi client",
+    "devices_integrations": "Appareils et intégrations",
+    "inventory_offerings": "Inventaire et offres",
+    "invoices_billing": "Factures et facturation",
+    "leads_quotes": "Prospects et devis",
+    "messages": "Messages",
+    "orders_fulfillment": "Commandes et exécution",
+    "payments_settlements": "Paiements et règlements",
+    "pickup_delivery": "Retrait et livraison",
+    "refunds_disputes": "Remboursements et litiges",
+    "restaurant_credit": "Crédit restaurant",
+    "service_jobs": "Travaux de service",
+    "setup_verification": "Configuration et vérification",
+    "team_access": "Équipe et accès"
+  },
+  "creditRail": {
+    "oxsteed": "OxSteed",
+    "restaurant": "Restaurant"
+  },
+  "list": {
+    "affectedBusinesses": "{{count}} établissements",
+    "empty": "Rien ne nécessite votre attention pour le moment.",
+    "filters": {
+      "all": "Tous",
+      "business": "Établissement",
+      "category": "Catégorie",
+      "urgency": "Urgence"
+    },
+    "loading": "Chargement des éléments…",
+    "partialFailure": "Certains éléments n'ont pas pu être chargés.",
+    "retry": "Réessayer",
+    "sort": {
+      "urgentFirst": "Urgent d'abord"
+    },
+    "pagination": {
+      "previous": "Précédent",
+      "next": "Suivant"
+    },
+    "staleSource": "Certaines données peuvent être obsolètes.",
+    "subtitle": "Tous vos éléments ouverts, au même endroit.",
+    "title": "Boîte d'attention"
+  },
+  "reasons": {
+    "amendmentRequest": "Demande de modification",
+    "approvalRestricted": "Approbation restreinte",
+    "atCapacity": "Capacité maximale atteinte",
+    "awaitingResponse": "En attente de votre réponse",
+    "bookingConflict": "Conflit de réservation",
+    "complaintAwaiting": "Réclamation en attente de réponse",
+    "completionApproval": "Achèvement à approuver",
+    "creditDispute": "Litige de crédit",
+    "creditRequestPending": "Demande de crédit en attente",
+    "disputeOpen": "Litige ouvert",
+    "evidenceDeadline": "Échéance de preuve",
+    "exposureWarning": "Alerte d'exposition",
+    "failedCharge": "Paiement échoué",
+    "failedDelivery": "Livraison échouée",
+    "failedFulfillment": "Exécution échouée",
+    "failedPayout": "Versement échoué",
+    "flaggedTransaction": "Transaction signalée",
+    "followupDeadline": "Échéance de suivi",
+    "fundingProofReview": "Preuve de fonds en cours de vérification",
+    "healthAlert": "Alerte sanitaire",
+    "integrationDisconnected": "Intégration déconnectée",
+    "inviteFailed": "Invitation échouée",
+    "jobAssignment": "Tâche à assigner",
+    "jobChangeRequest": "Demande de modification de tâche",
+    "launchStep": "Étape de lancement incomplète",
+    "lowStock": "Stock bas",
+    "membershipApproval": "Approbation d'adhésion requise",
+    "missedDelivery": "Livraison manquée",
+    "newOrder": "Nouvelle commande",
+    "offeringCorrection": "Offre à corriger",
+    "overdueFulfillment": "Exécution en retard",
+    "overdueInvoice": "Facture en retard",
+    "overdueJob": "Tâche en retard",
+    "payoutBlocked": "Versement bloqué",
+    "pendingBooking": "Demande de réservation en attente",
+    "quoteApproval": "Devis à approuver",
+    "quoteRequest": "Demande de devis",
+    "reconciliationDiff": "Écart de rapprochement",
+    "refundDecision": "Remboursement à décider",
+    "rescheduleApproval": "Replanification à approuver",
+    "reserveLow": "Réserve faible",
+    "signatureRequired": "Signature requise",
+    "stalledFulfillment": "Exécution bloquée",
+    "submissionRejected": "Soumission rejetée",
+    "syncFailed": "Synchronisation échouée",
+    "unassignedDelivery": "Livraison non assignée",
+    "unreadMessages": "Messages non lus",
+    "verificationExpired": "Vérification expirée",
+    "warrantyClaim": "Réclamation de garantie",
+    "other": "Un élément nécessite votre attention"
+  },
+  "taskView": {
+    "routeOnly": "Cette tâche est traitée sur sa propre page.",
+    "resolvedTitle": "Cette tâche est maintenant résolue",
+    "resolvedBody": "L'élément concerné a été traité ou ne nécessite plus d'attention.",
+    "loadFailed": "Ce flux de travail n'a pas pu être chargé.",
+    "loadFailedBody": "Un problème est survenu lors de l'ouverture de cette tâche. Réessayez ou ouvrez la page complète."
+  },
+  "urgency": {
+    "high": "Élevée",
+    "low": "Faible",
+    "normal": "Normale",
+    "urgent": "Urgent"
+  },
+  "onboarding": {
+    "title": "Configurer {{name}}",
+    "intro": "Complétez les informations obligatoires, puis publiez lorsque tout est prêt.",
+    "live": "Votre entreprise est en ligne et la configuration obligatoire est terminée.",
+    "ready": "Les informations obligatoires sont complètes. Le propriétaire peut publier cette entreprise.",
+    "remaining": "Points à compléter : {{count}}",
+    "lastSaved": "Progression enregistrée : {{date}}",
+    "loading": "Chargement de la configuration…",
+    "error": "Impossible de charger la configuration de cette entreprise.",
+    "unavailable": "Cette entreprise est indisponible ou vous ne pouvez pas gérer sa configuration.",
+    "manage": "Gérer cette étape",
+    "details": "Informations de l’entreprise",
+    "done": "Terminé",
+    "todo": "À faire",
+    "save": "Enregistrer les informations",
+    "saving": "Enregistrement…",
+    "saved": "Informations et progression enregistrées.",
+    "refresh": "Actualiser les exigences",
+    "publish": "Publier l’entreprise",
+    "published": "Entreprise publiée.",
+    "incomplete": "Les exigences ont changé. Actualisez-les et complétez les étapes manquantes.",
+    "saveError": "Impossible d’enregistrer les modifications. Réessayez.",
+    "ownerOnly": "Seul le propriétaire peut publier cette entreprise.",
+    "workspace": "Ouvrir l’espace de travail",
+    "checks": {
+      "name": "Nom de l’entreprise",
+      "category": "Catégorie de l’entreprise",
+      "location": "Ville ou lieu de prestation",
+      "description": "Description",
+      "service": "Au moins un service actif",
+      "restaurant_profile": "Profil du restaurant",
+      "menu": "Au moins un article disponible au menu"
+    },
+    "fields": {
+      "business_name": "Nom de l’entreprise",
+      "address_city": "Ville ou lieu de prestation",
+      "description": "Description"
+    }
+  }
+}

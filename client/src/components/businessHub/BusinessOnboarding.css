@@ -1,0 +1,16 @@
+.business-onboarding { color: var(--color-text); padding: 24px; max-width: 900px; margin-inline: auto; overflow-wrap: anywhere; }
+.business-onboarding h1 { font-size: clamp(1.3rem, 4vw, 2rem); }
+.business-onboarding p { line-height: 1.6; }
+.business-onboarding-checks { list-style: none; margin: 24px 0; padding: 0; display: grid; gap: 12px; }
+.business-onboarding-checks li, .business-onboarding form { padding: 16px; border: 1px solid var(--color-border); border-radius: 12px; background: var(--color-surface); }
+.business-onboarding-checks li > div { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; }
+.business-onboarding form { display: grid; gap: 16px; }
+.business-onboarding label { display: grid; gap: 8px; }
+.business-onboarding input, .business-onboarding textarea { width: 100%; box-sizing: border-box; min-width: 0; min-height: 44px; padding: 10px; border: 1px solid var(--color-border); border-radius: 8px; color: var(--color-text); background: var(--color-surface); font: inherit; }
+.business-onboarding textarea { min-height: 100px; resize: vertical; }
+.business-onboarding button, .business-onboarding a { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: 8px 14px; box-sizing: border-box; border: 1px solid var(--color-border); border-radius: 8px; color: var(--color-text); background: var(--color-surface); font: inherit; text-align: start; }
+.business-onboarding button { cursor: pointer; }
+.business-onboarding button:disabled { opacity: .6; cursor: default; }
+.business-onboarding :focus-visible { outline: 3px solid var(--color-primary, #ff6b00); outline-offset: 3px; }
+.business-onboarding-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-block: 20px; }
+@media (max-width: 420px) { .business-onboarding { padding: 12px; } }

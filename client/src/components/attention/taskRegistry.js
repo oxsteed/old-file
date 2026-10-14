@@ -8,6 +8,7 @@ import { lazy } from 'react';
 // here and describe its required props in getTaskComponentProps.
 
 const loaders = {
+  BusinessOnboarding: () => import('../businessHub/BusinessOnboarding.jsx'),
   RestaurantCreditManager: () => import('../../pages/food/RestaurantCreditManager.jsx'),
 };
 
@@ -23,6 +24,10 @@ export function getTaskComponent(name) {
 // when required data is missing so the caller can fall back to the
 // route-only message instead of rendering a broken workflow.
 export function getTaskComponentProps(name, task) {
+  if (name === 'BusinessOnboarding') {
+    if (!task?.businessId) return null;
+    return { businessId: task.businessId };
+  }
   if (name === 'RestaurantCreditManager') {
     if (task?.restaurantId == null) return null;
     return { restaurant: { id: task.restaurantId } };

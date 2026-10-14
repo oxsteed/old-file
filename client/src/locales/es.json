@@ -1,4 +1,45 @@
 {
+  "attention": {
+    "onboarding": {
+      "title": "Configurar {{name}}",
+      "intro": "Completa los datos obligatorios del negocio y publícalo cuando esté listo.",
+      "live": "Tu negocio está publicado y la configuración obligatoria está completa.",
+      "ready": "Los datos obligatorios están completos. El propietario puede publicar el negocio.",
+      "remaining": "Requisitos pendientes: {{count}}",
+      "lastSaved": "Progreso guardado: {{date}}",
+      "loading": "Cargando la configuración del negocio…",
+      "error": "No se pudo cargar la configuración del negocio.",
+      "unavailable": "Este negocio no está disponible o no tienes permiso para gestionar su configuración.",
+      "manage": "Gestionar este paso",
+      "details": "Datos del negocio",
+      "done": "Hecho",
+      "todo": "Pendiente",
+      "save": "Guardar datos",
+      "saving": "Guardando…",
+      "saved": "Datos y progreso guardados.",
+      "refresh": "Actualizar requisitos",
+      "publish": "Publicar negocio",
+      "published": "Negocio publicado.",
+      "incomplete": "Los requisitos han cambiado. Actualízalos y completa los pasos pendientes.",
+      "saveError": "No se pudieron guardar los cambios. Inténtalo de nuevo.",
+      "ownerOnly": "Solo el propietario del negocio puede publicarlo.",
+      "workspace": "Abrir espacio de trabajo",
+      "checks": {
+        "name": "Nombre del negocio",
+        "category": "Categoría del negocio",
+        "location": "Ciudad o ubicación del servicio",
+        "description": "Descripción",
+        "service": "Al menos un servicio activo",
+        "restaurant_profile": "Perfil del restaurante",
+        "menu": "Al menos un artículo disponible en el menú"
+      },
+      "fields": {
+        "business_name": "Nombre del negocio",
+        "address_city": "Ciudad o ubicación del servicio",
+        "description": "Descripción"
+      }
+    }
+  },
   "reviewW11Learn": {
     "flagNotFound": "No se encontró el reporte del vídeo.",
     "flagAlreadyDecided": "Este reporte del vídeo ya se revisó.",

@@ -65,6 +65,14 @@ function makeDb(seed = {}) {
       return { rows: [{ reg: missingTables.includes(t) ? null : t }] };
     }
 
+    // Canonical readiness reads the business and its real offerings.
+    if (s.includes('AS service_count') && s.includes('FROM businesses b')) {
+      return { rows: businesses.filter(b => b.id === params[0]).map(b => ({
+        business_kind: 'service', business_type: 'Handyman', address_city: 'Springfield', description: 'Repairs',
+        service_count: 1, setup_status: 'active', is_active: true, is_listed: true,
+        ...b, ...(rows.setupReadiness || []).find(row => row.id === b.id),
+      })) };
+    }
     // Business access check (re-resolved every request).
     if (s.includes('FROM businesses b')) {
       const filter = params[1];
@@ -280,6 +288,7 @@ describe('attention inbox — positive per category', () => {
   function seedAll() {
     return makeDb({
       rows: {
+        setupReadiness: [{ id: 7, service_count: 0, setup_status: 'in_progress' }],
         foodOrders: [
           { id: 1, business_id: 7, restaurant_id: 42, status: 'received', payment_status: 'unpaid', total_cents: 2500, currency_code: 'USD', promised_at: null, created_at: hoursAgo(1), updated_at: hoursAgo(1), ready_at: null, restaurant_name: 'R', fulfillment_type: 'pickup' },
           { id: 2, business_id: 7, restaurant_id: 42, status: 'accepted', payment_status: 'paid', total_cents: 1000, currency_code: 'USD', promised_at: hoursAgo(0.5), created_at: hoursAgo(3), updated_at: hoursAgo(3), ready_at: null, restaurant_name: 'R', fulfillment_type: 'delivery' },

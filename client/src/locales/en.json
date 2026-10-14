@@ -1,4 +1,45 @@
 {
+  "attention": {
+    "onboarding": {
+      "title": "Set up {{name}}",
+      "intro": "Complete the required business details, then publish when ready.",
+      "live": "Your business is live and the required setup is complete.",
+      "ready": "The required details are complete. The owner can publish this business.",
+      "remaining": "Incomplete checks: {{count}}",
+      "lastSaved": "Progress saved: {{date}}",
+      "loading": "Loading business setup…",
+      "error": "Business setup could not be loaded.",
+      "unavailable": "This business is unavailable or you do not have permission to manage its setup.",
+      "manage": "Manage this step",
+      "details": "Business details",
+      "done": "Done",
+      "todo": "To do",
+      "save": "Save details",
+      "saving": "Saving…",
+      "saved": "Details and progress saved.",
+      "refresh": "Refresh readiness",
+      "publish": "Publish business",
+      "published": "Business published.",
+      "incomplete": "The requirements have changed. Refresh readiness and complete the missing steps.",
+      "saveError": "The changes could not be saved. Try again.",
+      "ownerOnly": "Only the business owner can publish.",
+      "workspace": "Open workspace",
+      "checks": {
+        "name": "Business name",
+        "category": "Business category",
+        "location": "City or service location",
+        "description": "Description",
+        "service": "At least one active service",
+        "restaurant_profile": "Restaurant profile",
+        "menu": "At least one available menu item"
+      },
+      "fields": {
+        "business_name": "Business name",
+        "address_city": "City or service location",
+        "description": "Description"
+      }
+    }
+  },
   "reviewW11Learn": {
     "flagNotFound": "Video flag not found.",
     "flagAlreadyDecided": "This video flag was already reviewed.",

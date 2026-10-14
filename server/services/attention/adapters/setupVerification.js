@@ -9,12 +9,18 @@
  */
 
 const { buildItem, makeTracker } = require('../utils');
+const { loadBusinessSetupReadiness, isBusinessPublished } = require('../../businessSetupReadiness');
 
 async function collect(business, ctx) {
   const items = [];
   const freshness = [];
   const track = makeTracker(freshness, 'business_setup_progress');
   const verTrack = makeTracker(freshness, 'verification_reviews');
+
+  // Match the actual setup permissions; employees cannot edit or publish.
+  if (!['owner', 'manager'].includes(business.role)) return { items, freshness };
+  const readiness = await loadBusinessSetupReadiness(ctx.pool, business.id);
+  if (!readiness) throw new Error('Business readiness unavailable');
 
   if (!(await ctx.tableExists('business_setup_progress'))) {
     track.done(true, 'table business_setup_progress is missing');
@@ -28,9 +34,10 @@ async function collect(business, ctx) {
     const progress = rows[0] || null;
     if (progress) track.touch(progress.updated_at || progress.created_at);
 
-    const completed = new Set(progress ? progress.completed_steps || [] : []);
-    const current = progress ? progress.current_step : 'identity';
-    const isComplete = current && completed.has(current);
+    // Saved navigation markers are not evidence of readiness. Published
+    // businesses historically save "complete" without adding it to the array.
+    const current = readiness.checks.find(check => !check.complete)?.id || 'publish';
+    const isComplete = readiness.readyToPublish && isBusinessPublished(readiness.business);
 
     if (!isComplete) {
       items.push(buildItem({
@@ -44,7 +51,8 @@ async function collect(business, ctx) {
         createdAt: (progress && (progress.updated_at || progress.created_at)) || new Date().toISOString(),
         deadlineAt: null,
         taskDestination: {
-          type: 'route',
+          type: 'component',
+          component: 'BusinessOnboarding',
           route: `/business/${business.id}/onboarding`,
           params: {},
         },

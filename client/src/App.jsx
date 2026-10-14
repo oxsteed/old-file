@@ -144,6 +144,7 @@ const DistributionPage = lazyWithRetry(() => import('./pages/logistics/Distribut
 const CompliancePage = lazyWithRetry(() => import('./pages/logistics/CompliancePage'));
 const LogisticsFinancePage = lazyWithRetry(() => import('./pages/logistics/LogisticsFinancePage'));
 const BusinessHubPage = lazyWithRetry(() => import('./pages/BusinessHubPage'));
+const BusinessOnboardingPage = lazyWithRetry(() => import('./pages/BusinessOnboardingPage'));
 const CreditApplyPage = lazyWithRetry(() => import('./pages/CreditApplyPage'));
 const VortexPage = lazyWithRetry(() => import('./pages/VortexPage'));
 const NetworkAppsPage = lazyWithRetry(() => import('./pages/NetworkAppsPage'));
@@ -485,6 +486,7 @@ export default function App() {
                     {/* Workspace URLs must be declared before the public /business/:id
                         profile so a just-created draft at /business/1/workspace cannot
                         be treated as a public profile load. */}
+                    <Route path="/business/:businessId/onboarding" element={<Guarded><ProtectedRoute><RouteErrorBoundary><BusinessOnboardingPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/business/:businessId/workspace"          element={<Guarded><ProtectedRoute><RouteErrorBoundary><BusinessHubPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/business/:businessId/workspace/:tab"     element={<Guarded><ProtectedRoute><RouteErrorBoundary><BusinessHubPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/business/:id"            element={<Guarded><BusinessProfilePage /></Guarded>} />
