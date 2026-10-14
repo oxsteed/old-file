@@ -500,6 +500,7 @@
   "transactionSubBankConversion": "تحويل عملة البنك الفرعي",
   "transactionSubBankPayout": "دفعة من البنك الفرعي",
   "transactionSubBankPayoutReversal": "عكس دفعة البنك الفرعي",
+  "transactionSubBankLoadReversal": "عكس تحميل البنك الفرعي",
   "transactionActivity": "نشاط Credit",
   "reservedStatus": "محجوز",
   "capturedStatus": "مسجل",
@@ -2025,5 +2026,30 @@
     "submitAppeal": "إرسال الطعن",
     "appealSubmitted": "تم إرسال الطعن",
     "appealFailed": "تعذر إرسال الطعن"
+  },
+  "creditFunding": {
+    "title": "موّل احتياطي الائتماني الخاص بك",
+    "lede": "الموافقة تكاد تكتمل. موّل احتياطي OxSteed الائتماني لتبدأ في إصدار ائتمان المطاعم.",
+    "loading": "جارٍ تحميل خيارات التمويل…",
+    "loadFailed": "تعذّر تحميل خيارات التمويل.",
+    "stripeBody": "ادفع بأمان بالبطاقة عبر Stripe. يتم إضافة المبلغ إلى احتياطيك تلقائياً عند نجاح الدفع.",
+    "stripeHint": "استخدم لوحة شراء الاحتياطي أدناه للتمويل بالبطاقة.",
+    "sendTo": "أرسل دفعتك إلى:",
+    "qrAlt": "رمز QR للدفع",
+    "noInstructions": "التمويل اليدوي غير متاح بعد لبلدك. يرجى الاتصال بدعم OxSteed.",
+    "amount": "المبلغ الذي أرسلته",
+    "proof": "إثبات الدفع",
+    "proofUploaded": "تم رفع الإثبات.",
+    "uploadFailed": "فشل رفع الإثبات.",
+    "reference": "مرجع الدفع (اختياري)",
+    "referencePlaceholder": "معرّف المعاملة أو رقم المرجع",
+    "note": "ملاحظة (اختيارية)",
+    "validAmount": "أدخل مبلغ تمويل صالحاً.",
+    "proofRequired": "ارفع إثبات الدفع أو أدخل مرجعاً.",
+    "submit": "إرسال للتحقق",
+    "submitting": "جارٍ الإرسال…",
+    "submitted": "تم إرسال إثبات التمويل للمراجعة.",
+    "submitFailed": "تعذّر إرسال إثبات التمويل.",
+    "reviewNote": "يراجع OxSteed إثباتك ويضيف المبلغ إلى احتياطيك عند التحقق."
   }
 }

@@ -37,7 +37,8 @@ test('restaurant survives loading, deduplicates dish suggestions, and recovers f
         uploadFoodAsset = noWrite, sendFoodRestaurantMessage = noWrite,
         createFoodCardPaymentIntent = noWrite, createRestaurantTopupIntent = noWrite,
         getRestaurantTopup = noWrite, getRestaurantTopupEligibility = noWrite,
-        issueRestaurantTopupStepupChallenge = noWrite;`,
+        issueRestaurantTopupStepupChallenge = noWrite,
+        requestFoodWalletCredit = noWrite, getFoodWalletCreditCapacity = async () => null;`,
     '../../api/oxsteedCredit': `export const getOxsteedCreditAccount = async () => null;
       export const getOxsteedCreditEligibility = async () => null;
       export const listOxsteedCreditEligiblePartners = async () => [];`,

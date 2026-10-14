@@ -501,6 +501,7 @@
   "transactionSubBankConversion": "Konvèsyon lajan nan sou-bank",
   "transactionSubBankPayout": "Peman nan sou-bank",
   "transactionSubBankPayoutReversal": "Ranvèsman peman nan sou-bank",
+  "transactionSubBankLoadReversal": "Ranvèse chajman sou-bank",
   "transactionActivity": "Aktivite Credit",
   "reservedStatus": "Rezève",
   "capturedStatus": "Kaptire",
@@ -2025,5 +2026,30 @@
     "submitAppeal": "Voye apèl la",
     "appealSubmitted": "Apèl la voye",
     "appealFailed": "Nou pa t ka voye apèl la"
+  },
+  "creditFunding": {
+    "title": "Mete lajan nan rezèv kredi ou",
+    "lede": "Apwobasyon ou prèske fini. Mete lajan nan rezèv kredi OxSteed ou pou kòmanse bay kredi restoran.",
+    "loading": "N ap chaje opsyon finansman yo…",
+    "loadFailed": "Nou pa t kapab chaje opsyon finansman yo.",
+    "stripeBody": "Peye an sekirite ak kat via Stripe. Rezèv ou ap kredite otomatikman lè peman an reyisi.",
+    "stripeHint": "Sèvi ak panèl acha rezèv la anba a pou finanse ak kat.",
+    "sendTo": "Voye peman ou bay:",
+    "qrAlt": "Kòd QR peman",
+    "noInstructions": "Finansman manyèl poko disponib pou peyi ou. Tanpri kontakte sipò OxSteed.",
+    "amount": "Kantite lajan ou te voye",
+    "proof": "Prèv peman",
+    "proofUploaded": "Prèv la chaje.",
+    "uploadFailed": "Chajman prèv la echwe.",
+    "reference": "Referans peman (opsyonèl)",
+    "referencePlaceholder": "ID tranzaksyon oswa nimewo referans",
+    "note": "Nòt (opsyonèl)",
+    "validAmount": "Antre yon kantite finansman ki valid.",
+    "proofRequired": "Chaje yon prèv peman oswa antre yon referans.",
+    "submit": "Soumèt pou verifikasyon",
+    "submitting": "N ap soumèt…",
+    "submitted": "Prèv finansman an soumèt pou revizyon.",
+    "submitFailed": "Nou pa t kapab soumèt prèv finansman an.",
+    "reviewNote": "OxSteed ap revize prèv ou epi kredite rezèv ou lè li verifye."
   }
 }

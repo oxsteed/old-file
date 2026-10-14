@@ -457,6 +457,35 @@ export const listFavoriteItems = () =>
 export const toggleFavoriteItem = (restaurantId, itemId) =>
   api.post(`/food/customer/favorite-items/${restaurantId}/${itemId}/toggle`).then((r) => r.data);
 
+// ── Restaurant credit approval (Phase 6: the revocation path) ─────────────
+export const getAdminRestaurantCreditApproval = (restaurantId) =>
+  api.get(`/food/admin/restaurants/${restaurantId}/credit-approval`).then((r) => r.data?.approval || null);
+
+export const setAdminRestaurantCreditApproval = (restaurantId, payload) =>
+  api.post(`/food/admin/restaurants/${restaurantId}/credit-approval`, payload).then((r) => r.data?.approval || null);
+
+export const getMerchantCreditApproval = () =>
+  api.get('/food/merchant/credit-approval').then((r) => r.data?.restaurants || []);
+
+// ── Approval funding step (Stripe where available, OxSteed instructions elsewhere) ──
+export const getCreditFundingPath = (restaurantId) =>
+  api.get('/food/merchant/credit-approval/funding-path', { params: { restaurantId } }).then((r) => r.data || null);
+
+export const submitCreditFundingProof = (payload) =>
+  api.post('/food/merchant/credit-approval/funding-proof', payload).then((r) => r.data?.submission || null);
+
+export const listCreditFundingSubmissions = () =>
+  api.get('/food/admin/credit-funding/submissions').then((r) => r.data?.submissions || []);
+
+export const verifyCreditFundingSubmission = (id, payload) =>
+  api.post(`/food/admin/credit-funding/submissions/${id}/verify`, payload).then((r) => r.data || null);
+
+export const listOxsteedFundingInstructions = () =>
+  api.get('/food/admin/funding-instructions').then((r) => r.data?.instructions || []);
+
+export const upsertOxsteedFundingInstructions = (payload) =>
+  api.post('/food/admin/funding-instructions', payload).then((r) => r.data?.instructions || null);
+
 // ── Shared formatting ────────────────────────────────────────────────────────
 export function formatFoodMoney(cents, currency = 'USD') {
   return formatCreditMinorUnits(cents, currency);
