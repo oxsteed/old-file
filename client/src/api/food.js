@@ -215,6 +215,16 @@ export const declineMerchantFoodWalletCreditRequest = (restaurantId, requestId, 
 export const grantMerchantFoodWalletCredit = (restaurantId, payload = {}) =>
   api.post(`/food/restaurants/${restaurantId}/customer-wallet-loads`, payload).then((r) => r.data);
 
+// Phase 2: restaurant-initiated credit refunds (money back out of the wallet).
+export const createMerchantFoodWalletRefund = (restaurantId, payload = {}) =>
+  api.post(`/food/merchant/wallets/${restaurantId}/refunds`, payload).then((r) => r.data);
+
+export const listMerchantFoodWalletRefunds = (restaurantId, params = {}) =>
+  api.get(`/food/merchant/wallets/${restaurantId}/refunds`, { params }).then((r) => r.data?.refunds || []);
+
+export const listMyFoodWalletRefunds = (restaurantId) =>
+  api.get(`/food/customer/wallets/${restaurantId}/refunds`).then((r) => r.data?.refunds || []);
+
 export const getFoodOrder = (orderId) =>
   api.get(`/food/orders/${orderId}`).then((r) => r.data?.order);
 
