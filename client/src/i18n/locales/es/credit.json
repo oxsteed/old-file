@@ -1767,6 +1767,8 @@
     "sending": "Enviando...",
     "requestTitle": "Añadir crédito del restaurante",
     "requestSubtitle": "Envía el comprobante de pago. {{restaurant}} añadirá el crédito después de verificarlo.",
+    "atCapacityTitle": "Solicitudes de crédito en pausa",
+    "atCapacityBody": "Este restaurante está al límite de solicitudes de crédito en este momento. Vuelve a intentarlo más tarde.",
     "sendPaymentTo": "Envía tu pago a",
     "paymentQrAlt": "Código QR de pago",
     "amountPaid": "Importe pagado",

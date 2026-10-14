@@ -74,6 +74,10 @@ router.post('/customer/wallets/:restaurantId/transfers', restaurantCreditMutatio
 router.get('/customer/wallets/:restaurantId/transfers', walletCtrl.listMyWalletTransfers);
 router.post('/customer/wallets/:restaurantId/load-requests', restaurantCreditMutationLimiter, walletCtrl.createMyWalletLoadRequest);
 router.get('/customer/wallets/:restaurantId/load-requests', walletCtrl.listMyWalletLoadRequests);
+// Phase 5: trial-tier credit-cap pre-check for the RequestCreditModal.
+// Enforcement is authoritative on the request path; this endpoint only
+// informs the UI whether the "at capacity" notice should render.
+router.get('/customer/wallets/:restaurantId/credit-capacity', walletCtrl.getCreditCapacity);
 router.post('/customer/wallets/:restaurantId/load-requests/:requestId/cancel', restaurantCreditMutationLimiter, walletCtrl.cancelMyWalletLoadRequest);
 router.post('/customer/wallets/:restaurantId/load-requests/:requestId/disputes', restaurantCreditMutationLimiter, disputeCtrl.createDispute);
 router.get('/customer/wallets/:restaurantId/disputes', disputeCtrl.listMyDisputes);
@@ -153,6 +157,13 @@ router.get('/restaurants/:restaurantId/customer-wallet-statement', walletCtrl.ge
 // enforced inside the controller (requireRestaurantAccess + assertWalletOperator).
 router.post('/merchant/wallets/:restaurantId/refunds', restaurantCreditMutationLimiter, walletCtrl.createCustomerWalletRefund);
 router.get('/merchant/wallets/:restaurantId/refunds', walletCtrl.listRestaurantWalletRefunds);
+// Phase 5: trial-tier credit cap + FIFO derisking. Only meaningful for
+// restaurants WITHOUT a Phase 4 reserve row (the trial-cap service itself
+// reports trial_cap_applies: false for enrolled restaurants). Operator
+// authorization is enforced inside the controller (requireRestaurantAccess
+// + assertWalletOperator), mirroring the merchant wallet surface.
+router.get('/merchant/wallets/:restaurantId/exposure', walletCtrl.getCreditExposure);
+router.post('/merchant/wallets/:restaurantId/derisk', restaurantCreditMutationLimiter, walletCtrl.deriskCredit);
 // Phase 4: restaurant credit pre-purchase reserve ("gift card inventory"
 // model). Opt-in per restaurant: only restaurants WITH a reserve row are
 // capped at issuance; restaurants without a row keep the trial-tier cap

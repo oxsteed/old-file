@@ -1767,6 +1767,8 @@
     "sending": "Ap voye...",
     "requestTitle": "Ajoute kredi restoran",
     "requestSubtitle": "Voye prèv peman ou. {{restaurant}} ap ajoute kredi a apre li verifye li.",
+    "atCapacityTitle": "Demann kredi yo kanpe pou kounye a",
+    "atCapacityBody": "Restoran sa a plen pou demann kredi kounye a. Tounen pita.",
     "sendPaymentTo": "Voye peman ou bay",
     "paymentQrAlt": "Kòd QR peman",
     "amountPaid": "Montan ou peye",

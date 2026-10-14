@@ -1767,6 +1767,8 @@
     "sending": "جار الإرسال...",
     "requestTitle": "إضافة رصيد المطعم",
     "requestSubtitle": "أرسل إثبات الدفع. سيضيف {{restaurant}} الرصيد بعد التحقق منه.",
+    "atCapacityTitle": "طلبات الائتمان متوقفة مؤقتاً",
+    "atCapacityBody": "وصل هذا المطعم إلى الحد الأقصى لطلبات الائتمان حالياً. تحقق لاحقاً.",
     "sendPaymentTo": "أرسل دفعتك إلى",
     "paymentQrAlt": "رمز QR للدفع",
     "amountPaid": "المبلغ المدفوع",
