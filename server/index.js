@@ -756,6 +756,7 @@ app.use('/api', require('./routes/statementCenter'));
 app.use('/api/statements', require('./routes/statementSearch'));
 app.use('/api/statements', creditExportLimiter, statementRenditionsRoutes);
 app.use('/api', statementInvestigationRoutes);
+app.use('/api', require('./routes/statementDisputeMessages'));
 // Device-authenticated OxSteed Credit kiosk hardware (redeem / cash-out),
 // scoped to a restaurant + paired device the same way POS/Kitchen/Display are.
 app.use('/api/restaurants/:restaurantId/credit-kiosks/:deviceId', oxsteedCreditKioskRoutes);
