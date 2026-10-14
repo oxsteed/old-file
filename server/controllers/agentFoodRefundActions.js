@@ -376,12 +376,19 @@ async function refundFoodOrder(req, res, next) {
         [targetStatus, 'refunded', JSON.stringify(metadata), order.id]
       );
 
+      // P3-9-F02: restore redeemed loyalty points and claw back earned points
+      // in the same transaction, like the kitchen status-transition path.
+      // Idempotent: the helper skips rows it already wrote.
+      const { _clawBackFoodLoyaltyOnRefund } = require('./foodController');
+      const loyaltyReconciliation = await _clawBackFoodLoyaltyOnRefund(client, updated);
+
       const afterState = {
         status: updated.status,
         payment_status: updated.payment_status,
         payment_method: paymentMethod,
         total_cents: totalCents,
         currency_code: currencyCode,
+        loyalty: loyaltyReconciliation || null,
         ...(money.balanceBeforeCents != null ? { wallet_balance_before_cents: money.balanceBeforeCents } : {}),
         ...(money.balanceAfterCents != null ? { wallet_balance_after_cents: money.balanceAfterCents } : {}),
       };

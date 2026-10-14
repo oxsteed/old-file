@@ -126,6 +126,10 @@ function assertFoodOrderPaidForHandoff(order) {
 exports.TASK_TRANSITIONS = TASK_TRANSITIONS;
 exports.assertLegalRunnerCompletion = assertLegalRunnerCompletion;
 exports.assertFoodOrderPaidForHandoff = assertFoodOrderPaidForHandoff;
+// P2-4-F07: shared with the handoff path in restaurantAppFlowController so
+// both proof gates validate against the same method allowlist.
+exports.normalizeProofMethod = normalizeProofMethod;
+exports.RUNNER_PROOF_METHODS = RUNNER_PROOF_METHODS;
 
 async function requireRestaurantAccess(userId, restaurantId) {
   if (!restaurantId) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');

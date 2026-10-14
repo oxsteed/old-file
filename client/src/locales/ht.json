@@ -16840,7 +16840,9 @@
         "assignment_failed": "Distribisyon echwe",
         "claimed": "Reklame",
         "released": "Libere"
-      }
+      },
+      "onboardingRequired": "Konplete enskripsyon chofè a anba a pou w ka pran livrezon.",
+      "approvalPending": "Pwofil chofè w la ap tann apwobasyon operasyon yo. W ap ka pran livrezon lè li apwouve."
     },
     "packageTypes": {
       "small": "Ti · jiska 25 lb",
@@ -17363,6 +17365,21 @@
         "approaching": "Ap pwoche destinasyon",
         "delivered": "Livre"
       }
+    },
+    "driver": {
+      "title": "Kondwi ak OxSteed",
+      "body": "Enskri machin ou pou w ka pran livrezon pakè. Operasyon yo verifye chak pwofil anvan yo apwouve li.",
+      "equipment": "Ekipman",
+      "equipmentPlaceholder": "Charyo, kòd, sak izole",
+      "serviceArea": "Zòn sèvis",
+      "serviceAreaPlaceholder": "Vil oswa kòd postal ou kouvri",
+      "insuranceAck": "Mwen konfime mwen gen yon asirans machin ki valab pou travay livrezon.",
+      "insuranceRequired": "Ou dwe konfime asirans ou pou w kontinye.",
+      "submit": "Voye pou apwobasyon",
+      "submitting": "Ap voye...",
+      "verified": "Chofè verifye",
+      "pendingTitle": "Apwobasyon an atant",
+      "pendingBody": "Pwofil chofè w la te voye. Operasyon yo pral verifye li byento, epi w ap ka pran livrezon lè li apwouve."
     }
   },
   "aboutPage": {
@@ -20264,7 +20281,9 @@
       "refundReasonPlaceholder": "Rezon (obligatwa)",
       "refundConfirm": "Bay ranbousman an",
       "refundSuccess": "Ranbousman bay",
-      "refundError": "Pa ka bay ranbousman an."
+      "refundError": "Pa ka bay ranbousman an.",
+      "cardPartialRefundUnsupported": "Ranbousman pasyèl pa disponib pou kòmann kat sou entènèt. Ranbouse tout kòmann lan oswa mande sipò èd.",
+      "cardRefundUseCancel": "Kòmann kat yo ranbouse lè ou anile kòmann lan. Ranbousman kat la fèt otomatikman."
     },
     "onboarding": {
       "eyebrow": "Sware Ouvèti",

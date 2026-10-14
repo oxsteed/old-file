@@ -729,6 +729,38 @@ function OrdersTab({ t, restaurant }) {
 
   const refund = async (order, amountCents, reason) => {
     try {
+      const mode = orderPaymentMode(order);
+      // P2-4-F01: online card orders (pay_now/card) carry the Stripe intent at
+      // the order level; the POS ledger has no rows for them, so the POS
+      // refund endpoint 409s. Route them through the order-status transition
+      // instead, which performs the Stripe refund server-side. Active card
+      // orders refund via Cancel; only completed/cancelled orders may move to
+      // 'refunded'. The transition refunds the full charge, so a partial
+      // amount (or an already partially-refunded order) is rejected rather
+      // than silently refunding the whole order.
+      if (['pay_now', 'card'].includes(mode)) {
+        if (!['completed', 'cancelled'].includes(order.status)) {
+          toast.error(t('food.merchant.cardRefundUseCancel'));
+          return;
+        }
+        if (order.payment_status !== 'paid'
+          || (amountCents && Number(amountCents) < Number(order.total_cents || 0))) {
+          toast.error(t('food.merchant.cardPartialRefundUnsupported'));
+          return;
+        }
+        const cardIdempotencyKey = refundIdempotencyKeysRef.current.get('merchant-card-refund', {
+          restaurantId: restaurant.id,
+          orderId: order.id,
+          reason: reason || '',
+        });
+        await updateFoodOrderStatus(restaurant.id, order.id, 'refunded', {
+          reason,
+          idempotencyKey: cardIdempotencyKey,
+        });
+        toast.success(t('food.merchant.refundSuccess'));
+        reloadAfterAction();
+        return;
+      }
       // P2-4-F01: recordPosPayment requires an Idempotency-Key for refunds.
       // The key is stable per (order, amount, reason) so a retry after a
       // timeout replays the original refund instead of double-refunding.

@@ -5858,11 +5858,15 @@ exports.getCustomerProfile = async (req, res, next) => {
     }
 
     try {
+      // P2-8-F14: a restaurant hidden by an admin after being favorited must
+      // not stay visible in the customer's favorites list.
       const { rows } = await pool.query(
-        `SELECT restaurant_id
-           FROM food_customer_favorite_restaurants
-          WHERE user_id = $1
-          ORDER BY created_at DESC`,
+        `SELECT f.restaurant_id
+           FROM food_customer_favorite_restaurants f
+           JOIN food_restaurants fr ON fr.id = f.restaurant_id
+          WHERE f.user_id = $1
+            AND COALESCE(fr.is_hidden_by_admin, FALSE) = FALSE
+          ORDER BY f.created_at DESC`,
         [req.user.id]
       );
       profile.favoriteRestaurantIds = rows.map((row) => Number(row.restaurant_id));
@@ -6150,11 +6154,14 @@ exports.updateCustomerProfile = async (req, res, next) => {
 // client Save button needs initial state without mutating.
 exports.listCustomerFavoriteRestaurants = async (req, res, next) => {
   try {
+    // P2-8-F14: exclude restaurants hidden by an admin after being favorited.
     const { rows } = await pool.query(
-      `SELECT restaurant_id
-         FROM food_customer_favorite_restaurants
-        WHERE user_id = $1
-        ORDER BY created_at DESC`,
+      `SELECT f.restaurant_id
+         FROM food_customer_favorite_restaurants f
+         JOIN food_restaurants fr ON fr.id = f.restaurant_id
+        WHERE f.user_id = $1
+          AND COALESCE(fr.is_hidden_by_admin, FALSE) = FALSE
+        ORDER BY f.created_at DESC`,
       [req.user.id]
     );
     res.json({
@@ -6203,10 +6210,12 @@ exports.toggleCustomerFavoriteRestaurant = async (req, res, next) => {
     }
 
     const { rows } = await pool.query(
-      `SELECT restaurant_id
-         FROM food_customer_favorite_restaurants
-        WHERE user_id = $1
-        ORDER BY created_at DESC`,
+      `SELECT f.restaurant_id
+         FROM food_customer_favorite_restaurants f
+         JOIN food_restaurants fr ON fr.id = f.restaurant_id
+        WHERE f.user_id = $1
+          AND COALESCE(fr.is_hidden_by_admin, FALSE) = FALSE
+        ORDER BY f.created_at DESC`,
       [req.user.id]
     );
     res.json({
