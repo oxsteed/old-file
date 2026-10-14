@@ -11,7 +11,7 @@ export function searchStatements({ q, product, limit = 25, offset = 0, signal } 
 
 export function listSavedViews({ product, signal } = {}) {
   return api.get('/statements/saved-views', { params: product ? { product } : {}, signal })
-    .then((response) => response.data?.views || []);
+    .then((response) => (Array.isArray(response.data?.views) ? response.data.views : []));
 }
 
 export function createSavedView({ name, product, filters = {}, sort = {} }) {

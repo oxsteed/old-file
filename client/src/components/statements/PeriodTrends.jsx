@@ -18,6 +18,22 @@ import './PeriodTrends.css';
 //
 // Mounted below the interactive statement table (CreditStatementsPage) by
 // Group B. All amounts are per-currency; currencies are never combined.
+// The trends endpoint must return the full comparison shape the render below
+// consumes. Anything else (an error payload, a deploy-skewed response, a
+// proxy page parsed as JSON) renders the error state instead of crashing the
+// whole statement page.
+function isUsableTrends(data) {
+  const totals = data?.current?.totals;
+  return !!(
+    data &&
+    totals && typeof totals.currencyCode === 'string' &&
+    data.current?.period && data.previous?.period &&
+    data.change &&
+    Array.isArray(data.drivers) &&
+    Array.isArray(data.breakdown)
+  );
+}
+
 export default function PeriodTrends({ product, accountId, period }) {
   const { t, i18n } = useTranslation('credit');
   const text = (key, options = {}) => t(`statements.${key}`, options);
@@ -39,6 +55,10 @@ export default function PeriodTrends({ product, accountId, period }) {
     getStatementTrends(product, accountId, { period, signal: controller.signal })
       .then((data) => {
         if (controller.signal.aborted) return;
+        if (!isUsableTrends(data)) {
+          setStatus('error');
+          return;
+        }
         setTrends(data);
         setStatus('ready');
       })
