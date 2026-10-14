@@ -49,6 +49,7 @@ import { FOOD_STATUS_KEYS } from './foodShared';
 import { notifyMoneyMoment } from '../../utils/pwaInstall';
 import { notifyPushMoment } from '../../utils/pushPrompt';
 import RestaurantMediaFeed from './components/RestaurantMediaFeed';
+import RequestCreditModal from './RequestCreditModal';
 import MediaProfilePreview from '../../components/media/MediaProfilePreview';
 import { recordView } from '../../hooks/useRecentlyViewed';
 import Navbar from '../../components/Navbar';
@@ -244,6 +245,8 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
   const [sendingMessage, setSendingMessage] = useState(false);
   // Media-tab dish deep link: item id the Media feed asked to jump to.
   const [highlightItemId, setHighlightItemId] = useState(null);
+  // Request-credit modal (opens in place, no page navigation).
+  const [creditModalOpen, setCreditModalOpen] = useState(false);
   const pendingMediaDish = useRef(null);
 
   // Cart / checkout
@@ -2066,7 +2069,7 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
                 </button>
                 <button onClick={onShare} aria-label={t('food.restaurant.share')} style={{ height: 36, padding: '0 14px', borderRadius: 9999, border: '1.5px solid #e2e8f0', background: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b' }}>{`↗ ${t('food.restaurant.share')}`}</button>
                 {user && (
-                  <button onClick={() => navigate(`/restaurant-credit?restaurantId=${encodeURIComponent(restaurantId)}`)} aria-label={t('food.restaurant.requestCredit')} style={{ height: 36, padding: '0 14px', borderRadius: 9999, border: '1.5px solid #e2e8f0', background: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer', color: '#0f172a' }}>{t('food.restaurant.requestCredit')}</button>
+                  <button onClick={() => setCreditModalOpen(true)} aria-label={t('food.restaurant.requestCredit')} style={{ height: 36, padding: '0 14px', borderRadius: 9999, border: '1.5px solid #e2e8f0', background: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer', color: '#0f172a' }}>{t('food.restaurant.requestCredit')}</button>
                 )}
               </div>
             </div>
@@ -2119,7 +2122,7 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
                   <button onClick={onShare} aria-label={t('food.restaurant.share')} style={{ flex: 1, height: 40, borderRadius: 8, border: '1.5px solid #e2e8f0', background: '#fff', color: '#64748b', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>{`↗ ${t('food.restaurant.share')}`}</button>
                 </div>
                 {user && (
-                  <button onClick={() => navigate(`/restaurant-credit?restaurantId=${encodeURIComponent(restaurantId)}`)} aria-label={t('food.restaurant.requestCredit')} style={{ width: '100%', height: 40, marginTop: 8, borderRadius: 8, border: '1.5px solid #e2e8f0', background: '#fff', color: '#0f172a', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>{t('food.restaurant.requestCredit')}</button>
+                  <button onClick={() => setCreditModalOpen(true)} aria-label={t('food.restaurant.requestCredit')} style={{ width: '100%', height: 40, marginTop: 8, borderRadius: 8, border: '1.5px solid #e2e8f0', background: '#fff', color: '#0f172a', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>{t('food.restaurant.requestCredit')}</button>
                 )}
               </div>
               {hours.length > 0 && (
@@ -3259,6 +3262,14 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
         )}
       </div>
       <Footer />
+      {creditModalOpen && (
+        <RequestCreditModal
+          restaurantId={restaurantId}
+          restaurantName={restaurant?.name || ''}
+          currency={currency}
+          onClose={() => setCreditModalOpen(false)}
+        />
+      )}
     </>
   );
 }
