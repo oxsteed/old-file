@@ -175,6 +175,12 @@ export const requestFoodWalletCredit = (restaurantId, payload) =>
 export const cancelFoodWalletCreditRequest = (restaurantId, requestId) =>
   api.post(`/food/customer/wallets/${restaurantId}/load-requests/${requestId}/cancel`).then((r) => r.data?.loadRequest);
 
+export const createFoodWalletCreditDispute = (restaurantId, requestId, payload) =>
+  api.post(`/food/customer/wallets/${restaurantId}/load-requests/${requestId}/disputes`, payload).then((r) => r.data?.dispute);
+
+export const listFoodWalletCreditDisputes = (restaurantId) =>
+  api.get(`/food/customer/wallets/${restaurantId}/disputes`).then((r) => r.data?.disputes || []);
+
 export const listMerchantFoodWalletCreditRequests = (restaurantId, params = {}) =>
   api.get(`/food/restaurants/${restaurantId}/customer-wallet-load-requests`, { params }).then((r) => r.data?.loadRequests || []);
 

@@ -1803,7 +1803,14 @@
     "cancelQrFailed": "Unable to cancel the payment QR.",
     "sendFailed": "Unable to send restaurant credit.",
     "uploadFailed": "Unable to upload proof.",
-    "submitFailed": "Unable to submit the credit request."
+    "submitFailed": "Unable to submit the credit request.",
+    "dispute": "Dispute",
+    "disputeTitle": "Dispute this credit request",
+    "disputeReasonLabel": "Reason",
+    "disputeReasonPlaceholder": "Explain what happened (for example: you paid the restaurant, but the credit was never issued).",
+    "disputeSubmit": "Submit dispute",
+    "disputeSubmitted": "Dispute submitted",
+    "disputeSubmitFailed": "Unable to submit the dispute."
   },
   "adminLedgerVersion": "Ledger v{{version}} · {{currency}}",
   "adminOxsteedCredit": "OxSteed credit",

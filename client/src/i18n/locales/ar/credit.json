@@ -1803,7 +1803,14 @@
     "cancelQrFailed": "تعذر إلغاء رمز الدفع.",
     "sendFailed": "تعذر إرسال رصيد المطعم.",
     "uploadFailed": "تعذر رفع الإثبات.",
-    "submitFailed": "تعذر إرسال طلب الرصيد."
+    "submitFailed": "تعذر إرسال طلب الرصيد.",
+    "dispute": "اعتراض",
+    "disputeTitle": "الاعتراض على طلب الرصيد هذا",
+    "disputeReasonLabel": "السبب",
+    "disputeReasonPlaceholder": "اشرح ما حدث (على سبيل المثال: دفعت للمطعم، لكن لم يتم إصدار الرصيد).",
+    "disputeSubmit": "إرسال الاعتراض",
+    "disputeSubmitted": "تم إرسال الاعتراض.",
+    "disputeSubmitFailed": "تعذّر إرسال الاعتراض."
   },
   "adminLedgerVersion": "دفتر الأستاذ v{{version}} · {{currency}}",
   "adminOxsteedCredit": "OxSteed credit",

@@ -5,9 +5,11 @@ const router = express.Router();
 const { authenticate, optionalAuth } = require('../middleware/auth');
 const ctrl = require('../controllers/foodController');
 const walletCtrl = require('../controllers/foodWalletController');
+const disputeCtrl = require('../controllers/foodCreditDisputeController');
 const statementController = require('../controllers/creditStatementController');
 const kiosk = require('../controllers/restaurantKioskController');
 const oxsteedCreditPartnerCtrl = require('../controllers/oxsteedCreditPartnerController');
+const { requireAdmin } = require('../middleware/adminAuth');
 const { creditExportLimiter, creditPurchaseLimiter, paymentsLimiter, restaurantCreditMutationLimiter, profileChatLimiter, foodCheckoutCompleteLimiter } = require('../middleware/rateLimiter');
 const checkRestrictions = require('../middleware/checkRestrictions');
 
@@ -72,6 +74,8 @@ router.get('/customer/wallets/:restaurantId/transfers', walletCtrl.listMyWalletT
 router.post('/customer/wallets/:restaurantId/load-requests', restaurantCreditMutationLimiter, walletCtrl.createMyWalletLoadRequest);
 router.get('/customer/wallets/:restaurantId/load-requests', walletCtrl.listMyWalletLoadRequests);
 router.post('/customer/wallets/:restaurantId/load-requests/:requestId/cancel', restaurantCreditMutationLimiter, walletCtrl.cancelMyWalletLoadRequest);
+router.post('/customer/wallets/:restaurantId/load-requests/:requestId/disputes', restaurantCreditMutationLimiter, disputeCtrl.createDispute);
+router.get('/customer/wallets/:restaurantId/disputes', disputeCtrl.listMyDisputes);
 router.get('/customer/favorites', authenticate, ctrl.listCustomerFavoriteRestaurants);
 router.post('/customer/favorites/:restaurantId/toggle', authenticate, ctrl.toggleCustomerFavoriteRestaurant);
 router.get('/customer/favorite-items', authenticate, ctrl.listCustomerFavoriteItems);
@@ -79,6 +83,18 @@ router.put('/customer/favorite-items/sync', authenticate, ctrl.syncCustomerFavor
 router.post('/customer/favorite-items/:restaurantId/:itemId/toggle', authenticate, ctrl.toggleCustomerFavoriteItem);
 router.post('/restaurants/:restaurantId/messages', authenticate, profileChatLimiter, ctrl.createRestaurantCustomerMessage);
 router.post('/restaurants/:restaurantId/reports', authenticate, ctrl.createRestaurantReport);
+
+// Merchant dispute surface (Phase 1 of the restaurant credit protection
+// system). Path mirrors the customer /customer/wallets/:restaurantId shape
+// while keeping operator authorization on requireRestaurantAccess +
+// assertWalletOperator in the controller.
+router.use('/merchant/wallets', authenticate, noStoreCreditResponse);
+router.get('/merchant/wallets/:restaurantId/disputes', disputeCtrl.listMerchantDisputes);
+router.post('/merchant/wallets/:restaurantId/disputes/:disputeId/respond', restaurantCreditMutationLimiter, disputeCtrl.respondToDispute);
+
+// Admin dispute resolution. Never moves money: 'resolved_release' only
+// re-queues the load request to pending for restaurant re-review.
+router.post('/admin/wallets/disputes/:disputeId/resolve', requireAdmin, disputeCtrl.resolveDispute);
 
 // Merchant onboarding and menu setup.
 router.post('/restaurants', authenticate, ctrl.createRestaurant);

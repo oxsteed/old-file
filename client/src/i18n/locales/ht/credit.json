@@ -1803,7 +1803,14 @@
     "cancelQrFailed": "Pa kapab anile QR peman an.",
     "sendFailed": "Pa kapab voye kredi restoran an.",
     "uploadFailed": "Pa kapab telechaje prèv la.",
-    "submitFailed": "Pa kapab voye demann kredi a."
+    "submitFailed": "Pa kapab voye demann kredi a.",
+    "dispute": "Konteste",
+    "disputeTitle": "Konteste demann kredi sa a",
+    "disputeReasonLabel": "Rezon",
+    "disputeReasonPlaceholder": "Eksplike sa ki te pase (pa egzanp: ou te peye restoran an, men yo pa t janm bay kredi a).",
+    "disputeSubmit": "Soumèt kontestasyon an",
+    "disputeSubmitted": "Kontestasyon an soumèt.",
+    "disputeSubmitFailed": "Nou pa t ka soumèt kontestasyon an."
   },
   "adminLedgerVersion": "Gran liv v{{version}} · {{currency}}",
   "adminOxsteedCredit": "OxSteed credit",

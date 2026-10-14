@@ -1803,7 +1803,14 @@
     "cancelQrFailed": "Impossible d'annuler le QR de paiement.",
     "sendFailed": "Impossible d'envoyer le crédit restaurant.",
     "uploadFailed": "Impossible d'importer la preuve.",
-    "submitFailed": "Impossible d'envoyer la demande de crédit."
+    "submitFailed": "Impossible d'envoyer la demande de crédit.",
+    "dispute": "Contester",
+    "disputeTitle": "Contester cette demande de crédit",
+    "disputeReasonLabel": "Motif",
+    "disputeReasonPlaceholder": "Expliquez ce qui s'est passé (par exemple : vous avez payé le restaurant, mais le crédit n'a jamais été émis).",
+    "disputeSubmit": "Soumettre le litige",
+    "disputeSubmitted": "Litige soumis.",
+    "disputeSubmitFailed": "Impossible de soumettre le litige."
   },
   "adminLedgerVersion": "Grand livre v{{version}} · {{currency}}",
   "adminOxsteedCredit": "OxSteed credit",

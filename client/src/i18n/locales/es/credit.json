@@ -1803,7 +1803,14 @@
     "cancelQrFailed": "No se puede cancelar el QR de pago.",
     "sendFailed": "No se puede enviar el crédito del restaurante.",
     "uploadFailed": "No se puede subir el comprobante.",
-    "submitFailed": "No se puede enviar la solicitud de crédito."
+    "submitFailed": "No se puede enviar la solicitud de crédito.",
+    "dispute": "Disputar",
+    "disputeTitle": "Disputar esta solicitud de crédito",
+    "disputeReasonLabel": "Motivo",
+    "disputeReasonPlaceholder": "Explique qué ocurrió (por ejemplo: pagó al restaurante, pero el crédito nunca se emitió).",
+    "disputeSubmit": "Enviar disputa",
+    "disputeSubmitted": "Disputa enviada.",
+    "disputeSubmitFailed": "No se pudo enviar la disputa."
   },
   "adminLedgerVersion": "Libro v{{version}} · {{currency}}",
   "adminOxsteedCredit": "OxSteed credit",
