@@ -163,8 +163,10 @@ async function fetchIncomeSummary(userId) {
       [userId, last90Days]
     ),
     pool.query(
+      // P3-1-F19: 'released' is never written to payments.status (release is
+      // tracked in payment_hold_status), so filter on captured only.
       `SELECT SUM(helper_payout) as total FROM payments
-       WHERE payee_id = $1 AND status IN ('captured', 'released') AND created_at >= $2`,
+       WHERE payee_id = $1 AND status = 'captured' AND created_at >= $2`,
       [userId, last90Days]
     ),
     pool.query(

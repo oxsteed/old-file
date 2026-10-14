@@ -23,7 +23,10 @@ describe('weekly summary job', () => {
 
     const summaryQuery = db.query.mock.calls[0][0];
     expect(summaryQuery).toContain('SUM(COALESCE(p.helper_payout, 0))');
-    expect(summaryQuery).toContain('p.status IN (\'captured\', \'released\')');
+    // P3-1-F19: 'released' is never written to payments.status (release is
+    // tracked in payment_hold_status), so the filter is captured-only.
+    expect(summaryQuery).toContain("p.status = 'captured'");
+    expect(summaryQuery).not.toContain("'released')");
     expect(summaryQuery).toContain("CASE WHEN p.payment_hold_status = 'released' THEN p.released_at ELSE p.captured_at END");
     expect(summaryQuery).toContain('hp.completed_jobs_count AS completed_jobs');
     expect(summaryQuery).not.toContain('hp.earnings_mtd');

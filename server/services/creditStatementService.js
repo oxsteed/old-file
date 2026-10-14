@@ -301,4 +301,4 @@ async function materializeExportSource(client, job, { maxRows = 1000000 } = {}) 
     holdsUnavailable:true };
 }
 
-module.exports = { getStatement, periodFor, reconcileRows, exactMoney, hashDocument, MAX_ROWS, materializeExportSource };
+module.exports = { getStatement, periodFor, reconcileRows, exactMoney, hashDocument, MAX_ROWS, materializeExportSource, assertIssuanceGraceElapsed };
