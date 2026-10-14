@@ -107,6 +107,7 @@ function isUuid(value) {
 exports.submitSupportRequest = async (req, res, next) => {
   try {
     const { name, email, subject, message, category = 'general', priority = 'normal', sender_language = 'en' } = req.body;
+    const jobId = req.body?.job_id || req.body?.jobId || null;
     const clientRequestId = req.get('Idempotency-Key')
       || req.body.clientRequestId
       || req.body.client_request_id
@@ -132,6 +133,54 @@ exports.submitSupportRequest = async (req, res, next) => {
     const allowedCategory = ['general', 'billing', 'technical', 'account', 'dispute', 'verification', 'other', 'chat_escalation'];
     const safeCategory = allowedCategory.includes(category?.toLowerCase?.()) ? category.toLowerCase() : 'general';
 
+    // Review P1-3-F08 / P1-17-F01: complaint barrier, support-ticket entry.
+    // A signed work agreement is the first stop for work-quality complaints:
+    // a 'dispute'-category ticket about a job with a signed agreement and no
+    // warranty claim is refused (409 warranty_claim_required) so the parties
+    // use the agreement first. Mirrors disputeController.openDispute. Other
+    // categories (billing questions, technical issues) pass through; the job
+    // link is still recorded on the ticket for support context.
+    let linkedJobId = null;
+    if (jobId && isUuid(String(jobId))) {
+      linkedJobId = String(jobId);
+      let gateUserId = req.user?.id || null;
+      if (!gateUserId) {
+        const { rows: linkRows } = await db.query(
+          'SELECT id FROM users WHERE LOWER(email) = LOWER($1) LIMIT 1',
+          [email.trim()]
+        );
+        if (linkRows.length) gateUserId = linkRows[0].id;
+      }
+      if (gateUserId && safeCategory === 'dispute') {
+        const { rows: jobRows } = await db.query(
+          'SELECT id FROM jobs WHERE id = $1 AND (client_id = $2 OR assigned_helper_id = $2)',
+          [linkedJobId, gateUserId]
+        );
+        if (jobRows.length) {
+          const { rows: agreementRows } = await db.query(
+            `SELECT a.id FROM work_agreements a
+               WHERE a.job_id = $1 AND a.status IN ('active', 'completed')
+               ORDER BY a.created_at DESC LIMIT 1`,
+            [linkedJobId]
+          );
+          if (agreementRows[0]) {
+            const { rows: claimRows } = await db.query(
+              'SELECT id FROM work_agreement_warranty_claims WHERE agreement_id = $1 LIMIT 1',
+              [agreementRows[0].id]
+            );
+            if (!claimRows.length) {
+              throw new AppError(
+                'This job has a signed work agreement. File a warranty claim on the agreement first, then contact support if it is not resolved there.',
+                409,
+                'warranty_claim_required',
+                { agreement_id: agreementRows[0].id }
+              );
+            }
+          }
+        }
+      }
+    }
+
     // Validate and sanitize language code.
     const allowedLanguages = ['en', 'es', 'fr', 'ht', 'ar', 'de', 'it', 'pt', 'nl', 'pl', 'ja', 'zh'];
     const safeLanguage = allowedLanguages.includes(sender_language?.toLowerCase?.()) ? sender_language.toLowerCase() : 'en';
@@ -154,8 +203,8 @@ exports.submitSupportRequest = async (req, res, next) => {
 
     const ticketRes = await client.query(
       `INSERT INTO support_tickets
-         (user_id, name, email, subject, category, priority, status, source, client_request_id, sla_due_at)
-       VALUES ($1, $2, $3, $4, $5, $6, 'open', 'widget', $7,
+         (user_id, name, email, subject, category, priority, status, source, client_request_id, metadata, sla_due_at)
+       VALUES ($1, $2, $3, $4, $5, $6, 'open', 'widget', $7, $8::jsonb,
                NOW() + (CASE $6
                  WHEN 'urgent' THEN INTERVAL '1 hour'
                  WHEN 'high'   THEN INTERVAL '4 hours'
@@ -173,6 +222,7 @@ exports.submitSupportRequest = async (req, res, next) => {
         safeCategory,
         safePriority,
         clientRequestId,
+        JSON.stringify(linkedJobId ? { job_id: linkedJobId } : {}),
       ]
     );
     let ticket = ticketRes.rows[0];

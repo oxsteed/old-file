@@ -466,10 +466,65 @@ exports.completeAgreement = async (req, res) => {
       [agreement.id, role]
     );
     if (!updated) return res.status(409).json({ error: 'Only an active agreement can be completed.' });
-    return res.json({ agreement: updated, awaitingCounterparty: updated.status !== 'completed' });
+
+    // Review P1-3-F14: agreement <-> payment/release link. Both parties
+    // confirming completion is the work-accepted signal, so when the linked
+    // job is still in a completable state, drive the release through the
+    // same guarded completion path the customer would use (escrow capture /
+    // Credit hold release). The guards fail closed (open dispute, undecided
+    // change order, unauthorized payment): on any refusal the funds stay
+    // held while the agreement itself still completes.
+    let release = null;
+    if (updated.status === 'completed' && agreement.job_id) {
+      release = await releaseJobFundsOnAgreementCompletion(agreement);
+    }
+    return res.json({ agreement: updated, awaitingCounterparty: updated.status !== 'completed', release });
   } catch (err) {
     logger.error('work agreement complete error', { err, userId: req.user?.id });
     return res.status(500).json({ error: 'Could not complete agreement.' });
+  }
+};
+
+// Review P1-3-F14: link bilateral agreement completion to the job's
+// payment/release flow. Never throws: a blocked release fails closed
+// (funds stay held) while the agreement itself still completes.
+async function releaseJobFundsOnAgreementCompletion(agreement) {
+  try {
+    const { rows: [job] } = await db.query(
+      `SELECT id, status, transaction_mode, payment_rail, client_id, assigned_helper_id
+         FROM jobs WHERE id = $1::uuid`,
+      [agreement.job_id]
+    );
+    if (!job) return { released: false, code: 'job_not_found' };
+    if (job.status !== 'in_progress') {
+      return { released: false, code: 'job_not_completable', job_status: job.status };
+    }
+    const { completeJobCore, afterJobCompleted } = require('./jobController');
+    const completed = await completeJobCore({
+      job,
+      jobId: job.id,
+      // The customer's agreement confirmation is the work-accepted signal,
+      // the same consent as pressing "complete" on the job.
+      asClient: true,
+      actorUserId: agreement.customer_id,
+    });
+    try {
+      await afterJobCompleted(completed, agreement.customer_id);
+    } catch (sideErr) {
+      logger.warn('work agreement completion side effects failed', {
+        agreementId: agreement.id,
+        error: sideErr.message,
+      });
+    }
+    return { released: true, job_status: completed.status };
+  } catch (err) {
+    logger.warn('work agreement completion could not release job funds', {
+      agreementId: agreement.id,
+      jobId: agreement.job_id,
+      error: err.message,
+      code: err.code,
+    });
+    return { released: false, code: err.code || 'release_failed' };
   }
 };
 

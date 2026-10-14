@@ -91,11 +91,23 @@ export default function WorkAgreementPage() {
 
   // Review P1-164: each party confirms; the agreement completes once both have.
   const [completing, setCompleting] = useState(false);
+  // Review P1-3-F14: the server links bilateral completion to the job's
+  // payment release; surface the outcome so both parties know where the
+  // money stands.
+  const [releaseNotice, setReleaseNotice] = useState('');
   const confirmComplete = async () => {
     setCompleting(true);
     try {
-      await api.post(`/work-agreements/${id}/complete`);
+      const { data: done } = await api.post(`/work-agreements/${id}/complete`);
       load();
+      const release = done?.release;
+      if (release?.released) {
+        setReleaseNotice(t('workAgreement.paymentReleased'));
+      } else if (release && !release.released && release.code !== 'job_not_completable' && release.code !== 'job_not_found') {
+        setReleaseNotice(t('workAgreement.paymentHeld'));
+      } else {
+        setReleaseNotice('');
+      }
     } catch (e) {
       setError(e.response?.data?.error || t('workAgreement.completeError', { defaultValue: 'Could not confirm completion.' }));
     } finally {
@@ -222,6 +234,7 @@ export default function WorkAgreementPage() {
         <Link to={data?.agreement?.job_id ? `/jobs/${data.agreement.job_id}` : '/jobs'} className="wa-back"><ArrowLeft size={16} aria-hidden="true" /> {t('workAgreement.back', { defaultValue: 'Back' })}</Link>
         {agreement?.job_id && <PaymentReauthorizationBanner key={(data?.changeOrders || []).filter((co) => co.status === 'approved').length} jobId={agreement.job_id} alwaysCheck />}
         {error && <p className="wa-error" role="alert">{error}</p>}
+        {releaseNotice && <p className="wa-notice" role="status">{releaseNotice}</p>}
         {!agreement && !loading && <p>{t('workAgreement.notFound', { defaultValue: 'Agreement not found.' })}</p>}
 
         {agreement && (

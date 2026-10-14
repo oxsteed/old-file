@@ -1589,6 +1589,7 @@ async function autoConfirmHelperCompletions({ limit = 50 } = {}) {
 }
 
 exports.completeJobCore = completeJobCore;
+exports.afterJobCompleted = afterJobCompleted;
 exports.autoConfirmHelperCompletions = autoConfirmHelperCompletions;
 exports.HELPER_COMPLETION_CONFIRM_HOURS = HELPER_COMPLETION_CONFIRM_HOURS;
 
