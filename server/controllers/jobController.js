@@ -1642,10 +1642,11 @@ exports.closeJob = async (req, res, next) => {
       );
     }
 
-    // Check payment status for tier-3 jobs (must be captured/released)
+    // Check payment status for tier-3 jobs (must be captured; released funds are
+    // tracked in payment_hold_status on captured rows, never in payments.status)
     const { rows: paymentRows } = await pool.query(`
       SELECT id, status FROM payments
-      WHERE job_id = $1 AND status NOT IN ('captured', 'released', 'refunded')
+      WHERE job_id = $1 AND status NOT IN ('captured', 'refunded')
     `, [id]);
 
     if (paymentRows.length > 0) {
