@@ -74,6 +74,9 @@ const STEPUP_ACTION_TYPES = Object.freeze([
   // amount tiering; require a fresh step-up challenge per refund. (Full
   // two-person approval for refunds is a product decision for Emile.)
   'manual_refund',
+  // ADM-016: the second admin (checker) in dual approval must prove a fresh
+  // step-up challenge before the queued money movement executes.
+  'money_movement_approve',
 ]);
 
 function getStepupPepper() {

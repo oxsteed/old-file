@@ -4,6 +4,7 @@ const db = require('../db');
 const { sendEmail } = require('../utils/email');
 const { renderOxSteedEmail } = require('../utils/emailTemplate');
 const { logAdminAction } = require('../services/auditService');
+const { csvRow } = require('../utils/csv');
 
 const VALID_CONSULTING_STATUSES = ['pending', 'contacted', 'scheduled', 'in_progress', 'completed', 'cancelled', 'archived'];
 
@@ -433,31 +434,38 @@ exports.completeSession = async (req, res) => {
   const { sessionId } = req.params;
 
   try {
-    // Find the scheduled session record
-    const scheduledResult = await db.query(
-      'SELECT id FROM consulting_sessions_scheduled WHERE session_id = $1',
+    // ADM-012/013: the canonical status lives on consulting_sessions. A
+    // consulting_sessions_scheduled row only exists for scheduler-created
+    // sessions, so it cannot be a precondition — and the mirror table must
+    // not be the only thing updated.
+    const existing = await db.query(
+      'SELECT id, status FROM consulting_sessions WHERE id = $1',
       [sessionId]
     );
-
-    if (scheduledResult.rows.length === 0) {
-      return res.status(404).json({ error: 'Scheduled session not found' });
+    if (existing.rows.length === 0) {
+      return res.status(404).json({ error: 'Session not found' });
     }
-
-    const scheduledId = scheduledResult.rows[0].id;
 
     // Mark session as completed
     const result = await db.query(
-      `UPDATE consulting_sessions_scheduled
+      `UPDATE consulting_sessions
        SET status = 'completed', updated_at = NOW()
        WHERE id = $1
        RETURNING *`,
-      [scheduledId]
+      [sessionId]
+    );
+
+    // Keep the scheduler mirror row consistent when one exists.
+    await db.query(
+      `UPDATE consulting_sessions_scheduled
+       SET status = 'completed', updated_at = NOW()
+       WHERE session_id = $1`,
+      [sessionId]
     );
 
     logger.info('Consulting session marked as completed', {
       adminId: req.user?.id,
       sessionId,
-      scheduledId,
     });
 
     return res.json({
@@ -478,31 +486,36 @@ exports.markNoShow = async (req, res) => {
   const { sessionId } = req.params;
 
   try {
-    // Find the scheduled session record
-    const scheduledResult = await db.query(
-      'SELECT id FROM consulting_sessions_scheduled WHERE session_id = $1',
+    // ADM-012/013: see completeSession — canonical status lives on
+    // consulting_sessions; the mirror table row is optional.
+    const existing = await db.query(
+      'SELECT id, status FROM consulting_sessions WHERE id = $1',
       [sessionId]
     );
-
-    if (scheduledResult.rows.length === 0) {
-      return res.status(404).json({ error: 'Scheduled session not found' });
+    if (existing.rows.length === 0) {
+      return res.status(404).json({ error: 'Session not found' });
     }
-
-    const scheduledId = scheduledResult.rows[0].id;
 
     // Mark session as no-show
     const result = await db.query(
-      `UPDATE consulting_sessions_scheduled
+      `UPDATE consulting_sessions
        SET status = 'no_show', updated_at = NOW()
        WHERE id = $1
        RETURNING *`,
-      [scheduledId]
+      [sessionId]
+    );
+
+    // Keep the scheduler mirror row consistent when one exists.
+    await db.query(
+      `UPDATE consulting_sessions_scheduled
+       SET status = 'no_show', updated_at = NOW()
+       WHERE session_id = $1`,
+      [sessionId]
     );
 
     logger.info('Consulting session marked as no-show', {
       adminId: req.user?.id,
       sessionId,
-      scheduledId,
     });
 
     return res.json({
@@ -532,10 +545,19 @@ exports.createSessionManually = async (req, res) => {
   }
 
   try {
+    // ADM-011: consultant_id is the consultants-table BIGINT id (matches the
+    // BIGINT consulting_sessions.consultant_id column, not the UUID
+    // consultant_assigned_id).
+    if (consultant_id) {
+      const consultantRow = await db.query('SELECT id FROM consultants WHERE id = $1', [consultant_id]);
+      if (!consultantRow.rows.length) {
+        return res.status(400).json({ error: 'Invalid consultant_id: no such consultant.' });
+      }
+    }
     const result = await db.query(
       `INSERT INTO consulting_sessions
          (first_name, last_name, email, phone, business_name, service_tier, description, areas_of_help,
-          consultant_assigned_id, scheduled_at, meeting_url, status, created_at, updated_at)
+          consultant_id, scheduled_at, meeting_url, status, created_at, updated_at)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,NOW(),NOW())
        RETURNING *`,
       [
@@ -585,7 +607,15 @@ exports.updateRequestStatusById = async (req, res) => {
 
     if (scheduled_at) { updates.push(`scheduled_at = $${idx++}`); values.push(scheduled_at); }
     if (meeting_url !== undefined) { updates.push(`meeting_url = $${idx++}`); values.push(meeting_url); }
-    if (consultant_id) { updates.push(`consultant_assigned_id = $${idx++}`); values.push(consultant_id); }
+    // ADM-011: body consultant_id is the consultants-table BIGINT id — it must
+    // go into the BIGINT consultant_id column, not the UUID consultant_assigned_id.
+    if (consultant_id) {
+      const consultantRow = await db.query('SELECT id FROM consultants WHERE id = $1', [consultant_id]);
+      if (!consultantRow.rows.length) {
+        return res.status(400).json({ error: 'Invalid consultant_id: no such consultant.' });
+      }
+      updates.push(`consultant_id = $${idx++}`); values.push(consultant_id);
+    }
 
     values.push(id);
     const result = await db.query(
@@ -873,22 +903,23 @@ exports.downloadInvoice = async (req, res) => {
 
     const invoice = result.rows[0];
     const invoiceName = `consulting-invoice-${invoice.invoice_number || invoice.id}.csv`;
+    // ADM-152: every cell goes through csvRow so formula-injection prefixes
+    // (=, +, -, @) in admin-supplied notes/name fields are neutralized.
     const csv = [
-      ['invoice_id', 'invoice_number', 'amount_cents', 'issued_date', 'due_date', 'status', 'package_name', 'customer_name', 'customer_email', 'notes', 'created_at']
-        .join(','),
-      [
+      csvRow(['invoice_id', 'invoice_number', 'amount_cents', 'issued_date', 'due_date', 'status', 'package_name', 'customer_name', 'customer_email', 'notes', 'created_at']),
+      csvRow([
         invoice.id,
         invoice.invoice_number || '',
         invoice.amount_cents || 0,
         invoice.issued_date ? new Date(invoice.issued_date).toISOString() : '',
         invoice.due_date ? new Date(invoice.due_date).toISOString() : '',
         invoice.status || '',
-        `"${String(invoice.package_name || '').replaceAll('"', '""')}"`,
-        `"${String(`${invoice.first_name || ''} ${invoice.last_name || ''}`.trim()).replaceAll('"', '""')}"`,
+        invoice.package_name || '',
+        `${invoice.first_name || ''} ${invoice.last_name || ''}`.trim(),
         invoice.email || '',
-        `"${String(invoice.notes || '').replaceAll('"', '""')}"`,
+        invoice.notes || '',
         new Date(invoice.created_at).toISOString(),
-      ].join(','),
+      ]),
     ].join('\n');
 
     res.set({

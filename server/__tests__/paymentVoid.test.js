@@ -33,9 +33,22 @@ test('an authorized payment reserves a full void, not a refund', async () => {
     [/FROM disputes/, { rows: [] }],
     [/INSERT INTO payment_refund_attempts/, (p) => ({ rows: [{ id: 1, kind: p[6], amount_cents: p[1], idempotency_key: p[4], payment_id: 9 }] })],
   ]);
-  const r = await svc.reservePaymentRefund({ paymentId: 9, requestId: 'request-0001', actorUserId: 'a' });
+  // ADM-009: the full release of an authorized payment must be declared
+  // explicitly (fullRefund: true); a missing amount no longer silently
+  // means "full".
+  const r = await svc.reservePaymentRefund({ paymentId: 9, requestId: 'request-0001', actorUserId: 'a', fullRefund: true });
   expect(r.attempt.kind).toBe('void');
   expect(r.attempt.amount_cents).toBe(2000);
+});
+
+test('a missing amount without fullRefund is rejected (ADM-009 fail-closed)', async () => {
+  route([
+    [/FROM payment_refund_attempts WHERE idempotency_key/, { rows: [] }],
+    [/FROM payments WHERE id/, { rows: [authorized] }],
+    [/FROM disputes/, { rows: [] }],
+  ]);
+  await expect(svc.reservePaymentRefund({ paymentId: 9, requestId: 'request-0001', actorUserId: 'a' }))
+    .rejects.toMatchObject({ code: 'invalid_refund_amount' });
 });
 
 test('a partial amount on an authorized payment is rejected', async () => {

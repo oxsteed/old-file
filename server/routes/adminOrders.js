@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { requireAuth } = require('../middleware/auth');
 const { requireAdmin, requirePermission } = require('../middleware/adminAuth');
+const { rejectImpersonated } = require('../middleware/rejectImpersonated');
 const adminOrdersController = require('../controllers/adminOrdersController');
 const { strictLimiter } = require('../middleware/rateLimiter');
 
@@ -21,7 +22,8 @@ router.get('/:orderId', adminOrdersController.getOrder);
 router.post('/:orderId/mark-shipped', adminOrdersController.markShipped);
 
 // Process refund - issues real Stripe refunds, requires the issue_refunds grant
-router.post('/:orderId/refund', strictLimiter, requirePermission('issue_refunds'), adminOrdersController.processRefund);
+// ADM-040: impersonated sessions cannot issue refunds.
+router.post('/:orderId/refund', strictLimiter, rejectImpersonated, requirePermission('issue_refunds'), adminOrdersController.processRefund);
 
 // Cancel order
 router.post('/:orderId/cancel', adminOrdersController.cancelOrder);

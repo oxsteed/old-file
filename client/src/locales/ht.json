@@ -730,7 +730,8 @@
         "reasonPlaceholder": "Rezon ranbousman…",
         "stepupPrompt": "Yo voye yon kod verifikasyon nan imel ou. Antre li pou otorize ranbousman sa a:",
         "stepupFailed": "Pa t ka bay yon defi verifikasyon. Ranbousman an pa t trete.",
-        "stepupRequired": "Yo bezwen yon kod verifikasyon pou bay ranbousman an."
+        "stepupRequired": "Yo bezwen yon kod verifikasyon pou bay ranbousman an.",
+        "pendingApproval": "Ranbousman an nan ke pou yon dezyèm admin apwouve li. Okenn lajan pa ko bouje."
       },
       "delete": {
         "title": "Efase travay la pou tout tan",
@@ -10492,6 +10493,8 @@
     "setPasswordOpen": "Mete nouvo modpas",
     "setPasswordNew": "Nouvo modpas",
     "setPasswordRepeat": "Konfime nouvo modpas",
+    "setPasswordReasonPlaceholder": "Rezon pou re-inisyalize modpas administratè sa a (obligatwa, anrejistre nan jounal odit la)",
+    "setPasswordReasonRequired": "Yon rezon obligatwa lè w ap re-inisyalize modpas yon lòt administratè.",
     "setPasswordTooShort": "Modpas la dwe gen omwen 8 karaktè.",
     "setPasswordMismatch": "Modpas yo pa matche.",
     "setPasswordPrompt": "Mete yon nouvo modpas pou itilizatè sa a? Sesyon ki egziste deja yo pral fèmen.",
@@ -10532,7 +10535,10 @@
     "toolRentalsLoadFailedTitle": "Chaje lokasyon zouti yo echwe",
     "workingHoursDayOpen": "Louvri",
     "moderation": {
+      "actionFailed": "Aksyon moderasyon an echwe. Tanpri eseye ankò.",
+      "actionsNeedGrant": "Aksyon moderasyon yo mande pèmisyon manage_operations. Ou ka wè ke a men ou pa ka aji.",
       "by": "Pa:",
+      "checkingPermissions": "N ap tcheke pèmisyon yo…",
       "dismiss": "Voye jete",
       "dismissTitle": "Voye jete - retire mak admin an",
       "emptyQueue": "Ke a vid - okenn djòb make oswa rapòte.",
@@ -12207,7 +12213,9 @@
     "urgencyExploring": "Jis ap eksplore",
     "urgencyOneMonth": "1 mwa",
     "urgencyTwoWeeks": "2 semèn",
-    "view": "Wè"
+    "view": "Wè",
+    "exportStarted": "Ekspòtasyon telechaje",
+    "exportFailed": "Ekspòtasyon echwe. Tanpri eseye ankò."
   },
   "businessLaunchStatus": {
     "trackYourBusiness": "Swiv Lancement Biznis ou",
@@ -13353,6 +13361,8 @@
     "submitting": "Soumèt an kous..."
   },
   "adminReports": {
+    "detailLoadFailed": "Nou pa t kapab chaje tout rapò a. N ap montre done lis la.",
+    "detailLoading": "N ap chaje detay rapò a…",
     "title": "Rapò Itilizatè",
     "totalReports": "Total Rapò: {{count}}",
     "viewDashboard": "Wè tablodbò",
@@ -18373,7 +18383,6 @@
     "fieldBuffer": "Marge ant randevou yo (minit)",
     "bufferHint": "Bloke anvan ak apre chak randevou pou rezervasyon yo pa janm kole.",
     "bufferPrefix": "Marge:",
-
     "capacityPrefix": "Kapasite :",
     "staffAssigned": "anplwaye ki asiyen",
     "btnCancel": "Anile",
@@ -24695,6 +24704,7 @@
     "confirmRevokeTitle": "Anile akseptasyon"
   },
   "adminNav": {
+    "moneyApprovals": "Apwobasyon lajan",
     "adminAccounts": "Kont admin",
     "auditLog": "Jounal odit",
     "businessLaunch": "Lansman biznis",
@@ -26845,6 +26855,8 @@
     "next": "Apre"
   },
   "adminContentRemovals": {
+    "acceptedBidHint": "Yo pa ka retire òf yo aksepte yo. Anile travay la atravè pwosesis anilasyon an.",
+    "acceptedBidProtected": "Pwoteje — anile travay la olye",
     "tabBids": "Òf",
     "tabReviews": "Revi",
     "reasonRequired": "Rezon an obligatwa.",
@@ -28035,10 +28047,45 @@
     "saving": "Ap anrejistre...",
     "processRefund": "Trete ranbousman",
     "refundAmount": "Montan ranbousman",
+    "refundAmountInvalid": "Antre yon montan ranbousman ki valab, ki pi gran pase $0.",
+    "refundPendingApproval": "Ranbousman an nan ke pou yon dezyèm admin apwouve li. Okenn lajan pa ko bouje.",
     "refundReasonPlaceholder": "Rezon ranbousman...",
     "processing": "Ap trete...",
     "cancelOrder": "Anile kòmann",
     "cancelling": "Ap anile..."
+  },
+  "adminMoneyApprovals": {
+    "title": "Apwobasyon lajan",
+    "subtitle": "Mouvman lajan ki rive papò a ap tann yon dezyèm admin isit la. Anyen pa bouje toutotan li pa apwouve.",
+    "loading": "Ap chaje apwobasyon k ap tann yo...",
+    "empty": "Okenn mouvman lajan k ap tann apwobasyon.",
+    "refresh": "Rafrechi",
+    "type": "Tip",
+    "reference": "Referans",
+    "amount": "Montan",
+    "requestedBy": "Mande pa",
+    "requestedAt": "Mande lè",
+    "actions": "Aksyon",
+    "approve": "Apwouve",
+    "reject": "Rejte",
+    "ownRequest": "demann ou",
+    "cannotApproveOwn": "Ou pa ka apwouve pwòp demann ou. Yon lòt admin dwe apwouve li.",
+    "stepupPrompt": "Antre kòd verifikasyon yo voye ba ou pou apwouve mouvman lajan sa a:",
+    "stepupFailed": "Pa t ka kòmanse verifikasyon an. Eseye ankò.",
+    "stepupRequired": "Yon kòd verifikasyon obligatwa pou apwouve.",
+    "approved": "Mouvman lajan an apwouve epi egzekite.",
+    "rejected": "Mouvman lajan an rejte.",
+    "approveFailed": "Apwobasyon an echwe.",
+    "rejectFailed": "Rejè a echwe.",
+    "rejectReasonPrompt": "Rezon pou rejte mouvman lajan sa a:",
+    "rejectReasonRequired": "Yon rezon obligatwa pou rejte.",
+    "loadFailed": "Pa t ka chaje apwobasyon k ap tann yo.",
+    "thresholdNote": "Mouvman ki rive papò apwobasyon doub la (500 $ pa defo, reglabl ak money_dual_approval_threshold_cents) mande de admin. Papò egzak la dwe konfime.",
+    "typeJobRefund": "Ranbousman djòb",
+    "typeMarketplaceRefund": "Ranbousman mache",
+    "typeDisputeRefund": "Ranbousman dispit",
+    "typeRestaurantPayout": "Peman restoran",
+    "typeAffiliatePayout": "Peman afilye"
   },
   "adminOrderFilters": {
     "searchOrders": "Chèche kòmann",
@@ -30492,6 +30539,7 @@
     },
     "stepupFailed": "Pa t ka bay yon defi verifikasyon.",
     "stepupPrompt": "Yo voye yon kòd verifikasyon nan imèl ou. Antre li pou apwouve peman sa a:",
+    "pendingApproval": "Peman an nan ke pou yon dezyèm admin apwouve li. Okenn lajan pa bouje.",
     "stepupRequired": "Fòk ou gen yon kòd verifikasyon pou apwouve peman an."
   },
   "statementOps": {

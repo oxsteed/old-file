@@ -12,6 +12,7 @@ const { parseBoundedPagination } = require('../utils/pagination');
 const { cancelJobTransaction, finalizeJobCancellation } = require('../services/jobCancellationService');
 const AppError = require('../utils/appError');
 const { issueStepupChallenge, verifyStepupChallenge } = require('../services/stepupChallengeService');
+const { sendMoneyMovementGateResult } = require('../utils/dualApprovalHttp');
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -1467,7 +1468,9 @@ exports.issueRefundStepupChallenge = async (req, res, next) => {
 exports.issueManualRefund = async (req, res) => {
   try {
     const { jobId } = req.params;
-    const { reason, amount_cents } = req.body;
+    // ADM-009: a missing amount no longer silently means "full refund". The
+    // client must send an explicit amount_cents or fullRefund: true.
+    const { reason, amount_cents, fullRefund } = req.body;
     const adminId = req.user.id;
     if (!reason) return res.status(400).json({ error: 'Refund reason required.' });
 
@@ -1514,10 +1517,52 @@ exports.issueManualRefund = async (req, res) => {
     const refundResult = await processPaymentRefund({
       paymentId: payment.id,
       requestedAmountCents: refundAmountCents,
+      fullRefund: fullRefund === true,
       reason,
       actorUserId: adminId,
       requestId,
+      // ADM-016: above-threshold refunds queue for a second admin instead
+      // of moving money on this single approval.
+      dualApproval: {
+        movementType: 'job_refund',
+        referenceKey: `job:${jobId}`,
+        requestedBy: adminId,
+        idempotencyKey: req.get('Idempotency-Key') || requestId,
+        payload: {
+          jobId,
+          paymentId: payment.id,
+          amountCents: refundAmountCents,
+          fullRefund: fullRefund === true,
+          reason,
+          requestId,
+          makerAdminId: adminId,
+        },
+      },
     });
+    // ADM-016: queued for dual approval — no money moved yet.
+    if (refundResult.dualApproval) {
+      try {
+        await logAdminAction({
+          adminId,
+          action: 'manual_refund_approval_requested',
+          targetType: 'payment',
+          targetId: String(payment.id),
+          description: `Manual refund for job ${jobId} queued for second-admin approval: ${reason}`,
+          before: { captured_cents: capturedCents },
+          after: {
+            refund_cents: refundAmountCents == null ? capturedCents : refundAmountCents,
+            request_id: requestId,
+            approval_id: refundResult.dualApproval.approval.id,
+          },
+          req,
+        });
+      } catch (e) {
+        logger.error('manual_refund_approval_requested audit write failed', {
+          jobId, paymentId: payment.id, adminId, error: e.message,
+        });
+      }
+      return sendMoneyMovementGateResult(res, refundResult.dualApproval);
+    }
     if (refundResult.attempt.status !== 'succeeded') {
       return res.status(202).json({
         message: 'Refund accepted for provider reconciliation.',
@@ -1574,7 +1619,7 @@ exports.issueManualRefund = async (req, res) => {
 
 exports.getPayouts = async (req, res) => {
   try {
-    const { status = '' } = req.query;
+    const { status = '', payee_id = '' } = req.query;
     const { page, limit, offset } = parseBoundedPagination(req.query, { defaultLimit: 25, maxLimit: 100 });
 
     // Map frontend tab names to DB payment statuses.
@@ -1592,7 +1637,12 @@ exports.getPayouts = async (req, res) => {
       failed:     "p.status = 'failed'",
     };
     const statusClause = STATUS_MAP[status] || 'p.helper_payout > 0';
-    const baseFilter   = `p.helper_payout > 0 AND (${statusClause})`;
+    // ADM-110: the business 360 view filters payouts server-side by the
+    // owner's user id instead of fetching the global list and matching
+    // helper_email in the browser.
+    const payeeClause = payee_id ? 'AND p.payee_id = $3' : '';
+    const baseFilter   = `p.helper_payout > 0 AND (${statusClause}) ${payeeClause}`;
+    const payoutParams = payee_id ? [limit, offset, payee_id] : [limit, offset];
 
     const { rows: payouts } = await db.query(`
       SELECT p.id, p.amount, p.platform_fee, p.helper_payout, p.status,
@@ -1609,7 +1659,7 @@ exports.getPayouts = async (req, res) => {
        WHERE ${baseFilter}
        ORDER BY p.created_at DESC
        LIMIT $1 OFFSET $2
-    `, [limit, offset]);
+    `, payoutParams);
 
     const { rows: statsRows } = await db.query(`
       SELECT
@@ -2603,12 +2653,15 @@ exports.getAuditLog = async (req, res) => {
     }
     const pageNumber = Math.min(1000000, Math.max(1, Number.parseInt(String(req.query.page || '1'), 10) || 1));
     const limitNumber = Math.min(100, Math.max(1, Number.parseInt(String(req.query.limit || '50'), 10) || 50));
-    const { admin_id, action, target_type } = req.query;
+    const { admin_id, action, target_type, target_id } = req.query;
     const offset = (pageNumber - 1) * limitNumber;
     const params = []; let paramIdx = 1; const conditions = [];
     if (admin_id) { conditions.push(`a.admin_id = $${paramIdx++}`); params.push(admin_id); }
     if (action) { conditions.push(`a.action ILIKE $${paramIdx++}`); params.push(`%${action}%`); }
     if (target_type) { conditions.push(`a.target_type = $${paramIdx++}`); params.push(target_type); }
+    // ADM-110: 360-degree views filter server-side by the subject id instead of
+    // fetching a global list and filtering in the browser.
+    if (target_id) { conditions.push(`a.target_id = $${paramIdx++}`); params.push(String(target_id)); }
     const wc = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
     const { rows } = await db.query(`SELECT a.*, u.first_name || ' ' || u.last_name AS admin_name, u.email AS admin_email FROM admin_audit_log a LEFT JOIN users u ON a.admin_id = u.id ${wc} ORDER BY a.created_at DESC LIMIT $${paramIdx++} OFFSET $${paramIdx++}`, [...params, limitNumber, offset]);
     res.json({ log: rows, page: pageNumber, limit: limitNumber });
@@ -3506,7 +3559,7 @@ exports.sendAdminMessage = async (req, res) => {
 exports.setUserPasswordBySuperAdmin = async (req, res) => {
   try {
     const { userId } = req.params;
-    const { password } = req.body || {};
+    const { password, reason } = req.body || {};
     if (!password || typeof password !== 'string') {
       return res.status(400).json({ error: 'password is required.' });
     }
@@ -3514,8 +3567,25 @@ exports.setUserPasswordBySuperAdmin = async (req, res) => {
       return res.status(400).json({ error: 'Password must be between 8 and 128 characters.' });
     }
 
-    const { rows } = await db.query('SELECT id, email FROM users WHERE id = $1', [userId]);
+    const { rows } = await db.query('SELECT id, email, role FROM users WHERE id = $1', [userId]);
     if (!rows.length) return res.status(404).json({ error: 'User not found.' });
+
+    // ADM-142: resetting a fellow admin's password is a privileged,
+    // high-blast-radius action. Require a mandatory reason so the audit
+    // trail records why a super-admin rotated another admin's credentials.
+    const targetIsAdmin = ['admin', 'super_admin'].includes(rows[0].role);
+    const trimmedReason = typeof reason === 'string' ? reason.trim() : '';
+    if (targetIsAdmin) {
+      if (!trimmedReason) {
+        return res.status(400).json({
+          error: 'A reason is required when resetting another admin\u2019s password.',
+          code: 'admin_password_reset_reason_required',
+        });
+      }
+      if (trimmedReason.length > 500) {
+        return res.status(400).json({ error: 'Reason must be 500 characters or fewer.' });
+      }
+    }
 
     // Revoke existing tokens before changing the password. A revocation-store
     // outage must block the password change rather than leave the old session
@@ -3554,6 +3624,8 @@ exports.setUserPasswordBySuperAdmin = async (req, res) => {
       oldValue: '[REDACTED]',
       newValue: '[HASHED]',
       ipAddress: req.ip || null,
+      // ADM-142: record why a fellow admin's credentials were rotated.
+      notes: targetIsAdmin ? `Admin password reset reason: ${trimmedReason}` : null,
     });
 
     await logAdminAction({
@@ -3561,7 +3633,9 @@ exports.setUserPasswordBySuperAdmin = async (req, res) => {
       action: 'super_admin_set_password',
       targetType: 'user',
       targetId: userId,
-      description: `Password set by super admin for ${rows[0].email}`,
+      description: targetIsAdmin
+        ? `Password set by super admin for fellow admin ${rows[0].email} (${rows[0].role}). Reason: ${trimmedReason}`
+        : `Password set by super admin for ${rows[0].email}`,
       req,
     });
 

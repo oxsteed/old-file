@@ -49,6 +49,17 @@ exports.requireAdmin = async (req, res, next) => {
     if (rejectWrongTokenType(decoded, res)) return;
     if (await rejectRevokedToken(token, decoded, res)) return;
 
+    // ADM-040: flag impersonation sessions on the admin auth path too. The
+    // user authenticate middleware sets req.isImpersonated, but admin routes
+    // behind requireAdmin never saw the flag, so rejectImpersonated mounted
+    // on admin money routes was a no-op. (Impersonation tokens carry the
+    // target user's id and fail the admin-role check below, but the flag
+    // keeps every downstream money guard consistent.)
+    if (decoded && (decoded.impersonation || decoded.impersonated_by || decoded.isImpersonated)) {
+      req.isImpersonated = true;
+      req.impersonatedBy = decoded.impersonated_by || null;
+    }
+
     const { rows } = await db.query(
       `SELECT id, role, is_active, first_name, last_name, email, COALESCE(totp_enabled, FALSE) AS totp_enabled
        FROM users WHERE id = $1`,
@@ -89,6 +100,13 @@ exports.requireSuperAdmin = async (req, res, next) => {
     const decoded = verifyToken(token);
     if (rejectWrongTokenType(decoded, res)) return;
     if (await rejectRevokedToken(token, decoded, res)) return;
+
+    // ADM-040: same impersonation flag as requireAdmin, so money guards
+    // behind requireSuperAdmin see a consistent req.isImpersonated.
+    if (decoded && (decoded.impersonation || decoded.impersonated_by || decoded.isImpersonated)) {
+      req.isImpersonated = true;
+      req.impersonatedBy = decoded.impersonated_by || null;
+    }
 
     const { rows } = await db.query(
       `SELECT id, role, is_active, first_name, last_name, email, COALESCE(totp_enabled, FALSE) AS totp_enabled
@@ -181,6 +199,45 @@ async function adminTotpEnabled(userId) {
   return rows.length > 0 && rows[0].totp_enabled === true;
 }
 exports.adminTotpEnabled = adminTotpEnabled;
+
+/**
+ * ADM-006 / ADM-037: TOTP hard-block for admin-role sessions on routes that
+ * sit behind plain `authenticate` (+ requireRole) instead of requireAdmin.
+ *
+ * requireAdmin/requireSuperAdmin enforce the TOTP mandate themselves, but
+ * `authenticate` does not populate totp_enabled on req.user, so surfaces
+ * like /api/admin/logistics, PUT /api/config/pricing, and the HomeDepot
+ * product sync let a TOTP-less admin session straight through. This
+ * middleware re-reads the live totp_enabled flag and 403s admin-role
+ * callers without TOTP (same code/redirect contract as requireAdmin).
+ * Non-admin roles (e.g. internal logistics workspace operators) pass
+ * through untouched.
+ *
+ * Usage: router.use(authenticate, requireAdminTotp, ...) or mount
+ * router-level after authenticate.
+ */
+exports.requireAdminTotp = async (req, res, next) => {
+  try {
+    const role = req.user?.role;
+    if (role !== 'admin' && role !== 'super_admin') return next();
+    if (await adminTotpEnabled(req.user.id)) return next();
+    return res.status(403).json({
+      error: 'Two-factor authentication is required for admin accounts.',
+      code: 'admin_2fa_required',
+      redirect: '/admin/2fa-setup',
+    });
+  } catch (err) {
+    logger.error('Admin TOTP enforcement check failed', {
+      adminId: req.user?.id,
+      error: err.message,
+    });
+    return res.status(503).json({
+      error: 'Authentication temporarily unavailable.',
+      code: 'totp_check_unavailable',
+      retryable: true,
+    });
+  }
+};
 
 function permissionMiddleware(permission, { globalOnly = true } = {}) {
   return async (req, res, next) => {

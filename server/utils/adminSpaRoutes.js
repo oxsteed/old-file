@@ -96,6 +96,7 @@ const ADMIN_SPA_ROUTES = Object.freeze([
   '/admin/logistics/disputes',
   '/admin/super/dashboard',
   '/admin/super/money',
+  '/admin/super/money-approvals',
   '/admin/super/restaurant-credit',
   '/admin/super/restaurant-topups',
   '/admin/super/oxsteed-credit',

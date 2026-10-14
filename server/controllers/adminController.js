@@ -311,7 +311,7 @@ exports.getMarkets = async (req, res) => {
       return res.json({ markets: [] });
     }
     const { rows } = await db.query(
-      'SELECT id, name, state, zipcodes, active, launched_at FROM markets ORDER BY name'
+      'SELECT id, name, state, zip_codes, is_active, launched_at FROM markets ORDER BY name'
     );
     res.json({ markets: rows });
   } catch (err) {
@@ -338,12 +338,12 @@ exports.addZipCodes = async (req, res) => {
 
     const { rows } = await db.query(
       `UPDATE markets
-       SET zipcodes = (
-         SELECT ARRAY(SELECT DISTINCT unnest(zipcodes || $1::text[]))
+       SET zip_codes = (
+         SELECT ARRAY(SELECT DISTINCT unnest(zip_codes || $1::text[]))
        ),
        updated_at = NOW()
        WHERE id = $2
-       RETURNING id, name, state, zipcodes, active`,
+       RETURNING id, name, state, zip_codes, is_active`,
       [zipCodes, marketId]
     );
 
@@ -383,12 +383,12 @@ exports.removeZipCodes = async (req, res) => {
 
     const { rows } = await db.query(
       `UPDATE markets
-       SET zipcodes = (
-         SELECT ARRAY(SELECT unnest(zipcodes) EXCEPT SELECT unnest($1::text[]))
+       SET zip_codes = (
+         SELECT ARRAY(SELECT unnest(zip_codes) EXCEPT SELECT unnest($1::text[]))
        ),
        updated_at = NOW()
        WHERE id = $2
-       RETURNING id, name, state, zipcodes, active`,
+       RETURNING id, name, state, zip_codes, is_active`,
       [zipCodes, marketId]
     );
 
@@ -485,20 +485,40 @@ exports.removeBid = async (req, res) => {
     const { rows: before } = await db.query('SELECT b.*, j.title AS job_title FROM bids b JOIN jobs j ON b.job_id = j.id WHERE b.id = $1', [bidId]);
     if (!before.length) return res.status(404).json({ error: 'Bid not found.' });
     if (before[0].status === 'removed') return res.status(400).json({ error: 'Bid already removed.' });
+    // ADM-026: removing an accepted bid leaves the job with no accepted bid,
+    // which makes the job uncancellable (jobCancellationService throws
+    // 'No accepted bid found'). Refuse outright: the admin must cancel the
+    // job through the cancellation flow instead.
+    if (before[0].status === 'accepted') {
+      return res.status(409).json({
+        error: 'Cannot remove an accepted bid. Cancel the job instead so it stays cancellable.',
+        code: 'bid_accepted_remove_blocked',
+      });
+    }
 
     // Update bid and log admin action atomically
     const client = await db.connect();
     try {
       await client.query('BEGIN');
 
-      // Update bid with status check to prevent race conditions
+      // Update bid with status check to prevent race conditions. The accepted
+      // guard is mirrored here so a bid accepted between the pre-check and
+      // the UPDATE cannot slip through.
       const { rows: updateRows } = await client.query(
-        `UPDATE bids SET status = 'removed', updated_at = NOW() WHERE id = $1 AND status != 'removed' RETURNING *`,
+        `UPDATE bids SET status = 'removed', updated_at = NOW() WHERE id = $1 AND status NOT IN ('removed', 'accepted') RETURNING *`,
         [bidId]
       );
 
       if (!updateRows.length) {
-        throw new Error('Bid status changed during removal - already removed by another admin');
+        const { rows: fresh } = await client.query('SELECT status FROM bids WHERE id = $1', [bidId]);
+        await client.query('ROLLBACK');
+        if (fresh[0]?.status === 'accepted') {
+          return res.status(409).json({
+            error: 'Cannot remove an accepted bid. Cancel the job instead so it stays cancellable.',
+            code: 'bid_accepted_remove_blocked',
+          });
+        }
+        return res.status(409).json({ error: 'Bid was already removed by another admin.', code: 'bid_remove_race' });
       }
 
       // Log admin action

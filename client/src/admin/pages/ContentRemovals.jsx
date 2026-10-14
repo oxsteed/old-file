@@ -296,11 +296,22 @@ export default function ContentRemovals() {
                     {new Date(item.created_at).toLocaleDateString()}
                   </td>
                   <td className="px-4 py-3">
-                    {item.status !== 'removed' && (
+                    {/* ADM-026: accepted bids are protected — removing one
+                        would leave the job uncancellable. The server 409s;
+                        the button is hidden here so the UI cannot offer it. */}
+                    {item.status !== 'removed' && item.status !== 'accepted' && (
                       <button onClick={() => setModal({ item, type: 'bids' })}
                         className="flex items-center gap-1 text-red-400 hover:text-red-300 text-xs font-medium">
                         <Trash2 size={13} /> {t('adminContentRemovals.remove')}
                       </button>
+                    )}
+                    {item.status === 'accepted' && (
+                      <span
+                        className="text-amber-500/80 text-xs italic"
+                        title={t('adminContentRemovals.acceptedBidHint', { defaultValue: 'Accepted bids cannot be removed. Cancel the job through the cancellation flow instead.' })}
+                      >
+                        {t('adminContentRemovals.acceptedBidProtected', { defaultValue: 'Protected — cancel the job instead' })}
+                      </span>
                     )}
                     {item.status === 'removed' && (
                       <span className="text-gray-600 text-xs italic">{t('adminContentRemovals.removedBadge')}</span>

@@ -54,7 +54,7 @@ function verifyProviderRefund(refund, reservation) {
   }
 }
 
-async function reservePaymentRefund({ paymentId, requestedAmountCents, reason, reverseApplicationFee, actorUserId, requestId, allowOpenDisputeId }) {
+async function reservePaymentRefund({ paymentId, requestedAmountCents, fullRefund, reason, reverseApplicationFee, actorUserId, requestId, allowOpenDisputeId }) {
   const idempotencyKey = refundIdempotencyKey(paymentId, requestId);
   return withTransaction(pool, async (client) => {
     const existingResult = await client.query(
@@ -97,7 +97,30 @@ async function reservePaymentRefund({ paymentId, requestedAmountCents, reason, r
     const originalCents = centsFromDollars(payment.amount);
     const alreadyRefundedCents = centsFromDollars(payment.refunded_amount) || 0;
     const remainingCents = originalCents ? originalCents - alreadyRefundedCents : 0;
-    const amountCents = requestedAmountCents == null ? remainingCents : Number(requestedAmountCents);
+    // ADM-009: fail closed on ambiguous refund amounts. A null/NaN amount
+    // must never silently mean "refund everything". Callers must pass an
+    // explicit amount in cents, or explicitly declare fullRefund: true.
+    // Supplying both is ambiguous and rejected.
+    let amountCents;
+    if (requestedAmountCents == null) {
+      if (fullRefund !== true) {
+        throw new AppError(
+          'Refund amount is required. Provide an explicit amount in cents, or set fullRefund: true for a full refund of the remaining balance.',
+          400,
+          'invalid_refund_amount'
+        );
+      }
+      amountCents = remainingCents;
+    } else {
+      if (fullRefund === true) {
+        throw new AppError(
+          'Ambiguous refund request: provide either an explicit amount or fullRefund: true, not both.',
+          400,
+          'invalid_refund_amount'
+        );
+      }
+      amountCents = Number(requestedAmountCents);
+    }
     if (!originalCents || !Number.isSafeInteger(amountCents) || amountCents <= 0 || amountCents > remainingCents) {
       throw new AppError('Refund amount must be a positive whole-cent amount no greater than the remaining payment', 400, 'invalid_refund_amount');
     }
@@ -324,6 +347,25 @@ async function notifyRefundResult(result) {
 async function processPaymentRefund(params) {
   const reservation = await reservePaymentRefund(params);
   if (reservation.attempt.status === 'succeeded') return { ...reservation, replay: true };
+  // ADM-016: dual approval for above-threshold money movements. The
+  // reservation above pins the exact amount under a row lock; when the
+  // gate queues the movement, the executor re-runs this function with
+  // skipDualApproval and replays the same reservation idempotently.
+  // The gate runs BEFORE any provider call, so a queued movement never
+  // touches Stripe until a second admin approves it.
+  if (params.dualApproval && !params.skipDualApproval) {
+    const { requestMoneyMovementApproval } = require('./dualApprovalService');
+    const gate = await requestMoneyMovementApproval({
+      movementType: params.dualApproval.movementType,
+      referenceKey: params.dualApproval.referenceKey,
+      amountCents: Number(reservation.attempt.amount_cents),
+      currencyCode: reservation.payment.currency || 'USD',
+      requestedBy: params.dualApproval.requestedBy,
+      idempotencyKey: params.dualApproval.idempotencyKey,
+      payload: params.dualApproval.payload,
+    });
+    if (gate.queued) return { ...reservation, dualApproval: gate };
+  }
   if (reservation.attempt.kind === 'void') {
     let intent;
     try {

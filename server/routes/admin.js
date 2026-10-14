@@ -16,6 +16,7 @@ const bizModCtrl      = require('../controllers/businessModerationController');
 const profileVisCtrl  = require('../controllers/profileVisibilityController');
 const profileVisApprCtrl = require('../controllers/profileVisibilityApprovalsController');
 const convAdminCtrl   = require('../controllers/conversationsAdminController');
+const moderationCtrl  = require('../controllers/moderationController');
 const paymentsCtrl    = require('../controllers/paymentsAdminController');
 const paymentDisputeAdminCtrl = require('../controllers/paymentDisputeAdminController');
 const webhookReceiptAdminCtrl = require('../controllers/webhookReceiptAdminController');
@@ -38,6 +39,12 @@ const oxsteedCreditRestaurantConversionPolicyService = require('../services/oxst
 const { verifyStepupChallenge } = require('../services/stepupChallengeService');
 const { AppError } = require('../middleware/errorHandler');
 const { creditAdminMutationLimiter, creditExportLimiter, adminPhoneVerificationLimiter, strictLimiter } = require('../middleware/rateLimiter');
+const moneyApprovalCtrl = require('../controllers/moneyApprovalController');
+// ADM-016: register the dual-approval executors for the five money rails
+// (job/marketplace/dispute refunds, restaurant + affiliate payouts) once at
+// startup. requestMoneyMovementApproval also self-heals if a rail is reached
+// without this wiring, failing closed rather than skipping dual approval.
+require('../services/moneyMovementExecutors').registerMoneyMovementExecutors();
 
 function noStoreCreditResponse(_req, res, next) {
   res.set('Cache-Control', 'private, no-store');
@@ -88,17 +95,23 @@ router.get('/operations/security-audit-log', requireAdmin, requirePermission('vi
 router.get('/reports',           requireAdmin, requirePermission('manage_operations'), adminCtrl.getReports);
 router.put('/reports/:reportId', requireAdmin, requirePermission('manage_operations'), adminCtrl.reviewReport);
 router.get('/moderation-queue',  requireAdmin, requirePermission('moderate_content'), adminCtrl.getModerationQueue);
+// ADM-023: reader for the moderation_queue table where mobile content flags
+// land (previously write-only: nothing ever read the table).
+router.get('/moderation-flags',               requireAdmin, requirePermission('moderate_content'), moderationCtrl.listContentFlags);
+router.post('/moderation-flags/:id/review',   requireAdmin, requirePermission('moderate_content'), moderationCtrl.reviewContentFlag);
 
 // Jobs (read + moderate - all admins)
 router.get('/jobs',                    requireAdmin, requirePermission('manage_operations'),      superCtrl.getJobs);
 router.get('/jobs/:jobId',             requireAdmin, requirePermission('manage_operations'),      superCtrl.getJobDetail);
-router.post('/jobs/:jobId/action',     requireAdmin, requirePermission('manage_operations'),      superCtrl.forceJobAction);
+// ADM-040: impersonated sessions must not touch money routes. forceJobAction
+// can trigger fee/reconciliation logic; deleteJob guards a money trail.
+router.post('/jobs/:jobId/action',     requireAdmin, rejectImpersonated, requirePermission('manage_operations'),      superCtrl.forceJobAction);
 // Job edit tooling: reason required, revision history, rollback (docs/job-editing.md)
 router.patch('/jobs/:jobId',           requireAdmin, requirePermission('manage_operations'), rejectImpersonated, adminJobEditCtrl.editJob);
 router.get('/jobs/:jobId/revisions',   requireAdmin, requirePermission('manage_operations'),      adminJobEditCtrl.listRevisions);
 router.post('/jobs/:jobId/revisions/:revisionId/rollback', requireAdmin, requirePermission('manage_operations'), rejectImpersonated, adminJobEditCtrl.rollbackRevision);
 // Hard delete - delegatable via delete_jobs grant
-router.delete('/jobs/:jobId',          requireAdmin, requirePermission('delete_jobs'), superCtrl.deleteJob);
+router.delete('/jobs/:jobId',          requireAdmin, rejectImpersonated, requirePermission('delete_jobs'), superCtrl.deleteJob);
 
 // Content removal - bids and reviews (always logged for super-admin review)
 router.get('/content',                         requireAdmin, requirePermission('moderate_content'), adminCtrl.getContent);
@@ -283,8 +296,10 @@ router.put('/users/:userId/profile', requireSuperAdmin, superCtrl.updateUserProf
 router.get('/users/:userId/support-tickets', requireAdmin, requirePermission('manage_support'), loadAssignedRegions, requireRegionAccessForUser('userId'), superCtrl.getUserSupportTickets);
 
 // Conversations (super-admin only - every read is audited)
+// ADM-124: reading a full private thread requires the
+// investigate_conversations grant, same as the break-glass POST.
 router.get('/super/conversations',              requireSuperAdmin, convAdminCtrl.listConversations);
-router.get('/super/conversations/:id',          requireSuperAdmin, convAdminCtrl.getThread);
+router.get('/super/conversations/:id',          requireSuperAdmin, requirePermission('investigate_conversations'), convAdminCtrl.getThread);
 router.post('/super/conversations/:id/break-glass', requireSuperAdmin, requirePermission('investigate_conversations'), convAdminCtrl.breakGlass);
 router.put('/super/conversations/:id/status', requireSuperAdmin, convAdminCtrl.setConversationStatus);
 router.post('/super/conversations/:id/status', requireSuperAdmin, convAdminCtrl.setConversationStatus);
@@ -321,11 +336,35 @@ router.get('/payouts',               requireAdmin, requirePermission('view_finan
 router.get('/super/money',           requireAdmin, requirePermission('view_financials'), superCtrl.getMoneyOverview);
 router.get('/super/revenue',         requireAdmin, requirePermission('view_financials'), superCtrl.getRevenueSummary);
 router.get('/super/revenue/export',  requireAdmin, requirePermission('view_financials'), superCtrl.getRevenueExport);
-router.post('/jobs/:jobId/refund',   strictLimiter, requireAdmin, requirePermission('issue_refunds'),   superCtrl.issueManualRefund);
+// ADM-040: job refunds move money via Stripe; impersonated sessions are blocked.
+router.post('/jobs/:jobId/refund',   strictLimiter, requireAdmin, rejectImpersonated, requirePermission('issue_refunds'),   superCtrl.issueManualRefund);
 // ADM-112: step-up challenge issuance for manual refunds, scoped to the
 // issue_refunds grant (the super-admin challenge route is not reachable by
 // non-super-admin refunders).
-router.post('/stepup-challenges/manual-refund', strictLimiter, requireAdmin, requirePermission('issue_refunds'), superCtrl.issueRefundStepupChallenge);
+router.post('/stepup-challenges/manual-refund', strictLimiter, requireAdmin, rejectImpersonated, requirePermission('issue_refunds'), superCtrl.issueRefundStepupChallenge);
+
+// ADM-016: dual-approval queue for above-threshold money movements. The
+// checker needs one of the money grants (manage_financials or
+// issue_refunds); super-admins bypass the grant check. Impersonated
+// sessions are blocked. A checker must differ from the requesting admin
+// (enforced in the service, not just here).
+const requireMoneyApprovalGrant = async (req, res, next) => {
+  try {
+    if (req.isSuper) return next();
+    const { hasGlobalGrant } = require('../middleware/adminAuth');
+    const adminId = req.user?.id;
+    if (!adminId) return res.status(401).json({ error: 'Unauthorized.' });
+    if (await hasGlobalGrant(adminId, 'manage_financials')) return next();
+    if (await hasGlobalGrant(adminId, 'issue_refunds')) return next();
+    return res.status(403).json({ error: 'A financial grant is required.', code: 'grant_required' });
+  } catch (err) {
+    return next(err);
+  }
+};
+router.get('/money-approvals', requireAdmin, requireMoneyApprovalGrant, moneyApprovalCtrl.list);
+router.post('/money-approvals/:id/approve', strictLimiter, requireAdmin, rejectImpersonated, requireMoneyApprovalGrant, moneyApprovalCtrl.approve);
+router.post('/money-approvals/:id/reject', strictLimiter, requireAdmin, rejectImpersonated, requireMoneyApprovalGrant, moneyApprovalCtrl.reject);
+router.post('/stepup-challenges/money-approval', strictLimiter, requireAdmin, rejectImpersonated, requireMoneyApprovalGrant, moneyApprovalCtrl.issueApproveStepupChallenge);
 
 // Platform settings - super-admin direct, or admin with manage_settings grant
 router.get('/settings',              requireAdmin, requirePermission('manage_settings'), superCtrl.getSettings);
@@ -351,11 +390,13 @@ router.get('/support/stats',                          requireAdmin, requirePermi
 // E05: ticket list/detail are region-scoped server-side (fail closed).
 router.get('/support/tickets',                        requireAdmin, requirePermission('manage_support'), loadAssignedRegions, supportCtrl.listTickets);
 router.get('/support/tickets/:ticketId',              requireAdmin, requirePermission('manage_support'), loadAssignedRegions, supportCtrl.getTicketAdmin);
-router.post('/support/tickets/:ticketId/claim',       requireAdmin, requirePermission('manage_support'), supportCtrl.claimTicket);
-router.post('/support/tickets/:ticketId/unclaim',     requireAdmin, requirePermission('manage_support'), supportCtrl.unclaimTicket);
-router.put('/support/tickets/:ticketId/status',       requireAdmin, requirePermission('manage_support'), supportCtrl.updateStatus);
-router.put('/support/tickets/:ticketId/priority',     requireAdmin, requirePermission('manage_support'), supportCtrl.updatePriority);
-router.post('/support/tickets/:ticketId/reply',       requireAdmin, requirePermission('message_users'), supportCtrl.adminReply);
+// ADM-094: ticket mutation endpoints are region-scoped server-side (fail
+// closed), same as the list/detail endpoints above.
+router.post('/support/tickets/:ticketId/claim',       requireAdmin, requirePermission('manage_support'), loadAssignedRegions, supportCtrl.claimTicket);
+router.post('/support/tickets/:ticketId/unclaim',     requireAdmin, requirePermission('manage_support'), loadAssignedRegions, supportCtrl.unclaimTicket);
+router.put('/support/tickets/:ticketId/status',       requireAdmin, requirePermission('manage_support'), loadAssignedRegions, supportCtrl.updateStatus);
+router.put('/support/tickets/:ticketId/priority',     requireAdmin, requirePermission('manage_support'), loadAssignedRegions, supportCtrl.updatePriority);
+router.post('/support/tickets/:ticketId/reply',       requireAdmin, requirePermission('message_users'), loadAssignedRegions, supportCtrl.adminReply);
 
 // ══════════════════════════════════════════════════════════════
 // SEARCH ENGINE (admin + super_admin)
@@ -460,12 +501,13 @@ router.get('/super/oxsteed-credit/accounts/:customerId', requireSuperAdmin, oxst
 router.get('/super/oxsteed-credit/transactions', requireSuperAdmin, oxsteedCreditCtrl.listAdminTransactions);
 router.get('/super/oxsteed-credit/transactions.csv', requireSuperAdmin, creditExportLimiter, oxsteedCreditCtrl.downloadAdminTransactions);
 router.get('/super/oxsteed-credit/transactions/:transactionId', requireSuperAdmin, oxsteedCreditCtrl.getAdminTransaction);
-router.post('/super/oxsteed-credit/transactions/:transactionId/refund', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.refundAdminCredit);
+// ADM-040: credit fund-movement routes also reject impersonated sessions.
+router.post('/super/oxsteed-credit/transactions/:transactionId/refund', requireSuperAdmin, rejectImpersonated, creditAdminMutationLimiter, oxsteedCreditCtrl.refundAdminCredit);
 router.get('/super/oxsteed-credit/partners', requireSuperAdmin, oxsteedCreditCtrl.listAdminPartners);
 router.get('/super/oxsteed-credit/partners/directory', requireSuperAdmin, oxsteedCreditCtrl.listAdminPartnerDirectory);
 router.get('/super/oxsteed-credit/partners.csv', requireSuperAdmin, creditExportLimiter, oxsteedCreditCtrl.downloadAdminPartners);
 router.get('/super/oxsteed-credit/partners/:partnerId/ledger', requireSuperAdmin, noStoreCreditResponse, oxsteedCreditCtrl.getAdminPartnerLedger);
-router.post('/super/oxsteed-credit/partners/:partnerId/funding', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.recordAdminPartnerFunding);
+router.post('/super/oxsteed-credit/partners/:partnerId/funding', requireSuperAdmin, rejectImpersonated, creditAdminMutationLimiter, oxsteedCreditCtrl.recordAdminPartnerFunding);
 router.post('/super/oxsteed-credit/currency-quotes', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.createAdminCurrencyQuote);
 router.get('/super/oxsteed-credit/currency-quotes/:quoteId', requireSuperAdmin, oxsteedCreditCtrl.getAdminCurrencyQuote);
 router.get('/super/oxsteed-credit/agreements', requireSuperAdmin, oxsteedCreditCtrl.listAdminAgreements);
@@ -483,13 +525,13 @@ router.post('/super/oxsteed-credit/partners/:partnerId/agreements', requireSuper
 router.post('/super/oxsteed-credit/agreements/:agreementId/transition', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.transitionAdminAgreement);
 router.post('/super/oxsteed-credit/agreements/:agreementId/entitlements', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.upsertAdminEntitlement);
 router.get('/super/oxsteed-credit/entitlements.csv', requireSuperAdmin, creditExportLimiter, oxsteedCreditCtrl.downloadAdminEntitlements);
-router.post('/super/oxsteed-credit/customers/:customerId/loads', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.adminLoadCredit);
-router.post('/super/oxsteed-credit/customers/:customerId/adjustments', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.adminAdjustCredit);
+router.post('/super/oxsteed-credit/customers/:customerId/loads', requireSuperAdmin, rejectImpersonated, creditAdminMutationLimiter, oxsteedCreditCtrl.adminLoadCredit);
+router.post('/super/oxsteed-credit/customers/:customerId/adjustments', requireSuperAdmin, rejectImpersonated, creditAdminMutationLimiter, oxsteedCreditCtrl.adminAdjustCredit);
 router.post('/super/oxsteed-credit/customers/:customerId/status', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.adminUpdateCreditAccountStatus);
 router.get('/super/oxsteed-credit/disputes', requireSuperAdmin, oxsteedCreditCtrl.listAdminDisputes);
 router.get('/super/oxsteed-credit/disputes.csv', requireSuperAdmin, creditExportLimiter, oxsteedCreditCtrl.downloadAdminCreditDisputes);
-router.post('/super/oxsteed-credit/disputes/:disputeId/resolve', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.resolveAdminDispute);
-router.post('/super/oxsteed-credit/disputes/:disputeId/provisional-credit', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.issueAdminProvisionalCredit);
+router.post('/super/oxsteed-credit/disputes/:disputeId/resolve', requireSuperAdmin, rejectImpersonated, creditAdminMutationLimiter, oxsteedCreditCtrl.resolveAdminDispute);
+router.post('/super/oxsteed-credit/disputes/:disputeId/provisional-credit', requireSuperAdmin, rejectImpersonated, creditAdminMutationLimiter, oxsteedCreditCtrl.issueAdminProvisionalCredit);
 router.get('/super/oxsteed-credit/audit-events', requireSuperAdmin, oxsteedCreditCtrl.listAdminCreditAuditEvents);
 router.get('/super/oxsteed-credit/audit-events.csv', requireSuperAdmin, creditExportLimiter, oxsteedCreditCtrl.downloadAdminCreditAuditEvents);
 router.get('/super/oxsteed-credit/settlements', requireSuperAdmin, oxsteedCreditCtrl.listAdminSettlements);
@@ -498,14 +540,14 @@ router.get('/super/oxsteed-credit/reconciliation', requireSuperAdmin, oxsteedCre
 router.get('/super/oxsteed-credit/reconciliation.csv', requireSuperAdmin, creditExportLimiter, oxsteedCreditCtrl.downloadAdminCreditReconciliationRuns);
 router.post('/super/oxsteed-credit/settlements', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.createAdminSettlement);
 router.post('/super/oxsteed-credit/settlements/:settlementId/status', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.transitionAdminSettlement);
-router.post('/super/oxsteed-credit/settlements/:settlementId/reversal', requireSuperAdmin, creditAdminMutationLimiter, oxsteedCreditCtrl.reverseAdminSettlement);
+router.post('/super/oxsteed-credit/settlements/:settlementId/reversal', requireSuperAdmin, rejectImpersonated, creditAdminMutationLimiter, oxsteedCreditCtrl.reverseAdminSettlement);
 // Verified Stripe payout for an approved settlement. The manual mark-paid path
 // above stays untouched as the fallback for non-Stripe payouts.
 //
 // Phase 7 (gap 9): the maker still proves a fresh step-up challenge here
 // (intent), but the payout now queues as a pending action for a second
 // admin to decide instead of executing immediately.
-router.post('/super/oxsteed-credit/settlements/:settlementId/payout', requireSuperAdmin, creditAdminMutationLimiter, async (req, res, next) => {
+router.post('/super/oxsteed-credit/settlements/:settlementId/payout', requireSuperAdmin, rejectImpersonated, creditAdminMutationLimiter, async (req, res, next) => {
   try {
     // Phase 5: payout initiation always requires a fresh step-up challenge
     // for the acting admin, verified before any money moves.
@@ -758,6 +800,7 @@ router.post('/messages/conversations/:userId/send', requireAdmin, requirePermiss
 // SKILLS & CATEGORIES LOOKUP MANAGEMENT (admin + super_admin)
 // ══════════════════════════════════════════════════════════════
 const pool = require('../db');
+const { logAdminAction } = require('../services/auditService');
 
 // GET /api/admin/skills-lookup?q=&category=&limit=50&offset=0
 router.get('/skills-lookup', requireAdmin, requirePermission('manage_operations'), async (req, res) => {
@@ -931,6 +974,16 @@ router.post('/licenses-lookup', requireAdmin, requirePermission('manage_operatio
       if (e.code === '23505') return res.status(409).json({ error: 'License name already exists' });
       throw e;
     }
+    // ADM-211: license mutations are audited.
+    await logAdminAction({
+      adminId: req.user?.id,
+      action: 'license_create',
+      targetType: 'license',
+      targetKey: String(result.rows[0].id),
+      description: `Created license "${result.rows[0].name}"`,
+      after: result.rows[0],
+      req,
+    });
     res.status(201).json({ license: result.rows[0] });
   } catch (err) {
     res.status(500).json({ error: 'Failed to create license' });
@@ -941,6 +994,12 @@ router.post('/licenses-lookup', requireAdmin, requirePermission('manage_operatio
 router.put('/licenses-lookup/:id', requireAdmin, requirePermission('manage_operations'), async (req, res) => {
   try {
     const { name, category, is_active } = req.body;
+    // ADM-211: capture the before-state for the audit entry.
+    const beforeResult = await pool.query(
+      `SELECT id, name, category, is_active FROM licenses_lookup WHERE id = $1`,
+      [req.params.id]
+    );
+    if (!beforeResult.rows.length) return res.status(404).json({ error: 'License not found' });
     const result = await pool.query(
       `UPDATE licenses_lookup
           SET name      = COALESCE($1, name),
@@ -950,7 +1009,17 @@ router.put('/licenses-lookup/:id', requireAdmin, requirePermission('manage_opera
         RETURNING *`,
       [name?.trim() || null, category?.trim() || null, is_active ?? null, req.params.id]
     );
-    if (!result.rows.length) return res.status(404).json({ error: 'License not found' });
+    // ADM-211: license mutations are audited.
+    await logAdminAction({
+      adminId: req.user?.id,
+      action: 'license_update',
+      targetType: 'license',
+      targetKey: String(req.params.id),
+      description: `Updated license "${result.rows[0].name}"`,
+      before: beforeResult.rows[0],
+      after: result.rows[0],
+      req,
+    });
     res.json({ license: result.rows[0] });
   } catch (err) {
     res.status(500).json({ error: 'Failed to update license' });
@@ -962,6 +1031,12 @@ router.put('/licenses-lookup/:id', requireAdmin, requirePermission('manage_opera
 router.delete('/licenses-lookup/:id', requireAdmin, requirePermission('manage_operations'), async (req, res) => {
   try {
     const { hard } = req.query;
+    // ADM-211: capture the before-state for the audit entry.
+    const beforeResult = await pool.query(
+      `SELECT id, name, category, is_active FROM licenses_lookup WHERE id = $1`,
+      [req.params.id]
+    );
+    if (!beforeResult.rows.length) return res.status(404).json({ error: 'License not found' });
     let result;
     if (hard === 'true') {
       if (!req.isSuper) {
@@ -976,6 +1051,17 @@ router.delete('/licenses-lookup/:id', requireAdmin, requirePermission('manage_op
       );
     }
     if (!result.rows.length) return res.status(404).json({ error: 'License not found' });
+    // ADM-211: license mutations are audited.
+    await logAdminAction({
+      adminId: req.user?.id,
+      action: hard === 'true' ? 'license_hard_delete' : 'license_soft_delete',
+      targetType: 'license',
+      targetKey: String(req.params.id),
+      description: `${hard === 'true' ? 'Hard-deleted' : 'Soft-deleted'} license "${beforeResult.rows[0].name}"`,
+      before: beforeResult.rows[0],
+      after: hard === 'true' ? { deleted: true } : { is_active: false },
+      req,
+    });
     res.json({ deleted: true });
   } catch (err) {
     res.status(500).json({ error: 'Failed to delete license' });

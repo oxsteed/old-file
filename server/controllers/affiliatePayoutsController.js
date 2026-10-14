@@ -297,16 +297,24 @@ async function calculateAndCreatePayout(req, res, next) {
  */
 const STALE_PROCESSING_MINUTES = 10;
 
-async function processPayout(req, res, next) {
+// ADM-016: the money-movement core of processPayout, shared by the
+// controller (below-threshold, single approval) and the dual-approval
+// executor (above-threshold, second admin). Returns the updated payout row.
+async function runAffiliatePayout({ payoutId, adminId, req, skipDualApproval = false }) {
   try {
-    const adminId = req.user?.id;
-    const { payoutId } = req.params;
-    if (!adminId) {
+    // Prefer explicit params (dual-approval executor path); fall back to the
+    // request for the direct controller path.
+    const effectiveAdminId = adminId || req?.user?.id;
+    const effectivePayoutId = payoutId || req?.params?.payoutId;
+    if (!effectiveAdminId) {
       throw new AppError('Authentication required', 401, 'no_auth');
     }
     if (!stripe) {
       throw new AppError('Payout processing is not configured', 503, 'stripe_not_configured');
     }
+    // Rebind for the rest of the function body.
+    payoutId = effectivePayoutId;
+    adminId = effectiveAdminId;
 
     const { rows: [payout] } = await pool.query(
       `SELECT ap.*, aprg.helper_id AS owner_id
@@ -317,6 +325,25 @@ async function processPayout(req, res, next) {
     );
     if (!payout) {
       throw new AppError('Payout not found', 404, 'payout_not_found');
+    }
+
+    // ADM-016: above-threshold payouts queue for a second admin instead of
+    // moving money on this single approval. The executor re-runs with
+    // skipDualApproval: true.
+    if (!skipDualApproval) {
+      const { requestMoneyMovementApproval } = require('../services/dualApprovalService');
+      const gate = await requestMoneyMovementApproval({
+        movementType: 'affiliate_payout',
+        referenceKey: `affiliate-payout:${payoutId}`,
+        amountCents: Number(payout.total_commission_cents),
+        currencyCode: 'USD',
+        requestedBy: adminId,
+        idempotencyKey: req.get?.('Idempotency-Key') || `affiliate-payout-process-${payoutId}`,
+        payload: { payoutId, makerAdminId: adminId },
+      });
+      if (gate.queued) {
+        return { dualApproval: gate };
+      }
     }
 
     const { rows: [connect] } = await pool.query(
@@ -435,6 +462,30 @@ async function processPayout(req, res, next) {
     }, 'affiliate_payout_completed');
 
     logger.info('Affiliate payout transferred', { payoutId, transferId: transfer.id });
+    return updated;
+  } catch (error) {
+    // Fail closed: logAdminAction inside the settle transaction already
+    // throws (throwOnError), so audit gaps roll back instead of hiding.
+    throw error;
+  }
+}
+
+async function processPayout(req, res, next) {
+  try {
+    const adminId = req.user?.id;
+    const { payoutId } = req.params;
+    if (!adminId) {
+      throw new AppError('Authentication required', 401, 'no_auth');
+    }
+    if (!stripe) {
+      throw new AppError('Payout processing is not configured', 503, 'stripe_not_configured');
+    }
+    const updated = await runAffiliatePayout({ payoutId, adminId, req });
+    // ADM-016: queued for dual approval — no money moved yet.
+    if (updated && updated.dualApproval) {
+      const { sendMoneyMovementGateResult } = require('../utils/dualApprovalHttp');
+      return sendMoneyMovementGateResult(res, updated.dualApproval);
+    }
     res.json({ success: true, data: updated });
   } catch (error) {
     next(error);
@@ -477,5 +528,6 @@ module.exports = {
   getPayoutsSchedule,
   calculateAndCreatePayout,
   processPayout,
+  runAffiliatePayout,
   getAffiliateStats
 };

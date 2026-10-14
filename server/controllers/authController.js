@@ -546,6 +546,14 @@ async function login(req, res, next) {
       success: true,
       message: 'Login successful',
       user: formatAuthUser(user),
+      // ADM-037: an admin without TOTP gets a session (it is required for the
+      // /admin/2fa-setup enrollment flow, whose /api/2fa/setup endpoints sit
+      // behind plain `authenticate`), but every admin-privileged surface now
+      // enforces the TOTP hard-block (requireAdmin, or requireAdminTotp on
+      // the authenticate+requireRole surfaces), so the session cannot reach
+      // any admin API until TOTP is enabled. Clients must funnel these
+      // admins straight to enrollment instead of the dashboard.
+      ...(isAdminUser && !user.totp_enabled ? { requiresTwoFactorSetup: true } : {}),
       ...bodyTokens(req, tokens)
     });
   } catch (err) {

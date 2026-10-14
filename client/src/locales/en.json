@@ -730,7 +730,8 @@
         "reasonPlaceholder": "Reason for refund…",
         "stepupPrompt": "A verification code was sent to your email. Enter it to authorize this refund:",
         "stepupFailed": "Could not issue a verification challenge. The refund was not processed.",
-        "stepupRequired": "A verification code is required to issue the refund."
+        "stepupRequired": "A verification code is required to issue the refund.",
+        "pendingApproval": "Refund queued for second-admin approval (dual approval). No funds have moved yet."
       },
       "delete": {
         "title": "Permanently Delete Job",
@@ -10492,6 +10493,8 @@
     "setPasswordOpen": "Set new password",
     "setPasswordNew": "New password",
     "setPasswordRepeat": "Confirm new password",
+    "setPasswordReasonPlaceholder": "Reason for resetting this admin's password (required, recorded in the audit log)",
+    "setPasswordReasonRequired": "A reason is required when resetting another admin's password.",
     "setPasswordTooShort": "Password must be at least 8 characters.",
     "setPasswordMismatch": "Passwords do not match.",
     "setPasswordPrompt": "Set a new password for this user? Their existing sessions will be signed out.",
@@ -10532,7 +10535,10 @@
     "toolRentalsLoadFailedTitle": "Failed to load tool rentals",
     "workingHoursDayOpen": "Open",
     "moderation": {
+      "actionFailed": "The moderation action failed. Please try again.",
+      "actionsNeedGrant": "Moderation actions require the manage_operations grant. You can view the queue but cannot take action.",
       "by": "By:",
+      "checkingPermissions": "Checking permissions…",
       "dismiss": "Dismiss",
       "dismissTitle": "Dismiss - remove admin flag",
       "emptyQueue": "Queue is clear - no flagged or reported jobs.",
@@ -12207,7 +12213,9 @@
     "urgencyExploring": "Just Exploring",
     "urgencyOneMonth": "1 Month",
     "urgencyTwoWeeks": "2 Weeks",
-    "view": "View"
+    "view": "View",
+    "exportStarted": "Export downloaded",
+    "exportFailed": "Export failed. Please try again."
   },
   "businessLaunchStatus": {
     "trackYourBusiness": "Track Your Business Launch",
@@ -13610,6 +13618,8 @@
     "submitting": "Submitting..."
   },
   "adminReports": {
+    "detailLoadFailed": "Could not load the full report. Showing list data.",
+    "detailLoading": "Loading report details…",
     "title": "User Reports",
     "totalReports": "Total Reports: {{count}}",
     "viewDashboard": "View dashboard",
@@ -24694,6 +24704,7 @@
     "confirmRevokeTitle": "Revoke Acceptance"
   },
   "adminNav": {
+    "moneyApprovals": "Money approvals",
     "adminAccounts": "Admin Accounts",
     "auditLog": "Audit Log",
     "businessLaunch": "Business Launch",
@@ -26844,6 +26855,8 @@
     "next": "Next"
   },
   "adminContentRemovals": {
+    "acceptedBidHint": "Accepted bids cannot be removed. Cancel the job through the cancellation flow instead.",
+    "acceptedBidProtected": "Protected — cancel the job instead",
     "tabBids": "Bids",
     "tabReviews": "Reviews",
     "reasonRequired": "Reason is required.",
@@ -28034,10 +28047,45 @@
     "saving": "Saving...",
     "processRefund": "Process Refund",
     "refundAmount": "Refund Amount",
+    "refundAmountInvalid": "Enter a valid refund amount greater than $0.",
+    "refundPendingApproval": "Refund queued for second-admin approval (dual approval). No funds have moved yet.",
     "refundReasonPlaceholder": "Reason for refund...",
     "processing": "Processing...",
     "cancelOrder": "Cancel Order",
     "cancelling": "Cancelling..."
+  },
+  "adminMoneyApprovals": {
+    "title": "Money approvals",
+    "subtitle": "Above-threshold money movements wait here for a second admin. Nothing moves until approved.",
+    "loading": "Loading pending approvals...",
+    "empty": "No money movements are waiting for approval.",
+    "refresh": "Refresh",
+    "type": "Type",
+    "reference": "Reference",
+    "amount": "Amount",
+    "requestedBy": "Requested by",
+    "requestedAt": "Requested at",
+    "actions": "Actions",
+    "approve": "Approve",
+    "reject": "Reject",
+    "ownRequest": "your request",
+    "cannotApproveOwn": "You cannot approve your own request. A different admin must approve it.",
+    "stepupPrompt": "Enter the verification code sent to you to approve this money movement:",
+    "stepupFailed": "Could not start verification. Please try again.",
+    "stepupRequired": "A verification code is required to approve.",
+    "approved": "Money movement approved and executed.",
+    "rejected": "Money movement rejected.",
+    "approveFailed": "Approval failed.",
+    "rejectFailed": "Rejection failed.",
+    "rejectReasonPrompt": "Reason for rejecting this money movement:",
+    "rejectReasonRequired": "A reason is required to reject.",
+    "loadFailed": "Could not load pending approvals.",
+    "thresholdNote": "Movements at or above the dual-approval threshold (default $500, tunable via the money_dual_approval_threshold_cents setting) require two admins. The exact threshold is subject to confirmation.",
+    "typeJobRefund": "Job refund",
+    "typeMarketplaceRefund": "Marketplace refund",
+    "typeDisputeRefund": "Dispute refund",
+    "typeRestaurantPayout": "Restaurant payout",
+    "typeAffiliatePayout": "Affiliate payout"
   },
   "adminOrderFilters": {
     "searchOrders": "Search Orders",
@@ -30491,6 +30539,7 @@
     },
     "stepupFailed": "Could not issue a verification challenge.",
     "stepupPrompt": "A verification code was sent to your email. Enter it to approve this payout:",
+    "pendingApproval": "Payout queued for second-admin approval (dual approval). No funds have moved.",
     "stepupRequired": "A verification code is required to approve the payout."
   },
   "statementOps": {

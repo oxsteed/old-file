@@ -162,12 +162,15 @@ exports.listConversations = async (req, res) => {
 };
 
 /**
- * Break-glass open: requires reason (query or body). Logs who/when/why/which conversation.
+ * Break-glass open: requires reason in the request body (or the
+ * x-break-glass-reason header). The query string is deliberately NOT
+ * accepted: URLs land in proxy/access logs, and the reason is sensitive
+ * (ADM-124).
  */
 exports.getThread = async (req, res) => {
   try {
     const { id } = req.params;
-    const reasonRaw = req.query.reason || req.body?.reason || req.headers['x-break-glass-reason'];
+    const reasonRaw = req.body?.reason || req.headers['x-break-glass-reason'];
     const normalized = normalizeBreakGlassReason(reasonRaw);
     if (!normalized.ok) {
       return res.status(400).json({ error: normalized.error, code: 'break_glass_reason_required' });
@@ -233,11 +236,12 @@ exports.getThread = async (req, res) => {
 exports.breakGlass = async (req, res) => {
   // Audit fix: reason comes from the body only, not the query string.
   // Query params end up in logs and URLs; the reason is sensitive.
+  // getThread reads the reason from the body, so no query-string
+  // copy is needed (ADM-124).
   const reason = req.body?.reason;
   if (!reason || !String(reason).trim()) {
     return res.status(400).json({ error: 'A reason is required for break-glass access.' });
   }
-  req.query = { ...req.query, reason: String(reason).trim() };
   return exports.getThread(req, res);
 };
 

@@ -74,5 +74,10 @@ test('requires fresh identity before claiming an affiliate payout', async () => 
 
 test('the route requires an admin with the financials grant', () => {
   const src = require('fs').readFileSync(require.resolve('../routes/affiliatePayouts.js'), 'utf8');
-  expect(src).toMatch(/'\/:payoutId\/process',\s*requireAdmin,\s*requirePermission\('view_financials'\)/);
+  expect(src).toMatch(/'\/:payoutId\/process',\s*requireAdmin,\s*rejectImpersonated,\s*requirePermission\('view_financials'\)/);
+});
+
+test('ADM-040: the process route blocks impersonated sessions', () => {
+  const src = require('fs').readFileSync(require.resolve('../routes/affiliatePayouts.js'), 'utf8');
+  expect(src).toMatch(/'\/:payoutId\/process',[^;]*rejectImpersonated/);
 });

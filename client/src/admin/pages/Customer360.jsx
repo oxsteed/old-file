@@ -191,10 +191,6 @@ export default function Customer360() {
   const recentJobs = profileRes?.recentJobs ?? [];
   const recentPayouts = profileRes?.recentPayouts ?? [];
 
-  const jobIdSet = useMemo(
-    () => new Set(recentJobs.map((job) => String(job?.id))),
-    [recentJobs],
-  );
   const profileKey = user ? String(user.id) : '';
 
   // Secondary sections: existing endpoints only, fetched in parallel with
@@ -230,12 +226,12 @@ export default function Customer360() {
       ),
       run(
         'adminAudit',
-        adminApi.get('/admin/audit-log', { signal, params: { target_type: 'user', limit: 100 } }),
-        (d) => (d?.log ?? []).filter((entry) => String(entry?.target_id) === String(userId)),
+        adminApi.get('/admin/audit-log', { signal, params: { target_type: 'user', target_id: userId, limit: 100 } }),
+        (d) => d?.log ?? [],
       ),
       ...DISPUTE_STATUSES.map((status) => run(
         `disputes:${status}`,
-        adminApi.get('/disputes/admin/all', { signal, params: { status, limit: 100 } }),
+        adminApi.get('/disputes/admin/all', { signal, params: { status, user_id: userId, limit: 100 } }),
         (d) => d?.disputes ?? [],
       )),
     ]);
@@ -260,7 +256,8 @@ export default function Customer360() {
   const disputeSectionError = DISPUTE_STATUSES.map((s) => sectionError(`disputes:${s}`)).find(Boolean) || null;
   const disputes = useMemo(() => {
     if (!aux || !user) return [];
-    const email = String(user.email || '').toLowerCase();
+    // ADM-110: disputes are filtered server-side by ?user_id= (opener,
+    // accused, or job party); the client only dedupes across statuses.
     const seen = new Set();
     const out = [];
     for (const status of DISPUTE_STATUSES) {
@@ -268,14 +265,12 @@ export default function Customer360() {
       for (const dispute of list) {
         if (!dispute || seen.has(dispute.id)) continue;
         seen.add(dispute.id);
-        const byEmail = dispute.opened_by_email && String(dispute.opened_by_email).toLowerCase() === email;
-        const byJob = dispute.job_id != null && jobIdSet.has(String(dispute.job_id));
-        if (byEmail || byJob) out.push(dispute);
+        out.push(dispute);
       }
     }
     return out.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [aux, user, jobIdSet]);
+  }, [aux, user]);
 
   const paidOutCents = useMemo(
     () => recentPayouts.reduce((sum, p) => sum + (Number(p.net_to_helper_cents) || 0), 0),

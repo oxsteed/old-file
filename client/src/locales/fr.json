@@ -730,7 +730,8 @@
         "reasonPlaceholder": "Raison du remboursement…",
         "stepupPrompt": "Un code de verification a ete envoye a votre e-mail. Saisissez-le pour autoriser ce remboursement :",
         "stepupFailed": "Impossible d'emettre un defi de verification. Le remboursement n'a pas ete traite.",
-        "stepupRequired": "Un code de verification est requis pour emettre le remboursement."
+        "stepupRequired": "Un code de verification est requis pour emettre le remboursement.",
+        "pendingApproval": "Remboursement en attente d'approbation par un second administrateur. Aucun fonds n'a encore bougé."
       },
       "delete": {
         "title": "Supprimer définitivement la mission",
@@ -10492,6 +10493,8 @@
     "setPasswordOpen": "Définir un nouveau mot de passe",
     "setPasswordNew": "Nouveau mot de passe",
     "setPasswordRepeat": "Confirmer le nouveau mot de passe",
+    "setPasswordReasonPlaceholder": "Motif de la réinitialisation du mot de passe de cet administrateur (obligatoire, consigné dans le journal d'audit)",
+    "setPasswordReasonRequired": "Un motif est requis pour réinitialiser le mot de passe d'un autre administrateur.",
     "setPasswordTooShort": "Le mot de passe doit comporter au moins 8 caractères.",
     "setPasswordMismatch": "Les mots de passe ne correspondent pas.",
     "setPasswordPrompt": "Définir un nouveau mot de passe pour cet utilisateur ? Ses sessions existantes seront fermées.",
@@ -10532,7 +10535,10 @@
     "toolRentalsLoadFailedTitle": "Échec du chargement des locations d'outils",
     "workingHoursDayOpen": "Ouvert",
     "moderation": {
+      "actionFailed": "L'action de modération a échoué. Veuillez réessayer.",
+      "actionsNeedGrant": "Les actions de modération nécessitent l'autorisation manage_operations. Vous pouvez voir la file mais ne pouvez pas agir.",
       "by": "Par :",
+      "checkingPermissions": "Vérification des autorisations…",
       "dismiss": "Rejeter",
       "dismissTitle": "Rejeter - retirer le signalement admin",
       "emptyQueue": "File vide - aucune mission signalée.",
@@ -12207,7 +12213,9 @@
     "urgencyExploring": "En exploration",
     "urgencyOneMonth": "1 mois",
     "urgencyTwoWeeks": "2 semaines",
-    "view": "Voir"
+    "view": "Voir",
+    "exportStarted": "Export téléchargé",
+    "exportFailed": "Échec de l'export. Veuillez réessayer."
   },
   "businessLaunchStatus": {
     "trackYourBusiness": "Suivre votre Lancement d'Entreprise",
@@ -13353,6 +13361,8 @@
     "submitting": "Envoi en cours..."
   },
   "adminReports": {
+    "detailLoadFailed": "Impossible de charger le signalement complet. Affichage des données de la liste.",
+    "detailLoading": "Chargement des détails du signalement…",
     "title": "Signalements d'Utilisateurs",
     "totalReports": "Total des Signalements : {{count}}",
     "viewDashboard": "Voir le tableau de bord",
@@ -18373,7 +18383,6 @@
     "fieldBuffer": "Marge entre les rendez-vous (minutes)",
     "bufferHint": "Bloquée avant et après chaque rendez-vous pour que les réservations ne se touchent jamais.",
     "bufferPrefix": "Marge :",
-
     "capacityPrefix": "Capacité :",
     "staffAssigned": "personnel assigné",
     "btnCancel": "Annuler",
@@ -24695,6 +24704,7 @@
     "confirmRevokeTitle": "Révoquer l'acceptation"
   },
   "adminNav": {
+    "moneyApprovals": "Approbations monétaires",
     "adminAccounts": "Comptes admin",
     "auditLog": "Journal d’audit",
     "businessLaunch": "Lancement d’entreprise",
@@ -26845,6 +26855,8 @@
     "next": "Suivant"
   },
   "adminContentRemovals": {
+    "acceptedBidHint": "Les offres acceptées ne peuvent pas être supprimées. Annulez la mission via le flux d'annulation.",
+    "acceptedBidProtected": "Protégée — annulez la mission à la place",
     "tabBids": "Offres",
     "tabReviews": "Avis",
     "reasonRequired": "Le motif est obligatoire.",
@@ -28035,10 +28047,45 @@
     "saving": "Enregistrement...",
     "processRefund": "Traiter le remboursement",
     "refundAmount": "Montant du remboursement",
+    "refundAmountInvalid": "Saisissez un montant de remboursement valide supérieur à 0 $.",
+    "refundPendingApproval": "Remboursement en attente d'approbation par un second administrateur. Aucun fonds n'a encore bougé.",
     "refundReasonPlaceholder": "Motif du remboursement...",
     "processing": "Traitement...",
     "cancelOrder": "Annuler la commande",
     "cancelling": "Annulation..."
+  },
+  "adminMoneyApprovals": {
+    "title": "Approbations monétaires",
+    "subtitle": "Les mouvements de fonds atteignant le seuil attendent ici un second administrateur. Rien ne bouge avant approbation.",
+    "loading": "Chargement des approbations en attente...",
+    "empty": "Aucun mouvement de fonds en attente d'approbation.",
+    "refresh": "Actualiser",
+    "type": "Type",
+    "reference": "Référence",
+    "amount": "Montant",
+    "requestedBy": "Demandé par",
+    "requestedAt": "Demandé le",
+    "actions": "Actions",
+    "approve": "Approuver",
+    "reject": "Rejeter",
+    "ownRequest": "votre demande",
+    "cannotApproveOwn": "Vous ne pouvez pas approuver votre propre demande. Un autre administrateur doit l'approuver.",
+    "stepupPrompt": "Saisissez le code de vérification envoyé pour approuver ce mouvement de fonds :",
+    "stepupFailed": "Impossible de démarrer la vérification. Veuillez réessayer.",
+    "stepupRequired": "Un code de vérification est requis pour approuver.",
+    "approved": "Mouvement de fonds approuvé et exécuté.",
+    "rejected": "Mouvement de fonds rejeté.",
+    "approveFailed": "L'approbation a échoué.",
+    "rejectFailed": "Le rejet a échoué.",
+    "rejectReasonPrompt": "Motif du rejet de ce mouvement de fonds :",
+    "rejectReasonRequired": "Un motif est requis pour rejeter.",
+    "loadFailed": "Impossible de charger les approbations en attente.",
+    "thresholdNote": "Les mouvements atteignant le seuil d'approbation double (500 $ par défaut, réglable via money_dual_approval_threshold_cents) exigent deux administrateurs. Le seuil exact doit être confirmé.",
+    "typeJobRefund": "Remboursement de mission",
+    "typeMarketplaceRefund": "Remboursement marketplace",
+    "typeDisputeRefund": "Remboursement de litige",
+    "typeRestaurantPayout": "Paiement au restaurant",
+    "typeAffiliatePayout": "Paiement d'affilié"
   },
   "adminOrderFilters": {
     "searchOrders": "Rechercher des commandes",
@@ -30492,6 +30539,7 @@
     },
     "stepupFailed": "Impossible d'émettre un défi de vérification.",
     "stepupPrompt": "Un code de vérification a été envoyé à votre adresse e-mail. Saisissez-le pour approuver ce paiement :",
+    "pendingApproval": "Paiement en attente d'approbation par un second administrateur. Aucun fonds n'a bougé.",
     "stepupRequired": "Un code de vérification est requis pour approuver le paiement."
   },
   "statementOps": {

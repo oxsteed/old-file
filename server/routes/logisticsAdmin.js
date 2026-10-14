@@ -2,8 +2,10 @@
 /**
  * OxSteed Logistics — admin router
  * Mounted at /api/admin/logistics in server/index.js
- * Mounted behind authenticate. Per-route middleware decides whether a request
- * needs admin RBAC or an internal Operations / Compliance workspace session.
+ * Mounted behind authenticate. Router-level requireAdminTotp (ADM-006)
+ * enforces the admin TOTP hard-block for admin/super_admin sessions;
+ * per-route middleware then decides whether a request needs admin RBAC
+ * or an internal Operations / Compliance workspace session.
  */
 const router = require('express').Router();
 const adminCtrl  = require('../controllers/logisticsAdminController');
@@ -17,6 +19,12 @@ const upload = require('../middleware/logisticsUpload');
 const validateFileUpload = require('../middleware/validateFileUpload');
 const { requireInternalLogisticsWorkspace } = require('../middleware/requireInternalLogisticsWorkspace');
 const { requireRole } = require('../middleware/auth');
+// ADM-006: the whole logistics admin API mounts behind plain `authenticate`
+// (server/index.js), so admin-role sessions bypassed the TOTP hard-block that
+// requireAdmin enforces everywhere else. Enforce it router-wide for
+// admin/super_admin roles. Non-admin internal workspace operators
+// (sourcing_operator, logistics_coordinator, ...) are unaffected.
+const { requireAdminTotp } = require('../middleware/adminAuth');
 
 const requireOperationsWorkspace = requireInternalLogisticsWorkspace('operations');
 const requireComplianceWorkspace = requireInternalLogisticsWorkspace('compliance');
@@ -33,6 +41,12 @@ router.use((req, _res, next) => {
   req.isSuperAdmin = role === 'super_admin';
   next();
 });
+
+// ADM-006: TOTP hard-block for admin-role sessions across the entire
+// logistics admin API (mirrors requireAdmin). Runs before any route so both
+// the requireRole routes and the requireInternalLogisticsWorkspace
+// admin-passthrough are covered.
+router.use(requireAdminTotp);
 
 // ─── Dashboard ───────────────────────────────────────────────
 

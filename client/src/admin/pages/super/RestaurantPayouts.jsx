@@ -24,6 +24,7 @@ export default function RestaurantPayouts() {
   const [error, setError] = useState('');
   const [confirm, setConfirm] = useState(null);
   const [busyId, setBusyId] = useState(null);
+  const [notice, setNotice] = useState('');
   const abortableFetch = useAbortableFetch();
 
   const load = useCallback(async () => {
@@ -55,8 +56,15 @@ export default function RestaurantPayouts() {
         if (!code || !code.trim()) throw new Error(t('restaurantPayouts.stepupRequired'));
         body = { stepupChallengeId: challengeId, stepupCode: code.trim() };
       }
-      await adminApi.post(`/admin/restaurant-payouts/${payout.id}/${action}`, body);
+      const { data } = await adminApi.post(`/admin/restaurant-payouts/${payout.id}/${action}`, body);
       setConfirm(null);
+      // ADM-016: above-threshold payouts queue for a second admin (202)
+      // instead of executing immediately.
+      if (data?.code === 'money_movement_pending_approval') {
+        setNotice(t('restaurantPayouts.pendingApproval'));
+      } else {
+        setNotice('');
+      }
       await load();
     } catch (err) {
       setError(err?.response?.data?.error?.message || err?.message || 'Action failed.');
@@ -88,6 +96,11 @@ export default function RestaurantPayouts() {
 
       {loading && <p className="text-gray-400">{t('common.loading', 'Loading…')}</p>}
       {error && <AdminErrorState message={error} onRetry={load} />}
+      {notice && (
+        <div className="mb-4 rounded border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-300">
+          {notice}
+        </div>
+      )}
       {!loading && !error && payouts.length === 0 && (
         <p className="text-gray-500">{t('restaurantPayouts.empty', 'No payouts in this state.')}</p>
       )}

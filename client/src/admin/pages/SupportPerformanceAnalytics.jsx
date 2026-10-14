@@ -249,25 +249,34 @@ export default function SupportPerformanceAnalytics() {
               <div className="p-12 text-center text-gray-400">{t('adminSupportPerformance.loadingDetails')}</div>
             ) : (
             <div className="p-6 space-y-6">
+              {/* ADM-005: GET /support/performance/:agentId returns
+                  { agent, trend, conversations } — metrics live under agent. */}
+              {(() => {
+                const agent = agentDetails.agent || {};
+                const resolutionRate = agent.total_chats
+                  ? Math.round((agent.resolved_count / agent.total_chats) * 100)
+                  : null;
+                return (
+              <>
               {/* Key Metrics */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="bg-gray-700/30 rounded-lg p-4">
                   <p className="text-gray-400 text-sm mb-1">{t('adminSupportPerformance.overallRating')}</p>
-                  <p className="text-white text-2xl font-bold">{agentDetails.rating == null ? t('common.na') : `${agentDetails.rating}★`}</p>
+                  <p className="text-white text-2xl font-bold">{agent.rating == null ? t('common.na') : `${agent.rating}★`}</p>
                 </div>
                 <div className="bg-gray-700/30 rounded-lg p-4">
                   <p className="text-gray-400 text-sm mb-1">{t('adminSupportPerformance.satisfactionScore')}</p>
-                  <p className="text-white text-2xl font-bold">{agentDetails.satisfaction_score == null ? t('common.na') : `${agentDetails.satisfaction_score}%`}</p>
+                  <p className="text-white text-2xl font-bold">{agent.satisfaction_score == null ? t('common.na') : `${agent.satisfaction_score}%`}</p>
                 </div>
                 <div className="bg-gray-700/30 rounded-lg p-4">
                   <p className="text-gray-400 text-sm mb-1">{t('adminSupportPerformance.avgResponseTime')}</p>
                   <p className="text-white text-2xl font-bold">
-                    {agentDetails.avg_response_time_seconds == null ? t('common.na') : `${agentDetails.avg_response_time_seconds}s`}
+                    {agent.avg_response_time_seconds == null ? t('common.na') : `${agent.avg_response_time_seconds}s`}
                   </p>
                 </div>
                 <div className="bg-gray-700/30 rounded-lg p-4">
                   <p className="text-gray-400 text-sm mb-1">{t('adminSupportPerformance.resolutionRate')}</p>
-                  <p className="text-white text-2xl font-bold">{agentDetails.resolution_rate == null ? t('common.na') : `${agentDetails.resolution_rate}%`}</p>
+                  <p className="text-white text-2xl font-bold">{resolutionRate == null ? t('common.na') : `${resolutionRate}%`}</p>
                 </div>
               </div>
 
@@ -294,7 +303,7 @@ export default function SupportPerformanceAnalytics() {
                       />
                       <Line
                         type="monotone"
-                        dataKey="chats"
+                        dataKey="conversations"
                         stroke="#10b981"
                         strokeWidth={2}
                         dot={{ fill: '#10b981' }}
@@ -310,26 +319,29 @@ export default function SupportPerformanceAnalytics() {
                 <div className="space-y-2">
                   <div className="flex justify-between text-gray-400">
                     <span>{t('adminSupportPerformance.totalConversations')}</span>
-                    <span className="text-white font-medium">{agentDetails.total_conversations ?? 0}</span>
+                    <span className="text-white font-medium">{agent.total_chats ?? 0}</span>
                   </div>
                   <div className="flex justify-between text-gray-400">
                     <span>{t('adminSupportPerformance.resolved')}</span>
-                    <span className="text-white font-medium">{agentDetails.resolved_conversations ?? 0}</span>
+                    <span className="text-white font-medium">{agent.resolved_count ?? 0}</span>
                   </div>
                   <div className="flex justify-between text-gray-400">
                     <span>{t('adminSupportPerformance.avgHandlingTime')}</span>
-                    <span className="text-white font-medium">{agentDetails.avg_handling_time_seconds == null ? t('common.na') : `${agentDetails.avg_handling_time_seconds}s`}</span>
+                    <span className="text-white font-medium">{agent.avg_handling_time_seconds == null ? t('common.na') : `${agent.avg_handling_time_seconds}s`}</span>
                   </div>
                   <div className="flex justify-between text-gray-400">
                     <span>{t('adminSupportPerformance.firstContactResolution')}</span>
-                    <span className="text-white font-medium">{agentDetails.fcr_rate == null ? t('common.na') : `${agentDetails.fcr_rate}%`}</span>
+                    <span className="text-white font-medium">{agent.fcr_rate == null ? t('common.na') : `${agent.fcr_rate}%`}</span>
                   </div>
                   <div className="flex justify-between text-gray-400">
                     <span>{t('adminSupportPerformance.qualityScore')}</span>
-                    <span className="text-white font-medium">{agentDetails.quality_score == null ? t('common.na') : `${agentDetails.quality_score}/100`}</span>
+                    <span className="text-white font-medium">{agent.quality_score == null ? t('common.na') : `${agent.quality_score}/100`}</span>
                   </div>
                 </div>
               </div>
+              </>
+                );
+              })()}
             </div>
             )}
           </div>

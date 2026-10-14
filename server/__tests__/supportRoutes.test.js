@@ -184,7 +184,8 @@ describe('support routes', () => {
   test('creates a public support ticket for guest or mobile support requests', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({ rows: [] })
+      // ADM-033: guests are never linked to an account by email, so there is
+      // no email-lookup query before the ticket INSERT.
       .mockResolvedValueOnce({
         rows: [{
           id: 'ticket-1',
@@ -214,13 +215,17 @@ describe('support routes', () => {
     expect(res.body.ticket_number).toBe('SUP-101');
     expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO support_tickets/.test(sql))).toBe(true);
     expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO support_messages/.test(sql))).toBe(true);
+    // ADM-033: no account planting via email for guests.
+    expect(mockQuery.mock.calls.some(([sql]) => /LOWER\(email\)/.test(sql))).toBe(false);
+    const ticketInsert = mockQuery.mock.calls.find(([sql]) => /INSERT INTO support_tickets/.test(sql));
+    expect(ticketInsert[1][0]).toBeNull(); // user_id
   });
 
   test('replays a committed legacy support request without creating a second ticket', async () => {
     const clientRequestId = '22222222-2222-4222-8222-222222222222';
     mockQuery
       .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({ rows: [] })
+      // ADM-033: no guest email lookup before the INSERT.
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [{ id: 'ticket-1', ticket_number: 1001 }] })
       .mockResolvedValueOnce({ rows: [] });

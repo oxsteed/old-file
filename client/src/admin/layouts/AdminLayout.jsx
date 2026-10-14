@@ -62,6 +62,8 @@ export const REGULAR_NAV = [
 export const SUPER_NAV = [
   { tabKey: 'superDashboard', to: routePath('superDashboard'),      icon: BarChart2,     labelKey: 'adminNav.superDashboard'  },
   { tabKey: 'money', to: routePath('money'),          icon: DollarSign,    labelKey: 'adminNav.money',            grant: adminRoute('money').grant },
+  // ADM-016: dual-approval queue for above-threshold money movements.
+  { tabKey: 'moneyApprovals', to: routePath('moneyApprovals'), icon: ShieldCheck, labelKey: 'adminNav.moneyApprovals', grant: adminRoute('moneyApprovals').grant },
   { tabKey: 'restaurantCredit', to: routePath('restaurantCredit'), icon: Wallet,      labelKey: 'adminNav.restaurantCredit' },
   { tabKey: 'restaurantTopupApprovals', to: routePath('restaurantTopupApprovals'), icon: Wallet, labelKey: 'adminNav.restaurantTopupApprovals', grant: adminRoute('restaurantTopupApprovals').grant },
   { tabKey: 'oxsteedCredit', to: routePath('oxsteedCredit'), icon: Wallet,         labelKey: 'adminNav.oxsteedCredit'     },

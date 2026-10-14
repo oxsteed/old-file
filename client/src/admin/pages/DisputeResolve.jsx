@@ -73,14 +73,20 @@ export default function DisputeResolve() {
   const confirmResolve = async () => {
     setSubmitting(true);
     try {
-      await adminApi.post(`/disputes/admin/${disputeId}/resolve`, {
+      const { data } = await adminApi.post(`/disputes/admin/${disputeId}/resolve`, {
         resolution,
         resolution_notes: notes,
         ...(resolution === 'split_resolution' && {
           refund_amount: parseFloat(refundAmt)
         })
       });
-      navigate('/admin/disputes?resolved=true');
+      // ADM-016: above-threshold refunds queue for a second admin (202)
+      // instead of resolving immediately.
+      if (data?.code === 'money_movement_pending_approval') {
+        navigate('/admin/super/money-approvals?queued=1');
+      } else {
+        navigate('/admin/disputes?resolved=true');
+      }
     } finally {
       setSubmitting(false);
     }

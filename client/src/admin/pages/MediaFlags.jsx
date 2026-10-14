@@ -2,6 +2,18 @@ import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { useTranslation } from 'react-i18next';
 import { getMediaCreatorWorkReviews, resolveMediaCreatorWorkReview } from '../../api/media';
+import ConfirmDialog from '../lib/ConfirmDialog';
+
+// ADM-028: flag decisions (dismiss / remove / DMCA takedown) are destructive
+// one-click actions with no confirmation and — for DMCA — no restore path.
+// They now go through a confirmation dialog (reason required for remove/DMCA,
+// recorded server-side as moderation_reason), and removed/DMCA posts get a
+// restore button wired to the new DMCA-aware restore endpoint.
+const REVIEW_DIALOG_CONFIG = {
+  dismiss: { title: 'Dismiss flag', confirm: 'Dismiss', danger: false, requireReason: false },
+  remove: { title: 'Remove post', confirm: 'Remove post', danger: true, requireReason: true },
+  dmca: { title: 'DMCA takedown', confirm: 'Issue DMCA takedown', danger: true, requireReason: true },
+};
 
 export default function MediaFlagsPage() {
   const { t } = useTranslation();
@@ -23,6 +35,12 @@ export default function MediaFlagsPage() {
   const [csamTakedownPending, setCsamTakedownPending] = useState(false);
   const [communitySuggestions, setCommunitySuggestions] = useState([]);
   const [communitySuggestionNotes, setCommunitySuggestionNotes] = useState({});
+  const [reviewDialog, setReviewDialog] = useState(null); // { flag, action }
+  const [restoreDialog, setRestoreDialog] = useState(null); // { flag }
+  const [restoreReason, setRestoreReason] = useState('');
+  const [restoreCounterNotice, setRestoreCounterNotice] = useState('');
+  const [restoreError, setRestoreError] = useState('');
+  const [restorePending, setRestorePending] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -120,12 +138,60 @@ export default function MediaFlagsPage() {
     }
   };
 
-  const handleReview = async (id, action) => {
+  // ADM-028: destructive flag decisions require confirmation + a recorded
+  // reason. The reason is persisted server-side as the post's
+  // moderation_reason.
+  const handleReviewConfirm = async (reason) => {
+    const { flag, action } = reviewDialog;
     try {
-      await axios.post(`/api/admin/media/flags/${id}/review`, { action });
+      await axios.post(`/api/admin/media/flags/${flag.id}/review`, {
+        action,
+        takedownReason: reason || undefined,
+      });
+      setReviewDialog(null);
       load();
     } catch (err) {
-      alert('Failed: ' + (err.response?.data?.error || err.message));
+      // Rethrow so ConfirmDialog keeps the dialog open and shows the error
+      // instead of the decision looking like it landed.
+      throw new Error(err.response?.data?.error || err.message);
+    }
+  };
+
+  // ADM-028: restore path for removed posts, including DMCA takedowns. A DMCA
+  // restore requires an explicit counter-notice reference (the server 400s
+  // without one) so a legal takedown is never lifted silently.
+  const openRestoreDialog = (flag) => {
+    setRestoreDialog({ flag });
+    setRestoreReason('');
+    setRestoreCounterNotice('');
+    setRestoreError('');
+  };
+
+  const handleRestore = async () => {
+    const { flag } = restoreDialog;
+    const reason = restoreReason.trim();
+    const isDmca = flag.status === 'dmca';
+    if (reason.length < 3) {
+      setRestoreError('A restore reason is required.');
+      return;
+    }
+    if (isDmca && restoreCounterNotice.trim().length < 10) {
+      setRestoreError('A DMCA counter-notice reference (at least 10 characters) is required.');
+      return;
+    }
+    setRestorePending(true);
+    setRestoreError('');
+    try {
+      await axios.post(`/api/admin/media/posts/${flag.post_id}/restore`, {
+        reason,
+        counterNoticeRef: isDmca ? restoreCounterNotice.trim() : undefined,
+      });
+      setRestoreDialog(null);
+      load();
+    } catch (err) {
+      setRestoreError(err.response?.data?.error || err.message);
+    } finally {
+      setRestorePending(false);
     }
   };
 
@@ -273,10 +339,13 @@ export default function MediaFlagsPage() {
                 <td>
                   {f.status === 'open' && (
                     <>
-                      <button onClick={() => handleReview(f.id, 'dismiss')}>Dismiss</button>
-                      <button onClick={() => handleReview(f.id, 'remove')}>Remove</button>
-                      <button onClick={() => handleReview(f.id, 'dmca')}>DMCA</button>
+                      <button onClick={() => setReviewDialog({ flag: f, action: 'dismiss' })}>Dismiss</button>
+                      <button onClick={() => setReviewDialog({ flag: f, action: 'remove' })}>Remove</button>
+                      <button onClick={() => setReviewDialog({ flag: f, action: 'dmca' })}>DMCA</button>
                     </>
+                  )}
+                  {(f.status === 'removed' || f.status === 'dmca') && (
+                    <button onClick={() => openRestoreDialog(f)}>Restore</button>
                   )}
                 </td>
               </tr>
@@ -285,6 +354,99 @@ export default function MediaFlagsPage() {
         </table>
       )}
       {!loading && !flags.length && <p>No flags.</p>}
+
+      {reviewDialog && (
+        <ConfirmDialog
+          open
+          title={REVIEW_DIALOG_CONFIG[reviewDialog.action].title}
+          message={
+            <>
+              <p>@{reviewDialog.flag.actor_handle}: {reviewDialog.flag.post_body?.slice(0, 140)}{reviewDialog.flag.post_body?.length > 140 ? '…' : ''}</p>
+              <p className="mt-1 text-gray-400">Reason reported: {reviewDialog.flag.reason}</p>
+            </>
+          }
+          confirmLabel={REVIEW_DIALOG_CONFIG[reviewDialog.action].confirm}
+          danger={REVIEW_DIALOG_CONFIG[reviewDialog.action].danger}
+          requireReason={REVIEW_DIALOG_CONFIG[reviewDialog.action].requireReason}
+          reasonLabel="Decision reason"
+          reasonPlaceholder={reviewDialog.action === 'dmca'
+            ? 'DMCA notice reference and reason for the takedown'
+            : 'Why is this post being removed?'}
+          onConfirm={handleReviewConfirm}
+          onClose={() => setReviewDialog(null)}
+        />
+      )}
+
+      {restoreDialog && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+          role="dialog"
+          aria-modal="true"
+          onClick={() => { if (!restorePending) setRestoreDialog(null); }}
+        >
+          <div
+            className="w-full max-w-md rounded-lg bg-gray-900 border border-gray-700 p-6 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 className="text-lg font-semibold text-white">
+              {restoreDialog.flag.status === 'dmca' ? 'Restore DMCA-taken-down post' : 'Restore removed post'}
+            </h2>
+            <p className="mt-2 text-sm text-gray-300">
+              @{restoreDialog.flag.actor_handle}: {restoreDialog.flag.post_body?.slice(0, 140)}{restoreDialog.flag.post_body?.length > 140 ? '…' : ''}
+            </p>
+            <div className="mt-4">
+              <label className="block text-sm font-medium text-gray-300 mb-1">
+                Restore reason <span className="text-red-400">*</span>
+              </label>
+              <textarea
+                value={restoreReason}
+                onChange={(e) => setRestoreReason(e.target.value)}
+                rows={3}
+                placeholder="Why is this post being restored?"
+                className="w-full rounded-md bg-gray-800 border border-gray-700 text-white text-sm p-2 focus:outline-none focus:border-blue-500"
+              />
+            </div>
+            {restoreDialog.flag.status === 'dmca' && (
+              <div className="mt-4">
+                <label className="block text-sm font-medium text-gray-300 mb-1">
+                  DMCA counter-notice reference <span className="text-red-400">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={restoreCounterNotice}
+                  onChange={(e) => setRestoreCounterNotice(e.target.value)}
+                  placeholder="Reference to the counter-notice or release authorization"
+                  className="w-full rounded-md bg-gray-800 border border-gray-700 text-white text-sm p-2 focus:outline-none focus:border-blue-500"
+                />
+                <p className="mt-1 text-xs text-gray-400">
+                  Lifting a DMCA takedown requires a recorded counter-notice. This is stored in the audit log.
+                </p>
+              </div>
+            )}
+            {restoreError && (
+              <div className="mt-3 text-sm text-red-400" role="alert">{restoreError}</div>
+            )}
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setRestoreDialog(null)}
+                disabled={restorePending}
+                className="px-4 py-2 rounded-md text-sm font-medium text-gray-300 bg-gray-800 border border-gray-700 hover:bg-gray-700 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleRestore}
+                disabled={restorePending}
+                className="px-4 py-2 rounded-md text-sm font-medium text-white bg-blue-600 hover:bg-blue-500 disabled:opacity-50"
+              >
+                {restorePending ? 'Restoring…' : 'Restore post'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

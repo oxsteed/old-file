@@ -265,6 +265,7 @@ export default function UserDetail() {
   const [showPwReset, setShowPwReset] = useState(false);
   const [newPw,       setNewPw]       = useState('');
   const [confirmPw,   setConfirmPw]   = useState('');
+  const [pwReason,    setPwReason]    = useState('');
   const [pwSaving,    setPwSaving]    = useState(false);
 
   const [impersonating, setImpersonating] = useState(false);
@@ -556,15 +557,25 @@ export default function UserDetail() {
     e.preventDefault();
     if (newPw.length < 8)    { flash('error', t('admin.setPasswordTooShort')); return; }
     if (newPw !== confirmPw) { flash('error', t('admin.setPasswordMismatch'));  return; }
+    // ADM-142: resetting a fellow admin's password requires a mandatory
+    // reason, recorded in the audit trail.
+    const targetIsAdmin = ['admin', 'super_admin'].includes(data?.user?.role);
+    if (targetIsAdmin && !pwReason.trim()) {
+      flash('error', t('admin.setPasswordReasonRequired'));
+      return;
+    }
     const ok = await confirmDestructive({
       description: t('admin.setPasswordPrompt'),
     });
     if (!ok) return;
     setPwSaving(true);
     try {
-      const { data: res } = await adminApi.post(`/admin/users/${userId}/password`, { password: newPw });
+      const { data: res } = await adminApi.post(`/admin/users/${userId}/password`, {
+        password: newPw,
+        ...(targetIsAdmin ? { reason: pwReason.trim() } : {}),
+      });
       flash('success', res.message || t('admin.setPasswordSuccess'));
-      setShowPwReset(false); setNewPw(''); setConfirmPw('');
+      setShowPwReset(false); setNewPw(''); setConfirmPw(''); setPwReason('');
     } catch (err) { flash('error', err.response?.data?.error || t('admin.setPasswordFailed')); }
     finally { setPwSaving(false); }
   };
@@ -1142,7 +1153,7 @@ export default function UserDetail() {
             {!showPwReset && (
               <button
                 type="button"
-                onClick={() => { setShowPwReset(true); setNewPw(''); setConfirmPw(''); setMessage(null); }}
+                onClick={() => { setShowPwReset(true); setNewPw(''); setConfirmPw(''); setPwReason(''); setMessage(null); }}
                 className="px-3 py-1.5 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 border border-amber-500/30 rounded-lg text-xs font-semibold transition"
               >
                 {t('admin.setPasswordOpen')}
@@ -1172,6 +1183,17 @@ export default function UserDetail() {
                   minLength={8}
                   className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:border-orange-500"
                 />
+                {['admin', 'super_admin'].includes(data?.user?.role) && (
+                  <textarea
+                    value={pwReason}
+                    onChange={e => setPwReason(e.target.value)}
+                    placeholder={t('admin.setPasswordReasonPlaceholder')}
+                    required
+                    rows={2}
+                    maxLength={500}
+                    className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:border-orange-500"
+                  />
+                )}
                 <div className="flex flex-wrap gap-2">
                   <button
                     type="submit"
@@ -1182,7 +1204,7 @@ export default function UserDetail() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => { setShowPwReset(false); setNewPw(''); setConfirmPw(''); }}
+                    onClick={() => { setShowPwReset(false); setNewPw(''); setConfirmPw(''); setPwReason(''); }}
                     className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded-lg text-sm transition"
                   >
                     {t('admin.setPasswordCancel')}

@@ -523,14 +523,49 @@ async function logCCPAAction(actionType, userId, actorId, actorRole, resourceId,
   }
 }
 
+// ADM-045: explicit column allowlist for the CCPA profile export. The export
+// is emailed to the requester, so credentials and secrets must NEVER leave
+// the database via this path. `SELECT * FROM users` would include
+// password_hash, totp_secret, reset_token, email_verify_token, tax_id_last4,
+// and background-check vendor IDs. Only the columns below are exportable.
+const USER_PROFILE_EXPORT_COLUMNS = [
+  'id',
+  'email',
+  'phone',
+  'first_name',
+  'last_name',
+  'username',
+  'role',
+  'subscription_status',
+  'email_verified',
+  'background_check_status',
+  'background_check_passed_at',
+  'w9_on_file',
+  'w9_submitted_at',
+  'identity_verified',
+  'identity_verified_at',
+  'is_active',
+  'is_banned',
+  'ban_reason',
+  'banned_at',
+  'preferred_language',
+  'created_at',
+  'updated_at',
+  'last_login_at',
+  'deleted_at'
+];
+
 // Helper: Compile user data for CCPA access request
 async function compileUserData(userId, requestType) {
   try {
     const userData = {};
 
     if (requestType === 'access' || requestType === 'deletion') {
-      // Profile data
-      const userResult = await pool.query('SELECT * FROM users WHERE id = $1', [userId]);
+      // Profile data — allowlist projection, never SELECT * (ADM-045)
+      const userResult = await pool.query(
+        `SELECT ${USER_PROFILE_EXPORT_COLUMNS.join(', ')} FROM users WHERE id = $1`,
+        [userId]
+      );
       if (userResult.rows.length > 0) {
         userData.profile = userResult.rows[0];
       }

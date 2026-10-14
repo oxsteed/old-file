@@ -13,5 +13,9 @@ test('admin marketplace refunds send a stable idempotency key and clear it only 
   assert.match(source, /get\('marketplace-refund', keyPayload\)/);
   assert.match(source, /['"]Idempotency-Key['"]:\s*idempotencyKey/);
   assert.match(source, /clear\('marketplace-refund', variables\.keyPayload\)/);
-  assert.match(source, /refundMutation\.mutate\(\{ reason: refundReason, amountCents: refundAmount \}\)/);
+  // ADM-009: the submitted amount must be the explicitly validated parse of
+  // the raw input string (a cleared field is rejected before mutate, never
+  // sent as NaN -> null -> silent full refund).
+  assert.match(source, /refundMutation\.mutate\(\{ reason: refundReason, amountCents: parsed\.cents \}\)/);
+  assert.match(source, /parseRefundAmountCents\(refundAmountInput\)/);
 });

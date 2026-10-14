@@ -56,12 +56,13 @@ describe('T11/T12/T23/T25: privileged routes carry grant middleware', () => {
     expect(pkg.chainLength).toBe(4);
   });
 
-  test('consulting refund requires issue_refunds (5 middleware)', () => {
+  test('consulting refund requires issue_refunds (6 middleware)', () => {
     const router = require('../routes/consultingPayment');
     const routes = layerNames(router);
     const refund = routes.find(l => l.path === '/refund');
-    // strictLimiter, authenticate, requireAdmin, requirePermission, controller
-    expect(refund.chainLength).toBe(5);
+    // ADM-040: strictLimiter, authenticate, requireAdmin, rejectImpersonated,
+    // requirePermission, controller
+    expect(refund.chainLength).toBe(6);
   });
 
   test('quote admin detail route requires manage_operations', () => {

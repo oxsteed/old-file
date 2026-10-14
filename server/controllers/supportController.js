@@ -13,6 +13,7 @@ const { maskEmail } = require('../utils/directQuote');
 const { AppError } = require('../middleware/errorHandler');
 const { resolveScope, userLocationScopeClause } = require('../utils/scopeFilter');
 const { userMatchesAnyRegion } = require('../middleware/regionAuth');
+const escapeHtml = require('../utils/escapeHtml');
 const { transitionTicket } = require('../services/supportTicketLifecycleService');
 const { ticketEmail } = require('../utils/supportTicketEmail');
 const { scheduleSupportMessageNotifications } = require('../services/supportNotificationService');
@@ -58,20 +59,22 @@ async function fetchTicketRow(ticketId) {
         sendEmail({
           to: admin.email,
           subject: `[Ticket #${ticket.ticket_number}] New support ticket opened`,
+          // ADM-033: ticket.name / ticket.subject / admin.first_name are
+          // guest-controlled; escape before interpolating into HTML email.
           html: `
             <div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;">
               <h2 style="color:#ea580c;">New Support Ticket</h2>
-              <p>Hi ${admin.first_name || 'there'},</p>
+              <p>Hi ${escapeHtml(admin.first_name) || 'there'},</p>
               <p>A new support ticket has been opened and needs review.</p>
               <table style="border:1px solid #e5e7eb;border-radius:8px;padding:16px;width:100%;margin:16px 0;">
                 <tr><td style="color:#6b7280;width:140px;">Ticket number</td>
                     <td style="font-weight:bold;">#${ticket.ticket_number}</td></tr>
                 <tr><td style="color:#6b7280;">Subject</td>
-                    <td>${ticket.subject}</td></tr>
+                    <td>${escapeHtml(ticket.subject)}</td></tr>
                 <tr><td style="color:#6b7280;">Priority</td>
-                    <td style="text-transform:capitalize;">${ticket.priority}</td></tr>
+                    <td style="text-transform:capitalize;">${escapeHtml(ticket.priority)}</td></tr>
                 <tr><td style="color:#6b7280;">Requester</td>
-                    <td>${ticket.name} (${ticket.email})</td></tr>
+                    <td>${escapeHtml(ticket.name)} (${escapeHtml(ticket.email)})</td></tr>
               </table>
               <p><a href="https://app.oxsteed.com/admin/support" style="color:#ea580c;">View in Admin Dashboard</a></p>
             </div>`,
@@ -95,6 +98,53 @@ function notifyUser(userId, event, data) {
 function isUuid(value) {
   return typeof value === 'string'
     && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+}
+
+/**
+ * ADM-094: regional admins may only mutate tickets whose owner sits inside
+ * their assigned region. Guest tickets (no user to locate) fail closed:
+ * they are hidden from regional admins, matching the list/detail endpoints.
+ *
+ * Returns { ok: true } when the mutation may proceed, otherwise
+ * { ok: false, status, body } for the caller to send. A scope that cannot
+ * be established fails closed with 503 rather than serving unscoped.
+ */
+async function checkTicketMutationScope(req, ticket) {
+  let scope;
+  try {
+    scope = resolveScope(req);
+  } catch (err) {
+    if (err && err.code === 'SCOPE_UNAVAILABLE') {
+      return {
+        ok: false,
+        status: err.statusCode || 503,
+        body: {
+          error: 'Request scope is temporarily unavailable. Please retry.',
+          code: err.code,
+        },
+      };
+    }
+    throw err;
+  }
+  if (scope.type === 'global') return { ok: true };
+
+  let inScope = false;
+  if (ticket.user_id) {
+    const { rows: owners } = await db.query(
+      `SELECT id, city, state, zip_code, country, latitude, longitude
+         FROM users WHERE id = $1`,
+      [ticket.user_id]
+    );
+    inScope = owners.length > 0 && userMatchesAnyRegion(owners[0], scope.regions || []);
+  }
+  if (!inScope) {
+    return {
+      ok: false,
+      status: 403,
+      body: { error: 'Access denied: ticket is outside your assigned region.' },
+    };
+  }
+  return { ok: true };
 }
 
 // ─── PUBLIC ───────────────────────────────────────────────────────────────────
@@ -189,17 +239,13 @@ exports.submitSupportRequest = async (req, res, next) => {
     try {
       await client.query('BEGIN');
 
-    // Link to an existing user account if possible
-    let userId = null;
-    if (req.user?.id) {
-      userId = req.user.id;
-    } else {
-      const { rows } = await client.query(
-        `SELECT id FROM users WHERE LOWER(email) = LOWER($1) LIMIT 1`,
-        [email.trim()]
-      );
-      if (rows.length) userId = rows[0].id;
-    }
+    // ADM-033: link the ticket to a user account ONLY when the request is
+    // authenticated. Matching a guest-supplied email against the users table
+    // lets anyone plant tickets on somebody else's account (the victim then
+    // sees the ticket under "my tickets" and follow-up emails go out in the
+    // platform's name). Guests stay unlinked; email ownership is proven by
+    // the session, not by claiming an address.
+    const userId = req.user?.id || null;
 
     const ticketRes = await client.query(
       `INSERT INTO support_tickets
@@ -260,21 +306,22 @@ exports.submitSupportRequest = async (req, res, next) => {
     });
 
     // Confirmation email to the user
+    // ADM-033: escape the guest-supplied name/subject before embedding in HTML.
     sendEmail({
       to: email.trim(),
       subject: `[Ticket #${ticket.ticket_number}] We received your support request`,
       html: `
         <div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;">
           <h2 style="color:#ea580c;">OxSteed Support</h2>
-          <p>Hi ${name.trim()},</p>
+          <p>Hi ${escapeHtml(name.trim())},</p>
           <p>We've received your support request and a member of our team will be in touch soon.</p>
           <table style="border:1px solid #e5e7eb;border-radius:8px;padding:16px;width:100%;margin:16px 0;">
             <tr><td style="color:#6b7280;width:140px;">Ticket number</td>
                 <td style="font-weight:bold;">#${ticket.ticket_number}</td></tr>
             <tr><td style="color:#6b7280;">Subject</td>
-                <td>${ticket.subject}</td></tr>
+                <td>${escapeHtml(ticket.subject)}</td></tr>
             <tr><td style="color:#6b7280;">Priority</td>
-                <td style="text-transform:capitalize;">${ticket.priority}</td></tr>
+                <td style="text-transform:capitalize;">${escapeHtml(ticket.priority)}</td></tr>
           </table>
           <p style="color:#6b7280;font-size:13px;">
             Keep this email - ticket #${ticket.ticket_number} is your reference if you need to follow up.
@@ -574,8 +621,14 @@ exports.listTickets = async (req, res) => {
       [...params, limitN, offsetN]
     );
 
+    // ADM-122: the count query must carry the same users join as the list
+    // query — the regional ${where} fragment references u.*, so without the
+    // join regional admins get "missing FROM-clause entry for table u" 500s.
     const { rows: [{ total }] } = await db.query(
-      `SELECT COUNT(*) AS total FROM support_tickets t ${where}`,
+      `SELECT COUNT(*) AS total
+       FROM support_tickets t
+       LEFT JOIN users u ON t.user_id = u.id
+       ${where}`,
       params
     );
 
@@ -599,24 +652,10 @@ exports.getTicketAdmin = async (req, res) => {
     const ticket = await fetchTicketRow(req.params.ticketId);
     if (!ticket) return res.status(404).json({ error: 'Ticket not found.' });
 
-    // E05: regional admins may only open tickets whose owner is inside
-    // their assigned region. Guest tickets (no user to locate) fail
-    // closed: hidden from regional admins.
-    const scope = resolveScope(req);
-    if (scope.type !== 'global') {
-      let inScope = false;
-      if (ticket.user_id) {
-        const { rows: owners } = await db.query(
-          `SELECT id, city, state, zip_code, country, latitude, longitude
-             FROM users WHERE id = $1`,
-          [ticket.user_id]
-        );
-        inScope = owners.length > 0 && userMatchesAnyRegion(owners[0], scope.regions || []);
-      }
-      if (!inScope) {
-        return res.status(403).json({ error: 'Access denied: ticket is outside your assigned region.' });
-      }
-    }
+    // ADM-094: regional scope check shares the mutation helper (guest
+    // tickets fail closed for regional admins).
+    const scopeCheck = await checkTicketMutationScope(req, ticket);
+    if (!scopeCheck.ok) return res.status(scopeCheck.status).json(scopeCheck.body);
 
     const { rows: msgs } = await db.query(
       `SELECT
@@ -648,10 +687,14 @@ exports.claimTicket = async (req, res) => {
   if (!['admin', 'super_admin'].includes(req.user.role)) return res.status(403).json({ error: 'Admin access required.' });
   try {
     const { rows } = await db.query(
-      `SELECT id, status, assigned_to, ticket_number FROM support_tickets WHERE id = $1`,
+      `SELECT id, user_id, status, assigned_to, ticket_number FROM support_tickets WHERE id = $1`,
       [req.params.ticketId]
     );
     if (!rows.length) return res.status(404).json({ error: 'Ticket not found.' });
+
+    // ADM-094: regional admins may only claim tickets inside their region.
+    const scopeCheck = await checkTicketMutationScope(req, rows[0]);
+    if (!scopeCheck.ok) return res.status(scopeCheck.status).json(scopeCheck.body);
 
     const ticket = rows[0];
     if (['resolved', 'closed'].includes(ticket.status)) {
@@ -709,10 +752,14 @@ exports.unclaimTicket = async (req, res) => {
   if (!['admin', 'super_admin'].includes(req.user.role)) return res.status(403).json({ error: 'Admin access required.' });
   try {
     const { rows } = await db.query(
-      `SELECT id, status, assigned_to, ticket_number FROM support_tickets WHERE id = $1`,
+      `SELECT id, user_id, status, assigned_to, ticket_number FROM support_tickets WHERE id = $1`,
       [req.params.ticketId]
     );
     if (!rows.length) return res.status(404).json({ error: 'Ticket not found.' });
+
+    // ADM-094: regional admins may only unclaim tickets inside their region.
+    const scopeCheck = await checkTicketMutationScope(req, rows[0]);
+    if (!scopeCheck.ok) return res.status(scopeCheck.status).json(scopeCheck.body);
 
     const ticket = rows[0];
     if (ticket.assigned_to !== req.user.id && !req.isSuper) {
@@ -757,6 +804,17 @@ exports.updateStatus = async (req, res, next) => {
   }
 
   try {
+    // ADM-094: regional admins may only change the status of tickets inside
+    // their region. Checked before transitionTicket so an out-of-region
+    // ticket can neither be read nor mutated through this endpoint.
+    const { rows: scopeRows } = await db.query(
+      `SELECT id, user_id FROM support_tickets WHERE id = $1`,
+      [req.params.ticketId]
+    );
+    if (!scopeRows.length) return res.status(404).json({ error: 'Ticket not found.' });
+    const scopeCheck = await checkTicketMutationScope(req, scopeRows[0]);
+    if (!scopeCheck.ok) return res.status(scopeCheck.status).json(scopeCheck.body);
+
     const { ticket, replayed, eventId } = await transitionTicket({
       ticketId: req.params.ticketId, actor: req.user, status, req,
     });
@@ -790,6 +848,16 @@ exports.updatePriority = async (req, res) => {
   }
 
   try {
+    // ADM-094: regional admins may only change the priority of tickets
+    // inside their region.
+    const { rows: scopeRows } = await db.query(
+      `SELECT id, user_id FROM support_tickets WHERE id = $1`,
+      [req.params.ticketId]
+    );
+    if (!scopeRows.length) return res.status(404).json({ error: 'Ticket not found.' });
+    const scopeCheck = await checkTicketMutationScope(req, scopeRows[0]);
+    if (!scopeCheck.ok) return res.status(scopeCheck.status).json(scopeCheck.body);
+
     const { rows } = await db.query(
       `UPDATE support_tickets SET priority = $1, updated_at = NOW()
         WHERE id = $2 RETURNING id, ticket_number, priority`,
@@ -837,6 +905,11 @@ exports.adminReply = async (req, res) => {
     if (!tRows.length) return res.status(404).json({ error: 'Ticket not found.' });
 
     const ticket = tRows[0];
+
+    // ADM-094: regional admins may only reply to tickets inside their region.
+    const scopeCheck = await checkTicketMutationScope(req, ticket);
+    if (!scopeCheck.ok) return res.status(scopeCheck.status).json(scopeCheck.body);
+
     if (['resolved', 'closed'].includes(ticket.status) && !req.isSuper) {
       return res.status(409).json({ error: 'Cannot reply to a closed ticket.' });
     }

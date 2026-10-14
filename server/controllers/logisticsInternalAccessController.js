@@ -654,6 +654,12 @@ exports.loginWithInternalAccess = async (req, res, next) => {
       success: true,
       message: 'Login successful',
       user: formatAuthUser(user),
+      // ADM-037: same TOTP-setup funnel as the main admin login (see
+      // authController.login). The session cannot reach admin surfaces
+      // until TOTP is enabled.
+      ...(['admin', 'super_admin'].includes(user.role) && !user.totp_enabled
+        ? { requiresTwoFactorSetup: true }
+        : {}),
       ...bodyTokens(req, tokens),
     });
   } catch (error) {

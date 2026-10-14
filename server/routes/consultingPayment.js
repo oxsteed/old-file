@@ -4,6 +4,7 @@ const consultingPaymentController = require('../controllers/consultingPaymentCon
 const { authenticate } = require('../middleware/auth');
 const { requireAdmin, requirePermission } = require('../middleware/adminAuth');
 const { generalLimiter, strictLimiter } = require('../middleware/rateLimiter');
+const { rejectImpersonated } = require('../middleware/rejectImpersonated');
 const checkRestrictions = require('../middleware/checkRestrictions');
 
 // Public packages list - rate-limited to prevent enumeration / DoS.
@@ -17,6 +18,7 @@ router.post('/confirm-payment', strictLimiter, authenticate, checkRestrictions('
 router.get('/payment/:paymentId/status', authenticate, consultingPaymentController.getPaymentStatus);
 // T25-F01: consulting refunds require the issue_refunds grant, like all other
 // refund paths, not just an admin role.
-router.post('/refund', strictLimiter, authenticate, requireAdmin, requirePermission('issue_refunds'), consultingPaymentController.refundPayment);
+// ADM-040: impersonated sessions cannot issue refunds.
+router.post('/refund', strictLimiter, authenticate, rejectImpersonated, requireAdmin, requirePermission('issue_refunds'), consultingPaymentController.refundPayment);
 
 module.exports = router;

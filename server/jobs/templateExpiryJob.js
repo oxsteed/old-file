@@ -10,6 +10,7 @@ async function runTemplateExpiryJob() {
   logger.info('Template expiry job started');
   let expired = 0;
   let reverted = 0;
+  let failed = 0;
 
   try {
     // 1. Find all access records that have passed expiry_date but are still active
@@ -25,33 +26,45 @@ async function runTemplateExpiryJob() {
     expired = expiredRows.length;
     logger.info('Template access records expired', { count: expired });
 
-    // 2. For each expired record: revert businesses/helpers using that template to 'default'
+    // 2. For each expired record: revert businesses/helpers using that template to 'default'.
+    // ADM-025: businesses links to the owner via user_id (not owner_id), and
+    // each row is processed in its own try/catch so one bad row cannot abort
+    // the whole run.
     for (const row of expiredRows) {
-      // Check if user still has any active access for this slug (e.g. lifetime purchase)
-      const stillHasAccess = await pool.query(
-        `SELECT id FROM template_access
-         WHERE user_id = $1 AND template_slug = $2 AND status = 'active'
-           AND (expiry_date IS NULL OR expiry_date > NOW())
-         LIMIT 1`,
-        [row.user_id, row.template_slug]
-      );
-      if (stillHasAccess.rows.length > 0) continue; // another access record covers them
+      try {
+        // Check if user still has any active access for this slug (e.g. lifetime purchase)
+        const stillHasAccess = await pool.query(
+          `SELECT id FROM template_access
+           WHERE user_id = $1 AND template_slug = $2 AND status = 'active'
+             AND (expiry_date IS NULL OR expiry_date > NOW())
+           LIMIT 1`,
+          [row.user_id, row.template_slug]
+        );
+        if (stillHasAccess.rows.length > 0) continue; // another access record covers them
 
-      const bizResult = await pool.query(
-        `UPDATE businesses SET active_template = 'default', updated_at = NOW()
-         WHERE owner_id = $1 AND active_template = $2`,
-        [row.user_id, row.template_slug]
-      );
-      const helperResult = await pool.query(
-        `UPDATE helper_profiles SET active_template = 'default', updated_at = NOW()
-         WHERE user_id = $1 AND active_template = $2`,
-        [row.user_id, row.template_slug]
-      );
-      reverted += (bizResult.rowCount || 0) + (helperResult.rowCount || 0);
+        const bizResult = await pool.query(
+          `UPDATE businesses SET active_template = 'default', updated_at = NOW()
+           WHERE user_id = $1 AND active_template = $2`,
+          [row.user_id, row.template_slug]
+        );
+        const helperResult = await pool.query(
+          `UPDATE helper_profiles SET active_template = 'default', updated_at = NOW()
+           WHERE user_id = $1 AND active_template = $2`,
+          [row.user_id, row.template_slug]
+        );
+        reverted += (bizResult.rowCount || 0) + (helperResult.rowCount || 0);
+      } catch (rowErr) {
+        failed += 1;
+        logger.error('Template expiry row failed, continuing', {
+          error: rowErr.message,
+          user_id: row.user_id,
+          template_slug: row.template_slug,
+        });
+      }
     }
 
-    logger.info('Template expiry job completed', { expired, reverted });
-    return { expired, reverted };
+    logger.info('Template expiry job completed', { expired, reverted, failed });
+    return { expired, reverted, failed };
   } catch (err) {
     logger.error('Template expiry job failed', { error: err.message });
     throw err;

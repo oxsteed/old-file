@@ -3,6 +3,29 @@ const logger = require('../utils/logger');
 const { sendError, sendValidationError } = require('../utils/apiError');
 const { withTransaction } = require('../utils/transaction');
 const { processMarketplaceRefund } = require('../services/marketplaceRefundService');
+const { sendMoneyMovementGateResult } = require('../utils/dualApprovalHttp');
+
+// ADM-063: allowed marketplace order status transitions. Mirrors the
+// database guard in migration 603 (which remains as defense in depth), but
+// enforced here so invalid transitions fail with a clean 409 instead of a
+// 500 from the trigger — and so unpaid orders can never be shipped.
+const ORDER_STATUS_TRANSITIONS = Object.freeze({
+  pending: ['paid', 'cancelled'],
+  paid: ['processing', 'cancelled', 'refunded'],
+  processing: ['processing', 'completed', 'cancelled', 'refunded'],
+  completed: ['refunded'],
+  cancelled: [],
+  refunded: [],
+});
+
+function isAllowedOrderTransition(fromStatus, toStatus) {
+  if (fromStatus === toStatus) return true;
+  const allowed = ORDER_STATUS_TRANSITIONS[fromStatus];
+  // Unknown legacy statuses fail open here (migration 603 documents the
+  // same policy); known statuses must follow the graph.
+  if (!allowed) return true;
+  return allowed.includes(toStatus);
+}
 
 // Get orders list with filtering, sorting, and pagination
 async function getOrders(req, res) {
@@ -171,7 +194,11 @@ async function getOrder(req, res) {
           discountCents: order.discount_cents,
           totalCents: order.total_cents
         },
-        shippingAddress: order.shipping_address ? JSON.parse(order.shipping_address) : {},
+        // ADM-010: shipping_address is JSONB — node-pg already parses it into
+        // an object, so JSON.parse would throw on the string "[object Object]".
+        shippingAddress: typeof order.shipping_address === 'string'
+          ? JSON.parse(order.shipping_address)
+          : (order.shipping_address || {}),
         items: itemsResult.rows.map(i => ({
           id: i.id,
           productId: i.product_id,
@@ -237,8 +264,16 @@ async function markShipped(req, res) {
       }
 
       const order = orderResult.rows[0];
-      if (order.status === 'cancelled') {
-        throw new Error('Cannot ship cancelled order');
+      // ADM-063: only paid orders can be shipped (processing is idempotent
+      // for tracking updates). Unpaid (pending) orders, completed orders,
+      // and terminal cancelled/refunded orders are rejected with 409.
+      if (!isAllowedOrderTransition(order.status, 'processing')) {
+        const err = new Error(
+          `Order cannot be marked shipped from status '${order.status}'. Only paid orders can be shipped.`
+        );
+        err.status = 409;
+        err.code = 'order_invalid_status_transition';
+        throw err;
       }
 
       // Update order with tracking info
@@ -273,6 +308,12 @@ async function markShipped(req, res) {
     });
   } catch (error) {
     logger.error('Error marking order as shipped', { error, orderId: req.params.orderId });
+    // ADM-063: surface invalid transitions as 409, including violations of
+    // the migration-603 database guard (ERRCODE 23514) as a second line of
+    // defense behind the controller check above.
+    if (error.status === 409 || error.code === '23514') {
+      return sendError(res, 409, error.message || 'Invalid order status transition', 'order_invalid_status_transition');
+    }
     sendError(res, 500, 'Failed to mark order as shipped');
   }
 }
@@ -281,7 +322,10 @@ async function markShipped(req, res) {
 async function processRefund(req, res) {
   try {
     const { orderId } = req.params;
-    const { reason, refundAmount } = req.body;
+    // ADM-009: the client must send an explicit amount in cents, or declare
+    // fullRefund: true. A missing/NaN amount is rejected by the service
+    // (fail closed) instead of silently becoming a full refund.
+    const { reason, refundAmount, fullRefund } = req.body;
     const adminId = req.user?.id;
 
     if (!orderId || isNaN(orderId)) {
@@ -294,10 +338,36 @@ async function processRefund(req, res) {
     const result = await processMarketplaceRefund({
       orderId,
       requestedAmountCents: refundAmount,
+      fullRefund: fullRefund === true,
       reason,
       actorUserId: adminId,
       requestId: req.get('Idempotency-Key') || req.body?.idempotencyKey,
+      // ADM-016: above-threshold refunds queue for a second admin instead
+      // of moving money on this single approval.
+      dualApproval: {
+        movementType: 'marketplace_refund',
+        referenceKey: `order:${orderId}`,
+        requestedBy: adminId,
+        idempotencyKey: req.get('Idempotency-Key') || req.body?.idempotencyKey,
+        payload: {
+          orderId,
+          requestedAmountCents: refundAmount,
+          fullRefund: fullRefund === true,
+          reason,
+          makerAdminId: adminId,
+          requestId: req.get('Idempotency-Key') || req.body?.idempotencyKey,
+        },
+      },
     });
+    // ADM-016: queued for dual approval — no money moved yet.
+    if (result.dualApproval) {
+      logger.info('Marketplace order refund queued for dual approval', {
+        orderId,
+        approvalId: result.dualApproval.approval.id,
+        adminId,
+      });
+      return sendMoneyMovementGateResult(res, result.dualApproval);
+    }
     const status = result.refund.status === 'succeeded' ? (result.order.status || 'refunded') : 'processing';
     logger.info('Marketplace order refund reconciled', {
       orderId,

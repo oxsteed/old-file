@@ -37,7 +37,14 @@ export default function usePayments() {
   };
 
   const refundPayment = async (paymentId, reason, amount) => {
-    const { data } = await api.post('/payments/refund', { payment_id: paymentId, reason, amount });
+    // ADM-009: an omitted amount must be declared as an explicit full
+    // refund; the server rejects ambiguity instead of assuming full.
+    const { data } = await api.post('/payments/refund', {
+      payment_id: paymentId,
+      reason,
+      amount,
+      ...(amount == null ? { fullRefund: true } : {}),
+    });
     return data;
   };
 

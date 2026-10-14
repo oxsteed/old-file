@@ -730,7 +730,8 @@
         "reasonPlaceholder": "سبب استرداد…",
         "stepupPrompt": "تم إرسال رمز تحقق إلى بريدك الإلكتروني. أدخله لتفويض هذا الاسترداد:",
         "stepupFailed": "تعذر إصدار تحدي التحقق. لم تتم معالجة الاسترداد.",
-        "stepupRequired": "رمز التحقق مطلوب لإصدار الاسترداد."
+        "stepupRequired": "رمز التحقق مطلوب لإصدار الاسترداد.",
+        "pendingApproval": "الاسترداد في قائمة الانتظار لاعتماد مشرف ثانٍ. لم تتحرك أي أموال بعد."
       },
       "delete": {
         "title": "حذف الوظيفة نهائيًا",
@@ -10492,6 +10493,8 @@
     "setPasswordOpen": "تعيين كلمة مرور جديدة",
     "setPasswordNew": "كلمة المرور الجديدة",
     "setPasswordRepeat": "تأكيد كلمة المرور الجديدة",
+    "setPasswordReasonPlaceholder": "سبب إعادة تعيين كلمة مرور هذا المسؤول (مطلوب، ويُسجَّل في سجل التدقيق)",
+    "setPasswordReasonRequired": "يلزم ذكر سبب عند إعادة تعيين كلمة مرور مسؤول آخر.",
     "setPasswordTooShort": "يجب أن تتكون كلمة المرور من 8 أحرف على الأقل.",
     "setPasswordMismatch": "كلمات المرور غير متطابقة.",
     "setPasswordPrompt": "هل تريد تعيين كلمة مرور جديدة لهذا المستخدم؟ سيتم تسجيل خروج جلساته الحالية.",
@@ -10532,7 +10535,10 @@
     "toolRentalsLoadFailedTitle": "تعذر تحميل تأجير الأدوات",
     "workingHoursDayOpen": "مفتوح",
     "moderation": {
+      "actionFailed": "فشل إجراء الإشراف. يُرجى المحاولة مرة أخرى.",
+      "actionsNeedGrant": "تتطلب إجراءات الإشراف صلاحية manage_operations. يمكنك عرض القائمة لكن لا يمكنك اتخاذ إجراء.",
       "by": "بواسطة:",
+      "checkingPermissions": "جارٍ التحقق من الصلاحيات…",
       "dismiss": "رفض",
       "dismissTitle": "رفض - إزالة علامة المشرف",
       "emptyQueue": "القائمة فارغة - لا توجد وظائف مُعلَّمة أو مُبلغ عنها.",
@@ -12207,7 +12213,9 @@
     "urgencyExploring": "يستكشف فقط",
     "urgencyOneMonth": "شهر واحد",
     "urgencyTwoWeeks": "أسبوعان",
-    "view": "عرض"
+    "view": "عرض",
+    "exportStarted": "تم تنزيل التصدير",
+    "exportFailed": "فشل التصدير. يرجى المحاولة مرة أخرى."
   },
   "businessLaunchStatus": {
     "trackYourBusiness": "تتبع إطلاق عملك",
@@ -13617,6 +13625,8 @@
     "submitting": "جارٍ الإرسال..."
   },
   "adminReports": {
+    "detailLoadFailed": "تعذّر تحميل البلاغ الكامل. يتم عرض بيانات القائمة.",
+    "detailLoading": "جارٍ تحميل تفاصيل البلاغ…",
     "title": "تقارير المستخدم",
     "totalReports": "إجمالي التقارير: {{count}}",
     "viewDashboard": "عرض لوحة التحكم",
@@ -24705,6 +24715,7 @@
     "confirmRevokeTitle": "إلغاء القبول"
   },
   "adminNav": {
+    "moneyApprovals": "اعتمادات الأموال",
     "adminAccounts": "حسابات المشرفين",
     "auditLog": "سجل التدقيق",
     "businessLaunch": "إطلاق الأعمال",
@@ -26855,6 +26866,8 @@
     "next": "التالي"
   },
   "adminContentRemovals": {
+    "acceptedBidHint": "لا يمكن إزالة العروض المقبولة. ألغِ المهمة عبر مسار الإلغاء بدلاً من ذلك.",
+    "acceptedBidProtected": "محمية — ألغِ المهمة بدلاً من ذلك",
     "tabBids": "العروض",
     "tabReviews": "التقييمات",
     "reasonRequired": "السبب مطلوب.",
@@ -28045,10 +28058,45 @@
     "saving": "جارٍ الحفظ...",
     "processRefund": "معالجة المبلغ المسترد",
     "refundAmount": "مبلغ الاسترداد",
+    "refundAmountInvalid": "أدخل مبلغ استرداد صالحًا أكبر من $0.",
+    "refundPendingApproval": "الاسترداد في قائمة الانتظار لاعتماد مشرف ثانٍ. لم تتحرك أي أموال بعد.",
     "refundReasonPlaceholder": "سبب الاسترداد...",
     "processing": "جارٍ المعالجة...",
     "cancelOrder": "إلغاء الطلب",
     "cancelling": "جارٍ الإلغاء..."
+  },
+  "adminMoneyApprovals": {
+    "title": "اعتمادات الأموال",
+    "subtitle": "حركات الأموال التي تبلغ الحد الأدنى تنتظر هنا مشرفًا ثانيًا. لا يتحرك أي مبلغ قبل الاعتماد.",
+    "loading": "جارٍ تحميل الاعتمادات المعلقة...",
+    "empty": "لا توجد حركات أموال بانتظار الاعتماد.",
+    "refresh": "تحديث",
+    "type": "النوع",
+    "reference": "المرجع",
+    "amount": "المبلغ",
+    "requestedBy": "طلبها",
+    "requestedAt": "تاريخ الطلب",
+    "actions": "إجراءات",
+    "approve": "اعتماد",
+    "reject": "رفض",
+    "ownRequest": "طلبك",
+    "cannotApproveOwn": "لا يمكنك اعتماد طلبك الخاص. يجب أن يعتمده مشرف آخر.",
+    "stepupPrompt": "أدخل رمز التحقق المرسل إليك لاعتماد حركة الأموال هذه:",
+    "stepupFailed": "تعذّر بدء التحقق. حاول مرة أخرى.",
+    "stepupRequired": "رمز التحقق مطلوب للاعتماد.",
+    "approved": "تم اعتماد حركة الأموال وتنفيذها.",
+    "rejected": "تم رفض حركة الأموال.",
+    "approveFailed": "فشل الاعتماد.",
+    "rejectFailed": "فشل الرفض.",
+    "rejectReasonPrompt": "سبب رفض حركة الأموال هذه:",
+    "rejectReasonRequired": "السبب مطلوب للرفض.",
+    "loadFailed": "تعذّر تحميل الاعتمادات المعلقة.",
+    "thresholdNote": "الحركات التي تبلغ حد الاعتماد المزدوج (الافتراضي $500، قابل للضبط عبر money_dual_approval_threshold_cents) تتطلب مشرفين. الحد الدقيق بانتظار التأكيد.",
+    "typeJobRefund": "استرداد مهمة",
+    "typeMarketplaceRefund": "استرداد سوق",
+    "typeDisputeRefund": "استرداد نزاع",
+    "typeRestaurantPayout": "دفعة مطعم",
+    "typeAffiliatePayout": "دفعة مسوّق"
   },
   "adminOrderFilters": {
     "searchOrders": "البحث في الطلبات",
@@ -30502,6 +30550,7 @@
     },
     "stepupFailed": "تعذر إصدار تحدٍّ للتحقق.",
     "stepupPrompt": "تم إرسال رمز تحقق إلى بريدك الإلكتروني. أدخله للموافقة على هذه الدفعة:",
+    "pendingApproval": "الدفعة في قائمة الانتظار لاعتماد مشرف ثانٍ. لم تتحرك أي أموال.",
     "stepupRequired": "يلزم رمز تحقق للموافقة على الدفعة."
   },
   "statementOps": {
