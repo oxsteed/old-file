@@ -31925,5 +31925,21 @@
     "error": "No se pudo enviar su W-9. Intentelo de nuevo.",
     "filedTitle": "W-9 archivado",
     "filedCopy": "Su formulario fiscal W-9 ha sido recibido. No necesita enviarlo de nuevo."
-  }
+  },
+  "adminCreditApprovalTitle": "Aprobación de crédito de la plataforma",
+  "adminCreditApprovalDetail": "Controla si este restaurante puede emitir nuevo crédito. Revocar inicia un período de gracia de 30 días; luego los saldos restantes se migran automáticamente a OxSteed Credit.",
+  "adminCreditApprovalStatusLabel": "Estado de aprobación",
+  "adminCreditApprovalStatusRevoked": "Revocado",
+  "adminCreditApprovalNewStatus": "Nuevo estado",
+  "adminCreditApprovalReason": "Motivo",
+  "adminCreditApprovalReasonRequired": "Se requiere un motivo para suspender o revocar.",
+  "adminCreditApprovalReasonPlaceholder": "¿Por qué este restaurante pierde la aprobación de crédito?",
+  "adminCreditApprovalUpdate": "Actualizar aprobación",
+  "adminCreditApprovalUpdated": "Aprobación de crédito actualizada.",
+  "adminCreditApprovalLoadFailed": "No se pudo cargar la aprobación de crédito.",
+  "adminCreditApprovalUpdateFailed": "No se pudo actualizar la aprobación de crédito.",
+  "adminCreditApprovalGraceEnds": "El período de gracia termina",
+  "adminCreditApprovalRevokedAt": "Revocado el",
+  "adminCreditApprovalMigratedAt": "Saldos migrados",
+  "adminCreditApprovalGrandfathered": "Aprobado (sin registro de aprobación)"
 }

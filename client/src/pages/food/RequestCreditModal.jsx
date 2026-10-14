@@ -1,8 +1,9 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import { CheckCircle2, X } from 'lucide-react';
 import {
+  getFoodWalletCreditCapacity,
   requestFoodWalletCredit,
   uploadFoodAsset,
 } from '../../api/food';
@@ -43,6 +44,24 @@ export default function RequestCreditModal({ restaurantId, restaurantName, curre
   const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const idempotencyKeysRef = useRef(createStableIdempotencyKeyStore());
+  // Phase 5 trial-tier cap: null while the capacity check is in flight.
+  // Fail open on error (the server still enforces the cap authoritatively
+  // on the request path with a 409); fail closed on display once we know.
+  const [atCapacity, setAtCapacity] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    getFoodWalletCreditCapacity(restaurantId)
+      .then((result) => {
+        if (!cancelled) setAtCapacity(Boolean(result?.at_capacity));
+      })
+      .catch(() => {
+        if (!cancelled) setAtCapacity(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [restaurantId]);
 
   const uploadProof = async (event) => {
     const file = event.target.files?.[0];
@@ -94,7 +113,15 @@ export default function RequestCreditModal({ restaurantId, restaurantName, curre
   };
 
   return (
-    <Modal title={t('restaurantWallet.requestTitle')} subtitle={t('restaurantWallet.requestSubtitle', { restaurant: restaurantName })} onClose={onClose}>
+    <Modal title={atCapacity ? t('restaurantWallet.atCapacityTitle') : t('restaurantWallet.requestTitle')} subtitle={atCapacity ? undefined : t('restaurantWallet.requestSubtitle', { restaurant: restaurantName })} onClose={onClose}>
+      {atCapacity === null ? (
+        <p className="credit-modal-subtitle" role="status">{t('restaurantWallet.loading')}</p>
+      ) : atCapacity ? (
+        <div className="credit-capacity-notice" role="status">
+          <p>{t('restaurantWallet.atCapacityBody')}</p>
+        </div>
+      ) : (
+      <>
       {paymentInstructions && (
         <div className="credit-payment-info">
           <strong>{t('restaurantWallet.sendPaymentTo')}</strong>
@@ -127,6 +154,8 @@ export default function RequestCreditModal({ restaurantId, restaurantName, curre
         </details>
         <button type="submit" className="credit-primary" disabled={submitting || uploading}>{uploading ? t('restaurantWallet.uploading') : submitting ? t('restaurantWallet.sending') : t('restaurantWallet.sendApproval')}</button>
       </form>
+      </>
+      )}
     </Modal>
   );
 }
