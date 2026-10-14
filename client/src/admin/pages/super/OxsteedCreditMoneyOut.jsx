@@ -209,10 +209,16 @@ export default function OxsteedCreditMoneyOut({ busy = false }) {
     setSaving(true);
     setError('');
     try {
-      const response = await adminApi.put(`/admin/super/oxsteed-credit/fee-schedule/${row.id}`, {
+      // ADM-017: requestPendingAction requires an Idempotency-Key; without it
+      // the server 400s every attempt.
+      const feePayload = {
         fixedCents, percentageBps, minFeeCents, maxFeeCents,
         reason: 'Fee schedule updated from the admin money-out page',
+      };
+      const response = await adminApi.put(`/admin/super/oxsteed-credit/fee-schedule/${row.id}`, feePayload, {
+        headers: { 'Idempotency-Key': idempotencyKeysRef.current.get('credit-fee-schedule', { id: row.id, ...feePayload }) },
       });
+      idempotencyKeysRef.current.clear('credit-fee-schedule', { id: row.id, ...feePayload });
       // Phase 7 (gap 9): fee schedule updates now queue as pending actions
       // for a second admin instead of applying immediately; 202 means queued.
       setNotice(response.status === 202

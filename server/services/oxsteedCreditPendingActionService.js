@@ -83,6 +83,31 @@ function parseAmount(value) {
   return Number.isSafeInteger(n) && n >= 0 ? n : null;
 }
 
+// ADM-115: key-order-insensitive payload comparison for idempotency-key
+// conflict detection. The stored payload carries the injected
+// idempotencyKey; stripStoredIdempotencyKey removes it before comparing.
+function sortKeysDeep(value) {
+  if (Array.isArray(value)) return value.map(sortKeysDeep);
+  if (value && typeof value === 'object') {
+    return Object.keys(value).sort().reduce((acc, k) => {
+      acc[k] = sortKeysDeep(value[k]);
+      return acc;
+    }, {});
+  }
+  return value;
+}
+
+function stripStoredIdempotencyKey(payload) {
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return payload || {};
+  const copy = { ...payload };
+  delete copy.idempotencyKey;
+  return copy;
+}
+
+function payloadsEqual(a, b) {
+  return JSON.stringify(sortKeysDeep(a || {})) === JSON.stringify(sortKeysDeep(b || {}));
+}
+
 /**
  * Single-super-admin break-glass (P1-9-F05). An org with one super admin can
  * otherwise never complete a pending action: every route requires a super
@@ -435,10 +460,9 @@ const ACTION_TYPES = Object.freeze(Object.keys(ACTION_EXECUTORS));
 
 /**
  * Request a pending action (the maker half). Fails closed when the rail is
- * disabled. Below-threshold money movements execute immediately under the
- * requesting admin; everything else queues for a different admin to
- * decide. The caller's Idempotency-Key makes replays return the existing
- * receipt.
+ * disabled. Every money movement queues for a distinct checker to decide;
+ * there is no amount or environment bypass for maker-checker. The caller's
+ * Idempotency-Key makes replays return the existing receipt.
  */
 async function requestPendingAction({ actionType, payload, requestedBy, idempotencyKey, requestIp, correlationId }) {
   await assertCreditRailEnabled(pool);
@@ -483,7 +507,26 @@ async function requestPendingAction({ actionType, payload, requestedBy, idempote
         `SELECT * FROM oxsteed_credit_pending_actions WHERE idempotency_key = $1`,
         [key]
       );
-      const existing = formatPendingAction(rows[0]);
+      const row = rows[0];
+      if (!row) throw error;
+      // ADM-115: a key reuse with a different action type or payload is a
+      // conflict, not a replay. The idempotency key is globally unique, so
+      // silently returning another intent's receipt would misattribute money
+      // movement. Fail closed.
+      if (row.action_type !== normalizedType || !payloadsEqual(stripStoredIdempotencyKey(row.payload), payload || {})) {
+        throw new AppError(
+          'This idempotency key was already used for a different pending action',
+          409,
+          'credit_pending_action_idempotency_conflict'
+        );
+      }
+      const existing = formatPendingAction(row);
+      // ADM-081/ADM-116: a replayed terminal (approved/rejected/expired) row
+      // is flagged so senders return 409 instead of 200: the client must not
+      // misread a dead intent as a fresh receipt.
+      if (row.status !== 'pending') {
+        return { executed: false, pendingAction: existing, result: null, replayed: true, terminalReplay: true };
+      }
       return { executed: false, pendingAction: existing, result: null, replayed: true };
     }
     throw error;
@@ -499,7 +542,18 @@ async function requestPendingAction({ actionType, payload, requestedBy, idempote
  */
 async function decidePendingAction({ actionId, decidedBy, decision, reason, stepupChallengeId, stepupCode, requestIp, correlationId }) {
   await assertCreditRailEnabled(pool);
-  const normalizedDecision = decision === 'rejected' || decision === 'reject' ? 'rejected' : 'approved';
+  // ADM-080: fail closed on unrecognized decisions. The old code defaulted
+  // anything that was not an explicit rejection spelling to 'approved', so a
+  // typo or malformed client value approved a money movement.
+  const decisionText = String(decision || '').trim().toLowerCase();
+  let normalizedDecision;
+  if (decisionText === 'approved' || decisionText === 'approve') {
+    normalizedDecision = 'approved';
+  } else if (decisionText === 'rejected' || decisionText === 'reject') {
+    normalizedDecision = 'rejected';
+  } else {
+    throw new AppError('Decision must be "approved" or "rejected"', 400, 'credit_decision_invalid');
+  }
   if (!decidedBy) throw new AppError('A deciding administrator is required', 403, 'credit_pending_action_actor_required');
   const normalizedReason = normalizeText(reason, 2000);
   let selfApproved = false;

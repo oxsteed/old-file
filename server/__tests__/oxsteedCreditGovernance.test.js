@@ -234,6 +234,107 @@ describe('maker-checker queue', () => {
     })).rejects.toMatchObject({ status: 503, code: 'credit_rail_frozen' });
     expect(feeScheduleService.updateFeeScheduleRow).not.toHaveBeenCalled();
   });
+
+  // ADM-080: an unrecognized decision must fail closed. The old code treated
+  // anything that was not an explicit rejection spelling as approval, so a
+  // typo or malformed client value approved a money movement.
+  test('an unrecognized decision fails closed (400), never defaults to approved', async () => {
+    await expect(decidePendingAction({
+      actionId: ACTION_ID,
+      decidedBy: CHECKER_ID,
+      decision: 'approveed',
+      stepupChallengeId: 'challenge-1',
+      stepupCode: '123456',
+    })).rejects.toMatchObject({ status: 400, code: 'credit_decision_invalid' });
+    expect(feeScheduleService.updateFeeScheduleRow).not.toHaveBeenCalled();
+  });
+
+  test('an empty decision fails closed (400)', async () => {
+    await expect(decidePendingAction({
+      actionId: ACTION_ID,
+      decidedBy: CHECKER_ID,
+      decision: '',
+      stepupChallengeId: 'challenge-1',
+      stepupCode: '123456',
+    })).rejects.toMatchObject({ status: 400, code: 'credit_decision_invalid' });
+    expect(feeScheduleService.updateFeeScheduleRow).not.toHaveBeenCalled();
+  });
+
+  // ADM-081/ADM-115/ADM-116: idempotency-key replay semantics. The INSERT
+  // collides (23505); the stored row is compared by action type AND payload.
+  function installIdempotencyReplayRouter(existingRow) {
+    mockQuery.mockImplementation((sql, params = []) => {
+      const s = String(sql);
+      if (s === 'BEGIN' || s === 'COMMIT' || s === 'ROLLBACK') return { rows: [] };
+      if (s.includes('pg_advisory_xact_lock')) return { rows: [] };
+      if (s.includes('FROM feature_flags')) return { rows: [{ is_enabled: true }] };
+      if (s.includes('FROM oxsteed_credit_rail_freezes')) return { rows: [] };
+      if (s.includes('INSERT INTO oxsteed_credit_pending_actions')) {
+        const error = new Error('duplicate key value violates unique constraint');
+        error.code = '23505';
+        throw error;
+      }
+      if (s.includes('WHERE idempotency_key = $1')) return { rows: [existingRow] };
+      return { rows: [] };
+    });
+  }
+
+  test('replaying a key for a different action type is a 409 conflict, not a replay', async () => {
+    installIdempotencyReplayRouter(pendingRow({
+      action_type: 'credit_load',
+      payload: { customerId: '9', amountCents: 500, idempotencyKey: 'test-key-conflict' },
+    }));
+    await expect(requestPendingAction({
+      actionType: 'credit_fee_schedule_update',
+      payload: { id: '7', fixedCents: 100 },
+      requestedBy: MAKER_ID,
+      idempotencyKey: 'test-key-conflict',
+    })).rejects.toMatchObject({ status: 409, code: 'credit_pending_action_idempotency_conflict' });
+  });
+
+  test('replaying a key for a different payload is a 409 conflict, not a replay', async () => {
+    installIdempotencyReplayRouter(pendingRow({
+      payload: { id: '7', fixedCents: 999, idempotencyKey: 'test-key-conflict' },
+    }));
+    await expect(requestPendingAction({
+      actionType: 'credit_fee_schedule_update',
+      payload: { id: '7', fixedCents: 100 },
+      requestedBy: MAKER_ID,
+      idempotencyKey: 'test-key-conflict',
+    })).rejects.toMatchObject({ status: 409, code: 'credit_pending_action_idempotency_conflict' });
+  });
+
+  test('replaying a key for the same pending intent returns the receipt', async () => {
+    installIdempotencyReplayRouter(pendingRow({
+      payload: { id: '7', fixedCents: 100, idempotencyKey: 'test-key-replay' },
+    }));
+    const result = await requestPendingAction({
+      actionType: 'credit_fee_schedule_update',
+      payload: { id: '7', fixedCents: 100 },
+      requestedBy: MAKER_ID,
+      idempotencyKey: 'test-key-replay',
+    });
+    expect(result.replayed).toBe(true);
+    expect(result.terminalReplay).toBeFalsy();
+    expect(result.pendingAction.status).toBe('pending');
+  });
+
+  test('replaying a key for a terminal intent is flagged terminal (senders return 409)', async () => {
+    installIdempotencyReplayRouter(pendingRow({
+      status: 'approved',
+      decided_by: CHECKER_ID,
+      payload: { id: '7', fixedCents: 100, idempotencyKey: 'test-key-terminal' },
+    }));
+    const result = await requestPendingAction({
+      actionType: 'credit_fee_schedule_update',
+      payload: { id: '7', fixedCents: 100 },
+      requestedBy: MAKER_ID,
+      idempotencyKey: 'test-key-terminal',
+    });
+    expect(result.replayed).toBe(true);
+    expect(result.terminalReplay).toBe(true);
+    expect(result.pendingAction.status).toBe('approved');
+  });
 });
 
 describe('compensated dispute resolutions', () => {

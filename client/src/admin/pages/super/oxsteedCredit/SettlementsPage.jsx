@@ -250,7 +250,14 @@ export default function OxsteedCreditSettlementsPage() {
     }
     setBusy(true); setNotice(''); setError('');
     try {
-      const response = await adminApi.post(`/admin/super/oxsteed-credit/settlements/${settlement.id}/status`, { status, expectedStatus: settlement.status, reason: reason.trim(), paymentReference: paymentReference.trim() || undefined });
+      // ADM-017: requestPendingAction requires an Idempotency-Key; without it
+      // the server 400s every attempt.
+      const transitionPayload = { status, expectedStatus: settlement.status, reason: reason.trim(), paymentReference: paymentReference.trim() || undefined };
+      const keyPayload = { settlementId: settlement.id, status, reason: reason.trim() };
+      const response = await adminApi.post(`/admin/super/oxsteed-credit/settlements/${settlement.id}/status`, transitionPayload, {
+        headers: { 'Idempotency-Key': idempotencyKeysRef.current.get('credit-settlement-transition', keyPayload) },
+      });
+      idempotencyKeysRef.current.clear('credit-settlement-transition', keyPayload);
       // Phase 7 (gap 9) + review P1-247: approval and mark-paid queue as a
       // pending action for a second admin; other transitions execute immediately.
       setNotice(response.status === 202

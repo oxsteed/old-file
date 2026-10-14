@@ -46,12 +46,22 @@ function noStoreCreditResponse(_req, res, next) {
 }
 
 // Phase 7 (gap 9): sends a maker-checker result from the inline money
-// routes: 202 with the pending receipt when queued, or the execution
-// result when the threshold bypass ran it immediately.
+// routes: 202 with the pending receipt when queued, 200 on idempotent
+// replay, or the execution result. A replay of a terminal (approved /
+// rejected / expired) action returns 409 so clients cannot misread a dead
+// intent as a fresh receipt (ADM-081/ADM-116).
 function sendPendingActionResult(res, result, executedStatus = 201) {
   if (result.executed) {
     const executedReplayed = Boolean(result.result && result.result.replayed);
     return res.status(executedReplayed ? 200 : executedStatus).json(result.result);
+  }
+  if (result.replayed && result.terminalReplay) {
+    return res.status(409).json({
+      error: `This request was already ${result.pendingAction?.status || 'decided'}; queue a new pending action instead of reusing the idempotency key.`,
+      code: 'credit_pending_action_terminal_replay',
+      pendingAction: result.pendingAction,
+      replayed: true,
+    });
   }
   return res.status(result.replayed ? 200 : 202).json({
     pendingAction: result.pendingAction,

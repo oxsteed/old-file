@@ -64,10 +64,25 @@ function PendingActionQueue({ busy, setBusy, setNotice, setError, requestDialog,
 
   useEffect(() => { loadActions(); }, [loadActions, refreshSignal]);
 
+  // ADM-155/ADM-156: pending-action payloads carry the amount in camelCase
+  // or snake_case depending on the maker route. Read both so the checker
+  // queue and the step-up challenge always show/bind the real amount.
+  const payloadAmountCents = (action) => {
+    const payload = action?.payload || {};
+    const raw = payload.amountCents ?? payload.amount_cents;
+    const n = Number(raw);
+    return Number.isSafeInteger(n) ? n : null;
+  };
+  const payloadCurrencyCode = (action) => {
+    const payload = action?.payload || {};
+    return payload.currencyCode || payload.currency_code || 'USD';
+  };
+
   const payloadSummary = (action) => {
     const payload = action.payload || {};
     const parts = [];
-    if (payload.amountCents !== undefined && payload.amountCents !== null) parts.push(money(payload.amountCents, payload.currencyCode || 'USD'));
+    const amount = payloadAmountCents(action);
+    if (amount !== null) parts.push(money(amount, payloadCurrencyCode(action)));
     const ids = ['settlementId', 'withdrawalId', 'customerId', 'accountId', 'disputeId', 'id'];
     for (const key of ids) {
       if (payload[key]) { parts.push(`${key}: ${String(payload[key]).slice(0, 12)}`); break; }
@@ -79,10 +94,13 @@ function PendingActionQueue({ busy, setBusy, setNotice, setError, requestDialog,
   const issueApproveChallenge = async (action) => {
     setBusy(true); setNotice(''); setError('');
     try {
+      // ADM-155: bind the challenge to the action's real amount so the
+      // checker sees what they are approving.
+      const amount = payloadAmountCents(action);
       const response = await adminApi.post('/admin/super/oxsteed-credit/stepup-challenges', {
         actionType: 'pending_action_approve',
-        amountCents: action.amountCents || undefined,
-        currencyCode: action.currencyCode || undefined,
+        amountCents: amount === null ? undefined : amount,
+        currencyCode: payloadCurrencyCode(action),
       });
       setStepup({ actionId: action.id, challengeId: response.data?.challenge?.id, expiresAt: response.data?.challenge?.expiresAt });
       setStepupCode('');
