@@ -1,3 +1,4 @@
+const { supportDraftPrompt } = require('../services/assistantGuide');
 const pool = require('../db');
 const { query } = pool;
 const { sendError, sendValidationError } = require('../utils/apiError');
@@ -353,9 +354,7 @@ async function callOpenRouter(content, language) {
     throw new Error('OPENROUTER_API_KEY not configured');
   }
 
-  const systemPrompt = `You are a helpful support chatbot. Keep responses concise and professional.
-    Be empathetic and try to solve the customer's issue. If you cannot help, suggest escalation to a human agent.
-    Language: ${language}`;
+  const systemPrompt = supportDraftPrompt(language);
 
   try {
     const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
@@ -406,9 +405,7 @@ async function callOpenRouter(content, language) {
  */
 async function callMetaAI(content, language) {
   const model = getMetaModel();
-  const systemPrompt = `You are a helpful support chatbot. Keep responses concise and professional.
-    Be empathetic and try to solve the customer's issue. If you cannot help, suggest escalation to a human agent.
-    Language: ${language}`;
+  const systemPrompt = supportDraftPrompt(language);
 
   const result = await fetchMetaChat(model, [
     { role: 'system', content: systemPrompt },
