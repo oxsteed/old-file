@@ -139,3 +139,10 @@
   .credit-entry-amount { grid-column: 2; justify-items: start; text-align: left; }
   .credit-modal { padding: 24px 20px; }
 }
+
+.credit-payment-info { background: #f8fafc; border: 1.5px solid #e2e8f0; border-radius: 12px; padding: 14px; margin-bottom: 16px; }
+.credit-payment-info strong { display: block; font-size: 13px; font-weight: 700; color: #0f172a; margin-bottom: 6px; }
+.credit-payment-info p { font-size: 13px; color: #475569; margin: 0 0 8px; white-space: pre-wrap; }
+.credit-payment-info p:last-child { margin-bottom: 0; }
+.credit-payment-qr { display: block; width: 140px; height: 140px; margin: 8px auto; border-radius: 8px; }
+.credit-payment-hint { font-size: 12px; color: #64748b; font-style: italic; }

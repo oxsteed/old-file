@@ -3267,6 +3267,9 @@ export default function FoodRestaurantPage({ customerSnapshot = null, snapshotTa
           restaurantId={restaurantId}
           restaurantName={restaurant?.name || ''}
           currency={currency}
+          paymentInstructions={externalPaymentInstructions}
+          paymentQrUrl={externalPaymentQrUrl}
+          referenceHint={externalPaymentReferenceHint}
           onClose={() => setCreditModalOpen(false)}
         />
       )}

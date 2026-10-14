@@ -1760,6 +1760,8 @@
     "sending": "Enviando...",
     "requestTitle": "Añadir crédito del restaurante",
     "requestSubtitle": "Envía el comprobante de pago. {{restaurant}} añadirá el crédito después de verificarlo.",
+    "sendPaymentTo": "Envía tu pago a",
+    "paymentQrAlt": "Código QR de pago",
     "amountPaid": "Importe pagado",
     "proofMethod": "Método de comprobante",
     "uploadReceipt": "Subir recibo",

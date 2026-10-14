@@ -1760,6 +1760,8 @@
     "sending": "Envoi...",
     "requestTitle": "Ajouter du crédit restaurant",
     "requestSubtitle": "Envoyez la preuve de votre paiement. {{restaurant}} ajoutera le crédit après vérification.",
+    "sendPaymentTo": "Envoyez votre paiement à",
+    "paymentQrAlt": "Code QR de paiement",
     "amountPaid": "Montant payé",
     "proofMethod": "Méthode de preuve de paiement",
     "uploadReceipt": "Importer un reçu",

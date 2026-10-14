@@ -33,7 +33,7 @@ function parseAmountCents(amount, currency) {
   return parsed > 0 ? Math.round(parsed * 100) : 0;
 }
 
-export default function RequestCreditModal({ restaurantId, restaurantName, currency, onClose, onChanged }) {
+export default function RequestCreditModal({ restaurantId, restaurantName, currency, paymentInstructions, paymentQrUrl, referenceHint, onClose, onChanged }) {
   const { t } = useTranslation('credit');
   const [amount, setAmount] = useState('');
   const [reference, setReference] = useState('');
@@ -95,6 +95,14 @@ export default function RequestCreditModal({ restaurantId, restaurantName, curre
 
   return (
     <Modal title={t('restaurantWallet.requestTitle')} subtitle={t('restaurantWallet.requestSubtitle', { restaurant: restaurantName })} onClose={onClose}>
+      {paymentInstructions && (
+        <div className="credit-payment-info">
+          <strong>{t('restaurantWallet.sendPaymentTo')}</strong>
+          <p>{paymentInstructions}</p>
+          {paymentQrUrl && <img src={paymentQrUrl} alt={t('restaurantWallet.paymentQrAlt')} className="credit-payment-qr" />}
+          {referenceHint && <p className="credit-payment-hint">{referenceHint}</p>}
+        </div>
+      )}
       <form className="credit-form" onSubmit={submit}>
         <label><span>{t('restaurantWallet.amountPaid')}</span><div className="credit-money-input"><span>{currency}</span><input autoFocus inputMode="decimal" required value={amount} onChange={(event) => setAmount(event.target.value)} placeholder="0.00" /></div></label>
         <div className="credit-proof-choice" role="group" aria-label={t('restaurantWallet.proofMethod')}>

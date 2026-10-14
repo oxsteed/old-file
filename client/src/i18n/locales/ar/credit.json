@@ -1760,6 +1760,8 @@
     "sending": "جار الإرسال...",
     "requestTitle": "إضافة رصيد المطعم",
     "requestSubtitle": "أرسل إثبات الدفع. سيضيف {{restaurant}} الرصيد بعد التحقق منه.",
+    "sendPaymentTo": "أرسل دفعتك إلى",
+    "paymentQrAlt": "رمز QR للدفع",
     "amountPaid": "المبلغ المدفوع",
     "proofMethod": "طريقة إثبات الدفع",
     "uploadReceipt": "رفع الإيصال",
