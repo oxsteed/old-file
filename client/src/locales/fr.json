@@ -16840,7 +16840,9 @@
         "assignment_failed": "Échec d'affectation",
         "claimed": "Réclamé",
         "released": "Libéré"
-      }
+      },
+      "onboardingRequired": "Terminez votre inscription de conducteur ci-dessous pour accepter des livraisons.",
+      "approvalPending": "Votre profil de conducteur est en attente d'approbation par les opérations. Vous pourrez accepter des livraisons une fois approuvé."
     },
     "packageTypes": {
       "small": "Petit · jusqu’à 25 lb",
@@ -17363,6 +17365,21 @@
         "approaching": "À l'approche de la destination",
         "delivered": "Livré"
       }
+    },
+    "driver": {
+      "title": "Livrez avec OxSteed",
+      "body": "Enregistrez votre véhicule pour accepter des livraisons de colis. Les opérations examinent chaque profil avant approbation.",
+      "equipment": "Équipement",
+      "equipmentPlaceholder": "Diables, sangles, sacs isothermes",
+      "serviceArea": "Zone de service",
+      "serviceAreaPlaceholder": "Ville ou codes postaux couverts",
+      "insuranceAck": "Je confirme que je dispose d'une assurance auto valide pour les livraisons.",
+      "insuranceRequired": "Vous devez confirmer votre assurance pour continuer.",
+      "submit": "Envoyer pour approbation",
+      "submitting": "Envoi en cours...",
+      "verified": "Conducteur vérifié",
+      "pendingTitle": "Approbation en attente",
+      "pendingBody": "Votre profil de conducteur a été envoyé. Les opérations l'examineront bientôt et vous pourrez accepter des livraisons une fois approuvé."
     }
   },
   "aboutPage": {
@@ -20264,7 +20281,9 @@
       "refundReasonPlaceholder": "Motif (obligatoire)",
       "refundConfirm": "Émettre le remboursement",
       "refundSuccess": "Remboursement émis",
-      "refundError": "Impossible d’émettre le remboursement."
+      "refundError": "Impossible d’émettre le remboursement.",
+      "cardPartialRefundUnsupported": "Les remboursements partiels ne sont pas disponibles pour les commandes payées par carte en ligne. Remboursez la commande entière ou demandez de l'aide au support.",
+      "cardRefundUseCancel": "Les commandes par carte sont remboursées en annulant la commande. Le remboursement sur la carte est automatique."
     },
     "onboarding": {
       "eyebrow": "Nuit d'ouverture",

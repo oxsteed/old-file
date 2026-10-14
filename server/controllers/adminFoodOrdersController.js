@@ -3,12 +3,13 @@
 // Admin food orders 360: list, detail, refund with purpose-bound audit.
 // Separate from marketplace orders (adminOrders.js).
 
-const { pool } = require('../db');
+const pool = require('../db');
 const logger = require('../utils/logger');
 const stripe = process.env.STRIPE_SECRET_KEY
   ? require('stripe')(process.env.STRIPE_SECRET_KEY)
   : null;
 const { refundWalletDebitForReference } = require('../services/foodWalletService');
+const { refundCreditForReferenceInTransaction } = require('../services/oxsteedCreditService');
 const { notifyRefundIssued } = require('../services/refundNotification');
 
 async function auditAdminRead(adminId, orderId, purpose) {
@@ -117,6 +118,7 @@ async function refundFoodOrder(req, res) {
 
     const idempotencyKey = `admin-food-refund:${orderId}:${refundAmount}:${req.user.id}`;
     let refundResult = null;
+    const paymentMode = String(order.payment_mode || '').toLowerCase();
 
     // Route by payment mode.
     if (order.stripe_payment_intent_id) {
@@ -139,12 +141,52 @@ async function refundFoodOrder(req, res) {
         logger.error('Admin Stripe refund failed', { orderId, error: refundErr.message });
         return res.status(502).json({ error: 'Stripe refund failed', code: 'stripe_refund_failed' });
       }
-    } else if (['wallet_credit', 'oxsteed_credit', 'credit'].includes(String(order.payment_mode || '').toLowerCase()) && order.customer_id) {
+    } else if (paymentMode === 'oxsteed_credit') {
+      // P2-1-F14: oxsteed_credit orders debit the OxSteed Credit rail, not
+      // the food wallet ledger, so the wallet reversal below would never
+      // find the debit (and the order would be marked refunded without the
+      // customer getting anything back). Reverse the original credit
+      // purchase instead. Keyed on the order reference, so it works for
+      // guest orders too, and shares the merchant/agent idempotency key so
+      // concurrent attempts dedupe on the journal instead of double-crediting.
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+        const creditRefund = await refundCreditForReferenceInTransaction(client, {
+          referenceType: 'food_order',
+          referenceId: String(order.id),
+          amountCents: refundAmount,
+          idempotencyKey: `food-order:${orderId}:oxsteed-credit-refund`,
+          actorUserId: req.user.id,
+          actorType: 'admin',
+          reason,
+          correlationId: `admin-food-refund:${orderId}`,
+          requestIp: req.ip || null,
+          metadata: { orderId: order.id, amount_cents: refundAmount, reason },
+        });
+        await client.query('COMMIT');
+        refundResult = {
+          provider: 'oxsteed_credit',
+          refund_id: creditRefund?.transaction?.id != null ? String(creditRefund.transaction.id) : null,
+          amount: refundAmount,
+          replayed: Boolean(creditRefund?.replayed),
+        };
+      } catch (creditErr) {
+        await client.query('ROLLBACK');
+        logger.error('Admin credit refund failed', { orderId, error: creditErr.message });
+        if (creditErr.status) {
+          return res.status(creditErr.status).json({ error: creditErr.message, code: creditErr.code || 'credit_refund_failed' });
+        }
+        return res.status(502).json({ error: 'Credit refund failed', code: 'credit_refund_failed' });
+      } finally {
+        client.release();
+      }
+    } else if (['wallet_credit', 'credit'].includes(paymentMode) && order.customer_id) {
       // Wallet credit: reverse the ledger debit.
       const client = await pool.connect();
       try {
         await client.query('BEGIN');
-        refundResult = await refundWalletDebitForReference(client, {
+        const walletRefund = await refundWalletDebitForReference(client, {
           restaurantId: order.restaurant_id,
           customerId: order.customer_id,
           currencyCode: order.currency_code || 'USD',
@@ -155,8 +197,14 @@ async function refundFoodOrder(req, res) {
           actorType: 'admin',
           metadata: { orderId: order.id, amount_cents: refundAmount, reason },
         });
+        if (!walletRefund.refunded) {
+          // Fail closed: the helper reports (rather than throws) when the
+          // original debit is missing. Never mark the order refunded when no
+          // money moved.
+          throw new Error(`Wallet refund did not complete: ${walletRefund.reason || 'unknown'}`);
+        }
         await client.query('COMMIT');
-        refundResult = { provider: 'wallet', ...refundResult };
+        refundResult = { provider: 'wallet', ...walletRefund };
       } catch (walletErr) {
         await client.query('ROLLBACK');
         logger.error('Admin wallet refund failed', { orderId, error: walletErr.message });
@@ -177,6 +225,21 @@ async function refundFoodOrder(req, res) {
       `UPDATE food_orders SET payment_status = $1, updated_at = NOW() WHERE id = $2`,
       [newStatus, orderId]
     );
+
+    // P3-9-F02: a full admin refund must restore redeemed loyalty points and
+    // claw back earned points, like the kitchen status-transition path does.
+    // Partial refunds leave loyalty alone (the order is still live).
+    if (newStatus === 'refunded' && order.customer_id) {
+      try {
+        const { _clawBackFoodLoyaltyOnRefund } = require('./foodController');
+        await _clawBackFoodLoyaltyOnRefund(pool, order);
+      } catch (loyaltyErr) {
+        logger.warn('Admin refund loyalty reconciliation failed', {
+          orderId,
+          error: loyaltyErr.message,
+        });
+      }
+    }
 
     // Audit trail.
     await pool.query(

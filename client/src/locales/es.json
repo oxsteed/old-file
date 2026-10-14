@@ -16840,7 +16840,9 @@
         "assignment_failed": "Asignación fallida",
         "claimed": "Reclamado",
         "released": "Liberado"
-      }
+      },
+      "onboardingRequired": "Completa el registro de conductor abajo para aceptar entregas.",
+      "approvalPending": "Tu perfil de conductor está pendiente de aprobación por operaciones. Podrás aceptar entregas cuando sea aprobado."
     },
     "packageTypes": {
       "small": "Pequeño · hasta 25 lb",
@@ -17363,6 +17365,21 @@
         "approaching": "Cerca del destino",
         "delivered": "Entregada"
       }
+    },
+    "driver": {
+      "title": "Conduce con OxSteed",
+      "body": "Registra tu vehículo para aceptar entregas de paquetes. Operaciones revisa cada perfil antes de aprobarlo.",
+      "equipment": "Equipo",
+      "equipmentPlaceholder": "Carretillas, correas, bolsas térmicas",
+      "serviceArea": "Zona de servicio",
+      "serviceAreaPlaceholder": "Ciudad o códigos postales que cubres",
+      "insuranceAck": "Confirmo que tengo un seguro de auto válido para el trabajo de entregas.",
+      "insuranceRequired": "Debes confirmar tu seguro para continuar.",
+      "submit": "Enviar para aprobación",
+      "submitting": "Enviando...",
+      "verified": "Conductor verificado",
+      "pendingTitle": "Aprobación pendiente",
+      "pendingBody": "Tu perfil de conductor fue enviado. Operaciones lo revisará pronto y podrás aceptar entregas cuando sea aprobado."
     }
   },
   "aboutPage": {
@@ -20264,7 +20281,9 @@
       "refundReasonPlaceholder": "Motivo (obligatorio)",
       "refundConfirm": "Emitir reembolso",
       "refundSuccess": "Reembolso emitido",
-      "refundError": "No se pudo emitir el reembolso."
+      "refundError": "No se pudo emitir el reembolso.",
+      "cardPartialRefundUnsupported": "Los reembolsos parciales no están disponibles para pedidos con tarjeta en línea. Reembolsa el pedido completo o pide ayuda a soporte.",
+      "cardRefundUseCancel": "Los pedidos con tarjeta se reembolsan cancelando el pedido. El reembolso a la tarjeta es automático."
     },
     "onboarding": {
       "eyebrow": "Noche de apertura",

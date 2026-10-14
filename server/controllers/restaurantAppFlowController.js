@@ -32,6 +32,7 @@ const {
 const {
   assertLegalRunnerCompletion,
   assertFoodOrderPaidForHandoff,
+  normalizeProofMethod,
 } = require('./restaurantRunnerController');
 const {
   refundCreditInTransaction,
@@ -7399,7 +7400,6 @@ exports.completeRunnerHandoff = async (req, res, next) => {
     // Use server time; ignore client-supplied handoffAt (prevents backdating).
     const handoffAt = new Date().toISOString();
     const note = normalizeString(req.body.note || req.body.handoffNote || req.body.handoff_note, 1000);
-    const proofMethod = normalizeString(req.body.method || req.body.proofMethod || req.body.proof_method, 40);
     const result = await withTransaction(pool, async (client) => {
       const { rows: [currentTask] } = await client.query(
         `SELECT *
@@ -7415,9 +7415,28 @@ exports.completeRunnerHandoff = async (req, res, next) => {
       if (!currentTask.assigned_to) {
         throw new AppError('Runner handoff requires an assigned runner', 409, 'runner_task_unassigned');
       }
-      // Enforce proof requirement: tasks with requires_proof=true must include proof.
-      if (currentTask.requires_proof && !note && !proofMethod && !req.body.metadata) {
-        throw new AppError('Proof is required for this delivery', 400, 'proof_required');
+      // Enforce proof requirement: tasks with requires_proof=true must include
+      // proof. P2-4-F07: the old gate treated any truthy req.body.metadata
+      // (including {}) or any non-empty method string as proof. Proof is
+      // self-attested by design, but it must at least be a known method from
+      // the shared allowlist with a written note; anything else is a formal
+      // bypass and is rejected.
+      const proofMethod = normalizeProofMethod(req.body.method || req.body.proofMethod || req.body.proof_method);
+      if (currentTask.requires_proof) {
+        if (!proofMethod) {
+          throw new AppError('Validation failed', 400, 'validation_failed', {
+            method: 'Proof method must be one of: photo, signature, customer_name, delivery, note',
+          });
+        }
+        if (!note) {
+          throw new AppError('A proof note is required when logging delivery proof', 400, 'proof_note_required');
+        }
+      } else if ((req.body.method || req.body.proofMethod || req.body.proof_method) && !proofMethod) {
+        // Proof is optional for this task, but a supplied method must still
+        // come from the allowlist.
+        throw new AppError('Validation failed', 400, 'validation_failed', {
+          method: 'Proof method must be one of: photo, signature, customer_name, delivery, note',
+        });
       }
       // M14: only 'En route' may move to 'Completed' (transition map), which
       // also rejects already-terminal tasks.
@@ -7433,7 +7452,10 @@ exports.completeRunnerHandoff = async (req, res, next) => {
         [handoffAt, restaurantId, taskId]
       );
       let proof = null;
-      if (note || proofMethod || req.body.metadata) {
+      // A proof row is recorded only when there is actual proof content
+      // (a validated method or a written note). Arbitrary metadata alone no
+      // longer mints a proof row.
+      if (note || proofMethod) {
         const { rows: [createdProof] } = await client.query(
           `INSERT INTO restaurant_runner_proofs
              (restaurant_id, task_id, method, note, created_by)
@@ -7442,8 +7464,8 @@ exports.completeRunnerHandoff = async (req, res, next) => {
           [
             restaurantId,
             taskId,
-            proofMethod || 'Customer handoff',
-            note || JSON.stringify(safeJson(req.body.metadata)),
+            proofMethod || 'note',
+            note || null,
             req.user.id,
           ]
         );

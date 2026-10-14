@@ -58,6 +58,9 @@ export const getPublicDeliveryTracking = (token) =>
 // ── Driver GPS tracking (driver-facing; restored for DriverTrackingControls) ──
 export const listTrackingDevices = () => api.get('/delivery/tracking/devices').then((response) => response.data);
 export const registerTrackingDevice = (payload) => mutate('post', '/delivery/tracking/devices', payload);
+// ── P2-4-F10: self-serve driver onboarding (profile starts pending ops approval) ──
+export const getDriverProfile = () => api.get('/delivery/driver-profile').then((response) => response.data);
+export const registerDriverProfile = (payload) => mutate('post', '/delivery/driver-profile', payload);
 export const grantTrackingConsent = (id, payload) => mutate('post', `/delivery/jobs/${id}/tracking/consent`, payload);
 export const revokeTrackingConsent = (id, reason = null) => api.delete(`/delivery/jobs/${id}/tracking/consent`, { data: { reason } }).then((response) => response.data);
 export const startTracking = (id, payload) => mutate('post', `/delivery/jobs/${id}/tracking/start`, payload);
@@ -145,6 +148,8 @@ export function deliveryError(error, t, fallback = 'delivery.errors.status') {
     reconcilePayment: ['delivery_payment_reconciliation_required', 'delivery_payment_verification_failed', 'delivery_payment_amount_conflict'],
     serviceUnavailable: ['stripe_not_configured', 'payments_disabled', 'delivery_payment_configuration_error'],
     conflict: ['delivery_idempotency_conflict'],
+    onboardingRequired: ['delivery_driver_onboarding_required'],
+    approvalPending: ['delivery_driver_pending_approval'],
   };
   const match = Object.entries(mappings).find(([, codes]) => codes.includes(code));
   if (match) {

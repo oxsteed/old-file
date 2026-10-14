@@ -16840,7 +16840,9 @@
         "assignment_failed": "Assignment failed",
         "claimed": "Claimed",
         "released": "Released"
-      }
+      },
+      "onboardingRequired": "Complete driver onboarding below to claim deliveries.",
+      "approvalPending": "Your driver profile is pending operations approval. You can claim deliveries once it is approved."
     },
     "proofTypes": {
       "recipient_confirmation": "Recipient confirmation",
@@ -17363,6 +17365,21 @@
         "approaching": "Approaching destination",
         "delivered": "Delivered"
       }
+    },
+    "driver": {
+      "title": "Drive with OxSteed",
+      "body": "Register your vehicle to claim parcel deliveries. Operations reviews each profile before approval.",
+      "equipment": "Equipment",
+      "equipmentPlaceholder": "Dollies, straps, insulated bags",
+      "serviceArea": "Service area",
+      "serviceAreaPlaceholder": "City or ZIP codes you cover",
+      "insuranceAck": "I confirm I carry valid auto insurance for delivery work.",
+      "insuranceRequired": "You must confirm your insurance to continue.",
+      "submit": "Submit for approval",
+      "submitting": "Submitting...",
+      "verified": "Driver verified",
+      "pendingTitle": "Approval pending",
+      "pendingBody": "Your driver profile was submitted. Operations will review it shortly, and you can claim deliveries once it is approved."
     }
   },
   "aboutPage": {
@@ -20264,7 +20281,9 @@
       "refundReasonPlaceholder": "Reason (required)",
       "refundConfirm": "Issue Refund",
       "refundSuccess": "Refund issued",
-      "refundError": "Unable to issue refund."
+      "refundError": "Unable to issue refund.",
+      "cardPartialRefundUnsupported": "Partial refunds are not available for online card orders. Refund the full order or ask support for help.",
+      "cardRefundUseCancel": "Card orders are refunded by cancelling the order. The card refund happens automatically."
     },
     "onboarding": {
       "eyebrow": "Opening Night",

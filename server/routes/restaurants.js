@@ -313,10 +313,20 @@ router.post('/:restaurantId/runner/tasks/:taskId/assign', appFlow.updateRunnerDi
 router.post('/:restaurantId/runner/tasks/:taskId/claim', appFlow.claimRunnerTask);
 router.post('/:restaurantId/runner/tasks/:taskId/decline', appFlow.declineRunnerTask);
 router.post('/:restaurantId/runner/tasks/:taskId/handoff', rejectImpersonated, appFlow.completeRunnerHandoff);
+// P2-4-F05: the handoff endpoint is intentionally API-only. The web runner
+// page completes tasks via PATCH .../tasks/:taskId/status + POST .../proofs
+// (same transition map, same proof allowlist, same order-completion
+// side effects). This one-shot variant is retained for native and
+// integration clients that need task completion, proof capture, and linked
+// order completion in a single call.
 router.post('/:restaurantId/runner/tasks/:taskId/location', appFlow.logRunnerLocation);
 router.post('/:restaurantId/runner/tasks/:taskId/settlements', rejectImpersonated, appFlow.upsertRunnerSettlement);
 router.post('/:restaurantId/runner/location', appFlow.logRunnerLocation);
 router.get('/:restaurantId/runner/settlements', appFlow.listRunnerSettlements);
+// P2-4-F05: the non-task-scoped settlement POST is intentionally API-only.
+// The web runner page creates and mutates settlements through the
+// task-scoped POST .../tasks/:taskId/settlements (TaskCard + SettlementsSection
+// in RestaurantRunnerPage.jsx); this variant serves API/integration clients.
 router.post('/:restaurantId/runner/settlements', rejectImpersonated, appFlow.upsertRunnerSettlement);
 router.patch('/:restaurantId/runner/tasks/:taskId/status', runner.updateTaskStatus);
 router.post('/:restaurantId/runner/tasks/:taskId/proofs', runner.logProof);
