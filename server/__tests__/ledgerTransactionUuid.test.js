@@ -143,6 +143,24 @@ ddescribe('ledger_transaction_id UUID round-trip (P0 #3)', () => {
     const approver = await newUser('admin');
     const adjustmentId = crypto.randomUUID();
 
+    // Approval rechecks fiat compliance. Model completed identity and
+    // sanctions reviews in this disposable fixture rather than bypassing
+    // the real compliance service used by the UUID round-trip flow.
+    await pool.query(
+      `INSERT INTO oxsteed_credit_identity_verifications
+         (customer_id, requested_tier, tier, status, provider, reviewed_by,
+          reviewed_at, review_reason, expires_at)
+       VALUES ($1, 2, 2, 'verified', 'manual_review', $2, NOW(),
+               'Synthetic UUID fixture identity review', NOW() + INTERVAL '1 year')`,
+      [customer, proposer]);
+    await pool.query(
+      `INSERT INTO oxsteed_credit_sanctions_screenings
+         (subject_type, subject_id, provider, result, hit_context, payload_hash,
+          cleared_at, cleared_by, clear_reason)
+       VALUES ('customer', $1, 'manual_review', 'hit', 'manual_review_required',
+               $2, NOW(), $3, 'Synthetic UUID fixture sanctions clearance')`,
+      [customer, crypto.createHash('sha256').update(customer).digest('hex'), proposer]);
+
     await pool.query(
       `INSERT INTO credit_adjustments
          (id, customer_id, amount_cents, currency_code, reason, proposed_by, status, idempotency_key)

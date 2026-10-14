@@ -143,8 +143,9 @@ describe('admin food order refunds (P2-1-F14)', () => {
       .post('/admin/food-orders/101/refund')
       .send({ amount_cents: 2500, reason: 'Order never prepared' });
 
-    expect(res.status).toBe(502);
+    expect(res.status).toBe(409);
     expect(res.body.code).toBe('wallet_refund_failed');
+    expect(res.body.wallet_reason).toBe('debit_not_found');
     expect(refundWalletDebitForReference).toHaveBeenCalledTimes(1);
     // The order must not be marked refunded when no money moved.
     expect(statusUpdates()).toHaveLength(0);
