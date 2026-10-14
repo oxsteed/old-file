@@ -20,7 +20,7 @@ process.env.FEATURE_PAYMENTS_ENABLED = 'true';
 jest.unmock('pg');
 jest.unmock('../utils/transaction');
 jest.mock('../middleware/auth', () => ({
-  authenticate: (req, _res, next) => { req.user = { id: req.headers['x-test-actor'], role: 'customer' }; next(); },
+  authenticate: (req, _res, next) => { req.user = { id: req.headers['x-test-actor'], role: req.headers['x-test-role'] || 'customer' }; next(); },
   optionalAuth: (_req, _res, next) => next(),
   requireRole: () => (_req, _res, next) => next(),
 }));
@@ -139,7 +139,7 @@ describeDb('payment layers on real Postgres', () => {
 
   test('the bid API returns 409 bid_currency_mismatch', async () => {
     const job = await makeJob({ country: 'CA', currency: 'CAD' });
-    const res = await request(app).post('/api/bids').set('x-test-actor', helper)
+    const res = await request(app).post('/api/bids').set('x-test-actor', helper).set('x-test-role', 'helper')
       .send({ job_id: job.id, amount: 150, currency_code: 'USD', message: 'I can paint this shed this week.' });
     expect(res.status).toBe(409);
     expect(res.body.code).toBe('bid_currency_mismatch');
@@ -208,10 +208,10 @@ describeDb('payment layers on real Postgres', () => {
     const us = await makeJob();
     const usBid = await makeBid(us);
     expect((await request(app).post('/api/jobs/assign').set('x-test-actor', customer).send({ bid_id: usBid.id, payment_rail: 'offline', offline_ack: true })).status).toBe(200);
-    const asked = await request(app).post(`/api/payment-layers/jobs/${us.id}/rail-switch`).set('x-test-actor', helper).send({ to_rail: 'stripe' });
+    const asked = await request(app).post(`/api/payment-layers/jobs/${us.id}/rail-switch`).set('x-test-actor', helper).set('x-test-role', 'helper').send({ to_rail: 'stripe' });
     expect(asked.status).toBe(201);
     const requestId = asked.body.request.id;
-    const self = await request(app).post(`/api/payment-layers/jobs/${us.id}/rail-switch/${requestId}/respond`).set('x-test-actor', helper).send({ accept: true });
+    const self = await request(app).post(`/api/payment-layers/jobs/${us.id}/rail-switch/${requestId}/respond`).set('x-test-actor', helper).set('x-test-role', 'helper').send({ accept: true });
     expect(self.status).toBe(403);
     const accepted = await request(app).post(`/api/payment-layers/jobs/${us.id}/rail-switch/${requestId}/respond`).set('x-test-actor', customer).send({ accept: true });
     expect(accepted.status).toBe(200);
@@ -225,9 +225,9 @@ describeDb('payment layers on real Postgres', () => {
     const job = await makeJob();
     const bid = await makeBid(job);
     expect((await request(app).post('/api/jobs/assign').set('x-test-actor', customer).send({ bid_id: bid.id, payment_rail: 'offline', offline_ack: true })).status).toBe(200);
-    const missing = await request(app).post(`/api/payment-layers/jobs/${job.id}/offline-payment/confirm`).set('x-test-actor', helper).send({});
+    const missing = await request(app).post(`/api/payment-layers/jobs/${job.id}/offline-payment/confirm`).set('x-test-actor', helper).set('x-test-role', 'helper').send({});
     expect(missing.status).toBe(400);
-    const res = await request(app).post(`/api/payment-layers/jobs/${job.id}/offline-payment/confirm`).set('x-test-actor', helper).send({ acknowledge_not_covered: true });
+    const res = await request(app).post(`/api/payment-layers/jobs/${job.id}/offline-payment/confirm`).set('x-test-actor', helper).set('x-test-role', 'helper').send({ acknowledge_not_covered: true });
     expect(res.status).toBe(200);
     expect(res.body.confirmation.helper_confirmed_at).toBeTruthy();
     expect(res.body.confirmation.customer_ack_not_covered_at).toBeTruthy();
