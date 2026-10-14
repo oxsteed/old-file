@@ -38,6 +38,17 @@ async function listServices(req, res, next) {
   }
 }
 
+// Review P1-5-F04: preparation_minutes is the between-appointment buffer the
+// business engine applies (bookingSlotEngine). Clamp it to the same 0..240
+// range the engine uses so the stored value always matches applied behavior.
+function normalizePreparationMinutes(value) {
+  if (value === undefined || value === null || value === '') return 0;
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isFinite(parsed)) throw new AppError('Buffer minutes must be a number', 400);
+  if (parsed < 0 || parsed > 240) throw new AppError('Buffer minutes must be between 0 and 240', 400);
+  return parsed;
+}
+
 // Create new service
 async function createService(req, res, next) {
   try {
@@ -61,6 +72,13 @@ async function createService(req, res, next) {
       return next(new AppError('Price cannot be negative', 400));
     }
 
+    let preparationMinutes;
+    try {
+      preparationMinutes = normalizePreparationMinutes(preparation_minutes);
+    } catch (validationError) {
+      return next(validationError);
+    }
+
     const result = await pool.query(
       `INSERT INTO business_services
        (business_id, name, description, category, duration_minutes, preparation_minutes,
@@ -68,7 +86,7 @@ async function createService(req, res, next) {
         cancellation_fee_percent, created_by_id)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
        RETURNING *`,
-      [businessId, name, description, category, duration_minutes, preparation_minutes,
+      [businessId, name, description, category, duration_minutes, preparationMinutes,
        base_price_cents, max_capacity, min_notice_hours, cancellation_policy_hours,
        cancellation_fee_percent, req.user.id]
     );
@@ -99,8 +117,20 @@ async function updateService(req, res, next) {
 
     for (const [key, value] of Object.entries(updates)) {
       if (allowedFields.includes(key) && value !== undefined) {
-        setClause.push(`${key} = $${paramCount}`);
-        values.push(value);
+        // Review P1-5-F04: validate the buffer like the create path does.
+        if (key === 'preparation_minutes') {
+          let normalized;
+          try {
+            normalized = normalizePreparationMinutes(value);
+          } catch (validationError) {
+            return next(validationError);
+          }
+          setClause.push(`${key} = $${paramCount}`);
+          values.push(normalized);
+        } else {
+          setClause.push(`${key} = $${paramCount}`);
+          values.push(value);
+        }
         paramCount++;
       }
     }

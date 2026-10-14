@@ -154,13 +154,31 @@ async function computeSlots(args) {
   if (staffFilter && !staffIds.length) return { service_id: serviceId, slots: [] };
 
   // 4) Availability windows (recurring by day_of_week)
-  const availRes = await pool.query(
+  // Review P2-3-F12: merchants have no UI that writes per-service weekly
+  // availability (zero client callers of the availability writer), so a
+  // service without rows used to offer zero slots. Fall back to the
+  // business's business_hours, the same source the customer slots listing
+  // (getBusinessAvailableSlots) uses, instead of requiring data nobody can
+  // set. allow_online_booking=FALSE above remains the explicit off switch.
+  let availRes = await pool.query(
     `SELECT day_of_week, start_time, end_time, staff_id
        FROM business_service_availability
       WHERE service_id = $1 AND is_available = TRUE
         ${staffFilter ? 'AND (staff_id = $2 OR staff_id IS NULL)' : ''}`,
     staffFilter ? [serviceId, staffFilter] : [serviceId]
   );
+  if (!availRes.rows.length) {
+    const hoursRes = await pool.query(
+      `SELECT day_of_week, start_time, end_time, NULL::uuid AS staff_id
+         FROM business_hours
+        WHERE business_id = $1
+          AND is_closed = FALSE
+          AND start_time IS NOT NULL
+          AND end_time IS NOT NULL`,
+      [businessId]
+    );
+    availRes = { rows: hoursRes.rows };
+  }
   if (!availRes.rows.length) return { service_id: serviceId, slots: [] };
 
   // 5) Blocked time exclusions in range

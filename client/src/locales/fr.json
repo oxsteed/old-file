@@ -18363,6 +18363,10 @@
     "fieldPrice": "Prix de base",
     "fieldCapacity": "Capacité maximale",
     "fieldNotice": "Délai minimum (heures)",
+    "fieldBuffer": "Marge entre les rendez-vous (minutes)",
+    "bufferHint": "Bloquée avant et après chaque rendez-vous pour que les réservations ne se touchent jamais.",
+    "bufferPrefix": "Marge :",
+
     "capacityPrefix": "Capacité :",
     "staffAssigned": "personnel assigné",
     "btnCancel": "Annuler",
@@ -21874,7 +21878,8 @@
         },
         "schedule": {
           "title": "2. Planification",
-          "body": "Vous pouvez accepter le devis et réserver une plage horaire."
+          "body": "Vous pouvez accepter le devis et réserver une plage horaire.",
+          "bodyGuest": "Connectez-vous ou créez un compte pour récupérer cette demande, puis vous pourrez accepter le devis et réserver une plage horaire."
         },
         "proof": {
           "title": "3. Preuve et reçu",

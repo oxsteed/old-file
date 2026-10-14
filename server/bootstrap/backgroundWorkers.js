@@ -17,6 +17,8 @@ const { startSiteVisitRetentionJob } = require('../jobs/siteVisitRetention');
 const { startConsultingSessionReminders } = require('../jobs/consultingSessionReminders');
 const { startConsultingPostSessionFollowup } = require('../jobs/consultingPostSessionFollowup');
 const { startConsultingNoShowFollowup } = require('../jobs/consultingNoShowFollowup');
+const { startBusinessAppointmentReminderJob } = require('../jobs/businessAppointmentReminders'); // Review P2-3-F04
+const { startBusinessAppointmentNoShowSweeper } = require('../jobs/businessAppointmentNoShowSweeper'); // Review P3-8-F03
 const { startCalendarReminderJob } = require('../jobs/calendarReminders');
 const { startDirectCalendarReminderJob } = require('../jobs/directCalendarReminders');
 const { startAffiliateCommissionBatchJob } = require('../jobs/affiliateCommissionBatch');
@@ -102,6 +104,8 @@ class BackgroundWorkers {
       startConsultingNoShowFollowup();
       this.handles.push(startCalendarReminderJob());
       this.handles.push(startDirectCalendarReminderJob());
+      this.handles.push(startBusinessAppointmentReminderJob());
+      this.handles.push(startBusinessAppointmentNoShowSweeper());
       this.handles.push(startAffiliateCommissionBatchJob());
       startScheduledDeletionJob();
       startTemplateExpiryJob();

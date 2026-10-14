@@ -23,6 +23,7 @@ const { AppError } = require('../middleware/errorHandler');
 const { assertRegistrationsOpen } = require('../middleware/maintenanceGate'); // Review P3-7-F07
 const { grantFreeTrialToUser } = require('./templateController');
 const { checkAndAlertNewLogin } = require('../services/loginAlertService');
+const { claimGuestQuoteRequestsForUser } = require('../services/quoteRequestClaim'); // Review P1-4-F01
 const { invalidateGuestHistoryAccessCodesForEmail } = require('../services/guestProfileChatVerification');
 const { logSecurityEvent, extractRequestDetails } = require('../services/auditLoggerService');
 const { recordLoginAgreement } = require('../services/loginAgreementService'); // Review P1-1-F05
@@ -524,6 +525,10 @@ async function login(req, res, next) {
     const alertUa = req.headers['user-agent'] || null;
     checkAndAlertNewLogin(user.id, alertIp, alertUa).catch(() => {});
 
+    // Review P1-4-F01: attach the customer's prior guest quote requests so
+    // they can manage them. Fire-and-forget; the helper never throws.
+    claimGuestQuoteRequestsForUser(user.id, user.email);
+
     // Audit fix: set the access token as an httpOnly cookie. The token is
     // no longer only in localStorage (XSS vector). The response still
     // includes it for backward compat during the migration.
@@ -727,6 +732,9 @@ async function loginWith2FA(req, res, next) {
     if (fullRows[0] && req.internalAccessRoute) {
       fullRows[0].internal_access_route = req.internalAccessRoute;
     }
+    // Review P1-4-F01: attach the customer's prior guest quote requests so
+    // they can manage them. Fire-and-forget; the helper never throws.
+    if (fullRows[0]) claimGuestQuoteRequestsForUser(fullRows[0].id, fullRows[0].email);
     res.json({
       success: true,
       message: 'Login successful',
@@ -1423,6 +1431,10 @@ async function verifyRegistrationOTP(req, res) {
     invalidateGuestHistoryAccessCodesForEmail(user.email).catch((claimErr) =>
       logger.warn('Failed to invalidate guest chat access codes after verified registration', { userId: user.id, error: claimErr.message })
     );
+    // Review P1-4-F01: attach the customer's prior guest quote requests so
+    // they can manage them (my requests, accept/schedule/change). The helper
+    // never throws, so signup cannot break here.
+    claimGuestQuoteRequestsForUser(user.id, user.email);
     const { rows: delRows } = await pool.query('DELETE FROM pending_registrations WHERE token = $1 RETURNING id', [token]);
     if (delRows.length === 0) {
       logger.warn('Pending registration cleanup failed', { token, userId: user.id });

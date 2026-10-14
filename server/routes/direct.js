@@ -111,6 +111,10 @@ router.delete('/account/locations/:locationId', authenticate, ctrl.deleteLocatio
 
 // Review P1-173: signed-in customers own the requests they create (optionalAuth sets req.user).
 router.post('/requests', generalLimiter, optionalAuth, limitDirectPhotoAttachments, quoteCtrl.createQuoteRequest);
+// Review P1-4-F01: guests can claim their ownerless requests after signing
+// in (matched on verified account email). Registered before /requests/:id
+// so 'claim' is not swallowed as an :id.
+router.post('/requests/claim', authenticate, ctrl.claimGuestRequest);
 router.get('/requests/:id', authenticate, ctrl.getRequestDetail);
 router.get('/requests/:id/messages', authenticate, ctrl.getRequestMessages);
 router.post('/requests/:id/messages', authenticate, requireDg1StepUp, ctrl.addMessage);
