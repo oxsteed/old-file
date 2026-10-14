@@ -216,6 +216,7 @@ ddescribe('statement investigation: all products (disposable DB)', () => {
       `ALTER TABLE oxsteed_credit_accounts ADD COLUMN IF NOT EXISTS partner_id BIGINT`,
       `ALTER TABLE oxsteed_credit_accounts ADD COLUMN IF NOT EXISTS restaurant_id BIGINT`,
       `ALTER TABLE oxsteed_credit_transactions ADD COLUMN IF NOT EXISTS idempotency_key TEXT`,
+      `ALTER TABLE oxsteed_credit_transaction_entries ADD COLUMN IF NOT EXISTS entry_hash TEXT`,
     ]) await pool.query(ddl);
   }
 
@@ -297,9 +298,9 @@ ddescribe('statement investigation: all products (disposable DB)', () => {
       [settleTxId, treasury.id, subBank.id, String(order.id), `stmt-fixture-${settleTxId}`]);
     await pool.query(
       `INSERT INTO oxsteed_credit_transaction_entries
-         (transaction_id, account_id, entry_side, amount_cents, balance_after_cents, sequence)
-       VALUES ($1, $2, 'credit', 12000, 12000, 1)`,
-      [settleTxId, subBank.id]);
+         (transaction_id, account_id, entry_side, amount_cents, balance_after_cents, sequence, entry_hash)
+       VALUES ($1, $2, 'credit', 12000, 12000, 1, $3)`,
+      [settleTxId, subBank.id, crypto.createHash('sha256').update(settleTxId).digest('hex')]);
     const settlementDocId = crypto.randomUUID();
     const settlementDocument = {
       id: settlementDocId, version: 2, kind: 'monthly', product: 'restaurant_settlement',

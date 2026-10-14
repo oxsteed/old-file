@@ -87,7 +87,10 @@ ddescribe('statement search, trends, saved views (disposable DB)', () => {
       ADD COLUMN IF NOT EXISTS transaction_type VARCHAR(32),
       ADD COLUMN IF NOT EXISTS description VARCHAR(255),
       ADD COLUMN IF NOT EXISTS reference_type VARCHAR(80),
-      ADD COLUMN IF NOT EXISTS reference_id VARCHAR(160)`);
+      ADD COLUMN IF NOT EXISTS reference_id VARCHAR(160),
+      ADD COLUMN IF NOT EXISTS actor_type VARCHAR(32),
+      ADD COLUMN IF NOT EXISTS actor_user_id UUID,
+      ADD COLUMN IF NOT EXISTS reason VARCHAR(500)`);
     await pool.query(`ALTER TABLE oxsteed_credit_transaction_entries
       ADD COLUMN IF NOT EXISTS entry_side VARCHAR(8),
       ADD COLUMN IF NOT EXISTS amount_cents BIGINT,
@@ -187,9 +190,11 @@ ddescribe('statement search, trends, saved views (disposable DB)', () => {
       await pool.query(
         `INSERT INTO oxsteed_credit_transactions
            (id, debit_account_id, credit_account_id, amount_cents, status, currency_code,
-            transaction_type, description, reference_type, reference_id, posted_at)
-         VALUES ($1, $2, $2, $3, 'posted', 'USD', $4, $5, $6, $7, $8)`,
-        [txId, wallet.id, amount, type, description, referenceType, referenceId, postedAt || new Date().toISOString()]);
+            transaction_type, description, reference_type, reference_id, posted_at,
+            actor_type, actor_user_id, reason)
+         VALUES ($1, $2, $2, $3, 'posted', 'USD', $4, $5, $6, $7, $8,
+            'admin', $9, 'Synthetic test fixture')`,
+        [txId, wallet.id, amount, type, description, referenceType, referenceId, postedAt || new Date().toISOString(), ownerId]);
       await pool.query(
         `INSERT INTO oxsteed_credit_transaction_entries
            (transaction_id, account_id, balance_after_cents, entry_side, amount_cents, sequence)
