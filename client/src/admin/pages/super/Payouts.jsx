@@ -4,7 +4,6 @@ import adminApi from '../../../lib/adminApi';
 import { useTranslation } from 'react-i18next';
 import { useAbortableFetch } from '../../lib/useAbortableFetch';
 import AdminErrorState from '../../lib/AdminErrorState';
-import ConfirmDialog from '../../lib/ConfirmDialog';
 
 const TABS = [
   { key: 'pending', labelKey: 'superPayouts.tabPending' },
@@ -55,7 +54,6 @@ export default function Payouts() {
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState('pending');
   const [selected, setSelected] = useState(null);
-  const [retryTarget, setRetryTarget] = useState(null); // payout id awaiting retry confirmation
 
   const { data, loading, error, reload } = useAbortableFetch(async (signal) => {
     const { data } = await adminApi.get('/admin/payouts', {
@@ -72,16 +70,6 @@ export default function Payouts() {
   const payouts = data?.payouts || [];
   const stats = data?.stats || { pending: 0, processing: 0, completed: 0, totalPaid: 0 };
   const notice = data?.notice || '';
-
-  const doRetry = async () => {
-    try {
-      await adminApi.post(`/admin/super/payouts/${retryTarget}/retry`);
-      setRetryTarget(null);
-      reload();
-    } catch (err) {
-      throw new Error(err.response?.data?.error || err.message || t('superPayouts.retryFailed'));
-    }
-  };
 
   const fmt = (v) => {
     const amount = Number(v);
@@ -171,7 +159,6 @@ export default function Payouts() {
               <tr><td colSpan={6} className="text-center text-gray-400 py-12">{t('superPayouts.empty', { status: t(TABS.find(x => x.key === activeTab)?.labelKey || 'superPayouts.tabPending') })}</td></tr>
             ) : payouts.map(p => {
               const pid = p.id || p._id;
-              const failed = p.status === 'failed';
               return (
               <tr key={pid} className="border-b border-slate-700/50 hover:bg-slate-700/30">
                 <td className="px-4 py-3 text-white">{p.helper_name || p.helper?.name || p.helperEmail || 'N/A'}</td>
@@ -198,14 +185,6 @@ export default function Payouts() {
                     >
                       {t('superPayouts.details')}
                     </button>
-                    {failed && (
-                      <button
-                        onClick={() => setRetryTarget(pid)}
-                        className="px-2.5 py-1 text-xs bg-orange-600 hover:bg-orange-700 text-white rounded font-medium"
-                      >
-                        {t('superPayouts.retry')}
-                      </button>
-                    )}
                   </div>
                 </td>
               </tr>
@@ -220,16 +199,6 @@ export default function Payouts() {
       {selected && (
         <PayoutDrawer payout={selected} fmt={fmt} onClose={() => setSelected(null)} />
       )}
-
-      <ConfirmDialog
-        open={retryTarget != null}
-        title={t('superPayouts.retryPayout')}
-        message={t('superPayouts.retryPayoutMsg')}
-        confirmLabel={t('superPayouts.retryPayout')}
-        danger
-        onConfirm={doRetry}
-        onClose={() => setRetryTarget(null)}
-      />
     </div>
   );
 }

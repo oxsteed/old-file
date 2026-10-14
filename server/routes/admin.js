@@ -311,14 +311,21 @@ router.get('/super/access-gate/attempts',           requireSuperAdmin, logistics
 // Financials - super-admin direct, or admin with view_financials grant
 router.get('/financials',            requireAdmin, requirePermission('view_financials'), superCtrl.getFinancials);
 router.get('/payouts',               requireAdmin, requirePermission('view_financials'), superCtrl.getPayouts);
-// Failed-payout retry: super-admin only (no payouts-write grant exists in the
-// permission catalogue). Requeues the payout; idempotent on completed payouts.
-// ADM-153: rate-limited like the neighboring money mutations.
-router.post('/super/payouts/:id/retry', strictLimiter, requireSuperAdmin, superCtrl.retryPayout);
+// ADM-015/ADM-042 (removed): POST /super/payouts/:id/retry reset failed
+// payments to 'pending' claiming "the payout pipeline picks it up again".
+// No such pipeline exists: the only writers of payments.status='failed' are
+// the failed-PaymentIntent webhooks (failed customer CHARGES, not helper
+// payouts), and nothing consumes status='pending'. The endpoint returned a
+// misleading {retried:true} while creating zombie rows. A real helper-payout
+// retry pipeline is a product decision; until then there is no retry affordance.
 router.get('/super/money',           requireAdmin, requirePermission('view_financials'), superCtrl.getMoneyOverview);
 router.get('/super/revenue',         requireAdmin, requirePermission('view_financials'), superCtrl.getRevenueSummary);
 router.get('/super/revenue/export',  requireAdmin, requirePermission('view_financials'), superCtrl.getRevenueExport);
 router.post('/jobs/:jobId/refund',   strictLimiter, requireAdmin, requirePermission('issue_refunds'),   superCtrl.issueManualRefund);
+// ADM-112: step-up challenge issuance for manual refunds, scoped to the
+// issue_refunds grant (the super-admin challenge route is not reachable by
+// non-super-admin refunders).
+router.post('/stepup-challenges/manual-refund', strictLimiter, requireAdmin, requirePermission('issue_refunds'), superCtrl.issueRefundStepupChallenge);
 
 // Platform settings - super-admin direct, or admin with manage_settings grant
 router.get('/settings',              requireAdmin, requirePermission('manage_settings'), superCtrl.getSettings);

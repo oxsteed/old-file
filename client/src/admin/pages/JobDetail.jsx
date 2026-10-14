@@ -114,6 +114,10 @@ export default function JobDetail() {
   const isSuper   = me?.role === 'super_admin';
   const { allowed: canRefund } = useHasGrant('issue_refunds');
   const { allowed: canDelete } = useHasGrant('delete_jobs');
+  // ADM-146: cancel/flag actions 403 server-side without manage_operations;
+  // gate the buttons client-side for consistency with refund/delete.
+  const { allowed: canOperate } = useHasGrant('manage_operations');
+  const canModerateJob = isSuper || canOperate;
 
   // Modal state
   const [modal,       setModal]       = useState(null); // 'cancel' | 'flag' | 'delete' | 'refund'
@@ -164,8 +168,25 @@ export default function JobDetail() {
 
   // Refund goes through the shared ConfirmDialog with requireReason.
   // ConfirmDialog stays open and shows the error if the POST fails.
+  // ADM-112: issuing a refund moves money under a single grant, so the
+  // admin must complete a fresh step-up challenge (code prompt) before the
+  // refund POST is sent.
   const confirmRefund = async (reason) => {
-    await adminApi.post(`/admin/jobs/${jobId}/refund`, { reason });
+    let challengeId;
+    try {
+      const { data } = await adminApi.post('/admin/stepup-challenges/manual-refund');
+      challengeId = data?.challenge?.id;
+    } catch (err) {
+      throw new Error(t('adminJobDetail.modals.refund.stepupFailed'));
+    }
+    if (!challengeId) throw new Error(t('adminJobDetail.modals.refund.stepupFailed'));
+    const code = window.prompt(t('adminJobDetail.modals.refund.stepupPrompt'));
+    if (!code || !code.trim()) throw new Error(t('adminJobDetail.modals.refund.stepupRequired'));
+    await adminApi.post(`/admin/jobs/${jobId}/refund`, {
+      reason,
+      stepupChallengeId: challengeId,
+      stepupCode: code.trim(),
+    });
     reload();
   };
 
@@ -216,19 +237,23 @@ export default function JobDetail() {
 
         {/* Admin action buttons */}
         <div className="flex flex-wrap gap-2">
-          {job.status !== 'cancelled' && job.status !== 'completed' && (
+          {/* ADM-150: the cancellation service rejects 'disputed' jobs, so the
+              button is hidden for them instead of failing on click. */}
+          {canModerateJob && job.status !== 'cancelled' && job.status !== 'completed' && job.status !== 'disputed' && (
             <button onClick={() => openModal('cancel')}
               className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-800 border border-gray-700
                          text-gray-300 hover:border-red-600 hover:text-red-400 rounded-lg text-xs font-medium transition">
               <AlertTriangle size={13} /> {t('adminJobDetail.cancelJob')}
             </button>
           )}
+          {canModerateJob && (
           <button onClick={() => openModal(isFlagged ? 'unflag' : 'flag')}
             className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-800 border border-gray-700
                        text-gray-300 hover:border-yellow-600 hover:text-yellow-400 rounded-lg text-xs font-medium transition">
             {isFlagged ? <RotateCcw size={13} /> : <AlertTriangle size={13} />}
             {isFlagged ? t('adminJobDetail.unflag') : t('adminJobDetail.flag')}
           </button>
+          )}
           {(isSuper || canRefund) && payment?.status === 'captured' && (
             <button onClick={() => openModal('refund')}
               className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-800 border border-gray-700
@@ -236,7 +261,9 @@ export default function JobDetail() {
               <DollarSign size={13} /> {t('adminJobDetail.refund')}
             </button>
           )}
-          {(isSuper || canDelete) && (
+          {/* ADM-177: the server only deletes published/cancelled/closed jobs;
+              hide the button for other statuses instead of 400ing on click. */}
+          {(isSuper || canDelete) && ['published', 'cancelled', 'closed'].includes(job.status) && (
             <button onClick={() => openModal('delete')}
               className="flex items-center gap-1.5 px-3 py-1.5 bg-red-950 border border-red-900
                          text-red-400 hover:bg-red-900 rounded-lg text-xs font-medium transition">

@@ -70,6 +70,10 @@ const STEPUP_ACTION_TYPES = Object.freeze([
   // ADM-113: single-admin approval moves arbitrary sums via Stripe Transfer;
   // require a fresh step-up challenge.
   'restaurant_payout_approve',
+  // ADM-112: manual refunds move arbitrary sums with a single grant and no
+  // amount tiering; require a fresh step-up challenge per refund. (Full
+  // two-person approval for refunds is a product decision for Emile.)
+  'manual_refund',
 ]);
 
 function getStepupPepper() {

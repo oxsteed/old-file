@@ -727,7 +727,10 @@
         "title": "Emitir reembolso manual",
         "description": "Esto reembolsará el pago al cliente.",
         "confirm": "Emitir reembolso",
-        "reasonPlaceholder": "Razón del reembolso…"
+        "reasonPlaceholder": "Razón del reembolso…",
+        "stepupPrompt": "Se envio un codigo de verificacion a tu correo. Ingresalo para autorizar este reembolso:",
+        "stepupFailed": "No se pudo emitir un desafio de verificacion. El reembolso no fue procesado.",
+        "stepupRequired": "Se requiere un codigo de verificacion para emitir el reembolso."
       },
       "delete": {
         "title": "Eliminar trabajo permanentemente",

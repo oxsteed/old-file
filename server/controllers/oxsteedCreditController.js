@@ -1412,7 +1412,7 @@ async function transitionAdminComplianceCase(req, res, next) {
  * Phase 7 (gap 9): 'pending_action_approve' is the challenge a checker
  * proves before approving a pending money movement.
  */
-const ADMIN_STEPUP_ACTION_TYPES = new Set(['settlement_payout', 'withdrawal', 'pending_action_approve', 'pending_action_request', 'agent_credit_adjustment_approve', 'compliance_verification_decision', 'compliance_sanction_decision', 'compliance_case_transition', 'credit_account_status_update', 'credit_agreement_create', 'credit_agreement_transition', 'credit_entitlement_upsert']);
+const ADMIN_STEPUP_ACTION_TYPES = new Set(['settlement_payout', 'withdrawal', 'pending_action_approve', 'pending_action_request', 'agent_credit_adjustment_approve', 'compliance_verification_decision', 'compliance_sanction_decision', 'compliance_case_transition', 'credit_account_status_update', 'credit_agreement_create', 'credit_agreement_transition', 'credit_entitlement_upsert', 'manual_refund']);
 
 // ADM-020/ADM-082: verify a fresh step-up challenge for high-stakes
 // single-admin actions (compliance decisions, money-adjacent controls).

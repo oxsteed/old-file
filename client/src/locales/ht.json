@@ -727,7 +727,10 @@
         "title": "Fè ranbousman manyèl",
         "description": "Sa ap ranbouse peman an bay kliyan an.",
         "confirm": "Ranbouse",
-        "reasonPlaceholder": "Rezon ranbousman…"
+        "reasonPlaceholder": "Rezon ranbousman…",
+        "stepupPrompt": "Yo voye yon kod verifikasyon nan imel ou. Antre li pou otorize ranbousman sa a:",
+        "stepupFailed": "Pa t ka bay yon defi verifikasyon. Ranbousman an pa t trete.",
+        "stepupRequired": "Yo bezwen yon kod verifikasyon pou bay ranbousman an."
       },
       "delete": {
         "title": "Efase travay la pou tout tan",

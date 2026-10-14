@@ -727,7 +727,10 @@
         "title": "Issue Manual Refund",
         "description": "This will refund the payment to the client.",
         "confirm": "Issue Refund",
-        "reasonPlaceholder": "Reason for refund…"
+        "reasonPlaceholder": "Reason for refund…",
+        "stepupPrompt": "A verification code was sent to your email. Enter it to authorize this refund:",
+        "stepupFailed": "Could not issue a verification challenge. The refund was not processed.",
+        "stepupRequired": "A verification code is required to issue the refund."
       },
       "delete": {
         "title": "Permanently Delete Job",

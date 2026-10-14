@@ -11,6 +11,7 @@ const { enqueueMessageNotification } = require('../services/messageNotificationS
 const { parseBoundedPagination } = require('../utils/pagination');
 const { cancelJobTransaction, finalizeJobCancellation } = require('../services/jobCancellationService');
 const AppError = require('../utils/appError');
+const { issueStepupChallenge, verifyStepupChallenge } = require('../services/stepupChallengeService');
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -1163,6 +1164,25 @@ exports.deleteJob = async (req, res) => {
     if (!deletableStatuses.includes(rows[0].status)) {
       return res.status(400).json({ error: `Cannot delete job in '${rows[0].status}' status. Only jobs in ${deletableStatuses.join(', ')} status can be deleted.` });
     }
+    // ADM-014/ADM-111: never hard-delete a job that carries a money trail.
+    // payments.job_id and cancellation_fee_audit.job_id are ON DELETE CASCADE,
+    // so deleting a job with live escrow or captured funds would silently
+    // destroy the payment and fee-audit records. Failed charge attempts carry
+    // no money and are safe to cascade.
+    const { rows: moneyRows } = await db.query(
+      `SELECT id FROM payments WHERE job_id = $1 AND status <> 'failed' LIMIT 1`,
+      [jobId]
+    );
+    if (moneyRows.length) {
+      return res.status(409).json({ error: 'Cannot delete job with an associated payment record. Refund or resolve the payment first.' });
+    }
+    const { rows: feeRows } = await db.query(
+      `SELECT id FROM cancellation_fee_audit WHERE job_id = $1 LIMIT 1`,
+      [jobId]
+    );
+    if (feeRows.length) {
+      return res.status(409).json({ error: 'Cannot delete job with cancellation fee audit records. The fee history must be preserved.' });
+    }
     // Hard delete - cascades to bids, payments if FK'd with ON DELETE CASCADE; otherwise clean up first
     const { rows: deleteRows } = await db.query('DELETE FROM jobs WHERE id = $1 AND status IN ($2, $3, $4) RETURNING id', [jobId, 'published', 'cancelled', 'closed']);
     if (deleteRows.length === 0) {
@@ -1380,12 +1400,54 @@ exports.getFinancials = async (req, res) => {
   } catch (err) { logger.error('getFinancials error', { err }); res.status(500).json({ error: 'Failed to fetch financials.' }); }
 };
 
+/**
+ * POST /admin/stepup-challenges/manual-refund
+ * Issue a step-up challenge for a manual job refund. Scoped to the
+ * issue_refunds grant because the super-admin challenge route is not
+ * reachable by non-super-admin refunders.
+ */
+exports.issueRefundStepupChallenge = async (req, res, next) => {
+  try {
+    const adminId = req.user?.id;
+    if (!adminId) throw new AppError('Unauthorized.', 401, 'unauthorized');
+    const { challenge, delivery } = await issueStepupChallenge({
+      actorUserId: adminId,
+      actorEmail: req.user?.email,
+      actionType: 'manual_refund',
+      amountCents: 1,
+      currencyCode: 'USD',
+    });
+    res.status(201).json({
+      challenge: {
+        id: challenge.id,
+        actionType: challenge.actionType,
+        amountCents: challenge.amountCents,
+        currencyCode: challenge.currencyCode,
+        expiresAt: challenge.expiresAt,
+      },
+      delivery,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
 exports.issueManualRefund = async (req, res) => {
   try {
     const { jobId } = req.params;
     const { reason, amount_cents } = req.body;
     const adminId = req.user.id;
     if (!reason) return res.status(400).json({ error: 'Refund reason required.' });
+
+    // ADM-112: manual refunds move money under a single grant with no amount
+    // tiering. Require a fresh step-up challenge per refund so the acting
+    // admin re-authenticates at the moment money moves.
+    await verifyStepupChallenge({
+      challengeId: req.body?.stepupChallengeId || req.body?.stepup_challenge_id,
+      actorUserId: adminId,
+      actionType: 'manual_refund',
+      code: req.body?.stepupCode || req.body?.stepup_code,
+    });
 
     const refundAmountCents = amount_cents == null ? null : Number(amount_cents);
     if (refundAmountCents != null && (!Number.isInteger(refundAmountCents) || refundAmountCents <= 0)) {
@@ -1457,7 +1519,25 @@ exports.issueManualRefund = async (req, res) => {
         error: e.message,
       });
     }
-  } catch (err) { logger.error('issueManualRefund error', { err }); res.status(500).json({ error: 'Refund failed.' }); }
+    // ADM-008/ADM-041: the success path must send a response. Without this
+    // the request hangs until the client times out, after a real Stripe
+    // refund already succeeded.
+    return res.status(200).json({
+      refundId: refund.id,
+      refundCents: refundAmountCents == null ? capturedCents : refundAmountCents,
+      paymentId: payment.id,
+      requestId,
+    });
+  } catch (err) {
+    // ADM-074: preserve the operational error codes from processPaymentRefund
+    // (400 invalid amount, 409 dispute_open / idempotency conflict, 503
+    // reconciliation_required) instead of swallowing them into a generic 500.
+    logger.error('issueManualRefund error', { err });
+    if (err instanceof AppError) {
+      return res.status(err.status || 500).json({ error: err.message, code: err.code });
+    }
+    return res.status(500).json({ error: 'Refund failed.' });
+  }
 };
 
 exports.getPayouts = async (req, res) => {
@@ -1469,11 +1549,15 @@ exports.getPayouts = async (req, res) => {
     // P3-1-F19: payments.status is never 'released' (release is tracked in
     // payment_hold_status); the completed tab read the dead value and always
     // came back empty.
+    // ADM-229: the failed tab used to mix charge-lifecycle states
+    // ('refunded','disputed') with genuine failures. Refunded and disputed
+    // payments are distinct outcomes, not failed payouts; the tab now shows
+    // only rows whose charge actually failed.
     const STATUS_MAP = {
       pending:    "p.status IN ('pending','authorized')",
       processing: "p.status = 'captured'",
       completed:  "p.payment_hold_status = 'released'",
-      failed:     "p.status IN ('failed','refunded','disputed')",
+      failed:     "p.status = 'failed'",
     };
     const statusClause = STATUS_MAP[status] || 'p.helper_payout > 0';
     const baseFilter   = `p.helper_payout > 0 AND (${statusClause})`;
@@ -1500,7 +1584,7 @@ exports.getPayouts = async (req, res) => {
         SUM(CASE WHEN status IN ('pending','authorized') THEN helper_payout ELSE 0 END) AS pending,
         SUM(CASE WHEN status = 'captured'               THEN helper_payout ELSE 0 END) AS processing,
         SUM(CASE WHEN payment_hold_status = 'released'  THEN helper_payout ELSE 0 END) AS completed,
-        SUM(CASE WHEN status IN ('failed','refunded','disputed') THEN helper_payout ELSE 0 END) AS failed,
+        SUM(CASE WHEN status = 'failed'                THEN helper_payout ELSE 0 END) AS failed,
         SUM(CASE WHEN payment_hold_status = 'released'  THEN helper_payout ELSE 0 END) AS "totalPaid"
         FROM payments WHERE helper_payout > 0
     `);
@@ -1517,76 +1601,9 @@ exports.getPayouts = async (req, res) => {
   }
 };
 
-/**
- * POST /admin/super/payouts/:id/retry
- * Requeues a failed helper payout for processing (resets it to pending so
- * the payout pipeline picks it up again). Super-admin only: no
- * payouts-write grant exists in the permission catalogue, so fail closed.
- * Idempotent: a payout that is already released is a no-op; concurrent
- * retries race safely on the conditional UPDATE.
- */
-exports.retryPayout = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const adminId = req.user.id;
-
-    const { rows } = await db.query(
-      `SELECT id, job_id, helper_payout, status, payment_hold_status, failure_reason
-       FROM payments
-       WHERE id = $1 AND helper_payout > 0`,
-      [id]
-    );
-    if (!rows.length) return res.status(404).json({ error: 'Payout not found.' });
-
-    const payout = rows[0];
-    // P3-1-F19: release is tracked in payment_hold_status, not status.
-    if (payout.payment_hold_status === 'released') {
-      return res.json({
-        retried: false,
-        reason: 'Payout already completed.',
-        payout: { id: payout.id, status: payout.status },
-      });
-    }
-    if (payout.status !== 'failed') {
-      return res.status(409).json({ error: 'Only failed payouts can be retried.' });
-    }
-
-    const { rows: updated } = await db.query(
-      `UPDATE payments
-       SET status = 'pending', failure_reason = NULL, updated_at = NOW()
-       WHERE id = $1 AND status = 'failed'
-       RETURNING id, status`,
-      [id]
-    );
-    if (!updated.length) {
-      // Lost a race with another retry; re-read for an accurate answer.
-      const { rows: reread } = await db.query('SELECT id, status FROM payments WHERE id = $1', [id]);
-      return res.json({
-        retried: false,
-        reason: 'Payout is no longer in a failed state.',
-        payout: reread[0] || null,
-      });
-    }
-
-    try {
-      await logAdminAction({
-        adminId,
-        action: 'payout_retry_queued',
-        targetType: 'payment',
-        targetId: String(payout.id),
-        description: `Requeued failed payout ${payout.id} (helper_payout ${payout.helper_payout})`,
-        before: { status: 'failed', failure_reason: payout.failure_reason },
-        after: { status: 'pending' },
-        req,
-      });
-    } catch (e) {}
-
-    res.json({ retried: true, payout: updated[0] });
-  } catch (err) {
-    logger.error('retryPayout error', { err });
-    res.status(500).json({ error: 'Failed to retry payout.' });
-  }
-};
+// ADM-015/ADM-042: retryPayout removed. It reset failed payments to 'pending'
+// claiming a payout pipeline would pick them up; no such pipeline exists and
+// the rows it targeted were failed customer charges, not helper payouts.
 
 exports.getRevenueSummary = async (req, res) => {
   try {

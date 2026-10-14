@@ -727,7 +727,10 @@
         "title": "Effectuer un remboursement manuel",
         "description": "Cela remboursera le paiement au client.",
         "confirm": "Rembourser",
-        "reasonPlaceholder": "Raison du remboursement…"
+        "reasonPlaceholder": "Raison du remboursement…",
+        "stepupPrompt": "Un code de verification a ete envoye a votre e-mail. Saisissez-le pour autoriser ce remboursement :",
+        "stepupFailed": "Impossible d'emettre un defi de verification. Le remboursement n'a pas ete traite.",
+        "stepupRequired": "Un code de verification est requis pour emettre le remboursement."
       },
       "delete": {
         "title": "Supprimer définitivement la mission",
