@@ -497,6 +497,8 @@ const STILL_ENGLISH_ALLOWLIST = new Set([
   'legacy translation:productGallery.imageAlt:fr',
   'legacy translation:adminUserActionsAuditPage:fr',
   'credit namespace:adminRestaurants:fr',
+  // Technical format name; the OFX standard's proper name is not translated.
+  'credit namespace:statements.accounting.formatOfx',
 ]);
 
 function verifyStillEnglishValues() {
@@ -649,6 +651,7 @@ function getResolutionCatalogs() {
     translator: readJson('src/i18n/locales/en/translator.json'),
     credit: readJson('src/i18n/locales/en/credit.json'),
     attention: readJson('src/i18n/locales/en/attention.json'),
+    statements: readJson('src/i18n/locales/en/statements.json'),
     // The runtime projects these legacy subtrees as explicit namespaces
     // (see src/i18n/index.js getLocaleResources).
     support: resolveCatalogKey(translation, 'support') || {},
@@ -656,7 +659,7 @@ function getResolutionCatalogs() {
   };
 }
 
-const I18N_KNOWN_NAMESPACES = ['translation', 'common', 'translator', 'credit', 'support', 'adminQuoteRequests', 'attention'];
+const I18N_KNOWN_NAMESPACES = ['translation', 'common', 'translator', 'credit', 'support', 'adminQuoteRequests', 'attention', 'statements'];
 const I18N_PLURAL_SUFFIXES = ['_zero', '_one', '_two', '_few', '_many', '_other'];
 
 function translationKeyExists(catalogs, namespace, key) {
