@@ -1295,7 +1295,7 @@ async function completeJobCore({ job, jobId, asClient, actorUserId = null }) {
       // authorized, reconcile from Stripe; otherwise refuse loudly.
       if (!payRows[0]) {
         const { rows: settled } = await client.query(
-          `SELECT id FROM payments WHERE job_id = $1 AND status IN ('captured', 'released') LIMIT 1`,
+          `SELECT id FROM payments WHERE job_id = $1 AND status = 'captured' LIMIT 1`,
           [jobId],
         );
         if (!settled[0]) {

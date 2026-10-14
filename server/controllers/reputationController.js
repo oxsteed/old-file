@@ -228,7 +228,9 @@ async function getFeeHistory(req, res) {
         ), 1)                             AS avg_days_since_fee
        FROM cancellation_fees cf
        WHERE cf.payer_id = $1
-         AND cf.status IN ('collected','pending')`,
+         -- P3-10-F14: 'transfer_pending' fees were charged to the payer
+         -- (only the helper transfer is outstanding), so they count here.
+         AND cf.status IN ('collected','pending','transfer_pending')`,
       [userId]
     );
 
