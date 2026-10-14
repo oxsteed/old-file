@@ -1,4 +1,4 @@
-const { DISPUTE_VIEW_FROM, disputeViewSelect } = require('../utils/disputeView');
+const { DISPUTE_VIEW_FROM, disputeViewSelect, partyPredicate } = require('../utils/disputeView');
 const db                    = require('../db');
 const { sendNotification }  = require('../services/notificationService');
 const { notifyDisputeParties } = require('../services/disputeNotifications');
@@ -43,7 +43,7 @@ const DISPUTE_STATUS_VALUES = Object.freeze(Object.values(DISPUTE_STATUSES));
 // ─── LIST ALL DISPUTES (Admin) ────────────────────────────────
 exports.getAllDisputes = async (req, res) => {
   try {
-    const { status = 'open', page = 1, limit = 20 } = req.query;
+    const { status = 'open', page = 1, limit = 20, user_id } = req.query;
     const parsedPage = Math.max(1, Number.parseInt(page, 10) || 1);
     const parsedLimit = Math.min(100, Math.max(1, Number.parseInt(limit, 10) || 20));
     const offset = (parsedPage - 1) * parsedLimit;
@@ -58,17 +58,24 @@ exports.getAllDisputes = async (req, res) => {
 
     // P3-820: return the fields the admin list renders (job, parties,
     // amount, evidence deadline, evidence/message counts).
+    // ADM-110: the 360-degree views pass ?user_id= so disputes are filtered
+    // server-side (opener, accused, or job party) instead of fetching the
+    // global list and filtering in the browser.
+    const partyParams = user_id ? [user_id] : [];
     const { rows } = await db.query(
       `SELECT ${disputeViewSelect()} ${DISPUTE_VIEW_FROM}
         WHERE d.status = ANY($1::text[])
+        ${user_id ? `AND (${partyPredicate('$4')})` : ''}
         ORDER BY d.created_at DESC
         LIMIT $2 OFFSET $3`,
-      [statuses, parsedLimit, offset]
+      [statuses, parsedLimit, offset, ...partyParams]
     );
 
     const countResult = await db.query(
-      'SELECT COUNT(*) FROM disputes WHERE status = ANY($1::text[])',
-      [statuses]
+      `SELECT COUNT(*) ${DISPUTE_VIEW_FROM}
+        WHERE d.status = ANY($1::text[])
+        ${user_id ? `AND (${partyPredicate('$2')})` : ''}`,
+      [statuses, ...partyParams]
     );
 
     res.json({

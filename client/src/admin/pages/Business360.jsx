@@ -190,12 +190,7 @@ export default function Business360() {
   const business = profileRes ?? null;
   const jobs = business?.recent_jobs ?? business?.jobs ?? [];
   const ownerId = business?.owner_id ?? null;
-  const ownerEmail = business?.owner_email ?? '';
 
-  const jobIdSet = useMemo(
-    () => new Set(jobs.map((job) => String(job?.id))),
-    [jobs],
-  );
   const profileKey = business ? String(business.id) : '';
 
   // Secondary sections: existing endpoints only, fetched in parallel with
@@ -212,7 +207,6 @@ export default function Business360() {
         sections[key] = { ok: false, error: err?.response?.data?.error || err?.message || t(`${NS}.loadFailed`) };
       }
     };
-    const ownerEmailLower = String(ownerEmail || '').toLowerCase();
     await Promise.all([
       run(
         'orders',
@@ -221,8 +215,8 @@ export default function Business360() {
       ),
       run(
         'payouts',
-        adminApi.get('/admin/payouts', { signal, params: { limit: 100 } }),
-        (d) => (d?.payouts ?? []).filter((p) => String(p?.helper_email || '').toLowerCase() === ownerEmailLower),
+        adminApi.get('/admin/payouts', { signal, params: { payee_id: ownerId, limit: 100 } }),
+        (d) => d?.payouts ?? [],
       ),
       run(
         'tickets',
@@ -236,12 +230,12 @@ export default function Business360() {
       ),
       run(
         'adminAudit',
-        adminApi.get('/admin/audit-log', { signal, params: { target_type: 'business', limit: 100 } }),
-        (d) => (d?.log ?? []).filter((entry) => String(entry?.target_id) === String(businessId)),
+        adminApi.get('/admin/audit-log', { signal, params: { target_type: 'business', target_id: businessId, limit: 100 } }),
+        (d) => d?.log ?? [],
       ),
       ...DISPUTE_STATUSES.map((status) => run(
         `disputes:${status}`,
-        adminApi.get('/disputes/admin/all', { signal, params: { status, limit: 100 } }),
+        adminApi.get('/disputes/admin/all', { signal, params: { status, user_id: ownerId, limit: 100 } }),
         (d) => d?.disputes ?? [],
       )),
     ]);
@@ -266,7 +260,8 @@ export default function Business360() {
   const disputeSectionError = DISPUTE_STATUSES.map((s) => sectionError(`disputes:${s}`)).find(Boolean) || null;
   const disputes = useMemo(() => {
     if (!aux) return [];
-    const email = String(ownerEmail || '').toLowerCase();
+    // ADM-110: disputes are filtered server-side by ?user_id= (opener,
+    // accused, or job party); the client only dedupes across statuses.
     const seen = new Set();
     const out = [];
     for (const status of DISPUTE_STATUSES) {
@@ -274,14 +269,12 @@ export default function Business360() {
       for (const dispute of list) {
         if (!dispute || seen.has(dispute.id)) continue;
         seen.add(dispute.id);
-        const byEmail = dispute.opened_by_email && String(dispute.opened_by_email).toLowerCase() === email;
-        const byJob = dispute.job_id != null && jobIdSet.has(String(dispute.job_id));
-        if (byEmail || byJob) out.push(dispute);
+        out.push(dispute);
       }
     }
     return out.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [aux, ownerEmail, jobIdSet]);
+  }, [aux]);
 
   if (profileLoading) {
     return (

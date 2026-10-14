@@ -4,6 +4,7 @@ const db = require('../db');
 const { sendEmail } = require('../utils/email');
 const { renderOxSteedEmail } = require('../utils/emailTemplate');
 const { logAdminAction } = require('../services/auditService');
+const { csvRow } = require('../utils/csv');
 
 const VALID_CONSULTING_STATUSES = ['pending', 'contacted', 'scheduled', 'in_progress', 'completed', 'cancelled', 'archived'];
 
@@ -902,22 +903,23 @@ exports.downloadInvoice = async (req, res) => {
 
     const invoice = result.rows[0];
     const invoiceName = `consulting-invoice-${invoice.invoice_number || invoice.id}.csv`;
+    // ADM-152: every cell goes through csvRow so formula-injection prefixes
+    // (=, +, -, @) in admin-supplied notes/name fields are neutralized.
     const csv = [
-      ['invoice_id', 'invoice_number', 'amount_cents', 'issued_date', 'due_date', 'status', 'package_name', 'customer_name', 'customer_email', 'notes', 'created_at']
-        .join(','),
-      [
+      csvRow(['invoice_id', 'invoice_number', 'amount_cents', 'issued_date', 'due_date', 'status', 'package_name', 'customer_name', 'customer_email', 'notes', 'created_at']),
+      csvRow([
         invoice.id,
         invoice.invoice_number || '',
         invoice.amount_cents || 0,
         invoice.issued_date ? new Date(invoice.issued_date).toISOString() : '',
         invoice.due_date ? new Date(invoice.due_date).toISOString() : '',
         invoice.status || '',
-        `"${String(invoice.package_name || '').replaceAll('"', '""')}"`,
-        `"${String(`${invoice.first_name || ''} ${invoice.last_name || ''}`.trim()).replaceAll('"', '""')}"`,
+        invoice.package_name || '',
+        `${invoice.first_name || ''} ${invoice.last_name || ''}`.trim(),
         invoice.email || '',
-        `"${String(invoice.notes || '').replaceAll('"', '""')}"`,
+        invoice.notes || '',
         new Date(invoice.created_at).toISOString(),
-      ].join(','),
+      ]),
     ].join('\n');
 
     res.set({

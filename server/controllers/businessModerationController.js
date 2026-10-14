@@ -1,13 +1,17 @@
 const db     = require('../db');
 const logger = require('../utils/logger');
 const { logAdminAction } = require('../services/auditService');
+const { parseBoundedPagination } = require('../utils/pagination');
+
+// ADM-225: all paginated list endpoints clamp ?limit= server-side (max 100)
+// so a request like ?limit=1000000 can no longer pull unbounded result sets.
 
 // ─── Businesses ───────────────────────────────────────────────────────────────
 
 exports.listBusinesses = async (req, res) => {
   try {
-    const { search = '', status = '', activity = '', sort = 'created_desc', page = 1, limit = 25 } = req.query;
-    const offset = (parseInt(page) - 1) * parseInt(limit);
+    const { search = '', status = '', activity = '', sort = 'created_desc' } = req.query;
+    const { limit, offset } = parseBoundedPagination(req.query, { defaultLimit: 25, maxLimit: 100 });
     const params = []; let p = 1; const conds = [];
 
     if (search) {
@@ -58,7 +62,7 @@ exports.listBusinesses = async (req, res) => {
                 u.id, u.first_name, u.last_name, u.email
        ORDER BY ${orderBy}
        LIMIT $${p} OFFSET $${p + 1}
-    `, [...params, parseInt(limit), offset]);
+    `, [...params, limit, offset]);
 
     // Get stats
     const { rows: statsRows } = await db.query(`
@@ -126,8 +130,8 @@ exports.toggleBusiness = async (req, res) => {
 
 exports.listToolRentals = async (req, res) => {
   try {
-    const { search = '', available = '', page = 1, limit = 25 } = req.query;
-    const offset = (parseInt(page) - 1) * parseInt(limit);
+    const { search = '', available = '' } = req.query;
+    const { limit, offset } = parseBoundedPagination(req.query, { defaultLimit: 25, maxLimit: 100 });
     const params = []; let p = 1; const conds = [];
 
     if (search) {
@@ -149,7 +153,7 @@ exports.listToolRentals = async (req, res) => {
         ${wc}
        ORDER BY tr.created_at DESC
        LIMIT $${p} OFFSET $${p + 1}
-    `, [...params, parseInt(limit), offset]);
+    `, [...params, limit, offset]);
 
     const { rows: countRows } = await db.query(
       `SELECT COUNT(*) FROM tool_rentals tr JOIN users u ON tr.user_id = u.id ${wc}`, params
@@ -209,8 +213,8 @@ exports.toggleToolRental = async (req, res) => {
 
 exports.listPlannedNeeds = async (req, res) => {
   try {
-    const { search = '', status = '', page = 1, limit = 25 } = req.query;
-    const offset = (parseInt(page) - 1) * parseInt(limit);
+    const { search = '', status = '' } = req.query;
+    const { limit, offset } = parseBoundedPagination(req.query, { defaultLimit: 25, maxLimit: 100 });
     const params = []; let p = 1; const conds = [];
 
     if (search) {
@@ -232,7 +236,7 @@ exports.listPlannedNeeds = async (req, res) => {
         ${wc}
        ORDER BY pn.due_date ASC NULLS LAST, pn.created_at DESC
        LIMIT $${p} OFFSET $${p + 1}
-    `, [...params, parseInt(limit), offset]);
+    `, [...params, limit, offset]);
 
     const { rows: countRows } = await db.query(
       `SELECT COUNT(*) FROM planned_needs pn JOIN users u ON pn.user_id = u.id ${wc}`, params

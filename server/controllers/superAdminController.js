@@ -1619,7 +1619,7 @@ exports.issueManualRefund = async (req, res) => {
 
 exports.getPayouts = async (req, res) => {
   try {
-    const { status = '' } = req.query;
+    const { status = '', payee_id = '' } = req.query;
     const { page, limit, offset } = parseBoundedPagination(req.query, { defaultLimit: 25, maxLimit: 100 });
 
     // Map frontend tab names to DB payment statuses.
@@ -1637,7 +1637,12 @@ exports.getPayouts = async (req, res) => {
       failed:     "p.status = 'failed'",
     };
     const statusClause = STATUS_MAP[status] || 'p.helper_payout > 0';
-    const baseFilter   = `p.helper_payout > 0 AND (${statusClause})`;
+    // ADM-110: the business 360 view filters payouts server-side by the
+    // owner's user id instead of fetching the global list and matching
+    // helper_email in the browser.
+    const payeeClause = payee_id ? 'AND p.payee_id = $3' : '';
+    const baseFilter   = `p.helper_payout > 0 AND (${statusClause}) ${payeeClause}`;
+    const payoutParams = payee_id ? [limit, offset, payee_id] : [limit, offset];
 
     const { rows: payouts } = await db.query(`
       SELECT p.id, p.amount, p.platform_fee, p.helper_payout, p.status,
@@ -1654,7 +1659,7 @@ exports.getPayouts = async (req, res) => {
        WHERE ${baseFilter}
        ORDER BY p.created_at DESC
        LIMIT $1 OFFSET $2
-    `, [limit, offset]);
+    `, payoutParams);
 
     const { rows: statsRows } = await db.query(`
       SELECT
@@ -2648,12 +2653,15 @@ exports.getAuditLog = async (req, res) => {
     }
     const pageNumber = Math.min(1000000, Math.max(1, Number.parseInt(String(req.query.page || '1'), 10) || 1));
     const limitNumber = Math.min(100, Math.max(1, Number.parseInt(String(req.query.limit || '50'), 10) || 50));
-    const { admin_id, action, target_type } = req.query;
+    const { admin_id, action, target_type, target_id } = req.query;
     const offset = (pageNumber - 1) * limitNumber;
     const params = []; let paramIdx = 1; const conditions = [];
     if (admin_id) { conditions.push(`a.admin_id = $${paramIdx++}`); params.push(admin_id); }
     if (action) { conditions.push(`a.action ILIKE $${paramIdx++}`); params.push(`%${action}%`); }
     if (target_type) { conditions.push(`a.target_type = $${paramIdx++}`); params.push(target_type); }
+    // ADM-110: 360-degree views filter server-side by the subject id instead of
+    // fetching a global list and filtering in the browser.
+    if (target_id) { conditions.push(`a.target_id = $${paramIdx++}`); params.push(String(target_id)); }
     const wc = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
     const { rows } = await db.query(`SELECT a.*, u.first_name || ' ' || u.last_name AS admin_name, u.email AS admin_email FROM admin_audit_log a LEFT JOIN users u ON a.admin_id = u.id ${wc} ORDER BY a.created_at DESC LIMIT $${paramIdx++} OFFSET $${paramIdx++}`, [...params, limitNumber, offset]);
     res.json({ log: rows, page: pageNumber, limit: limitNumber });
