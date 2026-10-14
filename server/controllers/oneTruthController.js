@@ -1239,7 +1239,7 @@ exports.getStats = async (req, res) => {
       const { rows } = await client.query(
         `SELECT COUNT(*)::int AS total_payments,
                 COUNT(*) FILTER (WHERE p.status IN ('pending', 'authorized'))::int AS pending_payments,
-                COUNT(*) FILTER (WHERE p.status IN ('captured', 'released'))::int AS completed_payments
+                COUNT(*) FILTER (WHERE p.status = 'captured')::int AS completed_payments
          FROM payments p
          JOIN users payer ON payer.id = p.payer_id
          ${paymentWhere}`,

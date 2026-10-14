@@ -13,7 +13,10 @@
  *  3. Create + confirm a PaymentIntent (off_session) to charge the fee.
  *  4. Look up helper's stripe_account_id from connect_accounts.
  *  5. Transfer feeToHelper cents to the helper's Connect account.
- *  6. Update cancellation_fees row → status 'collected'.
+ *  6. Update cancellation_fees row → status 'collected' on a completed
+ *     transfer, or 'transfer_pending' when the helper transfer failed after
+ *     the charge (fail-closed: the helper share must be retried, never
+ *     silently settled).
  *
  * If the customer has no saved payment method the fee is left at status
  * 'pending' so it can be collected later (e.g. on their next checkout).
@@ -176,7 +179,12 @@ async function collectCancellationFee({ feeRecordId, customerId, helperId, feeTo
   }
 
   // ── 5. Transfer helper's share to their Connect account ───────────────────
+  // P3-10-F14: fail closed. If the helper transfer cannot be completed, the
+  // fee row must NOT read 'collected': the helper's share is sitting with
+  // the platform and needs retry/reconciliation. 'transfer_pending' keeps
+  // the row visible to finance instead of silently settling it.
   let transferId;
+  let transferFailureReason = null;
   if (helperStripeAccountId && feeToHelper > 0) {
     try {
       const transfer = await stripe.transfers.create({
@@ -197,30 +205,46 @@ async function collectCancellationFee({ feeRecordId, customerId, helperId, feeTo
         feeRecordId, transferId, feeToHelper, helperStripeAccountId
       });
     } catch (err) {
-      // Transfer failure is non-fatal — charge already succeeded.
-      // Log prominently so finance team can reconcile manually.
+      // Transfer failure is non-fatal to the charge, but the fee row must
+      // not settle: mark transfer_pending below so it can be retried.
+      transferFailureReason = String(err.message || 'stripe_transfer_failed').slice(0, 500);
       logger.error('cancellationFeeService: helper transfer FAILED after successful charge — NEEDS MANUAL RECONCILIATION', {
         feeRecordId, chargeId, feeToHelper, helperStripeAccountId, error: err.message
       });
     }
   } else if (feeToHelper > 0) {
+    // The pre-charge eligibility gate requires an active, payouts-enabled
+    // Connect account, so this path should not happen; treat it as a
+    // transfer failure rather than settling silently.
+    transferFailureReason = 'helper_connect_account_unavailable';
     logger.warn('cancellationFeeService: helper has no active Connect account — transfer skipped', {
       feeRecordId, helperId, feeToHelper
     });
   }
 
-  // ── 6. Mark fee as collected in DB ────────────────────────────────────────
+  // ── 6. Mark fee in DB ──────────────────────────────────────────────────────
+  // P3-10-F14: never settle the row while the helper transfer is
+  // outstanding. 'transfer_pending' records the successful charge and the
+  // transfer failure so finance can retry; only a completed transfer marks
+  // the fee 'collected'.
   try {
+    const transferPending = feeToHelper > 0 && !transferId;
     await pool.query(
       `UPDATE cancellation_fees SET
-         status             = 'collected',
+         status             = $4,
          stripe_charge_id   = $1,
          stripe_transfer_id = $2,
-         failure_reason     = NULL,
+         failure_reason     = $5,
          collected_at       = NOW(),
          updated_at         = NOW()
        WHERE id = $3`,
-      [chargeId || paymentIntentId, transferId || null, feeRecordId]
+      [
+        chargeId || paymentIntentId,
+        transferId || null,
+        feeRecordId,
+        transferPending ? 'transfer_pending' : 'collected',
+        transferPending ? transferFailureReason : null,
+      ]
     );
   } catch (dbErr) {
     logger.error('cancellationFeeService: failed to update fee record after successful charge', {
