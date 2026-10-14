@@ -500,7 +500,17 @@ async function resolveRelated({ product, document, journal, userId, scope }) {
         [bareId, scope.restaurantId]);
       order = rows[0];
     } else {
-      return { status: 'unsupported' };
+      // Customer-scoped (oxsteed and any other product): the order belongs
+      // to the statement owner. This preserves the pre-rewrite behavior for
+      // OxSteed Credit food_order references.
+      const { rows } = await pool.query(
+        `SELECT o.id, o.status, o.payment_status, o.total_cents, o.currency_code,
+                o.created_at, r.display_name AS restaurant_name
+           FROM food_orders o
+           LEFT JOIN food_restaurants r ON r.id = o.restaurant_id
+          WHERE o.id = $1 AND o.customer_id = $2`,
+        [bareId, userId]);
+      order = rows[0];
     }
     if (!order) return { status: 'unavailable' };
     return {

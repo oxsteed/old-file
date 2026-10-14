@@ -168,7 +168,7 @@ ddescribe('statement search, trends, saved views (disposable DB)', () => {
     const intruderId = crypto.randomUUID();
     const managerId = crypto.randomUUID();
     await pool.query(
-      `INSERT INTO users (id, email) VALUES ($1, $2), ($3, $4), ($5, $6)`,
+      `INSERT INTO users (id, email, password_hash) VALUES ($1, $2, 'synthetic'), ($3, $4, 'synthetic'), ($5, $6, 'synthetic')`,
       [ownerId, `${ownerId}@example.invalid`, intruderId, `${intruderId}@example.invalid`,
         managerId, `${managerId}@example.invalid`],
     );

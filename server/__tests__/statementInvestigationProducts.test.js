@@ -87,19 +87,84 @@ ddescribe('statement investigation: all products (disposable DB)', () => {
   }
 
   // Applies the DDL this workstream needs from migration 694 verbatim.
-  // The full 694 file cannot run here: its backfill and capture triggers
-  // need business_invoices/jobs/payments, which this partial database does
-  // not have. The table, its indexes, and the projection function are
-  // extracted from the real migration text so the schema cannot drift.
+  // The full 694 file cannot run here: its backfill needs the production
+  // business_invoices/jobs/payments tables, which this partial database does
+  // not have. The table, its indexes, the projection function, the capture
+  // function, the guard, and the immutability guard are extracted from the
+  // real migration text so the schema cannot drift. Minimal source tables
+  // are created when absent so fixtures write through the real capture path
+  // (the guard trigger rejects direct inserts into settlement_source_history).
   async function applySourceHistoryDdl() {
     const sql = fs.readFileSync(path.join(__dirname, '..', 'migrations', '694_settlement_source_history.sql'), 'utf8');
     const table = sql.match(/CREATE TABLE IF NOT EXISTS settlement_source_history \([\s\S]*?\);\n/);
     const indexes = [...sql.matchAll(/CREATE INDEX IF NOT EXISTS settlement_source_history_\w+[\s\S]*?;\n/g)];
     const projection = sql.match(/CREATE OR REPLACE FUNCTION settlement_source_projection\([\s\S]*?\$\$;\n/);
-    if (!table || indexes.length !== 2 || !projection) throw new Error('694 DDL extraction failed');
+    const capture = sql.match(/CREATE OR REPLACE FUNCTION capture_settlement_source_history\(\)[\s\S]*?END \$\$;\n/);
+    const guard = sql.match(/CREATE OR REPLACE FUNCTION guard_settlement_source_history_insert\(\)[\s\S]*?END \$\$;\n/);
+    const rejectMutation = sql.match(/CREATE OR REPLACE FUNCTION reject_settlement_source_history_mutation\(\)[\s\S]*?END \$\$;\n/);
+    if (!table || indexes.length !== 2 || !projection || !capture || !guard || !rejectMutation) {
+      throw new Error('694 DDL extraction failed');
+    }
     await pool.query(table[0]);
     for (const index of indexes) await pool.query(index[0]);
     await pool.query(projection[0]);
+    await pool.query(capture[0]);
+    await pool.query(guard[0]);
+    await pool.query(rejectMutation[0]);
+    // Minimal source tables with the columns the capture projection reads.
+    // No-op when the real tables exist (production migrations or CI's full
+    // chain). The capture triggers are installed from the real 694 text.
+    await pool.query(`CREATE TABLE IF NOT EXISTS jobs (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      client_id UUID,
+      assigned_helper_id UUID,
+      title VARCHAR(255),
+      description TEXT,
+      status TEXT,
+      payout_status VARCHAR(24),
+      completed_at TIMESTAMPTZ,
+      paid_at TIMESTAMPTZ,
+      helper_payout_cents INTEGER,
+      platform_fee_cents INTEGER,
+      customer_total_cents INTEGER,
+      currency_code TEXT
+    )`);
+    await pool.query(`CREATE TABLE IF NOT EXISTS business_invoices (
+      id BIGSERIAL PRIMARY KEY,
+      user_id UUID,
+      business_id INT,
+      invoice_number VARCHAR(40),
+      client_name VARCHAR(120),
+      status VARCHAR(20),
+      issue_date DATE,
+      due_date DATE,
+      total NUMERIC(12,2),
+      amount_paid NUMERIC(12,2),
+      paid_at TIMESTAMPTZ,
+      currency_code TEXT
+    )`);
+    // Install the capture triggers from the real 694 text when the source
+    // tables exist. DROP first for idempotency.
+    const triggers = [
+      ['business_invoice_source_history', 'business_invoices', 'business_invoice'],
+      ['helper_job_source_history', 'jobs', 'helper_job'],
+    ];
+    for (const [triggerName, tableName, kind] of triggers) {
+      const { rows: [{ exists }] } = await pool.query(
+        `SELECT to_regclass($1) IS NOT NULL AS exists`, [`public.${tableName}`]);
+      if (!exists) continue;
+      await pool.query(`DROP TRIGGER IF EXISTS ${triggerName} ON ${tableName}`);
+      await pool.query(
+        `CREATE TRIGGER ${triggerName} AFTER INSERT OR UPDATE OR DELETE ON ${tableName}
+         FOR EACH ROW EXECUTE FUNCTION capture_settlement_source_history('${kind}')`);
+    }
+    // Install the guard and immutability triggers on settlement_source_history.
+    await pool.query(`DROP TRIGGER IF EXISTS settlement_source_history_capture_only ON settlement_source_history`);
+    await pool.query(`CREATE TRIGGER settlement_source_history_capture_only BEFORE INSERT ON settlement_source_history
+      FOR EACH ROW EXECUTE FUNCTION guard_settlement_source_history_insert()`);
+    await pool.query(`DROP TRIGGER IF EXISTS settlement_source_history_immutable ON settlement_source_history`);
+    await pool.query(`CREATE TRIGGER settlement_source_history_immutable BEFORE UPDATE OR DELETE OR TRUNCATE ON settlement_source_history
+      FOR EACH STATEMENT EXECUTE FUNCTION reject_settlement_source_history_mutation()`);
   }
 
   async function ensureSchema() {
@@ -179,16 +244,24 @@ ddescribe('statement investigation: all products (disposable DB)', () => {
       [restaurant.id, business.id, ownerId]);
 
     // ── helper_earnings document + source observation ──
-    const { rows: [observation] } = await pool.query(
-      `INSERT INTO settlement_source_history
-         (source_kind, source_id, scope_id, currency_code, operation, source)
-       VALUES ('helper_job', 'job-1', $1, 'USD', 'insert',
-         '{"id":"job-1","assigned_helper_id":"x","title":"Sink fix","status":"completed","payout_status":"paid","helper_payout_cents":1000,"platform_fee_cents":250,"customer_total_cents":1250,"currency_code":"USD"}'::jsonb)
+    // Written through the jobs table so the real capture trigger populates
+    // settlement_source_history (the guard rejects direct inserts).
+    const { rows: [job] } = await pool.query(
+      `INSERT INTO jobs
+         (client_id, assigned_helper_id, title, description, status, payout_status,
+          completed_at, helper_payout_cents, platform_fee_cents, customer_total_cents, currency_code)
+       VALUES ($1, $2, 'Sink fix', 'Synthetic fixture job', 'completed', 'paid',
+         '2026-09-15T12:00:00.000Z', 1000, 250, 1250, 'USD')
        RETURNING id`,
-      [helperId]);
+      [ownerId, helperId]);
+    const { rows: [observation] } = await pool.query(
+      `SELECT id, source FROM settlement_source_history
+        WHERE source_kind = 'helper_job' AND source_id = $1
+        ORDER BY id DESC LIMIT 1`,
+      [String(job.id)]);
     const helperDocId = crypto.randomUUID();
     const helperMovement = {
-      sourceHistoryId: String(observation.id), sourceId: 'job-1', sourceKind: 'helper_job',
+      sourceHistoryId: String(observation.id), sourceId: String(job.id), sourceKind: 'helper_job',
       recordedAt: '2026-09-15T12:00:00.000Z', postedEarningsCents: 1000,
       settledPayoutsCents: 0, statusRemovalsCents: 0, payableAfterCents: 1000,
     };
@@ -246,16 +319,22 @@ ddescribe('statement investigation: all products (disposable DB)', () => {
       [settlementDocId, restaurant.id, PERIOD.from, PERIOD.to, JSON.stringify(settlementDocument), settlementDocument.contentHash]);
 
     // ── business document + source observation ──
-    const { rows: [invoiceObservation] } = await pool.query(
-      `INSERT INTO settlement_source_history
-         (source_kind, source_id, scope_id, currency_code, operation, source)
-       VALUES ('business_invoice', 'inv-1', $1, 'USD', 'insert',
-         '{"id":"inv-1","business_id":"1","invoice_number":"INV-001","client_name":"Acme","status":"sent","total":"500.00","amount_paid":"0","currency_code":"USD"}'::jsonb)
+    // Written through business_invoices so the real capture trigger fires.
+    const { rows: [invoice] } = await pool.query(
+      `INSERT INTO business_invoices
+         (user_id, business_id, invoice_number, client_name, status, issue_date,
+          total, amount_paid, currency_code)
+       VALUES ($1, $2, 'INV-001', 'Acme', 'sent', '2026-09-16', 500.00, 0, 'USD')
        RETURNING id`,
-      [String(business.id)]);
+      [ownerId, business.id]);
+    const { rows: [invoiceObservation] } = await pool.query(
+      `SELECT id, source FROM settlement_source_history
+        WHERE source_kind = 'business_invoice' AND source_id = $1
+        ORDER BY id DESC LIMIT 1`,
+      [String(invoice.id)]);
     const businessDocId = crypto.randomUUID();
     const businessMovement = {
-      sourceHistoryId: String(invoiceObservation.id), sourceId: 'inv-1', sourceKind: 'business_invoice',
+      sourceHistoryId: String(invoiceObservation.id), sourceId: String(invoice.id), sourceKind: 'business_invoice',
       recordedAt: '2026-09-16T12:00:00.000Z', invoicedCents: 50000,
       collectedOrAdjustedCents: 0, cancelledCents: 0, outstandingAfterCents: 50000,
     };
