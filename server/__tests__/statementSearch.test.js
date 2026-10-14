@@ -170,13 +170,15 @@ ddescribe('statement search, trends, saved views (disposable DB)', () => {
     const ownerId = crypto.randomUUID();
     const intruderId = crypto.randomUUID();
     const managerId = crypto.randomUUID();
+    const adminId = crypto.randomUUID();
     await pool.query(
-      `INSERT INTO users (id, email, password_hash, first_name, last_name)
-       VALUES ($1, $2, 'synthetic', 'Stmt', 'Fixture'),
-              ($3, $4, 'synthetic', 'Stmt', 'Fixture'),
-              ($5, $6, 'synthetic', 'Stmt', 'Fixture')`,
+      `INSERT INTO users (id, email, password_hash, first_name, last_name, role, is_active)
+       VALUES ($1, $2, 'synthetic', 'Stmt', 'Fixture', 'customer', TRUE),
+              ($3, $4, 'synthetic', 'Stmt', 'Fixture', 'customer', TRUE),
+              ($5, $6, 'synthetic', 'Stmt', 'Fixture', 'customer', TRUE),
+              ($7, $8, 'synthetic', 'Stmt', 'Fixture', 'admin', TRUE)`,
       [ownerId, `${ownerId}@example.invalid`, intruderId, `${intruderId}@example.invalid`,
-        managerId, `${managerId}@example.invalid`],
+        managerId, `${managerId}@example.invalid`, adminId, `${adminId}@example.invalid`],
     );
 
     // OxSteed credit wallet + journal rows for the owner.
@@ -194,7 +196,7 @@ ddescribe('statement search, trends, saved views (disposable DB)', () => {
             actor_type, actor_user_id, reason)
          VALUES ($1, $2, $2, $3, 'posted', 'USD', $4, $5, $6, $7, $8,
             'admin', $9, 'Synthetic test fixture')`,
-        [txId, wallet.id, amount, type, description, referenceType, referenceId, postedAt || new Date().toISOString(), ownerId]);
+        [txId, wallet.id, amount, type, description, referenceType, referenceId, postedAt || new Date().toISOString(), adminId]);
       await pool.query(
         `INSERT INTO oxsteed_credit_transaction_entries
            (transaction_id, account_id, balance_after_cents, entry_side, amount_cents, sequence)

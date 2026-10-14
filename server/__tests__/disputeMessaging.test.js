@@ -100,6 +100,9 @@ ddescribe('dispute messaging (disposable DB)', () => {
       path.join(__dirname, '..', 'migrations', '871_dispute_messages.sql'), 'utf8');
     await pool.query(sql);
     await applyAuditEventsDdl();
+    // The local stub disputes table may lack the opener column the migrated
+    // schema has (migration 493 guard). No-op on the full CI schema.
+    await pool.query('ALTER TABLE oxsteed_credit_disputes ADD COLUMN IF NOT EXISTS opened_by UUID');
   }
 
   async function createUser(role = 'customer') {
@@ -114,7 +117,7 @@ ddescribe('dispute messaging (disposable DB)', () => {
   async function createDispute(customerId) {
     const id = crypto.randomUUID();
     await pool.query(
-      'INSERT INTO oxsteed_credit_disputes (id, customer_id) VALUES ($1, $2)',
+      'INSERT INTO oxsteed_credit_disputes (id, customer_id, opened_by) VALUES ($1, $2, $2)',
       [id, customerId]
     );
     return id;

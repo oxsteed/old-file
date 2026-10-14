@@ -299,8 +299,9 @@ ddescribe('statement investigation: all products (disposable DB)', () => {
     await pool.query(
       `INSERT INTO oxsteed_credit_transaction_entries
          (transaction_id, account_id, entry_side, amount_cents, balance_after_cents, sequence, entry_hash)
-       VALUES ($1, $2, 'credit', 12000, 12000, 1, $3)`,
-      [settleTxId, subBank.id, crypto.createHash('sha256').update(settleTxId).digest('hex')]);
+       VALUES ($1, $2, 'credit', 12000, 12000, 1, $3),
+              ($1, $4, 'debit', 12000, 0, 2, $3)`,
+      [settleTxId, subBank.id, crypto.createHash('sha256').update(settleTxId).digest('hex'), treasury.id]);
     const settlementDocId = crypto.randomUUID();
     const settlementDocument = {
       id: settlementDocId, version: 2, kind: 'monthly', product: 'restaurant_settlement',
