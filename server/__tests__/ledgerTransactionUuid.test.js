@@ -59,6 +59,14 @@ const payoutService = require('../services/restaurantPayoutService');
 const creditService = require('../services/oxsteedCreditService');
 const subBankService = require('../services/oxsteedCreditSubBankService');
 
+// ADM-186 added step-up verification to the approve path. This suite tests
+// UUID round-tripping, not step-up auth, so the challenge verification is
+// stubbed to succeed.
+jest.mock('../services/stepupChallengeService', () => ({
+  issueStepupChallenge: jest.fn(),
+  verifyStepupChallenge: jest.fn(async () => ({ ok: true })),
+}));
+
 jest.setTimeout(120000);
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

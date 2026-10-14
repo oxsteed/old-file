@@ -2,13 +2,18 @@ import React, { useCallback, useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 import {
   approveMerchantFoodWalletCreditRequest,
+  createMerchantFoodWalletRefund,
   declineMerchantFoodWalletCreditRequest,
   formatFoodMoney,
+  getMerchantCreditApproval,
   grantMerchantFoodWalletCredit,
   listMerchantFoodWalletCreditRequests,
 } from '../../api/food';
 import { apiErrorMessage } from './foodShared';
 import { formatCreditDateTime } from '../../lib/creditDateTime';
+import RestaurantCreditReservePanel from './RestaurantCreditReservePanel';
+import RestaurantCreditExposurePanel from './RestaurantCreditExposurePanel';
+import RestaurantCreditFundingPanel from './RestaurantCreditFundingPanel';
 
 function requestProof(request) {
   const metadata = request?.metadata && typeof request.metadata === 'object' ? request.metadata : {};
@@ -37,6 +42,14 @@ export default function RestaurantCreditManager({ restaurant }) {
   const [grantProofUrl, setGrantProofUrl] = useState('');
   const [grantConfirming, setGrantConfirming] = useState(false);
   const [grantWorking, setGrantWorking] = useState(false);
+  const [refundOpen, setRefundOpen] = useState(false);
+  const [refundCustomerId, setRefundCustomerId] = useState('');
+  const [refundEmail, setRefundEmail] = useState('');
+  const [refundAmount, setRefundAmount] = useState('');
+  const [refundReason, setRefundReason] = useState('');
+  const [refundConfirming, setRefundConfirming] = useState(false);
+  const [refundWorking, setRefundWorking] = useState(false);
+  const [approval, setApproval] = useState(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -51,6 +64,20 @@ export default function RestaurantCreditManager({ restaurant }) {
   }, [restaurant.id]);
 
   useEffect(() => { load(); }, [load]);
+
+  // Phase 6: surface the platform credit-approval state so the restaurant
+  // knows where it stands (suspended/revoked blocks new credit).
+  useEffect(() => {
+    let active = true;
+    getMerchantCreditApproval()
+      .then((rows) => {
+        if (!active) return;
+        const match = (Array.isArray(rows) ? rows : []).find((row) => String(row.restaurantId) === String(restaurant.id));
+        setApproval(match || null);
+      })
+      .catch(() => { if (active) setApproval(null); });
+    return () => { active = false; };
+  }, [restaurant.id]);
 
   const approve = async (request) => {
     setWorkingId(request.id);
@@ -96,6 +123,55 @@ export default function RestaurantCreditManager({ restaurant }) {
     setGrantConfirming(false);
   };
 
+  const resetRefundForm = () => {
+    setRefundCustomerId('');
+    setRefundEmail('');
+    setRefundAmount('');
+    setRefundReason('');
+    setRefundConfirming(false);
+  };
+
+  const openRefundForRequest = (request) => {
+    resetRefundForm();
+    setRefundCustomerId(request.customerId || '');
+    setRefundEmail(request.customerEmail || '');
+    setRefundOpen(true);
+    setGrantOpen(false);
+  };
+
+  const submitRefund = async () => {
+    const email = refundEmail.trim();
+    if ((!refundCustomerId && !email) || !refundAmount.trim()) {
+      toast.error('Customer and amount are required for a refund.');
+      return;
+    }
+    setRefundWorking(true);
+    try {
+      const idempotencyKey = globalThis.crypto?.randomUUID?.() || `merchant-refund-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      const payload = {
+        amount: refundAmount.trim(),
+        currencyCode: restaurant.currency_code,
+        reason: refundReason.trim() || undefined,
+        idempotencyKey,
+      };
+      if (refundCustomerId) payload.customerId = refundCustomerId;
+      else payload.customerEmail = email;
+      const result = await createMerchantFoodWalletRefund(restaurant.id, payload);
+      if (result?.refund?.status === 'processed') {
+        toast.success(`Refunded ${refundAmount.trim()} ${restaurant.currency_code || 'USD'} to ${email || 'customer'}.`);
+      } else {
+        toast.success('Refund request recorded.');
+      }
+      resetRefundForm();
+      setRefundOpen(false);
+      await load();
+    } catch (error) {
+      toast.error(apiErrorMessage(error, 'Unable to process this refund.'));
+    } finally {
+      setRefundWorking(false);
+    }
+  };
+
   const submitGrant = async () => {
     const email = grantEmail.trim();
     const note = grantNote.trim();
@@ -131,6 +207,7 @@ export default function RestaurantCreditManager({ restaurant }) {
   };
 
   return (
+    <>
     <section className="fd-section fd-credit-manager">
       <div className="fd-credit-manager-head">
         <div>
@@ -143,8 +220,30 @@ export default function RestaurantCreditManager({ restaurant }) {
           <button type="button" className="fd-btn fd-btn-sm" onClick={() => { setGrantOpen((v) => !v); setGrantConfirming(false); }}>
             {grantOpen ? 'Close' : 'Grant credit'}
           </button>
+          <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => { setRefundOpen((v) => !v); setRefundConfirming(false); }}>
+            {refundOpen ? 'Close' : 'Refund credit'}
+          </button>
         </div>
       </div>
+
+      {approval && (approval.status === 'suspended' || approval.status === 'revoked') && (
+        <div className="fd-credit-approval-banner" role="alert" data-status={approval.status}>
+          <strong>
+            {approval.status === 'suspended'
+              ? 'New credit is paused for this restaurant while its platform approval is suspended.'
+              : 'This restaurant\u2019s credit approval was revoked. Remaining customer balances move to OxSteed Credit when the grace period ends.'}
+          </strong>
+          {approval.revocationReason && <p>Reason: {approval.revocationReason}</p>}
+          {approval.status === 'revoked' && approval.gracePeriodEndsAt && (
+            <p>Grace period ends: {displayDate(approval.gracePeriodEndsAt)}</p>
+          )}
+        </div>
+      )}
+
+      {/* Funding step: approval isn't complete until the reserve is funded. */}
+      {approval && approval.status === 'approved' && approval.fundingStatus !== 'funded' && (
+        <RestaurantCreditFundingPanel restaurant={restaurant} approval={approval} onFunded={load} />
+      )}
 
       {grantOpen && (
         <div className="fd-credit-grant-form">
@@ -180,6 +279,40 @@ export default function RestaurantCreditManager({ restaurant }) {
                 onClick={() => setGrantConfirming(true)}
               >
                 Review grant
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {refundOpen && (
+        <div className="fd-credit-grant-form">
+          <strong>Refund credit to a customer</strong>
+          <p className="fd-card-meta">Deducts credit from the customer’s wallet and sends the money back to their card. Only credit issued in the last 30 days can be refunded. If the card refund fails, the wallet balance is left untouched.</p>
+          <label>Customer email
+            <input type="email" required value={refundEmail} onChange={(event) => { setRefundEmail(event.target.value); setRefundCustomerId(''); }} placeholder="customer@example.com" maxLength={255} />
+          </label>
+          <label>Amount ({restaurant.currency_code || 'USD'})
+            <input inputMode="decimal" required value={refundAmount} onChange={(event) => setRefundAmount(event.target.value)} placeholder="25.00" />
+          </label>
+          <label>Reason (optional)
+            <input value={refundReason} onChange={(event) => setRefundReason(event.target.value)} maxLength={500} placeholder="Why is this credit being refunded?" />
+          </label>
+          {refundConfirming ? (
+            <div className="fd-credit-confirm-row">
+              <strong>Refund {refundAmount.trim()} {restaurant.currency_code || 'USD'} to {refundEmail.trim() || 'customer'}?</strong>
+              <button type="button" className="fd-btn fd-btn-sm" disabled={refundWorking} onClick={submitRefund}>{refundWorking ? 'Refunding…' : 'Yes, refund'}</button>
+              <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => setRefundConfirming(false)}>Cancel</button>
+            </div>
+          ) : (
+            <div>
+              <button
+                type="button"
+                className="fd-btn fd-btn-sm"
+                disabled={!refundEmail.trim() || !refundAmount.trim()}
+                onClick={() => setRefundConfirming(true)}
+              >
+                Review refund
               </button>
             </div>
           )}
@@ -230,6 +363,7 @@ export default function RestaurantCreditManager({ restaurant }) {
                   <div className="fd-credit-request-actions">
                     <button type="button" className="fd-btn fd-btn-sm" onClick={() => { setConfirmingId(request.id); setDecliningId(null); }}>Approve credit</button>
                     <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => { setDecliningId(request.id); setConfirmingId(null); }}>Decline</button>
+                    <button type="button" className="fd-btn fd-btn-secondary fd-btn-sm" onClick={() => openRefundForRequest(request)}>Refund</button>
                   </div>
                 )}
               </article>
@@ -238,5 +372,13 @@ export default function RestaurantCreditManager({ restaurant }) {
         </div>
       )}
     </section>
+    {/* Phase 4: pre-purchase credit reserve. Opt-in per restaurant; issuance
+        is capped at the reserve balance once the restaurant is enrolled. */}
+    <RestaurantCreditReservePanel restaurant={restaurant} />
+    {/* Phase 5: trial-tier credit cap + FIFO derisking. Applies to
+        restaurants without a reserve row; enrolled restaurants see the
+        reserve-enrolled state instead of the cap meter. */}
+    <RestaurantCreditExposurePanel restaurant={restaurant} />
+    </>
   );
 }

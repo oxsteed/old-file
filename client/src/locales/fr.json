@@ -31926,5 +31926,21 @@
     "error": "Impossible d'envoyer votre W-9. Veuillez reessayer.",
     "filedTitle": "W-9 enregistre",
     "filedCopy": "Votre formulaire fiscal W-9 a bien ete recu. Vous n'avez pas besoin de le renvoyer."
-  }
+  },
+  "adminCreditApprovalTitle": "Approbation de crédit de la plateforme",
+  "adminCreditApprovalDetail": "Détermine si ce restaurant peut émettre du nouveau crédit. La révocation démarre une période de grâce de 30 jours ; les soldes restants sont ensuite migrés automatiquement vers OxSteed Credit.",
+  "adminCreditApprovalStatusLabel": "Statut d'approbation",
+  "adminCreditApprovalStatusRevoked": "Révoqué",
+  "adminCreditApprovalNewStatus": "Nouveau statut",
+  "adminCreditApprovalReason": "Motif",
+  "adminCreditApprovalReasonRequired": "Un motif est requis pour suspendre ou révoquer.",
+  "adminCreditApprovalReasonPlaceholder": "Pourquoi ce restaurant perd-il son approbation de crédit ?",
+  "adminCreditApprovalUpdate": "Mettre à jour l'approbation",
+  "adminCreditApprovalUpdated": "Approbation de crédit mise à jour.",
+  "adminCreditApprovalLoadFailed": "Impossible de charger l'approbation de crédit.",
+  "adminCreditApprovalUpdateFailed": "Impossible de mettre à jour l'approbation de crédit.",
+  "adminCreditApprovalGraceEnds": "Fin de la période de grâce",
+  "adminCreditApprovalRevokedAt": "Révoqué le",
+  "adminCreditApprovalMigratedAt": "Soldes migrés",
+  "adminCreditApprovalGrandfathered": "Approuvé (aucun dossier d'approbation)"
 }

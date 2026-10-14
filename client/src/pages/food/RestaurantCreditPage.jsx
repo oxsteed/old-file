@@ -26,6 +26,7 @@ import PageMeta from '../../components/PageMeta';
 import {
   cancelFoodWalletCreditRequest,
   cancelFoodWalletPaymentSession,
+  createFoodWalletCreditDispute,
   createFoodWalletPaymentSession,
   createRestaurantTopupIntent,
   formatFoodMoney,
@@ -83,6 +84,17 @@ function walletAvailableCents(wallet) {
   const balance = Number(wallet?.balanceCents || 0);
   const reserved = Number(wallet?.reservedCents || 0);
   return Number(wallet?.availableBalanceCents ?? Math.max(0, balance - reserved));
+}
+
+// Disputes are only allowed while the cancellation is fresh: the server
+// enforces the 48h window and fails closed, the client just hides the
+// button once it expires.
+const DISPUTE_WINDOW_MS = 48 * 60 * 60 * 1000;
+
+function canDisputeRequest(request) {
+  if (!request || request.status !== 'cancelled' || !request.cancelledAt) return false;
+  const cancelledTime = new Date(request.cancelledAt).getTime();
+  return Number.isFinite(cancelledTime) && Date.now() - cancelledTime <= DISPUTE_WINDOW_MS;
 }
 
 function WalletQr({ value }) {
@@ -151,6 +163,7 @@ export default function RestaurantCreditPage() {
   const [holds, setHolds] = useState([]);
   const [activeTab, setActiveTab] = useState('activity');
   const [modal, setModal] = useState(null);
+  const [disputeTarget, setDisputeTarget] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -399,7 +412,7 @@ export default function RestaurantCreditPage() {
                   <article key={request.id}>
                     <div className={`credit-entry-icon request-${request.status}`}>{request.status === 'approved' ? <CheckCircle2 size={17} /> : <Clock3 size={17} />}</div>
                     <div><strong>{t('restaurantWallet.addRequest', { status: localizeStatus(t, request.status) })}</strong><span>{request.referenceId || t('restaurantWallet.receiptAttached')} · {formatDate(request.createdAt, t.lng, t('statusUnknown'))}</span>{request.note && <small>{request.note}</small>}</div>
-                    <div className="credit-entry-amount"><strong>{formatFoodMoney(request.amountCents, request.currencyCode || currency)}</strong>{request.status === 'pending' && <button type="button" onClick={() => cancelRequest(request)}>{t('restaurantWallet.cancel')}</button>}</div>
+                    <div className="credit-entry-amount"><strong>{formatFoodMoney(request.amountCents, request.currencyCode || currency)}</strong>{request.status === 'pending' && <button type="button" onClick={() => cancelRequest(request)}>{t('restaurantWallet.cancel')}</button>}{canDisputeRequest(request) && <button type="button" onClick={() => setDisputeTarget(request)}>{t('restaurantWallet.dispute')}</button>}</div>
                   </article>
                 ))}</div> : <EmptyState title={t('restaurantWallet.requests')} detail={t('restaurantWallet.noSelectedDetail')} />
               )}
@@ -412,8 +425,50 @@ export default function RestaurantCreditPage() {
       {modal === 'pay' && <PaymentModal wallet={wallet} onClose={() => setModal(null)} onChanged={refresh} />}
       {modal === 'transfer' && <TransferModal wallet={wallet} onClose={() => setModal(null)} onChanged={refresh} />}
       {modal === 'request' && <CreditRequestModal restaurantId={selectedRestaurantId} restaurantName={displayName} currency={currency} onClose={() => setModal(null)} onChanged={refresh} />}
+      {disputeTarget && <DisputeModal request={disputeTarget} restaurantId={selectedRestaurantId} currency={currency} onClose={() => setDisputeTarget(null)} onChanged={refresh} />}
       {modal === 'topup' && <TopupModal restaurantId={selectedRestaurantId} restaurantName={displayName} currency={currency} onClose={() => setModal(null)} onChanged={refresh} />}
     </div>
+  );
+}
+
+function DisputeModal({ request: disputeRequest, restaurantId, currency, onClose, onChanged }) {
+  const { t } = useTranslation('credit');
+  const [reason, setReason] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
+  const submit = async (event) => {
+    event.preventDefault();
+    const trimmed = reason.trim();
+    if (!trimmed) return toast.error(t('restaurantWallet.disputeSubmitFailed'));
+    setSubmitting(true);
+    try {
+      await createFoodWalletCreditDispute(restaurantId, disputeRequest.id, { reason: trimmed });
+      toast.success(t('restaurantWallet.disputeSubmitted'));
+      try {
+        await onChanged();
+      } catch {
+        toast.error(t('restaurantWallet.refreshFailed'));
+      }
+      onClose();
+    } catch (error) {
+      toast.error(safeCreditErrorMessage(error, t('restaurantWallet.disputeSubmitFailed')));
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const requestCurrency = disputeRequest.currencyCode || currency;
+  return (
+    <Modal
+      title={t('restaurantWallet.disputeTitle')}
+      subtitle={`${formatFoodMoney(disputeRequest.amountCents, requestCurrency)} · ${formatDate(disputeRequest.cancelledAt, t.lng, t('statusUnknown'))}`}
+      onClose={onClose}
+    >
+      <form className="credit-form" onSubmit={submit}>
+        <label><span>{t('restaurantWallet.disputeReasonLabel')}</span><textarea autoFocus required value={reason} onChange={(event) => setReason(event.target.value)} maxLength={500} placeholder={t('restaurantWallet.disputeReasonPlaceholder')} /></label>
+        <button type="submit" className="credit-primary" disabled={submitting}>{submitting ? t('restaurantWallet.sending') : t('restaurantWallet.disputeSubmit')}</button>
+      </form>
+    </Modal>
   );
 }
 

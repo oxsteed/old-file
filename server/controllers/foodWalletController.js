@@ -2,13 +2,29 @@
 
 const crypto = require('crypto');
 const pool = require('../db');
+const stripe = process.env.STRIPE_SECRET_KEY ? require('stripe')(process.env.STRIPE_SECRET_KEY) : null;
 const { AppError } = require('../middleware/errorHandler');
 const { withTransaction } = require('../utils/transaction');
 const { logFoodWalletOperatorAudit } = require('../services/foodWalletAuditService');
 const { evaluateFundingCompliance } = require('../services/fiatComplianceService');
 const foodCreditFraudService = require('../services/foodCreditFraudService');
+// Phase 4: opt-in pre-purchase credit reserve. Restaurants WITH a reserve
+// row are capped at issuance; restaurants without one continue under the
+// trial-tier cap (Phase 5 owns that).
+const { debitCreditReserveForIssuance } = require('../services/restaurantCreditReserveService');
+const revocationService = require('../services/restaurantCreditRevocationService');
+// Phase 5: trial-tier credit cap + FIFO derisking. Applies ONLY to
+// restaurants WITHOUT a Phase 4 reserve row (no double-enforcement: the
+// reserve system governs enrolled restaurants).
+const {
+  getCreditExposure,
+  assertTrialCapAllows,
+  getFifoQueue,
+  deriskOldest,
+} = require('../services/restaurantCreditDeriskService');
 const {
   creditFoodWallet,
+  debitFoodWallet,
   loadWalletAccountsForUser,
   verifyWalletIntegrityForCustomer,
 } = require('../services/foodWalletService');
@@ -871,6 +887,9 @@ exports.createMyWalletLoadRequest = async (req, res, next) => {
     if (!restaurant || restaurant.status !== 'active') {
       throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
     }
+    // Phase 6 revocation path: a revoked or suspended restaurant (or one that
+    // was never approved) cannot take new credit requests. Fail closed.
+    await revocationService.assertNewRestaurantCreditAllowed(pool, restaurantId);
     const amountCents = parsePositiveMoneyCents(req.body);
     const idempotencyKey = normalizeString(req.body?.idempotencyKey || req.body?.idempotency_key, 120);
     if (!idempotencyKey) {
@@ -913,6 +932,12 @@ exports.createMyWalletLoadRequest = async (req, res, next) => {
       requestRow = existingResult.rows[0];
       replayed = true;
     } else {
+      // Phase 5 trial-tier cap: block NEW credit requests when a
+      // reserve-less restaurant is at capacity (409
+      // restaurant_credit_at_capacity). Reserve restaurants skip this
+      // entirely (Phase 4 governs them); idempotency replays above never
+      // block, so a retried request is not wedged by a later cap hit.
+      await assertTrialCapAllows(restaurantId);
       const { rows } = await pool.query(
         `INSERT INTO food_customer_wallet_load_requests
          (restaurant_id, business_id, customer_id, requested_by_user_id,
@@ -1250,6 +1275,20 @@ exports.loadCustomerWallet = async (req, res, next) => {
           requestIp: req.ip || null,
         },
       });
+      // Phase 4: opt-in pre-purchase reserve cap. Runs inside the SAME
+      // transaction as the wallet credit: when the restaurant has opted in
+      // (a reserve row exists), the row is locked and drawn down here; a
+      // 409 insufficient_credit_reserve rolls the wallet credit back with it
+      // (fail closed). Replays skip the drawdown because the original
+      // issuance already drew it down.
+      if (!walletResult.replayed) {
+        await debitCreditReserveForIssuance(client, {
+          restaurantId,
+          amountCents,
+          referenceType: 'issuance',
+          referenceId,
+        });
+      }
       if (!walletResult.replayed) {
         await logFoodWalletOperatorAudit(client, {
           restaurantId,
@@ -1470,6 +1509,9 @@ exports.approveCustomerWalletLoadRequest = async (req, res, next) => {
     }
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
     assertWalletOperator(restaurant);
+    // Phase 6 revocation path: cannot approve new credit while the
+    // restaurant's platform approval is revoked/suspended. Fail closed.
+    await revocationService.assertNewRestaurantCreditAllowed(pool, restaurantId);
     const approvalNote = normalizeString(req.body?.approvalNote || req.body?.approval_note, 500);
     const result = await withTransaction(pool, async (client) => {
       const { rows: [requestRow] } = await client.query(
@@ -1535,6 +1577,21 @@ exports.approveCustomerWalletLoadRequest = async (req, res, next) => {
           approvalNote: approvalNote || null,
         },
       });
+
+      // Phase 4: opt-in pre-purchase reserve cap. Runs inside the SAME
+      // transaction as the wallet credit: when the restaurant has opted in
+      // (a reserve row exists), the row is locked and drawn down here; a
+      // 409 insufficient_credit_reserve rolls the wallet credit back with it
+      // (fail closed). Replays skip the drawdown because the original
+      // issuance already drew it down.
+      if (!walletResult.replayed) {
+        await debitCreditReserveForIssuance(client, {
+          restaurantId,
+          amountCents: Number(requestRow.amount_cents || 0),
+          referenceType: 'issuance',
+          referenceId: String(requestRow.id),
+        });
+      }
 
       const { rows: [updatedRequest] } = await client.query(
         `UPDATE food_customer_wallet_load_requests
@@ -2136,6 +2193,814 @@ exports.getCustomerWalletStatement = async (req, res, next) => {
           customerScoped: Boolean(customer),
         },
       },
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// ─── Phase 2: restaurant-initiated credit refunds ────────────────────────────
+// A refund deducts credit from the customer's food wallet and pushes the money
+// back to the customer over Stripe. Money code fails closed: the wallet
+// deduction and the Stripe leg run in one transaction, and if Stripe cannot
+// complete, the deduction is rolled back to a savepoint so the customer's
+// balance is unchanged while the refund row persists as 'failed' for audit.
+
+const FOOD_WALLET_REFUND_MAX_CENTS = Math.max(
+  1,
+  Number.parseInt(process.env.FOOD_WALLET_REFUND_MAX_CENTS || '100000', 10)
+);
+const FOOD_WALLET_REFUND_WINDOW_DAYS = Math.max(
+  1,
+  Number.parseInt(process.env.FOOD_WALLET_REFUND_WINDOW_DAYS || '30', 10)
+);
+
+class StripeRefundLegError extends Error {
+  constructor(reason, message) {
+    super(message);
+    this.name = 'StripeRefundLegError';
+    this.reason = reason;
+  }
+}
+
+function formatCreditRefund(row) {
+  if (!row) return null;
+  return {
+    id: String(row.id),
+    walletId: row.wallet_id ? String(row.wallet_id) : null,
+    restaurantId: String(row.restaurant_id),
+    customerId: row.customer_id,
+    customerName: row.customer_name || null,
+    customerEmail: row.customer_email || null,
+    amountCents: Number(row.amount_cents || 0),
+    amount: Number(row.amount_cents || 0) / 100,
+    currencyCode: row.currency_code,
+    status: row.status,
+    stripeRefundId: row.stripe_refund_id || null,
+    idempotencyKey: row.idempotency_key,
+    reason: row.reason || null,
+    initiatedBy: row.initiated_by || null,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+    processedAt: row.processed_at || null,
+  };
+}
+
+function assertCreditRefundReplayMatches(existing, { customerId, amountCents, currencyCode }) {
+  const mismatches = {};
+  if (String(existing.customer_id) !== String(customerId)) {
+    mismatches.customerId = { existing: existing.customer_id, requested: customerId };
+  }
+  if (Number(existing.amount_cents || 0) !== Number(amountCents || 0)) {
+    mismatches.amountCents = { existing: Number(existing.amount_cents || 0), requested: Number(amountCents || 0) };
+  }
+  if (normalizeCurrency(existing.currency_code) !== normalizeCurrency(currencyCode)) {
+    mismatches.currencyCode = {
+      existing: normalizeCurrency(existing.currency_code),
+      requested: normalizeCurrency(currencyCode),
+    };
+  }
+  if (Object.keys(mismatches).length) {
+    throw new AppError('Refund idempotency conflict', 409, 'wallet_refund_idempotency_conflict', { mismatches });
+  }
+}
+
+async function findCreditRefundByIdempotencyKey(client, restaurantId, idempotencyKey) {
+  const { rows } = await client.query(
+    `SELECT * FROM food_credit_refunds
+      WHERE restaurant_id = $1 AND idempotency_key = $2
+      LIMIT 1`,
+    [restaurantId, idempotencyKey]
+  );
+  return rows[0] || null;
+}
+
+// The Stripe leg reverses the customer's most recent card charge at this
+// restaurant. Wallet credit itself was issued off-platform, so there is no
+// original charge to reverse; a recent paid food_orders charge is the only
+// card rail available to push money back. When none exists the leg fails
+// closed and the wallet is left untouched.
+async function attemptStripeCreditRefund({ client, restaurantId, customerId, amountCents, idempotencyKey }) {
+  if (!stripe) {
+    throw new StripeRefundLegError('stripe_not_configured', 'Card refunds are not configured for this restaurant');
+  }
+  const { rows } = await client.query(
+    `SELECT id, stripe_payment_intent_id, metadata
+       FROM food_orders
+      WHERE restaurant_id = $1
+        AND customer_id = $2
+        AND stripe_payment_intent_id IS NOT NULL
+        AND payment_status IN ('paid', 'partially_refunded')
+      ORDER BY created_at DESC
+      LIMIT 1`,
+    [restaurantId, customerId]
+  );
+  const order = rows[0];
+  if (!order) {
+    throw new StripeRefundLegError(
+      'no_stripe_payment_method_on_file',
+      'No card payment on file for this customer at this restaurant'
+    );
+  }
+  const metadata = (order.metadata && typeof order.metadata === 'object') ? order.metadata : {};
+  const checkoutMeta = metadata.stripeCheckout || metadata.stripe_checkout || {};
+  const connectedAccountId = checkoutMeta.connectedAccountId || null;
+  const destinationCharge = checkoutMeta.destinationCharge === true;
+  try {
+    const refundParams = { payment_intent: order.stripe_payment_intent_id, amount: amountCents };
+    if (destinationCharge && !connectedAccountId) {
+      refundParams.reverse_transfer = true;
+      refundParams.refund_application_fee = true;
+    }
+    const refund = await stripe.refunds.create(
+      refundParams,
+      {
+        stripeAccount: (!destinationCharge && connectedAccountId) ? connectedAccountId : undefined,
+        idempotencyKey: `food-credit-refund:${idempotencyKey}`,
+      }
+    );
+    if (!refund || !refund.id) {
+      throw new Error('Stripe returned an empty refund');
+    }
+    if (refund.status === 'failed' || refund.status === 'canceled' || refund.status === 'cancelled') {
+      throw new Error(`Stripe refund came back ${refund.status}`);
+    }
+    if (Number(refund.amount) !== Number(amountCents)) {
+      throw new Error('Stripe refund amount did not match the requested amount');
+    }
+    return refund;
+  } catch (err) {
+    if (err instanceof StripeRefundLegError) throw err;
+    throw new StripeRefundLegError('stripe_refund_failed', err.message || 'The card refund could not be processed');
+  }
+}
+
+exports.createCustomerWalletRefund = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    if (!restaurantId) {
+      throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
+    }
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    assertWalletOperator(restaurant);
+    const customer = await resolveCustomer(req.body);
+    const amountCents = parsePositiveMoneyCents(req.body);
+    const currencyCode = normalizeCurrency(req.body.currencyCode || req.body.currency_code || restaurant.currency_code);
+    const idempotencyKey = normalizeString(req.body.idempotencyKey || req.body.idempotency_key, 120);
+    if (!idempotencyKey) {
+      throw new AppError('Validation failed', 400, 'validation_failed', {
+        idempotencyKey: 'A client idempotency key is required',
+      });
+    }
+    if (amountCents > FOOD_WALLET_REFUND_MAX_CENTS) {
+      throw new AppError('Validation failed', 400, 'validation_failed', {
+        amountCents: `Refund amount exceeds the maximum of ${FOOD_WALLET_REFUND_MAX_CENTS} cents`,
+      });
+    }
+    const reason = normalizeString(req.body.reason, 500);
+    const correlationId = normalizeString(
+      req.body.correlationId || req.body.correlation_id || idempotencyKey,
+      120
+    );
+
+    // Fast path: the same idempotency key with the same params replays the
+    // existing row. A previously 'failed' row falls through so the operator
+    // can retry the money movement with the same key.
+    const preExisting = await findCreditRefundByIdempotencyKey(pool, restaurantId, idempotencyKey);
+    if (preExisting && preExisting.status !== 'failed') {
+      assertCreditRefundReplayMatches(preExisting, { customerId: customer.id, amountCents, currencyCode });
+      return res.status(200).json({ refund: formatCreditRefund(preExisting), replayed: true });
+    }
+
+    const result = await withTransaction(pool, async (client) => {
+      await client.query(
+        `SELECT pg_advisory_xact_lock(hashtextextended($1, 0))`,
+        [`food-credit-refund:${restaurantId}:${idempotencyKey}`]
+      );
+      let refundRow = await findCreditRefundByIdempotencyKey(client, restaurantId, idempotencyKey);
+      if (refundRow && refundRow.status !== 'failed') {
+        assertCreditRefundReplayMatches(refundRow, { customerId: customer.id, amountCents, currencyCode });
+        return { refundRow, replayed: true };
+      }
+      if (refundRow) {
+        assertCreditRefundReplayMatches(refundRow, { customerId: customer.id, amountCents, currencyCode });
+      }
+
+      // Lock the wallet account first; every check below fails closed.
+      const account = await loadWalletAccountForOperator(client, restaurantId, customer.id);
+      if (account.status !== 'active') {
+        throw new AppError('Restaurant credit wallet is not active', 409, 'wallet_inactive', {
+          status: account.status,
+        });
+      }
+      if (normalizeCurrency(account.currency_code) !== currencyCode) {
+        throw new AppError('Wallet currency mismatch', 409, 'wallet_currency_mismatch', {
+          expectedCurrencyCode: normalizeCurrency(account.currency_code),
+          receivedCurrencyCode: currencyCode,
+        });
+      }
+      const reservedCents = Number(account.reserved_cents || 0);
+      const availableCents = Number(account.balance_cents || 0) - reservedCents;
+      if (availableCents < amountCents) {
+        throw new AppError('Insufficient restaurant wallet balance', 409, 'wallet_insufficient_funds', {
+          balanceCents: String(account.balance_cents || 0),
+          reservedCents: String(reservedCents),
+          availableBalanceCents: String(Math.max(0, availableCents)),
+          requestedCents: String(amountCents),
+        });
+      }
+
+      // 30-day issuance rule: only credit issued within the window is
+      // refundable, measured from the hash-chained wallet ledger. The rule is
+      // approximate when the customer spent and re-topped-up inside the
+      // window (old credit and new credit are fungible in the balance); the
+      // configurable per-refund max is the backstop for that case.
+      const { rows: issuedRows } = await client.query(
+        `SELECT COALESCE(SUM(amount_cents), 0) AS issued_cents
+           FROM food_customer_wallet_ledger
+          WHERE account_id = $1
+            AND entry_type = 'credit'
+            AND created_at >= NOW() - make_interval(days => $2)`,
+        [account.id, FOOD_WALLET_REFUND_WINDOW_DAYS]
+      );
+      const issuedCents = Number(issuedRows[0]?.issued_cents || 0);
+      if (issuedCents < amountCents) {
+        throw new AppError(
+          `Only credit issued in the last ${FOOD_WALLET_REFUND_WINDOW_DAYS} days can be refunded`,
+          409,
+          'wallet_refund_outside_window',
+          {
+            issuedInWindowCents: String(issuedCents),
+            requestedCents: String(amountCents),
+            windowDays: FOOD_WALLET_REFUND_WINDOW_DAYS,
+          }
+        );
+      }
+
+      if (refundRow && refundRow.status === 'failed') {
+        const { rows: [reopened] } = await client.query(
+          `UPDATE food_credit_refunds
+              SET status = 'pending', reason = $2, stripe_refund_id = NULL, updated_at = NOW()
+            WHERE id = $1
+            RETURNING *`,
+          [refundRow.id, reason]
+        );
+        refundRow = reopened;
+      } else {
+        const { rows: [inserted] } = await client.query(
+          `INSERT INTO food_credit_refunds
+             (wallet_id, customer_id, restaurant_id, amount_cents, currency_code,
+              status, reason, idempotency_key, initiated_by)
+           VALUES ($1,$2,$3,$4,$5,'pending',$6,$7,$8)
+           RETURNING *`,
+          [account.id, customer.id, restaurantId, amountCents, currencyCode, reason, idempotencyKey, req.user.id]
+        );
+        refundRow = inserted;
+      }
+
+      // Move the money under a savepoint: deduct the wallet, then attempt the
+      // Stripe leg. If Stripe cannot complete, roll back to the savepoint so
+      // the customer's balance is unchanged and persist the row as 'failed'.
+      await client.query('SAVEPOINT food_credit_refund_money');
+      const debitResult = await debitFoodWallet(client, {
+        restaurantId,
+        customerId: customer.id,
+        currencyCode,
+        amountCents,
+        description: normalizeString(`Credit refund${reason ? `: ${reason}` : ''}`, 255)
+          || 'Credit refund',
+        referenceType: 'credit_refund',
+        referenceId: `credit-refund:${refundRow.id}`,
+        idempotencyKey: `credit-refund-debit:${idempotencyKey}`,
+        createdByUserId: req.user.id,
+        correlationId,
+        actorType: 'restaurant_staff',
+        metadata: {
+          source: 'merchant_credit_refund',
+          refundId: String(refundRow.id),
+          restaurantName: restaurant.display_name,
+          customerEmail: customer.email,
+        },
+      });
+
+      let stripeFailure = null;
+      let stripeRefund = null;
+      try {
+        stripeRefund = await attemptStripeCreditRefund({
+          client,
+          restaurantId,
+          customerId: customer.id,
+          amountCents,
+          idempotencyKey,
+        });
+      } catch (err) {
+        stripeFailure = err;
+      }
+
+      if (stripeFailure) {
+        await client.query('ROLLBACK TO SAVEPOINT food_credit_refund_money');
+        const failureMessage = normalizeString(stripeFailure.message, 500) || 'The card refund could not be processed';
+        const { rows: [failed] } = await client.query(
+          `UPDATE food_credit_refunds
+              SET status = 'failed', reason = $2, updated_at = NOW()
+            WHERE id = $1
+            RETURNING *`,
+          [refundRow.id, `${stripeFailure.reason}: ${failureMessage}`.slice(0, 500)]
+        );
+        await logFoodWalletOperatorAudit(client, {
+          restaurantId,
+          businessId: restaurant.business_id,
+          walletAccountId: account.id,
+          customerId: customer.id,
+          operatorUserId: req.user.id,
+          actionType: 'credit_refund_failed',
+          amountCents,
+          currencyCode,
+          correlationId,
+          requestIp: req.ip || null,
+          metadata: {
+            refundId: String(refundRow.id),
+            failureReason: stripeFailure.reason,
+            idempotencyKey,
+            reason: reason || null,
+            customerEmail: customer.email,
+          },
+        });
+        return { refundRow: failed, replayed: false, stripeFailure };
+      }
+
+      const { rows: [processed] } = await client.query(
+        `UPDATE food_credit_refunds
+            SET status = 'processed', stripe_refund_id = $2, processed_at = NOW(), updated_at = NOW()
+          WHERE id = $1
+          RETURNING *`,
+        [refundRow.id, stripeRefund.id]
+      );
+      await client.query('RELEASE SAVEPOINT food_credit_refund_money');
+      await logFoodWalletOperatorAudit(client, {
+        restaurantId,
+        businessId: restaurant.business_id,
+        walletAccountId: account.id,
+        customerId: customer.id,
+        operatorUserId: req.user.id,
+        actionType: 'credit_refund',
+        amountCents,
+        currencyCode,
+        correlationId,
+        requestIp: req.ip || null,
+        metadata: {
+          refundId: String(refundRow.id),
+          stripeRefundId: stripeRefund.id,
+          idempotencyKey,
+          reason: reason || null,
+          customerEmail: customer.email,
+          restaurantName: restaurant.display_name,
+        },
+      });
+      return { refundRow: processed, replayed: false, wallet: debitResult.account };
+    }, 'food_wallet_credit_refund');
+
+    if (result.replayed) {
+      return res.status(200).json({ refund: formatCreditRefund(result.refundRow), replayed: true });
+    }
+    if (result.stripeFailure) {
+      const failed = result.stripeFailure;
+      const gatewayError = failed.reason === 'stripe_refund_failed';
+      throw new AppError(
+        gatewayError ? 'The card refund could not be processed' : failed.message,
+        gatewayError ? 502 : 409,
+        gatewayError ? 'stripe_refund_failed' : 'refund_no_payment_rail',
+        {
+          refundId: String(result.refundRow.id),
+          failureReason: failed.reason,
+        }
+      );
+    }
+    res.status(201).json({
+      refund: formatCreditRefund(result.refundRow),
+      wallet: result.wallet
+        ? {
+            accountId: String(result.wallet.id),
+            balanceCents: Number(result.wallet.balance_cents || 0),
+            currencyCode: result.wallet.currency_code,
+            status: result.wallet.status,
+          }
+        : null,
+      replayed: false,
+    });
+  } catch (err) {
+    // A cross-restaurant idempotency key collision (the key is globally
+    // unique) surfaces as a conflict rather than a 500.
+    if (err && err.code === '23505' && /food_credit_refunds/.test(String(err.constraint || err.message || ''))) {
+      return next(new AppError('Refund idempotency key already used', 409, 'wallet_refund_idempotency_conflict'));
+    }
+    next(err);
+  }
+};
+
+exports.listRestaurantWalletRefunds = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    if (!restaurantId) {
+      throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
+    }
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    assertWalletOperator(restaurant);
+    const allowed = new Set(['pending', 'processed', 'failed']);
+    const requested = String(req.query.status || '')
+      .split(',')
+      .map((part) => part.trim())
+      .filter(Boolean);
+    const statuses = requested.length ? requested : [...allowed];
+    if (statuses.some((status) => !allowed.has(status))) {
+      throw new AppError('Validation failed', 400, 'validation_failed', {
+        status: 'Status must be one of pending, processed, failed',
+      });
+    }
+    const limit = parseLimit(req.query.limit, 50, 200);
+    const { rows } = await pool.query(
+      `SELECT r.*,
+              COALESCE(NULLIF(TRIM(u.first_name || ' ' || u.last_name), ''), u.email) AS customer_name,
+              u.email AS customer_email
+         FROM food_credit_refunds r
+         LEFT JOIN users u ON u.id = r.customer_id
+        WHERE r.restaurant_id = $1
+          AND r.status = ANY($2::text[])
+        ORDER BY r.created_at DESC
+        LIMIT $3`,
+      [restaurantId, statuses, limit]
+    );
+    res.json({
+      restaurant: { id: String(restaurant.id), name: restaurant.display_name },
+      refunds: rows.map(formatCreditRefund),
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.listMyWalletRefunds = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    if (!restaurantId) {
+      throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
+    }
+    const { rows } = await pool.query(
+      `SELECT r.*,
+              fr.display_name AS restaurant_name
+         FROM food_credit_refunds r
+         JOIN food_restaurants fr ON fr.id = r.restaurant_id
+        WHERE r.restaurant_id = $1
+          AND r.customer_id = $2
+        ORDER BY r.created_at DESC
+        LIMIT 100`,
+      [restaurantId, req.user.id]
+    );
+    res.json({
+      refunds: rows.map((row) => ({ ...formatCreditRefund(row), restaurantName: row.restaurant_name || null })),
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// Phase 5: customer-facing trial-cap pre-check. Lets the RequestCreditModal
+// show the "at capacity" notice instead of payment instructions. Enforcement
+// is authoritative on the request path (createMyWalletLoadRequest); this
+// endpoint only informs the UI.
+exports.getCreditCapacity = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    if (!restaurantId) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
+    const { rows: restaurantRows } = await pool.query(
+      `SELECT id FROM food_restaurants WHERE id = $1 AND status = 'active' LIMIT 1`,
+      [restaurantId]
+    );
+    if (!restaurantRows[0]) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
+    const exposure = await getCreditExposure(restaurantId);
+    res.json({
+      at_capacity: exposure.at_capacity,
+      outstanding_cents: exposure.outstanding_cents,
+      cap_cents: exposure.cap_cents,
+      trial_cap_applies: exposure.trial_cap_applies,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// Phase 5: merchant exposure dashboard. Operator-only (owner/manager).
+// Returns the trial-cap state plus the FIFO derisk queue (top 10 oldest
+// balances) so the merchant can see what would be derisked first.
+exports.getCreditExposure = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    if (!restaurantId) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    assertWalletOperator(restaurant);
+    const exposure = await getCreditExposure(restaurantId);
+    const fifoQueue = await getFifoQueue(restaurantId, { limit: 10 });
+    res.json({
+      restaurant_id: restaurantId,
+      outstanding_cents: exposure.outstanding_cents,
+      cap_cents: exposure.cap_cents,
+      at_capacity: exposure.at_capacity,
+      trial_cap_applies: exposure.trial_cap_applies,
+      fifo_queue: fifoQueue.map((entry) => ({
+        customer_id: entry.customer_id,
+        customer_email: entry.customer_email,
+        customer_name: entry.customer_name,
+        balance_cents: entry.balance_cents,
+        oldest_activity_at: entry.oldest_activity_at,
+      })),
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// Phase 5: FIFO derisking. Operator-only (owner/manager). Migrates oldest
+// customer balances to OxSteed Credit until target_cents is covered. Each
+// customer migrates atomically; failures are reported in `skipped` without
+// aborting the run. Every migrated customer is written to the operator
+// audit trail.
+exports.deriskCredit = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    if (!restaurantId) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    assertWalletOperator(restaurant);
+    const rawTarget = req.body?.target_cents ?? req.body?.targetCents;
+    const targetCents = Math.round(Number(rawTarget));
+    if (!Number.isSafeInteger(targetCents) || targetCents <= 0) {
+      throw new AppError('Validation failed', 400, 'validation_failed', {
+        target_cents: 'Target must be a positive number of cents',
+      });
+    }
+    const result = await deriskOldest({ restaurantId, targetCents, operatorId: req.user.id });
+    await withTransaction(pool, async (client) => {
+      for (const migration of result.migrations) {
+        await logFoodWalletOperatorAudit(client, {
+          restaurantId,
+          businessId: restaurant.business_id,
+          walletAccountId: migration.wallet_account_id || null,
+          customerId: migration.customer_id,
+          operatorUserId: req.user.id,
+          actionType: 'credit_derisk',
+          amountCents: migration.amount_cents,
+          currencyCode: 'USD',
+          correlationId: result.batch_id,
+          requestIp: req.ip || null,
+          metadata: {
+            batchId: result.batch_id,
+            skippedCount: result.skipped.length,
+          },
+        });
+      }
+    }, 'credit_derisk_audit');
+    res.json({
+      batch_id: result.batch_id,
+      derisked_cents: result.derisked_cents,
+      migrations: result.migrations.map((migration) => ({
+        customer_id: migration.customer_id,
+        amount_cents: migration.amount_cents,
+      })),
+      skipped: result.skipped,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// Phase 4: shared with the credit-reserve controller, which enforces the
+// same merchant-surface authorization (requireRestaurantAccess +
+// assertWalletOperator) on the reserve purchase/balance/ledger endpoints.
+exports.requireRestaurantAccess = requireRestaurantAccess;
+exports.assertWalletOperator = assertWalletOperator;
+
+// ── Phase 6: restaurant credit approvals (the revocation path) ──────────────
+// Admins set a restaurant's platform approval to offer credit; customers and
+// merchants are blocked from new credit while approval is not 'approved'
+// (see revocationService.assertNewRestaurantCreditAllowed).
+
+const CREDIT_APPROVAL_ADMIN_STATUSES = new Set(['approved', 'suspended', 'revoked']);
+
+function formatCreditApprovalResponse(approvalRow, restaurant) {
+  const approval = revocationService.formatApproval(approvalRow);
+  return {
+    ...approval,
+    restaurantId: Number(restaurant.id),
+    restaurantName: restaurant.display_name || null,
+  };
+}
+
+exports.setRestaurantCreditApproval = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    if (!restaurantId) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
+    const status = (req.body?.status || '').toString().trim().toLowerCase();
+    if (!CREDIT_APPROVAL_ADMIN_STATUSES.has(status)) {
+      throw new AppError('Validation failed', 400, 'validation_failed', {
+        status: 'status must be one of approved, suspended, revoked',
+      });
+    }
+    const reason = normalizeString(req.body?.reason, 500);
+    if ((status === 'revoked' || status === 'suspended') && !reason) {
+      throw new AppError('Validation failed', 400, 'validation_failed', {
+        reason: `A reason is required when setting status to ${status}`,
+      });
+    }
+    const { rows: restaurantRows } = await pool.query(
+      `SELECT id, business_id, display_name FROM food_restaurants WHERE id = $1 LIMIT 1`,
+      [restaurantId]
+    );
+    const restaurant = restaurantRows[0];
+    if (!restaurant) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
+
+    const approval = await withTransaction(pool, async (client) => {
+      let approvalRow;
+      if (status === 'revoked') {
+        // Revocation starts the 30-day grace clock immediately and resets any
+        // prior migration marker so the grace-period worker picks it up.
+        const { rows } = await client.query(
+          `INSERT INTO restaurant_credit_approvals
+             (restaurant_id, status, revoked_at, revocation_reason,
+              grace_period_ends_at, approved_at, migrated_at, updated_by_user_id, updated_at)
+           VALUES ($1, 'revoked', NOW(), $2, NOW() + INTERVAL '30 days', NULL, NULL, $3, NOW())
+           ON CONFLICT (restaurant_id) DO UPDATE
+             SET status = 'revoked',
+                 revoked_at = NOW(),
+                 revocation_reason = EXCLUDED.revocation_reason,
+                 grace_period_ends_at = NOW() + INTERVAL '30 days',
+                 approved_at = NULL,
+                 migrated_at = NULL,
+                 updated_by_user_id = EXCLUDED.updated_by_user_id,
+                 updated_at = NOW()
+           RETURNING *`,
+          [restaurantId, reason, req.user.id]
+        );
+        approvalRow = rows[0];
+      } else if (status === 'suspended') {
+        // Suspension is reversible: it blocks new credit but does not start
+        // (or reset) the grace clock.
+        const { rows } = await client.query(
+          `INSERT INTO restaurant_credit_approvals
+             (restaurant_id, status, revocation_reason, approved_at, updated_by_user_id, updated_at)
+           VALUES ($1, 'suspended', $2, NULL, $3, NOW())
+           ON CONFLICT (restaurant_id) DO UPDATE
+             SET status = 'suspended',
+                 revocation_reason = EXCLUDED.revocation_reason,
+                 approved_at = NULL,
+                 updated_by_user_id = EXCLUDED.updated_by_user_id,
+                 updated_at = NOW()
+           RETURNING *`,
+          [restaurantId, reason, req.user.id]
+        );
+        approvalRow = rows[0];
+      } else {
+        // Re-approval clears the revoked/suspended state (and the grace
+        // clock). Money already migrated stays migrated.
+        const { rows } = await client.query(
+          `INSERT INTO restaurant_credit_approvals
+             (restaurant_id, status, approved_at, revoked_at, revocation_reason,
+              grace_period_ends_at, updated_by_user_id, updated_at)
+           VALUES ($1, 'approved', NOW(), NULL, NULL, NULL, $2, NOW())
+           ON CONFLICT (restaurant_id) DO UPDATE
+             SET status = 'approved',
+                 approved_at = NOW(),
+                 revoked_at = NULL,
+                 revocation_reason = NULL,
+                 grace_period_ends_at = NULL,
+                 updated_by_user_id = EXCLUDED.updated_by_user_id,
+                 updated_at = NOW()
+           RETURNING *`,
+          [restaurantId, req.user.id]
+        );
+        approvalRow = rows[0];
+      }
+
+      await logFoodWalletOperatorAudit(client, {
+        restaurantId,
+        businessId: restaurant.business_id,
+        walletAccountId: null,
+        customerId: null,
+        operatorUserId: req.user.id,
+        actionType: 'credit_approval_changed',
+        amountCents: null,
+        currencyCode: null,
+        correlationId: `credit-approval:${restaurantId}:${Date.now()}`,
+        requestIp: req.ip || null,
+        metadata: {
+          status,
+          reason: reason || null,
+          gracePeriodEndsAt: approvalRow.grace_period_ends_at
+            ? new Date(approvalRow.grace_period_ends_at).toISOString()
+            : null,
+        },
+      });
+      return approvalRow;
+    }, 'food_credit_approval_update');
+
+    // When newly approved, determine the funding path so the admin response
+    // tells the restaurant exactly how to fund its reserve. Approval isn't
+    // complete until funding_status flips to 'funded'.
+    let fundingPath = null;
+    if (status === 'approved') {
+      try {
+        const fundingService = require('../services/restaurantCreditFundingService');
+        fundingPath = await fundingService.determineFundingPath({ restaurantId });
+        // Record the chosen method on the approval row.
+        await pool.query(
+          `UPDATE restaurant_credit_approvals
+              SET funding_method = $2, updated_at = NOW()
+            WHERE restaurant_id = $1 AND funding_method IS NULL`,
+          [restaurantId, fundingPath.method]
+        );
+      } catch (fundingErr) {
+        // Funding path determination must not break the approval itself;
+        // the merchant can fetch it via the funding-path endpoint.
+        const logger = require('../utils/logger');
+        logger.warn('funding path determination failed after approval', {
+          restaurantId,
+          error: fundingErr.message,
+        });
+      }
+    }
+
+    res.json({
+      approval: formatCreditApprovalResponse(approval, restaurant),
+      fundingPath,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.getRestaurantCreditApproval = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    if (!restaurantId) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
+    const { rows: restaurantRows } = await pool.query(
+      `SELECT id, display_name FROM food_restaurants WHERE id = $1 LIMIT 1`,
+      [restaurantId]
+    );
+    if (!restaurantRows[0]) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
+    const approval = await revocationService.getCreditApproval(pool, restaurantId);
+    res.json({ approval: formatCreditApprovalResponse(approval, restaurantRows[0]) });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// Merchant read model: every restaurant the signed-in operator can access,
+// with its platform credit-approval status so they know where they stand.
+exports.getMyRestaurantCreditApproval = async (req, res, next) => {
+  try {
+    const { rows: restaurants } = await pool.query(
+      `SELECT fr.id, fr.display_name, fr.currency_code,
+              CASE
+                WHEN b.user_id = $1 OR fr.owner_user_id = $1 THEN 'owner'
+                ELSE (
+                  SELECT bm.role
+                    FROM business_members bm
+                   WHERE bm.business_id = fr.business_id
+                     AND bm.member_id = $1
+                     AND bm.status = 'active'
+                   LIMIT 1
+                )
+              END AS effective_role
+         FROM food_restaurants fr
+         JOIN businesses b ON b.id = fr.business_id
+        WHERE b.user_id = $1
+           OR fr.owner_user_id = $1
+           OR EXISTS (
+             SELECT 1 FROM business_members bm
+              WHERE bm.business_id = fr.business_id
+                AND bm.member_id = $1
+                AND bm.status = 'active'
+           )
+        ORDER BY fr.display_name ASC`,
+      [req.user.id]
+    );
+    const restaurantIds = restaurants.map((row) => Number(row.id));
+    let approvalsByRestaurant = {};
+    if (restaurantIds.length) {
+      const { rows: approvals } = await pool.query(
+        `SELECT * FROM restaurant_credit_approvals WHERE restaurant_id = ANY($1::bigint[])`,
+        [restaurantIds]
+      );
+      approvalsByRestaurant = Object.fromEntries(
+        approvals.map((row) => [Number(row.restaurant_id), row])
+      );
+    }
+    res.json({
+      restaurants: restaurants.map((row) => ({
+        ...revocationService.formatApproval(approvalsByRestaurant[Number(row.id)] || null),
+        restaurantId: Number(row.id),
+        restaurantName: row.display_name,
+        currencyCode: row.currency_code,
+        effectiveRole: row.effective_role,
+      })),
     });
   } catch (err) {
     next(err);

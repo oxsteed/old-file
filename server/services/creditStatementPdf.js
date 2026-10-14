@@ -21,7 +21,7 @@ const PDFKIT_VERSION = require('pdfkit/package.json').version;
 const LANGUAGES = new Set(['en', 'es', 'fr', 'ht', 'ar']);
 const TYPES = new Set(['load', 'purchase', 'refund', 'transfer', 'adjustment', 'settlement', 'fee', 'expiration', 'chargeback',
   'settlement_reversal', 'funding', 'reserve_release', 'conversion_debit', 'conversion_fee', 'conversion_credit', 'cash_out',
-  'sub_bank_load', 'sub_bank_redemption', 'sub_bank_refund', 'sub_bank_opening_balance', 'withdrawal_fee', 'transfer_fee', 'sub_bank_conversion']);
+  'sub_bank_load', 'sub_bank_redemption', 'sub_bank_refund', 'sub_bank_opening_balance', 'sub_bank_load_reversal', 'withdrawal_fee', 'transfer_fee', 'sub_bank_conversion']);
 const FONT_DIR = path.join(__dirname, '../assets/fonts');
 const MAX_ROWS = 5000;
 const MAX_TEXT = 4096;

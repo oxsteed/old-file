@@ -90,6 +90,9 @@ const POSTABLE_CREDIT_TRANSACTION_TYPES = Object.freeze([
   'funding', 'reserve_release', 'conversion_debit', 'conversion_fee', 'conversion_credit',
   'cash_out',
   'sub_bank_load', 'sub_bank_redemption', 'sub_bank_refund', 'sub_bank_opening_balance',
+  // Phase 2 restaurant credit refunds: exact reversal of sub_bank_load
+  // (debit restaurant_sub_bank, credit platform_treasury).
+  'sub_bank_load_reversal',
   // Phase 6: fee legs for withdrawals and customer transfers (mirroring
   // conversion_fee), and restaurant-credit -> OxSteed-credit conversions.
   'withdrawal_fee', 'transfer_fee', 'sub_bank_conversion', 'sub_bank_payout_reversal',
@@ -1260,7 +1263,7 @@ async function postJournalTransaction(client, input) {
       throw new AppError('Credit payout reversal account direction is invalid', 400, 'credit_sub_bank_payout_reversal_direction_invalid');
     }
   }
-  if (['sub_bank_load', 'sub_bank_redemption', 'sub_bank_refund', 'sub_bank_opening_balance'].includes(input.transactionType)) {
+  if (['sub_bank_load', 'sub_bank_redemption', 'sub_bank_refund', 'sub_bank_opening_balance', 'sub_bank_load_reversal'].includes(input.transactionType)) {
     // Restaurant sub-bank dual-postings (Phase 1 central-bank model). These
     // mirror the DB trigger branches added in migration 632 so a misrouted
     // posting fails with a clear application error before reaching the DB.
@@ -1268,6 +1271,9 @@ async function postJournalTransaction(client, input) {
       (input.transactionType === 'sub_bank_load'
         && ['platform_treasury', 'customer_wallet'].includes(debitAccount.account_type)
         && creditAccount.account_type === 'restaurant_sub_bank')
+      || (input.transactionType === 'sub_bank_load_reversal'
+        && debitAccount.account_type === 'restaurant_sub_bank'
+        && creditAccount.account_type === 'platform_treasury')
       || (input.transactionType === 'sub_bank_redemption'
         && debitAccount.account_type === 'restaurant_sub_bank'
         && creditAccount.account_type === 'partner_payable'
