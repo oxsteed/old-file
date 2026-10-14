@@ -194,7 +194,11 @@ async function getOrder(req, res) {
           discountCents: order.discount_cents,
           totalCents: order.total_cents
         },
-        shippingAddress: order.shipping_address ? JSON.parse(order.shipping_address) : {},
+        // ADM-010: shipping_address is JSONB — node-pg already parses it into
+        // an object, so JSON.parse would throw on the string "[object Object]".
+        shippingAddress: typeof order.shipping_address === 'string'
+          ? JSON.parse(order.shipping_address)
+          : (order.shipping_address || {}),
         items: itemsResult.rows.map(i => ({
           id: i.id,
           productId: i.product_id,

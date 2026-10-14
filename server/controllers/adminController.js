@@ -311,7 +311,7 @@ exports.getMarkets = async (req, res) => {
       return res.json({ markets: [] });
     }
     const { rows } = await db.query(
-      'SELECT id, name, state, zipcodes, active, launched_at FROM markets ORDER BY name'
+      'SELECT id, name, state, zip_codes, is_active, launched_at FROM markets ORDER BY name'
     );
     res.json({ markets: rows });
   } catch (err) {
@@ -338,12 +338,12 @@ exports.addZipCodes = async (req, res) => {
 
     const { rows } = await db.query(
       `UPDATE markets
-       SET zipcodes = (
-         SELECT ARRAY(SELECT DISTINCT unnest(zipcodes || $1::text[]))
+       SET zip_codes = (
+         SELECT ARRAY(SELECT DISTINCT unnest(zip_codes || $1::text[]))
        ),
        updated_at = NOW()
        WHERE id = $2
-       RETURNING id, name, state, zipcodes, active`,
+       RETURNING id, name, state, zip_codes, is_active`,
       [zipCodes, marketId]
     );
 
@@ -383,12 +383,12 @@ exports.removeZipCodes = async (req, res) => {
 
     const { rows } = await db.query(
       `UPDATE markets
-       SET zipcodes = (
-         SELECT ARRAY(SELECT unnest(zipcodes) EXCEPT SELECT unnest($1::text[]))
+       SET zip_codes = (
+         SELECT ARRAY(SELECT unnest(zip_codes) EXCEPT SELECT unnest($1::text[]))
        ),
        updated_at = NOW()
        WHERE id = $2
-       RETURNING id, name, state, zipcodes, active`,
+       RETURNING id, name, state, zip_codes, is_active`,
       [zipCodes, marketId]
     );
 

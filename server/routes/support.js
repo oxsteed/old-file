@@ -1047,8 +1047,10 @@ router.get('/performance/:agentId', async (req, res, next) => {
         `SELECT sc.created_at::date AS date,
                 COUNT(*)::int AS conversations,
                 COUNT(*) FILTER (WHERE sc.status IN ('resolved', 'closed'))::int AS resolved,
-                ROUND(AVG(EXTRACT(EPOCH FROM (sc.first_response_at - sc.created_at)))::numeric)::int AS avg_response_time_seconds
+                ROUND(AVG(EXTRACT(EPOCH FROM (sc.first_response_at - sc.created_at)))::numeric)::int AS avg_response_time_seconds,
+                ROUND(AVG(scr.rating)::numeric, 1) AS rating
          FROM support_conversations sc
+         LEFT JOIN support_conversation_reviews scr ON scr.conversation_id = sc.id
          WHERE sc.agent_id = $1
            AND sc.created_at >= CURRENT_TIMESTAMP - INTERVAL '${days} days'
            AND ($2::integer IS NULL OR sc.business_id = $2::integer)

@@ -91,14 +91,14 @@ export default function MarketZipCodes() {
                 {market.name}, {market.state}
               </h2>
               <p className="text-sm text-zinc-400">
-                {market.active ? t('adminMarketZipCodes.statusActive') : t('adminMarketZipCodes.statusInactive')} &middot; {t('adminMarketZipCodes.zipCount', { count: market.zipcodes?.length || 0 })}
+                {market.is_active ? t('adminMarketZipCodes.statusActive') : t('adminMarketZipCodes.statusInactive')} &middot; {t('adminMarketZipCodes.zipCount', { count: market.zip_codes?.length || 0 })}
               </p>
             </div>
           </div>
 
           {/* Current zip codes */}
           <div className="flex flex-wrap gap-2 mb-4">
-            {(market.zipcodes || []).sort().map(zip => (
+            {(market.zip_codes || []).sort().map(zip => (
               <span key={zip} className="inline-flex items-center gap-1 px-3 py-1
                 bg-zinc-800 text-zinc-200 rounded-full text-sm border border-zinc-700">
                 {zip}

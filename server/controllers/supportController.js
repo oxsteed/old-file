@@ -574,8 +574,14 @@ exports.listTickets = async (req, res) => {
       [...params, limitN, offsetN]
     );
 
+    // ADM-122: the count query must carry the same users join as the list
+    // query — the regional ${where} fragment references u.*, so without the
+    // join regional admins get "missing FROM-clause entry for table u" 500s.
     const { rows: [{ total }] } = await db.query(
-      `SELECT COUNT(*) AS total FROM support_tickets t ${where}`,
+      `SELECT COUNT(*) AS total
+       FROM support_tickets t
+       LEFT JOIN users u ON t.user_id = u.id
+       ${where}`,
       params
     );
 
