@@ -2,6 +2,7 @@
 
 const crypto = require('crypto');
 const pool = require('../db');
+const stripe = process.env.STRIPE_SECRET_KEY ? require('stripe')(process.env.STRIPE_SECRET_KEY) : null;
 const { AppError } = require('../middleware/errorHandler');
 const { withTransaction } = require('../utils/transaction');
 const { logFoodWalletOperatorAudit } = require('../services/foodWalletAuditService');
@@ -9,6 +10,7 @@ const { evaluateFundingCompliance } = require('../services/fiatComplianceService
 const foodCreditFraudService = require('../services/foodCreditFraudService');
 const {
   creditFoodWallet,
+  debitFoodWallet,
   loadWalletAccountsForUser,
   verifyWalletIntegrityForCustomer,
 } = require('../services/foodWalletService');
@@ -2136,6 +2138,471 @@ exports.getCustomerWalletStatement = async (req, res, next) => {
           customerScoped: Boolean(customer),
         },
       },
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// ─── Phase 2: restaurant-initiated credit refunds ────────────────────────────
+// A refund deducts credit from the customer's food wallet and pushes the money
+// back to the customer over Stripe. Money code fails closed: the wallet
+// deduction and the Stripe leg run in one transaction, and if Stripe cannot
+// complete, the deduction is rolled back to a savepoint so the customer's
+// balance is unchanged while the refund row persists as 'failed' for audit.
+
+const FOOD_WALLET_REFUND_MAX_CENTS = Math.max(
+  1,
+  Number.parseInt(process.env.FOOD_WALLET_REFUND_MAX_CENTS || '100000', 10)
+);
+const FOOD_WALLET_REFUND_WINDOW_DAYS = Math.max(
+  1,
+  Number.parseInt(process.env.FOOD_WALLET_REFUND_WINDOW_DAYS || '30', 10)
+);
+
+class StripeRefundLegError extends Error {
+  constructor(reason, message) {
+    super(message);
+    this.name = 'StripeRefundLegError';
+    this.reason = reason;
+  }
+}
+
+function formatCreditRefund(row) {
+  if (!row) return null;
+  return {
+    id: String(row.id),
+    walletId: row.wallet_id ? String(row.wallet_id) : null,
+    restaurantId: String(row.restaurant_id),
+    customerId: row.customer_id,
+    customerName: row.customer_name || null,
+    customerEmail: row.customer_email || null,
+    amountCents: Number(row.amount_cents || 0),
+    amount: Number(row.amount_cents || 0) / 100,
+    currencyCode: row.currency_code,
+    status: row.status,
+    stripeRefundId: row.stripe_refund_id || null,
+    idempotencyKey: row.idempotency_key,
+    reason: row.reason || null,
+    initiatedBy: row.initiated_by || null,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+    processedAt: row.processed_at || null,
+  };
+}
+
+function assertCreditRefundReplayMatches(existing, { customerId, amountCents, currencyCode }) {
+  const mismatches = {};
+  if (String(existing.customer_id) !== String(customerId)) {
+    mismatches.customerId = { existing: existing.customer_id, requested: customerId };
+  }
+  if (Number(existing.amount_cents || 0) !== Number(amountCents || 0)) {
+    mismatches.amountCents = { existing: Number(existing.amount_cents || 0), requested: Number(amountCents || 0) };
+  }
+  if (normalizeCurrency(existing.currency_code) !== normalizeCurrency(currencyCode)) {
+    mismatches.currencyCode = {
+      existing: normalizeCurrency(existing.currency_code),
+      requested: normalizeCurrency(currencyCode),
+    };
+  }
+  if (Object.keys(mismatches).length) {
+    throw new AppError('Refund idempotency conflict', 409, 'wallet_refund_idempotency_conflict', { mismatches });
+  }
+}
+
+async function findCreditRefundByIdempotencyKey(client, restaurantId, idempotencyKey) {
+  const { rows } = await client.query(
+    `SELECT * FROM food_credit_refunds
+      WHERE restaurant_id = $1 AND idempotency_key = $2
+      LIMIT 1`,
+    [restaurantId, idempotencyKey]
+  );
+  return rows[0] || null;
+}
+
+// The Stripe leg reverses the customer's most recent card charge at this
+// restaurant. Wallet credit itself was issued off-platform, so there is no
+// original charge to reverse; a recent paid food_orders charge is the only
+// card rail available to push money back. When none exists the leg fails
+// closed and the wallet is left untouched.
+async function attemptStripeCreditRefund({ client, restaurantId, customerId, amountCents, idempotencyKey }) {
+  if (!stripe) {
+    throw new StripeRefundLegError('stripe_not_configured', 'Card refunds are not configured for this restaurant');
+  }
+  const { rows } = await client.query(
+    `SELECT id, stripe_payment_intent_id, metadata
+       FROM food_orders
+      WHERE restaurant_id = $1
+        AND customer_id = $2
+        AND stripe_payment_intent_id IS NOT NULL
+        AND payment_status IN ('paid', 'partially_refunded')
+      ORDER BY created_at DESC
+      LIMIT 1`,
+    [restaurantId, customerId]
+  );
+  const order = rows[0];
+  if (!order) {
+    throw new StripeRefundLegError(
+      'no_stripe_payment_method_on_file',
+      'No card payment on file for this customer at this restaurant'
+    );
+  }
+  const metadata = (order.metadata && typeof order.metadata === 'object') ? order.metadata : {};
+  const checkoutMeta = metadata.stripeCheckout || metadata.stripe_checkout || {};
+  const connectedAccountId = checkoutMeta.connectedAccountId || null;
+  const destinationCharge = checkoutMeta.destinationCharge === true;
+  try {
+    const refundParams = { payment_intent: order.stripe_payment_intent_id, amount: amountCents };
+    if (destinationCharge && !connectedAccountId) {
+      refundParams.reverse_transfer = true;
+      refundParams.refund_application_fee = true;
+    }
+    const refund = await stripe.refunds.create(
+      refundParams,
+      {
+        stripeAccount: (!destinationCharge && connectedAccountId) ? connectedAccountId : undefined,
+        idempotencyKey: `food-credit-refund:${idempotencyKey}`,
+      }
+    );
+    if (!refund || !refund.id) {
+      throw new Error('Stripe returned an empty refund');
+    }
+    if (refund.status === 'failed' || refund.status === 'canceled' || refund.status === 'cancelled') {
+      throw new Error(`Stripe refund came back ${refund.status}`);
+    }
+    if (Number(refund.amount) !== Number(amountCents)) {
+      throw new Error('Stripe refund amount did not match the requested amount');
+    }
+    return refund;
+  } catch (err) {
+    if (err instanceof StripeRefundLegError) throw err;
+    throw new StripeRefundLegError('stripe_refund_failed', err.message || 'The card refund could not be processed');
+  }
+}
+
+exports.createCustomerWalletRefund = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    if (!restaurantId) {
+      throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
+    }
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    assertWalletOperator(restaurant);
+    const customer = await resolveCustomer(req.body);
+    const amountCents = parsePositiveMoneyCents(req.body);
+    const currencyCode = normalizeCurrency(req.body.currencyCode || req.body.currency_code || restaurant.currency_code);
+    const idempotencyKey = normalizeString(req.body.idempotencyKey || req.body.idempotency_key, 120);
+    if (!idempotencyKey) {
+      throw new AppError('Validation failed', 400, 'validation_failed', {
+        idempotencyKey: 'A client idempotency key is required',
+      });
+    }
+    if (amountCents > FOOD_WALLET_REFUND_MAX_CENTS) {
+      throw new AppError('Validation failed', 400, 'validation_failed', {
+        amountCents: `Refund amount exceeds the maximum of ${FOOD_WALLET_REFUND_MAX_CENTS} cents`,
+      });
+    }
+    const reason = normalizeString(req.body.reason, 500);
+    const correlationId = normalizeString(
+      req.body.correlationId || req.body.correlation_id || idempotencyKey,
+      120
+    );
+
+    // Fast path: the same idempotency key with the same params replays the
+    // existing row. A previously 'failed' row falls through so the operator
+    // can retry the money movement with the same key.
+    const preExisting = await findCreditRefundByIdempotencyKey(pool, restaurantId, idempotencyKey);
+    if (preExisting && preExisting.status !== 'failed') {
+      assertCreditRefundReplayMatches(preExisting, { customerId: customer.id, amountCents, currencyCode });
+      return res.status(200).json({ refund: formatCreditRefund(preExisting), replayed: true });
+    }
+
+    const result = await withTransaction(pool, async (client) => {
+      await client.query(
+        `SELECT pg_advisory_xact_lock(hashtextextended($1, 0))`,
+        [`food-credit-refund:${restaurantId}:${idempotencyKey}`]
+      );
+      let refundRow = await findCreditRefundByIdempotencyKey(client, restaurantId, idempotencyKey);
+      if (refundRow && refundRow.status !== 'failed') {
+        assertCreditRefundReplayMatches(refundRow, { customerId: customer.id, amountCents, currencyCode });
+        return { refundRow, replayed: true };
+      }
+      if (refundRow) {
+        assertCreditRefundReplayMatches(refundRow, { customerId: customer.id, amountCents, currencyCode });
+      }
+
+      // Lock the wallet account first; every check below fails closed.
+      const account = await loadWalletAccountForOperator(client, restaurantId, customer.id);
+      if (account.status !== 'active') {
+        throw new AppError('Restaurant credit wallet is not active', 409, 'wallet_inactive', {
+          status: account.status,
+        });
+      }
+      if (normalizeCurrency(account.currency_code) !== currencyCode) {
+        throw new AppError('Wallet currency mismatch', 409, 'wallet_currency_mismatch', {
+          expectedCurrencyCode: normalizeCurrency(account.currency_code),
+          receivedCurrencyCode: currencyCode,
+        });
+      }
+      const reservedCents = Number(account.reserved_cents || 0);
+      const availableCents = Number(account.balance_cents || 0) - reservedCents;
+      if (availableCents < amountCents) {
+        throw new AppError('Insufficient restaurant wallet balance', 409, 'wallet_insufficient_funds', {
+          balanceCents: String(account.balance_cents || 0),
+          reservedCents: String(reservedCents),
+          availableBalanceCents: String(Math.max(0, availableCents)),
+          requestedCents: String(amountCents),
+        });
+      }
+
+      // 30-day issuance rule: only credit issued within the window is
+      // refundable, measured from the hash-chained wallet ledger. The rule is
+      // approximate when the customer spent and re-topped-up inside the
+      // window (old credit and new credit are fungible in the balance); the
+      // configurable per-refund max is the backstop for that case.
+      const { rows: issuedRows } = await client.query(
+        `SELECT COALESCE(SUM(amount_cents), 0) AS issued_cents
+           FROM food_customer_wallet_ledger
+          WHERE account_id = $1
+            AND entry_type = 'credit'
+            AND created_at >= NOW() - make_interval(days => $2)`,
+        [account.id, FOOD_WALLET_REFUND_WINDOW_DAYS]
+      );
+      const issuedCents = Number(issuedRows[0]?.issued_cents || 0);
+      if (issuedCents < amountCents) {
+        throw new AppError(
+          `Only credit issued in the last ${FOOD_WALLET_REFUND_WINDOW_DAYS} days can be refunded`,
+          409,
+          'wallet_refund_outside_window',
+          {
+            issuedInWindowCents: String(issuedCents),
+            requestedCents: String(amountCents),
+            windowDays: FOOD_WALLET_REFUND_WINDOW_DAYS,
+          }
+        );
+      }
+
+      if (refundRow && refundRow.status === 'failed') {
+        const { rows: [reopened] } = await client.query(
+          `UPDATE food_credit_refunds
+              SET status = 'pending', reason = $2, stripe_refund_id = NULL, updated_at = NOW()
+            WHERE id = $1
+            RETURNING *`,
+          [refundRow.id, reason]
+        );
+        refundRow = reopened;
+      } else {
+        const { rows: [inserted] } = await client.query(
+          `INSERT INTO food_credit_refunds
+             (wallet_id, customer_id, restaurant_id, amount_cents, currency_code,
+              status, reason, idempotency_key, initiated_by)
+           VALUES ($1,$2,$3,$4,$5,'pending',$6,$7,$8)
+           RETURNING *`,
+          [account.id, customer.id, restaurantId, amountCents, currencyCode, reason, idempotencyKey, req.user.id]
+        );
+        refundRow = inserted;
+      }
+
+      // Move the money under a savepoint: deduct the wallet, then attempt the
+      // Stripe leg. If Stripe cannot complete, roll back to the savepoint so
+      // the customer's balance is unchanged and persist the row as 'failed'.
+      await client.query('SAVEPOINT food_credit_refund_money');
+      const debitResult = await debitFoodWallet(client, {
+        restaurantId,
+        customerId: customer.id,
+        currencyCode,
+        amountCents,
+        description: normalizeString(`Credit refund${reason ? `: ${reason}` : ''}`, 255)
+          || 'Credit refund',
+        referenceType: 'credit_refund',
+        referenceId: `credit-refund:${refundRow.id}`,
+        idempotencyKey: `credit-refund-debit:${idempotencyKey}`,
+        createdByUserId: req.user.id,
+        correlationId,
+        actorType: 'restaurant_staff',
+        metadata: {
+          source: 'merchant_credit_refund',
+          refundId: String(refundRow.id),
+          restaurantName: restaurant.display_name,
+          customerEmail: customer.email,
+        },
+      });
+
+      let stripeFailure = null;
+      let stripeRefund = null;
+      try {
+        stripeRefund = await attemptStripeCreditRefund({
+          client,
+          restaurantId,
+          customerId: customer.id,
+          amountCents,
+          idempotencyKey,
+        });
+      } catch (err) {
+        stripeFailure = err;
+      }
+
+      if (stripeFailure) {
+        await client.query('ROLLBACK TO SAVEPOINT food_credit_refund_money');
+        const failureMessage = normalizeString(stripeFailure.message, 500) || 'The card refund could not be processed';
+        const { rows: [failed] } = await client.query(
+          `UPDATE food_credit_refunds
+              SET status = 'failed', reason = $2, updated_at = NOW()
+            WHERE id = $1
+            RETURNING *`,
+          [refundRow.id, `${stripeFailure.reason}: ${failureMessage}`.slice(0, 500)]
+        );
+        await logFoodWalletOperatorAudit(client, {
+          restaurantId,
+          businessId: restaurant.business_id,
+          walletAccountId: account.id,
+          customerId: customer.id,
+          operatorUserId: req.user.id,
+          actionType: 'credit_refund_failed',
+          amountCents,
+          currencyCode,
+          correlationId,
+          requestIp: req.ip || null,
+          metadata: {
+            refundId: String(refundRow.id),
+            failureReason: stripeFailure.reason,
+            idempotencyKey,
+            reason: reason || null,
+            customerEmail: customer.email,
+          },
+        });
+        return { refundRow: failed, replayed: false, stripeFailure };
+      }
+
+      const { rows: [processed] } = await client.query(
+        `UPDATE food_credit_refunds
+            SET status = 'processed', stripe_refund_id = $2, processed_at = NOW(), updated_at = NOW()
+          WHERE id = $1
+          RETURNING *`,
+        [refundRow.id, stripeRefund.id]
+      );
+      await client.query('RELEASE SAVEPOINT food_credit_refund_money');
+      await logFoodWalletOperatorAudit(client, {
+        restaurantId,
+        businessId: restaurant.business_id,
+        walletAccountId: account.id,
+        customerId: customer.id,
+        operatorUserId: req.user.id,
+        actionType: 'credit_refund',
+        amountCents,
+        currencyCode,
+        correlationId,
+        requestIp: req.ip || null,
+        metadata: {
+          refundId: String(refundRow.id),
+          stripeRefundId: stripeRefund.id,
+          idempotencyKey,
+          reason: reason || null,
+          customerEmail: customer.email,
+          restaurantName: restaurant.display_name,
+        },
+      });
+      return { refundRow: processed, replayed: false, wallet: debitResult.account };
+    }, 'food_wallet_credit_refund');
+
+    if (result.replayed) {
+      return res.status(200).json({ refund: formatCreditRefund(result.refundRow), replayed: true });
+    }
+    if (result.stripeFailure) {
+      const failed = result.stripeFailure;
+      const gatewayError = failed.reason === 'stripe_refund_failed';
+      throw new AppError(
+        gatewayError ? 'The card refund could not be processed' : failed.message,
+        gatewayError ? 502 : 409,
+        gatewayError ? 'stripe_refund_failed' : 'refund_no_payment_rail',
+        {
+          refundId: String(result.refundRow.id),
+          failureReason: failed.reason,
+        }
+      );
+    }
+    res.status(201).json({
+      refund: formatCreditRefund(result.refundRow),
+      wallet: result.wallet
+        ? {
+            accountId: String(result.wallet.id),
+            balanceCents: Number(result.wallet.balance_cents || 0),
+            currencyCode: result.wallet.currency_code,
+            status: result.wallet.status,
+          }
+        : null,
+      replayed: false,
+    });
+  } catch (err) {
+    // A cross-restaurant idempotency key collision (the key is globally
+    // unique) surfaces as a conflict rather than a 500.
+    if (err && err.code === '23505' && /food_credit_refunds/.test(String(err.constraint || err.message || ''))) {
+      return next(new AppError('Refund idempotency key already used', 409, 'wallet_refund_idempotency_conflict'));
+    }
+    next(err);
+  }
+};
+
+exports.listRestaurantWalletRefunds = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    if (!restaurantId) {
+      throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
+    }
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    assertWalletOperator(restaurant);
+    const allowed = new Set(['pending', 'processed', 'failed']);
+    const requested = String(req.query.status || '')
+      .split(',')
+      .map((part) => part.trim())
+      .filter(Boolean);
+    const statuses = requested.length ? requested : [...allowed];
+    if (statuses.some((status) => !allowed.has(status))) {
+      throw new AppError('Validation failed', 400, 'validation_failed', {
+        status: 'Status must be one of pending, processed, failed',
+      });
+    }
+    const limit = parseLimit(req.query.limit, 50, 200);
+    const { rows } = await pool.query(
+      `SELECT r.*,
+              COALESCE(NULLIF(TRIM(u.first_name || ' ' || u.last_name), ''), u.email) AS customer_name,
+              u.email AS customer_email
+         FROM food_credit_refunds r
+         LEFT JOIN users u ON u.id = r.customer_id
+        WHERE r.restaurant_id = $1
+          AND r.status = ANY($2::text[])
+        ORDER BY r.created_at DESC
+        LIMIT $3`,
+      [restaurantId, statuses, limit]
+    );
+    res.json({
+      restaurant: { id: String(restaurant.id), name: restaurant.display_name },
+      refunds: rows.map(formatCreditRefund),
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.listMyWalletRefunds = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    if (!restaurantId) {
+      throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
+    }
+    const { rows } = await pool.query(
+      `SELECT r.*,
+              fr.display_name AS restaurant_name
+         FROM food_credit_refunds r
+         JOIN food_restaurants fr ON fr.id = r.restaurant_id
+        WHERE r.restaurant_id = $1
+          AND r.customer_id = $2
+        ORDER BY r.created_at DESC
+        LIMIT 100`,
+      [restaurantId, req.user.id]
+    );
+    res.json({
+      refunds: rows.map((row) => ({ ...formatCreditRefund(row), restaurantName: row.restaurant_name || null })),
     });
   } catch (err) {
     next(err);

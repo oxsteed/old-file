@@ -81,6 +81,7 @@ router.get('/customer/wallets/:restaurantId/disputes', disputeCtrl.listMyDispute
 // the same gating used by server/routes/admin.js.
 router.get('/admin/fraud-signals', requireAdmin, walletCtrl.listFraudSignals);
 router.post('/admin/fraud-signals/:id/review', requireAdmin, walletCtrl.reviewFraudSignal);
+router.get('/customer/wallets/:restaurantId/refunds', walletCtrl.listMyWalletRefunds);
 router.get('/customer/favorites', authenticate, ctrl.listCustomerFavoriteRestaurants);
 router.post('/customer/favorites/:restaurantId/toggle', authenticate, ctrl.toggleCustomerFavoriteRestaurant);
 router.get('/customer/favorite-items', authenticate, ctrl.listCustomerFavoriteItems);
@@ -127,6 +128,7 @@ router.use('/restaurants/:restaurantId/customer-wallet-status', authenticate, no
 router.use('/restaurants/:restaurantId/customer-wallet-integrity', authenticate, noStoreCreditResponse);
 router.use('/restaurants/:restaurantId/customer-wallet-reconciliation', authenticate, noStoreCreditResponse);
 router.use('/restaurants/:restaurantId/customer-wallet-statement', authenticate, noStoreCreditResponse);
+router.use('/merchant/wallets/:restaurantId/refunds', authenticate, noStoreCreditResponse);
 router.post('/restaurants/:restaurantId/customer-wallet-loads', restaurantCreditMutationLimiter, walletCtrl.loadCustomerWallet);
 router.post('/restaurants/:restaurantId/customer-wallet-load-requests', restaurantCreditMutationLimiter, walletCtrl.loadCustomerWallet);
 router.get('/restaurants/:restaurantId/customer-wallet-load-requests', walletCtrl.listCustomerWalletLoadRequests);
@@ -136,6 +138,10 @@ router.patch('/restaurants/:restaurantId/customer-wallet-status', restaurantCred
 router.get('/restaurants/:restaurantId/customer-wallet-integrity', walletCtrl.verifyCustomerWalletIntegrity);
 router.get('/restaurants/:restaurantId/customer-wallet-reconciliation', walletCtrl.getCustomerWalletReconciliation);
 router.get('/restaurants/:restaurantId/customer-wallet-statement', walletCtrl.getCustomerWalletStatement);
+// Phase 2: restaurant-initiated credit refunds. Operator authorization is
+// enforced inside the controller (requireRestaurantAccess + assertWalletOperator).
+router.post('/merchant/wallets/:restaurantId/refunds', restaurantCreditMutationLimiter, walletCtrl.createCustomerWalletRefund);
+router.get('/merchant/wallets/:restaurantId/refunds', walletCtrl.listRestaurantWalletRefunds);
 router.get('/restaurants/:restaurantId/oxsteed-credit/settlements', authenticate, noStoreCreditResponse, oxsteedCreditPartnerCtrl.listPartnerSettlements);
 router.get('/restaurants/:restaurantId/oxsteed-credit/transactions', authenticate, noStoreCreditResponse, oxsteedCreditPartnerCtrl.listPartnerTransactions);
 router.get('/restaurants/:restaurantId/oxsteed-credit/ledger', authenticate, noStoreCreditResponse, oxsteedCreditPartnerCtrl.getPartnerCreditLedger);

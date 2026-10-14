@@ -54,6 +54,11 @@ const SUB_BANK_REDEMPTION = 'sub_bank_redemption';
 const SUB_BANK_REFUND = 'sub_bank_refund';
 const SUB_BANK_OPENING_BALANCE = 'sub_bank_opening_balance';
 const SUB_BANK_CONVERSION = 'sub_bank_conversion';
+// Phase 2 restaurant credit refunds: exact reversal of a sub_bank_load.
+// The restaurant's customer-credit liability falls and the issuance funding
+// returns to the platform treasury (the restaurant already paid the customer
+// back directly, so no partner_payable is created).
+const SUB_BANK_LOAD_REVERSAL = 'sub_bank_load_reversal';
 
 // Food-wallet reference types that issue new restaurant credit.
 // 'restaurant_conversion_in' is the Phase 6 OxSteed -> restaurant
@@ -69,10 +74,15 @@ const TRANSFER_REFERENCE_TYPES = new Set(['wallet_transfer_in', 'wallet_transfer
 // amount travels in metadata (conversionConvertedAmountCents) because the
 // wallet debit is the pre-rate source amount.
 const CONVERSION_OUT_REFERENCE_TYPES = new Set(['restaurant_conversion_out']);
+// Phase 2 restaurant credit refunds: wallet debits that return issued credit
+// to the customer. These reverse the original sub_bank_load issuance rather
+// than posting a redemption (no partner_payable: the restaurant paid the
+// customer back directly, the platform owes the restaurant nothing).
+const LOAD_REVERSAL_REFERENCE_TYPES = new Set(['credit_refund']);
 
 /**
  * Map a food-wallet ledger entry to its central-journal action.
- * Returns 'load' | 'redemption' | 'refund' | 'conversion_out' | 'skip_transfer'.
+ * Returns 'load' | 'redemption' | 'refund' | 'conversion_out' | 'load_reversal' | 'skip_transfer'.
  * Throws for any money-moving entry without a defined posting rule (fail closed).
  */
 function resolveDualPostingAction(entryType, referenceType) {
@@ -80,6 +90,7 @@ function resolveDualPostingAction(entryType, referenceType) {
   if (entryType === 'debit' && CONVERSION_OUT_REFERENCE_TYPES.has(referenceType)) return 'conversion_out';
   if (entryType === 'credit' && LOAD_REFERENCE_TYPES.has(referenceType)) return 'load';
   if (entryType === 'debit' && REDEMPTION_REFERENCE_TYPES.has(referenceType)) return 'redemption';
+  if (entryType === 'debit' && LOAD_REVERSAL_REFERENCE_TYPES.has(referenceType)) return 'load_reversal';
   if (entryType === 'refund') return 'refund';
   throw new AppError('Food-wallet entry has no central-bank posting rule', 500, 'food_wallet_dual_posting_unmapped', {
     entryType: String(entryType),
@@ -383,6 +394,18 @@ async function postFoodWalletDualEntry(client, {
       description: `Restaurant credit redemption dual-posting (wallet ledger entry ${ledgerEntryId})`,
       metadata: postingMetadata,
     };
+  } else if (action === 'load_reversal') {
+    // Restaurant credit refunded to the customer: the restaurant's
+    // customer-credit liability falls and the issuance funding returns to
+    // the platform treasury (exact reversal of the sub_bank_load posting).
+    spec = {
+      ...shared,
+      transactionType: SUB_BANK_LOAD_REVERSAL,
+      debitAccountId: subBank.id,
+      creditAccountId: treasury.id,
+      description: `Restaurant credit refund dual-posting (wallet ledger entry ${ledgerEntryId})`,
+      metadata: postingMetadata,
+    };
   } else {
     // action === 'refund': exact reversal of the redemption posting.
     const payable = await ensureAccount(client, {
@@ -586,6 +609,7 @@ module.exports = {
   SUB_BANK_REDEMPTION,
   SUB_BANK_REFUND,
   SUB_BANK_OPENING_BALANCE,
+  SUB_BANK_LOAD_REVERSAL,
   resolveDualPostingAction,
   ensureRestaurantPartner,
   ensureRestaurantSubBankAccount,
