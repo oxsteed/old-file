@@ -2801,7 +2801,12 @@ async function adjustCustomerCreditInTransaction(client, { customerId, amountCen
   if (!normalizeString(idempotencyKey, 160)) throw new AppError('Idempotency-Key is required for credit adjustments', 400, 'credit_idempotency_key_required');
   if (!['credit', 'debit'].includes(direction)) throw new AppError('Adjustment direction must be credit or debit', 400, 'credit_adjustment_direction_invalid');
   if (!normalizeString(reason, 2)) throw new AppError('A reason is required for credit adjustments', 400, 'credit_adjustment_reason_required');
-  if (direction === 'credit' && !normalizeString(referenceId, 160)) throw new AppError('A funding reference is required for positive administrative credit adjustments', 400, 'credit_funding_reference_required');
+  // ADM-154: credits and debits both move real customer balances and must be
+  // traceable. The dedicated admin endpoint requires a funding reference for
+  // both directions, but the generic pending-actions maker endpoint bypassed
+  // it; enforce the requirement here at the shared choke point so a debit
+  // can never execute without a reference.
+  if (!normalizeString(referenceId, 160)) throw new AppError('A funding reference is required for administrative credit adjustments', 400, 'credit_funding_reference_required');
   if (allowMediaCreatorOwner === true) {
     if (referenceType !== 'oxsteed_credit_dispute' || direction !== 'credit' || normalizedActorType !== 'admin') throw new AppError('Creator wallet adjustment requires an audited Media dispute.', 403, 'credit_creator_adjustment_scope_invalid');
     const { rows: scopeRows } = await client.query(

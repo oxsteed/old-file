@@ -65,6 +65,10 @@ const {
   issueProvisionalCredit,
   resolveDisputeWithCompensation,
 } = require('./oxsteedCreditDisputeService');
+// ADM-019/ADM-114: re-evaluate the fiat compliance choke point at checker
+// execution time for funding actions; the maker-time pass can be up to 24h
+// stale by the time money moves.
+const { evaluateFundingCompliance } = require('./fiatComplianceService');
 
 const PENDING_ACTION_TTL_HOURS = Math.max(
   1,
@@ -644,6 +648,21 @@ async function decidePendingAction({ actionId, decidedBy, decision, reason, step
     const executor = ACTION_EXECUTORS[action.action_type];
     if (!executor) throw new AppError('Unsupported pending action type', 400, 'credit_pending_action_type_invalid');
     const storedPayload = { ...(action.payload || {}), idempotencyKey: action.idempotency_key };
+    // ADM-019/ADM-114: the compliance choke point ran at maker time, up to
+    // 24h before this approval. Re-evaluate now, at the moment money moves,
+    // so a sanctions hit or identity-tier change in between fails closed
+    // instead of executing on a stale pass.
+    if (action.action_type === 'credit_load') {
+      await evaluateFundingCompliance({
+        customerId: storedPayload.customerId,
+        amountCents: storedPayload.amountCents,
+        currencyCode: storedPayload.currencyCode,
+        fundingMethod: 'admin_load',
+        actorUserId: decidedBy,
+        requestIp: requestIp || null,
+        correlationId: correlationId || null,
+      });
+    }
     const executionResult = await executor({
       client,
       payload: storedPayload,

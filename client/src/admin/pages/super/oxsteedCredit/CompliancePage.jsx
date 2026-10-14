@@ -84,12 +84,34 @@ export default function OxsteedCreditCompliancePage() {
     }
     setBusy(true); setNotice(''); setError('');
     try {
+      // ADM-020: compliance decisions that unlock fiat funding require a
+      // fresh step-up challenge, not just the admin session.
+      const stepupActionTypes = {
+        verification: 'compliance_verification_decision',
+        sanction: 'compliance_sanction_decision',
+        case: 'compliance_case_transition',
+      };
+      const challengeResponse = await adminApi.post('/admin/super/oxsteed-credit/stepup-challenges', {
+        actionType: stepupActionTypes[kind],
+      });
+      const challengeId = challengeResponse.data?.challenge?.id;
+      if (!challengeId) { setError(t('agentAdjQueueStepupFailed')); return; }
+      setNotice(t('adminMakerCheckerStepupIssued'));
+      const code = await requestDialog({
+        kind: 'text',
+        title: t('agentAdjQueueStepupTitle'),
+        description: t('adminComplianceStepupDescription'),
+        label: t('agentAdjQueueStepupLabel'),
+      });
+      if (!code?.trim()) { setError(t('agentAdjQueueStepupRequired')); return; }
       const endpoints = {
         verification: `/admin/super/oxsteed-credit/compliance/verifications/${item.id}/decision`,
         sanction: `/admin/super/oxsteed-credit/compliance/sanctions/${item.id}/decision`,
         case: `/admin/super/oxsteed-credit/compliance/cases/${item.id}/transition`,
       };
-      const payload = kind === 'case' ? { toStatus: decision, reason: reason.trim() } : { decision, reason: reason.trim() };
+      const payload = kind === 'case'
+        ? { toStatus: decision, reason: reason.trim(), stepupChallengeId: challengeId, stepupCode: code.trim() }
+        : { decision, reason: reason.trim(), stepupChallengeId: challengeId, stepupCode: code.trim() };
       await adminApi.post(endpoints[kind], payload, { headers: { 'Idempotency-Key': idempotencyKeysRef.current.get('credit-compliance', { kind, id: item.id, decision }) } });
       idempotencyKeysRef.current.clear('credit-compliance', { kind, id: item.id, decision });
       setNotice(t('adminComplianceDecided', { kind, decision }));

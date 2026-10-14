@@ -30486,7 +30486,10 @@
       "completed": "Terminés",
       "failed": "Échoués",
       "rejected": "Refusés"
-    }
+    },
+    "stepupFailed": "Impossible d'émettre un défi de vérification.",
+    "stepupPrompt": "Un code de vérification a été envoyé à votre adresse e-mail. Saisissez-le pour approuver ce paiement :",
+    "stepupRequired": "Un code de vérification est requis pour approuver le paiement."
   },
   "statementOps": {
     "title": "Operations des releves",

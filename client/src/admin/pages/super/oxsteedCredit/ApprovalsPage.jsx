@@ -206,7 +206,23 @@ function AgentAdjustmentQueue({ busy, setBusy, setNotice, setError, requestDialo
     if (!confirmed) return;
     setBusy(true); setNotice(''); setError('');
     try {
-      await adminApi.post(AGENT_ADJUSTMENT_ENDPOINTS.approve(adjustment.id));
+      // ADM-186: the approver must prove a fresh step-up challenge before
+      // money moves, matching the super-admin checker path.
+      const challengeResponse = await adminApi.post(AGENT_ADJUSTMENT_ENDPOINTS.stepup, { adjustmentId: adjustment.id });
+      const challengeId = challengeResponse.data?.challenge?.id;
+      if (!challengeId) { setError(t('agentAdjQueueStepupFailed')); return; }
+      setNotice(t('adminMakerCheckerStepupIssued'));
+      const code = await requestDialog({
+        kind: 'text',
+        title: t('agentAdjQueueStepupTitle'),
+        description: t('agentAdjQueueStepupDescription', { amount: signedMoney(adjustment) }),
+        label: t('agentAdjQueueStepupLabel'),
+      });
+      if (!code?.trim()) { setError(t('agentAdjQueueStepupRequired')); return; }
+      await adminApi.post(AGENT_ADJUSTMENT_ENDPOINTS.approve(adjustment.id), {
+        stepupChallengeId: challengeId,
+        stepupCode: code.trim(),
+      });
       setNotice(t('agentAdjQueueApproved'));
       await loadAdjustments();
     } catch (err) {

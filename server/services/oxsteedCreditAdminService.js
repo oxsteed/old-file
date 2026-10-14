@@ -1798,6 +1798,19 @@ async function reverseSettlement({ settlementId, idempotencyKey, actorUserId, re
     if (Number(settlement.net_cents || 0) <= 0) {
       throw new AppError('A zero-value Credit settlement does not have a payout to reverse', 409, 'credit_settlement_reversal_zero_amount');
     }
+    // ADM-043: the journal reversal must respect the Stripe payout state.
+    // Reversing while a transfer is in flight, or after it completed, would
+    // credit partner_payable for funds that are gone or moving: the payable
+    // would overstate what OxSteed owes and a later payout would double-pay.
+    // The supported correction path is: Stripe transfer fails or is reversed
+    // (payout_status becomes 'failed' via the transfer webhook), then this
+    // reversal restores the payable.
+    if (settlement.payout_status === 'initiated') {
+      throw new AppError('Settlement has a Stripe payout in flight; wait for it to settle or fail before reversing', 409, 'credit_settlement_payout_in_flight', { payoutStatus: settlement.payout_status });
+    }
+    if (settlement.payout_status === 'paid') {
+      throw new AppError('Settlement Stripe payout already completed; reverse the Stripe transfer first and let the payout failure path record it before reversing the journal', 409, 'credit_settlement_payout_completed', { payoutStatus: settlement.payout_status });
+    }
 
     const { rows: originalRows } = await client.query(
       `SELECT *

@@ -9,6 +9,7 @@ import '../../lib/suggestDropdownAdmin.css';
 import { formatCreditDateTime } from '../../../lib/creditDateTime';
 import { localizeCreditStatus } from '../../../lib/creditStatus';
 import { safeCreditErrorMessage } from '../../../lib/creditErrors';
+import { AdminActionDialog, requestStepupChallengeCode, useCreditDialog } from './oxsteedCredit/shared';
 
 const ENTITLEMENT_STATUSES = ['active', 'suspended', 'revoked', 'expired'];
 const ENTITLEMENT_PAGE_SIZE = 250;
@@ -35,6 +36,7 @@ function Badge({ status }) {
 
 export default function OxsteedCreditEntitlements({ agreements = [], customerAccounts = [], currencyMetadata = {}, busy = false }) {
   const { t } = useTranslation('credit');
+  const { dialog, requestDialog, resolveDialog } = useCreditDialog();
   const [entitlements, setEntitlements] = useState([]);
 
   // Typeahead suggestions from the latest loaded entitlement rows.
@@ -189,6 +191,14 @@ export default function OxsteedCreditEntitlements({ agreements = [], customerAcc
         setError(t('adminInvalidLimitAmount', { currency: selectedAgreementCurrency }));
         return;
       }
+      // ADM-082: entitlement grants confer spending power; require a fresh
+      // step-up challenge.
+      const stepup = await requestStepupChallengeCode({
+        requestDialog, setNotice, setError, t,
+        actionType: 'credit_entitlement_upsert',
+        description: t('creditStepupConfirmDescription'),
+      });
+      if (!stepup) return;
       const payload = {
         customerId: form.customerId.trim(),
         status: form.status,
@@ -197,6 +207,7 @@ export default function OxsteedCreditEntitlements({ agreements = [], customerAcc
         maxTransactionCents: maxTransaction.value,
         dailyLimitCents: dailyLimit.value,
         reason: form.reason.trim() || undefined,
+        ...stepup,
       };
       const keyPayload = { agreementId: form.agreementId, ...payload };
       const response = await adminApi.post(`/admin/super/oxsteed-credit/agreements/${form.agreementId}/entitlements`, payload, {
@@ -238,6 +249,14 @@ export default function OxsteedCreditEntitlements({ agreements = [], customerAcc
     setError('');
     setNotice('');
     try {
+      // ADM-082: bulk entitlement grants confer spending power across many
+      // agreements; require a fresh step-up challenge.
+      const stepup = await requestStepupChallengeCode({
+        requestDialog, setNotice, setError, t,
+        actionType: 'credit_entitlement_upsert',
+        description: t('creditStepupConfirmDescription'),
+      });
+      if (!stepup) return;
       const payload = {
         customerId: form.customerId.trim(),
         agreementIds: bulkAgreementIds,
@@ -247,6 +266,7 @@ export default function OxsteedCreditEntitlements({ agreements = [], customerAcc
         maxTransactionCents: maxTransaction.value,
         dailyLimitCents: dailyLimit.value,
         reason: form.reason.trim(),
+        ...stepup,
       };
       const response = await adminApi.post('/admin/super/oxsteed-credit/entitlements/bulk', payload, {
         headers: { 'Idempotency-Key': idempotencyKeysRef.current.get('credit-entitlement-bulk', payload) },
@@ -264,7 +284,9 @@ export default function OxsteedCreditEntitlements({ agreements = [], customerAcc
     }
   };
 
-  return <section className="rounded-2xl border border-gray-800 bg-[#111318] p-4 sm:p-5">
+  return <>
+    <AdminActionDialog dialog={dialog} onResolve={resolveDialog} />
+  <section className="rounded-2xl border border-gray-800 bg-[#111318] p-4 sm:p-5">
     <div className="flex flex-wrap items-start justify-between gap-3">
       <div>
         <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-orange-400">{t('adminCustomerAccessEyebrow')}</p>
@@ -305,5 +327,6 @@ export default function OxsteedCreditEntitlements({ agreements = [], customerAcc
     <div className="mt-3 overflow-x-auto rounded-xl border border-gray-800">
       <table className="min-w-[1000px] w-full text-left text-xs"><thead className="bg-gray-950/70 text-gray-500"><tr><th className="px-3 py-3 font-medium">{t('adminCustomer')}</th><th className="px-3 py-3 font-medium">{t('restaurant')}</th><th className="px-3 py-3 font-medium">{t('adminPartnerAgreement')}</th><th className="px-3 py-3 font-medium">{t('adminAccessState')}</th><th className="px-3 py-3 font-medium">{t('adminLimits')}</th><th className="px-3 py-3 font-medium">{t('adminValidity')}</th></tr></thead><tbody className="divide-y divide-gray-800">{loading ? <tr><td colSpan="6" className="px-3 py-10 text-center text-gray-500">{t('loading')}</td></tr> : !visibleEntitlements.length ? <tr><td colSpan="6" className="px-3 py-10 text-center text-gray-500">{t('adminNoAccessMatches')}</td></tr> : visibleEntitlements.map((entitlement) => <tr key={entitlement.id}><td className="px-3 py-3"><strong className="text-white">{entitlement.customerName || t('notProvided')}</strong><p className="mt-1 text-gray-500">{entitlement.customerEmail || t('notProvided')}</p><p className="mt-1 font-mono text-[10px] text-gray-700">{entitlement.customerId}</p></td><td className="px-3 py-3 text-white">{entitlement.restaurantName || t('adminRestaurantFallback', { id: entitlement.restaurantId })}<p className="mt-1 text-gray-600">{entitlement.currencyCode || 'USD'}</p></td><td className="px-3 py-3 text-gray-400">v{entitlement.agreementVersion || '?'}<p className="mt-1 text-gray-600">{localizeCreditStatus(entitlement.agreementStatus, t)}</p></td><td className="px-3 py-3"><Badge status={entitlement.status} /></td><td className="px-3 py-3 text-gray-400">{entitlement.maxTransactionCents ? `${t('adminMaxAmount', { amount: money(entitlement.maxTransactionCents, entitlement.currencyCode, currencyMetadata) })}` : t('adminAgreementCap')}{entitlement.dailyLimitCents ? <p className="mt-1 text-gray-600">{t('adminDailyAmount', { amount: money(entitlement.dailyLimitCents, entitlement.currencyCode, currencyMetadata) })}</p> : null}</td><td className="px-3 py-3 text-gray-500">{dateTime(entitlement.startsAt, t)}<br />{t('adminTo')} {dateTime(entitlement.endsAt, t)}</td></tr>)}</tbody></table>
     </div>
-  </section>;
+  </section>
+  </>;
 }

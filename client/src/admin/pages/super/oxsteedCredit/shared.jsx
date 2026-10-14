@@ -17,6 +17,8 @@ import { formatCreditDateTime } from '../../../../lib/creditDateTime';
 import { localizeCreditOrderTypes, localizeCreditStatus } from '../../../../lib/creditStatus';
 import { createStableIdempotencyKeyStore } from '../creditIdempotency';
 import { adminRoute } from '../../../adminRouteManifest';
+import adminApi from '../../../../lib/adminApi';
+import { safeCreditErrorMessage } from '../../../../lib/creditErrors';
 
 export const DEFAULT_CURRENCY_OPTIONS = DEFAULT_CREDIT_CURRENCIES;
 export const CUSTOMER_ACCOUNT_PAGE_SIZE = 50;
@@ -400,8 +402,7 @@ export function useCreditPageState() {
 // Promise-based wrapper around AdminActionDialog, matching the monolith's
 // requestDialog/resolveDialog pair. Resolves with the entered value for text
 // dialogs, true/false for confirm dialogs, or null when dismissed.
-export function useCreditDialog() {
-  const [dialog, setDialog] = useState(null);
+export function useCreditDialog() {  const [dialog, setDialog] = useState(null);
   const dialogResolverRef = useRef(null);
   const requestDialog = useCallback((config) => new Promise((resolve) => {
     dialogResolverRef.current = resolve;
@@ -414,6 +415,41 @@ export function useCreditDialog() {
     if (resolve) resolve(value);
   };
   return { dialog, requestDialog, resolveDialog };
+}
+
+// ADM-020/ADM-082: issue a step-up challenge and prompt for the emailed
+// code. Returns { stepupChallengeId, stepupCode } or null when the admin
+// cancels or issuance fails. Callers spread the result into their mutation
+// payload; the server verifies before executing.
+export async function requestStepupChallengeCode({ requestDialog, setNotice, setError, t, actionType, description, amountCents, currencyCode }) {
+  let challengeId = null;
+  try {
+    const challengeResponse = await adminApi.post('/admin/super/oxsteed-credit/stepup-challenges', {
+      actionType,
+      amountCents: amountCents || undefined,
+      currencyCode: currencyCode || undefined,
+    });
+    challengeId = challengeResponse.data?.challenge?.id || null;
+  } catch (err) {
+    setError(safeCreditErrorMessage(err, t('agentAdjQueueStepupFailed')));
+    return null;
+  }
+  if (!challengeId) {
+    setError(t('agentAdjQueueStepupFailed'));
+    return null;
+  }
+  setNotice(t('adminMakerCheckerStepupIssued'));
+  const code = await requestDialog({
+    kind: 'text',
+    title: t('agentAdjQueueStepupTitle'),
+    description,
+    label: t('agentAdjQueueStepupLabel'),
+  });
+  if (!code?.trim()) {
+    setError(t('agentAdjQueueStepupRequired'));
+    return null;
+  }
+  return { stepupChallengeId: challengeId, stepupCode: code.trim() };
 }
 
 // Sub-navigation for the OxSteed Credit section. The overview route needs

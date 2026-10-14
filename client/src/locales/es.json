@@ -30485,7 +30485,10 @@
       "completed": "Completados",
       "failed": "Fallidos",
       "rejected": "Rechazados"
-    }
+    },
+    "stepupFailed": "No se pudo emitir un desafío de verificación.",
+    "stepupPrompt": "Se envió un código de verificación a tu correo electrónico. Introdúcelo para aprobar este pago:",
+    "stepupRequired": "Se requiere un código de verificación para aprobar el pago."
   },
   "statementOps": {
     "title": "Operaciones de estados de cuenta",

@@ -23,6 +23,7 @@ import {
   money,
   useCreditDialog,
   useCreditPageState,
+  requestStepupChallengeCode,
 } from './shared';
 import OxsteedCreditCustomerDetail from '../OxsteedCreditCustomerDetail';
 
@@ -134,7 +135,15 @@ export default function OxsteedCreditCustomersPage() {
   const updateAccountStatus = async (event) => {
     event.preventDefault();
     setBusy(true); setNotice(''); setError('');
-    const payload = { currencyCode: accountStatusForm.currencyCode, status: accountStatusForm.status, reason: accountStatusForm.reason };
+    // ADM-082: suspending/reactivating/closing a wallet locks or unlocks
+    // customer funds; require a fresh step-up challenge.
+    const stepup = await requestStepupChallengeCode({
+      requestDialog, setNotice, setError, t,
+      actionType: 'credit_account_status_update',
+      description: t('creditStepupConfirmDescription'),
+    });
+    if (!stepup) { setBusy(false); return; }
+    const payload = { currencyCode: accountStatusForm.currencyCode, status: accountStatusForm.status, reason: accountStatusForm.reason, ...stepup };
     const keyPayload = { customerId: accountStatusForm.customerId, ...payload };
     try {
       await adminApi.post(`/admin/super/oxsteed-credit/customers/${accountStatusForm.customerId}/status`, payload, { headers: { 'Idempotency-Key': idempotencyKeysRef.current.get('credit-status', keyPayload) } });

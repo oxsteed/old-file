@@ -30486,7 +30486,10 @@
       "completed": "Fini yo",
       "failed": "Echwe yo",
       "rejected": "Refize yo"
-    }
+    },
+    "stepupFailed": "Pa t ka bay yon defi verifikasyon.",
+    "stepupPrompt": "Yo voye yon kòd verifikasyon nan imèl ou. Antre li pou apwouve peman sa a:",
+    "stepupRequired": "Fòk ou gen yon kòd verifikasyon pou apwouve peman an."
   },
   "statementOps": {
     "title": "Operasyon relve yo",

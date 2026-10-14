@@ -32,6 +32,7 @@ jest.mock('../services/oxsteedCreditService', () => {
     ...actual,
     adjustCustomerCreditInTransaction: jest.fn(),
     refundCreditInTransaction: jest.fn(),
+    loadCustomerCredit: jest.fn(),
   };
 });
 jest.mock('../services/fiatComplianceService', () => ({
@@ -128,6 +129,10 @@ beforeEach(() => {
   recordIncident.mockClear();
   creditService.adjustCustomerCreditInTransaction.mockReset();
   creditService.refundCreditInTransaction.mockReset();
+  creditService.loadCustomerCredit.mockReset();
+  creditService.loadCustomerCredit.mockResolvedValue({ id: 'txn-1' });
+  evaluateFundingCompliance.mockClear();
+  evaluateFundingCompliance.mockResolvedValue({ allowed: true });
   decidedStatus = 'pending';
   installRouter();
 });
@@ -334,6 +339,87 @@ describe('maker-checker queue', () => {
     expect(result.replayed).toBe(true);
     expect(result.terminalReplay).toBe(true);
     expect(result.pendingAction.status).toBe('approved');
+  });
+
+  // ADM-019/ADM-114: the fiat compliance choke point ran at maker time (up
+  // to 24h ago). Approving a credit_load re-evaluates it at execution time;
+  // a fresh sanctions hit fails the approval closed before money moves.
+  function installCreditLoadRouter() {
+    mockQuery.mockImplementation((sql, params = []) => {
+      const s = String(sql);
+      if (s === 'BEGIN' || s === 'COMMIT' || s === 'ROLLBACK') return { rows: [] };
+      if (s.includes('pg_advisory_xact_lock')) return { rows: [] };
+      if (s.includes('FROM feature_flags')) return { rows: [{ is_enabled: true }] };
+      if (s.includes('FROM oxsteed_credit_rail_freezes')) return { rows: [] };
+      if (s.includes('FROM oxsteed_credit_pending_actions WHERE id = $1 FOR UPDATE')) {
+        return { rows: [pendingRow({
+          action_type: 'credit_load',
+          payload: { customerId: 'cust-1', amountCents: 5000, currencyCode: 'USD', reason: 'grant', referenceId: 'ref-1' },
+        })] };
+      }
+      if (s.includes('UPDATE oxsteed_credit_pending_actions')) {
+        return { rows: [pendingRow({ action_type: 'credit_load', status: 'approved', decided_by: CHECKER_ID })] };
+      }
+      if (s.includes('FROM oxsteed_credit_pending_actions WHERE id = $1')) {
+        return { rows: [pendingRow({ action_type: 'credit_load', status: 'approved', decided_by: CHECKER_ID })] };
+      }
+      if (s.includes('INSERT INTO oxsteed_credit_audit_events')) return { rows: [] };
+      return { rows: [] };
+    });
+  }
+
+  test('approving a credit load re-evaluates compliance at execution time', async () => {
+    installCreditLoadRouter();
+    const result = await decidePendingAction({
+      actionId: ACTION_ID,
+      decidedBy: CHECKER_ID,
+      decision: 'approve',
+      stepupChallengeId: 'challenge-1',
+      stepupCode: '123456',
+    });
+    expect(result.pendingAction.status).toBe('approved');
+    expect(evaluateFundingCompliance).toHaveBeenCalledWith(expect.objectContaining({
+      customerId: 'cust-1',
+      amountCents: 5000,
+      currencyCode: 'USD',
+      fundingMethod: 'admin_load',
+      actorUserId: CHECKER_ID,
+    }));
+    expect(creditService.loadCustomerCredit).toHaveBeenCalledTimes(1);
+  });
+
+  test('a fresh sanctions hit at approval time fails the load closed', async () => {
+    installCreditLoadRouter();
+    evaluateFundingCompliance.mockRejectedValueOnce(
+      Object.assign(new Error('Sanctions hit'), { status: 403, code: 'fiat_compliance_sanctions_hit' })
+    );
+    await expect(decidePendingAction({
+      actionId: ACTION_ID,
+      decidedBy: CHECKER_ID,
+      decision: 'approve',
+      stepupChallengeId: 'challenge-1',
+      stepupCode: '123456',
+    })).rejects.toMatchObject({ status: 403, code: 'fiat_compliance_sanctions_hit' });
+    expect(creditService.loadCustomerCredit).not.toHaveBeenCalled();
+  });
+
+  // ADM-154: credits and debits both move real customer balances and must be
+  // traceable. The shared service choke point requires a funding reference
+  // for both directions, closing the generic-maker-endpoint bypass that let
+  // debit adjustments execute without one.
+  test('a debit adjustment without a funding reference fails at the service choke point', async () => {
+    const realCreditService = jest.requireActual('../services/oxsteedCreditService');
+    await expect(realCreditService.adjustCustomerCredit({
+      customerId: 'cust-1',
+      amountCents: 1000,
+      currencyCode: 'USD',
+      direction: 'debit',
+      idempotencyKey: 'debit-no-ref-key',
+      actorUserId: MAKER_ID,
+      actorType: 'admin',
+      reason: 'test debit without reference',
+    })).rejects.toMatchObject({ status: 400, code: 'credit_funding_reference_required' });
+    expect(mockQuery).not.toHaveBeenCalled();
   });
 });
 

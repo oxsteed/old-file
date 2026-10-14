@@ -30485,7 +30485,10 @@
       "completed": "Completed",
       "failed": "Failed",
       "rejected": "Rejected"
-    }
+    },
+    "stepupFailed": "Could not issue a verification challenge.",
+    "stepupPrompt": "A verification code was sent to your email. Enter it to approve this payout:",
+    "stepupRequired": "A verification code is required to approve the payout."
   },
   "statementOps": {
     "title": "Statement operations",
