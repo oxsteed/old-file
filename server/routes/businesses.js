@@ -83,6 +83,9 @@ router.post('/invitations/:id/decline',      authenticate, declineInvitation);
 router.get('/managed',                       authenticate, listManagedBusinesses);
 router.get('/media/:assetId',                getBusinessMediaAsset);
 
+// ── Attention inbox (must come before /:id routes) ───────────────────────────
+router.get('/attention',                      authenticate, require('../controllers/attentionInboxController').getAttentionInbox);
+
 // ── Public profile (no auth) - must be before authenticated /:id routes ───────
 router.get('/:id/public',  getBusinessPublicProfile);
 // GV-5 fallout: business-scoped public signals (owner resolved server-side,
