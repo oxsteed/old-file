@@ -78,6 +78,8 @@ function approvalRow(overrides = {}) {
     revocation_reason: 'Repeated settlement failures',
     grace_period_ends_at: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
     migrated_at: null,
+    funding_status: 'funded',
+    funding_method: 'stripe',
     updated_at: new Date().toISOString(),
     ...overrides,
   };
@@ -154,6 +156,8 @@ function installDbMock() {
           revocation_reason: status === 'approved' ? null : (params[1] || null),
           grace_period_ends_at: status === 'revoked' ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() : null,
           migrated_at: null,
+          funding_status: status === 'approved' ? 'funded' : 'pending',
+          funding_method: status === 'approved' ? 'stripe' : null,
           updated_at: new Date().toISOString(),
         }],
       };
@@ -316,6 +320,20 @@ describe('revocation blocks new credit (fail closed)', () => {
       .send({ amountCents: 1000, idempotencyKey: 'key-3', note: 'top up please' });
 
     expect(res.status).toBe(201);
+  });
+
+  test('approved but unfunded restaurant is blocked from new credit', async () => {
+    dbState.approval = approvalRow({
+      status: 'approved', revoked_at: null, revocation_reason: null,
+      grace_period_ends_at: null, funding_status: 'pending', funding_method: 'manual',
+    });
+    const app = buildApp(CUSTOMER_ID);
+    const res = await request(app)
+      .post(`/customer/wallets/${RESTAURANT_ID}/load-requests`)
+      .send({ amountCents: 1000, idempotencyKey: 'key-4', note: 'top up please' });
+
+    expect(res.status).toBe(403);
+    expect(res.body.code).toBe('restaurant_credit_funding_pending');
   });
 });
 

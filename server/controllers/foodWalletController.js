@@ -8,7 +8,20 @@ const { withTransaction } = require('../utils/transaction');
 const { logFoodWalletOperatorAudit } = require('../services/foodWalletAuditService');
 const { evaluateFundingCompliance } = require('../services/fiatComplianceService');
 const foodCreditFraudService = require('../services/foodCreditFraudService');
+// Phase 4: opt-in pre-purchase credit reserve. Restaurants WITH a reserve
+// row are capped at issuance; restaurants without one continue under the
+// trial-tier cap (Phase 5 owns that).
+const { debitCreditReserveForIssuance } = require('../services/restaurantCreditReserveService');
 const revocationService = require('../services/restaurantCreditRevocationService');
+// Phase 5: trial-tier credit cap + FIFO derisking. Applies ONLY to
+// restaurants WITHOUT a Phase 4 reserve row (no double-enforcement: the
+// reserve system governs enrolled restaurants).
+const {
+  getCreditExposure,
+  assertTrialCapAllows,
+  getFifoQueue,
+  deriskOldest,
+} = require('../services/restaurantCreditDeriskService');
 const {
   creditFoodWallet,
   debitFoodWallet,
@@ -919,6 +932,12 @@ exports.createMyWalletLoadRequest = async (req, res, next) => {
       requestRow = existingResult.rows[0];
       replayed = true;
     } else {
+      // Phase 5 trial-tier cap: block NEW credit requests when a
+      // reserve-less restaurant is at capacity (409
+      // restaurant_credit_at_capacity). Reserve restaurants skip this
+      // entirely (Phase 4 governs them); idempotency replays above never
+      // block, so a retried request is not wedged by a later cap hit.
+      await assertTrialCapAllows(restaurantId);
       const { rows } = await pool.query(
         `INSERT INTO food_customer_wallet_load_requests
          (restaurant_id, business_id, customer_id, requested_by_user_id,
@@ -1256,6 +1275,20 @@ exports.loadCustomerWallet = async (req, res, next) => {
           requestIp: req.ip || null,
         },
       });
+      // Phase 4: opt-in pre-purchase reserve cap. Runs inside the SAME
+      // transaction as the wallet credit: when the restaurant has opted in
+      // (a reserve row exists), the row is locked and drawn down here; a
+      // 409 insufficient_credit_reserve rolls the wallet credit back with it
+      // (fail closed). Replays skip the drawdown because the original
+      // issuance already drew it down.
+      if (!walletResult.replayed) {
+        await debitCreditReserveForIssuance(client, {
+          restaurantId,
+          amountCents,
+          referenceType: 'issuance',
+          referenceId,
+        });
+      }
       if (!walletResult.replayed) {
         await logFoodWalletOperatorAudit(client, {
           restaurantId,
@@ -1544,6 +1577,21 @@ exports.approveCustomerWalletLoadRequest = async (req, res, next) => {
           approvalNote: approvalNote || null,
         },
       });
+
+      // Phase 4: opt-in pre-purchase reserve cap. Runs inside the SAME
+      // transaction as the wallet credit: when the restaurant has opted in
+      // (a reserve row exists), the row is locked and drawn down here; a
+      // 409 insufficient_credit_reserve rolls the wallet credit back with it
+      // (fail closed). Replays skip the drawdown because the original
+      // issuance already drew it down.
+      if (!walletResult.replayed) {
+        await debitCreditReserveForIssuance(client, {
+          restaurantId,
+          amountCents: Number(requestRow.amount_cents || 0),
+          referenceType: 'issuance',
+          referenceId: String(requestRow.id),
+        });
+      }
 
       const { rows: [updatedRequest] } = await client.query(
         `UPDATE food_customer_wallet_load_requests
@@ -2616,6 +2664,114 @@ exports.listMyWalletRefunds = async (req, res, next) => {
   }
 };
 
+// Phase 5: customer-facing trial-cap pre-check. Lets the RequestCreditModal
+// show the "at capacity" notice instead of payment instructions. Enforcement
+// is authoritative on the request path (createMyWalletLoadRequest); this
+// endpoint only informs the UI.
+exports.getCreditCapacity = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    if (!restaurantId) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
+    const { rows: restaurantRows } = await pool.query(
+      `SELECT id FROM food_restaurants WHERE id = $1 AND status = 'active' LIMIT 1`,
+      [restaurantId]
+    );
+    if (!restaurantRows[0]) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
+    const exposure = await getCreditExposure(restaurantId);
+    res.json({
+      at_capacity: exposure.at_capacity,
+      outstanding_cents: exposure.outstanding_cents,
+      cap_cents: exposure.cap_cents,
+      trial_cap_applies: exposure.trial_cap_applies,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// Phase 5: merchant exposure dashboard. Operator-only (owner/manager).
+// Returns the trial-cap state plus the FIFO derisk queue (top 10 oldest
+// balances) so the merchant can see what would be derisked first.
+exports.getCreditExposure = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    if (!restaurantId) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    assertWalletOperator(restaurant);
+    const exposure = await getCreditExposure(restaurantId);
+    const fifoQueue = await getFifoQueue(restaurantId, { limit: 10 });
+    res.json({
+      restaurant_id: restaurantId,
+      outstanding_cents: exposure.outstanding_cents,
+      cap_cents: exposure.cap_cents,
+      at_capacity: exposure.at_capacity,
+      trial_cap_applies: exposure.trial_cap_applies,
+      fifo_queue: fifoQueue.map((entry) => ({
+        customer_id: entry.customer_id,
+        customer_email: entry.customer_email,
+        customer_name: entry.customer_name,
+        balance_cents: entry.balance_cents,
+        oldest_activity_at: entry.oldest_activity_at,
+      })),
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// Phase 5: FIFO derisking. Operator-only (owner/manager). Migrates oldest
+// customer balances to OxSteed Credit until target_cents is covered. Each
+// customer migrates atomically; failures are reported in `skipped` without
+// aborting the run. Every migrated customer is written to the operator
+// audit trail.
+exports.deriskCredit = async (req, res, next) => {
+  try {
+    const restaurantId = parsePositiveInt(req.params.restaurantId);
+    if (!restaurantId) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
+    const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
+    assertWalletOperator(restaurant);
+    const rawTarget = req.body?.target_cents ?? req.body?.targetCents;
+    const targetCents = Math.round(Number(rawTarget));
+    if (!Number.isSafeInteger(targetCents) || targetCents <= 0) {
+      throw new AppError('Validation failed', 400, 'validation_failed', {
+        target_cents: 'Target must be a positive number of cents',
+      });
+    }
+    const result = await deriskOldest({ restaurantId, targetCents, operatorId: req.user.id });
+    await withTransaction(pool, async (client) => {
+      for (const migration of result.migrations) {
+        await logFoodWalletOperatorAudit(client, {
+          restaurantId,
+          businessId: restaurant.business_id,
+          walletAccountId: migration.wallet_account_id || null,
+          customerId: migration.customer_id,
+          operatorUserId: req.user.id,
+          actionType: 'credit_derisk',
+          amountCents: migration.amount_cents,
+          currencyCode: 'USD',
+          correlationId: result.batch_id,
+          requestIp: req.ip || null,
+          metadata: {
+            batchId: result.batch_id,
+            skippedCount: result.skipped.length,
+          },
+        });
+      }
+    }, 'credit_derisk_audit');
+    res.json({
+      batch_id: result.batch_id,
+      derisked_cents: result.derisked_cents,
+      migrations: result.migrations.map((migration) => ({
+        customer_id: migration.customer_id,
+        amount_cents: migration.amount_cents,
+      })),
+      skipped: result.skipped,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
 // Phase 4: shared with the credit-reserve controller, which enforces the
 // same merchant-surface authorization (requireRestaurantAccess +
 // assertWalletOperator) on the reserve purchase/balance/ledger endpoints.
@@ -2745,7 +2901,36 @@ exports.setRestaurantCreditApproval = async (req, res, next) => {
       return approvalRow;
     }, 'food_credit_approval_update');
 
-    res.json({ approval: formatCreditApprovalResponse(approval, restaurant) });
+    // When newly approved, determine the funding path so the admin response
+    // tells the restaurant exactly how to fund its reserve. Approval isn't
+    // complete until funding_status flips to 'funded'.
+    let fundingPath = null;
+    if (status === 'approved') {
+      try {
+        const fundingService = require('../services/restaurantCreditFundingService');
+        fundingPath = await fundingService.determineFundingPath({ restaurantId });
+        // Record the chosen method on the approval row.
+        await pool.query(
+          `UPDATE restaurant_credit_approvals
+              SET funding_method = $2, updated_at = NOW()
+            WHERE restaurant_id = $1 AND funding_method IS NULL`,
+          [restaurantId, fundingPath.method]
+        );
+      } catch (fundingErr) {
+        // Funding path determination must not break the approval itself;
+        // the merchant can fetch it via the funding-path endpoint.
+        const logger = require('../utils/logger');
+        logger.warn('funding path determination failed after approval', {
+          restaurantId,
+          error: fundingErr.message,
+        });
+      }
+    }
+
+    res.json({
+      approval: formatCreditApprovalResponse(approval, restaurant),
+      fundingPath,
+    });
   } catch (err) {
     next(err);
   }

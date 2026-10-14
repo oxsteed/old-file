@@ -101,7 +101,9 @@ function effectiveApprovalStatus(approvalRow) {
 /**
  * Fail-closed gate for new credit issuance. Throws 403
  * `restaurant_credit_not_approved` when the restaurant's approval status is
- * anything other than 'approved' (no row counts as approved).
+ * anything other than 'approved' (no row counts as approved), and 403
+ * `restaurant_credit_funding_pending` when approved but the reserve hasn't
+ * been funded yet. Approval isn't complete until funding_status = 'funded'.
  */
 async function assertNewRestaurantCreditAllowed(executor, restaurantId) {
   const approval = await getCreditApproval(executor, restaurantId);
@@ -114,6 +116,21 @@ async function assertNewRestaurantCreditAllowed(executor, restaurantId) {
         ? new Date(approval.grace_period_ends_at).toISOString()
         : null,
     });
+  }
+  // Funding gate: an approved restaurant with no funded reserve cannot issue.
+  // (No row = grandfathered, no funding requirement; a row with
+  // funding_status 'pending' = approved but not yet funded, blocked.)
+  if (approval && approval.funding_status !== 'funded') {
+    throw new AppError(
+      'This restaurant must fund its credit reserve before issuing credit',
+      403,
+      'restaurant_credit_funding_pending',
+      {
+        restaurantId: String(restaurantId),
+        fundingMethod: approval.funding_method || null,
+        fundingStatus: approval.funding_status,
+      }
+    );
   }
   return approval;
 }

@@ -11,6 +11,9 @@ import {
 } from '../../api/food';
 import { apiErrorMessage } from './foodShared';
 import { formatCreditDateTime } from '../../lib/creditDateTime';
+import RestaurantCreditReservePanel from './RestaurantCreditReservePanel';
+import RestaurantCreditExposurePanel from './RestaurantCreditExposurePanel';
+import RestaurantCreditFundingPanel from './RestaurantCreditFundingPanel';
 
 function requestProof(request) {
   const metadata = request?.metadata && typeof request.metadata === 'object' ? request.metadata : {};
@@ -204,6 +207,7 @@ export default function RestaurantCreditManager({ restaurant }) {
   };
 
   return (
+    <>
     <section className="fd-section fd-credit-manager">
       <div className="fd-credit-manager-head">
         <div>
@@ -234,6 +238,11 @@ export default function RestaurantCreditManager({ restaurant }) {
             <p>Grace period ends: {displayDate(approval.gracePeriodEndsAt)}</p>
           )}
         </div>
+      )}
+
+      {/* Funding step: approval isn't complete until the reserve is funded. */}
+      {approval && approval.status === 'approved' && approval.fundingStatus !== 'funded' && (
+        <RestaurantCreditFundingPanel restaurant={restaurant} approval={approval} onFunded={load} />
       )}
 
       {grantOpen && (
@@ -363,5 +372,13 @@ export default function RestaurantCreditManager({ restaurant }) {
         </div>
       )}
     </section>
+    {/* Phase 4: pre-purchase credit reserve. Opt-in per restaurant; issuance
+        is capped at the reserve balance once the restaurant is enrolled. */}
+    <RestaurantCreditReservePanel restaurant={restaurant} />
+    {/* Phase 5: trial-tier credit cap + FIFO derisking. Applies to
+        restaurants without a reserve row; enrolled restaurants see the
+        reserve-enrolled state instead of the cap meter. */}
+    <RestaurantCreditExposurePanel restaurant={restaurant} />
+    </>
   );
 }
