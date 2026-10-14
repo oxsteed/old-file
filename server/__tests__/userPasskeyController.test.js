@@ -88,4 +88,48 @@ describe('user passkey controls', () => {
     expect(res.json).toHaveBeenCalledWith({ revoked: true });
     expect(mockQuery.mock.calls[0][0]).toContain('UPDATE user_passkeys');
   });
+
+  test('carries the asserted signature name into the MFA token on the TOTP leg (P1-1-F05)', async () => {
+    const jwt = require('jsonwebtoken');
+    const { verifyAuthenticationResponse } = require('@simplewebauthn/server');
+    verifyAuthenticationResponse.mockResolvedValueOnce({
+      verified: true,
+      authenticationInfo: { newCounter: 1 },
+    });
+    const passkeyToken = jwt.sign(
+      { id: USER_ID, isPasskeyToken: true },
+      process.env.JWT_SECRET,
+      { expiresIn: '5m' }
+    );
+    const clientData = Buffer.from(JSON.stringify({ challenge: 'c' })).toString('base64url');
+    const responseBody = { id: 'cred-1', response: { clientDataJSON: clientData, transports: [] } };
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{
+        id: USER_ID, email: 'user@example.com', first_name: 'Jane', last_name: 'Doe',
+        role: 'customer', is_active: true, totp_enabled: true, login_locked_until: null,
+      }] })
+      .mockResolvedValueOnce({ rows: [{
+        id: 'pk-1', credential_id: 'cred-1', public_key: Buffer.from([1, 2, 3]), counter: 0, transports: [],
+      }] })
+      .mockResolvedValueOnce({ rows: [{ challenge: 'c' }] })
+      .mockResolvedValueOnce({ rows: [{ challenge: 'c' }] })
+      .mockResolvedValueOnce({ rows: [] });
+    const res = response();
+    const req = {
+      body: { token: passkeyToken, response: responseBody, termsAgreed: true, agreementName: 'Jane Doe' },
+      headers: {},
+      ip: '127.0.0.1',
+    };
+
+    await controller.verifyAuthentication(req, res, jest.fn());
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    const body = res.json.mock.calls[0][0];
+    expect(body.requiresTwoFactor).toBe(true);
+    expect(jwt.verify(body.mfaToken, process.env.JWT_SECRET)).toMatchObject({
+      isMfaToken: true,
+      authMethod: 'passkey',
+      agreementName: 'Jane Doe',
+    });
+  });
 });
