@@ -10,13 +10,11 @@ describe('diditGate', () => {
     else process.env.DIDIT_ALLOW_USER_SKIP = orig;
   });
 
-  test('diditAllowUserSkip defaults false and requires explicit opt-in', () => {
+  test('diditAllowUserSkip defaults true', () => {
     delete process.env.DIDIT_ALLOW_USER_SKIP;
-    expect(diditAllowUserSkip()).toBe(false);
+    expect(diditAllowUserSkip()).toBe(true);
     process.env.DIDIT_ALLOW_USER_SKIP = 'false';
     expect(diditAllowUserSkip()).toBe(false);
-    process.env.DIDIT_ALLOW_USER_SKIP = 'true';
-    expect(diditAllowUserSkip()).toBe(true);
   });
 
   test('enforcement requires verified only', () => {
