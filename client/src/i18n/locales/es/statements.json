@@ -3,8 +3,6 @@
     "addEvidence": "Añadir pruebas",
     "addingEvidence": "Añadiendo…",
     "closedNotice": "Este caso está cerrado. Abre un nuevo reporte si el problema continúa.",
-    "disputeReadonlyBody": "Este caso es una disputa de crédito. Las actualizaciones de estado aparecen aquí; para añadir información, responde desde tu ticket de soporte o contacta a soporte.",
-    "disputeReadonlyTitle": "Disputa de crédito",
     "emptyMessages": "Aún no hay mensajes.",
     "evidenceAdded": "Pruebas añadidas.",
     "evidenceError": "Las pruebas no pudieron añadirse. Inténtalo de nuevo.",
@@ -30,7 +28,12 @@
     "timelineTitle": "Cronología",
     "title": "Seguimiento del caso",
     "updatedAt": "Actualizado",
-    "evidenceFileLabel": "Referencia de archivo (enlace opcional)"
+    "evidenceFileLabel": "Referencia de archivo (enlace opcional)",
+    "disputeMessageLabel": "Mensaje",
+    "disputeMessagePlaceholder": "Escribe tu mensaje…",
+    "disputeEmptyMessages": "Aún no hay mensajes. Escribe el primero abajo.",
+    "disputeRoleHelper": "Colaborador",
+    "disputeRoleClient": "Cliente"
   },
   "common": {
     "back": "Atrás",

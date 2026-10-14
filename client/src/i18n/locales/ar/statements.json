@@ -3,8 +3,6 @@
     "addEvidence": "إضافة أدلة",
     "addingEvidence": "جارٍ الإضافة…",
     "closedNotice": "هذه القضية مغلقة. افتح بلاغًا جديدًا إذا استمرت المشكلة.",
-    "disputeReadonlyBody": "هذه القضية عبارة عن اعتراض ائتماني. تظهر تحديثات الحالة هنا؛ لإضافة معلومات، ردّ من تذكرة الدعم الخاصة بك أو تواصل مع الدعم.",
-    "disputeReadonlyTitle": "اعتراض ائتماني",
     "emptyMessages": "لا توجد رسائل بعد.",
     "evidenceAdded": "تمت إضافة الأدلة.",
     "evidenceError": "تعذّرت إضافة الأدلة. يرجى المحاولة مرة أخرى.",
@@ -30,7 +28,12 @@
     "timelineTitle": "الجدول الزمني",
     "title": "متابعة القضية",
     "updatedAt": "حُدّثت",
-    "evidenceFileLabel": "مرجع الملف (رابط اختياري)"
+    "evidenceFileLabel": "مرجع الملف (رابط اختياري)",
+    "disputeMessageLabel": "رسالة",
+    "disputeMessagePlaceholder": "اكتب رسالتك…",
+    "disputeEmptyMessages": "لا توجد رسائل بعد. اكتب الرسالة الأولى أدناه.",
+    "disputeRoleHelper": "المساعد",
+    "disputeRoleClient": "العميل"
   },
   "common": {
     "back": "رجوع",

@@ -3,8 +3,6 @@
     "addEvidence": "Ajoute prèv",
     "addingEvidence": "Ap ajoute…",
     "closedNotice": "Dosye sa a fèmen. Louvri yon nouvo rapò si pwoblèm nan kontinye.",
-    "disputeReadonlyBody": "Dosye sa a se yon kontestasyon kredi. Mete ajou estati yo parèt isit la; pou ajoute enfòmasyon, reponn nan tikè sipò ou a oswa kontakte sipò.",
-    "disputeReadonlyTitle": "Kontestasyon kredi",
     "emptyMessages": "Pa gen mesaj pou kounye a.",
     "evidenceAdded": "Prèv ajoute.",
     "evidenceError": "Prèv yo pa t ka ajoute. Tanpri eseye ankò.",
@@ -30,7 +28,12 @@
     "timelineTitle": "Istwa",
     "title": "Swivi dosye",
     "updatedAt": "Mete ajou",
-    "evidenceFileLabel": "Referans fichye (lyen si ou vle)"
+    "evidenceFileLabel": "Referans fichye (lyen si ou vle)",
+    "disputeMessageLabel": "Mesaj",
+    "disputeMessagePlaceholder": "Ekri mesaj ou a…",
+    "disputeEmptyMessages": "Poko gen mesaj. Ekri premye a anba a.",
+    "disputeRoleHelper": "Èd",
+    "disputeRoleClient": "Kliyan"
   },
   "common": {
     "back": "Retounen",

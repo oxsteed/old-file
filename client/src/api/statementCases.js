@@ -50,3 +50,26 @@ export function replyToSupportTicket(ticketId, content, { idempotencyKey } = {})
     idempotencyKey ? { headers: { 'Idempotency-Key': idempotencyKey } } : undefined,
   ).then((response) => response.data);
 }
+
+// Statement dispute messaging: GET/POST /api/statements/disputes/:disputeId/messages.
+// The dispute id is the oxsteed_credit_disputes row id carried on the
+// credit_disputes caseRef. The POST body carries the idempotency key; the
+// response echoes { message, replayed }.
+export function listDisputeMessages(disputeId, { signal } = {}) {
+  if (!disputeId) throw new Error('Invalid statement dispute');
+  return api.get(`/statements/disputes/${encodeURIComponent(String(disputeId))}/messages`, { signal })
+    .then((response) => response.data);
+}
+
+export function postDisputeMessage(disputeId, { message, evidenceText, evidenceFileUrl, idempotencyKey } = {}) {
+  if (!disputeId) throw new Error('Invalid statement dispute');
+  return api.post(
+    `/statements/disputes/${encodeURIComponent(String(disputeId))}/messages`,
+    {
+      message,
+      ...(evidenceText ? { evidenceText } : {}),
+      ...(evidenceFileUrl ? { evidenceFileUrl } : {}),
+      ...(idempotencyKey ? { idempotencyKey } : {}),
+    },
+  ).then((response) => response.data);
+}

@@ -3,8 +3,6 @@
     "addEvidence": "Ajouter des preuves",
     "addingEvidence": "Ajout…",
     "closedNotice": "Ce dossier est fermé. Ouvrez un nouveau signalement si le problème persiste.",
-    "disputeReadonlyBody": "Ce dossier est un litige de crédit. Les mises à jour de statut apparaissent ici ; pour ajouter des informations, répondez depuis votre ticket d’assistance ou contactez l’assistance.",
-    "disputeReadonlyTitle": "Litige de crédit",
     "emptyMessages": "Aucun message pour le moment.",
     "evidenceAdded": "Preuves ajoutées.",
     "evidenceError": "Les preuves n’ont pas pu être ajoutées. Veuillez réessayer.",
@@ -30,7 +28,12 @@
     "timelineTitle": "Chronologie",
     "title": "Suivi du dossier",
     "updatedAt": "Mis à jour",
-    "evidenceFileLabel": "Référence de fichier (lien facultatif)"
+    "evidenceFileLabel": "Référence de fichier (lien facultatif)",
+    "disputeMessageLabel": "Message",
+    "disputeMessagePlaceholder": "Écrivez votre message…",
+    "disputeEmptyMessages": "Aucun message pour le moment. Écrivez le premier ci-dessous.",
+    "disputeRoleHelper": "Prestataire",
+    "disputeRoleClient": "Client"
   },
   "common": {
     "back": "Retour",

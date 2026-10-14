@@ -3,8 +3,6 @@
     "addEvidence": "Add evidence",
     "addingEvidence": "Adding…",
     "closedNotice": "This case is closed. Open a new report if the problem continues.",
-    "disputeReadonlyBody": "This case is a credit dispute. Status updates appear here; to add information, reply from your support ticket or contact support.",
-    "disputeReadonlyTitle": "Credit dispute",
     "emptyMessages": "No messages yet.",
     "evidenceAdded": "Evidence added.",
     "evidenceError": "The evidence could not be added. Please try again.",
@@ -30,7 +28,12 @@
     "timelineTitle": "Timeline",
     "title": "Case follow-up",
     "updatedAt": "Updated",
-    "evidenceFileLabel": "File reference (optional link)"
+    "evidenceFileLabel": "File reference (optional link)",
+    "disputeMessageLabel": "Message",
+    "disputeMessagePlaceholder": "Write your message…",
+    "disputeEmptyMessages": "No messages yet. Write the first one below.",
+    "disputeRoleHelper": "Helper",
+    "disputeRoleClient": "Customer"
   },
   "common": {
     "back": "Back",
