@@ -65,3 +65,34 @@
 @media (max-width: 900px) { .cs-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); } .cs-balances { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 560px) { .cs-filters { grid-template-columns: 1fr; } .cs-identifiers { grid-template-columns: 1fr; } .cs-document, .cs-activity, .cs-holds, .cs-filters { padding: 16px; } .cs-balances dd { font-size: 18px; } .cs-header > svg { display: none; } }
 @media (prefers-reduced-motion: reduce) { .credit-statements-page *, .credit-statements-page *::before, .credit-statements-page *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; } }
+
+/* Advanced filters, sortable headers, saved views, trends (Group B) */
+.cs-sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+.cs-sort-th {
+  all: unset; display: inline-flex; gap: 6px; align-items: center;
+  cursor: pointer; font: inherit; font-weight: 750; color: inherit;
+  padding: 6px 4px; border-radius: 6px; white-space: nowrap;
+}
+.cs-sort-th:hover { color: var(--cs-brand); }
+.cs-sort-th:focus-visible { outline: 3px solid var(--cs-focus); outline-offset: 2px; }
+.cs-advanced-filters {
+  padding: 20px; border: 1px solid var(--cs-line); border-radius: 16px;
+  background: var(--cs-soft); margin-block-end: 20px;
+}
+.cs-advanced-filters h3 { font-size: 17px; margin: 0 0 12px; }
+.cs-advanced-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 14px; align-items: end;
+}
+.cs-advanced-grid .cs-field { display: grid; gap: 8px; min-width: 0; }
+.cs-advanced-grid label { font-weight: 650; font-size: 14px; }
+.cs-advanced-grid input, .cs-advanced-grid select {
+  width: 100%; min-height: 44px; padding: 8px 10px; box-sizing: border-box;
+  border: 1px solid var(--cs-line); border-radius: 9px;
+  color: var(--cs-ink); background: var(--cs-panel); font: inherit;
+}
+.cs-advanced-actions { display: flex; gap: 12px; margin-block-start: 16px; flex-wrap: wrap; }
+.cs-filter-error { color: var(--cs-danger); font-weight: 650; margin-block: 12px 0; }

@@ -1,0 +1,79 @@
+.stmt-search {
+  padding: 24px;
+  border: 1px solid var(--cs-line, #d4dce2);
+  border-radius: 20px;
+  background: var(--cs-panel, #fff);
+  margin-block: 20px;
+  color: var(--cs-ink, #10253f);
+}
+.stmt-search h2 { font-size: 22px; margin: 0 0 8px; }
+.stmt-search > p { color: var(--cs-muted, #526473); line-height: 1.6; }
+.stmt-search-form { display: flex; gap: 12px; margin-block: 16px; }
+.stmt-search-form input[type="search"] {
+  flex: 1; min-width: 0; min-height: 46px; padding: 10px 14px;
+  border: 1px solid var(--cs-line, #d4dce2); border-radius: 10px;
+  background: var(--cs-soft, #fbfaf8); color: var(--cs-ink, #10253f); font: inherit;
+}
+.stmt-search-submit {
+  display: inline-flex; align-items: center; gap: 8px;
+  min-height: 46px; padding: 10px 18px; border-radius: 10px; cursor: pointer;
+  border: 1px solid var(--cs-brand, #ad4c00);
+  background: var(--cs-brand, #ad4c00); color: #fff; font: inherit; font-weight: 650;
+}
+.stmt-search-help { font-size: 13px; color: var(--cs-muted, #526473); }
+.stmt-search-error { color: var(--cs-danger, #a32922); font-weight: 650; }
+.stmt-search-group { margin-block-start: 20px; padding-block-start: 16px; border-block-start: 1px solid var(--cs-line, #d4dce2); }
+.stmt-search-group h3 { font-size: 17px; margin: 0 0 12px; }
+.stmt-search-count { color: var(--cs-muted, #526473); font-weight: 500; }
+.stmt-search-group ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.stmt-search-result {
+  display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap;
+  padding: 12px 14px; border: 1px solid var(--cs-line, #d4dce2); border-radius: 12px;
+  background: var(--cs-soft, #fbfaf8);
+}
+.stmt-search-result-main { display: grid; gap: 4px; min-width: 0; }
+.stmt-search-result-main strong { overflow-wrap: anywhere; }
+.stmt-search-meta { display: flex; gap: 12px; flex-wrap: wrap; font-size: 13px; color: var(--cs-muted, #526473); }
+.stmt-search-result-side { display: flex; align-items: center; gap: 14px; font-variant-numeric: tabular-nums; }
+.stmt-debit { color: var(--cs-danger, #a32922); font-weight: 700; }
+.stmt-credit { color: #1c7a3d; font-weight: 700; }
+[data-theme="dark"] .stmt-credit { color: #7fd6a0; }
+.stmt-sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+.stmt-search a { color: var(--cs-brand, #ad4c00); text-underline-offset: 3px; }
+.stmt-search :is(a, button, input):focus-visible { outline: 3px solid var(--cs-focus, #196c92); outline-offset: 3px; }
+
+/* Saved views */
+.stmt-saved-views {
+  padding: 20px;
+  border: 1px solid var(--cs-line, #d4dce2);
+  border-radius: 16px;
+  background: var(--cs-soft, #fbfaf8);
+  margin-block-end: 20px;
+  color: var(--cs-ink, #10253f);
+}
+.stmt-saved-views h3 { display: inline-flex; align-items: center; gap: 8px; font-size: 17px; margin: 0 0 8px; }
+.stmt-saved-views > p { color: var(--cs-muted, #526473); line-height: 1.6; font-size: 14px; }
+.stmt-saved-views-form { display: flex; gap: 12px; margin-block: 12px; flex-wrap: wrap; }
+.stmt-saved-views-form input {
+  flex: 1; min-width: 200px; min-height: 44px; padding: 8px 12px;
+  border: 1px solid var(--cs-line, #d4dce2); border-radius: 10px;
+  background: var(--cs-panel, #fff); color: var(--cs-ink, #10253f); font: inherit;
+}
+.stmt-saved-views-form button, .stmt-saved-view-delete {
+  min-height: 44px; padding: 8px 16px; border: 1px solid var(--cs-line, #d4dce2);
+  border-radius: 10px; background: var(--cs-panel, #fff); color: var(--cs-ink, #10253f);
+  font: inherit; font-weight: 650; cursor: pointer;
+}
+.stmt-saved-views-form button:disabled { opacity: .5; cursor: not-allowed; }
+.stmt-saved-views-list { list-style: none; margin: 12px 0 0; padding: 0; display: flex; gap: 10px; flex-wrap: wrap; }
+.stmt-saved-views-list li { display: inline-flex; gap: 6px; align-items: center; }
+.stmt-saved-view-apply {
+  min-height: 44px; padding: 8px 14px; border-radius: 999px; cursor: pointer;
+  border: 1px solid var(--cs-brand, #ad4c00); background: transparent;
+  color: var(--cs-brand, #ad4c00); font: inherit; font-weight: 650;
+}
+.stmt-saved-view-delete { display: inline-flex; align-items: center; padding: 8px 10px; }
+.stmt-saved-views :is(a, button, input):focus-visible { outline: 3px solid var(--cs-focus, #196c92); outline-offset: 3px; }

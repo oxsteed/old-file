@@ -14,6 +14,8 @@ import {
 import { formatStatementMoney } from '../../lib/creditStatementFormat';
 import { formatCreditDateTime } from '../../lib/creditDateTime';
 import { localizeCreditTransactionType } from '../../lib/creditStatus';
+import SavedViews from '../../components/statements/SavedViews';
+import PeriodTrends from '../../components/statements/PeriodTrends';
 import './CreditStatementsPage.css';
 
 // Complete five-locale catalogs are authoritative; English defaults provide
@@ -104,6 +106,92 @@ function localizedDate(value, language, fallback) {
 const accountKey = (entry, product) => product === 'restaurant'
   ? `${entry.restaurantId}:${entry.currencyCode}` : entry.currencyCode;
 
+// ── Advanced transaction filters + sorting (Group B) ─────────────────────
+// Filters compose with AND and are reflected in the URL query string so a
+// filtered/sorted view is shareable and can be stored as a saved view.
+//
+// Two of the five dimensions are client-side classifications, documented
+// here because the statement entry shape ({id, date, type, description,
+// debitCents, creditCents, balanceAfterCents}) carries no per-entry status
+// or relationship fields:
+// - status "reversed": entry types that represent reversals, refunds, or
+//   chargebacks. Every entry on a statement is posted activity, so
+//   "posted" matches everything by construction.
+// - related: the record family the entry type belongs to (food orders are
+//   the debit side of credit purchases; top-ups the credit side of loads).
+const FILTER_URL_KEYS = { type: 'fType', minAmount: 'fMin', maxAmount: 'fMax', direction: 'fDir', status: 'fStatus', related: 'fRel' };
+const SORT_URL_KEYS = { key: 'fSort', dir: 'fSortDir' };
+const FILTER_DIRECTIONS = new Set(['debit', 'credit']);
+const FILTER_STATUSES = new Set(['posted', 'reversed']);
+const FILTER_RELATED = new Set(['order', 'payment', 'settlement', 'adjustment', 'refund']);
+const SORT_KEYS = new Set(['date', 'description', 'debit', 'credit', 'balance']);
+const REVERSAL_TYPES = new Set(['refund', 'settlement_reversal', 'sub_bank_load_reversal', 'sub_bank_payout_reversal', 'chargeback']);
+const RELATED_TYPE_MAP = {
+  purchase: 'order',
+  load: 'payment', funding: 'payment', sub_bank_load: 'payment',
+  settlement: 'settlement', media_creator_settlement: 'settlement', sub_bank_payout: 'settlement',
+  adjustment: 'adjustment', sub_bank_opening_balance: 'adjustment',
+  refund: 'refund', sub_bank_refund: 'refund',
+};
+const EMPTY_FILTERS = Object.freeze({ type: '', minAmount: '', maxAmount: '', direction: '', status: '', related: '' });
+const DEFAULT_SORT = Object.freeze({ key: 'date', dir: 'asc' });
+
+function readFiltersFromParams(params) {
+  return {
+    type: params.get(FILTER_URL_KEYS.type) || '',
+    minAmount: params.get(FILTER_URL_KEYS.minAmount) || '',
+    maxAmount: params.get(FILTER_URL_KEYS.maxAmount) || '',
+    direction: FILTER_DIRECTIONS.has(params.get(FILTER_URL_KEYS.direction)) ? params.get(FILTER_URL_KEYS.direction) : '',
+    status: FILTER_STATUSES.has(params.get(FILTER_URL_KEYS.status)) ? params.get(FILTER_URL_KEYS.status) : '',
+    related: FILTER_RELATED.has(params.get(FILTER_URL_KEYS.related)) ? params.get(FILTER_URL_KEYS.related) : '',
+  };
+}
+
+function readSortFromParams(params) {
+  return {
+    key: SORT_KEYS.has(params.get(SORT_URL_KEYS.key)) ? params.get(SORT_URL_KEYS.key) : DEFAULT_SORT.key,
+    dir: params.get(SORT_URL_KEYS.dir) === 'desc' ? 'desc' : 'asc',
+  };
+}
+
+function filtersActive(filters) {
+  return Object.values(filters).some((value) => value !== '');
+}
+
+// Major-unit input ("25.50") to integer minor units. Returns null for
+// invalid input so bad values never silently filter to zero.
+function toMinorUnits(value) {
+  if (value === '' || value == null) return null;
+  const parsed = Number(String(value).trim());
+  if (!Number.isFinite(parsed) || parsed < 0 || !/^\d+(\.\d{1,2})?$/.test(String(value).trim())) return null;
+  return Math.round(parsed * 100);
+}
+
+function entryMatchesFilters(entry, filters) {
+  if (filters.type && entry.type !== filters.type) return false;
+  if (filters.direction === 'debit' && !(entry.debitCents > 0)) return false;
+  if (filters.direction === 'credit' && !(entry.creditCents > 0)) return false;
+  if (filters.status === 'reversed' && !REVERSAL_TYPES.has(entry.type)) return false;
+  if (filters.related && RELATED_TYPE_MAP[entry.type] !== filters.related) return false;
+  const amount = Math.max(Number(entry.debitCents) || 0, Number(entry.creditCents) || 0);
+  const min = toMinorUnits(filters.minAmount);
+  const max = toMinorUnits(filters.maxAmount);
+  if (min !== null && amount < min) return false;
+  if (max !== null && amount > max) return false;
+  return true;
+}
+
+function compareEntries(a, b, key, dir) {
+  let result = 0;
+  if (key === 'date') result = Date.parse(a.date) - Date.parse(b.date);
+  else if (key === 'description') result = String(a.description || '').localeCompare(String(b.description || ''));
+  else if (key === 'debit') result = (a.debitCents || 0) - (b.debitCents || 0);
+  else if (key === 'credit') result = (a.creditCents || 0) - (b.creditCents || 0);
+  else result = (a.balanceAfterCents || 0) - (b.balanceAfterCents || 0);
+  if (result === 0) result = String(a.id).localeCompare(String(b.id));
+  return dir === 'desc' ? -result : result;
+}
+
 export default function CreditStatementsPage({ product = 'oxsteed' }) {
   const { t, i18n } = useTranslation('credit');
   const [searchParams, setSearchParams] = useSearchParams();
@@ -117,6 +205,10 @@ export default function CreditStatementsPage({ product = 'oxsteed' }) {
   const [error, setError] = useState(null);
   const [page, setPage] = useState(0);
   const [downloadState, setDownloadState] = useState(null);
+  const [filters, setFilters] = useState(() => readFiltersFromParams(searchParams));
+  const [sort, setSort] = useState(() => readSortFromParams(searchParams));
+  const [draft, setDraft] = useState(() => readFiltersFromParams(searchParams));
+  const [filterError, setFilterError] = useState(null);
   const requestRef = useRef(null);
   const downloadRef = useRef(null);
   const entries = accounts.product === product ? accounts.entries : [];
@@ -165,6 +257,82 @@ export default function CreditStatementsPage({ product = 'oxsteed' }) {
       downloadRef.current?.abort();
     };
   }, [identity]);
+
+  // Keep filter/sort state in sync with the URL so views are shareable and
+  // the browser back/forward buttons restore them.
+  useEffect(() => {
+    setFilters(readFiltersFromParams(searchParams));
+    setSort(readSortFromParams(searchParams));
+    setDraft(readFiltersFromParams(searchParams));
+    setFilterError(null);
+    setPage(0);
+  }, [searchParams]);
+
+  function writeViewToUrl(nextFilters, nextSort) {
+    const next = new URLSearchParams(searchParams);
+    const entries = [
+      [FILTER_URL_KEYS.type, nextFilters.type],
+      [FILTER_URL_KEYS.minAmount, nextFilters.minAmount],
+      [FILTER_URL_KEYS.maxAmount, nextFilters.maxAmount],
+      [FILTER_URL_KEYS.direction, nextFilters.direction],
+      [FILTER_URL_KEYS.status, nextFilters.status],
+      [FILTER_URL_KEYS.related, nextFilters.related],
+      [SORT_URL_KEYS.key, nextSort.key],
+      [SORT_URL_KEYS.dir, nextSort.dir],
+    ];
+    for (const [key, value] of entries) {
+      if (value) next.set(key, value); else next.delete(key);
+    }
+    setSearchParams(next);
+  }
+
+  function applyDraft(event) {
+    event?.preventDefault();
+    const invalid = (draft.minAmount !== '' && toMinorUnits(draft.minAmount) === null)
+      || (draft.maxAmount !== '' && toMinorUnits(draft.maxAmount) === null);
+    if (invalid) {
+      setFilterError('filters.invalidAmount');
+      return;
+    }
+    setFilterError(null);
+    setFilters(draft);
+    writeViewToUrl(draft, sort);
+    setPage(0);
+  }
+
+  function clearFilters() {
+    setDraft({ ...EMPTY_FILTERS });
+    setFilters({ ...EMPTY_FILTERS });
+    setFilterError(null);
+    writeViewToUrl(EMPTY_FILTERS, sort);
+    setPage(0);
+  }
+
+  function toggleSort(key) {
+    const next = sort.key === key
+      ? { key, dir: sort.dir === 'asc' ? 'desc' : 'asc' }
+      : { key, dir: 'asc' };
+    setSort(next);
+    writeViewToUrl(filters, next);
+    setPage(0);
+  }
+
+  function applySavedView(view) {
+    const nextFilters = { ...EMPTY_FILTERS, ...(view.filters || {}) };
+    const clean = readFiltersFromParams(new URLSearchParams(Object.entries(nextFilters)
+      .filter(([, value]) => value !== '' && value != null)
+      .map(([filterKey, value]) => [FILTER_URL_KEYS[filterKey] || filterKey, String(value)])));
+    const nextSort = {
+      key: SORT_KEYS.has(view.sort?.key) ? view.sort.key : DEFAULT_SORT.key,
+      dir: view.sort?.dir === 'desc' ? 'desc' : 'asc',
+    };
+    setFilters(clean);
+    setDraft(clean);
+    setSort(nextSort);
+    setFilterError(null);
+    writeViewToUrl(clean, nextSort);
+    setPage(0);
+  }
 
   function changeAccount(event) {
     requestRef.current?.abort();
@@ -258,8 +426,19 @@ export default function CreditStatementsPage({ product = 'oxsteed' }) {
   const money = amount => formatStatementMoney(amount, statement?.currencyCode || selected?.currencyCode, language);
   const date = value => localizedDate(value, language, text('notAvailable'));
   const timestamp = value => formatCreditDateTime(value, text('notAvailable'), language);
-  const pageCount = Math.max(1, Math.ceil((statement?.transactions.length || 0) / STATEMENT_PAGE_SIZE));
-  const rows = statement?.transactions.slice(page * STATEMENT_PAGE_SIZE, (page + 1) * STATEMENT_PAGE_SIZE) || [];
+  const activeFilter = filtersActive(filters);
+  const filteredTransactions = (statement?.transactions || []).filter(entry => entryMatchesFilters(entry, filters));
+  const sortedTransactions = [...filteredTransactions].sort((a, b) => compareEntries(a, b, sort.key, sort.dir));
+  const pageCount = Math.max(1, Math.ceil(sortedTransactions.length / STATEMENT_PAGE_SIZE));
+  const rows = sortedTransactions.slice(page * STATEMENT_PAGE_SIZE, (page + 1) * STATEMENT_PAGE_SIZE) || [];
+  const availableTypes = [...new Set((statement?.transactions || []).map(entry => entry.type))].sort();
+  const sortColumns = [
+    { key: 'date', label: text('date') },
+    { key: 'description', label: text('transaction') },
+    { key: 'debit', label: text('debit') },
+    { key: 'credit', label: text('credit') },
+    { key: 'balance', label: text('balance') },
+  ];
 
   return <div className="credit-statements-shell" dir={i18n.dir(language)}>
     <PageMeta title={text('title')} description={text('description')} noIndex />
@@ -299,14 +478,59 @@ export default function CreditStatementsPage({ product = 'oxsteed' }) {
                         {downloadState && <p role={downloadState === 'error' ? 'alert' : 'status'}>{text(downloadState === 'busy' ? 'downloading' : downloadState === 'error' ? 'downloadError' : 'downloaded')}</p>}
                         {statement.contentHash && <details className="cs-hash"><summary>{text('contentHash')}</summary><code dir="ltr">{statement.contentHash}</code></details>}
                       </section>
-                      <section className="cs-activity" aria-labelledby="statement-activity-heading"><h2 id="statement-activity-heading">{text('activity')}</h2><p>{text('activityCount', { count: statement.transactionCount })}</p>
+                      <section className="cs-activity" aria-labelledby="statement-activity-heading"><h2 id="statement-activity-heading">{text('activity')}</h2><p>{activeFilter ? t('statements.filters.matching', { count: filteredTransactions.length, total: statement.transactionCount }) : text('activityCount', { count: statement.transactionCount })}</p>
+                        <SavedViews product={product} getCurrentView={() => ({ filters: { ...filters }, sort: { ...sort } })} onApply={applySavedView} />
+                        <form className="cs-advanced-filters" onSubmit={applyDraft}>
+                          <h3>{t('statements.filters.title')}</h3>
+                          <div className="cs-advanced-grid">
+                            <div className="cs-field"><label htmlFor="statement-filter-type">{t('statements.filters.activityType')}</label><select id="statement-filter-type" value={draft.type} onChange={event => setDraft(current => ({ ...current, type: event.target.value }))}>
+                              <option value="">{t('statements.filters.allTypes')}</option>
+                              {availableTypes.map(type => <option key={type} value={type}>{['debit', 'credit'].includes(type) ? text(type) : localizeCreditTransactionType(type, t)}</option>)}
+                            </select></div>
+                            <div className="cs-field"><label htmlFor="statement-filter-min">{t('statements.filters.minAmount')}</label><input id="statement-filter-min" type="text" inputMode="decimal" value={draft.minAmount} onChange={event => setDraft(current => ({ ...current, minAmount: event.target.value }))} placeholder="0.00" /></div>
+                            <div className="cs-field"><label htmlFor="statement-filter-max">{t('statements.filters.maxAmount')}</label><input id="statement-filter-max" type="text" inputMode="decimal" value={draft.maxAmount} onChange={event => setDraft(current => ({ ...current, maxAmount: event.target.value }))} placeholder="0.00" /></div>
+                            <div className="cs-field"><label htmlFor="statement-filter-direction">{t('statements.filters.direction')}</label><select id="statement-filter-direction" value={draft.direction} onChange={event => setDraft(current => ({ ...current, direction: event.target.value }))}>
+                              <option value="">{t('statements.filters.allDirections')}</option>
+                              <option value="debit">{t('statements.filters.debitsOnly')}</option>
+                              <option value="credit">{t('statements.filters.creditsOnly')}</option>
+                            </select></div>
+                            <div className="cs-field"><label htmlFor="statement-filter-status">{t('statements.filters.status')}</label><select id="statement-filter-status" value={draft.status} onChange={event => setDraft(current => ({ ...current, status: event.target.value }))}>
+                              <option value="">{t('statements.filters.allStatuses')}</option>
+                              <option value="posted">{t('statements.filters.posted')}</option>
+                              <option value="reversed">{t('statements.filters.reversed')}</option>
+                            </select></div>
+                            <div className="cs-field"><label htmlFor="statement-filter-related">{t('statements.filters.related')}</label><select id="statement-filter-related" value={draft.related} onChange={event => setDraft(current => ({ ...current, related: event.target.value }))}>
+                              <option value="">{t('statements.filters.allRelated')}</option>
+                              <option value="order">{t('statements.filters.relatedOrder')}</option>
+                              <option value="payment">{t('statements.filters.relatedPayment')}</option>
+                              <option value="settlement">{t('statements.filters.relatedSettlement')}</option>
+                              <option value="adjustment">{t('statements.filters.relatedAdjustment')}</option>
+                              <option value="refund">{t('statements.filters.relatedRefund')}</option>
+                            </select></div>
+                          </div>
+                          {filterError && <p role="alert" className="cs-filter-error">{t(`statements.${filterError}`)}</p>}
+                          <div className="cs-advanced-actions">
+                            <button type="submit" className="cs-primary">{t('statements.filters.apply')}</button>
+                            <button type="button" onClick={clearFilters}>{t('statements.filters.clear')}</button>
+                          </div>
+                        </form>
                         {!statement.transactions.length ? <p className="cs-state">{text('noActivity')}</p> : <>
                           <div className="cs-table-scroll" role="region" aria-labelledby="statement-activity-heading" tabIndex={0}>
-                            <table><caption className="cs-sr-only">{text('activity')}</caption><thead><tr>{['date', 'transaction', 'debit', 'credit', 'balance'].map(key => <th key={key} scope="col">{text(key)}</th>)}</tr></thead><tbody>{rows.map(entry => <tr key={entry.id}><td><time dateTime={entry.date}>{date(entry.date)}</time></td><td><strong>{['debit', 'credit'].includes(entry.type) ? text(entry.type) : localizeCreditTransactionType(entry.type, t)}</strong>{entry.description && <span><bdi>{entry.description}</bdi></span>}<small><bdi>{entry.id}</bdi></small></td><td><bdi>{money(entry.debitCents)}</bdi></td><td><bdi>{money(entry.creditCents)}</bdi></td><td><bdi>{money(entry.balanceAfterCents)}</bdi></td></tr>)}</tbody></table>
+                            <table><caption className="cs-sr-only">{text('activity')}</caption><thead><tr>{sortColumns.map(column => <th key={column.key} scope="col" aria-sort={sort.key === column.key ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none'}>
+                              <button
+                                type="button"
+                                className="cs-sort-th"
+                                onClick={() => toggleSort(column.key)}
+                                aria-label={`${column.label} (${t(`statements.sort.${sort.key === column.key && sort.dir === 'desc' ? 'ascending' : 'descending'}`)})`}
+                              >
+                                {column.label}<span aria-hidden="true">{sort.key === column.key ? (sort.dir === 'asc' ? ' ▲' : ' ▼') : ''}</span>
+                              </button>
+                            </th>)}</tr></thead><tbody>{rows.map(entry => <tr key={entry.id}><td><time dateTime={entry.date}>{date(entry.date)}</time></td><td><strong>{['debit', 'credit'].includes(entry.type) ? text(entry.type) : localizeCreditTransactionType(entry.type, t)}</strong>{entry.description && <span><bdi>{entry.description}</bdi></span>}<small><bdi>{entry.id}</bdi></small></td><td><bdi>{money(entry.debitCents)}</bdi></td><td><bdi>{money(entry.creditCents)}</bdi></td><td><bdi>{money(entry.balanceAfterCents)}</bdi></td></tr>)}</tbody></table>
                           </div>
                           <nav className="cs-pagination" aria-label={text('pagination')}><button type="button" disabled={page === 0} onClick={() => setPage(value => value - 1)}>{text('previous')}</button><span aria-live="polite" aria-atomic="true">{text('page', { page: page + 1, pages: pageCount })}</span><button type="button" disabled={page >= pageCount - 1} onClick={() => setPage(value => value + 1)}>{text('next')}</button></nav>
                         </>}
                       </section>
+                      <PeriodTrends product={product} accountId={accountKey(selected, product)} />
                       {statement.holdsAsOf && <section className="cs-holds" aria-labelledby="statement-holds-heading"><h2 id="statement-holds-heading">{text('holds')}</h2><p>{text('holdsNote')}</p><p>{text('holdsAsOf', { date: timestamp(statement.holdsAsOf) })}</p><dl><dt>{text('heldTotal')}</dt><dd><bdi>{money(statement.totalHeldCents)}</bdi></dd></dl>
                         {!statement.holds.length ? <p>{text('noHolds')}</p> : <ul>{statement.holds.map(hold => <li key={hold.id}><bdi>{money(hold.amountCents)}</bdi><span>{text('expires', { date: timestamp(hold.expiresAt) })}</span></li>)}</ul>}
                       </section>}
