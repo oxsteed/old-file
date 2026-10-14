@@ -31,13 +31,30 @@ function adminUser(id, isSuper = false) {
   return { id, role: isSuper ? 'super_admin' : 'admin', first_name: 'A', last_name: 'B' };
 }
 
+// ADM-094: the claim route now runs loadAssignedRegions, so controller tests
+// must carry the scope the middleware would have loaded.
+const REGION_US = {
+  id: 7,
+  name: 'US South',
+  boundary_definition: { type: 'country_only', countries: ['US'] },
+};
+const regionalReq = (user) => ({
+  params: { ticketId: 't1' },
+  user,
+  isSuper: false,
+  assigned_regions: [REGION_US],
+});
+const usOwnerRow = { id: 'user-us', country: 'US' };
+
 describe('T10-F01: ticket claim race', () => {
   test('losing a claim race returns 409 instead of overwriting the owner', async () => {
     // Admin B reads the ticket while it is still unassigned (stale read).
     mockQuery
       .mockResolvedValueOnce({
-        rows: [{ id: 't1', status: 'open', assigned_to: null, ticket_number: 'T-1' }],
+        rows: [{ id: 't1', status: 'open', assigned_to: null, ticket_number: 'T-1', user_id: 'user-us' }],
       })
+      // ADM-094 region check: owner is in the admin's region.
+      .mockResolvedValueOnce({ rows: [usOwnerRow] })
       // Atomic UPDATE finds the ticket already claimed by admin A: zero rows.
       .mockResolvedValueOnce({ rows: [] })
       // Re-read for the conflict message sees the new owner.
@@ -45,7 +62,7 @@ describe('T10-F01: ticket claim race', () => {
         rows: [{ id: 't1', status: 'assigned', assigned_to: 'admin-a', ticket_number: 'T-1' }],
       });
 
-    const req = { params: { ticketId: 't1' }, user: adminUser('admin-b'), isSuper: false };
+    const req = regionalReq(adminUser('admin-b'));
     const res = makeRes();
     await controller.claimTicket(req, res);
 
@@ -59,28 +76,33 @@ describe('T10-F01: ticket claim race', () => {
     const ticket = { id: 't1', status: 'assigned', assigned_to: 'admin-b', ticket_number: 'T-1' };
     mockQuery
       .mockResolvedValueOnce({
-        rows: [{ id: 't1', status: 'open', assigned_to: null, ticket_number: 'T-1' }],
+        rows: [{ id: 't1', status: 'open', assigned_to: null, ticket_number: 'T-1', user_id: 'user-us' }],
       })
+      // ADM-094 region check.
+      .mockResolvedValueOnce({ rows: [usOwnerRow] })
       .mockResolvedValueOnce({ rows: [{ id: 't1' }] })  // atomic UPDATE matched
-      .mockResolvedValueOnce({ rows: [ticket] });       // fetchTicketRow
+      .mockResolvedValueOnce({ rows: [ticket] });        // fetchTicketRow
 
-    const req = { params: { ticketId: 't1' }, user: adminUser('admin-b'), isSuper: false };
+    const req = regionalReq(adminUser('admin-b'));
     const res = makeRes();
     await controller.claimTicket(req, res);
 
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ ticket }));
     // The UPDATE must be conditional, not ID-only.
-    const updateSql = mockQuery.mock.calls[1][0];
+    const updateSql = mockQuery.mock.calls[2][0];
     expect(updateSql).toMatch(/assigned_to IS NULL/i);
     expect(updateSql).toMatch(/RETURNING/i);
   });
 
   test('claiming a closed ticket still returns 409', async () => {
-    mockQuery.mockResolvedValueOnce({
-      rows: [{ id: 't1', status: 'closed', assigned_to: null, ticket_number: 'T-1' }],
-    });
+    mockQuery
+      .mockResolvedValueOnce({
+        rows: [{ id: 't1', status: 'closed', assigned_to: null, ticket_number: 'T-1', user_id: 'user-us' }],
+      })
+      // ADM-094 region check.
+      .mockResolvedValueOnce({ rows: [usOwnerRow] });
 
-    const req = { params: { ticketId: 't1' }, user: adminUser('admin-b'), isSuper: false };
+    const req = regionalReq(adminUser('admin-b'));
     const res = makeRes();
     await controller.claimTicket(req, res);
 
@@ -88,11 +110,14 @@ describe('T10-F01: ticket claim race', () => {
   });
 
   test('non-super admin cannot take over another admin ticket', async () => {
-    mockQuery.mockResolvedValueOnce({
-      rows: [{ id: 't1', status: 'assigned', assigned_to: 'admin-a', ticket_number: 'T-1' }],
-    });
+    mockQuery
+      .mockResolvedValueOnce({
+        rows: [{ id: 't1', status: 'assigned', assigned_to: 'admin-a', ticket_number: 'T-1', user_id: 'user-us' }],
+      })
+      // ADM-094 region check.
+      .mockResolvedValueOnce({ rows: [usOwnerRow] });
 
-    const req = { params: { ticketId: 't1' }, user: adminUser('admin-b'), isSuper: false };
+    const req = regionalReq(adminUser('admin-b'));
     const res = makeRes();
     await controller.claimTicket(req, res);
 

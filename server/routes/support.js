@@ -34,6 +34,8 @@ const upload = require('../middleware/upload');
 const validateFileUpload = require('../middleware/validateFileUpload');
 const { TERMINAL_CONVERSATION_STATUS_SQL } = require('../services/supportConversationTerminal');
 const { columnExists } = require('../utils/schemaProbe');
+// ADM-126: webhook secret encryption/masking for support admin settings.
+const { prepareSecretFieldsForWrite, maskSecretsForRead } = require('../utils/supportIntegrationSecrets');
 const DAY_NAMES = new Set(['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']);
 
 function parseBoolean(value, fallback = false) {
@@ -1842,9 +1844,13 @@ router.get('/settings', async (req, res, next) => {
     if (!(await canManageSupportBusiness(req, businessId))) return res.status(403).json({ error: 'Access denied' });
     const { rows } = await db.query('SELECT settings FROM support_admin_settings WHERE business_id = $1', [businessId]);
     const stored = rows[0]?.settings || {};
+    // ADM-126: webhook secrets are masked in API responses (last 4 chars
+    // only), even for admins allowed to manage settings.
+    const integrations = maskSecretsForRead(stored.integrations);
     return res.json({
       ...DEFAULT_SUPPORT_SETTINGS,
       ...stored,
+      integrations,
       general: { ...DEFAULT_SUPPORT_SETTINGS.general, ...(stored.general || {}), business_id: businessId },
     });
   } catch (err) {
@@ -1858,9 +1864,14 @@ router.post('/settings/:section', async (req, res, next) => {
     if (!(await canManageSupportBusiness(req, businessId))) return res.status(403).json({ error: 'Access denied' });
     const allowedSections = new Set(['general', 'notifications', 'integrations', 'automation', 'working_hours']);
     if (!allowedSections.has(req.params.section)) return res.status(400).json({ error: 'Invalid settings section' });
-    const section = { ...req.body };
+    let section = { ...req.body };
     delete section.business_id;
     delete section.businessId;
+    // ADM-126: encrypt webhook secrets at rest. Masked placeholders that
+    // round-tripped from GET are dropped so the stored secret survives.
+    if (req.params.section === 'integrations') {
+      section = prepareSecretFieldsForWrite(section);
+    }
     const serialized = JSON.stringify(section);
     if (serialized.length > 20000) return res.status(400).json({ error: 'Settings payload is too large' });
     const { rows } = await db.query(
@@ -1873,10 +1884,14 @@ router.post('/settings/:section', async (req, res, next) => {
        RETURNING settings`,
       [businessId, req.params.section, serialized, req.user.id]
     );
+    const saved = rows[0]?.settings || {};
+    // ADM-126: never return secrets in full, even in the save response.
+    const savedIntegrations = maskSecretsForRead(saved.integrations);
     return res.json({
       ...DEFAULT_SUPPORT_SETTINGS,
-      ...(rows[0]?.settings || {}),
-      general: { ...DEFAULT_SUPPORT_SETTINGS.general, ...(rows[0]?.settings?.general || {}), business_id: businessId },
+      ...saved,
+      integrations: savedIntegrations,
+      general: { ...DEFAULT_SUPPORT_SETTINGS.general, ...(saved.general || {}), business_id: businessId },
     });
   } catch (err) {
     next(err);

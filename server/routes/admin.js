@@ -16,6 +16,7 @@ const bizModCtrl      = require('../controllers/businessModerationController');
 const profileVisCtrl  = require('../controllers/profileVisibilityController');
 const profileVisApprCtrl = require('../controllers/profileVisibilityApprovalsController');
 const convAdminCtrl   = require('../controllers/conversationsAdminController');
+const moderationCtrl  = require('../controllers/moderationController');
 const paymentsCtrl    = require('../controllers/paymentsAdminController');
 const paymentDisputeAdminCtrl = require('../controllers/paymentDisputeAdminController');
 const webhookReceiptAdminCtrl = require('../controllers/webhookReceiptAdminController');
@@ -94,6 +95,10 @@ router.get('/operations/security-audit-log', requireAdmin, requirePermission('vi
 router.get('/reports',           requireAdmin, requirePermission('manage_operations'), adminCtrl.getReports);
 router.put('/reports/:reportId', requireAdmin, requirePermission('manage_operations'), adminCtrl.reviewReport);
 router.get('/moderation-queue',  requireAdmin, requirePermission('moderate_content'), adminCtrl.getModerationQueue);
+// ADM-023: reader for the moderation_queue table where mobile content flags
+// land (previously write-only: nothing ever read the table).
+router.get('/moderation-flags',               requireAdmin, requirePermission('moderate_content'), moderationCtrl.listContentFlags);
+router.post('/moderation-flags/:id/review',   requireAdmin, requirePermission('moderate_content'), moderationCtrl.reviewContentFlag);
 
 // Jobs (read + moderate - all admins)
 router.get('/jobs',                    requireAdmin, requirePermission('manage_operations'),      superCtrl.getJobs);
@@ -291,8 +296,10 @@ router.put('/users/:userId/profile', requireSuperAdmin, superCtrl.updateUserProf
 router.get('/users/:userId/support-tickets', requireAdmin, requirePermission('manage_support'), loadAssignedRegions, requireRegionAccessForUser('userId'), superCtrl.getUserSupportTickets);
 
 // Conversations (super-admin only - every read is audited)
+// ADM-124: reading a full private thread requires the
+// investigate_conversations grant, same as the break-glass POST.
 router.get('/super/conversations',              requireSuperAdmin, convAdminCtrl.listConversations);
-router.get('/super/conversations/:id',          requireSuperAdmin, convAdminCtrl.getThread);
+router.get('/super/conversations/:id',          requireSuperAdmin, requirePermission('investigate_conversations'), convAdminCtrl.getThread);
 router.post('/super/conversations/:id/break-glass', requireSuperAdmin, requirePermission('investigate_conversations'), convAdminCtrl.breakGlass);
 router.put('/super/conversations/:id/status', requireSuperAdmin, convAdminCtrl.setConversationStatus);
 router.post('/super/conversations/:id/status', requireSuperAdmin, convAdminCtrl.setConversationStatus);
@@ -383,11 +390,13 @@ router.get('/support/stats',                          requireAdmin, requirePermi
 // E05: ticket list/detail are region-scoped server-side (fail closed).
 router.get('/support/tickets',                        requireAdmin, requirePermission('manage_support'), loadAssignedRegions, supportCtrl.listTickets);
 router.get('/support/tickets/:ticketId',              requireAdmin, requirePermission('manage_support'), loadAssignedRegions, supportCtrl.getTicketAdmin);
-router.post('/support/tickets/:ticketId/claim',       requireAdmin, requirePermission('manage_support'), supportCtrl.claimTicket);
-router.post('/support/tickets/:ticketId/unclaim',     requireAdmin, requirePermission('manage_support'), supportCtrl.unclaimTicket);
-router.put('/support/tickets/:ticketId/status',       requireAdmin, requirePermission('manage_support'), supportCtrl.updateStatus);
-router.put('/support/tickets/:ticketId/priority',     requireAdmin, requirePermission('manage_support'), supportCtrl.updatePriority);
-router.post('/support/tickets/:ticketId/reply',       requireAdmin, requirePermission('message_users'), supportCtrl.adminReply);
+// ADM-094: ticket mutation endpoints are region-scoped server-side (fail
+// closed), same as the list/detail endpoints above.
+router.post('/support/tickets/:ticketId/claim',       requireAdmin, requirePermission('manage_support'), loadAssignedRegions, supportCtrl.claimTicket);
+router.post('/support/tickets/:ticketId/unclaim',     requireAdmin, requirePermission('manage_support'), loadAssignedRegions, supportCtrl.unclaimTicket);
+router.put('/support/tickets/:ticketId/status',       requireAdmin, requirePermission('manage_support'), loadAssignedRegions, supportCtrl.updateStatus);
+router.put('/support/tickets/:ticketId/priority',     requireAdmin, requirePermission('manage_support'), loadAssignedRegions, supportCtrl.updatePriority);
+router.post('/support/tickets/:ticketId/reply',       requireAdmin, requirePermission('message_users'), loadAssignedRegions, supportCtrl.adminReply);
 
 // ══════════════════════════════════════════════════════════════
 // SEARCH ENGINE (admin + super_admin)
