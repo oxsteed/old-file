@@ -215,6 +215,7 @@ ddescribe('statement investigation: all products (disposable DB)', () => {
       `ALTER TABLE food_orders ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW()`,
       `ALTER TABLE oxsteed_credit_accounts ADD COLUMN IF NOT EXISTS partner_id BIGINT`,
       `ALTER TABLE oxsteed_credit_accounts ADD COLUMN IF NOT EXISTS restaurant_id BIGINT`,
+      `ALTER TABLE oxsteed_credit_transactions ADD COLUMN IF NOT EXISTS idempotency_key TEXT`,
     ]) await pool.query(ddl);
   }
 
@@ -290,10 +291,10 @@ ddescribe('statement investigation: all products (disposable DB)', () => {
     await pool.query(
       `INSERT INTO oxsteed_credit_transactions
          (id, transaction_type, status, debit_account_id, credit_account_id, amount_cents,
-          currency_code, reference_type, reference_id, description, posted_at, created_at)
+          currency_code, reference_type, reference_id, description, posted_at, created_at, idempotency_key)
        VALUES ($1, 'sub_bank_load', 'posted', $2, $3, 12000, 'USD', 'food_order', $4,
-         'Synthetic settlement load', NOW(), NOW())`,
-      [settleTxId, treasury.id, subBank.id, String(order.id)]);
+         'Synthetic settlement load', NOW(), NOW(), $5)`,
+      [settleTxId, treasury.id, subBank.id, String(order.id), `stmt-fixture-${settleTxId}`]);
     await pool.query(
       `INSERT INTO oxsteed_credit_transaction_entries
          (transaction_id, account_id, entry_side, amount_cents, balance_after_cents, sequence)

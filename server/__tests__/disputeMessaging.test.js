@@ -104,7 +104,9 @@ ddescribe('dispute messaging (disposable DB)', () => {
 
   async function createUser(role = 'customer') {
     const id = crypto.randomUUID();
-    await pool.query('INSERT INTO users (id, email, password_hash, role) VALUES ($1, $2, \'synthetic\', $3)',
+    await pool.query(
+      `INSERT INTO users (id, email, password_hash, first_name, last_name, role)
+       VALUES ($1, $2, 'synthetic', 'Stmt', 'Fixture', $3)`,
       [id, `${id}@example.invalid`, role]);
     return id;
   }
