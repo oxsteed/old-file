@@ -65,6 +65,7 @@ test('job details: viewer actions, asynchronous guards, dialogs, keyboard galler
       for(const width of [320,390,768,1360,1600]){
         await page.setViewportSize({width,height:900});await page.evaluate(()=>scrollTo(0,0));
         assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,`overflow ${viewer} ${language} ${theme} ${width}`);
+        await page.waitForFunction(()=>['.jdp-summary','.jdp-next-step','.jdp-main','.jdp-supporting'].every(selector=>document.querySelector(selector)));
         const geometry=await page.evaluate(()=>{const rect=selector=>{const r=document.querySelector(selector).getBoundingClientRect();return{x:r.x,y:r.y,width:r.width,bottom:r.bottom};};return{summary:rect('.jdp-summary'),action:rect('.jdp-next-step'),main:rect('.jdp-main'),details:rect('.jdp-supporting'),short:[...document.querySelectorAll('.jdp-page button,.jdp-page a')].filter(node=>node.getBoundingClientRect().height<44).map(node=>node.textContent)}});
         assert.deepEqual(geometry.short,[],`touch targets ${viewer} ${width}`);
         if(width<=768){assert.ok(geometry.action.y>=geometry.summary.bottom);assert.ok(geometry.main.y>=geometry.action.bottom);assert.ok(geometry.details.y>=geometry.main.bottom);}
