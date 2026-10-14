@@ -31926,5 +31926,21 @@
     "error": "Nou pa t ka soumet W-9 ou a. Tanpri eseye anko.",
     "filedTitle": "W-9 anrejistre",
     "filedCopy": "Nou resevwa fom taks W-9 ou a. Ou pa bezwen soumet li anko."
-  }
+  },
+  "adminCreditApprovalTitle": "Apwobasyon kredi platfòm nan",
+  "adminCreditApprovalDetail": "Kontwole si restoran sa a ka bay nouvo kredi. Revoke kòmanse yon peryòd gras 30 jou; apre sa, balans ki rete yo ap deplase otomatikman nan OxSteed Credit.",
+  "adminCreditApprovalStatusLabel": "Estati apwobasyon",
+  "adminCreditApprovalStatusRevoked": "Revoke",
+  "adminCreditApprovalNewStatus": "Nouvo estati",
+  "adminCreditApprovalReason": "Rezon",
+  "adminCreditApprovalReasonRequired": "Ou dwe bay yon rezon pou sispann oswa revoke.",
+  "adminCreditApprovalReasonPlaceholder": "Poukisa restoran sa a ap pèdi apwobasyon kredi li?",
+  "adminCreditApprovalUpdate": "Mete apwobasyon an ajou",
+  "adminCreditApprovalUpdated": "Apwobasyon kredi a mete ajou.",
+  "adminCreditApprovalLoadFailed": "Pa ka chaje apwobasyon kredi a.",
+  "adminCreditApprovalUpdateFailed": "Pa ka mete apwobasyon kredi a ajou.",
+  "adminCreditApprovalGraceEnds": "Peryòd gras la fini",
+  "adminCreditApprovalRevokedAt": "Revoke nan",
+  "adminCreditApprovalMigratedAt": "Balans yo deplase",
+  "adminCreditApprovalGrandfathered": "Apwouve (pa gen dosye apwobasyon)"
 }

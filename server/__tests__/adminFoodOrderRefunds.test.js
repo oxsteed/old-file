@@ -110,7 +110,7 @@ describe('admin food order refunds (P2-1-F14)', () => {
       referenceType: 'food_order',
       referenceId: '101',
       amountCents: 2500,
-      idempotencyKey: 'food-order:101:oxsteed-credit-refund',
+      idempotencyKey: 'admin-food-refund:101:2500:oxsteed-credit',
       actorType: 'admin',
     });
     // The wallet ledger path must not be touched for rail payments.

@@ -63,6 +63,8 @@ function statusTone(status) {
       return 'border-sky-500/30 bg-sky-500/10 text-sky-300';
     case 'approved':
       return 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300';
+    case 'revoked':
+      return 'border-red-500/30 bg-red-500/10 text-red-300';
     case 'cancelled':
     case 'expired':
       return 'border-gray-700 bg-gray-800/70 text-gray-400';
@@ -77,6 +79,7 @@ const STATUS_LABEL_KEYS = {
   closed: 'adminRestaurantCreditStatusClosed',
   pending: 'adminRestaurantCreditStatusPending',
   approved: 'adminRestaurantCreditStatusApproved',
+  revoked: 'adminCreditApprovalStatusRevoked',
   cancelled: 'adminRestaurantCreditStatusCancelled',
   expired: 'adminRestaurantCreditStatusExpired',
   unknown: 'adminRestaurantCreditStatusUnknown',
@@ -208,6 +211,118 @@ function ConfirmDialog({ modal, busy, error, onChange, onClose, onConfirm }) {
   );
 }
 
+function CreditApprovalPanel({ restaurantId, restaurantName }) {
+  const { t } = useTranslation();
+  const [approval, setApproval] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
+  const [newStatus, setNewStatus] = useState('suspended');
+  const [reason, setReason] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
+
+  const loadApproval = useCallback(async () => {
+    if (!restaurantId) return;
+    setLoading(true);
+    setLoadError('');
+    try {
+      const response = await adminApi.get(`/food/admin/restaurants/${restaurantId}/credit-approval`);
+      setApproval(response.data?.approval || null);
+    } catch (err) {
+      setApproval(null);
+      setLoadError(getErrorMessage(err, t('adminCreditApprovalLoadFailed'), t));
+    } finally {
+      setLoading(false);
+    }
+  }, [restaurantId, t]);
+
+  useEffect(() => { loadApproval(); }, [loadApproval]);
+
+  const needsReason = newStatus === 'revoked' || newStatus === 'suspended';
+  const canSubmit = !busy && (!needsReason || reason.trim().length > 0);
+
+  const submit = async () => {
+    if (!canSubmit) {
+      setError(t('adminCreditApprovalReasonRequired'));
+      return;
+    }
+    setBusy(true);
+    setError('');
+    setNotice('');
+    try {
+      const response = await adminApi.post(`/food/admin/restaurants/${restaurantId}/credit-approval`, {
+        status: newStatus,
+        reason: reason.trim() || undefined,
+      });
+      setApproval(response.data?.approval || null);
+      setReason('');
+      setNotice(t('adminCreditApprovalUpdated'));
+    } catch (err) {
+      setError(getErrorMessage(err, t('adminCreditApprovalUpdateFailed'), t));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <section className="rounded-xl border border-gray-800 bg-gray-950/30 p-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h3 className="text-sm font-semibold text-white">{t('adminCreditApprovalTitle')}</h3>
+        {!loading && !loadError && approval && <StatusBadge status={approval.status} />}
+      </div>
+      <p className="mt-2 text-xs leading-5 text-gray-500">{t('adminCreditApprovalDetail')}</p>
+      {loading ? (
+        <div className="flex items-center justify-center py-6 text-gray-500"><Loader2 className="h-5 w-5 animate-spin text-orange-400" /></div>
+      ) : loadError ? (
+        <p className="mt-3 text-sm text-red-300">{loadError}</p>
+      ) : approval && (
+        <dl className="mt-3 grid grid-cols-1 gap-2 text-xs sm:grid-cols-2">
+          <div><dt className="text-gray-500">{t('adminCreditApprovalStatusLabel')}</dt><dd className="mt-0.5 font-semibold text-gray-200">{approval.grandfathered ? t('adminCreditApprovalGrandfathered') : approval.status}</dd></div>
+          {approval.revocationReason && <div className="sm:col-span-2"><dt className="text-gray-500">{t('adminRestaurantCreditReason')}</dt><dd className="mt-0.5 text-gray-200">{approval.revocationReason}</dd></div>}
+          {approval.revokedAt && <div><dt className="text-gray-500">{t('adminCreditApprovalRevokedAt')}</dt><dd className="mt-0.5 text-gray-200">{dateTime(approval.revokedAt, t)}</dd></div>}
+          {approval.gracePeriodEndsAt && <div><dt className="text-gray-500">{t('adminCreditApprovalGraceEnds')}</dt><dd className="mt-0.5 font-semibold text-amber-300">{dateTime(approval.gracePeriodEndsAt, t)}</dd></div>}
+          {approval.migratedAt && <div><dt className="text-gray-500">{t('adminCreditApprovalMigratedAt')}</dt><dd className="mt-0.5 text-gray-200">{dateTime(approval.migratedAt, t)}</dd></div>}
+        </dl>
+      )}
+      <div className="mt-4 grid grid-cols-1 gap-3 border-t border-gray-800 pt-4 sm:grid-cols-[180px_minmax(0,1fr)]">
+        <label className="block text-xs font-medium text-gray-300">
+          {t('adminCreditApprovalNewStatus')}
+          <select
+            value={newStatus}
+            onChange={(event) => setNewStatus(event.target.value)}
+            className="mt-2 w-full rounded-xl border border-gray-700 bg-gray-950 px-3 py-2.5 text-sm text-white outline-none focus:border-orange-400"
+          >
+            <option value="approved">{t('adminRestaurantCreditStatusApproved')}</option>
+            <option value="suspended">{t('adminRestaurantCreditStatusSuspended')}</option>
+            <option value="revoked">{t('adminCreditApprovalStatusRevoked')}</option>
+          </select>
+        </label>
+        <label className="block text-xs font-medium text-gray-300">
+          {t('adminCreditApprovalReason')} {needsReason && <span className="text-orange-300">*</span>}
+          <textarea
+            value={reason}
+            onChange={(event) => setReason(event.target.value)}
+            rows={2}
+            maxLength={500}
+            placeholder={t('adminCreditApprovalReasonPlaceholder')}
+            className="mt-2 w-full resize-y rounded-xl border border-gray-700 bg-gray-950 px-3 py-2.5 text-sm text-white placeholder:text-gray-600 outline-none focus:border-orange-400"
+          />
+        </label>
+      </div>
+      {notice && <p className="mt-3 rounded-xl border border-emerald-500/30 bg-emerald-950/30 px-3 py-2 text-sm text-emerald-300">{notice}</p>}
+      {error && <p className="mt-3 rounded-xl border border-red-500/30 bg-red-950/30 px-3 py-2 text-sm text-red-300">{error}</p>}
+      <div className="mt-3 flex justify-end">
+        <button type="button" onClick={submit} disabled={!canSubmit} className="inline-flex items-center gap-2 rounded-xl bg-orange-500 px-4 py-2.5 text-sm font-semibold text-white hover:bg-orange-400 disabled:cursor-not-allowed disabled:opacity-50">
+          {busy && <Loader2 className="h-4 w-4 animate-spin" />}
+          {t('adminCreditApprovalUpdate')}
+        </button>
+      </div>
+      <p className="mt-1 text-[11px] text-gray-600">{restaurantName || ''}</p>
+    </section>
+  );
+}
+
 function WalletDetail({ detail, onStatus, onRelease }) {
   const { t } = useTranslation();
   const wallet = detail.wallet;
@@ -228,6 +343,8 @@ function WalletDetail({ detail, onStatus, onRelease }) {
           </button>
         </div>
       </div>
+
+      <CreditApprovalPanel restaurantId={wallet.restaurantId} restaurantName={wallet.restaurantName} />
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <div className="rounded-xl border border-gray-800 bg-gray-950/40 p-3"><p className="text-xs text-gray-500">{t('adminRestaurantCreditLedgerBalance')}</p><p className="mt-1 text-lg font-semibold text-white">{money(wallet.balanceCents, wallet.currencyCode)}</p></div>
