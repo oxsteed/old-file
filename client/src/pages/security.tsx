@@ -8,7 +8,7 @@ export default function SecurityPolicy({ embedded = false }: { embedded?: boolea
     <LegalPageLayout
       title={t('securityPolicyPage.title')}
       description={t('securityPolicyPage.section1Text')}
-      effectiveDate="2026-03-22"
+      effectiveDate="2026-10-13"
       embedded={embedded}
     >
       <section className="mb-8">
@@ -24,7 +24,7 @@ export default function SecurityPolicy({ embedded = false }: { embedded?: boolea
         <h2 className="text-lg font-bold text-orange-400 mb-3">
           {t('securityPolicyPage.section2Title')}
         </h2>
-        <ul className="list-disc ml-5 space-y-2 mb-3">
+        <ul className="list-disc ms-5 space-y-2 mb-3">
           <li>{t('securityPolicyPage.section2List1')}</li>
           <li>{t('securityPolicyPage.section2List2')}</li>
           <li>{t('securityPolicyPage.section2List3')}</li>
@@ -40,7 +40,7 @@ export default function SecurityPolicy({ embedded = false }: { embedded?: boolea
         <h2 className="text-lg font-bold text-orange-400 mb-3">
           {t('securityPolicyPage.section3Title')}
         </h2>
-        <ul className="list-disc ml-5 space-y-2 mb-3">
+        <ul className="list-disc ms-5 space-y-2 mb-3">
           <li>{t('securityPolicyPage.section3List1')}</li>
           <li>{t('securityPolicyPage.section3List2')}</li>
           <li>{t('securityPolicyPage.section3List3')}</li>
@@ -61,7 +61,7 @@ export default function SecurityPolicy({ embedded = false }: { embedded?: boolea
           </a>
         </p>
         <p className="mb-3">{t('securityPolicyPage.section4Include')}</p>
-        <ul className="list-disc ml-5 space-y-2 mb-3">
+        <ul className="list-disc ms-5 space-y-2 mb-3">
           <li>{t('securityPolicyPage.section4Include1')}</li>
           <li>{t('securityPolicyPage.section4Include2')}</li>
           <li>{t('securityPolicyPage.section4Include3')}</li>
@@ -79,7 +79,7 @@ export default function SecurityPolicy({ embedded = false }: { embedded?: boolea
         <h2 className="text-lg font-bold text-orange-400 mb-3">
           {t('securityPolicyPage.section5Title')}
         </h2>
-        <ul className="list-disc ml-5 space-y-2 mb-3">
+        <ul className="list-disc ms-5 space-y-2 mb-3">
           <li>{t('securityPolicyPage.section5List1')}</li>
           <li>{t('securityPolicyPage.section5List2')}</li>
           <li>{t('securityPolicyPage.section5List3')}</li>
@@ -96,7 +96,7 @@ export default function SecurityPolicy({ embedded = false }: { embedded?: boolea
         <p className="mb-3">
           {t('securityPolicyPage.section6Text')}
         </p>
-        <ul className="list-disc ml-5 space-y-2 mb-3">
+        <ul className="list-disc ms-5 space-y-2 mb-3">
           <li>{t('securityPolicyPage.section6List1')}</li>
           <li>{t('securityPolicyPage.section6List2')}</li>
           <li>{t('securityPolicyPage.section6List3')}</li>

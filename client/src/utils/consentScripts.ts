@@ -36,6 +36,9 @@ function injectInlineScript(id: string, code: string): void {
 export function initAnalytics(): void {
   const gaId = import.meta.env.VITE_GA_MEASUREMENT_ID;
   if (!gaId) return;
+  (window as unknown as Record<string, unknown>)[`ga-disable-${gaId}`] = false;
+  const gtag = (window as Window & { gtag?: (...args: unknown[]) => void }).gtag;
+  gtag?.('consent', 'update', { analytics_storage: 'granted' });
 
   injectScript({
     id:  'ga4-script',
@@ -45,14 +48,23 @@ export function initAnalytics(): void {
   injectInlineScript('ga4-init', `
     window.dataLayer = window.dataLayer || [];
     function gtag(){dataLayer.push(arguments);}
+    gtag('consent', 'default', {
+      analytics_storage: 'granted', ad_storage: 'denied',
+      ad_user_data: 'denied', ad_personalization: 'denied'
+    });
     gtag('js', new Date());
-    gtag('config', '${gaId}', { anonymize_ip: true });
+    gtag('config', '${gaId}', {
+      anonymize_ip: true, allow_google_signals: false,
+      allow_ad_personalization_signals: false
+    });
   `);
 }
 
 export function disableAnalytics(): void {
   const gaId = import.meta.env.VITE_GA_MEASUREMENT_ID;
   if (!gaId) return;
+  // Stop measurement, including cookieless pings after consent withdrawal.
+  (window as unknown as Record<string, unknown>)[`ga-disable-${gaId}`] = true;
   // GA consent mode: tell GA not to store cookies
   if (typeof (window as Window & { gtag?: (...args: unknown[]) => void }).gtag === 'function') {
     (window as Window & { gtag?: (...args: unknown[]) => void }).gtag!(
@@ -64,8 +76,11 @@ export function disableAnalytics(): void {
 // ─── Marketing ────────────────────────────────────────────────────────────────
 // Meta Pixel - replace with VITE_META_PIXEL_ID env var.
 export function initMarketing(): void {
+  if (hasGlobalPrivacyControl()) { disableMarketing(); return; }
   const pixelId = import.meta.env.VITE_META_PIXEL_ID;
   if (!pixelId) return;
+  const fbq = (window as Window & { fbq?: (...args: unknown[]) => void }).fbq;
+  fbq?.('consent', 'grant');
 
   injectInlineScript('meta-pixel-init', `
     !function(f,b,e,v,n,t,s){
@@ -79,6 +94,16 @@ export function initMarketing(): void {
     fbq('init', '${pixelId}');
     fbq('track', 'PageView');
   `);
+}
+
+export function hasGlobalPrivacyControl(): boolean {
+  return typeof navigator !== 'undefined'
+    && (navigator as Navigator & { globalPrivacyControl?: boolean }).globalPrivacyControl === true;
+}
+
+export function disableMarketing(): void {
+  const fbq = (window as Window & { fbq?: (...args: unknown[]) => void }).fbq;
+  fbq?.('consent', 'revoke');
 }
 
 // ─── Functional ───────────────────────────────────────────────────────────────
@@ -103,5 +128,6 @@ export function bootConsentedScripts(prefs: {
   if (prefs.analytics)  initAnalytics();
   else                  disableAnalytics();
   if (prefs.marketing)  initMarketing();
+  else                 disableMarketing();
   if (prefs.functional) initFunctional();
 }

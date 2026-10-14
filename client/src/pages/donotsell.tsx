@@ -3,10 +3,12 @@ import LegalPageLayout from '../components/LegalPageLayout';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../hooks/useAuth';
 import api from '../api/axios';
+import { useCookieConsentContext } from '../context/CookieConsentContext';
 
 function DoNotSellForm() {
   const { t } = useTranslation();
   const { user } = useAuth();
+  const { preferences, savePreferences } = useCookieConsentContext();
   const [email, setEmail] = useState(user?.email || '');
   const [notes, setNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -22,6 +24,8 @@ function DoNotSellForm() {
     }
     setSubmitting(true);
     setError('');
+    // Apply the browser opt-out immediately even if the request service fails.
+    savePreferences({ ...preferences, marketing: false });
     try {
       await api.post('/legal/ccpa-requests', {
         requestType: 'opt_out',
@@ -95,12 +99,13 @@ function DoNotSellForm() {
 
 export default function DoNotSell({ embedded = false }: { embedded?: boolean }) {
   const { t } = useTranslation();
+  const { openSettings } = useCookieConsentContext();
 
   return (
     <LegalPageLayout
       title={t('doNotSellPage.title')}
       description={t('doNotSellPage.doesNotSellText1')}
-      effectiveDate="2026-03-22"
+      effectiveDate="2026-10-13"
       embedded={embedded}
     >
       <section className="mb-8">
@@ -113,6 +118,7 @@ export default function DoNotSell({ embedded = false }: { embedded?: boolean }) 
         <p className="mb-3">
           {t('doNotSellPage.doesNotSellText2')}
         </p>
+        <button type="button" className="ox-btn ox-btn-outline" onClick={openSettings}>{t('footer.manageCookies')}</button>
       </section>
 
       <section className="mb-8">
@@ -122,7 +128,7 @@ export default function DoNotSell({ embedded = false }: { embedded?: boolean }) 
         <p className="mb-3">
           {t('doNotSellPage.rightsIntro')}
         </p>
-        <ul className="list-disc ml-5 space-y-2 mb-3">
+        <ul className="list-disc ms-5 space-y-2 mb-3">
           <li>{t('doNotSellPage.rightsItem1')}</li>
           <li>{t('doNotSellPage.rightsItem2')}</li>
           <li>{t('doNotSellPage.rightsItem3')}</li>

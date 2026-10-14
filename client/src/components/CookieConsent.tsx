@@ -1,11 +1,14 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useId } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useCookieConsentContext } from '../context/CookieConsentContext';
-import type { CookiePreferences } from '../hooks/useCookieConsent';
+import { hasGlobalPrivacyControl } from '../utils/consentScripts';
 import '../styles/CookieConsent.css';
 
 export default function CookieConsent() {
   const { t } = useTranslation();
+  const dialog = useRef<HTMLDivElement>(null);
+  const titleId = useId();
+  const gpc = hasGlobalPrivacyControl();
   const {
     showBanner,
     showSettings,
@@ -27,14 +30,37 @@ export default function CookieConsent() {
   // panel opens, so returning users see their existing choices rather than
   // all-false - which would silently revoke prior consent on "Save".
   useEffect(() => {
-    if (showSettings && preferences) {
+    if (showSettings) {
       setLocal({
-        analytics: preferences.analytics ?? false,
-        marketing: preferences.marketing ?? false,
-        functional: preferences.functional ?? false,
+        analytics: preferences?.analytics ?? false,
+        marketing: !gpc && (preferences?.marketing ?? false),
+        functional: preferences?.functional ?? false,
       });
     }
-  }, [showSettings, preferences]);
+  }, [showSettings, preferences, gpc]);
+
+  useEffect(() => {
+    if (!showSettings) return;
+    const opener = document.activeElement as HTMLElement | null;
+    const overflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    dialog.current?.querySelector<HTMLButtonElement>('button')?.focus();
+    const keydown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') { event.preventDefault(); closeSettings(); }
+      if (event.key !== 'Tab') return;
+      const controls = [...(dialog.current?.querySelectorAll<HTMLElement>('button:not(:disabled), input:not(:disabled), a[href]') || [])];
+      const first = controls[0], last = controls.at(-1);
+      if (!first || !last) return;
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+    };
+    document.addEventListener('keydown', keydown);
+    return () => {
+      document.removeEventListener('keydown', keydown);
+      document.body.style.overflow = overflow;
+      if (opener?.isConnected) opener.focus();
+    };
+  }, [showSettings, closeSettings]);
 
   if (!showBanner && !showSettings) return null;
 
@@ -42,12 +68,13 @@ export default function CookieConsent() {
   if (showSettings) {
     return (
       <div className="cookie-consent-overlay" role="presentation">
-        <div className="cookie-consent-settings" role="dialog" aria-modal="true" aria-labelledby="cookie-consent-title">
+        <div ref={dialog} className="cookie-consent-settings" role="dialog" aria-modal="true" aria-labelledby={titleId}>
           <div className="cookie-consent-settings__header">
-            <h3 id="cookie-consent-title">{t('cookieConsent.title')}</h3>
+            <h3 id={titleId}>{t('cookieConsent.title')}</h3>
             <button className="cookie-consent-close" onClick={closeSettings} aria-label={t('common.close', 'Close')}>&times;</button>
           </div>
           <p className="cookie-consent-description">{t('cookieConsent.desc')}</p>
+          {gpc && <p role="status" className="cookie-consent-description">{t('cookieConsent.gpc')}</p>}
 
           <div className="cookie-consent-category">
             <div className="cookie-consent-category__header">
@@ -70,7 +97,7 @@ export default function CookieConsent() {
           <div className="cookie-consent-category">
             <label className="cookie-consent-category__header">
               <span className="cookie-consent-category__title">{t('cookieConsent.marketing')}</span>
-              <input type="checkbox" checked={local.marketing}
+              <input type="checkbox" checked={local.marketing} disabled={gpc}
                 onChange={(e) => setLocal((p) => ({ ...p, marketing: e.target.checked }))}
                 className="cookie-consent-checkbox" />
             </label>
@@ -89,6 +116,7 @@ export default function CookieConsent() {
 
           <div className="cookie-consent-settings__actions">
             <button onClick={() => savePreferences(local)} className="cookie-consent-button cookie-consent-button--primary">{t('cookieConsent.savePreferences')}</button>
+            <button onClick={rejectAll} className="cookie-consent-button cookie-consent-button--secondary">{t('cookieConsent.rejectAll')}</button>
             <button onClick={acceptAll} className="cookie-consent-button cookie-consent-button--secondary">{t('cookieConsent.acceptAll')}</button>
           </div>
         </div>

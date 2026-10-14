@@ -1,20 +1,22 @@
 import LegalPageLayout from '../components/LegalPageLayout';
 import { useTranslation } from 'react-i18next';
+import { useCookieConsentContext } from '../context/CookieConsentContext';
 
 const tableStyles = {
   table: { width: '100%', borderCollapse: 'collapse' as const, marginBottom: 24 },
-  th: { textAlign: 'left' as const, padding: '10px 12px', borderBottom: '1px solid #333', color: '#f97316', fontSize: 13 },
-  td: { padding: '10px 12px', borderBottom: '1px solid #222', color: '#ccc', fontSize: 13 },
+  th: { textAlign: 'start' as const, padding: '10px 12px', borderBottom: '1px solid var(--color-border)', color: 'var(--color-primary)', fontSize: 13 },
+  td: { padding: '10px 12px', borderBottom: '1px solid var(--color-border)', color: 'var(--color-text)', fontSize: 13 },
 };
 
 export default function CookiePolicyPage({ embedded = false }: { embedded?: boolean }) {
   const { t } = useTranslation();
+  const { openSettings } = useCookieConsentContext();
 
   return (
     <LegalPageLayout
       title={t('cookiePolicyPage.title')}
       description={t('cookiePolicyPage.section1Text')}
-      effectiveDate="2026-03-23"
+      effectiveDate="2026-10-13"
       embedded={embedded}
     >
       <section className="mb-8">
@@ -39,7 +41,7 @@ export default function CookiePolicyPage({ embedded = false }: { embedded?: bool
         <h2 className="text-lg font-bold text-orange-400 mb-3">
           {t('cookiePolicyPage.section3Title')}
         </h2>
-        <table style={tableStyles.table}>
+        <div style={{ overflowX: 'auto' }} tabIndex={0} role="region" aria-label={t('cookiePolicyPage.section3Title')}><table style={tableStyles.table}>
           <thead>
             <tr>
               <th style={tableStyles.th}>{t('cookiePolicyPage.tableCategory')}</th>
@@ -74,7 +76,7 @@ export default function CookiePolicyPage({ embedded = false }: { embedded?: bool
               <td style={tableStyles.td}>{t('cookiePolicyPage.tableNo')}</td>
             </tr>
           </tbody>
-        </table>
+        </table></div>
       </section>
 
       <section className="mb-8">
@@ -84,7 +86,7 @@ export default function CookiePolicyPage({ embedded = false }: { embedded?: bool
         <p className="mb-3">
           {t('cookiePolicyPage.section4Text')}
         </p>
-        <ul className="list-disc ml-5 space-y-2 mb-3">
+        <ul className="list-disc ms-5 space-y-2 mb-3">
           <li>{t('cookiePolicyPage.section4Choice1')}</li>
           <li>{t('cookiePolicyPage.section4Choice2')}</li>
           <li>{t('cookiePolicyPage.section4Choice3')}</li>
@@ -92,6 +94,7 @@ export default function CookiePolicyPage({ embedded = false }: { embedded?: bool
         <p className="mb-3">
           {t('cookiePolicyPage.section4Footer')}
         </p>
+        <button type="button" className="ox-btn ox-btn-outline" onClick={openSettings}>{t('footer.manageCookies')}</button>
       </section>
 
       <section className="mb-8">
@@ -110,7 +113,7 @@ export default function CookiePolicyPage({ embedded = false }: { embedded?: bool
         <p className="mb-3">
           {t('cookiePolicyPage.section6Text')}
         </p>
-        <ul className="list-disc ml-5 space-y-2 mb-3">
+        <ul className="list-disc ms-5 space-y-2 mb-3">
           <li>{t('cookiePolicyPage.section6ThirdParty1')}</li>
           <li>{t('cookiePolicyPage.section6ThirdParty2')}</li>
         </ul>

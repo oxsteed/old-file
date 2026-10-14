@@ -13,7 +13,7 @@ interface LegalPageLayoutProps {
 }
 
 /**
- * LegalPageLayout - WCAG 2.1 AA compliant wrapper for all legal/policy pages.
+ * Shared legal/policy layout with semantic navigation and focus management.
  * Now uses the shared PageShell for consistent header/footer.
  * Provides:
  *  - Skip-to-content link (via PageShell)
@@ -25,7 +25,7 @@ interface LegalPageLayoutProps {
  *  - Consistent heading hierarchy
  */
 export default function LegalPageLayout({ title, description, effectiveDate, children, embedded = false }: LegalPageLayoutProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
   const mainRef = useRef<HTMLDivElement>(null);
@@ -105,7 +105,7 @@ export default function LegalPageLayout({ title, description, effectiveDate, chi
               <time dateTime={effectiveDate}>
                 {t('legalPage.effectiveDate', {
                   date: effectiveDate && !isNaN(new Date(effectiveDate).getTime())
-                    ? new Date(effectiveDate).toLocaleDateString(undefined, {
+                    ? new Date(`${effectiveDate}T12:00:00`).toLocaleDateString(i18n.resolvedLanguage || i18n.language, {
                         year: 'numeric', month: 'long', day: 'numeric',
                       })
                     : effectiveDate,
@@ -122,6 +122,7 @@ export default function LegalPageLayout({ title, description, effectiveDate, chi
               color: 'var(--color-text)',
               lineHeight: 1.75,
               fontSize: 'var(--text-base)',
+              overflowWrap: 'anywhere',
             }}
           >
             {children}

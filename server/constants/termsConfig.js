@@ -4,17 +4,17 @@
 
 const TERMS_CONFIG = {
   terms_of_service: {
-    version: '2025-06-01',
+    version: '2026-10-13',
     label: 'Terms of Service',
     url: '/terms',
   },
   privacy_policy: {
-    version: '2025-06-01',
+    version: '2026-10-13',
     label: 'Privacy Policy',
     url: '/privacy',
   },
   security_policy: {
-    version: '2025-06-01',
+    version: '2026-10-13',
     label: 'Security Policy',
     url: '/security',
   },

@@ -24,7 +24,7 @@ test('footer layouts, shared support access, cookie settings and preserved invit
     '../api/businesses': `export const redeemVortexToken=async value=>{window.redeemedInvite=value;return {business_name:'Synthetic Team',role:'employee'};};`,
     '../api/vortex': `export const previewVortexCode=async()=>({business_name:'Synthetic Team',role:'employee'}); export const redeemVortexCode=async()=>({business_name:'Synthetic Team',status:'active'});`,
     '../hooks/useSocket': `export const useSocket=()=>({socket:null});`,
-    '../utils/consentScripts': `export const bootConsentedScripts=()=>{};export const initAnalytics=()=>{};export const disableAnalytics=()=>{};export const initMarketing=()=>{};export const initFunctional=()=>{};`,
+    '../utils/consentScripts': `export const bootConsentedScripts=()=>{};export const initAnalytics=()=>{};export const disableAnalytics=()=>{};export const initMarketing=()=>{};export const initFunctional=()=>{};export const disableMarketing=()=>{};export const hasGlobalPrivacyControl=()=>false;`,
     './PrefetchLink': `export {Link as default} from 'react-router-dom';`,
     './ModeSwitcher': `export default ()=>null;`,
     './BusinessSwitcher': `export default ()=>null;`,
