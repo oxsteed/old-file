@@ -430,6 +430,20 @@ export const getCreditReserveBalance = (restaurantId) =>
 export const listCreditReserveLedger = (restaurantId, params = {}) =>
   api.get('/food/merchant/credit-reserve/ledger', { params: { restaurantId, ...params } }).then((r) => r.data);
 
+// ── Restaurant credit trial cap + FIFO derisking (Phase 5) ───────────────
+// Trial-tier restaurants (no Phase 4 reserve row) are capped at cap_cents
+// of outstanding customer credit; the merchant derisks oldest balances
+// first by migrating them to OxSteed Credit. Operator authorization is
+// enforced server-side (requireRestaurantAccess + assertWalletOperator).
+export const getFoodWalletCreditCapacity = (restaurantId) =>
+  api.get(`/food/customer/wallets/${restaurantId}/credit-capacity`).then((r) => r.data);
+
+export const getMerchantCreditExposure = (restaurantId) =>
+  api.get(`/food/merchant/wallets/${restaurantId}/exposure`).then((r) => r.data);
+
+export const deriskMerchantCredit = (restaurantId, payload) =>
+  api.post(`/food/merchant/wallets/${restaurantId}/derisk`, payload).then((r) => r.data);
+
 // ── Customer favorites (P2-8-F14: endpoints had no client UI) ───────────────
 export const listFavoriteRestaurants = () =>
   api.get('/food/customer/favorites').then((r) => r.data?.favoriteRestaurantIds || []);
