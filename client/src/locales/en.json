@@ -30649,6 +30649,8 @@
     "awaitingCounterparty": "You confirmed. Waiting for the other party to confirm.",
     "completeBody": "Both of you confirm before the agreement is marked complete.",
     "confirmComplete": "Confirm complete",
+    "paymentReleased": "Payment released to the helper.",
+    "paymentHeld": "The agreement is complete, but the job payment is still held. It will be released once any open issues are resolved.",
     "signHere": "Draw your signature here",
     "signHint": "Draw your signature with mouse or finger",
     "clearSignature": "Clear",

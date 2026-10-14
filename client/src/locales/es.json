@@ -30649,6 +30649,8 @@
     "awaitingCounterparty": "Confirmaste. Esperando la confirmación de la otra parte.",
     "completeBody": "Ambos deben confirmar antes de marcar el acuerdo como completado.",
     "confirmComplete": "Confirmar finalización",
+    "paymentReleased": "Pago liberado al ayudante.",
+    "paymentHeld": "El acuerdo está completo, pero el pago del trabajo sigue retenido. Se liberará cuando se resuelvan los asuntos pendientes.",
     "signHere": "Dibuja tu firma aquí",
     "signHint": "Dibuja tu firma con el mouse o el dedo",
     "clearSignature": "Borrar",
