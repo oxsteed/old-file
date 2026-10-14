@@ -10,6 +10,7 @@ if (url) {
 }
 jest.unmock('pg'); jest.unmock('../db'); jest.unmock('../utils/transaction');
 jest.mock('../services/notificationService', () => ({sendNotification: jest.fn().mockResolvedValue({success:true})}));
+jest.mock('../services/helperOnboarding', () => ({ loadHelperOnboarding: jest.fn().mockResolvedValue({ complete: true }) }));
 const db = require('../db');
 const {startJob} = require('../controllers/jobController');
 const {sendNotification} = require('../services/notificationService');

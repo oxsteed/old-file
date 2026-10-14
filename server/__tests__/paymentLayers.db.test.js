@@ -30,7 +30,10 @@ jest.mock('../middleware/adminAuth', () => ({
   requirePermission: () => (_req, _res, next) => next(),
 }));
 jest.mock('../middleware/requireEmailVerified', () => (_req, _res, next) => next());
-jest.mock('../middleware/helperOnboardingMiddleware', () => ({ requireOnboardingStep: () => (_req, _res, next) => next() }));
+jest.mock('../middleware/helperOnboardingMiddleware', () => ({
+  requireOnboardingStep: () => (_req, _res, next) => next(),
+  requireHelperWorkEligible: (_req, _res, next) => next(),
+}));
 jest.mock('../middleware/checkRestrictions', () => () => (_req, _res, next) => next());
 jest.mock('../services/notificationService', () => ({ sendNotification: jest.fn().mockResolvedValue({ success: true }) }));
 jest.mock('../services/socketService', () => ({ broadcastToUser: jest.fn(), emitToUser: jest.fn(), getIO: () => null }));
