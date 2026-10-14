@@ -7,6 +7,7 @@ const {
   submitBusinessLaunchRequest,
   getBusinessLaunchRequests,
   getBusinessLaunchRequest,
+  exportBusinessLaunchRequests,
   updateBusinessLaunchRequestStatus,
   getUserBusinessLaunchRequests,
   searchBusinessLaunchRequests,
@@ -59,6 +60,16 @@ router.get(
   authenticate,
   requireAdmin, requirePermission('manage_operations'),
   getBusinessLaunchRequests
+);
+
+// ADM-093: PII export runs server-side and is audited. This route must stay
+// ABOVE /requests/:id or Express will treat "export" as an :id.
+router.get(
+  '/requests/export',
+  authenticate,
+  requireAdmin, requirePermission('manage_operations'),
+  strictLimiter,
+  exportBusinessLaunchRequests
 );
 
 router.get(

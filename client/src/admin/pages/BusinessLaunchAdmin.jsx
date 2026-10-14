@@ -156,27 +156,32 @@ export default function BusinessLaunchAdmin() {
     reload();
   };
 
-  function exportCSV() {
-    const headers = ['Name', 'Email', 'Phone', 'Package', 'Country', 'State', 'Urgency', 'Status', 'Submitted'];
-    const rows = requests.map(r => [
-      `${r.first_name} ${r.last_name}`,
-      r.email,
-      r.phone || '',
-      r.package_selected || '',
-      r.operating_country || '',
-      r.operating_state || '',
-      ((r.urgency && URGENCY_LABELS[r.urgency] && t(URGENCY_LABELS[r.urgency].key, { defaultValue: URGENCY_LABELS[r.urgency].fallback })) || r.urgency) || '',
-      r.status,
-      r.created_at ? new Date(r.created_at).toLocaleDateString() : '',
-    ]);
-    const csv = [headers, ...rows].map(row => row.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `business-launch-requests-${new Date().toISOString().slice(0, 10)}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+  // ADM-093: the export now runs server-side (audited in admin_audit_log)
+  // instead of building the PII CSV in the browser with no record.
+  async function exportCSV() {
+    try {
+      const params = new URLSearchParams();
+      if (filters.status) params.set('status', filters.status);
+      if (filters.package) params.set('package', filters.package);
+      if (filters.urgency) params.set('urgency', filters.urgency);
+      if (filters.state) params.set('state', filters.state);
+      if (filters.country) params.set('country', filters.country);
+      if (search) params.set('search', search);
+
+      const res = await axios.get(`/consulting/business-launch/requests/export?${params}`, {
+        responseType: 'blob',
+      });
+      const blob = new Blob([res.data], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `business-launch-requests-${new Date().toISOString().slice(0, 10)}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success(t('businessLaunchAdmin.exportStarted', { defaultValue: 'Export downloaded' }));
+    } catch (err) {
+      toast.error(t('businessLaunchAdmin.exportFailed', { defaultValue: 'Export failed. Please try again.' }));
+    }
   }
 
   const archiveRequest = (req) => {

@@ -9,6 +9,7 @@ const { generalLimiter, strictLimiter } = require('../middleware/rateLimiter');
 const legalController = require('../controllers/legalDocumentsController');
 const ccpaController = require('../controllers/ccpaController');
 const logger = require('../utils/logger');
+const { logAdminAction } = require('../services/auditService');
 const db = require('../db');
 
 const TERMS_DOCUMENT_TYPE = 'terms_of_service';
@@ -51,6 +52,14 @@ function adminDocumentFromRow(row) {
     status: row.status,
     updatedAt: row.updated_at,
     changeSummary: row.change_summary || '',
+    // ADM-036: surface the maker/checker chain so the UI can show who
+    // requested approval and who published, and warn a maker away from
+    // approving their own document.
+    approvalRequestedBy: row.approval_requested_by || null,
+    approvalRequestedAt: row.approval_requested_at || null,
+    approvedBy: row.approved_by || null,
+    approvedAt: row.approved_at || null,
+    updatedBy: row.updated_by || null,
   };
 }
 
@@ -195,6 +204,16 @@ router.post('/documents',
       [id, req.body.title || 'Untitled legal document', req.body.category || 'terms_of_service',
        req.body.description || '', JSON.stringify(sections), req.body.changeSummary || '', req.user.id]
     );
+    // ADM-036: audit the document lifecycle in admin_audit_log.
+    await logAdminAction({
+      adminId: req.user.id,
+      action: 'legal_document_create',
+      targetType: 'legal_document',
+      targetKey: id,
+      description: `Created legal document draft "${req.body.title || 'Untitled legal document'}"`,
+      after: { status: 'draft', version: 1 },
+      req,
+    });
     return res.status(201).json({ document: adminDocumentFromRow(rows[0]) });
   }
 );
@@ -230,6 +249,17 @@ router.put('/documents/:id',
       [req.params.id, req.body.title ?? draft.title, req.body.description ?? draft.description,
        req.body.changeSummary ?? draft.change_summary, JSON.stringify(sections), req.user.id]
     );
+    // ADM-036: audit the document lifecycle in admin_audit_log.
+    await logAdminAction({
+      adminId: req.user.id,
+      action: 'legal_document_edit',
+      targetType: 'legal_document',
+      targetKey: req.params.id,
+      description: `Edited legal document "${rows[0].title}" (v${rows[0].version}, ${rows[0].status})`,
+      before: { title: draft.title, description: draft.description, status: draft.status },
+      after: { title: rows[0].title, description: rows[0].description, status: rows[0].status },
+      req,
+    });
     return res.json({ document: adminDocumentFromRow(rows[0]), sections: rows[0].sections || [] });
   }
 );
@@ -242,10 +272,23 @@ router.post('/documents/:id/request-approval',
     if (!draft) return res.status(404).json({ error: 'Document not found' });
     const { rows } = await db.query(
       `UPDATE legal_document_drafts
-          SET status = 'pending_review', change_summary = $2, updated_at = NOW(), updated_by = $3
+          SET status = 'pending_review', change_summary = $2, updated_at = NOW(), updated_by = $3,
+              approval_requested_by = $3, approval_requested_at = NOW(),
+              approved_by = NULL, approved_at = NULL
         WHERE id = $1 RETURNING *`,
       [req.params.id, req.body.changeSummary || draft.change_summary || '', req.user.id]
     );
+    // ADM-036: audit the document lifecycle in admin_audit_log.
+    await logAdminAction({
+      adminId: req.user.id,
+      action: 'legal_document_request_approval',
+      targetType: 'legal_document',
+      targetKey: req.params.id,
+      description: `Requested approval to publish legal document "${rows[0].title}" (v${rows[0].version})`,
+      before: { status: draft.status },
+      after: { status: 'pending_review', approval_requested_by: req.user.id },
+      req,
+    });
     return res.json({ document: adminDocumentFromRow(rows[0]) });
   }
 );
@@ -256,13 +299,42 @@ router.post('/documents/:id/approve',
   async (req, res) => {
     const draft = await getDraft(req.params.id);
     if (!draft) return res.status(404).json({ error: 'Document not found' });
+    // ADM-036: a document can only go live through the review flow — a draft
+    // must be submitted for approval first.
+    if (draft.status !== 'pending_review') {
+      return res.status(409).json({
+        error: 'Document must be in pending_review before it can be approved. Submit it for approval first.',
+        status: draft.status,
+      });
+    }
+    // ADM-036: separation of duties — the admin who drafted/requested the
+    // document (the maker) cannot be the one who publishes it (the checker).
+    // Fall back to updated_by for documents requested before migration 866.
+    const maker = draft.approval_requested_by || draft.updated_by || null;
+    if (maker && maker === req.user.id) {
+      return res.status(403).json({
+        error: 'Separation of duties: the admin who requested approval cannot also publish the document. Ask a different admin to approve it.',
+      });
+    }
     const status = req.body.scheduledPublishDate ? 'scheduled' : 'live';
     const { rows } = await db.query(
       `UPDATE legal_document_drafts
-          SET status = $2, version = version + 1, updated_at = NOW(), updated_by = $3
+          SET status = $2, version = version + 1, updated_at = NOW(), updated_by = $3,
+              approved_by = $3, approved_at = NOW()
         WHERE id = $1 RETURNING *`,
       [req.params.id, status, req.user.id]
     );
+    // ADM-036: audit the publication in admin_audit_log.
+    await logAdminAction({
+      adminId: req.user.id,
+      action: 'legal_document_publish',
+      targetType: 'legal_document',
+      targetKey: req.params.id,
+      description: `Published legal document "${rows[0].title}" (v${rows[0].version}, ${status}); approved after request by ${maker || 'unknown'}`,
+      before: { status: draft.status, version: draft.version },
+      after: { status, version: rows[0].version, approved_by: req.user.id },
+      req,
+    });
     return res.json({ document: adminDocumentFromRow(rows[0]) });
   }
 );

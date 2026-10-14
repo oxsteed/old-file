@@ -3,6 +3,7 @@ const logger = require('../utils/logger');
 const { sendEmail } = require('../utils/email');
 const escapeHtml = require('../utils/escapeHtml');
 const { renderOxSteedEmail } = require('../utils/emailTemplate');
+const { logAdminAction } = require('../services/auditService');
 
 function sanitizeCountry(code) {
   const value = String(code || '').trim().toUpperCase();
@@ -235,6 +236,116 @@ async function getBusinessLaunchRequests(req, res) {
   } catch (err) {
     logger.error('Error fetching business launch requests', { err });
     return res.status(500).json({ error: 'Failed to fetch requests' });
+  }
+}
+
+/**
+ * Export consulting requests as CSV (admin only)
+ * GET /api/consulting/business-launch/requests/export?status=&package=&urgency=&state=&country=&search=
+ *
+ * ADM-093: the PII-containing export previously ran entirely in the browser
+ * with no server record. It now runs server-side and writes one audit log
+ * entry per export (who, when, row count, filters) to admin_audit_log.
+ */
+
+// CSV field escaping: quote-wrap, double internal quotes, and neutralize
+// spreadsheet formula injection by prefixing leading = + - @ with a quote.
+function csvEscapeField(value) {
+  let s = value == null ? '' : String(value);
+  if (/^[=+\-@]/.test(s)) s = `'${s}`;
+  return `"${s.replace(/"/g, '""')}"`;
+}
+
+const EXPORT_ROW_CAP = 10000;
+
+async function exportBusinessLaunchRequests(req, res) {
+  const { status, package: pkg, urgency, state, country, search } = req.query;
+
+  try {
+    const whereConditions = [];
+    const params = [];
+    let paramIndex = 1;
+
+    if (status) {
+      whereConditions.push(`cr.status = $${paramIndex++}`);
+      params.push(status);
+    }
+    if (pkg) {
+      whereConditions.push(`cr.package_selected = $${paramIndex++}`);
+      params.push(pkg);
+    }
+    if (urgency) {
+      whereConditions.push(`cr.urgency = $${paramIndex++}`);
+      params.push(urgency);
+    }
+    if (state) {
+      whereConditions.push(`cr.operating_state = $${paramIndex++}`);
+      params.push(state);
+    }
+    if (country) {
+      whereConditions.push(`cr.operating_country = $${paramIndex++}`);
+      params.push(String(country).trim().toUpperCase());
+    }
+    if (search) {
+      whereConditions.push(`(cr.first_name ILIKE $${paramIndex} OR cr.last_name ILIKE $${paramIndex} OR cr.email ILIKE $${paramIndex})`);
+      params.push(`%${search}%`);
+      paramIndex++;
+    }
+
+    const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
+
+    const result = await db.query(
+      `SELECT
+         cr.first_name, cr.last_name, cr.email, cr.phone,
+         cr.package_selected, cr.operating_country, cr.operating_state,
+         cr.urgency, cr.status, cr.created_at
+       FROM consulting_requests cr
+       ${whereClause}
+       ORDER BY cr.created_at DESC
+       LIMIT $${paramIndex}`,
+      [...params, EXPORT_ROW_CAP]
+    );
+
+    const rows = result.rows;
+
+    // ADM-093: every export is recorded — who ran it, when, how many rows, and
+    // which filters were applied.
+    await logAdminAction({
+      adminId: req.user?.id,
+      action: 'business_launch_export',
+      targetType: 'consulting_requests',
+      description: `Exported ${rows.length} business launch request(s) to CSV`,
+      after: {
+        rowCount: rows.length,
+        truncated: rows.length >= EXPORT_ROW_CAP,
+        filters: { status: status || null, package: pkg || null, urgency: urgency || null, state: state || null, country: country || null, search: search || null },
+      },
+      req,
+    });
+
+    const header = ['Name', 'Email', 'Phone', 'Package', 'Country', 'State', 'Urgency', 'Status', 'Submitted'];
+    const lines = [header.map(csvEscapeField).join(',')];
+    for (const r of rows) {
+      lines.push([
+        `${r.first_name || ''} ${r.last_name || ''}`.trim(),
+        r.email || '',
+        r.phone || '',
+        r.package_selected || '',
+        r.operating_country || '',
+        r.operating_state || '',
+        r.urgency || '',
+        r.status || '',
+        r.created_at ? new Date(r.created_at).toISOString().slice(0, 10) : '',
+      ].map(csvEscapeField).join(','));
+    }
+
+    const filename = `business-launch-requests-${new Date().toISOString().slice(0, 10)}.csv`;
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    return res.send(lines.join('\r\n'));
+  } catch (err) {
+    logger.error('Error exporting business launch requests', { err });
+    return res.status(500).json({ error: 'Failed to export requests' });
   }
 }
 
@@ -943,6 +1054,7 @@ module.exports = {
   submitBusinessLaunchRequest,
   getBusinessLaunchRequests,
   getBusinessLaunchRequest,
+  exportBusinessLaunchRequests,
   updateBusinessLaunchRequestStatus,
   getUserBusinessLaunchRequests,
   searchBusinessLaunchRequests,

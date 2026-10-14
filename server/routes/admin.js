@@ -791,6 +791,7 @@ router.post('/messages/conversations/:userId/send', requireAdmin, requirePermiss
 // SKILLS & CATEGORIES LOOKUP MANAGEMENT (admin + super_admin)
 // ══════════════════════════════════════════════════════════════
 const pool = require('../db');
+const { logAdminAction } = require('../services/auditService');
 
 // GET /api/admin/skills-lookup?q=&category=&limit=50&offset=0
 router.get('/skills-lookup', requireAdmin, requirePermission('manage_operations'), async (req, res) => {
@@ -964,6 +965,16 @@ router.post('/licenses-lookup', requireAdmin, requirePermission('manage_operatio
       if (e.code === '23505') return res.status(409).json({ error: 'License name already exists' });
       throw e;
     }
+    // ADM-211: license mutations are audited.
+    await logAdminAction({
+      adminId: req.user?.id,
+      action: 'license_create',
+      targetType: 'license',
+      targetKey: String(result.rows[0].id),
+      description: `Created license "${result.rows[0].name}"`,
+      after: result.rows[0],
+      req,
+    });
     res.status(201).json({ license: result.rows[0] });
   } catch (err) {
     res.status(500).json({ error: 'Failed to create license' });
@@ -974,6 +985,12 @@ router.post('/licenses-lookup', requireAdmin, requirePermission('manage_operatio
 router.put('/licenses-lookup/:id', requireAdmin, requirePermission('manage_operations'), async (req, res) => {
   try {
     const { name, category, is_active } = req.body;
+    // ADM-211: capture the before-state for the audit entry.
+    const beforeResult = await pool.query(
+      `SELECT id, name, category, is_active FROM licenses_lookup WHERE id = $1`,
+      [req.params.id]
+    );
+    if (!beforeResult.rows.length) return res.status(404).json({ error: 'License not found' });
     const result = await pool.query(
       `UPDATE licenses_lookup
           SET name      = COALESCE($1, name),
@@ -983,7 +1000,17 @@ router.put('/licenses-lookup/:id', requireAdmin, requirePermission('manage_opera
         RETURNING *`,
       [name?.trim() || null, category?.trim() || null, is_active ?? null, req.params.id]
     );
-    if (!result.rows.length) return res.status(404).json({ error: 'License not found' });
+    // ADM-211: license mutations are audited.
+    await logAdminAction({
+      adminId: req.user?.id,
+      action: 'license_update',
+      targetType: 'license',
+      targetKey: String(req.params.id),
+      description: `Updated license "${result.rows[0].name}"`,
+      before: beforeResult.rows[0],
+      after: result.rows[0],
+      req,
+    });
     res.json({ license: result.rows[0] });
   } catch (err) {
     res.status(500).json({ error: 'Failed to update license' });
@@ -995,6 +1022,12 @@ router.put('/licenses-lookup/:id', requireAdmin, requirePermission('manage_opera
 router.delete('/licenses-lookup/:id', requireAdmin, requirePermission('manage_operations'), async (req, res) => {
   try {
     const { hard } = req.query;
+    // ADM-211: capture the before-state for the audit entry.
+    const beforeResult = await pool.query(
+      `SELECT id, name, category, is_active FROM licenses_lookup WHERE id = $1`,
+      [req.params.id]
+    );
+    if (!beforeResult.rows.length) return res.status(404).json({ error: 'License not found' });
     let result;
     if (hard === 'true') {
       if (!req.isSuper) {
@@ -1009,6 +1042,17 @@ router.delete('/licenses-lookup/:id', requireAdmin, requirePermission('manage_op
       );
     }
     if (!result.rows.length) return res.status(404).json({ error: 'License not found' });
+    // ADM-211: license mutations are audited.
+    await logAdminAction({
+      adminId: req.user?.id,
+      action: hard === 'true' ? 'license_hard_delete' : 'license_soft_delete',
+      targetType: 'license',
+      targetKey: String(req.params.id),
+      description: `${hard === 'true' ? 'Hard-deleted' : 'Soft-deleted'} license "${beforeResult.rows[0].name}"`,
+      before: beforeResult.rows[0],
+      after: hard === 'true' ? { deleted: true } : { is_active: false },
+      req,
+    });
     res.json({ deleted: true });
   } catch (err) {
     res.status(500).json({ error: 'Failed to delete license' });

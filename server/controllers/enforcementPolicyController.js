@@ -7,6 +7,7 @@ const pool = require('../db');
 const logger = require('../utils/logger');
 const { AppError } = require('../middleware/errorHandler');
 const { withTransaction } = require('../utils/transaction');
+const { logAdminAction } = require('../services/auditService');
 
 /**
  * Public endpoint: Get enforcement policy thresholds
@@ -405,6 +406,52 @@ exports.reviewAppeal = async (req, res, next) => {
           SET is_active = false, updated_at = NOW()
           WHERE id = $1
         `, [appeal.enforcement_id]);
+
+        // ADM-046: approving an appeal must also clear the restriction
+        // records and the account suspension the action created. Mirror the
+        // expiry path in enforcementController.js: only clear the suspension
+        // when no OTHER active suspension enforcement remains, so an appeal
+        // against one action cannot silently lift an unrelated suspension.
+        const { rows: actionRows } = await client.query(`
+          SELECT action_type, user_id FROM enforcement_actions WHERE id = $1
+        `, [appeal.enforcement_id]);
+        const action = actionRows[0];
+
+        if (action && action.action_type === 'restriction') {
+          await client.query(`
+            UPDATE user_restrictions
+            SET is_active = false, updated_at = NOW()
+            WHERE enforcement_id = $1 AND is_active = true
+          `, [appeal.enforcement_id]);
+        } else if (action && action.action_type === 'suspension') {
+          const { rows: others } = await client.query(`
+            SELECT 1 FROM enforcement_actions
+             WHERE user_id = $1 AND action_type = 'suspension' AND is_active = true
+               AND id <> $2
+             LIMIT 1
+          `, [appeal.user_id, appeal.enforcement_id]);
+          if (!others.length) {
+            await client.query(`
+              UPDATE users
+              SET is_suspended = false, suspended_until = NULL,
+                  suspended_reason = NULL, updated_at = NOW()
+              WHERE id = $1
+            `, [appeal.user_id]);
+          }
+        }
+
+        await logAdminAction({
+          adminId: req.user.id,
+          action: 'enforcement_appeal_approved',
+          targetType: 'enforcement_appeal',
+          targetKey: String(appealId),
+          description: `Approved appeal for enforcement action ${appeal.enforcement_id} (user ${appeal.user_id}); restrictions lifted`,
+          before: { appeal_status: appeal.status, enforcement_active: true },
+          after: { appeal_status: 'approved', enforcement_active: false },
+          client,
+          throwOnError: true,
+          req,
+        });
 
         logger.info('Enforcement restriction lifted via appeal', {
           appealId,
