@@ -10535,7 +10535,10 @@
     "toolRentalsLoadFailedTitle": "Chaje lokasyon zouti yo echwe",
     "workingHoursDayOpen": "Louvri",
     "moderation": {
+      "actionFailed": "Aksyon moderasyon an echwe. Tanpri eseye ankò.",
+      "actionsNeedGrant": "Aksyon moderasyon yo mande pèmisyon manage_operations. Ou ka wè ke a men ou pa ka aji.",
       "by": "Pa:",
+      "checkingPermissions": "N ap tcheke pèmisyon yo…",
       "dismiss": "Voye jete",
       "dismissTitle": "Voye jete - retire mak admin an",
       "emptyQueue": "Ke a vid - okenn djòb make oswa rapòte.",
@@ -13356,6 +13359,8 @@
     "submitting": "Soumèt an kous..."
   },
   "adminReports": {
+    "detailLoadFailed": "Nou pa t kapab chaje tout rapò a. N ap montre done lis la.",
+    "detailLoading": "N ap chaje detay rapò a…",
     "title": "Rapò Itilizatè",
     "totalReports": "Total Rapò: {{count}}",
     "viewDashboard": "Wè tablodbò",
@@ -26849,6 +26854,8 @@
     "next": "Apre"
   },
   "adminContentRemovals": {
+    "acceptedBidHint": "Yo pa ka retire òf yo aksepte yo. Anile travay la atravè pwosesis anilasyon an.",
+    "acceptedBidProtected": "Pwoteje — anile travay la olye",
     "tabBids": "Òf",
     "tabReviews": "Revi",
     "reasonRequired": "Rezon an obligatwa.",

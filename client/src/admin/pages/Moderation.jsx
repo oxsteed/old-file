@@ -6,6 +6,7 @@ import adminApi from '../../lib/adminApi';
 import { useAbortableFetch } from '../lib/useAbortableFetch';
 import AdminErrorState from '../lib/AdminErrorState';
 import ConfirmDialog from '../lib/ConfirmDialog';
+import { useHasGrant } from '../lib/GrantGuard';
 
 const DIALOG_CONFIG = {
   unflag: {
@@ -29,6 +30,14 @@ export default function Moderation() {
   const [acting, setActing] = useState(null);
   // { item, action } while the confirmation dialog is open.
   const [dialog, setDialog] = useState(null);
+  // ADM-021: a failed moderation decision stays visible on the page, not just
+  // inside the dialog, so it cannot be mistaken for success.
+  const [actionError, setActionError] = useState(null);
+  // ADM-022: the queue is readable with moderate_content, but the action
+  // endpoint (POST /admin/jobs/:jobId/action) requires manage_operations.
+  // Gate the buttons client-side so the UI matches the server's grant
+  // requirements instead of offering buttons that always 403.
+  const { loading: grantLoading, allowed: canTakeAction } = useHasGrant('manage_operations');
 
   // Sequence-guarded + abortable: rapid filter/tab switching can no longer
   // clobber the queue with a stale response, and a failed fetch surfaces an
@@ -44,12 +53,21 @@ export default function Moderation() {
   const handleConfirm = async (reason) => {
     const { item, action } = dialog;
     setActing(`${item.id}-${action}`);
+    setActionError(null);
     try {
       await adminApi.post(`/admin/jobs/${item.id}/action`, {
         action,
         reason: reason || undefined,
       });
       fetchQueue();
+    } catch (err) {
+      // ADM-021: surface the failure loudly. The dialog stays open with its
+      // own inline error (rethrow), and this banner persists on the page so
+      // a closed dialog cannot hide the failed decision.
+      const message = err?.response?.data?.error || err?.message
+        || t('admin.moderation.actionFailed', { defaultValue: 'The moderation action failed. Please try again.' });
+      setActionError(message);
+      throw err;
     } finally {
       setActing(null);
     }
@@ -68,6 +86,23 @@ export default function Moderation() {
           </p>
         </div>
       </div>
+
+      {actionError && (
+        <div
+          role="alert"
+          className="mb-4 flex items-start gap-2 rounded-xl border border-red-700 bg-red-900/40 px-4 py-3 text-sm text-red-300"
+        >
+          <AlertTriangle size={16} className="mt-0.5 shrink-0" />
+          <div className="flex-1">{actionError}</div>
+          <button
+            type="button"
+            onClick={() => setActionError(null)}
+            className="shrink-0 text-red-400 hover:text-red-200 underline text-xs"
+          >
+            {t('common.dismiss', { defaultValue: 'Dismiss' })}
+          </button>
+        </div>
+      )}
 
       <div className="bg-slate-800/50 border border-slate-700 rounded-xl overflow-hidden">
         {loading ? (
@@ -114,6 +149,11 @@ export default function Moderation() {
                     </div>
                   </div>
 
+                  {grantLoading ? (
+                    <div className="flex gap-2 shrink-0 items-center">
+                      <span className="text-xs text-gray-500">{t('admin.moderation.checkingPermissions', { defaultValue: 'Checking permissions…' })}</span>
+                    </div>
+                  ) : canTakeAction ? (
                   <div className="flex gap-2 shrink-0">
                     <button
                       onClick={() => setDialog({ item, action: 'unflag' })}
@@ -140,6 +180,14 @@ export default function Moderation() {
                       <XCircle size={14} /> {t('admin.moderation.remove', { defaultValue: 'Remove' })}
                     </button>
                   </div>
+                  ) : (
+                    <div
+                      className="shrink-0 max-w-[200px] text-xs text-amber-400/90"
+                      title={t('admin.moderation.actionsNeedGrant', { defaultValue: 'Moderation actions require the manage_operations grant. You can view the queue but cannot take action.' })}
+                    >
+                      {t('admin.moderation.actionsNeedGrant', { defaultValue: 'Moderation actions require the manage_operations grant. You can view the queue but cannot take action.' })}
+                    </div>
+                  )}
                 </div>
               </div>
             ))}

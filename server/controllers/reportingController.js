@@ -9,6 +9,60 @@ const logger = require('../utils/logger');
 const { sendValidationError, sendError } = require('../utils/apiError');
 const { getClientRequestId } = require('../utils/idempotency');
 
+// ADM-004: evidence URLs are rendered as <a href> in the admin report detail
+// panel. Validate them server-side at submission so stored XSS via
+// javascript:/data: (or other dangerous schemes) can never be persisted.
+// Only http(s) URLs survive; anything else is a 400.
+const EVIDENCE_URL_MAX_COUNT = 10;
+const EVIDENCE_URL_MAX_LENGTH = 2048;
+const EVIDENCE_URL_ALLOWED_PROTOCOLS = new Set(['http:', 'https:']);
+
+function validateEvidenceUrls(value) {
+  if (value == null) return { ok: true, urls: null };
+  if (!Array.isArray(value)) {
+    return { ok: false, error: 'evidenceUrls must be an array of URLs' };
+  }
+  if (value.length > EVIDENCE_URL_MAX_COUNT) {
+    return { ok: false, error: `evidenceUrls: at most ${EVIDENCE_URL_MAX_COUNT} URLs allowed` };
+  }
+  const cleaned = [];
+  for (let i = 0; i < value.length; i += 1) {
+    const raw = value[i];
+    if (typeof raw !== 'string') {
+      return { ok: false, error: `evidenceUrls[${i}]: must be a string` };
+    }
+    const trimmed = raw.trim();
+    if (trimmed.length === 0 || trimmed.length > EVIDENCE_URL_MAX_LENGTH) {
+      return { ok: false, error: `evidenceUrls[${i}]: invalid length` };
+    }
+    let parsed;
+    try {
+      parsed = new URL(trimmed);
+    } catch {
+      return { ok: false, error: `evidenceUrls[${i}]: not a valid URL` };
+    }
+    if (!EVIDENCE_URL_ALLOWED_PROTOCOLS.has(parsed.protocol)) {
+      return { ok: false, error: `evidenceUrls[${i}]: only http and https URLs are allowed` };
+    }
+    cleaned.push(parsed.toString());
+  }
+  return { ok: true, urls: cleaned.length ? cleaned : null };
+}
+
+// Defense in depth for rows written before validation existed: strip any
+// non-http(s) URL on read so a legacy payload can never reach an <a href>.
+function filterSafeEvidenceUrls(value) {
+  if (!Array.isArray(value)) return value;
+  return value.filter((raw) => {
+    if (typeof raw !== 'string') return false;
+    try {
+      return EVIDENCE_URL_ALLOWED_PROTOCOLS.has(new URL(raw.trim()).protocol);
+    } catch {
+      return false;
+    }
+  });
+}
+
 /**
  * Submit a report against another user
  * POST /api/reports
@@ -57,6 +111,12 @@ async function submitReport(req, res) {
       return sendValidationError(res, { description: 'Max 2000 characters' });
     }
 
+    // ADM-004: reject evidence URLs with dangerous schemes (javascript:, data:, …)
+    const evidenceCheck = validateEvidenceUrls(evidenceUrls);
+    if (!evidenceCheck.ok) {
+      return sendValidationError(res, { evidenceUrls: evidenceCheck.error });
+    }
+
     // Cannot report self
     if (reporterId === reportedUserId) {
       throw new AppError('Cannot report yourself', 400, 'SELF_REPORT');
@@ -83,7 +143,7 @@ async function submitReport(req, res) {
       ON CONFLICT (reporter_id, client_request_id)
       WHERE client_request_id IS NOT NULL DO NOTHING
       RETURNING id, reporter_id, reported_user_id, reason, status, created_at`,
-      [reporterId, reportedUserId, reason, description, evidenceUrls || null, jobId || null, conversationId || null, clientRequestId]
+      [reporterId, reportedUserId, reason, description, evidenceCheck.urls, jobId || null, conversationId || null, clientRequestId]
     );
 
     let report = result.rows[0];
@@ -157,7 +217,8 @@ async function getMyReports(req, res) {
         reportedUserId: row.reported_user_id,
         reason: row.reason,
         description: row.description,
-        evidenceUrls: row.evidence_urls,
+        // ADM-004: strip any non-http(s) URL persisted before validation existed.
+        evidenceUrls: filterSafeEvidenceUrls(row.evidence_urls),
         jobId: row.job_id,
         conversationId: row.conversation_id,
         status: row.status,
@@ -294,7 +355,8 @@ async function getReportDetail(req, res) {
         reportedUserId: row.reported_user_id,
         reason: row.reason,
         description: row.description,
-        evidenceUrls: row.evidence_urls,
+        // ADM-004: strip any non-http(s) URL persisted before validation existed.
+        evidenceUrls: filterSafeEvidenceUrls(row.evidence_urls),
         jobId: row.job_id,
         conversationId: row.conversation_id,
         status: row.status,

@@ -15,6 +15,32 @@ const AdminReportsDashboard = () => {
   const [adminNotes, setAdminNotes] = useState('');
   const [statusTarget, setStatusTarget] = useState(null);
   const [statusError, setStatusError] = useState(null);
+  // ADM-047: the list projection does not carry description/evidenceUrls/
+  // jobId/adminNotes; fetch the full detail on select so the detail panel
+  // is fed (this is what activates the ADM-004 sink, so the validation
+  // above lands in the same change).
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState(null);
+
+  const selectReport = async (report) => {
+    setSelectedReport(report);
+    setAdminNotes(report.adminNotes || '');
+    setDetailError(null);
+    setDetailLoading(true);
+    try {
+      const response = await api.get(`/reports/admin/${report.id}`);
+      const full = response.data?.data;
+      if (full) {
+        setSelectedReport(full);
+        setAdminNotes(full.adminNotes || '');
+      }
+    } catch (err) {
+      // Keep the list row visible; the panel shows the error.
+      setDetailError(err.response?.data?.error || err.message);
+    } finally {
+      setDetailLoading(false);
+    }
+  };
 
   const { data, error, loading, reload } = useAbortableFetch(async (signal) => {
     const params = new URLSearchParams({
@@ -137,10 +163,7 @@ const AdminReportsDashboard = () => {
               <div
                 key={report.id}
                 className={`admin-report-item ${selectedReport?.id === report.id ? 'active' : ''}`}
-                onClick={() => {
-                  setSelectedReport(report);
-                  setAdminNotes(report.adminNotes || '');
-                }}
+                onClick={() => selectReport(report)}
               >
                 <div className="admin-report-item-header">
                   <h3 className="admin-report-item-title">
@@ -181,6 +204,17 @@ const AdminReportsDashboard = () => {
             </div>
 
             <div className="admin-report-detail-content">
+              {detailLoading && (
+                <p className="admin-report-detail-loading">
+                  {t('adminReports.detailLoading', { defaultValue: 'Loading report details…' })}
+                </p>
+              )}
+              {detailError && (
+                <div className="admin-reports-error" role="alert">
+                  {t('adminReports.detailLoadFailed', { defaultValue: 'Could not load the full report. Showing list data.' })}
+                  {' '}{detailError}
+                </div>
+              )}
               <div className="admin-report-detail-section">
                 <h3>{t('adminReports.details')}</h3>
                 <dl className="admin-report-detail-list">

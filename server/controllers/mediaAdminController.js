@@ -291,6 +291,10 @@ async function getFlagEvidence(req, res) {
 async function restorePost(req, res) {
   const reason = String(req.body?.reason || '').trim();
   if (reason.length < 3) return res.status(400).json({ error: 'A moderation restore reason is required', code: 'media_restore_reason_required' });
+  // ADM-028: a DMCA takedown finally has a restore path, but lifting a legal
+  // takedown requires an explicit counter-notice reference — a plain
+  // "restore" must never silently undo a DMCA removal.
+  const counterNoticeRef = String(req.body?.counterNoticeRef || '').trim();
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
@@ -304,10 +308,14 @@ async function restorePost(req, res) {
       return res.status(404).json({ error: 'Post not found' });
     }
     const post = rows[0];
-    if (['dmca_removed', 'safety_blocked'].includes(post.moderation_state)
+    if (['safety_blocked'].includes(post.moderation_state)
         || post.csam_status === 'flagged' || post.processing_status === 'blocked') {
       await client.query('ROLLBACK');
-      return res.status(409).json({ error: 'This post is protected by a safety or DMCA block and cannot be restored.', code: 'media_restore_safety_blocked' });
+      return res.status(409).json({ error: 'This post is protected by a safety block and cannot be restored.', code: 'media_restore_safety_blocked' });
+    }
+    if (post.moderation_state === 'dmca_removed' && counterNoticeRef.length < 10) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'A DMCA counter-notice reference is required to restore a DMCA takedown.', code: 'media_restore_dmca_ref_required' });
     }
     const { rows: assets } = await client.query(
       `SELECT * FROM media_post_assets WHERE post_id = $1 FOR UPDATE`, [req.params.id]
@@ -325,20 +333,27 @@ async function restorePost(req, res) {
               admin_override_by = $3, admin_override_at = NOW(), admin_override_reason = $2
         WHERE id = $1`, [req.params.id, reason, req.user.id]
     );
+    // ADM-028: a DMCA restore must also lift the DMCA revocation markers, not
+    // just the admin_removed ones, or the post stays dark after restore.
     await client.query(
       `UPDATE media_post_assets
           SET delivery_revoked_at = NULL, delivery_revoke_reason = NULL
-        WHERE post_id = $1 AND delivery_revoke_reason = 'admin_removed'`, [req.params.id]
+        WHERE post_id = $1 AND delivery_revoke_reason IN ('admin_removed', 'dmca_removed')`, [req.params.id]
     );
     await client.query(
       `UPDATE media_asset_cleanup_jobs SET status = 'done', updated_at = NOW()
-        WHERE post_id = $1 AND status IN ('pending','failed') AND reason = 'admin_removed'`, [req.params.id]
+        WHERE post_id = $1 AND status IN ('pending','failed') AND reason IN ('admin_removed', 'dmca_removed')`, [req.params.id]
     );
     await auditService.logAdminAction({
       adminId: req.user.id, action: 'media_post_restored', targetType: 'media_post', targetId: req.params.id,
-      description: 'Administrator restored a Media post after current safety checks.',
+      description: post.moderation_state === 'dmca_removed'
+        ? 'Administrator restored a DMCA-taken-down Media post against a recorded counter-notice reference.'
+        : 'Administrator restored a Media post after current safety checks.',
       before: { visibility: post.visibility, moderation_state: post.moderation_state },
-      after: { visibility: 'public', moderation_state: 'clear', reason }, client, throwOnError: true,
+      after: {
+        visibility: 'public', moderation_state: 'clear', reason,
+        ...(post.moderation_state === 'dmca_removed' ? { counter_notice_ref: counterNoticeRef } : {}),
+      }, client, throwOnError: true,
     });
     await client.query('COMMIT');
     return res.json({ ok: true, restored: true, moderation_state: 'clear' });

@@ -10535,7 +10535,10 @@
     "toolRentalsLoadFailedTitle": "No se pudieron cargar los alquileres de herramientas",
     "workingHoursDayOpen": "Abierto",
     "moderation": {
+      "actionFailed": "La acción de moderación falló. Inténtalo de nuevo.",
+      "actionsNeedGrant": "Las acciones de moderación requieren el permiso manage_operations. Puedes ver la cola pero no puedes actuar.",
       "by": "Por:",
+      "checkingPermissions": "Verificando permisos…",
       "dismiss": "Descartar",
       "dismissTitle": "Descartar - quitar marca de admin",
       "emptyQueue": "Cola despejada - no hay trabajos marcados o reportados.",
@@ -13356,6 +13359,8 @@
     "submitting": "Enviando..."
   },
   "adminReports": {
+    "detailLoadFailed": "No se pudo cargar el informe completo. Se muestran los datos de la lista.",
+    "detailLoading": "Cargando los detalles del informe…",
     "title": "Reportes de Usuarios",
     "totalReports": "Total de Reportes: {{count}}",
     "viewDashboard": "Ver panel",
@@ -26848,6 +26853,8 @@
     "next": "Siguiente"
   },
   "adminContentRemovals": {
+    "acceptedBidHint": "Las ofertas aceptadas no se pueden eliminar. Cancela el trabajo mediante el flujo de cancelación.",
+    "acceptedBidProtected": "Protegida — cancela el trabajo en su lugar",
     "tabBids": "Ofertas",
     "tabReviews": "Reseñas",
     "reasonRequired": "El motivo es obligatorio.",

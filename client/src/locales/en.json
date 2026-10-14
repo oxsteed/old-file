@@ -10535,7 +10535,10 @@
     "toolRentalsLoadFailedTitle": "Failed to load tool rentals",
     "workingHoursDayOpen": "Open",
     "moderation": {
+      "actionFailed": "The moderation action failed. Please try again.",
+      "actionsNeedGrant": "Moderation actions require the manage_operations grant. You can view the queue but cannot take action.",
       "by": "By:",
+      "checkingPermissions": "Checking permissions…",
       "dismiss": "Dismiss",
       "dismissTitle": "Dismiss - remove admin flag",
       "emptyQueue": "Queue is clear - no flagged or reported jobs.",
@@ -13613,6 +13616,8 @@
     "submitting": "Submitting..."
   },
   "adminReports": {
+    "detailLoadFailed": "Could not load the full report. Showing list data.",
+    "detailLoading": "Loading report details…",
     "title": "User Reports",
     "totalReports": "Total Reports: {{count}}",
     "viewDashboard": "View dashboard",
@@ -26848,6 +26853,8 @@
     "next": "Next"
   },
   "adminContentRemovals": {
+    "acceptedBidHint": "Accepted bids cannot be removed. Cancel the job through the cancellation flow instead.",
+    "acceptedBidProtected": "Protected — cancel the job instead",
     "tabBids": "Bids",
     "tabReviews": "Reviews",
     "reasonRequired": "Reason is required.",

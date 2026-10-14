@@ -10535,7 +10535,10 @@
     "toolRentalsLoadFailedTitle": "تعذر تحميل تأجير الأدوات",
     "workingHoursDayOpen": "مفتوح",
     "moderation": {
+      "actionFailed": "فشل إجراء الإشراف. يُرجى المحاولة مرة أخرى.",
+      "actionsNeedGrant": "تتطلب إجراءات الإشراف صلاحية manage_operations. يمكنك عرض القائمة لكن لا يمكنك اتخاذ إجراء.",
       "by": "بواسطة:",
+      "checkingPermissions": "جارٍ التحقق من الصلاحيات…",
       "dismiss": "رفض",
       "dismissTitle": "رفض - إزالة علامة المشرف",
       "emptyQueue": "القائمة فارغة - لا توجد وظائف مُعلَّمة أو مُبلغ عنها.",
@@ -13620,6 +13623,8 @@
     "submitting": "جارٍ الإرسال..."
   },
   "adminReports": {
+    "detailLoadFailed": "تعذّر تحميل البلاغ الكامل. يتم عرض بيانات القائمة.",
+    "detailLoading": "جارٍ تحميل تفاصيل البلاغ…",
     "title": "تقارير المستخدم",
     "totalReports": "إجمالي التقارير: {{count}}",
     "viewDashboard": "عرض لوحة التحكم",
@@ -26859,6 +26864,8 @@
     "next": "التالي"
   },
   "adminContentRemovals": {
+    "acceptedBidHint": "لا يمكن إزالة العروض المقبولة. ألغِ المهمة عبر مسار الإلغاء بدلاً من ذلك.",
+    "acceptedBidProtected": "محمية — ألغِ المهمة بدلاً من ذلك",
     "tabBids": "العروض",
     "tabReviews": "التقييمات",
     "reasonRequired": "السبب مطلوب.",
