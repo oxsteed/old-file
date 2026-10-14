@@ -1,14 +1,15 @@
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
-// Protected routes a helper may visit before onboarding is complete.
-// All entries here must correspond to actual <ProtectedRoute>-wrapped routes
-// in App.jsx - public paths never reach this gate.
-// '/helper-dashboard' is required: helpers who finish signup via /join land
-// there after OTP verification, before onboarding_completed is set to true.
+// Recovery routes must remain reachable even when a work route explicitly
+// requires onboarding. General account/workspace pages do not require helper
+// onboarding; listing, bidding and starting work enforce it on the server.
 const ONBOARDING_ALLOWED_PATHS = [
   '/helper-dashboard',
   '/dashboard',
+  '/verify-identity',
+  '/media/verification',
+  '/media/verify-identity',
 ];
 
 // Paths that are themselves part of the identity-verification flow and must
@@ -34,7 +35,7 @@ function diditGateSatisfied(user) {
   return ds === 'verified' || ds === 'skipped';
 }
 
-export default function ProtectedRoute({ children, requiredRole, requireOnboarded = true }) {
+export default function ProtectedRoute({ children, requiredRole, requireOnboarded = false }) {
   const { user, loading, isOnboardingComplete } = useAuth();
   const location = useLocation();
 
@@ -72,10 +73,9 @@ export default function ProtectedRoute({ children, requiredRole, requireOnboarde
     return <Navigate to="/verify-identity" replace />;
   }
 
-  // Helper onboarding gate: redirect helpers who haven't completed onboarding
-  // to their dashboard unless they're already on an allowed path. (The Didit
-  // gate above already handled identity verification, so they resume where
-  // they left off. Previously this pointed at the retired /join?mode=helper.)
+  // Work-route opt-in only. An incomplete helper profile must not block
+  // Settings, authorized statements, Support, or business workspace pages.
+  // Skipping Didit never marks helper work eligibility complete.
   if (
     requireOnboarded &&
     ['helper', 'helper_pro', 'broker'].includes(user.role) &&

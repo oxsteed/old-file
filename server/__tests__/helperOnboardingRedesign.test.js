@@ -22,6 +22,13 @@ const done = {
 beforeEach(() => resetMocks());
 
 describe('deriveHelperOnboarding', () => {
+  test('skipping Didit permits no helper work or public listing', () => {
+    const onboarding = deriveHelperOnboarding({ ...done, didit_status: 'skipped', id_verified: false, identity_verified: false });
+    expect(onboarding.complete).toBe(false);
+    expect(onboarding.canAppearInSearch).toBe(false);
+    expect(onboarding.missing).toEqual(['identity']);
+    expect(missingFor('finalize', onboarding)).toEqual(['identityVerified']);
+  });
   test('fresh helper is not complete and lists missing steps', () => {
     const o = deriveHelperOnboarding({ email_verified: true, terms_accepted: true, terms_accepted_at: new Date(), terms_version: 'v1' });
     expect(o.complete).toBe(false);

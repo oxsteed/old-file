@@ -2,9 +2,57 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import vm from 'node:vm';
+import { createRequire } from 'node:module';
+import { transformSync } from 'esbuild';
 
 const root = (file) => readFileSync(new URL(`../${file}`, import.meta.url), 'utf8');
 const repo = (file) => readFileSync(new URL(`../../${file}`, import.meta.url), 'utf8');
+
+test('account and business pages do not inherit helper work eligibility', () => {
+  const require = createRequire(import.meta.url);
+  const code = transformSync(root('src/components/ProtectedRoute.jsx'), {
+    loader: 'jsx', format: 'cjs', jsx: 'automatic',
+  }).code;
+  let user;
+  let pathname;
+  let complete = false;
+  const module = { exports: {} };
+  vm.runInNewContext(code, { module, exports: module.exports, require(name) {
+    if (name === 'react-router-dom') return { Navigate() {}, useLocation: () => ({ pathname }) };
+    if (name === '../context/AuthContext') return { useAuth: () => ({ user, loading: false, isOnboardingComplete: complete }) };
+    return require(name);
+  } });
+  const render = (props = {}) => {
+    const result = module.exports.default({ children: 'allowed', ...props });
+    return result === 'allowed' ? result : result.props.to;
+  };
+  const base = { role: 'helper', email_verified: true, didit_status: 'skipped', onboarding_completed: false };
+  for (const mode of ['helper', 'business_owner', 'business_manager', 'business_employee']) {
+    user = { ...base, default_mode: mode };
+    for (pathname of ['/settings', '/settings/sessions', '/statements', '/helper-earnings/statements',
+      '/business/statements', '/statements/document/accessible', '/support/escalation', '/business/4/workspace']) {
+      assert.equal(render(), 'allowed', `${mode}: ${pathname}`);
+    }
+  }
+  // Recovery must also work for users who have not skipped verification.
+  user = { ...base, didit_status: 'pending' };
+  for (pathname of ['/verify-identity', '/media/verification', '/media/verify-identity']) {
+    assert.equal(render(), 'allowed');
+    assert.equal(render({ requireOnboarded: true }), 'allowed');
+  }
+  pathname = '/work-only';
+  user = base;
+  assert.equal(render({ requireOnboarded: true }), '/helper-dashboard');
+  complete = true;
+  assert.equal(render({ requireOnboarded: true }), 'allowed');
+  assert.equal(render({ requiredRole: 'admin' }), '/dashboard');
+  user = { ...base, didit_enforcement_required: true };
+  assert.equal(render(), '/verify-identity');
+  user = { ...base, email_verified: false };
+  assert.equal(render(), '/verify-email');
+  user = null;
+  assert.equal(render(), '/login');
+});
 
 test('main and admin route imports use resilient lazy loading', () => {
   assert.doesNotMatch(repo('client/src/App.jsx'), /const [A-Za-z0-9_]+ = lazy\(/);
