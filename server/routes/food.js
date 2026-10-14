@@ -7,6 +7,7 @@ const ctrl = require('../controllers/foodController');
 const walletCtrl = require('../controllers/foodWalletController');
 const disputeCtrl = require('../controllers/foodCreditDisputeController');
 const reserveCtrl = require('../controllers/restaurantCreditReserveController');
+const fundingCtrl = require('../controllers/restaurantCreditFundingController');
 const statementController = require('../controllers/creditStatementController');
 const kiosk = require('../controllers/restaurantKioskController');
 const oxsteedCreditPartnerCtrl = require('../controllers/oxsteedCreditPartnerController');
@@ -74,6 +75,10 @@ router.post('/customer/wallets/:restaurantId/transfers', restaurantCreditMutatio
 router.get('/customer/wallets/:restaurantId/transfers', walletCtrl.listMyWalletTransfers);
 router.post('/customer/wallets/:restaurantId/load-requests', restaurantCreditMutationLimiter, walletCtrl.createMyWalletLoadRequest);
 router.get('/customer/wallets/:restaurantId/load-requests', walletCtrl.listMyWalletLoadRequests);
+// Phase 5: trial-tier credit-cap pre-check for the RequestCreditModal.
+// Enforcement is authoritative on the request path; this endpoint only
+// informs the UI whether the "at capacity" notice should render.
+router.get('/customer/wallets/:restaurantId/credit-capacity', walletCtrl.getCreditCapacity);
 router.post('/customer/wallets/:restaurantId/load-requests/:requestId/cancel', restaurantCreditMutationLimiter, walletCtrl.cancelMyWalletLoadRequest);
 router.post('/customer/wallets/:restaurantId/load-requests/:requestId/disputes', restaurantCreditMutationLimiter, disputeCtrl.createDispute);
 router.get('/customer/wallets/:restaurantId/disputes', disputeCtrl.listMyDisputes);
@@ -82,6 +87,12 @@ router.get('/customer/wallets/:restaurantId/disputes', disputeCtrl.listMyDispute
 // the same gating used by server/routes/admin.js.
 router.get('/admin/fraud-signals', requireAdmin, walletCtrl.listFraudSignals);
 router.post('/admin/fraud-signals/:id/review', requireAdmin, walletCtrl.reviewFraudSignal);
+// Phase 6 (restaurant credit protection): platform credit-approval per
+// restaurant. requireAdmin verifies the admin token itself, the same gating
+// used by server/routes/admin.js. Revoking starts the 30-day grace clock;
+// the grace-period worker migrates remaining balances to OxSteed Credit.
+router.get('/admin/restaurants/:restaurantId/credit-approval', requireAdmin, walletCtrl.getRestaurantCreditApproval);
+router.post('/admin/restaurants/:restaurantId/credit-approval', requireAdmin, walletCtrl.setRestaurantCreditApproval);
 router.get('/customer/wallets/:restaurantId/refunds', walletCtrl.listMyWalletRefunds);
 router.get('/customer/favorites', authenticate, ctrl.listCustomerFavoriteRestaurants);
 router.post('/customer/favorites/:restaurantId/toggle', authenticate, ctrl.toggleCustomerFavoriteRestaurant);
@@ -98,6 +109,21 @@ router.post('/restaurants/:restaurantId/reports', authenticate, ctrl.createResta
 router.use('/merchant/wallets', authenticate, noStoreCreditResponse);
 router.get('/merchant/wallets/:restaurantId/disputes', disputeCtrl.listMerchantDisputes);
 router.post('/merchant/wallets/:restaurantId/disputes/:disputeId/respond', restaurantCreditMutationLimiter, disputeCtrl.respondToDispute);
+// Phase 6: a restaurant's own platform credit-approval status (badge/banner
+// data for the merchant credit dashboard). Scoped to restaurants the
+// signed-in operator can access; the controller enforces that.
+router.get('/merchant/credit-approval', authenticate, noStoreCreditResponse, walletCtrl.getMyRestaurantCreditApproval);
+
+// Approval funding step: Stripe where available, OxSteed manual instructions
+// elsewhere. Approval isn't complete until the reserve is funded.
+router.get('/merchant/credit-approval/funding-path', authenticate, noStoreCreditResponse, fundingCtrl.getFundingPath);
+router.post('/merchant/credit-approval/funding-proof', authenticate, restaurantCreditMutationLimiter, fundingCtrl.submitFundingProof);
+
+// Admin: manual funding verification queue + OxSteed funding instructions CRUD.
+router.get('/admin/credit-funding/submissions', requireAdmin, fundingCtrl.listFundingSubmissions);
+router.post('/admin/credit-funding/submissions/:id/verify', requireAdmin, fundingCtrl.verifyFundingSubmission);
+router.get('/admin/funding-instructions', requireAdmin, fundingCtrl.listFundingInstructions);
+router.post('/admin/funding-instructions', requireAdmin, fundingCtrl.upsertFundingInstructions);
 
 // Admin dispute resolution. Never moves money: 'resolved_release' only
 // re-queues the load request to pending for restaurant re-review.
@@ -143,6 +169,13 @@ router.get('/restaurants/:restaurantId/customer-wallet-statement', walletCtrl.ge
 // enforced inside the controller (requireRestaurantAccess + assertWalletOperator).
 router.post('/merchant/wallets/:restaurantId/refunds', restaurantCreditMutationLimiter, walletCtrl.createCustomerWalletRefund);
 router.get('/merchant/wallets/:restaurantId/refunds', walletCtrl.listRestaurantWalletRefunds);
+// Phase 5: trial-tier credit cap + FIFO derisking. Only meaningful for
+// restaurants WITHOUT a Phase 4 reserve row (the trial-cap service itself
+// reports trial_cap_applies: false for enrolled restaurants). Operator
+// authorization is enforced inside the controller (requireRestaurantAccess
+// + assertWalletOperator), mirroring the merchant wallet surface.
+router.get('/merchant/wallets/:restaurantId/exposure', walletCtrl.getCreditExposure);
+router.post('/merchant/wallets/:restaurantId/derisk', restaurantCreditMutationLimiter, walletCtrl.deriskCredit);
 // Phase 4: restaurant credit pre-purchase reserve ("gift card inventory"
 // model). Opt-in per restaurant: only restaurants WITH a reserve row are
 // capped at issuance; restaurants without a row keep the trial-tier cap

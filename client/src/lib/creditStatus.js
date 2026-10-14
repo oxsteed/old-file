@@ -69,6 +69,7 @@ const TRANSACTION_TYPE_TRANSLATION_KEYS = Object.freeze({
   sub_bank_conversion: 'transactionSubBankConversion',
   sub_bank_payout: 'transactionSubBankPayout',
   sub_bank_payout_reversal: 'transactionSubBankPayoutReversal',
+  sub_bank_load_reversal: 'transactionSubBankLoadReversal',
 });
 
 export function creditStatusTranslationKey(status) {

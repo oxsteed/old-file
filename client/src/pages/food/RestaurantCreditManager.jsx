@@ -5,12 +5,15 @@ import {
   createMerchantFoodWalletRefund,
   declineMerchantFoodWalletCreditRequest,
   formatFoodMoney,
+  getMerchantCreditApproval,
   grantMerchantFoodWalletCredit,
   listMerchantFoodWalletCreditRequests,
 } from '../../api/food';
 import { apiErrorMessage } from './foodShared';
 import { formatCreditDateTime } from '../../lib/creditDateTime';
 import RestaurantCreditReservePanel from './RestaurantCreditReservePanel';
+import RestaurantCreditExposurePanel from './RestaurantCreditExposurePanel';
+import RestaurantCreditFundingPanel from './RestaurantCreditFundingPanel';
 
 function requestProof(request) {
   const metadata = request?.metadata && typeof request.metadata === 'object' ? request.metadata : {};
@@ -46,6 +49,7 @@ export default function RestaurantCreditManager({ restaurant }) {
   const [refundReason, setRefundReason] = useState('');
   const [refundConfirming, setRefundConfirming] = useState(false);
   const [refundWorking, setRefundWorking] = useState(false);
+  const [approval, setApproval] = useState(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -60,6 +64,20 @@ export default function RestaurantCreditManager({ restaurant }) {
   }, [restaurant.id]);
 
   useEffect(() => { load(); }, [load]);
+
+  // Phase 6: surface the platform credit-approval state so the restaurant
+  // knows where it stands (suspended/revoked blocks new credit).
+  useEffect(() => {
+    let active = true;
+    getMerchantCreditApproval()
+      .then((rows) => {
+        if (!active) return;
+        const match = (Array.isArray(rows) ? rows : []).find((row) => String(row.restaurantId) === String(restaurant.id));
+        setApproval(match || null);
+      })
+      .catch(() => { if (active) setApproval(null); });
+    return () => { active = false; };
+  }, [restaurant.id]);
 
   const approve = async (request) => {
     setWorkingId(request.id);
@@ -208,6 +226,25 @@ export default function RestaurantCreditManager({ restaurant }) {
         </div>
       </div>
 
+      {approval && (approval.status === 'suspended' || approval.status === 'revoked') && (
+        <div className="fd-credit-approval-banner" role="alert" data-status={approval.status}>
+          <strong>
+            {approval.status === 'suspended'
+              ? 'New credit is paused for this restaurant while its platform approval is suspended.'
+              : 'This restaurant\u2019s credit approval was revoked. Remaining customer balances move to OxSteed Credit when the grace period ends.'}
+          </strong>
+          {approval.revocationReason && <p>Reason: {approval.revocationReason}</p>}
+          {approval.status === 'revoked' && approval.gracePeriodEndsAt && (
+            <p>Grace period ends: {displayDate(approval.gracePeriodEndsAt)}</p>
+          )}
+        </div>
+      )}
+
+      {/* Funding step: approval isn't complete until the reserve is funded. */}
+      {approval && approval.status === 'approved' && approval.fundingStatus !== 'funded' && (
+        <RestaurantCreditFundingPanel restaurant={restaurant} approval={approval} onFunded={load} />
+      )}
+
       {grantOpen && (
         <div className="fd-credit-grant-form">
           <strong>Grant credit directly</strong>
@@ -338,6 +375,10 @@ export default function RestaurantCreditManager({ restaurant }) {
     {/* Phase 4: pre-purchase credit reserve. Opt-in per restaurant; issuance
         is capped at the reserve balance once the restaurant is enrolled. */}
     <RestaurantCreditReservePanel restaurant={restaurant} />
+    {/* Phase 5: trial-tier credit cap + FIFO derisking. Applies to
+        restaurants without a reserve row; enrolled restaurants see the
+        reserve-enrolled state instead of the cap meter. */}
+    <RestaurantCreditExposurePanel restaurant={restaurant} />
     </>
   );
 }

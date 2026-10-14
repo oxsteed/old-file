@@ -78,7 +78,12 @@ const CONVERSION_OUT_REFERENCE_TYPES = new Set(['restaurant_conversion_out']);
 // to the customer. These reverse the original sub_bank_load issuance rather
 // than posting a redemption (no partner_payable: the restaurant paid the
 // customer back directly, the platform owes the restaurant nothing).
-const LOAD_REVERSAL_REFERENCE_TYPES = new Set(['credit_refund']);
+// Phase 5 FIFO derisking ('credit_derisk') unwinds issuance the same way:
+// the wallet debit extinguishes the restaurant's customer-credit liability
+// and the issuance funding returns to the platform treasury. The customer's
+// OxSteed Credit grant posts separately as a treasury-funded adjustment,
+// so the central journal stays balanced with no partner_payable leg.
+const LOAD_REVERSAL_REFERENCE_TYPES = new Set(['credit_refund', 'credit_derisk']);
 
 /**
  * Map a food-wallet ledger entry to its central-journal action.
@@ -395,15 +400,17 @@ async function postFoodWalletDualEntry(client, {
       metadata: postingMetadata,
     };
   } else if (action === 'load_reversal') {
-    // Restaurant credit refunded to the customer: the restaurant's
-    // customer-credit liability falls and the issuance funding returns to
-    // the platform treasury (exact reversal of the sub_bank_load posting).
+    // Restaurant credit refunded (or Phase 5 derisked) to the customer: the
+    // restaurant's customer-credit liability falls and the issuance funding
+    // returns to the platform treasury (exact reversal of the sub_bank_load
+    // posting).
+    const reversalKind = postingMetadata.foodWalletReferenceType === 'credit_derisk' ? 'derisk' : 'refund';
     spec = {
       ...shared,
       transactionType: SUB_BANK_LOAD_REVERSAL,
       debitAccountId: subBank.id,
       creditAccountId: treasury.id,
-      description: `Restaurant credit refund dual-posting (wallet ledger entry ${ledgerEntryId})`,
+      description: `Restaurant credit ${reversalKind} dual-posting (wallet ledger entry ${ledgerEntryId})`,
       metadata: postingMetadata,
     };
   } else {

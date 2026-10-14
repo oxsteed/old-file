@@ -430,6 +430,20 @@ export const getCreditReserveBalance = (restaurantId) =>
 export const listCreditReserveLedger = (restaurantId, params = {}) =>
   api.get('/food/merchant/credit-reserve/ledger', { params: { restaurantId, ...params } }).then((r) => r.data);
 
+// ── Restaurant credit trial cap + FIFO derisking (Phase 5) ───────────────
+// Trial-tier restaurants (no Phase 4 reserve row) are capped at cap_cents
+// of outstanding customer credit; the merchant derisks oldest balances
+// first by migrating them to OxSteed Credit. Operator authorization is
+// enforced server-side (requireRestaurantAccess + assertWalletOperator).
+export const getFoodWalletCreditCapacity = (restaurantId) =>
+  api.get(`/food/customer/wallets/${restaurantId}/credit-capacity`).then((r) => r.data);
+
+export const getMerchantCreditExposure = (restaurantId) =>
+  api.get(`/food/merchant/wallets/${restaurantId}/exposure`).then((r) => r.data);
+
+export const deriskMerchantCredit = (restaurantId, payload) =>
+  api.post(`/food/merchant/wallets/${restaurantId}/derisk`, payload).then((r) => r.data);
+
 // ── Customer favorites (P2-8-F14: endpoints had no client UI) ───────────────
 export const listFavoriteRestaurants = () =>
   api.get('/food/customer/favorites').then((r) => r.data?.favoriteRestaurantIds || []);
@@ -442,6 +456,35 @@ export const listFavoriteItems = () =>
 
 export const toggleFavoriteItem = (restaurantId, itemId) =>
   api.post(`/food/customer/favorite-items/${restaurantId}/${itemId}/toggle`).then((r) => r.data);
+
+// ── Restaurant credit approval (Phase 6: the revocation path) ─────────────
+export const getAdminRestaurantCreditApproval = (restaurantId) =>
+  api.get(`/food/admin/restaurants/${restaurantId}/credit-approval`).then((r) => r.data?.approval || null);
+
+export const setAdminRestaurantCreditApproval = (restaurantId, payload) =>
+  api.post(`/food/admin/restaurants/${restaurantId}/credit-approval`, payload).then((r) => r.data?.approval || null);
+
+export const getMerchantCreditApproval = () =>
+  api.get('/food/merchant/credit-approval').then((r) => r.data?.restaurants || []);
+
+// ── Approval funding step (Stripe where available, OxSteed instructions elsewhere) ──
+export const getCreditFundingPath = (restaurantId) =>
+  api.get('/food/merchant/credit-approval/funding-path', { params: { restaurantId } }).then((r) => r.data || null);
+
+export const submitCreditFundingProof = (payload) =>
+  api.post('/food/merchant/credit-approval/funding-proof', payload).then((r) => r.data?.submission || null);
+
+export const listCreditFundingSubmissions = () =>
+  api.get('/food/admin/credit-funding/submissions').then((r) => r.data?.submissions || []);
+
+export const verifyCreditFundingSubmission = (id, payload) =>
+  api.post(`/food/admin/credit-funding/submissions/${id}/verify`, payload).then((r) => r.data || null);
+
+export const listOxsteedFundingInstructions = () =>
+  api.get('/food/admin/funding-instructions').then((r) => r.data?.instructions || []);
+
+export const upsertOxsteedFundingInstructions = (payload) =>
+  api.post('/food/admin/funding-instructions', payload).then((r) => r.data?.instructions || null);
 
 // ── Shared formatting ────────────────────────────────────────────────────────
 export function formatFoodMoney(cents, currency = 'USD') {
