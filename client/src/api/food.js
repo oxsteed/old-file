@@ -408,6 +408,28 @@ export const issueRestaurantTopupStepupChallenge = (restaurantId, payload) =>
 export const getRestaurantTopup = (restaurantId, topupId) =>
   api.get(`/restaurants/${restaurantId}/topups/${topupId}`).then((r) => r.data);
 
+// ── Restaurant credit pre-purchase reserve (Phase 4) ─────────────────────
+// Opt-in per restaurant: only restaurants with a reserve row are capped at
+// issuance. The restaurant id rides in the body/query; the server enforces
+// operator authorization (requireRestaurantAccess + assertWalletOperator).
+export const createCreditReservePurchase = (restaurantId, payload, idempotencyKey) =>
+  api
+    .post(
+      '/food/merchant/credit-reserve/purchase',
+      { ...payload, restaurantId },
+      idempotencyKey ? { headers: { 'Idempotency-Key': idempotencyKey } } : undefined
+    )
+    .then((r) => r.data);
+
+export const confirmCreditReservePurchase = (restaurantId, purchaseId) =>
+  api.post(`/food/merchant/credit-reserve/purchase/${purchaseId}/confirm`, { restaurantId }).then((r) => r.data);
+
+export const getCreditReserveBalance = (restaurantId) =>
+  api.get('/food/merchant/credit-reserve/balance', { params: { restaurantId } }).then((r) => r.data);
+
+export const listCreditReserveLedger = (restaurantId, params = {}) =>
+  api.get('/food/merchant/credit-reserve/ledger', { params: { restaurantId, ...params } }).then((r) => r.data);
+
 // ── Customer favorites (P2-8-F14: endpoints had no client UI) ───────────────
 export const listFavoriteRestaurants = () =>
   api.get('/food/customer/favorites').then((r) => r.data?.favoriteRestaurantIds || []);

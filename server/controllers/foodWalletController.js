@@ -8,6 +8,10 @@ const { withTransaction } = require('../utils/transaction');
 const { logFoodWalletOperatorAudit } = require('../services/foodWalletAuditService');
 const { evaluateFundingCompliance } = require('../services/fiatComplianceService');
 const foodCreditFraudService = require('../services/foodCreditFraudService');
+// Phase 4: opt-in pre-purchase credit reserve. Restaurants WITH a reserve
+// row are capped at issuance; restaurants without one continue under the
+// trial-tier cap (Phase 5 owns that).
+const { debitCreditReserveForIssuance } = require('../services/restaurantCreditReserveService');
 const {
   creditFoodWallet,
   debitFoodWallet,
@@ -1252,6 +1256,20 @@ exports.loadCustomerWallet = async (req, res, next) => {
           requestIp: req.ip || null,
         },
       });
+      // Phase 4: opt-in pre-purchase reserve cap. Runs inside the SAME
+      // transaction as the wallet credit: when the restaurant has opted in
+      // (a reserve row exists), the row is locked and drawn down here; a
+      // 409 insufficient_credit_reserve rolls the wallet credit back with it
+      // (fail closed). Replays skip the drawdown because the original
+      // issuance already drew it down.
+      if (!walletResult.replayed) {
+        await debitCreditReserveForIssuance(client, {
+          restaurantId,
+          amountCents,
+          referenceType: 'issuance',
+          referenceId,
+        });
+      }
       if (!walletResult.replayed) {
         await logFoodWalletOperatorAudit(client, {
           restaurantId,
@@ -1537,6 +1555,21 @@ exports.approveCustomerWalletLoadRequest = async (req, res, next) => {
           approvalNote: approvalNote || null,
         },
       });
+
+      // Phase 4: opt-in pre-purchase reserve cap. Runs inside the SAME
+      // transaction as the wallet credit: when the restaurant has opted in
+      // (a reserve row exists), the row is locked and drawn down here; a
+      // 409 insufficient_credit_reserve rolls the wallet credit back with it
+      // (fail closed). Replays skip the drawdown because the original
+      // issuance already drew it down.
+      if (!walletResult.replayed) {
+        await debitCreditReserveForIssuance(client, {
+          restaurantId,
+          amountCents: Number(requestRow.amount_cents || 0),
+          referenceType: 'issuance',
+          referenceId: String(requestRow.id),
+        });
+      }
 
       const { rows: [updatedRequest] } = await client.query(
         `UPDATE food_customer_wallet_load_requests
@@ -2608,3 +2641,9 @@ exports.listMyWalletRefunds = async (req, res, next) => {
     next(err);
   }
 };
+
+// Phase 4: shared with the credit-reserve controller, which enforces the
+// same merchant-surface authorization (requireRestaurantAccess +
+// assertWalletOperator) on the reserve purchase/balance/ledger endpoints.
+exports.requireRestaurantAccess = requireRestaurantAccess;
+exports.assertWalletOperator = assertWalletOperator;

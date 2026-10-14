@@ -10,6 +10,7 @@ import {
 } from '../../api/food';
 import { apiErrorMessage } from './foodShared';
 import { formatCreditDateTime } from '../../lib/creditDateTime';
+import RestaurantCreditReservePanel from './RestaurantCreditReservePanel';
 
 function requestProof(request) {
   const metadata = request?.metadata && typeof request.metadata === 'object' ? request.metadata : {};
@@ -188,6 +189,7 @@ export default function RestaurantCreditManager({ restaurant }) {
   };
 
   return (
+    <>
     <section className="fd-section fd-credit-manager">
       <div className="fd-credit-manager-head">
         <div>
@@ -333,5 +335,9 @@ export default function RestaurantCreditManager({ restaurant }) {
         </div>
       )}
     </section>
+    {/* Phase 4: pre-purchase credit reserve. Opt-in per restaurant; issuance
+        is capped at the reserve balance once the restaurant is enrolled. */}
+    <RestaurantCreditReservePanel restaurant={restaurant} />
+    </>
   );
 }

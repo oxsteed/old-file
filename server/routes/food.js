@@ -6,6 +6,7 @@ const { authenticate, optionalAuth } = require('../middleware/auth');
 const ctrl = require('../controllers/foodController');
 const walletCtrl = require('../controllers/foodWalletController');
 const disputeCtrl = require('../controllers/foodCreditDisputeController');
+const reserveCtrl = require('../controllers/restaurantCreditReserveController');
 const statementController = require('../controllers/creditStatementController');
 const kiosk = require('../controllers/restaurantKioskController');
 const oxsteedCreditPartnerCtrl = require('../controllers/oxsteedCreditPartnerController');
@@ -142,6 +143,17 @@ router.get('/restaurants/:restaurantId/customer-wallet-statement', walletCtrl.ge
 // enforced inside the controller (requireRestaurantAccess + assertWalletOperator).
 router.post('/merchant/wallets/:restaurantId/refunds', restaurantCreditMutationLimiter, walletCtrl.createCustomerWalletRefund);
 router.get('/merchant/wallets/:restaurantId/refunds', walletCtrl.listRestaurantWalletRefunds);
+// Phase 4: restaurant credit pre-purchase reserve ("gift card inventory"
+// model). Opt-in per restaurant: only restaurants WITH a reserve row are
+// capped at issuance; restaurants without a row keep the trial-tier cap
+// (Phase 5). Operator authorization is enforced inside the controller
+// (requireRestaurantAccess + assertWalletOperator), mirroring the merchant
+// wallet surface.
+router.use('/merchant/credit-reserve', authenticate, noStoreCreditResponse);
+router.post('/merchant/credit-reserve/purchase', restaurantCreditMutationLimiter, reserveCtrl.purchaseCreditReserve);
+router.post('/merchant/credit-reserve/purchase/:purchaseId/confirm', restaurantCreditMutationLimiter, reserveCtrl.confirmCreditReservePurchase);
+router.get('/merchant/credit-reserve/balance', reserveCtrl.getCreditReserveBalance);
+router.get('/merchant/credit-reserve/ledger', reserveCtrl.listCreditReserveLedger);
 router.get('/restaurants/:restaurantId/oxsteed-credit/settlements', authenticate, noStoreCreditResponse, oxsteedCreditPartnerCtrl.listPartnerSettlements);
 router.get('/restaurants/:restaurantId/oxsteed-credit/transactions', authenticate, noStoreCreditResponse, oxsteedCreditPartnerCtrl.listPartnerTransactions);
 router.get('/restaurants/:restaurantId/oxsteed-credit/ledger', authenticate, noStoreCreditResponse, oxsteedCreditPartnerCtrl.getPartnerCreditLedger);
