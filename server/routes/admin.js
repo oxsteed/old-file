@@ -105,6 +105,8 @@ router.get('/businesses',                      requireAdmin, requirePermission('
 router.get('/businesses/:id',                  requireAdmin, requirePermission('manage_users'), bizModCtrl.getBusinessDetail);
 router.put('/businesses/:id/toggle',           requireAdmin, requirePermission('manage_users'), bizModCtrl.toggleBusiness);
 router.put('/businesses/:id/flag',             requireAdmin, requirePermission('manage_users'), bizModCtrl.flagBusiness);
+// P2-1-F08: resolve a review flag so flagged businesses can leave the queue.
+router.put('/businesses/:id/unflag',           requireAdmin, requirePermission('manage_users'), bizModCtrl.unflagBusiness);
 router.put('/businesses/:id/admin-notes',      requireAdmin, requirePermission('manage_users'), bizModCtrl.updateAdminNotes);
 router.put('/businesses/:id/delete',           requireAdmin, requirePermission('manage_users'), bizModCtrl.deleteBusiness);
 

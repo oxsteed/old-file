@@ -29700,6 +29700,7 @@
     "actionFlag": "وضع علامة للمراجعة",
     "actionReactivate": "إعادة التنشيط",
     "actionSuspend": "تعليق",
+    "actionUnflag": "إزالة علامة المراجعة",
     "activeBadge": "نشط",
     "colActions": "إجراءات",
     "colBusiness": "النشاط التجاري",
@@ -29731,6 +29732,7 @@
     "statTotal": "الإجمالي",
     "subtitle": "إدارة ومراقبة جميع الأنشطة التجارية على المنصة",
     "title": "إدارة الأنشطة التجارية",
+    "unflagConfirm": "إزالة علامة المراجعة؟ ستغادر الشركة قائمة المراجعة.",
     "unknownType": "غير معروف",
     "viewProfile": "عرض الملف"
   },

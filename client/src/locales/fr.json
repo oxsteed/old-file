@@ -29689,6 +29689,7 @@
     "actionFlag": "Signaler pour révision",
     "actionReactivate": "Réactiver",
     "actionSuspend": "Suspendre",
+    "actionUnflag": "Retirer le signalement",
     "activeBadge": "Actif",
     "colActions": "ACTIONS",
     "colBusiness": "ENTREPRISE",
@@ -29720,6 +29721,7 @@
     "statTotal": "TOTAL",
     "subtitle": "Gérez et surveillez toutes les entreprises de la plateforme",
     "title": "Modération des entreprises",
+    "unflagConfirm": "Retirer le signalement ? L’entreprise quittera la file des signalements.",
     "unknownType": "Inconnu",
     "viewProfile": "Voir le profil"
   },

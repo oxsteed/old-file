@@ -29689,6 +29689,7 @@
     "actionFlag": "Marcar para revisión",
     "actionReactivate": "Reactivar",
     "actionSuspend": "Suspender",
+    "actionUnflag": "Quitar marca de revisión",
     "activeBadge": "Activo",
     "colActions": "ACCIONES",
     "colBusiness": "NEGOCIO",
@@ -29720,6 +29721,7 @@
     "statTotal": "TOTAL",
     "subtitle": "Gestiona y supervisa todos los negocios de la plataforma",
     "title": "Moderación de negocios",
+    "unflagConfirm": "¿Quitar la marca de revisión? El negocio saldrá de la cola de marcados.",
     "unknownType": "Desconocido",
     "viewProfile": "Ver perfil"
   },

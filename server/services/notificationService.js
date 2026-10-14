@@ -362,6 +362,19 @@ exports.sendNotification = async ({
           [notifId]
         );
       }
+      // P3-3-F13: an attempted realtime email that failed must not be
+      // reported as delivered. Outbox workers mark the row sent on
+      // success:true, so swallowing the failure here loses the email
+      // (e.g. a template-render exception inside sendEmailNotification).
+      // Propagate it so the row is retried instead of marked sent. The
+      // in-app row is already persisted and the delivery key dedupes the
+      // retry, so push/email resume without duplicating. A missing provider
+      // outside production is an expected dev condition, not a failure.
+      const emailFailed = delivery?.success !== true
+        && !(delivery?.code === 'email_not_configured' && process.env.NODE_ENV !== 'production');
+      if (emailFailed) {
+        return { success: false, error: delivery?.error || 'Email delivery failed', notificationId: notifId };
+      }
     }
     return { success: true, notificationId: notifId };
   } catch (err) {
@@ -443,13 +456,17 @@ async function sendEmailNotification({
   fallbackTranslations = null,
   idempotencyKey = null,
 }) {
-  try {
-    const translations = fallbackTranslations || tNotifEmail(type, language);
-    const buttonText = translations.buttonText
-      || tNotifEmail('default', language).buttonText
-      || 'View Dashboard';
+  // P3-3-F13: keep template rendering separate from provider delivery so a
+  // render failure is identifiable (and retryable) instead of being lumped
+  // in with provider errors.
+  const translations = fallbackTranslations || tNotifEmail(type, language);
+  const buttonText = translations.buttonText
+    || tNotifEmail('default', language).buttonText
+    || 'View Dashboard';
 
-    const rendered = buildEmailTemplate({
+  let rendered;
+  try {
+    rendered = buildEmailTemplate({
       firstName: firstName || 'there',
       title,
       body,
@@ -463,7 +480,12 @@ async function sendEmailNotification({
       footerFallbackText: translations.footerFallbackText,
       language,
     });
+  } catch (err) {
+    logger.error('Email template render failed', { type, error: err.message });
+    return { success: false, error: err.message, code: 'template_render_failed' };
+  }
 
+  try {
     return await sendEmail({
       to,
       subject: title,
