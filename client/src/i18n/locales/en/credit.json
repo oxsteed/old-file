@@ -500,6 +500,7 @@
   "transactionSubBankConversion": "Sub-bank currency conversion",
   "transactionSubBankPayout": "Sub-bank payout",
   "transactionSubBankPayoutReversal": "Sub-bank payout reversal",
+  "transactionSubBankLoadReversal": "Sub-bank load reversal",
   "transactionActivity": "Credit activity",
   "reservedStatus": "Reserved",
   "capturedStatus": "Captured",

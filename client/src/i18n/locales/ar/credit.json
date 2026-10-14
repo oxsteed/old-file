@@ -500,6 +500,7 @@
   "transactionSubBankConversion": "تحويل عملة البنك الفرعي",
   "transactionSubBankPayout": "دفعة من البنك الفرعي",
   "transactionSubBankPayoutReversal": "عكس دفعة البنك الفرعي",
+  "transactionSubBankLoadReversal": "عكس تحميل البنك الفرعي",
   "transactionActivity": "نشاط Credit",
   "reservedStatus": "محجوز",
   "capturedStatus": "مسجل",

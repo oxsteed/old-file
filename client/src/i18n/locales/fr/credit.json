@@ -501,6 +501,7 @@
   "transactionSubBankConversion": "Conversion de devise en sous-banque",
   "transactionSubBankPayout": "Paiement en sous-banque",
   "transactionSubBankPayoutReversal": "Annulation du paiement en sous-banque",
+  "transactionSubBankLoadReversal": "Contrepassation du chargement de sous-banque",
   "transactionActivity": "Activité Credit",
   "reservedStatus": "Réservée",
   "capturedStatus": "Capturée",
