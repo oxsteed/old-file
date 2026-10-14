@@ -1,10 +1,11 @@
-import { Suspense, cloneElement, isValidElement } from 'react';
+import { Suspense, cloneElement, isValidElement, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, ExternalLink, X } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, CheckCircle2, ExternalLink, X } from 'lucide-react';
 import { getTaskComponent, getTaskComponentProps } from './taskRegistry';
+import AttentionTaskErrorBoundary from './AttentionTaskErrorBoundary';
 
-function buildFullPageUrl(destination) {
+export function buildFullPageUrl(destination) {
   const params = new URLSearchParams();
   const raw = destination?.params;
   if (raw && typeof raw === 'object') {
@@ -16,15 +17,33 @@ function buildFullPageUrl(destination) {
   return `${destination.route}${query ? `?${query}` : ''}`;
 }
 
-function TaskBody({ task, onAttentionAction }) {
+function TaskErrorFallback({ task, onRetry, onRequestOpenFullPage }) {
+  const { t } = useTranslation('attention');
+  return (
+    <div className="attention-state" role="alert">
+      <AlertTriangle size={32} className="text-red-500" aria-hidden="true" />
+      <p className="attention-state__title">{t('taskView.loadFailed')}</p>
+      <p className="attention-state__text">{t('taskView.loadFailedBody')}</p>
+      <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', justifyContent: 'center' }}>
+        <button type="button" className="attention-btn" onClick={onRetry}>
+          {t('list.retry')}
+        </button>
+        <OpenFullPageButton task={task} onOpenFullPage={onRequestOpenFullPage} />
+      </div>
+    </div>
+  );
+}
+
+function TaskBody({ task, onAttentionAction, onRequestOpenFullPage }) {
   const { t, i18n } = useTranslation('attention');
+  const [retryKey, setRetryKey] = useState(0);
   const destination = task?.taskDestination;
 
   if (destination?.type === 'route' && destination.route) {
     return (
       <div className="attention-state">
         <p className="attention-state__text">{t('taskView.routeOnly')}</p>
-        <OpenFullPageButton task={task} />
+        <OpenFullPageButton task={task} onOpenFullPage={onRequestOpenFullPage} />
       </div>
     );
   }
@@ -40,17 +59,31 @@ function TaskBody({ task, onAttentionAction }) {
           onAttentionAction={onAttentionAction}
         />
       );
+      // Remount the boundary on retry or task change so a previous workflow
+      // failure never sticks and each task starts from a clean state.
+      const boundaryKey = `${task?.id ?? 'unknown'}:${retryKey}`;
       return (
-        <Suspense
+        <AttentionTaskErrorBoundary
+          key={boundaryKey}
           fallback={(
-            <div className="attention-state" role="status" aria-live="polite">
-              <div className="attention-spinner" aria-hidden="true" />
-              <p className="attention-state__text">{t('list.loading')}</p>
-            </div>
+            <TaskErrorFallback
+              task={task}
+              onRetry={() => setRetryKey((k) => k + 1)}
+              onRequestOpenFullPage={onRequestOpenFullPage}
+            />
           )}
         >
-          {isValidElement(element) ? cloneElement(element, {}) : element}
-        </Suspense>
+          <Suspense
+            fallback={(
+              <div className="attention-state" role="status" aria-live="polite">
+                <div className="attention-spinner" aria-hidden="true" />
+                <p className="attention-state__text">{t('list.loading')}</p>
+              </div>
+            )}
+          >
+            {isValidElement(element) ? cloneElement(element, {}) : element}
+          </Suspense>
+        </AttentionTaskErrorBoundary>
       );
     }
     // Unknown component name or missing required props: never render a broken
@@ -59,7 +92,7 @@ function TaskBody({ task, onAttentionAction }) {
       return (
         <div className="attention-state">
           <p className="attention-state__text">{t('taskView.routeOnly')}</p>
-          <OpenFullPageButton task={task} />
+          <OpenFullPageButton task={task} onOpenFullPage={onRequestOpenFullPage} />
         </div>
       );
     }
@@ -72,7 +105,9 @@ function TaskBody({ task, onAttentionAction }) {
   );
 }
 
-export function OpenFullPageButton({ task }) {
+// Routes through the modal's dirty-form guard when the caller supplies
+// onOpenFullPage; falls back to a direct navigation for standalone use.
+export function OpenFullPageButton({ task, onOpenFullPage }) {
   const { t } = useTranslation('attention');
   const navigate = useNavigate();
   const destination = task?.taskDestination;
@@ -81,7 +116,13 @@ export function OpenFullPageButton({ task }) {
     <button
       type="button"
       className="attention-btn attention-btn--primary"
-      onClick={() => navigate(buildFullPageUrl(destination))}
+      onClick={() => {
+        if (onOpenFullPage) {
+          onOpenFullPage();
+        } else {
+          navigate(buildFullPageUrl(destination));
+        }
+      }}
     >
       <ExternalLink size={16} aria-hidden="true" /> {t('actions.openFullPage')}
     </button>
@@ -95,13 +136,42 @@ function taskTitle(task, t, i18n) {
     : t('reasons.other');
 }
 
+function ResolvedTaskState({ onBack }) {
+  const { t } = useTranslation('attention');
+  return (
+    <div className="attention-task">
+      <div className="attention-state" role="status">
+        <CheckCircle2 size={32} className="text-green-500" aria-hidden="true" />
+        <p className="attention-state__title">{t('taskView.resolvedTitle')}</p>
+        <p className="attention-state__text">{t('taskView.resolvedBody')}</p>
+        <button type="button" className="attention-btn" onClick={onBack}>
+          <ArrowLeft size={16} aria-hidden="true" /> {t('actions.backToAttention')}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // Replaces the modal body with the registered workflow for the selected task.
 // Header: Back to attention | business + restaurant + task title | Open full
 // page | Close. Must render inside a DirtyFormProvider (provided by
 // AttentionModal) so workflows can flag unsaved edits via useDirtyForm().
-export default function AttentionTaskView({ task, onBack, onRequestClose, onAttentionAction }) {
+// `resolved` renders an explicit resolved state when the task's underlying
+// condition disappeared while the workflow was open.
+export default function AttentionTaskView({
+  task,
+  onBack,
+  onRequestClose,
+  onRequestOpenFullPage,
+  onAttentionAction,
+  resolved = false,
+}) {
   const { t, i18n } = useTranslation('attention');
   const crumbs = [task?.businessName, task?.restaurantName].filter(Boolean).join(' · ');
+
+  if (resolved) {
+    return <ResolvedTaskState onBack={onBack} />;
+  }
 
   return (
       <div className="attention-task">
@@ -113,7 +183,7 @@ export default function AttentionTaskView({ task, onBack, onRequestClose, onAtte
             {crumbs && <span>{crumbs} · </span>}
             <strong>{taskTitle(task, t, i18n)}</strong>
           </div>
-          <OpenFullPageButton task={task} />
+          <OpenFullPageButton task={task} onOpenFullPage={onRequestOpenFullPage} />
           <button
             type="button"
             className="attention-btn attention-btn--icon"
@@ -124,7 +194,7 @@ export default function AttentionTaskView({ task, onBack, onRequestClose, onAtte
           </button>
         </div>
         <div className="attention-task__body">
-          <TaskBody task={task} onAttentionAction={onAttentionAction} />
+          <TaskBody task={task} onAttentionAction={onAttentionAction} onRequestOpenFullPage={onRequestOpenFullPage} />
         </div>
       </div>
   );

@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
 import { ShieldAlert, X } from 'lucide-react';
 import { getAttention } from '../../api/businesses';
 import { DirtyFormProvider, useDirtyForm } from './useDirtyForm';
 import { registerDialog, unregisterDialog, isTopDialog } from './dialogStack';
 import AttentionList from './AttentionList';
-import AttentionTaskView from './AttentionTaskView';
+import AttentionTaskView, { buildFullPageUrl } from './AttentionTaskView';
 import './AttentionModal.css';
 
 const PAGE_LIMIT = 20;
@@ -97,6 +98,7 @@ function ModalContent({
 }) {
   const { t } = useTranslation('attention');
   const { isDirty, clearDirty } = useDirtyForm();
+  const navigate = useNavigate();
 
   const [view, setView] = useState('list');
   const [selectedTask, setSelectedTask] = useState(null);
@@ -104,6 +106,7 @@ function ModalContent({
   const [status, setStatus] = useState('loading');
   const [error, setError] = useState(null);
   const [resolvedNotice, setResolvedNotice] = useState(false);
+  const [taskResolved, setTaskResolved] = useState(false);
   const [pendingNav, setPendingNav] = useState(null);
   const [filters, setFilters] = useState({
     businessId: initialBusinessId ? String(initialBusinessId) : '',
@@ -163,6 +166,7 @@ function ModalContent({
       previousTaskRef.current = selectedTask;
       setSelectedTask(null);
       setView('list');
+      setTaskResolved(false);
       // Refresh so a task resolved inside the workflow surfaces as resolved
       // instead of lingering in the list.
       fetchData(filters, { silent: true }).then((result) => {
@@ -172,12 +176,18 @@ function ModalContent({
           setResolvedNotice(true);
         }
       });
+    } else if (nav && nav.openFullPage && nav.task?.taskDestination?.route) {
+      // "Open full page" travels the same dirty-form guard as Close/Back:
+      // callers route through attemptNav, so a dirty workflow confirms before
+      // discarding. Navigation replaces the page, unmounting the modal.
+      navigate(buildFullPageUrl(nav.task.taskDestination));
     } else if (nav && nav.task) {
       setResolvedNotice(false);
+      setTaskResolved(false);
       setSelectedTask(nav.task);
       setView('task');
     }
-  }, [fetchData, filters, onClose, selectedTask]);
+  }, [fetchData, filters, navigate, onClose, selectedTask]);
 
   const attemptNav = useCallback((nav) => {
     // Never silently discard: a dirty workflow must confirm first.
@@ -199,10 +209,21 @@ function ModalContent({
 
   const handleTaskAction = useCallback(() => {
     // A workflow reported a successful action: refresh totals for the parent
-    // and reload the list so resolved items disappear.
+    // and reload the list so resolved items disappear. If the open task's
+    // underlying condition is gone from the refreshed list, surface an
+    // explicit resolved state in the task view instead of letting the
+    // workflow linger or vanish silently.
     onAction?.();
-    fetchData(filters, { silent: true });
-  }, [fetchData, filters, onAction]);
+    const openTask = selectedTask;
+    const taskViewOpen = view === 'task';
+    fetchData(filters, { silent: true }).then((result) => {
+      if (!taskViewOpen || !openTask) return;
+      const items = result?.items || [];
+      if (!items.some((item) => item.id === openTask.id)) {
+        setTaskResolved(true);
+      }
+    });
+  }, [fetchData, filters, onAction, selectedTask, view]);
 
   // Focus trap + Escape, scoped to the topmost dialog so nested confirmations
   // (e.g. financial confirm dialogs inside workflows) keep keyboard control.
@@ -318,8 +339,10 @@ function ModalContent({
           <div className="attention-modal__body attention-task__wrapper">
             <AttentionTaskView
               task={selectedTask}
+              resolved={taskResolved}
               onBack={() => attemptNav('back')}
               onRequestClose={() => attemptNav('close')}
+              onRequestOpenFullPage={() => attemptNav({ openFullPage: true, task: selectedTask })}
               onAttentionAction={handleTaskAction}
             />
           </div>
