@@ -421,6 +421,16 @@ export const listFavoriteItems = () =>
 export const toggleFavoriteItem = (restaurantId, itemId) =>
   api.post(`/food/customer/favorite-items/${restaurantId}/${itemId}/toggle`).then((r) => r.data);
 
+// ── Restaurant credit approval (Phase 6: the revocation path) ─────────────
+export const getAdminRestaurantCreditApproval = (restaurantId) =>
+  api.get(`/food/admin/restaurants/${restaurantId}/credit-approval`).then((r) => r.data?.approval || null);
+
+export const setAdminRestaurantCreditApproval = (restaurantId, payload) =>
+  api.post(`/food/admin/restaurants/${restaurantId}/credit-approval`, payload).then((r) => r.data?.approval || null);
+
+export const getMerchantCreditApproval = () =>
+  api.get('/food/merchant/credit-approval').then((r) => r.data?.restaurants || []);
+
 // ── Shared formatting ────────────────────────────────────────────────────────
 export function formatFoodMoney(cents, currency = 'USD') {
   return formatCreditMinorUnits(cents, currency);

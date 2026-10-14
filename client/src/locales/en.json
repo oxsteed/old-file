@@ -31925,5 +31925,21 @@
     "error": "Could not submit your W-9. Please try again.",
     "filedTitle": "W-9 on file",
     "filedCopy": "Your W-9 tax form has been received. You do not need to submit it again."
-  }
+  },
+  "adminCreditApprovalTitle": "Platform credit approval",
+  "adminCreditApprovalDetail": "Controls whether this restaurant may issue new credit. Revoking starts a 30-day grace period; remaining balances then auto-migrate to OxSteed Credit.",
+  "adminCreditApprovalStatusLabel": "Approval status",
+  "adminCreditApprovalStatusRevoked": "Revoked",
+  "adminCreditApprovalNewStatus": "New status",
+  "adminCreditApprovalReason": "Reason",
+  "adminCreditApprovalReasonRequired": "A reason is required to suspend or revoke.",
+  "adminCreditApprovalReasonPlaceholder": "Why is this restaurant losing credit approval?",
+  "adminCreditApprovalUpdate": "Update approval",
+  "adminCreditApprovalUpdated": "Credit approval updated.",
+  "adminCreditApprovalLoadFailed": "Unable to load credit approval.",
+  "adminCreditApprovalUpdateFailed": "Unable to update credit approval.",
+  "adminCreditApprovalGraceEnds": "Grace period ends",
+  "adminCreditApprovalRevokedAt": "Revoked at",
+  "adminCreditApprovalMigratedAt": "Balances migrated",
+  "adminCreditApprovalGrandfathered": "Approved (no approval record)"
 }
