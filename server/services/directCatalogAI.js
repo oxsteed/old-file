@@ -1,6 +1,6 @@
 'use strict';
 
-const { LOCALES } = require('./directCatalogService');
+const { LOCALES, ICONS, LIFECYCLE_STATUSES } = require('./directCatalogService');
 
 const ALLOWED_ENTITIES = ['category', 'service', 'tool'];
 const MAX_PROMPT_LENGTH = 4000;
@@ -42,14 +42,15 @@ async function createDraft(prompt) {
   if (!cleanPrompt) throw Object.assign(new Error('Describe the catalog change first'), { statusCode: 400 });
 
   const system = [
-    'You are the OxSteed Direct catalog assistant.',
+    'You draft catalog entries for OxSteed Direct, OxSteed’s own service/quote catalog. You do not publish, book, charge or change availability yourself.',
+    'Use only the requested facts. Do not invent a price, license, insurance, service area, stock level, schedule, business ID or guaranteed outcome. Use null for unspecified priceCents and omit optional unknown fields. Human review and the normal catalog save/publish flow apply.',
     'Convert one requested catalog change into JSON only. Never output SQL, HTML, markdown, or instructions.',
     `entity must be one of: ${ALLOWED_ENTITIES.join(', ')}.`,
     `nameI18n and descriptionI18n must be objects with exactly these locale keys: ${LOCALES.join(', ')}. Preserve OxSteed brand names and city proper names.`,
     'For a service, include categoryId only when the user provides an existing UUID; otherwise use categorySlug.',
     'For a service, priceCents is an integer or null and availabilityDays is an array of weekday names.',
-    'For a category or tool, include iconKey only from: wrench, zap, droplets, hammer, paintbrush, trees, ruler, drill, truck, shield-check.',
-    'Set isPublished false unless the user explicitly asks to publish. Set isActive true by default.',
+    `For a category or tool, include iconKey only from: ${[...ICONS].join(', ')}.`,
+    `lifecycleStatus must be one of: ${LIFECYCLE_STATUSES.join(', ')}. Set lifecycleStatus planned and isPublished false unless the user explicitly requests a public lifecycle status. isActive alone does not control publication. Do not mark isBookable or isOperationallyAvailable true without explicit supporting instructions.`,
     'Return {"entity":"service|category|tool","summary":"...","fields":{...}}.',
   ].join('\n');
   const messages = [{ role: 'system', content: system }, { role: 'user', content: cleanPrompt }];

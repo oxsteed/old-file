@@ -6,7 +6,7 @@
  * given language triggers a real AI provider call; the answer is then cached
  * in Redis for one year so identical requests never hit the provider again.
  *
- * Keyspace: ox:ai:guide:v1:<guideId>:step:<n>:lang:<xx>
+ * Keyspace: ox:ai:guide:<guide-revision>:<guideId>:step:<n>:lang:<xx>
  * TTL: 31536000 seconds (1 year).
  *
  * All functions fail open: a missing/unreachable Redis client simply skips
@@ -16,7 +16,8 @@
 const logger = require('../utils/logger');
 
 const GUIDE_CACHE_TTL_SECONDS = 365 * 24 * 60 * 60; // 1 year
-const CACHE_VERSION = 'v1';
+const { GUIDE_REVISION } = require('./assistantGuide');
+const CACHE_VERSION = `v2-${GUIDE_REVISION}`;
 // Skip caching very large replies so one answer cannot crowd out the cache.
 const MAX_CACHED_REPLY_BYTES = 16 * 1024;
 
