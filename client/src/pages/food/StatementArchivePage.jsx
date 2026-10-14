@@ -15,6 +15,8 @@ import {
 import { formatStatementMoney } from '../../lib/creditStatementFormat';
 import { STATEMENT_PRODUCTS, statementAccessiblePath, statementCorrectionNotice } from '../../lib/statementProducts';
 import StatementExportPanel from './StatementExportPanel';
+import StatementReport from '../../components/statements/StatementReport';
+import CorrectionDiff from '../../components/statements/CorrectionDiff';
 import './StatementArchivePage.css';
 
 // Complete five-locale catalogs are authoritative; English defaults provide
@@ -401,6 +403,10 @@ export default function StatementArchivePage({ product: productProp = 'oxsteed' 
           <tbody>{artifacts.map(artifact => renderArtifactRow(item, artifact))}</tbody></table>
       </div>}
       {document.kind !== 'amendment' && renderEntries(item)}
+      <StatementReport product={product} documentId={item.id} />
+      {document.kind === 'amendment' && document.amendment?.correctionId && (
+        <CorrectionDiff product={product} documentId={item.id} correctionId={document.amendment.correctionId} />
+      )}
     </div>;
   }
 

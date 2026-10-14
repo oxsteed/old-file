@@ -10,7 +10,7 @@ export const LANGUAGES = [
 ];
 
 const LANGUAGE_QUERY_PARAMS = ['lang', 'lng', 'locale'];
-const NAMESPACES = ['translation', 'common', 'translator', 'credit', 'support', 'adminQuoteRequests', 'attention'];
+const NAMESPACES = ['translation', 'common', 'translator', 'credit', 'support', 'adminQuoteRequests', 'attention', 'statements'];
 
 // Translation is split into independently cached chunks. The legacy catalog
 // is required to render the application; these smaller namespaces are
@@ -29,6 +29,7 @@ const localeLoaders = {
     optionalLocaleModule(import('./locales/en/translator.json')),
     optionalLocaleModule(import('./locales/en/credit.json')),
     optionalLocaleModule(import('./locales/en/attention.json')),
+    optionalLocaleModule(import('./locales/en/statements.json')),
   ]),
   es: () => Promise.all([
     import('../locales/generated/es-0.json'),
@@ -38,6 +39,7 @@ const localeLoaders = {
     optionalLocaleModule(import('./locales/es/translator.json')),
     optionalLocaleModule(import('./locales/es/credit.json')),
     optionalLocaleModule(import('./locales/es/attention.json')),
+    optionalLocaleModule(import('./locales/es/statements.json')),
   ]),
   fr: () => Promise.all([
     import('../locales/generated/fr-0.json'),
@@ -47,6 +49,7 @@ const localeLoaders = {
     optionalLocaleModule(import('./locales/fr/translator.json')),
     optionalLocaleModule(import('./locales/fr/credit.json')),
     optionalLocaleModule(import('./locales/fr/attention.json')),
+    optionalLocaleModule(import('./locales/fr/statements.json')),
   ]),
   ht: () => Promise.all([
     import('../locales/generated/ht-0.json'),
@@ -56,6 +59,7 @@ const localeLoaders = {
     optionalLocaleModule(import('./locales/ht/translator.json')),
     optionalLocaleModule(import('./locales/ht/credit.json')),
     optionalLocaleModule(import('./locales/ht/attention.json')),
+    optionalLocaleModule(import('./locales/ht/statements.json')),
   ]),
   ar: () => Promise.all([
     import('../locales/generated/ar-0.json'),
@@ -66,6 +70,7 @@ const localeLoaders = {
     optionalLocaleModule(import('./locales/ar/translator.json')),
     optionalLocaleModule(import('./locales/ar/credit.json')),
     optionalLocaleModule(import('./locales/ar/attention.json')),
+    optionalLocaleModule(import('./locales/ar/statements.json')),
   ]),
 };
 
@@ -99,7 +104,7 @@ const legalLocalePromises = new Map();
 
 function getLocaleResources(modules, legacyShardCount = 3) {
   const legacyModules = modules.slice(0, legacyShardCount);
-  const [common, translator, credit, attention] = modules.slice(legacyShardCount);
+  const [common, translator, credit, attention, statements] = modules.slice(legacyShardCount);
   const translation = Object.assign(
     {},
     ...legacyModules.map((legacyModule) => legacyModule.default),
@@ -110,6 +115,7 @@ function getLocaleResources(modules, legacyShardCount = 3) {
     translator: translator.default,
     credit: credit.default,
     attention: attention.default,
+    statements: statements.default,
     // Project canonical catalogs into explicit namespaces as well as the
     // legacy dotted paths. Both lookup styles share one translation source.
     support: translation.support || {},
@@ -243,6 +249,7 @@ export function initializeEnglishFallback() {
     optionalLocaleModule(import('./locales/en/translator.json')),
     optionalLocaleModule(import('./locales/en/credit.json')),
     optionalLocaleModule(import('./locales/en/attention.json')),
+    optionalLocaleModule(import('./locales/en/statements.json')),
   ]).then((modules) => {
     const resources = getLocaleResources(modules);
     if (!resources.support.workspace || !resources.adminQuoteRequests.statusNew) {
