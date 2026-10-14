@@ -576,6 +576,9 @@ exports.getDashboardGeo = async (req, res) => {
 };
 
 // USER MANAGEMENT
+// ADM-060: 60s cache for the filter-independent user-list summary stats.
+let getUsersSummaryCache = { data: null, at: 0 };
+
 exports.getUsers = async (req, res) => {
   try {
     const {
@@ -649,10 +652,14 @@ exports.getUsers = async (req, res) => {
       selectCols.push('hp.avg_rating, hp.completed_jobs_count, hp.total_reviews, hp.is_background_checked, hp.is_identity_verified, hp.tier AS helper_tier, hp.profile_photo_url AS avatar_url');
     } else { selectCols.push('NULL AS avg_rating, NULL AS completed_jobs_count, NULL AS total_reviews, NULL AS is_background_checked, NULL AS is_identity_verified, NULL AS helper_tier, NULL AS avatar_url'); }
     if (hasJobs) {
+      // Correlated subqueries here are index-backed (idx_jobs_client,
+      // idx_jobs_helper) and run only for the paginated rows; a grouped
+      // JOIN would aggregate the whole jobs table per page load.
       selectCols.push("(SELECT COUNT(*) FROM jobs WHERE client_id = u.id) AS jobs_posted");
       selectCols.push("(SELECT COUNT(*) FROM jobs WHERE assigned_helper_id = u.id AND status = 'completed') AS jobs_completed_as_helper");
     } else { selectCols.push('0 AS jobs_posted, 0 AS jobs_completed_as_helper'); }
     if (hasPayouts) {
+      // ADM-061: backed by idx_payouts_user_status (migration 834).
       selectCols.push("(SELECT COALESCE(SUM(amount_cents),0)/100.0 FROM payouts WHERE user_id = u.id AND status = 'paid') AS earnings_total");
     } else { selectCols.push('0 AS earnings_total'); }
 
@@ -672,8 +679,13 @@ exports.getUsers = async (req, res) => {
       params
     );
 
-    // Summary stats (always across all non-admin users, ignoring current filters)
-    const { rows: summaryRows } = await db.query(`
+    // Summary stats (always across all non-admin users, ignoring current filters).
+    // ADM-060: filter-independent, so cache for 60s instead of re-scanning the
+    // whole users table on every list request (including debounced keystrokes
+    // and pagination).
+    const now = Date.now();
+    if (!getUsersSummaryCache.data || now - getUsersSummaryCache.at > 60000) {
+      const { rows: summaryRows } = await db.query(`
       SELECT
         COUNT(*) FILTER (WHERE role NOT IN ('admin','super_admin') AND id::text <> '${AI_BOOKING_PLACEHOLDER_USER_ID}' AND LOWER(email) NOT LIKE '%${INTERNAL_EMAIL_SUFFIX}')                             AS total,
         COUNT(*) FILTER (WHERE role NOT IN ('admin','super_admin') AND id::text <> '${AI_BOOKING_PLACEHOLDER_USER_ID}' AND LOWER(email) NOT LIKE '%${INTERNAL_EMAIL_SUFFIX}' AND is_active = true)        AS active,
@@ -683,6 +695,8 @@ exports.getUsers = async (req, res) => {
         COUNT(*) FILTER (WHERE role NOT IN ('admin','super_admin') AND id::text <> '${AI_BOOKING_PLACEHOLDER_USER_ID}' AND LOWER(email) NOT LIKE '%${INTERNAL_EMAIL_SUFFIX}' AND created_at >= now() - interval '7 days') AS new_this_week
       FROM users
     `);
+      getUsersSummaryCache = { data: summaryRows[0], at: now };
+    }
 
     res.json({
       users,
@@ -690,7 +704,7 @@ exports.getUsers = async (req, res) => {
       page: parseInt(page),
       limit: parseInt(limit),
       pages: Math.ceil(countRows[0].count / limit),
-      summary: summaryRows[0],
+      summary: getUsersSummaryCache.data,
     });
   } catch (err) {
     logger.error('getUsers error', { err });
@@ -772,6 +786,13 @@ exports.getUserDetail = async (req, res) => {
     const raw = userRows[0];
     if (isInternalSystemUser(raw)) {
       return res.status(404).json({ error: 'System account is hidden from user management.' });
+    }
+    // ADM-007: admin/super_admin accounts are untouchable by delegated
+    // admins. The user list deliberately hides admin roles; the detail
+    // endpoint must not leak their full PII/operational payload to a
+    // manage_users-only admin. Super-admins retain access.
+    if (['admin', 'super_admin'].includes(raw.role) && req.user?.role !== 'super_admin') {
+      return res.status(403).json({ error: 'Cannot view admin account details.' });
     }
     // Normalize field names to match what the admin UI expects.
     // connect_accounts is authoritative for Stripe Connect fields; fall back to
@@ -920,6 +941,12 @@ exports.toggleUserBan = async (req, res) => {
     if (newStatus) {
       try { await reinstateAfterPendingAdminDeletion(userId); } catch (e) { logger.warn('toggleUserBan: reinstate after unban failed', { userId, err: e.message }); }
     }
+    // ADM-109: banning must invalidate issued tokens. Without this, pre-ban
+    // tokens stay cryptographically valid and resume working on unban.
+    if (!newStatus) {
+      try { await tokenRevocationService.revokeAllUserTokens(String(userId)); }
+      catch (e) { logger.warn('toggleUserBan: token revocation failed', { userId, err: e.message }); }
+    }
     // Kick any live WebSocket session immediately so the user can't keep browsing
     if (!newStatus) socketService.broadcastToUser(userId, 'force_logout', { reason: 'account_banned' });
     res.json({ message: `User ${newStatus ? 'unbanned' : 'banned'} successfully.`, is_active: newStatus });
@@ -1058,8 +1085,13 @@ exports.updateUserName = async (req, res) => {
     const trimFirst = first_name.trim();
     const trimLast = last_name.trim();
     if (!trimFirst || !trimLast) return res.status(400).json({ error: 'First name and last name cannot be blank.' });
-    const { rows: before } = await db.query('SELECT first_name, last_name FROM users WHERE id = $1', [userId]);
+    const { rows: before } = await db.query('SELECT first_name, last_name, role FROM users WHERE id = $1', [userId]);
     if (!before.length) return res.status(404).json({ error: 'User not found.' });
+    // ADM-138: same admin-target guard as the ban/verify/delete/didit
+    // siblings; delegated admins cannot rename admin accounts.
+    if (['admin', 'super_admin'].includes(before[0].role) && req.user?.role !== 'super_admin') {
+      return res.status(403).json({ error: 'Cannot modify admin accounts.' });
+    }
     const { rows: updateRows } = await db.query('UPDATE users SET first_name = $1, last_name = $2, updated_at = NOW() WHERE id = $3 RETURNING id', [trimFirst, trimLast, userId]);
     if (updateRows.length === 0) {
       return res.status(409).json({ error: 'User not found during update - concurrent deletion detected.' });
@@ -2594,18 +2626,43 @@ exports.exportData = async (req, res) => {
     res.set('X-Content-Type-Options', 'nosniff');
     const { type } = req.params;
     const exportLimit = 10000;
+    // ADM-143: the users export honors the list filters (search, role,
+    // status, location) instead of always dumping the newest 10k users.
+    // The client already forwards the active filters as query params.
+    const buildUsersExport = () => {
+      const conditions = [`u.role NOT IN ('admin','super_admin')`];
+      const params = [];
+      let i = 1;
+      const { search, role, status, location } = req.query;
+      if (search) {
+        conditions.push(`(u.first_name ILIKE $${i} OR u.last_name ILIKE $${i} OR u.email ILIKE $${i} OR u.phone ILIKE $${i})`);
+        params.push(`%${search}%`); i++;
+      }
+      if (role) { conditions.push(`u.role = $${i++}`); params.push(role); }
+      if (status === 'active') conditions.push(`u.is_active = true`);
+      else if (status === 'banned') conditions.push(`u.is_active = false`);
+      if (location) {
+        conditions.push(`(u.city ILIKE $${i} OR u.state ILIKE $${i} OR u.zip_code ILIKE $${i})`);
+        params.push(`%${location}%`); i++;
+      }
+      return {
+        sql: `SELECT u.id, u.first_name, u.last_name, u.email, u.role, u.is_active, u.created_at FROM users u WHERE ${conditions.join(' AND ')} ORDER BY u.created_at DESC LIMIT ${exportLimit}`,
+        params,
+      };
+    };
+    const usersExport = buildUsersExport();
     const queries = {
-      users: `SELECT u.id, u.first_name, u.last_name, u.email, u.role, u.is_active, u.created_at FROM users u WHERE u.role NOT IN ('admin','super_admin') ORDER BY u.created_at DESC LIMIT ${exportLimit}`,
-      jobs: await tableExists('jobs') ? `SELECT j.id, j.title, j.status, j.created_at FROM jobs j ORDER BY j.created_at DESC LIMIT ${exportLimit}` : null,
-      revenue: await tableExists('platform_ledger') ? `SELECT source_type, amount_cents, created_at FROM platform_ledger ORDER BY created_at DESC LIMIT ${exportLimit}` : null,
-      bids: await tableExists('bids') ? 'SELECT b.id, b.job_id, b.helper_id, b.amount, b.status, b.created_at FROM bids b ORDER BY b.created_at DESC LIMIT 10000' : null,
-      reviews: await tableExists('reviews') ? 'SELECT r.id, r.reviewer_id, r.reviewee_id, r.rating, r.comment, r.is_public, r.created_at FROM reviews r ORDER BY r.created_at DESC LIMIT 10000' : null,
-      businesses: await tableExists('businesses') ? `SELECT b.id, b.user_id, b.business_name, b.business_type, b.is_active, b.created_at FROM businesses b ORDER BY b.created_at DESC LIMIT ${exportLimit}` : null,
-      disputes: await tableExists('disputes') ? `SELECT d.id, d.job_id, d.opened_by, d.status, d.reason, d.resolution, d.created_at FROM disputes d ORDER BY d.created_at DESC LIMIT ${exportLimit}` : null,
-      support_tickets: await tableExists('support_tickets') ? `SELECT t.id, t.user_id, t.subject, t.status, t.priority, t.created_at FROM support_tickets t ORDER BY t.created_at DESC LIMIT ${exportLimit}` : null,
+      users: usersExport,
+      jobs: await tableExists('jobs') ? { sql: `SELECT j.id, j.title, j.status, j.created_at FROM jobs j ORDER BY j.created_at DESC LIMIT ${exportLimit}`, params: [] } : null,
+      revenue: await tableExists('platform_ledger') ? { sql: `SELECT source_type, amount_cents, created_at FROM platform_ledger ORDER BY created_at DESC LIMIT ${exportLimit}`, params: [] } : null,
+      bids: await tableExists('bids') ? { sql: 'SELECT b.id, b.job_id, b.helper_id, b.amount, b.status, b.created_at FROM bids b ORDER BY b.created_at DESC LIMIT 10000', params: [] } : null,
+      reviews: await tableExists('reviews') ? { sql: 'SELECT r.id, r.reviewer_id, r.reviewee_id, r.rating, r.comment, r.is_public, r.created_at FROM reviews r ORDER BY r.created_at DESC LIMIT 10000', params: [] } : null,
+      businesses: await tableExists('businesses') ? { sql: `SELECT b.id, b.user_id, b.business_name, b.business_type, b.is_active, b.created_at FROM businesses b ORDER BY b.created_at DESC LIMIT ${exportLimit}`, params: [] } : null,
+      disputes: await tableExists('disputes') ? { sql: `SELECT d.id, d.job_id, d.opened_by, d.status, d.reason, d.resolution, d.created_at FROM disputes d ORDER BY d.created_at DESC LIMIT ${exportLimit}`, params: [] } : null,
+      support_tickets: await tableExists('support_tickets') ? { sql: `SELECT t.id, t.user_id, t.subject, t.status, t.priority, t.created_at FROM support_tickets t ORDER BY t.created_at DESC LIMIT ${exportLimit}`, params: [] } : null,
     };
     if (!queries[type]) return res.status(400).json({ error: 'Invalid or unavailable export type.' });
-    const { rows } = await db.query(queries[type]);
+    const { rows } = await db.query(queries[type].sql, queries[type].params);
     if (!rows.length) return res.json({ data: [], csv: '' });
     const csvCell = (val) => {
       if (val === null || val === undefined) return '';
@@ -4111,6 +4168,11 @@ exports.reactivateUser = async (req, res) => {
     await logUserAction({ adminId, targetUserId: userId, actionType: 'account_reactivated', notes: notes.trim() || null, ipAddress: req.ip });
     await logAdminAction({ adminId, action: 'user_reactivated', targetType: 'user', targetId: userId, description: notes.trim() || 'Account reactivated by admin', req });
 
+    // ADM-109: reactivation must not resurrect pre-ban tokens. Revoke so the
+    // user starts with a clean session on next login.
+    try { await tokenRevocationService.revokeAllUserTokens(String(userId)); }
+    catch (e) { logger.warn('reactivateUser: token revocation failed', { userId, err: e.message }); }
+
     await notifyUserAccountEvent(userId, {
       type: 'account_restored',
       data: {
@@ -4150,10 +4212,14 @@ exports.updateUserProfile = async (req, res) => {
       return res.status(400).json({ error: 'No updatable fields provided.' });
     }
 
-    // Validate email uniqueness if changing
+    // Validate email uniqueness if changing.
+    // ADM-140: normalize (trim + lowercase) and compare case-insensitively,
+    // matching createUserFull/editUserFull, so case-variant duplicates
+    // (Foo@x.com vs foo@x.com) cannot slip through.
     if (updates.email) {
+      updates.email = String(updates.email).trim().toLowerCase();
       const { rows } = await db.query(
-        'SELECT id FROM users WHERE email = $1 AND id <> $2',
+        'SELECT id FROM users WHERE LOWER(email) = $1 AND id <> $2',
         [updates.email, userId]
       );
       if (rows.length) return res.status(409).json({ error: 'Email already in use by another account.' });

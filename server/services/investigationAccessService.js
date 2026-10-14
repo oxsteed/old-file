@@ -56,19 +56,10 @@ async function isSuperAdmin(adminId) {
   return rows.length > 0 && rows[0].role === 'super_admin';
 }
 
-async function hasGlobalGrant(adminId, permission) {
-  const { rows } = await db.query(
-    `SELECT 1 FROM admin_permission_grants
-      WHERE grantee_id = $1
-        AND permissions ? $2
-        AND region_id IS NULL
-        AND expires_at > NOW()
-        AND revoked_at IS NULL
-      LIMIT 1`,
-    [adminId, permission]
-  );
-  return rows.length > 0;
-}
+// ADM-171: use the canonical hasGlobalGrant from adminAuth (honors
+// delegation_grants) instead of a local copy that only queried
+// admin_permission_grants and rejected delegated grant holders.
+const { hasGlobalGrant } = require('../middleware/adminAuth');
 
 async function assertApproverAuthorized(approverId) {
   if (await isSuperAdmin(approverId)) return;
