@@ -8,7 +8,6 @@ const WebSocketService = require('../services/websocketService');
 const { logAdminAction } = require('../services/auditService');
 const { withTransaction } = require('../utils/transaction');
 const { sendNotification } = require('../services/notificationService');
-const { isMetaConfigured, getMetaModel, fetchMetaChat } = require('../services/aiChatProvider');
 
 const SUPPORTED_LANGUAGES = new Set(['en', 'es', 'fr', 'ht', 'ar']);
 
@@ -399,47 +398,10 @@ async function callOpenRouter(content, language) {
 }
 
 /**
- * Same support-draft contract as callOpenRouter, but served by the Meta
- * Model API (Muse Spark). Applies the same output guardrails: non-empty,
- * max 5000 chars, no HTML markup.
- */
-async function callMetaAI(content, language) {
-  const model = getMetaModel();
-  const systemPrompt = supportDraftPrompt(language);
-
-  const result = await fetchMetaChat(model, [
-    { role: 'system', content: systemPrompt },
-    { role: 'user', content },
-  ], { temperature: 0.7, maxTokens: 1500 });
-
-  if (!result.ok) {
-    const err = new Error(`Meta AI draft failed: ${result.error}`);
-    err.code = 'META_AI_FAILED';
-    throw err;
-  }
-  const normalized = result.reply.trim();
-  if (!normalized || normalized.length > 5000) {
-    throw new Error('Meta AI returned an invalid response');
-  }
-  if (/<\/?[a-z][^>]*>/i.test(normalized)) {
-    throw new Error('Meta AI returned unsupported markup');
-  }
-  return { text: normalized, model: `meta/${model}` };
-}
-
-/**
- * Support-draft provider chain: Meta (Muse Spark) first when configured,
- * OpenRouter as fallback. Returns { text, model } so the draft row records
- * which provider actually generated it.
+ * Support-draft provider: OpenRouter only. Returns { text, model } so the
+ * draft row records which provider actually generated it.
  */
 async function callAiSupportDraft(content, language) {
-  if (isMetaConfigured()) {
-    try {
-      return await callMetaAI(content, language);
-    } catch (err) {
-      logger.warn('Meta AI support draft failed, falling back to OpenRouter', { error: err.message });
-    }
-  }
   const text = await callOpenRouter(content, language);
   return { text, model: 'openrouter' };
 }

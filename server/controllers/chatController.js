@@ -19,7 +19,6 @@ const { sanitizeMessage } = require('../utils/messageSanitizer');
 const { ensureBusinessConversation, mirrorMessage } = require('../services/businessConversationSync');
 const { sendNotification } = require('../services/notificationService');
 const { enqueueConversationMessageNotifications } = require('../services/messageNotificationService');
-const { isMetaConfigured, getMetaModel, fetchMetaChat } = require('../services/aiChatProvider');
 const redis = require('../utils/redis');
 const { getCachedGuideReply, setCachedGuideReply } = require('../services/guideHelpCache');
 
@@ -168,16 +167,10 @@ async function fetchOllamaChat(messages, options) {
  * @param {Array<{role:string,content:string}>} messages - full message list including system
  * @param {object} ollamaOptions - passed to Ollama `options` (temperature, num_predict, etc.)
  * @param {string} logTag - prefix for structured logs e.g. '[Chat]' or '[ProfileChat]'
- * @param {object} options - { allowMeta: boolean } - pass true only for authenticated requests
+ * @param {object} options - reserved for future use
  */
 async function callWithFallback(messages, ollamaOptions, logTag, options = {}) {
-  const allowMeta = options.allowMeta === true;
   const attempts = [
-    {
-      name: `Meta (${getMetaModel()})`,
-      run: () => fetchMetaChat(getMetaModel(), messages, { temperature: 0.65, maxTokens: 2000 }),
-      skip: () => !allowMeta || !isMetaConfigured(),
-    },
     {
       name: `OpenRouter (${OPENROUTER_CHAT_MODEL})`,
       run: () => fetchOpenRouterChat(OPENROUTER_CHAT_MODEL, messages),
