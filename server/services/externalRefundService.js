@@ -4,6 +4,8 @@ const pool = require('../db');
 const stripe = process.env.STRIPE_SECRET_KEY ? require('stripe')(process.env.STRIPE_SECRET_KEY) : null;
 const AppError = require('../utils/appError');
 const { withTransaction } = require('../utils/transaction');
+const { notifyRefundIssued } = require('./refundNotification');
+const logger = require('../utils/logger');
 
 function normalizeRequestId(requestId) {
   const value = String(requestId || '').trim();
@@ -114,6 +116,29 @@ async function recordProviderError(attemptId, error) {
   );
 }
 
+async function notifyExternalRefundSucceeded(result) {
+  const attempt = result?.attempt;
+  if (!attempt || attempt.status !== 'succeeded' || result.replay) return;
+  // The recipient is supplied by the caller in the attempt metadata
+  // (notify_user_id); the generic rails here have no payer table of their own.
+  const metadata = attempt.metadata || {};
+  const notifyUserId = metadata.notify_user_id || null;
+  if (!notifyUserId) return;
+  notifyRefundIssued({
+    userId: notifyUserId,
+    idempotencyKey: `external-refund:${attempt.id}:succeeded`,
+    amountCents: attempt.amount_cents,
+    currency: attempt.currency,
+    surface: attempt.rail,
+    referenceId: attempt.reference_id,
+    refundId: attempt.provider_refund_id,
+    actionUrl: metadata.action_url || null,
+  }).catch((err) => logger.warn('[externalRefund] refund notification failed', {
+    attemptId: attempt.id,
+    error: err.message,
+  }));
+}
+
 async function processExternalRefund(params) {
   const reservation = await reserveExternalRefund(params);
   if (reservation.attempt.status === 'succeeded') return reservation;
@@ -124,7 +149,9 @@ async function processExternalRefund(params) {
     await recordProviderError(reservation.attempt.id, error);
     throw new AppError('Refund provider result requires reconciliation before retry', 503, 'external_refund_reconciliation_required');
   }
-  return settleExternalRefund(reservation.attempt, providerResult);
+  const result = await settleExternalRefund(reservation.attempt, providerResult);
+  await notifyExternalRefundSucceeded(result);
+  return result;
 }
 
 async function reconcileExternalRefundAttempt(attempt) {
@@ -135,7 +162,9 @@ async function reconcileExternalRefundAttempt(attempt) {
     await recordProviderError(attempt.id, error);
     throw new AppError('Refund provider result requires reconciliation before retry', 503, 'external_refund_reconciliation_required');
   }
-  return settleExternalRefund(attempt, providerResult);
+  const result = await settleExternalRefund(attempt, providerResult);
+  await notifyExternalRefundSucceeded(result);
+  return result;
 }
 
 module.exports = {

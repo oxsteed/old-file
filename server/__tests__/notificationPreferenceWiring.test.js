@@ -181,3 +181,45 @@ describe('P2-8-F05 push_notifications master toggle', () => {
     expect(mockSendExpo).toHaveBeenCalled();
   });
 });
+
+describe('P2-8-F03 removed dead toggles stay rejected by the API', () => {
+  // The server whitelist dropped in_app_message_mention, push_message_mention
+  // and push_new_job_nearby (no such events are ever emitted); the settings
+  // UI no longer offers them. The API must keep rejecting them so a stale
+  // client cannot write dead preference rows.
+  const { updatePreferences } = require('../controllers/notificationController');
+  test('updatePreferences 400s when only dead keys are sent', async () => {
+    const next = jest.fn();
+    const res = { status: jest.fn().mockReturnThis(), json: jest.fn().mockReturnThis() };
+    await updatePreferences(
+      {
+        user: { id: 'u1' },
+        body: { in_app_message_mention: false, push_message_mention: true, push_new_job_nearby: false },
+      },
+      res,
+      next
+    );
+    expect(next).toHaveBeenCalled();
+    const err = next.mock.calls[0][0];
+    expect(err.statusCode).toBe(400);
+    expect(db.query).not.toHaveBeenCalled();
+  });
+
+  test('updatePreferences still accepts every live toggle', async () => {
+    const next = jest.fn();
+    const res = { status: jest.fn().mockReturnThis(), json: jest.fn().mockReturnThis() };
+    db.query.mockResolvedValue({ rows: [{ user_id: 'u1' }] });
+    await updatePreferences(
+      {
+        user: { id: 'u1' },
+        body: { in_app_new_bid: false, push_new_bid: true, email_weekly_summary: false },
+      },
+      res,
+      next
+    );
+    expect(next).not.toHaveBeenCalled();
+    expect(res.json).toHaveBeenCalled();
+    const update = db.query.mock.calls.find(([sql]) => /UPDATE|INSERT INTO notification_preferences/.test(String(sql)));
+    expect(update).toBeDefined();
+  });
+});

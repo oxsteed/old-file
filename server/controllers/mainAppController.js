@@ -2983,7 +2983,7 @@ exports.getTaxDocuments = async (req, res, next) => {
       };
       const form1099 = {
         id: `1099-${year}`,
-        title: '1099 Tax Form',
+        title: '1099 Earnings Summary',
         type: 'form_1099',
         status: earnedCents < 60000 ? 'not_required' : (taxIdentityReady ? 'available' : 'action_required'),
         downloadAvailable: earnedCents >= 60000 && taxIdentityReady,
@@ -2995,6 +2995,10 @@ exports.getTaxDocuments = async (req, res, next) => {
     res.json({
       contract: { version: 'main-tax-documents-v1', generatedAt: new Date().toISOString(), dataSource: 'production' },
       thresholdCents: 60000,
+      // This surface is a self-serve earnings summary, not an IRS filing
+      // flow: OxSteed does not generate or transmit official 1099 forms
+      // here. The label says so explicitly.
+      disclaimer: 'These documents are earnings summaries for your records and are not official IRS filings. This summary is for informational purposes only and does not constitute tax advice. Consult a tax professional.',
       taxIdentity: {
         ready: taxIdentityReady,
         w9Completed: !!taxIdentity?.w9_completed,

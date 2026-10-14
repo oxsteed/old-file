@@ -43,6 +43,7 @@ const { getEffectivePermissions } = require('../services/permissionsService');
 const { createLinkedSupportTicket } = require('../services/supportTicketLinkService');
 const { scheduleSupportMessageNotifications } = require('../services/supportNotificationService');
 const { getClientRequestId } = require('../utils/idempotency');
+const { notifyRefundIssued } = require('../services/refundNotification');
 const { resolveOrderItemModifiers } = require('./foodController');
 const { calculateRoute: calculateGeoRoute } = require('../services/geoRouteProviderService');
 
@@ -4008,8 +4009,8 @@ exports.splitPosOrder = async (req, res, next) => {
     const sourceOrderId = parsePositiveInt(req.params.orderId);
     const restaurant = await requireRestaurantAccess(req.user.id, restaurantId);
     await assertRestaurantPermission(restaurant, req.user.id, ['pos.use', 'pos.manage', 'orders.manage']);
-    const itemIds = Array.isArray(req.body.orderItemIds || req.body.order_item_ids)
-      ? (req.body.orderItemIds || req.body.order_item_ids).map((id) => parsePositiveInt(id)).filter(Boolean)
+    const itemIds = Array.isArray(req.body.orderItemIds || req.body.order_item_ids || req.body.itemIds)
+      ? (req.body.orderItemIds || req.body.order_item_ids || req.body.itemIds).map((id) => parsePositiveInt(id)).filter(Boolean)
       : [];
     if (!itemIds.length) throw new AppError('Validation failed', 400, 'validation_failed', { orderItemIds: 'At least one order item is required' });
 
@@ -5036,6 +5037,21 @@ exports.recordPosPayment = async (req, res, next) => {
       }
       return { payment, ...reconciliation };
     });
+    // P3-3-F07: a recorded POS refund notifies the customer in-app + email.
+    // Replays are deduped by the notification idempotency key; best-effort
+    // so a notification outage never blocks the refund response.
+    if (paymentType === 'refund' && !result.replayed && result.order?.customer_id) {
+      notifyRefundIssued({
+        userId: result.order.customer_id,
+        idempotencyKey: `pos-refund:${restaurantId}:${orderId}:${idempotencyKey || result.payment?.id || 'noref'}:issued`,
+        amountCents,
+        currency: result.order.currency_code,
+        surface: 'pos_refund',
+        referenceId: orderId,
+        refundId: result.payment?.id || null,
+        actionUrl: null,
+      }).catch(() => { /* helper already logged */ });
+    }
     broadcastRestaurant(restaurant, 'food:pos:payment:recorded', result);
     res.status(result.replayed ? 200 : 201).json(result);
   } catch (err) {
@@ -5389,6 +5405,20 @@ exports.refundPosCardPayment = async (req, res, next) => {
       }
       return { payment: refundPayment, ...reconciliation };
     });
+    // P3-3-F07: a settled processor card refund notifies the customer in-app
+    // + email. Best-effort; the refund is settled.
+    if (result.payment?.status === 'refunded' && result.order?.customer_id) {
+      notifyRefundIssued({
+        userId: result.order.customer_id,
+        idempotencyKey: `pos-card-refund:${restaurantId}:${result.payment.id}:issued`,
+        amountCents: Number(result.payment.amount_cents || amountCents),
+        currency: result.order.currency_code,
+        surface: 'pos_card_refund',
+        referenceId: result.payment.food_order_id,
+        refundId: result.payment.provider_refund_id || null,
+        actionUrl: null,
+      }).catch(() => { /* helper already logged */ });
+    }
     broadcastRestaurant(restaurant, 'food:pos:card:refunded', result);
     res.status(201).json(result);
   } catch (err) {

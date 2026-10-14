@@ -326,6 +326,13 @@ const verificationCtrl = require('./controllers/verificationController');
 app.post('/api/verification/webhooks/checkr', webhookRateLimit, express.raw({ type: 'application/json' }), verificationCtrl.checkrWebhook);
 app.post('/api/verification/webhooks/identity', webhookRateLimit, express.raw({ type: 'application/json' }), verificationCtrl.identityWebhook);
 // Backwards-compatible alias. Configure Didit to use /api/webhooks/didit.
+// P3-5-F15: both routes land in the same webhookController.diditWebhook
+// handler, which dedupes on webhook_event_receipts(provider='didit',
+// event_id) with an in-flight guard and a per-session verdict watermark
+// (beginDiditWebhookEvent), so a delivery to each route (or a provider
+// retry) is processed exactly once. The alias stays until the Didit
+// dashboard is confirmed to point at /api/webhooks/didit; removing it
+// earlier would silently drop webhooks.
 app.post('/api/didit/webhook', webhookRateLimit, express.raw({ type: 'application/json' }), diditWebhook);
 
 // Provider-agnostic support channel ingress uses its own bounded limiter and
@@ -644,6 +651,14 @@ const requireConsultingLaunched = require('./middleware/featureFlags').requireFe
 app.use('/api/consulting',   requireConsultingLaunched, consultingPaymentRoutes);
 app.use('/api/quote-requests', quoteRequestsRoutes);
 app.use('/api/consulting',   requireConsultingLaunched, consultingAllPhasesRoutes);
+// Review P3-7-F01 (by design): the consulting admin router stays ungated so
+// operators can configure and preview the product before launch. Every
+// handler requires admin auth with granular permissions, all actions are
+// audit-logged, and the router cannot move real money: the only payment
+// write (markInvoicePaid) records off-platform methods (bank_transfer,
+// check, cash, card_terminal) and charges nothing in Stripe. All
+// customer-facing consulting routers above and below carry
+// requireConsultingLaunched.
 app.use('/api/consulting/admin', consultingAdminRoutes);
 app.use('/api/consulting',   consultingRoutes);
 app.use('/api/invoices',     invoiceRoutes);
@@ -923,13 +938,23 @@ async function startServer() {
     logger.warn('Abandoned recovery worker failed to start', { message: err.message });
   }
 
-  // Abandoned Direct draft assets (review P3-6-F19). Env-gated and
-  // best-effort: a failure here must not affect boot.
+  // Abandoned Direct draft assets (review P3-6-F19). On by default
+  // (DIRECT_DRAFT_ASSET_SWEEPER_DISABLED=1 pauses it); best-effort: a
+  // failure here must not affect boot.
   try {
     const { startDirectDraftAssetSweeper } = require('./services/directDraftAssetSweeper');
     startDirectDraftAssetSweeper();
   } catch (err) {
     logger.warn('Direct draft asset sweeper failed to start', { message: err.message });
+  }
+  // Expired chat payment requests (review P2-10-F01). Env-gated
+  // (CHAT_PAYMENT_REQUEST_SWEEPER_ENABLED, default on) and best-effort:
+  // a failure here must not affect boot.
+  try {
+    const { startChatPaymentRequestExpirySweeper } = require('./services/chatPaymentRequestExpirySweeper');
+    startChatPaymentRequestExpirySweeper();
+  } catch (err) {
+    logger.warn('Chat payment request expiry sweeper failed to start', { message: err.message });
   }
   logger.info(`OxSteed v2 server running on port ${PORT}`, {
     env: process.env.NODE_ENV || 'development',
@@ -973,6 +998,10 @@ async function terminate(signal, exitCode = 0, cause) {
     try {
       const { stopDirectDraftAssetSweeper } = require('./services/directDraftAssetSweeper');
       stopDirectDraftAssetSweeper();
+    } catch { /* worker may never have started */ }
+    try {
+      const { stopChatPaymentRequestExpirySweeper } = require('./services/chatPaymentRequestExpirySweeper');
+      stopChatPaymentRequestExpirySweeper();
     } catch { /* worker may never have started */ }
     await runtime.shutdown(signal);
     clearTimeout(forceExit);

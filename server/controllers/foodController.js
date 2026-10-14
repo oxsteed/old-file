@@ -9,6 +9,7 @@ const crypto = require('crypto');
 const logger = require('../utils/logger');
 const notificationService = require('../services/notificationService');
 const smsNotificationService = require('../services/smsNotificationService');
+const { notifyRefundIssued } = require('../services/refundNotification');
 const emailService = require('../services/emailService');
 const { maskEmail } = require('../utils/directQuote');
 const { sanitizeMessage } = require('../utils/messageSanitizer');
@@ -25,6 +26,7 @@ const {
 const permissionsService = require('../services/permissionsService');
 const { maybeUnpublishBusinessIfIncomplete } = require('./businessController');
 const { debitFoodWallet, refundWalletDebitForReference, formatLedgerRow } = require('../services/foodWalletService');
+const { logFoodWalletOperatorAudit } = require('../services/foodWalletAuditService');
 const {
   refundCreditForReferenceInTransaction,
   formatCreditAmount,
@@ -4471,6 +4473,29 @@ exports.updateOrderStatus = async (req, res, next) => {
           refunded: Boolean(refundResult.refunded),
           reason: refundResult.reason || null,
         });
+        // P3-11-F11: the wallet re-credit moves customer money. Stamp the
+        // acting operator on the operator audit trail in the same
+        // transaction, so the refund cannot commit without attribution.
+        if (refundResult.refunded && refundResult.entry) {
+          await logFoodWalletOperatorAudit(client, {
+            restaurantId,
+            businessId: restaurant.business_id,
+            walletAccountId: refundResult.account?.id || refundResult.entry.account_id || null,
+            customerId: order.customer_id,
+            operatorUserId: req.user?.id || null,
+            actionType: 'order_wallet_refund',
+            amountCents: Number(refundResult.entry.amount_cents || 0),
+            currencyCode: normalizeCurrency(order.currency_code),
+            correlationId: `food-order-status:${order.id}:${status}`,
+            requestIp: req.ip || null,
+            metadata: {
+              orderId: order.id,
+              orderStatus: status,
+              ledgerEntryId: String(refundResult.entry.id),
+              refundReason: 'order_status_transition',
+            },
+          });
+        }
       }
 
       // Guest Credit orders (no customer_id) are refunded too: the refund is
@@ -4530,6 +4555,29 @@ exports.updateOrderStatus = async (req, res, next) => {
           stripeChargeId: cardRefund.chargeId,
           posPayment: formatPosPayment(cardRefund.posPayment),
         };
+        // P3-11-F11: the Stripe refund moves customer money off-platform.
+        // Stamp the acting operator on the operator audit trail in the same
+        // transaction, so the refund cannot commit without attribution.
+        await logFoodWalletOperatorAudit(client, {
+          restaurantId,
+          businessId: restaurant.business_id,
+          walletAccountId: null,
+          customerId: order.customer_id || null,
+          operatorUserId: req.user?.id || null,
+          actionType: 'order_card_refund',
+          amountCents: Number(order.total_cents || 0),
+          currencyCode: normalizeCurrency(order.currency_code),
+          correlationId: `food-order-status:${order.id}:${status}`,
+          requestIp: req.ip || null,
+          metadata: {
+            orderId: order.id,
+            orderStatus: status,
+            paymentMode,
+            stripeRefundId: cardRefund.refund?.id || null,
+            stripeChargeId: cardRefund.chargeId || null,
+            refundReason: 'order_status_transition',
+          },
+        });
       }
 
       if (status === 'completed') {
@@ -4603,6 +4651,29 @@ exports.updateOrderStatus = async (req, res, next) => {
           order.id,
           Number(order.total_cents || 0)
         );
+      }
+      // P3-3-F07: a settled refund notifies the customer in-app + email (the
+      // SMS above is opt-in only). walletRefund is only set when the ledger
+      // refund actually posted; the oxsteed_credit/Stripe branches throw
+      // before reaching here unless the provider confirmed, so a 'refunded'
+      // payment there means money moved. Fire-and-forget: the refund is
+      // settled and the response must not wait on notification delivery.
+      const refundPosted = Boolean(transitionResult.walletRefund)
+        || (transitionResult.payment?.status === 'refunded'
+          && transitionResult.payment?.mode !== 'wallet_credit');
+      if (refundPosted && order.customer_id) {
+        notifyRefundIssued({
+          userId: order.customer_id,
+          idempotencyKey: `food-order:${order.id}:refund-issued`,
+          amountCents: Number(transitionResult.payment?.amountCents ?? order.total_cents ?? 0),
+          currency: order.currency_code,
+          surface: 'food_order',
+          referenceId: order.id,
+          actionUrl: order.tracking_token ? `/food/track/${order.tracking_token}` : null,
+        }).catch((err) => logger.warn('[food] refund notification failed', {
+          orderId: order.id,
+          error: err.message,
+        }));
       }
       // Review P2-9-F13: franchise royalties accrue on food orders too,
       // not just job completion. Non-blocking; the royalty service is

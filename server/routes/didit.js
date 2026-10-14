@@ -20,5 +20,11 @@ router.post('/skip', authenticate, skipVerification);
 // with express.raw() for HMAC verification. diditController.handleWebhook is
 // a legacy handler that is not mounted anywhere; both share the entity
 // linking in services/diditEntityLink.js.
+// P3-5-F15: the two live routes are one handler, not two code paths. Double
+// delivery (one hit per route, or a provider retry) is deduped on
+// webhook_event_receipts(provider='didit', event_id) with an in-flight guard
+// and a per-session verdict watermark in beginDiditWebhookEvent, so each
+// verification verdict is applied exactly once and a stale retry can never
+// overwrite a newer verdict for the same session.
 
 module.exports = router;

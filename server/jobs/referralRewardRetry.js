@@ -3,9 +3,9 @@
 /**
  * Referral reward retry (P2-6-F11).
  *
- * grantReferralReward is fire-and-forget from registration and from the
- * first-job value event, so a transient failure (DB blip, deadlock) must not
- * silently drop the reward. Failures are recorded as reconciliation
+ * grantReferralReward is called from the first-job value event (P2-6-F12:
+ * registration no longer grants), so a transient failure (DB blip, deadlock)
+ * must not silently drop the reward. Failures are recorded as reconciliation
  * exceptions (domain 'credit', reference `referral-reward:<newUserId>`);
  * this worker retries them. Reward postings are idempotent per referred
  * user, so a retry can never double-grant.

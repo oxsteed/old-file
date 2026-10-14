@@ -5,6 +5,7 @@ const pool = require('../db');
 const { AppError } = require('../middleware/errorHandler');
 const { withTransaction } = require('../utils/transaction');
 const { logFoodWalletOperatorAudit } = require('../services/foodWalletAuditService');
+const { evaluateFundingCompliance } = require('../services/fiatComplianceService');
 const {
   creditFoodWallet,
   loadWalletAccountsForUser,
@@ -1130,6 +1131,20 @@ exports.loadCustomerWallet = async (req, res, next) => {
     }
 
     const result = await withTransaction(pool, async (client) => {
+      // A merchant wallet load increases customer stored value. Apply the
+      // shared identity, sanctions, rail, and issuance-capacity gate before
+      // the ledger write so a single operator cannot bypass KYC/AML on a
+      // below-threshold direct load.
+      await evaluateFundingCompliance({
+        customerId: customer.id,
+        amountCents,
+        currencyCode,
+        fundingMethod: 'restaurant_wallet_load',
+        actorUserId: req.user.id,
+        requestIp: req.ip || null,
+        correlationId,
+      });
+
       const walletResult = await creditFoodWallet(client, {
         restaurantId,
         customerId: customer.id,
@@ -1403,6 +1418,19 @@ exports.approveCustomerWalletLoadRequest = async (req, res, next) => {
       if (requestRow.requested_by_user_id === req.user.id) {
         throw new AppError('A second wallet operator must approve this load', 409, 'wallet_load_requires_second_operator');
       }
+
+      // A restaurant wallet load increases customer stored value. Apply the
+      // shared identity, sanctions, rail, and issuance-capacity gate before
+      // the ledger write so the approving operator cannot bypass KYC/AML.
+      await evaluateFundingCompliance({
+        customerId: requestRow.customer_id,
+        amountCents: Number(requestRow.amount_cents || 0),
+        currencyCode: requestRow.currency_code,
+        fundingMethod: 'restaurant_wallet_load',
+        actorUserId: req.user.id,
+        requestIp: req.ip || null,
+        correlationId: requestRow.correlation_id,
+      });
 
       const walletResult = await creditFoodWallet(client, {
         restaurantId,

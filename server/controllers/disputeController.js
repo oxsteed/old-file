@@ -331,8 +331,11 @@ exports.openDispute = async (req, res, next) => {
               userId: admin.id,
               type: 'dispute_opened',
               title: 'New Dispute Opened',
-              message: `${userName} opened a dispute for job ${jobId}. Reason: ${reason}`,
-              metadata: { disputeId: dispute.id, jobId, supportTicketId: dispute.support_ticket_id }
+              // P3-3-F06: sendNotification reads `body`, not `message`; the
+              // old `message` param rendered an empty email body.
+              body: `${userName} opened a dispute for job ${jobId}. Reason: ${reason}`,
+              metadata: { disputeId: dispute.id, jobId, supportTicketId: dispute.support_ticket_id },
+              idempotencyKey: `dispute:${dispute.id}:opened:admin:${admin.id}`,
             })
           )
         );

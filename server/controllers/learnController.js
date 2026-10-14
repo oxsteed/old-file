@@ -1167,9 +1167,20 @@ async function pendingVideoGuideIds(db, guideIds) {
 // pinned first) followed by community videos ordered by "most helpful"
 // votes (descending), then oldest first. Returned as guide.videos:
 // [{ id, url, provider, votes, pinned, viewerVoted }].
+//
+// Review P1-16-F04: auto-hide threshold for flagged videos. A community
+// video disappears from the public playlist once this many distinct users
+// hold open flags against it, so a spam video the community flags does not
+// stay visible until an admin acts. Fewer flags than the threshold leave the
+// video visible (a lone flag is not a griefing veto); every open flag still
+// appears in the admin moderation queue for review.
+const LEARN_VIDEO_AUTO_HIDE_FLAG_THRESHOLD = 3;
 const getGuideVideos = async (guideIds, viewerId = null) => {
   if (!guideIds.length) return {};
-  const params = viewerId ? [guideIds, viewerId] : [guideIds];
+  const thresholdParam = viewerId ? '$3' : '$2';
+  const params = viewerId
+    ? [guideIds, viewerId, LEARN_VIDEO_AUTO_HIDE_FLAG_THRESHOLD]
+    : [guideIds, LEARN_VIDEO_AUTO_HIDE_FLAG_THRESHOLD];
   try {
     const { rows } = await pool.query(
       `SELECT v.id, v.guide_id, v.video_url, v.video_provider,
@@ -1178,10 +1189,9 @@ const getGuideVideos = async (guideIds, viewerId = null) => {
          FROM learn_guide_videos v
          LEFT JOIN learn_guide_video_votes vt ON vt.video_id = v.id
         WHERE v.guide_id = ANY($1)
+          AND (SELECT COUNT(*) FROM learn_guide_video_flags f
+               WHERE f.video_id = v.id AND f.status = 'open') < ${thresholdParam}
           AND NOT EXISTS (
-            SELECT 1 FROM learn_guide_video_flags f
-             WHERE f.video_id = v.id AND f.status = 'open'
-          ) AND NOT EXISTS (
             SELECT 1 FROM learn_guide_video_moderation_blocks b
              WHERE b.guide_id=v.guide_id AND b.video_identity=learn_video_identity(v.video_url)
           )

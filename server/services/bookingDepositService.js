@@ -17,6 +17,7 @@
 
 const db = require('../db');
 const logger = require('../utils/logger');
+const { notifyRefundIssued } = require('./refundNotification');
 
 const TERMINAL_STATUSES = ['declined', 'expired', 'cancelled', 'accepted_cancelled'];
 
@@ -108,6 +109,23 @@ async function settleTerminalBooking(bookingId, reason = 'booking_ended') {
         [booking.id, refund.id || null]
       );
       logger.info('Booking deposit refunded', { bookingId: booking.id, refundId: refund.id, reason });
+      // P3-3-F07: the customer learns their deposit refund was issued
+      // (in-app + email). Best-effort; the refund is settled.
+      if (booking.customer_id) {
+        notifyRefundIssued({
+          userId: booking.customer_id,
+          idempotencyKey: `booking-deposit:${booking.id}:refund:issued`,
+          amountCents: Number(refund.amount || 0),
+          currency: String(refund.currency || 'usd').toUpperCase(),
+          surface: 'booking_deposit',
+          referenceId: booking.id,
+          refundId: refund.id || null,
+          actionUrl: '/my-bookings',
+        }).catch((err) => logger.warn('[bookingDeposit] refund notification failed', {
+          bookingId: booking.id,
+          error: err.message,
+        }));
+      }
       return 'refunded';
     }
     // Not yet paid: void the intent so it can never complete later.

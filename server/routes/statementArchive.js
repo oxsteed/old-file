@@ -198,6 +198,13 @@ function shapeArchiveItem(document, artifacts, amendmentInfo = {}) {
     kind: 'original',
     product: document.product,
     accountId: document.product === 'helper_earnings' ? String(document.account_id) : Number(document.account_id),
+    // P2-5-F03: the accessible-view CSV fallback for restaurant statements
+    // calls /food/customer/wallets/:restaurantId/statements.csv, which needs
+    // the restaurant id, not the wallet account id. statementAccessiblePath
+    // forwards this as the ?restaurantId= query param the view reads.
+    restaurantId: document.product === 'restaurant' && document.restaurant_id != null
+      ? Number(document.restaurant_id)
+      : undefined,
     currency: document.currency_code,
     period: {
       from: new Date(document.period_from).toISOString().slice(0, 10),
@@ -323,6 +330,10 @@ function shapeVersionItem(version, original, artifact, amendmentContext = {}) {
     kind: 'amendment',
     product: original.product,
     accountId: original.product === 'helper_earnings' ? String(original.account_id) : Number(original.account_id),
+    // P2-5-F03: same restaurantId forwarding as the original item above.
+    restaurantId: original.product === 'restaurant' && original.restaurant_id != null
+      ? Number(original.restaurant_id)
+      : undefined,
     currency: original.currency_code,
     period: {
       from: new Date(original.period_from).toISOString().slice(0, 10),
@@ -630,8 +641,11 @@ function createStatementArchiveRouter({ storage } = {}) {
         `SELECT COUNT(*)::int AS total FROM credit_statement_documents d ${where}`, params);
       const { rows: documents } = await pool.query(
         `SELECT d.id, d.product, d.account_id, d.currency_code, d.period_from,
-                d.period_to, d.generated_at, d.document, d.content_hash
-           FROM credit_statement_documents d ${where} ${order}
+                d.period_to, d.generated_at, d.document, d.content_hash,
+                wa.restaurant_id AS restaurant_id
+           FROM credit_statement_documents d
+           LEFT JOIN food_customer_wallet_accounts wa ON wa.id = d.account_id
+           ${where} ${order}
           LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
         [...params, perPage, offset]);
 

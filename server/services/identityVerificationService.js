@@ -64,6 +64,12 @@ const IDENTITY_APPEAL_REVIEW_SLA_HOURS = Math.max(
 );
 
 const VERIFIED_TIER_FOR_REQUEST = { 1: 1, 2: 2 };
+// P3-10-F10: warn customers this many days before their verification
+// expires, so they re-verify before a funding attempt fails.
+const IDENTITY_EXPIRY_WARNING_DAYS = Math.max(
+  1,
+  Number.parseInt(process.env.OXSTEED_CREDIT_IDENTITY_EXPIRY_WARNING_DAYS || '7', 10) || 7
+);
 
 function normalizeString(value, max = 255) {
   if (value === null || value === undefined) return '';
@@ -565,6 +571,45 @@ async function listPendingVerifications(client, { limit = 50, offset = 0 } = {})
 }
 
 /**
+ * P3-10-F10: proactive expiry warnings. The lazy flip in
+ * getCustomerVerificationTier only notifies after the tier already
+ * dropped (the customer discovers it via a failed funding attempt).
+ * This nightly sweep warns customers whose verification expires within
+ * IDENTITY_EXPIRY_WARNING_DAYS so they can re-verify first. The
+ * delivery key includes the expiry date, so a renewed verification
+ * (new expires_at) warns again while the same expiry warns once.
+ */
+async function warnExpiringIdentityVerifications({ now = new Date(), client: providedClient = null } = {}) {
+  const run = async (client) => {
+    const { rows } = await client.query(
+      `SELECT id, customer_id, tier, expires_at
+         FROM oxsteed_credit_identity_verifications
+        WHERE status = 'verified'
+          AND expires_at IS NOT NULL
+          AND expires_at > $1
+          AND expires_at <= $1 + ($2 * INTERVAL '1 day')`,
+      [now, IDENTITY_EXPIRY_WARNING_DAYS]
+    );
+    let warned = 0;
+    for (const row of rows) {
+      const expiryDay = new Date(row.expires_at).toISOString().slice(0, 10);
+      void sendNotification({
+        userId: row.customer_id,
+        type: 'credit_identity_verification_expiring',
+        data: { verificationId: String(row.id), tier: Number(row.tier), expiresAt: row.expires_at },
+        action_url: '/wallet',
+        idempotencyKey: `credit-identity:${row.id}:expiring:${expiryDay}`,
+      });
+      warned += 1;
+    }
+    return { warned };
+  };
+  if (providedClient) return run(providedClient);
+  const client = await pool.connect();
+  try { return await run(client); } finally { client.release(); }
+}
+
+/**
  * P3-10-F05: the newest verification row for the customer-facing status
  * panel, so the UI can show pending/rejected state and offer the appeal
  * path (getCustomerVerificationTier only surfaces the verification id for
@@ -598,4 +643,6 @@ module.exports = {
   assertIdentityVerificationTier,
   listPendingVerifications,
   formatVerification,
+  warnExpiringIdentityVerifications,
+  IDENTITY_EXPIRY_WARNING_DAYS,
 };

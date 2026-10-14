@@ -47,6 +47,7 @@ const AppError = require('../utils/appError');
 const { withTransaction } = require('../utils/transaction');
 const { insertAudit } = require('./oxsteedCreditAdminService');
 const { recordIncident } = require('./incidentStore');
+const { sendNotification } = require('./notificationService');
 
 const SANCTIONS_PROVIDER_NAME = process.env.OXSTEED_CREDIT_SANCTIONS_PROVIDER || 'manual_review';
 const SCREENING_TTL_HOURS = Math.max(
@@ -193,6 +194,29 @@ async function loadSubjectAttributes(client, { subjectType, subjectId }) {
 }
 
 /**
+ * P3-10-F10: sanctions lifecycle notifications must reach the affected
+ * user. Customer subjects are users directly; partner subjects resolve to
+ * the owning user so a blocked payout / conversion is not silent either.
+ * Returns the user id to notify, or null when it cannot be resolved.
+ */
+async function resolveNotifyUserId(client, { subjectType, subjectId }) {
+  if (subjectType === 'customer') return subjectId;
+  if (subjectType === 'partner') {
+    const { rows } = await client.query(
+      `SELECT COALESCE(b.user_id, fr.owner_user_id) AS owner_user_id
+         FROM oxsteed_credit_partners p
+         LEFT JOIN businesses b ON b.id = p.business_id
+         LEFT JOIN food_restaurants fr ON fr.id = p.restaurant_id
+        WHERE p.id = $1
+        LIMIT 1`,
+      [subjectId]
+    );
+    return rows[0]?.owner_user_id || null;
+  }
+  return null;
+}
+
+/**
  * Run the provider when no fresh screening exists and persist the row.
  * Returns the screening row (fresh or newly created).
  */
@@ -256,6 +280,19 @@ async function assertSanctionsClear(client, { subjectType, subjectId, context = 
       { subjectType, subjectId: String(subjectId) }
     );
   }
+  // P3-10-F10: a blocked hit was silent; the customer discovered it only
+  // via repeated funding failures. Notify once per screening (delivery key
+  // dedupes retries) so they know credit activity is paused for review.
+  const notifyUserId = await resolveNotifyUserId(client, { subjectType, subjectId });
+  if (notifyUserId) {
+    void sendNotification({
+      userId: notifyUserId,
+      type: 'credit_sanctions_review_required',
+      data: { screeningId: String(screening.id), subjectType },
+      action_url: '/wallet',
+      idempotencyKey: `credit-sanctions:${screening.id}:review-required`,
+    });
+  }
   throw new AppError(
     'This transaction is blocked pending sanctions review. An administrator must clear the screening first.',
     403,
@@ -281,7 +318,7 @@ async function decideSanctionsScreening({ screeningId, decision, actorUserId, re
   }
   const normalizedReason = normalizeString(reason, 1000);
   if (!normalizedReason) throw new AppError('A decision reason is required', 400, 'credit_sanctions_reason_required');
-  return withTransaction(pool, async (client) => {
+  const result = await withTransaction(pool, async (client) => {
     const { rows } = await client.query(
       `SELECT * FROM oxsteed_credit_sanctions_screenings WHERE id = $1 FOR UPDATE`,
       [screeningId]
@@ -337,6 +374,23 @@ async function decideSanctionsScreening({ screeningId, decision, actorUserId, re
     });
     return { screening: formatScreening(screening), case: opened.case };
   }, 'credit_sanctions_decide');
+  // P3-10-F10: the clear/confirm decision was silent; a cleared customer
+  // never learned they could retry funding. Notify after commit so the
+  // decision row is durable before the user acts on the notice.
+  const decided = result.screening || {};
+  if (decided.subjectType && decided.subjectId) {
+    const notifyUserId = await resolveNotifyUserId(pool, { subjectType: decided.subjectType, subjectId: decided.subjectId }).catch(() => null);
+    if (notifyUserId) {
+      void sendNotification({
+        userId: notifyUserId,
+        type: decision === 'clear' ? 'credit_sanctions_cleared' : 'credit_sanctions_confirmed',
+        data: { screeningId: String(screeningId), subjectType: decided.subjectType },
+        action_url: '/wallet',
+        idempotencyKey: `credit-sanctions:${screeningId}:${decision}`,
+      });
+    }
+  }
+  return result;
 }
 
 async function listPendingSanctionHits(client, { limit = 50, offset = 0 } = {}) {

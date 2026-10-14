@@ -4,6 +4,20 @@
 // helper onboarding. Steps are derived from what the helper actually did
 // (columns written by real flows and verification webhooks), not from
 // users.onboarding_status, whose CHECK constraint allows only four values.
+//
+// P2-7-F11 writer contract: identity lives in three parallel column sets
+// (id_verified / identity_verified + didit_status / helper_profiles.is_identity_verified,
+// and background_check_passed / background_check_status). Every flow that
+// marks identity verified MUST write the full set together:
+//   - Didit webhook (diditController): didit_status + id_verified + identity_verified
+//   - legacy Didit webhook (webhookController): same three
+//   - Stripe Identity webhook (verificationController): identity_verified + id_verified
+//   - superAdmin verifyUser: all of the above + is_verified
+// Every flow that resolves a background check MUST write both
+// background_check_status and background_check_passed (Checkr webhook,
+// superAdmin). Readers must use the derived helpers below (isIdentityVerified,
+// backgroundState), never a single column, so a future single-column write
+// cannot silently split the gates.
 const db = require('../db');
 
 const ONBOARDING_COLUMNS = `id, role, email_verified, profile_completed, contact_completed,

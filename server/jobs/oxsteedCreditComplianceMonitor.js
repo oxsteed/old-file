@@ -23,6 +23,7 @@ const {
   checkComplianceCaseSla,
   checkVerificationSla,
 } = require('../services/transactionMonitoringService');
+const { warnExpiringIdentityVerifications } = require('../services/identityVerificationService');
 const incidentStore = require('../services/incidentStore');
 const { recordOxsteedCreditWorkerRun } = require('../services/oxsteedCreditWorkerHeartbeat');
 const { skipCreditJobWhenRailDisabled } = require('../services/oxsteedCreditService');
@@ -81,7 +82,20 @@ async function runOxsteedCreditComplianceMonitor({ now = new Date(), getPool = n
       const monitoring = await runTransactionMonitoring({ periodStart: period.start, periodEnd: period.end });
       const sla = await checkComplianceCaseSla({ now });
       const verificationSla = await checkVerificationSla({ now });
-      outcome = { monitoring, sla, verificationSla };
+      // P3-10-F10: warn customers before their identity verification
+      // expires, so they re-verify before a funding attempt fails. A
+      // warning-sweep failure must not block the SLA breach detection
+      // above, so it is contained and logged here.
+      let expiryWarnings = null;
+      try {
+        expiryWarnings = await warnExpiringIdentityVerifications({ now });
+      } catch (warningError) {
+        logger.error('Identity verification expiry warning sweep failed', {
+          error: warningError.message,
+        });
+        expiryWarnings = { warned: 0, error: warningError.message };
+      }
+      outcome = { monitoring, sla, verificationSla, expiryWarnings };
     }, 300, { throwOnLockError: true });
   } catch (error) {
     const incident = await recordLockFailure(error, period);
@@ -100,6 +114,7 @@ async function runOxsteedCreditComplianceMonitor({ now = new Date(), getPool = n
     monitoring: outcome?.monitoring || null,
     sla: outcome?.sla || null,
     verificationSla: outcome?.verificationSla || null,
+    expiryWarnings: outcome?.expiryWarnings || null,
     period: {
       start: period.start.toISOString(),
       end: period.end.toISOString(),

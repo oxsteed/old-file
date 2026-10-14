@@ -244,7 +244,7 @@ exports.sendNotification = async ({
     const emailTypes = [
       'bid_accepted', 'payment_released', 'payment_receipt', 'food_order_ready', 'subscription_renewed',
       'subscription_cancelled', 'subscription_past_due',
-      'dispute_update', 'dispute_opened_against', 'dispute_under_review', 'dispute_resolved',
+      'dispute_update', 'dispute_opened', 'dispute_opened_against', 'dispute_under_review', 'dispute_resolved',
       // Chat messages: gated by the user's email_new_message preference
       // toggle (previously the toggle existed in settings but the type was
       // never attempted, so the toggle was dead).
@@ -254,6 +254,7 @@ exports.sendNotification = async ({
       'credit_identity_verification_requested', 'credit_identity_verification_approved',
       'credit_identity_verification_rejected', 'credit_sanctions_review_required',
       'credit_sanctions_cleared', 'credit_sanctions_confirmed',
+      'credit_identity_verification_expired', 'credit_identity_verification_expiring',
       'credit_identity_verification_appeal_submitted', 'credit_identity_verification_appeal_approved',
       'credit_identity_verification_appeal_rejected',
       // Monthly statement issuance: generic authenticated-link email, no
@@ -288,6 +289,7 @@ exports.sendNotification = async ({
       'credit_identity_verification_requested', 'credit_identity_verification_approved',
       'credit_identity_verification_rejected', 'credit_sanctions_review_required',
       'credit_sanctions_cleared', 'credit_sanctions_confirmed',
+      'credit_identity_verification_expired', 'credit_identity_verification_expiring',
       'credit_identity_verification_appeal_submitted', 'credit_identity_verification_appeal_approved',
       'credit_identity_verification_appeal_rejected',
     ]);

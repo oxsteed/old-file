@@ -924,6 +924,16 @@ async function refreshToken(req, res, next) {
     }
     const tokens = generateTokens(user);
     const hashedRefresh = crypto.createHash('sha256').update(tokens.refreshToken).digest('hex');
+    // P3-14-F13 (accepted): sessions.id stays SERIAL. Migration 200's comment
+    // asks for random session IDs, but the guessable-token concern does not
+    // apply to the PK: the actual session credential is the refresh token
+    // (256-bit crypto-random, SHA-256 hashed at rest), and sessions.id is
+    // internal-only — looked up by refresh_token, returned to the owning user
+    // only in their own session list, and every mutation re-checks
+    // user_id ownership. Changing the PK type would need an
+    // ACCESS EXCLUSIVE rewrite of the hottest auth table plus matching
+    // changes to the parent_session_id / regenerated_from_session_id FKs
+    // (migration 703) for zero security gain, so the type is kept.
     // P1-1-F04: the rotated session inherits the remember-me window of the
     // consumed session (30 days) instead of an unconditional 7 days. The
     // absolute family deadline still caps the rotation.
@@ -1424,13 +1434,17 @@ async function verifyRegistrationOTP(req, res) {
       }
     }
 
-    // Increment referrer count + grant reward (non-fatal)
+    // Increment referrer signup count (non-fatal). P2-6-F12: the reward
+    // itself is NOT granted here. The program promises the reward for a
+    // friend who "signs up and completes their first job", and granting at
+    // registration let one actor farm $5 per throwaway email with no value
+    // event. The grant now happens only on the first-completed-job value
+    // event in jobController.afterJobCompleted, which is idempotent per
+    // referred user.
     if (referrerId) {
       pool.query(
         `UPDATE users SET referrals_count = referrals_count + 1 WHERE id = $1`, [referrerId]
       ).catch(err => logger.error('Failed to increment referrals_count', { err }));
-      const { grantReferralReward } = require('./referralController');
-      grantReferralReward(referrerId, user.id);
     }
 
     // Grant 1-year free trial on all paid templates (fire-and-forget)

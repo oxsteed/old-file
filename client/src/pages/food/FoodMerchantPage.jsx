@@ -27,6 +27,7 @@ import {
   formatFoodMoney,
 } from '../../api/food';
 import { FoodBrand, FoodConnBadge, FOOD_STATUS_KEYS, apiErrorMessage } from './foodShared';
+import { createStableIdempotencyKeyStore } from '../../lib/idempotency';
 import RestaurantSetupGuide, { shouldShowRestaurantSetup } from './RestaurantSetupGuide';
 import RestaurantMenuManager from './RestaurantMenuManager';
 import RestaurantCreditManager from './RestaurantCreditManager';
@@ -571,6 +572,9 @@ function OrdersTab({ t, restaurant }) {
   const timerRef = useRef(null);
   const requestSequenceRef = useRef(0);
   const detailRef = useRef(null);
+  // P2-4-F01: stable idempotency keys for POS refunds (recordPosPayment
+  // requires an Idempotency-Key for refunds).
+  const refundIdempotencyKeysRef = useRef(createStableIdempotencyKeyStore());
 
   const load = useCallback(async ({ quiet = false } = {}) => {
     const requestSequence = ++requestSequenceRef.current;
@@ -699,8 +703,10 @@ function OrdersTab({ t, restaurant }) {
 
   const split = async (order, itemIds) => {
     try {
+      // P2-4-F02: the server reads orderItemIds (or order_item_ids); the
+      // old { itemIds } payload always 400d.
       const { data } = await api.post(`/restaurants/${restaurant.id}/pos/orders/${order.id}/split`, {
-        itemIds,
+        orderItemIds: itemIds,
       });
       toast.success(t('food.merchant.splitSuccess', { newOrderId: data.newOrderId }));
       reloadAfterAction();
@@ -723,9 +729,20 @@ function OrdersTab({ t, restaurant }) {
 
   const refund = async (order, amountCents, reason) => {
     try {
+      // P2-4-F01: recordPosPayment requires an Idempotency-Key for refunds.
+      // The key is stable per (order, amount, reason) so a retry after a
+      // timeout replays the original refund instead of double-refunding.
+      const idempotencyKey = refundIdempotencyKeysRef.current.get('pos-refund', {
+        restaurantId: restaurant.id,
+        orderId: order.id,
+        amountCents,
+        reason: reason || '',
+      });
       await api.post(`/restaurants/${restaurant.id}/pos/orders/${order.id}/refund`, {
         amount_cents: amountCents,
         reason,
+      }, {
+        headers: { 'Idempotency-Key': idempotencyKey },
       });
       toast.success(t('food.merchant.refundSuccess'));
       reloadAfterAction();

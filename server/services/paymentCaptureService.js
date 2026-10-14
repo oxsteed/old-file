@@ -44,6 +44,7 @@ async function auditPaymentCapture(client, { payment, actorUserId, chargeId = nu
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 const chargeModel = require('./stripeChargeModel');
 const { currencyExponent } = require('../validation/money');
+const { notifyRefundIssued } = require('./refundNotification');
 
 /**
  * Approved change orders can lower what may be captured
@@ -340,10 +341,27 @@ async function settlePlatformHold(client, paymentRow) {
   const fee = Math.min(finalAmount, Math.round(finalAmount * feeRatio));
   const chargeId = typeof pi.latest_charge === 'string' ? pi.latest_charge : pi.latest_charge?.id || pi.charges?.data?.[0]?.id || null;
   if (finalAmount < charged) {
-    await stripe.refunds.create(
+    const holdRefund = await stripe.refunds.create(
       { payment_intent: pi.id, amount: charged - finalAmount, reason: 'requested_by_customer' },
       { idempotencyKey: `payment-hold-refund:${paymentRow.id}` },
     );
+    // P3-3-F07: the over-hold difference goes back to the customer; tell
+    // them it was issued (in-app + email). Best-effort; the refund is settled.
+    if (paymentRow.payer_id) {
+      notifyRefundIssued({
+        userId: paymentRow.payer_id,
+        idempotencyKey: `payment-hold-refund:${paymentRow.id}:issued`,
+        amountCents: charged - finalAmount,
+        currency: String(pi.currency || paymentRow.currency || 'usd').toUpperCase(),
+        surface: 'job_payment',
+        referenceId: paymentRow.job_id || paymentRow.id,
+        refundId: holdRefund.id || null,
+        actionUrl: paymentRow.job_id ? `/jobs/${paymentRow.job_id}` : null,
+      }).catch((err) => logger.warn('[paymentCapture] hold-refund notification failed', {
+        paymentId: paymentRow.id,
+        error: err.message,
+      }));
+    }
   }
   let transferId = null;
   if (finalAmount - fee > 0) {
