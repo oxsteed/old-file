@@ -731,8 +731,8 @@
         "stepupPrompt": "Yo voye yon kod verifikasyon nan imel ou. Antre li pou otorize ranbousman sa a:",
         "stepupFailed": "Pa t ka bay yon defi verifikasyon. Ranbousman an pa t trete.",
         "stepupRequired": "Yo bezwen yon kod verifikasyon pou bay ranbousman an.",
-          "pendingApproval": "Ranbousman an nan ke pou yon dezyèm admin apwouve li. Okenn lajan pa ko bouje."
-          },
+        "pendingApproval": "Ranbousman an nan ke pou yon dezyèm admin apwouve li. Okenn lajan pa ko bouje."
+      },
       "delete": {
         "title": "Efase travay la pou tout tan",
         "description": "Ou pa ka defèt sa. Tout òf ak done ki asosye yo ap efase.",
@@ -12213,7 +12213,9 @@
     "urgencyExploring": "Jis ap eksplore",
     "urgencyOneMonth": "1 mwa",
     "urgencyTwoWeeks": "2 semèn",
-    "view": "Wè"
+    "view": "Wè",
+    "exportStarted": "Ekspòtasyon telechaje",
+    "exportFailed": "Ekspòtasyon echwe. Tanpri eseye ankò."
   },
   "businessLaunchStatus": {
     "trackYourBusiness": "Swiv Lancement Biznis ou",
@@ -18381,7 +18383,6 @@
     "fieldBuffer": "Marge ant randevou yo (minit)",
     "bufferHint": "Bloke anvan ak apre chak randevou pou rezervasyon yo pa janm kole.",
     "bufferPrefix": "Marge:",
-
     "capacityPrefix": "Kapasite :",
     "staffAssigned": "anplwaye ki asiyen",
     "btnCancel": "Anile",

@@ -731,8 +731,8 @@
         "stepupPrompt": "A verification code was sent to your email. Enter it to authorize this refund:",
         "stepupFailed": "Could not issue a verification challenge. The refund was not processed.",
         "stepupRequired": "A verification code is required to issue the refund.",
-          "pendingApproval": "Refund queued for second-admin approval (dual approval). No funds have moved yet."
-          },
+        "pendingApproval": "Refund queued for second-admin approval (dual approval). No funds have moved yet."
+      },
       "delete": {
         "title": "Permanently Delete Job",
         "description": "This cannot be undone. All associated bids and data will be removed.",
@@ -12213,7 +12213,9 @@
     "urgencyExploring": "Just Exploring",
     "urgencyOneMonth": "1 Month",
     "urgencyTwoWeeks": "2 Weeks",
-    "view": "View"
+    "view": "View",
+    "exportStarted": "Export downloaded",
+    "exportFailed": "Export failed. Please try again."
   },
   "businessLaunchStatus": {
     "trackYourBusiness": "Track Your Business Launch",

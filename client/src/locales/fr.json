@@ -731,8 +731,8 @@
         "stepupPrompt": "Un code de verification a ete envoye a votre e-mail. Saisissez-le pour autoriser ce remboursement :",
         "stepupFailed": "Impossible d'emettre un defi de verification. Le remboursement n'a pas ete traite.",
         "stepupRequired": "Un code de verification est requis pour emettre le remboursement.",
-          "pendingApproval": "Remboursement en attente d'approbation par un second administrateur. Aucun fonds n'a encore bougé."
-          },
+        "pendingApproval": "Remboursement en attente d'approbation par un second administrateur. Aucun fonds n'a encore bougé."
+      },
       "delete": {
         "title": "Supprimer définitivement la mission",
         "description": "Cette action est irréversible. Toutes les offres et données associées seront supprimées.",
@@ -12213,7 +12213,9 @@
     "urgencyExploring": "En exploration",
     "urgencyOneMonth": "1 mois",
     "urgencyTwoWeeks": "2 semaines",
-    "view": "Voir"
+    "view": "Voir",
+    "exportStarted": "Export téléchargé",
+    "exportFailed": "Échec de l'export. Veuillez réessayer."
   },
   "businessLaunchStatus": {
     "trackYourBusiness": "Suivre votre Lancement d'Entreprise",
@@ -18381,7 +18383,6 @@
     "fieldBuffer": "Marge entre les rendez-vous (minutes)",
     "bufferHint": "Bloquée avant et après chaque rendez-vous pour que les réservations ne se touchent jamais.",
     "bufferPrefix": "Marge :",
-
     "capacityPrefix": "Capacité :",
     "staffAssigned": "personnel assigné",
     "btnCancel": "Annuler",

@@ -731,8 +731,8 @@
         "stepupPrompt": "Se envio un codigo de verificacion a tu correo. Ingresalo para autorizar este reembolso:",
         "stepupFailed": "No se pudo emitir un desafio de verificacion. El reembolso no fue procesado.",
         "stepupRequired": "Se requiere un codigo de verificacion para emitir el reembolso.",
-          "pendingApproval": "Reembolso en cola para la aprobación de un segundo administrador. Aún no se han movido fondos."
-          },
+        "pendingApproval": "Reembolso en cola para la aprobación de un segundo administrador. Aún no se han movido fondos."
+      },
       "delete": {
         "title": "Eliminar trabajo permanentemente",
         "description": "Esto no se puede deshacer. Se eliminarán todas las ofertas y datos asociados.",
@@ -12213,7 +12213,9 @@
     "urgencyExploring": "Solo explorando",
     "urgencyOneMonth": "1 mes",
     "urgencyTwoWeeks": "2 semanas",
-    "view": "Ver"
+    "view": "Ver",
+    "exportStarted": "Exportación descargada",
+    "exportFailed": "Error en la exportación. Inténtalo de nuevo."
   },
   "businessLaunchStatus": {
     "trackYourBusiness": "Seguimiento de tu Lanzamiento de Negocio",
