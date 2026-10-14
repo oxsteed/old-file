@@ -1467,7 +1467,9 @@ exports.issueRefundStepupChallenge = async (req, res, next) => {
 exports.issueManualRefund = async (req, res) => {
   try {
     const { jobId } = req.params;
-    const { reason, amount_cents } = req.body;
+    // ADM-009: a missing amount no longer silently means "full refund". The
+    // client must send an explicit amount_cents or fullRefund: true.
+    const { reason, amount_cents, fullRefund } = req.body;
     const adminId = req.user.id;
     if (!reason) return res.status(400).json({ error: 'Refund reason required.' });
 
@@ -1514,6 +1516,7 @@ exports.issueManualRefund = async (req, res) => {
     const refundResult = await processPaymentRefund({
       paymentId: payment.id,
       requestedAmountCents: refundAmountCents,
+      fullRefund: fullRefund === true,
       reason,
       actorUserId: adminId,
       requestId,
@@ -3506,7 +3509,7 @@ exports.sendAdminMessage = async (req, res) => {
 exports.setUserPasswordBySuperAdmin = async (req, res) => {
   try {
     const { userId } = req.params;
-    const { password } = req.body || {};
+    const { password, reason } = req.body || {};
     if (!password || typeof password !== 'string') {
       return res.status(400).json({ error: 'password is required.' });
     }
@@ -3514,8 +3517,25 @@ exports.setUserPasswordBySuperAdmin = async (req, res) => {
       return res.status(400).json({ error: 'Password must be between 8 and 128 characters.' });
     }
 
-    const { rows } = await db.query('SELECT id, email FROM users WHERE id = $1', [userId]);
+    const { rows } = await db.query('SELECT id, email, role FROM users WHERE id = $1', [userId]);
     if (!rows.length) return res.status(404).json({ error: 'User not found.' });
+
+    // ADM-142: resetting a fellow admin's password is a privileged,
+    // high-blast-radius action. Require a mandatory reason so the audit
+    // trail records why a super-admin rotated another admin's credentials.
+    const targetIsAdmin = ['admin', 'super_admin'].includes(rows[0].role);
+    const trimmedReason = typeof reason === 'string' ? reason.trim() : '';
+    if (targetIsAdmin) {
+      if (!trimmedReason) {
+        return res.status(400).json({
+          error: 'A reason is required when resetting another admin\u2019s password.',
+          code: 'admin_password_reset_reason_required',
+        });
+      }
+      if (trimmedReason.length > 500) {
+        return res.status(400).json({ error: 'Reason must be 500 characters or fewer.' });
+      }
+    }
 
     // Revoke existing tokens before changing the password. A revocation-store
     // outage must block the password change rather than leave the old session
@@ -3554,6 +3574,8 @@ exports.setUserPasswordBySuperAdmin = async (req, res) => {
       oldValue: '[REDACTED]',
       newValue: '[HASHED]',
       ipAddress: req.ip || null,
+      // ADM-142: record why a fellow admin's credentials were rotated.
+      notes: targetIsAdmin ? `Admin password reset reason: ${trimmedReason}` : null,
     });
 
     await logAdminAction({
@@ -3561,7 +3583,9 @@ exports.setUserPasswordBySuperAdmin = async (req, res) => {
       action: 'super_admin_set_password',
       targetType: 'user',
       targetId: userId,
-      description: `Password set by super admin for ${rows[0].email}`,
+      description: targetIsAdmin
+        ? `Password set by super admin for fellow admin ${rows[0].email} (${rows[0].role}). Reason: ${trimmedReason}`
+        : `Password set by super admin for ${rows[0].email}`,
       req,
     });
 

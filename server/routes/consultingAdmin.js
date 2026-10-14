@@ -5,17 +5,21 @@ const { authenticate } = require('../middleware/auth');
 const { requireAdmin, requirePermission } = require('../middleware/adminAuth');
 
 const auth = [authenticate, requireAdmin];
+// ADM-039: consulting writes mutate schedules, sessions, and assignments.
+// They require the manage_operations grant (same grant already used for the
+// invoice/package writes below). Reads stay grant-free.
+const writeAuth = [...auth, requirePermission('manage_operations')];
 
 // Dashboard & stats
 router.get('/dashboard-stats', ...auth, adminConsultingController.getEnhancedDashboardStats);
 
 // Requests management
 router.get('/requests', ...auth, adminConsultingController.getConsultingRequests);
-router.post('/requests/create', ...auth, adminConsultingController.createSessionManually);
-router.patch('/requests/:id/status', ...auth, adminConsultingController.updateRequestStatusById);
+router.post('/requests/create', ...writeAuth, adminConsultingController.createSessionManually);
+router.patch('/requests/:id/status', ...writeAuth, adminConsultingController.updateRequestStatusById);
 
 // Consultant assignment
-router.post('/assign', ...auth, adminConsultingController.assignConsultantToRequest);
+router.post('/assign', ...writeAuth, adminConsultingController.assignConsultantToRequest);
 router.get('/consultants', ...auth, adminConsultingController.getAvailableConsultants);
 
 // Invoices & packages
@@ -32,13 +36,13 @@ router.patch('/packages/:id', ...auth, requirePermission('manage_operations'), a
 
 // Sessions management
 router.get('/sessions', ...auth, adminConsultingController.listSessions);
-router.post('/sessions/create', ...auth, adminConsultingController.createSessionManually);
+router.post('/sessions/create', ...writeAuth, adminConsultingController.createSessionManually);
 router.get('/sessions/:id', ...auth, adminConsultingController.getSessionDetail);
-router.patch('/sessions/:id', ...auth, adminConsultingController.updateSessionDetails);
-router.patch('/sessions/:sessionId/complete', ...auth, adminConsultingController.completeSession);
-router.patch('/sessions/:sessionId/no-show', ...auth, adminConsultingController.markNoShow);
-router.post('/sessions/:id/send-reminder', ...auth, adminConsultingController.sendSessionReminder);
-router.post('/sessions/:id/send-followup', ...auth, adminConsultingController.sendSessionFollowUp);
-router.post('/sessions/:id/send-invite', ...auth, adminConsultingController.sendSessionReminder);
+router.patch('/sessions/:id', ...writeAuth, adminConsultingController.updateSessionDetails);
+router.patch('/sessions/:sessionId/complete', ...writeAuth, adminConsultingController.completeSession);
+router.patch('/sessions/:sessionId/no-show', ...writeAuth, adminConsultingController.markNoShow);
+router.post('/sessions/:id/send-reminder', ...writeAuth, adminConsultingController.sendSessionReminder);
+router.post('/sessions/:id/send-followup', ...writeAuth, adminConsultingController.sendSessionFollowUp);
+router.post('/sessions/:id/send-invite', ...writeAuth, adminConsultingController.sendSessionReminder);
 
 module.exports = router;

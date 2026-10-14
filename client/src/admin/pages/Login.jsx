@@ -168,6 +168,15 @@ export default function AdminLogin() {
           return;
         }
 
+        // ADM-037: TOTP-less admin session; funnel to enrollment.
+        if (data.requiresTwoFactorSetup) {
+          persistSessionPayload(data);
+          setUser(data.user);
+          setAttempts(0);
+          navigate('/admin/2fa-setup', { replace: true });
+          return;
+        }
+
         persistSessionPayload(data);
         setUser(data.user);
         setAttempts(0);
@@ -210,6 +219,14 @@ export default function AdminLogin() {
         clearStoredSession();
         setUser(null);
         setLoading(false);
+        return;
+      }
+
+      // ADM-037: a TOTP-less admin session cannot reach any admin API until
+      // TOTP is enabled; funnel them straight to enrollment.
+      if (data.requiresTwoFactorSetup) {
+        setAttempts(0);
+        navigate('/admin/2fa-setup', { replace: true });
         return;
       }
 
