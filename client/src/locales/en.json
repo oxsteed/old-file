@@ -18344,6 +18344,9 @@
     "fieldPrice": "Base price",
     "fieldCapacity": "Max capacity",
     "fieldNotice": "Minimum notice (hours)",
+    "fieldBuffer": "Buffer between appointments (minutes)",
+    "bufferHint": "Blocked before and after each appointment so bookings never touch.",
+    "bufferPrefix": "Buffer:",
     "capacityPrefix": "Capacity:",
     "staffAssigned": "staff assigned",
     "btnCancel": "Cancel",
@@ -21853,7 +21856,8 @@
         },
         "schedule": {
           "title": "2. Schedule",
-          "body": "You can accept the quote and lock in a schedule window."
+          "body": "You can accept the quote and lock in a schedule window.",
+          "bodyGuest": "Sign in or create an account to claim this request, then you can accept the quote and lock in a schedule window."
         },
         "proof": {
           "title": "3. Proof & receipt",

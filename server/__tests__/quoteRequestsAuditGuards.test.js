@@ -246,3 +246,74 @@ describe('admin updateQuoteRequestAdmin audit guards', () => {
     expect(mockQuery.mock.calls.find(([query]) => query.startsWith('UPDATE quote_requests'))).toBeTruthy();
   });
 });
+
+describe('admin updateQuoteRequestAdmin full-crew guards (P1-4-F02)', () => {
+  const NEW_LEAD = '00000000-0000-4000-8000-0000000000c1';
+  const OLD_LEAD = '00000000-0000-4000-8000-0000000000a1';
+
+  function adminRescheduleMocks({ conflictRows }) {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ id: NEW_LEAD }] }) // assignee check
+      .mockResolvedValueOnce({ // current row
+        rows: [{
+          scheduled_start_at: '2026-11-01T14:00:00Z',
+          scheduled_end_at: '2026-11-01T15:00:00Z',
+          service_city: null, service_location: null, assigned_to: OLD_LEAD,
+        }],
+      })
+      .mockResolvedValueOnce({ rows: [] }) // calendar blocks
+      .mockResolvedValueOnce({ rows: [] }) // junction DELETE (reassign sync)
+      .mockResolvedValueOnce({ rows: [] }) // junction INSERT (reassign sync)
+      .mockResolvedValueOnce({ rows: [{ user_id: NEW_LEAD }] }) // crew junction read
+      .mockResolvedValueOnce({ rows: conflictRows }) // conflict check
+      .mockResolvedValueOnce({ rows: [{ ...insertedRequest(), assigned_to: NEW_LEAD }] }); // UPDATE
+  }
+
+  test('rebuilds the crew junction when the admin reassigns the request', async () => {
+    adminRescheduleMocks({ conflictRows: [] });
+    const res = response();
+    await updateQuoteRequestAdmin({
+      params: { id: 'request-1' },
+      body: {
+        status: 'scheduled',
+        assigned_to: NEW_LEAD,
+        scheduled_start_at: '2026-11-02T14:00:00Z',
+        scheduled_end_at: '2026-11-02T15:00:00Z',
+      },
+      user: { id: 'admin-1' },
+    }, res);
+
+    const deleteCall = mockQuery.mock.calls.find(([q]) => q.startsWith('DELETE FROM quote_request_crew'));
+    expect(deleteCall).toBeTruthy();
+    const insertCall = mockQuery.mock.calls.find(([q]) => q.startsWith('INSERT INTO quote_request_crew'));
+    expect(insertCall).toBeTruthy();
+    expect(insertCall[1]).toEqual(['request-1', NEW_LEAD]);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+      request: expect.objectContaining({ assigned_to: NEW_LEAD }),
+    }));
+  });
+
+  test('rejects a reschedule that double-books the request crew', async () => {
+    adminRescheduleMocks({
+      conflictRows: [{ id: 77, first_name: 'Bo', last_name: 'Crew', assigned_to: NEW_LEAD }],
+    });
+    const res = response();
+    await updateQuoteRequestAdmin({
+      params: { id: 'request-1' },
+      body: {
+        status: 'scheduled',
+        assigned_to: NEW_LEAD,
+        scheduled_start_at: '2026-11-02T14:00:00Z',
+        scheduled_end_at: '2026-11-02T15:00:00Z',
+      },
+      user: { id: 'admin-1' },
+    }, res);
+
+    expect(res.status).toHaveBeenCalledWith(409);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+      error: expect.stringContaining('overlaps request #77'),
+    }));
+    // the request row itself must not be updated on conflict
+    expect(mockQuery.mock.calls.find(([query]) => query.startsWith('UPDATE quote_requests'))).toBeFalsy();
+  });
+});

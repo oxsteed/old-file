@@ -713,10 +713,16 @@ export function DirectQuoteRequestPage() {
 
 export function DirectQuoteThanksPage() {
   const { t } = useTranslation();
+  const { user } = useAuth();
   const [profile, setProfile] = useState(() => localizedDefaultProfile(t));
   const [params] = useSearchParams();
   const referenceIdParam = params.get('referenceId') || params.get('requestId');
   const referenceId = referenceIdParam || '—';
+  // Review P1-4-F01: guests cannot accept until they sign in and claim the
+  // request, so the schedule step says so instead of promising acceptance.
+  const scheduleBody = user
+    ? t('directPortal.thanks.steps.schedule.body', { defaultValue: 'You can accept the quote and lock in a schedule window.' })
+    : t('directPortal.thanks.steps.schedule.bodyGuest', { defaultValue: 'Sign in or create an account to claim this request, then you can accept the quote and lock in a schedule window.' });
 
   useEffect(() => {
     let active = true;
@@ -753,7 +759,7 @@ export function DirectQuoteThanksPage() {
         <div className="grid gap-3 md:grid-cols-3">
           {[
             [t('directPortal.thanks.steps.review.title', { defaultValue: '1. Review' }), t('directPortal.thanks.steps.review.body', { defaultValue: 'We review the quote request and decide the next step.' })],
-            [t('directPortal.thanks.steps.schedule.title', { defaultValue: '2. Schedule' }), t('directPortal.thanks.steps.schedule.body', { defaultValue: 'You can accept the quote and lock in a schedule window.' })],
+            [t('directPortal.thanks.steps.schedule.title', { defaultValue: '2. Schedule' }), scheduleBody],
             [t('directPortal.thanks.steps.proof.title', { defaultValue: '3. Proof & receipt' }), t('directPortal.thanks.steps.proof.body', { defaultValue: 'Upload proof or confirm receipt so history stays attached.' })],
           ].map(([title, body]) => (
             <div key={title} className="rounded-2xl border border-white/10 bg-white/5 p-4">

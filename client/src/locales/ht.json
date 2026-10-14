@@ -18344,6 +18344,10 @@
     "fieldPrice": "Pri baz",
     "fieldCapacity": "Kapasite maksimòm",
     "fieldNotice": "Avètisman minimòm (èdtan)",
+    "fieldBuffer": "Marge ant randevou yo (minit)",
+    "bufferHint": "Bloke anvan ak apre chak randevou pou rezervasyon yo pa janm kole.",
+    "bufferPrefix": "Marge:",
+
     "capacityPrefix": "Kapasite :",
     "staffAssigned": "anplwaye ki asiyen",
     "btnCancel": "Anile",
@@ -21853,7 +21857,8 @@
         },
         "schedule": {
           "title": "2. Pwograme",
-          "body": "Ou ka aksepte quote a epi fikse yon fenèt pou randevou."
+          "body": "Ou ka aksepte quote a epi fikse yon fenèt pou randevou.",
+          "bodyGuest": "Konekte oswa kreye yon kont pou reklame demann sa a, apre sa ou ka aksepte quote a epi fikse yon fenèt pou randevou."
         },
         "proof": {
           "title": "3. Prèv ak resi",

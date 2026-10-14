@@ -11,6 +11,7 @@ const { sendNotification } = require('../services/notificationService');
 // reschedules must take it too (before any conflict check), or a racing
 // create+accept pair can both pass their checks and double-book.
 const { lockBusinessAppointments } = require('../services/bookingRequestLifecycle');
+const { isStaffBlocked } = require('../services/businessAvailability'); // Review P2-3-F08
 
 // Cancellation policy enforcement (P3-8-F05). The service's
 // cancellation_policy_hours / cancellation_fee_percent (falling back to the
@@ -139,14 +140,10 @@ async function assertAppointmentWindowFree(client, { businessId, serviceId, staf
     }
 
     // Blocked time: the staff member's availability blocks are the
-    // authoritative "do not book" signal.
-    const blockRes = await client.query(
-      `SELECT id FROM availability_blocks
-       WHERE helper_id = $1 AND type IN ('unavailable', 'busy')
-         AND start_time < $3 AND end_time > $2 LIMIT 1`,
-      [staffId, startTime, endTime]
-    );
-    if (blockRes.rows.length) {
+    // authoritative "do not book" signal. Review P2-3-F08: use the shared
+    // predicate so the writer agrees with the slots listing and the booking
+    // gate.
+    if (await isStaffBlocked(staffId, startTime, endTime, client)) {
       throw new AppError('Staff member is unavailable at this time', 409);
     }
   }

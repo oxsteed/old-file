@@ -18344,6 +18344,9 @@
     "fieldPrice": "Precio base",
     "fieldCapacity": "Capacidad máxima",
     "fieldNotice": "Aviso mínimo (horas)",
+    "fieldBuffer": "Margen entre citas (minutos)",
+    "bufferHint": "Se bloquea antes y después de cada cita para que las reservas nunca se toquen.",
+    "bufferPrefix": "Margen:",
     "capacityPrefix": "Capacidad:",
     "staffAssigned": "personal asignado",
     "btnCancel": "Cancelar",
@@ -21853,7 +21856,8 @@
         },
         "schedule": {
           "title": "2. Programación",
-          "body": "Puede aceptar la cotización y fijar una ventana de horario."
+          "body": "Puede aceptar la cotización y fijar una ventana de horario.",
+          "bodyGuest": "Inicie sesión o cree una cuenta para reclamar esta solicitud; luego podrá aceptar la cotización y fijar una ventana de horario."
         },
         "proof": {
           "title": "3. Prueba y recibo",

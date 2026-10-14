@@ -26,6 +26,7 @@
 
 const pool = require('../db');
 const { sendError } = require('../utils/apiError');
+const { isStaffBlocked } = require('../services/businessAvailability'); // Review P2-3-F08
 
 const BLOCKING = ['pending', 'confirmed', 'in_progress', 'completed'];
 
@@ -112,6 +113,12 @@ module.exports = async function enforceBookingRules(req, res, next) {
       );
       if (!staffRes.rows.length) {
         return sendError(res, 400, 'Staff member is not assigned to this service', 'staff_not_assigned');
+      }
+      // Review P2-3-F08: the staff member's personal availability blocks use
+      // the shared predicate, so the gate and the appointment writer (and the
+      // staff-aware slots listing) cannot disagree on staff availability.
+      if (await isStaffBlocked(staffId, startTime.toISOString(), endTime.toISOString(), pool)) {
+        return sendError(res, 409, 'Staff member is unavailable at this time', 'staff_unavailable');
       }
     }
 
