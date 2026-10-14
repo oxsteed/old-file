@@ -411,3 +411,22 @@
 
 .dark .prs-star-empty { color: var(--muted-text); }
 .dark .prs-rating-btn:hover { color: #f59e0b; }
+
+/* Review P2-8-F18: in-app report affordance on product reviews */
+.prs-review-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 0.5rem;
+}
+.prs-report-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  background: none;
+  border: none;
+  padding: 0.25rem 0;
+  font-size: 0.75rem;
+  color: #9ca3af;
+  cursor: pointer;
+}
+.prs-report-btn:hover { color: #ef4444; }

@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/axios';
@@ -12,6 +12,7 @@ import PageMeta from '../components/PageMeta';
 import useSubscription from '../hooks/useSubscription';
 import NotificationPreferences from '../components/NotificationPreferences';
 import ReferralPanel from '../components/ReferralPanel';
+import W9Form from '../components/W9Form';
 import PaymentMethodSettings from '../components/PaymentMethodSettings';
 import CountrySelect from '../components/CountrySelect';
 import RegionInput from '../components/RegionInput';
@@ -79,6 +80,13 @@ const IconTrash = () => (
     <path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
   </svg>
 );
+// Review P2-2-F08: tax documents (W-9) tab icon.
+const IconDoc = () => (
+  <svg className="sp-tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
+    <polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="15" y2="17"/>
+  </svg>
+);
 const IconBox = () => (
   <svg className="sp-tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
     <path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/>
@@ -92,6 +100,10 @@ export default function SettingsPage() {
   const { t } = useTranslation();
   const { user, logout, switchRole, refreshUser, setUser } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+
+  // Declared before TABS (TDZ-safe): the tax tab is helper-only.
+  const isHelper = HELPER_ROLES.includes(user?.role);
 
   const TABS = useMemo(() => [
     { key: 'profile',       label: t('settings.tabProfile'),       icon: <IconUser /> },
@@ -101,15 +113,22 @@ export default function SettingsPage() {
     { key: 'businesses',    label: t('settings.tabBusinesses'),    icon: <IconBuilding /> },
     { key: 'notifications', label: t('settings.tabNotifications'), icon: <IconBell /> },
     { key: 'referral',      label: t('settings.tabReferral'),      icon: <IconGift /> },
+    // Review P2-2-F08: tax documents (W-9) for helpers, so the
+    // requireTaxIdentity payout gate is satisfiable in-app.
+    { key: 'tax',           label: t('settings.tabTax'),           icon: <IconDoc /> },
     { key: 'privacy',       label: t('settings.tabPrivacy'),       icon: <IconDatabase /> },
     { key: 'account',       label: t('settings.tabAccount'),       icon: <IconRefresh /> },
     { key: 'danger',        label: t('settings.tabDanger'),        icon: <IconTrash />, danger: true },
-  ].filter((tab) => LAUNCH_SETTINGS_TABS.has(tab.key)), [t]);
+  ].filter((tab) => LAUNCH_SETTINGS_TABS.has(tab.key) && (tab.key !== 'tax' || isHelper)), [t, isHelper]);
 
-  const [activeTab, setActiveTab] = useState('profile');
+  // Review P2-2-F08: deep-linkable tabs (e.g. /settings?tab=tax from the
+  // payout 403 surface) so helpers land directly on the W-9 form.
+  const requestedTab = searchParams.get('tab');
+  const [activeTab, setActiveTab] = useState(
+    requestedTab && TABS.some((tab) => tab.key === requestedTab) ? requestedTab : 'profile'
+  );
   const [switchingMode, setSwitchingMode] = useState(null); // mode being switched into, or null
   const [grantedModes, setGrantedModes] = useState([]); // [{ mode, business_name, role }]
-  const isHelper = HELPER_ROLES.includes(user?.role);
   const currentMode = user?.default_mode || (isHelper ? 'helper' : 'customer');
 
   const handleSwitchMode = async (targetMode) => {
@@ -1032,6 +1051,17 @@ export default function SettingsPage() {
     </div>
   );
 
+  // Review P2-2-F08: W-9 tax form for helpers. The requireTaxIdentity payout
+  // gate depends on w9_completed; without this panel helpers hit the 403
+  // with no in-app path to comply.
+  const tabTax = (
+    <div className="sp-card">
+      <h2 className="sp-card-title">{t('w9.title')}</h2>
+      <p className="sp-card-subtitle">{t('w9.subtitle')}</p>
+      <W9Form />
+    </div>
+  );
+
   const tabPrivacy = (
     <div className="sp-card">
       <h2 className="sp-card-title">{t('settings.privacy.title')}</h2>
@@ -1387,6 +1417,7 @@ export default function SettingsPage() {
     businesses:    tabBusinesses,
     notifications: tabNotifications,
     referral:      tabReferral,
+    tax:           tabTax,
     privacy:       tabPrivacy,
     account:       tabAccount,
     danger:        tabDanger,

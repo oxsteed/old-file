@@ -135,3 +135,35 @@ describe('controller', () => {
     expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO users/.test(sql))).toBe(false);
   });
 });
+
+describe('requireHelperWorkEligible (P2-7-F01)', () => {
+  const { requireHelperWorkEligible } = require('../middleware/helperOnboardingMiddleware');
+  const completeFacts = {
+    id: 'u1', role: 'helper', email_verified: true, profile_completed: true, contact_completed: true,
+    terms_accepted: true, terms_accepted_at: new Date(), terms_version: 'v1', didit_status: 'verified',
+    onboarding_completed: false, onboarding_status: 'verified_pending_onboarding',
+  };
+  test('403s a helper whose DB facts are incomplete even if the JWT flag claims complete', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [{ ...completeFacts, didit_status: 'pending', id_verified: false, identity_verified: false }] });
+    const r = res(); const next = jest.fn();
+    // The JWT claim lies (onboarding_completed=true); DB facts must win.
+    await requireHelperWorkEligible({ user: { id: 'u1', role: 'helper', onboarding_completed: true } }, r, next);
+    expect(next).not.toHaveBeenCalled();
+    expect(r.statusCode).toBe(403);
+    expect(r.body.code).toBe('helper_onboarding_incomplete');
+    expect(r.body.missing).toContain('identity');
+  });
+  test('passes a helper whose DB facts are complete', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [completeFacts] });
+    const r = res(); const next = jest.fn();
+    await requireHelperWorkEligible({ user: { id: 'u1', role: 'helper' } }, r, next);
+    expect(next).toHaveBeenCalled();
+  });
+  test('403s non-helper roles', async () => {
+    const r = res(); const next = jest.fn();
+    await requireHelperWorkEligible({ user: { id: 'u1', role: 'customer' } }, r, next);
+    expect(next).not.toHaveBeenCalled();
+    expect(r.statusCode).toBe(403);
+    expect(mockQuery).not.toHaveBeenCalled();
+  });
+});

@@ -1840,6 +1840,22 @@ async function anchorDiditVerified(userId, sessionId, identityHash) {
   if (personPublicId) await diditEntityLink.markHelperIdentityVerified(userId);
 }
 
+// Review P2-7-F11: the legacy Didit webhook is a real identity verification,
+// so it must also reconcile the third identity model
+// (helper_profiles.is_identity_verified), which the directory's verified
+// filter reads (helpersController). Best-effort: a missing helper_profiles
+// row is a no-op, never a webhook failure.
+async function syncHelperIdentityBadge(userId) {
+  try {
+    await db.query(
+      `UPDATE helper_profiles SET is_identity_verified = TRUE, updated_at = NOW() WHERE user_id = $1`,
+      [userId]
+    );
+  } catch (badgeErr) {
+    logger.error('[Didit] helper identity badge update failed (best-effort)', { userId, err: badgeErr.message });
+  }
+}
+
 exports.diditWebhook = async (req, res, next) => {
   let receiptId = null;
   // Hoisted so the catch block can log the inner error with webhook context
@@ -1979,6 +1995,7 @@ exports.diditWebhook = async (req, res, next) => {
             [userId]
           );
           await anchorDiditVerified(userId, session_id, null);
+          await syncHelperIdentityBadge(userId); // P2-7-F11: reconcile the third identity model
         } else {
           // Check for duplicate identity
           const { rows: existing } = await db.query(
@@ -2035,6 +2052,7 @@ exports.diditWebhook = async (req, res, next) => {
             }
             if (verified) {
               await anchorDiditVerified(userId, session_id, identityHash);
+              await syncHelperIdentityBadge(userId); // P2-7-F11: reconcile the third identity model
               // Award identity badge
               await db.query(
                 `INSERT INTO badges (user_id, type, label)
@@ -2070,6 +2088,7 @@ exports.diditWebhook = async (req, res, next) => {
             [userId]
           );
           await anchorDiditVerified(userId, session_id, null);
+          await syncHelperIdentityBadge(userId); // P2-7-F11: reconcile the third identity model
           logger.info('[Didit] Identity approved (via didit_session_id fallback)', { userId });
         } else {
           logger.warn('[Didit] No user found for session', { session_id });

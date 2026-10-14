@@ -27,6 +27,7 @@ const { invalidateGuestHistoryAccessCodesForEmail } = require('../services/guest
 const { logSecurityEvent, extractRequestDetails } = require('../services/auditLoggerService');
 const { recordLoginAgreement } = require('../services/loginAgreementService'); // Review P1-1-F05
 const modeRoleUtil = require('../utils/modeRole');
+const { readDeviceFingerprint } = require('../utils/deviceFingerprint'); // Review P2-6-F12
 const { normalizeStoredPublicUrl } = require('../utils/storage');
 const SALT_ROUNDS = 12;
 const TERMS_IP_HASH_MAX_LEN = 45;
@@ -1298,9 +1299,10 @@ async function acceptTerms(req, res) {
       `UPDATE pending_registrations
           SET terms_accepted_at = NOW(), terms_version = $2, terms_acceptance_ip = $3,
               terms_acceptance_ua = $4, otp_code = $5, otp_expires_at = $6,
+              signup_device_fingerprint = $7,
               otp_attempts = COALESCE(otp_attempts, 0)
         WHERE token = $1`,
-      [token, termsVersion, ip, userAgent, otpHash, otpExpires]
+      [token, termsVersion, ip, userAgent, otpHash, otpExpires, readDeviceFingerprint(req)]
     );
     const delivery = await sendOTPEmail(pending.email, otp, resolveRequestLanguage(req));
     if (!delivery || delivery.success === false) {
@@ -1388,7 +1390,7 @@ async function verifyRegistrationOTP(req, res) {
          terms_accepted_at, terms_version, terms_acceptance_ip, terms_acceptance_ua, referral_code,
          trial_started_at, trial_ends_at, referred_by,
          onboarding_status, onboarding_completed, profile_completed, tier_selected, terms_accepted,
-         contact_completed, membership_tier, default_mode
+         contact_completed, membership_tier, default_mode, signup_device_fingerprint
        ) VALUES (
          $1,$2,$3,$4,$5,$6,$7,$8,$9,
          $10,$11,
@@ -1396,7 +1398,7 @@ async function verifyRegistrationOTP(req, res) {
          $13,$14,$15,$16,$17,
          $18,$19,$20,
          'onboarding_complete', TRUE, TRUE, TRUE, TRUE,
-         TRUE, 'tier1', $22
+         TRUE, 'tier1', $22, pending.signup_device_fingerprint
        ) RETURNING *`,
       [
         pending.email, pending.password_hash, pending.first_name, pending.last_name, pending.phone, pending.zip_code,

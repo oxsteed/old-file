@@ -118,6 +118,33 @@ function requireListingEligible(req, res, next) {
   }).catch(next);
 }
 
+// Review P2-7-F01: DB-fact gate for helper work actions (bidding, starting
+// jobs). Unlike requireOnboardingStep('active'), which trusts the JWT's
+// onboarding_completed claim, this re-derives onboarding from the columns
+// the real flows write (see services/helperOnboarding.js), so a customer who
+// self-selected helper mode cannot bid or accept work until identity is
+// actually verified. Fails closed on any derivation error.
+function requireHelperWorkEligible(req, res, next) {
+  if (!req.user) {
+    return res.status(401).json({ error: 'Authentication required', code: 'auth_required' });
+  }
+  if (!['helper', 'helper_pro', 'broker'].includes(req.user.role)) {
+    return res.status(403).json({ error: 'Helper account required', code: 'helper_required' });
+  }
+  const { loadHelperOnboarding } = require('../services/helperOnboarding');
+  return loadHelperOnboarding(req.user.id).then((onboarding) => {
+    if (!onboarding || !onboarding.complete) {
+      return res.status(403).json({
+        error: 'Finish helper onboarding before accepting work.',
+        code: 'helper_onboarding_incomplete',
+        missing: onboarding ? onboarding.missing : ['onboarding'],
+      });
+    }
+    req.helperOnboarding = onboarding;
+    return next();
+  }).catch(next);
+}
+
 // ── Tier gating ─────────────────────────────────────────
 // Require minimum membership tier
 // NOTE: Checks effective tier (considers active trials) not just membership_tier
@@ -202,6 +229,7 @@ function requireHelperLimitedAccess(req, res, next) {
 
 module.exports = {
   requireHelperStep,
+  requireHelperWorkEligible,
   requireListingEligible,
   requireOnboardingStep,
   requireTaxIdentity,

@@ -354,10 +354,22 @@ exports.identityWebhook = async (req, res, next) => {
       if (transitioned.length) {
         // P2-7-F11: Stripe Identity is a real identity verification, so it
         // must satisfy the legacy id_verified gate (tierMiddleware) as well
-        // as identity_verified.
+        // as identity_verified, plus the third model
+        // (helper_profiles.is_identity_verified) read by the directory's
+        // verified filter.
         await db.query(
           'UPDATE users SET identity_verified = TRUE, id_verified = TRUE WHERE id = $1', [transitioned[0].user_id]
         );
+        try {
+          await db.query(
+            'UPDATE helper_profiles SET is_identity_verified = TRUE, updated_at = NOW() WHERE user_id = $1',
+            [transitioned[0].user_id]
+          );
+        } catch (badgeErr) {
+          logger.error('[StripeIdentity] helper identity badge update failed (best-effort)', {
+            userId: transitioned[0].user_id, err: badgeErr.message,
+          });
+        }
       }
     }
 

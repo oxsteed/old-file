@@ -2334,6 +2334,7 @@
     "tabBusinesses": "Negocios",
     "tabNotifications": "Notificaciones",
     "tabReferral": "Referidos",
+    "tabTax": "Documentos fiscales",
     "tabPrivacy": "Privacidad y datos",
     "tabAccount": "Tipo de cuenta",
     "tabDanger": "Zona de peligro",
@@ -13587,6 +13588,7 @@
   },
   "reviewReport": {
     "title": "Reportar Esta Reseña",
+    "report": "Denunciar",
     "info": "Ayuda a mantener la calidad reportando reseñas que violan nuestras directrices.",
     "reasonLabel": "¿Por qué reportas esto?",
     "reason": {
@@ -31558,7 +31560,11 @@
     "confirm": "¿Enviar {{amount}} a tu banco ahora?",
     "noBalance": "Aún no hay saldo disponible para pago instantáneo.",
     "requested": "Se solicitó un pago instantáneo de {{amount}}.",
-    "failed": "No se pudo solicitar el pago. Inténtalo más tarde."
+    "failed": "No se pudo solicitar el pago. Inténtalo más tarde.",
+    "taxIdentityRequired": "Pago bloqueado: se requiere identidad fiscal.",
+    "taxBlockedTitle": "Se requieren documentos fiscales",
+    "taxBlockedCopy": "Antes de liberar los pagos, complete su formulario fiscal W-9. Toma un minuto.",
+    "taxBlockedCta": "Completar W-9"
   },
   "jobEdit": {
     "editJob": "Editar trabajo",
@@ -31867,5 +31873,41 @@
       "impersonation_blocked": "No permitido en una sesión suplantada.",
       "feature_disabled": "No disponible."
     }
+  },
+  "w9": {
+    "title": "Documentos fiscales (W-9)",
+    "subtitle": "Presente su W-9 para que se liberen los pagos. Su identificacion fiscal se almacena cifrada.",
+    "intro": "Complete el W-9 a continuacion. Su numero de identificacion fiscal se cifra antes de almacenarse, y solo se muestran los ultimos cuatro digitos.",
+    "legalName": "Nombre legal",
+    "legalNamePlaceholder": "Nombre legal completo como aparece en su declaracion de impuestos",
+    "businessName": "Nombre comercial (opcional)",
+    "businessNamePlaceholder": "Nombre de la entidad o negocio, si es diferente",
+    "taxClassification": "Clasificacion fiscal federal",
+    "classification": {
+      "individual": "Persona fisica / propietario unico",
+      "c_corp": "Corporacion C",
+      "s_corp": "Corporacion S",
+      "partnership": "Sociedad",
+      "trust_estate": "Fideicomiso / patrimonio",
+      "llc": "Sociedad de responsabilidad limitada (LLC)"
+    },
+    "tin": "Numero de identificacion fiscal",
+    "tinPlaceholder": "SSN o EIN, solo digitos",
+    "tinHelp": "Su numero de Seguro Social o de identificacion patronal. Se almacena cifrado.",
+    "tinInvalid": "Ingrese un numero de identificacion fiscal valido (al menos 9 digitos).",
+    "street": "Direccion",
+    "city": "Ciudad",
+    "state": "Estado",
+    "zip": "Codigo postal",
+    "signature": "Dibuje su firma",
+    "signatureRequired": "Dibuje su firma antes de enviar.",
+    "certify": "Bajo pena de perjurio, certifico que la informacion de este formulario es correcta y que soy una persona estadounidense para fines fiscales.",
+    "certifyRequired": "Marque la casilla de certificacion para continuar.",
+    "submit": "Enviar W-9",
+    "submitting": "Enviando...",
+    "success": "W-9 enviado. Sus documentos fiscales estan archivados.",
+    "error": "No se pudo enviar su W-9. Intentelo de nuevo.",
+    "filedTitle": "W-9 archivado",
+    "filedCopy": "Su formulario fiscal W-9 ha sido recibido. No necesita enviarlo de nuevo."
   }
 }

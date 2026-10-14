@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Star, Loader, ChevronDown, X } from 'lucide-react';
+import { Star, Loader, ChevronDown, X, Flag } from 'lucide-react';
 import { toast } from 'sonner';
 import { marketplaceApi } from '../api/marketplaceApi';
 import { useAuth } from '../hooks/useAuth';
+import ReviewReportModal from './ReviewReportModal';
 import '../styles/ProductReviewsSection.css';
 
 const REVIEW_FORM_MODAL = 'review_form';
@@ -78,6 +79,8 @@ export default function ProductReviewsSection({
   const [totalPages, setTotalPages] = useState(0);
   const [hasMore, setHasMore] = useState(false);
   const [showReviewForm, setShowReviewForm] = useState(false);
+  // Review P2-8-F18: in-app report path for product reviews.
+  const [reportReviewId, setReportReviewId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     rating: 5,
@@ -169,6 +172,14 @@ export default function ProductReviewsSection({
   return (
     <div className="prs-container">
       <h3 className="prs-title">{t('marketplace.reviews')}</h3>
+
+      {/* Review P2-8-F18: report modal for product reviews */}
+      <ReviewReportModal
+        reviewId={reportReviewId}
+        reviewType="product"
+        isOpen={reportReviewId !== null}
+        onClose={() => setReportReviewId(null)}
+      />
 
       {/* Rating Summary */}
       <div className="prs-rating-summary">
@@ -314,6 +325,18 @@ export default function ProductReviewsSection({
                 </div>
 
                 <div className="prs-review-text">{review.review_text}</div>
+
+                {/* Report (P2-8-F18) */}
+                <div className="prs-review-actions">
+                  <button
+                    type="button"
+                    onClick={() => setReportReviewId(review.id)}
+                    className="prs-report-btn"
+                  >
+                    <Flag size={12} />
+                    {t('reviewReport.report')}
+                  </button>
+                </div>
               </div>
             ))}
 

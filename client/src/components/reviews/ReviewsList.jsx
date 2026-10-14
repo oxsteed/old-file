@@ -1,8 +1,9 @@
 import { useEffect, useState }  from 'react';
-import { Star, ChevronDown }    from 'lucide-react';
+import { Star, ChevronDown, Flag }    from 'lucide-react';
 import { formatDistanceToNow }  from 'date-fns';
 import { useTranslation }       from 'react-i18next';
 import api                      from '../../api/axios';
+import ReviewReportModal          from '../ReviewReportModal';
 
 export default function ReviewsList({ userId }) {
   const { t } = useTranslation();
@@ -138,6 +139,8 @@ export default function ReviewsList({ userId }) {
 function ReviewCard({ review }) {
   const { t } = useTranslation();
   const [showResponse, setShowResponse] = useState(false);
+  // Review P2-8-F18: in-app report path for job reviews.
+  const [reportOpen, setReportOpen] = useState(false);
 
   return (
     <div className="bg-white border border-gray-200 rounded-xl p-5">
@@ -214,6 +217,24 @@ function ReviewCard({ review }) {
           </p>
         </div>
       )}
+
+      {/* Report (P2-8-F18) */}
+      <div className="mt-3 flex justify-end">
+        <button
+          type="button"
+          onClick={() => setReportOpen(true)}
+          className="inline-flex items-center gap-1 text-xs text-gray-400 hover:text-red-500 transition-colors"
+        >
+          <Flag size={12} />
+          {t('reviewReport.report')}
+        </button>
+      </div>
+      <ReviewReportModal
+        reviewId={review.id}
+        reviewType="job"
+        isOpen={reportOpen}
+        onClose={() => setReportOpen(false)}
+      />
     </div>
   );
 }

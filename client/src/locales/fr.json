@@ -2334,6 +2334,7 @@
     "tabBusinesses": "Entreprises",
     "tabNotifications": "Notifications",
     "tabReferral": "Parrainage",
+    "tabTax": "Documents fiscaux",
     "tabPrivacy": "Confidentialité et données",
     "tabAccount": "Type de compte",
     "tabDanger": "Zone de danger",
@@ -13587,6 +13588,7 @@
   },
   "reviewReport": {
     "title": "Signaler Cet Avis",
+    "report": "Signaler",
     "info": "Aidez-nous à maintenir la qualité en signalant les avis qui violent nos directives.",
     "reasonLabel": "Pourquoi signalez-vous ceci?",
     "reason": {
@@ -31558,7 +31560,11 @@
     "confirm": "Envoyer {{amount}} vers votre banque maintenant ?",
     "noBalance": "Aucun solde n'est encore disponible pour un versement instantané.",
     "requested": "Versement instantané de {{amount}} demandé.",
-    "failed": "Impossible de demander le versement. Réessayez plus tard."
+    "failed": "Impossible de demander le versement. Réessayez plus tard.",
+    "taxIdentityRequired": "Versement bloque : identite fiscale requise.",
+    "taxBlockedTitle": "Documents fiscaux requis",
+    "taxBlockedCopy": "Avant tout versement, remplissez votre formulaire fiscal W-9. Cela prend une minute.",
+    "taxBlockedCta": "Remplir le W-9"
   },
   "jobEdit": {
     "editJob": "Modifier la mission",
@@ -31867,5 +31873,41 @@
       "impersonation_blocked": "Non autorisé dans une session d'usurpation.",
       "feature_disabled": "Indisponible."
     }
+  },
+  "w9": {
+    "title": "Documents fiscaux (W-9)",
+    "subtitle": "Deposez votre W-9 pour que les versements soient effectues. Votre identifiant fiscal est stocke chiffre.",
+    "intro": "Remplissez le W-9 ci-dessous. Votre numero d'identification fiscale est chiffre avant stockage, et seuls les quatre derniers chiffres sont affiches.",
+    "legalName": "Nom legal",
+    "legalNamePlaceholder": "Nom legal complet tel qu'il figure sur votre declaration fiscale",
+    "businessName": "Nom commercial (facultatif)",
+    "businessNamePlaceholder": "Nom de l'entite ou de l'entreprise, si different",
+    "taxClassification": "Classification fiscale federale",
+    "classification": {
+      "individual": "Particulier / entreprise individuelle",
+      "c_corp": "Societe C",
+      "s_corp": "Societe S",
+      "partnership": "Societe de personnes",
+      "trust_estate": "Fiducie / succession",
+      "llc": "Societe a responsabilite limitee (LLC)"
+    },
+    "tin": "Numero d'identification fiscale",
+    "tinPlaceholder": "SSN ou EIN, chiffres uniquement",
+    "tinHelp": "Votre numero de securite sociale ou d'identification d'employeur. Stocke chiffre.",
+    "tinInvalid": "Saisissez un numero d'identification fiscale valide (au moins 9 chiffres).",
+    "street": "Adresse",
+    "city": "Ville",
+    "state": "Etat",
+    "zip": "Code postal",
+    "signature": "Dessinez votre signature",
+    "signatureRequired": "Veuillez dessiner votre signature avant d'envoyer.",
+    "certify": "Sous peine de parjure, je certifie que les renseignements de ce formulaire sont exacts et que je suis une personne americaine a des fins fiscales.",
+    "certifyRequired": "Cochez la case de certification pour continuer.",
+    "submit": "Envoyer le W-9",
+    "submitting": "Envoi en cours...",
+    "success": "W-9 envoye. Vos documents fiscaux sont enregistres.",
+    "error": "Impossible d'envoyer votre W-9. Veuillez reessayer.",
+    "filedTitle": "W-9 enregistre",
+    "filedCopy": "Votre formulaire fiscal W-9 a bien ete recu. Vous n'avez pas besoin de le renvoyer."
   }
 }

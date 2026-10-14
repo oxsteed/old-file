@@ -37,11 +37,24 @@ async function requireTier3EligibleHelper(req, res, next) {
     return res.status(403).json({ success: false, message: 'Helper access required' });
   }
 
-  // Check platform onboarding requirements
+  // Check platform onboarding requirements.
+  // Review P2-7-F11: never read the legacy identity columns off the JWT or
+  // the raw user row directly. Derive from the canonical helpers in
+  // services/helperOnboarding so every identity writer (Didit, legacy Didit,
+  // Stripe Identity) satisfies this gate the same way.
+  const { loadHelperOnboarding, isIdentityVerified, backgroundState } = require('../services/helperOnboarding');
+  let onboarding = null;
+  try {
+    onboarding = await loadHelperOnboarding(req.user.id);
+  } catch (onboardingErr) {
+    logger.error('Tier 3 onboarding derivation failed', { userId: req.user?.id, error: onboardingErr.message });
+  }
+  const identityOk = Boolean(onboarding && isIdentityVerified(onboarding.user));
+  const backgroundOk = Boolean(onboarding && backgroundState(onboarding.user) === 'passed');
   if (
     !req.user.onboarding_completed ||
-    !req.user.id_verified ||
-    !req.user.background_check_passed
+    !identityOk ||
+    !backgroundOk
   ) {
     return res.status(403).json({
       success: false,
@@ -78,7 +91,10 @@ function requireTier3EligibleCustomer(req, res, next) {
   if (req.user.role !== 'customer') {
     return res.status(403).json({ success: false, message: 'Customer access required' });
   }
-  if (!req.user.id_verified) {
+  // Review P2-7-F11: derive through the canonical identity helper instead
+  // of reading the legacy id_verified column directly.
+  const { isIdentityVerified } = require('../services/helperOnboarding');
+  if (!isIdentityVerified(req.user)) {
     return res.status(403).json({
       success: false,
       code: 'TIER3_CUSTOMER_NOT_ELIGIBLE',

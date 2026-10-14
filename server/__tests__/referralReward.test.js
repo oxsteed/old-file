@@ -99,3 +99,52 @@ test('IP check passes below the per-IP weekly threshold (P2-6-F12)', async () =>
   });
   await expect(grantReferralReward('ref', 'new')).resolves.toBe(true);
 });
+
+test('shared-device farming pattern withholds the reward and records a visible exception (P2-6-F12 v7 residual)', async () => {
+  mockQuery.mockImplementation(async (sql) => {
+    if (/FROM platform_ledger/.test(sql) && /referral_credit/.test(sql)) return { rows: [{ count: 0 }] };
+    if (/SELECT terms_acceptance_ip FROM users/.test(sql)) return { rows: [{ terms_acceptance_ip: '203.0.113.7' }] };
+    if (/FROM users/.test(sql) && /referred_by/.test(sql) && /terms_acceptance_ip/.test(sql)) return { rows: [{ count: 0 }] };
+    if (/SELECT signup_device_fingerprint FROM users/.test(sql)) return { rows: [{ signup_device_fingerprint: 'device-abc' }] };
+    if (/FROM users/.test(sql) && /referred_by/.test(sql)) return { rows: [{ count: 5 }] };
+    if (/FROM reconciliation_exceptions/.test(sql)) return { rows: [] };
+    if (/INSERT INTO reconciliation_exceptions/.test(sql)) return { rows: [{ id: 12 }] };
+    return { rows: [], rowCount: 0 };
+  });
+  await expect(grantReferralReward('ref', 'new')).resolves.toBe(false);
+  expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO platform_ledger/.test(sql))).toBe(false);
+  const exCall = mockQuery.mock.calls.find(([sql]) => /INSERT INTO reconciliation_exceptions/.test(sql));
+  expect(exCall).toBeDefined();
+  expect(exCall[1][1]).toBe('referral-device-farm:ref:new');
+});
+
+test('device check fails open when the fingerprint is missing (P2-6-F12 v7 residual)', async () => {
+  mockQuery.mockImplementation(async (sql) => {
+    if (/FROM platform_ledger/.test(sql) && /referral_credit/.test(sql) && !/DISTINCT/.test(sql)) return { rows: [{ count: 0 }] };
+    if (/SELECT terms_acceptance_ip FROM users/.test(sql)) return { rows: [{ terms_acceptance_ip: '203.0.113.7' }] };
+    if (/FROM users/.test(sql) && /referred_by/.test(sql)) return { rows: [{ count: 0 }] };
+    if (/SELECT signup_device_fingerprint FROM users/.test(sql)) return { rows: [{ signup_device_fingerprint: null }] };
+    if (/COUNT\(DISTINCT/.test(sql)) return { rows: [{ count: 0 }] };
+    if (/INSERT INTO platform_ledger/.test(sql)) return { rows: [{ id: 4 }] };
+    return { rows: [], rowCount: 0 };
+  });
+  await expect(grantReferralReward('ref', 'new')).resolves.toBe(true);
+});
+
+test('cross-referrer IP ring withholds the reward when the ring cap is hit (P2-6-F12 v7 residual)', async () => {
+  mockQuery.mockImplementation(async (sql) => {
+    if (/FROM platform_ledger/.test(sql) && /referral_credit/.test(sql) && !/DISTINCT/.test(sql)) return { rows: [{ count: 0 }] };
+    if (/SELECT terms_acceptance_ip FROM users/.test(sql)) return { rows: [{ terms_acceptance_ip: '203.0.113.7' }] };
+    if (/FROM users/.test(sql) && /referred_by/.test(sql)) return { rows: [{ count: 0 }] };
+    if (/SELECT signup_device_fingerprint FROM users/.test(sql)) return { rows: [{ signup_device_fingerprint: null }] };
+    if (/COUNT\(DISTINCT/.test(sql)) return { rows: [{ count: 5 }] };
+    if (/FROM reconciliation_exceptions/.test(sql)) return { rows: [] };
+    if (/INSERT INTO reconciliation_exceptions/.test(sql)) return { rows: [{ id: 13 }] };
+    return { rows: [], rowCount: 0 };
+  });
+  await expect(grantReferralReward('ref', 'new')).resolves.toBe(false);
+  expect(mockQuery.mock.calls.some(([sql]) => /INSERT INTO platform_ledger/.test(sql))).toBe(false);
+  const exCall = mockQuery.mock.calls.find(([sql]) => /INSERT INTO reconciliation_exceptions/.test(sql));
+  expect(exCall).toBeDefined();
+  expect(exCall[1][1]).toBe('referral-ring-ip:new');
+});

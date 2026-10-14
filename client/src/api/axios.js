@@ -20,6 +20,26 @@ function getPreferredLanguage() {
   return browserLanguage.trim().toLowerCase().split(/[-_]/)[0] || 'en';
 }
 
+// Review P2-6-F12: stable device fingerprint for abuse detection (referral
+// farming). A random id persisted in localStorage; the server treats it as
+// an opaque, non-PII signal and only uses it to spot many signups from one
+// device. Fail silent: registration must never break on storage errors.
+function getDeviceFingerprint() {
+  try {
+    if (typeof localStorage === 'undefined') return null;
+    let id = localStorage.getItem('ox_device_id');
+    if (!id) {
+      id = (typeof crypto !== 'undefined' && crypto.randomUUID)
+        ? crypto.randomUUID()
+        : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+      localStorage.setItem('ox_device_id', id);
+    }
+    return id;
+  } catch {
+    return null;
+  }
+}
+
 // Attach token to every request.
 // The access token lives in the httpOnly oxsteed_access cookie (sent
 // automatically via withCredentials). JS never reads it from localStorage
@@ -42,6 +62,10 @@ api.interceptors.request.use((config) => {
   const preferredLanguage = getPreferredLanguage();
   config.headers['Accept-Language'] = preferredLanguage;
   config.headers['X-OxSteed-Language'] = preferredLanguage;
+
+  // Review P2-6-F12: device fingerprint for abuse detection.
+  const deviceFingerprint = getDeviceFingerprint();
+  if (deviceFingerprint) config.headers['X-Device-Fingerprint'] = deviceFingerprint;
 
   return config;
 });

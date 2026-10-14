@@ -2334,6 +2334,7 @@
     "tabBusinesses": "Businesses",
     "tabNotifications": "Notifications",
     "tabReferral": "Referral",
+    "tabTax": "Tax documents",
     "tabPrivacy": "Privacy & Data",
     "tabAccount": "Account Type",
     "tabDanger": "Danger Zone",
@@ -13844,6 +13845,7 @@
   },
   "reviewReport": {
     "title": "Report This Review",
+    "report": "Report",
     "info": "Help us maintain community quality by reporting reviews that violate our guidelines. False reports may affect your account.",
     "reasonLabel": "Why are you reporting this?",
     "reason": {
@@ -31558,7 +31560,11 @@
     "confirm": "Send {{amount}} to your bank now?",
     "noBalance": "No balance is available for instant payout yet.",
     "requested": "Instant payout of {{amount}} requested.",
-    "failed": "Couldn't request the payout. Try again later."
+    "failed": "Couldn't request the payout. Try again later.",
+    "taxIdentityRequired": "Payout blocked: tax identity required.",
+    "taxBlockedTitle": "Tax documents required",
+    "taxBlockedCopy": "Before payouts can be released, complete your W-9 tax form. It takes a minute.",
+    "taxBlockedCta": "Complete W-9"
   },
   "jobEdit": {
     "editJob": "Edit job",
@@ -31867,5 +31873,41 @@
       "impersonation_blocked": "Not allowed in an impersonated session.",
       "feature_disabled": "Not available."
     }
+  },
+  "w9": {
+    "title": "Tax documents (W-9)",
+    "subtitle": "File your W-9 so payouts can be released. Your tax ID is stored encrypted.",
+    "intro": "Complete the W-9 below. Your taxpayer identification number is encrypted before storage, and only the last four digits are ever shown back to you.",
+    "legalName": "Legal name",
+    "legalNamePlaceholder": "Full legal name as shown on your tax return",
+    "businessName": "Business name (optional)",
+    "businessNamePlaceholder": "Disregarded entity or business name, if different",
+    "taxClassification": "Federal tax classification",
+    "classification": {
+      "individual": "Individual / sole proprietor",
+      "c_corp": "C Corporation",
+      "s_corp": "S Corporation",
+      "partnership": "Partnership",
+      "trust_estate": "Trust / estate",
+      "llc": "Limited liability company (LLC)"
+    },
+    "tin": "Taxpayer identification number",
+    "tinPlaceholder": "SSN or EIN, digits only",
+    "tinHelp": "Your Social Security number or Employer Identification number. Stored encrypted.",
+    "tinInvalid": "Enter a valid taxpayer identification number (at least 9 digits).",
+    "street": "Street address",
+    "city": "City",
+    "state": "State",
+    "zip": "ZIP code",
+    "signature": "Draw your signature",
+    "signatureRequired": "Please draw your signature before submitting.",
+    "certify": "Under penalties of perjury, I certify that the information on this form is correct and that I am a U.S. person for tax purposes.",
+    "certifyRequired": "Please check the certification box to continue.",
+    "submit": "Submit W-9",
+    "submitting": "Submitting...",
+    "success": "W-9 submitted. Your tax documents are on file.",
+    "error": "Could not submit your W-9. Please try again.",
+    "filedTitle": "W-9 on file",
+    "filedCopy": "Your W-9 tax form has been received. You do not need to submit it again."
   }
 }
