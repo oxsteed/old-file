@@ -10553,7 +10553,10 @@
       "total": "Total",
       "payment": "Paiement",
       "created": "Créé",
-      "empty": "Aucune commande trouvée."
+      "empty": "Aucune commande trouvée.",
+      "prevPage": "Précédent",
+      "nextPage": "Suivant",
+      "pageOf": "Page {{page}} sur {{pages}}"
     }
   },
   "auditLogFilter": {

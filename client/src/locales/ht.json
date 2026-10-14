@@ -10553,7 +10553,10 @@
       "total": "Total",
       "payment": "Peman",
       "created": "Kreye",
-      "empty": "Pa jwenn okenn kòmand."
+      "empty": "Pa jwenn okenn kòmand.",
+      "prevPage": "Anvan",
+      "nextPage": "Apre",
+      "pageOf": "Paj {{page}} sou {{pages}}"
     }
   },
   "auditLogFilter": {

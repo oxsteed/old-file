@@ -10553,7 +10553,10 @@
       "total": "الإجمالي",
       "payment": "الدفع",
       "created": "تم الإنشاء",
-      "empty": "لم يتم العثور على طلبات."
+      "empty": "لم يتم العثور على طلبات.",
+      "prevPage": "السابق",
+      "nextPage": "التالي",
+      "pageOf": "صفحة {{page}} من {{pages}}"
     }
   },
   "auditLogFilter": {
