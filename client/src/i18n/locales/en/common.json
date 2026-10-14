@@ -1,4 +1,7 @@
 {
+  "helperOnboarding": {
+    "background": "Background check (may be required for certain activities or requested by some clients)"
+  },
   "reviewW11Learn": {
     "flagNotFound": "Video flag not found.",
     "flagAlreadyDecided": "This video flag was already reviewed.",

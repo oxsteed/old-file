@@ -1,4 +1,7 @@
 {
+  "helperOnboarding": {
+    "background": "Vérification des antécédents (peut être requise pour certaines activités ou demandée par certains clients)"
+  },
   "reviewW11Learn": {
     "flagNotFound": "Signalement de vidéo introuvable.",
     "flagAlreadyDecided": "Ce signalement de vidéo a déjà été examiné.",

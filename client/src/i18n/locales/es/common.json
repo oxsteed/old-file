@@ -1,4 +1,7 @@
 {
+  "helperOnboarding": {
+    "background": "Verificación de antecedentes (puede ser necesaria para ciertas actividades o solicitada por algunos clientes)"
+  },
   "reviewW11Learn": {
     "flagNotFound": "No se encontró el reporte del vídeo.",
     "flagAlreadyDecided": "Este reporte del vídeo ya se revisó.",

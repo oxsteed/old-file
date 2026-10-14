@@ -31597,7 +31597,7 @@
     "identityHelp": "Vérifiez votre identité pour être référencé.",
     "identityPending": "Votre vérification d'identité est en cours d'examen.",
     "verifyNow": "Vérifier l'identité",
-    "background": "Vérification des antécédents (facultatif)",
+    "background": "Vérification des antécédents (peut être requise pour certaines activités ou demandée par certains clients)",
     "backgroundConsent": "Je consens à une vérification des antécédents",
     "backgroundSaved": "Consentement enregistré",
     "backgroundPending": "Vérification des antécédents en cours.",

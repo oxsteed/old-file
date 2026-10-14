@@ -31597,7 +31597,7 @@
     "identityHelp": "Verifica tu identidad para aparecer en el directorio.",
     "identityPending": "Tu verificación de identidad está en revisión.",
     "verifyNow": "Verificar identidad",
-    "background": "Verificación de antecedentes (opcional)",
+    "background": "Verificación de antecedentes (puede ser necesaria para ciertas actividades o solicitada por algunos clientes)",
     "backgroundConsent": "Doy mi consentimiento para una verificación de antecedentes",
     "backgroundSaved": "Consentimiento registrado",
     "backgroundPending": "Verificación de antecedentes en curso.",

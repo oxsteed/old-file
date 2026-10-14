@@ -31597,7 +31597,7 @@
     "identityHelp": "Verify your identity to be listed.",
     "identityPending": "Your identity check is being reviewed.",
     "verifyNow": "Verify identity",
-    "background": "Background check (optional)",
+    "background": "Background check (may be required for certain activities or requested by some clients)",
     "backgroundConsent": "I consent to a background check",
     "backgroundSaved": "Background check consent recorded",
     "backgroundPending": "Background check in progress.",

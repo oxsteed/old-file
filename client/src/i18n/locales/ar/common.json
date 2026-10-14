@@ -1,4 +1,7 @@
 {
+  "helperOnboarding": {
+    "background": "فحص الخلفية (قد يكون مطلوبًا لبعض الأنشطة أو بناءً على طلب بعض العملاء)"
+  },
   "reviewW11Learn": {
     "flagNotFound": "لم يُعثر على بلاغ الفيديو.",
     "flagAlreadyDecided": "تمت مراجعة بلاغ الفيديو هذا مسبقًا.",
