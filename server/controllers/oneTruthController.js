@@ -1253,7 +1253,7 @@ exports.getStats = async (req, res) => {
       // The column default is 'usd', so a blank currency coalesces to USD.
       const { rows: volumeRows } = await client.query(
         `SELECT UPPER(COALESCE(NULLIF(TRIM(p.currency), ''), 'USD')) AS currency,
-                COALESCE(SUM(CASE WHEN p.status IN ('captured', 'released') THEN p.amount ELSE 0 END), 0) AS volume_amount
+                COALESCE(SUM(CASE WHEN p.status = 'captured' THEN p.amount ELSE 0 END), 0) AS volume_amount
          FROM payments p
          JOIN users payer ON payer.id = p.payer_id
          ${paymentWhere}

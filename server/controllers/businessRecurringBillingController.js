@@ -128,6 +128,11 @@ exports.generateInvoice = async (req, res, next) => {
       if (!billingRow.rows.length) return { missing: true };
       const billing = billingRow.rows[0];
 
+      // P3-9-F04 (fail closed): cancelled or paused plans must never mint an
+      // invoice, even via direct API calls that bypass the scheduler. Only
+      // 'active' plans generate invoices.
+      if (billing.status !== 'active') return { planInactive: true };
+
       // Period length in days for this billing's frequency. Both the
       // duplicate guard and the next_billing_date advance below use it.
       const freqMap = { weekly: 7, biweekly: 14, monthly: 30, quarterly: 90, annually: 365 };
@@ -243,6 +248,12 @@ exports.generateInvoice = async (req, res, next) => {
     }, 'generate_recurring_invoice');
     if (generated.missing) return res.status(404).json({ error: 'Not found' });
     if (generated.businessMissing) return res.status(404).json({ error: 'Business not found' });
+    if (generated.planInactive) {
+      return res.status(409).json({
+        error: 'This recurring billing plan is not active. Only active plans can generate invoices.',
+        code: 'billing_plan_inactive',
+      });
+    }
     if (generated.alreadyBilled) {
       return res.status(409).json({
         error: 'This billing period was already invoiced. Move the next billing date forward to bill a new period.',

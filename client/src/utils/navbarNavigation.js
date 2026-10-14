@@ -43,7 +43,7 @@ export function navbarNavigation(user, { dashboardPath = '/dashboard', workspace
   const account = [];
   if (customer) account.push(link('dashboard', dashboardPath, 'nav.dashboard'), link('foodOrders', '/orders', 'nav.foodOrders'));
   if (helper && canAccessBusinessHub(effectiveUser)) account.push(link('workspace', workspacePath, 'nav.businessWorkspace'));
-  account.push(link('settings', '/settings', 'nav.settings'), link('statements', '/statements', 'statementCenter.title'));
+  account.push(link('settings', '/settings', 'nav.settings'), link('wallet', '/wallet', 'nav.wallet'), link('statements', '/statements', 'statementCenter.title'));
   if (showSupportWorkspace && !primary.some(item => item.to === '/support/agent')) {
     account.push(link('support', '/support/agent', 'nav.supportWorkspace'));
   }

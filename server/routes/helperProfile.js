@@ -656,12 +656,18 @@ router.post('/gallery', helperOnly, generalLimiter, async (req, res) => {
   try {
     const { url, caption, sort_order } = req.body;
     if (!url) return res.status(400).json({ error: 'url required' });
+    // P3-6-F11: same https + storage/CDN host allowlist as profile/cover
+    // photos; never store an arbitrary unverified URL.
+    const validUrl = validateMediaUrl(url, 'gallery image URL');
     const { rows: [img] } = await pool.query(
       'INSERT INTO helper_gallery (user_id, url, caption, sort_order) VALUES ($1,$2,$3,$4) RETURNING *',
-      [req.user.id, url, caption||null, sort_order||0],
+      [req.user.id, validUrl, caption||null, sort_order||0],
     );
     res.status(201).json(img);
   } catch (err) {
+    if (err.statusCode && err.statusCode < 500) {
+      return res.status(err.statusCode).json({ error: err.message, code: err.code });
+    }
     logger.error('[helperProfile] POST /gallery', { err: err.message });
     res.status(500).json({ error: 'Failed to add image' });
   }

@@ -128,6 +128,7 @@ describe('business recurring billing backend wiring', () => {
       client_name: 'Acme',
       client_email: 'acme@example.com',
       description: 'Monthly service',
+      status: 'active',
     };
 
     // Query order inside the transaction (the test mock of withTransaction
@@ -220,6 +221,23 @@ describe('business recurring billing backend wiring', () => {
       );
       expect(res.status).toBe(200);
       expect(res.body).toMatchObject({ id: 7, invoice_number: 'INV-2026-0042' });
+    });
+
+    // P3-9-F04 (fail closed): cancelled or paused plans must never mint an
+    // invoice, even via direct API calls that bypass the scheduler.
+    test.each(['paused', 'cancelled'])('rejects invoice generation for a %s plan', async (status) => {
+      mockQuery.mockResolvedValueOnce({ rows: [] }); // advisory lock
+      mockQuery.mockResolvedValueOnce({ rows: [{ ...billingRow, status }] }); // billing FOR UPDATE
+
+      const res = await request(buildGenerateApp()).post(
+        '/api/businesses/biz-1/recurring-billing/rb-1/generate-invoice'
+      );
+      expect(res.status).toBe(409);
+      expect(res.body.code).toBe('billing_plan_inactive');
+      const insertCall = mockQuery.mock.calls.find((c) =>
+        String(c[0]).includes('INSERT INTO business_invoices')
+      );
+      expect(insertCall).toBeUndefined();
     });
   });
 });

@@ -225,3 +225,45 @@ test('serialization retries are bounded and ordinary DB errors are never retried
   await expect(service.getStatement(OWNER, MONTH)).rejects.toMatchObject({ code: '42P01' });
   expect(Pool.mockConnect).toHaveBeenCalledTimes(1); expect(Pool.mockRelease).toHaveBeenCalledTimes(1);
 });
+
+describe('P2-5-F04 issuance grace window on the on-demand path', () => {
+  const GRACE_NOW = '2026-10-02T12:00:00.000Z'; // within 72h of 2026-09-30 month end
+  function withNow(nowText) {
+    const original = mockQuery.getMockImplementation();
+    mockQuery.mockImplementation(async (sql, values) => {
+      if (sql.includes('transaction_timestamp()')) return { rows: [{ now: nowText }] };
+      return original(sql, values);
+    });
+  }
+
+  test('monthly build inside the grace window fails closed with 409', async () => {
+    withNow(GRACE_NOW);
+    await expect(service.getStatement(OWNER, MONTH)).rejects.toMatchObject({
+      code: 'statement_grace_not_elapsed', statusCode: 409,
+    });
+    expect(calls.some(([sql]) => sql.includes('INSERT INTO credit_statement_documents'))).toBe(false);
+  });
+
+  test('monthly build after the grace window succeeds', async () => {
+    withNow('2026-10-04T00:00:01.000Z');
+    const document = await service.getStatement(OWNER, MONTH);
+    expect(document.kind).toBe('monthly');
+  });
+
+  test('interim build inside the grace window is not gated', async () => {
+    withNow(GRACE_NOW);
+    const document = await service.getStatement(OWNER, { from: '2026-10-01', to: '2026-10-02' });
+    expect(document.kind).toBe('interim');
+  });
+
+  test('archived monthly reads bypass the grace gate', async () => {
+    withNow(GRACE_NOW);
+    saved = { document: { kind: 'monthly', contentHash: 'abc' }, content_hash: 'abc' };
+    // hashDocument strips contentHash before hashing, so align the stub
+    const { hashDocument } = service;
+    saved.document.contentHash = hashDocument(saved.document);
+    saved.content_hash = saved.document.contentHash;
+    const document = await service.getStatement(OWNER, MONTH);
+    expect(document.kind).toBe('monthly');
+  });
+});
