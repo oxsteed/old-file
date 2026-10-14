@@ -2025,5 +2025,30 @@
     "submitAppeal": "Envoyer l'appel",
     "appealSubmitted": "Appel envoyé",
     "appealFailed": "Impossible d'envoyer l'appel"
+  },
+  "creditFunding": {
+    "title": "Financez votre réserve de crédit",
+    "lede": "Votre approbation est presque terminée. Financez votre réserve de crédit OxSteed pour commencer à émettre du crédit restaurant.",
+    "loading": "Chargement des options de financement…",
+    "loadFailed": "Impossible de charger les options de financement.",
+    "stripeBody": "Payez en toute sécurité par carte via Stripe. Votre réserve est créditée automatiquement une fois le paiement réussi.",
+    "stripeHint": "Utilisez le panneau d’achat de réserve ci-dessous pour financer par carte.",
+    "sendTo": "Envoyez votre paiement à :",
+    "qrAlt": "Code QR de paiement",
+    "noInstructions": "Le financement manuel n’est pas encore configuré pour votre pays. Veuillez contacter le support OxSteed.",
+    "amount": "Montant envoyé",
+    "proof": "Preuve de paiement",
+    "proofUploaded": "Preuve téléversée.",
+    "uploadFailed": "Échec du téléversement de la preuve.",
+    "reference": "Référence de paiement (facultatif)",
+    "referencePlaceholder": "ID de transaction ou numéro de référence",
+    "note": "Note (facultatif)",
+    "validAmount": "Saisissez un montant de financement valide.",
+    "proofRequired": "Téléversez une preuve de paiement ou saisissez une référence.",
+    "submit": "Soumettre pour vérification",
+    "submitting": "Envoi en cours…",
+    "submitted": "Preuve de financement soumise pour examen.",
+    "submitFailed": "Impossible de soumettre la preuve de financement.",
+    "reviewNote": "OxSteed examine votre preuve et crédite votre réserve une fois vérifiée."
   }
 }

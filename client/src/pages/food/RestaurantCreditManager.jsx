@@ -13,6 +13,7 @@ import { apiErrorMessage } from './foodShared';
 import { formatCreditDateTime } from '../../lib/creditDateTime';
 import RestaurantCreditReservePanel from './RestaurantCreditReservePanel';
 import RestaurantCreditExposurePanel from './RestaurantCreditExposurePanel';
+import RestaurantCreditFundingPanel from './RestaurantCreditFundingPanel';
 
 function requestProof(request) {
   const metadata = request?.metadata && typeof request.metadata === 'object' ? request.metadata : {};
@@ -237,6 +238,11 @@ export default function RestaurantCreditManager({ restaurant }) {
             <p>Grace period ends: {displayDate(approval.gracePeriodEndsAt)}</p>
           )}
         </div>
+      )}
+
+      {/* Funding step: approval isn't complete until the reserve is funded. */}
+      {approval && approval.status === 'approved' && approval.fundingStatus !== 'funded' && (
+        <RestaurantCreditFundingPanel restaurant={restaurant} approval={approval} onFunded={load} />
       )}
 
       {grantOpen && (

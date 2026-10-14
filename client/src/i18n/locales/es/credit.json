@@ -2025,5 +2025,30 @@
     "submitAppeal": "Enviar apelación",
     "appealSubmitted": "Apelación enviada",
     "appealFailed": "No se pudo enviar la apelación"
+  },
+  "creditFunding": {
+    "title": "Fondea tu reserva de crédito",
+    "lede": "Tu aprobación está casi completa. Fondea tu reserva de crédito OxSteed para empezar a emitir crédito de restaurante.",
+    "loading": "Cargando opciones de fondeo…",
+    "loadFailed": "No se pudieron cargar las opciones de fondeo.",
+    "stripeBody": "Paga de forma segura con tarjeta vía Stripe. Tu reserva se acredita automáticamente cuando el pago se completa.",
+    "stripeHint": "Usa el panel de compra de reserva para fondear con tarjeta.",
+    "sendTo": "Envía tu pago a:",
+    "qrAlt": "Código QR de pago",
+    "noInstructions": "El fondeo manual aún no está configurado para tu país. Contacta al soporte de OxSteed.",
+    "amount": "Monto que enviaste",
+    "proof": "Comprobante de pago",
+    "proofUploaded": "Comprobante subido.",
+    "uploadFailed": "Falló la subida del comprobante.",
+    "reference": "Referencia de pago (opcional)",
+    "referencePlaceholder": "ID de transacción o número de referencia",
+    "note": "Nota (opcional)",
+    "validAmount": "Ingresa un monto de fondeo válido.",
+    "proofRequired": "Sube un comprobante de pago o ingresa una referencia.",
+    "submit": "Enviar para verificación",
+    "submitting": "Enviando…",
+    "submitted": "Comprobante de fondeo enviado para revisión.",
+    "submitFailed": "No se pudo enviar el comprobante de fondeo.",
+    "reviewNote": "OxSteed revisa tu comprobante y acredita tu reserva una vez verificado."
   }
 }

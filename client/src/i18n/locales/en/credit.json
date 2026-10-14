@@ -2025,5 +2025,30 @@
     "submitAppeal": "Submit appeal",
     "appealSubmitted": "Appeal submitted",
     "appealFailed": "Could not submit the appeal"
+  },
+  "creditFunding": {
+    "title": "Fund your credit reserve",
+    "lede": "Your approval is almost complete. Fund your OxSteed Credit reserve to start issuing restaurant credit.",
+    "loading": "Loading funding options…",
+    "loadFailed": "Unable to load funding options.",
+    "stripeBody": "Pay securely by card via Stripe. Your reserve is credited automatically once payment succeeds.",
+    "stripeHint": "Use the reserve purchase panel below to fund by card.",
+    "sendTo": "Send your payment to:",
+    "qrAlt": "Payment QR code",
+    "noInstructions": "Manual funding is not yet configured for your country. Please contact OxSteed support.",
+    "amount": "Amount you sent",
+    "proof": "Proof of payment",
+    "proofUploaded": "Proof uploaded.",
+    "uploadFailed": "Proof upload failed.",
+    "reference": "Payment reference (optional)",
+    "referencePlaceholder": "Transaction ID or reference number",
+    "note": "Note (optional)",
+    "validAmount": "Enter a valid funding amount.",
+    "proofRequired": "Upload proof of payment or enter a reference.",
+    "submit": "Submit for verification",
+    "submitting": "Submitting…",
+    "submitted": "Funding proof submitted for review.",
+    "submitFailed": "Could not submit funding proof.",
+    "reviewNote": "OxSteed reviews your proof and credits your reserve once verified."
   }
 }

@@ -2901,7 +2901,36 @@ exports.setRestaurantCreditApproval = async (req, res, next) => {
       return approvalRow;
     }, 'food_credit_approval_update');
 
-    res.json({ approval: formatCreditApprovalResponse(approval, restaurant) });
+    // When newly approved, determine the funding path so the admin response
+    // tells the restaurant exactly how to fund its reserve. Approval isn't
+    // complete until funding_status flips to 'funded'.
+    let fundingPath = null;
+    if (status === 'approved') {
+      try {
+        const fundingService = require('../services/restaurantCreditFundingService');
+        fundingPath = await fundingService.determineFundingPath({ restaurantId });
+        // Record the chosen method on the approval row.
+        await pool.query(
+          `UPDATE restaurant_credit_approvals
+              SET funding_method = $2, updated_at = NOW()
+            WHERE restaurant_id = $1 AND funding_method IS NULL`,
+          [restaurantId, fundingPath.method]
+        );
+      } catch (fundingErr) {
+        // Funding path determination must not break the approval itself;
+        // the merchant can fetch it via the funding-path endpoint.
+        const logger = require('../utils/logger');
+        logger.warn('funding path determination failed after approval', {
+          restaurantId,
+          error: fundingErr.message,
+        });
+      }
+    }
+
+    res.json({
+      approval: formatCreditApprovalResponse(approval, restaurant),
+      fundingPath,
+    });
   } catch (err) {
     next(err);
   }
