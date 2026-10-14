@@ -505,6 +505,7 @@ function verifyStillEnglishValues() {
     ['common namespace', (language) => `src/i18n/locales/${language}/common.json`],
     ['translator namespace', (language) => `src/i18n/locales/${language}/translator.json`],
     ['credit namespace', (language) => `src/i18n/locales/${language}/credit.json`],
+    ['attention namespace', (language) => `src/i18n/locales/${language}/attention.json`],
     ['terms content', (language) => `src/locales/terms/${language}.content.json`],
     ['privacy content', (language) => `src/locales/privacy/${language}.content.json`],
   ];
@@ -647,6 +648,7 @@ function getResolutionCatalogs() {
     common: readJson('src/i18n/locales/en/common.json'),
     translator: readJson('src/i18n/locales/en/translator.json'),
     credit: readJson('src/i18n/locales/en/credit.json'),
+    attention: readJson('src/i18n/locales/en/attention.json'),
     // The runtime projects these legacy subtrees as explicit namespaces
     // (see src/i18n/index.js getLocaleResources).
     support: resolveCatalogKey(translation, 'support') || {},
@@ -654,7 +656,7 @@ function getResolutionCatalogs() {
   };
 }
 
-const I18N_KNOWN_NAMESPACES = ['translation', 'common', 'translator', 'credit', 'support', 'adminQuoteRequests'];
+const I18N_KNOWN_NAMESPACES = ['translation', 'common', 'translator', 'credit', 'support', 'adminQuoteRequests', 'attention'];
 const I18N_PLURAL_SUFFIXES = ['_zero', '_one', '_two', '_few', '_many', '_other'];
 
 function translationKeyExists(catalogs, namespace, key) {
@@ -761,6 +763,7 @@ verifyArrayParity('legacy translation', (language) => `src/locales/${language}.j
 verifyArrayParity('common namespace', (language) => `src/i18n/locales/${language}/common.json`);
 verifyArrayParity('translator namespace', (language) => `src/i18n/locales/${language}/translator.json`);
 verifyArrayParity('credit namespace', (language) => `src/i18n/locales/${language}/credit.json`);
+verifyArrayParity('attention namespace', (language) => `src/i18n/locales/${language}/attention.json`);
 verifyArrayParity('terms content', (language) => `src/locales/terms/${language}.content.json`);
 verifyArrayParity('privacy content', (language) => `src/locales/privacy/${language}.content.json`);
 verifyStillEnglishValues();
@@ -770,12 +773,14 @@ compareKeySets('legacy translation', (language) => `src/locales/${language}.json
 compareKeySets('common namespace', (language) => `src/i18n/locales/${language}/common.json`);
 compareKeySets('translator namespace', (language) => `src/i18n/locales/${language}/translator.json`);
 compareKeySets('credit namespace', (language) => `src/i18n/locales/${language}/credit.json`);
+compareKeySets('attention namespace', (language) => `src/i18n/locales/${language}/attention.json`);
 compareKeySets('terms content', (language) => `src/locales/terms/${language}.content.json`);
 compareKeySets('privacy content', (language) => `src/locales/privacy/${language}.content.json`);
 verifyInterpolationParity('legacy translation', (language) => `src/locales/${language}.json`);
 verifyInterpolationParity('common namespace', (language) => `src/i18n/locales/${language}/common.json`);
 verifyInterpolationParity('translator namespace', (language) => `src/i18n/locales/${language}/translator.json`);
 verifyInterpolationParity('credit namespace', (language) => `src/i18n/locales/${language}/credit.json`);
+verifyInterpolationParity('attention namespace', (language) => `src/i18n/locales/${language}/attention.json`);
 verifyInterpolationParity('terms content', (language) => `src/locales/terms/${language}.content.json`);
 verifyInterpolationParity('privacy content', (language) => `src/locales/privacy/${language}.content.json`);
 verifyI18nIndex();
