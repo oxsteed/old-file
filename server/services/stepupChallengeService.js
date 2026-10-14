@@ -50,6 +50,30 @@ const STEPUP_ACTION_TYPES = Object.freeze([
   'customer_transfer',
   'restaurant_conversion',
   'pending_action_approve',
+  // ADM-079: maker step-up for the generic pending-actions endpoint.
+  'pending_action_request',
+  // ADM-186: approver step-up for agent-console credit adjustments.
+  'agent_credit_adjustment_approve',
+  // ADM-020: the KYC/AML review perimeter is one admin deep; decisions that
+  // unlock fiat funding (identity tier grants, sanctions-hit clears) or move
+  // a compliance case require a fresh step-up challenge.
+  'compliance_verification_decision',
+  'compliance_sanction_decision',
+  'compliance_case_transition',
+  // ADM-082: money-adjacent controls (wallet freeze/unfreeze, agreement
+  // create/activate, entitlement grants) execute under a single admin;
+  // require a fresh step-up challenge.
+  'credit_account_status_update',
+  'credit_agreement_create',
+  'credit_agreement_transition',
+  'credit_entitlement_upsert',
+  // ADM-113: single-admin approval moves arbitrary sums via Stripe Transfer;
+  // require a fresh step-up challenge.
+  'restaurant_payout_approve',
+  // ADM-112: manual refunds move arbitrary sums with a single grant and no
+  // amount tiering; require a fresh step-up challenge per refund. (Full
+  // two-person approval for refunds is a product decision for Emile.)
+  'manual_refund',
 ]);
 
 function getStepupPepper() {

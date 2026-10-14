@@ -346,6 +346,58 @@ describe('rejectChange / scheduleChange', () => {
     expect(res.status).toHaveBeenCalledWith(400);
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ code: 'invalid_effective_at' }));
   });
+
+  test('ADM-001: proposer cannot schedule their own proposed request (separation of duties)', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [{ ...proposedRequest, status: 'proposed', proposed_by: PROPOSER_ID }] });
+    const res = responseDouble();
+    await settingsChangeController.scheduleChange(
+      requestDouble({
+        userId: PROPOSER_ID,
+        params: { id: REQUEST_ID },
+        body: { effective_at: new Date(Date.now() + 3600_000).toISOString() },
+      }),
+      res
+    );
+    expect(res.status).toHaveBeenCalledWith(403);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ code: 'separation_of_duties' }));
+    expect(sqlCalls('UPDATE settings_change_requests')).toHaveLength(0);
+  });
+
+  test('ADM-001: a different admin may schedule a proposed request and is recorded as reviewer', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ ...proposedRequest, status: 'proposed', proposed_by: PROPOSER_ID }] })
+      .mockResolvedValueOnce({ rows: [{ ...proposedRequest, status: 'scheduled', reviewed_by: APPROVER_ID }] });
+    const res = responseDouble();
+    await settingsChangeController.scheduleChange(
+      requestDouble({
+        userId: APPROVER_ID,
+        params: { id: REQUEST_ID },
+        body: { effective_at: new Date(Date.now() + 3600_000).toISOString() },
+      }),
+      res
+    );
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({ request: expect.objectContaining({ status: 'scheduled', reviewed_by: APPROVER_ID }) })
+    );
+    const update = sqlCalls('UPDATE settings_change_requests')[0][0];
+    expect(update).toMatch(/reviewed_by/);
+  });
+
+  test('ADM-104: rollout_percent is rejected (staged rollouts unsupported)', async () => {
+    const res = responseDouble();
+    await settingsChangeController.proposeChange(
+      requestDouble({
+        body: {
+          kind: 'setting', key: 'bid_expiry_hours', proposed_value: 48,
+          reason: 'test', rollout_percent: 10,
+        },
+      }),
+      res
+    );
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ code: 'rollout_not_supported' }));
+    expect(sqlCalls('INSERT INTO settings_change_requests')).toHaveLength(0);
+  });
 });
 
 describe('listChanges', () => {

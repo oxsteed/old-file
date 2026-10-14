@@ -84,14 +84,18 @@ describe('admin control-plane hardening', () => {
     expectProposal(res, 'flag', 'maintenance_rollout', false);
   });
 
-  test('rolls a platform setting back through the audited prior value', async () => {
-    mockQuery
-      .mockResolvedValueOnce({ rows: [] }) // BEGIN
-      .mockResolvedValueOnce({ rows: [{ key: 'bid_expiry_hours', value: '24', value_type: 'number', min_numeric_value: 1, max_numeric_value: 720, version: 4 }] })
-      .mockResolvedValueOnce({ rows: [{ before_state: { value: '72' } }] })
-      .mockResolvedValueOnce({ rows: [] }) // update
-      .mockResolvedValueOnce({ rows: [] }) // audit insert
-      .mockResolvedValueOnce({ rows: [] }); // COMMIT
+  test('proposes a platform setting rollback as a change request (no immediate apply)', async () => {
+    // ADM-034/ADM-128: rollback no longer applies immediately; it proposes a
+    // change request restoring the audited prior value, which a different
+    // admin must approve.
+    routeQueries(mockQuery, [
+      [/SELECT \* FROM platform_settings WHERE key/, { rows: [{ key: 'bid_expiry_hours', value: '24', value_type: 'number', min_numeric_value: 1, max_numeric_value: 720, version: 4 }] }],
+      [/SELECT before_state/, { rows: [{ before_state: { value: '72' } }] }],
+      [/INSERT INTO settings_change_requests/, (_sql, params) => ({ rows: [{
+        id: 'proposal-1', kind: 'setting', key: 'bid_expiry_hours', status: 'proposed',
+        proposed_value: JSON.parse(params[2]), proposed_by: ADMIN_ID,
+      }] })],
+    ]);
 
     const res = responseDouble();
     await superAdminController.rollbackSetting(
@@ -99,17 +103,21 @@ describe('admin control-plane hardening', () => {
       res,
     );
 
-    expect(res.json).toHaveBeenCalledWith({ message: 'Setting "bid_expiry_hours" rolled back.', value: '72' });
-    expect(mockQuery.mock.calls.some(([sql, params]) => /INSERT INTO admin_audit_log/.test(sql) && params.includes('platform_setting_rollback'))).toBe(true);
-    expect(mockQuery.mock.calls.some(([sql]) => /^COMMIT/.test(String(sql).trim()))).toBe(true);
+    expect(res.status).toHaveBeenCalledWith(202);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+      code: 'change_proposed',
+      change_request_id: 'proposal-1',
+      request: expect.objectContaining({ status: 'proposed', proposed_value: '72' }),
+    }));
+    expect(mockQuery.mock.calls.some(([sql]) => /UPDATE platform_settings/.test(sql))).toBe(false);
+    expect(mockQuery.mock.calls.some(([sql, params]) => /INSERT INTO admin_audit_log/.test(sql) && params.includes('settings_change_proposed'))).toBe(true);
   });
 
   test('refuses a rollback when no audited prior state exists', async () => {
-    mockQuery
-      .mockResolvedValueOnce({ rows: [] }) // BEGIN
-      .mockResolvedValueOnce({ rows: [{ key: 'support_email', value: 'new@example.com', value_type: 'text', version: 2 }] })
-      .mockResolvedValueOnce({ rows: [] }) // history
-      .mockResolvedValueOnce({ rows: [] }); // ROLLBACK
+    routeQueries(mockQuery, [
+      [/SELECT \* FROM platform_settings WHERE key/, { rows: [{ key: 'support_email', value: 'new@example.com', value_type: 'text', version: 2 }] }],
+      [/SELECT before_state/, { rows: [] }],
+    ]);
 
     const res = responseDouble();
     await superAdminController.rollbackSetting(
@@ -119,7 +127,35 @@ describe('admin control-plane hardening', () => {
 
     expect(res.status).toHaveBeenCalledWith(409);
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ code: 'rollback_unavailable' }));
-    expect(mockQuery.mock.calls.some(([sql]) => /UPDATE platform_settings/.test(sql))).toBe(false);
+    expect(mockQuery.mock.calls.some(([sql]) => /UPDATE platform_settings|INSERT INTO settings_change_requests/.test(sql))).toBe(false);
+  });
+
+  test('proposes a feature flag rollback as a change request (no immediate flip)', async () => {
+    // ADM-034/ADM-128: flag rollback no longer flips immediately; it proposes
+    // a change request restoring the audited prior state.
+    routeQueries(mockQuery, [
+      [/SELECT is_enabled FROM feature_flags WHERE key/, { rows: [{ key: 'new_dashboard', is_enabled: true }] }],
+      [/SELECT before_state/, { rows: [{ before_state: { is_enabled: false } }] }],
+      [/SELECT key FROM feature_flags WHERE key/, { rows: [{ key: 'new_dashboard' }] }],
+      [/INSERT INTO settings_change_requests/, (_sql, params) => ({ rows: [{
+        id: 'proposal-2', kind: 'flag', key: 'new_dashboard', status: 'proposed',
+        proposed_value: JSON.parse(params[2]), proposed_by: ADMIN_ID,
+      }] })],
+    ]);
+
+    const res = responseDouble();
+    await superAdminController.rollbackFeatureFlag(
+      requestDouble({ key: 'new_dashboard' }, {}),
+      res,
+    );
+
+    expect(res.status).toHaveBeenCalledWith(202);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+      code: 'change_proposed',
+      change_request_id: 'proposal-2',
+      request: expect.objectContaining({ status: 'proposed', proposed_value: false }),
+    }));
+    expect(mockQuery.mock.calls.some(([sql]) => /UPDATE feature_flags/.test(sql))).toBe(false);
   });
 
   test('proposes a zero escrow delay when the row carries migration 591 metadata', async () => {

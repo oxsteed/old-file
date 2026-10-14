@@ -2796,6 +2796,12 @@ html:not(.dark) .fd-star-btn { color: #9ca3af; }
 
 /* Restaurant credit review stays operational without exposing ledger jargon. */
 .fd-credit-manager { margin-bottom: 1rem; }
+.fd-credit-approval-banner { margin: 1rem 0; padding: 0.9rem 1rem; border-radius: 12px; border: 1px solid; display: grid; gap: 0.3rem; }
+.fd-credit-approval-banner[data-status="suspended"] { border-color: #f59e0b55; background: #fffbeb; color: #92400e; }
+.fd-credit-approval-banner[data-status="revoked"] { border-color: #ef444455; background: #fef2f2; color: #991b1b; }
+.fd-credit-approval-banner p { margin: 0; font-size: 0.82rem; }
+html.dark .fd-credit-approval-banner[data-status="suspended"] { background: #451a0355; color: #fcd34d; }
+html.dark .fd-credit-approval-banner[data-status="revoked"] { background: #450a0a55; color: #fca5a5; }
 .fd-credit-manager-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; }
 .fd-credit-manager-head h2 { margin: 0.2rem 0 0.3rem; }
 .fd-credit-manager-kicker { margin: 0; color: #ea7d10; font-size: 0.72rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }

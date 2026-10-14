@@ -3,7 +3,9 @@ import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 
-const STATUS_OPTIONS = ['pending', 'confirmed', 'preparing', 'ready', 'completed', 'cancelled', 'refunded'];
+// ADM-190: matches the food_orders.status CHECK (migration 305).
+const STATUS_OPTIONS = ['received', 'accepted', 'preparing', 'ready', 'completed', 'cancelled', 'refunded'];
+const PAGE_SIZE = 20;
 
 function statusTone(status) {
   const s = String(status || '').toLowerCase();
@@ -18,6 +20,8 @@ export default function AdminFoodOrders() {
   const [orders, setOrders] = useState([]);
   const [total, setTotal] = useState(0);
   const [status, setStatus] = useState('');
+  // ADM-092: paginate the list so older orders are reachable.
+  const [page, setPage] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -26,7 +30,7 @@ export default function AdminFoodOrders() {
     setError(null);
     try {
       const { data } = await axios.get('/api/admin/food-orders', {
-        params: { status: status || undefined, limit: 20 },
+        params: { status: status || undefined, limit: PAGE_SIZE, offset: page * PAGE_SIZE },
       });
       setOrders(data.orders || []);
       setTotal(data.total || 0);
@@ -35,9 +39,12 @@ export default function AdminFoodOrders() {
     } finally {
       setLoading(false);
     }
-  }, [status, t]);
+  }, [status, page, t]);
 
   useEffect(() => { load(); }, [load]);
+
+  const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const selectStatus = (value) => { setStatus(value); setPage(0); };
 
   return (
     <div className="rounded-2xl border border-gray-800 bg-[#111318] p-4 sm:p-5">
@@ -52,7 +59,7 @@ export default function AdminFoodOrders() {
       <div className="mb-4">
         <select
           value={status}
-          onChange={e => setStatus(e.target.value)}
+          onChange={e => selectStatus(e.target.value)}
           className="rounded-xl border border-gray-800 bg-gray-900/80 px-3 py-2 text-sm text-gray-200"
           aria-label={t('admin.foodOrders.filterStatus')}
         >
@@ -62,6 +69,30 @@ export default function AdminFoodOrders() {
           ))}
         </select>
       </div>
+
+      {!loading && !error && total > PAGE_SIZE && (
+        <div className="mb-4 flex items-center gap-3">
+          <button
+            type="button"
+            disabled={page === 0}
+            onClick={() => setPage(p => Math.max(0, p - 1))}
+            className="rounded-lg border border-gray-700 px-3 py-1.5 text-sm text-gray-200 hover:bg-gray-800 disabled:opacity-40"
+          >
+            {t('admin.foodOrders.prevPage')}
+          </button>
+          <span className="text-sm text-gray-400">
+            {t('admin.foodOrders.pageOf', { page: page + 1, pages: pageCount })}
+          </span>
+          <button
+            type="button"
+            disabled={page + 1 >= pageCount}
+            onClick={() => setPage(p => Math.min(pageCount - 1, p + 1))}
+            className="rounded-lg border border-gray-700 px-3 py-1.5 text-sm text-gray-200 hover:bg-gray-800 disabled:opacity-40"
+          >
+            {t('admin.foodOrders.nextPage')}
+          </button>
+        </div>
+      )}
 
       {loading && (
         <div className="space-y-2">

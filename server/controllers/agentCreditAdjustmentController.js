@@ -40,6 +40,9 @@ const logger = require('../utils/logger');
 const { withTransaction } = require('../utils/transaction');
 const creditService = require('../services/oxsteedCreditService');
 const { evaluateFundingCompliance } = require('../services/fiatComplianceService');
+// ADM-186: the approver must prove a fresh step-up challenge before money
+// moves, matching the super-admin checker path in decidePendingAction.
+const { issueStepupChallenge, verifyStepupChallenge } = require('../services/stepupChallengeService');
 
 const {
   assertCreditRailEnabled,
@@ -384,6 +387,48 @@ async function proposeAdjustment(req, res, next) {
 }
 
 /**
+ * POST /agent/credit-adjustments/stepup-challenges
+ * Issue a step-up challenge for approving an adjustment. The challenge is
+ * bound to the approver's identity and the adjustment's amount; the code
+ * travels by email and approveAdjustment verifies it before money moves.
+ */
+async function issueApprovalStepupChallenge(req, res, next) {
+  try {
+    const adminId = req.user?.id;
+    if (!adminId) throw new AppError('Unauthorized.', 401, 'unauthorized');
+    const id = parseUuidField(req.body?.adjustmentId ?? req.body?.adjustment_id, 'adjustmentId');
+    const { rows } = await pool.query(
+      `SELECT id, amount_cents, currency_code, status FROM credit_adjustments WHERE id = $1`,
+      [id]
+    );
+    const adjustment = rows[0];
+    if (!adjustment) throw new AppError('Credit adjustment not found', 404, 'credit_adjustment_not_found');
+    if (adjustment.status !== 'pending') {
+      throw new AppError('Only pending adjustments can be approved', 409, 'credit_adjustment_not_pending');
+    }
+    const { challenge, delivery } = await issueStepupChallenge({
+      actorUserId: adminId,
+      actorEmail: req.user?.email,
+      actionType: 'agent_credit_adjustment_approve',
+      amountCents: Math.abs(Number(adjustment.amount_cents)) || 1,
+      currencyCode: adjustment.currency_code || 'USD',
+    });
+    return res.status(201).json({
+      challenge: {
+        id: challenge.id,
+        actionType: challenge.actionType,
+        amountCents: challenge.amountCents,
+        currencyCode: challenge.currencyCode,
+        expiresAt: challenge.expiresAt,
+      },
+      delivery,
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+/**
  * POST /agent/credit-adjustments/:id/approve
  * The heart of the two-person rule: the approver MUST be a different admin
  * than the proposer. On approval the posting runs transactionally; a
@@ -412,6 +457,30 @@ async function approveAdjustment(req, res, next) {
           'credit_adjustment_two_person_violation'
         );
       }
+      // ADM-186: the approver must prove a fresh step-up challenge before any
+      // money moves, matching the super-admin checker path. The challenge is
+      // bound to the approver's identity; a stolen session alone cannot
+      // approve. Verified after the cheap checks so invalid requests do not
+      // burn single-use challenges.
+      await verifyStepupChallenge({
+        challengeId: req.body?.stepupChallengeId ?? req.body?.stepup_challenge_id,
+        actorUserId: adminId,
+        actionType: 'agent_credit_adjustment_approve',
+        code: req.body?.stepupCode ?? req.body?.stepup_code,
+      });
+      // ADM-019/ADM-114: the compliance choke point ran at propose time.
+      // Re-run it now, at the moment money moves, so a sanctions hit or
+      // identity-tier change in between fails closed. The transaction rolls
+      // back and the row stays pending.
+      await evaluateFundingCompliance({
+        customerId: adjustment.customer_id,
+        amountCents: Math.abs(adjustment.amount_cents),
+        currencyCode: adjustment.currency_code,
+        fundingMethod: 'agent_credit_adjustment',
+        actorUserId: adminId,
+        requestIp,
+        correlationId,
+      });
       const { rows } = await client.query(
         `UPDATE credit_adjustments
             SET status = 'approved', approved_by = $2, approved_at = NOW(), updated_at = NOW()
@@ -587,6 +656,7 @@ module.exports = {
   TWO_PERSON_THRESHOLD_CENTS,
   DAILY_ADJUSTMENT_CAP_CENTS,
   proposeAdjustment,
+  issueApprovalStepupChallenge,
   approveAdjustment,
   rejectAdjustment,
   cancelAdjustment,

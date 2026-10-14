@@ -24,9 +24,14 @@ jest.mock('../services/oxsteedCreditService', () => {
 jest.mock('../services/fiatComplianceService', () => ({
   evaluateFundingCompliance: jest.fn().mockResolvedValue({ allowed: true }),
 }));
+jest.mock('../services/stepupChallengeService', () => ({
+  issueStepupChallenge: jest.fn(),
+  verifyStepupChallenge: jest.fn(),
+}));
 
 const creditService = require('../services/oxsteedCreditService');
 const { evaluateFundingCompliance } = require('../services/fiatComplianceService');
+const { verifyStepupChallenge } = require('../services/stepupChallengeService');
 const AppError = require('../utils/appError');
 const controller = require('../controllers/agentCreditAdjustmentController');
 
@@ -120,7 +125,14 @@ beforeEach(() => {
   creditService.assertCreditRailEnabled.mockResolvedValue(undefined);
   creditService.adjustCustomerCreditInTransaction.mockResolvedValue({ transaction: { id: TXN_UUID } });
   evaluateFundingCompliance.mockResolvedValue({ allowed: true });
+  verifyStepupChallenge.mockResolvedValue({ verified: true });
 });
+
+// Every approveAdjustment test proves a step-up challenge: the endpoint
+// requires one (ADM-186).
+function approveBody(overrides = {}) {
+  return { stepupChallengeId: 'challenge-1', stepupCode: '123456', ...overrides };
+}
 
 describe('proposeAdjustment validation', () => {
   test('empty reason is rejected with 400 and never touches the database', async () => {
@@ -179,7 +191,7 @@ describe('two-person rule', () => {
     let error = null;
     try {
       await controller.approveAdjustment(
-        reqDouble({ params: { id: ADJ_ID } }), // same admin A
+        reqDouble({ body: approveBody(), params: { id: ADJ_ID } }), // same admin A
         resDouble(),
         throwingNext
       );
@@ -218,7 +230,7 @@ describe('two-person rule', () => {
 
     const approveRes = resDouble();
     await controller.approveAdjustment(
-      reqDouble({ params: { id: ADJ_ID }, user: { id: ADMIN_B } }),
+      reqDouble({ body: approveBody(), params: { id: ADJ_ID }, user: { id: ADMIN_B } }),
       approveRes,
       throwingNext
     );
@@ -275,7 +287,7 @@ describe('two-person rule', () => {
     });
 
     await controller.approveAdjustment(
-      reqDouble({ params: { id: ADJ_ID }, user: { id: ADMIN_B } }),
+      reqDouble({ body: approveBody(), params: { id: ADJ_ID }, user: { id: ADMIN_B } }),
       resDouble(),
       throwingNext
     );
@@ -325,7 +337,7 @@ describe('all amounts require maker-checker approval', () => {
 
     const approveRes = resDouble();
     await controller.approveAdjustment(
-      reqDouble({ params: { id: ADJ_ID }, user: { id: ADMIN_B } }),
+      reqDouble({ body: approveBody(), params: { id: ADJ_ID }, user: { id: ADMIN_B } }),
       approveRes,
       throwingNext
     );
@@ -384,6 +396,104 @@ describe('idempotent propose', () => {
 });
 
 describe('fail closed', () => {
+  // ADM-186: approving without a fresh step-up challenge fails closed; the
+  // challenge is verified after the row checks, before money moves.
+  test('approval without a step-up challenge is rejected before money moves', async () => {
+    verifyStepupChallenge.mockRejectedValue(
+      new AppError('A step-up verification code is required for this action', 403, 'credit_stepup_challenge_required')
+    );
+    mockQuery.mockImplementation(async () => ({ rows: [], rowCount: 0 }));
+    mockQuery.mockResolvedValueOnce({ rows: [pendingRow()], rowCount: 1 }); // SELECT FOR UPDATE
+
+    let error = null;
+    try {
+      await controller.approveAdjustment(
+        reqDouble({ params: { id: ADJ_ID }, user: { id: ADMIN_B } }),
+        resDouble(),
+        throwingNext
+      );
+    } catch (err) { error = err; }
+
+    expect(error).toBeInstanceOf(AppError);
+    expect(error.status).toBe(403);
+    expect(error.code).toBe('credit_stepup_challenge_required');
+    expect(verifyStepupChallenge).toHaveBeenCalledWith(expect.objectContaining({
+      actorUserId: ADMIN_B,
+      actionType: 'agent_credit_adjustment_approve',
+    }));
+    expect(creditService.adjustCustomerCreditInTransaction).not.toHaveBeenCalled();
+    expect(evaluateFundingCompliance).not.toHaveBeenCalled();
+  });
+
+  // ADM-019/ADM-114: the compliance choke point is re-evaluated at approval
+  // time. A sanctions hit that landed after the proposal fails the approval
+  // closed; the row stays pending and nothing posts.
+  test('a stale compliance pass at propose time does not survive to approval', async () => {
+    evaluateFundingCompliance
+      .mockResolvedValueOnce({ allowed: true }) // propose-time pass
+      .mockRejectedValueOnce(new AppError('Sanctions hit', 403, 'fiat_compliance_sanctions_hit')); // approval-time re-check
+
+    mockQuery
+      .mockResolvedValueOnce(emptyResult()) // advisory lock (propose)
+      .mockResolvedValueOnce({ rows: [pendingRow()], rowCount: 1 }) // INSERT propose
+      .mockResolvedValueOnce(emptyResult()); // audit proposed
+    const proposeRes = resDouble();
+    await controller.proposeAdjustment(
+      reqDouble({ body: { customerId: CUSTOMER, amountCents: 5000, reason: 'dinner credit', idempotencyKey: 'k-stale-compliance' } }),
+      proposeRes,
+      throwingNext
+    );
+    expect(proposeRes.statusCode).toBe(201);
+
+    mockQuery.mockReset();
+    mockQuery.mockImplementation(async () => ({ rows: [], rowCount: 0 }));
+    mockQuery.mockResolvedValueOnce({ rows: [pendingRow()], rowCount: 1 }); // SELECT FOR UPDATE
+
+    let error = null;
+    try {
+      await controller.approveAdjustment(
+        reqDouble({ body: approveBody(), params: { id: ADJ_ID }, user: { id: ADMIN_B } }),
+        resDouble(),
+        throwingNext
+      );
+    } catch (err) { error = err; }
+
+    expect(error).toBeInstanceOf(AppError);
+    expect(error.code).toBe('fiat_compliance_sanctions_hit');
+    expect(evaluateFundingCompliance).toHaveBeenCalledWith(expect.objectContaining({
+      customerId: CUSTOMER,
+      amountCents: 5000,
+      fundingMethod: 'agent_credit_adjustment',
+      actorUserId: ADMIN_B,
+    }));
+    expect(creditService.adjustCustomerCreditInTransaction).not.toHaveBeenCalled();
+  });
+
+  test('approval re-runs the compliance choke point with the approver as actor', async () => {
+    mockQuery.mockReset();
+    mockQuery.mockImplementation(async () => ({ rows: [], rowCount: 0 }));
+    const approvedRow = pendingRow({ status: 'approved', approved_by: ADMIN_B });
+    mockQuery
+      .mockResolvedValueOnce({ rows: [pendingRow()], rowCount: 1 }) // SELECT FOR UPDATE
+      .mockResolvedValueOnce({ rows: [approvedRow], rowCount: 1 }) // UPDATE -> approved
+      .mockResolvedValueOnce(emptyResult()); // audit approved
+    queueApplyLeg({});
+
+    const approveRes = resDouble();
+    await controller.approveAdjustment(
+      reqDouble({ body: approveBody(), params: { id: ADJ_ID }, user: { id: ADMIN_B } }),
+      approveRes,
+      throwingNext
+    );
+
+    expect(approveRes.statusCode).toBe(200);
+    expect(evaluateFundingCompliance).toHaveBeenCalledWith(expect.objectContaining({
+      customerId: CUSTOMER,
+      fundingMethod: 'agent_credit_adjustment',
+      actorUserId: ADMIN_B,
+    }));
+  });
+
   test('disabled rail: adjustment stays pending, nothing posts', async () => {
     creditService.assertCreditRailEnabled.mockRejectedValue(
       new AppError('OxSteed Credit is temporarily suspended', 503, 'credit_rail_suspended')
@@ -414,7 +524,7 @@ describe('fail closed', () => {
     let error = null;
     try {
       await controller.approveAdjustment(
-        reqDouble({ params: { id: ADJ_ID }, user: { id: ADMIN_B } }),
+        reqDouble({ body: approveBody(), params: { id: ADJ_ID }, user: { id: ADMIN_B } }),
         resDouble(),
         throwingNext
       );
@@ -452,7 +562,7 @@ describe('audit trail', () => {
     });
 
     await controller.approveAdjustment(
-      reqDouble({ params: { id: ADJ_ID }, user: { id: ADMIN_B } }),
+      reqDouble({ body: approveBody(), params: { id: ADJ_ID }, user: { id: ADMIN_B } }),
       resDouble(),
       throwingNext
     );
@@ -498,7 +608,7 @@ describe('daily cap', () => {
     let error = null;
     try {
       await controller.approveAdjustment(
-        reqDouble({ params: { id: ADJ_ID }, user: { id: ADMIN_B } }),
+        reqDouble({ body: approveBody(), params: { id: ADJ_ID }, user: { id: ADMIN_B } }),
         resDouble(),
         throwingNext
       );

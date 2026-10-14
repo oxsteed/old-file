@@ -65,6 +65,10 @@ const {
   issueProvisionalCredit,
   resolveDisputeWithCompensation,
 } = require('./oxsteedCreditDisputeService');
+// ADM-019/ADM-114: re-evaluate the fiat compliance choke point at checker
+// execution time for funding actions; the maker-time pass can be up to 24h
+// stale by the time money moves.
+const { evaluateFundingCompliance } = require('./fiatComplianceService');
 
 const PENDING_ACTION_TTL_HOURS = Math.max(
   1,
@@ -81,6 +85,31 @@ function normalizeText(value, max) {
 function parseAmount(value) {
   const n = Number(value);
   return Number.isSafeInteger(n) && n >= 0 ? n : null;
+}
+
+// ADM-115: key-order-insensitive payload comparison for idempotency-key
+// conflict detection. The stored payload carries the injected
+// idempotencyKey; stripStoredIdempotencyKey removes it before comparing.
+function sortKeysDeep(value) {
+  if (Array.isArray(value)) return value.map(sortKeysDeep);
+  if (value && typeof value === 'object') {
+    return Object.keys(value).sort().reduce((acc, k) => {
+      acc[k] = sortKeysDeep(value[k]);
+      return acc;
+    }, {});
+  }
+  return value;
+}
+
+function stripStoredIdempotencyKey(payload) {
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return payload || {};
+  const copy = { ...payload };
+  delete copy.idempotencyKey;
+  return copy;
+}
+
+function payloadsEqual(a, b) {
+  return JSON.stringify(sortKeysDeep(a || {})) === JSON.stringify(sortKeysDeep(b || {}));
 }
 
 /**
@@ -435,10 +464,9 @@ const ACTION_TYPES = Object.freeze(Object.keys(ACTION_EXECUTORS));
 
 /**
  * Request a pending action (the maker half). Fails closed when the rail is
- * disabled. Below-threshold money movements execute immediately under the
- * requesting admin; everything else queues for a different admin to
- * decide. The caller's Idempotency-Key makes replays return the existing
- * receipt.
+ * disabled. Every money movement queues for a distinct checker to decide;
+ * there is no amount or environment bypass for maker-checker. The caller's
+ * Idempotency-Key makes replays return the existing receipt.
  */
 async function requestPendingAction({ actionType, payload, requestedBy, idempotencyKey, requestIp, correlationId }) {
   await assertCreditRailEnabled(pool);
@@ -483,7 +511,26 @@ async function requestPendingAction({ actionType, payload, requestedBy, idempote
         `SELECT * FROM oxsteed_credit_pending_actions WHERE idempotency_key = $1`,
         [key]
       );
-      const existing = formatPendingAction(rows[0]);
+      const row = rows[0];
+      if (!row) throw error;
+      // ADM-115: a key reuse with a different action type or payload is a
+      // conflict, not a replay. The idempotency key is globally unique, so
+      // silently returning another intent's receipt would misattribute money
+      // movement. Fail closed.
+      if (row.action_type !== normalizedType || !payloadsEqual(stripStoredIdempotencyKey(row.payload), payload || {})) {
+        throw new AppError(
+          'This idempotency key was already used for a different pending action',
+          409,
+          'credit_pending_action_idempotency_conflict'
+        );
+      }
+      const existing = formatPendingAction(row);
+      // ADM-081/ADM-116: a replayed terminal (approved/rejected/expired) row
+      // is flagged so senders return 409 instead of 200: the client must not
+      // misread a dead intent as a fresh receipt.
+      if (row.status !== 'pending') {
+        return { executed: false, pendingAction: existing, result: null, replayed: true, terminalReplay: true };
+      }
       return { executed: false, pendingAction: existing, result: null, replayed: true };
     }
     throw error;
@@ -499,7 +546,18 @@ async function requestPendingAction({ actionType, payload, requestedBy, idempote
  */
 async function decidePendingAction({ actionId, decidedBy, decision, reason, stepupChallengeId, stepupCode, requestIp, correlationId }) {
   await assertCreditRailEnabled(pool);
-  const normalizedDecision = decision === 'rejected' || decision === 'reject' ? 'rejected' : 'approved';
+  // ADM-080: fail closed on unrecognized decisions. The old code defaulted
+  // anything that was not an explicit rejection spelling to 'approved', so a
+  // typo or malformed client value approved a money movement.
+  const decisionText = String(decision || '').trim().toLowerCase();
+  let normalizedDecision;
+  if (decisionText === 'approved' || decisionText === 'approve') {
+    normalizedDecision = 'approved';
+  } else if (decisionText === 'rejected' || decisionText === 'reject') {
+    normalizedDecision = 'rejected';
+  } else {
+    throw new AppError('Decision must be "approved" or "rejected"', 400, 'credit_decision_invalid');
+  }
   if (!decidedBy) throw new AppError('A deciding administrator is required', 403, 'credit_pending_action_actor_required');
   const normalizedReason = normalizeText(reason, 2000);
   let selfApproved = false;
@@ -590,6 +648,21 @@ async function decidePendingAction({ actionId, decidedBy, decision, reason, step
     const executor = ACTION_EXECUTORS[action.action_type];
     if (!executor) throw new AppError('Unsupported pending action type', 400, 'credit_pending_action_type_invalid');
     const storedPayload = { ...(action.payload || {}), idempotencyKey: action.idempotency_key };
+    // ADM-019/ADM-114: the compliance choke point ran at maker time, up to
+    // 24h before this approval. Re-evaluate now, at the moment money moves,
+    // so a sanctions hit or identity-tier change in between fails closed
+    // instead of executing on a stale pass.
+    if (action.action_type === 'credit_load') {
+      await evaluateFundingCompliance({
+        customerId: storedPayload.customerId,
+        amountCents: storedPayload.amountCents,
+        currencyCode: storedPayload.currencyCode,
+        fundingMethod: 'admin_load',
+        actorUserId: decidedBy,
+        requestIp: requestIp || null,
+        correlationId: correlationId || null,
+      });
+    }
     const executionResult = await executor({
       client,
       payload: storedPayload,

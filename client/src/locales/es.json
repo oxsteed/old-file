@@ -727,7 +727,10 @@
         "title": "Emitir reembolso manual",
         "description": "Esto reembolsará el pago al cliente.",
         "confirm": "Emitir reembolso",
-        "reasonPlaceholder": "Razón del reembolso…"
+        "reasonPlaceholder": "Razón del reembolso…",
+        "stepupPrompt": "Se envio un codigo de verificacion a tu correo. Ingresalo para autorizar este reembolso:",
+        "stepupFailed": "No se pudo emitir un desafio de verificacion. El reembolso no fue procesado.",
+        "stepupRequired": "Se requiere un codigo de verificacion para emitir el reembolso."
       },
       "delete": {
         "title": "Eliminar trabajo permanentemente",
@@ -10553,7 +10556,10 @@
       "total": "Total",
       "payment": "Pago",
       "created": "Creado",
-      "empty": "No se encontraron pedidos."
+      "empty": "No se encontraron pedidos.",
+      "prevPage": "Anterior",
+      "nextPage": "Siguiente",
+      "pageOf": "Página {{page}} de {{pages}}"
     }
   },
   "auditLogFilter": {
@@ -25426,7 +25432,9 @@
     "confirmTitle": "Guardar cambio de comisión",
     "invalidNumber": "Ingresa un número válido.",
     "valueOutOfRange": "El valor debe estar entre {{min}} y {{max}}.",
-    "valueOutsideRange": "El valor está fuera del rango permitido."
+    "valueOutsideRange": "El valor está fuera del rango permitido.",
+    "stripeSyncFailed": "Tarifa guardada, pero falló la sincronización del precio de Stripe. El precio de Stripe no se actualizó.",
+    "stripeSyncFailedReset": "Tarifas restablecidas a los valores predeterminados, pero falló la sincronización de precios de Stripe. Algunos precios de Stripe no se actualizaron."
   },
   "superFinancials": {
     "colAmount": "Monto",
@@ -30480,7 +30488,10 @@
       "completed": "Completados",
       "failed": "Fallidos",
       "rejected": "Rechazados"
-    }
+    },
+    "stepupFailed": "No se pudo emitir un desafío de verificación.",
+    "stepupPrompt": "Se envió un código de verificación a tu correo electrónico. Introdúcelo para aprobar este pago:",
+    "stepupRequired": "Se requiere un código de verificación para aprobar el pago."
   },
   "statementOps": {
     "title": "Operaciones de estados de cuenta",
@@ -31914,5 +31925,21 @@
     "error": "No se pudo enviar su W-9. Intentelo de nuevo.",
     "filedTitle": "W-9 archivado",
     "filedCopy": "Su formulario fiscal W-9 ha sido recibido. No necesita enviarlo de nuevo."
-  }
+  },
+  "adminCreditApprovalTitle": "Aprobación de crédito de la plataforma",
+  "adminCreditApprovalDetail": "Controla si este restaurante puede emitir nuevo crédito. Revocar inicia un período de gracia de 30 días; luego los saldos restantes se migran automáticamente a OxSteed Credit.",
+  "adminCreditApprovalStatusLabel": "Estado de aprobación",
+  "adminCreditApprovalStatusRevoked": "Revocado",
+  "adminCreditApprovalNewStatus": "Nuevo estado",
+  "adminCreditApprovalReason": "Motivo",
+  "adminCreditApprovalReasonRequired": "Se requiere un motivo para suspender o revocar.",
+  "adminCreditApprovalReasonPlaceholder": "¿Por qué este restaurante pierde la aprobación de crédito?",
+  "adminCreditApprovalUpdate": "Actualizar aprobación",
+  "adminCreditApprovalUpdated": "Aprobación de crédito actualizada.",
+  "adminCreditApprovalLoadFailed": "No se pudo cargar la aprobación de crédito.",
+  "adminCreditApprovalUpdateFailed": "No se pudo actualizar la aprobación de crédito.",
+  "adminCreditApprovalGraceEnds": "El período de gracia termina",
+  "adminCreditApprovalRevokedAt": "Revocado el",
+  "adminCreditApprovalMigratedAt": "Saldos migrados",
+  "adminCreditApprovalGrandfathered": "Aprobado (sin registro de aprobación)"
 }

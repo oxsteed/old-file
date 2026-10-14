@@ -29,6 +29,7 @@ import {
   splitList,
   useCreditDialog,
   useCreditPageState,
+  requestStepupChallengeCode,
 } from './shared';
 import OxsteedCreditPartnerLedger from '../OxsteedCreditPartnerLedger';
 import OxsteedCreditEntitlements from '../OxsteedCreditEntitlements';
@@ -183,6 +184,14 @@ export default function OxsteedCreditPartnersPage() {
       return setError(t('adminInvalidLimitAmount', { currency: agreementCurrency }));
     }
     setBusy(true); setNotice(''); setError('');
+    // ADM-082: agreements set partner spending terms; require a fresh
+    // step-up challenge.
+    const stepup = await requestStepupChallengeCode({
+      requestDialog, setNotice, setError, t,
+      actionType: 'credit_agreement_create',
+      description: t('creditStepupConfirmDescription'),
+    });
+    if (!stepup) { setBusy(false); return; }
     const payload = {
       startsAt: new Date(agreementForm.startsAt).toISOString(),
       endsAt: agreementForm.endsAt ? new Date(agreementForm.endsAt).toISOString() : undefined,
@@ -197,6 +206,7 @@ export default function OxsteedCreditPartnersPage() {
       lifetimeCustomerLimitCents: lifetimeLimit.value,
       requiresCustomerEntitlement: agreementForm.requiresCustomerEntitlement,
       reason: agreementForm.reason,
+      ...stepup,
     };
     const keyPayload = { partnerId: agreementForm.partnerId, ...payload };
     try {
@@ -299,7 +309,15 @@ export default function OxsteedCreditPartnersPage() {
     }
     setBusy(true); setNotice(''); setError('');
     try {
-      await adminApi.post(`/admin/super/oxsteed-credit/agreements/${agreement.id}/transition`, { status, expectedStatus: agreement.status, reason: reason.trim() });
+      // ADM-082: activating/suspending an agreement changes partner spending
+      // terms; require a fresh step-up challenge.
+      const stepup = await requestStepupChallengeCode({
+        requestDialog, setNotice, setError, t,
+        actionType: 'credit_agreement_transition',
+        description: t('creditStepupConfirmDescription'),
+      });
+      if (!stepup) return;
+      await adminApi.post(`/admin/super/oxsteed-credit/agreements/${agreement.id}/transition`, { status, expectedStatus: agreement.status, reason: reason.trim(), ...stepup });
       setNotice(t('adminAgreementStatusChanged', { version: agreement.version, status: localizeCreditStatus(status, t) }));
       await load({ quiet: true });
     } catch (err) {

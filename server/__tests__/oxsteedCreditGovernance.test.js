@@ -32,6 +32,7 @@ jest.mock('../services/oxsteedCreditService', () => {
     ...actual,
     adjustCustomerCreditInTransaction: jest.fn(),
     refundCreditInTransaction: jest.fn(),
+    loadCustomerCredit: jest.fn(),
   };
 });
 jest.mock('../services/fiatComplianceService', () => ({
@@ -128,6 +129,10 @@ beforeEach(() => {
   recordIncident.mockClear();
   creditService.adjustCustomerCreditInTransaction.mockReset();
   creditService.refundCreditInTransaction.mockReset();
+  creditService.loadCustomerCredit.mockReset();
+  creditService.loadCustomerCredit.mockResolvedValue({ id: 'txn-1' });
+  evaluateFundingCompliance.mockClear();
+  evaluateFundingCompliance.mockResolvedValue({ allowed: true });
   decidedStatus = 'pending';
   installRouter();
 });
@@ -233,6 +238,188 @@ describe('maker-checker queue', () => {
       stepupCode: '123456',
     })).rejects.toMatchObject({ status: 503, code: 'credit_rail_frozen' });
     expect(feeScheduleService.updateFeeScheduleRow).not.toHaveBeenCalled();
+  });
+
+  // ADM-080: an unrecognized decision must fail closed. The old code treated
+  // anything that was not an explicit rejection spelling as approval, so a
+  // typo or malformed client value approved a money movement.
+  test('an unrecognized decision fails closed (400), never defaults to approved', async () => {
+    await expect(decidePendingAction({
+      actionId: ACTION_ID,
+      decidedBy: CHECKER_ID,
+      decision: 'approveed',
+      stepupChallengeId: 'challenge-1',
+      stepupCode: '123456',
+    })).rejects.toMatchObject({ status: 400, code: 'credit_decision_invalid' });
+    expect(feeScheduleService.updateFeeScheduleRow).not.toHaveBeenCalled();
+  });
+
+  test('an empty decision fails closed (400)', async () => {
+    await expect(decidePendingAction({
+      actionId: ACTION_ID,
+      decidedBy: CHECKER_ID,
+      decision: '',
+      stepupChallengeId: 'challenge-1',
+      stepupCode: '123456',
+    })).rejects.toMatchObject({ status: 400, code: 'credit_decision_invalid' });
+    expect(feeScheduleService.updateFeeScheduleRow).not.toHaveBeenCalled();
+  });
+
+  // ADM-081/ADM-115/ADM-116: idempotency-key replay semantics. The INSERT
+  // collides (23505); the stored row is compared by action type AND payload.
+  function installIdempotencyReplayRouter(existingRow) {
+    mockQuery.mockImplementation((sql, params = []) => {
+      const s = String(sql);
+      if (s === 'BEGIN' || s === 'COMMIT' || s === 'ROLLBACK') return { rows: [] };
+      if (s.includes('pg_advisory_xact_lock')) return { rows: [] };
+      if (s.includes('FROM feature_flags')) return { rows: [{ is_enabled: true }] };
+      if (s.includes('FROM oxsteed_credit_rail_freezes')) return { rows: [] };
+      if (s.includes('INSERT INTO oxsteed_credit_pending_actions')) {
+        const error = new Error('duplicate key value violates unique constraint');
+        error.code = '23505';
+        throw error;
+      }
+      if (s.includes('WHERE idempotency_key = $1')) return { rows: [existingRow] };
+      return { rows: [] };
+    });
+  }
+
+  test('replaying a key for a different action type is a 409 conflict, not a replay', async () => {
+    installIdempotencyReplayRouter(pendingRow({
+      action_type: 'credit_load',
+      payload: { customerId: '9', amountCents: 500, idempotencyKey: 'test-key-conflict' },
+    }));
+    await expect(requestPendingAction({
+      actionType: 'credit_fee_schedule_update',
+      payload: { id: '7', fixedCents: 100 },
+      requestedBy: MAKER_ID,
+      idempotencyKey: 'test-key-conflict',
+    })).rejects.toMatchObject({ status: 409, code: 'credit_pending_action_idempotency_conflict' });
+  });
+
+  test('replaying a key for a different payload is a 409 conflict, not a replay', async () => {
+    installIdempotencyReplayRouter(pendingRow({
+      payload: { id: '7', fixedCents: 999, idempotencyKey: 'test-key-conflict' },
+    }));
+    await expect(requestPendingAction({
+      actionType: 'credit_fee_schedule_update',
+      payload: { id: '7', fixedCents: 100 },
+      requestedBy: MAKER_ID,
+      idempotencyKey: 'test-key-conflict',
+    })).rejects.toMatchObject({ status: 409, code: 'credit_pending_action_idempotency_conflict' });
+  });
+
+  test('replaying a key for the same pending intent returns the receipt', async () => {
+    installIdempotencyReplayRouter(pendingRow({
+      payload: { id: '7', fixedCents: 100, idempotencyKey: 'test-key-replay' },
+    }));
+    const result = await requestPendingAction({
+      actionType: 'credit_fee_schedule_update',
+      payload: { id: '7', fixedCents: 100 },
+      requestedBy: MAKER_ID,
+      idempotencyKey: 'test-key-replay',
+    });
+    expect(result.replayed).toBe(true);
+    expect(result.terminalReplay).toBeFalsy();
+    expect(result.pendingAction.status).toBe('pending');
+  });
+
+  test('replaying a key for a terminal intent is flagged terminal (senders return 409)', async () => {
+    installIdempotencyReplayRouter(pendingRow({
+      status: 'approved',
+      decided_by: CHECKER_ID,
+      payload: { id: '7', fixedCents: 100, idempotencyKey: 'test-key-terminal' },
+    }));
+    const result = await requestPendingAction({
+      actionType: 'credit_fee_schedule_update',
+      payload: { id: '7', fixedCents: 100 },
+      requestedBy: MAKER_ID,
+      idempotencyKey: 'test-key-terminal',
+    });
+    expect(result.replayed).toBe(true);
+    expect(result.terminalReplay).toBe(true);
+    expect(result.pendingAction.status).toBe('approved');
+  });
+
+  // ADM-019/ADM-114: the fiat compliance choke point ran at maker time (up
+  // to 24h ago). Approving a credit_load re-evaluates it at execution time;
+  // a fresh sanctions hit fails the approval closed before money moves.
+  function installCreditLoadRouter() {
+    mockQuery.mockImplementation((sql, params = []) => {
+      const s = String(sql);
+      if (s === 'BEGIN' || s === 'COMMIT' || s === 'ROLLBACK') return { rows: [] };
+      if (s.includes('pg_advisory_xact_lock')) return { rows: [] };
+      if (s.includes('FROM feature_flags')) return { rows: [{ is_enabled: true }] };
+      if (s.includes('FROM oxsteed_credit_rail_freezes')) return { rows: [] };
+      if (s.includes('FROM oxsteed_credit_pending_actions WHERE id = $1 FOR UPDATE')) {
+        return { rows: [pendingRow({
+          action_type: 'credit_load',
+          payload: { customerId: 'cust-1', amountCents: 5000, currencyCode: 'USD', reason: 'grant', referenceId: 'ref-1' },
+        })] };
+      }
+      if (s.includes('UPDATE oxsteed_credit_pending_actions')) {
+        return { rows: [pendingRow({ action_type: 'credit_load', status: 'approved', decided_by: CHECKER_ID })] };
+      }
+      if (s.includes('FROM oxsteed_credit_pending_actions WHERE id = $1')) {
+        return { rows: [pendingRow({ action_type: 'credit_load', status: 'approved', decided_by: CHECKER_ID })] };
+      }
+      if (s.includes('INSERT INTO oxsteed_credit_audit_events')) return { rows: [] };
+      return { rows: [] };
+    });
+  }
+
+  test('approving a credit load re-evaluates compliance at execution time', async () => {
+    installCreditLoadRouter();
+    const result = await decidePendingAction({
+      actionId: ACTION_ID,
+      decidedBy: CHECKER_ID,
+      decision: 'approve',
+      stepupChallengeId: 'challenge-1',
+      stepupCode: '123456',
+    });
+    expect(result.pendingAction.status).toBe('approved');
+    expect(evaluateFundingCompliance).toHaveBeenCalledWith(expect.objectContaining({
+      customerId: 'cust-1',
+      amountCents: 5000,
+      currencyCode: 'USD',
+      fundingMethod: 'admin_load',
+      actorUserId: CHECKER_ID,
+    }));
+    expect(creditService.loadCustomerCredit).toHaveBeenCalledTimes(1);
+  });
+
+  test('a fresh sanctions hit at approval time fails the load closed', async () => {
+    installCreditLoadRouter();
+    evaluateFundingCompliance.mockRejectedValueOnce(
+      Object.assign(new Error('Sanctions hit'), { status: 403, code: 'fiat_compliance_sanctions_hit' })
+    );
+    await expect(decidePendingAction({
+      actionId: ACTION_ID,
+      decidedBy: CHECKER_ID,
+      decision: 'approve',
+      stepupChallengeId: 'challenge-1',
+      stepupCode: '123456',
+    })).rejects.toMatchObject({ status: 403, code: 'fiat_compliance_sanctions_hit' });
+    expect(creditService.loadCustomerCredit).not.toHaveBeenCalled();
+  });
+
+  // ADM-154: credits and debits both move real customer balances and must be
+  // traceable. The shared service choke point requires a funding reference
+  // for both directions, closing the generic-maker-endpoint bypass that let
+  // debit adjustments execute without one.
+  test('a debit adjustment without a funding reference fails at the service choke point', async () => {
+    const realCreditService = jest.requireActual('../services/oxsteedCreditService');
+    await expect(realCreditService.adjustCustomerCredit({
+      customerId: 'cust-1',
+      amountCents: 1000,
+      currencyCode: 'USD',
+      direction: 'debit',
+      idempotencyKey: 'debit-no-ref-key',
+      actorUserId: MAKER_ID,
+      actorType: 'admin',
+      reason: 'test debit without reference',
+    })).rejects.toMatchObject({ status: 400, code: 'credit_funding_reference_required' });
+    expect(mockQuery).not.toHaveBeenCalled();
   });
 });
 

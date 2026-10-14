@@ -32,6 +32,9 @@ const CRON_EXPRESSION = '* * * * *';
 const CRON_TIMEZONE = 'UTC';
 const JOB_NAME = 'settings-change-applier';
 const BATCH_SIZE = 100;
+// ADM-131: a request that fails this many applies in a row is dead-lettered
+// to status 'failed' so one poisoned row stops spamming the audit log.
+const MAX_APPLY_ATTEMPTS = 10;
 // Must match the migration/table owned by the settings-change feature
 // (server/controllers/settingsChangeController.js). Overridable so tests and
 // unusual deployments do not need a code change.
@@ -70,6 +73,12 @@ async function runSettingsChangeApplierOnce(db = pool, { limit = BATCH_SIZE } = 
     // Discover the due set atomically. Commit before applying: each
     // applyChangeRequest runs its own transaction (BEGIN ... COMMIT) on a
     // dedicated client, so it cannot nest inside this discovery transaction.
+    //
+    // ADM-001 (defense in depth): only rows with a recorded reviewer who is
+    // a different admin than the proposer are appliable. Scheduling a
+    // 'proposed' request now stamps reviewed_by (separation of duties), but
+    // rows scheduled before that fix carry reviewed_by NULL and must NOT be
+    // applied by the worker; they stay stranded until a human re-approves.
     const discovery = await db.connect();
     let dueRows;
     try {
@@ -78,6 +87,8 @@ async function runSettingsChangeApplierOnce(db = pool, { limit = BATCH_SIZE } = 
         `SELECT *
            FROM ${CHANGE_REQUESTS_TABLE}
           WHERE status IN ('approved', 'scheduled')
+            AND reviewed_by IS NOT NULL
+            AND reviewed_by IS DISTINCT FROM proposed_by
             AND (effective_at IS NULL OR effective_at <= NOW())
           ORDER BY effective_at NULLS FIRST, id ASC
           LIMIT $1
@@ -85,6 +96,22 @@ async function runSettingsChangeApplierOnce(db = pool, { limit = BATCH_SIZE } = 
         [boundedLimit]
       );
       dueRows = rows;
+      // Visibility for rows stranded by the ADM-001 guard: due but lacking a
+      // valid reviewer. They need a human to re-approve; the worker must not
+      // apply them silently or spam the audit log about them every minute.
+      const { rows: stranded } = await discovery.query(
+        `SELECT COUNT(*)::int AS n
+           FROM ${CHANGE_REQUESTS_TABLE}
+          WHERE status IN ('approved', 'scheduled')
+            AND (effective_at IS NULL OR effective_at <= NOW())
+            AND NOT (reviewed_by IS NOT NULL AND reviewed_by IS DISTINCT FROM proposed_by)`,
+        []
+      );
+      if (stranded[0] && stranded[0].n > 0) {
+        logger.warn('Settings change applier: stranded rows lack separation-of-duties review', {
+          count: stranded[0].n,
+        });
+      }
       await discovery.query('COMMIT');
     } catch (error) {
       await discovery.query('ROLLBACK').catch(() => {});
@@ -107,6 +134,39 @@ async function runSettingsChangeApplierOnce(db = pool, { limit = BATCH_SIZE } = 
           changeRequestId: request.id,
           error: message,
         });
+        // ADM-131: track consecutive failures and dead-letter the row after
+        // MAX_APPLY_ATTEMPTS so a permanently un-appliable request stops
+        // spamming the audit log every minute.
+        try {
+          const { rows: attemptRows } = await client.query(
+            `UPDATE ${CHANGE_REQUESTS_TABLE}
+                SET apply_attempts = COALESCE(apply_attempts, 0) + 1,
+                    apply_last_error = $2,
+                    updated_at = NOW()
+              WHERE id = $1
+              RETURNING apply_attempts`,
+            [request.id, message.slice(0, 1000)]
+          );
+          const attempts = Number(attemptRows[0]?.apply_attempts || 0);
+          if (attempts >= MAX_APPLY_ATTEMPTS) {
+            await client.query(
+              `UPDATE ${CHANGE_REQUESTS_TABLE}
+                  SET status = 'failed', updated_at = NOW()
+                WHERE id = $1`,
+              [request.id]
+            );
+            logger.error('Settings change request dead-lettered after repeated apply failures', {
+              changeRequestId: request.id,
+              attempts,
+              lastError: message.slice(0, 500),
+            });
+          }
+        } catch (attemptError) {
+          logger.warn('Failed to record settings change apply attempt', {
+            changeRequestId: request.id,
+            error: attemptError.message,
+          });
+        }
         // Record the failure in the admin audit log but never let a bad row
         // (or a failed audit write) block the remaining rows.
         try {
@@ -154,6 +214,7 @@ module.exports = {
   CRON_TIMEZONE,
   JOB_NAME,
   BATCH_SIZE,
+  MAX_APPLY_ATTEMPTS,
   CHANGE_REQUESTS_TABLE,
   runSettingsChangeApplierOnce,
   startSettingsChangeApplierJob,

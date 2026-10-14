@@ -146,3 +146,7 @@
 .credit-payment-info p:last-child { margin-bottom: 0; }
 .credit-payment-qr { display: block; width: 140px; height: 140px; margin: 8px auto; border-radius: 8px; }
 .credit-payment-hint { font-size: 12px; color: #64748b; font-style: italic; }
+/* Phase 5: trial-cap "at capacity" notice. Replaces payment instructions,
+   the amount input, and proof upload while the restaurant is at capacity. */
+.credit-capacity-notice { background: #fffbeb; border: 1.5px solid #fde68a; border-radius: 12px; padding: 16px; margin-bottom: 8px; }
+.credit-capacity-notice p { font-size: 14px; color: #92400e; margin: 0; line-height: 1.6; }

@@ -413,11 +413,6 @@ function ChangeRequestCard({ request, canApprove, onPreview, onReject, onSchedul
                 <span className="text-gray-400">{formatEffectiveAt(request.effective_at)}</span>
               </FieldRow>
             )}
-            {(request.rollout_percent !== undefined && request.rollout_percent !== null) && (
-              <FieldRow label={t('adminSettingsChanges.fieldRollout')}>
-                <span className="text-gray-400">{`${request.rollout_percent}%`}</span>
-              </FieldRow>
-            )}
           </div>
         </div>
 
@@ -554,7 +549,6 @@ function ProposeChangeModal({ target, onClose, onSubmitted }) {
   const [proposedValue, setProposedValue] = useState(String(target.currentValue ?? ''));
   const [reason, setReason] = useState('');
   const [effectiveAt, setEffectiveAt] = useState('');
-  const [rollout, setRollout] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
@@ -565,10 +559,7 @@ function ProposeChangeModal({ target, onClose, onSubmitted }) {
   const reasonOk = reason.trim().length > 0;
   const effectiveDate = effectiveAt ? new Date(effectiveAt) : null;
   const effectiveOk = !effectiveAt || (effectiveDate && !Number.isNaN(effectiveDate.getTime()));
-  const rolloutTrimmed = rollout.trim();
-  const rolloutNum = rolloutTrimmed === '' ? null : Number(rolloutTrimmed);
-  const rolloutOk = !isFlag || rolloutNum === null || (Number.isFinite(rolloutNum) && rolloutNum >= 0 && rolloutNum <= 100);
-  const canSubmit = reasonOk && effectiveOk && rolloutOk && !busy;
+  const canSubmit = reasonOk && effectiveOk && !busy;
 
   const submit = async (event) => {
     event.preventDefault();
@@ -582,7 +573,6 @@ function ProposeChangeModal({ target, onClose, onSubmitted }) {
         proposed_value: isBoolean ? (proposedValue === 'true' ? 'true' : 'false') : proposedValue,
         reason: reason.trim(),
         ...(effectiveAt ? { effective_at: effectiveDate.toISOString() } : {}),
-        ...(rolloutNum !== null ? { rollout_percent: rolloutNum } : {}),
       });
       onSubmitted(t('adminSettingsChanges.toast.proposed'));
     } catch (err) {
@@ -666,23 +656,6 @@ function ProposeChangeModal({ target, onClose, onSubmitted }) {
               />
               <p className="mt-1 text-xs text-gray-500">{t('adminSettingsChanges.propose.effectiveAtHint')}</p>
             </div>
-            {isFlag && (
-              <div>
-                <label htmlFor="propose-rollout" className={modalLabelClass}>
-                  {t('adminSettingsChanges.propose.rollout')}
-                </label>
-                <input
-                  id="propose-rollout"
-                  type="number"
-                  min="0"
-                  max="100"
-                  value={rollout}
-                  onChange={(event) => setRollout(event.target.value)}
-                  className={modalInputClass}
-                />
-                <p className="mt-1 text-xs text-gray-500">{t('adminSettingsChanges.propose.rolloutHint')}</p>
-              </div>
-            )}
           </div>
 
           {error && (
@@ -864,19 +837,14 @@ function ImpactPreviewModal({ request, canApprove, onClose, onApproved, onReques
 function ScheduleChangeModal({ request, onClose, onScheduled }) {
   const { t } = useTranslation();
   const [effectiveAt, setEffectiveAt] = useState('');
-  const [rollout, setRollout] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
   useEscapeToClose(true, onClose);
 
-  const isFlag = request.kind === 'flag';
   const effectiveDate = effectiveAt ? new Date(effectiveAt) : null;
   const effectiveOk = effectiveAt !== '' && effectiveDate && !Number.isNaN(effectiveDate.getTime());
-  const rolloutTrimmed = rollout.trim();
-  const rolloutNum = rolloutTrimmed === '' ? null : Number(rolloutTrimmed);
-  const rolloutOk = !isFlag || rolloutNum === null || (Number.isFinite(rolloutNum) && rolloutNum >= 0 && rolloutNum <= 100);
-  const canSubmit = effectiveOk && rolloutOk && !busy;
+  const canSubmit = effectiveOk && !busy;
 
   const submit = async (event) => {
     event.preventDefault();
@@ -884,9 +852,9 @@ function ScheduleChangeModal({ request, onClose, onScheduled }) {
     setBusy(true);
     setError('');
     try {
+      // ADM-104: staged rollouts were never enforced; the control is removed.
       await adminApi.post(`${CHANGES_API_BASE}/${request.id}/schedule`, {
         effective_at: effectiveDate.toISOString(),
-        ...(rolloutNum !== null ? { rollout_percent: rolloutNum } : {}),
       });
       onScheduled(t('adminSettingsChanges.toast.scheduled'));
     } catch (err) {
@@ -920,22 +888,6 @@ function ScheduleChangeModal({ request, onClose, onScheduled }) {
               <p className="mt-1 text-xs text-red-400">{t('adminSettingsChanges.schedule.effectiveAtRequired')}</p>
             )}
           </div>
-          {isFlag && (
-            <div>
-              <label htmlFor="schedule-rollout" className={modalLabelClass}>
-                {t('adminSettingsChanges.schedule.rollout')}
-              </label>
-              <input
-                id="schedule-rollout"
-                type="number"
-                min="0"
-                max="100"
-                value={rollout}
-                onChange={(event) => setRollout(event.target.value)}
-                className={modalInputClass}
-              />
-            </div>
-          )}
 
           {error && (
             <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300" role="alert">
@@ -1167,12 +1119,19 @@ export default function PlatformSettings() {
     setRollbacking(`setting:${key}`);
     setMessage(null);
     try {
-      const { data: result } = await adminApi.post(`/admin/settings/${key}/rollback`);
-      setSettings((prev) => prev.map((setting) => (
-        setting.key === key ? { ...setting, value: result.value } : setting
-      )));
-      setEditing((prev) => ({ ...prev, [key]: result.value }));
-      setMessage({ type: 'success', textKey: 'superPlatformSettings.rolledBack', textParams: { key } });
+      const { status, data: result } = await adminApi.post(`/admin/settings/${key}/rollback`);
+      if (status === 202) {
+        // ADM-034: rollback now proposes a change request instead of applying
+        // immediately. A second admin must approve it before it takes effect.
+        setMessage({ type: 'success', textKey: 'superPlatformSettings.proposedKey', textParams: { key } });
+        loadChangeRequests();
+      } else {
+        setSettings((prev) => prev.map((setting) => (
+          setting.key === key ? { ...setting, value: result.value } : setting
+        )));
+        setEditing((prev) => ({ ...prev, [key]: result.value }));
+        setMessage({ type: 'success', textKey: 'superPlatformSettings.rolledBack', textParams: { key } });
+      }
     } catch (err) {
       setMessage({ type: 'error', text: err.response?.data?.error, textKey: 'superPlatformSettings.rollbackFailed' });
       throw err;
@@ -1185,11 +1144,18 @@ export default function PlatformSettings() {
     setRollbacking(`flag:${key}`);
     setMessage(null);
     try {
-      const { data: result } = await adminApi.post(`/admin/feature-flags/${key}/rollback`);
-      setFlags((prev) => prev.map((flag) => (
-        flag.key === key ? { ...flag, enabled: result.enabled } : flag
-      )));
-      setMessage({ type: 'success', textKey: 'superPlatformSettings.flagRolledBack', textParams: { key } });
+      const { status, data: result } = await adminApi.post(`/admin/feature-flags/${key}/rollback`);
+      if (status === 202) {
+        // ADM-034: rollback now proposes a change request instead of applying
+        // immediately. A second admin must approve it before it takes effect.
+        setMessage({ type: 'success', textKey: 'superPlatformSettings.proposedKey', textParams: { key } });
+        loadChangeRequests();
+      } else {
+        setFlags((prev) => prev.map((flag) => (
+          flag.key === key ? { ...flag, enabled: result.enabled } : flag
+        )));
+        setMessage({ type: 'success', textKey: 'superPlatformSettings.flagRolledBack', textParams: { key } });
+      }
     } catch (err) {
       setMessage({ type: 'error', text: err.response?.data?.error, textKey: 'superPlatformSettings.rollbackFailed' });
       throw err;

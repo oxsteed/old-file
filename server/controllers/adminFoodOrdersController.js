@@ -12,6 +12,30 @@ const { refundWalletDebitForReference } = require('../services/foodWalletService
 const { refundCreditForReferenceInTransaction } = require('../services/oxsteedCreditService');
 const { notifyRefundIssued } = require('../services/refundNotification');
 
+// Canonical wallet/credit payment modes for food orders, mirroring
+// PAYMENT_MODE_ALIASES in agentFoodRefundActions.js. Orders store the legacy
+// form (restaurant_credit -> 'wallet_credit', oxsteed_credit -> 'oxsteed_credit').
+const ADMIN_REFUND_MODE_ALIASES = {
+  wallet_credit: 'restaurant_credit',
+  restaurant_credit: 'restaurant_credit',
+  oxsteed_credit: 'oxsteed_credit',
+  oxsteedCredit: 'oxsteed_credit',
+  credit: 'oxsteed_credit',
+};
+
+function normalizeAdminRefundMode(raw) {
+  if (typeof raw !== 'string') return null;
+  const trimmed = raw.trim().toLowerCase();
+  if (!trimmed) return null;
+  return ADMIN_REFUND_MODE_ALIASES[trimmed] || null;
+}
+
+function readAdminRefundedCents(metadata) {
+  if (!metadata || typeof metadata !== 'object') return 0;
+  const n = Number(metadata.admin_refunded_cents);
+  return Number.isSafeInteger(n) && n > 0 ? n : 0;
+}
+
 async function auditAdminRead(adminId, orderId, purpose) {
   await pool.query(
     `INSERT INTO admin_audit_log (admin_id, admin_user_id, action, entity_type, entity_id, metadata)
@@ -92,35 +116,78 @@ async function getFoodOrder(req, res) {
 }
 
 async function refundFoodOrder(req, res) {
-  try {
-    const orderId = parseInt(req.params.id, 10);
-    const { amount_cents, reason } = req.body;
+  const orderId = parseInt(req.params.id, 10);
+  const { amount_cents, reason } = req.body;
 
-    if (!reason) {
-      return res.status(400).json({ error: 'Refund reason is required' });
+  if (!Number.isSafeInteger(orderId)) {
+    return res.status(400).json({ error: 'Invalid order id' });
+  }
+  if (typeof reason !== 'string' || !reason.trim()) {
+    return res.status(400).json({ error: 'Refund reason is required' });
+  }
+  if (reason.trim().length > 1000) {
+    return res.status(400).json({ error: 'Refund reason is too long' });
+  }
+
+  // ADM-191: the server must validate the amount itself; the client is not
+  // a trust boundary. Whole cents only.
+  let requestedAmount = null;
+  if (amount_cents !== undefined && amount_cents !== null) {
+    const n = Number(amount_cents);
+    if (!Number.isSafeInteger(n) || n <= 0) {
+      return res.status(400).json({ error: 'Refund amount must be a positive whole number of cents' });
     }
+    requestedAmount = n;
+  }
 
-    const { rows } = await pool.query(
-      `SELECT * FROM food_orders WHERE id = $1`,
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    // ADM-030/ADM-031: lock the order row for the whole refund so two
+    // concurrent admins serialize and the second replays instead of
+    // double-refunding. Eligibility is checked inside the lock.
+    const { rows } = await client.query(
+      'SELECT * FROM food_orders WHERE id = $1 FOR UPDATE',
       [orderId]
     );
-    if (!rows[0]) return res.status(404).json({ error: 'Order not found' });
+    if (!rows[0]) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Order not found' });
+    }
     const order = rows[0];
 
+    // Idempotent replay: an already-refunded order returns a clean non-error
+    // and never touches money again.
+    if (order.payment_status === 'refunded') {
+      await client.query('COMMIT');
+      return res.json({ ok: true, order_id: orderId, already_refunded: true });
+    }
     if (!['paid', 'partially_refunded'].includes(order.payment_status)) {
+      await client.query('ROLLBACK');
       return res.status(400).json({ error: 'Order is not refundable' });
     }
 
-    const refundAmount = amount_cents || order.total_cents;
-    if (refundAmount <= 0 || refundAmount > order.total_cents) {
-      return res.status(400).json({ error: 'Invalid refund amount' });
+    const totalCents = Math.max(0, Math.round(Number(order.total_cents || 0)));
+    const alreadyRefundedCents = readAdminRefundedCents(order.metadata);
+    const refundAmount = requestedAmount == null ? totalCents - alreadyRefundedCents : requestedAmount;
+    if (refundAmount <= 0) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'Order has already been fully refunded' });
+    }
+    if (alreadyRefundedCents + refundAmount > totalCents) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'Refund amount exceeds the remaining order total' });
     }
 
-    const idempotencyKey = `admin-food-refund:${orderId}:${refundAmount}:${req.user.id}`;
+    // ADM-030: the idempotency key is per (order, amount), NOT per admin, so
+    // two admins refunding the same order concurrently dedupe instead of
+    // double-refunding. The FOR UPDATE lock above makes the second request
+    // see the updated payment_status and replay.
+    const idempotencyKey = `admin-food-refund:${orderId}:${refundAmount}`;
+    const trimmedReason = reason.trim();
     let refundResult = null;
-    const paymentMode = String(order.payment_mode || '').toLowerCase();
 
-    // Route by payment mode.
+    // Route by payment method.
     if (order.stripe_payment_intent_id) {
       // Card payment: Stripe refund.
       const connectedAccountId = order.metadata?.stripeCheckout?.connectedAccountId
@@ -138,92 +205,95 @@ async function refundFoodOrder(req, res) {
         );
         refundResult = { provider: 'stripe', refund_id: refund.id, amount: refund.amount };
       } catch (refundErr) {
+        await client.query('ROLLBACK');
         logger.error('Admin Stripe refund failed', { orderId, error: refundErr.message });
         return res.status(502).json({ error: 'Stripe refund failed', code: 'stripe_refund_failed' });
       }
-    } else if (paymentMode === 'oxsteed_credit') {
-      // P2-1-F14: oxsteed_credit orders debit the OxSteed Credit rail, not
-      // the food wallet ledger, so the wallet reversal below would never
-      // find the debit (and the order would be marked refunded without the
-      // customer getting anything back). Reverse the original credit
-      // purchase instead. Keyed on the order reference, so it works for
-      // guest orders too, and shares the merchant/agent idempotency key so
-      // concurrent attempts dedupe on the journal instead of double-crediting.
-      const client = await pool.connect();
-      try {
-        await client.query('BEGIN');
-        const creditRefund = await refundCreditForReferenceInTransaction(client, {
-          referenceType: 'food_order',
-          referenceId: String(order.id),
-          amountCents: refundAmount,
-          idempotencyKey: `food-order:${orderId}:oxsteed-credit-refund`,
-          actorUserId: req.user.id,
-          actorType: 'admin',
-          reason,
-          correlationId: `admin-food-refund:${orderId}`,
-          requestIp: req.ip || null,
-          metadata: { orderId: order.id, amount_cents: refundAmount, reason },
-        });
-        await client.query('COMMIT');
-        refundResult = {
-          provider: 'oxsteed_credit',
-          refund_id: creditRefund?.transaction?.id != null ? String(creditRefund.transaction.id) : null,
-          amount: refundAmount,
-          replayed: Boolean(creditRefund?.replayed),
-        };
-      } catch (creditErr) {
-        await client.query('ROLLBACK');
-        logger.error('Admin credit refund failed', { orderId, error: creditErr.message });
-        if (creditErr.status) {
-          return res.status(creditErr.status).json({ error: creditErr.message, code: creditErr.code || 'credit_refund_failed' });
-        }
-        return res.status(502).json({ error: 'Credit refund failed', code: 'credit_refund_failed' });
-      } finally {
-        client.release();
-      }
-    } else if (['wallet_credit', 'credit'].includes(paymentMode) && order.customer_id) {
-      // Wallet credit: reverse the ledger debit.
-      const client = await pool.connect();
-      try {
-        await client.query('BEGIN');
+    } else {
+      const mode = normalizeAdminRefundMode(order.payment_mode);
+      if (mode === 'restaurant_credit' && order.customer_id) {
+        // Restaurant wallet credit: reverse the ledger debit. ADM-029: the
+        // requested partial amount is honored (not the full original debit);
+        // cumulative refunds are capped at the original debit.
         const walletRefund = await refundWalletDebitForReference(client, {
           restaurantId: order.restaurant_id,
           customerId: order.customer_id,
           currencyCode: order.currency_code || 'USD',
           orderReferenceId: String(order.id),
-          description: `Admin refund for order #${order.queue_number || order.id}: ${reason}`,
+          description: `Admin refund for order #${order.queue_number || order.id}: ${trimmedReason}`,
           createdByUserId: req.user.id,
-          correlationId: `admin-food-refund:${orderId}`,
+          correlationId: idempotencyKey,
           actorType: 'admin',
-          metadata: { orderId: order.id, amount_cents: refundAmount, reason },
+          amountCents: refundAmount,
+          metadata: { orderId: order.id, reason: trimmedReason },
         });
+        // ADM-002: fail closed. refundWalletDebitForReference reports (not
+        // throws) when nothing moved; never mark the order refunded then.
         if (!walletRefund.refunded) {
-          // Fail closed: the helper reports (rather than throws) when the
-          // original debit is missing. Never mark the order refunded when no
-          // money moved.
-          throw new Error(`Wallet refund did not complete: ${walletRefund.reason || 'unknown'}`);
+          await client.query('ROLLBACK');
+          logger.error('Admin wallet refund reported failure', { orderId, reason: walletRefund.reason });
+          return res.status(409).json({
+            error: 'Wallet refund could not be completed; the order was not marked refunded',
+            code: 'wallet_refund_failed',
+            wallet_reason: walletRefund.reason || null,
+          });
         }
-        await client.query('COMMIT');
-        refundResult = { provider: 'wallet', ...walletRefund };
-      } catch (walletErr) {
+        refundResult = {
+          provider: 'wallet',
+          refund_id: walletRefund.entry?.id != null ? String(walletRefund.entry.id) : null,
+          amount: walletRefund.amountCents,
+        };
+      } else if (mode === 'oxsteed_credit') {
+        // ADM-044: OxSteed Credit orders are refunded through the credit
+        // journal, not the restaurant-wallet ledger. Cumulative refunds are
+        // capped at the original purchase by the credit service; any throw
+        // rolls the transaction back and the order is NOT marked refunded.
+        try {
+          const creditRefund = await refundCreditForReferenceInTransaction(client, {
+            referenceType: 'food_order',
+            referenceId: String(order.id),
+            amountCents: refundAmount,
+            // Shared with the kitchen/agent refund paths so the two dedupe.
+            idempotencyKey: `admin-food-refund:${orderId}:${refundAmount}:oxsteed-credit`,
+            actorUserId: req.user.id,
+            actorType: 'admin',
+            reason: trimmedReason,
+            correlationId: idempotencyKey,
+            requestIp: req.ip || null,
+            metadata: { orderId: order.id, adminRefund: true },
+          });
+          refundResult = {
+            provider: 'oxsteed_credit',
+            refund_id: creditRefund?.transaction?.id != null ? String(creditRefund.transaction.id) : null,
+            amount: refundAmount,
+          };
+        } catch (creditErr) {
+          await client.query('ROLLBACK');
+          logger.error('Admin OxSteed credit refund failed', { orderId, error: creditErr.message });
+          const status = Number.isSafeInteger(creditErr.statusCode) ? creditErr.statusCode : 502;
+          return res.status(status).json({
+            error: creditErr.message || 'OxSteed Credit refund failed',
+            code: creditErr.code || 'credit_refund_failed',
+          });
+        }
+      } else {
         await client.query('ROLLBACK');
-        logger.error('Admin wallet refund failed', { orderId, error: walletErr.message });
-        return res.status(502).json({ error: 'Wallet refund failed', code: 'wallet_refund_failed' });
-      } finally {
-        client.release();
+        return res.status(400).json({
+          error: 'No refundable payment found (no Stripe intent, wallet debit, or OxSteed Credit purchase)',
+          code: 'no_refundable_payment',
+        });
       }
-    } else {
-      return res.status(400).json({
-        error: 'No refundable payment found (no Stripe intent or wallet debit)',
-        code: 'no_refundable_payment',
-      });
     }
 
-    // Update order payment status.
-    const newStatus = refundAmount >= order.total_cents ? 'refunded' : 'partially_refunded';
-    await pool.query(
-      `UPDATE food_orders SET payment_status = $1, updated_at = NOW() WHERE id = $2`,
-      [newStatus, orderId]
+    // Update order payment status from the cumulative refunded total.
+    // ADM-003: 'partially_refunded' is now a legal payment_status (migration 832).
+    const cumulativeRefundedCents = alreadyRefundedCents + refundAmount;
+    const newStatus = cumulativeRefundedCents >= totalCents ? 'refunded' : 'partially_refunded';
+    const nextMetadata = order.metadata && typeof order.metadata === 'object' ? { ...order.metadata } : {};
+    nextMetadata.admin_refunded_cents = cumulativeRefundedCents;
+    await client.query(
+      `UPDATE food_orders SET payment_status = $1, metadata = $2::jsonb, updated_at = NOW() WHERE id = $3`,
+      [newStatus, JSON.stringify(nextMetadata), orderId]
     );
 
     // P3-9-F02: a full admin refund must restore redeemed loyalty points and
@@ -241,23 +311,26 @@ async function refundFoodOrder(req, res) {
       }
     }
 
-    // Audit trail.
-    await pool.query(
+    // Audit trail, in-transaction: the mutation and its audit row commit or
+    // roll back together (fail-closed audit).
+    await client.query(
       `INSERT INTO admin_audit_log (admin_id, admin_user_id, action, entity_type, entity_id, metadata)
        VALUES ($1, $1, 'food_order_refund', 'food_order', $2, $3)`,
       [req.user.id, String(orderId), JSON.stringify({
         amount_cents: refundAmount,
-        reason,
+        cumulative_refunded_cents: cumulativeRefundedCents,
+        reason: trimmedReason,
         provider: refundResult.provider,
         refund_id: refundResult.refund_id || null,
         previous_status: order.payment_status,
         new_status: newStatus,
       })]
     );
+    await client.query('COMMIT');
 
     logger.info('adminFoodOrders.refund completed', {
       orderId, adminId: req.user.id, amount_cents: refundAmount,
-      provider: refundResult.provider,
+      provider: refundResult.provider, new_status: newStatus,
     });
     // P3-3-F07: the customer learns the admin-issued refund went through
     // (in-app + email). Best-effort: the refund is settled.
@@ -276,10 +349,13 @@ async function refundFoodOrder(req, res) {
         error: err.message,
       }));
     }
-    res.json({ ok: true, order_id: orderId, amount_cents: refundAmount, provider: refundResult.provider });
+    res.json({ ok: true, order_id: orderId, amount_cents: refundAmount, provider: refundResult.provider, new_status: newStatus });
   } catch (err) {
+    try { await client.query('ROLLBACK'); } catch (rbErr) { /* already closed */ }
     logger.error('adminFoodOrders.refund error', { message: err.message });
     res.status(500).json({ error: 'Failed to process refund' });
+  } finally {
+    client.release();
   }
 }
 

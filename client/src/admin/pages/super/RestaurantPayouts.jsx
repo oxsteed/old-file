@@ -44,7 +44,18 @@ export default function RestaurantPayouts() {
   const act = async (payout, action) => {
     setBusyId(payout.id);
     try {
-      await adminApi.post(`/admin/restaurant-payouts/${payout.id}/${action}`, {});
+      let body = {};
+      if (action === 'approve') {
+        // ADM-113: single-admin approval moves arbitrary sums via Stripe
+        // Transfer; the approver must prove a fresh step-up challenge.
+        const challengeResponse = await adminApi.post('/admin/restaurant-payouts/stepup-challenges', {});
+        const challengeId = challengeResponse.data?.challenge?.id;
+        if (!challengeId) throw new Error(t('restaurantPayouts.stepupFailed'));
+        const code = window.prompt(t('restaurantPayouts.stepupPrompt'));
+        if (!code || !code.trim()) throw new Error(t('restaurantPayouts.stepupRequired'));
+        body = { stepupChallengeId: challengeId, stepupCode: code.trim() };
+      }
+      await adminApi.post(`/admin/restaurant-payouts/${payout.id}/${action}`, body);
       setConfirm(null);
       await load();
     } catch (err) {

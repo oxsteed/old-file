@@ -171,19 +171,10 @@ function isSuperCaller(req) {
   return req.isSuper === true || req.user?.role === 'super_admin';
 }
 
-async function hasGlobalGrant(client, adminId, permission) {
-  const { rows } = await client.query(
-    `SELECT 1 FROM admin_permission_grants
-      WHERE grantee_id = $1
-        AND permissions ? $2
-        AND region_id IS NULL
-        AND expires_at > NOW()
-        AND revoked_at IS NULL
-      LIMIT 1`,
-    [adminId, permission]
-  );
-  return rows.length > 0;
-}
+// ADM-171: use the canonical hasGlobalGrant from adminAuth (honors
+// delegation_grants) instead of a local copy that only queried
+// admin_permission_grants and rejected delegated grant holders.
+const { hasGlobalGrant } = require('../middleware/adminAuth');
 
 async function regionAccessOrFail(req, targetUser) {
   if (req.isSuper) return null;
@@ -221,9 +212,8 @@ exports.createUserFull = async (req, res) => {
       account_type,
       membership_tier = null,
       subscription_status = 'none',
-      email_verified = false,
-      is_verified = false,
-      background_check_passed = false,
+      // ADM-176: verification flags are ignored at creation. A new account
+      // is born unverified; the verification workflows set these flags.
       logistics_role: rawLogisticsRole = undefined,
       business_name = null,
       notes = null,
@@ -312,8 +302,11 @@ exports.createUserFull = async (req, res) => {
           $13, $14, $15,
           $16, $17, $18,
           TRUE,
-          TRUE, 'onboarding_complete',
-          TRUE, TRUE, TRUE,
+          -- ADM-062: the legal acceptance record must reflect reality. The
+          -- user never accepted the Terms; the admin supplied profile data
+          -- but onboarding is not complete until the user finishes it.
+          FALSE, 'onboarding_in_progress',
+          TRUE, TRUE, FALSE,
           NOW(), NOW()
         )
         RETURNING id, first_name, last_name, email, role,
@@ -324,7 +317,8 @@ exports.createUserFull = async (req, res) => {
         first_name.trim(), last_name.trim(), normalizedEmail, passwordHash,
         phone || null, city || null, normalizedState, zip_code || null, country, preferredCurrency,
         resolvedDefaultMode, resolvedLogisticsRole, resolvedRole, tier, subscription_status,
-        coerceBoolean(email_verified), coerceBoolean(is_verified), coerceBoolean(background_check_passed),
+        // ADM-176: born unverified; verification workflows set these.
+        false, false, false,
       ]);
 
       const newUser = rows[0];
@@ -417,13 +411,40 @@ exports.editUserFull = async (req, res) => {
       return res.status(403).json({ error: 'Only a super-admin can modify admin accounts.' });
     }
     if ((wantsPasswordChange || wantsRoleChange) && !callerIsSuper) {
-      const granted = await hasGlobalGrant(db, adminId, 'manage_admin_accounts');
+      const granted = await hasGlobalGrant(adminId, 'manage_admin_accounts');
       if (!granted) {
         return res.status(403).json({
           error: 'Changing passwords or roles requires super-admin access or the manage_admin_accounts grant.',
           code: 'privilege_required',
         });
       }
+    }
+    // ADM-038: changing the email redirects the public password-reset flow,
+    // so an email change is equivalent to a password change for takeover
+    // purposes. Gate it exactly like password/role changes.
+    const wantsEmailChange = Object.prototype.hasOwnProperty.call(body, 'email')
+      && body.email !== undefined && body.email !== null
+      && String(body.email).trim().toLowerCase() !== String(current.email || '').toLowerCase();
+    if (wantsEmailChange && !callerIsSuper) {
+      const granted = await hasGlobalGrant(adminId, 'manage_admin_accounts');
+      if (!granted) {
+        return res.status(403).json({
+          error: 'Changing email addresses requires super-admin access or the manage_admin_accounts grant.',
+          code: 'privilege_required',
+        });
+      }
+    }
+    // ADM-059: identity/background verification flags must go through the
+    // real verification workflows (verifyUser, phone verification, background
+    // checks), not direct flips. Super-admins retain the escape hatch.
+    const VERIFICATION_FLAGS = ['email_verified', 'is_verified', 'background_check_passed'];
+    const wantsVerificationFlagChange = VERIFICATION_FLAGS.some((k) =>
+      Object.prototype.hasOwnProperty.call(body, k));
+    if (wantsVerificationFlagChange && !callerIsSuper) {
+      return res.status(403).json({
+        error: 'Verification flags can only be changed by a super-admin or through the verification workflows.',
+        code: 'privilege_required',
+      });
     }
 
     const result = await withTransaction(db, async (client) => {
@@ -482,6 +503,16 @@ exports.editUserFull = async (req, res) => {
             [newVal, userId]
           );
           if (dup.length) throw Object.assign(new Error('Email already in use'), { httpStatus: 409 });
+          // ADM-038: a changed email is unverified until the owner re-verifies
+          // it. Never carry the old address's verified flag forward.
+          updates.push(`email_verified = $${p++}`);
+          values.push(false);
+          changes.push({
+            field:     'email_verified',
+            oldValue:  fresh.email_verified,
+            newValue:  false,
+            actionType: 'edit_email_verified',
+          });
         }
 
         if (f.key === 'role' && newVal && !ALLOWED_ROLES.concat(['admin']).includes(newVal)) {

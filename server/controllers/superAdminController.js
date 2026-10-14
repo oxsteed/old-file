@@ -11,6 +11,7 @@ const { enqueueMessageNotification } = require('../services/messageNotificationS
 const { parseBoundedPagination } = require('../utils/pagination');
 const { cancelJobTransaction, finalizeJobCancellation } = require('../services/jobCancellationService');
 const AppError = require('../utils/appError');
+const { issueStepupChallenge, verifyStepupChallenge } = require('../services/stepupChallengeService');
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -575,6 +576,9 @@ exports.getDashboardGeo = async (req, res) => {
 };
 
 // USER MANAGEMENT
+// ADM-060: 60s cache for the filter-independent user-list summary stats.
+let getUsersSummaryCache = { data: null, at: 0 };
+
 exports.getUsers = async (req, res) => {
   try {
     const {
@@ -648,10 +652,14 @@ exports.getUsers = async (req, res) => {
       selectCols.push('hp.avg_rating, hp.completed_jobs_count, hp.total_reviews, hp.is_background_checked, hp.is_identity_verified, hp.tier AS helper_tier, hp.profile_photo_url AS avatar_url');
     } else { selectCols.push('NULL AS avg_rating, NULL AS completed_jobs_count, NULL AS total_reviews, NULL AS is_background_checked, NULL AS is_identity_verified, NULL AS helper_tier, NULL AS avatar_url'); }
     if (hasJobs) {
+      // Correlated subqueries here are index-backed (idx_jobs_client,
+      // idx_jobs_helper) and run only for the paginated rows; a grouped
+      // JOIN would aggregate the whole jobs table per page load.
       selectCols.push("(SELECT COUNT(*) FROM jobs WHERE client_id = u.id) AS jobs_posted");
       selectCols.push("(SELECT COUNT(*) FROM jobs WHERE assigned_helper_id = u.id AND status = 'completed') AS jobs_completed_as_helper");
     } else { selectCols.push('0 AS jobs_posted, 0 AS jobs_completed_as_helper'); }
     if (hasPayouts) {
+      // ADM-061: backed by idx_payouts_user_status (migration 834).
       selectCols.push("(SELECT COALESCE(SUM(amount_cents),0)/100.0 FROM payouts WHERE user_id = u.id AND status = 'paid') AS earnings_total");
     } else { selectCols.push('0 AS earnings_total'); }
 
@@ -671,8 +679,13 @@ exports.getUsers = async (req, res) => {
       params
     );
 
-    // Summary stats (always across all non-admin users, ignoring current filters)
-    const { rows: summaryRows } = await db.query(`
+    // Summary stats (always across all non-admin users, ignoring current filters).
+    // ADM-060: filter-independent, so cache for 60s instead of re-scanning the
+    // whole users table on every list request (including debounced keystrokes
+    // and pagination).
+    const now = Date.now();
+    if (!getUsersSummaryCache.data || now - getUsersSummaryCache.at > 60000) {
+      const { rows: summaryRows } = await db.query(`
       SELECT
         COUNT(*) FILTER (WHERE role NOT IN ('admin','super_admin') AND id::text <> '${AI_BOOKING_PLACEHOLDER_USER_ID}' AND LOWER(email) NOT LIKE '%${INTERNAL_EMAIL_SUFFIX}')                             AS total,
         COUNT(*) FILTER (WHERE role NOT IN ('admin','super_admin') AND id::text <> '${AI_BOOKING_PLACEHOLDER_USER_ID}' AND LOWER(email) NOT LIKE '%${INTERNAL_EMAIL_SUFFIX}' AND is_active = true)        AS active,
@@ -682,6 +695,8 @@ exports.getUsers = async (req, res) => {
         COUNT(*) FILTER (WHERE role NOT IN ('admin','super_admin') AND id::text <> '${AI_BOOKING_PLACEHOLDER_USER_ID}' AND LOWER(email) NOT LIKE '%${INTERNAL_EMAIL_SUFFIX}' AND created_at >= now() - interval '7 days') AS new_this_week
       FROM users
     `);
+      getUsersSummaryCache = { data: summaryRows[0], at: now };
+    }
 
     res.json({
       users,
@@ -689,7 +704,7 @@ exports.getUsers = async (req, res) => {
       page: parseInt(page),
       limit: parseInt(limit),
       pages: Math.ceil(countRows[0].count / limit),
-      summary: summaryRows[0],
+      summary: getUsersSummaryCache.data,
     });
   } catch (err) {
     logger.error('getUsers error', { err });
@@ -771,6 +786,13 @@ exports.getUserDetail = async (req, res) => {
     const raw = userRows[0];
     if (isInternalSystemUser(raw)) {
       return res.status(404).json({ error: 'System account is hidden from user management.' });
+    }
+    // ADM-007: admin/super_admin accounts are untouchable by delegated
+    // admins. The user list deliberately hides admin roles; the detail
+    // endpoint must not leak their full PII/operational payload to a
+    // manage_users-only admin. Super-admins retain access.
+    if (['admin', 'super_admin'].includes(raw.role) && req.user?.role !== 'super_admin') {
+      return res.status(403).json({ error: 'Cannot view admin account details.' });
     }
     // Normalize field names to match what the admin UI expects.
     // connect_accounts is authoritative for Stripe Connect fields; fall back to
@@ -919,6 +941,12 @@ exports.toggleUserBan = async (req, res) => {
     if (newStatus) {
       try { await reinstateAfterPendingAdminDeletion(userId); } catch (e) { logger.warn('toggleUserBan: reinstate after unban failed', { userId, err: e.message }); }
     }
+    // ADM-109: banning must invalidate issued tokens. Without this, pre-ban
+    // tokens stay cryptographically valid and resume working on unban.
+    if (!newStatus) {
+      try { await tokenRevocationService.revokeAllUserTokens(String(userId)); }
+      catch (e) { logger.warn('toggleUserBan: token revocation failed', { userId, err: e.message }); }
+    }
     // Kick any live WebSocket session immediately so the user can't keep browsing
     if (!newStatus) socketService.broadcastToUser(userId, 'force_logout', { reason: 'account_banned' });
     res.json({ message: `User ${newStatus ? 'unbanned' : 'banned'} successfully.`, is_active: newStatus });
@@ -1057,8 +1085,13 @@ exports.updateUserName = async (req, res) => {
     const trimFirst = first_name.trim();
     const trimLast = last_name.trim();
     if (!trimFirst || !trimLast) return res.status(400).json({ error: 'First name and last name cannot be blank.' });
-    const { rows: before } = await db.query('SELECT first_name, last_name FROM users WHERE id = $1', [userId]);
+    const { rows: before } = await db.query('SELECT first_name, last_name, role FROM users WHERE id = $1', [userId]);
     if (!before.length) return res.status(404).json({ error: 'User not found.' });
+    // ADM-138: same admin-target guard as the ban/verify/delete/didit
+    // siblings; delegated admins cannot rename admin accounts.
+    if (['admin', 'super_admin'].includes(before[0].role) && req.user?.role !== 'super_admin') {
+      return res.status(403).json({ error: 'Cannot modify admin accounts.' });
+    }
     const { rows: updateRows } = await db.query('UPDATE users SET first_name = $1, last_name = $2, updated_at = NOW() WHERE id = $3 RETURNING id', [trimFirst, trimLast, userId]);
     if (updateRows.length === 0) {
       return res.status(409).json({ error: 'User not found during update - concurrent deletion detected.' });
@@ -1162,6 +1195,25 @@ exports.deleteJob = async (req, res) => {
     const deletableStatuses = ['published', 'cancelled', 'closed'];
     if (!deletableStatuses.includes(rows[0].status)) {
       return res.status(400).json({ error: `Cannot delete job in '${rows[0].status}' status. Only jobs in ${deletableStatuses.join(', ')} status can be deleted.` });
+    }
+    // ADM-014/ADM-111: never hard-delete a job that carries a money trail.
+    // payments.job_id and cancellation_fee_audit.job_id are ON DELETE CASCADE,
+    // so deleting a job with live escrow or captured funds would silently
+    // destroy the payment and fee-audit records. Failed charge attempts carry
+    // no money and are safe to cascade.
+    const { rows: moneyRows } = await db.query(
+      `SELECT id FROM payments WHERE job_id = $1 AND status <> 'failed' LIMIT 1`,
+      [jobId]
+    );
+    if (moneyRows.length) {
+      return res.status(409).json({ error: 'Cannot delete job with an associated payment record. Refund or resolve the payment first.' });
+    }
+    const { rows: feeRows } = await db.query(
+      `SELECT id FROM cancellation_fee_audit WHERE job_id = $1 LIMIT 1`,
+      [jobId]
+    );
+    if (feeRows.length) {
+      return res.status(409).json({ error: 'Cannot delete job with cancellation fee audit records. The fee history must be preserved.' });
     }
     // Hard delete - cascades to bids, payments if FK'd with ON DELETE CASCADE; otherwise clean up first
     const { rows: deleteRows } = await db.query('DELETE FROM jobs WHERE id = $1 AND status IN ($2, $3, $4) RETURNING id', [jobId, 'published', 'cancelled', 'closed']);
@@ -1380,12 +1432,54 @@ exports.getFinancials = async (req, res) => {
   } catch (err) { logger.error('getFinancials error', { err }); res.status(500).json({ error: 'Failed to fetch financials.' }); }
 };
 
+/**
+ * POST /admin/stepup-challenges/manual-refund
+ * Issue a step-up challenge for a manual job refund. Scoped to the
+ * issue_refunds grant because the super-admin challenge route is not
+ * reachable by non-super-admin refunders.
+ */
+exports.issueRefundStepupChallenge = async (req, res, next) => {
+  try {
+    const adminId = req.user?.id;
+    if (!adminId) throw new AppError('Unauthorized.', 401, 'unauthorized');
+    const { challenge, delivery } = await issueStepupChallenge({
+      actorUserId: adminId,
+      actorEmail: req.user?.email,
+      actionType: 'manual_refund',
+      amountCents: 1,
+      currencyCode: 'USD',
+    });
+    res.status(201).json({
+      challenge: {
+        id: challenge.id,
+        actionType: challenge.actionType,
+        amountCents: challenge.amountCents,
+        currencyCode: challenge.currencyCode,
+        expiresAt: challenge.expiresAt,
+      },
+      delivery,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
 exports.issueManualRefund = async (req, res) => {
   try {
     const { jobId } = req.params;
     const { reason, amount_cents } = req.body;
     const adminId = req.user.id;
     if (!reason) return res.status(400).json({ error: 'Refund reason required.' });
+
+    // ADM-112: manual refunds move money under a single grant with no amount
+    // tiering. Require a fresh step-up challenge per refund so the acting
+    // admin re-authenticates at the moment money moves.
+    await verifyStepupChallenge({
+      challengeId: req.body?.stepupChallengeId || req.body?.stepup_challenge_id,
+      actorUserId: adminId,
+      actionType: 'manual_refund',
+      code: req.body?.stepupCode || req.body?.stepup_code,
+    });
 
     const refundAmountCents = amount_cents == null ? null : Number(amount_cents);
     if (refundAmountCents != null && (!Number.isInteger(refundAmountCents) || refundAmountCents <= 0)) {
@@ -1457,7 +1551,25 @@ exports.issueManualRefund = async (req, res) => {
         error: e.message,
       });
     }
-  } catch (err) { logger.error('issueManualRefund error', { err }); res.status(500).json({ error: 'Refund failed.' }); }
+    // ADM-008/ADM-041: the success path must send a response. Without this
+    // the request hangs until the client times out, after a real Stripe
+    // refund already succeeded.
+    return res.status(200).json({
+      refundId: refund.id,
+      refundCents: refundAmountCents == null ? capturedCents : refundAmountCents,
+      paymentId: payment.id,
+      requestId,
+    });
+  } catch (err) {
+    // ADM-074: preserve the operational error codes from processPaymentRefund
+    // (400 invalid amount, 409 dispute_open / idempotency conflict, 503
+    // reconciliation_required) instead of swallowing them into a generic 500.
+    logger.error('issueManualRefund error', { err });
+    if (err instanceof AppError) {
+      return res.status(err.status || 500).json({ error: err.message, code: err.code });
+    }
+    return res.status(500).json({ error: 'Refund failed.' });
+  }
 };
 
 exports.getPayouts = async (req, res) => {
@@ -1469,11 +1581,15 @@ exports.getPayouts = async (req, res) => {
     // P3-1-F19: payments.status is never 'released' (release is tracked in
     // payment_hold_status); the completed tab read the dead value and always
     // came back empty.
+    // ADM-229: the failed tab used to mix charge-lifecycle states
+    // ('refunded','disputed') with genuine failures. Refunded and disputed
+    // payments are distinct outcomes, not failed payouts; the tab now shows
+    // only rows whose charge actually failed.
     const STATUS_MAP = {
       pending:    "p.status IN ('pending','authorized')",
       processing: "p.status = 'captured'",
       completed:  "p.payment_hold_status = 'released'",
-      failed:     "p.status IN ('failed','refunded','disputed')",
+      failed:     "p.status = 'failed'",
     };
     const statusClause = STATUS_MAP[status] || 'p.helper_payout > 0';
     const baseFilter   = `p.helper_payout > 0 AND (${statusClause})`;
@@ -1500,7 +1616,7 @@ exports.getPayouts = async (req, res) => {
         SUM(CASE WHEN status IN ('pending','authorized') THEN helper_payout ELSE 0 END) AS pending,
         SUM(CASE WHEN status = 'captured'               THEN helper_payout ELSE 0 END) AS processing,
         SUM(CASE WHEN payment_hold_status = 'released'  THEN helper_payout ELSE 0 END) AS completed,
-        SUM(CASE WHEN status IN ('failed','refunded','disputed') THEN helper_payout ELSE 0 END) AS failed,
+        SUM(CASE WHEN status = 'failed'                THEN helper_payout ELSE 0 END) AS failed,
         SUM(CASE WHEN payment_hold_status = 'released'  THEN helper_payout ELSE 0 END) AS "totalPaid"
         FROM payments WHERE helper_payout > 0
     `);
@@ -1517,76 +1633,9 @@ exports.getPayouts = async (req, res) => {
   }
 };
 
-/**
- * POST /admin/super/payouts/:id/retry
- * Requeues a failed helper payout for processing (resets it to pending so
- * the payout pipeline picks it up again). Super-admin only: no
- * payouts-write grant exists in the permission catalogue, so fail closed.
- * Idempotent: a payout that is already released is a no-op; concurrent
- * retries race safely on the conditional UPDATE.
- */
-exports.retryPayout = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const adminId = req.user.id;
-
-    const { rows } = await db.query(
-      `SELECT id, job_id, helper_payout, status, payment_hold_status, failure_reason
-       FROM payments
-       WHERE id = $1 AND helper_payout > 0`,
-      [id]
-    );
-    if (!rows.length) return res.status(404).json({ error: 'Payout not found.' });
-
-    const payout = rows[0];
-    // P3-1-F19: release is tracked in payment_hold_status, not status.
-    if (payout.payment_hold_status === 'released') {
-      return res.json({
-        retried: false,
-        reason: 'Payout already completed.',
-        payout: { id: payout.id, status: payout.status },
-      });
-    }
-    if (payout.status !== 'failed') {
-      return res.status(409).json({ error: 'Only failed payouts can be retried.' });
-    }
-
-    const { rows: updated } = await db.query(
-      `UPDATE payments
-       SET status = 'pending', failure_reason = NULL, updated_at = NOW()
-       WHERE id = $1 AND status = 'failed'
-       RETURNING id, status`,
-      [id]
-    );
-    if (!updated.length) {
-      // Lost a race with another retry; re-read for an accurate answer.
-      const { rows: reread } = await db.query('SELECT id, status FROM payments WHERE id = $1', [id]);
-      return res.json({
-        retried: false,
-        reason: 'Payout is no longer in a failed state.',
-        payout: reread[0] || null,
-      });
-    }
-
-    try {
-      await logAdminAction({
-        adminId,
-        action: 'payout_retry_queued',
-        targetType: 'payment',
-        targetId: String(payout.id),
-        description: `Requeued failed payout ${payout.id} (helper_payout ${payout.helper_payout})`,
-        before: { status: 'failed', failure_reason: payout.failure_reason },
-        after: { status: 'pending' },
-        req,
-      });
-    } catch (e) {}
-
-    res.json({ retried: true, payout: updated[0] });
-  } catch (err) {
-    logger.error('retryPayout error', { err });
-    res.status(500).json({ error: 'Failed to retry payout.' });
-  }
-};
+// ADM-015/ADM-042: retryPayout removed. It reset failed payments to 'pending'
+// claiming a payout pipeline would pick them up; no such pipeline exists and
+// the rows it targeted were failed customer charges, not helper payouts.
 
 exports.getRevenueSummary = async (req, res) => {
   try {
@@ -2380,25 +2429,26 @@ exports.updateSetting = async (req, res) => {
   }
 };
 
-// Restore the immediately previous audited value. Rollback is itself a new
-// forward change, so the audit trail remains append-only and another rollback
-// can recover the prior state if an operator changes their mind.
+// Restore the immediately previous audited value.
+//
+// ADM-034/ADM-128: rollback used to apply immediately with only the
+// manage_settings grant, bypassing the maker-checker that the direct PUT
+// routes now honor. Rollback is now a *proposal*: it creates a change request
+// restoring the previous audited value, and a different admin must approve it
+// (approve_settings + separation of duties) before anything is applied.
+// Returns 202 with the pending request, mirroring updateSetting.
 exports.rollbackSetting = async (req, res) => {
-  let client;
   try {
-    client = await db.connect();
     const { key } = req.params;
     const adminId = req.user.id;
-    await client.query('BEGIN');
-    const { rows: currentRows } = await client.query(
-      'SELECT * FROM platform_settings WHERE key = $1 FOR UPDATE',
+    const { rows: currentRows } = await db.query(
+      'SELECT * FROM platform_settings WHERE key = $1',
       [key],
     );
     if (!currentRows.length) {
-      await client.query('ROLLBACK');
       return res.status(404).json({ error: `Setting "${key}" not found.` });
     }
-    const { rows: history } = await client.query(
+    const { rows: history } = await db.query(
       `SELECT before_state
          FROM admin_audit_log
         WHERE target_type = 'platform_setting'
@@ -2412,38 +2462,34 @@ exports.rollbackSetting = async (req, res) => {
     );
     const previousValue = history[0]?.before_state?.value;
     if (previousValue === undefined) {
-      await client.query('ROLLBACK');
       return res.status(409).json({ error: 'No audited previous value is available for rollback.', code: 'rollback_unavailable' });
     }
     const parsed = parsePlatformSettingValue(currentRows[0], previousValue);
     if (parsed.error) {
-      await client.query('ROLLBACK');
       return res.status(409).json({ error: 'The audited value is no longer valid under current platform bounds.', code: 'rollback_invalidated' });
     }
-    const previousVersion = currentRows[0].version || 1;
-    await client.query(
-      'UPDATE platform_settings SET value = $1, version = COALESCE(version, 1) + 1, updated_by = $2, updated_at = now() WHERE key = $3',
-      [parsed.value, adminId, key],
-    );
-    await logAdminAction({
-      client,
-      adminId,
-      action: 'platform_setting_rollback',
-      targetType: 'platform_setting',
-      targetKey: key,
-      description: `Setting "${key}" rolled back`,
-      before: { value: currentRows[0].value, version: previousVersion },
-      after: { value: parsed.value, version: previousVersion + 1 },
+    const { createChangeRequest } = require('./settingsChangeController');
+    const request = await createChangeRequest({
+      kind: 'setting',
+      key,
+      proposedValue: parsed.value,
+      reason: (req.body?.reason || '').trim() || `Rollback to previous audited value for "${key}"`,
+      proposedBy: adminId,
       req,
-      throwOnError: true,
     });
-    await client.query('COMMIT');
-    return res.json({ message: `Setting "${key}" rolled back.`, value: parsed.value });
+    return res.status(202).json({
+      message: `Rollback of setting "${key}" proposed and awaiting approval.`,
+      code: 'change_proposed',
+      change_request_id: request.id,
+      request,
+    });
   } catch (err) {
-    try { await client.query('ROLLBACK'); } catch {}
+    if (Number.isInteger(err.statusCode)) {
+      return res.status(err.statusCode).json({ error: err.message, ...(err.code ? { code: err.code } : {}) });
+    }
     logger.error('rollbackSetting error', { err });
-    return res.status(500).json({ error: 'Failed to roll back setting.' });
-  } finally { client?.release(); }
+    res.status(500).json({ error: 'Failed to propose setting rollback.' });
+  }
 };
 
 // Review P3-941: rail-controlling flags change only through their dedicated,
@@ -2494,21 +2540,21 @@ exports.rollbackFeatureFlag = async (req, res) => {
   if (RAIL_CONTROLLED_FLAGS.has(String(req.params?.key || '').toLowerCase())) {
     return res.status(409).json({ error: 'This flag is controlled by the OxSteed Credit rail. Use the rail controls.', code: 'flag_rail_controlled' });
   }
-  let client;
+  // ADM-034/ADM-128: rollback used to flip the flag immediately with only the
+  // manage_settings grant, bypassing maker-checker. It now proposes a change
+  // request restoring the previous audited state; a different admin must
+  // approve it (approve_settings + separation of duties). Returns 202.
   try {
-    client = await db.connect();
     const { key } = req.params;
     const adminId = req.user.id;
-    await client.query('BEGIN');
-    const { rows: currentRows } = await client.query(
-      'SELECT is_enabled FROM feature_flags WHERE key = $1 FOR UPDATE',
+    const { rows: currentRows } = await db.query(
+      'SELECT is_enabled FROM feature_flags WHERE key = $1',
       [key],
     );
     if (!currentRows.length) {
-      await client.query('ROLLBACK');
       return res.status(404).json({ error: `Feature flag "${key}" not found.` });
     }
-    const { rows: history } = await client.query(
+    const { rows: history } = await db.query(
       `SELECT before_state
          FROM admin_audit_log
         WHERE target_type = 'feature_flag'
@@ -2523,32 +2569,30 @@ exports.rollbackFeatureFlag = async (req, res) => {
     const previousValue = history[0]?.before_state?.is_enabled;
     const previousEnabled = parseStrictBoolean(previousValue);
     if (previousEnabled === null) {
-      await client.query('ROLLBACK');
       return res.status(409).json({ error: 'No audited previous flag state is available for rollback.', code: 'rollback_unavailable' });
     }
-    await client.query(
-      'UPDATE feature_flags SET is_enabled = $1, updated_by = $2, updated_at = now() WHERE key = $3',
-      [previousEnabled, adminId, key],
-    );
-    await logAdminAction({
-      client,
-      adminId,
-      action: 'feature_flag_rollback',
-      targetType: 'feature_flag',
-      targetKey: key,
-      description: `Feature flag "${key}" rolled back`,
-      before: { is_enabled: currentRows[0].is_enabled },
-      after: { is_enabled: previousEnabled },
+    const { createChangeRequest } = require('./settingsChangeController');
+    const request = await createChangeRequest({
+      kind: 'flag',
+      key,
+      proposedValue: previousEnabled,
+      reason: (req.body?.reason || '').trim() || `Rollback to previous audited state for flag "${key}"`,
+      proposedBy: adminId,
       req,
-      throwOnError: true,
     });
-    await client.query('COMMIT');
-    return res.json({ message: `Feature flag "${key}" rolled back.`, enabled: previousEnabled });
+    return res.status(202).json({
+      message: `Rollback of feature flag "${key}" proposed and awaiting approval.`,
+      code: 'change_proposed',
+      change_request_id: request.id,
+      request,
+    });
   } catch (err) {
-    try { await client.query('ROLLBACK'); } catch {}
+    if (Number.isInteger(err.statusCode)) {
+      return res.status(err.statusCode).json({ error: err.message, ...(err.code ? { code: err.code } : {}) });
+    }
     logger.error('rollbackFeatureFlag error', { err });
-    return res.status(500).json({ error: 'Failed to roll back feature flag.' });
-  } finally { client?.release(); }
+    return res.status(500).json({ error: 'Failed to propose feature flag rollback.' });
+  }
 };
 
 // AUDIT LOG
@@ -2582,18 +2626,43 @@ exports.exportData = async (req, res) => {
     res.set('X-Content-Type-Options', 'nosniff');
     const { type } = req.params;
     const exportLimit = 10000;
+    // ADM-143: the users export honors the list filters (search, role,
+    // status, location) instead of always dumping the newest 10k users.
+    // The client already forwards the active filters as query params.
+    const buildUsersExport = () => {
+      const conditions = [`u.role NOT IN ('admin','super_admin')`];
+      const params = [];
+      let i = 1;
+      const { search, role, status, location } = req.query;
+      if (search) {
+        conditions.push(`(u.first_name ILIKE $${i} OR u.last_name ILIKE $${i} OR u.email ILIKE $${i} OR u.phone ILIKE $${i})`);
+        params.push(`%${search}%`); i++;
+      }
+      if (role) { conditions.push(`u.role = $${i++}`); params.push(role); }
+      if (status === 'active') conditions.push(`u.is_active = true`);
+      else if (status === 'banned') conditions.push(`u.is_active = false`);
+      if (location) {
+        conditions.push(`(u.city ILIKE $${i} OR u.state ILIKE $${i} OR u.zip_code ILIKE $${i})`);
+        params.push(`%${location}%`); i++;
+      }
+      return {
+        sql: `SELECT u.id, u.first_name, u.last_name, u.email, u.role, u.is_active, u.created_at FROM users u WHERE ${conditions.join(' AND ')} ORDER BY u.created_at DESC LIMIT ${exportLimit}`,
+        params,
+      };
+    };
+    const usersExport = buildUsersExport();
     const queries = {
-      users: `SELECT u.id, u.first_name, u.last_name, u.email, u.role, u.is_active, u.created_at FROM users u WHERE u.role NOT IN ('admin','super_admin') ORDER BY u.created_at DESC LIMIT ${exportLimit}`,
-      jobs: await tableExists('jobs') ? `SELECT j.id, j.title, j.status, j.created_at FROM jobs j ORDER BY j.created_at DESC LIMIT ${exportLimit}` : null,
-      revenue: await tableExists('platform_ledger') ? `SELECT source_type, amount_cents, created_at FROM platform_ledger ORDER BY created_at DESC LIMIT ${exportLimit}` : null,
-      bids: await tableExists('bids') ? 'SELECT b.id, b.job_id, b.helper_id, b.amount, b.status, b.created_at FROM bids b ORDER BY b.created_at DESC LIMIT 10000' : null,
-      reviews: await tableExists('reviews') ? 'SELECT r.id, r.reviewer_id, r.reviewee_id, r.rating, r.comment, r.is_public, r.created_at FROM reviews r ORDER BY r.created_at DESC LIMIT 10000' : null,
-      businesses: await tableExists('businesses') ? `SELECT b.id, b.user_id, b.business_name, b.business_type, b.is_active, b.created_at FROM businesses b ORDER BY b.created_at DESC LIMIT ${exportLimit}` : null,
-      disputes: await tableExists('disputes') ? `SELECT d.id, d.job_id, d.opened_by, d.status, d.reason, d.resolution, d.created_at FROM disputes d ORDER BY d.created_at DESC LIMIT ${exportLimit}` : null,
-      support_tickets: await tableExists('support_tickets') ? `SELECT t.id, t.user_id, t.subject, t.status, t.priority, t.created_at FROM support_tickets t ORDER BY t.created_at DESC LIMIT ${exportLimit}` : null,
+      users: usersExport,
+      jobs: await tableExists('jobs') ? { sql: `SELECT j.id, j.title, j.status, j.created_at FROM jobs j ORDER BY j.created_at DESC LIMIT ${exportLimit}`, params: [] } : null,
+      revenue: await tableExists('platform_ledger') ? { sql: `SELECT source_type, amount_cents, created_at FROM platform_ledger ORDER BY created_at DESC LIMIT ${exportLimit}`, params: [] } : null,
+      bids: await tableExists('bids') ? { sql: 'SELECT b.id, b.job_id, b.helper_id, b.amount, b.status, b.created_at FROM bids b ORDER BY b.created_at DESC LIMIT 10000', params: [] } : null,
+      reviews: await tableExists('reviews') ? { sql: 'SELECT r.id, r.reviewer_id, r.reviewee_id, r.rating, r.comment, r.is_public, r.created_at FROM reviews r ORDER BY r.created_at DESC LIMIT 10000', params: [] } : null,
+      businesses: await tableExists('businesses') ? { sql: `SELECT b.id, b.user_id, b.business_name, b.business_type, b.is_active, b.created_at FROM businesses b ORDER BY b.created_at DESC LIMIT ${exportLimit}`, params: [] } : null,
+      disputes: await tableExists('disputes') ? { sql: `SELECT d.id, d.job_id, d.opened_by, d.status, d.reason, d.resolution, d.created_at FROM disputes d ORDER BY d.created_at DESC LIMIT ${exportLimit}`, params: [] } : null,
+      support_tickets: await tableExists('support_tickets') ? { sql: `SELECT t.id, t.user_id, t.subject, t.status, t.priority, t.created_at FROM support_tickets t ORDER BY t.created_at DESC LIMIT ${exportLimit}`, params: [] } : null,
     };
     if (!queries[type]) return res.status(400).json({ error: 'Invalid or unavailable export type.' });
-    const { rows } = await db.query(queries[type]);
+    const { rows } = await db.query(queries[type].sql, queries[type].params);
     if (!rows.length) return res.json({ data: [], csv: '' });
     const csvCell = (val) => {
       if (val === null || val === undefined) return '';
@@ -4099,6 +4168,11 @@ exports.reactivateUser = async (req, res) => {
     await logUserAction({ adminId, targetUserId: userId, actionType: 'account_reactivated', notes: notes.trim() || null, ipAddress: req.ip });
     await logAdminAction({ adminId, action: 'user_reactivated', targetType: 'user', targetId: userId, description: notes.trim() || 'Account reactivated by admin', req });
 
+    // ADM-109: reactivation must not resurrect pre-ban tokens. Revoke so the
+    // user starts with a clean session on next login.
+    try { await tokenRevocationService.revokeAllUserTokens(String(userId)); }
+    catch (e) { logger.warn('reactivateUser: token revocation failed', { userId, err: e.message }); }
+
     await notifyUserAccountEvent(userId, {
       type: 'account_restored',
       data: {
@@ -4138,10 +4212,14 @@ exports.updateUserProfile = async (req, res) => {
       return res.status(400).json({ error: 'No updatable fields provided.' });
     }
 
-    // Validate email uniqueness if changing
+    // Validate email uniqueness if changing.
+    // ADM-140: normalize (trim + lowercase) and compare case-insensitively,
+    // matching createUserFull/editUserFull, so case-variant duplicates
+    // (Foo@x.com vs foo@x.com) cannot slip through.
     if (updates.email) {
+      updates.email = String(updates.email).trim().toLowerCase();
       const { rows } = await db.query(
-        'SELECT id FROM users WHERE email = $1 AND id <> $2',
+        'SELECT id FROM users WHERE LOWER(email) = $1 AND id <> $2',
         [updates.email, userId]
       );
       if (rows.length) return res.status(409).json({ error: 'Email already in use by another account.' });

@@ -4,6 +4,14 @@ const express = require('express');
 const request = require('supertest');
 const { mockQuery, resetMocks } = require('./setup');
 const { errorHandler } = require('../middleware/errorHandler');
+
+// ADM-082: wallet-status and entitlement mutations require a fresh step-up
+// challenge; mock the verifier so route tests prove the underlying behavior.
+jest.mock('../services/stepupChallengeService', () => {
+  const actual = jest.requireActual('../services/stepupChallengeService');
+  return { ...actual, verifyStepupChallenge: jest.fn().mockResolvedValue({ verified: true }) };
+});
+
 const controller = require('../controllers/oxsteedCreditController');
 const service = require('../services/oxsteedCreditService');
 const {

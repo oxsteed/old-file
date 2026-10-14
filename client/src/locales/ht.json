@@ -727,7 +727,10 @@
         "title": "Fè ranbousman manyèl",
         "description": "Sa ap ranbouse peman an bay kliyan an.",
         "confirm": "Ranbouse",
-        "reasonPlaceholder": "Rezon ranbousman…"
+        "reasonPlaceholder": "Rezon ranbousman…",
+        "stepupPrompt": "Yo voye yon kod verifikasyon nan imel ou. Antre li pou otorize ranbousman sa a:",
+        "stepupFailed": "Pa t ka bay yon defi verifikasyon. Ranbousman an pa t trete.",
+        "stepupRequired": "Yo bezwen yon kod verifikasyon pou bay ranbousman an."
       },
       "delete": {
         "title": "Efase travay la pou tout tan",
@@ -10553,7 +10556,10 @@
       "total": "Total",
       "payment": "Peman",
       "created": "Kreye",
-      "empty": "Pa jwenn okenn kòmand."
+      "empty": "Pa jwenn okenn kòmand.",
+      "prevPage": "Anvan",
+      "nextPage": "Apre",
+      "pageOf": "Paj {{page}} sou {{pages}}"
     }
   },
   "auditLogFilter": {
@@ -25427,7 +25433,9 @@
     "confirmTitle": "Anrejistre chanjman frè a",
     "invalidNumber": "Antre yon nimewo ki valab.",
     "valueOutOfRange": "Valè a dwe ant {{min}} ak {{max}}.",
-    "valueOutsideRange": "Valè a deyò limit yo otorize a."
+    "valueOutsideRange": "Valè a deyò limit yo otorize a.",
+    "stripeSyncFailed": "Frè yo anrejistre, men senkronizasyon pri Stripe a echwe. Pri Stripe a pa t mete ajou.",
+    "stripeSyncFailedReset": "Frè yo retounen nan valè defo yo, men senkronizasyon pri Stripe a echwe. Kèk pri Stripe pa t mete ajou."
   },
   "superFinancials": {
     "colAmount": "Montan",
@@ -30481,7 +30489,10 @@
       "completed": "Fini yo",
       "failed": "Echwe yo",
       "rejected": "Refize yo"
-    }
+    },
+    "stepupFailed": "Pa t ka bay yon defi verifikasyon.",
+    "stepupPrompt": "Yo voye yon kòd verifikasyon nan imèl ou. Antre li pou apwouve peman sa a:",
+    "stepupRequired": "Fòk ou gen yon kòd verifikasyon pou apwouve peman an."
   },
   "statementOps": {
     "title": "Operasyon relve yo",
@@ -31915,5 +31926,21 @@
     "error": "Nou pa t ka soumet W-9 ou a. Tanpri eseye anko.",
     "filedTitle": "W-9 anrejistre",
     "filedCopy": "Nou resevwa fom taks W-9 ou a. Ou pa bezwen soumet li anko."
-  }
+  },
+  "adminCreditApprovalTitle": "Apwobasyon kredi platfòm nan",
+  "adminCreditApprovalDetail": "Kontwole si restoran sa a ka bay nouvo kredi. Revoke kòmanse yon peryòd gras 30 jou; apre sa, balans ki rete yo ap deplase otomatikman nan OxSteed Credit.",
+  "adminCreditApprovalStatusLabel": "Estati apwobasyon",
+  "adminCreditApprovalStatusRevoked": "Revoke",
+  "adminCreditApprovalNewStatus": "Nouvo estati",
+  "adminCreditApprovalReason": "Rezon",
+  "adminCreditApprovalReasonRequired": "Ou dwe bay yon rezon pou sispann oswa revoke.",
+  "adminCreditApprovalReasonPlaceholder": "Poukisa restoran sa a ap pèdi apwobasyon kredi li?",
+  "adminCreditApprovalUpdate": "Mete apwobasyon an ajou",
+  "adminCreditApprovalUpdated": "Apwobasyon kredi a mete ajou.",
+  "adminCreditApprovalLoadFailed": "Pa ka chaje apwobasyon kredi a.",
+  "adminCreditApprovalUpdateFailed": "Pa ka mete apwobasyon kredi a ajou.",
+  "adminCreditApprovalGraceEnds": "Peryòd gras la fini",
+  "adminCreditApprovalRevokedAt": "Revoke nan",
+  "adminCreditApprovalMigratedAt": "Balans yo deplase",
+  "adminCreditApprovalGrandfathered": "Apwouve (pa gen dosye apwobasyon)"
 }

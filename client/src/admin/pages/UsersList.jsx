@@ -402,6 +402,14 @@ export default function UsersList() {
 
   const [filters, setFilters] = useState(queryFilters);
   const [lastUpdated, setLastUpdated] = useState(null);
+  // ADM-060: the search input is debounced so every keystroke doesn't fire a
+  // leading-wildcard ILIKE full-table scan. Selection applies immediately.
+  const [searchInput, setSearchInput] = useState(queryFilters.search);
+  useEffect(() => {
+    if (searchInput === filters.search) return undefined;
+    const t = setTimeout(() => update('search', searchInput), 350);
+    return () => clearTimeout(t);
+  }, [searchInput]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Sequence-guarded + abortable: rapid filter changes can no longer resolve
   // out of order and clobber the table with stale results.
@@ -477,23 +485,23 @@ export default function UsersList() {
   };
 
   const onSort = (col) => {
-    const nextFilters = f => ({
-      ...f,
+    // ADM-175: compute the next state once and use it for both the state
+    // update and the URL params, so they cannot disagree.
+    const nextState = {
+      ...filters,
       sort: col,
-      order: f.sort === col && f.order === 'desc' ? 'asc' : 'desc',
+      order: filters.sort === col && filters.order === 'desc' ? 'asc' : 'desc',
       page: 1,
-    });
-    setFilters(nextFilters);
+    };
+    setFilters(nextState);
     const next = new URLSearchParams(searchParams);
-    const nextState = nextFilters(filters);
     next.set('sort', nextState.sort);
     next.set('order', nextState.order);
     next.set('page', '1');
     setSearchParams(next, { replace: true });
   };
 
-  // Export (note: the server export endpoint ignores query params, so this
-  // downloads the full dataset rather than the filtered view)
+  // Export honors the active list filters server-side (ADM-143).
   const handleExport = async () => {
     try {
       const params = Object.fromEntries(Object.entries(filters).filter(([, v]) => v !== ''));
@@ -638,9 +646,9 @@ export default function UsersList() {
         <SuggestDropdown
           id="users-search"
           items={userSuggestItems}
-          value={filters.search}
-          onQueryChange={(q) => update('search', q)}
-          onSelect={(item) => update('search', item.title || '')}
+          value={searchInput}
+          onQueryChange={setSearchInput}
+          onSelect={(item) => { const v = item.title || ''; setSearchInput(v); update('search', v); }}
           recentsKey="oxsteed_admin_user_recents"
           placeholder={t('adminUsers.list.searchPlaceholder')}
           ariaLabel={t('adminUsers.list.searchPlaceholder')}

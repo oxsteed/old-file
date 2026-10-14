@@ -1534,6 +1534,47 @@ test('reverses a paid settlement with a compensating journal transaction', async
   expect(mockQuery.mock.calls.some(([sql]) => sql.includes("transaction_type, status"))).toBe(true);
 });
 
+// ADM-043: the journal reversal must respect the Stripe payout state.
+// Reversing while a transfer is in flight, or after it completed, would
+// credit partner_payable for funds that are gone or moving.
+test('refuses to reverse a settlement while its Stripe payout is in flight', async () => {
+  mockQuery.mockImplementation(async (sql) => {
+    if (sql.includes('FROM oxsteed_credit_settlements s') && sql.includes('WHERE s.id = $1')) {
+      return { rows: [{ id: 'settlement-paid', partner_id: 41, restaurant_id: 9, restaurant_name: 'OxSteed Cafe', currency_code: 'USD', net_cents: '2500', status: 'paid', payout_status: 'initiated' }] };
+    }
+    if (sql.includes('FROM oxsteed_credit_settlement_reversals')) return { rows: [] };
+    return { rows: [] };
+  });
+
+  await expect(reverseSettlement({
+    settlementId: 'settlement-paid',
+    idempotencyKey: 'reversal-inflight-key',
+    actorUserId: 'admin-1',
+    reason: 'Trying to reverse during payout',
+    recoveryReference: 'return-123',
+  })).rejects.toMatchObject({ code: 'credit_settlement_payout_in_flight', status: 409 });
+  expect(mockQuery.mock.calls.some(([sql]) => sql.includes('INSERT INTO oxsteed_credit_settlement_reversals'))).toBe(false);
+});
+
+test('refuses to reverse a settlement whose Stripe payout already completed', async () => {
+  mockQuery.mockImplementation(async (sql) => {
+    if (sql.includes('FROM oxsteed_credit_settlements s') && sql.includes('WHERE s.id = $1')) {
+      return { rows: [{ id: 'settlement-paid', partner_id: 41, restaurant_id: 9, restaurant_name: 'OxSteed Cafe', currency_code: 'USD', net_cents: '2500', status: 'paid', payout_status: 'paid' }] };
+    }
+    if (sql.includes('FROM oxsteed_credit_settlement_reversals')) return { rows: [] };
+    return { rows: [] };
+  });
+
+  await expect(reverseSettlement({
+    settlementId: 'settlement-paid',
+    idempotencyKey: 'reversal-completed-key',
+    actorUserId: 'admin-1',
+    reason: 'Trying to reverse after payout',
+    recoveryReference: 'return-123',
+  })).rejects.toMatchObject({ code: 'credit_settlement_payout_completed', status: 409 });
+  expect(mockQuery.mock.calls.some(([sql]) => sql.includes('INSERT INTO oxsteed_credit_settlement_reversals'))).toBe(false);
+});
+
 test('rejects a second settlement reversal with a different idempotency key', async () => {
   mockQuery
     .mockResolvedValueOnce({ rows: [{ id: 'settlement-paid', partner_id: 41, restaurant_id: 9, restaurant_name: 'OxSteed Cafe', currency_code: 'USD', net_cents: '2500', status: 'reversed' }] })

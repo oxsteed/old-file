@@ -124,11 +124,14 @@ test('future-effective rows are never selected by the worker', async () => {
   expect(sql).toMatch(/effective_at\s+IS\s+NULL\s+OR\s+effective_at\s*<=\s*NOW\(\)/i);
 });
 
-test('a failing row does not block the remaining rows and is left untouched', async () => {
+test('a failing row does not block the remaining rows; attempts are tracked', async () => {
   const good1 = changeRequest({ id: 11, status: 'approved' });
   const bad = changeRequest({ id: 12, status: 'scheduled', effective_at: past });
   const good2 = changeRequest({ id: 13, status: 'approved' });
   mockDiscovery([good1, bad, good2]);
+  // Stranded-rows COUNT (ADM-001 guard) then the attempt UPDATE (ADM-131).
+  mockQuery.mockResolvedValueOnce({ rows: [{ n: 0 }], rowCount: 1 });
+  mockQuery.mockResolvedValueOnce({ rows: [{ apply_attempts: 1 }], rowCount: 1 });
 
   mockApplyChangeRequest.mockImplementation(async (_client, request) => {
     if (request.id === 12) throw new Error('invalid setting value');
@@ -139,12 +142,16 @@ test('a failing row does not block the remaining rows and is left untouched', as
 
   expect(result).toEqual({ locked: true, due: 3, applied: 2, failed: 1 });
   expect(mockApplyChangeRequest).toHaveBeenCalledTimes(3);
-  // The worker never mutates the request row itself on failure; status is
-  // owned by applyChangeRequest's own transaction (which rolled back).
-  const workerUpdates = mockQuery.mock.calls.filter(
-    ([sql]) => typeof sql === 'string' && /^\s*UPDATE\b/i.test(sql) && sql.includes(CHANGE_REQUESTS_TABLE)
+  // The worker records the attempt but never changes the request's status
+  // (still owned by applyChangeRequest's own transaction, which rolled back).
+  const attemptUpdates = mockQuery.mock.calls.filter(
+    ([sql]) => typeof sql === 'string' && sql.includes('apply_attempts')
   );
-  expect(workerUpdates).toHaveLength(0);
+  expect(attemptUpdates).toHaveLength(1);
+  const statusUpdates = mockQuery.mock.calls.filter(
+    ([sql]) => typeof sql === 'string' && /SET status = 'failed'/.test(sql)
+  );
+  expect(statusUpdates).toHaveLength(0);
 
   expect(logAdminAction).toHaveBeenCalledTimes(1);
   expect(logAdminAction).toHaveBeenCalledWith(
@@ -157,8 +164,35 @@ test('a failing row does not block the remaining rows and is left untouched', as
   );
 });
 
-test('a failing audit write does not block the remaining rows', async () => {
-  const bad = changeRequest({ id: 21 });
+test('a row failing MAX_APPLY_ATTEMPTS times is dead-lettered to failed', async () => {
+  const { MAX_APPLY_ATTEMPTS } = require('../jobs/settingsChangeApplier');
+  const bad = changeRequest({ id: 31 });
+  mockDiscovery([bad]);
+  mockQuery.mockResolvedValueOnce({ rows: [{ n: 0 }], rowCount: 1 }); // stranded COUNT
+  mockQuery.mockResolvedValueOnce({ rows: [{ apply_attempts: MAX_APPLY_ATTEMPTS }], rowCount: 1 }); // attempt UPDATE
+  mockQuery.mockResolvedValue({ rows: [], rowCount: 0 });
+
+  mockApplyChangeRequest.mockRejectedValue(new Error('permanently broken'));
+
+  const result = await runSettingsChangeApplierOnce();
+
+  expect(result).toEqual({ locked: true, due: 1, applied: 0, failed: 1 });
+  const deadLetter = mockQuery.mock.calls.filter(
+    ([sql]) => typeof sql === 'string' && /SET status = 'failed'/.test(sql)
+  );
+  expect(deadLetter).toHaveLength(1);
+  expect(deadLetter[0][1]).toEqual([31]);
+});
+
+test('discovery only selects rows with separation-of-duties review (ADM-001)', async () => {
+  mockDiscovery([]);
+  await runSettingsChangeApplierOnce();
+  const sql = discoverySelectSql();
+  expect(sql).toMatch(/reviewed_by IS NOT NULL/i);
+  expect(sql).toMatch(/reviewed_by IS DISTINCT FROM proposed_by/i);
+});
+
+test('a failing audit write does not block the remaining rows', async () => {  const bad = changeRequest({ id: 21 });
   const good = changeRequest({ id: 22 });
   mockDiscovery([bad, good]);
 

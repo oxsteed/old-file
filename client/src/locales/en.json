@@ -727,7 +727,10 @@
         "title": "Issue Manual Refund",
         "description": "This will refund the payment to the client.",
         "confirm": "Issue Refund",
-        "reasonPlaceholder": "Reason for refund…"
+        "reasonPlaceholder": "Reason for refund…",
+        "stepupPrompt": "A verification code was sent to your email. Enter it to authorize this refund:",
+        "stepupFailed": "Could not issue a verification challenge. The refund was not processed.",
+        "stepupRequired": "A verification code is required to issue the refund."
       },
       "delete": {
         "title": "Permanently Delete Job",
@@ -10553,7 +10556,10 @@
       "total": "Total",
       "payment": "Payment",
       "created": "Created",
-      "empty": "No orders found."
+      "empty": "No orders found.",
+      "prevPage": "Previous",
+      "nextPage": "Next",
+      "pageOf": "Page {{page}} of {{pages}}"
     }
   },
   "auditLogFilter": {
@@ -25426,7 +25432,9 @@
     "confirmTitle": "Save fee change",
     "invalidNumber": "Enter a valid number.",
     "valueOutOfRange": "Value must be between {{min}} and {{max}}.",
-    "valueOutsideRange": "Value is outside the allowed range."
+    "valueOutsideRange": "Value is outside the allowed range.",
+    "stripeSyncFailed": "Fee saved, but the Stripe price sync failed. The Stripe price was not updated.",
+    "stripeSyncFailedReset": "Fees reset to defaults, but the Stripe price sync failed. Some Stripe prices were not updated."
   },
   "superFinancials": {
     "colAmount": "Amount",
@@ -30480,7 +30488,10 @@
       "completed": "Completed",
       "failed": "Failed",
       "rejected": "Rejected"
-    }
+    },
+    "stepupFailed": "Could not issue a verification challenge.",
+    "stepupPrompt": "A verification code was sent to your email. Enter it to approve this payout:",
+    "stepupRequired": "A verification code is required to approve the payout."
   },
   "statementOps": {
     "title": "Statement operations",
@@ -31914,5 +31925,21 @@
     "error": "Could not submit your W-9. Please try again.",
     "filedTitle": "W-9 on file",
     "filedCopy": "Your W-9 tax form has been received. You do not need to submit it again."
-  }
+  },
+  "adminCreditApprovalTitle": "Platform credit approval",
+  "adminCreditApprovalDetail": "Controls whether this restaurant may issue new credit. Revoking starts a 30-day grace period; remaining balances then auto-migrate to OxSteed Credit.",
+  "adminCreditApprovalStatusLabel": "Approval status",
+  "adminCreditApprovalStatusRevoked": "Revoked",
+  "adminCreditApprovalNewStatus": "New status",
+  "adminCreditApprovalReason": "Reason",
+  "adminCreditApprovalReasonRequired": "A reason is required to suspend or revoke.",
+  "adminCreditApprovalReasonPlaceholder": "Why is this restaurant losing credit approval?",
+  "adminCreditApprovalUpdate": "Update approval",
+  "adminCreditApprovalUpdated": "Credit approval updated.",
+  "adminCreditApprovalLoadFailed": "Unable to load credit approval.",
+  "adminCreditApprovalUpdateFailed": "Unable to update credit approval.",
+  "adminCreditApprovalGraceEnds": "Grace period ends",
+  "adminCreditApprovalRevokedAt": "Revoked at",
+  "adminCreditApprovalMigratedAt": "Balances migrated",
+  "adminCreditApprovalGrandfathered": "Approved (no approval record)"
 }

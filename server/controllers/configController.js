@@ -96,6 +96,13 @@ exports.updatePricing = async (req, res, next) => {
     const client = await db.connect();
     try {
       await client.query('BEGIN');
+      // ADM-205: capture before-values so the audit trail supports rollback
+      // review (the audit previously stored only the after state).
+      const { rows: beforeRows } = await client.query(
+        `SELECT key, value FROM platform_config WHERE key = ANY($1)`,
+        [entries.map(([k]) => k)]
+      );
+      const beforeValues = Object.fromEntries(beforeRows.map((r) => [r.key, r.value]));
       for (const [key, value] of entries) {
         await client.query(
           `INSERT INTO platform_config (key, value, updated_by)
@@ -109,6 +116,7 @@ exports.updatePricing = async (req, res, next) => {
         action: 'pricing_updated',
         targetType: 'platform_config',
         description: 'Platform pricing updated',
+        before: beforeValues,
         after: Object.fromEntries(entries.map(([k, v]) => [k, String(v)])),
         req,
         client,

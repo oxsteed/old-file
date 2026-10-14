@@ -503,6 +503,11 @@ async function refundWalletDebitForReference(client, {
   correlationId = null,
   actorType = 'system',
   metadata = {},
+  // ADM-029: optional partial refund amount in cents. When omitted the full
+  // original debit is refunded (legacy behavior for the kitchen and agent
+  // paths). When provided, cumulative refunds for the reference are capped at
+  // the original debit so partials can never over-refund.
+  amountCents = null,
 }) {
   const account = await getOrCreateWalletAccount(client, {
     restaurantId,
@@ -552,29 +557,89 @@ async function refundWalletDebitForReference(client, {
   }
 
   const refundReferenceId = normalizeString(orderReferenceId, 120);
-  const { rows: existingRefundRows } = await client.query(
-    `SELECT *
+  const originalDebitCents = Math.max(0, Math.round(Number(debitEntry.amount_cents || 0)));
+  const idempotencyKey = normalizeString(correlationId, 120) || `food-order-refund:${refundReferenceId}`;
+
+  // ADM-029/ADM-030: cumulative refund tracking. Partial refunds write one
+  // ledger entry each with a `:pN` suffixed reference id, so the
+  // single-entry-per-reference dedupe in applyWalletLedgerEntry keeps working
+  // (same-key retries replay; same-seq races fail closed on amount mismatch)
+  // while the sum below caps total refunds at the original debit.
+  const likeBase = refundReferenceId.replace(/[\\%_]/g, (c) => `\\${c}`);
+  const { rows: priorRefundRows } = await client.query(
+    `SELECT COALESCE(SUM(amount_cents), 0) AS refunded_cents,
+            COUNT(*) AS refund_count
        FROM food_customer_wallet_ledger
       WHERE account_id = $1
         AND entry_type = 'refund'
         AND reference_type = 'food_order_refund'
-        AND reference_id = $2
-      LIMIT 1`,
-    [account.id, refundReferenceId]
+        AND (reference_id = $2 OR reference_id LIKE $3 ESCAPE '\\')`,
+    [account.id, refundReferenceId, `${likeBase}:%`]
   );
-  if (existingRefundRows[0]) {
-    return { refunded: false, reason: 'already_refunded', entry: existingRefundRows[0] };
+  const priorRefundedCents = Number(priorRefundRows[0]?.refunded_cents || 0);
+  const priorRefundCount = Number(priorRefundRows[0]?.refund_count || 0);
+
+  const { rows: replayRows } = await client.query(
+    `SELECT *
+       FROM food_customer_wallet_ledger
+      WHERE account_id = $1
+        AND idempotency_key = $2
+        AND entry_type = 'refund'
+      LIMIT 1`,
+    [account.id, idempotencyKey]
+  );
+  if (replayRows[0]) {
+    return {
+      refunded: true,
+      replayed: true,
+      entry: replayRows[0],
+      account,
+      amountCents: Number(replayRows[0].amount_cents || 0),
+      cumulativeRefundedCents: priorRefundedCents,
+    };
   }
+
+  const requestedCents = amountCents == null ? originalDebitCents : Math.round(Number(amountCents));
+  if (!Number.isSafeInteger(requestedCents) || requestedCents <= 0) {
+    return { refunded: false, reason: 'invalid_amount', cumulativeRefundedCents: priorRefundedCents };
+  }
+  if (priorRefundedCents > 0 && amountCents == null) {
+    // Legacy full-refund callers (kitchen, agent) keep the old single-shot
+    // signal when any refund (full or partial) already exists for the order.
+    const { rows: latestRefundRows } = await client.query(
+      `SELECT *
+         FROM food_customer_wallet_ledger
+        WHERE account_id = $1
+          AND entry_type = 'refund'
+          AND reference_type = 'food_order_refund'
+          AND (reference_id = $2 OR reference_id LIKE $3 ESCAPE '\\')
+        ORDER BY created_at DESC
+        LIMIT 1`,
+      [account.id, refundReferenceId, `${likeBase}:%`]
+    );
+    return { refunded: false, reason: 'already_refunded', entry: latestRefundRows[0] || null, cumulativeRefundedCents: priorRefundedCents };
+  }
+  if (priorRefundedCents + requestedCents > originalDebitCents) {
+    // Fail closed: never refund more than the original debit.
+    return { refunded: false, reason: 'exceeds_original_debit', cumulativeRefundedCents: priorRefundedCents };
+  }
+
+  // Partial refunds get a sequenced reference id; full refunds keep the bare
+  // order reference (legacy shape for the kitchen/agent paths). The base is
+  // shortened so the suffix always fits the 120-char reference column.
+  const entryReferenceId = amountCents == null
+    ? refundReferenceId
+    : `${refundReferenceId.slice(0, 110)}:p${priorRefundCount + 1}`;
 
   const result = await refundFoodWallet(client, {
     restaurantId,
     customerId,
     currencyCode: normalizeCurrency(currencyCode || debitEntry.currency_code),
-    amountCents: Number(debitEntry.amount_cents || 0),
+    amountCents: requestedCents,
     description,
     referenceType: 'food_order_refund',
-    referenceId: refundReferenceId,
-    idempotencyKey: normalizeString(correlationId, 120) || `food-order-refund:${refundReferenceId}`,
+    referenceId: entryReferenceId,
+    idempotencyKey,
     createdByUserId,
     correlationId,
     actorType,
@@ -583,6 +648,7 @@ async function refundWalletDebitForReference(client, {
       originalDebitEntryId: String(debitEntry.id),
       originalReferenceType: debitEntry.reference_type,
       originalReferenceId: debitEntry.reference_id,
+      ...(amountCents != null ? { partialRefund: true, requestedAmountCents: requestedCents } : {}),
     },
   });
 
@@ -590,6 +656,8 @@ async function refundWalletDebitForReference(client, {
     refunded: true,
     entry: result.entry,
     account: result.account,
+    amountCents: requestedCents,
+    cumulativeRefundedCents: priorRefundedCents + requestedCents,
   };
 }
 

@@ -727,7 +727,10 @@
         "title": "إصدار دليل الاسترداد",
         "description": "سيؤدي هذا إلى إعادة المبلغ المدفوع إلى العميل.",
         "confirm": "استرداد المشكلة",
-        "reasonPlaceholder": "سبب استرداد…"
+        "reasonPlaceholder": "سبب استرداد…",
+        "stepupPrompt": "تم إرسال رمز تحقق إلى بريدك الإلكتروني. أدخله لتفويض هذا الاسترداد:",
+        "stepupFailed": "تعذر إصدار تحدي التحقق. لم تتم معالجة الاسترداد.",
+        "stepupRequired": "رمز التحقق مطلوب لإصدار الاسترداد."
       },
       "delete": {
         "title": "حذف الوظيفة نهائيًا",
@@ -10553,7 +10556,10 @@
       "total": "الإجمالي",
       "payment": "الدفع",
       "created": "تم الإنشاء",
-      "empty": "لم يتم العثور على طلبات."
+      "empty": "لم يتم العثور على طلبات.",
+      "prevPage": "السابق",
+      "nextPage": "التالي",
+      "pageOf": "صفحة {{page}} من {{pages}}"
     }
   },
   "auditLogFilter": {
@@ -25437,7 +25443,9 @@
     "confirmTitle": "حفظ تغيير الرسم",
     "invalidNumber": "أدخل رقمًا صالحًا.",
     "valueOutOfRange": "يجب أن تكون القيمة بين {{min}} و{{max}}.",
-    "valueOutsideRange": "القيمة خارج النطاق المسموح."
+    "valueOutsideRange": "القيمة خارج النطاق المسموح.",
+    "stripeSyncFailed": "تم حفظ الرسوم، لكن فشلت مزامنة سعر Stripe. لم يتم تحديث سعر Stripe.",
+    "stripeSyncFailedReset": "تمت إعادة تعيين الرسوم إلى القيم الافتراضية، لكن فشلت مزامنة أسعار Stripe. لم يتم تحديث بعض أسعار Stripe."
   },
   "superFinancials": {
     "colAmount": "المبلغ",
@@ -30491,7 +30499,10 @@
       "completed": "مكتملة",
       "failed": "فاشلة",
       "rejected": "مرفوضة"
-    }
+    },
+    "stepupFailed": "تعذر إصدار تحدٍّ للتحقق.",
+    "stepupPrompt": "تم إرسال رمز تحقق إلى بريدك الإلكتروني. أدخله للموافقة على هذه الدفعة:",
+    "stepupRequired": "يلزم رمز تحقق للموافقة على الدفعة."
   },
   "statementOps": {
     "title": "عمليات الكشوفات",
@@ -31925,5 +31936,21 @@
     "error": "تعذّر إرسال نموذج W-9. حاول مرة أخرى.",
     "filedTitle": "W-9 محفوظ",
     "filedCopy": "تم استلام نموذجك الضريبي W-9. لا حاجة لإعادة إرساله."
-  }
+  },
+  "adminCreditApprovalTitle": "اعتماد الائتمان للمنصة",
+  "adminCreditApprovalDetail": "يتحكم فيما إذا كان هذا المطعم يمكنه إصدار ائتمان جديد. يؤدي الإلغاء إلى بدء فترة سماح مدتها 30 يومًا؛ ثم يتم ترحيل الأرصدة المتبقية تلقائيًا إلى OxSteed Credit.",
+  "adminCreditApprovalStatusLabel": "حالة الاعتماد",
+  "adminCreditApprovalStatusRevoked": "ملغى",
+  "adminCreditApprovalNewStatus": "الحالة الجديدة",
+  "adminCreditApprovalReason": "السبب",
+  "adminCreditApprovalReasonRequired": "السبب مطلوب للتعليق أو الإلغاء.",
+  "adminCreditApprovalReasonPlaceholder": "لماذا يفقد هذا المطعم اعتماد الائتمان؟",
+  "adminCreditApprovalUpdate": "تحديث الاعتماد",
+  "adminCreditApprovalUpdated": "تم تحديث اعتماد الائتمان.",
+  "adminCreditApprovalLoadFailed": "تعذر تحميل اعتماد الائتمان.",
+  "adminCreditApprovalUpdateFailed": "تعذر تحديث اعتماد الائتمان.",
+  "adminCreditApprovalGraceEnds": "تنتهي فترة السماح",
+  "adminCreditApprovalRevokedAt": "أُلغي في",
+  "adminCreditApprovalMigratedAt": "تم ترحيل الأرصدة",
+  "adminCreditApprovalGrandfathered": "معتمد (لا يوجد سجل اعتماد)"
 }

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   AlertTriangle,
   CheckCircle2,
@@ -8,6 +8,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import adminApi from '../../../../lib/adminApi';
 import { safeCreditErrorMessage } from '../../../../lib/creditErrors';
+import { createStableIdempotencyKeyStore } from '../creditIdempotency';
 import {
   CreditSubNav,
   DEFAULT_CURRENCY_OPTIONS,
@@ -18,6 +19,9 @@ import {
 
 function ReservePolicySection({ busy, setBusy, setNotice, setError, currencyOptions }) {
   const { t } = useTranslation('credit');
+  // ADM-017: this section queues reserve-policy pending actions; the server
+  // requires an Idempotency-Key on the maker endpoint.
+  const idempotencyKeysRef = useRef(createStableIdempotencyKeyStore());
   const [policies, setPolicies] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
@@ -50,12 +54,18 @@ function ReservePolicySection({ busy, setBusy, setNotice, setError, currencyOpti
     if (!Number.isSafeInteger(floor) || floor < 0) { setError(t('adminReservePolicyValidationHint')); return; }
     setBusy(true); setNotice(''); setError('');
     try {
-      await adminApi.put('/admin/super/oxsteed-credit/reserve-policies', {
+      // ADM-017: requestPendingAction requires an Idempotency-Key; without it
+      // the server 400s every attempt.
+      const policyPayload = {
         currencyCode: normalizedCurrency,
         partnerId: partnerId.trim() === '' ? null : partnerId.trim(),
         ratioBps: ratio,
         floorCents: floor,
+      };
+      await adminApi.put('/admin/super/oxsteed-credit/reserve-policies', policyPayload, {
+        headers: { 'Idempotency-Key': idempotencyKeysRef.current.get('credit-reserve-policy', policyPayload) },
       });
+      idempotencyKeysRef.current.clear('credit-reserve-policy', policyPayload);
       setNotice(t('adminReservePolicyQueued'));
       await loadPolicies();
     } catch (err) {

@@ -46,12 +46,22 @@ function noStoreCreditResponse(_req, res, next) {
 }
 
 // Phase 7 (gap 9): sends a maker-checker result from the inline money
-// routes: 202 with the pending receipt when queued, or the execution
-// result when the threshold bypass ran it immediately.
+// routes: 202 with the pending receipt when queued, 200 on idempotent
+// replay, or the execution result. A replay of a terminal (approved /
+// rejected / expired) action returns 409 so clients cannot misread a dead
+// intent as a fresh receipt (ADM-081/ADM-116).
 function sendPendingActionResult(res, result, executedStatus = 201) {
   if (result.executed) {
     const executedReplayed = Boolean(result.result && result.result.replayed);
     return res.status(executedReplayed ? 200 : executedStatus).json(result.result);
+  }
+  if (result.replayed && result.terminalReplay) {
+    return res.status(409).json({
+      error: `This request was already ${result.pendingAction?.status || 'decided'}; queue a new pending action instead of reusing the idempotency key.`,
+      code: 'credit_pending_action_terminal_replay',
+      pendingAction: result.pendingAction,
+      replayed: true,
+    });
   }
   return res.status(result.replayed ? 200 : 202).json({
     pendingAction: result.pendingAction,
@@ -301,13 +311,21 @@ router.get('/super/access-gate/attempts',           requireSuperAdmin, logistics
 // Financials - super-admin direct, or admin with view_financials grant
 router.get('/financials',            requireAdmin, requirePermission('view_financials'), superCtrl.getFinancials);
 router.get('/payouts',               requireAdmin, requirePermission('view_financials'), superCtrl.getPayouts);
-// Failed-payout retry: super-admin only (no payouts-write grant exists in the
-// permission catalogue). Requeues the payout; idempotent on completed payouts.
-router.post('/super/payouts/:id/retry', requireSuperAdmin, superCtrl.retryPayout);
+// ADM-015/ADM-042 (removed): POST /super/payouts/:id/retry reset failed
+// payments to 'pending' claiming "the payout pipeline picks it up again".
+// No such pipeline exists: the only writers of payments.status='failed' are
+// the failed-PaymentIntent webhooks (failed customer CHARGES, not helper
+// payouts), and nothing consumes status='pending'. The endpoint returned a
+// misleading {retried:true} while creating zombie rows. A real helper-payout
+// retry pipeline is a product decision; until then there is no retry affordance.
 router.get('/super/money',           requireAdmin, requirePermission('view_financials'), superCtrl.getMoneyOverview);
 router.get('/super/revenue',         requireAdmin, requirePermission('view_financials'), superCtrl.getRevenueSummary);
 router.get('/super/revenue/export',  requireAdmin, requirePermission('view_financials'), superCtrl.getRevenueExport);
 router.post('/jobs/:jobId/refund',   strictLimiter, requireAdmin, requirePermission('issue_refunds'),   superCtrl.issueManualRefund);
+// ADM-112: step-up challenge issuance for manual refunds, scoped to the
+// issue_refunds grant (the super-admin challenge route is not reachable by
+// non-super-admin refunders).
+router.post('/stepup-challenges/manual-refund', strictLimiter, requireAdmin, requirePermission('issue_refunds'), superCtrl.issueRefundStepupChallenge);
 
 // Platform settings - super-admin direct, or admin with manage_settings grant
 router.get('/settings',              requireAdmin, requirePermission('manage_settings'), superCtrl.getSettings);

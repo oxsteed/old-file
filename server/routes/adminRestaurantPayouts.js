@@ -18,6 +18,8 @@ router.use(requireAdmin);
 const moneyGate = requireSuperAdminOrPermission('manage_financials');
 
 router.get('/', moneyGate, ctrl.listQueue);
+// ADM-113: step-up challenges for the approve path (same gate as approve).
+router.post('/stepup-challenges', moneyGate, ctrl.issueApproveStepupChallenge);
 router.post('/:payoutId/approve', moneyGate, ctrl.approve);
 router.post('/:payoutId/reject', moneyGate, ctrl.reject);
 

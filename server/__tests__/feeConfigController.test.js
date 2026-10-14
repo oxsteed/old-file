@@ -180,3 +180,56 @@ describe('previewFees zero rates (FC1)', () => {
     expect(payload.brokerCutDollars).toBe('5.00');
   });
 });
+
+describe('resetToDefaults (ADM-099)', () => {
+  function routeReset() {
+    mockQuery.mockImplementation(async (sql) => {
+      const text = String(sql);
+      if (text === 'SELECT * FROM fee_config') {
+        return { rows: [
+          { key: 'tier2_subscription_cents', value: '2500' },
+          { key: 'trial_duration_days', value: '7' },
+          { key: 'platform_fee_pct', value: '10' },
+        ] };
+      }
+      if (text.includes('INSERT INTO fee_change_log')) return { rows: [], rowCount: 1 };
+      if (text.includes('UPDATE fee_config')) return { rows: [], rowCount: 1 };
+      if (text.includes('FROM plans WHERE slug')) return { rows: [planRow] };
+      if (text.includes('UPDATE plans')) return { rows: [], rowCount: 1 };
+      return { rows: [], rowCount: 0 };
+    });
+  }
+
+  test('every reset row writes its log INSERT before its config UPDATE (atomic unit)', async () => {
+    routeReset();
+    const res = responseDouble();
+    await controller.resetToDefaults(requestDouble({ reason: 'test' }), res, jest.fn());
+
+    const sqls = mockQuery.mock.calls.map(([sql]) => String(sql));
+    const logIdx = sqls
+      .map((s, i) => (s.includes('INSERT INTO fee_change_log') ? i : -1))
+      .filter((i) => i >= 0);
+    const updateIdx = sqls
+      .map((s, i) => (s.includes('UPDATE fee_config') ? i : -1))
+      .filter((i) => i >= 0);
+    // tier2_subscription_cents (2500->1499) and platform_fee_pct (10->0.071)
+    // change; trial_duration_days is not in DEFAULTS.
+    expect(logIdx.length).toBe(2);
+    expect(updateIdx.length).toBe(2);
+    expect(updateIdx[0]).toBeGreaterThan(logIdx[0]);
+    expect(updateIdx[1]).toBeGreaterThan(logIdx[1]);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ success: true }));
+  });
+
+  test('Stripe sync failure on reset returns 202 with pending-sync state, never success', async () => {
+    routeReset();
+    stripeMock.prices.create.mockRejectedValue(new Error('stripe exploded'));
+    const res = responseDouble();
+    await controller.resetToDefaults(requestDouble({ reason: 'test' }), res, jest.fn());
+
+    expect(res.status).toHaveBeenCalledWith(202);
+    const payload = res.json.mock.calls[0][0];
+    expect(payload).toEqual(expect.objectContaining({ success: false, stripe_sync: 'failed' }));
+    expect(payload.message).toMatch(/Stripe/i);
+  });
+});

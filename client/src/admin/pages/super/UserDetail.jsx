@@ -229,6 +229,10 @@ export default function UserDetail() {
   // submit fail with a 403.
   const { allowed: canMessage } = useHasGrant('message_users');
   const showMessageBtn = isSuper || canMessage;
+  // ADM-141: the phone-verification endpoint requires the verify_users grant;
+  // gate the button the same way as the message button.
+  const { allowed: canVerifyUsers } = useHasGrant('verify_users');
+  const showPhoneVerifyBtn = isSuper || canVerifyUsers;
 
   const { data: res, loading, error, reload } = useAbortableFetch(async (signal) => {
     const { data } = await adminApi.get(`/admin/users/${userId}`, { signal });
@@ -885,7 +889,7 @@ export default function UserDetail() {
               <Eye size={13} />{t('adminCustomer360.open360')}
             </Link>
 
-            {isAdmin && (
+            {isAdmin && showPhoneVerifyBtn && (
               <button
                 onClick={triggerPhoneVerification}
                 disabled={phoneVerificationSaving || !user.phone || ['admin', 'super_admin'].includes(user.role)}

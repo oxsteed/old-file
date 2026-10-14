@@ -727,7 +727,10 @@
         "title": "Effectuer un remboursement manuel",
         "description": "Cela remboursera le paiement au client.",
         "confirm": "Rembourser",
-        "reasonPlaceholder": "Raison du remboursement…"
+        "reasonPlaceholder": "Raison du remboursement…",
+        "stepupPrompt": "Un code de verification a ete envoye a votre e-mail. Saisissez-le pour autoriser ce remboursement :",
+        "stepupFailed": "Impossible d'emettre un defi de verification. Le remboursement n'a pas ete traite.",
+        "stepupRequired": "Un code de verification est requis pour emettre le remboursement."
       },
       "delete": {
         "title": "Supprimer définitivement la mission",
@@ -10553,7 +10556,10 @@
       "total": "Total",
       "payment": "Paiement",
       "created": "Créé",
-      "empty": "Aucune commande trouvée."
+      "empty": "Aucune commande trouvée.",
+      "prevPage": "Précédent",
+      "nextPage": "Suivant",
+      "pageOf": "Page {{page}} sur {{pages}}"
     }
   },
   "auditLogFilter": {
@@ -25427,7 +25433,9 @@
     "confirmTitle": "Enregistrer la modification de commission",
     "invalidNumber": "Saisissez un nombre valide.",
     "valueOutOfRange": "La valeur doit être comprise entre {{min}} et {{max}}.",
-    "valueOutsideRange": "La valeur est hors de la plage autorisée."
+    "valueOutsideRange": "La valeur est hors de la plage autorisée.",
+    "stripeSyncFailed": "Frais enregistrés, mais la synchronisation du prix Stripe a échoué. Le prix Stripe n’a pas été mis à jour.",
+    "stripeSyncFailedReset": "Frais réinitialisés aux valeurs par défaut, mais la synchronisation des prix Stripe a échoué. Certains prix Stripe n’ont pas été mis à jour."
   },
   "superFinancials": {
     "colAmount": "Montant",
@@ -30481,7 +30489,10 @@
       "completed": "Terminés",
       "failed": "Échoués",
       "rejected": "Refusés"
-    }
+    },
+    "stepupFailed": "Impossible d'émettre un défi de vérification.",
+    "stepupPrompt": "Un code de vérification a été envoyé à votre adresse e-mail. Saisissez-le pour approuver ce paiement :",
+    "stepupRequired": "Un code de vérification est requis pour approuver le paiement."
   },
   "statementOps": {
     "title": "Operations des releves",
@@ -31915,5 +31926,21 @@
     "error": "Impossible d'envoyer votre W-9. Veuillez reessayer.",
     "filedTitle": "W-9 enregistre",
     "filedCopy": "Votre formulaire fiscal W-9 a bien ete recu. Vous n'avez pas besoin de le renvoyer."
-  }
+  },
+  "adminCreditApprovalTitle": "Approbation de crédit de la plateforme",
+  "adminCreditApprovalDetail": "Détermine si ce restaurant peut émettre du nouveau crédit. La révocation démarre une période de grâce de 30 jours ; les soldes restants sont ensuite migrés automatiquement vers OxSteed Credit.",
+  "adminCreditApprovalStatusLabel": "Statut d'approbation",
+  "adminCreditApprovalStatusRevoked": "Révoqué",
+  "adminCreditApprovalNewStatus": "Nouveau statut",
+  "adminCreditApprovalReason": "Motif",
+  "adminCreditApprovalReasonRequired": "Un motif est requis pour suspendre ou révoquer.",
+  "adminCreditApprovalReasonPlaceholder": "Pourquoi ce restaurant perd-il son approbation de crédit ?",
+  "adminCreditApprovalUpdate": "Mettre à jour l'approbation",
+  "adminCreditApprovalUpdated": "Approbation de crédit mise à jour.",
+  "adminCreditApprovalLoadFailed": "Impossible de charger l'approbation de crédit.",
+  "adminCreditApprovalUpdateFailed": "Impossible de mettre à jour l'approbation de crédit.",
+  "adminCreditApprovalGraceEnds": "Fin de la période de grâce",
+  "adminCreditApprovalRevokedAt": "Révoqué le",
+  "adminCreditApprovalMigratedAt": "Soldes migrés",
+  "adminCreditApprovalGrandfathered": "Approuvé (aucun dossier d'approbation)"
 }

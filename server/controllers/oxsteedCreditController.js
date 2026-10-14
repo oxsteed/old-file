@@ -156,10 +156,10 @@ function getIdempotencyKey(req) {
 /**
  * Phase 7 (gap 9): maker-checker. The requesting admin (maker) queues a
  * pending action; a different admin (checker) approves or rejects it via
- * POST /super/oxsteed-credit/pending-actions/:id/decision. Below the
- * maker-checker threshold (env, default 0 = everything needs dual
- * approval) the movement executes immediately under the requesting admin.
- * Returns the service result: { executed, pendingAction, result, replayed }.
+ * POST /super/oxsteed-credit/pending-actions/:id/decision. There is no
+ * amount or environment bypass: every money movement requires a distinct
+ * checker. Returns the service result: { executed, pendingAction, result,
+ * replayed }.
  */
 async function requestMoneyMovement(req, actionType, payload) {
   return requestPendingAction({
@@ -174,12 +174,23 @@ async function requestMoneyMovement(req, actionType, payload) {
 
 /**
  * Sends a maker-checker result: 202 with the pending receipt when queued,
- * or the execution result when the threshold bypass ran it immediately.
+ * 200 when the identical in-flight request is replayed, or the execution
+ * result when the movement executed. A replay of a terminal (approved /
+ * rejected / expired) action returns 409 so the client cannot misread a
+ * dead intent as a fresh receipt (ADM-081/ADM-116).
  */
 function sendMoneyMovementResult(res, result, executedStatus = 201) {
   if (result.executed) {
     const executedReplayed = Boolean(result.result && result.result.replayed);
     return res.status(executedReplayed ? 200 : executedStatus).json(result.result);
+  }
+  if (result.replayed && result.terminalReplay) {
+    return res.status(409).json({
+      error: `This request was already ${result.pendingAction?.status || 'decided'}; queue a new pending action instead of reusing the idempotency key.`,
+      code: 'credit_pending_action_terminal_replay',
+      pendingAction: result.pendingAction,
+      replayed: true,
+    });
   }
   return res.status(result.replayed ? 200 : 202).json({
     pendingAction: result.pendingAction,
@@ -751,6 +762,9 @@ async function refundAdminCredit(req, res, next) {
 async function adminUpdateCreditAccountStatus(req, res, next) {
   try {
     const customerId = parseUuid(req.params.customerId, 'customerId');
+    // ADM-082: suspending/reactivating/closing a wallet locks or unlocks
+    // customer funds; require a fresh step-up challenge.
+    await requireAdminStepup(req, 'credit_account_status_update');
     const result = await updateCustomerCreditAccountStatus({ customerId, status: req.body?.status, currencyCode: req.body?.currencyCode || req.body?.currency_code, actorUserId: req.user.id, reason: req.body?.reason, correlationId: req.correlationId || req.get('X-Request-ID') || null, requestIp: req.ip || null });
     res.json(result);
   } catch (error) {
@@ -897,10 +911,30 @@ async function issueAdminProvisionalCredit(req, res, next) {
  * Generic maker endpoint: queue any supported money movement for checker
  * approval. The converted money routes call requestMoneyMovement instead,
  * which funnels here with a fixed action type.
+ *
+ * ADM-079: the generic endpoint used to bypass the per-route maker front
+ * doors (maker step-up for payouts/withdrawals, live-rate binding for
+ * currency quotes). It now (a) requires the maker to prove a fresh step-up
+ * challenge, and (b) refuses the action types that own dedicated maker
+ * routes with stronger guarantees, directing callers to those routes.
  */
 async function requestAdminPendingAction(req, res, next) {
   try {
-    const result = await requestMoneyMovement(req, req.body?.actionType || req.body?.action_type, req.body?.payload || {});
+    const actionType = req.body?.actionType || req.body?.action_type;
+    if (GENERIC_MAKER_BLOCKED_ACTION_TYPES.has(String(actionType || '').trim())) {
+      throw new AppError(
+        `Action type "${actionType}" must be queued through its dedicated maker route, not the generic pending-actions endpoint`,
+        400,
+        'credit_pending_action_dedicated_route_required'
+      );
+    }
+    await verifyStepupChallenge({
+      challengeId: req.body?.stepupChallengeId || req.body?.stepup_challenge_id,
+      actorUserId: req.user?.id || null,
+      actionType: 'pending_action_request',
+      code: req.body?.stepupCode || req.body?.stepup_code,
+    });
+    const result = await requestMoneyMovement(req, actionType, req.body?.payload || {});
     sendMoneyMovementResult(res, result);
   } catch (error) {
     next(error);
@@ -1298,6 +1332,9 @@ async function getAdminComplianceQueue(req, res, next) {
 
 async function decideAdminComplianceVerification(req, res, next) {
   try {
+    // ADM-020: granting an identity tier unlocks fiat funding; require a
+    // fresh step-up challenge so a stolen session alone cannot do it.
+    await requireAdminStepup(req, 'compliance_verification_decision');
     const result = await reviewIdentityVerification({
       verificationId: req.params.id,
       decision: req.body?.decision,
@@ -1313,6 +1350,9 @@ async function decideAdminComplianceVerification(req, res, next) {
 
 async function decideAdminComplianceIdentityAppeal(req, res, next) {
   try {
+    // ADM-020: same step-up requirement as the underlying verification
+    // decision; an appeal reversal grants the same fiat-funding tier.
+    await requireAdminStepup(req, 'compliance_verification_decision');
     const result = await reviewIdentityVerificationAppeal({
       verificationId: req.params.id,
       decision: req.body?.decision,
@@ -1328,6 +1368,9 @@ async function decideAdminComplianceIdentityAppeal(req, res, next) {
 
 async function decideAdminComplianceSanction(req, res, next) {
   try {
+    // ADM-020: clearing a sanctions hit is the highest-stakes single-admin
+    // action on the rail; require a fresh step-up challenge.
+    await requireAdminStepup(req, 'compliance_sanction_decision');
     const result = await decideSanctionsScreening({
       screeningId: req.params.id,
       decision: req.body?.decision,
@@ -1343,6 +1386,9 @@ async function decideAdminComplianceSanction(req, res, next) {
 
 async function transitionAdminComplianceCase(req, res, next) {
   try {
+    // ADM-020: compliance-case transitions move the investigation perimeter;
+    // require a fresh step-up challenge.
+    await requireAdminStepup(req, 'compliance_case_transition');
     const result = await transitionComplianceCase({
       caseId: req.params.id,
       toStatus: req.body?.toStatus || req.body?.to_status,
@@ -1366,7 +1412,28 @@ async function transitionAdminComplianceCase(req, res, next) {
  * Phase 7 (gap 9): 'pending_action_approve' is the challenge a checker
  * proves before approving a pending money movement.
  */
-const ADMIN_STEPUP_ACTION_TYPES = new Set(['settlement_payout', 'withdrawal', 'pending_action_approve']);
+const ADMIN_STEPUP_ACTION_TYPES = new Set(['settlement_payout', 'withdrawal', 'pending_action_approve', 'pending_action_request', 'agent_credit_adjustment_approve', 'compliance_verification_decision', 'compliance_sanction_decision', 'compliance_case_transition', 'credit_account_status_update', 'credit_agreement_create', 'credit_agreement_transition', 'credit_entitlement_upsert', 'manual_refund']);
+
+// ADM-020/ADM-082: verify a fresh step-up challenge for high-stakes
+// single-admin actions (compliance decisions, money-adjacent controls).
+// Throws 403 when the challenge is missing, expired, or invalid.
+async function requireAdminStepup(req, actionType) {
+  await verifyStepupChallenge({
+    challengeId: req.body?.stepupChallengeId || req.body?.stepup_challenge_id,
+    actorUserId: req.user?.id || null,
+    actionType,
+    code: req.body?.stepupCode || req.body?.stepup_code,
+  });
+}
+// ADM-079: action types with dedicated maker front doors (type-bound step-up,
+// live-rate binding) that the generic pending-actions endpoint must not
+// accept. Those flows have extra maker-side guarantees the generic endpoint
+// cannot reproduce; queue them through their dedicated routes instead.
+const GENERIC_MAKER_BLOCKED_ACTION_TYPES = new Set([
+  'credit_settlement_payout',
+  'credit_withdrawal_approval',
+  'credit_currency_quote',
+]);
 async function issueAdminStepupChallenge(req, res, next) {
   try {
     const requestedActionType = String(req.body?.actionType || req.body?.action_type || 'settlement_payout').trim();
@@ -1900,6 +1967,9 @@ async function applyForCredit(req, res, next) {
 
 async function createAdminAgreement(req, res, next) {
   try {
+    // ADM-082: agreements set partner spending terms; require a fresh
+    // step-up challenge.
+    await requireAdminStepup(req, 'credit_agreement_create');
     const result = await createAgreement({
       partnerId: req.params.partnerId,
       startsAt: req.body?.startsAt || req.body?.starts_at,
@@ -1932,6 +2002,9 @@ async function createAdminAgreement(req, res, next) {
 async function transitionAdminAgreement(req, res, next) {
   try {
     const agreementId = parseUuid(req.params.agreementId, 'agreementId');
+    // ADM-082: activating/suspending an agreement changes partner spending
+    // terms; require a fresh step-up challenge.
+    await requireAdminStepup(req, 'credit_agreement_transition');
     const result = await transitionAgreement({
       agreementId,
       targetStatus: req.body?.status || req.body?.targetStatus || req.body?.target_status,
@@ -1951,6 +2024,9 @@ async function upsertAdminEntitlement(req, res, next) {
   try {
     const agreementId = parseUuid(req.params.agreementId, 'agreementId');
     const customerId = parseUuid(req.body?.customerId || req.body?.customer_id, 'customerId');
+    // ADM-082: entitlement grants confer spending power; require a fresh
+    // step-up challenge.
+    await requireAdminStepup(req, 'credit_entitlement_upsert');
     const result = await upsertEntitlement({
       agreementId,
       customerId,
@@ -1975,6 +2051,9 @@ async function upsertAdminEntitlement(req, res, next) {
 async function bulkUpsertAdminEntitlements(req, res, next) {
   try {
     const customerId = parseUuid(req.body?.customerId || req.body?.customer_id, 'customerId');
+    // ADM-082: bulk entitlement grants confer spending power across many
+    // agreements; require a fresh step-up challenge.
+    await requireAdminStepup(req, 'credit_entitlement_upsert');
     const rawAgreementIds = req.body?.agreementIds || req.body?.agreement_ids;
     if (!Array.isArray(rawAgreementIds) || rawAgreementIds.length === 0) {
       throw new AppError('At least one credit agreement is required', 400, 'credit_entitlement_agreements_required');

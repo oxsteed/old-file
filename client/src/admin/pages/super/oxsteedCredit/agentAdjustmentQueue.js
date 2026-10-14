@@ -9,6 +9,7 @@
 
 export const AGENT_ADJUSTMENT_ENDPOINTS = {
   pending: '/api/agent/credit-adjustments/pending',
+  stepup: '/api/agent/credit-adjustments/stepup-challenges',
   approve: (id) => `/api/agent/credit-adjustments/${id}/approve`,
   reject: (id) => `/api/agent/credit-adjustments/${id}/reject`,
   cancel: (id) => `/api/agent/credit-adjustments/${id}/cancel`,
