@@ -13,7 +13,7 @@ const { routeQueries } = require('./sqlRouter');
 
 function createStore() {
   return {
-    seq: { quote: 0, attempt: 0, webhookEvent: 0, recon: 0, po: 0, participant: 0 },
+    seq: { quote: 0, attempt: 0, webhookEvent: 0, recon: 0, po: 0, participant: 0, refundCase: 0 },
     nowOverride: null,
     quotes: [],
     attempts: [],
@@ -22,6 +22,8 @@ function createStore() {
     purchaseOrders: [],
     participants: [],
     businessMembers: [],
+    refundCases: [],
+    refundDecisions: [],
   };
 }
 
@@ -102,6 +104,7 @@ function seedAttempt(store, overrides = {}) {
     method: 'stripe',
     status: 'processing',
     stripe_payment_intent_id: `pi_seed_${id}`,
+    stripe_client_secret: `secret_seed_${id}`,
     failure_code: null,
     failure_message: null,
     created_at: nowIso(store),
@@ -117,15 +120,52 @@ function copy(row) {
   return row ? { ...row } : row;
 }
 
+function seedRefundCase(store, overrides = {}) {
+  const id = ++store.seq.refundCase;
+  const row = {
+    id,
+    reference: `LR-TEST-${id}`,
+    user_id: 'buyer-1',
+    refund_reason: 'test refund',
+    requested_amount_usd: '100.00',
+    amount_cents: 10000,
+    refund_method: 'stripe',
+    original_payment_attempt_id: '1',
+    status: 'executing',
+    proposed_by: 'admin-1',
+    approved_by: 'admin-2',
+    approved_at: nowIso(store),
+    fresh_auth_at: nowIso(store),
+    rejection_reason: null,
+    stripe_refund_id: null,
+    processor_ref: null,
+    processed_by: null,
+    processed_at: null,
+    created_at: nowIso(store),
+    updated_at: nowIso(store),
+    ...overrides,
+  };
+  store.refundCases.push(row);
+  return row;
+}
+
 function installRoutes(mockQuery, store) {
   return routeQueries(mockQuery, [
     // ── quotes ──────────────────────────────────────────────
     [/from logistics_buyer_quotes\s+where subject_type/i, (sql, params) => {
       const [subjectType, poId, partId] = params;
-      const rows = store.quotes
-        .filter((q) => q.subject_type === subjectType
-          && ((poId !== null && poId !== undefined && q.purchase_order_id === poId)
-            || (partId !== null && partId !== undefined && q.participant_id === partId)))
+      let scoped = store.quotes.filter((q) => q.subject_type === subjectType
+        && ((poId !== null && poId !== undefined && q.purchase_order_id === poId)
+          || (partId !== null && partId !== undefined && q.participant_id === partId)));
+      if (/max\(version\)/i.test(sql)) {
+        const max = scoped.reduce((m, q) => Math.max(m, q.version), 0);
+        return { rows: [{ max_version: max }] };
+      }
+      const statusMatch = sql.match(/and status = '([a-z]+)'/i);
+      if (statusMatch) {
+        scoped = scoped.filter((q) => q.status === statusMatch[1]);
+      }
+      const rows = scoped
         .sort((a, b) => b.version - a.version)
         .slice(0, 1)
         .map(copy);
@@ -135,11 +175,138 @@ function installRoutes(mockQuery, store) {
       const q = store.quotes.find((r) => r.id === params[0]);
       return { rows: q ? [{ deposit_cents: q.deposit_cents, final_cents: q.final_cents }] : [] };
     }],
+    [/insert into logistics_buyer_quotes/i, (sql, params) => {
+      const [
+        reference, subjectType, poId, partId, version, lineItemsJson,
+        subtotalCents, feesCents, taxCents, totalCents,
+        depositCents, finalCents, depositPct,
+        depositDueAt, finalDueAt, cancellationTerms, validUntil,
+        createdBy,
+      ] = params;
+      if (store.quotes.some((q) => q.reference === reference)) {
+        const err = new Error('duplicate key value violates unique constraint "logistics_buyer_quotes_reference_key"');
+        err.code = '23505';
+        return err;
+      }
+      if (store.quotes.some((q) => q.subject_type === subjectType
+          && (q.purchase_order_id ?? null) === (poId ?? null)
+          && (q.participant_id ?? null) === (partId ?? null)
+          && q.version === version)) {
+        const err = new Error('duplicate key value violates unique constraint "uq_logistics_buyer_quotes_subject_version"');
+        err.code = '23505';
+        return err;
+      }
+      const id = ++store.seq.quote;
+      const row = {
+        id,
+        reference,
+        subject_type: subjectType,
+        purchase_order_id: poId,
+        participant_id: partId,
+        version,
+        status: 'draft',
+        currency: 'USD',
+        line_items: JSON.parse(lineItemsJson),
+        subtotal_cents: subtotalCents,
+        fees_cents: feesCents,
+        tax_cents: taxCents,
+        total_cents: totalCents,
+        deposit_cents: depositCents,
+        final_cents: finalCents,
+        deposit_pct: depositPct,
+        deposit_due_at: depositDueAt,
+        final_due_at: finalDueAt,
+        cancellation_terms: cancellationTerms,
+        valid_until: validUntil,
+        accepted_by_user_id: null,
+        accepted_at: null,
+        created_by_user_id: createdBy,
+        created_at: nowIso(store),
+        updated_at: nowIso(store),
+      };
+      store.quotes.push(row);
+      return { rows: [copy(row)] };
+    }],
+    [/update logistics_buyer_quotes\s+set status = 'active'/i, (sql, params) => {
+      const q = store.quotes.find((r) => r.id === Number(params[0]));
+      if (!q) return { rows: [] };
+      q.status = 'active';
+      q.updated_at = nowIso(store);
+      return { rows: [copy(q)] };
+    }],
+    [/update logistics_buyer_quotes\s+set status = 'superseded'/i, (sql, params) => {
+      const [id, subjectType, poId, partId] = params;
+      const rows = [];
+      for (const q of store.quotes) {
+        if (q.id !== Number(id)
+            && q.subject_type === subjectType
+            && ((poId !== null && poId !== undefined && q.purchase_order_id === poId)
+              || (partId !== null && partId !== undefined && q.participant_id === partId))
+            && q.status === 'active') {
+          q.status = 'superseded';
+          q.updated_at = nowIso(store);
+          rows.push(copy(q));
+        }
+      }
+      return { rows, rowCount: rows.length };
+    }],
+    [/update logistics_buyer_quotes\s+set status = 'accepted'/i, (sql, params) => {
+      const q = store.quotes.find((r) => r.id === Number(params[0]));
+      if (!q || q.status !== 'active') return { rows: [] };
+      q.status = 'accepted';
+      q.accepted_at = nowIso(store);
+      q.accepted_by_user_id = params[1];
+      q.updated_at = nowIso(store);
+      return { rows: [copy(q)] };
+    }],
+    [/from logistics_buyer_quotes where id = \$1/i, (sql, params) => {
+      const q = store.quotes.find((r) => r.id === Number(params[0]));
+      return { rows: q ? [copy(q)] : [] };
+    }],
 
     // ── subject ownership / paid reads ──────────────────────
     [/select buyer_user_id, buyer_business_id, status\s+from purchase_orders where id/i, (sql, params) => {
       const po = store.purchaseOrders.find((r) => r.id === params[0]);
       return { rows: po ? [copy(po)] : [] };
+    }],
+    // Checkout-context subject detail (PO with lane/supplier/product joins).
+    [/from purchase_orders po\s+left join logistics_lanes/i, (sql, params) => {
+      const po = store.purchaseOrders.find((r) => r.id === params[0]);
+      if (!po) return { rows: [] };
+      return {
+        rows: [{
+          id: po.id,
+          reference: po.reference || `PO-${po.id}`,
+          status: po.status,
+          qty_ordered: po.qty_ordered ?? 10,
+          expected_arrival_date: po.expected_arrival_date || null,
+          buyer_user_id: po.buyer_user_id,
+          deposit_paid_cents: po.deposit_paid_cents,
+          final_paid_cents: po.final_paid_cents,
+          lane_name: po.lane_name || 'Test Lane',
+          supplier_name: po.supplier_name || 'Test Supplier',
+          product_title: po.product_title || 'Test Product',
+        }],
+      };
+    }],
+    // Checkout-context subject detail (participant with campaign join).
+    [/from pooled_order_participants part\s+join pooled_orders/i, (sql, params) => {
+      const p = store.participants.find((r) => r.id === params[0]);
+      if (!p) return { rows: [] };
+      return {
+        rows: [{
+          id: p.id,
+          user_id: p.user_id,
+          committed_qty: p.committed_qty ?? 5,
+          status: p.status,
+          deposit_paid_cents: p.deposit_paid_cents,
+          final_paid_cents: p.final_paid_cents,
+          campaign_reference: p.campaign_reference || 'CMP-1',
+          title: p.campaign_title || 'Test Campaign',
+          expected_arrival_date: null,
+          lane_name: 'Test Lane',
+        }],
+      };
     }],
     [/select deposit_paid_cents, final_paid_cents from purchase_orders where id/i, (sql, params) => {
       const po = store.purchaseOrders.find((r) => r.id === params[0]);
@@ -180,6 +347,7 @@ function installRoutes(mockQuery, store) {
         method: params[9],
         status: 'pending',
         stripe_payment_intent_id: null,
+        stripe_client_secret: null,
         failure_code: null,
         failure_message: null,
         created_at: nowIso(store),
@@ -193,9 +361,67 @@ function installRoutes(mockQuery, store) {
       const a = store.attempts.find((r) => r.idempotency_key === params[0]);
       return { rows: a ? [copy(a)] : [] };
     }],
+    // Buyer payment history. NOTE: the count route comes first because
+    // the history pattern below also matches the COUNT query text; and
+    // both come before the `where id = $1` route because that pattern's
+    // "id = $1" also matches "buyer_user_id = $1" as a substring.
+    [/select count\(\*\)::int as total from logistics_payment_attempts/i, (sql, params) => {
+      let i = 0;
+      const userId = params[i++];
+      let subjectType = null; let poId = null; let partId = null;
+      if (/subject_type = \$\d/.test(sql)) subjectType = params[i++];
+      if (/purchase_order_id = \$\d/.test(sql)) poId = params[i++];
+      if (/participant_id = \$\d/.test(sql)) partId = params[i++];
+      const total = store.attempts.filter((a) => String(a.buyer_user_id) === String(userId)
+        && (subjectType === null || a.subject_type === subjectType)
+        && (poId === null || a.purchase_order_id === poId)
+        && (partId === null || a.participant_id === partId)).length;
+      return { rows: [{ total }] };
+    }],
+    [/from logistics_payment_attempts\s+where buyer_user_id/i, (sql, params) => {
+      let i = 0;
+      const userId = params[i++];
+      let subjectType = null; let poId = null; let partId = null;
+      if (/subject_type = \$\d/.test(sql)) subjectType = params[i++];
+      if (/purchase_order_id = \$\d/.test(sql)) poId = params[i++];
+      if (/participant_id = \$\d/.test(sql)) partId = params[i++];
+      const rows = store.attempts
+        .filter((a) => String(a.buyer_user_id) === String(userId)
+          && (subjectType === null || a.subject_type === subjectType)
+          && (poId === null || a.purchase_order_id === poId)
+          && (partId === null || a.participant_id === partId))
+        .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+        .map(copy);
+      return { rows };
+    }],
     [/from logistics_payment_attempts where id = \$1/i, (sql, params) => {
       const a = store.attempts.find((r) => r.id === Number(params[0]));
       return { rows: a ? [copy(a)] : [] };
+    }],
+    // Double-debit guard: already-succeeded sibling on (subject, installment).
+    [/from logistics_payment_attempts\s+where id <> \$1/i, (sql, params) => {
+      const [id, subjectType, poId, partId, installment] = params;
+      const sib = store.attempts.find((a) => a.id !== Number(id)
+        && a.subject_type === subjectType
+        && (a.purchase_order_id ?? null) === (poId ?? null)
+        && (a.participant_id ?? null) === (partId ?? null)
+        && a.installment === installment
+        && a.status === 'succeeded');
+      return { rows: sib ? [copy(sib)] : [] };
+    }],
+    // Non-terminal installments with in-flight attempts (checkout schedule).
+    [/select distinct installment from logistics_payment_attempts/i, (sql, params) => {
+      const [subjectType, poId, partId] = params;
+      const seen = new Set();
+      for (const a of store.attempts) {
+        if (a.subject_type === subjectType
+            && (a.purchase_order_id ?? null) === (poId ?? null)
+            && (a.participant_id ?? null) === (partId ?? null)
+            && (a.status === 'pending' || a.status === 'processing')) {
+          seen.add(a.installment);
+        }
+      }
+      return { rows: [...seen].map((installment) => ({ installment })) };
     }],
     [/where stripe_payment_intent_id = \$1/i, (sql, params) => {
       const a = store.attempts.find((r) => r.stripe_payment_intent_id === params[0]);
@@ -205,7 +431,15 @@ function installRoutes(mockQuery, store) {
       const a = store.attempts.find((r) => r.id === params[0]);
       if (!a) return { rows: [] };
       a.stripe_payment_intent_id = params[1];
+      a.stripe_client_secret = params[2] ?? null;
       a.status = 'processing';
+      a.updated_at = nowIso(store);
+      return { rows: [copy(a)] };
+    }],
+    [/update logistics_payment_attempts\s+set status = 'superseded'/i, (sql, params) => {
+      const a = store.attempts.find((r) => r.id === Number(params[0]));
+      if (!a) return { rows: [] };
+      a.status = 'superseded';
       a.updated_at = nowIso(store);
       return { rows: [copy(a)] };
     }],
@@ -219,6 +453,37 @@ function installRoutes(mockQuery, store) {
       return { rows: [copy(a)] };
     }],
     [/update logistics_payment_attempts\s+set status = 'succeeded'/i, (sql, params) => {
+      // Race simulation: when store.failSettledUpdateOnce is set, plant a
+      // succeeded sibling (the concurrent winner committing between our
+      // sibling recheck and our UPDATE) and throw the synthetic unique
+      // violation the partial index would raise.
+      if (store.failSettledUpdateOnce) {
+        const spec = store.failSettledUpdateOnce;
+        store.failSettledUpdateOnce = null;
+        // The aborted settlement transaction never persisted its event
+        // claim: model the rollback so the conversion path re-claims.
+        if (spec.unclaimEventId) {
+          store.webhookEvents = store.webhookEvents.filter(
+            (e) => e.stripe_event_id !== spec.unclaimEventId);
+        }
+        if (spec.plantSucceededSibling) {
+          const target = store.attempts.find((r) => r.id === params[0]);
+          const sibId = ++store.seq.attempt;
+          store.attempts.push({
+            ...(target ? copy(target) : {}),
+            id: sibId,
+            idempotency_key: `race-winner-${sibId}`,
+            stripe_payment_intent_id: `pi_race_winner_${sibId}`,
+            status: 'succeeded',
+            settled_at: nowIso(store),
+            updated_at: nowIso(store),
+          });
+        }
+        const err = new Error('duplicate key value violates unique constraint "uq_logistics_payment_attempts_settled_installment"');
+        err.code = '23505';
+        err.constraint = 'uq_logistics_payment_attempts_settled_installment';
+        return err;
+      }
       const a = store.attempts.find((r) => r.id === params[0]);
       if (!a) return { rows: [] };
       a.status = 'succeeded';
@@ -356,6 +621,46 @@ function installRoutes(mockQuery, store) {
       r.updated_at = nowIso(store);
       return { rows: [copy(r)] };
     }],
+
+    // ── refund cases (Phase 3 dual-admin refunds) ──────────────
+    [/from information_schema\.tables where table_name = 'logistics_refund_cases'/i, () => ({ rows: [{ '1': 1 }] })],
+    [/from logistics_refund_cases\s+where \(stripe_refund_id = any/i, (sql, params) => {
+      const [refundIds, caseIds] = params;
+      const kase = store.refundCases.find((c) =>
+        (refundIds || []).includes(c.stripe_refund_id)
+        || (caseIds || []).includes(String(c.id)));
+      return { rows: kase ? [{ original_payment_attempt_id: kase.original_payment_attempt_id }] : [] };
+    }],
+    [/from logistics_refund_cases where stripe_refund_id = \$1 for update/i, (sql, params) => {
+      const kase = store.refundCases.find((c) => c.stripe_refund_id === params[0]);
+      return { rows: kase ? [copy(kase)] : [] };
+    }],
+    [/update logistics_refund_cases\s+set status = 'processed', processed_at/i, (sql, params) => {
+      const kase = store.refundCases.find((c) => c.id === Number(params[0]));
+      if (!kase) return { rows: [] };
+      kase.status = 'processed';
+      kase.processed_at = nowIso(store);
+      kase.updated_at = nowIso(store);
+      return { rows: [copy(kase)] };
+    }],
+    [/update logistics_refund_cases\s+set stripe_refund_id/i, (sql, params) => {
+      const kase = store.refundCases.find((c) => c.id === Number(params[0]));
+      if (!kase) return { rows: [] };
+      kase.stripe_refund_id = params[1];
+      kase.updated_at = nowIso(store);
+      return { rows: [copy(kase)] };
+    }],
+    [/insert into logistics_refund_decisions/i, (sql, params) => {
+      store.refundDecisions.push({
+        refund_case_id: params[0],
+        actor_user_id: params[1],
+        action: params[2],
+        reason: params[3],
+        fresh_auth_ref: params[4],
+        metadata: params[5],
+      });
+      return { rows: [] };
+    }],
   ]);
 }
 
@@ -365,5 +670,6 @@ module.exports = {
   seedPurchaseOrder,
   seedParticipant,
   seedAttempt,
+  seedRefundCase,
   installRoutes,
 };

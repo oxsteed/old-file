@@ -74,8 +74,12 @@ function makeFakeDb() {
     if (s.includes('COALESCE(SUM(amount_cents)')) {
       const attemptId = String(params[0]);
       const statuses = params[1];
+      const excludeCaseId = params[2] != null ? String(params[2]) : null;
       const used = db.cases
-        .filter((c) => String(c.original_payment_attempt_id) === attemptId && statuses.includes(c.status) && c.amount_cents != null)
+        .filter((c) => String(c.original_payment_attempt_id) === attemptId
+          && statuses.includes(c.status)
+          && c.amount_cents != null
+          && (excludeCaseId === null || String(c.id) !== excludeCaseId))
         .reduce((n, c) => n + c.amount_cents, 0);
       return { rows: [{ used }] };
     }
