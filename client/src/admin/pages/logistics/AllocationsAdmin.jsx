@@ -6,11 +6,11 @@ import {
 } from '../../../api/logistics';
 import toast from 'react-hot-toast';
 import '../../../styles/logistics/LogisticsHomePage.css';
+import '../../../styles/logistics/LogisticsWorkspaces.css';
 import AdminErrorState from '../../lib/AdminErrorState';
 import ConfirmDialog from '../../lib/ConfirmDialog';
+import LogisticsStatusPill from '../../../components/logistics/LogisticsStatusPill';
 
-const ALLOC_STATUS_COLOR = { pending:'#f59e0b', reserved:'#3b82f6', fulfilled:'#22c55e', released:'#94a3b8', expired:'#ef4444' };
-const DO_STATUS_COLOR    = { pending:'#f59e0b', dispatched:'#3b82f6', delivered:'#22c55e', failed:'#ef4444', cancelled:'#94a3b8' };
 const DELIVERY_MODES     = ['courier','freight','self_pickup','local_delivery'];
 
 export default function AllocationsAdmin() {
@@ -83,12 +83,12 @@ export default function AllocationsAdmin() {
       </div>
 
       {/* Tabs */}
-      <div style={{ display:'flex', gap:'.25rem', borderBottom:'2px solid #e2e8f0', marginBottom:'1.5rem' }}>
+      <div style={{ display:'flex', gap:'.25rem', borderBottom:'2px solid var(--color-border)', marginBottom:'1.5rem' }}>
         {[['allocations', t('adminAllocations.tabs.allocations')], ['deliveries', t('adminAllocations.tabs.deliveries')]].map(([t2,label]) => (
           <button key={t2} onClick={() => setTab(t2)} style={{
             padding:'.6rem 1.25rem', border:'none', background:'none',
-            fontWeight: tab===t2 ? 700 : 500, color: tab===t2 ? '#f97316' : '#64748b',
-            borderBottom: tab===t2 ? '2px solid #f97316' : '2px solid transparent',
+            fontWeight: tab===t2 ? 700 : 500, color: tab===t2 ? 'var(--color-primary)' : 'var(--color-text-muted)',
+            borderBottom: tab===t2 ? '2px solid var(--color-primary)' : '2px solid transparent',
             marginBottom:'-2px', cursor:'pointer',
           }}>{label}</button>
         ))}
@@ -99,7 +99,7 @@ export default function AllocationsAdmin() {
 
       {/* New delivery order form */}
       {showDoForm && tab === 'deliveries' && (
-        <div className="lx-card" style={{ marginBottom:'1.5rem', border:'2px solid #f97316' }}>
+        <div className="lx-card" style={{ marginBottom:'1.5rem', border:'2px solid var(--color-primary)' }}>
           <h3 style={{ fontWeight:700, marginBottom:'1rem' }}>{t('adminAllocations.createDeliveryOrder')}</h3>
           <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(220px, 1fr))', gap:'1rem' }}>
             <div className="lx-form-group">
@@ -158,7 +158,7 @@ export default function AllocationsAdmin() {
             <tbody>
               {allocations.map(a => (
                 <tr key={a.id}>
-                  <td style={{ color:'#64748b', fontSize:'.8rem' }}>#{a.id}</td>
+                  <td style={{ color:'var(--color-text-muted)', fontSize:'.8rem' }}>#{a.id}</td>
                   <td style={{ fontSize:'.82rem' }}>{warehouseMap[a.warehouse_id] || a.warehouse_id}</td>
                   <td style={{ fontSize:'.82rem' }}>{a.buyer_name || a.buyer_user_id}</td>
                   <td style={{ fontWeight:700 }}>{a.qty?.toLocaleString()}</td>
@@ -166,9 +166,10 @@ export default function AllocationsAdmin() {
                     {a.reserved_until ? new Date(a.reserved_until).toLocaleDateString() : '—'}
                   </td>
                   <td>
-                    <span className="lx-status-pill" style={{ background: ALLOC_STATUS_COLOR[a.status]||'#64748b' }}>
-                      {t(`logistics.status.${a.status}`, { defaultValue: a.status?.replace(/_/g,' ') || t('logistics.admin.unknownStatus') })}
-                    </span>
+                    <LogisticsStatusPill
+                      status={a.status}
+                      label={t(`logistics.status.${a.status}`, { defaultValue: a.status?.replace(/_/g,' ') || t('logistics.admin.unknownStatus') })}
+                    />
                   </td>
                   <td>
                     {a.status === 'reserved' && (
@@ -181,7 +182,7 @@ export default function AllocationsAdmin() {
                 </tr>
               ))}
               {allocations.length === 0 && !loading && !loadError && (
-                <tr><td colSpan={7} style={{ textAlign:'center', padding:'2rem', color:'#94a3b8' }}>{t('adminAllocations.noAllocations')}</td></tr>
+                <tr><td colSpan={7} className="lx-table-empty-cell">{t('adminAllocations.noAllocations')}</td></tr>
               )}
             </tbody>
           </table>
@@ -203,26 +204,27 @@ export default function AllocationsAdmin() {
                   <td><code style={{ fontSize:'.78rem' }}>{d.reference}</code></td>
                   <td style={{ fontSize:'.82rem' }}>
                     <div style={{ fontWeight:600 }}>{d.recipient_name}</div>
-                    <div style={{ color:'#94a3b8', fontSize:'.72rem' }}>{d.recipient_address}</div>
+                    <div style={{ color:'var(--color-text-faint)', fontSize:'.72rem' }}>{d.recipient_address}</div>
                   </td>
                   <td>
-                    <span style={{ background:'#f1f5f9', borderRadius:'.375rem', padding:'.15rem .4rem', fontSize:'.72rem', fontWeight:700 }}>
+                    <span style={{ background:'var(--color-surface-2)', borderRadius:'.375rem', padding:'.15rem .4rem', fontSize:'.72rem', fontWeight:700 }}>
                       {t(`adminAllocations.deliveryModes.${d.delivery_mode}`, { defaultValue: d.delivery_mode?.replace(/_/g,' ') })}
                     </span>
                   </td>
-                  <td style={{ fontSize:'.78rem', color:'#64748b' }}>{d.tracking_number || '—'}</td>
+                  <td style={{ fontSize:'.78rem', color:'var(--color-text-muted)' }}>{d.tracking_number || '—'}</td>
                   <td style={{ fontSize:'.8rem' }}>
                     {d.dispatched_at ? new Date(d.dispatched_at).toLocaleDateString() : '—'}
                   </td>
                   <td>
-                    <span className="lx-status-pill" style={{ background: DO_STATUS_COLOR[d.status]||'#64748b' }}>
-                      {t(`logistics.status.${d.status}`, { defaultValue: d.status?.replace(/_/g,' ') || t('logistics.admin.unknownStatus') })}
-                    </span>
+                    <LogisticsStatusPill
+                      status={d.status}
+                      label={t(`logistics.status.${d.status}`, { defaultValue: d.status?.replace(/_/g,' ') || t('logistics.admin.unknownStatus') })}
+                    />
                   </td>
                 </tr>
               ))}
               {deliveries.length === 0 && !loading && !loadError && (
-                <tr><td colSpan={6} style={{ textAlign:'center', padding:'2rem', color:'#94a3b8' }}>{t('adminAllocations.noDeliveries')}</td></tr>
+                <tr><td colSpan={6} className="lx-table-empty-cell">{t('adminAllocations.noDeliveries')}</td></tr>
               )}
             </tbody>
           </table>
