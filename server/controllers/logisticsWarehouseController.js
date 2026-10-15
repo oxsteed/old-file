@@ -94,6 +94,14 @@ exports.listAllocations = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
+exports.getAllocation = async (req, res, next) => {
+  try {
+    const allocation = await warehouseService.getAllocation(req.params.id);
+    if (!allocation) return next(new AppError('Allocation not found', 404, 'not_found'));
+    res.json({ success: true, data: allocation });
+  } catch (err) { next(err); }
+};
+
 exports.createAllocation = async (req, res, next) => {
   try {
     const { inventory_receipt_id, allocated_qty } = req.body;

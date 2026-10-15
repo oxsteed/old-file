@@ -18,10 +18,20 @@ const whCtrl        = require('../controllers/logisticsWarehouseController');
 const recurringCtrl = require('../controllers/logisticsRecurringProcurementController');
 const complianceCtrl= require('../controllers/logisticsComplianceController');
 const financeCtrl   = require('../controllers/logisticsFinanceController');
-const { requireLogisticsRole, requireLaneAccess } = require('../middleware/requireLogisticsAccess');
-const requireWarehouseOps = requireLogisticsRole('warehouse_operator', 'logistics_coordinator');
-const requireLogisticsOps = requireLogisticsRole('sourcing_operator', 'logistics_coordinator');
-const requireShipmentOps = requireLogisticsRole('logistics_coordinator', 'warehouse_operator', 'sourcing_operator');
+const capabilitiesCtrl = require('../controllers/logisticsCapabilitiesController');
+const { requireLogisticsCapability, requireLaneAccess } = require('../middleware/requireLogisticsAccess');
+// Capability gates. Each resolves the caller's server-derived capabilities
+// (the same model served to the UI via GET /api/logistics/capabilities) and
+// enforces them on mutations; admins / super_admins always pass. Effective
+// permissions match the previous requireLogisticsRole gates.
+const requireRequestsManage    = requireLogisticsCapability('requests.manage');
+const requireOrdersCreate      = requireLogisticsCapability('orders.create');
+const requireOrdersTransition  = requireLogisticsCapability('orders.transition');
+const requireCampaignReview    = requireLogisticsCapability('campaigns.review');
+const requireShipmentsCreate   = requireLogisticsCapability('shipments.create');
+const requireShipmentsMilestones = requireLogisticsCapability('shipments.milestones');
+const requireShipmentsManage   = requireLogisticsCapability('shipments.manage');
+const requireWarehouseOps      = requireLogisticsCapability('warehouse.manage');
 
 function publicReference(prefix) {
   return `${prefix}-${new Date().getFullYear()}-${crypto.randomBytes(8).toString('hex').toUpperCase()}`;
@@ -34,6 +44,10 @@ router.get('/lanes/:id',               lanesCtrl.getLane);
 router.get('/lanes/:id/access-check',  lanesCtrl.checkAccess);
 router.get('/trade-rules',             lanesCtrl.listTradeRules);
 
+// ─── Capabilities (server-derived; feeds the permission-aware nav) ──
+
+router.get('/capabilities',             requireAuth, capabilitiesCtrl.getCapabilities);
+
 // ─── Supplier Products (public catalog) ──────────────────────
 
 router.get('/suppliers',               sourcingCtrl.listSuppliers);
@@ -44,10 +58,10 @@ router.get('/products/:id',            sourcingCtrl.getSupplierProduct);
 router.post('/requests',               requireAuth, sourcingCtrl.createRequest);
 router.get('/requests',                requireAuth, sourcingCtrl.listRequests);
 router.get('/requests/:id',            requireAuth, sourcingCtrl.getRequest);
-router.patch('/requests/:id/status',   requireAuth, requireLogisticsOps, sourcingCtrl.updateStatus);
+router.patch('/requests/:id/status',   requireAuth, requireRequestsManage, sourcingCtrl.updateStatus);
 
 // Quotes (operator / admin posts quotes against a request)
-router.post('/requests/:requestId/quotes', requireAuth, requireLogisticsOps, sourcingCtrl.createQuote);
+router.post('/requests/:requestId/quotes', requireAuth, requireRequestsManage, sourcingCtrl.createQuote);
 
 // ─── Pooled Orders (campaigns) ───────────────────────────────
 
@@ -56,6 +70,16 @@ router.get('/campaigns/:id',           pooledCtrl.getPooledOrder);
 router.post('/campaigns',              requireAuth, pooledCtrl.createPooledOrder);
 router.post('/campaigns/:id/join',     requireAuth, pooledCtrl.joinPooledOrder);
 router.get('/my-participation',        requireAuth, pooledCtrl.getMyParticipation);
+
+// ─── Organizer-scoped campaigns (Phase 2 draft lifecycle) ──────
+// The organizer's own campaigns including drafts. Drafts are never returned
+// by the public /campaigns endpoint above.
+router.get('/organizer/campaigns',     requireAuth, pooledCtrl.listOrganizerCampaigns);
+// Draft submission and Operations review (approval state stays separate
+// from the fulfillment status; every decision is recorded with history).
+router.post('/campaigns/:id/submit',   requireAuth, pooledCtrl.submitForReview);
+router.post('/campaigns/:id/review',   requireAuth, requireCampaignReview, pooledCtrl.reviewCampaign);
+router.get('/campaigns/:id/approval-history', requireAuth, pooledCtrl.getApprovalHistory);
 
 // ─── Recurring Procurement Programs ──────────────────────────
 
@@ -69,18 +93,18 @@ router.patch('/recurring-programs/:id/status',  requireAuth, recurringCtrl.updat
 
 router.get('/orders',                  requireAuth, poCtrl.listPurchaseOrders);
 router.get('/orders/:id',              requireAuth, poCtrl.getPurchaseOrder);
-router.post('/orders',                 requireAuth, requireLogisticsOps, poCtrl.createPurchaseOrder);
-router.patch('/orders/:id/status',     requireAuth, requireLogisticsOps, poCtrl.transitionStatus);
+router.post('/orders',                 requireAuth, requireOrdersCreate, poCtrl.createPurchaseOrder);
+router.patch('/orders/:id/status',     requireAuth, requireOrdersTransition, poCtrl.transitionStatus);
 router.post('/pricing/preview',        requireAuth, poCtrl.previewLandedCost);
 
 // ─── Shipments ────────────────────────────────────────────────
 
 router.get('/shipments',                requireAuth, shipCtrl.listShipments);
 router.get('/shipments/:id',            requireAuth, shipCtrl.getShipment);
-router.post('/shipments',               requireAuth, requireShipmentOps, shipCtrl.createShipment);
-router.post('/shipments/:id/milestone', requireAuth, requireShipmentOps, shipCtrl.addMilestone);
-router.patch('/shipments/:id/tracking', requireAuth, requireShipmentOps, shipCtrl.updateTracking);
-router.post('/shipments/:id/documents', requireAuth, requireShipmentOps, upload.single('file'), validateFileUpload, shipCtrl.uploadDocument);
+router.post('/shipments',               requireAuth, requireShipmentsCreate, shipCtrl.createShipment);
+router.post('/shipments/:id/milestone', requireAuth, requireShipmentsMilestones, shipCtrl.addMilestone);
+router.patch('/shipments/:id/tracking', requireAuth, requireShipmentsManage, shipCtrl.updateTracking);
+router.post('/shipments/:id/documents', requireAuth, requireShipmentsManage, upload.single('file'), validateFileUpload, shipCtrl.uploadDocument);
 // Review P3-6-F02: documents were write-only. Anyone who can view the
 // shipment (buyer / organizer / participant / coordinator / admin, per
 // getShipment) can download its documents via a short-lived signed URL.
@@ -94,6 +118,7 @@ router.post('/inventory-receipts',            requireAuth, requireWarehouseOps, 
 router.post('/inventory-receipts/:id/receive',requireAuth, requireWarehouseOps, whCtrl.receiveInventory);
 router.post('/inventory-receipts/:id/reconcile', requireAuth, requireWarehouseOps, whCtrl.reconcileReceipt);
 router.get('/allocations',                    requireAuth, requireWarehouseOps, whCtrl.listAllocations);
+router.get('/allocations/:id',               requireAuth, requireWarehouseOps, whCtrl.getAllocation);
 router.post('/allocations',                   requireAuth, requireWarehouseOps, whCtrl.createAllocation);
 router.post('/allocations/:id/release',       requireAuth, requireWarehouseOps, whCtrl.releaseAllocation);
 router.get('/deliveries',                     requireAuth, requireWarehouseOps, whCtrl.listDeliveryOrders);

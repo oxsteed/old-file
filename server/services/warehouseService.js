@@ -120,6 +120,20 @@ async function releaseAllocation(id, actorUserId) {
   return result.rows[0];
 }
 
+async function getAllocation(id) {
+  const result = await pool.query(
+    `SELECT ia.*, ir.reference AS receipt_ref, w.name AS warehouse_name,
+            u.first_name || ' ' || u.last_name AS buyer_name
+     FROM inventory_allocations ia
+     LEFT JOIN inventory_receipts ir ON ir.id = ia.inventory_receipt_id
+     LEFT JOIN warehouses w ON w.id = ir.warehouse_id
+     LEFT JOIN users u ON u.id = ia.buyer_user_id
+     WHERE ia.id = $1`,
+    [id]
+  );
+  return result.rows[0] || null;
+}
+
 async function listAllocations({ warehouseId, status, pooledOrderId, buyerUserId, limit = 100 } = {}) {
   const conditions = ['1=1'];
   const params = [];
@@ -146,5 +160,5 @@ async function listAllocations({ warehouseId, status, pooledOrderId, buyerUserId
 module.exports = {
   listWarehouses, createWarehouse,
   createInventoryReceipt, receiveInventory, reconcileReceipt, listInventoryReceipts,
-  createAllocation, releaseAllocation, listAllocations,
+  createAllocation, releaseAllocation, listAllocations, getAllocation,
 };

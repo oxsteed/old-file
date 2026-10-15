@@ -338,12 +338,19 @@ exports.getAudit = async (req, res, next) => {
 
 exports.listPendingOrganizerApprovals = async (req, res, next) => {
   try {
+    // Phase 2 review queue: campaigns the organizer submitted for review
+    // (approval_state = pending_review), not raw working drafts. Each row
+    // carries the organizer and the submission timestamp for triage.
     const result = await pool.query(
-      `SELECT po.*, u.first_name || ' ' || u.last_name AS organizer_name, u.email AS organizer_email
+      `SELECT po.*, u.first_name || ' ' || u.last_name AS organizer_name, u.email AS organizer_email,
+              (SELECT d.created_at
+                 FROM logistics_campaign_approval_decisions d
+                WHERE d.pooled_order_id = po.id AND d.decision = 'submitted_for_review'
+                ORDER BY d.created_at DESC LIMIT 1) AS submitted_at
        FROM pooled_orders po
        JOIN users u ON u.id = po.organizer_user_id
-       WHERE po.status = 'draft'
-       ORDER BY po.created_at DESC LIMIT 100`
+       WHERE po.approval_state = 'pending_review'
+       ORDER BY submitted_at DESC NULLS LAST, po.created_at DESC LIMIT 100`
     );
     res.json({ success: true, data: result.rows });
   } catch (err) { next(err); }
