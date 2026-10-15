@@ -1368,6 +1368,1118 @@
     }
   },
   "logistics": {
+    "forms": {
+      "unsavedChanges": {
+        "title": "Buang perubahan yang belum disimpan?",
+        "body": "Anda memiliki perubahan yang belum disimpan. Keluar sekarang akan membuang yang Anda masukkan.",
+        "stay": "Lanjut mengedit",
+        "discard": "Buang perubahan"
+      }
+    },
+    "workspace": {
+      "business": {
+        "recentActivity": {
+          "empty": "Belum ada apa-apa di sini."
+        },
+        "nextStep": {
+          "reviewRuns": {
+            "label": "Tinjau jadwal berikutnya",
+            "hint": "{{count}} jadwal program dalam 21 hari. Periksa jumlah, rute, dan tujuan."
+          },
+          "createProgram": {
+            "label": "Buat program berulang",
+            "hint": "Belum ada program restock. Tetapkan ritme untuk permintaan berulang."
+          },
+          "newRequest": {
+            "label": "Buka permintaan bisnis",
+            "hint": "Program berjalan. Tautkan permintaan baru ke salah satu bisnis Anda."
+          }
+        }
+      },
+      "buyer": {
+        "recentActivity": {
+          "empty": "Belum ada apa-apa di sini."
+        },
+        "nextStep": {
+          "browseCampaigns": {
+            "label": "Jelajahi kampanye",
+            "hint": "Tidak ada permintaan aktif. Temukan kampanye bersama untuk diikuti atau diawasi."
+          },
+          "reviewShipments": {
+            "label": "Tinjau pengiriman berisiko",
+            "hint": "{{count}} pengiriman perlu ditindaklanjuti."
+          },
+          "startRequest": {
+            "label": "Mulai permintaan pengadaan",
+            "hint": "Semuanya berjalan. Buka permintaan baru saat Anda siap."
+          }
+        }
+      },
+      "distributor": {
+        "recentActivity": {
+          "empty": "Belum ada apa-apa di sini."
+        },
+        "nextStep": {
+          "failedDeliveries": {
+            "label": "Tinjau pengiriman yang gagal",
+            "hint": "{{count}} pengiriman gagal atau dibatalkan dan mungkin perlu dialihkan."
+          },
+          "releaseLots": {
+            "label": "Lepaskan lot yang menunggu",
+            "hint": "{{count}} lot sudah dialokasikan tetapi belum dilepas."
+          },
+          "warehouse": {
+            "label": "Periksa kesiapan gudang",
+            "hint": "Antrean kosong. Pastikan stok siap dialokasikan."
+          }
+        }
+      },
+      "organizer": {
+        "recentActivity": {
+          "empty": "Belum ada apa-apa di sini."
+        },
+        "nextStep": {
+          "momentum": {
+            "label": "Dorong momentum MOQ",
+            "hint": "{{count}} kampanye berada di bawah setengah MOQ dan butuh perekrutan lagi."
+          },
+          "browse": {
+            "label": "Jelajahi kampanye",
+            "hint": "Anda belum mengoordinasikan kampanye apa pun. Temukan satu untuk diikuti."
+          },
+          "handoffs": {
+            "label": "Koordinasikan serah terima",
+            "hint": "Permintaan sudah terkumpul. Terus dorong serah terima ke penerima."
+          }
+        }
+      },
+      "nextStep": {
+        "title": "Langkah Anda berikutnya"
+      },
+      "recentActivity": {
+        "title": "Aktivitas terkini",
+        "empty": "Belum ada apa-apa. Aktivitas baru akan muncul di sini."
+      },
+      "dataError": {
+        "title": "Data tidak tersedia",
+        "body": "Ruang kerja Anda tidak dapat dimuat saat ini. Silakan coba lagi.",
+        "retry": "Coba lagi"
+      }
+    },
+    "nav": {
+      "home": "Logistik",
+      "campaigns": "Kampanye",
+      "sourcing": "Pengadaan",
+      "orders": "Pesanan",
+      "shipments": "Pengiriman",
+      "warehousing": "Pergudangan",
+      "compliance": "Kepatuhan",
+      "finance": "Keuangan",
+      "adminControl": "Kontrol admin",
+      "businessProcurement": "Pengadaan bisnis",
+      "buyer": "Pembeli",
+      "distributor": "Distributor",
+      "hub": "Jelajahi",
+      "label": "Ruang kerja logistik",
+      "operations": "Operasi",
+      "organizer": "Penyelenggara"
+    },
+    "home": {
+      "title": "Logistik OxSteed",
+      "subtitle": "Impor menyeluruh, pengadaan, pembelian bersama, dan distribusi.",
+      "openCampaigns": "Kampanye Terbuka",
+      "myCampaigns": "Partisipasi Saya",
+      "recentOrders": "Pesanan Terbaru",
+      "joinCampaign": "Gabung",
+      "ctaTitle": "Siap mengadakan barang secara global?",
+      "ctaSubtitle": "Buat akun atau masuk untuk bergabung dengan kampanye dan membuat pesanan.",
+      "signUp": "Daftar",
+      "logIn": "Masuk",
+      "noCampaigns": "Tidak ada kampanye terbuka saat ini.",
+      "noParticipation": "Anda belum bergabung dengan kampanye apa pun.",
+      "noOrders": "Belum ada pesanan.",
+      "moqProgress": "{{pct}}% dari MOQ tercapai",
+      "closes": "Penutupan",
+      "deposit": "Deposit",
+      "perUnit": "/ unit",
+      "heroTitle": "Rantai pasok global dibangun untuk korporasi.",
+      "heroSubtitle": "Kami membangun satu untuk pembeli yang membutuhkan 200 unit, penyelenggara yang mengirim ke Haiti, dan bisnis yang tidak mampu membayar makelar angkutan.",
+      "openWorkspace": "Buka ruang kerja Anda →",
+      "getStarted": "Mulai",
+      "browseOpenCampaigns": "Jelajahi kampanye terbuka",
+      "viewAll": "Lihat semua",
+      "readyToStart": "Siap memulai?",
+      "readyToStartBody": "Bergabunglah untuk mengakses pengadaan, pembelian bersama, dan visibilitas rantai pasok penuh, dari kontak pemasok pertama hingga pengiriman last-mile.",
+      "createAccount": "Buat akun",
+      "unitsProgress": "{{current}} dari {{target}} {{units}}",
+      "whyCards": {
+        "moq": {
+          "heading": "Masalah jumlah pesanan minimum",
+          "body": "Produsen menetapkan jumlah minimum untuk pabrik, bukan perorangan. Sebagian besar pembeli terkunci, bukan karena harga, melainkan karena volume. Kampanye menghimpun permintaan hingga hitungannya menguntungkan semua pihak."
+        },
+        "compliance": {
+          "heading": "Kepatuhan bukan pilihan",
+          "body": "Setiap pengiriman melewati regulasi: aturan dagang, bea, kategori terbatas, lisensi impor. OxSteed menampilkan batasan sebelum Anda berkomitmen, bukan setelah barang Anda ditahan di bea cukai."
+        },
+        "lastmile": {
+          "heading": "Jarak terakhir adalah masalah tersendiri",
+          "body": "Barang tiba di pelabuhan. Lalu apa? Pergudangan, alokasi, dan pesanan pengiriman. Masing-masing adalah serah terima tersendiri. OxSteed mengoordinasikan rantai agar setiap tahap tahu apa yang dibutuhkan tahap berikutnya."
+        }
+      },
+      "howItWorksLink": "Cara kerja",
+      "partOfOxsteed": "Bagian dari OxSteed: jaringan tepercaya yang sama untuk mempekerjakan helper lokal, memesan makanan, dan mengirim barang.",
+      "howItWorks": {
+        "title": "Cara kerja",
+        "subtitle": "Satu pengiriman bersama, dari pemasok ke pintu Anda.",
+        "pool": {
+          "heading": "Himpun permintaan",
+          "body": "Bergabunglah dengan kampanye terbuka atau mulai kampanye Anda sendiri. Setiap pembeli mengkomitkan unit yang dibutuhkan untuk satu pesanan bersama."
+        },
+        "minimum": {
+          "heading": "Capai jumlah minimum",
+          "body": "Ketika komitmen mencapai jumlah pesanan minimum produsen, deposit dikumpulkan dan kampanye dikunci. Jika jumlah minimum tidak pernah tercapai, deposit dikembalikan."
+        },
+        "chain": {
+          "heading": "Kami menjalankan rantainya",
+          "body": "Angkutan, bea cukai, pergudangan, dan pengiriman last-mile, dilacak di setiap tahap hingga barang Anda tiba."
+        }
+      },
+      "roles": {
+        "title": "Anda yang mana?",
+        "subtitle": "Pilih jalur yang sesuai dengan yang ingin Anda lakukan.",
+        "buyer": {
+          "intent": "Saya ingin membeli",
+          "heading": "Bergabung dengan pengiriman grup",
+          "body": "Jelajahi kampanye terbuka, komitkan unit yang Anda butuhkan, dan lacak barang Anda dari pabrik ke pintu.",
+          "cta": "Jelajahi kampanye"
+        },
+        "organizer": {
+          "intent": "Saya ingin menyelenggarakan",
+          "heading": "Jalankan pembelian grup",
+          "body": "Mulai kampanye untuk produk yang dibutuhkan komunitas Anda, galang pembeli, dan koordinasikan pengiriman.",
+          "cta": "Mulai kampanye"
+        },
+        "business": {
+          "intent": "Saya pebisnis",
+          "heading": "Isi ulang stok tanpa makelar",
+          "body": "Pengadaan berulang dan perencanaan isi ulang stok dengan pembelian berbasis jalur, tanpa biaya makelar angkutan.",
+          "cta": "Jelajahi pengadaan"
+        }
+      }
+    },
+    "complianceWorkspace": {
+      "navLabel": "Bagian kepatuhan",
+      "title": "Ruang Kerja Kepatuhan",
+      "subtitle": "Lihat aturan dagang untuk setiap rute dan antrean operasi yang sensitif terhadap bea cukai saat Anda memiliki akses operator.",
+      "nav": {
+        "tradeRules": "Aturan dagang",
+        "reviewQueue": "Antrean tinjauan",
+        "customsOps": "Operasi bea cukai",
+        "restrictions": "Batasan"
+      },
+      "kpis": {
+        "lowRisk": "Jalur berisiko rendah",
+        "managed": "Jalur terkelola",
+        "restricted": "Jalur terbatas",
+        "prohibited": "Jalur terlarang"
+      },
+      "cardTitleLaneMarketRules": "Aturan jalur dan pasar",
+      "cardTitleOperator": "Postur tinjauan operator",
+      "cardTitleCategoryRestrictions": "Ringkasan batasan kategori",
+      "tableHeaders": {
+        "lane": "Jalur",
+        "countries": "Negara",
+        "risk": "Risiko",
+        "flags": "Penanda",
+        "item": "Item",
+        "routeOrCountry": "Rute / Negara",
+        "country": "Negara",
+        "status": "Status",
+        "category": "Kategori"
+      },
+      "risk": {
+        "low": "Rendah",
+        "managed": "Terkelola",
+        "restricted": "Dibatasi",
+        "prohibited": "Dilarang"
+      },
+      "flags": {
+        "open": "Terbuka",
+        "businessVerification": "Verifikasi bisnis",
+        "manualApproval": "Persetujuan manual"
+      },
+      "status": {
+        "approvalRequired": "Diperlukan persetujuan"
+      },
+      "empty": {
+        "noLanes": "Belum ada jalur tersedia.",
+        "noRestrictions": "Tidak ada batasan tersedia."
+      },
+      "separator": "·",
+      "queueLabel": "Pengiriman sensitif bea cukai dalam antrean",
+      "metrics": {
+        "unavailableNote": "Metrik tidak tersedia saat ini."
+      }
+    },
+    "operatorLogin": {
+      "copy": {
+        "compliance": {
+          "title": "Masuk Ruang Kerja Kepatuhan",
+          "subtitle": "Akses kepatuhan internal memerlukan nama yang ditetapkan dan kunci keamanan Anda sebelum masuk dengan kata sandi."
+        },
+        "adminControl": {
+          "title": "Masuk Kontrol Admin",
+          "subtitle": "Kontrol admin internal tetap khusus operator. Gunakan akun admin tertaut Anda untuk melanjutkan."
+        },
+        "operations": {
+          "title": "Masuk Ruang Kerja Operasi",
+          "subtitle": "Akses operasi internal memerlukan nama yang ditetapkan dan kunci keamanan Anda sebelum masuk dengan kata sandi."
+        }
+      },
+      "twoFaTitle": "Autentikasi Dua Faktor",
+      "twoFaPrompt": "Masukkan kode 6 digit dari aplikasi autentikator Anda, atau kode cadangan.",
+      "labels": {
+        "email": "Email",
+        "password": "Kata sandi",
+        "internalName": "Nama internal",
+        "securityKey": "Kunci keamanan",
+        "twoFaCode": "Kode 2FA"
+      },
+      "placeholders": {
+        "email": "operator@oxsteed.com",
+        "password": "Masukkan kata sandi Anda",
+        "internalName": "Nama internal yang ditetapkan untuk Anda",
+        "securityKey": "Kunci keamanan yang diberikan oleh super-admin"
+      },
+      "approvedAccountLabel": "Akun disetujui",
+      "approvedAccountNote": "Masuk ini hanya dapat dilanjutkan dengan akun OxSteed yang tertaut ke",
+      "verifying": "Memverifikasi…",
+      "verify": "Verifikasi",
+      "checking": "Memeriksa…",
+      "continue": "Lanjutkan",
+      "signingIn": "Masuk…",
+      "signIn": "Masuk",
+      "locked": "Akun Terkunci",
+      "requestRecoveryEmail": "Minta email pemulihan",
+      "recoveryPrompt": "Masukkan email pemulihan yang tercatat:",
+      "resetIdentity": "Gunakan identitas akses internal yang berbeda",
+      "footer": {
+        "internalKeyRequired": "Akses Operasi dan Kepatuhan kini memerlukan nama internal dan kunci keamanan yang diterbitkan super-admin.",
+        "adminOnly": "Hanya pengguna dengan peran admin atau super-admin yang dapat memasuki portal ini.",
+        "standardSignIn": "Ke masuk standar OxSteed"
+      },
+      "errors": {
+        "tooManyAttempts": "Terlalu banyak upaya gagal. Coba lagi dalam {{minutes}} menit.",
+        "tooManyAttemptsLocked": "Terlalu banyak upaya gagal. Terkunci hingga waktu habis.",
+        "internalNameAndKeyRequired": "Nama dan kunci keamanan wajib diisi.",
+        "internalAccessFailed": "Verifikasi akses internal gagal.",
+        "lockedRecovery": "Akses terkunci sementara. Minta email pemulihan atau hubungi super-admin.",
+        "invalidCredentialsRemaining": "Kredensial tidak valid. Tersisa {{attemptsLeft}} upaya sebelum penguncian.",
+        "recoveryEmailSent": "Jika email tersebut berwenang untuk pemulihan, tautan sekali pakai telah dikirim. Periksa kotak masuk Anda.",
+        "recoveryEmailFailed": "Tidak dapat meminta email pemulihan.",
+        "internalAccessRequired": "Selesaikan verifikasi akses internal terlebih dahulu.",
+        "passwordRequired": "Kata sandi wajib diisi.",
+        "passwordLocked": "Akses terkunci sementara karena terlalu banyak upaya gagal.",
+        "passwordFailed": "Masuk gagal. Periksa kata sandi Anda.",
+        "emailAndPasswordRequired": "Email dan kata sandi wajib diisi.",
+        "accountLocked": "Akun terkunci sementara karena terlalu banyak upaya gagal.",
+        "credentialsFailed": "Masuk gagal. Periksa kredensial Anda.",
+        "twoFaExpired": "Sesi 2FA Anda kedaluwarsa. Silakan masuk kembali.",
+        "twoFaCodeRequired": "Masukkan kode 2FA Anda.",
+        "operatorPrivilegesRequired": "Akses ditolak. Diperlukan hak istimewa operator Logistik.",
+        "invalid2Fa": "Kode 2FA tidak valid."
+      }
+    },
+    "campaigns": {
+      "title": "Kampanye Gabungan",
+      "subtitle": "Bergabunglah dengan kampanye untuk berbagi biaya kontainer dan membuka harga grosir.",
+      "openOnly": "Hanya yang terbuka",
+      "allLanes": "Semua jalur",
+      "noCampaigns": "Tidak ada kampanye yang cocok dengan filter Anda.",
+      "moq": "MOQ",
+      "units": "unit",
+      "closesIn": "Ditutup dalam {{days}} hari",
+      "closedOn": "Ditutup",
+      "deposit": "Deposit",
+      "participants": "peserta",
+      "joined": "Anda bergabung",
+      "viewDetails": "Lihat Detail",
+      "emptyTitle": "Tidak ada kampanye yang cocok saat ini",
+      "emptyExplainer": "Kampanye adalah pesanan grup: pembeli mengkomitkan unit untuk satu pengiriman bersama. Ketika komitmen mencapai jumlah minimum produsen, pesanan dibuat dan OxSteed menjalankan rantainya.",
+      "exampleLabel": "Contoh",
+      "exampleTitle": "Lentera surya, paket grosir",
+      "howItWorks": "Cara kerja",
+      "unitEconomics": "Ekonomi Unit",
+      "timeline": "Linimasa",
+      "startRequest": "Mulai Permintaan",
+      "perUnit": "/unit sampai",
+      "participant": "Peserta",
+      "organizer": "Penyelenggara",
+      "openDate": "Tanggal Buka",
+      "myStatus": "Status saya",
+      "moqReached": "MOQ Tercapai!",
+      "lockDate": "Tanggal Penguncian",
+      "newCampaign": "Mulai kampanye baru",
+      "new": {
+        "title": "Mulai kampanye baru",
+        "subtitle": "Buat draf kampanye kolektif Anda. Tinjau dan kirim untuk persetujuan Operasi saat sudah siap.",
+        "fieldTitle": "Judul kampanye",
+        "titlePlaceholder": "mis. 2.000 unit lentera surya",
+        "fieldDescription": "Deskripsi",
+        "descriptionPlaceholder": "Apa yang didapat pembeli? Spesifikasi utama, jumlah, dan alasan bergabung.",
+        "fieldLane": "Rute dagang",
+        "lanePlaceholder": "Pilih rute dagang",
+        "lanesFailed": "Tidak dapat memuat rute dagang.",
+        "laneChecks": "Pemeriksaan rute",
+        "riskTier": "Tingkat risiko",
+        "laneNeedsBusiness": "Verifikasi bisnis diperlukan untuk menjalankan kampanye di rute ini.",
+        "laneNeedsManual": "Persetujuan kepatuhan manual diperlukan sebelum kampanye ini dapat dipublikasikan.",
+        "fieldTargetMoq": "Jumlah minimum (MOQ)",
+        "fieldMaxParticipants": "Maks. peserta (opsional)",
+        "fieldCloseDate": "Tanggal penutupan komitmen",
+        "fieldLockDate": "Tanggal penguncian",
+        "fieldShipDate": "Tanggal pengiriman yang diharapkan",
+        "fieldArrivalDate": "Tanggal kedatangan yang diharapkan",
+        "pricingHeading": "Sketsa harga",
+        "pricingHint": "Sketsa kasar sudah cukup untuk draf. OxSteed menghitung total biaya; Operasi mengonfirmasi harga saat peninjauan.",
+        "fieldUnitCost": "Biaya produk per unit (USD)",
+        "fieldFreight": "Estimasi ongkos kirim per unit (USD)",
+        "fieldDepositPct": "Persentase deposit",
+        "fieldCancellationPolicy": "Kebijakan pembatalan",
+        "saveDraft": "Simpan sebagai draf",
+        "saving": "Menyimpan…",
+        "draftSaved": "Draf disimpan.",
+        "createFailed": "Tidak dapat menyimpan draf. Silakan coba lagi.",
+        "titleRequired": "Judul wajib diisi.",
+        "laneRequired": "Pilih rute dagang.",
+        "moqRequired": "Masukkan jumlah minimum minimal 1.",
+        "back": "Kembali ke ruang kerja penyelenggara",
+        "unsavedConfirm": "Anda memiliki perubahan yang belum disimpan. Keluar tanpa menyimpan draf?",
+        "nextStepLabel": "Mulai kampanye",
+        "nextStepHint": "Buat draf kampanye kolektif pertama Anda dan kirim untuk persetujuan Operasi."
+      },
+      "approval": {
+        "title": "Persetujuan",
+        "draft": "Draf",
+        "pendingReview": "Dalam peninjauan",
+        "revisionsRequested": "Revisi diminta",
+        "approved": "Disetujui",
+        "rejected": "Ditolak",
+        "submitForReview": "Kirim untuk ditinjau",
+        "submitting": "Mengirim…",
+        "submitted": "Dikirim untuk ditinjau.",
+        "submitFailed": "Pengiriman gagal. Silakan coba lagi.",
+        "blockersTitle": "Perbaiki ini sebelum mengirim",
+        "historyTitle": "Riwayat persetujuan",
+        "noHistory": "Belum ada keputusan peninjauan.",
+        "approve": "Setujui dan publikasikan",
+        "requestRevisions": "Minta revisi",
+        "reviewing": "Meninjau…",
+        "reasonLabel": "Catatan peninjauan",
+        "reasonPlaceholder": "Jelaskan apa yang perlu diubah sebelum kampanye ini dapat dipublikasikan.",
+        "reviewFailed": "Peninjauan gagal. Silakan coba lagi.",
+        "reasonRequired": "Alasan wajib diisi saat meminta revisi.",
+        "latestRevisionNote": "Catatan peninjauan terbaru",
+        "awaitingReview": "Menunggu peninjauan Operasi. Anda akan diberi tahu saat keputusan dibuat.",
+        "publishedNote": "Disetujui dan dipublikasikan. Pembeli kini dapat berkomitmen.",
+        "unknownReviewer": "Peninjau tidak dikenal",
+        "approvedToast": "Kampanye disetujui dan dipublikasikan.",
+        "revisionsToast": "Permintaan revisi dikirim ke penyelenggara.",
+        "revisionsAdminMessage": "Kembalikan \"{{title}}\" ke penyelenggara dengan catatan peninjauan.",
+        "decision_submitted_for_review": "Dikirim untuk ditinjau",
+        "decision_approved": "Disetujui",
+        "decision_revisions_requested": "Revisi diminta",
+        "decision_rejected": "Ditolak",
+        "decision_withdrawn": "Ditarik",
+        "blocker_missing_title": "Tambahkan judul kampanye.",
+        "blocker_missing_description": "Tambahkan deskripsi tentang apa yang didapat pembeli.",
+        "blocker_missing_lane": "Pilih rute dagang.",
+        "blocker_missing_moq": "Tetapkan jumlah minimum minimal 1.",
+        "blocker_missing_close_date": "Tetapkan tanggal penutupan komitmen.",
+        "blocker_close_date_past": "Tanggal penutupan komitmen harus di masa mendatang.",
+        "blocker_missing_pricing": "Tambahkan biaya per unit atau estimasi ongkos kirim untuk sketsa harga.",
+        "blocker_business_verification_required": "Rute ini memerlukan bisnis terverifikasi. Selesaikan verifikasi bisnis terlebih dahulu.",
+        "blocker_lane_access_blocked": "Rute dagang ini tidak tersedia untuk pasar Anda.",
+        "withdraw": "Tarik dari peninjauan",
+        "withdrawing": "Menarik…",
+        "withdrawConfirm": "Menarik kampanye ini dari peninjauan? Kampanye akan kembali menjadi draf sehingga Anda dapat mengedit dan mengirim ulang.",
+        "withdrawnToast": "Kampanye ditarik dari peninjauan.",
+        "withdrawFailed": "Penarikan gagal. Silakan coba lagi.",
+        "reject": "Tolak",
+        "rejectToast": "Kampanye ditolak. Penyelenggara telah diberi tahu.",
+        "rejectFailed": "Penolakan gagal. Silakan coba lagi.",
+        "rejectReasonRequired": "Alasan diperlukan saat menolak kampanye.",
+        "rejectConfirmMessage": "Menolak \"{{title}}\"? Penyelenggara akan diberi tahu beserta alasan Anda."
+      },
+      "joinSuccess": "Anda telah bergabung dengan kampanye!",
+      "joinForm": "Gabung Kampanye Ini",
+      "joinCampaign": "Gabung Kampanye",
+      "expectedShip": "Perkiraan Pengiriman",
+      "expectedArrival": "Perkiraan Tiba",
+      "deliveryPreference": "Preferensi Pengiriman",
+      "confirmJoin": "Konfirmasi Komitmen",
+      "committedQty": "Jumlah yang dikomitmen",
+      "closes": "Penutupan",
+      "closeDate": "Tanggal Penutupan",
+      "allStatuses": "Semua Status",
+      "allCampaigns": "Semua Kampanye",
+      "edit": {
+        "title": "Edit draf kampanye",
+        "subtitle": "Perbarui draf Anda di bawah. Jika sudah siap, kirimkan untuk ditinjau Operasi.",
+        "saveChanges": "Simpan perubahan",
+        "draftUpdated": "Draf diperbarui.",
+        "updateFailed": "Tidak dapat memperbarui draf. Silakan coba lagi.",
+        "backToCampaign": "Kembali ke kampanye",
+        "loading": "Memuat draf kampanye…",
+        "loadError": "Tidak dapat memuat kampanye. Silakan coba lagi.",
+        "notFound": "Kampanye tidak ditemukan. Mungkin telah dihapus.",
+        "notOwner": "Hanya penyelenggara kampanye yang dapat mengedit draf ini.",
+        "notEditable": "Kampanye ini tidak dapat lagi diedit. Hanya draf dan kampanye dengan revisi yang diminta yang dapat diedit.",
+        "editDraft": "Edit draf"
+      }
+    },
+    "campaign": {
+      "organizer": "Penyelenggara",
+      "unitEconomics": "Ekonomi Unit",
+      "productCost": "Biaya Produk",
+      "freightShare": "Bagian Angkutan",
+      "markup": "Markup OxSteed",
+      "fees": "Est. Biaya & Bea",
+      "landedCost": "Biaya Sampai",
+      "depositDue": "Deposit Jatuh Tempo (30%)",
+      "timeline": "Linimasa Kampanye",
+      "opensAt": "Dibuka",
+      "closesAt": "Penutupan",
+      "locksAt": "Dikunci",
+      "shipsAt": "Dikirim",
+      "arrivesAt": "Tiba",
+      "joinTitle": "Gabung kampanye ini",
+      "committing": "Unit yang dikomitmen",
+      "deliveryPref": "Preferensi pengiriman",
+      "cancellationWarning": "Jumlah yang dikomitmen tidak dapat dikurangi setelah kampanye dikunci.",
+      "join": "Gabung Kampanye",
+      "joining": "Bergabung...",
+      "alreadyJoined": "Anda sudah bergabung dengan kampanye ini.",
+      "participants": "Peserta",
+      "buyerLabel": "Pembeli",
+      "qtyLabel": "Jml",
+      "statusLabel": "Status"
+    },
+    "sourcing": {
+      "title": "Pengadaan",
+      "myRequests": "Permintaan Saya",
+      "suppliers": "Pemasok",
+      "newRequest": "Permintaan Baru",
+      "reference": "Referensi",
+      "category": "Kategori",
+      "lane": "Jalur",
+      "qty": "Jml",
+      "quotes": "Penawaran",
+      "status": "Status",
+      "created": "Dibuat",
+      "noRequests": "Belum ada permintaan pengadaan.",
+      "noSuppliers": "Belum ada pemasok disetujui.",
+      "trustRating": "Peringkat Kepercayaan",
+      "qualityScore": "Kualitas",
+      "onTimeRate": "Tepat Waktu",
+      "products": "Produk",
+      "viewProducts": "Lihat Produk",
+      "subtitle": "Minta, terima penawaran, dan konversi, dari pertanyaan pertama hingga pesanan pembelian.",
+      "startFirst": "Mulai Permintaan Pertama Anda",
+      "error": "Kami tidak dapat memuat permintaan sourcing Anda saat ini. Silakan coba lagi.",
+      "headers": {
+        "category": "Kategori",
+        "lane": "Jalur",
+        "qty": "Jml",
+        "quotes": "Penawaran",
+        "reference": "Referensi",
+        "status": "Status",
+        "title": "Judul"
+      },
+      "openRequest": "Buka permintaan {{ref}}",
+      "tabsLabel": "Tampilan sourcing",
+      "viewRow": "Lihat →"
+    },
+    "request": {
+      "title": "Permintaan Pengadaan Baru",
+      "step1": "Apa & Berapa Banyak",
+      "step2": "Logistik",
+      "step3": "Tinjau & Kirim",
+      "productTitle": "Judul Produk",
+      "category": "Kategori",
+      "description": "Deskripsi / Spesifikasi",
+      "qty": "Jumlah",
+      "targetPrice": "Harga Satuan Target (USD)",
+      "budget": "Total Anggaran (USD)",
+      "laneLabel": "Jalur",
+      "destinationCountry": "Negara Tujuan",
+      "freightMode": "Mode Angkutan Pilihan",
+      "needsByDate": "Tanggal Dibutuhkan",
+      "attachments": "Lampiran (opsional)",
+      "reviewTitle": "Tinjau permintaan Anda",
+      "submit": "Kirim Permintaan",
+      "submitting": "Mengirim...",
+      "back": "Kembali",
+      "next": "Berikutnya"
+    },
+    "orders": {
+      "title": "Pesanan Pembelian",
+      "subtitle": "Lacak semua pesanan pembelian logistik Anda.",
+      "reference": "Referensi",
+      "product": "Produk",
+      "qty": "Jml",
+      "landed": "Total Sampai",
+      "status": "Status",
+      "created": "Dibuat",
+      "noOrders": "Tidak ada pesanan pembelian ditemukan.",
+      "allStatuses": "Semua Status",
+      "empty": "Tidak ada pesanan ditemukan.",
+      "loading": "Memuat…",
+      "lane": "Jalur",
+      "landedCost": "Biaya Sampai",
+      "expected": "Perkiraan",
+      "backToBuyer": "Kembali ke workspace Pembeli",
+      "error": "Kami tidak dapat memuat pesanan Anda saat ini. Silakan coba lagi.",
+      "headers": {
+        "expected": "Perkiraan",
+        "landedCost": "Biaya Landed",
+        "lane": "Jalur",
+        "product": "Produk",
+        "qty": "Jml",
+        "reference": "Referensi",
+        "status": "Status"
+      },
+      "openOrder": "Buka pesanan {{ref}}",
+      "pagination": "Halaman pesanan",
+      "statusFilter": "Filter berdasarkan status"
+    },
+    "shipments": {
+      "title": "Pengiriman",
+      "subtitle": "Lacak barang Anda dalam perjalanan.",
+      "reference": "Referensi",
+      "route": "Rute",
+      "carrier": "Operator",
+      "tracking": "No. Pelacakan",
+      "weight": "Berat",
+      "cbm": "CBM",
+      "eta": "ETA",
+      "status": "Status",
+      "noShipments": "Tidak ada pengiriman ditemukan.",
+      "milestone": "Tonggak",
+      "allStatuses": "Semua",
+      "empty": "Tidak ada pengiriman ditemukan.",
+      "loading": "Memuat…",
+      "backToBuyer": "Kembali ke workspace Pembeli",
+      "error": "Kami tidak dapat memuat pengiriman Anda saat ini. Silakan coba lagi.",
+      "etaLabel": "ETA",
+      "exception": "Pengecualian",
+      "kg": "kg",
+      "lifecycleLabel": "Filter berdasarkan tahap siklus hidup",
+      "noCarrier": "Tidak ada operator",
+      "openShipment": "Buka pengiriman {{ref}}"
+    },
+    "warehousing": {
+      "title": "Pergudangan",
+      "receipts": "Tanda Terima Inventaris",
+      "allocations": "Alokasi",
+      "deliveries": "Pesanan Pengiriman",
+      "warehouses": "Gudang",
+      "noReceipts": "Tidak ada tanda terima ditemukan.",
+      "noAllocations": "Tidak ada alokasi ditemukan.",
+      "noDeliveries": "Tidak ada pesanan pengiriman ditemukan.",
+      "noWarehouses": "Tidak ada gudang ditemukan.",
+      "subtitle": "Terima, rekonsiliasi, alokasikan, dan lepaskan inventaris ke pembeli.",
+      "activeReceipts": "{{count}} penerimaan aktif",
+      "bonded": "Berikat",
+      "error": "Kami tidak dapat memuat data pergudangan saat ini. Silakan coba lagi.",
+      "headers": {
+        "buyer": "Pembeli",
+        "expected": "Perkiraan",
+        "qty": "Jml",
+        "received": "Diterima",
+        "reference": "Referensi",
+        "releaseMethod": "Metode Rilis",
+        "released": "Dirilis",
+        "shortage": "Kekurangan",
+        "status": "Status",
+        "warehouse": "Gudang"
+      },
+      "sqft": "kaki persegi",
+      "tabsLabel": "Tampilan pergudangan"
+    },
+    "compliance": {
+      "title": "Kepatuhan & Batasan",
+      "subtitle": "Tingkat risiko jalur dan aturan dagang yang mengatur jalur logistik Anda.",
+      "laneRisk": "Gambaran Risiko Jalur",
+      "tradeRules": "Aturan Dagang",
+      "lane": "Jalur",
+      "route": "Rute",
+      "risk": "Tingkat Risiko",
+      "markup": "Markup",
+      "customs": "Kompleksitas Bea Cukai",
+      "flags": "Penanda",
+      "noRules": "Tidak ada aturan dagang ditemukan.",
+      "riskLow": "Rendah",
+      "riskManaged": "Terkelola",
+      "riskRestricted": "Dibatasi",
+      "riskProhibited": "Dilarang",
+      "bv": "Verifikasi Bisnis",
+      "ma": "Persetujuan Manual",
+      "explainer": "Jalur adalah rute pengiriman antara dua negara, seperti Tiongkok ke Haiti. Setiap jalur memiliki aturannya sendiri: apa yang boleh diimpor, dokumen apa yang diperlukan, dan seberapa ketat pemeriksaan bea cukai. Kami memeriksa aturan ini untuk setiap pengiriman gabungan, dan kami mengurus dokumennya. Halaman ini menunjukkan apa yang berlaku untuk barang Anda.",
+      "lanesRisk": "Gambaran Risiko Jalur",
+      "allLanes": "Semua Jalur",
+      "businessVerificationRequired": "Verifikasi bisnis diperlukan",
+      "countryFilter": "Filter berdasarkan kode negara",
+      "countryPlaceholder": "Kode negara (cth. HT)",
+      "customsComplexity": "Bea cukai",
+      "docRequirements": {
+        "body": "Setiap jalur mungkin memerlukan: Faktur Komersial, Daftar Kemasan, Sertifikat Asal, Sertifikat Fitosanitari, izin FDA, marking CE, formulir entri bea cukai, atau laporan inspeksi. Persyaratan spesifik jalur dan kategori.",
+        "title": "Persyaratan Dokumen"
+      },
+      "error": "Kami tidak dapat memuat data kepatuhan saat ini. Silakan coba lagi.",
+      "global": "Global",
+      "headers": {
+        "category": "Kategori",
+        "country": "Negara",
+        "docRequired": "Dok. Diperlukan",
+        "lane": "Jalur",
+        "notes": "Catatan",
+        "severity": "Tingkat",
+        "type": "Jenis"
+      },
+      "laneFilter": "Filter berdasarkan jalur",
+      "manualApprovalRequired": "Persetujuan manual diperlukan",
+      "noLanes": "Belum ada data risiko jalur yang dipublikasikan.",
+      "riskTiers": {
+        "title": "Tingkatan Risiko"
+      }
+    },
+    "finance": {
+      "title": "Keuangan Logistik",
+      "subtitle": "Gambaran nilai yang dikomitmen, biaya, dan ekonomi pesanan.",
+      "totalCommitted": "Total Dikomitmen",
+      "depositsPaid": "Deposit Dibayar",
+      "orderCount": "Jumlah Pesanan",
+      "inTransit": "Nilai Dalam Transit",
+      "simulator": {
+        "calculate": "Hitung Biaya Landed",
+        "calculating": "Menghitung…",
+        "freight": "Est. Kargo / Unit (USD)",
+        "lane": "Jalur",
+        "markupApplied": "Markup diterapkan",
+        "perUnit": "/ unit landed",
+        "productCost": "Biaya Produk / Unit (USD)",
+        "quantity": "Jumlah",
+        "selectLane": "— Pilih Jalur —",
+        "title": "Simulator Biaya Landed",
+        "totalFor": "Total untuk {{qty}} unit"
+      },
+      "simulatorSubtitle": "Pratinjau rincian biaya penuh sebelum membuat pesanan.",
+      "unitCost": "Biaya Produk per Unit (USD)",
+      "qty": "Jumlah",
+      "laneLabel": "Jalur",
+      "freightEst": "Est. Angkutan (USD, opsional)",
+      "calculate": "Hitung",
+      "calculating": "Menghitung...",
+      "noOrders": "Belum ada pesanan.",
+      "totalSpent": "Total Dikomitmen",
+      "recentOrders": "Pesanan Terbaru",
+      "depositPaid": "Deposit Dibayar",
+      "byStatus": "Nilai berdasarkan Status Pesanan",
+      "error": "Kami tidak dapat memuat data keuangan saat ini. Silakan coba lagi.",
+      "headers": {
+        "depositPaid": "Deposit Dibayar",
+        "product": "Produk",
+        "qty": "Jml",
+        "reference": "Referensi",
+        "remaining": "Sisa",
+        "status": "Status",
+        "totalLanded": "Total Landed"
+      },
+      "kpis": {
+        "depositsPaid": "Deposit Dibayar",
+        "inTransit": "Dalam Transit",
+        "orders": "Pesanan",
+        "totalCommitted": "Total Dikomitmen"
+      },
+      "noSpend": "Belum ada pengeluaran pesanan tercatat.",
+      "refund": {
+        "empty": "Belum ada kasus refund diajukan.",
+        "requested": "Diminta",
+        "submitted": "Kasus refund diajukan untuk ditinjau.",
+        "title": "Permintaan Refund"
+      },
+      "refundForm": {
+        "amount": "Jumlah Diminta (USD)",
+        "notes": "Catatan",
+        "poFallback": "PO",
+        "purchaseOrder": "Purchase Order",
+        "reason": "Alasan Refund",
+        "selectOrder": "— Pilih pesanan —",
+        "submit": "Ajukan Kasus Refund",
+        "submitting": "Mengajukan…",
+        "title": "Minta Tinjauan Refund"
+      }
+    },
+    "admin": {
+      "title": "Operasi Logistik",
+      "subtitle": "Kontrol penuh atas jalur, pemasok, pesanan, pengiriman, gudang, harga, dan kepatuhan.",
+      "loading": "Memuat statistik…",
+      "unknownStatus": "Status tidak diketahui",
+      "links": {
+        "sourcingOps": "Operasi Pengadaan",
+        "organizerApprovals": "Persetujuan Penyelenggara",
+        "lanes": "Jalur",
+        "suppliers": "Pemasok",
+        "quotes": "Penawaran",
+        "campaigns": "Kampanye",
+        "purchaseOrders": "Pesanan Pembelian",
+        "shipmentOps": "Operasi Pengiriman",
+        "shipments": "Pengiriman",
+        "complianceReview": "Tinjauan Kepatuhan",
+        "customs": "Bea Cukai",
+        "warehouseOps": "Operasi Gudang",
+        "warehouses": "Gudang",
+        "allocations": "Alokasi",
+        "pricing": "Harga",
+        "restrictions": "Batasan",
+        "disputes": "Sengketa",
+        "superControl": "Kontrol Super",
+        "refunds": "Pengembalian dana"
+      },
+      "metrics": {
+        "purchaseOrders": "Pesanan Pembelian",
+        "shipments": "Pengiriman",
+        "pooledCampaigns": "Kampanye Gabungan",
+        "sourcingRequests": "Permintaan Pengadaan",
+        "claims": "Klaim"
+      },
+      "warehouseTable": {
+        "title": "Gudang",
+        "warehouse": "Gudang",
+        "activeReceipts": "Tanda Terima Aktif",
+        "totalUnits": "Total Unit Diterima"
+      },
+      "shipmentOps": {
+        "title": "Ruang Kerja Operasi Pengiriman",
+        "subtitle": "Pantau pipa angkutan aktif, antrean bea cukai, dan postur pengecualian di semua jalur logistik.",
+        "activeShipments": "Pengiriman aktif",
+        "customsQueue": "Antrean bea cukai",
+        "exceptions": "Pengecualian",
+        "reference": "Referensi",
+        "route": "Rute",
+        "freight": "Angkutan",
+        "status": "Status",
+        "eta": "ETA",
+        "empty": "Tidak ada pengiriman ditemukan."
+      },
+      "quotes": {
+        "title": "Manajemen Penawaran",
+        "subtitle": "Tinjau penawaran pemasok yang dikirim untuk permintaan pengadaan.",
+        "allStatuses": "Semua status",
+        "reference": "Referensi",
+        "sourcingRequest": "Permintaan Pengadaan",
+        "supplier": "Pemasok",
+        "unitPrice": "Harga Satuan",
+        "moq": "MOQ",
+        "leadDays": "Hari Tunggu",
+        "status": "Status",
+        "submitted": "Dikirim",
+        "review": "Tinjau",
+        "empty": "Tidak ada penawaran ditemukan.",
+        "loading": "Memuat…",
+        "reviewTitle": "Tinjau Penawaran",
+        "supplierLabel": "Pemasok",
+        "unitPriceLabel": "Harga Satuan",
+        "moqLabel": "MOQ",
+        "leadTime": "Waktu Tunggu",
+        "days": "hari",
+        "freightIncluded": "Termasuk Angkutan",
+        "yes": "Ya",
+        "supplierNotes": "Catatan Pemasok",
+        "sampleAvailable": "Sampel tersedia",
+        "dayAbbrev": "h",
+        "leadShort": "tunggu",
+        "decision": "Keputusan",
+        "choose": "Pilih",
+        "accept": "Terima",
+        "reject": "Tolak",
+        "adminNotes": "Catatan Admin (dibagikan dengan pembeli)",
+        "submitDecision": "Kirim Keputusan",
+        "cancel": "Batal",
+        "selectDecisionError": "Pilih terima atau tolak.",
+        "reviewAccepted": "Penawaran diterima.",
+        "reviewRejected": "Penawaran ditolak.",
+        "reviewFailed": "Tinjauan penawaran gagal.",
+        "statuses": {
+          "submitted": "Dikirim",
+          "under_review": "Dalam tinjauan",
+          "accepted": "Diterima",
+          "rejected": "Ditolak",
+          "expired": "Kedaluwarsa"
+        }
+      },
+      "shipments": {
+        "title": "Manajemen Pengiriman",
+        "subtitle": "Lacak tonggak pengiriman dan kelola dokumen pengiriman.",
+        "allStatuses": "Semua status",
+        "loading": "Memuat…",
+        "reference": "Referensi",
+        "route": "Rute",
+        "carrier": "Operator",
+        "tracking": "Pelacakan",
+        "weightCbm": "Berat/CBM",
+        "eta": "ETA",
+        "status": "Status",
+        "update": "Perbarui",
+        "empty": "Tidak ada pengiriman ditemukan.",
+        "addMilestone": "Tambah Tonggak",
+        "uploadDocument": "Unggah Dokumen",
+        "milestoneStatus": "Status Tonggak",
+        "select": "Pilih",
+        "location": "Lokasi",
+        "locationPlaceholder": "mis. Pelabuhan Shanghai",
+        "notes": "Catatan",
+        "saving": "Menyimpan…",
+        "cancel": "Batal",
+        "documentType": "Jenis Dokumen",
+        "file": "Berkas",
+        "upload": "Unggah",
+        "uploading": "Mengunggah…",
+        "selectMilestoneError": "Pilih status tonggak.",
+        "milestoneAdded": "Tonggak ditambahkan.",
+        "milestoneFailed": "Tidak dapat menambahkan tonggak.",
+        "documentRequired": "Pilih jenis dokumen dan berkas.",
+        "documentUploaded": "Dokumen diunggah.",
+        "documentFailed": "Tidak dapat mengunggah dokumen.",
+        "statuses": {
+          "planned": "Direncanakan",
+          "booked": "Dipesan",
+          "origin_received": "Diterima di asal",
+          "consolidating": "Konsolidasi",
+          "departed_origin": "Berangkat dari asal",
+          "transshipment": "Transshipment",
+          "arrived_destination": "Tiba di tujuan",
+          "customs_hold": "Ditahan bea cukai",
+          "customs_cleared": "Lolos bea cukai",
+          "delivered_to_warehouse": "Dikirim ke gudang",
+          "receiving": "Penerimaan",
+          "allocation_ready": "Siap dialokasikan",
+          "distributed": "Didistribusikan",
+          "completed": "Selesai",
+          "delivered": "Terkirim",
+          "exception": "Pengecualian"
+        },
+        "docTypes": {
+          "bill_of_lading": "Bill of lading",
+          "commercial_invoice": "Faktur komersial",
+          "packing_list": "Daftar kemasan",
+          "certificate_of_origin": "Sertifikat asal",
+          "customs_declaration": "Deklarasi bea cukai",
+          "insurance_cert": "Sertifikat asuransi",
+          "other": "Lainnya"
+        }
+      }
+    },
+    "status": {
+      "pending_review": "Dalam peninjauan",
+      "revisions_requested": "Revisi diminta",
+      "draft": "Draf",
+      "open": "Terbuka",
+      "quoted": "Diberi penawaran",
+      "pledging": "Pengumpulan Komitmen",
+      "deposit_phase": "Tahap Deposit",
+      "approved": "Disetujui",
+      "placed_with_supplier": "Dipesan",
+      "placed": "Dipesan",
+      "deposit_paid": "Deposit Dibayar",
+      "production": "Dalam Produksi",
+      "ready_to_ship": "Siap Dikirim",
+      "in_transit": "Dalam Transit",
+      "at_customs": "Di Bea Cukai",
+      "customs_cleared": "Lolos Bea Cukai",
+      "at_warehouse": "Di Gudang",
+      "fulfilled": "Terpenuhi",
+      "closed": "Ditutup",
+      "cancelled": "Dibatalkan",
+      "disputed": "Disengketakan",
+      "planned": "Direncanakan",
+      "booked": "Dipesan",
+      "departed_origin": "Berangkat dari Asal",
+      "arrived_transship": "Tiba (Transhipment)",
+      "departed_transship": "Berangkat (Transhipment)",
+      "arrived_destination": "Tiba di Tujuan",
+      "customs_hold": "Ditahan Bea Cukai",
+      "delivered_to_wh": "Dikirim ke Gudang",
+      "completed": "Selesai",
+      "exception": "Pengecualian",
+      "under_review": "Dalam Tinjauan",
+      "rejected": "Ditolak",
+      "resolved": "Terselesaikan",
+      "escalated": "Dieskalasi",
+      "locked": "Terkunci",
+      "shipping": "Pengiriman",
+      "arrived": "Tiba",
+      "pending": "Menunggu",
+      "received": "Diterima",
+      "discrepancy": "Selisih",
+      "reconciled": "Direkonsiliasi",
+      "reserved": "Dipesan",
+      "released": "Dilepaskan",
+      "expired": "Kedaluwarsa",
+      "dispatched": "Diberangkatkan",
+      "delivered": "Terkirim",
+      "failed": "Gagal",
+      "accepted": "Diterima"
+    },
+    "sections": {
+      "sourcing": "Pengadaan",
+      "procurement": "Pengadaan",
+      "shipments": "Pengiriman",
+      "warehousing": "Pergudangan",
+      "distribution": "Distribusi",
+      "compliance": "Kepatuhan",
+      "finance": "Keuangan",
+      "operations": "Operasi"
+    },
+    "lanes": {
+      "title": "Jalur logistik",
+      "subtitle": "Setiap produk, kampanye, dan pesanan berada di sebuah jalur. Jalur menentukan asal, tujuan, negara dan peran pembeli yang diizinkan, kategori terbatas, persyaratan dokumen, markup default, biaya, opsi angkutan, kompleksitas bea cukai, tingkat risiko, dan model pemenuhan.",
+      "originLabel": "Asal",
+      "destLabel": "Tujuan",
+      "riskLabel": "Tingkat risiko",
+      "freightLabel": "Opsi angkutan",
+      "customsLabel": "Kompleksitas bea cukai",
+      "approvalRequired": "Diperlukan persetujuan manual",
+      "businessVerifRequired": "Diperlukan verifikasi bisnis",
+      "resellerApprovalRequired": "Diperlukan persetujuan reseller",
+      "noLanes": "Belum ada jalur aktif diterbitkan."
+    },
+    "distribution": {
+      "title": "Distribusi",
+      "subtitle": "Alokasikan inventaris yang diterima dan jalankan pengiriman tahap akhir: pengambilan lokal, kirim ke pembeli, teruskan angkutan ke penyelenggara, lepaskan ke distributor, bagi per wilayah, atau rute isi ulang berulang.",
+      "allocations": "Alokasi",
+      "deliveries": "Pesanan pengiriman",
+      "release": "Lepaskan",
+      "method": "Metode",
+      "recipient": "Penerima",
+      "methodOptions": {
+        "local_pickup": "Pengambilan lokal",
+        "ship_to_buyer": "Kirim ke pembeli",
+        "freight_forward": "Teruskan angkutan",
+        "distributor": "Lepaskan ke distributor",
+        "bulk_handoff": "Serah terima massal",
+        "restock_route": "Rute isi ulang"
+      },
+      "defaults": {
+        "buyerAllocation": "Alokasi pembeli",
+        "recipient": "Penerima",
+        "releasePending": "rilis tertunda",
+        "warehouse": "Gudang"
+      },
+      "empty": {
+        "allocations": "Tidak ada alokasi tersedia.",
+        "deliveries": "Tidak ada order pengiriman tersedia."
+      },
+      "error": "Kami tidak dapat memuat data distribusi saat ini. Silakan coba lagi.",
+      "labels": {
+        "allocatedQty": "Jml dialokasikan",
+        "mode": "Mode",
+        "tracking": "Pelacakan"
+      },
+      "loading": "Memuat…",
+      "sections": {
+        "allocationQueue": "Antrean alokasi",
+        "deliveryExecution": "Eksekusi pengiriman",
+        "openWarehousing": "Buka pergudangan →"
+      },
+      "stats": {
+        "allocations": "Alokasi",
+        "deliveryOrders": "Order Pengiriman",
+        "inTransit": "Dalam Transit",
+        "released": "Dirilis"
+      }
+    },
+    "buyerTypes": {
+      "individual_buyer": "Pembeli individu",
+      "business_buyer": "Pembeli bisnis",
+      "organizer": "Penyelenggara",
+      "reseller": "Reseller / distributor",
+      "franchise_buyer": "Pembeli waralaba / jaringan",
+      "sourcing_operator": "Operator pengadaan",
+      "logistics_coordinator": "Koordinator logistik",
+      "warehouse_operator": "Operator gudang",
+      "compliance_reviewer": "Peninjau kepatuhan",
+      "admin": "Admin",
+      "super_admin": "Super admin"
+    },
+    "claims": {
+      "title": "Klaim",
+      "subtitle": "Laporkan kekurangan, kerusakan, keterlambatan, barang salah, penolakan bea cukai, atau penipuan. OxSteed meninjau dan dapat menerbitkan pengembalian dana.",
+      "newClaim": "Ajukan klaim",
+      "claimType": "Jenis klaim",
+      "description": "Deskripsi",
+      "claimedAmount": "Jumlah diklaim (USD)",
+      "evidence": "Bukti",
+      "status": "Status",
+      "noClaims": "Belum ada klaim diajukan."
+    },
+    "suppliers": {
+      "products": "produk"
+    },
+    "requests": {
+      "additionalNotes": "Catatan Tambahan",
+      "back": "Kembali ke Pengadaan",
+      "budgetMax": "Anggaran Maks (USD)",
+      "categoryLabel": "Kategori",
+      "created": "Permintaan pengadaan dikirim!",
+      "customMfg": "Manufaktur Kustom",
+      "deadline": "Tenggat",
+      "description": "Deskripsi",
+      "destCity": "Kota Tujuan",
+      "destCountry": "Negara Tujuan",
+      "freightPreference": "Angkutan Pilihan",
+      "lane": "Jalur Logistik",
+      "newSub": "Beri tahu kami yang Anda butuhkan. OxSteed akan menemukan pemasok dan memberikan penawaran.",
+      "newTitle": "Permintaan Pengadaan Baru",
+      "privateLabel": "Label Pribadi",
+      "requiredFields": "Judul dan kategori wajib diisi",
+      "step1": "Langkah 1: Apa yang Anda butuhkan?",
+      "step2": "Langkah 2: Tujuan & Jalur",
+      "step3": "Langkah 3: Tinjau & Kirim",
+      "submit": "Kirim Permintaan",
+      "targetPrice": "Harga Target / Unit (USD)",
+      "targetQty": "Jumlah Target",
+      "titleLabel": "Judul Permintaan",
+      "unit": "Unit",
+      "anyOption": "— Semua —",
+      "customsComplexity": "Kompleksitas bea cukai",
+      "descriptionPlaceholder": "Jelaskan produk secara detail: bahan, dimensi, sertifikasi yang dibutuhkan…",
+      "destCountryPlaceholder": "cth. US, HT, CA",
+      "goToStep": "Ke {{label}}",
+      "laneBlocked": "Jalur ini saat ini diblokir untuk peran atau konteks tujuan Anda: {{reason}}",
+      "laneBusinessVerification": "Verifikasi bisnis diperlukan untuk menjalankan jalur ini sebagai pembeli terverifikasi.",
+      "laneChecks": "Pemeriksaan akses dan persetujuan jalur",
+      "laneManualApproval": "Persetujuan kepatuhan manual diperlukan sebelum permintaan ini masuk ke penawaran atau pengadaan.",
+      "laneResellerApproval": "Persetujuan reseller/distributor diperlukan sebelum jalur ini digunakan untuk alur resale.",
+      "letOxsteedChoose": "— Biarkan OxSteed memilih —",
+      "notesPlaceholder": "Konteks lain untuk tim sourcing…",
+      "review": {
+        "category": "Kategori",
+        "deadline": "Tenggat",
+        "destination": "Tujuan",
+        "no": "Tidak",
+        "privateLabel": "Label Pribadi",
+        "quantity": "Jumlah",
+        "targetPrice": "Harga Target",
+        "title": "Judul",
+        "yes": "Ya"
+      },
+      "riskTier": "Tingkatan risiko",
+      "selectOption": "— Pilih —",
+      "stepsLabel": "Progres permintaan",
+      "titlePlaceholder": "cth. 500 Unit Sepatu Safety Industri"
+    },
     "hub": {
       "aboutBody": "Pembeli menggabungkan permintaan hingga mencapai jumlah pesanan minimum pemasok. Ketika permintaan yang berkomitmen sudah cukup, kampanye dikunci, deposit dikumpulkan, dan OxSteed mengoordinasikan sisa rantai pasok.",
       "aboutTitle": "Cara kerja pembelian bersama",
@@ -1393,17 +2505,6 @@
       "searchPlaceholder": "Cari berdasarkan produk, rute, atau judul",
       "statusLabel": "Status",
       "title": "Pembelian bersama, dibuat sederhana"
-    },
-    "nav": {
-      "adminControl": "Kontrol admin",
-      "businessProcurement": "Pengadaan bisnis",
-      "buyer": "Pembeli",
-      "compliance": "Kepatuhan",
-      "distributor": "Distributor",
-      "hub": "Jelajahi",
-      "label": "Ruang kerja logistik",
-      "operations": "Operasi",
-      "organizer": "Penyelenggara"
     },
     "modal": {
       "close": "Tutup",
@@ -1456,84 +2557,6 @@
         "warehouse": "Gudang",
         "releaseMethod": "Metode pelepasan",
         "quantity": "Jumlah"
-      }
-    },
-    "workspace": {
-      "nextStep": {
-        "title": "Langkah Anda berikutnya"
-      },
-      "recentActivity": {
-        "title": "Aktivitas terkini",
-        "empty": "Belum ada apa-apa. Aktivitas baru akan muncul di sini."
-      },
-      "dataError": {
-        "title": "Data tidak tersedia",
-        "body": "Ruang kerja Anda tidak dapat dimuat saat ini. Silakan coba lagi.",
-        "retry": "Coba lagi"
-      },
-      "buyer": {
-        "nextStep": {
-          "browseCampaigns": {
-            "label": "Jelajahi kampanye",
-            "hint": "Tidak ada permintaan aktif. Temukan kampanye bersama untuk diikuti atau diawasi."
-          },
-          "reviewShipments": {
-            "label": "Tinjau pengiriman berisiko",
-            "hint": "{{count}} pengiriman perlu ditindaklanjuti."
-          },
-          "startRequest": {
-            "label": "Mulai permintaan pengadaan",
-            "hint": "Semuanya berjalan. Buka permintaan baru saat Anda siap."
-          }
-        }
-      },
-      "organizer": {
-        "nextStep": {
-          "momentum": {
-            "label": "Dorong momentum MOQ",
-            "hint": "{{count}} kampanye berada di bawah setengah MOQ dan butuh perekrutan lagi."
-          },
-          "browse": {
-            "label": "Jelajahi kampanye",
-            "hint": "Anda belum mengoordinasikan kampanye apa pun. Temukan satu untuk diikuti."
-          },
-          "handoffs": {
-            "label": "Koordinasikan serah terima",
-            "hint": "Permintaan sudah terkumpul. Terus dorong serah terima ke penerima."
-          }
-        }
-      },
-      "business": {
-        "nextStep": {
-          "reviewRuns": {
-            "label": "Tinjau jadwal berikutnya",
-            "hint": "{{count}} jadwal program dalam 21 hari. Periksa jumlah, rute, dan tujuan."
-          },
-          "createProgram": {
-            "label": "Buat program berulang",
-            "hint": "Belum ada program restock. Tetapkan ritme untuk permintaan berulang."
-          },
-          "newRequest": {
-            "label": "Buka permintaan bisnis",
-            "hint": "Program berjalan. Tautkan permintaan baru ke salah satu bisnis Anda."
-          }
-        }
-      },
-      "distributor": {
-        "nextStep": {
-          "failedDeliveries": {
-            "label": "Tinjau pengiriman yang gagal",
-            "hint": "{{count}} pengiriman gagal atau dibatalkan dan mungkin perlu dialihkan."
-          },
-          "releaseLots": {
-            "label": "Lepaskan lot yang menunggu",
-            "hint": "{{count}} lot sudah dialokasikan tetapi belum dilepas."
-          },
-          "warehouse": {
-            "label": "Periksa kesiapan gudang",
-            "hint": "Antrean kosong. Pastikan stok siap dialokasikan."
-          }
-        }
       }
     },
     "adminControl": {
@@ -1764,64 +2787,6 @@
         "title": "Timeline"
       }
     },
-    "compliance": {
-      "allLanes": "Semua Jalur",
-      "businessVerificationRequired": "Verifikasi bisnis diperlukan",
-      "countryFilter": "Filter berdasarkan kode negara",
-      "countryPlaceholder": "Kode negara (cth. HT)",
-      "customsComplexity": "Bea cukai",
-      "docRequirements": {
-        "body": "Setiap jalur mungkin memerlukan: Faktur Komersial, Daftar Kemasan, Sertifikat Asal, Sertifikat Fitosanitari, izin FDA, marking CE, formulir entri bea cukai, atau laporan inspeksi. Persyaratan spesifik jalur dan kategori.",
-        "title": "Persyaratan Dokumen"
-      },
-      "error": "Kami tidak dapat memuat data kepatuhan saat ini. Silakan coba lagi.",
-      "global": "Global",
-      "headers": {
-        "category": "Kategori",
-        "country": "Negara",
-        "docRequired": "Dok. Diperlukan",
-        "lane": "Jalur",
-        "notes": "Catatan",
-        "severity": "Tingkat",
-        "type": "Jenis"
-      },
-      "laneFilter": "Filter berdasarkan jalur",
-      "manualApprovalRequired": "Persetujuan manual diperlukan",
-      "noLanes": "Belum ada data risiko jalur yang dipublikasikan.",
-      "riskTiers": {
-        "title": "Tingkatan Risiko"
-      }
-    },
-    "distribution": {
-      "defaults": {
-        "buyerAllocation": "Alokasi pembeli",
-        "recipient": "Penerima",
-        "releasePending": "rilis tertunda",
-        "warehouse": "Gudang"
-      },
-      "empty": {
-        "allocations": "Tidak ada alokasi tersedia.",
-        "deliveries": "Tidak ada order pengiriman tersedia."
-      },
-      "error": "Kami tidak dapat memuat data distribusi saat ini. Silakan coba lagi.",
-      "labels": {
-        "allocatedQty": "Jml dialokasikan",
-        "mode": "Mode",
-        "tracking": "Pelacakan"
-      },
-      "loading": "Memuat…",
-      "sections": {
-        "allocationQueue": "Antrean alokasi",
-        "deliveryExecution": "Eksekusi pengiriman",
-        "openWarehousing": "Buka pergudangan →"
-      },
-      "stats": {
-        "allocations": "Alokasi",
-        "deliveryOrders": "Order Pengiriman",
-        "inTransit": "Dalam Transit",
-        "released": "Dirilis"
-      }
-    },
     "distributor": {
       "actions": {
         "openBoard": "Buka papan distribusi",
@@ -1930,55 +2895,6 @@
       "subtitle": "Lacak inventaris yang dialokasikan, kelola metode rilis, dan jaga eksekusi serah terima last-mile tetap bersih di seluruh resale atau distribusi komunitas.",
       "title": "Workspace Distributor / Reseller"
     },
-    "finance": {
-      "error": "Kami tidak dapat memuat data keuangan saat ini. Silakan coba lagi.",
-      "headers": {
-        "depositPaid": "Deposit Dibayar",
-        "product": "Produk",
-        "qty": "Jml",
-        "reference": "Referensi",
-        "remaining": "Sisa",
-        "status": "Status",
-        "totalLanded": "Total Landed"
-      },
-      "kpis": {
-        "depositsPaid": "Deposit Dibayar",
-        "inTransit": "Dalam Transit",
-        "orders": "Pesanan",
-        "totalCommitted": "Total Dikomitmen"
-      },
-      "noSpend": "Belum ada pengeluaran pesanan tercatat.",
-      "refund": {
-        "empty": "Belum ada kasus refund diajukan.",
-        "requested": "Diminta",
-        "submitted": "Kasus refund diajukan untuk ditinjau.",
-        "title": "Permintaan Refund"
-      },
-      "refundForm": {
-        "amount": "Jumlah Diminta (USD)",
-        "notes": "Catatan",
-        "poFallback": "PO",
-        "purchaseOrder": "Purchase Order",
-        "reason": "Alasan Refund",
-        "selectOrder": "— Pilih pesanan —",
-        "submit": "Ajukan Kasus Refund",
-        "submitting": "Mengajukan…",
-        "title": "Minta Tinjauan Refund"
-      },
-      "simulator": {
-        "calculate": "Hitung Biaya Landed",
-        "calculating": "Menghitung…",
-        "freight": "Est. Kargo / Unit (USD)",
-        "lane": "Jalur",
-        "markupApplied": "Markup diterapkan",
-        "perUnit": "/ unit landed",
-        "productCost": "Biaya Produk / Unit (USD)",
-        "quantity": "Jumlah",
-        "selectLane": "— Pilih Jalur —",
-        "title": "Simulator Biaya Landed",
-        "totalFor": "Total untuk {{qty}} unit"
-      }
-    },
     "operations": {
       "error": "Kami tidak dapat memuat metrik operasi saat ini. Silakan coba lagi.",
       "internalOnly": {
@@ -2007,7 +2923,10 @@
       },
       "routesLabel": "Rute operasi",
       "subtitle": "Satu permukaan perintah internal untuk intake sourcing, pergerakan kargo aktif, alur gudang, dan pengecualian logistik.",
-      "title": "Workspace Operasi"
+      "title": "Workspace Operasi",
+      "routes": {
+        "finance": "Operasi logistik"
+      }
     },
     "orderDetail": {
       "backToOrders": "← Kembali ke Pesanan",
@@ -2049,22 +2968,6 @@
         "remaining": "Sisa",
         "totalLanded": "Total landed"
       }
-    },
-    "orders": {
-      "backToBuyer": "Kembali ke workspace Pembeli",
-      "error": "Kami tidak dapat memuat pesanan Anda saat ini. Silakan coba lagi.",
-      "headers": {
-        "expected": "Perkiraan",
-        "landedCost": "Biaya Landed",
-        "lane": "Jalur",
-        "product": "Produk",
-        "qty": "Jml",
-        "reference": "Referensi",
-        "status": "Status"
-      },
-      "openOrder": "Buka pesanan {{ref}}",
-      "pagination": "Halaman pesanan",
-      "statusFilter": "Filter berdasarkan status"
     },
     "organizer": {
       "actions": {
@@ -2348,35 +3251,6 @@
         "personalRequest": "Permintaan pribadi"
       }
     },
-    "requests": {
-      "anyOption": "— Semua —",
-      "customsComplexity": "Kompleksitas bea cukai",
-      "descriptionPlaceholder": "Jelaskan produk secara detail: bahan, dimensi, sertifikasi yang dibutuhkan…",
-      "destCountryPlaceholder": "cth. US, HT, CA",
-      "goToStep": "Ke {{label}}",
-      "laneBlocked": "Jalur ini saat ini diblokir untuk peran atau konteks tujuan Anda: {{reason}}",
-      "laneBusinessVerification": "Verifikasi bisnis diperlukan untuk menjalankan jalur ini sebagai pembeli terverifikasi.",
-      "laneChecks": "Pemeriksaan akses dan persetujuan jalur",
-      "laneManualApproval": "Persetujuan kepatuhan manual diperlukan sebelum permintaan ini masuk ke penawaran atau pengadaan.",
-      "laneResellerApproval": "Persetujuan reseller/distributor diperlukan sebelum jalur ini digunakan untuk alur resale.",
-      "letOxsteedChoose": "— Biarkan OxSteed memilih —",
-      "notesPlaceholder": "Konteks lain untuk tim sourcing…",
-      "review": {
-        "category": "Kategori",
-        "deadline": "Tenggat",
-        "destination": "Tujuan",
-        "no": "Tidak",
-        "privateLabel": "Label Pribadi",
-        "quantity": "Jumlah",
-        "targetPrice": "Harga Target",
-        "title": "Judul",
-        "yes": "Ya"
-      },
-      "riskTier": "Tingkatan risiko",
-      "selectOption": "— Pilih —",
-      "stepsLabel": "Progres permintaan",
-      "titlePlaceholder": "cth. 500 Unit Sepatu Safety Industri"
-    },
     "shipmentDetail": {
       "backToShipments": "← Kembali ke Pengiriman",
       "defaults": {
@@ -2410,70 +3284,10 @@
         "milestones": "Milestone"
       }
     },
-    "shipments": {
-      "backToBuyer": "Kembali ke workspace Pembeli",
-      "error": "Kami tidak dapat memuat pengiriman Anda saat ini. Silakan coba lagi.",
-      "etaLabel": "ETA",
-      "exception": "Pengecualian",
-      "kg": "kg",
-      "lifecycleLabel": "Filter berdasarkan tahap siklus hidup",
-      "noCarrier": "Tidak ada operator",
-      "openShipment": "Buka pengiriman {{ref}}"
-    },
-    "sourcing": {
-      "error": "Kami tidak dapat memuat permintaan sourcing Anda saat ini. Silakan coba lagi.",
-      "headers": {
-        "category": "Kategori",
-        "lane": "Jalur",
-        "qty": "Jml",
-        "quotes": "Penawaran",
-        "reference": "Referensi",
-        "status": "Status",
-        "title": "Judul"
-      },
-      "openRequest": "Buka permintaan {{ref}}",
-      "tabsLabel": "Tampilan sourcing",
-      "viewRow": "Lihat →"
-    },
     "tables": {
       "actions": "Tindakan",
       "view": "Lihat",
       "preview": "Pratinjau"
-    },
-    "warehousing": {
-      "activeReceipts": "{{count}} penerimaan aktif",
-      "bonded": "Berikat",
-      "error": "Kami tidak dapat memuat data pergudangan saat ini. Silakan coba lagi.",
-      "headers": {
-        "buyer": "Pembeli",
-        "expected": "Perkiraan",
-        "qty": "Jml",
-        "received": "Diterima",
-        "reference": "Referensi",
-        "releaseMethod": "Metode Rilis",
-        "released": "Dirilis",
-        "shortage": "Kekurangan",
-        "status": "Status",
-        "warehouse": "Gudang"
-      },
-      "sqft": "kaki persegi",
-      "tabsLabel": "Tampilan pergudangan"
-    },
-    "campaigns": {
-      "edit": {
-        "title": "Edit draf kampanye",
-        "subtitle": "Perbarui draf Anda di bawah. Jika sudah siap, kirimkan untuk ditinjau Operasi.",
-        "saveChanges": "Simpan perubahan",
-        "draftUpdated": "Draf diperbarui.",
-        "updateFailed": "Tidak dapat memperbarui draf. Silakan coba lagi.",
-        "backToCampaign": "Kembali ke kampanye",
-        "loading": "Memuat draf kampanye…",
-        "loadError": "Tidak dapat memuat kampanye. Silakan coba lagi.",
-        "notFound": "Kampanye tidak ditemukan. Mungkin telah dihapus.",
-        "notOwner": "Hanya penyelenggara kampanye yang dapat mengedit draf ini.",
-        "notEditable": "Kampanye ini tidak dapat lagi diedit. Hanya draf dan kampanye dengan revisi yang diminta yang dapat diedit.",
-        "editDraft": "Edit draf"
-      }
     },
     "checkout": {
       "backToDashboard": "Kembali ke dasbor pembeli",
@@ -2537,7 +3351,8 @@
           "processing": "Diproses",
           "refunded": "Dikembalikan",
           "succeeded": "Berhasil",
-          "canceled": "Dibatalkan"
+          "canceled": "Dibatalkan",
+          "superseded": "Tagihan ganda perlu ditinjau"
         },
         "subtitle": "Setiap upaya pembayaran, dengan pelunasan yang dikonfirmasi OxSteed.",
         "title": "Pembayaran logistik saya"
@@ -2585,7 +3400,7 @@
         "failedUnknown": "Pembayaran tidak berhasil. Tidak ada dana yang diambil.",
         "installment": "Cicilan",
         "method": "Metode",
-        "newKeyNote": "Setiap percobaan ulang membuat upaya pembayaran baru, jadi Anda tidak pernah ditagih dua kali untuk konfirmasi yang sama.",
+        "newKeyNote": "Lanjutkan pembayaran",
         "notSettled": "Dana belum lunas. Kami akan mengonfirmasi di sini setelah pembayaran selesai.",
         "pending": "Pembayaran tertunda",
         "processing": "Memproses pembayaran Anda…",
@@ -2729,24 +3544,6 @@
       "movedNotice": "Tinjauan pengembalian dana pindah ke halaman pengembalian dana admin ganda. Pengeditan status langsung tidak lagi tersedia.",
       "openReviewPage": "Buka tinjauan pengembalian dana"
     },
-    "admin": {
-      "links": {
-        "refunds": "Pengembalian dana"
-      }
-    },
-    "complianceWorkspace": {
-      "metrics": {
-        "unavailableNote": "Metrik tidak tersedia saat ini."
-      }
-    },
-    "forms": {
-      "unsavedChanges": {
-        "body": "Anda memiliki perubahan yang belum disimpan. Keluar sekarang akan membuang yang Anda masukkan.",
-        "discard": "Buang perubahan",
-        "stay": "Lanjut mengedit",
-        "title": "Buang perubahan yang belum disimpan?"
-      }
-    },
     "refund_pending": {
       "body": "Pengembalian dana logistik Anda sedang dalam perjalanan. Penyedia pembayaran Anda masih memprosesnya; kami akan mengonfirmasi setelah sampai ke metode pembayaran awal Anda.",
       "title": "Pengembalian dana tertunda"
@@ -2767,6 +3564,33 @@
       "funding_shortfall": "Kekurangan dana pada tenggat deposit",
       "min_demand_unmet": "Permintaan minimum tidak terpenuhi saat penutupan komitmen",
       "raised_note": "Tenggat pendanaan terlewat; diteruskan ke staf untuk penyelesaian. Kampanye tidak dilanjutkan."
+    },
+    "staff": {
+      "title": "Operasi logistik",
+      "quoteEditor": "Siapkan penawaran pembeli",
+      "subject": "Pesanan atau partisipasi",
+      "order": "Pesanan pembelian",
+      "participant": "Partisipasi kampanye",
+      "id": "ID catatan",
+      "description": "Deskripsi",
+      "amount": "Jumlah (USD)",
+      "depositPercent": "Uang muka (%)",
+      "deadline": "Batas uang muka",
+      "finalDeadline": "Batas pelunasan",
+      "save": "Simpan draf",
+      "publish": "Terbitkan penawaran",
+      "campaign": "ID kampanye",
+      "placement": "Setujui pesanan pemasok",
+      "openDeposit": "Buka masa uang muka",
+      "queues": "Antrean tinjauan",
+      "notes": "Catatan tinjauan",
+      "resolve": "Selesaikan",
+      "refresh": "Muat ulang",
+      "cancelPayment": "Batalkan pembayaran belum dikonfirmasi",
+      "resume": "Lanjutkan pembayaran",
+      "reconciled": "Tagihan ganda perlu ditinjau",
+      "empty": "Tidak ada item terbuka",
+      "reviewHint": "Mencatat tinjauan tidak memindahkan dana atau melepas barang."
     }
   }
 }

@@ -54,15 +54,16 @@ export default function PaymentStatusPanel({ attempt: initialAttempt, poll = tru
     }
   }, [attempt?.id]);
 
-  const isTerminal = (a) => ['succeeded', 'failed', 'canceled'].includes(a?.status);
+  const isTerminal = (a) => ['succeeded', 'failed', 'canceled','superseded'].includes(a?.status);
 
   useEffect(() => {
     if (!poll || !attempt?.id || isTerminal(attempt)) return undefined;
     timerRef.current = setInterval(() => { refresh(); }, POLL_INTERVAL_MS);
-    return () => { if (timerRef.current) clearInterval(timerRef.current); };
+  return () => { if (timerRef.current) clearInterval(timerRef.current); };
   }, [poll, attempt?.id, attempt?.status, refresh]);
 
   if (!attempt) return null;
+if(attempt.status==='superseded')return <div className="lx-callout" role="status">{tx('logistics.staff.reconciled','Duplicate charge needs review')}</div>;
 
   const money = (minor) => formatCreditMinorUnits(minor ?? 0, 'USD');
   const dateOf = (value) => (value ? new Date(value).toLocaleString(i18n.language) : '—');

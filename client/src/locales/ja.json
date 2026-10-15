@@ -15503,7 +15503,7 @@
     "forms": {
       "unsavedChanges": {
         "title": "保存されていない変更を破棄しますか？",
-        "body": "保存されていない変更があります。今離れると入力内容が破棄されます。",
+        "body": "保存されていない変更があります。今離れると、入力内容が破棄されます。",
         "stay": "編集を続ける",
         "discard": "変更を破棄"
       }
@@ -15512,22 +15512,90 @@
       "business": {
         "recentActivity": {
           "empty": "まだ何もありません。"
+        },
+        "nextStep": {
+          "reviewRuns": {
+            "label": "今後の実行を確認",
+            "hint": "21日以内に{{count}}件のプログラム実行があります。数量・ルート・目的地を確認してください。"
+          },
+          "createProgram": {
+            "label": "定期プログラムを作成",
+            "hint": "補充プログラムはまだありません。繰り返しの需要にリズムを設定しましょう。"
+          },
+          "newRequest": {
+            "label": "ビジネス連携リクエストを開く",
+            "hint": "プログラムは稼働中です。新しい需要をいずれかのビジネスに紐づけましょう。"
+          }
         }
       },
       "buyer": {
         "recentActivity": {
           "empty": "まだ何もありません。"
+        },
+        "nextStep": {
+          "browseCampaigns": {
+            "label": "キャンペーンを探す",
+            "hint": "進行中のリクエストがありません。参加またはフォローする共同購入キャンペーンを探しましょう。"
+          },
+          "reviewShipments": {
+            "label": "要注意の出荷を確認",
+            "hint": "{{count}}件の出荷にフォローアップが必要です。"
+          },
+          "startRequest": {
+            "label": "調達リクエストを作成",
+            "hint": "すべて順調です。準備ができたら新しい需要を作成しましょう。"
+          }
         }
       },
       "distributor": {
         "recentActivity": {
           "empty": "まだ何もありません。"
+        },
+        "nextStep": {
+          "failedDeliveries": {
+            "label": "失敗した配送を確認",
+            "hint": "{{count}}件の配送が失敗またはキャンセルされ、再ルートが必要な場合があります。"
+          },
+          "releaseLots": {
+            "label": "待機中のロットを出庫",
+            "hint": "{{count}}件のロットが割当済みですが、まだ出庫されていません。"
+          },
+          "warehouse": {
+            "label": "倉庫の準備を確認",
+            "hint": "キューは空です。上流の在庫が割当可能か確認してください。"
+          }
         }
       },
       "organizer": {
         "recentActivity": {
           "empty": "まだ何もありません。"
+        },
+        "nextStep": {
+          "momentum": {
+            "label": "MOQを押し上げる",
+            "hint": "{{count}}件のキャンペーンがMOQの半分未満で、追加の募集が必要です。"
+          },
+          "browse": {
+            "label": "キャンペーンを探す",
+            "hint": "まだ運営しているキャンペーンがありません。参加できるものを探しましょう。"
+          },
+          "handoffs": {
+            "label": "引き渡しを調整",
+            "hint": "需要は確保されました。受取人への引き渡しを進めましょう。"
+          }
         }
+      },
+      "nextStep": {
+        "title": "次のステップ"
+      },
+      "recentActivity": {
+        "title": "最近のアクティビティ",
+        "empty": "まだ何もありません。新しいアクティビティがここに表示されます。"
+      },
+      "dataError": {
+        "title": "データを利用できません",
+        "body": "ワークスペースを読み込めませんでした。もう一度お試しください。",
+        "retry": "再試行"
       }
     },
     "nav": {
@@ -15538,7 +15606,15 @@
       "shipments": "配送",
       "warehousing": "倉庫保管",
       "compliance": "コンプライアンス",
-      "finance": "ファイナンス"
+      "finance": "ファイナンス",
+      "adminControl": "管理者コントロール",
+      "businessProcurement": "法人調達",
+      "buyer": "購入者",
+      "distributor": "販売代理店",
+      "hub": "閲覧",
+      "label": "物流ワークスペース",
+      "operations": "オペレーション",
+      "organizer": "主催者"
     },
     "home": {
       "title": "OxSteed Logistics",
@@ -15672,7 +15748,10 @@
         "noRestrictions": "利用可能な制限事項はありません。"
       },
       "separator": "·",
-      "queueLabel": "キュー内の税関関連貨物"
+      "queueLabel": "キュー内の税関関連貨物",
+      "metrics": {
+        "unavailableNote": "指標は現在利用できません。"
+      }
     },
     "operatorLogin": {
       "copy": {
@@ -15875,7 +15954,21 @@
       "closes": "締め切り",
       "closeDate": "締め切り日",
       "allStatuses": "すべてのステータス",
-      "allCampaigns": "すべてのキャンペーン"
+      "allCampaigns": "すべてのキャンペーン",
+      "edit": {
+        "title": "キャンペーンの下書きを編集",
+        "subtitle": "下書きを以下で更新してください。準備ができたら、オペレーションのレビューに提出してください。",
+        "saveChanges": "変更を保存",
+        "draftUpdated": "下書きを更新しました。",
+        "updateFailed": "下書きを更新できませんでした。もう一度お試しください。",
+        "backToCampaign": "キャンペーンに戻る",
+        "loading": "キャンペーンの下書きを読み込み中…",
+        "loadError": "キャンペーンを読み込めませんでした。もう一度お試しください。",
+        "notFound": "キャンペーンが見つかりません。削除された可能性があります。",
+        "notOwner": "この下書きを編集できるのはキャンペーンの主催者のみです。",
+        "notEditable": "このキャンペーンは編集できなくなりました。編集できるのは下書きと修正依頼中のキャンペーンのみです。",
+        "editDraft": "下書きを編集"
+      }
     },
     "campaign": {
       "organizer": "主催者",
@@ -15924,7 +16017,20 @@
       "products": "商品",
       "viewProducts": "商品を見る",
       "subtitle": "最初の引き合いから発注書まで、依頼、見積り、転換を行えます。",
-      "startFirst": "最初のリクエストを作成"
+      "startFirst": "最初のリクエストを作成",
+      "error": "調達リクエストを現在読み込めませんでした。もう一度お試しください。",
+      "headers": {
+        "category": "カテゴリ",
+        "lane": "レーン",
+        "qty": "数量",
+        "quotes": "見積",
+        "reference": "参照",
+        "status": "ステータス",
+        "title": "タイトル"
+      },
+      "openRequest": "リクエスト{{ref}}を開く",
+      "tabsLabel": "調達ビュー",
+      "viewRow": "表示 →"
     },
     "request": {
       "title": "新規調達リクエスト",
@@ -15963,7 +16069,21 @@
       "loading": "読み込み中…",
       "lane": "レーン",
       "landedCost": "総コスト",
-      "expected": "予定"
+      "expected": "予定",
+      "backToBuyer": "バイヤーワークスペースに戻る",
+      "error": "注文を現在読み込めませんでした。もう一度お試しください。",
+      "headers": {
+        "expected": "予定",
+        "landedCost": " landed コスト",
+        "lane": "レーン",
+        "product": "製品",
+        "qty": "数量",
+        "reference": "参照",
+        "status": "ステータス"
+      },
+      "openOrder": "注文{{ref}}を開く",
+      "pagination": "注文ページ",
+      "statusFilter": "ステータスで絞り込み"
     },
     "shipments": {
       "title": "配送",
@@ -15980,7 +16100,15 @@
       "milestone": "マイルストーン",
       "allStatuses": "すべて",
       "empty": "配送が見つかりません。",
-      "loading": "読み込み中…"
+      "loading": "読み込み中…",
+      "backToBuyer": "バイヤーワークスペースに戻る",
+      "error": "出荷を現在読み込めませんでした。もう一度お試しください。",
+      "etaLabel": "到着予定",
+      "exception": "例外",
+      "kg": "kg",
+      "lifecycleLabel": "ライフサイクル段階で絞り込み",
+      "noCarrier": "運送業者なし",
+      "openShipment": "出荷{{ref}}を開く"
     },
     "warehousing": {
       "title": "倉庫保管",
@@ -15992,7 +16120,24 @@
       "noAllocations": "割り当てが見つかりません。",
       "noDeliveries": "配送指示が見つかりません。",
       "noWarehouses": "倉庫が見つかりません。",
-      "subtitle": "在庫を受け入れ、照合し、バイヤーに割り当てて出庫します。"
+      "subtitle": "在庫を受け入れ、照合し、バイヤーに割り当てて出庫します。",
+      "activeReceipts": "{{count}}件の有効な受領",
+      "bonded": "保税",
+      "error": "倉庫データを現在読み込めませんでした。もう一度お試しください。",
+      "headers": {
+        "buyer": "バイヤー",
+        "expected": "予定",
+        "qty": "数量",
+        "received": "受領済み",
+        "reference": "参照",
+        "releaseMethod": "出庫方法",
+        "released": "出庫済み",
+        "shortage": "不足",
+        "status": "ステータス",
+        "warehouse": "倉庫"
+      },
+      "sqft": "平方フィート",
+      "tabsLabel": "倉庫ビュー"
     },
     "compliance": {
       "title": "コンプライアンスと制限事項",
@@ -16013,7 +16158,33 @@
       "bv": "企業認証",
       "ma": "手動承認",
       "explainer": "レーンとは、中国からハイチのような2か国間の輸送ルートのことです。各レーンには独自のルールがあります。輸入できる品目、必要な書類、税関審査の厳格さです。共同配送のたびにこれらのルールを確認し、書類手続きも代行します。このページでは、お客様の貨物に適用される内容を表示します。",
-      "lanesRisk": "レーンリスク概要"
+      "lanesRisk": "レーンリスク概要",
+      "allLanes": "全レーン",
+      "businessVerificationRequired": "ビジネス確認が必要",
+      "countryFilter": "国コードで絞り込み",
+      "countryPlaceholder": "国コード (例: HT)",
+      "customsComplexity": "通関",
+      "docRequirements": {
+        "body": "各レーンで必要な場合があります: 商業送り状、パッキングリスト、原産地証明書、植物検疫証明書、FDAクリアランス、CEマーキング、通関申告書類、検査報告書。要件はレーン・カテゴリ別です。",
+        "title": "書類要件"
+      },
+      "error": "コンプライアンスデータを現在読み込めませんでした。もう一度お試しください。",
+      "global": "グローバル",
+      "headers": {
+        "category": "カテゴリ",
+        "country": "国",
+        "docRequired": "書類要",
+        "lane": "レーン",
+        "notes": "備考",
+        "severity": "重大度",
+        "type": "種類"
+      },
+      "laneFilter": "レーンで絞り込み",
+      "manualApprovalRequired": "手動承認が必要",
+      "noLanes": "レーンリスクデータはまだ公開されていません。",
+      "riskTiers": {
+        "title": "リスクティア"
+      }
     },
     "finance": {
       "title": "ロジスティクスファイナンス",
@@ -16022,7 +16193,19 @@
       "depositsPaid": "支払済みデポジット",
       "orderCount": "注文件数",
       "inTransit": "輸送中の金額",
-      "simulator": "総コストシミュレーター",
+      "simulator": {
+        "calculate": " landed コストを計算",
+        "calculating": "計算中…",
+        "freight": "貨物概算 / 単位 (USD)",
+        "lane": "レーン",
+        "markupApplied": "マークアップ適用済み",
+        "perUnit": "/ 単位 landed",
+        "productCost": "製品コスト / 単位 (USD)",
+        "quantity": "数量",
+        "selectLane": "— レーンを選択 —",
+        "title": " landed コストシミュレーター",
+        "totalFor": "{{qty}}単位の合計"
+      },
       "simulatorSubtitle": "注文前にコスト内訳の全体をプレビューできます。",
       "unitCost": "商品単価（USD）",
       "qty": "数量",
@@ -16034,7 +16217,41 @@
       "totalSpent": "誓約総額",
       "recentOrders": "最近の注文",
       "depositPaid": "支払済みデポジット",
-      "byStatus": "注文ステータス別の金額"
+      "byStatus": "注文ステータス別の金額",
+      "error": "財務データを現在読み込めませんでした。もう一度お試しください。",
+      "headers": {
+        "depositPaid": "デポジット支払済み",
+        "product": "製品",
+        "qty": "数量",
+        "reference": "参照",
+        "remaining": "残額",
+        "status": "ステータス",
+        "totalLanded": " landed 合計"
+      },
+      "kpis": {
+        "depositsPaid": "デポジット支払済み",
+        "inTransit": "輸送中",
+        "orders": "注文",
+        "totalCommitted": "コミット合計"
+      },
+      "noSpend": "注文支出はまだ記録されていません。",
+      "refund": {
+        "empty": "返金案件はまだ提出されていません。",
+        "requested": "リクエスト済み",
+        "submitted": "返金案件を審査に提出しました。",
+        "title": "返金リクエスト"
+      },
+      "refundForm": {
+        "amount": "リクエスト金額 (USD)",
+        "notes": "備考",
+        "poFallback": "発注",
+        "purchaseOrder": "発注書",
+        "reason": "返金理由",
+        "selectOrder": "— 注文を選択 —",
+        "submit": "返金案件を提出",
+        "submitting": "提出中…",
+        "title": "返金審査をリクエスト"
+      }
     },
     "admin": {
       "title": "ロジスティクスオペレーション",
@@ -16059,7 +16276,8 @@
         "pricing": "価格設定",
         "restrictions": "制限事項",
         "disputes": "紛争",
-        "superControl": "スーパーコントロール"
+        "superControl": "スーパーコントロール",
+        "refunds": "返金"
       },
       "metrics": {
         "purchaseOrders": "購買発注書",
@@ -16284,6 +16502,34 @@
         "distributor": "販売代理店への出庫",
         "bulk_handoff": "バルク引き渡し",
         "restock_route": "補充ルート"
+      },
+      "defaults": {
+        "buyerAllocation": "バイヤー割当",
+        "recipient": "受取人",
+        "releasePending": "出庫保留中",
+        "warehouse": "倉庫"
+      },
+      "empty": {
+        "allocations": "割当はありません。",
+        "deliveries": "配送注文はありません。"
+      },
+      "error": "配送データを現在読み込めませんでした。もう一度お試しください。",
+      "labels": {
+        "allocatedQty": "割当数量",
+        "mode": "方式",
+        "tracking": "追跡"
+      },
+      "loading": "読み込み中…",
+      "sections": {
+        "allocationQueue": "割当キュー",
+        "deliveryExecution": "配送実行",
+        "openWarehousing": "倉庫を開く →"
+      },
+      "stats": {
+        "allocations": "割当",
+        "deliveryOrders": "配送注文",
+        "inTransit": "輸送中",
+        "released": "出庫済み"
       }
     },
     "buyerTypes": {
@@ -16337,7 +16583,1146 @@
       "targetPrice": "目標単価（USD）",
       "targetQty": "目標数量",
       "titleLabel": "リクエストタイトル",
-      "unit": "単位"
+      "unit": "単位",
+      "anyOption": "— すべて —",
+      "customsComplexity": "通関複雑度",
+      "descriptionPlaceholder": "製品を詳しく説明: 素材、寸法、必要な認証…",
+      "destCountryPlaceholder": "例: US、HT、CA",
+      "goToStep": "{{label}}へ進む",
+      "laneBlocked": "このレーンは現在のロールまたは配送先コンテキストではブロックされています: {{reason}}",
+      "laneBusinessVerification": "確認済みバイヤーとしてこのレーンを利用するにはビジネス確認が必要です。",
+      "laneChecks": "レーンアクセス・承認チェック",
+      "laneManualApproval": "このリクエストが見積・調達に進む前に手動コンプライアンス承認が必要です。",
+      "laneResellerApproval": "このレーンを再販フローに利用する前に再販業者/ディストリビューター承認が必要です。",
+      "letOxsteedChoose": "— OxSteedにおまかせ —",
+      "notesPlaceholder": "調達チームへのその他の背景…",
+      "review": {
+        "category": "カテゴリ",
+        "deadline": "期限",
+        "destination": "配送先",
+        "no": "いいえ",
+        "privateLabel": "プライベートラベル",
+        "quantity": "数量",
+        "targetPrice": "目標価格",
+        "title": "タイトル",
+        "yes": "はい"
+      },
+      "riskTier": "リスクティア",
+      "selectOption": "— 選択 —",
+      "stepsLabel": "リクエスト進捗",
+      "titlePlaceholder": "例: 産業用安全靴500足"
+    },
+    "hub": {
+      "aboutBody": "購入者は需要をまとめ、サプライヤーの最小発注数量に到達させます。十分な需要が集まるとキャンペーンはロックされ、デポジットが徴収され、OxSteed がサプライチェーンの残りを調整します。",
+      "aboutTitle": "共同購入の仕組み",
+      "aboutToggle": "共同購入の仕組み",
+      "clearFilters": "フィルターをクリア",
+      "emptyBody": "別の検索やフィルターをお試しください。新しいキャンペーンは定期的に開始されます。",
+      "emptyTitle": "フィルターに一致するキャンペーンがありません",
+      "error": "キャンペーンを読み込めませんでした。もう一度お試しください。",
+      "eyebrow": "OxSteed Logistics",
+      "intro": "グループキャンペーンに参加して卸価格を手に入れるか、自分でキャンペーンを主催しましょう。",
+      "laneLabel": "レーン",
+      "loading": "キャンペーンを読み込み中...",
+      "nextPage": "次へ",
+      "noCampaignsBody": "現在開催中のキャンペーンはありません。後ほどご確認いただくか、ご自身で主催してください。",
+      "noCampaignsTitle": "まだキャンペーンがありません",
+      "organizeCta": "キャンペーンを主催する",
+      "pageOf": "{{pages}} ページ中 {{page}} ページ目",
+      "prevPage": "前へ",
+      "procurementCta": "法人調達",
+      "resultsCount": "{{count}} 件のキャンペーン",
+      "retry": "再試行",
+      "searchLabel": "キャンペーンを検索",
+      "searchPlaceholder": "商品、レーン、タイトルで検索",
+      "statusLabel": "ステータス",
+      "title": "共同購入を、シンプルに"
+    },
+    "modal": {
+      "close": "閉じる",
+      "openFullPage": "フルページを開く",
+      "loading": "読み込み中…",
+      "loadError": "このプレビューを読み込めませんでした。",
+      "retry": "再試行",
+      "notFound": "このアイテムが見つかりませんでした。",
+      "campaignPreviewTitle": "キャンペーンのプレビュー",
+      "requestPreviewTitle": "リクエストのプレビュー",
+      "orderPreviewTitle": "注文のプレビュー",
+      "shipmentPreviewTitle": "出荷のプレビュー",
+      "allocationPreviewTitle": "割当のプレビュー",
+      "campaign": {
+        "lane": "ルート",
+        "status": "ステータス",
+        "moqProgress": "MOQの進捗",
+        "participants": "参加者",
+        "committedUnits": "確定済み",
+        "targetUnits": "目標"
+      },
+      "request": {
+        "status": "ステータス",
+        "category": "カテゴリ",
+        "targetQuantity": "目標数量",
+        "targetPrice": "目標価格",
+        "destination": "目的地",
+        "deadline": "期限",
+        "quotes": "見積"
+      },
+      "order": {
+        "status": "ステータス",
+        "supplier": "サプライヤー",
+        "quantity": "数量",
+        "total": "注文合計",
+        "balanceDue": "未払い残高",
+        "expectedArrival": "到着予定"
+      },
+      "shipment": {
+        "status": "ステータス",
+        "carrier": "運送業者",
+        "trackingNumber": "追跡番号",
+        "originPort": "出発港",
+        "destinationPort": "到着港",
+        "eta": "到着予定時刻"
+      },
+      "allocation": {
+        "status": "ステータス",
+        "recipient": "受取人",
+        "warehouse": "倉庫",
+        "releaseMethod": "出庫方法",
+        "quantity": "数量"
+      }
+    },
+    "adminControl": {
+      "error": "コントロール指標を現在読み込めませんでした。もう一度お試しください。",
+      "kpis": {
+        "claimsPosture": "クレーム対応状況",
+        "feeRules": "手数料ルール",
+        "markupRules": "マークアップルール",
+        "restrictions": "制限",
+        "trackedPOs": "追跡中の発注",
+        "trackedShipments": "追跡中の出荷"
+      },
+      "pricing": {
+        "active": "有効",
+        "empty": "価格ルールが見つかりません。",
+        "fee": "手数料",
+        "headers": {
+          "name": "名前",
+          "status": "ステータス",
+          "type": "種類"
+        },
+        "inactive": "無効",
+        "markup": "マークアップ",
+        "ruleFallback": "ルール {{id}}",
+        "title": "価格・手数料の状況"
+      },
+      "restricted": {
+        "body": "価格ルール、市場制限、ロジスティクス全体の上書きは、OxSteedの管理者およびスーパー管理者のみ利用可能です。",
+        "returnToHub": "ロジスティクスハブに戻る",
+        "title": "コントロールへのアクセスは制限されています"
+      },
+      "restrictions": {
+        "empty": "制限は設定されていません。",
+        "headers": {
+          "category": "カテゴリ",
+          "country": "国",
+          "risk": "リスク"
+        },
+        "title": "制限・リスク管理"
+      },
+      "routes": {
+        "adminDashboard": "管理者ダッシュボード",
+        "pricingRules": "価格ルール",
+        "restrictions": "制限",
+        "superControl": "スーパーコントロール",
+        "supplierApprovals": "サプライヤー承認"
+      },
+      "routesLabel": "管理者コントロールルート",
+      "subtitle": "OxSteed Logistics全体の価格、リスク、承認、収益性管理。",
+      "title": "管理者 / スーパー管理者コントロール"
+    },
+    "buyer": {
+      "actions": {
+        "startRequest": "調達リクエストを開始",
+        "watchShipments": "出荷タイムラインを見る"
+      },
+      "activity": {
+        "claimFallback": "クレーム #{{id}}"
+      },
+      "attention": {
+        "allocationRelease": {
+          "hint": "割当済み在庫は、引取、フォワーダーへの引渡し、または最終出庫計画がまだ必要です。",
+          "label": "割当出庫"
+        },
+        "copy": "新規調達を進めるか、配送出庫を促すか、財務問題をエスカレーションするかをこのキューで判断してください。",
+        "issuePosture": {
+          "hint": "クレームや返金案件は、バイヤーの信頼や履行品質が低下している箇所を示します。",
+          "label": "問題対応状況"
+        },
+        "shipmentRisk": {
+          "hint": "通関審査、例外状態、遅延貨物はバイヤーが優先してフォローすべきです。",
+          "label": "出荷リスク"
+        },
+        "title": "今すぐ注意"
+      },
+      "chips": {
+        "buyerFirst": "バイヤーファーストのワークスペース",
+        "claimsTied": "クレームは出荷結果に紐付け",
+        "refundVisible": "返金状況は常に表示"
+      },
+      "claims": {
+        "activeClaims": "{{count}}件の対応中クレーム",
+        "activeClaimsHint": "出荷、注文、在庫結果にオペレーターの介入や証拠確認が必要な場合にクレームを使用します。",
+        "deliveriesHint": "配送ステータスをクレームの近くに保ち、履行失敗と実際の出庫履歴を結び付けられるようにします。",
+        "deliveriesTracked": "{{count}}件の配送記録を追跡中",
+        "openFinance": "財務ワークスペース",
+        "refundCases": "{{count}}件の返金案件",
+        "refundCasesHint": "返金キューは、バイヤーへの返金が財務またはオペレーションの確認待ちである箇所を示します。",
+        "title": "クレームと解決状況"
+      },
+      "flow": {
+        "allocationFallback": "ALC-{{id}}",
+        "awaitingRelease": "出庫待ち",
+        "empty": "出荷・割当記録はまだありません。",
+        "headers": {
+          "eta": "到着予定 / 配送",
+          "reference": "参照",
+          "status": "ステータス"
+        },
+        "openDistribution": "配送",
+        "title": "出荷・割当フロー"
+      },
+      "kicker": "バイヤーワークスペース",
+      "metrics": {
+        "activeRequests": {
+          "label": "対応中のリクエスト",
+          "note": "進行中のバイヤーリクエスト合計 {{total}}件"
+        },
+        "claimsRefunds": {
+          "label": "クレーム・返金",
+          "noteClear": "対応中のバイヤー問題なし",
+          "noteOpen": "未解決の問題にオペレーター確認が必要な場合があります"
+        },
+        "pendingAllocations": {
+          "label": "保留中の割当",
+          "noteClear": "割当キューは空です",
+          "notePending": "在庫は割当済みですが出庫は未完了です"
+        },
+        "watchShipments": {
+          "label": "出荷を注視",
+          "noteClear": "現在フラグ付きの出荷例外はありません",
+          "noteRisk": "{{count}}件に例外フォローが必要です"
+        },
+        "unavailableNote": "指標は現在利用できません。"
+      },
+      "requests": {
+        "empty": "調達リクエストはまだありません。",
+        "headers": {
+          "category": "カテゴリ",
+          "quotes": "見積",
+          "request": "リクエスト",
+          "status": "ステータス"
+        },
+        "title": "自分の調達リクエスト",
+        "viewAll": "すべて見る"
+      },
+      "rhythm": {
+        "bestMove": {
+          "hasRequests": "新たな需要を開く前に見積・出荷状況を確認してください。",
+          "label": "最適な次の一手",
+          "noRequests": "調達リクエストを開いてサプライヤー見積を開始しましょう。"
+        },
+        "latestDelivery": {
+          "label": "最新の配送シグナル",
+          "noDate": "配送日はまだ設定されていません。",
+          "withDate": "最新の配送活動は{{date}}頃に予定されています。"
+        },
+        "title": "バイヤーリズム"
+      },
+      "stats": {
+        "attentionShipments": {
+          "label": "注意が必要な出荷",
+          "meta": "確認が必要な通関・例外段階の動き。"
+        },
+        "issues": {
+          "label": "未解決のクレーム / 返金",
+          "meta": "バイヤー保護と解決状況を見える化します。"
+        },
+        "openRequests": {
+          "label": "未解決のバイヤーリクエスト",
+          "meta": "調達、見積、購買転換にわたって。"
+        }
+      },
+      "subtitle": "製品需要の調達、貨物動向の監視、クレーム・返金・配送出庫リスクへの先手を、一つのバイヤーコントロールセンターから。",
+      "title": "バイヤーダッシュボード"
+    },
+    "campaignDetail": {
+      "delivery": {
+        "freightForward": "貨物輸送",
+        "shipToBuyer": "自分へ配送",
+        "warehousePickup": "倉庫引取"
+      },
+      "economics": {
+        "deposit": "デポジット (30%)",
+        "fees": "手数料",
+        "freightEst": "貨物 (概算)",
+        "landedCost": " landed コスト / 単位",
+        "markup": "OxSteed マークアップ",
+        "productCost": "製品コスト",
+        "title": "単位経済性"
+      },
+      "join": {
+        "cancellationPolicy": "キャンセルポリシー",
+        "committedQty": "コミット数量",
+        "confirm": "コミットを確定",
+        "countryCode": "国コード",
+        "deliveryPreference": "配送希望",
+        "deposit": "デポジット",
+        "destCountry": "配送先国",
+        "subtotal": "小計",
+        "title": "このキャンペーンに参加"
+      },
+      "laneGating": {
+        "blocked": "現在のロールまたは配送先コンテキストではこのレーンはブロックされています: {{reason}}",
+        "businessVerification": "このキャンペーンレーンには確認済みビジネス コンテキストが必要です。",
+        "manualApproval": "キャンペーンが後続の全ロジスティクス手順に進む前に、手動コンプライアンス承認が必要です。",
+        "resellerApproval": "このレーンでの再販参加には再販業者/ディストリビューター承認が必要です。",
+        "title": "レーンゲーティング"
+      },
+      "loadError": "キャンペーンの読み込みに失敗しました",
+      "meta": {
+        "fallbackDescription": "OxSteed Logistics の共同購入キャンペーン。",
+        "fallbackTitle": "キャンペーン"
+      },
+      "moq": {
+        "progressLabel": "MOQ進捗: {{pct}}パーセント",
+        "units": "{{committed}} / {{target}}単位コミット済み"
+      },
+      "notFound": "キャンペーンが見つかりません。",
+      "participants": {
+        "headers": {
+          "delivery": "配送",
+          "deposit": "デポジット",
+          "qty": "数量",
+          "status": "ステータス",
+          "user": "ユーザー"
+        },
+        "participant": "参加者",
+        "title": "参加者 ({{count}})"
+      },
+      "timeline": {
+        "closeDate": "終了日",
+        "expectedArrival": "到着予定",
+        "expectedShip": "出荷予定",
+        "lockDate": "確定日",
+        "openDate": "開始日",
+        "organizer": "主催者",
+        "title": "タイムライン"
+      }
+    },
+    "distributor": {
+      "actions": {
+        "openBoard": "配送ボードを開く",
+        "warehouseReadiness": "倉庫準備を確認"
+      },
+      "activity": {
+        "allocationFallback": "ALC-{{id}}",
+        "deliveryFallback": "配送 #{{id}}"
+      },
+      "chips": {
+        "failedDrops": "失敗配送を早期に追跡",
+        "releaseDiscipline": "出庫規律が重要",
+        "sync": "倉庫と配送を同期"
+      },
+      "execution": {
+        "empty": "配送注文はまだありません。",
+        "headers": {
+          "method": "方式",
+          "recipient": "受取人",
+          "scheduled": "予定",
+          "status": "ステータス"
+        },
+        "recipientFallback": "配送受取人",
+        "seeAll": "すべて見る",
+        "title": "配送実行"
+      },
+      "kicker": "ディストリビューター / 再販業者",
+      "metrics": {
+        "allocatedLots": {
+          "label": "割当ロット",
+          "note": "配送受取人に割当てられた在庫。"
+        },
+        "deliveryOrders": {
+          "label": "配送注文",
+          "note": "追跡中の出荷区間。"
+        },
+        "inTransit": {
+          "label": "輸送中",
+          "note": "ラストマイル監視がまだ必要な配送。"
+        },
+        "releasedLots": {
+          "label": "出庫済みロット",
+          "note": "引取または配送実行が許可済みのロット。"
+        },
+        "warehousedOrders": {
+          "label": "倉庫保管中の注文",
+          "note": "上流在庫は保管済みで割当可能です。"
+        },
+        "unavailableNote": "指標は現在利用できません。"
+      },
+      "posture": {
+        "releaseFirst": {
+          "hint": "受取人を配送スケジュールに進める前に、割当が確実に出庫されていることを確認してください。",
+          "label": "ルーティング前に出庫"
+        },
+        "title": "運用姿勢",
+        "warehousedVisible": {
+          "hint": "{{count}}件の発注が既に倉庫保管中のため、ボトルネックは上流ではなく下流の可能性があります。",
+          "label": "倉庫在庫を見える化"
+        }
+      },
+      "pressure": {
+        "copy": "次のボトルネックが倉庫出庫、スケジューリング、ラストマイル実行失敗のいずれかをこのビューで判断してください。",
+        "exceptions": {
+          "hint": "顧客の信頼がさらに低下する前に、失敗・キャンセル配送に対応すべきです。",
+          "label": "配送例外"
+        },
+        "release": {
+          "hint": "在庫は割当済みですが、引取方法、フォワーダー引渡し、受取人準備が未完了です。",
+          "label": "出庫待ちロット"
+        },
+        "scheduled": {
+          "hint": "これらはコミュニケーションとタイミングが重要になる次の接点です。",
+          "label": "予定配送"
+        },
+        "title": "配送プレッシャーポイント"
+      },
+      "queue": {
+        "assignedBuyer": "割当バイヤー",
+        "empty": "割当ロットはまだ割当てられていません。",
+        "headers": {
+          "method": "方式",
+          "recipient": "受取人",
+          "status": "ステータス",
+          "warehouse": "倉庫"
+        },
+        "methodPending": "保留中",
+        "open": "ワークスペースを開く",
+        "title": "割当引渡しキュー",
+        "warehousePending": "倉庫保留中"
+      },
+      "stats": {
+        "failed": {
+          "label": "失敗・キャンセル配送",
+          "meta": "再ルーティングや受取人への直接フォローが必要なことが多いです。"
+        },
+        "inTransit": {
+          "label": "配送中",
+          "meta": "積極的に注視すべき出荷動向。"
+        },
+        "pendingRelease": {
+          "label": "出庫待ちロット",
+          "meta": "割当済み在庫の引渡しが未完了です。"
+        }
+      },
+      "subtitle": "割当在庫を追跡し、出庫方法を管理し、再販やコミュニティ配送全体でラストマイル引渡し実行をクリーンに保ちます。",
+      "title": "ディストリビューター / 再販業者ワークスペース"
+    },
+    "operations": {
+      "error": "運用指標を現在読み込めませんでした。もう一度お試しください。",
+      "internalOnly": {
+        "body": "このワークスペースはOxSteedロジスティクスオペレーター専用です。サインイン済みのバイヤーと主催者は、バイヤー、主催者、ビジネス調達、ディストリビューターの各ワークスペースで引き続き自身のロジスティクス活動を管理できます。",
+        "title": "運用アクセスは内部限定"
+      },
+      "kpis": {
+        "campaigns": "キャンペーン",
+        "claimsDisputes": "クレーム・紛争",
+        "sourcingQueue": "調達キュー",
+        "trackedShipments": "追跡中の出荷"
+      },
+      "loading": "運用指標を読み込み中…",
+      "priorities": {
+        "customsHold": "{{count}}件の出荷が通関保留または例外状態です。",
+        "fullAdmin": "完全な管理者ダッシュボード",
+        "openClaims": "{{count}}件のクレームが審査待ちで未解決です。",
+        "openDisputes": "紛争・返金審査を開く →",
+        "openFreight": "貨物・マイルストーンキューを開く →",
+        "openSourcing": "調達受付キューを開く →",
+        "openWarehouse": "倉庫受領キューを開く →",
+        "operatorRoutes": "オペレータールート",
+        "queues": "即時対応キュー",
+        "sourcingTouch": "{{count}}件の調達リクエストにルーティング、見積、またはオペレーター対応が必要です。",
+        "title": "運用優先事項"
+      },
+      "routesLabel": "運用ルート",
+      "subtitle": "調達受付、稼働中の貨物移動、倉庫フロー、ロジスティクス例外のための一つの内部コマンドサーフェス。",
+      "title": "運用ワークスペース",
+      "routes": {
+        "finance": "物流運用"
+      }
+    },
+    "orderDetail": {
+      "backToOrders": "← 注文に戻る",
+      "defaults": {
+        "purchaseOrder": "発注書"
+      },
+      "finance": {
+        "customsAdmin": "通関/管理",
+        "freightEstimate": "貨物概算",
+        "lastMile": "ラストマイル",
+        "originHandling": "出発地ハンドリング",
+        "oxsteedMarkup": "OxSteedマークアップ",
+        "productTotal": "製品合計",
+        "riskSurcharge": "リスクサーチャージ",
+        "sourcingFee": "調達手数料",
+        "warehouseFee": "倉庫手数料"
+      },
+      "labels": {
+        "buyer": "バイヤー",
+        "destination": "配送先",
+        "expectedArrival": "到着予定",
+        "expectedProductionComplete": "生産完了予定",
+        "expectedShipDate": "出荷予定日",
+        "freightOption": "貨物オプション",
+        "incoterms": "インコタームズ",
+        "quantity": "数量",
+        "supplier": "サプライヤー"
+      },
+      "loadError": "注文の読み込みに失敗しました。",
+      "loading": "読み込み中…",
+      "notFound": "発注書が見つかりません。",
+      "sections": {
+        "financial": "財務内訳",
+        "overview": "注文概要"
+      },
+      "totals": {
+        "depositDue": "デポジット支払期限",
+        "finalDue": "残金支払期限",
+        "remaining": "残額",
+        "totalLanded": " landed 合計"
+      }
+    },
+    "organizer": {
+      "actions": {
+        "coordinateHandoffs": "引渡しを調整",
+        "openBoard": "キャンペーンボードを開く"
+      },
+      "activity": {
+        "campaignFallback": "キャンペーン #{{id}}",
+        "deliveryFallback": "配送 #{{id}}"
+      },
+      "campaigns": {
+        "browse": "キャンペーンを見る",
+        "empty": "主催者キャンペーンはまだありません。キャンペーンワークスペースから開始してください。",
+        "moqProgress": "MOQ進捗: {{pct}}パーセント",
+        "participants": "{{count}}人の参加者",
+        "title": "主催者キャンペーン"
+      },
+      "commitments": {
+        "empty": "キャンペーンコミットはまだありません。",
+        "headers": {
+          "campaign": "キャンペーン",
+          "qty": "数量",
+          "status": "ステータス"
+        },
+        "open": "参加を開く",
+        "title": "参加者としての自分のコミット"
+      },
+      "kicker": "主催者ワークスペース",
+      "metrics": {
+        "campaigns": {
+          "label": "主催者キャンペーン",
+          "note": "現在所有または調整中のキャンペーン総数。"
+        },
+        "committedUnits": {
+          "label": "コミット単位",
+          "note": "全キャンペーンのネットワーク購買力判断に有用。"
+        },
+        "deliveries": {
+          "label": "配送引渡し",
+          "note": "メッセージ対応が必要なラストマイル調整。"
+        },
+        "shipments": {
+          "label": "追跡中の出荷",
+          "note": "主催者の更新と引渡しに影響する動き。"
+        },
+        "unavailableNote": "指標は現在利用できません。"
+      },
+      "pressure": {
+        "commitments": {
+          "hint": "これらは共同注文内の自分自身の有効なコミットで、引き続き注視が必要です。",
+          "label": "未解決の参加者コミット"
+        },
+        "copy": "主催者のエネルギーを次にどこに向けるべきか—募集、デポジット、引渡し実行—の速読です。",
+        "momentum": {
+          "hint": "MOQの半分に満たないキャンペーンは通常、もう一押しの募集かレーン/価格の再考が必要です。",
+          "label": "MOQモメンタムギャップ"
+        },
+        "shipments": {
+          "hint": "主催者のメッセージを貨物動向に合わせ、下流バイヤーが次を知れるようにします。",
+          "label": "キャンペーン紐付け出荷"
+        },
+        "title": "主催者プレッシャーポイント"
+      },
+      "readiness": {
+        "handoffs": "{{count}}件の配送引渡しがまだ有効",
+        "handoffsHint": "これらは、引取やラストマイル出庫時の混乱を避けるために主催者のコミュニケーションが最も重要になる区間です。",
+        "openDistribution": "配送ワークスペースを開く",
+        "openShipments": "出荷タイムラインを開く",
+        "posture": "{{count}}件のキャンペーンで参加者姿勢がまだ変わる可能性",
+        "postureHint": "需要募集を続けるか、バイヤー向け配送期待の準備を始めるかの判断に使用します。",
+        "shipments": "出荷タイムライン",
+        "title": "配送準備"
+      },
+      "rhythm": {
+        "communicate": {
+          "hint": "注文が確定したら、需要醸成から出荷可視化と配送期待へ切り替えます。",
+          "label": "確定後にコミュニケーション"
+        },
+        "recruit": {
+          "hint": "MOQが低い場合、運用の複雑さを下流に押し出す前に参加者募集に時間を使います。",
+          "label": "確定前に募集"
+        },
+        "title": "主催者運用リズム"
+      },
+      "stats": {
+        "committedUnits": {
+          "label": "コミット単位",
+          "meta": "共同ネットワークから既に獲得した需要。"
+        },
+        "handoffs": {
+          "label": "調整すべき引渡し",
+          "meta": "コミュニティ受取人に向けて移動中の配送区間。"
+        },
+        "inMotion": {
+          "label": "進行中のキャンペーン",
+          "meta": "開始、デポジット、確定、発注フェーズにわたって。"
+        }
+      },
+      "subtitle": "コーディネーターのように共同キャンペーンを運営し、MOQモメンタムを見える化し、確定注文を出荷とコミュニティ引渡しへクリーンに移行します。",
+      "title": "主催者ダッシュボード"
+    },
+    "procurement": {
+      "actions": {
+        "closePlanner": "プランナーを閉じる",
+        "newProgram": "新規定期プログラム",
+        "newRequest": "ビジネス紐付けリクエストを開く"
+      },
+      "chips": {
+        "businessScoped": "ビジネス範囲の調達のみ",
+        "laneAware": "レーン考慮購買",
+        "recurring": "定期需要計画"
+      },
+      "eligibleLanes": {
+        "authority": "調達型権限付き。",
+        "empty": "このアカウントに紐付く対象ビジネスはまだありません。",
+        "ownerAccess": "オーナーアクセス",
+        "roleAccess": "{{role}}アクセス",
+        "title": "対象ビジネスレーン"
+      },
+      "form": {
+        "anyLane": "承認済みレーンすべて",
+        "budgetMax": "予算上限 (USD)",
+        "cadence": "頻度",
+        "category": "カテゴリ",
+        "create": "プログラムを作成",
+        "created": "定期調達プログラムを作成しました",
+        "destCity": "配送先都市",
+        "destCountry": "配送先国",
+        "lane": "レーン",
+        "linkedRequest": "紐付け調達リクエスト (任意)",
+        "nextRun": "次回実行日",
+        "noLinkedRequest": "紐付けリクエストなし",
+        "notes": "備考",
+        "programTitle": "プログラム名",
+        "saving": "保存中…",
+        "targetQty": "目標数量",
+        "title": "定期調達プランナー",
+        "titleRequired": "プログラム名は必須です",
+        "unit": "単位"
+      },
+      "guidance": {
+        "authority": {
+          "body": "このワークスペースは、需要が個人的な調達アイデアではなく、実際に行動できるビジネスに紐付く場合にのみ機能します。",
+          "title": "実際のビジネス権限を基盤に"
+        },
+        "businessHub": "ビジネスハブ",
+        "laneAware": {
+          "body": "価格、コンプライアンス、配送先制限が landed コストに大きく影響する場合、定期プログラムでは早期にレーンを選択してください。",
+          "title": "レーン考慮計画を使用"
+        },
+        "restock": {
+          "body": "実行日が近いプログラムは、倉庫、チーム、現場クルーが不足を感じる前に確認すべきです。",
+          "title": "繁忙期前に補充"
+        },
+        "title": "調達運用ガイダンス"
+      },
+      "kicker": "ビジネス調達",
+      "linkedRequests": {
+        "empty": "ビジネス紐付け調達リクエストはまだありません。",
+        "headers": {
+          "converted": "転換済み",
+          "reference": "参照",
+          "request": "リクエスト",
+          "status": "ステータス"
+        },
+        "new": "新規リクエスト",
+        "title": "ビジネス紐付け調達リクエスト"
+      },
+      "metrics": {
+        "activePrograms": {
+          "label": "有効なプログラム",
+          "note": "現在調達計画に影響すべきプログラム。"
+        },
+        "eligibleBusinesses": {
+          "label": "対象ビジネス",
+          "note": "調達を運用できる個別のビジネスコンテキスト。"
+        },
+        "linkedRequests": {
+          "label": "ビジネス紐付けリクエスト",
+          "note": "対象ビジネスコンテキストに既に紐付くリクエスト。"
+        },
+        "programs": {
+          "label": "定期プログラム",
+          "note": "反復在庫・供給需要のための保存済み頻度。"
+        }
+      },
+      "noAccess": {
+        "backToLogistics": "ロジスティクスに戻る",
+        "body": "このワークスペースは、調達・運用においてビジネスを代表して行動できるユーザー専用です。現在、OxSteedはビジネスオーナー、アクティブマネージャー、運用型権限を持つメンバーシップに有効化しています。",
+        "eligibleCount": "対象ビジネスワークスペース",
+        "howDetermined": "アクセスの決定方法",
+        "howDeterminedHint": "所有権、アクティブマネージャーメンバーシップ、または運用/調達型権限を持つ非オーナーメンバーシップ。",
+        "openBusinessHub": "ビジネスハブを開く",
+        "title": "このアカウントではビジネス調達が有効になっていません"
+      },
+      "pressure": {
+        "copy": "何を再注文し、何をレーンに合わせ、どのビジネスが最優先かを教えてくれるとき、このワークスペースは最も強力です。",
+        "laneBound": {
+          "hint": "これらは既にレーンが定義済みのため、価格とコンプライアンス計画をより慎重に行えます。",
+          "label": "レーン紐付けプログラム"
+        },
+        "linkedRequests": {
+          "hint": "対象ビジネスに既に紐付く需要は、一般調達より優先すべきです。",
+          "label": "ビジネス紐付けリクエスト"
+        },
+        "title": "調達プレッシャーポイント",
+        "upcomingRuns": {
+          "hint": "間もなく実行されるプログラムは、数量、レーン適合性、配送先準備を確認すべきです。",
+          "label": "今後の実行"
+        }
+      },
+      "program": {
+        "statusChanged": "プログラム {{status}}"
+      },
+      "programs": {
+        "activate": "有効化",
+        "empty": "定期調達プログラムはまだありません。",
+        "general": "一般調達",
+        "headers": {
+          "cadence": "頻度",
+          "linkedRequest": "紐付けリクエスト",
+          "nextRun": "次回実行",
+          "program": "プログラム",
+          "status": "ステータス"
+        },
+        "openSourcing": "調達を開く",
+        "pause": "一時停止",
+        "title": "定期調達プログラム"
+      },
+      "stats": {
+        "activePrograms": {
+          "label": "有効な補充プログラム",
+          "meta": "反復調達需要を既に牽引する頻度。"
+        },
+        "eligibleBusinesses": {
+          "label": "対象ビジネス",
+          "meta": "このアカウントが正当に購買できる企業。"
+        },
+        "upcomingRuns": {
+          "label": "21日以内の実行",
+          "meta": "準備確認が必要な今後の調達サイクル。"
+        }
+      },
+      "subtitle": "どの会社の注文かを見失うことなく、補充リズム、定期調達レーン、ビジネス承認済み需要を管理します。",
+      "title": "ビジネス調達ダッシュボード"
+    },
+    "requestDetail": {
+      "backToSourcing": "← 調達に戻る",
+      "defaultDescription": "説明がありません。",
+      "labels": {
+        "budgetMax": "予算上限",
+        "business": "ビジネス",
+        "category": "カテゴリ",
+        "customMfg": "カスタム製造",
+        "days": "日",
+        "deadline": "期限",
+        "destination": "配送先",
+        "freightEst": "貨物概算",
+        "leadTime": "リードタイム",
+        "no": "いいえ",
+        "preferredFreight": "希望貨物",
+        "privateLabel": "プライベートラベル",
+        "quotedQty": "見積数量",
+        "structuredSpecs": "構造化仕様",
+        "targetPrice": "目標価格",
+        "targetQuantity": "目標数量",
+        "unitPrice": "単価",
+        "yes": "はい"
+      },
+      "loading": "読み込み中…",
+      "notFound": "調達リクエストが見つかりません。",
+      "quotes": {
+        "empty": "サプライヤー見積はまだありません。",
+        "supplier": "サプライヤー #{{id}}",
+        "title": "見積 ({{count}})"
+      },
+      "sections": {
+        "specifications": "仕様"
+      },
+      "values": {
+        "personalRequest": "個人リクエスト"
+      }
+    },
+    "shipmentDetail": {
+      "backToShipments": "← 出荷に戻る",
+      "defaults": {
+        "document": "書類",
+        "noLocation": "場所なし",
+        "noNotes": "備考なし。",
+        "shipment": "出荷"
+      },
+      "empty": {
+        "documents": "出荷書類はアップロードされていません。",
+        "milestones": "マイルストーンはまだ記録されていません。"
+      },
+      "labels": {
+        "bookingRef": "予約参照",
+        "carrier": "運送業者",
+        "destinationPort": "仕向港",
+        "eta": "到着予定",
+        "kg": "kg",
+        "originPort": "出発港",
+        "totalCartons": "総カートン数",
+        "totalCbm": "総CBM",
+        "totalWeight": "総重量",
+        "trackingNumber": "追跡番号"
+      },
+      "loadError": "出荷の読み込みに失敗しました。",
+      "loading": "読み込み中…",
+      "notFound": "出荷が見つかりません。",
+      "sections": {
+        "details": "出荷詳細",
+        "documents": "書類 ({{count}})",
+        "milestones": "マイルストーン"
+      }
+    },
+    "tables": {
+      "actions": "操作",
+      "view": "表示",
+      "preview": "プレビュー"
+    },
+    "checkout": {
+      "backToDashboard": "購入者ダッシュボードに戻る",
+      "backToOrder": "注文に戻る",
+      "confirm": {
+        "back": "支払い方法に戻る",
+        "button": "確認して {{amount}} を支払う",
+        "checkbox": "注文 {{reference}} の{{installment}}について、{{method}}から {{amount}} を請求することに同意します。",
+        "continue": "確認に進む",
+        "line": "{{method}}を使用して注文 {{reference}} の {{amount}}（{{installment}}）を支払おうとしています。",
+        "mustCheck": "続行するには確認チェックボックスにチェックを入れてください。",
+        "noAutoCharge": "保存されたカードはありません。すべての請求にはここでの明示的な確認が必要です。",
+        "quoteNotAccepted": "支払いを確認する前に、現在の見積バージョンを承認してください。",
+        "reviewTitle": "内容の確認",
+        "submitting": "支払いを送信しています…"
+      },
+      "errors": {
+        "duplicate": "この支払いは既に送信されています。再度支払うのではなく、支払いステータスを確認してください。",
+        "generic": "問題が発生しました。もう一度お試しください。",
+        "quoteChanged": "お支払い手続き中に見積もりが変更されました。支払い前に新しいバージョンを確認してください。",
+        "paymentsDisabled": "オンライン決済はまだ有効になっていません。しばらくしてから再度お試しください。"
+      },
+      "loadError": "このお支払いを読み込めませんでした。もう一度お試しください。",
+      "loading": "お支払いを読み込んでいます…",
+      "method": {
+        "cardDetails": "カード情報",
+        "cardNote": "カード情報は Stripe が処理します。OxSteed がカード番号を閲覧・保存することはありません。",
+        "choose": "この分割払いの支払い方法を選択",
+        "credit": "OxSteed クレジット",
+        "creditBalance": "利用可能なクレジット残高：{{amount}}",
+        "creditDesc": "OxSteed クレジット残高から支払います。",
+        "creditDisabled": "OxSteed クレジットは一時的に利用できません",
+        "creditDisabledDetail": "クレジット払いは現在無効のため、この分割払いをクレジットから引き落とすことはできません。カードでは引き続きお支払いいただけます。",
+        "creditInsufficient": "クレジット残高が不足しています",
+        "creditNotEligible": "この注文はクレジット払いの対象外です。",
+        "creditShortfall": "{{installment}}の金額まで {{amount}} 不足しています。",
+        "creditTopUpHint": "クレジット残高をチャージするか、カードで続行してください。",
+        "oneMethodNote": "各分割払いは1つの方法でのみ支払います。混合払いは不可で、明示的な確認なしに請求されることはありません。",
+        "payWithCardInstead": "カードで支払う",
+        "stripe": "Stripe 経由のカード払い",
+        "stripeDesc": "デビットカードまたはクレジットカードで支払います。毎回カード情報を入力します。保存や自動請求は行いません。",
+        "stripeUnavailable": "現在カード払いはご利用いただけません。しばらくしてから再度お試しいただくか、OxSteed クレジットをご利用ください。",
+        "creditBalanceUnknown": "お支払いの確定時にクレジット残高を確認します。"
+      },
+      "missingSubject": "お支払いの対象となる注文またはキャンペーンが選択されていません。",
+      "payments": {
+        "awaitingBadge": "決済待ち",
+        "empty": "まだ支払い履歴がありません。",
+        "headers": {
+          "amount": "金額",
+          "date": "日付",
+          "installment": "分割払い",
+          "method": "方法",
+          "reference": "参照番号",
+          "status": "ステータス"
+        },
+        "settledBadge": "決済済み",
+        "states": {
+          "failed": "失敗",
+          "pending": "保留中",
+          "processing": "処理中",
+          "refunded": "返金済み",
+          "succeeded": "成功",
+          "canceled": "キャンセル済み",
+          "superseded": "重複請求の確認が必要です"
+        },
+        "subtitle": "すべての支払い履歴。決済は OxSteed が確認します。",
+        "title": "物流のお支払い履歴"
+      },
+      "quote": {
+        "acceptedOn": "{{date}}に承認済み",
+        "depositPercent": "デポジットは承認済み見積もりに基づき、見積もり総額の {{percent}}% です。",
+        "expired": "この見積もりは {{date}} に期限切れとなりました。お支払い前に運営に新しい見積もりを依頼してください。",
+        "expiresOn": "見積もり有効期限 {{date}}",
+        "itemized": "内訳",
+        "newVersionAvailable": "お支払いの前に、新しい見積もりバージョンの承認が必要です。",
+        "supersededBlocked": "この見積もりはバージョン {{version}} に置き換えられました。お支払い前に新しいバージョンを確認・承認してください。",
+        "total": "見積もり合計",
+        "version": "見積もりバージョン {{version}}"
+      },
+      "returnTo": "{{label}}に戻る",
+      "schedule": {
+        "alreadySettled": "この分割払いは決済済みです。これ以上の支払いは不要です。",
+        "deposit": "デポジット",
+        "dueNow": "今すぐ支払期日",
+        "dueOn": "支払期日 {{date}}",
+        "final": "残額",
+        "paid": "支払い済み",
+        "payNow": "{{installment}}を支払う",
+        "processing": "支払い処理中",
+        "settled": "決済済み",
+        "unpaid": "支払い待ち"
+      },
+      "sections": {
+        "confirm": "支払いの確認",
+        "method": "支払い方法",
+        "quote": "見積もり",
+        "schedule": "支払いスケジュール",
+        "status": "支払いステータス",
+        "summary": "注文概要",
+        "terms": "キャンセル条件"
+      },
+      "status": {
+        "amount": "金額",
+        "attempt": "試行 {{id}}",
+        "checking": "支払いステータスを確認しています…",
+        "createdAt": "開始 {{date}}",
+        "failed": "支払いに失敗しました",
+        "failedDetail": "理由：{{message}}",
+        "failedUnknown": "支払いは完了しませんでした。請求は発生していません。",
+        "installment": "分割払い",
+        "method": "方法",
+        "newKeyNote": "支払いを再開",
+        "notSettled": "資金はまだ決済されていません。支払いが完了次第、ここでお知らせします。",
+        "pending": "支払い保留中",
+        "processing": "お支払いを処理しています…",
+        "received": "お支払いの確認を受け取りました。",
+        "refresh": "ステータスを更新",
+        "refunded": "返金済み",
+        "retry": "新しい支払い試行で再試行する",
+        "settled": "支払い決済済み",
+        "settledDetail": "OxSteed が {{amount}} の受領を確認しました。分割払いは完了です。",
+        "viewAll": "すべての支払いを見る"
+      },
+      "subtitle": "見積もりを確認し、各分割払いを個別に承認してください。",
+      "summary": {
+        "expectedArrival": "到着予定日",
+        "lane": "ルート",
+        "product": "商品",
+        "quantity": "数量",
+        "reference": "参照番号",
+        "status": "ステータス",
+        "supplier": "サプライヤー"
+      },
+      "title": "安全なお支払い",
+      "usdOnly": "すべての金額は米ドルです。",
+      "creditUnavailableFallback": "OxSteed Credit は物流チェックアウトでは利用できません",
+      "noQuote": {
+        "body": "オペレーションはまだこの注文の支払可能な見積を公開していません。準備ができたらお知らせします。現時点でお支払いは不要です。",
+        "title": "見積はまだ準備できていません"
+      }
+    },
+    "quotes": {
+      "accept": {
+        "accepted": "見積もりバージョン {{version}} を承認しました。これでお支払いいただけます。",
+        "accepting": "承認しています…",
+        "body": "バージョン {{version}} はバージョン {{previous}} に代わるものです。変更内容を確認して承認すると、お支払いに進めます。古いバージョンではお支払いいただけません。",
+        "button": "見積もりバージョン {{version}} を承認する",
+        "cannotPayOld": "現在の見積もりを承認するまで、お支払いは一時停止されます。",
+        "decline": "後で",
+        "title": "新しい見積もりの承認が必要です"
+      },
+      "current": "現在",
+      "decrease": "減少",
+      "diff": {
+        "added": "追加",
+        "changed": "変更",
+        "noChanges": "このバージョンでの明細の変更はありません。",
+        "now": "現在 {{amount}}",
+        "removed": "削除",
+        "title": "変更内容",
+        "totalChange": "合計の変更 {{amount}}",
+        "was": "以前 {{amount}}"
+      },
+      "increase": "増加",
+      "superseded": "置換済み",
+      "version": "バージョン {{version}}",
+      "notif": {
+        "accepted": {
+          "body": "購入者が物流見積を受け入れました。分割払いの回収が可能になりました。",
+          "title": "購入者が物流見積を受け入れました"
+        },
+        "published": {
+          "body": "物流見積の新バージョンが準備できました。お支払い前に確認して受け入れてください。",
+          "title": "新しい見積が承認待ちです"
+        }
+      }
+    },
+    "refunds": {
+      "title": "物流の返金",
+      "subtitle": "二重管理者レビュー：1人の管理者が提案し、別の管理者が最新の認証で承認してから返金を実行します。",
+      "proposeButton": "返金を提案",
+      "filterStatus": "ステータスで絞り込む",
+      "allStatuses": "すべてのステータス",
+      "thReference": "参照番号",
+      "thAmount": "金額",
+      "thMethod": "方法",
+      "thReason": "理由",
+      "thProposer": "提案者",
+      "thStatus": "ステータス",
+      "thCreated": "作成日",
+      "review": "レビュー",
+      "empty": "この条件に一致する返金案件がありません。",
+      "loading": "返金案件を読み込み中...",
+      "cancel": "キャンセル",
+      "submit": "提案を送信",
+      "verify": "認証する",
+      "system": "システム",
+      "status": {
+        "proposed": "提案済み",
+        "approved": "承認済み",
+        "executing": "実行中",
+        "processed": "処理済み",
+        "failed": "失敗",
+        "rejected": "却下",
+        "expired": "期限切れ",
+        "pending": "保留中",
+        "reviewing": "審査中"
+      },
+      "method": {
+        "stripe": "Stripe",
+        "credit": "OxSteed Credit"
+      },
+      "dAmount": "金額",
+      "dMethod": "方法",
+      "dPaymentAttempt": "支払い試行",
+      "dReason": "理由",
+      "dProposer": "提案者",
+      "dApprover": "承認者",
+      "dFreshAuthAt": "承認者の最新認証",
+      "dProcessorRef": "プロセッサ参照",
+      "dRejectionReason": "却下理由",
+      "dStatus": "ステータス",
+      "dDecisions": "決定履歴",
+      "selfApprovalBlocked": "この返金はあなたが提案しました。別の管理者が承認する必要があります。自己承認はできません。",
+      "approveButtonStepup": "本人確認して承認",
+      "approveButton": "返金を承認",
+      "rejectButton": "却下",
+      "executeButton": "返金を実行",
+      "executingNote": "実行中です。プロセッサの確認後に案件が更新されます。",
+      "executeConfirmBody": "この承認済み返金を今すぐ実行しますか？資金は元の支払い元に戻ります。",
+      "toastProposed": "返金を提案しました。別の管理者の承認が必要です。",
+      "toastApproved": "返金を承認しました。",
+      "toastRejected": "返金を却下しました。",
+      "toastExecuted": "返金を実行し処理しました。",
+      "toastExecuteFailed": "実行に失敗しました。案件は照合キューに入りました。",
+      "toastExecuteReplayed": "返金は既に処理済みでした。",
+      "toastStepupOk": "本人確認ができました。承認できます。",
+      "toastStepupFailed": "認証に失敗しました。コードを確認して再試行してください。",
+      "proposeTitle": "返金を提案",
+      "fPaymentAttemptId": "支払い試行ID",
+      "fPaymentAttemptHelp": "返金対象の元の物流支払い試行です。金額は返金可能な残高が上限となります。",
+      "fAmountUsd": "金額 (USD)",
+      "fMethod": "返金方法",
+      "fReason": "理由",
+      "proposeInvalid": "支払い試行、有効な金額、理由を入力してください。",
+      "stepupTitle": "本人確認",
+      "stepupBody": "返金の承認には最新の認証が必要です。認証アプリの6桁コードを入力してください。",
+      "fCode": "認証コード",
+      "rejectTitle": "返金提案を却下",
+      "fRejectReason": "却下理由",
+      "rejectReasonRequired": "却下理由が必要です。",
+      "rejectConfirm": "提案を却下",
+      "movedNotice": "返金レビューは二重管理者返金ページに移動しました。ステータスの直接編集は利用できません。",
+      "openReviewPage": "返金レビューを開く"
+    },
+    "refund_pending": {
+      "body": "物流返金は処理中です。決済事業者がまだ処理しています。元の支払方法に到着したらお知らせします。",
+      "title": "返金保留中"
+    },
+    "blockers": {
+      "allocation_not_found": "在庫引当が見つかりませんでした。",
+      "campaign_not_found": "キャンペーンが見つかりませんでした。",
+      "deposit_deadline_missing": "デポジット受付を開始する前に、明示的なデポジット期限を設定してください。",
+      "deposit_funding_shortfall": "デポジットによる資金調達数量がキャンペーンの最低数量を下回っています。仕入先への発注はできません。",
+      "final_balance_not_collected": "購入者の最終残高がまだ回収されていません。商品を出荷できません。",
+      "guard_check_failed": "この操作に必要な条件を確認できませんでした。",
+      "min_demand_not_met": "最低需要にまだ達していません。デポジット受付を開始できません。",
+      "no_approved_quote": "デポジット受付の開始には、承認済み（受諾済み）の仕入先見積が必要です。",
+      "no_payment_subject_linked": "この引当は支払可能な注文や参加に紐づいていないため、支払いを確認できません。",
+      "placement_approval_missing": "仕入先への発注には、オペレーションが記録した発注承認が必要です。"
+    },
+    "review_exceptions": {
+      "funding_shortfall": "デポジット期限における資金不足",
+      "min_demand_unmet": "確約締切時に最低需要未達",
+      "raised_note": "資金期限を超過したため、スタッフ対応に回付しました。キャンペーンは進行していません。"
+    },
+    "staff": {
+      "title": "物流運用",
+      "quoteEditor": "購入者向け見積を作成",
+      "subject": "注文または参加",
+      "order": "発注書",
+      "participant": "キャンペーン参加",
+      "id": "記録ID",
+      "description": "説明",
+      "amount": "金額（USD）",
+      "depositPercent": "頭金（%）",
+      "deadline": "頭金の期限",
+      "finalDeadline": "残金の期限",
+      "save": "下書きを保存",
+      "publish": "見積を公開",
+      "campaign": "キャンペーンID",
+      "placement": "仕入先への発注を承認",
+      "openDeposit": "頭金の受付を開始",
+      "queues": "確認待ち一覧",
+      "notes": "確認メモ",
+      "resolve": "解決",
+      "refresh": "更新",
+      "cancelPayment": "未確認の支払いを取消",
+      "resume": "支払いを再開",
+      "reconciled": "重複請求の確認が必要です",
+      "empty": "未処理項目はありません",
+      "reviewHint": "確認の記録だけでは送金や商品の出庫は行われません。"
     }
   },
   "investorLogin": {

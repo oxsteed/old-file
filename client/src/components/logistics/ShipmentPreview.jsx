@@ -1,12 +1,9 @@
+import LogisticsStatusPill from './LogisticsStatusPill';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { getShipment } from '../../api/logistics';
 import LogisticsModal, { LogisticsModalLoading, LogisticsModalError } from './LogisticsModal';
 
-const STATUS_COLOR = {
-  draft: '#94a3b8', open: '#22c55e', quoted: '#f59e0b', procurement: '#10b981',
-  in_transit: '#06b6d4', customs_review: '#ef4444', warehoused: '#0ea5e9', fulfilled: '#15803d',
-};
 
 /**
  * Shipment preview modal. Fetches /api/logistics/shipments/:id and renders a
@@ -54,9 +51,7 @@ export default function ShipmentPreview({ id, open, onClose }) {
           <div className="lxm-summary-row">
             <span className="lxm-summary-label">{tx('logistics.modal.shipment.status', 'Status')}</span>
             <span className="lxm-summary-value">
-              <span className="lx-status-pill" style={{ background: STATUS_COLOR[shipment.status] || '#64748b' }}>
-                {shipment.status?.replace(/_/g, ' ')}
-              </span>
+              <LogisticsStatusPill status={shipment.status} />
             </span>
           </div>
           <div className="lxm-summary-row">

@@ -1368,6 +1368,1118 @@
     }
   },
   "logistics": {
+    "forms": {
+      "unsavedChanges": {
+        "title": "Bỏ các thay đổi chưa lưu?",
+        "body": "Bạn có thay đổi chưa lưu. Rời đi bây giờ sẽ mất những gì bạn đã nhập.",
+        "stay": "Tiếp tục chỉnh sửa",
+        "discard": "Bỏ thay đổi"
+      }
+    },
+    "workspace": {
+      "business": {
+        "recentActivity": {
+          "empty": "Chưa có gì ở đây."
+        },
+        "nextStep": {
+          "reviewRuns": {
+            "label": "Xem lại các đợt chạy sắp tới",
+            "hint": "{{count}} đợt chạy chương trình trong 21 ngày tới. Kiểm tra số lượng, tuyến và điểm đến."
+          },
+          "createProgram": {
+            "label": "Tạo chương trình định kỳ",
+            "hint": "Chưa có chương trình bổ sung hàng. Hãy đặt nhịp độ cho nhu cầu lặp lại."
+          },
+          "newRequest": {
+            "label": "Mở yêu cầu cho doanh nghiệp",
+            "hint": "Các chương trình đang chạy. Hãy gắn nhu cầu mới với một doanh nghiệp của bạn."
+          }
+        }
+      },
+      "buyer": {
+        "recentActivity": {
+          "empty": "Chưa có gì ở đây."
+        },
+        "nextStep": {
+          "browseCampaigns": {
+            "label": "Duyệt chiến dịch",
+            "hint": "Không có yêu cầu nào đang hoạt động. Tìm một chiến dịch gom đơn để tham gia hoặc theo dõi."
+          },
+          "reviewShipments": {
+            "label": "Xem lại các lô hàng rủi ro",
+            "hint": "{{count}} lô hàng cần được theo dõi."
+          },
+          "startRequest": {
+            "label": "Tạo yêu cầu mua hàng",
+            "hint": "Mọi thứ đang tiến triển. Hãy mở nhu cầu mới khi bạn sẵn sàng."
+          }
+        }
+      },
+      "distributor": {
+        "recentActivity": {
+          "empty": "Chưa có gì ở đây."
+        },
+        "nextStep": {
+          "failedDeliveries": {
+            "label": "Xem lại các giao hàng thất bại",
+            "hint": "{{count}} giao hàng đã thất bại hoặc bị hủy và có thể cần chuyển hướng."
+          },
+          "releaseLots": {
+            "label": "Xuất các lô đang chờ",
+            "hint": "{{count}} lô đã được phân bổ nhưng chưa xuất kho."
+          },
+          "warehouse": {
+            "label": "Kiểm tra kho",
+            "hint": "Hàng đợi đã trống. Hãy đảm bảo hàng tồn kho đã sẵn sàng để phân bổ."
+          }
+        }
+      },
+      "organizer": {
+        "recentActivity": {
+          "empty": "Chưa có gì ở đây."
+        },
+        "nextStep": {
+          "momentum": {
+            "label": "Đẩy tiến độ MOQ",
+            "hint": "{{count}} chiến dịch đang dưới một nửa MOQ và cần tuyển thêm."
+          },
+          "browse": {
+            "label": "Duyệt chiến dịch",
+            "hint": "Bạn chưa điều phối chiến dịch nào. Hãy tìm một chiến dịch để tham gia."
+          },
+          "handoffs": {
+            "label": "Điều phối bàn giao",
+            "hint": "Nhu cầu đã được chốt. Hãy duy trì việc bàn giao đến người nhận."
+          }
+        }
+      },
+      "nextStep": {
+        "title": "Bước tiếp theo của bạn"
+      },
+      "recentActivity": {
+        "title": "Hoạt động gần đây",
+        "empty": "Chưa có gì. Hoạt động mới sẽ hiển thị ở đây."
+      },
+      "dataError": {
+        "title": "Không có dữ liệu",
+        "body": "Hiện không thể tải không gian làm việc của bạn. Vui lòng thử lại.",
+        "retry": "Thử lại"
+      }
+    },
+    "nav": {
+      "home": "Hậu cần",
+      "campaigns": "Chiến dịch",
+      "sourcing": "Tìm nguồn hàng",
+      "orders": "Đơn hàng",
+      "shipments": "Lô hàng",
+      "warehousing": "Kho bãi",
+      "compliance": "Tuân thủ",
+      "finance": "Tài chính",
+      "adminControl": "Quản trị",
+      "businessProcurement": "Mua sắm doanh nghiệp",
+      "buyer": "Người mua",
+      "distributor": "Nhà phân phối",
+      "hub": "Duyệt",
+      "label": "Không gian làm việc logistics",
+      "operations": "Vận hành",
+      "organizer": "Người tổ chức"
+    },
+    "home": {
+      "title": "Hậu cần OxSteed",
+      "subtitle": "Nhập khẩu, tìm nguồn hàng, mua chung và phân phối trọn gói.",
+      "openCampaigns": "Chiến dịch đang mở",
+      "myCampaigns": "Chiến dịch của tôi",
+      "recentOrders": "Đơn hàng gần đây",
+      "joinCampaign": "Tham gia",
+      "ctaTitle": "Sẵn sàng tìm nguồn hàng toàn cầu?",
+      "ctaSubtitle": "Tạo tài khoản hoặc đăng nhập để tham gia chiến dịch và đặt hàng.",
+      "signUp": "Đăng ký",
+      "logIn": "Đăng nhập",
+      "noCampaigns": "Hiện không có chiến dịch nào đang mở.",
+      "noParticipation": "Quý khách chưa tham gia chiến dịch nào.",
+      "noOrders": "Chưa có đơn hàng nào.",
+      "moqProgress": "Đã đạt {{pct}}% MOQ",
+      "closes": "Kết thúc",
+      "deposit": "Tiền đặt cọc",
+      "perUnit": "/ đơn vị",
+      "heroTitle": "Chuỗi cung ứng toàn cầu được xây dựng cho các tập đoàn.",
+      "heroSubtitle": "Chúng tôi đã xây dựng một chuỗi cho người mua cần 200 đơn vị, người tổ chức vận chuyển hàng tới Haiti, và doanh nghiệp không đủ khả năng thuê môi giới vận tải.",
+      "openWorkspace": "Mở không gian làm việc của quý khách →",
+      "getStarted": "Bắt đầu",
+      "browseOpenCampaigns": "Xem các chiến dịch đang mở",
+      "viewAll": "Xem tất cả",
+      "readyToStart": "Sẵn sàng bắt đầu?",
+      "readyToStartBody": "Tham gia để tiếp cận tìm nguồn hàng, mua chung và toàn bộ khả năng hiển thị chuỗi cung ứng, từ lần liên hệ nhà cung cấp đầu tiên đến giao hàng chặng cuối.",
+      "createAccount": "Tạo tài khoản",
+      "unitsProgress": "{{current}} trên {{target}} {{units}}",
+      "whyCards": {
+        "moq": {
+          "heading": "Vấn đề số lượng đặt hàng tối thiểu",
+          "body": "Nhà sản xuất đặt mức tối thiểu cho nhà máy, không phải cho cá nhân. Hầu hết người mua bị loại khỏi cuộc chơi, không phải vì giá, mà vì số lượng. Chiến dịch gom nhu cầu lại cho đến khi bài toán có lợi cho mọi người."
+        },
+        "compliance": {
+          "heading": "Tuân thủ không phải là tùy chọn",
+          "body": "Mỗi lô hàng đều vượt qua các quy định: quy tắc thương mại, thuế nhập khẩu, danh mục hạn chế, giấy phép nhập khẩu. OxSteed hiển thị các hạn chế trước khi quý khách cam kết, chứ không phải sau khi hàng bị giữ tại hải quan."
+        },
+        "lastmile": {
+          "heading": "Chặng cuối là một vấn đề riêng",
+          "body": "Hàng đến cảng. Rồi sao nữa? Kho bãi, phân bổ và lệnh giao hàng. Mỗi bước là một lần bàn giao riêng. OxSteed điều phối toàn bộ chuỗi để mọi bước đều biết bước tiếp theo cần gì."
+        }
+      },
+      "howItWorksLink": "Cách thức hoạt động",
+      "partOfOxsteed": "Là một phần của OxSteed: cùng một mạng lưới đáng tin cậy để thuê người giúp việc tại địa phương, đặt đồ ăn và vận chuyển hàng hóa.",
+      "howItWorks": {
+        "title": "Cách thức hoạt động",
+        "subtitle": "Một lô hàng chung, từ nhà cung cấp đến tận cửa nhà quý khách.",
+        "pool": {
+          "heading": "Gom nhu cầu",
+          "body": "Tham gia một chiến dịch đang mở hoặc tự tạo chiến dịch của riêng mình. Mỗi người mua cam kết số đơn vị mình cần cho một đơn hàng chung."
+        },
+        "minimum": {
+          "heading": "Đạt mức tối thiểu",
+          "body": "Khi số cam kết đạt mức đặt hàng tối thiểu của nhà sản xuất, tiền đặt cọc được thu và chiến dịch được khóa. Nếu không bao giờ đạt mức tối thiểu, tiền đặt cọc sẽ được hoàn lại."
+        },
+        "chain": {
+          "heading": "Chúng tôi vận hành toàn bộ chuỗi",
+          "body": "Vận tải, hải quan, kho bãi và giao hàng chặng cuối, được theo dõi ở mọi bước cho đến khi hàng đến tay quý khách."
+        }
+      },
+      "roles": {
+        "title": "Quý khách là ai?",
+        "subtitle": "Chọn con đường phù hợp với điều quý khách muốn làm.",
+        "buyer": {
+          "intent": "Tôi muốn mua",
+          "heading": "Tham gia lô hàng nhóm",
+          "body": "Xem các chiến dịch đang mở, cam kết số đơn vị quý khách cần và theo dõi hàng hóa từ nhà máy đến tận cửa.",
+          "cta": "Xem chiến dịch"
+        },
+        "organizer": {
+          "intent": "Tôi muốn tổ chức",
+          "heading": "Tổ chức mua chung",
+          "body": "Bắt đầu chiến dịch cho các sản phẩm cộng đồng của quý khách cần, tập hợp người mua và điều phối lô hàng.",
+          "cta": "Bắt đầu chiến dịch"
+        },
+        "business": {
+          "intent": "Tôi là doanh nghiệp",
+          "heading": "Nhập hàng mà không cần môi giới",
+          "body": "Mua hàng định kỳ và lập kế hoạch nhập hàng với mua sắm theo tuyến, không tốn phí môi giới vận tải.",
+          "cta": "Khám phá mua hàng"
+        }
+      }
+    },
+    "complianceWorkspace": {
+      "navLabel": "Mục tuân thủ",
+      "title": "Không gian làm việc Tuân thủ",
+      "subtitle": "Xem quy tắc thương mại cho từng tuyến và hàng đợi nghiệp vụ nhạy cảm về hải quan khi quý khách có quyền vận hành viên.",
+      "nav": {
+        "tradeRules": "Quy tắc thương mại",
+        "reviewQueue": "Hàng đợi xem xét",
+        "customsOps": "Nghiệp vụ hải quan",
+        "restrictions": "Hạn chế"
+      },
+      "kpis": {
+        "lowRisk": "Tuyến rủi ro thấp",
+        "managed": "Tuyến được quản lý",
+        "restricted": "Tuyến hạn chế",
+        "prohibited": "Tuyến cấm"
+      },
+      "cardTitleLaneMarketRules": "Quy tắc tuyến và thị trường",
+      "cardTitleOperator": "Tư thế xem xét của vận hành viên",
+      "cardTitleCategoryRestrictions": "Ảnh chụp nhanh hạn chế theo danh mục",
+      "tableHeaders": {
+        "lane": "Tuyến",
+        "countries": "Quốc gia",
+        "risk": "Rủi ro",
+        "flags": "Cờ",
+        "item": "Mặt hàng",
+        "routeOrCountry": "Tuyến / Quốc gia",
+        "country": "Quốc gia",
+        "status": "Trạng thái",
+        "category": "Danh mục"
+      },
+      "risk": {
+        "low": "Thấp",
+        "managed": "Được quản lý",
+        "restricted": "Hạn chế",
+        "prohibited": "Cấm"
+      },
+      "flags": {
+        "open": "Mở",
+        "businessVerification": "Xác minh doanh nghiệp",
+        "manualApproval": "Phê duyệt thủ công"
+      },
+      "status": {
+        "approvalRequired": "Cần phê duyệt"
+      },
+      "empty": {
+        "noLanes": "Chưa có tuyến nào.",
+        "noRestrictions": "Chưa có hạn chế nào."
+      },
+      "separator": "·",
+      "queueLabel": "Lô hàng nhạy cảm về hải quan đang chờ",
+      "metrics": {
+        "unavailableNote": "Chỉ số hiện không khả dụng."
+      }
+    },
+    "operatorLogin": {
+      "copy": {
+        "compliance": {
+          "title": "Đăng nhập Không gian làm việc Tuân thủ",
+          "subtitle": "Quyền truy cập tuân thủ nội bộ yêu cầu tên được cấp và khóa bảo mật của quý khách trước khi đăng nhập bằng mật khẩu."
+        },
+        "adminControl": {
+          "title": "Đăng nhập Quản trị",
+          "subtitle": "Quyền kiểm soát quản trị nội bộ chỉ dành cho vận hành viên. Vui lòng dùng tài khoản quản trị đã liên kết để tiếp tục."
+        },
+        "operations": {
+          "title": "Đăng nhập Không gian làm việc Vận hành",
+          "subtitle": "Quyền truy cập vận hành nội bộ yêu cầu tên được cấp và khóa bảo mật của quý khách trước khi đăng nhập bằng mật khẩu."
+        }
+      },
+      "twoFaTitle": "Xác thực hai yếu tố",
+      "twoFaPrompt": "Nhập mã 6 chữ số từ ứng dụng xác thực của quý khách, hoặc mã dự phòng.",
+      "labels": {
+        "email": "Email",
+        "password": "Mật khẩu",
+        "internalName": "Tên nội bộ",
+        "securityKey": "Khóa bảo mật",
+        "twoFaCode": "Mã 2FA"
+      },
+      "placeholders": {
+        "email": "operator@oxsteed.com",
+        "password": "Nhập mật khẩu của quý khách",
+        "internalName": "Tên nội bộ được cấp của quý khách",
+        "securityKey": "Khóa bảo mật do quản trị cấp cao cung cấp"
+      },
+      "approvedAccountLabel": "Tài khoản đã phê duyệt",
+      "approvedAccountNote": "Lần đăng nhập này chỉ có thể tiếp tục với tài khoản OxSteed đã liên kết tới",
+      "verifying": "Đang xác minh…",
+      "verify": "Xác minh",
+      "checking": "Đang kiểm tra…",
+      "continue": "Tiếp tục",
+      "signingIn": "Đang đăng nhập…",
+      "signIn": "Đăng nhập",
+      "locked": "Tài khoản bị khóa",
+      "requestRecoveryEmail": "Yêu cầu email khôi phục",
+      "recoveryPrompt": "Nhập email khôi phục đã lưu:",
+      "resetIdentity": "Sử dụng danh tính truy cập nội bộ khác",
+      "footer": {
+        "internalKeyRequired": "Quyền truy cập Vận hành và Tuân thủ hiện yêu cầu tên nội bộ và khóa bảo mật do quản trị cấp cao cấp.",
+        "adminOnly": "Chỉ người dùng có vai trò quản trị hoặc quản trị cấp cao mới có thể vào cổng này.",
+        "standardSignIn": "Tới trang đăng nhập OxSteed tiêu chuẩn"
+      },
+      "errors": {
+        "tooManyAttempts": "Quá nhiều lần thử thất bại. Vui lòng thử lại sau {{minutes}} phút.",
+        "tooManyAttemptsLocked": "Quá nhiều lần thử thất bại. Bị khóa cho đến khi hết thời gian.",
+        "internalNameAndKeyRequired": "Tên và khóa bảo mật là bắt buộc.",
+        "internalAccessFailed": "Xác minh quyền truy cập nội bộ thất bại.",
+        "lockedRecovery": "Quyền truy cập tạm thời bị khóa. Vui lòng yêu cầu email khôi phục hoặc liên hệ quản trị cấp cao.",
+        "invalidCredentialsRemaining": "Thông tin đăng nhập không hợp lệ. Còn {{attemptsLeft}} lần thử trước khi bị khóa.",
+        "recoveryEmailSent": "Nếu email đó được ủy quyền khôi phục, một liên kết dùng một lần đã được gửi. Vui lòng kiểm tra hộp thư đến.",
+        "recoveryEmailFailed": "Không thể yêu cầu email khôi phục.",
+        "internalAccessRequired": "Vui lòng hoàn tất xác minh quyền truy cập nội bộ trước.",
+        "passwordRequired": "Mật khẩu là bắt buộc.",
+        "passwordLocked": "Quyền truy cập tạm thời bị khóa do quá nhiều lần thử thất bại.",
+        "passwordFailed": "Đăng nhập thất bại. Vui lòng kiểm tra lại mật khẩu.",
+        "emailAndPasswordRequired": "Email và mật khẩu là bắt buộc.",
+        "accountLocked": "Tài khoản tạm thời bị khóa do quá nhiều lần thử thất bại.",
+        "credentialsFailed": "Đăng nhập thất bại. Vui lòng kiểm tra lại thông tin đăng nhập.",
+        "twoFaExpired": "Phiên 2FA của quý khách đã hết hạn. Vui lòng đăng nhập lại.",
+        "twoFaCodeRequired": "Vui lòng nhập mã 2FA của quý khách.",
+        "operatorPrivilegesRequired": "Truy cập bị từ chối. Cần quyền vận hành viên hậu cần.",
+        "invalid2Fa": "Mã 2FA không hợp lệ."
+      }
+    },
+    "campaigns": {
+      "title": "Chiến dịch gộp",
+      "subtitle": "Tham gia chiến dịch để chia sẻ chi phí container và mở khóa giá sỉ.",
+      "openOnly": "Chỉ đang mở",
+      "allLanes": "Tất cả tuyến",
+      "noCampaigns": "Không có chiến dịch nào khớp với bộ lọc của quý khách.",
+      "moq": "MOQ",
+      "units": "đơn vị",
+      "closesIn": "Kết thúc sau {{days}} ngày",
+      "closedOn": "Đã kết thúc",
+      "deposit": "Tiền đặt cọc",
+      "participants": "người tham gia",
+      "joined": "Quý khách đã tham gia",
+      "viewDetails": "Xem chi tiết",
+      "emptyTitle": "Hiện không có chiến dịch nào phù hợp",
+      "emptyExplainer": "Chiến dịch là đơn hàng nhóm: người mua cam kết số đơn vị cho một lô hàng chung. Khi số cam kết đạt mức tối thiểu của nhà sản xuất, đơn hàng được đặt và OxSteed vận hành toàn bộ chuỗi.",
+      "exampleLabel": "Ví dụ",
+      "exampleTitle": "Đèn lồng năng lượng mặt trời, gói sỉ",
+      "howItWorks": "Cách thức hoạt động",
+      "unitEconomics": "Kinh tế đơn vị",
+      "timeline": "Mốc thời gian",
+      "startRequest": "Bắt đầu yêu cầu",
+      "perUnit": "/ đơn vị (đã gồm phí vận chuyển)",
+      "participant": "Người tham gia",
+      "organizer": "Người tổ chức",
+      "openDate": "Ngày mở",
+      "myStatus": "Trạng thái của tôi",
+      "moqReached": "Đã đạt MOQ!",
+      "lockDate": "Ngày khóa",
+      "newCampaign": "Bắt đầu chiến dịch mới",
+      "new": {
+        "title": "Bắt đầu chiến dịch mới",
+        "subtitle": "Soạn thảo chiến dịch mua chung của bạn. Xem lại và gửi phê duyệt Vận hành khi đã sẵn sàng.",
+        "fieldTitle": "Tiêu đề chiến dịch",
+        "titlePlaceholder": "ví dụ: 2.000 đèn lồng năng lượng mặt trời",
+        "fieldDescription": "Mô tả",
+        "descriptionPlaceholder": "Người mua nhận được gì? Thông số chính, số lượng và lý do nên tham gia.",
+        "fieldLane": "Tuyến thương mại",
+        "lanePlaceholder": "Chọn tuyến thương mại",
+        "lanesFailed": "Không thể tải tuyến thương mại.",
+        "laneChecks": "Kiểm tra tuyến",
+        "riskTier": "Mức độ rủi ro",
+        "laneNeedsBusiness": "Cần xác minh doanh nghiệp để chạy chiến dịch trên tuyến này.",
+        "laneNeedsManual": "Cần phê duyệt tuân thủ thủ công trước khi chiến dịch này được xuất bản.",
+        "fieldTargetMoq": "Số lượng tối thiểu (MOQ)",
+        "fieldMaxParticipants": "Số người tham gia tối đa (tùy chọn)",
+        "fieldCloseDate": "Ngày đóng cam kết",
+        "fieldLockDate": "Ngày khóa",
+        "fieldShipDate": "Ngày giao hàng dự kiến",
+        "fieldArrivalDate": "Ngày đến dự kiến",
+        "pricingHeading": "Phác thảo giá",
+        "pricingHint": "Phác thảo sơ bộ là đủ cho bản nháp. OxSteed tính tổng chi phí; Vận hành xác nhận giá khi xem xét.",
+        "fieldUnitCost": "Chi phí sản phẩm mỗi đơn vị (USD)",
+        "fieldFreight": "Ước tính cước vận chuyển mỗi đơn vị (USD)",
+        "fieldDepositPct": "Tỷ lệ đặt cọc",
+        "fieldCancellationPolicy": "Chính sách hủy",
+        "saveDraft": "Lưu dưới dạng bản nháp",
+        "saving": "Đang lưu…",
+        "draftSaved": "Đã lưu bản nháp.",
+        "createFailed": "Không thể lưu bản nháp. Vui lòng thử lại.",
+        "titleRequired": "Tiêu đề là bắt buộc.",
+        "laneRequired": "Chọn một tuyến thương mại.",
+        "moqRequired": "Nhập số lượng tối thiểu ít nhất là 1.",
+        "back": "Quay lại không gian làm việc của người tổ chức",
+        "unsavedConfirm": "Bạn có thay đổi chưa lưu. Rời đi mà không lưu bản nháp?",
+        "nextStepLabel": "Bắt đầu chiến dịch",
+        "nextStepHint": "Soạn thảo chiến dịch mua chung đầu tiên của bạn và gửi phê duyệt Vận hành."
+      },
+      "approval": {
+        "title": "Phê duyệt",
+        "draft": "Bản nháp",
+        "pendingReview": "Đang xem xét",
+        "revisionsRequested": "Yêu cầu chỉnh sửa",
+        "approved": "Đã phê duyệt",
+        "rejected": "Bị từ chối",
+        "submitForReview": "Gửi để xem xét",
+        "submitting": "Đang gửi…",
+        "submitted": "Đã gửi để xem xét.",
+        "submitFailed": "Gửi thất bại. Vui lòng thử lại.",
+        "blockersTitle": "Khắc phục những điều này trước khi gửi",
+        "historyTitle": "Lịch sử phê duyệt",
+        "noHistory": "Chưa có quyết định xem xét nào.",
+        "approve": "Phê duyệt và xuất bản",
+        "requestRevisions": "Yêu cầu chỉnh sửa",
+        "reviewing": "Đang xem xét…",
+        "reasonLabel": "Ghi chú xem xét",
+        "reasonPlaceholder": "Giải thích những gì cần thay đổi trước khi chiến dịch này được xuất bản.",
+        "reviewFailed": "Xem xét thất bại. Vui lòng thử lại.",
+        "reasonRequired": "Cần có lý do khi yêu cầu chỉnh sửa.",
+        "latestRevisionNote": "Ghi chú xem xét mới nhất",
+        "awaitingReview": "Đang chờ Vận hành xem xét. Bạn sẽ được thông báo khi có quyết định.",
+        "publishedNote": "Đã phê duyệt và xuất bản. Người mua giờ có thể cam kết.",
+        "unknownReviewer": "Người xem xét không xác định",
+        "approvedToast": "Chiến dịch đã được phê duyệt và xuất bản.",
+        "revisionsToast": "Yêu cầu chỉnh sửa đã được gửi đến người tổ chức.",
+        "revisionsAdminMessage": "Gửi \"{{title}}\" trở lại người tổ chức kèm ghi chú xem xét.",
+        "decision_submitted_for_review": "Đã gửi để xem xét",
+        "decision_approved": "Đã phê duyệt",
+        "decision_revisions_requested": "Đã yêu cầu chỉnh sửa",
+        "decision_rejected": "Bị từ chối",
+        "decision_withdrawn": "Đã rút",
+        "blocker_missing_title": "Thêm tiêu đề chiến dịch.",
+        "blocker_missing_description": "Thêm mô tả về những gì người mua nhận được.",
+        "blocker_missing_lane": "Chọn một tuyến thương mại.",
+        "blocker_missing_moq": "Đặt số lượng tối thiểu ít nhất là 1.",
+        "blocker_missing_close_date": "Đặt ngày đóng cam kết.",
+        "blocker_close_date_past": "Ngày đóng cam kết phải ở tương lai.",
+        "blocker_missing_pricing": "Thêm chi phí đơn vị hoặc ước tính cước vận chuyển cho phác thảo giá.",
+        "blocker_business_verification_required": "Tuyến này yêu cầu doanh nghiệp đã xác minh. Hoàn tất xác minh doanh nghiệp trước.",
+        "blocker_lane_access_blocked": "Tuyến thương mại này không khả dụng cho thị trường của bạn.",
+        "withdraw": "Rút khỏi quá trình xem xét",
+        "withdrawing": "Đang rút…",
+        "withdrawConfirm": "Rút chiến dịch này khỏi quá trình xem xét? Chiến dịch sẽ trở lại bản nháp để bạn có thể chỉnh sửa và gửi lại.",
+        "withdrawnToast": "Chiến dịch đã được rút khỏi quá trình xem xét.",
+        "withdrawFailed": "Rút thất bại. Vui lòng thử lại.",
+        "reject": "Từ chối",
+        "rejectToast": "Chiến dịch bị từ chối. Người tổ chức đã được thông báo.",
+        "rejectFailed": "Từ chối thất bại. Vui lòng thử lại.",
+        "rejectReasonRequired": "Cần có lý do khi từ chối chiến dịch.",
+        "rejectConfirmMessage": "Từ chối \"{{title}}\"? Người tổ chức sẽ được thông báo kèm lý do của bạn."
+      },
+      "joinSuccess": "Quý khách đã tham gia chiến dịch!",
+      "joinForm": "Tham gia chiến dịch này",
+      "joinCampaign": "Tham gia chiến dịch",
+      "expectedShip": "Dự kiến gửi hàng",
+      "expectedArrival": "Dự kiến đến nơi",
+      "deliveryPreference": "Ưu tiên giao hàng",
+      "confirmJoin": "Xác nhận cam kết",
+      "committedQty": "Số lượng cam kết",
+      "closes": "Kết thúc",
+      "closeDate": "Ngày kết thúc",
+      "allStatuses": "Tất cả trạng thái",
+      "allCampaigns": "Tất cả chiến dịch",
+      "edit": {
+        "title": "Chỉnh sửa bản nháp chiến dịch",
+        "subtitle": "Cập nhật bản nháp của bạn bên dưới. Khi đã sẵn sàng, hãy gửi để nhóm Vận hành xem xét.",
+        "saveChanges": "Lưu thay đổi",
+        "draftUpdated": "Đã cập nhật bản nháp.",
+        "updateFailed": "Không thể cập nhật bản nháp. Vui lòng thử lại.",
+        "backToCampaign": "Quay lại chiến dịch",
+        "loading": "Đang tải bản nháp chiến dịch…",
+        "loadError": "Không thể tải chiến dịch. Vui lòng thử lại.",
+        "notFound": "Không tìm thấy chiến dịch. Chiến dịch có thể đã bị xóa.",
+        "notOwner": "Chỉ người tổ chức chiến dịch mới có thể chỉnh sửa bản nháp này.",
+        "notEditable": "Chiến dịch này không thể chỉnh sửa được nữa. Chỉ bản nháp và chiến dịch được yêu cầu chỉnh sửa mới có thể chỉnh sửa.",
+        "editDraft": "Chỉnh sửa bản nháp"
+      }
+    },
+    "campaign": {
+      "organizer": "Người tổ chức",
+      "unitEconomics": "Kinh tế đơn vị",
+      "productCost": "Chi phí sản phẩm",
+      "freightShare": "Phần cước vận chuyển",
+      "markup": "Phí chênh lệch OxSteed",
+      "fees": "Ước tính phí và thuế",
+      "landedCost": "Tổng chi phí tới nơi",
+      "depositDue": "Tiền cọc đến hạn (30%)",
+      "timeline": "Mốc thời gian chiến dịch",
+      "opensAt": "Mở",
+      "closesAt": "Kết thúc",
+      "locksAt": "Khóa",
+      "shipsAt": "Gửi hàng",
+      "arrivesAt": "Đến nơi",
+      "joinTitle": "Tham gia chiến dịch này",
+      "committing": "Số đơn vị cam kết",
+      "deliveryPref": "Ưu tiên giao hàng",
+      "cancellationWarning": "Số lượng đã cam kết không thể giảm sau khi chiến dịch bị khóa.",
+      "join": "Tham gia chiến dịch",
+      "joining": "Đang tham gia...",
+      "alreadyJoined": "Quý khách đã tham gia chiến dịch này.",
+      "participants": "Người tham gia",
+      "buyerLabel": "Người mua",
+      "qtyLabel": "SL",
+      "statusLabel": "Trạng thái"
+    },
+    "sourcing": {
+      "title": "Tìm nguồn hàng",
+      "myRequests": "Yêu cầu của tôi",
+      "suppliers": "Nhà cung cấp",
+      "newRequest": "Yêu cầu mới",
+      "reference": "Mã tham chiếu",
+      "category": "Danh mục",
+      "lane": "Tuyến",
+      "qty": "SL",
+      "quotes": "Báo giá",
+      "status": "Trạng thái",
+      "created": "Đã tạo",
+      "noRequests": "Chưa có yêu cầu tìm nguồn hàng nào.",
+      "noSuppliers": "Chưa có nhà cung cấp nào được phê duyệt.",
+      "trustRating": "Điểm tin cậy",
+      "qualityScore": "Chất lượng",
+      "onTimeRate": "Đúng hẹn",
+      "products": "Sản phẩm",
+      "viewProducts": "Xem sản phẩm",
+      "subtitle": "Yêu cầu, báo giá và chuyển đổi, từ lần hỏi hàng đầu tiên đến đơn đặt hàng.",
+      "startFirst": "Bắt đầu yêu cầu đầu tiên",
+      "tabsLabel": "Chế độ xem sourcing",
+      "error": "Hiện không tải được yêu cầu sourcing của bạn. Vui lòng thử lại.",
+      "headers": {
+        "reference": "Tham chiếu",
+        "title": "Tiêu đề",
+        "category": "Danh mục",
+        "lane": "Tuyến",
+        "qty": "SL",
+        "status": "Trạng thái",
+        "quotes": "Báo giá"
+      },
+      "openRequest": "Mở yêu cầu {{ref}}",
+      "viewRow": "Xem →"
+    },
+    "request": {
+      "title": "Yêu cầu tìm nguồn hàng mới",
+      "step1": "Mặt hàng và số lượng",
+      "step2": "Hậu cần",
+      "step3": "Xem lại và gửi",
+      "productTitle": "Tên sản phẩm",
+      "category": "Danh mục",
+      "description": "Mô tả / Thông số",
+      "qty": "Số lượng",
+      "targetPrice": "Giá mục tiêu mỗi đơn vị (USD)",
+      "budget": "Tổng ngân sách (USD)",
+      "laneLabel": "Tuyến",
+      "destinationCountry": "Quốc gia đích",
+      "freightMode": "Phương thức vận chuyển ưu tiên",
+      "needsByDate": "Ngày cần hàng",
+      "attachments": "Tệp đính kèm (tùy chọn)",
+      "reviewTitle": "Xem lại yêu cầu của quý khách",
+      "submit": "Gửi yêu cầu",
+      "submitting": "Đang gửi...",
+      "back": "Quay lại",
+      "next": "Tiếp theo"
+    },
+    "orders": {
+      "title": "Đơn đặt hàng",
+      "subtitle": "Theo dõi tất cả đơn đặt hàng hậu cần của quý khách.",
+      "reference": "Mã tham chiếu",
+      "product": "Sản phẩm",
+      "qty": "SL",
+      "landed": "Tổng chi phí tới nơi",
+      "status": "Trạng thái",
+      "created": "Đã tạo",
+      "noOrders": "Không tìm thấy đơn đặt hàng nào.",
+      "allStatuses": "Tất cả trạng thái",
+      "empty": "Không tìm thấy đơn hàng nào.",
+      "loading": "Đang tải…",
+      "lane": "Tuyến",
+      "landedCost": "Tổng chi phí tới nơi",
+      "expected": "Dự kiến",
+      "statusFilter": "Lọc theo trạng thái",
+      "error": "Hiện không tải được đơn hàng của bạn. Vui lòng thử lại.",
+      "headers": {
+        "reference": "Tham chiếu",
+        "product": "Sản phẩm",
+        "lane": "Tuyến",
+        "qty": "SL",
+        "landedCost": "Giá Landed",
+        "status": "Trạng thái",
+        "expected": "Dự kiến"
+      },
+      "openOrder": "Mở đơn {{ref}}",
+      "pagination": "Trang đơn hàng",
+      "backToBuyer": "Về workspace Người mua"
+    },
+    "shipments": {
+      "title": "Lô hàng",
+      "subtitle": "Theo dõi hàng hóa của quý khách đang vận chuyển.",
+      "reference": "Mã tham chiếu",
+      "route": "Tuyến",
+      "carrier": "Hãng vận chuyển",
+      "tracking": "Mã theo dõi",
+      "weight": "Trọng lượng",
+      "cbm": "CBM",
+      "eta": "ETA",
+      "status": "Trạng thái",
+      "noShipments": "Không tìm thấy lô hàng nào.",
+      "milestone": "Cột mốc",
+      "allStatuses": "Tất cả",
+      "empty": "Không tìm thấy lô hàng nào.",
+      "loading": "Đang tải…",
+      "lifecycleLabel": "Lọc theo giai đoạn vòng đời",
+      "error": "Hiện không tải được lô hàng của bạn. Vui lòng thử lại.",
+      "openShipment": "Mở lô hàng {{ref}}",
+      "noCarrier": "Không có hãng vận chuyển",
+      "kg": "kg",
+      "etaLabel": "ETA",
+      "exception": "Ngoại lệ",
+      "backToBuyer": "Về workspace Người mua"
+    },
+    "warehousing": {
+      "title": "Kho bãi",
+      "receipts": "Phiếu nhập kho",
+      "allocations": "Phân bổ",
+      "deliveries": "Lệnh giao hàng",
+      "warehouses": "Kho",
+      "noReceipts": "Không tìm thấy phiếu nhập kho nào.",
+      "noAllocations": "Không tìm thấy phân bổ nào.",
+      "noDeliveries": "Không tìm thấy lệnh giao hàng nào.",
+      "noWarehouses": "Không tìm thấy kho nào.",
+      "subtitle": "Nhận, đối soát, phân bổ và xuất kho hàng tồn cho người mua.",
+      "tabsLabel": "Chế độ xem kho bãi",
+      "error": "Hiện không tải được dữ liệu kho bãi. Vui lòng thử lại.",
+      "bonded": "Kho ngoại quan",
+      "activeReceipts": "{{count}} biên nhận đang hoạt động",
+      "sqft": "sqft",
+      "headers": {
+        "reference": "Tham chiếu",
+        "warehouse": "Kho bãi",
+        "expected": "Dự kiến",
+        "received": "Đã nhận",
+        "shortage": "Thiếu hụt",
+        "status": "Trạng thái",
+        "buyer": "Người mua",
+        "qty": "SL",
+        "releaseMethod": "Phương thức xuất kho",
+        "released": "Đã xuất kho"
+      }
+    },
+    "compliance": {
+      "title": "Tuân thủ và hạn chế",
+      "subtitle": "Các cấp rủi ro tuyến và quy tắc thương mại áp dụng cho tuyến hậu cần của quý khách.",
+      "laneRisk": "Tổng quan rủi ro tuyến",
+      "tradeRules": "Quy tắc thương mại",
+      "lane": "Tuyến",
+      "route": "Tuyến đường",
+      "risk": "Cấp rủi ro",
+      "markup": "Phí chênh lệch",
+      "customs": "Độ phức tạp hải quan",
+      "flags": "Cờ",
+      "noRules": "Không tìm thấy quy tắc thương mại nào.",
+      "riskLow": "Thấp",
+      "riskManaged": "Được quản lý",
+      "riskRestricted": "Hạn chế",
+      "riskProhibited": "Cấm",
+      "bv": "Xác minh doanh nghiệp",
+      "ma": "Phê duyệt thủ công",
+      "explainer": "Tuyến là tuyến vận chuyển giữa hai quốc gia, ví dụ như từ Trung Quốc đến Haiti. Mỗi tuyến có quy tắc riêng: mặt hàng nào được nhập khẩu, cần những giấy tờ nào, và hải quan kiểm tra kỹ đến mức nào. Chúng tôi kiểm tra các quy tắc này cho mọi lô hàng gộp, và xử lý giấy tờ giúp quý khách. Trang này hiển thị những gì áp dụng cho hàng hóa của quý khách.",
+      "lanesRisk": "Tổng quan rủi ro tuyến",
+      "allLanes": "Tất cả tuyến",
+      "businessVerificationRequired": "Cần xác minh kinh doanh",
+      "countryFilter": "Lọc theo mã quốc gia",
+      "countryPlaceholder": "Mã quốc gia (vd: HT)",
+      "customsComplexity": "Hải quan",
+      "docRequirements": {
+        "body": "Mỗi tuyến có thể yêu cầu: Hóa đơn thương mại, Phiếu đóng gói, Giấy chứng nhận xuất xứ, Giấy chứng nhận kiểm dịch thực vật, thông quan, nhãn tuân thủ, tờ khai hải quan hoặc báo cáo kiểm tra. Yêu cầu đặc thù theo tuyến và danh mục.",
+        "title": "Yêu cầu tài liệu"
+      },
+      "error": "Hiện không tải được dữ liệu tuân thủ. Vui lòng thử lại.",
+      "global": "Toàn cầu",
+      "headers": {
+        "category": "Danh mục",
+        "country": "Quốc gia",
+        "docRequired": "Cần tài liệu",
+        "lane": "Tuyến",
+        "notes": "Ghi chú",
+        "severity": "Mức độ",
+        "type": "Loại"
+      },
+      "laneFilter": "Lọc theo tuyến",
+      "manualApprovalRequired": "Cần phê duyệt thủ công",
+      "noLanes": "Chưa công bố dữ liệu rủi ro tuyến.",
+      "riskTiers": {
+        "title": "Mức rủi ro"
+      }
+    },
+    "finance": {
+      "title": "Tài chính hậu cần",
+      "subtitle": "Tổng quan giá trị đã cam kết, phí và kinh tế đơn hàng.",
+      "totalCommitted": "Tổng đã cam kết",
+      "depositsPaid": "Tiền cọc đã trả",
+      "orderCount": "Số đơn hàng",
+      "inTransit": "Giá trị hàng đang vận chuyển",
+      "simulator": {
+        "title": "Mô phỏng giá Landed",
+        "productCost": "Giá sản phẩm / đơn vị (USD)",
+        "quantity": "Số lượng",
+        "freight": "Cước ước tính / đơn vị (USD)",
+        "lane": "Tuyến",
+        "selectLane": "— Chọn tuyến —",
+        "calculating": "Đang tính…",
+        "calculate": "Tính giá Landed",
+        "perUnit": "/ đơn vị landed",
+        "totalFor": "Tổng cho {{qty}} đơn vị",
+        "markupApplied": "Đã áp biên lợi nhuận"
+      },
+      "simulatorSubtitle": "Xem trước toàn bộ chi tiết chi phí trước khi đặt hàng.",
+      "unitCost": "Chi phí sản phẩm mỗi đơn vị (USD)",
+      "qty": "Số lượng",
+      "laneLabel": "Tuyến",
+      "freightEst": "Ước tính cước (USD, tùy chọn)",
+      "calculate": "Tính toán",
+      "calculating": "Đang tính...",
+      "noOrders": "Chưa có đơn hàng nào.",
+      "totalSpent": "Tổng đã cam kết",
+      "recentOrders": "Đơn hàng gần đây",
+      "depositPaid": "Tiền cọc đã trả",
+      "byStatus": "Giá trị theo trạng thái đơn hàng",
+      "error": "Hiện không tải được dữ liệu tài chính. Vui lòng thử lại.",
+      "headers": {
+        "status": "Trạng thái",
+        "reference": "Tham chiếu",
+        "product": "Sản phẩm",
+        "qty": "SL",
+        "totalLanded": "Tổng Landed",
+        "depositPaid": "Cọc đã trả",
+        "remaining": "Còn lại"
+      },
+      "refund": {
+        "submitted": "Đã gửi vụ hoàn tiền để xem xét.",
+        "title": "Yêu cầu hoàn tiền",
+        "requested": "Đã yêu cầu",
+        "empty": "Chưa gửi vụ hoàn tiền nào."
+      },
+      "kpis": {
+        "totalCommitted": "Tổng đã cam kết",
+        "depositsPaid": "Tiền cọc đã trả",
+        "orders": "Đơn hàng",
+        "inTransit": "Đang vận chuyển"
+      },
+      "noSpend": "Chưa ghi nhận chi tiêu đơn hàng.",
+      "refundForm": {
+        "title": "Yêu cầu xem xét hoàn tiền",
+        "purchaseOrder": "Đơn mua",
+        "selectOrder": "— Chọn đơn —",
+        "poFallback": "ĐM",
+        "reason": "Lý do hoàn tiền",
+        "amount": "Số tiền yêu cầu (USD)",
+        "notes": "Ghi chú",
+        "submitting": "Đang gửi…",
+        "submit": "Gửi vụ hoàn tiền"
+      }
+    },
+    "admin": {
+      "title": "Vận hành hậu cần",
+      "subtitle": "Toàn quyền kiểm soát tuyến, nhà cung cấp, đơn hàng, lô hàng, kho, giá cả và tuân thủ.",
+      "loading": "Đang tải số liệu…",
+      "unknownStatus": "Trạng thái không xác định",
+      "links": {
+        "sourcingOps": "Vận hành tìm nguồn hàng",
+        "organizerApprovals": "Phê duyệt người tổ chức",
+        "lanes": "Tuyến",
+        "suppliers": "Nhà cung cấp",
+        "quotes": "Báo giá",
+        "campaigns": "Chiến dịch",
+        "purchaseOrders": "Đơn đặt hàng",
+        "shipmentOps": "Vận hành lô hàng",
+        "shipments": "Lô hàng",
+        "complianceReview": "Xem xét tuân thủ",
+        "customs": "Hải quan",
+        "warehouseOps": "Vận hành kho",
+        "warehouses": "Kho",
+        "allocations": "Phân bổ",
+        "pricing": "Giá cả",
+        "restrictions": "Hạn chế",
+        "disputes": "Tranh chấp",
+        "superControl": "Kiểm soát cấp cao",
+        "refunds": "Hoàn tiền"
+      },
+      "metrics": {
+        "purchaseOrders": "Đơn đặt hàng",
+        "shipments": "Lô hàng",
+        "pooledCampaigns": "Chiến dịch gộp",
+        "sourcingRequests": "Yêu cầu tìm nguồn hàng",
+        "claims": "Khiếu nại"
+      },
+      "warehouseTable": {
+        "title": "Kho",
+        "warehouse": "Kho",
+        "activeReceipts": "Phiếu nhập đang hoạt động",
+        "totalUnits": "Tổng số đơn vị đã nhận"
+      },
+      "shipmentOps": {
+        "title": "Không gian làm việc vận hành lô hàng",
+        "subtitle": "Theo dõi đường ống vận tải đang hoạt động, hàng đợi hải quan và tình trạng ngoại lệ trên tất cả các tuyến hậu cần.",
+        "activeShipments": "Lô hàng đang hoạt động",
+        "customsQueue": "Hàng đợi hải quan",
+        "exceptions": "Ngoại lệ",
+        "reference": "Mã tham chiếu",
+        "route": "Tuyến",
+        "freight": "Vận tải",
+        "status": "Trạng thái",
+        "eta": "ETA",
+        "empty": "Không tìm thấy lô hàng nào."
+      },
+      "quotes": {
+        "title": "Quản lý báo giá",
+        "subtitle": "Xem lại báo giá của nhà cung cấp đã gửi cho các yêu cầu tìm nguồn hàng.",
+        "allStatuses": "Tất cả trạng thái",
+        "reference": "Mã tham chiếu",
+        "sourcingRequest": "Yêu cầu tìm nguồn hàng",
+        "supplier": "Nhà cung cấp",
+        "unitPrice": "Giá mỗi đơn vị",
+        "moq": "MOQ",
+        "leadDays": "Số ngày sản xuất",
+        "status": "Trạng thái",
+        "submitted": "Đã gửi",
+        "review": "Xem xét",
+        "empty": "Không tìm thấy báo giá nào.",
+        "loading": "Đang tải…",
+        "reviewTitle": "Xem xét báo giá",
+        "supplierLabel": "Nhà cung cấp",
+        "unitPriceLabel": "Giá mỗi đơn vị",
+        "moqLabel": "MOQ",
+        "leadTime": "Thời gian sản xuất",
+        "days": "ngày",
+        "freightIncluded": "Đã gồm cước vận chuyển",
+        "yes": "Có",
+        "supplierNotes": "Ghi chú của nhà cung cấp",
+        "sampleAvailable": "Có mẫu",
+        "dayAbbrev": "ngày",
+        "leadShort": "sản xuất",
+        "decision": "Quyết định",
+        "choose": "Chọn",
+        "accept": "Chấp nhận",
+        "reject": "Từ chối",
+        "adminNotes": "Ghi chú của quản trị (chia sẻ với người mua)",
+        "submitDecision": "Gửi quyết định",
+        "cancel": "Hủy",
+        "selectDecisionError": "Chọn chấp nhận hoặc từ chối.",
+        "reviewAccepted": "Báo giá đã được chấp nhận.",
+        "reviewRejected": "Báo giá đã bị từ chối.",
+        "reviewFailed": "Xem xét báo giá thất bại.",
+        "statuses": {
+          "submitted": "Đã gửi",
+          "under_review": "Đang xem xét",
+          "accepted": "Đã chấp nhận",
+          "rejected": "Đã từ chối",
+          "expired": "Đã hết hạn"
+        }
+      },
+      "shipments": {
+        "title": "Quản lý lô hàng",
+        "subtitle": "Theo dõi các cột mốc lô hàng và quản lý chứng từ vận chuyển.",
+        "allStatuses": "Tất cả trạng thái",
+        "loading": "Đang tải…",
+        "reference": "Mã tham chiếu",
+        "route": "Tuyến",
+        "carrier": "Hãng vận chuyển",
+        "tracking": "Theo dõi",
+        "weightCbm": "Trọng lượng/CBM",
+        "eta": "ETA",
+        "status": "Trạng thái",
+        "update": "Cập nhật",
+        "empty": "Không tìm thấy lô hàng nào.",
+        "addMilestone": "Thêm cột mốc",
+        "uploadDocument": "Tải lên chứng từ",
+        "milestoneStatus": "Trạng thái cột mốc",
+        "select": "Chọn",
+        "location": "Địa điểm",
+        "locationPlaceholder": "ví dụ: Cảng Thượng Hải",
+        "notes": "Ghi chú",
+        "saving": "Đang lưu…",
+        "cancel": "Hủy",
+        "documentType": "Loại chứng từ",
+        "file": "Tệp",
+        "upload": "Tải lên",
+        "uploading": "Đang tải lên…",
+        "selectMilestoneError": "Chọn trạng thái cột mốc.",
+        "milestoneAdded": "Đã thêm cột mốc.",
+        "milestoneFailed": "Không thể thêm cột mốc.",
+        "documentRequired": "Chọn loại chứng từ và tệp.",
+        "documentUploaded": "Chứng từ đã được tải lên.",
+        "documentFailed": "Không thể tải lên chứng từ.",
+        "statuses": {
+          "planned": "Đã lên kế hoạch",
+          "booked": "Đã đặt",
+          "origin_received": "Đã nhận tại nơi xuất phát",
+          "consolidating": "Đang gom hàng",
+          "departed_origin": "Đã rời nơi xuất phát",
+          "transshipment": "Chuyển tải",
+          "arrived_destination": "Đã đến nơi",
+          "customs_hold": "Hải quan giữ hàng",
+          "customs_cleared": "Đã thông quan",
+          "delivered_to_warehouse": "Đã giao tới kho",
+          "receiving": "Đang nhận hàng",
+          "allocation_ready": "Sẵn sàng phân bổ",
+          "distributed": "Đã phân phối",
+          "completed": "Hoàn thành",
+          "delivered": "Đã giao",
+          "exception": "Ngoại lệ"
+        },
+        "docTypes": {
+          "bill_of_lading": "Vận đơn",
+          "commercial_invoice": "Hóa đơn thương mại",
+          "packing_list": "Phiếu đóng gói",
+          "certificate_of_origin": "Giấy chứng nhận xuất xứ",
+          "customs_declaration": "Tờ khai hải quan",
+          "insurance_cert": "Giấy chứng nhận bảo hiểm",
+          "other": "Khác"
+        }
+      }
+    },
+    "status": {
+      "pending_review": "Đang xem xét",
+      "revisions_requested": "Yêu cầu chỉnh sửa",
+      "draft": "Bản nháp",
+      "open": "Mở",
+      "quoted": "Đã báo giá",
+      "pledging": "Đang cam kết",
+      "deposit_phase": "Giai đoạn đặt cọc",
+      "approved": "Đã phê duyệt",
+      "placed_with_supplier": "Đã đặt",
+      "placed": "Đã đặt",
+      "deposit_paid": "Đã trả cọc",
+      "production": "Đang sản xuất",
+      "ready_to_ship": "Sẵn sàng gửi hàng",
+      "in_transit": "Đang vận chuyển",
+      "at_customs": "Tại hải quan",
+      "customs_cleared": "Đã thông quan",
+      "at_warehouse": "Tại kho",
+      "fulfilled": "Đã hoàn tất",
+      "closed": "Đã kết thúc",
+      "cancelled": "Đã hủy",
+      "disputed": "Đang tranh chấp",
+      "planned": "Đã lên kế hoạch",
+      "booked": "Đã đặt",
+      "departed_origin": "Đã rời nơi xuất phát",
+      "arrived_transship": "Đã đến (chuyển tải)",
+      "departed_transship": "Đã rời (chuyển tải)",
+      "arrived_destination": "Đã đến nơi",
+      "customs_hold": "Hải quan giữ hàng",
+      "delivered_to_wh": "Đã giao tới kho",
+      "completed": "Hoàn thành",
+      "exception": "Ngoại lệ",
+      "under_review": "Đang xem xét",
+      "rejected": "Đã từ chối",
+      "resolved": "Đã giải quyết",
+      "escalated": "Đã leo thang",
+      "locked": "Đã khóa",
+      "shipping": "Đang vận chuyển",
+      "arrived": "Đã đến",
+      "pending": "Đang chờ",
+      "received": "Đã nhận",
+      "discrepancy": "Chênh lệch",
+      "reconciled": "Đã đối soát",
+      "reserved": "Đã giữ chỗ",
+      "released": "Đã xuất kho",
+      "expired": "Đã hết hạn",
+      "dispatched": "Đã điều phối",
+      "delivered": "Đã giao",
+      "failed": "Thất bại",
+      "accepted": "Đã chấp nhận"
+    },
+    "sections": {
+      "sourcing": "Tìm nguồn hàng",
+      "procurement": "Mua hàng",
+      "shipments": "Lô hàng",
+      "warehousing": "Kho bãi",
+      "distribution": "Phân phối",
+      "compliance": "Tuân thủ",
+      "finance": "Tài chính",
+      "operations": "Vận hành"
+    },
+    "lanes": {
+      "title": "Tuyến hậu cần",
+      "subtitle": "Mọi sản phẩm, chiến dịch và đơn hàng đều nằm trên một tuyến. Tuyến xác định nơi xuất phát, điểm đến, quốc gia và vai trò người mua được phép, danh mục hạn chế, yêu cầu chứng từ, phí chênh lệch mặc định, phí, tùy chọn cước vận chuyển, độ phức tạp hải quan, cấp rủi ro và mô hình hoàn tất đơn hàng.",
+      "originLabel": "Nơi xuất phát",
+      "destLabel": "Điểm đến",
+      "riskLabel": "Cấp rủi ro",
+      "freightLabel": "Tùy chọn cước vận chuyển",
+      "customsLabel": "Độ phức tạp hải quan",
+      "approvalRequired": "Cần phê duyệt thủ công",
+      "businessVerifRequired": "Cần xác minh doanh nghiệp",
+      "resellerApprovalRequired": "Cần phê duyệt nhà bán lại",
+      "noLanes": "Chưa có tuyến nào đang hoạt động được công bố."
+    },
+    "distribution": {
+      "title": "Phân phối",
+      "subtitle": "Phân bổ hàng tồn đã nhận và thực hiện giao hàng chặng cuối: nhận tại địa phương, gửi tới người mua, chuyển tiếp vận tải cho người tổ chức, xuất cho nhà phân phối, chia theo khu vực, hoặc tuyến nhập hàng định kỳ.",
+      "allocations": "Phân bổ",
+      "deliveries": "Lệnh giao hàng",
+      "release": "Xuất kho",
+      "method": "Phương thức",
+      "recipient": "Người nhận",
+      "methodOptions": {
+        "local_pickup": "Nhận tại địa phương",
+        "ship_to_buyer": "Gửi tới người mua",
+        "freight_forward": "Chuyển tiếp vận tải",
+        "distributor": "Xuất cho nhà phân phối",
+        "bulk_handoff": "Bàn giao số lượng lớn",
+        "restock_route": "Tuyến nhập hàng định kỳ"
+      },
+      "stats": {
+        "allocations": "Phân bổ",
+        "released": "Đã xuất kho",
+        "deliveryOrders": "Đơn giao hàng",
+        "inTransit": "Đang vận chuyển"
+      },
+      "loading": "Đang tải…",
+      "error": "Hiện không tải được dữ liệu phân phối. Vui lòng thử lại.",
+      "sections": {
+        "allocationQueue": "Hàng đợi phân bổ",
+        "openWarehousing": "Mở kho bãi →",
+        "deliveryExecution": "Thực hiện giao hàng"
+      },
+      "defaults": {
+        "buyerAllocation": "Phân bổ người mua",
+        "warehouse": "Kho bãi",
+        "releasePending": "chờ xuất kho",
+        "recipient": "Người nhận"
+      },
+      "labels": {
+        "allocatedQty": "SL đã phân bổ",
+        "mode": "Phương thức",
+        "tracking": "Theo dõi"
+      },
+      "empty": {
+        "allocations": "Chưa có phân bổ.",
+        "deliveries": "Chưa có đơn giao hàng."
+      }
+    },
+    "buyerTypes": {
+      "individual_buyer": "Người mua cá nhân",
+      "business_buyer": "Người mua doanh nghiệp",
+      "organizer": "Người tổ chức",
+      "reseller": "Nhà bán lại / nhà phân phối",
+      "franchise_buyer": "Người mua nhượng quyền / mạng lưới",
+      "sourcing_operator": "Vận hành viên tìm nguồn hàng",
+      "logistics_coordinator": "Điều phối viên hậu cần",
+      "warehouse_operator": "Vận hành viên kho",
+      "compliance_reviewer": "Người xem xét tuân thủ",
+      "admin": "Quản trị",
+      "super_admin": "Quản trị cấp cao"
+    },
+    "claims": {
+      "title": "Khiếu nại",
+      "subtitle": "Báo cáo thiếu hàng, hư hỏng, chậm trễ, sai mặt hàng, hải quan từ chối, hoặc gian lận. OxSteed xem xét và có thể hoàn tiền.",
+      "newClaim": "Gửi khiếu nại",
+      "claimType": "Loại khiếu nại",
+      "description": "Mô tả",
+      "claimedAmount": "Số tiền khiếu nại (USD)",
+      "evidence": "Bằng chứng",
+      "status": "Trạng thái",
+      "noClaims": "Chưa có khiếu nại nào được gửi."
+    },
+    "suppliers": {
+      "products": "sản phẩm"
+    },
+    "requests": {
+      "additionalNotes": "Ghi chú bổ sung",
+      "back": "Quay lại Tìm nguồn hàng",
+      "budgetMax": "Ngân sách tối đa (USD)",
+      "categoryLabel": "Danh mục",
+      "created": "Đã gửi yêu cầu tìm nguồn hàng!",
+      "customMfg": "Sản xuất theo yêu cầu",
+      "deadline": "Hạn chót",
+      "description": "Mô tả",
+      "destCity": "Thành phố đích",
+      "destCountry": "Quốc gia đích",
+      "freightPreference": "Vận tải ưu tiên",
+      "lane": "Tuyến hậu cần",
+      "newSub": "Cho chúng tôi biết quý khách cần gì. OxSteed sẽ tìm nhà cung cấp và gửi báo giá.",
+      "newTitle": "Yêu cầu tìm nguồn hàng mới",
+      "privateLabel": "Nhãn hiệu riêng",
+      "requiredFields": "Tên và danh mục là bắt buộc",
+      "step1": "Bước 1: Quý khách cần gì?",
+      "step2": "Bước 2: Điểm đến và tuyến",
+      "step3": "Bước 3: Xem lại và gửi",
+      "submit": "Gửi yêu cầu",
+      "targetPrice": "Giá mục tiêu / đơn vị (USD)",
+      "targetQty": "Số lượng mục tiêu",
+      "titleLabel": "Tên yêu cầu",
+      "unit": "Đơn vị",
+      "stepsLabel": "Tiến độ yêu cầu",
+      "goToStep": "Đến {{label}}",
+      "titlePlaceholder": "vd: 500 đôi giày bảo hộ công nghiệp",
+      "selectOption": "— Chọn —",
+      "descriptionPlaceholder": "Mô tả chi tiết sản phẩm: vật liệu, kích thước, chứng nhận cần thiết…",
+      "destCountryPlaceholder": "vd: US, HT, CA",
+      "letOxsteedChoose": "— Để OxSteed chọn —",
+      "laneChecks": "Kiểm tra quyền truy cập và phê duyệt tuyến",
+      "riskTier": "Mức rủi ro",
+      "customsComplexity": "Độ phức tạp hải quan",
+      "laneBlocked": "Tuyến này hiện bị chặn với vai trò hoặc bối cảnh điểm đến của bạn: {{reason}}",
+      "laneBusinessVerification": "Cần xác minh doanh nghiệp để chạy tuyến này với tư cách người mua đã xác minh.",
+      "laneResellerApproval": "Cần phê duyệt đại lý/nhà phân phối trước khi tuyến này dùng cho luồng bán lại.",
+      "laneManualApproval": "Cần phê duyệt tuân thủ thủ công trước khi yêu cầu này vào báo giá hoặc mua hàng.",
+      "anyOption": "— Bất kỳ —",
+      "review": {
+        "title": "Tiêu đề",
+        "category": "Danh mục",
+        "quantity": "Số lượng",
+        "targetPrice": "Giá mục tiêu",
+        "destination": "Điểm đến",
+        "deadline": "Hạn chót",
+        "privateLabel": "Nhãn riêng",
+        "yes": "Có",
+        "no": "Không"
+      },
+      "notesPlaceholder": "Bối cảnh khác cho đội sourcing…"
+    },
     "hub": {
       "aboutBody": "Người mua gộp nhu cầu để đạt số lượng đặt hàng tối thiểu của nhà cung cấp. Khi đã cam kết đủ nhu cầu, chiến dịch được khóa, tiền đặt cọc được thu và OxSteed điều phối phần còn lại của chuỗi cung ứng.",
       "aboutTitle": "Cách mua chung hoạt động",
@@ -1393,17 +2505,6 @@
       "searchPlaceholder": "Tìm theo sản phẩm, tuyến hoặc tiêu đề",
       "statusLabel": "Trạng thái",
       "title": "Mua chung, đơn giản"
-    },
-    "nav": {
-      "adminControl": "Quản trị",
-      "businessProcurement": "Mua sắm doanh nghiệp",
-      "buyer": "Người mua",
-      "compliance": "Tuân thủ",
-      "distributor": "Nhà phân phối",
-      "hub": "Duyệt",
-      "label": "Không gian làm việc logistics",
-      "operations": "Vận hành",
-      "organizer": "Người tổ chức"
     },
     "modal": {
       "close": "Đóng",
@@ -1456,84 +2557,6 @@
         "warehouse": "Kho",
         "releaseMethod": "Phương thức xuất kho",
         "quantity": "Số lượng"
-      }
-    },
-    "workspace": {
-      "nextStep": {
-        "title": "Bước tiếp theo của bạn"
-      },
-      "recentActivity": {
-        "title": "Hoạt động gần đây",
-        "empty": "Chưa có gì. Hoạt động mới sẽ hiển thị ở đây."
-      },
-      "dataError": {
-        "title": "Không có dữ liệu",
-        "body": "Hiện không thể tải không gian làm việc của bạn. Vui lòng thử lại.",
-        "retry": "Thử lại"
-      },
-      "buyer": {
-        "nextStep": {
-          "browseCampaigns": {
-            "label": "Duyệt chiến dịch",
-            "hint": "Không có yêu cầu nào đang hoạt động. Tìm một chiến dịch gom đơn để tham gia hoặc theo dõi."
-          },
-          "reviewShipments": {
-            "label": "Xem lại các lô hàng rủi ro",
-            "hint": "{{count}} lô hàng cần được theo dõi."
-          },
-          "startRequest": {
-            "label": "Tạo yêu cầu mua hàng",
-            "hint": "Mọi thứ đang tiến triển. Hãy mở nhu cầu mới khi bạn sẵn sàng."
-          }
-        }
-      },
-      "organizer": {
-        "nextStep": {
-          "momentum": {
-            "label": "Đẩy tiến độ MOQ",
-            "hint": "{{count}} chiến dịch đang dưới một nửa MOQ và cần tuyển thêm."
-          },
-          "browse": {
-            "label": "Duyệt chiến dịch",
-            "hint": "Bạn chưa điều phối chiến dịch nào. Hãy tìm một chiến dịch để tham gia."
-          },
-          "handoffs": {
-            "label": "Điều phối bàn giao",
-            "hint": "Nhu cầu đã được chốt. Hãy duy trì việc bàn giao đến người nhận."
-          }
-        }
-      },
-      "business": {
-        "nextStep": {
-          "reviewRuns": {
-            "label": "Xem lại các đợt chạy sắp tới",
-            "hint": "{{count}} đợt chạy chương trình trong 21 ngày tới. Kiểm tra số lượng, tuyến và điểm đến."
-          },
-          "createProgram": {
-            "label": "Tạo chương trình định kỳ",
-            "hint": "Chưa có chương trình bổ sung hàng. Hãy đặt nhịp độ cho nhu cầu lặp lại."
-          },
-          "newRequest": {
-            "label": "Mở yêu cầu cho doanh nghiệp",
-            "hint": "Các chương trình đang chạy. Hãy gắn nhu cầu mới với một doanh nghiệp của bạn."
-          }
-        }
-      },
-      "distributor": {
-        "nextStep": {
-          "failedDeliveries": {
-            "label": "Xem lại các giao hàng thất bại",
-            "hint": "{{count}} giao hàng đã thất bại hoặc bị hủy và có thể cần chuyển hướng."
-          },
-          "releaseLots": {
-            "label": "Xuất các lô đang chờ",
-            "hint": "{{count}} lô đã được phân bổ nhưng chưa xuất kho."
-          },
-          "warehouse": {
-            "label": "Kiểm tra kho",
-            "hint": "Hàng đợi đã trống. Hãy đảm bảo hàng tồn kho đã sẵn sàng để phân bổ."
-          }
-        }
       }
     },
     "adminControl": {
@@ -1764,113 +2787,6 @@
         "title": "Tiến độ"
       }
     },
-    "compliance": {
-      "allLanes": "Tất cả tuyến",
-      "businessVerificationRequired": "Cần xác minh kinh doanh",
-      "countryFilter": "Lọc theo mã quốc gia",
-      "countryPlaceholder": "Mã quốc gia (vd: HT)",
-      "customsComplexity": "Hải quan",
-      "docRequirements": {
-        "body": "Mỗi tuyến có thể yêu cầu: Hóa đơn thương mại, Phiếu đóng gói, Giấy chứng nhận xuất xứ, Giấy chứng nhận kiểm dịch thực vật, thông quan, nhãn tuân thủ, tờ khai hải quan hoặc báo cáo kiểm tra. Yêu cầu đặc thù theo tuyến và danh mục.",
-        "title": "Yêu cầu tài liệu"
-      },
-      "error": "Hiện không tải được dữ liệu tuân thủ. Vui lòng thử lại.",
-      "global": "Toàn cầu",
-      "headers": {
-        "category": "Danh mục",
-        "country": "Quốc gia",
-        "docRequired": "Cần tài liệu",
-        "lane": "Tuyến",
-        "notes": "Ghi chú",
-        "severity": "Mức độ",
-        "type": "Loại"
-      },
-      "laneFilter": "Lọc theo tuyến",
-      "manualApprovalRequired": "Cần phê duyệt thủ công",
-      "noLanes": "Chưa công bố dữ liệu rủi ro tuyến.",
-      "riskTiers": {
-        "title": "Mức rủi ro"
-      }
-    },
-    "finance": {
-      "error": "Hiện không tải được dữ liệu tài chính. Vui lòng thử lại.",
-      "headers": {
-        "status": "Trạng thái",
-        "reference": "Tham chiếu",
-        "product": "Sản phẩm",
-        "qty": "SL",
-        "totalLanded": "Tổng Landed",
-        "depositPaid": "Cọc đã trả",
-        "remaining": "Còn lại"
-      },
-      "refund": {
-        "submitted": "Đã gửi vụ hoàn tiền để xem xét.",
-        "title": "Yêu cầu hoàn tiền",
-        "requested": "Đã yêu cầu",
-        "empty": "Chưa gửi vụ hoàn tiền nào."
-      },
-      "kpis": {
-        "totalCommitted": "Tổng đã cam kết",
-        "depositsPaid": "Tiền cọc đã trả",
-        "orders": "Đơn hàng",
-        "inTransit": "Đang vận chuyển"
-      },
-      "noSpend": "Chưa ghi nhận chi tiêu đơn hàng.",
-      "simulator": {
-        "title": "Mô phỏng giá Landed",
-        "productCost": "Giá sản phẩm / đơn vị (USD)",
-        "quantity": "Số lượng",
-        "freight": "Cước ước tính / đơn vị (USD)",
-        "lane": "Tuyến",
-        "selectLane": "— Chọn tuyến —",
-        "calculating": "Đang tính…",
-        "calculate": "Tính giá Landed",
-        "perUnit": "/ đơn vị landed",
-        "totalFor": "Tổng cho {{qty}} đơn vị",
-        "markupApplied": "Đã áp biên lợi nhuận"
-      },
-      "refundForm": {
-        "title": "Yêu cầu xem xét hoàn tiền",
-        "purchaseOrder": "Đơn mua",
-        "selectOrder": "— Chọn đơn —",
-        "poFallback": "ĐM",
-        "reason": "Lý do hoàn tiền",
-        "amount": "Số tiền yêu cầu (USD)",
-        "notes": "Ghi chú",
-        "submitting": "Đang gửi…",
-        "submit": "Gửi vụ hoàn tiền"
-      }
-    },
-    "distribution": {
-      "stats": {
-        "allocations": "Phân bổ",
-        "released": "Đã xuất kho",
-        "deliveryOrders": "Đơn giao hàng",
-        "inTransit": "Đang vận chuyển"
-      },
-      "loading": "Đang tải…",
-      "error": "Hiện không tải được dữ liệu phân phối. Vui lòng thử lại.",
-      "sections": {
-        "allocationQueue": "Hàng đợi phân bổ",
-        "openWarehousing": "Mở kho bãi →",
-        "deliveryExecution": "Thực hiện giao hàng"
-      },
-      "defaults": {
-        "buyerAllocation": "Phân bổ người mua",
-        "warehouse": "Kho bãi",
-        "releasePending": "chờ xuất kho",
-        "recipient": "Người nhận"
-      },
-      "labels": {
-        "allocatedQty": "SL đã phân bổ",
-        "mode": "Phương thức",
-        "tracking": "Theo dõi"
-      },
-      "empty": {
-        "allocations": "Chưa có phân bổ.",
-        "deliveries": "Chưa có đơn giao hàng."
-      }
-    },
     "distributor": {
       "activity": {
         "deliveryFallback": "Giao hàng #{{id}}",
@@ -2007,6 +2923,9 @@
         "openFreight": "Mở hàng đợi cước và mốc →",
         "openWarehouse": "Mở hàng đợi nhận kho →",
         "openDisputes": "Mở xem xét tranh chấp và hoàn tiền →"
+      },
+      "routes": {
+        "finance": "Vận hành hậu cần"
       }
     },
     "orderDetail": {
@@ -2049,22 +2968,6 @@
         "finalDue": "Còn lại đến hạn",
         "remaining": "Còn lại"
       }
-    },
-    "orders": {
-      "statusFilter": "Lọc theo trạng thái",
-      "error": "Hiện không tải được đơn hàng của bạn. Vui lòng thử lại.",
-      "headers": {
-        "reference": "Tham chiếu",
-        "product": "Sản phẩm",
-        "lane": "Tuyến",
-        "qty": "SL",
-        "landedCost": "Giá Landed",
-        "status": "Trạng thái",
-        "expected": "Dự kiến"
-      },
-      "openOrder": "Mở đơn {{ref}}",
-      "pagination": "Trang đơn hàng",
-      "backToBuyer": "Về workspace Người mua"
     },
     "organizer": {
       "activity": {
@@ -2353,35 +3256,6 @@
         "supplier": "Nhà cung cấp #{{id}}"
       }
     },
-    "requests": {
-      "stepsLabel": "Tiến độ yêu cầu",
-      "goToStep": "Đến {{label}}",
-      "titlePlaceholder": "vd: 500 đôi giày bảo hộ công nghiệp",
-      "selectOption": "— Chọn —",
-      "descriptionPlaceholder": "Mô tả chi tiết sản phẩm: vật liệu, kích thước, chứng nhận cần thiết…",
-      "destCountryPlaceholder": "vd: US, HT, CA",
-      "letOxsteedChoose": "— Để OxSteed chọn —",
-      "laneChecks": "Kiểm tra quyền truy cập và phê duyệt tuyến",
-      "riskTier": "Mức rủi ro",
-      "customsComplexity": "Độ phức tạp hải quan",
-      "laneBlocked": "Tuyến này hiện bị chặn với vai trò hoặc bối cảnh điểm đến của bạn: {{reason}}",
-      "laneBusinessVerification": "Cần xác minh doanh nghiệp để chạy tuyến này với tư cách người mua đã xác minh.",
-      "laneResellerApproval": "Cần phê duyệt đại lý/nhà phân phối trước khi tuyến này dùng cho luồng bán lại.",
-      "laneManualApproval": "Cần phê duyệt tuân thủ thủ công trước khi yêu cầu này vào báo giá hoặc mua hàng.",
-      "anyOption": "— Bất kỳ —",
-      "review": {
-        "title": "Tiêu đề",
-        "category": "Danh mục",
-        "quantity": "Số lượng",
-        "targetPrice": "Giá mục tiêu",
-        "destination": "Điểm đến",
-        "deadline": "Hạn chót",
-        "privateLabel": "Nhãn riêng",
-        "yes": "Có",
-        "no": "Không"
-      },
-      "notesPlaceholder": "Bối cảnh khác cho đội sourcing…"
-    },
     "shipmentDetail": {
       "loadError": "Tải lô hàng thất bại.",
       "loading": "Đang tải…",
@@ -2413,66 +3287,6 @@
       "empty": {
         "documents": "Chưa tải lên tài liệu vận chuyển.",
         "milestones": "Chưa ghi nhận cột mốc."
-      }
-    },
-    "shipments": {
-      "lifecycleLabel": "Lọc theo giai đoạn vòng đời",
-      "error": "Hiện không tải được lô hàng của bạn. Vui lòng thử lại.",
-      "openShipment": "Mở lô hàng {{ref}}",
-      "noCarrier": "Không có hãng vận chuyển",
-      "kg": "kg",
-      "etaLabel": "ETA",
-      "exception": "Ngoại lệ",
-      "backToBuyer": "Về workspace Người mua"
-    },
-    "sourcing": {
-      "tabsLabel": "Chế độ xem sourcing",
-      "error": "Hiện không tải được yêu cầu sourcing của bạn. Vui lòng thử lại.",
-      "headers": {
-        "reference": "Tham chiếu",
-        "title": "Tiêu đề",
-        "category": "Danh mục",
-        "lane": "Tuyến",
-        "qty": "SL",
-        "status": "Trạng thái",
-        "quotes": "Báo giá"
-      },
-      "openRequest": "Mở yêu cầu {{ref}}",
-      "viewRow": "Xem →"
-    },
-    "warehousing": {
-      "tabsLabel": "Chế độ xem kho bãi",
-      "error": "Hiện không tải được dữ liệu kho bãi. Vui lòng thử lại.",
-      "bonded": "Kho ngoại quan",
-      "activeReceipts": "{{count}} biên nhận đang hoạt động",
-      "sqft": "sqft",
-      "headers": {
-        "reference": "Tham chiếu",
-        "warehouse": "Kho bãi",
-        "expected": "Dự kiến",
-        "received": "Đã nhận",
-        "shortage": "Thiếu hụt",
-        "status": "Trạng thái",
-        "buyer": "Người mua",
-        "qty": "SL",
-        "releaseMethod": "Phương thức xuất kho",
-        "released": "Đã xuất kho"
-      }
-    },
-    "campaigns": {
-      "edit": {
-        "title": "Chỉnh sửa bản nháp chiến dịch",
-        "subtitle": "Cập nhật bản nháp của bạn bên dưới. Khi đã sẵn sàng, hãy gửi để nhóm Vận hành xem xét.",
-        "saveChanges": "Lưu thay đổi",
-        "draftUpdated": "Đã cập nhật bản nháp.",
-        "updateFailed": "Không thể cập nhật bản nháp. Vui lòng thử lại.",
-        "backToCampaign": "Quay lại chiến dịch",
-        "loading": "Đang tải bản nháp chiến dịch…",
-        "loadError": "Không thể tải chiến dịch. Vui lòng thử lại.",
-        "notFound": "Không tìm thấy chiến dịch. Chiến dịch có thể đã bị xóa.",
-        "notOwner": "Chỉ người tổ chức chiến dịch mới có thể chỉnh sửa bản nháp này.",
-        "notEditable": "Chiến dịch này không thể chỉnh sửa được nữa. Chỉ bản nháp và chiến dịch được yêu cầu chỉnh sửa mới có thể chỉnh sửa.",
-        "editDraft": "Chỉnh sửa bản nháp"
       }
     },
     "checkout": {
@@ -2537,7 +3351,8 @@
           "processing": "Đang xử lý",
           "refunded": "Đã hoàn tiền",
           "succeeded": "Thành công",
-          "canceled": "Đã hủy"
+          "canceled": "Đã hủy",
+          "superseded": "Khoản thu trùng cần xét duyệt"
         },
         "subtitle": "Mọi lần thanh toán, với quyết toán do OxSteed xác nhận.",
         "title": "Thanh toán logistics của tôi"
@@ -2585,7 +3400,7 @@
         "failedUnknown": "Thanh toán không thành công. Không bị trừ tiền.",
         "installment": "Kỳ thanh toán",
         "method": "Phương thức",
-        "newKeyNote": "Mỗi lần thử lại đều tạo một lần thanh toán mới, nên bạn không bao giờ bị tính phí hai lần cho cùng một xác nhận.",
+        "newKeyNote": "Tiếp tục thanh toán",
         "notSettled": "Tiền chưa được quyết toán. Chúng tôi sẽ xác nhận tại đây khi thanh toán hoàn tất.",
         "pending": "Thanh toán đang chờ",
         "processing": "Đang xử lý thanh toán của bạn…",
@@ -2729,24 +3544,6 @@
       "movedNotice": "Việc xem xét hoàn tiền đã chuyển sang trang hoàn tiền xét duyệt kép. Không còn chỉnh sửa trạng thái trực tiếp.",
       "openReviewPage": "Mở trang xem xét hoàn tiền"
     },
-    "admin": {
-      "links": {
-        "refunds": "Hoàn tiền"
-      }
-    },
-    "complianceWorkspace": {
-      "metrics": {
-        "unavailableNote": "Chỉ số hiện không khả dụng."
-      }
-    },
-    "forms": {
-      "unsavedChanges": {
-        "body": "Bạn có thay đổi chưa lưu. Rời đi bây giờ sẽ mất những gì bạn đã nhập.",
-        "discard": "Bỏ thay đổi",
-        "stay": "Tiếp tục chỉnh sửa",
-        "title": "Bỏ các thay đổi chưa lưu?"
-      }
-    },
     "refund_pending": {
       "body": "Khoản hoàn tiền logistics của bạn đang được xử lý. Nhà cung cấp thanh toán vẫn đang xử lý; chúng tôi sẽ xác nhận khi tiền đến phương thức thanh toán gốc của bạn.",
       "title": "Hoàn tiền đang chờ"
@@ -2767,6 +3564,33 @@
       "funding_shortfall": "Thiếu hụt vốn tại thời hạn đặt cọc",
       "min_demand_unmet": "Chưa đạt nhu cầu tối thiểu khi chốt cam kết",
       "raised_note": "Đã lỡ thời hạn huy động vốn; chuyển cho nhân viên xử lý. Chiến dịch không được tiếp tục."
+    },
+    "staff": {
+      "title": "Vận hành hậu cần",
+      "quoteEditor": "Lập báo giá cho người mua",
+      "subject": "Đơn hàng hoặc tham gia",
+      "order": "Đơn mua hàng",
+      "participant": "Tham gia chiến dịch",
+      "id": "Mã bản ghi",
+      "description": "Mô tả",
+      "amount": "Số tiền (USD)",
+      "depositPercent": "Đặt cọc (%)",
+      "deadline": "Hạn đặt cọc",
+      "finalDeadline": "Hạn trả số dư",
+      "save": "Lưu bản nháp",
+      "publish": "Đăng báo giá",
+      "campaign": "Mã chiến dịch",
+      "placement": "Duyệt đơn nhà cung cấp",
+      "openDeposit": "Mở thời hạn đặt cọc",
+      "queues": "Hàng đợi xét duyệt",
+      "notes": "Ghi chú xét duyệt",
+      "resolve": "Giải quyết",
+      "refresh": "Làm mới",
+      "cancelPayment": "Hủy thanh toán chưa xác nhận",
+      "resume": "Tiếp tục thanh toán",
+      "reconciled": "Khoản thu trùng cần xét duyệt",
+      "empty": "Không có mục đang mở",
+      "reviewHint": "Ghi nhận xét duyệt không chuyển tiền hoặc xuất hàng."
     }
   }
 }

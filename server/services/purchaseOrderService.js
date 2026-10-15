@@ -1,5 +1,6 @@
 'use strict';
 const pool = require('../db');
+require('./logisticsTransitionGuards').registerLogisticsGuards();
 const crypto = require('crypto');
 const { logLogisticsAction } = require('./logisticsAuditService');
 const { calculateLandedCost } = require('./logisticsPricingService');
@@ -148,6 +149,7 @@ async function transitionStatus(id, toStatus, actorUserId, { notes, approvedBy }
     appendNotes: notes ? { column: 'internal_notes', text: `\n${notes}` } : null,
   });
   if (!result.ok) {
+    if(result.blocker) throw Object.assign(new Error(result.blocker.message),{statusCode:409,code:result.blocker.code});
     if (result.reason === 'not_found') throw new Error('purchase_order_not_found');
     if (result.reason === 'unknown_entity_type' || result.reason === 'missing_target_status') {
       throw Object.assign(new Error('invalid_target_status'), { code: 'invalid_transition' });

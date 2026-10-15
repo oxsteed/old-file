@@ -86,12 +86,12 @@ export default function LogisticsWorkspaceSwitcher({
                       : t('logisticsWorkspaceSwitcher.openDashboard')}
                   </Link>
                 ) : (
-                  <span style={{ fontSize: '.74rem', fontWeight: 700, color: '#f97316' }}>
+                  <span style={{ fontSize: '.74rem', fontWeight: 700, color: 'var(--color-primary)' }}>
                     {t('logisticsWorkspaceSwitcher.notEnabled')}
                   </span>
                 )}
                 {isFavorite && !isCurrent && (
-                  <span style={{ fontSize: '.74rem', fontWeight: 700, color: '#f97316' }}>
+                  <span style={{ fontSize: '.74rem', fontWeight: 700, color: 'var(--color-primary)' }}>
                     {t('logisticsWorkspaceSwitcher.opensFirst')}
                   </span>
                 )}

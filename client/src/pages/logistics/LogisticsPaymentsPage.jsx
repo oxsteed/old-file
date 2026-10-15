@@ -46,6 +46,7 @@ export default function LogisticsPaymentsPage() {
   // Server attempt statuses: pending | processing | succeeded | failed | canceled.
   const stateLabel = (status) => {
     switch (status) {
+      case 'superseded': return tx('logistics.checkout.payments.states.superseded');
       case 'pending': return tx('logistics.checkout.payments.states.pending', 'Pending');
       case 'processing': return tx('logistics.checkout.payments.states.processing', 'Processing');
       case 'succeeded': return tx('logistics.checkout.payments.states.succeeded', 'Succeeded');

@@ -161,7 +161,7 @@ export default function ShipmentsPage() {
         </div>
       </LogisticsLayout>
       <ShipmentPreview
-        id={previewId}
+        key={previewId} id={previewId}
         open={previewId !== null}
         onClose={() => setPreviewId(null)}
       />

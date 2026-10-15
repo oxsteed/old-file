@@ -13,9 +13,10 @@
 jest.unmock('pg');
 jest.unmock('../db');
 jest.unmock('../utils/transaction');
-const { disposableDatabaseOptIn } = require('./helpers/statementTestDatabase');
+const { isDisposableDatabase } = require('./helpers/statementTestDatabase');
 
-const database = disposableDatabaseOptIn('LOGISTICS_CREDIT_PAY_TEST_DATABASE_URL');
+const database = process.env.LOGISTICS_CREDIT_PAY_TEST_DATABASE_URL || '';
+if (database && !isDisposableDatabase(database)) throw new Error('Logistics requires its own explicit disposable database URL');
 if (database) process.env.DATABASE_URL = database;
 
 const describeDatabase = database ? describe : describe.skip;
@@ -230,6 +231,26 @@ describeDatabase('logistics credit payments', () => {
     created.partners.length = 0;
   });
 
+  test('accepted quote revisions collect only the additional amount and preserve both ledger entries',async()=>{
+    const f=await happyFixture();
+    const args={buyerUserId:f.buyerId,subjectType:'purchase_order',subjectId:f.poId,installment:'deposit',quoteId:f.quoteId,amountCents:f.depositCents,idempotencyKey:`revision-first-${f.suffix}`};
+    await logisticsCreditPay.payLogisticsInstallmentWithCredit(args);
+    const {rows:[q]}=await pool.query(`INSERT INTO logistics_buyer_quotes
+     (reference,subject_type,purchase_order_id,version,status,currency,line_items,subtotal_cents,total_cents,deposit_cents,final_cents,accepted_by_user_id,accepted_at)
+     VALUES ($1,'purchase_order',$2,2,'accepted','USD','[]',150000,150000,45000,105000,$3,NOW()) RETURNING id`,[`REV-${f.suffix}`,f.poId,f.buyerId]);
+    await logisticsCreditPay.payLogisticsInstallmentWithCredit({...args,quoteId:q.id,amountCents:15000,idempotencyKey:`revision-second-${f.suffix}`});
+    expect(await walletBalanceCents(f.buyerId)).toBe(55000);
+    const {rows}=await pool.query(`SELECT COUNT(*)::int AS n FROM logistics_payment_attempts WHERE purchase_order_id=$1 AND status='succeeded'`,[f.poId]);expect(rows[0].n).toBe(2);
+  });
+  test('verified funding reserves pending refunds and supports a zero final installment',async()=>{
+    const f=await happyFixture({depositCents:100000,finalCents:0});
+    const result=await logisticsCreditPay.payLogisticsInstallmentWithCredit({buyerUserId:f.buyerId,subjectType:'purchase_order',subjectId:f.poId,installment:'deposit',quoteId:f.quoteId,amountCents:100000,idempotencyKey:`funding-${f.suffix}`});
+    const {subjectFullyFunded}=require('../services/logisticsTransitionGuards');
+    expect(await subjectFullyFunded(pool,'purchase_order',f.poId,'final')).toBe(true);
+    await pool.query(`INSERT INTO logistics_refund_cases(reference,user_id,refund_reason,requested_amount_usd,amount_cents,refund_method,original_payment_attempt_id,status,proposed_by)
+     VALUES ($1,$2,'Synthetic review',1,100,'credit',$3,'proposed',$4)`,[`REF-${f.suffix}`,f.buyerId,result.attemptId,railAdminId]);
+    expect(await subjectFullyFunded(pool,'purchase_order',f.poId,'final')).toBe(false);
+  });
   test('surface matrix maps logistics to debit and participant type exists', () => {
     expect(adapter.SURFACE_MODES.logistics).toBe('debit');
     expect(VALID_PARTICIPANT_TYPES).toContain('logistics');
@@ -609,3 +630,5 @@ describeDatabase('logistics credit payments', () => {
     })).rejects.toMatchObject({ code: 'refund_method_mismatch' });
   });
 });
+
+afterAll(async()=>{await pool.end();});

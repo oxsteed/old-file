@@ -39,5 +39,5 @@
 .lx-dashboard-hero-main .lx-status-pill--warning,
 .lx-dashboard-hero-main .lx-status-pill--info,
 .lx-dashboard-hero-main .lx-status-pill--danger {
-  color: #fff;
+  color: var(--color-primary-text);
 }

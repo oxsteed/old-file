@@ -57,6 +57,7 @@ const NO_ROWS = { rows: [] };
 
 function depositPhaseHandler({ committed = 0, moq = 100, quoteStatus = 'accepted', hasQuote = true, deadline = '2026-12-01T00:00:00Z' } = {}) {
   return (text) => {
+    if (text.startsWith('SELECT id FROM')) return {rows:[]};
     if (text.startsWith('SELECT status AS status')) return { rows: [{ status: 'pledging' }] };
     if (text.includes('FROM pooled_orders po')) {
       return {
@@ -120,6 +121,7 @@ describe('guard: pledging → deposit_phase', () => {
 
 function placementHandler({ fundedQty = 0, moq = 100, approved = false } = {}) {
   return (text) => {
+    if (text.startsWith('SELECT id FROM')) return {rows:[]};
     if (text.startsWith('SELECT status AS status')) return { rows: [{ status: 'locked' }] };
     if (text.includes('placement_approved')) {
       return { rows: [{ target_moq: moq, funded_qty: String(fundedQty), placement_approved: approved }] };
@@ -161,12 +163,13 @@ describe('guard: locked → placed', () => {
 
 function releaseHandler({ finalSucceeded = false, participantId = 7, allocStatus = 'pending' } = {}) {
   return (text) => {
+    if (text.startsWith('SELECT id FROM')) return {rows:[]};
     if (text.startsWith('SELECT status AS status')) return { rows: [{ status: allocStatus }] };
     if (text.includes('FROM inventory_allocations')) {
       return { rows: [{ participant_id: participantId, pooled_order_id: 3, buyer_user_id: 'u1' }] };
     }
-    if (text.includes('FROM logistics_payment_attempts')) {
-      return finalSucceeded ? { rows: [{ '?column?': 1 }] } : NO_ROWS;
+    if (text.includes('FROM logistics_buyer_quotes')) {
+      return finalSucceeded ? { rows: [{ status:'accepted',deposit_cents:300,final_cents:700,deposit_net_cents:300,final_net_cents:700 }] } : NO_ROWS;
     }
     if (text.startsWith('UPDATE')) {
       return { rows: [{ id: 11, status: 'released', released_by: 'staff1' }] };

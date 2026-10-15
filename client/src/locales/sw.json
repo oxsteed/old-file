@@ -15364,8 +15364,8 @@
   "logistics": {
     "forms": {
       "unsavedChanges": {
-        "title": "Tupa mabadiliko ambayo hayajahifadhiwa?",
-        "body": "Una mabadiliko ambayo hayajahifadhiwa. Kuondoka sasa kutatupa ulichoingiza.",
+        "title": "Tupa mabadiliko ambayo hujayahifadhi?",
+        "body": "Una mabadiliko ambayo hujayahifadhi. Ukiondoka sasa, ulichoingiza kitafutwa.",
         "stay": "Endelea kuhariri",
         "discard": "Tupa mabadiliko"
       }
@@ -15374,22 +15374,90 @@
       "business": {
         "recentActivity": {
           "empty": "Hakuna chochote hapa bado."
+        },
+        "nextStep": {
+          "reviewRuns": {
+            "label": "Pitia uendeshaji ujao",
+            "hint": "Uendeshaji {{count}} wa programu unafanyika ndani ya siku 21. Angalia kiasi, njia na unakoenda."
+          },
+          "createProgram": {
+            "label": "Unda programu inayojirudia",
+            "hint": "Hakuna programu za kujaza hisa bado. Weka ratiba ya mahitaji yanayojirudia."
+          },
+          "newRequest": {
+            "label": "Fungua ombi la biashara",
+            "hint": "Programu zinaendeshwa. Unganisha mahitaji mapya na mojawapo ya biashara zako."
+          }
         }
       },
       "buyer": {
         "recentActivity": {
           "empty": "Hakuna chochote hapa bado."
+        },
+        "nextStep": {
+          "browseCampaigns": {
+            "label": "Vinjari kampeni",
+            "hint": "Hakuna maombi yanayoendelea. Tafuta kampeni ya pamoja ujiunge nayo au uifuatilie."
+          },
+          "reviewShipments": {
+            "label": "Pitia shehena zilizo hatarini",
+            "hint": "Shehena {{count}} zinahitaji ufuatiliaji."
+          },
+          "startRequest": {
+            "label": "Anzisha ombi la ununuzi",
+            "hint": "Kila kitu kinaendelea. Fungua mahitaji mapya ukiwa tayari."
+          }
         }
       },
       "distributor": {
         "recentActivity": {
           "empty": "Hakuna chochote hapa bado."
+        },
+        "nextStep": {
+          "failedDeliveries": {
+            "label": "Pitia uwasilishaji ulioshindwa",
+            "hint": "Uwasilishaji {{count}} umeshindwa au umeghairiwa na unaweza kuhitaji uelekezaji mwingine."
+          },
+          "releaseLots": {
+            "label": "Achilia shehena zinazosubiri",
+            "hint": "Makundi {{count}} yametengwa lakini bado hayajatolewa."
+          },
+          "warehouse": {
+            "label": "Angalia utayari wa ghala",
+            "hint": "Foleni iko wazi. Hakikisha hisa iko tayari kugawiwa."
+          }
         }
       },
       "organizer": {
         "recentActivity": {
           "empty": "Hakuna chochote hapa bado."
+        },
+        "nextStep": {
+          "momentum": {
+            "label": "Sukuma kasi ya MOQ",
+            "hint": "Kampeni {{count}} ziko chini ya nusu ya MOQ na zinahitaji uhamasishaji zaidi."
+          },
+          "browse": {
+            "label": "Vinjari kampeni",
+            "hint": "Bado huratibu kampeni yoyote. Tafuta moja ujiunge nayo."
+          },
+          "handoffs": {
+            "label": "Ratibu makabidhiano",
+            "hint": "Mahitaji yamekusanywa. Endelea kusukuma makabidhiano kwa wapokeaji."
+          }
         }
+      },
+      "nextStep": {
+        "title": "Hatua yako inayofuata"
+      },
+      "recentActivity": {
+        "title": "Shughuli za hivi karibuni",
+        "empty": "Hakuna chochote bado. Shughuli mpya zitaonekana hapa."
+      },
+      "dataError": {
+        "title": "Data haipatikani",
+        "body": "Imeshindwa kupakia eneo lako la kazi sasa. Tafadhali jaribu tena.",
+        "retry": "Jaribu tena"
       }
     },
     "nav": {
@@ -15399,8 +15467,16 @@
       "orders": "Maagizo",
       "shipments": "Usafirishaji",
       "warehousing": "Ghala",
-      "compliance": "Kuzingatia",
-      "finance": "Fedha"
+      "compliance": "Uzingatiaji",
+      "finance": "Fedha",
+      "adminControl": "Udhibiti wa msimamizi",
+      "businessProcurement": "Ununuzi wa biashara",
+      "buyer": "Mnunuzi",
+      "distributor": "Msambazaji",
+      "hub": "Vinjari",
+      "label": "Nafasi za kazi za usafirishaji",
+      "operations": "Uendeshaji",
+      "organizer": "Mwandalizi"
     },
     "home": {
       "title": "OxSteed Logistics",
@@ -15429,7 +15505,7 @@
       "readyToStart": "Je, uko tayari kuanza?",
       "readyToStartBody": "Jiunge ili kufikia upataji wa vyanzo, ununuzi wa pamoja, na mwonekano kamili wa ugavi, kutoka kwa mawasiliano ya kwanza ya mtoa huduma hadi utoaji wa maili ya mwisho.",
       "createAccount": "Fungua akaunti",
-      "unitsProgress": "{{current}} / {{target}} {{units}}",
+      "unitsProgress": "{{current}} kati ya {{target}} {{units}}",
       "whyCards": {
         "moq": {
           "heading": "Tatizo la chini la agizo",
@@ -15534,7 +15610,10 @@
         "noRestrictions": "Hakuna vikwazo vinavyopatikana."
       },
       "separator": "·",
-      "queueLabel": "Usafirishaji unaozingatia forodha kwenye foleni"
+      "queueLabel": "Usafirishaji unaozingatia forodha kwenye foleni",
+      "metrics": {
+        "unavailableNote": "Kipimo hakipatikani kwa sasa."
+      }
     },
     "operatorLogin": {
       "copy": {
@@ -15737,7 +15816,21 @@
       "closes": "Hufunga",
       "closeDate": "Tarehe ya Kufunga",
       "allStatuses": "Hali zote",
-      "allCampaigns": "Kampeni Zote"
+      "allCampaigns": "Kampeni Zote",
+      "edit": {
+        "title": "Hariri rasimu ya kampeni",
+        "subtitle": "Sasisha rasimu yako hapa chini. Ikishakuwa tayari, iwasilishe kwa ukaguzi wa Uendeshaji.",
+        "saveChanges": "Hifadhi mabadiliko",
+        "draftUpdated": "Rasimu imesasishwa.",
+        "updateFailed": "Imeshindwa kusasisha rasimu. Tafadhali jaribu tena.",
+        "backToCampaign": "Rudi kwenye kampeni",
+        "loading": "Inapakia rasimu ya kampeni…",
+        "loadError": "Imeshindwa kupakia kampeni. Tafadhali jaribu tena.",
+        "notFound": "Kampeni haijapatikana. Huenda ilifutwa.",
+        "notOwner": "Mratibu wa kampeni pekee ndiye anayeweza kuhariri rasimu hii.",
+        "notEditable": "Kampeni hii haiwezi kuhaririwa tena. Rasimu na kampeni zilizoombwa marekebisho pekee ndizo zinazoweza kuhaririwa.",
+        "editDraft": "Hariri rasimu"
+      }
     },
     "campaign": {
       "organizer": "Mratibu",
@@ -15786,7 +15879,20 @@
       "products": "Bidhaa",
       "viewProducts": "Tazama Bidhaa",
       "subtitle": "Omba, nukuu, na ubadilishe, kutoka kwa uchunguzi wa kwanza hadi agizo la ununuzi.",
-      "startFirst": "Anza Ombi Lako la Kwanza"
+      "startFirst": "Anza Ombi Lako la Kwanza",
+      "error": "Hatukuweza kupakia maombi yako ya utafutaji hivi sasa. Tafadhali jaribu tena.",
+      "headers": {
+        "category": "Kipengele",
+        "lane": "Njia",
+        "qty": "Kiasi",
+        "quotes": "Nukuu",
+        "reference": "Kumbukumbu",
+        "status": "Hali",
+        "title": "Kichwa"
+      },
+      "openRequest": "Fungua ombi {{ref}}",
+      "tabsLabel": "Maoni ya utafutaji",
+      "viewRow": "Tazama →"
     },
     "request": {
       "title": "Ombi Mpya la Upataji",
@@ -15825,7 +15931,21 @@
       "loading": "Inapakia...",
       "lane": "Njia",
       "landedCost": "Gharama ya kutua",
-      "expected": "Inatarajiwa"
+      "expected": "Inatarajiwa",
+      "backToBuyer": "Rudi kwenye sehemu ya mnunuzi",
+      "error": "Hatukuweza kupakia oda zako hivi sasa. Tafadhali jaribu tena.",
+      "headers": {
+        "expected": "Inayotarajiwa",
+        "landedCost": "Gharama ya kufika",
+        "lane": "Njia",
+        "product": "Bidhaa",
+        "qty": "Kiasi",
+        "reference": "Kumbukumbu",
+        "status": "Hali"
+      },
+      "openOrder": "Fungua oda {{ref}}",
+      "pagination": "Kurasa za oda",
+      "statusFilter": "Chuja kwa hali"
     },
     "shipments": {
       "title": "Usafirishaji",
@@ -15842,7 +15962,15 @@
       "milestone": "Hatua",
       "allStatuses": "Wote",
       "empty": "Hakuna usafirishaji uliopatikana.",
-      "loading": "Inapakia..."
+      "loading": "Inapakia...",
+      "backToBuyer": "Rudi kwenye sehemu ya mnunuzi",
+      "error": "Hatukuweza kupakia mizigo yako hivi sasa. Tafadhali jaribu tena.",
+      "etaLabel": "ETA",
+      "exception": "Kipekee",
+      "kg": "kg",
+      "lifecycleLabel": "Chuja kwa hatua ya mzunguko wa maisha",
+      "noCarrier": "Hakuna mbebaji",
+      "openShipment": "Fungua mzigo {{ref}}"
     },
     "warehousing": {
       "title": "Ghala",
@@ -15854,7 +15982,24 @@
       "noAllocations": "Hakuna mgao uliopatikana.",
       "noDeliveries": "Hakuna maagizo ya usafirishaji yaliyopatikana.",
       "noWarehouses": "Hakuna ghala zilizopatikana.",
-      "subtitle": "Pokea, patanisha, tenga na toa hesabu kwa wanunuzi."
+      "subtitle": "Pokea, patanisha, tenga na toa hesabu kwa wanunuzi.",
+      "activeReceipts": "Mapokezi {{count}} yanayotumika",
+      "bonded": "Yamefungwa",
+      "error": "Hatukuweza kupakia data ya ghala hivi sasa. Tafadhali jaribu tena.",
+      "headers": {
+        "buyer": "Mnunuzi",
+        "expected": "Inayotarajiwa",
+        "qty": "Kiasi",
+        "received": "Imepokelewa",
+        "reference": "Kumbukumbu",
+        "releaseMethod": "Njia ya kutolewa",
+        "released": "Imetolewa",
+        "shortage": "Upungufu",
+        "status": "Hali",
+        "warehouse": "Ghala"
+      },
+      "sqft": "futi za mraba",
+      "tabsLabel": "Maoni ya ghala"
     },
     "compliance": {
       "title": "Uzingatiaji na Vizuizi",
@@ -15875,7 +16020,33 @@
       "bv": "Uthibitishaji wa Biashara",
       "ma": "Idhini ya Mwongozo",
       "explainer": "Njia ni njia ya meli kati ya nchi mbili, kama vile Uchina hadi Haiti. Kila njia ina sheria zake: ni nini kinachoweza kuingizwa, ni nyaraka gani zinahitajika, na ni desturi ngapi za uchunguzi zinatumika. Tunaangalia sheria hizi kwa kila usafirishaji uliojumuishwa, na tunashughulikia makaratasi. Ukurasa huu unaonyesha kile kinachotumika kwa bidhaa zako.",
-      "lanesRisk": "Muhtasari wa Hatari ya Njia"
+      "lanesRisk": "Muhtasari wa Hatari ya Njia",
+      "allLanes": "Njia zote",
+      "businessVerificationRequired": "Uthibitisho wa biashara unahitajika",
+      "countryFilter": "Chuja kwa msimbo wa nchi",
+      "countryPlaceholder": "Msimbo wa nchi (k.m. HT)",
+      "customsComplexity": "Forodha",
+      "docRequirements": {
+        "body": "Kila njia inaweza kuhitaji: Ankara ya Biashara, Orodha ya Ufungaji, Cheti cha Asili, Cheti cha Afya ya Mimea, kibali cha forodha, alama za kufuata, fomu za kuingia forodha, au ripoti za ukaguzi. Mahitaji ni mahususi kwa njia na kipengele.",
+        "title": "Mahitaji ya nyaraka"
+      },
+      "error": "Hatukuweza kupakia data ya kufuata hivi sasa. Tafadhali jaribu tena.",
+      "global": "Duniani",
+      "headers": {
+        "category": "Kipengele",
+        "country": "Nchi",
+        "docRequired": "Nyaraka inahitajika",
+        "lane": "Njia",
+        "notes": "Vidokezo",
+        "severity": "Uzito",
+        "type": "Aina"
+      },
+      "laneFilter": "Chuja kwa njia",
+      "manualApprovalRequired": "Idhinisho la mkono linahitajika",
+      "noLanes": "Hakuna data ya hatari ya njia iliyochapishwa bado.",
+      "riskTiers": {
+        "title": "Viwango vya hatari"
+      }
     },
     "finance": {
       "title": "Fedha za Usafirishaji",
@@ -15884,7 +16055,19 @@
       "depositsPaid": "Amana Imelipwa",
       "orderCount": "Hesabu ya Agizo",
       "inTransit": "Katika Thamani ya Usafiri",
-      "simulator": "Simulizi ya Gharama Iliyotua",
+      "simulator": {
+        "calculate": "Kokotoa gharama ya kufika",
+        "calculating": "Inakokotoa…",
+        "freight": "Mizigo kadiri / kipimo (USD)",
+        "lane": "Njia",
+        "markupApplied": "Faida imetumika",
+        "perUnit": "/ kipimo kilichofika",
+        "productCost": "Gharama ya bidhaa / kipimo (USD)",
+        "quantity": "Kiasi",
+        "selectLane": "— Chagua njia —",
+        "title": "Kikokotoo cha gharama ya kufika",
+        "totalFor": "Jumla ya vipimo {{qty}}"
+      },
       "simulatorSubtitle": "Kagua uchanganuzi kamili wa gharama kabla ya kuagiza.",
       "unitCost": "Gharama ya Kitengo cha Bidhaa (USD)",
       "qty": "Kiasi",
@@ -15896,7 +16079,41 @@
       "totalSpent": "Jumla ya Ahadi",
       "recentOrders": "Maagizo ya Hivi Punde",
       "depositPaid": "Amana Imelipwa",
-      "byStatus": "Thamani kwa Hali ya Agizo"
+      "byStatus": "Thamani kwa Hali ya Agizo",
+      "error": "Hatukuweza kupakia data ya fedha hivi sasa. Jaribu tena.",
+      "headers": {
+        "depositPaid": "Amana iliyolipwa",
+        "product": "Bidhaa",
+        "qty": "Kiasi",
+        "reference": "Kumbukumbu",
+        "remaining": "Iliyobaki",
+        "status": "Hali",
+        "totalLanded": "Jumla ya kufika"
+      },
+      "kpis": {
+        "depositsPaid": "Amana zilizolipwa",
+        "inTransit": "Safarini",
+        "orders": "Oda",
+        "totalCommitted": "Jumla iliyoahidiwa"
+      },
+      "noSpend": "Hakuna matumizi ya oda yaliyorekodiwa bado.",
+      "refund": {
+        "empty": "Hakuna kesi za urejeshaji zilizowasilishwa bado.",
+        "requested": "Imeombwa",
+        "submitted": "Kesi ya urejeshaji imewasilishwa kwa ukaguzi.",
+        "title": "Maombi ya urejeshaji"
+      },
+      "refundForm": {
+        "amount": "Kiasi kilichoombwa (USD)",
+        "notes": "Vidokezo",
+        "poFallback": "ODA",
+        "purchaseOrder": "Oda ya ununuzi",
+        "reason": "Sababu ya urejeshaji",
+        "selectOrder": "— Chagua oda —",
+        "submit": "Wasilisha kesi ya urejeshaji",
+        "submitting": "Inawasilisha…",
+        "title": "Omba ukaguzi wa urejeshaji"
+      }
     },
     "admin": {
       "title": "Uendeshaji wa vifaa",
@@ -15921,7 +16138,8 @@
         "pricing": "Bei",
         "restrictions": "Vikwazo",
         "disputes": "Migogoro",
-        "superControl": "Udhibiti wa Juu"
+        "superControl": "Udhibiti wa Juu",
+        "refunds": "Marejesho"
       },
       "metrics": {
         "purchaseOrders": "Maagizo ya Ununuzi",
@@ -16146,6 +16364,34 @@
         "distributor": "Kutolewa kwa msambazaji",
         "bulk_handoff": "Kukabidhiwa kwa wingi",
         "restock_route": "Rejesha njia"
+      },
+      "defaults": {
+        "buyerAllocation": "Mgao wa mnunuzi",
+        "recipient": "Mpokeaji",
+        "releasePending": "kutolewa kunasubiri",
+        "warehouse": "Ghala"
+      },
+      "empty": {
+        "allocations": "Hakuna mgao unaopatikana.",
+        "deliveries": "Hakuna oda za uwasilishaji zinazopatikana."
+      },
+      "error": "Hatukuweza kupakia data ya usambazaji hivi sasa. Jaribu tena.",
+      "labels": {
+        "allocatedQty": "Kiasi kilichotengwa",
+        "mode": "Hali",
+        "tracking": "Ufuatiliaji"
+      },
+      "loading": "Inapakia…",
+      "sections": {
+        "allocationQueue": "Foleni ya mgao",
+        "deliveryExecution": "Utekelezaji wa uwasilishaji",
+        "openWarehousing": "Fungua uhifadhi →"
+      },
+      "stats": {
+        "allocations": "Mgao",
+        "deliveryOrders": "Oda za uwasilishaji",
+        "inTransit": "Safarini",
+        "released": "Imetolewa"
       }
     },
     "buyerTypes": {
@@ -16199,7 +16445,1146 @@
       "targetPrice": "Bei Lengwa / Kitengo (USD)",
       "targetQty": "Kiasi cha lengo",
       "titleLabel": "Kichwa cha Ombi",
-      "unit": "Kitengo"
+      "unit": "Kitengo",
+      "anyOption": "— Yoyote —",
+      "customsComplexity": "Utata wa forodha",
+      "descriptionPlaceholder": "Eleza bidhaa kwa undani: nyenzo, vipimo, vyeti vinavyohitajika…",
+      "destCountryPlaceholder": "k.m. US, HT, CA",
+      "goToStep": "Nenda kwa {{label}}",
+      "laneBlocked": "Njia hii imezuiwa sasa kwa jukumu lako au muktadha wa mwisho: {{reason}}",
+      "laneBusinessVerification": "Uthibitisho wa biashara unahitajika kuendesha njia hii kama mnunuzi aliyethibitishwa.",
+      "laneChecks": "Ukaguzi wa ufikiaji na idhinisho la njia",
+      "laneManualApproval": "Idhinisho la kufuata kwa mkono linahitajika kabla ombi hili halijaingia kunukuliwa au ununuzi.",
+      "laneResellerApproval": "Idhinisho la muuzaji/msambazaji linahitajika kabla njia hii haijatumiwa kwa mtiririko wa kuuza tena.",
+      "letOxsteedChoose": "— Acha OxSteed ichague —",
+      "notesPlaceholder": "Muktadha mwingine wowote kwa timu ya utafutaji…",
+      "review": {
+        "category": "Kipengele",
+        "deadline": "Mwisho",
+        "destination": "Mwisho",
+        "no": "Hapana",
+        "privateLabel": "Lebo Binafsi",
+        "quantity": "Kiasi",
+        "targetPrice": "Bei Lengwa",
+        "title": "Kichwa",
+        "yes": "Ndiyo"
+      },
+      "riskTier": "Kiwango cha hatari",
+      "selectOption": "— Chagua —",
+      "stepsLabel": "Maendeleo ya ombi",
+      "titlePlaceholder": "k.m. Vipimo 500 vya Viatu vya Usalama vya Viwandani"
+    },
+    "hub": {
+      "aboutBody": "Wanunuzi huunganisha mahitaji yao kufikia kiwango cha chini cha oda cha msambazaji. Mahitaji ya kutosha yakiahidiwa, kampeni hufungwa, amana hukusanywa, na OxSteed huratibu sehemu iliyobaki ya msururu wa ugavi.",
+      "aboutTitle": "Jinsi ununuzi wa pamoja unavyofanya kazi",
+      "aboutToggle": "Jinsi ununuzi wa pamoja unavyofanya kazi",
+      "clearFilters": "Futa vichungi",
+      "emptyBody": "Jaribu utafutaji au kichungi tofauti. Kampeni mpya hufunguliwa mara kwa mara.",
+      "emptyTitle": "Hakuna kampeni zinazolingana na vichungi vyako",
+      "error": "Imeshindwa kupakia kampeni. Tafadhali jaribu tena.",
+      "eyebrow": "OxSteed Logistics",
+      "intro": "Jiunge na kampeni za pamoja ili upate bei za jumla, au andaa yako mwenyewe.",
+      "laneLabel": "Njia",
+      "loading": "Inapakia kampeni...",
+      "nextPage": "Ifuatayo",
+      "noCampaignsBody": "Hakuna kampeni zilizo wazi kwa sasa. Rudi tena hivi karibuni, au andaa moja mwenyewe.",
+      "noCampaignsTitle": "Hakuna kampeni bado",
+      "organizeCta": "Andaa kampeni",
+      "pageOf": "Ukurasa {{page}} kati ya {{pages}}",
+      "prevPage": "Iliyotangulia",
+      "procurementCta": "Ununuzi wa biashara",
+      "resultsCount": "kampeni {{count}}",
+      "retry": "Jaribu tena",
+      "searchLabel": "Tafuta kampeni",
+      "searchPlaceholder": "Tafuta kwa bidhaa, njia au kichwa",
+      "statusLabel": "Hali",
+      "title": "Ununuzi wa pamoja, kwa urahisi"
+    },
+    "modal": {
+      "close": "Funga",
+      "openFullPage": "Fungua ukurasa kamili",
+      "loading": "Inapakia…",
+      "loadError": "Imeshindwa kupakia hakikisho hili.",
+      "retry": "Jaribu tena",
+      "notFound": "Kipengee hiki hakikupatikana.",
+      "campaignPreviewTitle": "Hakikisho la kampeni",
+      "requestPreviewTitle": "Hakikisho la ombi",
+      "orderPreviewTitle": "Hakikisho la oda",
+      "shipmentPreviewTitle": "Hakikisho la shehena",
+      "allocationPreviewTitle": "Hakikisho la ugawaji",
+      "campaign": {
+        "lane": "Njia",
+        "status": "Hali",
+        "moqProgress": "Maendeleo ya MOQ",
+        "participants": "Washiriki",
+        "committedUnits": "Imeahidiwa",
+        "targetUnits": "Lengo"
+      },
+      "request": {
+        "status": "Hali",
+        "category": "Aina",
+        "targetQuantity": "Kiasi kinacholengwa",
+        "targetPrice": "Bei inayolengwa",
+        "destination": "Unakoenda",
+        "deadline": "Tarehe ya mwisho",
+        "quotes": "Nukuu za bei"
+      },
+      "order": {
+        "status": "Hali",
+        "supplier": "Msambazaji",
+        "quantity": "Kiasi",
+        "total": "Jumla ya oda",
+        "balanceDue": "Salio linalodaiwa",
+        "expectedArrival": "Kuwasili kunakotarajiwa"
+      },
+      "shipment": {
+        "status": "Hali",
+        "carrier": "Msafirishaji",
+        "trackingNumber": "Nambari ya ufuatiliaji",
+        "originPort": "Bandari ya asili",
+        "destinationPort": "Bandari ya unakoenda",
+        "eta": "Muda wa kuwasili"
+      },
+      "allocation": {
+        "status": "Hali",
+        "recipient": "Mpokeaji",
+        "warehouse": "Ghala",
+        "releaseMethod": "Njia ya kutoa",
+        "quantity": "Kiasi"
+      }
+    },
+    "adminControl": {
+      "error": "Hatukuweza kupakia vipimo vya udhibiti hivi sasa. Tafadhali jaribu tena.",
+      "kpis": {
+        "claimsPosture": "Hali ya madai",
+        "feeRules": "Sheria za ada",
+        "markupRules": "Sheria za faida",
+        "restrictions": "Vikwazo",
+        "trackedPOs": "ODA zinazofuatiliwa",
+        "trackedShipments": "Mizigo inayofuatiliwa"
+      },
+      "pricing": {
+        "active": "inayotumika",
+        "empty": "Hakuna sheria za bei zilizopatikana.",
+        "fee": "Ada",
+        "headers": {
+          "name": "Jina",
+          "status": "Hali",
+          "type": "Aina"
+        },
+        "inactive": "isiyotumika",
+        "markup": "Faida",
+        "ruleFallback": "Sheria {{id}}",
+        "title": "Hali ya bei na ada"
+      },
+      "restricted": {
+        "body": "Sheria za bei, vikwazo vya soko, na ubatilishaji wa logistics vinapatikana kwa wasimamizi wa OxSteed na wasimamizi wakuu pekee.",
+        "returnToHub": "Rudi kwenye kitovu cha Logistics",
+        "title": "Ufikiaji wa udhibiti umezuiwa"
+      },
+      "restrictions": {
+        "empty": "Hakuna vikwazo vilivyowekwa.",
+        "headers": {
+          "category": "Kipengele",
+          "country": "Nchi",
+          "risk": "Hatari"
+        },
+        "title": "Vidhibiti vya vikwazo na hatari"
+      },
+      "routes": {
+        "adminDashboard": "Dashibodi ya msimamizi",
+        "pricingRules": "Sheria za bei",
+        "restrictions": "Vikwazo",
+        "superControl": "Udhibiti mkuu",
+        "supplierApprovals": "Idhinisho za wasambazaji"
+      },
+      "routesLabel": "Njia za udhibiti wa msimamizi",
+      "subtitle": "Vidhibiti vya bei, hatari, idhinisho, na faida kwa tawi zima la OxSteed Logistics.",
+      "title": "Udhibiti wa msimamizi"
+    },
+    "buyer": {
+      "actions": {
+        "startRequest": "Anzisha ombi",
+        "watchShipments": "Tazama ratiba ya mizigo"
+      },
+      "activity": {
+        "claimFallback": "Dai #{{id}}"
+      },
+      "attention": {
+        "allocationRelease": {
+          "hint": "Hisa iliyotengwa bado inahitaji kuchukuliwa, kukabidhiwa kwa wakala, au kupangwa kutolewa mwisho.",
+          "label": "Kutolewa kwa mgao"
+        },
+        "copy": "Tumia foleni hii kuamua kama kusukuma utafutaji mpya, kufuatilia kutolewa kwa uwasilishaji, au kupandisha suala la kifedha.",
+        "issuePosture": {
+          "hint": "Madai na kesi za urejeshaji zinakuambia imani ya wanunuzi au ubora wa utekelezaji unapungua wapi.",
+          "label": "Hali ya masuala"
+        },
+        "shipmentRisk": {
+          "hint": "Ukaguzi wa forodha, hali za kipekee, au mizigo iliyochelewa inapaswa kufuatiliwa na mnunuzi kwanza.",
+          "label": "Hatari ya mzigo"
+        },
+        "title": "Makini sasa"
+      },
+      "chips": {
+        "buyerFirst": "Sehemu ya mnunuzi kwanza",
+        "claimsTied": "Madai yamefungwa na matokeo ya mizigo",
+        "refundVisible": "Hali ya urejeshaji inaonekana"
+      },
+      "claims": {
+        "activeClaims": "Madai {{count}} yanayotumika",
+        "activeClaimsHint": "Tumia madai wakati mzigo, oda, au matokeo ya hisa yanahitaji kuingiliwa na opereta au kukaguliwa kwa ushahidi.",
+        "deliveriesHint": "Weka hali ya uwasilishaji karibu na madai ili kuunganisha utekelezaji ulioshindwa na historia halisi ya utoaji.",
+        "deliveriesTracked": "Rekodi {{count}} za uwasilishaji zinafuatiliwa",
+        "openFinance": "Sehemu ya fedha",
+        "refundCases": "Kesi {{count}} za urejeshaji",
+        "refundCasesHint": "Foleni za urejeshaji zinaonyesha wapi urejeshaji wa mnunuzi bado unasubiri uthibitisho wa fedha au uendeshaji.",
+        "title": "Madai na hali ya utatuzi"
+      },
+      "flow": {
+        "allocationFallback": "ALC-{{id}}",
+        "awaitingRelease": "Inasubiri kutolewa",
+        "empty": "Hakuna rekodi za mizigo au mgao bado.",
+        "headers": {
+          "eta": "ETA / Uwasilishaji",
+          "reference": "Kumbukumbu",
+          "status": "Hali"
+        },
+        "openDistribution": "Usambazaji",
+        "title": "Mtiririko wa mizigo na mgao"
+      },
+      "kicker": "Sehemu ya mnunuzi",
+      "metrics": {
+        "activeRequests": {
+          "label": "Maombi yanayotumika",
+          "note": "Jumla ya maombi {{total}} ya wanunuzi yanayoendelea"
+        },
+        "claimsRefunds": {
+          "label": "Madai na urejeshaji",
+          "noteClear": "Hakuna masuala ya wanunuzi yanayotumika",
+          "noteOpen": "Ukaguzi wa opereta unaweza kuhitajika kwa masuala wazi"
+        },
+        "pendingAllocations": {
+          "label": "Mgao unasubiri",
+          "noteClear": "Foleni ya mgao iko wazi",
+          "notePending": "Hisa imetengwa lakini haijatolewa kikamilifu bado"
+        },
+        "watchShipments": {
+          "label": "Tazama mizigo",
+          "noteClear": "Hakuna ubaguzi wa mizigo ulioripotiwa hivi sasa",
+          "noteRisk": "{{count}} zinahitaji ufuatiliaji wa kipekee"
+        },
+        "unavailableNote": "Kipimo hakipatikani kwa sasa."
+      },
+      "requests": {
+        "empty": "Hakuna maombi ya utafutaji bado.",
+        "headers": {
+          "category": "Kipengele",
+          "quotes": "Nukuu",
+          "request": "Ombi",
+          "status": "Hali"
+        },
+        "title": "Maombi yangu ya utafutaji",
+        "viewAll": "Tazama yote"
+      },
+      "rhythm": {
+        "bestMove": {
+          "hasRequests": "Kagua hali ya nukuu na mizigo kabla ya kufungua mahitaji zaidi.",
+          "label": "Hatua bora inayofuata",
+          "noRequests": "Fungua ombi la utafutaji kuanzisha nukuu za wasambazaji."
+        },
+        "latestDelivery": {
+          "label": "Ishara ya hivi karibuni ya uwasilishaji",
+          "noDate": "Hakuna tarehe za uwasilishaji zilizopangwa bado.",
+          "withDate": "Shughuli ya hivi karibuni ya uwasilishaji imepangwa karibu na {{date}}."
+        },
+        "title": "Mdundo wa mnunuzi"
+      },
+      "stats": {
+        "attentionShipments": {
+          "label": "Mizigo inayohitaji makini",
+          "meta": "Mwendo wa forodha au hatua ya kipekee wa kukagua."
+        },
+        "issues": {
+          "label": "Madai / urejeshaji wazi",
+          "meta": "Weka ulinzi wa mnunuzi na hali ya utatuzi wazi."
+        },
+        "openRequests": {
+          "label": "Maombi wazi ya wanunuzi",
+          "meta": "Kupitia utafutaji, nukuu, na ubadilishaji wa ununuzi."
+        }
+      },
+      "subtitle": "Anzisha maombi ya utafutaji, fuatilia oda zako na angalia mizigo inayotumika: yote mahali pamoja.",
+      "title": "Dashibodi ya mnunuzi"
+    },
+    "campaignDetail": {
+      "delivery": {
+        "freightForward": "Wakala wa mizigo",
+        "shipToBuyer": "Tuma kwa mnunuzi",
+        "warehousePickup": "Kuchukua ghala"
+      },
+      "economics": {
+        "deposit": "Amana (30%)",
+        "fees": "Ada",
+        "freightEst": "Mizigo (kadiri)",
+        "landedCost": "Gharama ya kufika / kipimo",
+        "markup": "Faida ya OxSteed",
+        "productCost": "Gharama ya bidhaa",
+        "title": "Uchumi kwa kipimo"
+      },
+      "join": {
+        "cancellationPolicy": "Sera ya kughairi",
+        "committedQty": "Kiasi kilichoahidiwa",
+        "confirm": "Thibitisha kushiriki",
+        "countryCode": "Msimbo wa nchi",
+        "deliveryPreference": "Upimaji wa uwasilishaji",
+        "deposit": "Amana",
+        "destCountry": "Nchi ya mwisho",
+        "subtotal": "Jumla ndogo",
+        "title": "Jiunge na kampeni"
+      },
+      "laneGating": {
+        "blocked": "Jukumu lako la sasa au muktadha wa mwisho limezuiwa kwa njia hii: {{reason}}",
+        "businessVerification": "Muktadha wa biashara uliothibitishwa unahitajika kwa njia hii ya kampeni.",
+        "manualApproval": "Idhinisho la kufuata kwa mkono linahitajika kabla kampeni haijapitia hatua zote za logistics zinazofuata.",
+        "resellerApproval": "Idhinisho la muuzaji/msambazaji linahitajika kwa ushiriki wa kuuza tena kwenye njia hii.",
+        "title": "Ukaguzi wa njia"
+      },
+      "loadError": "Imeshindwa kupakia kampeni",
+      "meta": {
+        "fallbackDescription": "Kampeni ya ununuzi wa pamoja kwenye OxSteed Logistics.",
+        "fallbackTitle": "Kampeni"
+      },
+      "moq": {
+        "progressLabel": "Maendeleo ya MOQ: asilimia {{pct}}",
+        "units": "{{committed}} / {{target}} vipimo vimeahidiwa"
+      },
+      "notFound": "Kampeni haikupatikana.",
+      "participants": {
+        "headers": {
+          "delivery": "Uwasilishaji",
+          "deposit": "Amana",
+          "qty": "Kiasi",
+          "status": "Hali",
+          "user": "Mtumiaji"
+        },
+        "participant": "Mshiriki",
+        "title": "Washiriki"
+      },
+      "timeline": {
+        "expectedArrival": "Kuwasili kunakotarajiwa",
+        "expectedShip": "Kutuma kunakotarajiwa",
+        "lockDate": "Tarehe ya kufunga",
+        "openDate": "Tarehe ya kufungua",
+        "closeDate": "Tarehe ya kufunga",
+        "organizer": "Mratibu",
+        "title": "Ratiba"
+      }
+    },
+    "distributor": {
+      "actions": {
+        "openBoard": "Fungua bodi ya usambazaji",
+        "warehouseReadiness": "Angalia utayari wa ghala"
+      },
+      "activity": {
+        "allocationFallback": "ALC-{{id}}",
+        "deliveryFallback": "Uwasilishaji #{{id}}"
+      },
+      "chips": {
+        "failedDrops": "Fuatilia kushuka kulikoshindwa mapema",
+        "releaseDiscipline": "Nidhamu ya kutolewa ni muhimu",
+        "sync": "Weka ghala na uwasilishaji sawa"
+      },
+      "execution": {
+        "empty": "Hakuna oda za uwasilishaji bado.",
+        "headers": {
+          "method": "Njia",
+          "recipient": "Mpokeaji",
+          "scheduled": "Imepangwa",
+          "status": "Hali"
+        },
+        "recipientFallback": "Mpokeaji wa uwasilishaji",
+        "seeAll": "Tazama yote",
+        "title": "Utekelezaji wa uwasilishaji"
+      },
+      "kicker": "Sehemu ya msambazaji",
+      "metrics": {
+        "allocatedLots": {
+          "label": "Makundi yaliyotengwa",
+          "note": "Hisa iliyotengwa kwa wapokeaji wa usambazaji."
+        },
+        "deliveryOrders": {
+          "label": "Oda za uwasilishaji",
+          "note": "Miguu ya kutoka inayofuatiliwa sasa."
+        },
+        "inTransit": {
+          "label": "Safarini",
+          "note": "Uwasilishaji unaohitaji bado ufuatiliaji wa mwisho."
+        },
+        "releasedLots": {
+          "label": "Makundi yaliyotolewa",
+          "note": "Makundi yaliyoruhusiwa tayari kwa kuchukuliwa au utekelezaji wa uwasilishaji."
+        },
+        "warehousedOrders": {
+          "label": "Oda zilizohifadhiwa",
+          "note": "Hisa ya juu tayari imehifadhiwa na iko tayari kutengwa."
+        },
+        "unavailableNote": "Kipimo hakipatikani kwa sasa."
+      },
+      "posture": {
+        "releaseFirst": {
+          "hint": "Angalia kuwa mgao umetolewa kweli kabla ya kuwasukuma wapokeaji kwenye kupanga uwasilishaji.",
+          "label": "Toa kabla ya kuelekeza"
+        },
+        "title": "Msimamo wa uendeshaji",
+        "warehousedVisible": {
+          "hint": "ODA {{count}} tayari zimehifadhiwa, kwa hivyo kikwazo kinaweza kuwa chini, sio juu.",
+          "label": "Weka hisa iliyohifadhiwa wazi"
+        }
+      },
+      "pressure": {
+        "copy": "Tumia mwonekano huu kuamua kama kikwazo kijacho ni kutolewa kwa ghala, kupanga, au utekelezaji wa mwisho ulioshindwa.",
+        "exceptions": {
+          "hint": "Uwasilishaji ulioshindwa au ulioghairiwa unapaswa kupata makini kabla imani ya wateja haijapungua zaidi.",
+          "label": "Ubaguzi wa uwasilishaji"
+        },
+        "release": {
+          "hint": "Hisa imetengwa, lakini njia ya kuchukua, kukabidhi kwa wakala, au utayari wa mpokeaji bado haujakamilika.",
+          "label": "Makundi yanayosubiri kutolewa"
+        },
+        "scheduled": {
+          "hint": "Hizi ndizo sehemu zinazofuata ambapo mawasiliano na wakati ni muhimu.",
+          "label": "Uwasilishaji uliopangwa"
+        },
+        "title": "Vikwazo vya usambazaji"
+      },
+      "queue": {
+        "assignedBuyer": "Mnunuzi aliyeteuliwa",
+        "empty": "Hakuna makundi ya mgao yaliyoteuliwa bado.",
+        "headers": {
+          "method": "Njia",
+          "recipient": "Mpokeaji",
+          "status": "Hali",
+          "warehouse": "Ghala"
+        },
+        "methodPending": "inasubiri",
+        "open": "Fungua sehemu",
+        "title": "Foleni ya kukabidhi mgao",
+        "warehousePending": "Ghala linasubiri"
+      },
+      "stats": {
+        "failed": {
+          "label": "Kushuka kulikoshindwa au kulikoghairiwa",
+          "meta": "Hizi mara nyingi zinahitaji kuelekezwa upya au ufuatiliaji wa moja kwa moja wa mpokeaji."
+        },
+        "inTransit": {
+          "label": "Uwasilishaji unaosafiri",
+          "meta": "Mwendo wa kutoka unaopaswa kuangaliwa kikamilifu."
+        },
+        "pendingRelease": {
+          "label": "Makundi yanayosubiri kutolewa",
+          "meta": "Hisa iliyotengwa ambayo haijakabidhiwa kikamilifu bado."
+        }
+      },
+      "subtitle": "Fuatilia ushiriki wako wa kampeni, mgao, na uwasilishaji wa mwisho.",
+      "title": "Dashibodi ya msambazaji"
+    },
+    "operations": {
+      "error": "Hatukuweza kupakia vipimo vya uendeshaji hivi sasa. Tafadhali jaribu tena.",
+      "internalOnly": {
+        "body": "Sehemu hii imehifadhiwa kwa waendeshaji wa logistics wa OxSteed. Wanunuzi na waratibu walioingia wanaweza bado kutumia sehemu za Mnunuzi, Mratibu, Ununuzi wa Biashara, na Msambazaji kusimamia shughuli zao za logistics.",
+        "title": "Ufikiaji wa uendeshaji ni wa ndani"
+      },
+      "kpis": {
+        "campaigns": "Kampeni",
+        "claimsDisputes": "Madai na migogoro",
+        "sourcingQueue": "Foleni ya utafutaji",
+        "trackedShipments": "Mizigo inayofuatiliwa"
+      },
+      "loading": "Inapakia vipimo vya uendeshaji…",
+      "priorities": {
+        "customsHold": "Mizigo {{count}} iko katika kushikiliwa na forodha au hali ya kipekee.",
+        "fullAdmin": "Dashibodi kamili ya msimamizi",
+        "openClaims": "Madai {{count}} bado wazi kwa ukaguzi.",
+        "openDisputes": "Fungua migogoro na ukaguzi wa urejeshaji →",
+        "openFreight": "Fungua mizigo na foleni ya hatua →",
+        "openSourcing": "Fungua foleni ya kupokea utafutaji →",
+        "openWarehouse": "Fungua foleni ya kupokea ghala →",
+        "operatorRoutes": "Njia za opereta",
+        "queues": "Foleni za haraka",
+        "sourcingTouch": "Maombi {{count}} ya utafutaji yanahitaji kuelekezwa, kunukuliwa, au kuguswa na opereta.",
+        "title": "Vipaumbele vya uendeshaji"
+      },
+      "routesLabel": "Njia za uendeshaji",
+      "subtitle": "Uso mmoja wa ndani wa amri kwa kupokea utafutaji, mwendo wa mizigo inayotumika, mtiririko wa ghala, na ubaguzi wa logistics.",
+      "title": "Sehemu ya uendeshaji",
+      "routes": {
+        "finance": "Shughuli za usafirishaji"
+      }
+    },
+    "orderDetail": {
+      "backToOrders": "← Rudi kwenye oda",
+      "defaults": {
+        "purchaseOrder": "Oda ya ununuzi"
+      },
+      "finance": {
+        "customsAdmin": "Forodha/usimamizi",
+        "freightEstimate": "Kadiri ya mizigo",
+        "lastMile": "Mwisho wa mwisho",
+        "originHandling": "Ushughulikiaji wa asili",
+        "oxsteedMarkup": "Faida ya OxSteed",
+        "productTotal": "Jumla ya bidhaa",
+        "riskSurcharge": "Malipo ya hatari",
+        "sourcingFee": "Ada ya utafutaji",
+        "warehouseFee": "Ada ya ghala"
+      },
+      "labels": {
+        "buyer": "Mnunuzi",
+        "destination": "Mwisho",
+        "expectedArrival": "Kuwasili kunakotarajiwa",
+        "expectedProductionComplete": "Kukamilika kwa uzalishaji kunakotarajiwa",
+        "expectedShipDate": "Tarehe ya kutuma inayotarajiwa",
+        "freightOption": "Chaguo la mizigo",
+        "incoterms": "Masharti ya biashara",
+        "quantity": "Kiasi",
+        "supplier": "Msambazaji"
+      },
+      "loadError": "Imeshindwa kupakia oda.",
+      "loading": "Inapakia…",
+      "notFound": "Oda ya ununuzi haikupatikana.",
+      "sections": {
+        "financial": "Muundo wa kifedha",
+        "overview": "Muhtasari wa oda"
+      },
+      "totals": {
+        "depositDue": "Amana inayodaiwa",
+        "finalDue": "Malipo ya mwisho yanayodaiwa",
+        "remaining": "Iliyobaki",
+        "totalLanded": "Jumla ya kufika"
+      }
+    },
+    "organizer": {
+      "actions": {
+        "coordinateHandoffs": "Ratibu makabidhiano",
+        "openBoard": "Fungua bodi ya kampeni"
+      },
+      "activity": {
+        "campaignFallback": "Kampeni #{{id}}",
+        "deliveryFallback": "Uwasilishaji #{{id}}"
+      },
+      "campaigns": {
+        "browse": "Vinjari kampeni",
+        "empty": "Hakuna kampeni za mratibu bado. Anzisha moja kutoka sehemu ya kampeni.",
+        "moqProgress": "Maendeleo ya MOQ: asilimia {{pct}}",
+        "participants": "Washiriki {{count}}",
+        "title": "Kampeni za mratibu"
+      },
+      "commitments": {
+        "empty": "Hakuna ahadi za kampeni bado.",
+        "headers": {
+          "campaign": "Kampeni",
+          "qty": "Kiasi",
+          "status": "Hali"
+        },
+        "open": "Fungua ushiriki",
+        "title": "Ahadi zangu kama mshiriki"
+      },
+      "kicker": "Sehemu ya mratibu",
+      "metrics": {
+        "campaigns": {
+          "label": "Kampeni za mratibu",
+          "note": "Jumla ya kampeni unazomiliki au kuratibu sasa."
+        },
+        "committedUnits": {
+          "label": "Vipimo vilivyoahidiwa",
+          "note": "Muhimu kwa kuhukumu nguvu ya ununuzi ya mtandao kwenye kampeni zote."
+        },
+        "deliveries": {
+          "label": "Makabidhiano ya uwasilishaji",
+          "note": "Uratibu wa mwisho unaoweza kuhitaji kutuma ujumbe."
+        },
+        "shipments": {
+          "label": "Mizigo inayofuatiliwa",
+          "note": "Mwendo unaoathiri sasa sasisho za mratibu na makabidhiano."
+        },
+        "unavailableNote": "Kipimo hakipatikani kwa sasa."
+      },
+      "pressure": {
+        "commitments": {
+          "hint": "Hizi ni ahadi zako hai ndani ya oda za pamoja zinazohitaji bado kuangaliwa.",
+          "label": "Ahadi wazi za washiriki"
+        },
+        "copy": "Hii ni usomaji wa haraka wa wapi nguvu ya mratibu inapaswa kwenda: kuajiri, amana, au utekelezaji wa makabidhiano.",
+        "momentum": {
+          "hint": "Kampeni chini ya nusu ya MOQ kawaida zinahitaji msukumo mwingine wa kuajiri au kufikiria upya njia/bei.",
+          "label": "Mapengo ya kasi ya MOQ"
+        },
+        "shipments": {
+          "hint": "Weka ujumbe wa mratibu sawa na mwendo wa mizigo ili wanunuzi wa chini wajue kinachofuata.",
+          "label": "Mizigo iliyofungwa na kampeni"
+        },
+        "title": "Vikwazo vya mratibu"
+      },
+      "readiness": {
+        "handoffs": "Makabidhiano {{count}} ya uwasilishaji bado yanatumika",
+        "handoffsHint": "Hizi ndizo miguu ambapo mawasiliano ya mratibu mara nyingi ni muhimu zaidi kuepuka mkanganyiko wakati wa kuchukua au kutolewa kwa mwisho.",
+        "openDistribution": "Fungua sehemu ya usambazaji",
+        "openShipments": "Fungua ratiba ya mizigo",
+        "posture": "Kampeni {{count}} bado zinaweza kubadilisha msimamo wa washiriki",
+        "postureHint": "Tumia hii kuamua kama kuendelea kuajiri mahitaji au kuanza kuandaa matarajio ya usambazaji kwa wanunuzi.",
+        "shipments": "Ratiba ya mizigo",
+        "title": "Utayari wa usambazaji"
+      },
+      "rhythm": {
+        "communicate": {
+          "hint": "Oda zikiwekwa, badilisha kutoka kujenga mahitaji hadi mwonekano wa mizigo na matarajio ya uwasilishaji.",
+          "label": "Wasiliana baada ya kuweka"
+        },
+        "recruit": {
+          "hint": "Kama MOQ iko chini, tumia wakati kuajiri washiriki kabla ya kusukuma utata wa uendeshaji chini.",
+          "label": "Ajiri kabla ya kufunga"
+        },
+        "title": "Mdundo wa uendeshaji wa mratibu"
+      },
+      "stats": {
+        "committedUnits": {
+          "label": "Vipimo vilivyoahidiwa",
+          "meta": "Mahitaji tayari yametekwa kutoka mtandao wako wa pamoja."
+        },
+        "handoffs": {
+          "label": "Makabidhiano ya kuratibu",
+          "meta": "Miguu ya uwasilishaji bado inaelekea kwa wapokeaji."
+        },
+        "inMotion": {
+          "label": "Kampeni bado zinaendelea",
+          "meta": "Kupitia hatua za kufungua, amana, kufunga, na kuweka."
+        }
+      },
+      "subtitle": "Endesha kampeni za pamoja kama mratibu, weka kasi ya MOQ wazi, na hamisha oda zilizofungwa kwa usafi kwenye usafirishaji na makabidhiano.",
+      "title": "Dashibodi ya mratibu"
+    },
+    "procurement": {
+      "actions": {
+        "closePlanner": "Funga kipangaji",
+        "newProgram": "Programu mpya ya mara kwa mara",
+        "newRequest": "Fungua ombi lililofungwa na biashara"
+      },
+      "chips": {
+        "businessScoped": "Utafutaji wa biashara pekee",
+        "laneAware": "Ununuzi unaojua njia",
+        "recurring": "Kupanga mahitaji ya mara kwa mara"
+      },
+      "eligibleLanes": {
+        "authority": "na mamlaka ya ununuzi.",
+        "empty": "Hakuna biashara zinazostahili zilizounganishwa na akaunti hii bado.",
+        "ownerAccess": "Ufikiaji wa mmiliki",
+        "roleAccess": "Ufikiaji wa {{role}}",
+        "title": "Njia za biashara zinazostahili"
+      },
+      "form": {
+        "anyLane": "Njia yoyote iliyoidhinishwa",
+        "budgetMax": "Bajeti ya juu (USD)",
+        "cadence": "Mzunguko",
+        "category": "Kipengele",
+        "create": "Unda programu",
+        "created": "Programu ya ununuzi ya mara kwa mara imeundwa",
+        "destCity": "Jiji la mwisho",
+        "destCountry": "Nchi ya mwisho",
+        "lane": "Njia",
+        "linkedRequest": "Ombi la utafutaji lililounganishwa (hiari)",
+        "noLinkedRequest": "Hakuna ombi lililounganishwa",
+        "nextRun": "Tarehe ya uendeshaji ujao",
+        "notes": "Vidokezo",
+        "programTitle": "Kichwa cha programu",
+        "saving": "Inahifadhi…",
+        "targetQty": "Kiasi lengwa",
+        "title": "Kipangaji cha ununuzi wa mara kwa mara",
+        "titleRequired": "Kichwa cha programu kinahitajika",
+        "unit": "Kipimo"
+      },
+      "guidance": {
+        "authority": {
+          "body": "Sehemu hii inafanya kazi tu wakati mahitaji yamefungwa na biashara halisi unayoweza kuitendea, sio wazo la utafutaji la kibinafsi.",
+          "title": "Jenga kuzunguka mamlaka halisi ya biashara"
+        },
+        "businessHub": "Kitovu cha Biashara",
+        "laneAware": {
+          "body": "Chagua njia mapema kwa programu za mara kwa mara wakati bei, ufuataji, na vikwazo vya mwisho vinaathiri gharama ya kufika.",
+          "title": "Tumia kupanga kunakojua njia"
+        },
+        "restock": {
+          "body": "Programu zenye tarehe za uendeshaji zinazokuja zinapaswa kuchunguzwa kabla maghala, timu, au wafanyakazi wa nyanjani hawajahisi upungufu.",
+          "title": "Jaza tena kabla ya msukumo"
+        },
+        "title": "Mwongozo wa uendeshaji wa ununuzi"
+      },
+      "kicker": "Ununuzi wa biashara",
+      "linkedRequests": {
+        "empty": "Hakuna maombi ya ununuzi yaliyofungwa na biashara bado.",
+        "headers": {
+          "converted": "Imetupwa",
+          "reference": "Kumbukumbu",
+          "request": "Ombi",
+          "status": "Hali"
+        },
+        "new": "Ombi jipya",
+        "title": "Maombi ya utafutaji yaliyofungwa na biashara"
+      },
+      "metrics": {
+        "activePrograms": {
+          "label": "Programu zinazotumika",
+          "note": "Programu zinazopaswa kuathiri kupanga utafutaji sasa."
+        },
+        "eligibleBusinesses": {
+          "label": "Biashara zinazostahili",
+          "note": "Miktadha tofauti ya biashara unayoweza kuendesha ununuzi."
+        },
+        "linkedRequests": {
+          "label": "Maombi yaliyofungwa na biashara",
+          "note": "Maombi tayari yamefungwa na muktadha wa biashara uliostahili."
+        },
+        "programs": {
+          "label": "Programu za mara kwa mara",
+          "note": "Mizunguko iliyohifadhiwa kwa mahitaji ya hisa na ugavi ya mara kwa mara."
+        }
+      },
+      "noAccess": {
+        "backToLogistics": "Rudi kwenye Logistics",
+        "body": "Sehemu hii imehifadhiwa kwa watumiaji wanaoweza kutenda kwa niaba ya biashara katika ununuzi na uendeshaji. Hivi sasa, OxSteed inawezesha kwa wamiliki wa biashara, wasimamizi hai, na uanachama wenye ruhusa za uendeshaji.",
+        "eligibleCount": "Sehemu zako za biashara zinazostahili",
+        "howDetermined": "Jinsi ufikiaji unavyoamuliwa",
+        "howDeterminedHint": "umiliki, uanachama hai wa msimamizi, au uanachama usio wa mmiliki na ruhusa za uendeshaji/ununuzi.",
+        "openBusinessHub": "Fungua Kitovu cha Biashara",
+        "title": "Ununuzi wa Biashara haujawezeshwa kwa akaunti hii"
+      },
+      "pressure": {
+        "copy": "Sehemu hii ni imara zaidi inapokuambia cha kujaza tena, cha kulinganisha kwa njia, na biashara gani inahitaji hatua kwanza.",
+        "laneBound": {
+          "hint": "Hizi tayari zina njia iliyofafanuliwa, kwa hivyo kupanga bei na ufuataji kunaweza kuwa makini zaidi.",
+          "label": "Programu zilizofungwa na njia"
+        },
+        "linkedRequests": {
+          "hint": "Mahitaji tayari yamefungwa na biashara iliyostahili yanapaswa kupewa kipaumbele kabla ya utafutaji wa jumla.",
+          "label": "Maombi yaliyofungwa na biashara"
+        },
+        "title": "Vikwazo vya ununuzi",
+        "upcomingRuns": {
+          "hint": "Programu zinazoendeshwa hivi karibuni zinapaswa kuchunguzwa kwa kiasi, kufaa kwa njia, na utayari wa mwisho.",
+          "label": "Uendeshaji ujao"
+        }
+      },
+      "program": {
+        "statusChanged": "Programu {{status}}"
+      },
+      "programs": {
+        "activate": "Washa",
+        "empty": "Hakuna programu za ununuzi za mara kwa mara bado.",
+        "general": "Ununuzi wa jumla",
+        "headers": {
+          "cadence": "Mzunguko",
+          "linkedRequest": "Ombi lililounganishwa",
+          "nextRun": "Uendeshaji ujao",
+          "program": "Programu",
+          "status": "Hali"
+        },
+        "openSourcing": "Fungua utafutaji",
+        "pause": "Sitisha",
+        "title": "Programu za ununuzi za mara kwa mara"
+      },
+      "stats": {
+        "activePrograms": {
+          "label": "Programu hai za kujaza tena",
+          "meta": "Mizunguko tayari inaendesha mahitaji ya utafutaji ya mara kwa mara."
+        },
+        "eligibleBusinesses": {
+          "label": "Biashara zinazostahili",
+          "meta": "Kampuni akaunti hii inaweza kununua kihalali."
+        },
+        "upcomingRuns": {
+          "label": "Uendeshaji ndani ya siku 21",
+          "meta": "Mizunguko ijayo ya ununuzi inayohitaji ukaguzi wa utayari."
+        }
+      },
+      "subtitle": "Simamia mdundo wa kujaza tena, njia za utafutaji za mara kwa mara, na mahitaji yaliyoidhinishwa na biashara bila kupoteza kampuni ambayo oda ni yake.",
+      "title": "Dashibodi ya Ununuzi wa Biashara"
+    },
+    "requestDetail": {
+      "backToSourcing": "← Rudi kwenye utafutaji",
+      "defaultDescription": "Hakuna maelezo yaliyotolewa.",
+      "labels": {
+        "budgetMax": "Bajeti ya juu",
+        "business": "Biashara",
+        "category": "Kipengele",
+        "customMfg": "Utengenezaji maalum",
+        "days": "siku",
+        "deadline": "Mwisho",
+        "destination": "Mwisho",
+        "freightEst": "Mizigo kadiri",
+        "leadTime": "Wakati wa kuongoza",
+        "no": "Hapana",
+        "preferredFreight": "Mizigo inayopendelewa",
+        "privateLabel": "Lebo binafsi",
+        "quotedQty": "Kiasi kilichonukuliwa",
+        "structuredSpecs": "Vipimo vilivyopangwa",
+        "targetPrice": "Bei lengwa",
+        "targetQuantity": "Kiasi lengwa",
+        "unitPrice": "Bei ya kipimo",
+        "yes": "Ndiyo"
+      },
+      "loading": "Inapakia…",
+      "notFound": "Ombi la utafutaji halikupatikana.",
+      "quotes": {
+        "empty": "Hakuna nukuu za wasambazaji bado.",
+        "supplier": "Msambazaji #{{id}}",
+        "title": "Nukuu ({{count}})"
+      },
+      "sections": {
+        "specifications": "Vipimo"
+      },
+      "values": {
+        "personalRequest": "Ombi binafsi"
+      }
+    },
+    "shipmentDetail": {
+      "backToShipments": "← Rudi kwenye mizigo",
+      "defaults": {
+        "document": "Nyaraka",
+        "noLocation": "Hakuna eneo",
+        "noNotes": "Hakuna vidokezo.",
+        "shipment": "Mzigo"
+      },
+      "empty": {
+        "documents": "Hakuna nyaraka za usafirishaji zilizopakiwa.",
+        "milestones": "Hakuna hatua zilizorekodiwa bado."
+      },
+      "labels": {
+        "bookingRef": "Kumbukumbu ya kuhifadhi",
+        "carrier": "Mbebaji",
+        "destinationPort": "Bandari ya mwisho",
+        "eta": "ETA",
+        "kg": "kg",
+        "originPort": "Bandari ya asili",
+        "totalCartons": "Jumla ya katoni",
+        "totalCbm": "Jumla ya CBM",
+        "totalWeight": "Uzito wa jumla",
+        "trackingNumber": "Nambari ya ufuatiliaji"
+      },
+      "loadError": "Imeshindwa kupakia mzigo.",
+      "loading": "Inapakia…",
+      "notFound": "Mzigo haukupatikana.",
+      "sections": {
+        "details": "Maelezo ya mzigo",
+        "documents": "Nyaraka ({{count}})",
+        "milestones": "Hatua"
+      }
+    },
+    "tables": {
+      "actions": "Vitendo",
+      "view": "Tazama",
+      "preview": "Hakikisho"
+    },
+    "checkout": {
+      "backToDashboard": "Rudi kwenye dashibodi ya mnunuzi",
+      "backToOrder": "Rudi kwenye oda",
+      "confirm": {
+        "back": "Rudi kwenye njia ya malipo",
+        "button": "Thibitisha na ulipe {{amount}}",
+        "checkbox": "Nathibitisha nataka OxSteed itoe {{amount}} kwenye {{method}} kwa {{installment}} ya oda {{reference}}.",
+        "continue": "Endelea kwenye uthibitisho",
+        "line": "Unakaribia kulipa {{amount}} ({{installment}}) kwa oda {{reference}} ukitumia {{method}}.",
+        "mustCheck": "Tafadhali weka tiki kwenye kisanduku cha uthibitisho ili uendelee.",
+        "noAutoCharge": "Hakuna kadi zilizohifadhiwa. Kila malipo yanahitaji uthibitisho wako hapa.",
+        "quoteNotAccepted": "Kubali toleo la sasa la nukuu kabla hujathibitisha malipo.",
+        "reviewTitle": "Kagua na uthibitishe",
+        "submitting": "Inatuma malipo…"
+      },
+      "errors": {
+        "duplicate": "Malipo haya yametumwa tayari. Angalia hali ya malipo badala ya kulipa tena.",
+        "generic": "Kuna tatizo. Tafadhali jaribu tena.",
+        "quoteChanged": "Nukuu ilibadilika ulipokuwa unalipa. Kagua toleo jipya kabla hujalipa.",
+        "paymentsDisabled": "Malipo ya mtandaoni bado hayajawezeshwa. Tafadhali jaribu tena baadaye."
+      },
+      "loadError": "Hatukuweza kupakia malipo haya. Tafadhali jaribu tena.",
+      "loading": "Inapakia malipo…",
+      "method": {
+        "cardDetails": "Maelezo ya kadi",
+        "cardNote": "Maelezo ya kadi yanashughulikiwa na Stripe. OxSteed haioni wala haihifadhi nambari ya kadi yako.",
+        "choose": "Chagua jinsi ya kulipa awamu hii",
+        "credit": "Mkopo wa OxSteed",
+        "creditBalance": "Salio la mkopo linalopatikana: {{amount}}",
+        "creditDesc": "Lipa kwa salio lako la Mkopo wa OxSteed.",
+        "creditDisabled": "Mkopo wa OxSteed haupatikani kwa muda",
+        "creditDisabledDetail": "Malipo ya mkopo yamezimwa kwa sasa, kwa hivyo awamu hii haiwezi kutolewa kwenye mkopo. Bado unaweza kulipa kwa kadi.",
+        "creditInsufficient": "Salio la mkopo halitoshi",
+        "creditNotEligible": "Oda hii haistahili kulipwa kwa mkopo.",
+        "creditShortfall": "Unapungukiwa {{amount}} kufikia kiasi cha {{installment}}.",
+        "creditTopUpHint": "Jaza salio lako la mkopo au endelea kwa kadi badala yake.",
+        "oneMethodNote": "Kila awamu hulipwa kwa njia moja tu. Hakuna mchanganyiko wa fedha, na hakuna kinachotozwa bila uthibitisho wako.",
+        "payWithCardInstead": "Lipa kwa kadi badala yake",
+        "stripe": "Kadi kupitia Stripe",
+        "stripeDesc": "Lipa kwa kadi ya debiti au mkopo. Unaingiza maelezo ya kadi kila mara; hakuna kinachohifadhiwa wala kutozwa kiotomatiki.",
+        "stripeUnavailable": "Malipo ya kadi hayapatikani kwa sasa. Tafadhali jaribu tena baadaye au tumia Mkopo wa OxSteed.",
+        "creditBalanceUnknown": "Salio lako la mkopo litahakikiwa unapothibitisha malipo."
+      },
+      "missingSubject": "Hakuna oda au kampeni iliyochaguliwa kwa malipo.",
+      "payments": {
+        "awaitingBadge": "Inasubiri malipo kamili",
+        "empty": "Hakuna majaribio ya malipo bado.",
+        "headers": {
+          "amount": "Kiasi",
+          "date": "Tarehe",
+          "installment": "Awamu",
+          "method": "Njia",
+          "reference": "Rejea",
+          "status": "Hali"
+        },
+        "settledBadge": "Imekamilika",
+        "states": {
+          "failed": "Imeshindwa",
+          "pending": "Inasubiri",
+          "processing": "Inachakatwa",
+          "refunded": "Imerejeshwa",
+          "succeeded": "Imefanikiwa",
+          "canceled": "Imeghairiwa",
+          "superseded": "Malipo yaliyorudiwa yanahitaji ukaguzi"
+        },
+        "subtitle": "Kila jaribio la malipo, na OxSteed imethibitisha ukamilishaji.",
+        "title": "Malipo yangu ya usafirishaji"
+      },
+      "quote": {
+        "acceptedOn": "Imekubaliwa {{date}}",
+        "depositPercent": "Amana ni {{percent}}% ya jumla ya nukuu, kama ilivyo katika nukuu iliyoidhinishwa.",
+        "expired": "Nukuu hii iliisha {{date}}. Omba nukuu mpya kutoka kwa uendeshaji kabla hujalipa.",
+        "expiresOn": "Nukuu inaisha {{date}}",
+        "itemized": "Gharama zilizoorodheshwa",
+        "newVersionAvailable": "Toleo jipya la nukuu linahitaji kukubaliwa kwako kabla hujalipa.",
+        "supersededBlocked": "Nukuu hii imebadilishwa na toleo {{version}}. Kagua na ukubali toleo jipya kabla hujalipa.",
+        "total": "Jumla ya nukuu",
+        "version": "Nukuu toleo {{version}}"
+      },
+      "returnTo": "Rudi kwenye {{label}}",
+      "schedule": {
+        "alreadySettled": "Awamu hii imekamilika. Hakuna cha kulipa zaidi.",
+        "deposit": "Amana",
+        "dueNow": "Inastahili sasa",
+        "dueOn": "Inastahili {{date}}",
+        "final": "Salio la mwisho",
+        "paid": "Imelipwa",
+        "payNow": "Lipa {{installment}}",
+        "processing": "Malipo yanachakatwa",
+        "settled": "Imekamilika",
+        "unpaid": "Inasubiri malipo"
+      },
+      "sections": {
+        "confirm": "Thibitisha malipo",
+        "method": "Njia ya malipo",
+        "quote": "Nukuu",
+        "schedule": "Ratiba ya malipo",
+        "status": "Hali ya malipo",
+        "summary": "Muhtasari wa oda",
+        "terms": "Masharti ya kughairi"
+      },
+      "status": {
+        "amount": "Kiasi",
+        "attempt": "Jaribio {{id}}",
+        "checking": "Inaangalia hali ya malipo…",
+        "createdAt": "Ilianza {{date}}",
+        "failed": "Malipo yameshindwa",
+        "failedDetail": "Sababu: {{message}}",
+        "failedUnknown": "Malipo hayakufanyika. Hakuna pesa iliyochukuliwa.",
+        "installment": "Awamu",
+        "method": "Njia",
+        "newKeyNote": "Endelea kulipa",
+        "notSettled": "Fedha hazijakamilika bado. Tutathibitisha hapa malipo yatakapokamilika.",
+        "pending": "Malipo yanasubiri",
+        "processing": "Inachakata malipo yako…",
+        "received": "Tumepokea uthibitisho wako wa malipo.",
+        "refresh": "Onyesha upya hali",
+        "refunded": "Imerejeshwa",
+        "retry": "Jaribu tena kwa jaribio jipya la malipo",
+        "settled": "Malipo yamekamilika",
+        "settledDetail": "OxSteed imethibitisha kupokea {{amount}}. Awamu yako imekamilika.",
+        "viewAll": "Angalia malipo yangu yote"
+      },
+      "subtitle": "Kagua nukuu yako na uthibitishe kila awamu kivyake.",
+      "summary": {
+        "expectedArrival": "Kuwasili kunakotarajiwa",
+        "lane": "Njia",
+        "product": "Bidhaa",
+        "quantity": "Kiasi",
+        "reference": "Rejea",
+        "status": "Hali",
+        "supplier": "Msambazaji"
+      },
+      "title": "Malipo salama",
+      "usdOnly": "Kiasi chote kiko katika USD.",
+      "creditUnavailableFallback": "OxSteed Credit haipatikani kwa malipo ya Usafirishaji",
+      "noQuote": {
+        "body": "Uendeshaji bado haujachapisha nukuu inayolipika kwa oda hii. Tutakuarifu itakapokuwa tayari. Hakuna malipo yanayodaiwa kwa sasa.",
+        "title": "Hakuna nukuu tayari bado"
+      }
+    },
+    "quotes": {
+      "accept": {
+        "accepted": "Nukuu toleo {{version}} imekubaliwa. Sasa unaweza kulipa.",
+        "accepting": "Inakubali…",
+        "body": "Toleo {{version}} linachukua nafasi ya toleo {{previous}}. Kagua yaliyobadilika, kisha ukubali ili uendelee kwenye malipo. Huwezi kulipa kwa toleo la zamani.",
+        "button": "Kubali nukuu toleo {{version}}",
+        "cannotPayOld": "Malipo yamesimamishwa hadi ukubali nukuu ya sasa.",
+        "decline": "Si sasa",
+        "title": "Nukuu mpya inahitaji kukubaliwa kwako"
+      },
+      "current": "Ya sasa",
+      "decrease": "kupungua",
+      "diff": {
+        "added": "Imeongezwa",
+        "changed": "Imebadilishwa",
+        "noChanges": "Hakuna mabadiliko ya vipengee katika toleo hili.",
+        "now": "Sasa {{amount}}",
+        "removed": "Imeondolewa",
+        "title": "Yaliyobadilika",
+        "totalChange": "Jumla imebadilika kwa {{amount}}",
+        "was": "Ilikuwa {{amount}}"
+      },
+      "increase": "kuongezeka",
+      "superseded": "Imebadilishwa",
+      "version": "Toleo {{version}}",
+      "notif": {
+        "accepted": {
+          "body": "Mnunuzi amekubali nukuu ya usafirishaji. Awamu sasa zinaweza kukusanywa.",
+          "title": "Mnunuzi amekubali nukuu ya usafirishaji"
+        },
+        "published": {
+          "body": "Toleo jipya la nukuu yako ya usafirishaji liko tayari. Kagua na ukubali kabla ya kulipa.",
+          "title": "Nukuu mpya inasubiri kukubaliwa"
+        }
+      }
+    },
+    "refunds": {
+      "title": "Marejesho ya vifaa",
+      "subtitle": "Mapitio ya wasimamizi wawili: msimamizi mmoja anapendekeza, mwingine anaidhinisha kwa uthibitisho mpya, kisha rejesho linatekelezwa.",
+      "proposeButton": "Pendekeza rejesho",
+      "filterStatus": "Chuja kwa hali",
+      "allStatuses": "Hali zote",
+      "thReference": "Rejea",
+      "thAmount": "Kiasi",
+      "thMethod": "Njia",
+      "thReason": "Sababu",
+      "thProposer": "Aliyependekeza",
+      "thStatus": "Hali",
+      "thCreated": "Iliundwa",
+      "review": "Pitia",
+      "empty": "Hakuna kesi ya rejesho inayolingana na kichujio hiki.",
+      "loading": "Inapakia kesi za rejesho...",
+      "cancel": "Ghairi",
+      "submit": "Tuma pendekezo",
+      "verify": "Thibitisha",
+      "system": "mfumo",
+      "status": {
+        "proposed": "Imependekezwa",
+        "approved": "Imekubaliwa",
+        "executing": "Inatekelezwa",
+        "processed": "Imechakatwa",
+        "failed": "Imeshindwa",
+        "rejected": "Imekataliwa",
+        "expired": "Imeisha muda",
+        "pending": "Inasubiri",
+        "reviewing": "Inapitiwa"
+      },
+      "method": {
+        "stripe": "Stripe",
+        "credit": "OxSteed Credit"
+      },
+      "dAmount": "Kiasi",
+      "dMethod": "Njia",
+      "dPaymentAttempt": "Jaribio la malipo",
+      "dReason": "Sababu",
+      "dProposer": "Aliyependekeza",
+      "dApprover": "Aliyeidhinisha",
+      "dFreshAuthAt": "Uthibitisho mpya wa msimamizi",
+      "dProcessorRef": "Rejea ya mchakataji",
+      "dRejectionReason": "Sababu ya kukataliwa",
+      "dStatus": "Hali",
+      "dDecisions": "Historia ya maamuzi",
+      "selfApprovalBlocked": "Ulipendekeza rejesho hili. Msimamizi mwingine lazima alidhinishe. Kujidhinisha hairuhusiwi.",
+      "approveButtonStepup": "Thibitisha utambulisho na uidhinishe",
+      "approveButton": "Idhinisha rejesho",
+      "rejectButton": "Kataa",
+      "executeButton": "Tekeleza rejesho",
+      "executingNote": "Utekelezaji unaendelea. Kesi itasasishwa mchakataji akithibitisha.",
+      "executeConfirmBody": "Kutekeleza rejesho hili lililoidhinishwa sasa? Fedha zitarudi kwenye chanzo cha awali cha malipo.",
+      "toastProposed": "Rejesho limependekezwa. Msimamizi mwingine lazima alidhinishe.",
+      "toastApproved": "Rejesho limekubaliwa.",
+      "toastRejected": "Rejesho limekataliwa.",
+      "toastExecuted": "Rejesho limetekelezwa na kuchakatwa.",
+      "toastExecuteFailed": "Utekelezaji umeshindwa. Kesi imewekwa kwenye foleni ya upatanisho.",
+      "toastExecuteReplayed": "Rejesho lilikuwa limechakatwa tayari.",
+      "toastStepupOk": "Utambulisho umethibitishwa. Sasa unaweza kuidhinisha.",
+      "toastStepupFailed": "Uthibitishaji umeshindwa. Angalia msimbo na ujaribu tena.",
+      "proposeTitle": "Pendekeza rejesho",
+      "fPaymentAttemptId": "Kitambulisho cha jaribio la malipo",
+      "fPaymentAttemptHelp": "Jaribio la awali la malipo ya vifaa linalorejeshwa. Kiasi kimepunguzwa na salio linalobaki la kurejesha.",
+      "fAmountUsd": "Kiasi (USD)",
+      "fMethod": "Njia ya rejesho",
+      "fReason": "Sababu",
+      "proposeInvalid": "Weka jaribio la malipo, kiasi halali, na sababu.",
+      "stepupTitle": "Thibitisha utambulisho wako",
+      "stepupBody": "Kuidhinisha rejesho kunahitaji uthibitisho mpya. Weka msimbo wa tarakimu 6 kutoka kwenye programu yako ya uthibitishaji.",
+      "fCode": "Msimbo wa uthibitishaji",
+      "rejectTitle": "Kataa pendekezo la rejesho",
+      "fRejectReason": "Sababu ya kukataliwa",
+      "rejectReasonRequired": "Sababu ya kukataliwa inahitajika.",
+      "rejectConfirm": "Kataa pendekezo",
+      "movedNotice": "Mapitio ya marejesho yamehamishiwa kwenye ukurasa wa marejesho wa wasimamizi wawili. Kuhariri hali moja kwa moja hakupatikani tena.",
+      "openReviewPage": "Fungua mapitio ya marejesho"
+    },
+    "refund_pending": {
+      "body": "Marejesho yako ya usafirishaji yanakuja. Mtoa huduma wako wa malipo bado anaichakata; tutathibitisha itakapofika njia yako asili ya malipo.",
+      "title": "Marejesho yanasubiri"
+    },
+    "blockers": {
+      "allocation_not_found": "Ugavi wa hesabu haukupatikana.",
+      "campaign_not_found": "Kampeni haikupatikana.",
+      "deposit_deadline_missing": "Weka tarehe ya mwisho ya amana wazi kabla ya kufungua dirisha la amana.",
+      "deposit_funding_shortfall": "Kiasi kilichofadhiliwa na amana kiko chini ya kiwango cha chini cha kampeni. Oda ya msambazaji haiwezi kuwekwa.",
+      "final_balance_not_collected": "Salio la mwisho la mnunuzi halijakusanywa bado. Bidhaa haziwezi kutolewa.",
+      "guard_check_failed": "Imeshindikana kuthibitisha mahitaji ya kitendo hiki.",
+      "min_demand_not_met": "Mahitaji ya chini bado hayajafikiwa. Dirisha la amana haliwezi kufunguliwa.",
+      "no_approved_quote": "Nukuu ya msambazaji iliyoidhinishwa (kukubaliwa) inahitajika kabla ya kufungua dirisha la amana.",
+      "no_payment_subject_linked": "Ugavi huu haujaunganishwa na oda au ushiriki unaolipika, kwa hivyo malipo hayawezi kuthibitishwa.",
+      "placement_approval_missing": "Kuweka oda kwa msambazaji kunahitaji idhini ya kuweka iliyorekodiwa na Uendeshaji."
+    },
+    "review_exceptions": {
+      "funding_shortfall": "Upungufu wa fedha tarehe ya mwisho ya amana",
+      "min_demand_unmet": "Mahitaji ya chini hayakufikiwa kufungwa kwa ahadi",
+      "raised_note": "Tarehe ya mwisho ya ufadhili imepitwa; imepelekwa kwa wafanyakazi kwa utatuzi. Kampeni haikuendelezwa."
+    },
+    "staff": {
+      "title": "Shughuli za usafirishaji",
+      "quoteEditor": "Andaa bei kwa mnunuzi",
+      "subject": "Agizo au ushiriki",
+      "order": "Agizo la ununuzi",
+      "participant": "Ushiriki wa kampeni",
+      "id": "Kitambulisho cha rekodi",
+      "description": "Maelezo",
+      "amount": "Kiasi (USD)",
+      "depositPercent": "Amana (%)",
+      "deadline": "Mwisho wa amana",
+      "finalDeadline": "Mwisho wa salio",
+      "save": "Hifadhi rasimu",
+      "publish": "Chapisha bei",
+      "campaign": "Kitambulisho cha kampeni",
+      "placement": "Idhinisha agizo la msambazaji",
+      "openDeposit": "Fungua kipindi cha amana",
+      "queues": "Foleni ya ukaguzi",
+      "notes": "Maelezo ya ukaguzi",
+      "resolve": "Tatua",
+      "refresh": "Onyesha upya",
+      "cancelPayment": "Ghairi malipo yasiyothibitishwa",
+      "resume": "Endelea kulipa",
+      "reconciled": "Malipo yaliyorudiwa yanahitaji ukaguzi",
+      "empty": "Hakuna vipengee wazi",
+      "reviewHint": "Kurekodi ukaguzi hakuhamishi fedha wala kuachilia bidhaa."
     }
   },
   "investorLogin": {

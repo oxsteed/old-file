@@ -334,4 +334,8 @@ router.post('/finance/quotes/:id/publish',            requireAuth, requireLogist
 router.post('/finance/quotes/:id/accept',             requireAuth, requireLogisticsPayments, paymentsCtrl.acceptQuote);
 router.get('/finance/payment-history',               requireAuth, requireLogisticsPayments, paymentsCtrl.getPaymentHistory);
 
+router.get('/checkout/exceptions',requireAuth,requireLogisticsPayments,paymentsCtrl.listExceptions);
+router.post('/checkout/exceptions/:id/resolve',requireAuth,requireLogisticsPayments,paymentsCtrl.resolveException);
+router.get('/finance/quotes',requireAuth,requireLogisticsPayments,paymentsCtrl.listStaffQuotes);
+router.post('/checkout/attempt/:id/cancel',requireAuth,requireLogisticsPayments,paymentsCtrl.cancelAttempt);
 module.exports = router;

@@ -1,3 +1,4 @@
+import UnsavedChangesGuard from './UnsavedChangesGuard';
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -102,12 +103,6 @@ export default function CampaignDraftForm({
     ? Object.values(form).some((v) => String(v).trim() !== '' && v !== '0.30')
     : Object.keys(form).some((k) => String(form[k] ?? '') !== String(baseline[k] ?? ''));
 
-  const confirmLeave = () => {
-    if (!dirty) return true;
-    return window.confirm(tx('logistics.campaigns.new.unsavedConfirm',
-      'You have unsaved changes. Leave without saving the draft?'));
-  };
-
   const selectedLane = lanes.find((l) => String(l.id) === String(form.lane_id));
 
   const validate = () => {
@@ -159,16 +154,17 @@ export default function CampaignDraftForm({
   };
 
   const err = (key) => fieldErrors[key] && (
-    <div role="alert" style={{ color: '#b91c1c', fontSize: '.8rem', marginTop: '.25rem', fontWeight: 600 }}>
+    <div role="alert" style={{ color: 'var(--color-error)', fontSize: '.8rem', marginTop: '.25rem', fontWeight: 600 }}>
       {fieldErrors[key]}
     </div>
   );
 
   return (
     <div className="lx-page" style={{ maxWidth: 720 }}>
+      <UnsavedChangesGuard when={dirty && !saving} />
       <div style={{ marginBottom: '1rem' }}>
         <Link to={backTo} className="lx-link"
-          onClick={(e) => { if (!confirmLeave()) e.preventDefault(); }}>
+          >
           ← {backLabel}
         </Link>
       </div>
@@ -205,20 +201,20 @@ export default function CampaignDraftForm({
               </option>
             ))}
           </select>
-          {lanesError && <div role="alert" style={{ color: '#b91c1c', fontSize: '.8rem', marginTop: '.25rem', fontWeight: 600 }}>{tx('logistics.campaigns.new.lanesFailed', 'Could not load trade lanes.')}</div>}
+          {lanesError && <div role="alert" style={{ color: 'var(--color-error)', fontSize: '.8rem', marginTop: '.25rem', fontWeight: 600 }}>{tx('logistics.campaigns.new.lanesFailed', 'Could not load trade lanes.')}</div>}
           {err('lane_id')}
         </div>
 
         {selectedLane && (
-          <div className="lx-lane-notes" style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '.75rem', padding: '1rem', marginBottom: '1rem', fontSize: '.85rem', lineHeight: 1.7 }}>
+          <div className="lx-lane-notes" style={{ background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', borderRadius: '.75rem', padding: '1rem', marginBottom: '1rem', fontSize: '.85rem', lineHeight: 1.7 }}>
             <strong>{tx('logistics.campaigns.new.laneChecks', 'Lane checks')}</strong>
             <div>{tx('logistics.campaigns.new.riskTier', 'Risk tier')}: <strong>{selectedLane.risk_tier || '—'}</strong></div>
             {selectedLane.requires_business_verification && (
-              <div style={{ color: '#c2410c' }}>{tx('logistics.campaigns.new.laneNeedsBusiness',
+              <div style={{ color: 'var(--color-primary)' }}>{tx('logistics.campaigns.new.laneNeedsBusiness',
                 'Business verification is required to run a campaign on this lane.')}</div>
             )}
             {selectedLane.requires_manual_approval && (
-              <div style={{ color: '#b91c1c' }}>{tx('logistics.campaigns.new.laneNeedsManual',
+              <div style={{ color: 'var(--color-error)' }}>{tx('logistics.campaigns.new.laneNeedsManual',
                 'Manual compliance approval is required before this campaign can be published.')}</div>
             )}
           </div>
@@ -264,7 +260,7 @@ export default function CampaignDraftForm({
         <h2 style={{ fontWeight: 700, margin: '1.25rem 0 .75rem', fontSize: '1rem' }}>
           {tx('logistics.campaigns.new.pricingHeading', 'Pricing sketch')}
         </h2>
-        <p style={{ color: '#64748b', fontSize: '.85rem', marginBottom: '1rem' }}>
+        <p style={{ color: 'var(--color-text-muted)', fontSize: '.85rem', marginBottom: '1rem' }}>
           {tx('logistics.campaigns.new.pricingHint',
             'A rough sketch is enough for the draft. OxSteed computes the landed cost; Operations confirms pricing at review.')}
         </p>
@@ -299,7 +295,7 @@ export default function CampaignDraftForm({
               : submitLabel}
           </button>
           <Link to={backTo} className="lx-btn-secondary"
-            onClick={(e) => { if (!confirmLeave()) e.preventDefault(); }}>
+            >
             {tx('common.cancel', 'Cancel')}
           </Link>
         </div>

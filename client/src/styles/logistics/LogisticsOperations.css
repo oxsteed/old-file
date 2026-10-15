@@ -1,0 +1,7 @@
+.lx-ops{display:grid;gap:var(--space-6,1.5rem)}
+.lx-ops-form{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,15rem),1fr));gap:var(--space-4,1rem)}
+.lx-ops label,.lx-ops-review label{display:flex;flex-direction:column;gap:.5rem;min-inline-size:0}
+.lx-ops input,.lx-ops select,.lx-ops textarea{min-block-size:44px;inline-size:100%;background:var(--color-surface);color:var(--color-text);border:1px solid var(--color-border);border-radius:.5rem;padding:.65rem;box-sizing:border-box}
+.lx-ops-wide{grid-column:1/-1}.lx-ops-row{display:flex;flex-wrap:wrap;gap:1rem;align-items:center;justify-content:space-between;padding-block:1rem;overflow-wrap:anywhere}
+.lx-ops-review{margin-block:1rem;padding-block:1rem;border-block-start:1px solid var(--color-border)}
+.lx-ops button,.lx-ops a{min-block-size:44px}.lx-ops:focus-visible{outline:3px solid var(--color-primary);outline-offset:3px}

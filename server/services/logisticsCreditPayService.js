@@ -220,6 +220,10 @@ async function loadAcceptedQuote(client, { subjectType, subjectId, quoteId }) {
   if (!quote || quote.status !== 'accepted') {
     failClosed('No accepted quote for this installment', 409, 'logistics_quote_not_accepted');
   }
+  const {rows:latest}=await client.query(`SELECT id FROM logistics_buyer_quotes
+    WHERE subject_type=$1 AND ${subjectColumn}=$2 AND status IN ('active','accepted') ORDER BY version DESC LIMIT 1`,[subjectType,subjectId]);
+  if(!latest[0] || String(latest[0].id)!==String(quote.id) || (quote.valid_until && new Date(quote.valid_until)<new Date()))
+    failClosed('Accept the current quote before paying',409,'logistics_quote_not_accepted');
   if (quote.currency !== LOGISTICS_CURRENCY) {
     failClosed('Quote currency is not supported for Credit payment', 409, 'logistics_quote_currency_unsupported');
   }
@@ -235,13 +239,13 @@ function expectedInstallmentCents(quote, installment) {
   return n;
 }
 
-async function assertInstallmentUnpaid(client, { subjectType, subjectId, installment }) {
+async function assertInstallmentUnpaid(client, { subjectType, subjectId, installment, quoteId }) {
   const subjectColumn = subjectType === 'purchase_order' ? 'purchase_order_id' : 'participant_id';
   const { rows } = await client.query(
     `SELECT id, method, status FROM logistics_payment_attempts
       WHERE subject_type = $1 AND ${subjectColumn} = $2 AND installment = $3
-        AND status = 'succeeded' LIMIT 1`,
-    [subjectType, subjectId, installment]
+        AND status = 'succeeded' AND (quote_id=$4 OR method<>'credit') LIMIT 1`,
+    [subjectType, subjectId, installment, quoteId]
   );
   if (rows[0]) {
     failClosed(
@@ -350,8 +354,22 @@ async function payLogisticsInstallmentInTransaction(client, args) {
     subjectId,
     quoteId: quoteId === null || quoteId === undefined ? null : quoteId,
   });
-  const expectedCents = expectedInstallmentCents(quote, installment);
-  if (amountCents !== expectedCents) {
+  const prior=await findAttemptByKeyForUpdate(client,key);
+  if(prior?.status==='succeeded') {
+    assertAttemptMatchesRequest(prior,{buyerUserId:buyerId,subjectType,subjectId,installment,amountCents,idempotencyKey:key});
+    return formatAttemptResult(prior,{replayed:true,creditTransactionId:await lookupCreditPurchaseId(client,prior)});
+  }
+  const {rows: inflight}=await client.query(`SELECT id FROM logistics_payment_attempts
+    WHERE subject_type=$1 AND COALESCE(purchase_order_id,participant_id)=$2 AND installment=$3
+    AND status IN ('pending','processing') AND idempotency_key<>$4 LIMIT 1`,[subjectType,subjectId,installment,key]);
+  if(inflight.length)failClosed('Resume the existing payment',409,'payment_in_progress');
+  const subject = {subjectType,purchaseOrderId:subjectType==='purchase_order'?subjectId:null,
+    participantId:subjectType==='pooled_participant'?subjectId:null};
+  const refunds=await require('./logisticsPaymentBalance').refundedCents(client,subject,installment);
+  const paid=Math.max(0,Number(subjectRow[installment==='deposit'?'deposit_paid_cents':'final_paid_cents']||0)-refunds);
+  const expectedCents = expectedInstallmentCents(quote, installment)-paid;
+  if(expectedCents<=0)failClosed('This installment is already paid',409,'logistics_installment_already_paid');
+  if (amountCents !== expectedCents && !attemptId) {
     failClosed(
       `Installment amount must be ${expectedCents} cents per the accepted quote`,
       409,
@@ -397,7 +415,7 @@ async function payLogisticsInstallmentInTransaction(client, args) {
     failClosed('Payment attempt could not be established', 500, 'logistics_attempt_unavailable');
   }
   assertAttemptMatchesRequest(attempt, {
-    buyerUserId: buyerId, subjectType, subjectId, installment, amountCents: expectedCents, idempotencyKey: key,
+    buyerUserId: buyerId, subjectType, subjectId, installment, amountCents, idempotencyKey: key,
   });
 
   if (attempt.status === 'succeeded') {
@@ -418,11 +436,13 @@ async function payLogisticsInstallmentInTransaction(client, args) {
     );
   }
 
+  if (amountCents!==expectedCents || expectedCents<=0)
+    failClosed('Installment amount no longer matches the accepted outstanding balance',409,'logistics_credit_amount_mismatch');
   // 6. One installment, one payment, one method. A succeeded attempt of any
   //    method blocks a second payment (no mixed funding, no double pay).
   //    The current attempt is still pending/processing, so it never trips
   //    its own gate.
-  await assertInstallmentUnpaid(client, { subjectType, subjectId, installment });
+  await assertInstallmentUnpaid(client, { subjectType, subjectId, installment, quoteId:quote.id });
 
   // Mark processing before the debit so a concurrent duplicate with the
   // same key converges instead of double-debiting.

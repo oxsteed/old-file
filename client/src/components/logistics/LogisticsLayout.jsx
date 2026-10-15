@@ -1,5 +1,6 @@
 import { useAuth } from '../../context/AuthContext';
 import LogisticsNav from './LogisticsNav';
+import '../../styles/logistics/LogisticsHomePage.css';
 import './LogisticsLayout.css';
 
 /**

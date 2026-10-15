@@ -155,7 +155,7 @@ export default function DistributionPage() {
         </div>
       </LogisticsLayout>
       <AllocationPreview
-        id={previewId}
+        key={previewId} id={previewId}
         open={previewId !== null}
         onClose={() => setPreviewId(null)}
       />

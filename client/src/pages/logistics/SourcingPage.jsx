@@ -200,7 +200,7 @@ export default function SourcingPage() {
         </div>
       </LogisticsLayout>
       <RequestPreview
-        id={previewId}
+        key={previewId} id={previewId}
         open={previewId !== null}
         onClose={() => setPreviewId(null)}
       />

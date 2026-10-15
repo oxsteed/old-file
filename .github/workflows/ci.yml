@@ -31,6 +31,20 @@ jobs:
           --health-timeout 5s
           --health-retries 20
 
+      logistics-postgres:
+        image: ghcr.io/cloudnative-pg/postgis:16-3.4
+        env:
+          POSTGRES_USER: oxsteed
+          POSTGRES_PASSWORD: synthetic-logistics-test-password
+          POSTGRES_DB: credit_statement_test
+        ports:
+          - 5434:5432
+        options: >-
+          --health-cmd "pg_isready -U oxsteed -d credit_statement_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v7
@@ -99,6 +113,17 @@ jobs:
           DATABASE_URL: postgresql://oxsteed:statement-test-password@127.0.0.1:5432/credit_statement_test?sslmode=disable
           NODE_ENV: test
         run: npm run migrate
+
+      - name: Logistics isolated database integration
+        working-directory: server
+        env:
+          NODE_ENV: test
+          DATABASE_URL: postgresql://oxsteed:synthetic-logistics-test-password@127.0.0.1:5434/credit_statement_test?sslmode=disable
+          LOGISTICS_CREDIT_PAY_TEST_DATABASE_URL: postgresql://oxsteed:synthetic-logistics-test-password@127.0.0.1:5434/credit_statement_test?sslmode=disable
+        run: |
+          npm run migrate
+          npx jest __tests__/logisticsCreditPay.db.test.js __tests__/logisticsCreditCheckoutFixes.db.test.js --runInBand --json --outputFile=logistics-db-results.json
+          node ../scripts/assert-logistics-db-tests.cjs logistics-db-results.json
 
       - name: Server entry module smoke
         working-directory: server

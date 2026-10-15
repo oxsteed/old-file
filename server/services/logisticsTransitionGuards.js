@@ -117,9 +117,11 @@ async function guardDepositPhase(client, { id }) {
 // ─── Gate 3: locked → placed ──────────────────────────────────────
 
 async function guardSupplierPlacement(client, { id }) {
+ const {rows:participants}=await client.query('SELECT id FROM pooled_order_participants WHERE pooled_order_id=$1 ORDER BY id FOR UPDATE',[id]);
+ for(const p of participants)await lockFunding(client,'pooled_participant',p.id);
   const { rows } = await client.query(
     `SELECT po.target_moq,
-            COALESCE(SUM(CASE WHEN p.deposit_paid_cents > 0 THEN p.committed_qty ELSE 0 END), 0)
+            COALESCE(SUM(CASE WHEN bq.status='accepted' AND COALESCE(vf.net_paid_cents,0)>=bq.deposit_cents THEN p.committed_qty ELSE 0 END), 0)
               AS funded_qty,
             EXISTS (
               SELECT 1 FROM logistics_campaign_approval_decisions d
@@ -130,6 +132,10 @@ async function guardSupplierPlacement(client, { id }) {
        LEFT JOIN pooled_order_participants p
          ON p.pooled_order_id = po.id
         AND p.status NOT IN ('refunded', 'disputed')
+       LEFT JOIN LATERAL (SELECT * FROM logistics_buyer_quotes q
+         WHERE q.participant_id=p.id AND q.status IN ('active','accepted') ORDER BY q.version DESC LIMIT 1) bq ON TRUE
+       LEFT JOIN logistics_verified_funding vf ON vf.subject_type='pooled_participant'
+         AND vf.subject_id=p.id AND vf.installment='deposit'
       WHERE po.id = $1
       GROUP BY po.id, po.target_moq`,
     [id]
@@ -170,31 +176,42 @@ async function recordPlacementApproval(db, pooledOrderId, decidedByUserId, reaso
 
 // ─── Gate 1: inventory_allocation → released ──────────────────────
 
+async function lockFunding(client,subjectType,subjectId){
+ const table=subjectType==='purchase_order'?'purchase_orders':'pooled_order_participants';
+ await client.query(`SELECT id FROM ${table} WHERE id=$1 FOR UPDATE`,[subjectId]);
+ await client.query(`SELECT id FROM logistics_payment_attempts WHERE subject_type=$1
+  AND COALESCE(purchase_order_id,participant_id)=$2 ORDER BY id FOR SHARE`,[subjectType,subjectId]);
+}
+async function subjectFullyFunded(client, subjectType, subjectId, installment) {
+  await lockFunding(client,subjectType,subjectId);
+  const {rows}=await client.query(`SELECT q.status,q.deposit_cents,q.final_cents,
+    COALESCE(d.net_paid_cents,0) AS deposit_net_cents,COALESCE(f.net_paid_cents,0) AS final_net_cents
+    FROM logistics_buyer_quotes q
+    LEFT JOIN logistics_verified_funding d ON d.subject_type=q.subject_type
+      AND d.subject_id=COALESCE(q.purchase_order_id,q.participant_id) AND d.installment='deposit'
+    LEFT JOIN logistics_verified_funding f ON f.subject_type=q.subject_type
+      AND f.subject_id=COALESCE(q.purchase_order_id,q.participant_id) AND f.installment='final'
+    WHERE q.subject_type=$1 AND COALESCE(q.purchase_order_id,q.participant_id)=$2
+      AND q.status IN ('active','accepted') ORDER BY q.version DESC LIMIT 1`,[subjectType,subjectId]);
+  const q=rows[0];
+  return !!q && q.status==='accepted' && Number(q.deposit_net_cents)>=Number(q.deposit_cents)
+    && (installment==='deposit'||Number(q.final_net_cents)>=Number(q.final_cents));
+}
+async function guardPurchasePlacement(client,{id}) {
+  return await subjectFullyFunded(client,'purchase_order',id,'deposit')?null:
+    BLOCKERS.final_balance_not_collected({purchaseOrderId:id});
+}
 async function guardReleaseAllocation(client, { id }) {
-  const { rows } = await client.query(
-    `SELECT participant_id, pooled_order_id, buyer_user_id
-       FROM inventory_allocations
-      WHERE id = $1`,
-    [id]
-  );
-  const alloc = rows[0];
-  if (!alloc) return BLOCKERS.allocation_not_found({ allocationId: id });
-  if (!alloc.participant_id) {
-    return BLOCKERS.no_payment_subject_linked();
-  }
-  const paid = await client.query(
-    `SELECT 1
-       FROM logistics_payment_attempts
-      WHERE participant_id = $1
-        AND installment = 'final'
-        AND status = 'succeeded'
-      LIMIT 1`,
-    [alloc.participant_id]
-  );
-  if (paid.rows.length === 0) {
-    return BLOCKERS.final_balance_not_collected({ participantId: alloc.participant_id });
-  }
-  return null;
+  const {rows}=await client.query(`SELECT ia.participant_id,ia.buyer_user_id,
+    ir.purchase_order_id FROM inventory_allocations ia
+    JOIN inventory_receipts ir ON ir.id=ia.inventory_receipt_id WHERE ia.id=$1`,[id]);
+  const alloc=rows[0];
+  if(!alloc) return BLOCKERS.allocation_not_found({allocationId:id});
+  const type=alloc.participant_id?'pooled_participant':'purchase_order';
+  const subjectId=alloc.participant_id||alloc.purchase_order_id;
+  if(!subjectId) return BLOCKERS.no_payment_subject_linked();
+  return await subjectFullyFunded(client,type,subjectId,'final')?null:
+    BLOCKERS.final_balance_not_collected({participantId:alloc.participant_id,purchaseOrderId:alloc.purchase_order_id});
 }
 
 // ─── Missed-funding review exceptions ─────────────────────────────
@@ -250,17 +267,21 @@ async function sweepFundingDeadlines(db, { limit = 200 } = {}) {
             po.reference,
             po.target_moq,
             po.deposit_deadline,
-            COALESCE(SUM(CASE WHEN p.deposit_paid_cents > 0 THEN p.committed_qty ELSE 0 END), 0)
+            COALESCE(SUM(CASE WHEN bq.status='accepted' AND COALESCE(vf.net_paid_cents,0)>=bq.deposit_cents THEN p.committed_qty ELSE 0 END), 0)
               AS funded_qty
        FROM pooled_orders po
        LEFT JOIN pooled_order_participants p
          ON p.pooled_order_id = po.id
         AND p.status NOT IN ('refunded', 'disputed')
+       LEFT JOIN LATERAL (SELECT * FROM logistics_buyer_quotes q
+         WHERE q.participant_id=p.id AND q.status IN ('active','accepted') ORDER BY q.version DESC LIMIT 1) bq ON TRUE
+       LEFT JOIN logistics_verified_funding vf ON vf.subject_type='pooled_participant'
+         AND vf.subject_id=p.id AND vf.installment='deposit'
       WHERE po.status = 'deposit_phase'
         AND po.deposit_deadline IS NOT NULL
         AND po.deposit_deadline < NOW()
       GROUP BY po.id, po.reference, po.target_moq, po.deposit_deadline
-     HAVING COALESCE(SUM(CASE WHEN p.deposit_paid_cents > 0 THEN p.committed_qty ELSE 0 END), 0)
+     HAVING COALESCE(SUM(CASE WHEN bq.status='accepted' AND COALESCE(vf.net_paid_cents,0)>=bq.deposit_cents THEN p.committed_qty ELSE 0 END), 0)
               < po.target_moq
       LIMIT $1`,
     [limit]
@@ -317,6 +338,7 @@ function registerLogisticsGuards() {
   registerTransitionGuard('pooled_order', 'deposit_phase', guardDepositPhase);
   registerTransitionGuard('pooled_order', 'placed', guardSupplierPlacement);
   registerTransitionGuard('inventory_allocation', 'released', guardReleaseAllocation);
+  registerTransitionGuard('purchase_order','placed_with_supplier',guardPurchasePlacement);
   registered = true;
 }
 
@@ -326,6 +348,8 @@ module.exports = {
   guardDepositPhase,
   guardSupplierPlacement,
   guardReleaseAllocation,
+  guardPurchasePlacement,
+  subjectFullyFunded,
   recordPlacementApproval,
   raiseReviewException,
   sweepFundingDeadlines,

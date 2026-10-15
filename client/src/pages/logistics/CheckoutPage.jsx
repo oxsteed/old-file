@@ -8,7 +8,7 @@ import LogisticsLayout from '../../components/logistics/LogisticsLayout';
 import LogisticsStatusPill from '../../components/logistics/LogisticsStatusPill';
 import QuoteAcceptanceGate from '../../components/logistics/QuoteAcceptanceGate';
 import PaymentStatusPanel from '../../components/logistics/PaymentStatusPanel';
-import { createPaymentAttempt, getCheckoutContext } from '../../api/logistics';
+import { createPaymentAttempt, getCheckoutContext, cancelLogisticsPayment } from '../../api/logistics';
 import { formatCreditMinorUnits } from '../../lib/creditCurrency';
 import '../../styles/logistics/LogisticsHomePage.css';
 import '../../styles/logistics/LogisticsWorkspaces.css';
@@ -34,8 +34,7 @@ import '../../styles/logistics/LogisticsCheckout.css';
  *      per-session idempotency UUID in the body. The server resolves the
  *      accepted quote itself and verifies amount_cents (never trusts ours).
  *      Stripe: confirmCardPayment with the server-issued client_secret.
- *      Credit: attempt recorded as pending_execution; the Credit workstream
- *      settles it. 503 + code 'logistics_payments_disabled' while the
+ *      Credit: the server debits and settles atomically in the same transaction. 503 + code 'logistics_payments_disabled' while the
  *      LOGISTICS_PAYMENTS_ENABLED gate is off.
  *   6. PaymentStatusPanel distinguishes "confirmation received" from
  *      "funds settled" — settled shows only for status 'succeeded', which
@@ -100,16 +99,17 @@ function CheckoutFlow({ context, returnPath, returnLabel, onQuoteAccepted }) {
     const valid = ['deposit', 'final'];
     if (valid.includes(requestedInstallment)) {
       const row = schedule.find((s) => s.installment === requestedInstallment);
-      if (row && row.status === 'unpaid') return requestedInstallment;
+      if (row && row.status !== 'settled') return requestedInstallment;
     }
-    const firstUnpaid = schedule.find((s) => s.status === 'unpaid');
+    const firstUnpaid = schedule.find((s) => s.status !== 'settled');
     return firstUnpaid ? firstUnpaid.installment : 'deposit';
   }, [requestedInstallment, schedule]);
   const [installment, setInstallment] = useState(initialInstallment);
   const activeRow = schedule.find((s) => s.installment === installment) || schedule[0] || {};
-  const amountCents = Number(activeRow.amount_cents || 0);
+  const activeAttempt=context.active_attempts?.find(a=>a.installment===installment);
+  const amountCents = Number(activeAttempt?.amount_cents ?? activeRow.outstanding_cents ?? activeRow.amount_cents ?? 0);
 
-  const [method, setMethod] = useState(null); // 'stripe' | 'credit'
+  const [method, setMethod] = useState(activeAttempt?.method || null); // 'stripe' | 'credit'
   const [step, setStep] = useState('method'); // method | confirm | status
   const [confirmed, setConfirmed] = useState(false);
   const [mustCheckError, setMustCheckError] = useState(false);
@@ -120,9 +120,9 @@ function CheckoutFlow({ context, returnPath, returnLabel, onQuoteAccepted }) {
   const stripe = useStripe();
   const elements = useElements();
 
-  // One idempotency key per checkout session; a NEW key is minted for every
-  // retry so a retry can never double-charge the same confirmation.
-  const idempotencyKeyRef = useRef(newIdempotencyKey());
+  // Resume a durable attempt with its original key. A terminal failure can
+  // start a new attempt; the server still reserves the installment.
+  const idempotencyKeyRef = useRef(activeAttempt?.idempotency_key || newIdempotencyKey());
 
   const creditRailOn = credit?.rail_enabled === true;
   const creditEligible = credit?.eligible !== false;
@@ -135,6 +135,10 @@ function CheckoutFlow({ context, returnPath, returnLabel, onQuoteAccepted }) {
   const creditBlocked = !creditRailOn || !creditEligible;
   const shortfallCents = balanceKnown ? Math.max(0, amountCents - balanceCents) : 0; // integer math only
 
+  useEffect(()=>{
+    idempotencyKeyRef.current=activeAttempt?.idempotency_key||newIdempotencyKey();
+    setMethod(activeAttempt?.method||null);setStep('method');setConfirmed(false);setAttempt(null);
+  },[installment,activeAttempt?.id]);
   const stripeKeyConfigured = Boolean(import.meta.env?.VITE_STRIPE_PUBLISHABLE_KEY);
 
   const installmentLabel = (name) => (name === 'final'
@@ -145,7 +149,7 @@ function CheckoutFlow({ context, returnPath, returnLabel, onQuoteAccepted }) {
     : tx('logistics.checkout.method.stripe', 'Card via Stripe'));
 
   const startConfirm = () => {
-    if (!method) return;
+    if (!method || amountCents<=0 || (activeAttempt && activeAttempt.method!==method)) return;
     setMustCheckError(false);
     setConfirmed(false);
     setStep('confirm');
@@ -282,6 +286,8 @@ function CheckoutFlow({ context, returnPath, returnLabel, onQuoteAccepted }) {
           ))}
         </div>
 
+        {activeAttempt && <div className="lx-card" role="status"><p>{tx('logistics.staff.resume','Resume payment')}</p>
+          <button className="lx-btn-secondary" type="button" disabled={submitting} onClick={async()=>{setSubmitting(true);try{await cancelLogisticsPayment(activeAttempt.id);onQuoteAccepted(null,true);}catch(e){setSubmitError(tx('logistics.checkout.errors.generic','Please try again'));}finally{setSubmitting(false);}}}>{tx('logistics.staff.cancelPayment','Cancel unconfirmed payment')}</button></div>}
         {step === 'method' && (
           <section className="lx-card" aria-labelledby="lx-method-title">
             <h2 id="lx-method-title" className="lx-card-title lx-mb-4">
@@ -307,9 +313,9 @@ function CheckoutFlow({ context, returnPath, returnLabel, onQuoteAccepted }) {
                   onChange={(e) => { setInstallment(e.target.value); setMethod(null); }}
                 >
                   {schedule.map((row) => (
-                    <option key={row.installment} value={row.installment} disabled={row.status !== 'unpaid'}>
+                    <option key={row.installment} value={row.installment} disabled={row.status === 'settled'}>
                       {installmentLabel(row.installment)} — {money(row.amount_cents)}
-                      {row.status !== 'unpaid' ? ` (${tx('logistics.checkout.schedule.settled', 'Settled')})` : ''}
+                      {row.status === 'settled' ? ` (${tx('logistics.checkout.schedule.settled', 'Settled')})` : ''}
                     </option>
                   ))}
                 </select>
@@ -324,7 +330,7 @@ function CheckoutFlow({ context, returnPath, returnLabel, onQuoteAccepted }) {
                   name="lx-checkout-method"
                   value="stripe"
                   checked={method === 'stripe'}
-                  onChange={() => setMethod('stripe')}
+                  disabled={Boolean(activeAttempt && activeAttempt.method!=='stripe')} onChange={() => setMethod('stripe')}
                 />
                 <span className="lx-method-body">
                   <span className="lx-method-title">{tx('logistics.checkout.method.stripe', 'Card via Stripe')}</span>
@@ -344,7 +350,7 @@ function CheckoutFlow({ context, returnPath, returnLabel, onQuoteAccepted }) {
                   name="lx-checkout-method"
                   value="credit"
                   checked={method === 'credit'}
-                  disabled={creditBlocked}
+                  disabled={creditBlocked || (activeAttempt && activeAttempt.method!=='credit')}
                   onChange={() => setMethod('credit')}
                   aria-describedby="lx-credit-method-note"
                 />
@@ -650,7 +656,7 @@ function CheckoutPageInner() {
   const [error, setError] = useState(null);
   const [quoteRefreshKey, setQuoteRefreshKey] = useState(0);
 
-  const poId = searchParams.get('po_id');
+  const poId = searchParams.get('purchase_order_id') || searchParams.get('po_id') || searchParams.get('orderId');
   const participantId = searchParams.get('participant_id');
   const returnPath = sanitizeReturnPath(searchParams.get('return'));
 
@@ -742,6 +748,8 @@ function CheckoutPageInner() {
         </div>
       );
     }
+    if(quote.status==='accepted' && quote.schedule?.length && quote.schedule.every(row=>row.status==='settled'))
+      return <section className="lx-card" role="status"><h2>{t('logistics.checkout.schedule.alreadySettled')}</h2><Link className="lx-btn-secondary" to="/logistics/payments">{t('logistics.checkout.status.viewAll')}</Link></section>;
     // A non-null pending_version means a newer quote needs acceptance
     // before any payment (never pay against a superseded quote).
     const needsAcceptance = quote?.pending_version != null;

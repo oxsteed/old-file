@@ -15512,22 +15512,90 @@
       "business": {
         "recentActivity": {
           "empty": "Nada aqui ainda."
+        },
+        "nextStep": {
+          "reviewRuns": {
+            "label": "Revisar próximas execuções",
+            "hint": "{{count}} execuções do programa em 21 dias. Verifique quantidade, rota e destino."
+          },
+          "createProgram": {
+            "label": "Criar um programa recorrente",
+            "hint": "Sem programas de reposição ainda. Defina uma cadência para a demanda repetida."
+          },
+          "newRequest": {
+            "label": "Abrir uma solicitação empresarial",
+            "hint": "Os programas estão rodando. Vincule a nova demanda a uma de suas empresas."
+          }
         }
       },
       "buyer": {
         "recentActivity": {
           "empty": "Nada aqui ainda."
+        },
+        "nextStep": {
+          "browseCampaigns": {
+            "label": "Explorar campanhas",
+            "hint": "Sem solicitações ativas. Encontre uma campanha coletiva para participar ou acompanhar."
+          },
+          "reviewShipments": {
+            "label": "Revisar embarques em risco",
+            "hint": "{{count}} embarques precisam de acompanhamento."
+          },
+          "startRequest": {
+            "label": "Iniciar uma solicitação de compra",
+            "hint": "Está tudo andando. Abra uma nova demanda quando estiver pronto."
+          }
         }
       },
       "distributor": {
         "recentActivity": {
           "empty": "Nada aqui ainda."
+        },
+        "nextStep": {
+          "failedDeliveries": {
+            "label": "Revisar entregas com falha",
+            "hint": "{{count}} entregas falharam ou foram canceladas e podem precisar de rerroteamento."
+          },
+          "releaseLots": {
+            "label": "Liberar lotes aguardando",
+            "hint": "{{count}} lotes estão alocados, mas ainda não liberados."
+          },
+          "warehouse": {
+            "label": "Verificar o armazém",
+            "hint": "A fila está limpa. Certifique-se de que o estoque está pronto para alocar."
+          }
         }
       },
       "organizer": {
         "recentActivity": {
           "empty": "Nada aqui ainda."
+        },
+        "nextStep": {
+          "momentum": {
+            "label": "Impulsionar o MOQ",
+            "hint": "{{count}} campanhas estão abaixo da metade do MOQ e precisam de mais recrutamento."
+          },
+          "browse": {
+            "label": "Explorar campanhas",
+            "hint": "Você ainda não coordena nenhuma campanha. Encontre uma para participar."
+          },
+          "handoffs": {
+            "label": "Coordenar entregas",
+            "hint": "A demanda foi captada. Mantenha as entregas fluindo para os destinatários."
+          }
         }
+      },
+      "nextStep": {
+        "title": "Seu próximo passo"
+      },
+      "recentActivity": {
+        "title": "Atividade recente",
+        "empty": "Nada aqui ainda. Novas atividades aparecerão aqui."
+      },
+      "dataError": {
+        "title": "Dados indisponíveis",
+        "body": "Não foi possível carregar seu espaço de trabalho agora. Tente novamente.",
+        "retry": "Tentar novamente"
       }
     },
     "nav": {
@@ -15538,7 +15606,15 @@
       "shipments": "Envios",
       "warehousing": "Armazenagem",
       "compliance": "Conformidade",
-      "finance": "Finanças"
+      "finance": "Finanças",
+      "adminControl": "Controle de admin",
+      "businessProcurement": "Compras empresariais",
+      "buyer": "Comprador",
+      "distributor": "Distribuidor",
+      "hub": "Explorar",
+      "label": "Espaços de trabalho de logística",
+      "operations": "Operações",
+      "organizer": "Organizador"
     },
     "home": {
       "title": "OxSteed Logística",
@@ -15567,7 +15643,7 @@
       "readyToStart": "Pronto para começar?",
       "readyToStartBody": "Participe para ter acesso a aquisição, compras coletivas e visibilidade total da cadeia de suprimentos, desde o primeiro contato com o fornecedor até a entrega final.",
       "createAccount": "Criar uma conta",
-      "unitsProgress": "{{current}} / {{target}} {{units}}",
+      "unitsProgress": "{{current}} de {{target}} {{units}}",
       "whyCards": {
         "moq": {
           "heading": "O problema do pedido mínimo",
@@ -15672,7 +15748,10 @@
         "noRestrictions": "Ainda não há restrições disponíveis."
       },
       "separator": "·",
-      "queueLabel": "Remessas sensíveis à alfândega na fila"
+      "queueLabel": "Remessas sensíveis à alfândega na fila",
+      "metrics": {
+        "unavailableNote": "Métrica indisponível no momento."
+      }
     },
     "operatorLogin": {
       "copy": {
@@ -15875,7 +15954,21 @@
       "closes": "Encerra",
       "closeDate": "Data de encerramento",
       "allStatuses": "Todos os status",
-      "allCampaigns": "Todas as campanhas"
+      "allCampaigns": "Todas as campanhas",
+      "edit": {
+        "title": "Editar rascunho da campanha",
+        "subtitle": "Atualize seu rascunho abaixo. Quando estiver pronto, envie-o para revisão da Operações.",
+        "saveChanges": "Salvar alterações",
+        "draftUpdated": "Rascunho atualizado.",
+        "updateFailed": "Não foi possível atualizar o rascunho. Tente novamente.",
+        "backToCampaign": "Voltar para a campanha",
+        "loading": "Carregando rascunho da campanha…",
+        "loadError": "Não foi possível carregar a campanha. Tente novamente.",
+        "notFound": "Campanha não encontrada. Ela pode ter sido excluída.",
+        "notOwner": "Somente o organizador da campanha pode editar este rascunho.",
+        "notEditable": "Esta campanha não pode mais ser editada. Somente rascunhos e campanhas com revisões solicitadas podem ser editados.",
+        "editDraft": "Editar rascunho"
+      }
     },
     "campaign": {
       "organizer": "Organizador",
@@ -15924,7 +16017,20 @@
       "products": "Produtos",
       "viewProducts": "Ver produtos",
       "subtitle": "Solicite, cote e converta, da primeira consulta ao pedido de compra.",
-      "startFirst": "Inicie sua primeira solicitação"
+      "startFirst": "Inicie sua primeira solicitação",
+      "error": "Não foi possível carregar suas solicitações de sourcing agora. Tente novamente.",
+      "headers": {
+        "category": "Categoria",
+        "lane": "Rota",
+        "qty": "Qtd.",
+        "quotes": "Cotações",
+        "reference": "Referência",
+        "status": "Status",
+        "title": "Título"
+      },
+      "openRequest": "Abrir solicitação {{ref}}",
+      "tabsLabel": "Visões de sourcing",
+      "viewRow": "Ver →"
     },
     "request": {
       "title": "Nova solicitação de fornecimento",
@@ -15963,7 +16069,21 @@
       "loading": "Carregando…",
       "lane": "Rota",
       "landedCost": "Custo desembarcado",
-      "expected": "Previsto"
+      "expected": "Previsto",
+      "backToBuyer": "Voltar ao workspace do comprador",
+      "error": "Não foi possível carregar seus pedidos agora. Tente novamente.",
+      "headers": {
+        "expected": "Previsto",
+        "landedCost": "Custo landed",
+        "lane": "Rota",
+        "product": "Produto",
+        "qty": "Qtd.",
+        "reference": "Referência",
+        "status": "Status"
+      },
+      "openOrder": "Abrir pedido {{ref}}",
+      "pagination": "Páginas de pedidos",
+      "statusFilter": "Filtrar por status"
     },
     "shipments": {
       "title": "Embarques",
@@ -15980,7 +16100,15 @@
       "milestone": "Etapa",
       "allStatuses": "Todos",
       "empty": "Nenhum embarque encontrado.",
-      "loading": "Carregando…"
+      "loading": "Carregando…",
+      "backToBuyer": "Voltar ao workspace do comprador",
+      "error": "Não foi possível carregar suas remessas agora. Tente novamente.",
+      "etaLabel": "ETA",
+      "exception": "Exceção",
+      "kg": "kg",
+      "lifecycleLabel": "Filtrar por estágio do ciclo de vida",
+      "noCarrier": "Sem transportadora",
+      "openShipment": "Abrir remessa {{ref}}"
     },
     "warehousing": {
       "title": "Armazenagem",
@@ -15992,7 +16120,24 @@
       "noAllocations": "Nenhuma alocação encontrada.",
       "noDeliveries": "Nenhum pedido de entrega encontrado.",
       "noWarehouses": "Nenhum armazém encontrado.",
-      "subtitle": "Receba, concilie, aloque e libere o estoque para os compradores."
+      "subtitle": "Receba, concilie, aloque e libere o estoque para os compradores.",
+      "activeReceipts": "{{count}} recebimentos ativos",
+      "bonded": "Alfandegado",
+      "error": "Não foi possível carregar os dados de armazenagem agora. Tente novamente.",
+      "headers": {
+        "buyer": "Comprador",
+        "expected": "Previsto",
+        "qty": "Qtd.",
+        "received": "Recebido",
+        "reference": "Referência",
+        "releaseMethod": "Método de liberação",
+        "released": "Liberado",
+        "shortage": "Falta",
+        "status": "Status",
+        "warehouse": "Armazém"
+      },
+      "sqft": "pés²",
+      "tabsLabel": "Visões de armazenagem"
     },
     "compliance": {
       "title": "Conformidade e restrições",
@@ -16013,7 +16158,33 @@
       "bv": "Verificação da empresa",
       "ma": "Aprovação manual",
       "explainer": "Uma rota é um trajeto de envio entre dois países, como da China para o Haiti. Cada rota tem suas próprias regras: o que pode ser importado, quais documentos são exigidos e qual é o nível de fiscalização da alfândega. Verificamos essas regras para cada remessa consolidada e cuidamos de toda a documentação. Esta página mostra o que se aplica aos seus produtos.",
-      "lanesRisk": "Visão geral do risco das rotas"
+      "lanesRisk": "Visão geral do risco das rotas",
+      "allLanes": "Todas as rotas",
+      "businessVerificationRequired": "Verificação comercial necessária",
+      "countryFilter": "Filtrar por código de país",
+      "countryPlaceholder": "Código do país (ex.: HT)",
+      "customsComplexity": "Alfândega",
+      "docRequirements": {
+        "body": "Cada rota pode exigir: Fatura Comercial, Lista de Embalagem, Certificado de Origem, Certificado Fitossanitário, desembaraço aduaneiro, marcações de conformidade, formulários de entrada aduaneira ou relatórios de inspeção. Os requisitos são específicos da rota e da categoria.",
+        "title": "Requisitos de documentos"
+      },
+      "error": "Não foi possível carregar os dados de conformidade agora. Tente novamente.",
+      "global": "Global",
+      "headers": {
+        "category": "Categoria",
+        "country": "País",
+        "docRequired": "Doc. necessário",
+        "lane": "Rota",
+        "notes": "Notas",
+        "severity": "Gravidade",
+        "type": "Tipo"
+      },
+      "laneFilter": "Filtrar por rota",
+      "manualApprovalRequired": "Aprovação manual necessária",
+      "noLanes": "Ainda sem dados de risco de rota publicados.",
+      "riskTiers": {
+        "title": "Níveis de risco"
+      }
     },
     "finance": {
       "title": "Finanças logísticas",
@@ -16022,7 +16193,19 @@
       "depositsPaid": "Depósitos pagos",
       "orderCount": "Número de pedidos",
       "inTransit": "Valor em trânsito",
-      "simulator": "Simulador de custo desembarcado",
+      "simulator": {
+        "calculate": "Calcular custo landed",
+        "calculating": "Calculando…",
+        "freight": "Frete est. / unidade (USD)",
+        "lane": "Rota",
+        "markupApplied": "Margem aplicada",
+        "perUnit": "/ unidade landed",
+        "productCost": "Custo do produto / unidade (USD)",
+        "quantity": "Quantidade",
+        "selectLane": "— Selecionar rota —",
+        "title": "Simulador de custo landed",
+        "totalFor": "Total para {{qty}} unidades"
+      },
       "simulatorSubtitle": "Visualize o detalhamento completo dos custos antes de fazer um pedido.",
       "unitCost": "Custo unitário do produto (USD)",
       "qty": "Quantidade",
@@ -16034,7 +16217,41 @@
       "totalSpent": "Total comprometido",
       "recentOrders": "Pedidos recentes",
       "depositPaid": "Depósitos pagos",
-      "byStatus": "Valor por status do pedido"
+      "byStatus": "Valor por status do pedido",
+      "error": "Não foi possível carregar os dados financeiros agora. Tente novamente.",
+      "headers": {
+        "depositPaid": "Depósito pago",
+        "product": "Produto",
+        "qty": "Qtd.",
+        "reference": "Referência",
+        "remaining": "Restante",
+        "status": "Status",
+        "totalLanded": "Total landed"
+      },
+      "kpis": {
+        "depositsPaid": "Depósitos pagos",
+        "inTransit": "Em trânsito",
+        "orders": "Pedidos",
+        "totalCommitted": "Total comprometido"
+      },
+      "noSpend": "Ainda sem gastos de pedidos registrados.",
+      "refund": {
+        "empty": "Ainda sem casos de reembolso enviados.",
+        "requested": "Solicitado",
+        "submitted": "Caso de reembolso enviado para revisão.",
+        "title": "Solicitações de reembolso"
+      },
+      "refundForm": {
+        "amount": "Valor solicitado (USD)",
+        "notes": "Notas",
+        "poFallback": "OC",
+        "purchaseOrder": "Ordem de compra",
+        "reason": "Motivo do reembolso",
+        "selectOrder": "— Selecionar pedido —",
+        "submit": "Enviar caso de reembolso",
+        "submitting": "Enviando…",
+        "title": "Solicitar revisão de reembolso"
+      }
     },
     "admin": {
       "title": "Operações logísticas",
@@ -16059,7 +16276,8 @@
         "pricing": "Precificação",
         "restrictions": "Restrições",
         "disputes": "Disputas",
-        "superControl": "Supercontrole"
+        "superControl": "Supercontrole",
+        "refunds": "Reembolsos"
       },
       "metrics": {
         "purchaseOrders": "Pedidos de compra",
@@ -16284,6 +16502,34 @@
         "distributor": "Liberação ao distribuidor",
         "bulk_handoff": "Transferência em lote",
         "restock_route": "Rota de reposição"
+      },
+      "defaults": {
+        "buyerAllocation": "Alocação do comprador",
+        "recipient": "Destinatário",
+        "releasePending": "liberação pendente",
+        "warehouse": "Armazém"
+      },
+      "empty": {
+        "allocations": "Sem alocações disponíveis.",
+        "deliveries": "Sem ordens de entrega disponíveis."
+      },
+      "error": "Não foi possível carregar os dados de distribuição agora. Tente novamente.",
+      "labels": {
+        "allocatedQty": "Qtd. alocada",
+        "mode": "Modo",
+        "tracking": "Rastreamento"
+      },
+      "loading": "Carregando…",
+      "sections": {
+        "allocationQueue": "Fila de alocação",
+        "deliveryExecution": "Execução de entregas",
+        "openWarehousing": "Abrir armazenagem →"
+      },
+      "stats": {
+        "allocations": "Alocações",
+        "deliveryOrders": "Ordens de entrega",
+        "inTransit": "Em trânsito",
+        "released": "Liberado"
       }
     },
     "buyerTypes": {
@@ -16337,7 +16583,1146 @@
       "targetPrice": "Preço-alvo / Unidade (USD)",
       "targetQty": "Quantidade desejada",
       "titleLabel": "Título da solicitação",
-      "unit": "Unidade"
+      "unit": "Unidade",
+      "anyOption": "— Qualquer —",
+      "customsComplexity": "Complexidade alfandegária",
+      "descriptionPlaceholder": "Descreva o produto em detalhes: materiais, dimensões, certificações necessárias…",
+      "destCountryPlaceholder": "ex.: US, HT, CA",
+      "goToStep": "Ir para {{label}}",
+      "laneBlocked": "Esta rota está bloqueada para sua função ou contexto de destino atual: {{reason}}",
+      "laneBusinessVerification": "Verificação comercial é necessária para operar esta rota como comprador verificado.",
+      "laneChecks": "Verificações de acesso e aprovação de rota",
+      "laneManualApproval": "Aprovação manual de conformidade é necessária antes que esta solicitação avance para cotação ou compras.",
+      "laneResellerApproval": "Aprovação de revendedor/distribuidor é necessária antes que esta rota seja usada para fluxos de revenda.",
+      "letOxsteedChoose": "— Deixar a OxSteed escolher —",
+      "notesPlaceholder": "Qualquer outro contexto para a equipe de sourcing…",
+      "review": {
+        "category": "Categoria",
+        "deadline": "Prazo",
+        "destination": "Destino",
+        "no": "Não",
+        "privateLabel": "Marca Própria",
+        "quantity": "Quantidade",
+        "targetPrice": "Preço Alvo",
+        "title": "Título",
+        "yes": "Sim"
+      },
+      "riskTier": "Nível de risco",
+      "selectOption": "— Selecionar —",
+      "stepsLabel": "Progresso da solicitação",
+      "titlePlaceholder": "ex.: 500 unidades de botas de segurança industrial"
+    },
+    "hub": {
+      "aboutBody": "Os compradores somam suas demandas até atingir a quantidade mínima de pedido do fornecedor. Quando há demanda comprometida suficiente, a campanha é bloqueada, os depósitos são coletados e a OxSteed coordena o restante da cadeia de suprimentos.",
+      "aboutTitle": "Como funcionam as compras coletivas",
+      "aboutToggle": "Como funcionam as compras coletivas",
+      "clearFilters": "Limpar filtros",
+      "emptyBody": "Tente outra pesquisa ou filtro. Novas campanhas abrem regularmente.",
+      "emptyTitle": "Nenhuma campanha corresponde aos seus filtros",
+      "error": "Não foi possível carregar as campanhas. Tente novamente.",
+      "eyebrow": "OxSteed Logistics",
+      "intro": "Participe de campanhas em grupo para desbloquear preços de atacado ou organize a sua.",
+      "laneLabel": "Rota",
+      "loading": "Carregando campanhas...",
+      "nextPage": "Próxima",
+      "noCampaignsBody": "Não há campanhas abertas no momento. Volte em breve ou organize uma você mesmo.",
+      "noCampaignsTitle": "Ainda não há campanhas",
+      "organizeCta": "Organizar uma campanha",
+      "pageOf": "Página {{page}} de {{pages}}",
+      "prevPage": "Anterior",
+      "procurementCta": "Compras empresariais",
+      "resultsCount": "{{count}} campanhas",
+      "retry": "Tentar novamente",
+      "searchLabel": "Pesquisar campanhas",
+      "searchPlaceholder": "Pesquisar por produto, rota ou título",
+      "statusLabel": "Status",
+      "title": "Compras coletivas, de forma simples"
+    },
+    "modal": {
+      "close": "Fechar",
+      "openFullPage": "Abrir página completa",
+      "loading": "Carregando…",
+      "loadError": "Não foi possível carregar esta pré-visualização.",
+      "retry": "Tentar novamente",
+      "notFound": "Este item não foi encontrado.",
+      "campaignPreviewTitle": "Prévia da campanha",
+      "requestPreviewTitle": "Prévia da solicitação",
+      "orderPreviewTitle": "Prévia do pedido",
+      "shipmentPreviewTitle": "Prévia do embarque",
+      "allocationPreviewTitle": "Prévia da alocação",
+      "campaign": {
+        "lane": "Rota",
+        "status": "Status",
+        "moqProgress": "Progresso do MOQ",
+        "participants": "Participantes",
+        "committedUnits": "Comprometido",
+        "targetUnits": "Meta"
+      },
+      "request": {
+        "status": "Status",
+        "category": "Categoria",
+        "targetQuantity": "Quantidade-alvo",
+        "targetPrice": "Preço-alvo",
+        "destination": "Destino",
+        "deadline": "Prazo",
+        "quotes": "Cotações"
+      },
+      "order": {
+        "status": "Status",
+        "supplier": "Fornecedor",
+        "quantity": "Quantidade",
+        "total": "Total do pedido",
+        "balanceDue": "Saldo devedor",
+        "expectedArrival": "Chegada prevista"
+      },
+      "shipment": {
+        "status": "Status",
+        "carrier": "Transportadora",
+        "trackingNumber": "Número de rastreio",
+        "originPort": "Porto de origem",
+        "destinationPort": "Porto de destino",
+        "eta": "ETA"
+      },
+      "allocation": {
+        "status": "Status",
+        "recipient": "Destinatário",
+        "warehouse": "Armazém",
+        "releaseMethod": "Método de liberação",
+        "quantity": "Quantidade"
+      }
+    },
+    "adminControl": {
+      "error": "Não foi possível carregar as métricas de controle agora. Tente novamente.",
+      "kpis": {
+        "claimsPosture": "Postura de reclamações",
+        "feeRules": "Regras de taxas",
+        "markupRules": "Regras de margem",
+        "restrictions": "Restrições",
+        "trackedPOs": "OCs rastreados",
+        "trackedShipments": "Remessas rastreadas"
+      },
+      "pricing": {
+        "active": "ativo",
+        "empty": "Nenhuma regra de preço encontrada.",
+        "fee": "Taxa",
+        "headers": {
+          "name": "Nome",
+          "status": "Status",
+          "type": "Tipo"
+        },
+        "inactive": "inativo",
+        "markup": "Margem",
+        "ruleFallback": "Regra {{id}}",
+        "title": "Postura de preços e taxas"
+      },
+      "restricted": {
+        "body": "Regras de preços, restrições de mercado e substituições em toda a logística estão disponíveis apenas para administradores e superadministradores da OxSteed.",
+        "returnToHub": "Voltar ao hub de Logística",
+        "title": "Acesso ao controle restrito"
+      },
+      "restrictions": {
+        "empty": "Nenhuma restrição configurada.",
+        "headers": {
+          "category": "Categoria",
+          "country": "País",
+          "risk": "Risco"
+        },
+        "title": "Controles de restrição e risco"
+      },
+      "routes": {
+        "adminDashboard": "Painel do administrador",
+        "pricingRules": "Regras de preços",
+        "restrictions": "Restrições",
+        "superControl": "Super controle",
+        "supplierApprovals": "Aprovações de fornecedores"
+      },
+      "routesLabel": "Rotas de controle do admin",
+      "subtitle": "Controles de preços, risco, aprovações e lucratividade para toda a filial OxSteed Logistics.",
+      "title": "Controle do administrador"
+    },
+    "buyer": {
+      "actions": {
+        "startRequest": "Iniciar solicitação",
+        "watchShipments": "Ver cronograma de remessas"
+      },
+      "activity": {
+        "claimFallback": "Reclamação #{{id}}"
+      },
+      "attention": {
+        "allocationRelease": {
+          "hint": "O estoque alocado ainda precisa de retirada, transferência ao despachante ou planejamento de liberação final.",
+          "label": "Liberação de alocação"
+        },
+        "copy": "Use esta fila para decidir se deve impulsionar novo sourcing, cobrar liberação de entrega ou escalar um problema financeiro.",
+        "issuePosture": {
+          "hint": "Reclamações e casos de reembolso mostram onde a confiança do comprador ou a qualidade do atendimento está caindo.",
+          "label": "Postura de problemas"
+        },
+        "shipmentRisk": {
+          "hint": "Revisão alfandegária, estados de exceção ou frete atrasado devem ter acompanhamento do comprador primeiro.",
+          "label": "Risco de remessa"
+        },
+        "title": "Atenção agora"
+      },
+      "chips": {
+        "buyerFirst": "Workspace focado no comprador",
+        "claimsTied": "Reclamações vinculadas a resultados de remessas",
+        "refundVisible": "Postura de reembolso visível"
+      },
+      "claims": {
+        "activeClaims": "{{count}} reclamações ativas",
+        "activeClaimsHint": "Use reclamações quando uma remessa, pedido ou resultado de estoque precisar de intervenção do operador ou revisão de evidências.",
+        "deliveriesHint": "Mantenha o status de entrega próximo às reclamações para conectar o atendimento falho ao histórico real de liberação.",
+        "deliveriesTracked": "{{count}} registros de entrega rastreados",
+        "openFinance": "Workspace financeiro",
+        "refundCases": "{{count}} casos de reembolso",
+        "refundCasesHint": "As filas de reembolso mostram onde a recuperação do comprador ainda aguarda confirmação financeira ou operacional.",
+        "title": "Reclamações e postura de resolução"
+      },
+      "flow": {
+        "allocationFallback": "ALC-{{id}}",
+        "awaitingRelease": "Aguardando liberação",
+        "empty": "Ainda sem registros de remessas ou alocações.",
+        "headers": {
+          "eta": "ETA / Entrega",
+          "reference": "Referência",
+          "status": "Status"
+        },
+        "openDistribution": "Distribuição",
+        "title": "Fluxo de remessas e alocações"
+      },
+      "kicker": "Workspace do comprador",
+      "metrics": {
+        "activeRequests": {
+          "label": "Solicitações ativas",
+          "note": "{{total}} solicitações de comprador em andamento no total"
+        },
+        "claimsRefunds": {
+          "label": "Reclamações e reembolsos",
+          "noteClear": "Nenhum problema ativo de comprador",
+          "noteOpen": "Revisão do operador pode ser necessária em problemas abertos"
+        },
+        "pendingAllocations": {
+          "label": "Alocações pendentes",
+          "noteClear": "Fila de alocação vazia",
+          "notePending": "Estoque alocado mas ainda não totalmente liberado"
+        },
+        "watchShipments": {
+          "label": "Acompanhar remessas",
+          "noteClear": "Nenhuma exceção de remessa sinalizada agora",
+          "noteRisk": "{{count}} precisam de acompanhamento de exceção"
+        },
+        "unavailableNote": "Métrica indisponível no momento."
+      },
+      "requests": {
+        "empty": "Ainda sem solicitações de sourcing.",
+        "headers": {
+          "category": "Categoria",
+          "quotes": "Cotações",
+          "request": "Solicitação",
+          "status": "Status"
+        },
+        "title": "Minhas solicitações de sourcing",
+        "viewAll": "Ver tudo"
+      },
+      "rhythm": {
+        "bestMove": {
+          "hasRequests": "Revise a postura de cotações e remessas antes de abrir mais demanda.",
+          "label": "Melhor próximo passo",
+          "noRequests": "Abra uma solicitação de sourcing para iniciar cotações de fornecedores."
+        },
+        "latestDelivery": {
+          "label": "Sinal de entrega mais recente",
+          "noDate": "Nenhuma data de entrega agendada ainda.",
+          "withDate": "A atividade de entrega mais recente está agendada para {{date}}."
+        },
+        "title": "Ritmo do comprador"
+      },
+      "stats": {
+        "attentionShipments": {
+          "label": "Remessas precisando de atenção",
+          "meta": "Movimentação alfandegária ou em estágio de exceção para revisar."
+        },
+        "issues": {
+          "label": "Reclamações / reembolsos abertos",
+          "meta": "Mantenha a proteção do comprador e a postura de resolução visíveis."
+        },
+        "openRequests": {
+          "label": "Solicitações abertas de comprador",
+          "meta": "Em sourcing, cotações e conversão de compras."
+        }
+      },
+      "subtitle": "Inicie solicitações de sourcing, acompanhe seus pedidos e monitore o frete ativo: tudo em um só lugar.",
+      "title": "Painel do comprador"
+    },
+    "campaignDetail": {
+      "delivery": {
+        "freightForward": "Despachante",
+        "shipToBuyer": "Envio ao comprador",
+        "warehousePickup": "Retirada no armazém"
+      },
+      "economics": {
+        "deposit": "Depósito (30%)",
+        "fees": "Taxas",
+        "freightEst": "Frete (est.)",
+        "landedCost": "Custo landed / unidade",
+        "markup": "Margem OxSteed",
+        "productCost": "Custo do produto",
+        "title": "Economia por unidade"
+      },
+      "join": {
+        "cancellationPolicy": "Política de cancelamento",
+        "committedQty": "Qtd. comprometida",
+        "confirm": "Confirmar participação",
+        "countryCode": "Código do país",
+        "deliveryPreference": "Preferência de entrega",
+        "deposit": "Depósito",
+        "destCountry": "País de destino",
+        "subtotal": "Subtotal",
+        "title": "Participar da campanha"
+      },
+      "laneGating": {
+        "blocked": "Sua função atual ou contexto de destino está bloqueado para esta rota: {{reason}}",
+        "businessVerification": "Um contexto comercial verificado é necessário para esta rota de campanha.",
+        "manualApproval": "Aprovação manual de conformidade é necessária antes que a campanha passe por todas as etapas logísticas posteriores.",
+        "resellerApproval": "Aprovação de revendedor/distribuidor é necessária para participação em revenda nesta rota.",
+        "title": "Controle de rota"
+      },
+      "loadError": "Falha ao carregar campanha",
+      "meta": {
+        "fallbackDescription": "Campanha de compra coletiva na OxSteed Logistics.",
+        "fallbackTitle": "Campanha"
+      },
+      "moq": {
+        "progressLabel": "Progresso do MOQ: {{pct}} por cento",
+        "units": "{{committed}} / {{target}} unidades comprometidas"
+      },
+      "notFound": "Campanha não encontrada.",
+      "participants": {
+        "headers": {
+          "delivery": "Entrega",
+          "deposit": "Depósito",
+          "qty": "Qtd.",
+          "status": "Status",
+          "user": "Usuário"
+        },
+        "participant": "Participante",
+        "title": "Participantes"
+      },
+      "timeline": {
+        "expectedArrival": "Chegada prevista",
+        "expectedShip": "Envio previsto",
+        "lockDate": "Data de trava",
+        "openDate": "Data de abertura",
+        "closeDate": "Data de fechamento",
+        "organizer": "Organizador",
+        "title": "Cronograma"
+      }
+    },
+    "distributor": {
+      "actions": {
+        "openBoard": "Abrir painel de distribuição",
+        "warehouseReadiness": "Verificar prontidão do armazém"
+      },
+      "activity": {
+        "allocationFallback": "ALC-{{id}}",
+        "deliveryFallback": "Entrega #{{id}}"
+      },
+      "chips": {
+        "failedDrops": "Acompanhe cedo as entregas falhas",
+        "releaseDiscipline": "Disciplina de liberação importa",
+        "sync": "Mantenha armazém e entrega sincronizados"
+      },
+      "execution": {
+        "empty": "Ainda sem ordens de entrega.",
+        "headers": {
+          "method": "Método",
+          "recipient": "Destinatário",
+          "scheduled": "Agendado",
+          "status": "Status"
+        },
+        "recipientFallback": "Destinatário da entrega",
+        "seeAll": "Ver tudo",
+        "title": "Execução de entregas"
+      },
+      "kicker": "Workspace do distribuidor",
+      "metrics": {
+        "allocatedLots": {
+          "label": "Lotes alocados",
+          "note": "Estoque atribuído entre destinatários de distribuição."
+        },
+        "deliveryOrders": {
+          "label": "Ordens de entrega",
+          "note": "Trechos de saída atualmente rastreados."
+        },
+        "inTransit": {
+          "label": "Em trânsito",
+          "note": "Entregas que ainda precisam de monitoramento de última milha."
+        },
+        "releasedLots": {
+          "label": "Lotes liberados",
+          "note": "Lotes já liberados para retirada ou execução de entrega."
+        },
+        "warehousedOrders": {
+          "label": "Pedidos armazenados",
+          "note": "Estoque de origem já armazenado e pronto para alocar."
+        },
+        "unavailableNote": "Métrica indisponível no momento."
+      },
+      "posture": {
+        "releaseFirst": {
+          "hint": "Verifique se as alocações estão realmente liberadas antes de empurrar destinatários para o agendamento de entregas.",
+          "label": "Libere antes de rotear"
+        },
+        "title": "Postura operacional",
+        "warehousedVisible": {
+          "hint": "{{count}} ordens de compra já estão armazenadas, então o gargalo pode estar à jusante, não à montante.",
+          "label": "Mantenha o estoque armazenado visível"
+        }
+      },
+      "pressure": {
+        "copy": "Use esta visão para decidir se o próximo gargalo é liberação de armazém, agendamento ou falha na execução de última milha.",
+        "exceptions": {
+          "hint": "Entregas falhas ou canceladas devem receber atenção antes que a confiança do cliente caia mais.",
+          "label": "Exceções de entrega"
+        },
+        "release": {
+          "hint": "O estoque está atribuído, mas método de retirada, transferência ao despachante ou prontidão do destinatário ainda estão incompletos.",
+          "label": "Lotes aguardando liberação"
+        },
+        "scheduled": {
+          "hint": "Estes são os próximos pontos de contato prováveis onde comunicação e timing importam.",
+          "label": "Entregas agendadas"
+        },
+        "title": "Pontos de pressão de distribuição"
+      },
+      "queue": {
+        "assignedBuyer": "Comprador atribuído",
+        "empty": "Ainda sem lotes de alocação atribuídos.",
+        "headers": {
+          "method": "Método",
+          "recipient": "Destinatário",
+          "status": "Status",
+          "warehouse": "Armazém"
+        },
+        "methodPending": "pendente",
+        "open": "Abrir workspace",
+        "title": "Fila de transferência de alocação",
+        "warehousePending": "Armazém pendente"
+      },
+      "stats": {
+        "failed": {
+          "label": "Entregas falhas ou canceladas",
+          "meta": "Estas geralmente precisam de rerroteamento ou acompanhamento direto do destinatário."
+        },
+        "inTransit": {
+          "label": "Entregas em movimento",
+          "meta": "Movimentação de saída para observar ativamente."
+        },
+        "pendingRelease": {
+          "label": "Lotes aguardando liberação",
+          "meta": "Estoque atribuído ainda não totalmente transferido."
+        }
+      },
+      "subtitle": "Acompanhe suas participações em campanhas, alocações e entregas de última milha.",
+      "title": "Painel do distribuidor"
+    },
+    "operations": {
+      "error": "Não foi possível carregar as métricas de operações agora. Tente novamente.",
+      "internalOnly": {
+        "body": "Este workspace é reservado para operadores de logística da OxSteed. Compradores e organizadores logados ainda podem usar os workspaces Comprador, Organizador, Compras Comerciais e Distribuidor para gerenciar sua própria atividade logística.",
+        "title": "Acesso a operações é interno"
+      },
+      "kpis": {
+        "campaigns": "Campanhas",
+        "claimsDisputes": "Reclamações e disputas",
+        "sourcingQueue": "Fila de sourcing",
+        "trackedShipments": "Remessas rastreadas"
+      },
+      "loading": "Carregando métricas de operações…",
+      "priorities": {
+        "customsHold": "{{count}} remessas em retenção alfandegária ou postura de exceção.",
+        "fullAdmin": "Painel admin completo",
+        "openClaims": "{{count}} reclamações abertas para revisão.",
+        "openDisputes": "Abrir disputas e revisão de reembolsos →",
+        "openFreight": "Abrir frete e fila de marcos →",
+        "openSourcing": "Abrir fila de entrada de sourcing →",
+        "openWarehouse": "Abrir fila de recebimento do armazém →",
+        "operatorRoutes": "Rotas do operador",
+        "queues": "Filas imediatas",
+        "sourcingTouch": "{{count}} solicitações de sourcing precisam de roteamento, cotação ou toque do operador.",
+        "title": "Prioridades de operações"
+      },
+      "routesLabel": "Rotas de operações",
+      "subtitle": "Uma superfície de comando interna para entrada de sourcing, movimentação de frete ativo, fluxo de armazém e exceções logísticas.",
+      "title": "Workspace de operações",
+      "routes": {
+        "finance": "Operações logísticas"
+      }
+    },
+    "orderDetail": {
+      "backToOrders": "← Voltar aos Pedidos",
+      "defaults": {
+        "purchaseOrder": "Ordem de compra"
+      },
+      "finance": {
+        "customsAdmin": "Alfândega/admin",
+        "freightEstimate": "Estimativa de frete",
+        "lastMile": "Última milha",
+        "originHandling": "Manuseio na origem",
+        "oxsteedMarkup": "Margem OxSteed",
+        "productTotal": "Total do produto",
+        "riskSurcharge": "Sobretaxa de risco",
+        "sourcingFee": "Taxa de sourcing",
+        "warehouseFee": "Taxa de armazém"
+      },
+      "labels": {
+        "buyer": "Comprador",
+        "destination": "Destino",
+        "expectedArrival": "Chegada prevista",
+        "expectedProductionComplete": "Conclusão de produção prevista",
+        "expectedShipDate": "Data prevista de envio",
+        "freightOption": "Opção de frete",
+        "incoterms": "Incoterms",
+        "quantity": "Quantidade",
+        "supplier": "Fornecedor"
+      },
+      "loadError": "Falha ao carregar pedido.",
+      "loading": "Carregando…",
+      "notFound": "Ordem de compra não encontrada.",
+      "sections": {
+        "financial": "Estrutura financeira",
+        "overview": "Visão geral do pedido"
+      },
+      "totals": {
+        "depositDue": "Depósito devido",
+        "finalDue": "Saldo final devido",
+        "remaining": "Restante",
+        "totalLanded": "Total landed"
+      }
+    },
+    "organizer": {
+      "actions": {
+        "coordinateHandoffs": "Coordenar transferências",
+        "openBoard": "Abrir painel de campanhas"
+      },
+      "activity": {
+        "campaignFallback": "Campanha #{{id}}",
+        "deliveryFallback": "Entrega #{{id}}"
+      },
+      "campaigns": {
+        "browse": "Explorar campanhas",
+        "empty": "Ainda sem campanhas de organizador. Inicie uma no workspace de campanhas.",
+        "moqProgress": "Progresso do MOQ: {{pct}} por cento",
+        "participants": "{{count}} participantes",
+        "title": "Campanhas do organizador"
+      },
+      "commitments": {
+        "empty": "Ainda sem compromissos de campanha.",
+        "headers": {
+          "campaign": "Campanha",
+          "qty": "Qtd.",
+          "status": "Status"
+        },
+        "open": "Abrir participação",
+        "title": "Meus compromissos como participante"
+      },
+      "kicker": "Workspace do organizador",
+      "metrics": {
+        "campaigns": {
+          "label": "Campanhas do organizador",
+          "note": "Total de campanhas que você possui ou coordena atualmente."
+        },
+        "committedUnits": {
+          "label": "Unidades comprometidas",
+          "note": "Útil para avaliar o poder de compra da rede em todas as campanhas."
+        },
+        "deliveries": {
+          "label": "Transferências de entrega",
+          "note": "Coordenação de última milha sobre a qual você pode precisar enviar mensagens."
+        },
+        "shipments": {
+          "label": "Remessas rastreadas",
+          "note": "Movimentação que agora afeta atualizações e transferências do organizador."
+        },
+        "unavailableNote": "Métrica indisponível no momento."
+      },
+      "pressure": {
+        "commitments": {
+          "hint": "Estes são seus próprios compromissos ativos em pedidos coletivos que ainda precisam de atenção.",
+          "label": "Compromissos abertos de participantes"
+        },
+        "copy": "Esta é a leitura rápida de para onde a energia do organizador deve ir: recrutamento, depósitos ou execução de transferências.",
+        "momentum": {
+          "hint": "Campanhas abaixo da metade do MOQ geralmente precisam de outro impulso de recrutamento ou repensar rota/preços.",
+          "label": "Lacunas de momento do MOQ"
+        },
+        "shipments": {
+          "hint": "Mantenha as mensagens do organizador alinhadas ao frete para que compradores saibam o próximo passo.",
+          "label": "Remessas ligadas a campanhas"
+        },
+        "title": "Pontos de pressão do organizador"
+      },
+      "readiness": {
+        "handoffs": "{{count}} transferências de entrega ainda ativas",
+        "handoffsHint": "Estes são os trechos onde a comunicação do organizador mais importa para evitar confusão na retirada ou liberação de última milha.",
+        "openDistribution": "Abrir workspace de distribuição",
+        "openShipments": "Abrir cronograma de remessas",
+        "posture": "{{count}} campanhas ainda podem mudar a postura dos participantes",
+        "postureHint": "Use isto para decidir se continua recrutando demanda ou começa a preparar expectativas de distribuição para compradores.",
+        "shipments": "Cronograma de remessas",
+        "title": "Prontidão de distribuição"
+      },
+      "rhythm": {
+        "communicate": {
+          "hint": "Depois que os pedidos são colocados, mude de criar demanda para visibilidade de remessas e expectativas de entrega.",
+          "label": "Comunique após a colocação"
+        },
+        "recruit": {
+          "hint": "Se o MOQ estiver baixo, dedique tempo a recrutar participantes antes de empurrar complexidade operacional adiante.",
+          "label": "Recrute antes da trava"
+        },
+        "title": "Ritmo operacional do organizador"
+      },
+      "stats": {
+        "committedUnits": {
+          "label": "Unidades comprometidas",
+          "meta": "Demanda já capturada da sua rede coletiva."
+        },
+        "handoffs": {
+          "label": "Transferências a coordenar",
+          "meta": "Trechos de entrega ainda em movimento para destinatários."
+        },
+        "inMotion": {
+          "label": "Campanhas ainda em movimento",
+          "meta": "Nas fases de abertura, depósito, trava e colocação."
+        }
+      },
+      "subtitle": "Conduza campanhas coletivas como um coordenador, mantenha o momento do MOQ visível e mova pedidos travados de forma limpa para envio e transferência.",
+      "title": "Painel do organizador"
+    },
+    "procurement": {
+      "actions": {
+        "closePlanner": "Fechar planejador",
+        "newProgram": "Novo programa recorrente",
+        "newRequest": "Abrir solicitação vinculada à empresa"
+      },
+      "chips": {
+        "businessScoped": "Sourcing apenas empresarial",
+        "laneAware": "Compras por rota",
+        "recurring": "Planejamento de demanda recorrente"
+      },
+      "eligibleLanes": {
+        "authority": "com autoridade de compras.",
+        "empty": "Ainda sem empresas elegíveis vinculadas a esta conta.",
+        "ownerAccess": "Acesso de proprietário",
+        "roleAccess": "Acesso de {{role}}",
+        "title": "Rotas comerciais elegíveis"
+      },
+      "form": {
+        "anyLane": "Qualquer rota aprovada",
+        "budgetMax": "Orçamento máx. (USD)",
+        "cadence": "Frequência",
+        "category": "Categoria",
+        "create": "Criar programa",
+        "created": "Programa de compras recorrente criado",
+        "destCity": "Cidade de destino",
+        "destCountry": "País de destino",
+        "lane": "Rota",
+        "linkedRequest": "Solicitação de sourcing vinculada (opcional)",
+        "noLinkedRequest": "Sem solicitação vinculada",
+        "nextRun": "Data da próxima execução",
+        "notes": "Notas",
+        "programTitle": "Título do programa",
+        "saving": "Salvando…",
+        "targetQty": "Quantidade alvo",
+        "title": "Planejador de compras recorrentes",
+        "titleRequired": "O título do programa é necessário",
+        "unit": "Unidade"
+      },
+      "guidance": {
+        "authority": {
+          "body": "Este workspace só funciona quando a demanda está ligada a uma empresa real pela qual você pode agir, não apenas a uma ideia pessoal de sourcing.",
+          "title": "Construa sobre autoridade comercial real"
+        },
+        "businessHub": "Business Hub",
+        "laneAware": {
+          "body": "Escolha rotas cedo para programas recorrentes quando preços, conformidade e restrições de destino afetarem materialmente o custo landed.",
+          "title": "Use planejamento por rota"
+        },
+        "restock": {
+          "body": "Programas com datas de execução próximas devem ser revisados antes que armazéns, equipes ou equipes de campo sintam a escassez.",
+          "title": "Reabasteça antes da correria"
+        },
+        "title": "Guia operacional de compras"
+      },
+      "kicker": "Compras comerciais",
+      "linkedRequests": {
+        "empty": "Ainda sem solicitações de compras vinculadas a empresas.",
+        "headers": {
+          "converted": "Convertida",
+          "reference": "Referência",
+          "request": "Solicitação",
+          "status": "Status"
+        },
+        "new": "Nova solicitação",
+        "title": "Solicitações de sourcing vinculadas a empresas"
+      },
+      "metrics": {
+        "activePrograms": {
+          "label": "Programas ativos",
+          "note": "Programas que atualmente devem influenciar o planejamento de sourcing."
+        },
+        "eligibleBusinesses": {
+          "label": "Empresas elegíveis",
+          "note": "Contextos comerciais separados para os quais você pode operar compras."
+        },
+        "linkedRequests": {
+          "label": "Solicitações vinculadas a empresas",
+          "note": "Solicitações já vinculadas a um contexto comercial qualificado."
+        },
+        "programs": {
+          "label": "Programas recorrentes",
+          "note": "Frequências salvas para demanda repetida de estoque e suprimento."
+        }
+      },
+      "noAccess": {
+        "backToLogistics": "Voltar à Logística",
+        "body": "Este workspace é reservado para usuários que podem agir em nome de uma empresa em compras e operações. Atualmente, a OxSteed o habilita para proprietários de empresas, gerentes ativos e adesões com permissões operacionais.",
+        "eligibleCount": "Seus workspaces comerciais elegíveis",
+        "howDetermined": "Como o acesso é determinado",
+        "howDeterminedHint": "propriedade, adesão ativa de gerente ou adesão não proprietária com permissões operacionais/de compras.",
+        "openBusinessHub": "Abrir Business Hub",
+        "title": "Compras Comerciais não habilitado para esta conta"
+      },
+      "pressure": {
+        "copy": "Este workspace é mais forte quando diz o que reordenar, o que combinar por rota e qual empresa precisa de ação primeiro.",
+        "laneBound": {
+          "hint": "Estes já têm uma rota definida, então o planejamento de preços e conformidade pode ser mais deliberado.",
+          "label": "Programas vinculados à rota"
+        },
+        "linkedRequests": {
+          "hint": "A demanda já vinculada a uma empresa qualificada deve ser priorizada antes do sourcing genérico.",
+          "label": "Solicitações vinculadas a empresas"
+        },
+        "title": "Pontos de pressão de compras",
+        "upcomingRuns": {
+          "hint": "Programas que executam em breve devem ser revisados quanto a quantidade, ajuste de rota e prontidão do destino.",
+          "label": "Próximas execuções"
+        }
+      },
+      "program": {
+        "statusChanged": "Programa {{status}}"
+      },
+      "programs": {
+        "activate": "Ativar",
+        "empty": "Ainda sem programas de compras recorrentes.",
+        "general": "Compras gerais",
+        "headers": {
+          "cadence": "Frequência",
+          "linkedRequest": "Solicitação vinculada",
+          "nextRun": "Próxima execução",
+          "program": "Programa",
+          "status": "Status"
+        },
+        "openSourcing": "Abrir sourcing",
+        "pause": "Pausar",
+        "title": "Programas de compras recorrentes"
+      },
+      "stats": {
+        "activePrograms": {
+          "label": "Programas de reabastecimento ativos",
+          "meta": "Frequências que já impulsionam demanda repetida de sourcing."
+        },
+        "eligibleBusinesses": {
+          "label": "Empresas elegíveis",
+          "meta": "Empresas para as quais esta conta pode comprar legitimamente."
+        },
+        "upcomingRuns": {
+          "label": "Execuções em 21 dias",
+          "meta": "Próximos ciclos de compra que precisam de verificações de prontidão."
+        }
+      },
+      "subtitle": "Gerencie o ritmo de reabastecimento, rotas recorrentes de sourcing e demanda aprovada pela empresa sem perder de vista para qual empresa é o pedido.",
+      "title": "Painel de Compras Comerciais"
+    },
+    "requestDetail": {
+      "backToSourcing": "← Voltar ao Sourcing",
+      "defaultDescription": "Sem descrição fornecida.",
+      "labels": {
+        "budgetMax": "Orçamento máx.",
+        "business": "Empresa",
+        "category": "Categoria",
+        "customMfg": "Fabricação personalizada",
+        "days": "dias",
+        "deadline": "Prazo",
+        "destination": "Destino",
+        "freightEst": "Frete est.",
+        "leadTime": "Prazo de entrega",
+        "no": "Não",
+        "preferredFreight": "Frete preferido",
+        "privateLabel": "Marca própria",
+        "quotedQty": "Qtd. cotada",
+        "structuredSpecs": "Especificações estruturadas",
+        "targetPrice": "Preço alvo",
+        "targetQuantity": "Quantidade alvo",
+        "unitPrice": "Preço unitário",
+        "yes": "Sim"
+      },
+      "loading": "Carregando…",
+      "notFound": "Solicitação de sourcing não encontrada.",
+      "quotes": {
+        "empty": "Ainda sem cotações de fornecedores.",
+        "supplier": "Fornecedor #{{id}}",
+        "title": "Cotações ({{count}})"
+      },
+      "sections": {
+        "specifications": "Especificações"
+      },
+      "values": {
+        "personalRequest": "Solicitação pessoal"
+      }
+    },
+    "shipmentDetail": {
+      "backToShipments": "← Voltar às Remessas",
+      "defaults": {
+        "document": "Documento",
+        "noLocation": "Sem local",
+        "noNotes": "Sem notas.",
+        "shipment": "Remessa"
+      },
+      "empty": {
+        "documents": "Sem documentos de envio carregados.",
+        "milestones": "Ainda sem marcos registrados."
+      },
+      "labels": {
+        "bookingRef": "Ref. de reserva",
+        "carrier": "Transportadora",
+        "destinationPort": "Porto de destino",
+        "eta": "ETA",
+        "kg": "kg",
+        "originPort": "Porto de origem",
+        "totalCartons": "Total de caixas",
+        "totalCbm": "Total (m³)",
+        "totalWeight": "Peso total",
+        "trackingNumber": "Nº de rastreamento"
+      },
+      "loadError": "Falha ao carregar remessa.",
+      "loading": "Carregando…",
+      "notFound": "Remessa não encontrada.",
+      "sections": {
+        "details": "Detalhes da remessa",
+        "documents": "Documentos ({{count}})",
+        "milestones": "Marcos"
+      }
+    },
+    "tables": {
+      "actions": "Ações",
+      "view": "Ver",
+      "preview": "Prévia"
+    },
+    "checkout": {
+      "backToDashboard": "Voltar ao painel do comprador",
+      "backToOrder": "Voltar ao pedido",
+      "confirm": {
+        "back": "Voltar à forma de pagamento",
+        "button": "Confirmar e pagar {{amount}}",
+        "checkbox": "Confirmo que quero que a OxSteed cobre {{amount}} em {{method}} referente a {{installment}} do pedido {{reference}}.",
+        "continue": "Continuar para a confirmação",
+        "line": "Você está prestes a pagar {{amount}} ({{installment}}) do pedido {{reference}} usando {{method}}.",
+        "mustCheck": "Marque a caixa de confirmação para continuar.",
+        "noAutoCharge": "Sem cartões salvos. Toda cobrança precisa da sua confirmação explícita aqui.",
+        "quoteNotAccepted": "Aceite a versão atual do orçamento antes de confirmar o pagamento.",
+        "reviewTitle": "Revisar e confirmar",
+        "submitting": "Enviando pagamento…"
+      },
+      "errors": {
+        "duplicate": "Este pagamento já foi enviado. Verifique o status do pagamento em vez de pagar novamente.",
+        "generic": "Algo deu errado. Tente novamente.",
+        "quoteChanged": "O orçamento mudou durante o pagamento. Revise a nova versão antes de pagar.",
+        "paymentsDisabled": "Os pagamentos on-line ainda não estão ativados. Tente novamente mais tarde."
+      },
+      "loadError": "Não foi possível carregar este pagamento. Tente novamente.",
+      "loading": "Carregando pagamento…",
+      "method": {
+        "cardDetails": "Dados do cartão",
+        "cardNote": "Os dados do cartão são processados pela Stripe. A OxSteed nunca vê nem armazena o número do seu cartão.",
+        "choose": "Escolha como pagar esta parcela",
+        "credit": "Crédito OxSteed",
+        "creditBalance": "Saldo de crédito disponível: {{amount}}",
+        "creditDesc": "Pague com seu saldo de Crédito OxSteed.",
+        "creditDisabled": "O Crédito OxSteed está temporariamente indisponível",
+        "creditDisabledDetail": "Os pagamentos com crédito estão desativados no momento, então esta parcela não pode sair do crédito. Você ainda pode pagar com cartão.",
+        "creditInsufficient": "Saldo de crédito insuficiente",
+        "creditNotEligible": "Este pedido não é elegível para pagamento com crédito.",
+        "creditShortfall": "Faltam {{amount}} para o valor de {{installment}}.",
+        "creditTopUpHint": "Recarregue seu saldo de crédito ou continue com cartão.",
+        "oneMethodNote": "Cada parcela é paga com exatamente um método. Sem fundos mistos, e nada é cobrado sem sua confirmação explícita.",
+        "payWithCardInstead": "Pagar com cartão",
+        "stripe": "Cartão via Stripe",
+        "stripeDesc": "Pague com cartão de débito ou crédito. Você informa os dados do cartão a cada vez; nada é salvo nem cobrado automaticamente.",
+        "stripeUnavailable": "Pagamentos com cartão não estão disponíveis no momento. Tente novamente mais tarde ou use o Crédito OxSteed.",
+        "creditBalanceUnknown": "Seu saldo de crédito será verificado quando você confirmar o pagamento."
+      },
+      "missingSubject": "Nenhum pedido ou campanha foi selecionado para pagamento.",
+      "payments": {
+        "awaitingBadge": "Aguardando liquidação",
+        "empty": "Nenhuma tentativa de pagamento ainda.",
+        "headers": {
+          "amount": "Valor",
+          "date": "Data",
+          "installment": "Parcela",
+          "method": "Método",
+          "reference": "Referência",
+          "status": "Status"
+        },
+        "settledBadge": "Liquidado",
+        "states": {
+          "failed": "Falhou",
+          "pending": "Pendente",
+          "processing": "Processando",
+          "refunded": "Reembolsado",
+          "succeeded": "Concluído",
+          "canceled": "Cancelado",
+          "superseded": "Cobrança duplicada exige revisão"
+        },
+        "subtitle": "Cada tentativa de pagamento, com liquidação confirmada pela OxSteed.",
+        "title": "Meus pagamentos de logística"
+      },
+      "quote": {
+        "acceptedOn": "Aceito em {{date}}",
+        "depositPercent": "O depósito é {{percent}}% do total do orçamento, conforme o orçamento aprovado.",
+        "expired": "Este orçamento expirou em {{date}}. Peça um novo orçamento às operações antes de pagar.",
+        "expiresOn": "Orçamento válido até {{date}}",
+        "itemized": "Custos detalhados",
+        "newVersionAvailable": "Uma versão mais recente do orçamento precisa da sua aceitação antes do pagamento.",
+        "supersededBlocked": "Este orçamento foi substituído pela versão {{version}}. Revise e aceite a nova versão antes de pagar.",
+        "total": "Total do orçamento",
+        "version": "Orçamento versão {{version}}"
+      },
+      "returnTo": "Voltar para {{label}}",
+      "schedule": {
+        "alreadySettled": "Esta parcela está liquidada. Nada mais a pagar.",
+        "deposit": "Depósito",
+        "dueNow": "Vence agora",
+        "dueOn": "Vence em {{date}}",
+        "final": "Saldo final",
+        "paid": "Pago",
+        "payNow": "Pagar {{installment}}",
+        "processing": "Pagamento em processamento",
+        "settled": "Liquidado",
+        "unpaid": "Aguardando pagamento"
+      },
+      "sections": {
+        "confirm": "Confirmar pagamento",
+        "method": "Forma de pagamento",
+        "quote": "Orçamento",
+        "schedule": "Cronograma de pagamento",
+        "status": "Status do pagamento",
+        "summary": "Resumo do pedido",
+        "terms": "Termos de cancelamento"
+      },
+      "status": {
+        "amount": "Valor",
+        "attempt": "Tentativa {{id}}",
+        "checking": "Verificando o status do pagamento…",
+        "createdAt": "Iniciada em {{date}}",
+        "failed": "Pagamento falhou",
+        "failedDetail": "Motivo: {{message}}",
+        "failedUnknown": "O pagamento não foi concluído. Nenhum valor foi cobrado.",
+        "installment": "Parcela",
+        "method": "Método",
+        "newKeyNote": "Retomar pagamento",
+        "notSettled": "Os fundos ainda não foram liquidados. Confirmaremos aqui quando o pagamento for compensado.",
+        "pending": "Pagamento pendente",
+        "processing": "Processando seu pagamento…",
+        "received": "Recebemos sua confirmação de pagamento.",
+        "refresh": "Atualizar status",
+        "refunded": "Reembolsado",
+        "retry": "Tentar novamente com uma nova tentativa de pagamento",
+        "settled": "Pagamento liquidado",
+        "settledDetail": "A OxSteed confirmou o recebimento de {{amount}}. Sua parcela está concluída.",
+        "viewAll": "Ver todos os meus pagamentos"
+      },
+      "subtitle": "Revise seu orçamento e confirme cada parcela separadamente.",
+      "summary": {
+        "expectedArrival": "Chegada prevista",
+        "lane": "Rota",
+        "product": "Produto",
+        "quantity": "Quantidade",
+        "reference": "Referência",
+        "status": "Status",
+        "supplier": "Fornecedor"
+      },
+      "title": "Pagamento seguro",
+      "usdOnly": "Todos os valores estão em USD.",
+      "creditUnavailableFallback": "OxSteed Credit não está disponível para o checkout de Logística",
+      "noQuote": {
+        "body": "A Operações ainda não publicou uma cotação pagável para este pedido. Avisaremos quando estiver pronta. Nenhum pagamento é devido agora.",
+        "title": "Nenhuma cotação pronta ainda"
+      }
+    },
+    "quotes": {
+      "accept": {
+        "accepted": "Orçamento versão {{version}} aceito. Agora você pode pagar.",
+        "accepting": "Aceitando…",
+        "body": "A versão {{version}} substitui a versão {{previous}}. Revise o que mudou e aceite para continuar ao pagamento. Você não pode pagar com a versão antiga.",
+        "button": "Aceitar o orçamento versão {{version}}",
+        "cannotPayOld": "O pagamento está pausado até você aceitar o orçamento atual.",
+        "decline": "Agora não",
+        "title": "Um novo orçamento precisa da sua aceitação"
+      },
+      "current": "Atual",
+      "decrease": "redução",
+      "diff": {
+        "added": "Adicionado",
+        "changed": "Alterado",
+        "noChanges": "Sem alterações nos itens nesta versão.",
+        "now": "Agora {{amount}}",
+        "removed": "Removido",
+        "title": "O que mudou",
+        "totalChange": "Total alterado em {{amount}}",
+        "was": "Era {{amount}}"
+      },
+      "increase": "aumento",
+      "superseded": "Substituído",
+      "version": "Versão {{version}}",
+      "notif": {
+        "accepted": {
+          "body": "O comprador aceitou uma cotação de logística. As parcelas já podem ser cobradas.",
+          "title": "Comprador aceitou uma cotação de logística"
+        },
+        "published": {
+          "body": "Uma nova versão da sua cotação de logística está pronta. Revise e aceite antes de pagar.",
+          "title": "Nova cotação aguardando aceitação"
+        }
+      }
+    },
+    "refunds": {
+      "title": "Reembolsos de logística",
+      "subtitle": "Revisão dupla de administradores: um administrador propõe, outro aprova com autenticação recente, e o reembolso é executado.",
+      "proposeButton": "Propor reembolso",
+      "filterStatus": "Filtrar por status",
+      "allStatuses": "Todos os status",
+      "thReference": "Referência",
+      "thAmount": "Valor",
+      "thMethod": "Método",
+      "thReason": "Motivo",
+      "thProposer": "Proposto por",
+      "thStatus": "Status",
+      "thCreated": "Criado",
+      "review": "Revisar",
+      "empty": "Nenhum caso de reembolso corresponde a este filtro.",
+      "loading": "Carregando casos de reembolso...",
+      "cancel": "Cancelar",
+      "submit": "Enviar proposta",
+      "verify": "Verificar",
+      "system": "sistema",
+      "status": {
+        "proposed": "Proposto",
+        "approved": "Aprovado",
+        "executing": "Em execução",
+        "processed": "Processado",
+        "failed": "Falhou",
+        "rejected": "Rejeitado",
+        "expired": "Expirado",
+        "pending": "Pendente",
+        "reviewing": "Em revisão"
+      },
+      "method": {
+        "stripe": "Stripe",
+        "credit": "OxSteed Credit"
+      },
+      "dAmount": "Valor",
+      "dMethod": "Método",
+      "dPaymentAttempt": "Tentativa de pagamento",
+      "dReason": "Motivo",
+      "dProposer": "Proposto por",
+      "dApprover": "Aprovado por",
+      "dFreshAuthAt": "Autenticação recente do aprovador",
+      "dProcessorRef": "Referência do processador",
+      "dRejectionReason": "Motivo da rejeição",
+      "dStatus": "Status",
+      "dDecisions": "Histórico de decisões",
+      "selfApprovalBlocked": "Você propôs este reembolso. Outro administrador precisa aprová-lo. A autoaprovação não é permitida.",
+      "approveButtonStepup": "Verificar identidade e aprovar",
+      "approveButton": "Aprovar reembolso",
+      "rejectButton": "Rejeitar",
+      "executeButton": "Executar reembolso",
+      "executingNote": "Execução em andamento. O caso é atualizado quando o processador confirma.",
+      "executeConfirmBody": "Executar este reembolso aprovado agora? Os fundos retornam à fonte de pagamento original.",
+      "toastProposed": "Reembolso proposto. Outro administrador precisa aprová-lo.",
+      "toastApproved": "Reembolso aprovado.",
+      "toastRejected": "Reembolso rejeitado.",
+      "toastExecuted": "Reembolso executado e processado.",
+      "toastExecuteFailed": "A execução falhou. O caso foi para a fila de conciliação.",
+      "toastExecuteReplayed": "O reembolso já estava processado.",
+      "toastStepupOk": "Identidade verificada. Agora você pode aprovar.",
+      "toastStepupFailed": "Falha na verificação. Confira o código e tente de novo.",
+      "proposeTitle": "Propor um reembolso",
+      "fPaymentAttemptId": "ID da tentativa de pagamento",
+      "fPaymentAttemptHelp": "A tentativa de pagamento logístico original a ser reembolsada. O valor é limitado pelo saldo reembolsável restante.",
+      "fAmountUsd": "Valor (USD)",
+      "fMethod": "Método de reembolso",
+      "fReason": "Motivo",
+      "proposeInvalid": "Informe uma tentativa de pagamento, um valor válido e um motivo.",
+      "stepupTitle": "Verifique sua identidade",
+      "stepupBody": "Aprovar um reembolso exige autenticação recente. Digite o código de 6 dígitos do seu app autenticador.",
+      "fCode": "Código de autenticação",
+      "rejectTitle": "Rejeitar proposta de reembolso",
+      "fRejectReason": "Motivo da rejeição",
+      "rejectReasonRequired": "O motivo da rejeição é obrigatório.",
+      "rejectConfirm": "Rejeitar proposta",
+      "movedNotice": "As revisões de reembolso foram movidas para a página de reembolsos com dupla aprovação. A edição direta de status não está mais disponível.",
+      "openReviewPage": "Abrir revisão de reembolsos"
+    },
+    "refund_pending": {
+      "body": "Seu reembolso de logística está a caminho. Seu provedor de pagamento ainda está processando; confirmaremos quando chegar ao seu método de pagamento original.",
+      "title": "Reembolso pendente"
+    },
+    "blockers": {
+      "allocation_not_found": "A alocação de inventário não foi encontrada.",
+      "campaign_not_found": "A campanha não foi encontrada.",
+      "deposit_deadline_missing": "Defina um prazo de depósito explícito antes de abrir a janela de depósito.",
+      "deposit_funding_shortfall": "A quantidade financiada por depósito está abaixo do mínimo da campanha. O pedido ao fornecedor não pode ser feito.",
+      "final_balance_not_collected": "O saldo final do comprador ainda não foi cobrado. As mercadorias não podem ser liberadas.",
+      "guard_check_failed": "Não foi possível verificar os requisitos para esta ação.",
+      "min_demand_not_met": "A demanda mínima ainda não foi atingida. A janela de depósito não pode ser aberta.",
+      "no_approved_quote": "É necessária uma cotação de fornecedor aprovada (aceita) antes de abrir a janela de depósito.",
+      "no_payment_subject_linked": "Esta alocação não está vinculada a um pedido ou participação pagável, portanto o pagamento não pode ser verificado.",
+      "placement_approval_missing": "A colocação no fornecedor requer uma aprovação de colocação registrada pela Operações."
+    },
+    "review_exceptions": {
+      "funding_shortfall": "Financiamento insuficiente no vencimento do depósito",
+      "min_demand_unmet": "Demanda mínima não atingida no fechamento dos compromissos",
+      "raised_note": "Prazo de financiamento perdido; encaminhado à equipe para resolução. A campanha não avançou."
+    },
+    "staff": {
+      "title": "Operações logísticas",
+      "quoteEditor": "Preparar orçamento",
+      "subject": "Pedido ou participação",
+      "order": "Pedido de compra",
+      "participant": "Participação na campanha",
+      "id": "ID do registro",
+      "description": "Descrição",
+      "amount": "Valor (USD)",
+      "depositPercent": "Depósito (%)",
+      "deadline": "Prazo do depósito",
+      "finalDeadline": "Prazo do saldo",
+      "save": "Salvar rascunho",
+      "publish": "Publicar orçamento",
+      "campaign": "ID da campanha",
+      "placement": "Aprovar pedido ao fornecedor",
+      "openDeposit": "Abrir período de depósito",
+      "queues": "Fila de revisão",
+      "notes": "Notas de revisão",
+      "resolve": "Resolver",
+      "refresh": "Atualizar",
+      "cancelPayment": "Cancelar pagamento não confirmado",
+      "resume": "Retomar pagamento",
+      "reconciled": "Cobrança duplicada exige revisão",
+      "empty": "Nenhum item aberto",
+      "reviewHint": "Registrar uma revisão não movimenta dinheiro nem libera mercadorias."
     }
   },
   "investorLogin": {

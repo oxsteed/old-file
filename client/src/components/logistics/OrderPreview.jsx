@@ -1,12 +1,9 @@
+import LogisticsStatusPill from './LogisticsStatusPill';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { getOrder } from '../../api/logistics';
 import LogisticsModal, { LogisticsModalLoading, LogisticsModalError } from './LogisticsModal';
 
-const STATUS_COLOR = {
-  draft: '#94a3b8', open: '#22c55e', quoted: '#f59e0b', procurement: '#10b981',
-  placed: '#3b82f6', in_transit: '#06b6d4', warehoused: '#0ea5e9', fulfilled: '#15803d',
-};
 
 /**
  * Purchase-order preview modal. Fetches /api/logistics/orders/:id and renders
@@ -58,9 +55,7 @@ export default function OrderPreview({ id, open, onClose }) {
           <div className="lxm-summary-row">
             <span className="lxm-summary-label">{tx('logistics.modal.order.status', 'Status')}</span>
             <span className="lxm-summary-value">
-              <span className="lx-status-pill" style={{ background: STATUS_COLOR[order.status] || '#64748b' }}>
-                {order.status?.replace(/_/g, ' ')}
-              </span>
+              <LogisticsStatusPill status={order.status} />
             </span>
           </div>
           <div className="lxm-summary-row">

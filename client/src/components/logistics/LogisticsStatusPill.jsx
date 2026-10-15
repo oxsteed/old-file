@@ -113,7 +113,7 @@ export default function LogisticsStatusPill({ status, label, className = '' }) {
   // logistics.status.* key exists, otherwise falls back to pretty text.
   const text =
     label ||
-    t(`logistics.status.${status}`, { defaultValue: (status || '').replace(/_/g, ' ') });
+    (status ? t(`logistics.status.${status}`, { defaultValue: status.replace(/_/g, ' ') }) : '—');
   return (
     <span className={`lx-status-pill lx-status-pill--${tone} ${className}`.trim()}>
       {text}
