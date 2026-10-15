@@ -2487,7 +2487,8 @@
       "errors": {
         "duplicate": "Malipo haya yametumwa tayari. Angalia hali ya malipo badala ya kulipa tena.",
         "generic": "Kuna tatizo. Tafadhali jaribu tena.",
-        "quoteChanged": "Nukuu ilibadilika ulipokuwa unalipa. Kagua toleo jipya kabla hujalipa."
+        "quoteChanged": "Nukuu ilibadilika ulipokuwa unalipa. Kagua toleo jipya kabla hujalipa.",
+        "paymentsDisabled": "Malipo ya mtandaoni bado hayajawezeshwa. Tafadhali jaribu tena baadaye."
       },
       "loadError": "Hatukuweza kupakia malipo haya. Tafadhali jaribu tena.",
       "loading": "Inapakia malipo…",
@@ -2528,7 +2529,8 @@
           "pending": "Inasubiri",
           "processing": "Inachakatwa",
           "refunded": "Imerejeshwa",
-          "succeeded": "Imefanikiwa"
+          "succeeded": "Imefanikiwa",
+          "canceled": "Imeghairiwa"
         },
         "subtitle": "Kila jaribio la malipo, na OxSteed imethibitisha ukamilishaji.",
         "title": "Malipo yangu ya usafirishaji"

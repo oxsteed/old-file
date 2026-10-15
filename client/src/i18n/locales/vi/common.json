@@ -2489,7 +2489,8 @@
       "errors": {
         "duplicate": "Khoản thanh toán này đã được gửi. Hãy kiểm tra trạng thái thanh toán thay vì thanh toán lại.",
         "generic": "Đã xảy ra lỗi. Vui lòng thử lại.",
-        "quoteChanged": "Báo giá đã thay đổi trong lúc bạn thanh toán. Hãy xem phiên bản mới trước khi thanh toán."
+        "quoteChanged": "Báo giá đã thay đổi trong lúc bạn thanh toán. Hãy xem phiên bản mới trước khi thanh toán.",
+        "paymentsDisabled": "Thanh toán trực tuyến chưa được bật. Vui lòng thử lại sau."
       },
       "loadError": "Không thể tải lần thanh toán này. Vui lòng thử lại.",
       "loading": "Đang tải thanh toán…",
@@ -2530,7 +2531,8 @@
           "pending": "Đang chờ",
           "processing": "Đang xử lý",
           "refunded": "Đã hoàn tiền",
-          "succeeded": "Thành công"
+          "succeeded": "Thành công",
+          "canceled": "Đã hủy"
         },
         "subtitle": "Mọi lần thanh toán, với quyết toán do OxSteed xác nhận.",
         "title": "Thanh toán logistics của tôi"

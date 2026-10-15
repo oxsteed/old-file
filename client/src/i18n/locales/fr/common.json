@@ -2489,7 +2489,8 @@
       "errors": {
         "duplicate": "Ce paiement a déjà été envoyé. Vérifiez son statut plutôt que de payer à nouveau.",
         "generic": "Un problème est survenu. Veuillez réessayer.",
-        "quoteChanged": "Le devis a changé pendant votre paiement. Examinez la nouvelle version avant de payer."
+        "quoteChanged": "Le devis a changé pendant votre paiement. Examinez la nouvelle version avant de payer.",
+        "paymentsDisabled": "Les paiements en ligne ne sont pas encore activés. Veuillez réessayer plus tard."
       },
       "loadError": "Nous n'avons pas pu charger ce paiement. Veuillez réessayer.",
       "loading": "Chargement du paiement…",
@@ -2530,7 +2531,8 @@
           "pending": "En attente",
           "processing": "En cours",
           "refunded": "Remboursé",
-          "succeeded": "Réussi"
+          "succeeded": "Réussi",
+          "canceled": "Annulé"
         },
         "subtitle": "Chaque tentative de paiement, avec règlement confirmé par OxSteed.",
         "title": "Mes paiements logistiques"

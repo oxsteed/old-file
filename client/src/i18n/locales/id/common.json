@@ -2489,7 +2489,8 @@
       "errors": {
         "duplicate": "Pembayaran ini sudah dikirim. Periksa status pembayaran alih-alih membayar lagi.",
         "generic": "Terjadi kesalahan. Silakan coba lagi.",
-        "quoteChanged": "Penawaran berubah saat Anda checkout. Tinjau versi baru sebelum membayar."
+        "quoteChanged": "Penawaran berubah saat Anda checkout. Tinjau versi baru sebelum membayar.",
+        "paymentsDisabled": "Pembayaran online belum diaktifkan. Silakan coba lagi nanti."
       },
       "loadError": "Checkout ini tidak dapat dimuat. Silakan coba lagi.",
       "loading": "Memuat checkout…",
@@ -2530,7 +2531,8 @@
           "pending": "Tertunda",
           "processing": "Diproses",
           "refunded": "Dikembalikan",
-          "succeeded": "Berhasil"
+          "succeeded": "Berhasil",
+          "canceled": "Dibatalkan"
         },
         "subtitle": "Setiap upaya pembayaran, dengan pelunasan yang dikonfirmasi OxSteed.",
         "title": "Pembayaran logistik saya"

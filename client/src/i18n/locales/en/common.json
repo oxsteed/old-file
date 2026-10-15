@@ -2489,7 +2489,8 @@
       "errors": {
         "duplicate": "This payment was already submitted. Check the payment status instead of paying again.",
         "generic": "Something went wrong. Please try again.",
-        "quoteChanged": "The quote changed while you were checking out. Review the new version before paying."
+        "quoteChanged": "The quote changed while you were checking out. Review the new version before paying.",
+        "paymentsDisabled": "Online payments are not enabled yet. Please try again later."
       },
       "loadError": "We could not load this checkout. Please try again.",
       "loading": "Loading checkout…",
@@ -2530,7 +2531,8 @@
           "pending": "Pending",
           "processing": "Processing",
           "refunded": "Refunded",
-          "succeeded": "Succeeded"
+          "succeeded": "Succeeded",
+          "canceled": "Canceled"
         },
         "subtitle": "Every payment attempt, with settlement confirmed by OxSteed.",
         "title": "My logistics payments"

@@ -2489,7 +2489,8 @@
       "errors": {
         "duplicate": "Este pago ya fue enviado. Revisa el estado del pago en lugar de pagar de nuevo.",
         "generic": "Algo salió mal. Inténtalo de nuevo.",
-        "quoteChanged": "La cotización cambió mientras pagabas. Revisa la nueva versión antes de pagar."
+        "quoteChanged": "La cotización cambió mientras pagabas. Revisa la nueva versión antes de pagar.",
+        "paymentsDisabled": "Los pagos en línea aún no están habilitados. Inténtalo de nuevo más tarde."
       },
       "loadError": "No pudimos cargar este pago. Inténtalo de nuevo.",
       "loading": "Cargando el pago…",
@@ -2530,7 +2531,8 @@
           "pending": "Pendiente",
           "processing": "En proceso",
           "refunded": "Reembolsado",
-          "succeeded": "Exitoso"
+          "succeeded": "Exitoso",
+          "canceled": "Cancelado"
         },
         "subtitle": "Cada intento de pago, con liquidación confirmada por OxSteed.",
         "title": "Mis pagos de logística"

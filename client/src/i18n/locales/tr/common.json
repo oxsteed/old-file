@@ -2489,7 +2489,8 @@
       "errors": {
         "duplicate": "Bu ödeme zaten gönderildi. Tekrar ödemek yerine ödeme durumunu kontrol edin.",
         "generic": "Bir şeyler ters gitti. Lütfen tekrar deneyin.",
-        "quoteChanged": "Ödeme sırasında teklif değişti. Ödemeden önce yeni sürümü inceleyin."
+        "quoteChanged": "Ödeme sırasında teklif değişti. Ödemeden önce yeni sürümü inceleyin.",
+        "paymentsDisabled": "Çevrimiçi ödemeler henüz etkin değil. Lütfen daha sonra tekrar deneyin."
       },
       "loadError": "Bu ödeme yüklenemedi. Lütfen tekrar deneyin.",
       "loading": "Ödeme yükleniyor…",
@@ -2530,7 +2531,8 @@
           "pending": "Bekliyor",
           "processing": "İşleniyor",
           "refunded": "İade edildi",
-          "succeeded": "Başarılı"
+          "succeeded": "Başarılı",
+          "canceled": "İptal edildi"
         },
         "subtitle": "Her ödeme denemesi; mutabakat OxSteed tarafından onaylanır.",
         "title": "Lojistik ödemelerim"

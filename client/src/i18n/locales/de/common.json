@@ -2489,7 +2489,8 @@
       "errors": {
         "duplicate": "Diese Zahlung wurde bereits übermittelt. Prüfen Sie den Zahlungsstatus, statt erneut zu zahlen.",
         "generic": "Etwas ist schiefgelaufen. Bitte versuchen Sie es erneut.",
-        "quoteChanged": "Das Angebot hat sich während des Checkouts geändert. Prüfen Sie die neue Version vor der Zahlung."
+        "quoteChanged": "Das Angebot hat sich während des Checkouts geändert. Prüfen Sie die neue Version vor der Zahlung.",
+        "paymentsDisabled": "Online-Zahlungen sind noch nicht aktiviert. Bitte versuchen Sie es später erneut."
       },
       "loadError": "Dieser Checkout konnte nicht geladen werden. Bitte versuchen Sie es erneut.",
       "loading": "Checkout wird geladen…",
@@ -2530,7 +2531,8 @@
           "pending": "Ausstehend",
           "processing": "Wird verarbeitet",
           "refunded": "Erstattet",
-          "succeeded": "Erfolgreich"
+          "succeeded": "Erfolgreich",
+          "canceled": "Abgebrochen"
         },
         "subtitle": "Jeder Zahlungsversuch, mit von OxSteed bestätigter Abwicklung.",
         "title": "Meine Logistikzahlungen"

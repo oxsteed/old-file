@@ -2489,7 +2489,8 @@
       "errors": {
         "duplicate": "该笔付款已提交。请查看付款状态，不要重复付款。",
         "generic": "出现错误，请重试。",
-        "quoteChanged": "结账期间报价已变更。请先查看新版本再付款。"
+        "quoteChanged": "结账期间报价已变更。请先查看新版本再付款。",
+        "paymentsDisabled": "在线支付尚未启用，请稍后再试。"
       },
       "loadError": "无法加载此次结账，请重试。",
       "loading": "正在加载结账…",
@@ -2530,7 +2531,8 @@
           "pending": "待处理",
           "processing": "处理中",
           "refunded": "已退款",
-          "succeeded": "成功"
+          "succeeded": "成功",
+          "canceled": "已取消"
         },
         "subtitle": "所有付款记录，结算状态由 OxSteed 确认。",
         "title": "我的物流付款"

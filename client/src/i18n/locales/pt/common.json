@@ -2489,7 +2489,8 @@
       "errors": {
         "duplicate": "Este pagamento já foi enviado. Verifique o status do pagamento em vez de pagar novamente.",
         "generic": "Algo deu errado. Tente novamente.",
-        "quoteChanged": "O orçamento mudou durante o pagamento. Revise a nova versão antes de pagar."
+        "quoteChanged": "O orçamento mudou durante o pagamento. Revise a nova versão antes de pagar.",
+        "paymentsDisabled": "Os pagamentos on-line ainda não estão ativados. Tente novamente mais tarde."
       },
       "loadError": "Não foi possível carregar este pagamento. Tente novamente.",
       "loading": "Carregando pagamento…",
@@ -2530,7 +2531,8 @@
           "pending": "Pendente",
           "processing": "Processando",
           "refunded": "Reembolsado",
-          "succeeded": "Concluído"
+          "succeeded": "Concluído",
+          "canceled": "Cancelado"
         },
         "subtitle": "Cada tentativa de pagamento, com liquidação confirmada pela OxSteed.",
         "title": "Meus pagamentos de logística"

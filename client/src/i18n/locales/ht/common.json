@@ -2489,7 +2489,8 @@
       "errors": {
         "duplicate": "Peman sa a te deja voye. Tcheke estati peman an olye ou peye ankò.",
         "generic": "Yon pwoblèm pase. Tanpri eseye ankò.",
-        "quoteChanged": "Devis la chanje pandan ou t ap peye a. Revize nouvo vèsyon an anvan ou peye."
+        "quoteChanged": "Devis la chanje pandan ou t ap peye a. Revize nouvo vèsyon an anvan ou peye.",
+        "paymentsDisabled": "Peman sou entènèt yo poko aktive. Tanpri eseye ankò pita."
       },
       "loadError": "Nou pa t ka chaje peman sa a. Tanpri eseye ankò.",
       "loading": "N ap chaje peman an…",
@@ -2530,7 +2531,8 @@
           "pending": "An atant",
           "processing": "An kou",
           "refunded": "Ranbouse",
-          "succeeded": "Reyisi"
+          "succeeded": "Reyisi",
+          "canceled": "Anile"
         },
         "subtitle": "Chak tantativ peman, ak règleman OxSteed konfime.",
         "title": "Peman lojistik mwen yo"

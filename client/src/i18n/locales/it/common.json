@@ -2489,7 +2489,8 @@
       "errors": {
         "duplicate": "Questo pagamento è già stato inviato. Controlla lo stato del pagamento invece di pagare di nuovo.",
         "generic": "Qualcosa è andato storto. Riprova.",
-        "quoteChanged": "Il preventivo è cambiato durante il checkout. Esamina la nuova versione prima di pagare."
+        "quoteChanged": "Il preventivo è cambiato durante il checkout. Esamina la nuova versione prima di pagare.",
+        "paymentsDisabled": "I pagamenti online non sono ancora attivi. Riprova più tardi."
       },
       "loadError": "Impossibile caricare questo checkout. Riprova.",
       "loading": "Caricamento del pagamento…",
@@ -2530,7 +2531,8 @@
           "pending": "In attesa",
           "processing": "In elaborazione",
           "refunded": "Rimborsato",
-          "succeeded": "Riuscito"
+          "succeeded": "Riuscito",
+          "canceled": "Annullato"
         },
         "subtitle": "Ogni tentativo di pagamento, con regolamento confermato da OxSteed.",
         "title": "I miei pagamenti logistici"
