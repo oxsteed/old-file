@@ -63,6 +63,14 @@ export default function OrderDetailPage() {
     }
 
     const remaining = Math.max(0, parseFloat(order.final_due_usd || 0) - parseFloat(order.final_paid_usd || 0));
+    // Outstanding per installment (same > $0.01 epsilon the finance
+    // controller uses). Drives the Phase 3 checkout entry point.
+    const depositOutstanding = parseFloat(order.deposit_due_usd || 0) - parseFloat(order.deposit_paid_usd || 0);
+    const finalOutstanding = parseFloat(order.final_due_usd || 0) - parseFloat(order.final_paid_usd || 0);
+    const payInstallment = depositOutstanding > 0.01 ? 'deposit' : finalOutstanding > 0.01 ? 'final' : null;
+    const checkoutHref = payInstallment
+      ? `/logistics/checkout?po_id=${order.id}&installment=${payInstallment}&return=${encodeURIComponent(`/logistics/orders/${order.id}`)}`
+      : null;
     const financeRows = [
       [tx('logistics.orderDetail.finance.productTotal', 'Product total'), order.total_product_usd],
       [tx('logistics.orderDetail.finance.originHandling', 'Origin handling'), order.origin_handling_usd],
@@ -134,6 +142,20 @@ export default function OrderDetailPage() {
                 <span className="lx-kv-value">{remaining ? `$${remaining.toFixed(2)}` : '$0.00'}</span>
               </div>
             </div>
+            {checkoutHref && (
+              <div className="lx-btn-row lx-mt-6">
+                <Link to={checkoutHref} className="lx-action-primary">
+                  {tx('logistics.checkout.schedule.payNow', 'Pay {{installment}}', {
+                    installment: payInstallment === 'final'
+                      ? tx('logistics.checkout.schedule.final', 'Final balance')
+                      : tx('logistics.checkout.schedule.deposit', 'Deposit'),
+                  })}
+                </Link>
+                <Link to="/logistics/payments" className="lx-action-ghost">
+                  {tx('logistics.checkout.status.viewAll', 'View all my payments')}
+                </Link>
+              </div>
+            )}
           </div>
         </div>
       </>

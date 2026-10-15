@@ -145,6 +145,8 @@ const WarehousingPage = lazyWithRetry(() => import('./pages/logistics/Warehousin
 const DistributionPage = lazyWithRetry(() => import('./pages/logistics/DistributionPage'));
 const CompliancePage = lazyWithRetry(() => import('./pages/logistics/CompliancePage'));
 const LogisticsFinancePage = lazyWithRetry(() => import('./pages/logistics/LogisticsFinancePage'));
+const LogisticsCheckoutPage = lazyWithRetry(() => import('./pages/logistics/CheckoutPage'));
+const LogisticsPaymentsPage = lazyWithRetry(() => import('./pages/logistics/LogisticsPaymentsPage'));
 const BusinessHubPage = lazyWithRetry(() => import('./pages/BusinessHubPage'));
 const BusinessOnboardingPage = lazyWithRetry(() => import('./pages/BusinessOnboardingPage'));
 const CreditApplyPage = lazyWithRetry(() => import('./pages/CreditApplyPage'));
@@ -687,6 +689,9 @@ export default function App() {
                     <Route path="/logistics/distribution"     element={<Guarded><ProtectedRoute><RouteErrorBoundary><DistributionPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/logistics/compliance"       element={<Guarded><RouteErrorBoundary><CompliancePage /></RouteErrorBoundary></Guarded>} />
                     <Route path="/logistics/finance"          element={<Guarded><ProtectedRoute><RouteErrorBoundary><LogisticsFinancePage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
+                    {/* Phase 3: buyer checkout (one installment per session) + payment status */}
+                    <Route path="/logistics/checkout"         element={<Guarded><ProtectedRoute><RouteErrorBoundary><LogisticsCheckoutPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
+                    <Route path="/logistics/payments"         element={<Guarded><ProtectedRoute><RouteErrorBoundary><LogisticsPaymentsPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
 
                     {/* Vortex - unified workspace + access-code entry point (team-role spec) */}
                     <Route path="/vortex"        element={<Guarded><ProtectedRoute><RouteErrorBoundary><VortexPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
