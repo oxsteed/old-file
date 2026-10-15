@@ -235,6 +235,90 @@ export const getPoLandedCostBreakdown = (id) =>
 export const getProfitabilitySummary = () =>
   axios.get('/logistics/finance/profitability').then(r => r.data);
 
+// ─── Phase 3: buyer checkout, versioned quotes, payment attempts ─
+// Server workstream owns these endpoints. The shapes below are the client
+// contract assumptions; see each function's JSDoc. All money is integer
+// minor units (USD cents) — the client never computes amounts, it only
+// displays server-provided minor-unit values.
+
+/**
+ * Buyer checkout context for one purchase order or pooled participation.
+ * GET /logistics/finance/checkout-context?po_id=123 | ?participant_id=456
+ *
+ * Assumed response: { success: true, data: {
+ *   subject: { kind: 'purchase_order'|'pooled_participation', id, reference,
+ *     title, product_title, qty, lane_name, origin_country, destination_country,
+ *     supplier_name, expected_arrival_date, status },
+ *   quote: { id, version, status: 'accepted'|'pending_acceptance'|'expired'|'superseded',
+ *     accepted_version, pending_version_id, currency: 'USD',
+ *     line_items: [{ label, amount_minor }], total_minor,
+ *     deposit_percent, deposit_amount_minor, final_amount_minor,
+ *     schedule: [{ installment: 'deposit'|'final', amount_minor, paid_minor,
+ *       status: 'unpaid'|'processing'|'paid'|'settled', due_date }],
+ *     deadlines: { deposit_due, final_due, quote_expires_at },
+ *     cancellation_terms, diff: { vs_version, total_delta_minor,
+ *       changes: [{ label, kind: 'added'|'removed'|'changed',
+ *         previous_minor, current_minor }] } | null },
+ *   credit: { rail_enabled, eligible, balance_minor, participant_name },
+ *   return_label } }
+ */
+export const getCheckoutContext = (params = {}) =>
+  axios.get('/logistics/finance/checkout-context', { params }).then(r => r.data);
+
+/**
+ * Accept a pending quote version before paying.
+ * POST /logistics/finance/quotes/:quoteId/accept  { idempotency_key }
+ * Assumed response: { success: true, data: { quote: { id, version, status: 'accepted' } } }
+ * Server must reject acceptance of a superseded/expired version (409).
+ */
+export const acceptQuoteVersion = (quoteId, idempotencyKey) =>
+  axios.post(`/logistics/finance/quotes/${quoteId}/accept`, { idempotency_key: idempotencyKey }).then(r => r.data);
+
+/**
+ * Create a payment attempt for one installment, exactly one method.
+ * POST /logistics/finance/payment-attempts
+ *   { subject_kind, subject_id, installment: 'deposit'|'final',
+ *     method: 'stripe'|'credit', quote_version, amount_minor, idempotency_key }
+ * Header: Idempotency-Key: <uuid> (one UUID per checkout session; retries
+ * mint a NEW key).
+ * Assumed response: { success: true, data: {
+ *   attempt: { id, status: 'pending'|'processing', method, installment,
+ *     amount_minor, quote_version, created_at },
+ *   stripe: { client_secret, publishable_key } | null } }
+ * Stripe: client confirms the PaymentIntent with stripe.js, then the server
+ * settles only via signed webhook. Credit: server processes the spend
+ * against the logistics Credit surface; settled is confirmed by polling.
+ * Server must 409 when the quote version is stale or the installment is
+ * already settled (error code 'quote_changed' / 'already_settled').
+ */
+export const createPaymentAttempt = (payload, idempotencyKey) =>
+  axios.post('/logistics/finance/payment-attempts', payload, {
+    headers: { 'Idempotency-Key': idempotencyKey },
+  }).then(r => r.data);
+
+/**
+ * Poll a single payment attempt.
+ * GET /logistics/finance/payment-attempts/:attemptId
+ * Assumed response: { success: true, data: { attempt: {
+ *   id, status: 'pending'|'processing'|'succeeded'|'failed'|'refunded',
+ *   settled: bool, method, installment, amount_minor, currency: 'USD',
+ *   failure_message, created_at, settled_at } } }
+ * `settled` is true only after server-side confirmation (Stripe webhook or
+ * committed Credit reversal). The UI must never show "settled" from the
+ * browser redirect or the confirmCardPayment result alone.
+ */
+export const getPaymentAttempt = (attemptId) =>
+  axios.get(`/logistics/finance/payment-attempts/${attemptId}`).then(r => r.data);
+
+/**
+ * List the buyer's payment attempts (newest first).
+ * GET /logistics/finance/payment-attempts
+ * Assumed response: { success: true, data: { attempts: [attempt, ...] } }
+ * with the same attempt shape as getPaymentAttempt.
+ */
+export const listMyPaymentAttempts = (params = {}) =>
+  axios.get('/logistics/finance/payment-attempts', { params }).then(r => r.data);
+
 // ─── Admin ────────────────────────────────────────────────────
 
 export const adminGetStats = () =>
