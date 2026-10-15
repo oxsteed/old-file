@@ -31,6 +31,11 @@ const PRODUCT_CARDS = [
   { key: 'business', product: 'business', to: '/business/statements', archive: null, Icon: Briefcase },
 ];
 
+const PRODUCT_GROUPS = [
+  { key: 'personal', products: ['oxsteedCredit', 'restaurantCredit'] },
+  { key: 'work', products: ['restaurantSettlement', 'helperEarnings', 'business'] },
+];
+
 // Summary row order per product, in each product's own accounting vocabulary.
 const SUMMARY_ROWS = {
   oxsteedCredit: ['balance', 'lastPeriodCredits', 'lastPeriodDebits'],
@@ -187,7 +192,7 @@ export default function StatementCenterPage() {
         <StatementSearch />
 
         <section aria-labelledby="statement-center-products-heading">
-          <h2 id="statement-center-products-heading">{text('title')}</h2>
+          <h2 id="statement-center-products-heading" className="statement-center-section-title">{text('accountsTitle')}</h2>
           {center.status === 'loading' && <div className="statement-center-state" role="status">{text('loading')}</div>}
           {center.status === 'error' && <div className="statement-center-state" role="alert">
             <p>{text('loadError')}</p>
@@ -204,16 +209,29 @@ export default function StatementCenterPage() {
               {text('retry')}
             </button>
           </div>}
-          {center.status === 'ready' && <div className="statement-center-grid">
-            {PRODUCT_CARDS.map((config) => (
-              <ProductCard
-                key={config.key}
-                config={config}
-                entry={center.products?.[config.key] || null}
-                language={language}
-                text={text}
-                onPreview={openPreview(config)}
-              />
+          {center.status === 'ready' && <div className="statement-center-groups">
+            {PRODUCT_GROUPS.map((group) => (
+              <section key={group.key} className="statement-center-group" aria-labelledby={`statement-center-${group.key}-heading`}>
+                <div className="statement-center-group-heading">
+                  <div>
+                    <h3 id={`statement-center-${group.key}-heading`}>{text(`${group.key}Title`)}</h3>
+                    <p>{text(`${group.key}Description`)}</p>
+                  </div>
+                </div>
+                <div className="statement-center-grid">
+                  {group.products.map((productKey) => {
+                    const config = PRODUCT_CARDS.find((item) => item.key === productKey);
+                    return <ProductCard
+                      key={config.key}
+                      config={config}
+                      entry={center.products?.[config.key] || null}
+                      language={language}
+                      text={text}
+                      onPreview={openPreview(config)}
+                    />;
+                  })}
+                </div>
+              </section>
             ))}
           </div>}
         </section>
