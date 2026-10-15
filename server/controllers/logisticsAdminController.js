@@ -267,26 +267,13 @@ exports.listRefundCases = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
-exports.updateRefundCase = async (req, res, next) => {
-  try {
-    const { status, approved_amount_usd, notes, stripe_refund_id } = req.body;
-    const result = await pool.query(
-      `UPDATE logistics_refund_cases
-       SET status = COALESCE($1, status),
-           approved_amount_usd = COALESCE($2, approved_amount_usd),
-           notes = COALESCE($3, notes),
-           stripe_refund_id = COALESCE($4, stripe_refund_id),
-           processed_by = $5,
-           processed_at = CASE WHEN COALESCE($1, status) IN ('approved','processed','rejected') THEN NOW() ELSE processed_at END
-       WHERE id = $6
-       RETURNING *`,
-      [status, approved_amount_usd, notes, stripe_refund_id, req.user.id, req.params.id]
-    );
-    if (!result.rows[0]) return next(new AppError('Refund case not found', 404, 'not_found'));
-    logLogisticsAction('refund_case', req.params.id, `refund_${result.rows[0].status}`, { actorUserId: req.user.id });
-    res.json({ success: true, data: result.rows[0] });
-  } catch (err) { next(err); }
-};
+// updateRefundCase was REMOVED (Phase 3 dual-admin refunds): the old PATCH
+// /refund-cases/:id accepted { status, approved_amount_usd, notes,
+// stripe_refund_id } directly, which let anyone with operations access
+// establish a "processed" refund merely by editing status or pasting a
+// stripe_refund_id. The only path now is propose -> approve (different admin,
+// fresh TOTP auth) -> execute; see logisticsRefundsController.js.
+// Reads remain backward-compatible via refundsCtrl.listRefundCases.
 
 // ─── Country Access Rules ─────────────────────────────────────
 

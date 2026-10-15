@@ -9,6 +9,10 @@
  */
 const router = require('express').Router();
 const adminCtrl  = require('../controllers/logisticsAdminController');
+const refundsCtrl = require('../controllers/logisticsRefundsController');
+const { requireFreshAuth } = require('../middleware/requireFreshAuth');
+// Refund approvals need recency: TOTP step-up within the last 15 minutes.
+const requireFreshAuthStepUp = requireFreshAuth('logistics_refund_approve');
 const lanesCtrl  = require('../controllers/logisticsLanesController');
 const shipCtrl   = require('../controllers/logisticsShipmentsController');
 const poCtrl     = require('../controllers/logisticsPurchaseOrdersController');
@@ -127,8 +131,21 @@ router.post('/deliveries',                   requireOperationsWorkspace, whCtrl.
 
 router.get('/claims',                        requireOperationsWorkspace, adminCtrl.listClaims);
 router.patch('/claims/:id',                  requireOperationsWorkspace, adminCtrl.updateClaim);
-router.get('/refund-cases',                  requireOperationsWorkspace, adminCtrl.listRefundCases);
-router.patch('/refund-cases/:id',            requireOperationsWorkspace, adminCtrl.updateRefundCase);
+
+// ─── Refunds: dual-admin flow (Phase 3) ──────────────────────
+// The old PATCH /refund-cases/:id (direct status / stripe_refund_id editing)
+// is REMOVED: it let anyone with operations access establish a "processed"
+// refund without approval. The only path now is propose -> approve
+// (different admin, fresh TOTP auth) -> execute.
+router.get('/refund-cases',                  requireOperationsWorkspace, refundsCtrl.listRefundCases);
+router.get('/refunds',                       requireOperationsWorkspace, refundsCtrl.listRefunds);
+router.get('/refunds/:id',                   requireOperationsWorkspace, refundsCtrl.getRefund);
+router.get('/refunds/:id/decisions',         requireOperationsWorkspace, refundsCtrl.listDecisions);
+router.post('/refunds/propose',              requireOperationsWorkspace, refundsCtrl.proposeRefund);
+router.post('/refunds/stepup/verify',        requireOperationsWorkspace, refundsCtrl.verifyStepUp);
+router.post('/refunds/:id/approve',          requireOperationsWorkspace, requireFreshAuthStepUp, refundsCtrl.approveRefund);
+router.post('/refunds/:id/reject',            requireOperationsWorkspace, refundsCtrl.rejectRefund);
+router.post('/refunds/:id/execute',           requireOperationsWorkspace, refundsCtrl.executeRefund);
 
 // ─── Markup / Fee Rules (super-admin only) ────────────────────
 

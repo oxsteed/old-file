@@ -48,6 +48,7 @@ const T = {
     },
   },
   ...require('./localDeliveryNotifications').deliveryNotifications,
+  ...require('./logisticsRefundNotifications').refundNotifications,
   ...require('./jobLifecycleNotificationTemplates').jobLifecycleNotifications,
   ...require('./campaignReviewNotifications').campaignReviewNotifications,
   work_agreement_signature_requested: {
