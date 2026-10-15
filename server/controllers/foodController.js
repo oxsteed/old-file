@@ -2890,7 +2890,7 @@ exports.createOrder = async (req, res, next) => {
             AND COALESCE(b.setup_status, 'active') = 'active'
             AND COALESCE(b.business_kind, 'restaurant') = 'restaurant'
             AND b.deleted_at IS NULL
-          FOR UPDATE`,
+          FOR UPDATE OF fr`,
         [restaurantId]
       );
       const restaurant = restaurants[0];
