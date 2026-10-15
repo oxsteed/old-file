@@ -19,6 +19,7 @@ const STATUS_TONE = {
   cancelled: 'neutral',
   paused: 'neutral',
   refunded: 'neutral',
+  expired: 'neutral',
 
   // ── success: healthy / completed / good standing ──
   open: 'success',
@@ -29,6 +30,7 @@ const STATUS_TONE = {
   completed: 'success',
   fulfilled: 'success',
   cleared: 'success',
+  processed: 'success',
   customs_cleared: 'success',
   deposit_collected: 'success',
   deposit_paid: 'success',
@@ -54,6 +56,7 @@ const STATUS_TONE = {
   under_review: 'warning',
   managed: 'warning',
   pledged: 'warning',
+  proposed: 'warning',
 
   // ── info: operational movement / coordination state ──
   booked: 'info',
@@ -76,6 +79,7 @@ const STATUS_TONE = {
   locked: 'info',
   submitted: 'info',
   in_transit: 'info',
+  executing: 'info',
 
   // ── danger: blocked / failed / violating ──
   customs_review: 'danger',

@@ -13,6 +13,7 @@ import {
 } from '../../../api/logistics';
 import { useAuth } from '../../../hooks/useAuth';
 import AdminErrorState from '../../lib/AdminErrorState';
+import DestructiveConfirmDialog from '../../components/DestructiveConfirmDialog';
 import LogisticsModal from '../../../components/logistics/LogisticsModal';
 import LogisticsStatusPill from '../../../components/logistics/LogisticsStatusPill';
 import '../../../styles/logistics/LogisticsHomePage.css';
@@ -46,6 +47,9 @@ export default function RefundsAdmin() {
   // Reject form
   const [rejecting, setRejecting] = useState(null); // caseId
   const [rejectReason, setRejectReason] = useState('');
+
+  // Execute confirmation (destructive-confirm contract: no window.confirm)
+  const [confirmingExecute, setConfirmingExecute] = useState(false);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -138,8 +142,7 @@ export default function RefundsAdmin() {
   };
 
   const doExecute = async () => {
-    // eslint-disable-next-line no-alert
-    if (!window.confirm(t(`${NS}.executeConfirmBody`))) return;
+    setConfirmingExecute(false);
     setBusy(true);
     try {
       const res = await adminExecuteRefund(selected.id);
@@ -272,7 +275,7 @@ export default function RefundsAdmin() {
                 </>
               )}
               {selected.status === 'approved' && (
-                <button className="lx-btn-primary" disabled={busy} onClick={doExecute}>
+                <button className="lx-btn-primary" disabled={busy} onClick={() => setConfirmingExecute(true)}>
                   {t(`${NS}.executeButton`)}
                 </button>
               )}
@@ -341,6 +344,16 @@ export default function RefundsAdmin() {
           <button className="lx-btn-primary" disabled={busy} onClick={doReject}>{t(`${NS}.rejectConfirm`)}</button>
         </div>
       </LogisticsModal>
+
+      {/* ── Execute confirmation (destructive-confirm contract) ── */}
+      <DestructiveConfirmDialog
+        open={confirmingExecute}
+        title={t(`${NS}.executeButton`)}
+        description={t(`${NS}.executeConfirmBody`)}
+        confirmLabel={t(`${NS}.executeButton`)}
+        onConfirm={doExecute}
+        onCancel={() => setConfirmingExecute(false)}
+      />
     </div>
   );
 }
