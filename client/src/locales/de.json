@@ -15500,6 +15500,36 @@
     "emptyEyebrow": "Beratung zur Unternehmensgründung"
   },
   "logistics": {
+    "forms": {
+      "unsavedChanges": {
+        "title": "Ungespeicherte Änderungen verwerfen?",
+        "body": "Sie haben ungespeicherte Änderungen. Wenn Sie jetzt gehen, gehen Ihre Eingaben verloren.",
+        "stay": "Weiter bearbeiten",
+        "discard": "Änderungen verwerfen"
+      }
+    },
+    "workspace": {
+      "business": {
+        "recentActivity": {
+          "empty": "Noch nichts hier."
+        }
+      },
+      "buyer": {
+        "recentActivity": {
+          "empty": "Noch nichts hier."
+        }
+      },
+      "distributor": {
+        "recentActivity": {
+          "empty": "Noch nichts hier."
+        }
+      },
+      "organizer": {
+        "recentActivity": {
+          "empty": "Noch nichts hier."
+        }
+      }
+    },
     "nav": {
       "home": "Logistik",
       "campaigns": "Kampagnen",
@@ -15594,6 +15624,7 @@
       }
     },
     "complianceWorkspace": {
+      "navLabel": "Compliance-Bereiche",
       "title": "Compliance-Arbeitsbereich",
       "subtitle": "Sehen Sie die Handelsregeln für jede Route und die Warteschlange für zollsensible Vorgänge an, wenn Sie über Bedienerzugang verfügen.",
       "nav": {
@@ -15741,6 +15772,88 @@
       "myStatus": "Mein Status",
       "moqReached": "MOQ erreicht!",
       "lockDate": "Schließdatum",
+      "newCampaign": "Neue Kampagne starten",
+      "new": {
+        "title": "Neue Kampagne starten",
+        "subtitle": "Entwerfen Sie Ihre Sammelkampagne. Prüfen Sie sie und reichen Sie sie zur Genehmigung durch den Betrieb ein, wenn sie fertig ist.",
+        "fieldTitle": "Kampagnentitel",
+        "titlePlaceholder": "z. B. 2.000 Einheiten Solarlampen",
+        "fieldDescription": "Beschreibung",
+        "descriptionPlaceholder": "Was erhalten Käufer? Wichtige Spezifikationen, Mengen und warum sich die Teilnahme lohnt.",
+        "fieldLane": "Handelsroute",
+        "lanePlaceholder": "Handelsroute wählen",
+        "lanesFailed": "Handelsrouten konnten nicht geladen werden.",
+        "laneChecks": "Routenprüfungen",
+        "riskTier": "Risikostufe",
+        "laneNeedsBusiness": "Für Kampagnen auf dieser Route ist eine Unternehmensverifizierung erforderlich.",
+        "laneNeedsManual": "Vor der Veröffentlichung dieser Kampagne ist eine manuelle Compliance-Genehmigung erforderlich.",
+        "fieldTargetMoq": "Mindestmenge (MOQ)",
+        "fieldMaxParticipants": "Max. Teilnehmer (optional)",
+        "fieldCloseDate": "Stichtag für Zusagen",
+        "fieldLockDate": "Stichtag Sperrung",
+        "fieldShipDate": "Voraussichtliches Versanddatum",
+        "fieldArrivalDate": "Voraussichtliches Ankunftsdatum",
+        "pricingHeading": "Preisskizze",
+        "pricingHint": "Eine grobe Skizze genügt für den Entwurf. OxSteed berechnet die Gesamtkosten; der Betrieb bestätigt die Preise bei der Prüfung.",
+        "fieldUnitCost": "Stückkosten Produkt (USD)",
+        "fieldFreight": "Fracht-Schätzung pro Einheit (USD)",
+        "fieldDepositPct": "Anzahlungsprozentsatz",
+        "fieldCancellationPolicy": "Stornierungsbedingungen",
+        "saveDraft": "Als Entwurf speichern",
+        "saving": "Wird gespeichert…",
+        "draftSaved": "Entwurf gespeichert.",
+        "createFailed": "Entwurf konnte nicht gespeichert werden. Bitte erneut versuchen.",
+        "titleRequired": "Ein Titel ist erforderlich.",
+        "laneRequired": "Wählen Sie eine Handelsroute.",
+        "moqRequired": "Geben Sie eine Mindestmenge von mindestens 1 ein.",
+        "back": "Zurück zum Organisator-Bereich",
+        "unsavedConfirm": "Sie haben ungespeicherte Änderungen. Ohne Speichern des Entwurfs verlassen?",
+        "nextStepLabel": "Kampagne starten",
+        "nextStepHint": "Entwerfen Sie Ihre erste Sammelkampagne und reichen Sie sie zur Genehmigung durch den Betrieb ein."
+      },
+      "approval": {
+        "title": "Genehmigung",
+        "draft": "Entwurf",
+        "pendingReview": "In Prüfung",
+        "revisionsRequested": "Überarbeitung angefordert",
+        "approved": "Genehmigt",
+        "rejected": "Abgelehnt",
+        "submitForReview": "Zur Prüfung einreichen",
+        "submitting": "Wird eingereicht…",
+        "submitted": "Zur Prüfung eingereicht.",
+        "submitFailed": "Einreichung fehlgeschlagen. Bitte erneut versuchen.",
+        "blockersTitle": "Beheben Sie dies vor dem Einreichen",
+        "historyTitle": "Genehmigungsverlauf",
+        "noHistory": "Noch keine Prüfentscheidungen.",
+        "approve": "Genehmigen und veröffentlichen",
+        "requestRevisions": "Überarbeitung anfordern",
+        "reviewing": "Wird geprüft…",
+        "reasonLabel": "Prüfnotiz",
+        "reasonPlaceholder": "Erläutern Sie, was sich ändern muss, bevor diese Kampagne veröffentlicht werden kann.",
+        "reviewFailed": "Prüfung fehlgeschlagen. Bitte erneut versuchen.",
+        "reasonRequired": "Bei der Anforderung einer Überarbeitung ist ein Grund erforderlich.",
+        "latestRevisionNote": "Neueste Prüfnotiz",
+        "awaitingReview": "Wartet auf die Prüfung durch den Betrieb. Sie werden benachrichtigt, sobald eine Entscheidung getroffen wurde.",
+        "publishedNote": "Genehmigt und veröffentlicht. Käufer können nun Zusagen machen.",
+        "unknownReviewer": "Unbekannter Prüfer",
+        "approvedToast": "Kampagne genehmigt und veröffentlicht.",
+        "revisionsToast": "Überarbeitungsanfrage an den Organisator gesendet.",
+        "revisionsAdminMessage": "\"{{title}}\" mit einer Prüfnotiz an den Organisator zurücksenden.",
+        "decision_submitted_for_review": "Zur Prüfung eingereicht",
+        "decision_approved": "Genehmigt",
+        "decision_revisions_requested": "Überarbeitung angefordert",
+        "decision_rejected": "Abgelehnt",
+        "decision_withdrawn": "Zurückgezogen",
+        "blocker_missing_title": "Fügen Sie einen Kampagnentitel hinzu.",
+        "blocker_missing_description": "Fügen Sie eine Beschreibung dessen hinzu, was Käufer erhalten.",
+        "blocker_missing_lane": "Wählen Sie eine Handelsroute.",
+        "blocker_missing_moq": "Legen Sie eine Mindestmenge von mindestens 1 fest.",
+        "blocker_missing_close_date": "Legen Sie einen Stichtag für Zusagen fest.",
+        "blocker_close_date_past": "Der Stichtag für Zusagen muss in der Zukunft liegen.",
+        "blocker_missing_pricing": "Fügen Sie Stückkosten oder eine Frachtschätzung für die Preisskizze hinzu.",
+        "blocker_business_verification_required": "Diese Route erfordert ein verifiziertes Unternehmen. Schließen Sie zuerst die Unternehmensverifizierung ab.",
+        "blocker_lane_access_blocked": "Diese Handelsroute ist für Ihren Markt nicht verfügbar."
+      },
       "joinSuccess": "Sie sind der Kampagne beigetreten!",
       "joinForm": "Dieser Kampagne beitreten",
       "joinCampaign": "Kampagne beitreten",
@@ -16073,6 +16186,8 @@
       }
     },
     "status": {
+      "pending_review": "In Prüfung",
+      "revisions_requested": "Überarbeitung angefordert",
       "draft": "Entwurf",
       "open": "Offen",
       "quoted": "Angebot erhalten",
@@ -28983,6 +29098,7 @@
       "organizer": "Organisator",
       "lane": "Route",
       "moq": "Mindestbestellmenge",
+      "submitted": "Eingereicht",
       "actions": "Aktionen"
     },
     "reject": "Ablehnen",

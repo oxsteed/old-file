@@ -15500,6 +15500,36 @@
     "emptyEyebrow": "کاروباری لانچ کنسلٹنگ"
   },
   "logistics": {
+    "forms": {
+      "unsavedChanges": {
+        "title": "غیر محفوظ شدہ تبدیلیاں ضائع کر دیں؟",
+        "body": "آپ کے پاس غیر محفوظ شدہ تبدیلیاں ہیں۔ ابھی جانے سے آپ کا درج کردہ مواد ضائع ہو جائے گا۔",
+        "stay": "ترمیم جاری رکھیں",
+        "discard": "تبدیلیاں ضائع کریں"
+      }
+    },
+    "workspace": {
+      "business": {
+        "recentActivity": {
+          "empty": "ابھی یہاں کچھ نہیں ہے۔"
+        }
+      },
+      "buyer": {
+        "recentActivity": {
+          "empty": "ابھی یہاں کچھ نہیں ہے۔"
+        }
+      },
+      "distributor": {
+        "recentActivity": {
+          "empty": "ابھی یہاں کچھ نہیں ہے۔"
+        }
+      },
+      "organizer": {
+        "recentActivity": {
+          "empty": "ابھی یہاں کچھ نہیں ہے۔"
+        }
+      }
+    },
     "nav": {
       "home": "لاجسٹکس",
       "campaigns": "مہمات",
@@ -15594,6 +15624,7 @@
       }
     },
     "complianceWorkspace": {
+      "navLabel": "تعمیل کے حصے",
       "title": "تعمیل ورک اسپیس",
       "subtitle": "ہر راستے کے تجارتی قوانین اور کسٹمز سے حساس آپریشنز کی قطار دیکھیں جب آپ کے پاس آپریٹر کی رسائی ہو۔",
       "nav": {
@@ -15741,6 +15772,88 @@
       "myStatus": "میری حیثیت",
       "moqReached": "MOQ حاصل ہو گیا!",
       "lockDate": "لاک ہونے کی تاریخ",
+      "newCampaign": "نئی مہم شروع کریں",
+      "new": {
+        "title": "نئی مہم شروع کریں",
+        "subtitle": "اپنی اجتماعی مہم کا مسودہ تیار کریں۔ تیار ہونے پر اس کا جائزہ لیں اور آپریشنز کی منظوری کے لیے جمع کرائیں۔",
+        "fieldTitle": "مہم کا عنوان",
+        "titlePlaceholder": "مثلاً 2,000 شمسی لالٹین یونٹس",
+        "fieldDescription": "تفصیل",
+        "descriptionPlaceholder": "خریداروں کو کیا ملے گا؟ اہم خصوصیات، مقداریں اور شامل ہونے کی وجوہات۔",
+        "fieldLane": "تجارتی راستہ",
+        "lanePlaceholder": "تجارتی راستہ منتخب کریں",
+        "lanesFailed": "تجارتی راستے لوڈ نہیں ہو سکے۔",
+        "laneChecks": "راستے کی جانچ",
+        "riskTier": "خطر کی سطح",
+        "laneNeedsBusiness": "اس راستے پر مہم چلانے کے لیے کاروباری تصدیق ضروری ہے۔",
+        "laneNeedsManual": "اس مہم کی اشاعت سے پہلے دستی تعمیل کی منظوری ضروری ہے۔",
+        "fieldTargetMoq": "کم از کم مقدار (MOQ)",
+        "fieldMaxParticipants": "زیادہ سے زیادہ شرکاء (اختیاری)",
+        "fieldCloseDate": "عہد کی آخری تاریخ",
+        "fieldLockDate": "لاک کی تاریخ",
+        "fieldShipDate": "متوقع ترسیل کی تاریخ",
+        "fieldArrivalDate": "متوقع آمد کی تاریخ",
+        "pricingHeading": "قیمت کا خاکہ",
+        "pricingHint": "مسودے کے لیے کھردرا خاکہ کافی ہے۔ OxSteed کل لاگت کا حساب لگاتا ہے؛ آپریشنز جائزے میں قیمت کی تصدیق کرتا ہے۔",
+        "fieldUnitCost": "فی یونٹ مصنوعات کی لاگت (USD)",
+        "fieldFreight": "فی یونٹ مال برداری کا تخمینہ (USD)",
+        "fieldDepositPct": "جمع کی شرح",
+        "fieldCancellationPolicy": "منسوخی کی پالیسی",
+        "saveDraft": "مسودے کے طور پر محفوظ کریں",
+        "saving": "محفوظ ہو رہا ہے…",
+        "draftSaved": "مسودہ محفوظ ہو گیا۔",
+        "createFailed": "مسودہ محفوظ نہیں ہو سکا۔ براہ کرم دوبارہ کوشش کریں۔",
+        "titleRequired": "عنوان ضروری ہے۔",
+        "laneRequired": "تجارتی راستہ منتخب کریں۔",
+        "moqRequired": "کم از کم 1 کی مقدار درج کریں۔",
+        "back": "منتظم کے ورک اسپیس پر واپس جائیں",
+        "unsavedConfirm": "آپ کے پاس غیر محفوظ شدہ تبدیلیاں ہیں۔ مسودہ محفوظ کیے بغیر جائیں؟",
+        "nextStepLabel": "مہم شروع کریں",
+        "nextStepHint": "اپنی پہلی اجتماعی مہم کا مسودہ تیار کریں اور آپریشنز کی منظوری کے لیے جمع کرائیں۔"
+      },
+      "approval": {
+        "title": "منظوری",
+        "draft": "مسودہ",
+        "pendingReview": "جائزے کے تحت",
+        "revisionsRequested": "نظرثانی کی درخواست",
+        "approved": "منظور شدہ",
+        "rejected": "مسترد",
+        "submitForReview": "جائزے کے لیے جمع کرائیں",
+        "submitting": "جمع ہو رہا ہے…",
+        "submitted": "جائزے کے لیے جمع کرا دیا گیا۔",
+        "submitFailed": "جمع کرانا ناکام رہا۔ براہ کرم دوبارہ کوشش کریں۔",
+        "blockersTitle": "جمع کرانے سے پہلے انہیں درست کریں",
+        "historyTitle": "منظوری کی تاریخ",
+        "noHistory": "ابھی تک کوئی جائزہ فیصلہ نہیں۔",
+        "approve": "منظور کریں اور شائع کریں",
+        "requestRevisions": "نظرثانی کی درخواست کریں",
+        "reviewing": "جائزہ لیا جا رہا ہے…",
+        "reasonLabel": "جائزہ نوٹ",
+        "reasonPlaceholder": "وضاحت کریں کہ اس مہم کی اشاعت سے پہلے کیا تبدیل ہونا چاہیے۔",
+        "reviewFailed": "جائزہ ناکام رہا۔ براہ کرم دوبارہ کوشش کریں۔",
+        "reasonRequired": "نظرثانی کی درخواست کرتے وقت وجہ ضروری ہے۔",
+        "latestRevisionNote": "تازہ ترین جائزہ نوٹ",
+        "awaitingReview": "آپریشنز کے جائزے کا انتظار ہے۔ فیصلہ ہونے پر آپ کو مطلع کیا جائے گا۔",
+        "publishedNote": "منظور شدہ اور شائع شدہ۔ خریدار اب عہد کر سکتے ہیں۔",
+        "unknownReviewer": "نامعلوم جائزہ کار",
+        "approvedToast": "مہم منظور اور شائع کر دی گئی۔",
+        "revisionsToast": "منتظم کو نظرثانی کی درخواست بھیج دی گئی۔",
+        "revisionsAdminMessage": "\"{{title}}\" نظرثانی نوٹ کے ساتھ منتظم کو واپس بھیجیں۔",
+        "decision_submitted_for_review": "جائزے کے لیے جمع کرایا گیا",
+        "decision_approved": "منظور شدہ",
+        "decision_revisions_requested": "نظرثانی کی درخواست",
+        "decision_rejected": "مسترد",
+        "decision_withdrawn": "واپس لیا گیا",
+        "blocker_missing_title": "مہم کا عنوان شامل کریں۔",
+        "blocker_missing_description": "خریداروں کو کیا ملے گا اس کی تفصیل شامل کریں۔",
+        "blocker_missing_lane": "تجارتی راستہ منتخب کریں۔",
+        "blocker_missing_moq": "کم از کم 1 کی مقدار مقرر کریں۔",
+        "blocker_missing_close_date": "عہد کی آخری تاریخ مقرر کریں۔",
+        "blocker_close_date_past": "عہد کی آخری تاریخ مستقبل میں ہونی چاہیے۔",
+        "blocker_missing_pricing": "قیمت کے خاکے کے لیے فی یونٹ لاگت یا مال برداری کا تخمینہ شامل کریں۔",
+        "blocker_business_verification_required": "اس راستے کے لیے تصدیق شدہ کاروبار ضروری ہے۔ پہلے کاروباری تصدیق مکمل کریں۔",
+        "blocker_lane_access_blocked": "یہ تجارتی راستہ آپ کی مارکیٹ کے لیے دستیاب نہیں ہے۔"
+      },
       "joinSuccess": "آپ مہم میں شامل ہو گئے ہیں!",
       "joinForm": "اس مہم میں شامل ہوں",
       "joinCampaign": "مہم میں شامل ہوں",
@@ -16073,6 +16186,8 @@
       }
     },
     "status": {
+      "pending_review": "جائزے کے تحت",
+      "revisions_requested": "نظرثانی کی درخواست",
       "draft": "مسودہ",
       "open": "کھلا",
       "quoted": "کوٹ دیا گیا",
@@ -28963,6 +29078,7 @@
       "organizer": "منتظم",
       "lane": "لین",
       "moq": "MOQ",
+      "submitted": "جمع کرایا گیا",
       "actions": "اعمال"
     },
     "reject": "مسترد کریں",

@@ -15499,6 +15499,36 @@
     "emptyEyebrow": "Business launch consulting"
   },
   "logistics": {
+    "forms": {
+      "unsavedChanges": {
+        "title": "Discard unsaved changes?",
+        "body": "You have unsaved changes. Leaving now will discard what you entered.",
+        "stay": "Keep editing",
+        "discard": "Discard changes"
+      }
+    },
+    "workspace": {
+      "business": {
+        "recentActivity": {
+          "empty": "Nothing here yet."
+        }
+      },
+      "buyer": {
+        "recentActivity": {
+          "empty": "Nothing here yet."
+        }
+      },
+      "distributor": {
+        "recentActivity": {
+          "empty": "Nothing here yet."
+        }
+      },
+      "organizer": {
+        "recentActivity": {
+          "empty": "Nothing here yet."
+        }
+      }
+    },
     "nav": {
       "home": "Logistics",
       "campaigns": "Campaigns",
@@ -15593,6 +15623,7 @@
       }
     },
     "complianceWorkspace": {
+      "navLabel": "Compliance sections",
       "title": "Compliance Workspace",
       "subtitle": "See trade rules for each route and the customs-sensitive operations queue when you have operator access.",
       "nav": {
@@ -15740,6 +15771,88 @@
       "myStatus": "My status",
       "moqReached": "MOQ Reached!",
       "lockDate": "Lock Date",
+      "newCampaign": "Start a new campaign",
+      "new": {
+        "title": "Start a new campaign",
+        "subtitle": "Draft your pooled campaign. Review it and submit it for Operations approval when it is ready.",
+        "fieldTitle": "Campaign title",
+        "titlePlaceholder": "e.g. 2,000 units of solar lanterns",
+        "fieldDescription": "Description",
+        "descriptionPlaceholder": "What are buyers getting? Key specs, quantities, and what makes this campaign worth joining.",
+        "fieldLane": "Trade lane",
+        "lanePlaceholder": "Select a trade lane",
+        "lanesFailed": "Could not load trade lanes.",
+        "laneChecks": "Lane checks",
+        "riskTier": "Risk tier",
+        "laneNeedsBusiness": "Business verification is required to run a campaign on this lane.",
+        "laneNeedsManual": "Manual compliance approval is required before this campaign can be published.",
+        "fieldTargetMoq": "Minimum quantity (MOQ)",
+        "fieldMaxParticipants": "Max participants (optional)",
+        "fieldCloseDate": "Pledge close date",
+        "fieldLockDate": "Lock date",
+        "fieldShipDate": "Expected ship date",
+        "fieldArrivalDate": "Expected arrival date",
+        "pricingHeading": "Pricing sketch",
+        "pricingHint": "A rough sketch is enough for the draft. OxSteed computes the landed cost; Operations confirms pricing at review.",
+        "fieldUnitCost": "Unit product cost (USD)",
+        "fieldFreight": "Unit freight estimate (USD)",
+        "fieldDepositPct": "Deposit percentage",
+        "fieldCancellationPolicy": "Cancellation policy",
+        "saveDraft": "Save as draft",
+        "saving": "Saving…",
+        "draftSaved": "Draft saved.",
+        "createFailed": "Could not save the draft. Please try again.",
+        "titleRequired": "A title is required.",
+        "laneRequired": "Choose a trade lane.",
+        "moqRequired": "Enter a minimum quantity of at least 1.",
+        "back": "Back to organizer workspace",
+        "unsavedConfirm": "You have unsaved changes. Leave without saving the draft?",
+        "nextStepLabel": "Start a campaign",
+        "nextStepHint": "Draft your first pooled campaign and submit it for Operations approval."
+      },
+      "approval": {
+        "title": "Approval",
+        "draft": "Draft",
+        "pendingReview": "Pending review",
+        "revisionsRequested": "Revisions requested",
+        "approved": "Approved",
+        "rejected": "Rejected",
+        "submitForReview": "Submit for review",
+        "submitting": "Submitting…",
+        "submitted": "Submitted for review.",
+        "submitFailed": "Submission failed. Please try again.",
+        "blockersTitle": "Fix these before submitting",
+        "historyTitle": "Approval history",
+        "noHistory": "No review decisions yet.",
+        "approve": "Approve and publish",
+        "requestRevisions": "Request revisions",
+        "reviewing": "Reviewing…",
+        "reasonLabel": "Review note",
+        "reasonPlaceholder": "Explain what needs to change before this campaign can be published.",
+        "reviewFailed": "Review failed. Please try again.",
+        "reasonRequired": "A reason is required when requesting revisions.",
+        "latestRevisionNote": "Latest review note",
+        "awaitingReview": "Awaiting Operations review. You will be notified when a decision is made.",
+        "publishedNote": "Approved and published. Buyers can now pledge.",
+        "unknownReviewer": "Unknown reviewer",
+        "approvedToast": "Campaign approved and published.",
+        "revisionsToast": "Revision request sent to the organizer.",
+        "revisionsAdminMessage": "Send \"{{title}}\" back to the organizer with a revision note.",
+        "decision_submitted_for_review": "Submitted for review",
+        "decision_approved": "Approved",
+        "decision_revisions_requested": "Revisions requested",
+        "decision_rejected": "Rejected",
+        "decision_withdrawn": "Withdrawn",
+        "blocker_missing_title": "Add a campaign title.",
+        "blocker_missing_description": "Add a description of what buyers are getting.",
+        "blocker_missing_lane": "Choose a trade lane.",
+        "blocker_missing_moq": "Set a minimum quantity of at least 1.",
+        "blocker_missing_close_date": "Set a pledge close date.",
+        "blocker_close_date_past": "The pledge close date must be in the future.",
+        "blocker_missing_pricing": "Add a unit cost or freight estimate for the pricing sketch.",
+        "blocker_business_verification_required": "This lane requires a verified business. Complete business verification first.",
+        "blocker_lane_access_blocked": "This trade lane is not available for your market."
+      },
       "joinSuccess": "You've joined the campaign!",
       "joinForm": "Join This Campaign",
       "joinCampaign": "Join Campaign",
@@ -16072,6 +16185,8 @@
       }
     },
     "status": {
+      "pending_review": "Pending review",
+      "revisions_requested": "Revisions requested",
       "draft": "Draft",
       "open": "Open",
       "quoted": "Quoted",
@@ -28962,6 +29077,7 @@
       "organizer": "Organizer",
       "lane": "Lane",
       "moq": "MOQ",
+      "submitted": "Submitted",
       "actions": "Actions"
     },
     "reject": "Reject",

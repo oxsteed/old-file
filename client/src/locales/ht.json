@@ -15499,6 +15499,36 @@
     "emptyEyebrow": "Konsiltasyon lansman biznis"
   },
   "logistics": {
+    "forms": {
+      "unsavedChanges": {
+        "title": "Jete chanjman ou pa t sove yo?",
+        "body": "Ou gen chanjman ou pa sove. Si ou kite kounye a, sa ou te antre ap pèdi.",
+        "stay": "Kontinye modifye",
+        "discard": "Jete chanjman yo"
+      }
+    },
+    "workspace": {
+      "business": {
+        "recentActivity": {
+          "empty": "Anyen la pou kounye a."
+        }
+      },
+      "buyer": {
+        "recentActivity": {
+          "empty": "Anyen la pou kounye a."
+        }
+      },
+      "distributor": {
+        "recentActivity": {
+          "empty": "Anyen la pou kounye a."
+        }
+      },
+      "organizer": {
+        "recentActivity": {
+          "empty": "Anyen la pou kounye a."
+        }
+      }
+    },
     "nav": {
       "home": "Lojistik",
       "campaigns": "Kanpay",
@@ -15593,6 +15623,7 @@
       }
     },
     "complianceWorkspace": {
+      "navLabel": "Seksyon konfòmite",
       "title": "Espas Konfòmite",
       "subtitle": "Gade règ komès chak wout epi ke operasyon sansib pou ladwann lè ou gen aksè operatè.",
       "nav": {
@@ -15740,6 +15771,88 @@
       "myStatus": "Estati mwen",
       "moqReached": "Kantite minimòm atenn!",
       "lockDate": "Dat blokaj",
+      "newCampaign": "Kòmanse yon nouvo kanpay",
+      "new": {
+        "title": "Kòmanse yon nouvo kanpay",
+        "subtitle": "Bouyon kanpay gwoupe ou a. Revize l epi soumèt li pou apwobasyon Operasyon yo lè li pare.",
+        "fieldTitle": "Tit kanpay la",
+        "titlePlaceholder": "egz. 2,000 inite lantèn solè",
+        "fieldDescription": "Deskripsyon",
+        "descriptionPlaceholder": "Kisa achtè yo ap jwenn? Espesifikasyon kle, kantite, ak poukisa pou rantre.",
+        "fieldLane": "Liy komès",
+        "lanePlaceholder": "Chwazi yon liy komès",
+        "lanesFailed": "Nou pa t kapab chaje liy komès yo.",
+        "laneChecks": "Verifikasyon liy",
+        "riskTier": "Nivo risk",
+        "laneNeedsBusiness": "Verifikasyon biznis obligatwa pou lanse yon kanpay sou liy sa a.",
+        "laneNeedsManual": "Apwobasyon konfòmite manyèl obligatwa anvan kanpay sa a ka pibliye.",
+        "fieldTargetMoq": "Kantite minimòm (MOQ)",
+        "fieldMaxParticipants": "Maksimòm patisipan (opsyonèl)",
+        "fieldCloseDate": "Dat fèmen angajman",
+        "fieldLockDate": "Dat blokaj",
+        "fieldShipDate": "Dat anbakman prevwa",
+        "fieldArrivalDate": "Dat arive prevwa",
+        "pricingHeading": "Bouyon pri",
+        "pricingHint": "Yon bouyon apeprè sifi pou bouyon an. OxSteed kalkile pri total la; Operasyon yo konfime pri yo nan revizyon an.",
+        "fieldUnitCost": "Pri inite pwodwi a (USD)",
+        "fieldFreight": "Estimasyon frè pa inite (USD)",
+        "fieldDepositPct": "Pousantaj depo",
+        "fieldCancellationPolicy": "Règleman anilasyon",
+        "saveDraft": "Sove kòm bouyon",
+        "saving": "Ap sove…",
+        "draftSaved": "Bouyon an sove.",
+        "createFailed": "Nou pa t kapab sove bouyon an. Tanpri eseye ankò.",
+        "titleRequired": "Yon tit obligatwa.",
+        "laneRequired": "Chwazi yon liy komès.",
+        "moqRequired": "Antre yon kantite minimòm omwen 1.",
+        "back": "Tounen nan espas òganizatè",
+        "unsavedConfirm": "Ou gen chanjman ou pa sove. Kite san sove bouyon an?",
+        "nextStepLabel": "Kòmanse yon kanpay",
+        "nextStepHint": "Ekri premye kanpay gwoupe ou a epi soumèt li pou apwobasyon Operasyon yo."
+      },
+      "approval": {
+        "title": "Apwobasyon",
+        "draft": "Bouyon",
+        "pendingReview": "Anba revizyon",
+        "revisionsRequested": "Yo mande revizyon",
+        "approved": "Apwouve",
+        "rejected": "Rejete",
+        "submitForReview": "Soumèt pou revizyon",
+        "submitting": "Ap voye…",
+        "submitted": "Soumèt pou revizyon.",
+        "submitFailed": "Soumisyon an echwe. Tanpri eseye ankò.",
+        "blockersTitle": "Ranje sa yo anvan ou voye",
+        "historyTitle": "Istorik apwobasyon",
+        "noHistory": "Pa gen desizyon revizyon pou kounye a.",
+        "approve": "Apwouve epi pibliye",
+        "requestRevisions": "Mande revizyon",
+        "reviewing": "Ap revize…",
+        "reasonLabel": "Nòt revizyon",
+        "reasonPlaceholder": "Eksplike kisa ki dwe chanje anvan kanpay sa a ka pibliye.",
+        "reviewFailed": "Revizyon an echwe. Tanpri eseye ankò.",
+        "reasonRequired": "Yon rezon obligatwa lè w ap mande revizyon.",
+        "latestRevisionNote": "Dènye nòt revizyon",
+        "awaitingReview": "Ap tann revizyon Operasyon yo. N ap avèti w lè yo pran yon desizyon.",
+        "publishedNote": "Apwouve epi pibliye. Achtè yo ka angaje yo kounye a.",
+        "unknownReviewer": "Revizè enkoni",
+        "approvedToast": "Kanpay apwouve epi pibliye.",
+        "revisionsToast": "Demann revizyon voye bay òganizatè a.",
+        "revisionsAdminMessage": "Voye \"{{title}}\" tounen bay òganizatè a ak yon nòt revizyon.",
+        "decision_submitted_for_review": "Soumèt pou revizyon",
+        "decision_approved": "Apwouve",
+        "decision_revisions_requested": "Revizyon mande",
+        "decision_rejected": "Rejete",
+        "decision_withdrawn": "Retire",
+        "blocker_missing_title": "Ajoute yon tit kanpay.",
+        "blocker_missing_description": "Ajoute yon deskripsyon sou sa achtè yo ap jwenn.",
+        "blocker_missing_lane": "Chwazi yon liy komès.",
+        "blocker_missing_moq": "Mete yon kantite minimòm omwen 1.",
+        "blocker_missing_close_date": "Mete yon dat fèmen angajman.",
+        "blocker_close_date_past": "Dat fèmen angajman an dwe nan lavni.",
+        "blocker_missing_pricing": "Ajoute yon pri inite oswa yon estimasyon frè pou bouyon pri a.",
+        "blocker_business_verification_required": "Liy sa a egzije yon biznis verifye. Fè verifikasyon biznis la anvan.",
+        "blocker_lane_access_blocked": "Liy komès sa a pa disponib pou mache ou a."
+      },
       "joinSuccess": "Ou antre nan kanpay la!",
       "joinForm": "Antre nan kanpay sa a",
       "joinCampaign": "Antre nan kanpay la",
@@ -16072,6 +16185,8 @@
       }
     },
     "status": {
+      "pending_review": "Anba revizyon",
+      "revisions_requested": "Yo mande revizyon",
       "draft": "Bwouyon",
       "open": "Ouvè",
       "quoted": "Devis",
@@ -28962,6 +29077,7 @@
       "organizer": "Òganizatè",
       "lane": "Liy",
       "moq": "MOQ",
+      "submitted": "Soumèt",
       "actions": "Aksyon"
     },
     "reject": "Rejte",

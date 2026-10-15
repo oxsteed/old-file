@@ -15500,6 +15500,36 @@
     "emptyEyebrow": "Konsultasi peluncuran bisnis"
   },
   "logistics": {
+    "forms": {
+      "unsavedChanges": {
+        "title": "Buang perubahan yang belum disimpan?",
+        "body": "Anda memiliki perubahan yang belum disimpan. Keluar sekarang akan membuang yang Anda masukkan.",
+        "stay": "Lanjutkan mengedit",
+        "discard": "Buang perubahan"
+      }
+    },
+    "workspace": {
+      "business": {
+        "recentActivity": {
+          "empty": "Belum ada apa-apa di sini."
+        }
+      },
+      "buyer": {
+        "recentActivity": {
+          "empty": "Belum ada apa-apa di sini."
+        }
+      },
+      "distributor": {
+        "recentActivity": {
+          "empty": "Belum ada apa-apa di sini."
+        }
+      },
+      "organizer": {
+        "recentActivity": {
+          "empty": "Belum ada apa-apa di sini."
+        }
+      }
+    },
     "nav": {
       "home": "Logistik",
       "campaigns": "Kampanye",
@@ -15594,6 +15624,7 @@
       }
     },
     "complianceWorkspace": {
+      "navLabel": "Bagian kepatuhan",
       "title": "Ruang Kerja Kepatuhan",
       "subtitle": "Lihat aturan dagang untuk setiap rute dan antrean operasi yang sensitif terhadap bea cukai saat Anda memiliki akses operator.",
       "nav": {
@@ -15741,6 +15772,88 @@
       "myStatus": "Status saya",
       "moqReached": "MOQ Tercapai!",
       "lockDate": "Tanggal Penguncian",
+      "newCampaign": "Mulai kampanye baru",
+      "new": {
+        "title": "Mulai kampanye baru",
+        "subtitle": "Buat draf kampanye kolektif Anda. Tinjau dan kirim untuk persetujuan Operasi saat sudah siap.",
+        "fieldTitle": "Judul kampanye",
+        "titlePlaceholder": "mis. 2.000 unit lentera surya",
+        "fieldDescription": "Deskripsi",
+        "descriptionPlaceholder": "Apa yang didapat pembeli? Spesifikasi utama, jumlah, dan alasan bergabung.",
+        "fieldLane": "Rute dagang",
+        "lanePlaceholder": "Pilih rute dagang",
+        "lanesFailed": "Tidak dapat memuat rute dagang.",
+        "laneChecks": "Pemeriksaan rute",
+        "riskTier": "Tingkat risiko",
+        "laneNeedsBusiness": "Verifikasi bisnis diperlukan untuk menjalankan kampanye di rute ini.",
+        "laneNeedsManual": "Persetujuan kepatuhan manual diperlukan sebelum kampanye ini dapat dipublikasikan.",
+        "fieldTargetMoq": "Jumlah minimum (MOQ)",
+        "fieldMaxParticipants": "Maks. peserta (opsional)",
+        "fieldCloseDate": "Tanggal penutupan komitmen",
+        "fieldLockDate": "Tanggal penguncian",
+        "fieldShipDate": "Tanggal pengiriman yang diharapkan",
+        "fieldArrivalDate": "Tanggal kedatangan yang diharapkan",
+        "pricingHeading": "Sketsa harga",
+        "pricingHint": "Sketsa kasar sudah cukup untuk draf. OxSteed menghitung total biaya; Operasi mengonfirmasi harga saat peninjauan.",
+        "fieldUnitCost": "Biaya produk per unit (USD)",
+        "fieldFreight": "Estimasi ongkos kirim per unit (USD)",
+        "fieldDepositPct": "Persentase deposit",
+        "fieldCancellationPolicy": "Kebijakan pembatalan",
+        "saveDraft": "Simpan sebagai draf",
+        "saving": "Menyimpan…",
+        "draftSaved": "Draf disimpan.",
+        "createFailed": "Tidak dapat menyimpan draf. Silakan coba lagi.",
+        "titleRequired": "Judul wajib diisi.",
+        "laneRequired": "Pilih rute dagang.",
+        "moqRequired": "Masukkan jumlah minimum minimal 1.",
+        "back": "Kembali ke ruang kerja penyelenggara",
+        "unsavedConfirm": "Anda memiliki perubahan yang belum disimpan. Keluar tanpa menyimpan draf?",
+        "nextStepLabel": "Mulai kampanye",
+        "nextStepHint": "Buat draf kampanye kolektif pertama Anda dan kirim untuk persetujuan Operasi."
+      },
+      "approval": {
+        "title": "Persetujuan",
+        "draft": "Draf",
+        "pendingReview": "Dalam peninjauan",
+        "revisionsRequested": "Revisi diminta",
+        "approved": "Disetujui",
+        "rejected": "Ditolak",
+        "submitForReview": "Kirim untuk ditinjau",
+        "submitting": "Mengirim…",
+        "submitted": "Dikirim untuk ditinjau.",
+        "submitFailed": "Pengiriman gagal. Silakan coba lagi.",
+        "blockersTitle": "Perbaiki ini sebelum mengirim",
+        "historyTitle": "Riwayat persetujuan",
+        "noHistory": "Belum ada keputusan peninjauan.",
+        "approve": "Setujui dan publikasikan",
+        "requestRevisions": "Minta revisi",
+        "reviewing": "Meninjau…",
+        "reasonLabel": "Catatan peninjauan",
+        "reasonPlaceholder": "Jelaskan apa yang perlu diubah sebelum kampanye ini dapat dipublikasikan.",
+        "reviewFailed": "Peninjauan gagal. Silakan coba lagi.",
+        "reasonRequired": "Alasan wajib diisi saat meminta revisi.",
+        "latestRevisionNote": "Catatan peninjauan terbaru",
+        "awaitingReview": "Menunggu peninjauan Operasi. Anda akan diberi tahu saat keputusan dibuat.",
+        "publishedNote": "Disetujui dan dipublikasikan. Pembeli kini dapat berkomitmen.",
+        "unknownReviewer": "Peninjau tidak dikenal",
+        "approvedToast": "Kampanye disetujui dan dipublikasikan.",
+        "revisionsToast": "Permintaan revisi dikirim ke penyelenggara.",
+        "revisionsAdminMessage": "Kembalikan \"{{title}}\" ke penyelenggara dengan catatan peninjauan.",
+        "decision_submitted_for_review": "Dikirim untuk ditinjau",
+        "decision_approved": "Disetujui",
+        "decision_revisions_requested": "Revisi diminta",
+        "decision_rejected": "Ditolak",
+        "decision_withdrawn": "Ditarik",
+        "blocker_missing_title": "Tambahkan judul kampanye.",
+        "blocker_missing_description": "Tambahkan deskripsi tentang apa yang didapat pembeli.",
+        "blocker_missing_lane": "Pilih rute dagang.",
+        "blocker_missing_moq": "Tetapkan jumlah minimum minimal 1.",
+        "blocker_missing_close_date": "Tetapkan tanggal penutupan komitmen.",
+        "blocker_close_date_past": "Tanggal penutupan komitmen harus di masa mendatang.",
+        "blocker_missing_pricing": "Tambahkan biaya per unit atau estimasi ongkos kirim untuk sketsa harga.",
+        "blocker_business_verification_required": "Rute ini memerlukan bisnis terverifikasi. Selesaikan verifikasi bisnis terlebih dahulu.",
+        "blocker_lane_access_blocked": "Rute dagang ini tidak tersedia untuk pasar Anda."
+      },
       "joinSuccess": "Anda telah bergabung dengan kampanye!",
       "joinForm": "Gabung Kampanye Ini",
       "joinCampaign": "Gabung Kampanye",
@@ -16073,6 +16186,8 @@
       }
     },
     "status": {
+      "pending_review": "Dalam peninjauan",
+      "revisions_requested": "Revisi diminta",
       "draft": "Draf",
       "open": "Terbuka",
       "quoted": "Diberi penawaran",
@@ -28983,6 +29098,7 @@
       "organizer": "Penyelenggara",
       "lane": "Jalur",
       "moq": "MOQ",
+      "submitted": "Dikirim",
       "actions": "Tindakan"
     },
     "reject": "Tolak",

@@ -15500,6 +15500,36 @@
     "emptyEyebrow": "İşletme lansman danışmanlığı"
   },
   "logistics": {
+    "forms": {
+      "unsavedChanges": {
+        "title": "Kaydedilmemiş değişiklikler atılsın mı?",
+        "body": "Kaydedilmemiş değişiklikleriniz var. Şimdi ayrılırsanız girdikleriniz silinir.",
+        "stay": "Düzenlemeye devam et",
+        "discard": "Değişiklikleri at"
+      }
+    },
+    "workspace": {
+      "business": {
+        "recentActivity": {
+          "empty": "Henüz burada bir şey yok."
+        }
+      },
+      "buyer": {
+        "recentActivity": {
+          "empty": "Henüz burada bir şey yok."
+        }
+      },
+      "distributor": {
+        "recentActivity": {
+          "empty": "Henüz burada bir şey yok."
+        }
+      },
+      "organizer": {
+        "recentActivity": {
+          "empty": "Henüz burada bir şey yok."
+        }
+      }
+    },
     "nav": {
       "home": "Lojistik",
       "campaigns": "Kampanyalar",
@@ -15594,6 +15624,7 @@
       }
     },
     "complianceWorkspace": {
+      "navLabel": "Uyumluluk bölümleri",
       "title": "Uyumluluk Çalışma Alanı",
       "subtitle": "Her güzergâh için ticaret kurallarını ve operatör erişiminiz olduğunda gümrük hassasiyetli işlem kuyruğunu görün.",
       "nav": {
@@ -15741,6 +15772,88 @@
       "myStatus": "Durumum",
       "moqReached": "MOQ'a Ulaşıldı!",
       "lockDate": "Kilitlenme Tarihi",
+      "newCampaign": "Yeni kampanya başlat",
+      "new": {
+        "title": "Yeni kampanya başlat",
+        "subtitle": "Toplu kampanya taslağınızı oluşturun. Hazır olduğunda inceleyin ve Operasyon onayına gönderin.",
+        "fieldTitle": "Kampanya başlığı",
+        "titlePlaceholder": "örn. 2.000 adet güneş feneri",
+        "fieldDescription": "Açıklama",
+        "descriptionPlaceholder": "Alıcılar ne alacak? Temel özellikler, miktarlar ve katılma nedenleri.",
+        "fieldLane": "Ticaret hattı",
+        "lanePlaceholder": "Ticaret hattı seçin",
+        "lanesFailed": "Ticaret hatları yüklenemedi.",
+        "laneChecks": "Hat kontrolleri",
+        "riskTier": "Risk seviyesi",
+        "laneNeedsBusiness": "Bu hatta kampanya yürütmek için işletme doğrulaması gerekir.",
+        "laneNeedsManual": "Bu kampanya yayınlanmadan önce manuel uyumluluk onayı gerekir.",
+        "fieldTargetMoq": "Minimum miktar (MOQ)",
+        "fieldMaxParticipants": "Maks. katılımcı (isteğe bağlı)",
+        "fieldCloseDate": "Taahhüt kapanış tarihi",
+        "fieldLockDate": "Kilitlenme tarihi",
+        "fieldShipDate": "Beklenen sevkiyat tarihi",
+        "fieldArrivalDate": "Beklenen varış tarihi",
+        "pricingHeading": "Fiyat taslağı",
+        "pricingHint": "Taslak için kabaca bir özet yeterlidir. OxSteed toplam maliyeti hesaplar; Operasyon incelemede fiyatları onaylar.",
+        "fieldUnitCost": "Birim ürün maliyeti (USD)",
+        "fieldFreight": "Birim navlun tahmini (USD)",
+        "fieldDepositPct": "Depozito yüzdesi",
+        "fieldCancellationPolicy": "İptal politikası",
+        "saveDraft": "Taslak olarak kaydet",
+        "saving": "Kaydediliyor…",
+        "draftSaved": "Taslak kaydedildi.",
+        "createFailed": "Taslak kaydedilemedi. Lütfen tekrar deneyin.",
+        "titleRequired": "Başlık zorunludur.",
+        "laneRequired": "Bir ticaret hattı seçin.",
+        "moqRequired": "En az 1 olan minimum miktarı girin.",
+        "back": "Organizatör çalışma alanına dön",
+        "unsavedConfirm": "Kaydedilmemiş değişiklikleriniz var. Taslağı kaydetmeden ayrılsın mı?",
+        "nextStepLabel": "Kampanya başlat",
+        "nextStepHint": "İlk toplu kampanyanızın taslağını oluşturun ve Operasyon onayına gönderin."
+      },
+      "approval": {
+        "title": "Onay",
+        "draft": "Taslak",
+        "pendingReview": "İncelemede",
+        "revisionsRequested": "Revizyon istendi",
+        "approved": "Onaylandı",
+        "rejected": "Reddedildi",
+        "submitForReview": "İncelemeye gönder",
+        "submitting": "Gönderiliyor…",
+        "submitted": "İncelemeye gönderildi.",
+        "submitFailed": "Gönderim başarısız oldu. Lütfen tekrar deneyin.",
+        "blockersTitle": "Göndermeden önce bunları düzeltin",
+        "historyTitle": "Onay geçmişi",
+        "noHistory": "Henüz inceleme kararı yok.",
+        "approve": "Onayla ve yayınla",
+        "requestRevisions": "Revizyon iste",
+        "reviewing": "İnceleniyor…",
+        "reasonLabel": "İnceleme notu",
+        "reasonPlaceholder": "Bu kampanya yayınlanmadan önce neyin değişmesi gerektiğini açıklayın.",
+        "reviewFailed": "İnceleme başarısız oldu. Lütfen tekrar deneyin.",
+        "reasonRequired": "Revizyon isterken gerekçe zorunludur.",
+        "latestRevisionNote": "Son inceleme notu",
+        "awaitingReview": "Operasyon incelemesi bekleniyor. Karar verildiğinde bilgilendirileceksiniz.",
+        "publishedNote": "Onaylandı ve yayınlandı. Alıcılar artık taahhütte bulunabilir.",
+        "unknownReviewer": "Bilinmeyen inceleyen",
+        "approvedToast": "Kampanya onaylandı ve yayınlandı.",
+        "revisionsToast": "Revizyon isteği organizatöre gönderildi.",
+        "revisionsAdminMessage": "\"{{title}}\" adlı kampanyayı inceleme notuyla organizatöre geri gönder.",
+        "decision_submitted_for_review": "İncelemeye gönderildi",
+        "decision_approved": "Onaylandı",
+        "decision_revisions_requested": "Revizyon istendi",
+        "decision_rejected": "Reddedildi",
+        "decision_withdrawn": "Geri çekildi",
+        "blocker_missing_title": "Kampanya başlığı ekleyin.",
+        "blocker_missing_description": "Alıcıların ne alacağına dair açıklama ekleyin.",
+        "blocker_missing_lane": "Bir ticaret hattı seçin.",
+        "blocker_missing_moq": "En az 1 olan minimum miktar belirleyin.",
+        "blocker_missing_close_date": "Taahhüt kapanış tarihi belirleyin.",
+        "blocker_close_date_past": "Taahhüt kapanış tarihi gelecekte olmalıdır.",
+        "blocker_missing_pricing": "Fiyat taslağı için birim maliyet veya navlun tahmini ekleyin.",
+        "blocker_business_verification_required": "Bu hat doğrulanmış bir işletme gerektirir. Önce işletme doğrulamasını tamamlayın.",
+        "blocker_lane_access_blocked": "Bu ticaret hattı pazarınız için uygun değil."
+      },
       "joinSuccess": "Kampanyaya katıldınız!",
       "joinForm": "Bu Kampanyaya Katılın",
       "joinCampaign": "Kampanyaya Katıl",
@@ -16073,6 +16186,8 @@
       }
     },
     "status": {
+      "pending_review": "İncelemede",
+      "revisions_requested": "Revizyon istendi",
       "draft": "Taslak",
       "open": "Açık",
       "quoted": "Teklif verildi",
@@ -28983,6 +29098,7 @@
       "organizer": "Organizatör",
       "lane": "Hat",
       "moq": "MOQ",
+      "submitted": "Gönderildi",
       "actions": "İşlemler"
     },
     "reject": "Reddet",

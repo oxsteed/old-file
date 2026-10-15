@@ -15510,6 +15510,36 @@
     "emptyEyebrow": "استشارات إطلاق الأنشطة التجارية"
   },
   "logistics": {
+    "forms": {
+      "unsavedChanges": {
+        "title": "تجاهل التغييرات غير المحفوظة؟",
+        "body": "لديك تغييرات غير محفوظة. المغادرة الآن ستتجاهل ما أدخلته.",
+        "stay": "مواصلة التحرير",
+        "discard": "تجاهل التغييرات"
+      }
+    },
+    "workspace": {
+      "business": {
+        "recentActivity": {
+          "empty": "لا شيء هنا بعد."
+        }
+      },
+      "buyer": {
+        "recentActivity": {
+          "empty": "لا شيء هنا بعد."
+        }
+      },
+      "distributor": {
+        "recentActivity": {
+          "empty": "لا شيء هنا بعد."
+        }
+      },
+      "organizer": {
+        "recentActivity": {
+          "empty": "لا شيء هنا بعد."
+        }
+      }
+    },
     "nav": {
       "home": "اللوجستية",
       "campaigns": "الحملات",
@@ -15604,6 +15634,7 @@
       }
     },
     "complianceWorkspace": {
+      "navLabel": "أقسام الامتثال",
       "title": "مساحة الامتثال",
       "subtitle": "شاهد قواعد التجارة لكل مسار وطابور العمليات الجمركية الحساسة عند امتلاكك صلاحية المشغل.",
       "nav": {
@@ -15751,6 +15782,88 @@
       "myStatus": "حالتي",
       "moqReached": "تم بلوغ الحد الأدنى للطلب!",
       "lockDate": "تاريخ القفل",
+      "newCampaign": "بدء حملة جديدة",
+      "new": {
+        "title": "بدء حملة جديدة",
+        "subtitle": "صياغة حملتك الجماعية. راجعها وأرسلها لموافقة العمليات عندما تكون جاهزة.",
+        "fieldTitle": "عنوان الحملة",
+        "titlePlaceholder": "مثال: 2000 وحدة من الفوانيس الشمسية",
+        "fieldDescription": "الوصف",
+        "descriptionPlaceholder": "ماذا سيحصل المشترون؟ المواصفات الرئيسية والكميات وما يجعل الانضمام جديراً.",
+        "fieldLane": "المسار التجاري",
+        "lanePlaceholder": "اختر مساراً تجارياً",
+        "lanesFailed": "تعذر تحميل المسارات التجارية.",
+        "laneChecks": "فحوصات المسار",
+        "riskTier": "مستوى المخاطر",
+        "laneNeedsBusiness": "يلزم التحقق من النشاط التجاري لتشغيل حملة على هذا المسار.",
+        "laneNeedsManual": "يلزم الحصول على موافقة امتثال يدوية قبل نشر هذه الحملة.",
+        "fieldTargetMoq": "الحد الأدنى للكمية (MOQ)",
+        "fieldMaxParticipants": "الحد الأقصى للمشاركين (اختياري)",
+        "fieldCloseDate": "تاريخ إغلاق التعهدات",
+        "fieldLockDate": "تاريخ الإغلاق النهائي",
+        "fieldShipDate": "تاريخ الشحن المتوقع",
+        "fieldArrivalDate": "تاريخ الوصول المتوقع",
+        "pricingHeading": "مسودة التسعير",
+        "pricingHint": "مسودة تقريبية كافية. تحسب OxSteed التكلفة الإجمالية؛ وتؤكد العمليات الأسعار عند المراجعة.",
+        "fieldUnitCost": "تكلفة الوحدة من المنتج (دولار)",
+        "fieldFreight": "تقدير الشحن للوحدة (دولار)",
+        "fieldDepositPct": "نسبة العربون",
+        "fieldCancellationPolicy": "سياسة الإلغاء",
+        "saveDraft": "حفظ كمسودة",
+        "saving": "جارٍ الحفظ…",
+        "draftSaved": "تم حفظ المسودة.",
+        "createFailed": "تعذر حفظ المسودة. حاول مرة أخرى.",
+        "titleRequired": "العنوان مطلوب.",
+        "laneRequired": "اختر مساراً تجارياً.",
+        "moqRequired": "أدخل كمية دنيا لا تقل عن 1.",
+        "back": "العودة إلى مساحة المنظم",
+        "unsavedConfirm": "لديك تغييرات غير محفوظة. هل تريد المغادرة دون حفظ المسودة؟",
+        "nextStepLabel": "بدء حملة",
+        "nextStepHint": "صِغ حملتك الجماعية الأولى وأرسلها لموافقة العمليات."
+      },
+      "approval": {
+        "title": "الموافقة",
+        "draft": "مسودة",
+        "pendingReview": "قيد المراجعة",
+        "revisionsRequested": "التعديلات مطلوبة",
+        "approved": "معتمد",
+        "rejected": "مرفوض",
+        "submitForReview": "إرسال للمراجعة",
+        "submitting": "جارٍ الإرسال…",
+        "submitted": "تم الإرسال للمراجعة.",
+        "submitFailed": "فشل الإرسال. حاول مرة أخرى.",
+        "blockersTitle": "أصلح هذه العناصر قبل الإرسال",
+        "historyTitle": "سجل الموافقات",
+        "noHistory": "لا توجد قرارات مراجعة بعد.",
+        "approve": "اعتماد ونشر",
+        "requestRevisions": "طلب تعديلات",
+        "reviewing": "جارٍ المراجعة…",
+        "reasonLabel": "ملاحظة المراجعة",
+        "reasonPlaceholder": "اشرح ما يجب تغييره قبل نشر هذه الحملة.",
+        "reviewFailed": "فشلت المراجعة. حاول مرة أخرى.",
+        "reasonRequired": "يلزم ذكر السبب عند طلب التعديلات.",
+        "latestRevisionNote": "أحدث ملاحظة مراجعة",
+        "awaitingReview": "بانتظار مراجعة العمليات. سيتم إشعارك عند اتخاذ القرار.",
+        "publishedNote": "تم الاعتماد والنشر. يمكن للمشترين التعهد الآن.",
+        "unknownReviewer": "مراجع غير معروف",
+        "approvedToast": "تم اعتماد الحملة ونشرها.",
+        "revisionsToast": "تم إرسال طلب التعديلات إلى المنظم.",
+        "revisionsAdminMessage": "إعادة \"{{title}}\" إلى المنظم مع ملاحظة مراجعة.",
+        "decision_submitted_for_review": "أُرسل للمراجعة",
+        "decision_approved": "اعتُمد",
+        "decision_revisions_requested": "طُلبت تعديلات",
+        "decision_rejected": "مرفوض",
+        "decision_withdrawn": "سُحب",
+        "blocker_missing_title": "أضف عنواناً للحملة.",
+        "blocker_missing_description": "أضف وصفاً لما سيحصل عليه المشترون.",
+        "blocker_missing_lane": "اختر مساراً تجارياً.",
+        "blocker_missing_moq": "حدد كمية دنيا لا تقل عن 1.",
+        "blocker_missing_close_date": "حدد تاريخ إغلاق التعهدات.",
+        "blocker_close_date_past": "يجب أن يكون تاريخ إغلاق التعهدات في المستقبل.",
+        "blocker_missing_pricing": "أضف تكلفة الوحدة أو تقدير الشحن لمسودة التسعير.",
+        "blocker_business_verification_required": "يتطلب هذا المسار نشاطاً تجارياً موثقاً. أكمل التحقق من النشاط التجاري أولاً.",
+        "blocker_lane_access_blocked": "هذا المسار التجاري غير متاح لسوقك."
+      },
       "joinSuccess": "لقد انضممت إلى الحملة!",
       "joinForm": "الانضمام إلى هذه الحملة",
       "joinCampaign": "الانضمام إلى الحملة",
@@ -16083,6 +16196,8 @@
       }
     },
     "status": {
+      "pending_review": "قيد المراجعة",
+      "revisions_requested": "التعديلات مطلوبة",
       "draft": "مسودة",
       "open": "يفتح",
       "quoted": "مقتبس",
@@ -28973,6 +29088,7 @@
       "organizer": "المنظم",
       "lane": "المسار",
       "moq": "الحد الأدنى",
+      "submitted": "أُرسل",
       "actions": "إجراءات"
     },
     "reject": "رفض",

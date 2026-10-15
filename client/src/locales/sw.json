@@ -15362,6 +15362,36 @@
     "emptyEyebrow": "Ushauri wa uzinduzi wa biashara"
   },
   "logistics": {
+    "forms": {
+      "unsavedChanges": {
+        "title": "Tupa mabadiliko ambayo hayajahifadhiwa?",
+        "body": "Una mabadiliko ambayo hayajahifadhiwa. Kuondoka sasa kutatupa ulichoingiza.",
+        "stay": "Endelea kuhariri",
+        "discard": "Tupa mabadiliko"
+      }
+    },
+    "workspace": {
+      "business": {
+        "recentActivity": {
+          "empty": "Hakuna chochote hapa bado."
+        }
+      },
+      "buyer": {
+        "recentActivity": {
+          "empty": "Hakuna chochote hapa bado."
+        }
+      },
+      "distributor": {
+        "recentActivity": {
+          "empty": "Hakuna chochote hapa bado."
+        }
+      },
+      "organizer": {
+        "recentActivity": {
+          "empty": "Hakuna chochote hapa bado."
+        }
+      }
+    },
     "nav": {
       "home": "Usafirishaji",
       "campaigns": "Kampeni",
@@ -15456,6 +15486,7 @@
       }
     },
     "complianceWorkspace": {
+      "navLabel": "Sehemu za kufuata sheria",
       "title": "Kuzingatia Eneo la Kazi",
       "subtitle": "Angalia sheria za biashara kwa kila njia na foleni ya utendakazi inayozingatia desturi unapokuwa na ufikiaji wa opereta.",
       "nav": {
@@ -15603,6 +15634,88 @@
       "myStatus": "Hali yangu",
       "moqReached": "MOQ Imefikiwa!",
       "lockDate": "Tarehe ya Kufunga",
+      "newCampaign": "Anzisha kampeni mpya",
+      "new": {
+        "title": "Anzisha kampeni mpya",
+        "subtitle": "Andaa rasimu ya kampeni yako ya pamoja. Ikague na iwasilishe kuidhinishwa na Uendeshaji inapokuwa tayari.",
+        "fieldTitle": "Kichwa cha kampeni",
+        "titlePlaceholder": "k.m. vitengo 2,000 vya taa za jua",
+        "fieldDescription": "Maelezo",
+        "descriptionPlaceholder": "Wanunuzi wanapata nini? Vipimo muhimu, idadi, na kwa nini ujiunge.",
+        "fieldLane": "Njia ya biashara",
+        "lanePlaceholder": "Chagua njia ya biashara",
+        "lanesFailed": "Imeshindwa kupakia njia za biashara.",
+        "laneChecks": "Ukaguzi wa njia",
+        "riskTier": "Kiwango cha hatari",
+        "laneNeedsBusiness": "Uthibitishaji wa biashara unahitajika kuendesha kampeni kwenye njia hii.",
+        "laneNeedsManual": "Idhini ya kufuata sheria kwa mikono inahitajika kabla ya kuchapisha kampeni hii.",
+        "fieldTargetMoq": "Kiasi cha chini (MOQ)",
+        "fieldMaxParticipants": "Washiriki wa juu (hiari)",
+        "fieldCloseDate": "Tarehe ya kufunga ahadi",
+        "fieldLockDate": "Tarehe ya kufunga",
+        "fieldShipDate": "Tarehe inayotarajiwa ya usafirishaji",
+        "fieldArrivalDate": "Tarehe inayotarajiwa ya kuwasili",
+        "pricingHeading": "Muhtasari wa bei",
+        "pricingHint": "Muhtasari mbaya unatosha kwa rasimu. OxSteed huhesabu gharama kamili; Uendeshaji huthibitisha bei wakati wa ukaguzi.",
+        "fieldUnitCost": "Gharama ya kitengo (USD)",
+        "fieldFreight": "Makadirio ya usafirishaji kwa kitengo (USD)",
+        "fieldDepositPct": "Asilimia ya amana",
+        "fieldCancellationPolicy": "Sera ya kughairi",
+        "saveDraft": "Hifadhi kama rasimu",
+        "saving": "Inahifadhi…",
+        "draftSaved": "Rasimu imehifadhiwa.",
+        "createFailed": "Imeshindwa kuhifadhi rasimu. Tafadhali jaribu tena.",
+        "titleRequired": "Kichwa kinahitajika.",
+        "laneRequired": "Chagua njia ya biashara.",
+        "moqRequired": "Weka kiasi cha chini cha angalau 1.",
+        "back": "Rudi kwenye nafasi ya mratibu",
+        "unsavedConfirm": "Una mabadiliko ambayo hayajahifadhiwa. Kuondoka bila kuhifadhi rasimu?",
+        "nextStepLabel": "Anzisha kampeni",
+        "nextStepHint": "Andaa kampeni yako ya kwanza ya pamoja na iwasilishe kuidhinishwa na Uendeshaji."
+      },
+      "approval": {
+        "title": "Idhini",
+        "draft": "Rasimu",
+        "pendingReview": "Inakaguliwa",
+        "revisionsRequested": "Marekebisho yameombwa",
+        "approved": "Imeidhinishwa",
+        "rejected": "Imekataliwa",
+        "submitForReview": "Wasilisha kwa ukaguzi",
+        "submitting": "Inawasilishwa…",
+        "submitted": "Imewasilishwa kwa ukaguzi.",
+        "submitFailed": "Uwasilishaji umeshindwa. Tafadhali jaribu tena.",
+        "blockersTitle": "Rekebisha haya kabla ya kuwasilisha",
+        "historyTitle": "Historia ya idhini",
+        "noHistory": "Hakuna maamuzi ya ukaguzi bado.",
+        "approve": "Idhinisha na uchapishe",
+        "requestRevisions": "Omba marekebisho",
+        "reviewing": "Inakaguliwa…",
+        "reasonLabel": "Ujumbe wa ukaguzi",
+        "reasonPlaceholder": "Eleza kinachohitaji kubadilika kabla kampeni hii haijachapishwa.",
+        "reviewFailed": "Ukaguzi umeshindwa. Tafadhali jaribu tena.",
+        "reasonRequired": "Sababu inahitajika unapoomba marekebisho.",
+        "latestRevisionNote": "Ujumbe wa hivi punde wa ukaguzi",
+        "awaitingReview": "Inasubiri ukaguzi wa Uendeshaji. Utaarifiwa uamuzi utakapofanywa.",
+        "publishedNote": "Imeidhinishwa na kuchapishwa. Wanunuzi sasa wanaweza kuahidi.",
+        "unknownReviewer": "Mkaguzi asiyejulikana",
+        "approvedToast": "Kampeni imeidhinishwa na kuchapishwa.",
+        "revisionsToast": "Ombi la marekebisho limetumwa kwa mratibu.",
+        "revisionsAdminMessage": "Rudisha \"{{title}}\" kwa mratibu pamoja na ujumbe wa ukaguzi.",
+        "decision_submitted_for_review": "Imewasilishwa kwa ukaguzi",
+        "decision_approved": "Imeidhinishwa",
+        "decision_revisions_requested": "Marekebisho yameombwa",
+        "decision_rejected": "Imekataliwa",
+        "decision_withdrawn": "Imeondolewa",
+        "blocker_missing_title": "Ongeza kichwa cha kampeni.",
+        "blocker_missing_description": "Ongeza maelezo ya kile wanunuzi wanachopata.",
+        "blocker_missing_lane": "Chagua njia ya biashara.",
+        "blocker_missing_moq": "Weka kiasi cha chini cha angalau 1.",
+        "blocker_missing_close_date": "Weka tarehe ya kufunga ahadi.",
+        "blocker_close_date_past": "Tarehe ya kufunga ahadi lazima iwe ya baadaye.",
+        "blocker_missing_pricing": "Ongeza gharama ya kitengo au makadirio ya usafirishaji kwa muhtasari wa bei.",
+        "blocker_business_verification_required": "Njia hii inahitaji biashara iliyothibitishwa. Kamilisha uthibitishaji wa biashara kwanza.",
+        "blocker_lane_access_blocked": "Njia hii ya biashara haipatikani kwa soko lako."
+      },
       "joinSuccess": "Umejiunga na kampeni!",
       "joinForm": "Jiunge na Kampeni Hii",
       "joinCampaign": "Jiunge na Kampeni",
@@ -15935,6 +16048,8 @@
       }
     },
     "status": {
+      "pending_review": "Inakaguliwa",
+      "revisions_requested": "Marekebisho yameombwa",
       "draft": "Rasimu",
       "open": "Fungua",
       "quoted": "Imenukuliwa",
@@ -28791,6 +28906,7 @@
       "organizer": "Mwandaji",
       "lane": "Njia",
       "moq": "MOQ",
+      "submitted": "Imewasilishwa",
       "actions": "Vitendo"
     },
     "reject": "Kataa",

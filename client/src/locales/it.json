@@ -15500,6 +15500,36 @@
     "emptyEyebrow": "Consulenza per il lancio d'impresa"
   },
   "logistics": {
+    "forms": {
+      "unsavedChanges": {
+        "title": "Ignorare le modifiche non salvate?",
+        "body": "Hai modifiche non salvate. Uscire ora eliminerà quanto inserito.",
+        "stay": "Continua a modificare",
+        "discard": "Ignora le modifiche"
+      }
+    },
+    "workspace": {
+      "business": {
+        "recentActivity": {
+          "empty": "Niente qui per ora."
+        }
+      },
+      "buyer": {
+        "recentActivity": {
+          "empty": "Niente qui per ora."
+        }
+      },
+      "distributor": {
+        "recentActivity": {
+          "empty": "Niente qui per ora."
+        }
+      },
+      "organizer": {
+        "recentActivity": {
+          "empty": "Niente qui per ora."
+        }
+      }
+    },
     "nav": {
       "home": "Logistica",
       "campaigns": "Campagne",
@@ -15594,6 +15624,7 @@
       }
     },
     "complianceWorkspace": {
+      "navLabel": "Sezioni di conformità",
       "title": "Area di lavoro sulla conformità",
       "subtitle": "Consulta le regole commerciali per ciascuna rotta e la coda delle operazioni sensibili alla dogana quando disponi dell'accesso da parte dell'operatore.",
       "nav": {
@@ -15741,6 +15772,88 @@
       "myStatus": "Il mio stato",
       "moqReached": "MOQ raggiunto!",
       "lockDate": "Data di blocco",
+      "newCampaign": "Avvia una nuova campagna",
+      "new": {
+        "title": "Avvia una nuova campagna",
+        "subtitle": "Bozza la tua campagna collettiva. Rivedila e inviala per l'approvazione delle Operazioni quando è pronta.",
+        "fieldTitle": "Titolo della campagna",
+        "titlePlaceholder": "es. 2.000 unità di lanterne solari",
+        "fieldDescription": "Descrizione",
+        "descriptionPlaceholder": "Cosa ricevono gli acquirenti? Specifiche chiave, quantità e perché conviene partecipare.",
+        "fieldLane": "Rotta commerciale",
+        "lanePlaceholder": "Seleziona una rotta commerciale",
+        "lanesFailed": "Impossibile caricare le rotte commerciali.",
+        "laneChecks": "Controlli della rotta",
+        "riskTier": "Livello di rischio",
+        "laneNeedsBusiness": "È richiesta la verifica aziendale per avviare una campagna su questa rotta.",
+        "laneNeedsManual": "È richiesta un'approvazione manuale di conformità prima della pubblicazione.",
+        "fieldTargetMoq": "Quantità minima (MOQ)",
+        "fieldMaxParticipants": "Partecipanti max (facoltativo)",
+        "fieldCloseDate": "Data di chiusura delle adesioni",
+        "fieldLockDate": "Data di blocco",
+        "fieldShipDate": "Data di spedizione prevista",
+        "fieldArrivalDate": "Data di arrivo prevista",
+        "pricingHeading": "Bozza dei prezzi",
+        "pricingHint": "Una bozza approssimativa basta. OxSteed calcola il costo totale; le Operazioni confermano i prezzi in fase di revisione.",
+        "fieldUnitCost": "Costo unitario del prodotto (USD)",
+        "fieldFreight": "Stima del trasporto per unità (USD)",
+        "fieldDepositPct": "Percentuale di acconto",
+        "fieldCancellationPolicy": "Politica di cancellazione",
+        "saveDraft": "Salva come bozza",
+        "saving": "Salvataggio…",
+        "draftSaved": "Bozza salvata.",
+        "createFailed": "Impossibile salvare la bozza. Riprova.",
+        "titleRequired": "È richiesto un titolo.",
+        "laneRequired": "Scegli una rotta commerciale.",
+        "moqRequired": "Inserisci una quantità minima di almeno 1.",
+        "back": "Torna allo spazio organizzatore",
+        "unsavedConfirm": "Hai modifiche non salvate. Uscire senza salvare la bozza?",
+        "nextStepLabel": "Avvia una campagna",
+        "nextStepHint": "Redigi la tua prima campagna collettiva e inviala per l'approvazione delle Operazioni."
+      },
+      "approval": {
+        "title": "Approvazione",
+        "draft": "Bozza",
+        "pendingReview": "In revisione",
+        "revisionsRequested": "Revisioni richieste",
+        "approved": "Approvato",
+        "rejected": "Rifiutato",
+        "submitForReview": "Invia per la revisione",
+        "submitting": "Invio in corso…",
+        "submitted": "Inviato per la revisione.",
+        "submitFailed": "Invio non riuscito. Riprova.",
+        "blockersTitle": "Correggi questi punti prima dell’invio",
+        "historyTitle": "Cronologia delle approvazioni",
+        "noHistory": "Nessuna decisione di revisione ancora.",
+        "approve": "Approva e pubblica",
+        "requestRevisions": "Richiedi revisioni",
+        "reviewing": "Revisione in corso…",
+        "reasonLabel": "Nota di revisione",
+        "reasonPlaceholder": "Spiega cosa deve cambiare prima della pubblicazione di questa campagna.",
+        "reviewFailed": "Revisione non riuscita. Riprova.",
+        "reasonRequired": "È richiesto un motivo per richiedere revisioni.",
+        "latestRevisionNote": "Ultima nota di revisione",
+        "awaitingReview": "In attesa della revisione delle Operazioni. Sarai avvisato quando verrà presa una decisione.",
+        "publishedNote": "Approvato e pubblicato. Gli acquirenti ora possono aderire.",
+        "unknownReviewer": "Revisore sconosciuto",
+        "approvedToast": "Campagna approvata e pubblicata.",
+        "revisionsToast": "Richiesta di revisioni inviata all'organizzatore.",
+        "revisionsAdminMessage": "Rimanda \"{{title}}\" all’organizzatore con una nota di revisione.",
+        "decision_submitted_for_review": "Inviato per la revisione",
+        "decision_approved": "Approvato",
+        "decision_revisions_requested": "Revisioni richieste",
+        "decision_rejected": "Rifiutato",
+        "decision_withdrawn": "Ritirato",
+        "blocker_missing_title": "Aggiungi un titolo alla campagna.",
+        "blocker_missing_description": "Aggiungi una descrizione di ciò che ricevono gli acquirenti.",
+        "blocker_missing_lane": "Scegli una rotta commerciale.",
+        "blocker_missing_moq": "Imposta una quantità minima di almeno 1.",
+        "blocker_missing_close_date": "Imposta una data di chiusura delle adesioni.",
+        "blocker_close_date_past": "La data di chiusura delle adesioni deve essere futura.",
+        "blocker_missing_pricing": "Aggiungi un costo unitario o una stima del trasporto per la bozza dei prezzi.",
+        "blocker_business_verification_required": "Questa rotta richiede un'azienda verificata. Completa prima la verifica aziendale.",
+        "blocker_lane_access_blocked": "Questa rotta commerciale non è disponibile per il tuo mercato."
+      },
       "joinSuccess": "Hai aderito alla campagna!",
       "joinForm": "Partecipa a questa campagna",
       "joinCampaign": "Partecipa alla campagna",
@@ -16073,6 +16186,8 @@
       }
     },
     "status": {
+      "pending_review": "In revisione",
+      "revisions_requested": "Revisioni richieste",
       "draft": "Bozza",
       "open": "Aprire",
       "quoted": "Citato",
@@ -28963,6 +29078,7 @@
       "organizer": "Organizzatore",
       "lane": "Corsia",
       "moq": "MOQ",
+      "submitted": "Inviato",
       "actions": "Azioni"
     },
     "reject": "Rifiuti",

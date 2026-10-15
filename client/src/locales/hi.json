@@ -15500,6 +15500,36 @@
     "emptyEyebrow": "व्यावसायिक लॉन्च परामर्श"
   },
   "logistics": {
+    "forms": {
+      "unsavedChanges": {
+        "title": "असहेजे परिवर्तन छोड़ दें?",
+        "body": "आपके पास असहेजे परिवर्तन हैं। अभी जाने पर आपका दर्ज किया गया डेटा हट जाएगा।",
+        "stay": "संपादन जारी रखें",
+        "discard": "परिवर्तन छोड़ें"
+      }
+    },
+    "workspace": {
+      "business": {
+        "recentActivity": {
+          "empty": "अभी यहाँ कुछ नहीं है।"
+        }
+      },
+      "buyer": {
+        "recentActivity": {
+          "empty": "अभी यहाँ कुछ नहीं है।"
+        }
+      },
+      "distributor": {
+        "recentActivity": {
+          "empty": "अभी यहाँ कुछ नहीं है।"
+        }
+      },
+      "organizer": {
+        "recentActivity": {
+          "empty": "अभी यहाँ कुछ नहीं है।"
+        }
+      }
+    },
     "nav": {
       "home": "लॉजिस्टिक्स",
       "campaigns": "अभियान",
@@ -15594,6 +15624,7 @@
       }
     },
     "complianceWorkspace": {
+      "navLabel": "अनुपालन अनुभाग",
       "title": "अनुपालन कार्यक्षेत्र",
       "subtitle": "जब आपके पास ऑपरेटर एक्सेस हो, तो प्रत्येक मार्ग के व्यापार नियम और कस्टम संवेदनशील संचालन कतार देखें।",
       "nav": {
@@ -15741,6 +15772,88 @@
       "myStatus": "मेरी स्थिति",
       "moqReached": "MOQ पूरी हो गई!",
       "lockDate": "लॉक तिथि",
+      "newCampaign": "नया अभियान शुरू करें",
+      "new": {
+        "title": "नया अभियान शुरू करें",
+        "subtitle": "अपने सामूहिक अभियान का मसौदा तैयार करें। तैयार होने पर समीक्षा करें और संचालन अनुमोदन हेतु भेजें।",
+        "fieldTitle": "अभियान का शीर्षक",
+        "titlePlaceholder": "जैसे 2,000 सौर लालटेन इकाइयाँ",
+        "fieldDescription": "विवरण",
+        "descriptionPlaceholder": "खरीदारों को क्या मिलेगा? मुख्य स्पेसिफिकेशन, मात्रा और जुड़ने के कारण।",
+        "fieldLane": "व्यापार मार्ग",
+        "lanePlaceholder": "व्यापार मार्ग चुनें",
+        "lanesFailed": "व्यापार मार्ग लोड नहीं हो सके।",
+        "laneChecks": "मार्ग जांच",
+        "riskTier": "जोखिम स्तर",
+        "laneNeedsBusiness": "इस मार्ग पर अभियान चलाने के लिए व्यवसाय सत्यापन आवश्यक है।",
+        "laneNeedsManual": "इस अभियान के प्रकाशन से पहले मैनुअल अनुपालन अनुमोदन आवश्यक है।",
+        "fieldTargetMoq": "न्यूनतम मात्रा (MOQ)",
+        "fieldMaxParticipants": "अधिकतम प्रतिभागी (वैकल्पिक)",
+        "fieldCloseDate": "प्रतिबद्धता समाप्ति तिथि",
+        "fieldLockDate": "लॉक तिथि",
+        "fieldShipDate": "अपेक्षित शिपमेंट तिथि",
+        "fieldArrivalDate": "अपेक्षित आगमन तिथि",
+        "pricingHeading": "मूल्य निर्धारण मसौदा",
+        "pricingHint": "मसौदे के लिए अनुमानित रूपरेखा पर्याप्त है। OxSteed कुल लागत की गणना करता है; संचालन समीक्षा में मूल्य की पुष्टि करता है।",
+        "fieldUnitCost": "इकाई उत्पाद लागत (USD)",
+        "fieldFreight": "प्रति इकाई भाड़ा अनुमान (USD)",
+        "fieldDepositPct": "जमा प्रतिशत",
+        "fieldCancellationPolicy": "रद्दीकरण नीति",
+        "saveDraft": "मसौदे के रूप में सहेजें",
+        "saving": "सहेजा जा रहा है…",
+        "draftSaved": "मसौदा सहेजा गया।",
+        "createFailed": "मसौदा सहेजा नहीं जा सका। कृपया पुनः प्रयास करें।",
+        "titleRequired": "शीर्षक आवश्यक है।",
+        "laneRequired": "व्यापार मार्ग चुनें।",
+        "moqRequired": "कम से कम 1 की न्यूनतम मात्रा दर्ज करें।",
+        "back": "आयोजक कार्यक्षेत्र पर वापस जाएं",
+        "unsavedConfirm": "आपके पास असहेजे परिवर्तन हैं। मसौदा सहेजे बिना जाएं?",
+        "nextStepLabel": "अभियान शुरू करें",
+        "nextStepHint": "अपना पहला सामूहिक अभियान तैयार करें और संचालन अनुमोदन हेतु भेजें।"
+      },
+      "approval": {
+        "title": "अनुमोदन",
+        "draft": "मसौदा",
+        "pendingReview": "समीक्षाधीन",
+        "revisionsRequested": "संशोधन अनुरोधित",
+        "approved": "अनुमोदित",
+        "rejected": "अस्वीकृत",
+        "submitForReview": "समीक्षा हेतु भेजें",
+        "submitting": "भेजा जा रहा है…",
+        "submitted": "समीक्षा हेतु भेजा गया।",
+        "submitFailed": "भेजना विफल रहा। कृपया पुनः प्रयास करें।",
+        "blockersTitle": "भेजने से पहले इन्हें ठीक करें",
+        "historyTitle": "अनुमोदन इतिहास",
+        "noHistory": "अभी तक कोई समीक्षा निर्णय नहीं।",
+        "approve": "अनुमोदन करें और प्रकाशित करें",
+        "requestRevisions": "संशोधन का अनुरोध करें",
+        "reviewing": "समीक्षा हो रही है…",
+        "reasonLabel": "समीक्षा टिप्पणी",
+        "reasonPlaceholder": "इस अभियान के प्रकाशित होने से पहले क्या बदलना चाहिए, बताएं।",
+        "reviewFailed": "समीक्षा विफल रही। कृपया पुनः प्रयास करें।",
+        "reasonRequired": "संशोधन का अनुरोध करते समय कारण आवश्यक है।",
+        "latestRevisionNote": "नवीनतम समीक्षा टिप्पणी",
+        "awaitingReview": "संचालन समीक्षा की प्रतीक्षा है। निर्णय होने पर आपको सूचित किया जाएगा।",
+        "publishedNote": "अनुमोदित और प्रकाशित। खरीदार अब प्रतिबद्ध हो सकते हैं।",
+        "unknownReviewer": "अज्ञात समीक्षक",
+        "approvedToast": "अभियान अनुमोदित और प्रकाशित।",
+        "revisionsToast": "आयोजक को संशोधन अनुरोध भेजा गया।",
+        "revisionsAdminMessage": "\"{{title}}\" को समीक्षा टिप्पणी के साथ आयोजक को वापस भेजें।",
+        "decision_submitted_for_review": "समीक्षा हेतु भेजा गया",
+        "decision_approved": "अनुमोदित",
+        "decision_revisions_requested": "संशोधन अनुरोधित",
+        "decision_rejected": "अस्वीकृत",
+        "decision_withdrawn": "वापस लिया गया",
+        "blocker_missing_title": "अभियान का शीर्षक जोड़ें।",
+        "blocker_missing_description": "खरीदारों को क्या मिलेगा, इसका विवरण जोड़ें।",
+        "blocker_missing_lane": "व्यापार मार्ग चुनें।",
+        "blocker_missing_moq": "कम से कम 1 की न्यूनतम मात्रा निर्धारित करें।",
+        "blocker_missing_close_date": "प्रतिबद्धता समाप्ति तिथि निर्धारित करें।",
+        "blocker_close_date_past": "प्रतिबद्धता समाप्ति तिथि भविष्य में होनी चाहिए।",
+        "blocker_missing_pricing": "मूल्य निर्धारण मसौदे के लिए इकाई लागत या भाड़ा अनुमान जोड़ें।",
+        "blocker_business_verification_required": "इस मार्ग के लिए सत्यापित व्यवसाय आवश्यक है। पहले व्यवसाय सत्यापन पूरा करें।",
+        "blocker_lane_access_blocked": "यह व्यापार मार्ग आपके बाज़ार के लिए उपलब्ध नहीं है।"
+      },
       "joinSuccess": "आप अभियान से जुड़ गए हैं!",
       "joinForm": "इस अभियान से जुड़ें",
       "joinCampaign": "अभियान से जुड़ें",
@@ -16073,6 +16186,8 @@
       }
     },
     "status": {
+      "pending_review": "समीक्षाधीन",
+      "revisions_requested": "संशोधन अनुरोधित",
       "draft": "मसौदा",
       "open": "खुला",
       "quoted": "कोट किया गया",
@@ -28963,6 +29078,7 @@
       "organizer": "आयोजक",
       "lane": "मार्ग",
       "moq": "MOQ",
+      "submitted": "भेजा गया",
       "actions": "कार्रवाइयाँ"
     },
     "reject": "अस्वीकार करें",

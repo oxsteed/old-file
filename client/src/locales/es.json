@@ -15499,6 +15499,36 @@
     "emptyEyebrow": "Consultoría de lanzamiento de negocios"
   },
   "logistics": {
+    "forms": {
+      "unsavedChanges": {
+        "title": "¿Descartar los cambios no guardados?",
+        "body": "Tienes cambios sin guardar. Si sales ahora, se descartará lo que ingresaste.",
+        "stay": "Seguir editando",
+        "discard": "Descartar cambios"
+      }
+    },
+    "workspace": {
+      "business": {
+        "recentActivity": {
+          "empty": "Nada aquí todavía."
+        }
+      },
+      "buyer": {
+        "recentActivity": {
+          "empty": "Nada aquí todavía."
+        }
+      },
+      "distributor": {
+        "recentActivity": {
+          "empty": "Nada aquí todavía."
+        }
+      },
+      "organizer": {
+        "recentActivity": {
+          "empty": "Nada aquí todavía."
+        }
+      }
+    },
     "nav": {
       "home": "Logistica",
       "campaigns": "Campanas",
@@ -15593,6 +15623,7 @@
       }
     },
     "complianceWorkspace": {
+      "navLabel": "Secciones de cumplimiento",
       "title": "Espacio de cumplimiento",
       "subtitle": "Consulta las reglas de comercio de cada ruta y la cola de operaciones sensibles a aduanas cuando tienes acceso de operador.",
       "nav": {
@@ -15740,6 +15771,88 @@
       "myStatus": "Mi estado",
       "moqReached": "¡Cantidad mínima alcanzada!",
       "lockDate": "Fecha de bloqueo",
+      "newCampaign": "Iniciar una nueva campaña",
+      "new": {
+        "title": "Iniciar una nueva campaña",
+        "subtitle": "Borrador de tu campaña conjunta. Revísala y envíala para la aprobación de Operaciones cuando esté lista.",
+        "fieldTitle": "Título de la campaña",
+        "titlePlaceholder": "p. ej., 2000 unidades de linternas solares",
+        "fieldDescription": "Descripción",
+        "descriptionPlaceholder": "¿Qué reciben los compradores? Especificaciones clave, cantidades y por qué vale la pena unirse.",
+        "fieldLane": "Ruta comercial",
+        "lanePlaceholder": "Selecciona una ruta comercial",
+        "lanesFailed": "No se pudieron cargar las rutas comerciales.",
+        "laneChecks": "Controles de la ruta",
+        "riskTier": "Nivel de riesgo",
+        "laneNeedsBusiness": "Se requiere verificación empresarial para ejecutar una campaña en esta ruta.",
+        "laneNeedsManual": "Se requiere aprobación manual de cumplimiento antes de publicar esta campaña.",
+        "fieldTargetMoq": "Cantidad mínima (MOQ)",
+        "fieldMaxParticipants": "Máx. participantes (opcional)",
+        "fieldCloseDate": "Fecha de cierre de compromisos",
+        "fieldLockDate": "Fecha de bloqueo",
+        "fieldShipDate": "Fecha prevista de envío",
+        "fieldArrivalDate": "Fecha prevista de llegada",
+        "pricingHeading": "Borrador de precios",
+        "pricingHint": "Un borrador aproximado basta. OxSteed calcula el costo total; Operaciones confirma los precios en la revisión.",
+        "fieldUnitCost": "Costo unitario del producto (USD)",
+        "fieldFreight": "Estimación de flete por unidad (USD)",
+        "fieldDepositPct": "Porcentaje del depósito",
+        "fieldCancellationPolicy": "Política de cancelación",
+        "saveDraft": "Guardar como borrador",
+        "saving": "Guardando…",
+        "draftSaved": "Borrador guardado.",
+        "createFailed": "No se pudo guardar el borrador. Inténtalo de nuevo.",
+        "titleRequired": "Se requiere un título.",
+        "laneRequired": "Elige una ruta comercial.",
+        "moqRequired": "Ingresa una cantidad mínima de al menos 1.",
+        "back": "Volver al espacio del organizador",
+        "unsavedConfirm": "Tienes cambios sin guardar. ¿Salir sin guardar el borrador?",
+        "nextStepLabel": "Iniciar una campaña",
+        "nextStepHint": "Redacta tu primera campaña conjunta y envíala para la aprobación de Operaciones."
+      },
+      "approval": {
+        "title": "Aprobación",
+        "draft": "Borrador",
+        "pendingReview": "En revisión",
+        "revisionsRequested": "Cambios solicitados",
+        "approved": "Aprobado",
+        "rejected": "Rechazado",
+        "submitForReview": "Enviar para revisión",
+        "submitting": "Enviando…",
+        "submitted": "Enviado para revisión.",
+        "submitFailed": "El envío falló. Inténtalo de nuevo.",
+        "blockersTitle": "Corrige esto antes de enviar",
+        "historyTitle": "Historial de aprobación",
+        "noHistory": "Aún no hay decisiones de revisión.",
+        "approve": "Aprobar y publicar",
+        "requestRevisions": "Solicitar cambios",
+        "reviewing": "Revisando…",
+        "reasonLabel": "Nota de revisión",
+        "reasonPlaceholder": "Explica qué debe cambiar antes de publicar esta campaña.",
+        "reviewFailed": "La revisión falló. Inténtalo de nuevo.",
+        "reasonRequired": "Se requiere un motivo al solicitar cambios.",
+        "latestRevisionNote": "Última nota de revisión",
+        "awaitingReview": "En espera de la revisión de Operaciones. Se te notificará cuando haya una decisión.",
+        "publishedNote": "Aprobado y publicado. Los compradores ya pueden comprometerse.",
+        "unknownReviewer": "Revisor desconocido",
+        "approvedToast": "Campaña aprobada y publicada.",
+        "revisionsToast": "Solicitud de cambios enviada al organizador.",
+        "revisionsAdminMessage": "Devolver \"{{title}}\" al organizador con una nota de revisión.",
+        "decision_submitted_for_review": "Enviado para revisión",
+        "decision_approved": "Aprobado",
+        "decision_revisions_requested": "Cambios solicitados",
+        "decision_rejected": "Rechazado",
+        "decision_withdrawn": "Retirado",
+        "blocker_missing_title": "Agrega un título de campaña.",
+        "blocker_missing_description": "Agrega una descripción de lo que reciben los compradores.",
+        "blocker_missing_lane": "Elige una ruta comercial.",
+        "blocker_missing_moq": "Establece una cantidad mínima de al menos 1.",
+        "blocker_missing_close_date": "Establece una fecha de cierre de compromisos.",
+        "blocker_close_date_past": "La fecha de cierre de compromisos debe ser futura.",
+        "blocker_missing_pricing": "Agrega un costo unitario o una estimación de flete para el borrador de precios.",
+        "blocker_business_verification_required": "Esta ruta requiere una empresa verificada. Completa la verificación empresarial primero.",
+        "blocker_lane_access_blocked": "Esta ruta comercial no está disponible para tu mercado."
+      },
       "joinSuccess": "¡Te uniste a la campaña!",
       "joinForm": "Unirse a esta campaña",
       "joinCampaign": "Unirse a la campaña",
@@ -16072,6 +16185,8 @@
       }
     },
     "status": {
+      "pending_review": "En revisión",
+      "revisions_requested": "Cambios solicitados",
       "draft": "Borrador",
       "open": "Abierto",
       "quoted": "Cotizado",
@@ -28962,6 +29077,7 @@
       "organizer": "Organizador",
       "lane": "Ruta",
       "moq": "MOQ",
+      "submitted": "Enviado",
       "actions": "Acciones"
     },
     "reject": "Rechazar",

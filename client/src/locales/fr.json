@@ -15499,6 +15499,36 @@
     "emptyEyebrow": "Conseil en lancement d'entreprise"
   },
   "logistics": {
+    "forms": {
+      "unsavedChanges": {
+        "title": "Ignorer les modifications non enregistrées ?",
+        "body": "Vous avez des modifications non enregistrées. Partir maintenant les supprimera.",
+        "stay": "Continuer la modification",
+        "discard": "Ignorer les modifications"
+      }
+    },
+    "workspace": {
+      "business": {
+        "recentActivity": {
+          "empty": "Rien pour le moment."
+        }
+      },
+      "buyer": {
+        "recentActivity": {
+          "empty": "Rien pour le moment."
+        }
+      },
+      "distributor": {
+        "recentActivity": {
+          "empty": "Rien pour le moment."
+        }
+      },
+      "organizer": {
+        "recentActivity": {
+          "empty": "Rien pour le moment."
+        }
+      }
+    },
     "nav": {
       "home": "Logistique",
       "campaigns": "Campagnes",
@@ -15593,6 +15623,7 @@
       }
     },
     "complianceWorkspace": {
+      "navLabel": "Sections de conformité",
       "title": "Espace de conformité",
       "subtitle": "Consultez les règles commerciales de chaque route et la file des opérations sensibles aux douanes lorsque vous avez un accès opérateur.",
       "nav": {
@@ -15740,6 +15771,88 @@
       "myStatus": "Mon statut",
       "moqReached": "Quantité minimale atteinte !",
       "lockDate": "Date de verrouillage",
+      "newCampaign": "Démarrer une nouvelle campagne",
+      "new": {
+        "title": "Démarrer une nouvelle campagne",
+        "subtitle": "Rédigez votre campagne groupée. Relisez-la et soumettez-la à l'approbation des Opérations quand elle est prête.",
+        "fieldTitle": "Titre de la campagne",
+        "titlePlaceholder": "p. ex. 2 000 unités de lanternes solaires",
+        "fieldDescription": "Description",
+        "descriptionPlaceholder": "Que reçoivent les acheteurs ? Spécifications clés, quantités et raisons de rejoindre.",
+        "fieldLane": "Couloir commercial",
+        "lanePlaceholder": "Sélectionnez un couloir commercial",
+        "lanesFailed": "Impossible de charger les couloirs commerciaux.",
+        "laneChecks": "Vérifications du couloir",
+        "riskTier": "Niveau de risque",
+        "laneNeedsBusiness": "La vérification d'entreprise est requise pour lancer une campagne sur ce couloir.",
+        "laneNeedsManual": "Une approbation manuelle de conformité est requise avant la publication de cette campagne.",
+        "fieldTargetMoq": "Quantité minimale (MOQ)",
+        "fieldMaxParticipants": "Participants max (facultatif)",
+        "fieldCloseDate": "Date de clôture des engagements",
+        "fieldLockDate": "Date de verrouillage",
+        "fieldShipDate": "Date d'expédition prévue",
+        "fieldArrivalDate": "Date d'arrivée prévue",
+        "pricingHeading": "Esquisse tarifaire",
+        "pricingHint": "Une esquisse suffit pour le brouillon. OxSteed calcule le coût rendu ; les Opérations confirment les prix lors de l'examen.",
+        "fieldUnitCost": "Coût unitaire du produit (USD)",
+        "fieldFreight": "Estimation du fret unitaire (USD)",
+        "fieldDepositPct": "Pourcentage d'acompte",
+        "fieldCancellationPolicy": "Politique d'annulation",
+        "saveDraft": "Enregistrer comme brouillon",
+        "saving": "Enregistrement…",
+        "draftSaved": "Brouillon enregistré.",
+        "createFailed": "Impossible d’enregistrer le brouillon. Veuillez réessayer.",
+        "titleRequired": "Un titre est requis.",
+        "laneRequired": "Choisissez un couloir commercial.",
+        "moqRequired": "Saisissez une quantité minimale d'au moins 1.",
+        "back": "Retour à l'espace organisateur",
+        "unsavedConfirm": "Vous avez des modifications non enregistrées. Quitter sans enregistrer le brouillon ?",
+        "nextStepLabel": "Démarrer une campagne",
+        "nextStepHint": "Rédigez votre première campagne groupée et soumettez-la à l'approbation des Opérations."
+      },
+      "approval": {
+        "title": "Approbation",
+        "draft": "Brouillon",
+        "pendingReview": "En cours d'examen",
+        "revisionsRequested": "Révisions demandées",
+        "approved": "Approuvé",
+        "rejected": "Rejeté",
+        "submitForReview": "Soumettre pour examen",
+        "submitting": "Envoi en cours…",
+        "submitted": "Soumis pour examen.",
+        "submitFailed": "Échec de l'envoi. Veuillez réessayer.",
+        "blockersTitle": "Corrigez ces points avant l’envoi",
+        "historyTitle": "Historique d'approbation",
+        "noHistory": "Aucune décision d’examen pour le moment.",
+        "approve": "Approuver et publier",
+        "requestRevisions": "Demander des révisions",
+        "reviewing": "Examen en cours…",
+        "reasonLabel": "Note d'examen",
+        "reasonPlaceholder": "Expliquez ce qui doit changer avant la publication de cette campagne.",
+        "reviewFailed": "Échec de l'examen. Veuillez réessayer.",
+        "reasonRequired": "Un motif est requis pour demander des révisions.",
+        "latestRevisionNote": "Dernière note d'examen",
+        "awaitingReview": "En attente de l'examen des Opérations. Vous serez notifié dès qu'une décision sera prise.",
+        "publishedNote": "Approuvé et publié. Les acheteurs peuvent désormais s’engager.",
+        "unknownReviewer": "Examinateur inconnu",
+        "approvedToast": "Campagne approuvée et publiée.",
+        "revisionsToast": "Demande de révisions envoyée à l'organisateur.",
+        "revisionsAdminMessage": "Renvoyer « {{title}} » à l’organisateur avec une note de révision.",
+        "decision_submitted_for_review": "Soumis pour examen",
+        "decision_approved": "Approuvé",
+        "decision_revisions_requested": "Révisions demandées",
+        "decision_rejected": "Rejeté",
+        "decision_withdrawn": "Retiré",
+        "blocker_missing_title": "Ajoutez un titre de campagne.",
+        "blocker_missing_description": "Ajoutez une description de ce que reçoivent les acheteurs.",
+        "blocker_missing_lane": "Choisissez un couloir commercial.",
+        "blocker_missing_moq": "Définissez une quantité minimale d'au moins 1.",
+        "blocker_missing_close_date": "Définissez une date de clôture des engagements.",
+        "blocker_close_date_past": "La date de clôture des engagements doit être future.",
+        "blocker_missing_pricing": "Ajoutez un coût unitaire ou une estimation de fret pour l'esquisse tarifaire.",
+        "blocker_business_verification_required": "Ce couloir exige une entreprise vérifiée. Effectuez d'abord la vérification d'entreprise.",
+        "blocker_lane_access_blocked": "Ce couloir commercial n'est pas disponible pour votre marché."
+      },
       "joinSuccess": "Vous avez rejoint la campagne !",
       "joinForm": "Rejoindre cette campagne",
       "joinCampaign": "Rejoindre la campagne",
@@ -16072,6 +16185,8 @@
       }
     },
     "status": {
+      "pending_review": "En cours d'examen",
+      "revisions_requested": "Révisions demandées",
       "draft": "Brouillon",
       "open": "Ouvert",
       "quoted": "Devis",
@@ -28962,6 +29077,7 @@
       "organizer": "Organisateur",
       "lane": "Couloir",
       "moq": "MOQ",
+      "submitted": "Soumis",
       "actions": "Actions"
     },
     "reject": "Rejeter",

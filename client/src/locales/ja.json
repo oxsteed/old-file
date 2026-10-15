@@ -15500,6 +15500,36 @@
     "emptyEyebrow": "ビジネス立ち上げコンサルティング"
   },
   "logistics": {
+    "forms": {
+      "unsavedChanges": {
+        "title": "保存されていない変更を破棄しますか？",
+        "body": "保存されていない変更があります。今離れると入力内容が破棄されます。",
+        "stay": "編集を続ける",
+        "discard": "変更を破棄"
+      }
+    },
+    "workspace": {
+      "business": {
+        "recentActivity": {
+          "empty": "まだ何もありません。"
+        }
+      },
+      "buyer": {
+        "recentActivity": {
+          "empty": "まだ何もありません。"
+        }
+      },
+      "distributor": {
+        "recentActivity": {
+          "empty": "まだ何もありません。"
+        }
+      },
+      "organizer": {
+        "recentActivity": {
+          "empty": "まだ何もありません。"
+        }
+      }
+    },
     "nav": {
       "home": "ロジスティクス",
       "campaigns": "キャンペーン",
@@ -15594,6 +15624,7 @@
       }
     },
     "complianceWorkspace": {
+      "navLabel": "コンプライアンスセクション",
       "title": "コンプライアンスワークスペース",
       "subtitle": "オペレーターアクセス権がある場合は、各ルートの貿易ルールと、税関関連の業務キューを確認できます。",
       "nav": {
@@ -15741,6 +15772,88 @@
       "myStatus": "私のステータス",
       "moqReached": "MOQ達成！",
       "lockDate": "確定日",
+      "newCampaign": "新しいキャンペーンを開始",
+      "new": {
+        "title": "新しいキャンペーンを開始",
+        "subtitle": "共同購入キャンペーンの下書きを作成します。準備ができたら確認し、運営の承認に提出してください。",
+        "fieldTitle": "キャンペーン名",
+        "titlePlaceholder": "例：ソーラーランタン 2,000 個",
+        "fieldDescription": "説明",
+        "descriptionPlaceholder": "購入者は何を得られますか？主な仕様、数量、参加する理由を記入してください。",
+        "fieldLane": "貿易レーン",
+        "lanePlaceholder": "貿易レーンを選択",
+        "lanesFailed": "貿易レーンを読み込めませんでした。",
+        "laneChecks": "レーンチェック",
+        "riskTier": "リスクレベル",
+        "laneNeedsBusiness": "このレーンでキャンペーンを実施するには事業者確認が必要です。",
+        "laneNeedsManual": "このキャンペーンを公開する前に手動のコンプライアンス承認が必要です。",
+        "fieldTargetMoq": "最小数量（MOQ）",
+        "fieldMaxParticipants": "最大参加者数（任意）",
+        "fieldCloseDate": "参加締切日",
+        "fieldLockDate": "確定日",
+        "fieldShipDate": "出荷予定日",
+        "fieldArrivalDate": "到着予定日",
+        "pricingHeading": "価格の概算",
+        "pricingHint": "下書きには概算で十分です。OxSteed が総コストを計算し、運営がレビュー時に価格を確定します。",
+        "fieldUnitCost": "製品単価（USD）",
+        "fieldFreight": "単位あたりの運賃見積（USD）",
+        "fieldDepositPct": "デポジット率",
+        "fieldCancellationPolicy": "キャンセルポリシー",
+        "saveDraft": "下書きとして保存",
+        "saving": "保存中…",
+        "draftSaved": "下書きを保存しました。",
+        "createFailed": "下書きを保存できませんでした。もう一度お試しください。",
+        "titleRequired": "タイトルは必須です。",
+        "laneRequired": "貿易レーンを選択してください。",
+        "moqRequired": "最小数量は 1 以上を入力してください。",
+        "back": "主催者ワークスペースに戻る",
+        "unsavedConfirm": "保存されていない変更があります。下書きを保存せずに離れますか？",
+        "nextStepLabel": "キャンペーンを開始",
+        "nextStepHint": "最初の共同購入キャンペーンを起草し、運営の承認に提出してください。"
+      },
+      "approval": {
+        "title": "承認",
+        "draft": "下書き",
+        "pendingReview": "レビュー中",
+        "revisionsRequested": "修正依頼あり",
+        "approved": "承認済み",
+        "rejected": "却下",
+        "submitForReview": "レビューに提出",
+        "submitting": "提出中…",
+        "submitted": "レビューに提出しました。",
+        "submitFailed": "提出に失敗しました。もう一度お試しください。",
+        "blockersTitle": "提出前に以下を修正してください",
+        "historyTitle": "承認履歴",
+        "noHistory": "まだレビュー決定がありません。",
+        "approve": "承認して公開",
+        "requestRevisions": "修正を依頼",
+        "reviewing": "レビュー中…",
+        "reasonLabel": "レビューメモ",
+        "reasonPlaceholder": "このキャンペーンを公開する前に変更が必要な点を説明してください。",
+        "reviewFailed": "レビューに失敗しました。もう一度お試しください。",
+        "reasonRequired": "修正を依頼する場合は理由が必須です。",
+        "latestRevisionNote": "最新のレビューメモ",
+        "awaitingReview": "運営のレビュー待ちです。決定が出たら通知します。",
+        "publishedNote": "承認・公開されました。購入者は参加表明できます。",
+        "unknownReviewer": "不明なレビュアー",
+        "approvedToast": "キャンペーンを承認・公開しました。",
+        "revisionsToast": "修正依頼を主催者に送信しました。",
+        "revisionsAdminMessage": "「{{title}}」をレビューメモ付きで主催者に差し戻します。",
+        "decision_submitted_for_review": "レビューに提出",
+        "decision_approved": "承認",
+        "decision_revisions_requested": "修正依頼",
+        "decision_rejected": "却下",
+        "decision_withdrawn": "取下げ",
+        "blocker_missing_title": "キャンペーン名を入力してください。",
+        "blocker_missing_description": "購入者が得られる内容の説明を追加してください。",
+        "blocker_missing_lane": "貿易レーンを選択してください。",
+        "blocker_missing_moq": "最小数量を 1 以上に設定してください。",
+        "blocker_missing_close_date": "参加締切日を設定してください。",
+        "blocker_close_date_past": "参加締切日は未来の日付にしてください。",
+        "blocker_missing_pricing": "価格の概算に製品単価または運賃見積を追加してください。",
+        "blocker_business_verification_required": "このレーンでは確認済み事業者が必要です。先に事業者確認を完了してください。",
+        "blocker_lane_access_blocked": "この貿易レーンはお客様の市場では利用できません。"
+      },
       "joinSuccess": "キャンペーンに参加しました！",
       "joinForm": "このキャンペーンに参加",
       "joinCampaign": "キャンペーンに参加",
@@ -16073,6 +16186,8 @@
       }
     },
     "status": {
+      "pending_review": "レビュー中",
+      "revisions_requested": "修正依頼あり",
       "draft": "下書き",
       "open": "開催中",
       "quoted": "見積り済み",
@@ -28963,6 +29078,7 @@
       "organizer": "主催者",
       "lane": "レーン",
       "moq": "MOQ",
+      "submitted": "提出済み",
       "actions": "アクション"
     },
     "reject": "却下する",

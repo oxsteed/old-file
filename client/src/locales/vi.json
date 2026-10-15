@@ -15500,6 +15500,36 @@
     "emptyEyebrow": "Tư vấn ra mắt doanh nghiệp"
   },
   "logistics": {
+    "forms": {
+      "unsavedChanges": {
+        "title": "Hủy các thay đổi chưa lưu?",
+        "body": "Bạn có thay đổi chưa lưu. Rời đi ngay bây giờ sẽ hủy những gì bạn đã nhập.",
+        "stay": "Tiếp tục chỉnh sửa",
+        "discard": "Hủy thay đổi"
+      }
+    },
+    "workspace": {
+      "business": {
+        "recentActivity": {
+          "empty": "Chưa có gì ở đây."
+        }
+      },
+      "buyer": {
+        "recentActivity": {
+          "empty": "Chưa có gì ở đây."
+        }
+      },
+      "distributor": {
+        "recentActivity": {
+          "empty": "Chưa có gì ở đây."
+        }
+      },
+      "organizer": {
+        "recentActivity": {
+          "empty": "Chưa có gì ở đây."
+        }
+      }
+    },
     "nav": {
       "home": "Hậu cần",
       "campaigns": "Chiến dịch",
@@ -15594,6 +15624,7 @@
       }
     },
     "complianceWorkspace": {
+      "navLabel": "Mục tuân thủ",
       "title": "Không gian làm việc Tuân thủ",
       "subtitle": "Xem quy tắc thương mại cho từng tuyến và hàng đợi nghiệp vụ nhạy cảm về hải quan khi quý khách có quyền vận hành viên.",
       "nav": {
@@ -15741,6 +15772,88 @@
       "myStatus": "Trạng thái của tôi",
       "moqReached": "Đã đạt MOQ!",
       "lockDate": "Ngày khóa",
+      "newCampaign": "Bắt đầu chiến dịch mới",
+      "new": {
+        "title": "Bắt đầu chiến dịch mới",
+        "subtitle": "Soạn thảo chiến dịch mua chung của bạn. Xem lại và gửi phê duyệt Vận hành khi đã sẵn sàng.",
+        "fieldTitle": "Tiêu đề chiến dịch",
+        "titlePlaceholder": "ví dụ: 2.000 đèn lồng năng lượng mặt trời",
+        "fieldDescription": "Mô tả",
+        "descriptionPlaceholder": "Người mua nhận được gì? Thông số chính, số lượng và lý do nên tham gia.",
+        "fieldLane": "Tuyến thương mại",
+        "lanePlaceholder": "Chọn tuyến thương mại",
+        "lanesFailed": "Không thể tải tuyến thương mại.",
+        "laneChecks": "Kiểm tra tuyến",
+        "riskTier": "Mức độ rủi ro",
+        "laneNeedsBusiness": "Cần xác minh doanh nghiệp để chạy chiến dịch trên tuyến này.",
+        "laneNeedsManual": "Cần phê duyệt tuân thủ thủ công trước khi chiến dịch này được xuất bản.",
+        "fieldTargetMoq": "Số lượng tối thiểu (MOQ)",
+        "fieldMaxParticipants": "Số người tham gia tối đa (tùy chọn)",
+        "fieldCloseDate": "Ngày đóng cam kết",
+        "fieldLockDate": "Ngày khóa",
+        "fieldShipDate": "Ngày giao hàng dự kiến",
+        "fieldArrivalDate": "Ngày đến dự kiến",
+        "pricingHeading": "Phác thảo giá",
+        "pricingHint": "Phác thảo sơ bộ là đủ cho bản nháp. OxSteed tính tổng chi phí; Vận hành xác nhận giá khi xem xét.",
+        "fieldUnitCost": "Chi phí sản phẩm mỗi đơn vị (USD)",
+        "fieldFreight": "Ước tính cước vận chuyển mỗi đơn vị (USD)",
+        "fieldDepositPct": "Tỷ lệ đặt cọc",
+        "fieldCancellationPolicy": "Chính sách hủy",
+        "saveDraft": "Lưu dưới dạng bản nháp",
+        "saving": "Đang lưu…",
+        "draftSaved": "Đã lưu bản nháp.",
+        "createFailed": "Không thể lưu bản nháp. Vui lòng thử lại.",
+        "titleRequired": "Tiêu đề là bắt buộc.",
+        "laneRequired": "Chọn một tuyến thương mại.",
+        "moqRequired": "Nhập số lượng tối thiểu ít nhất là 1.",
+        "back": "Quay lại không gian làm việc của người tổ chức",
+        "unsavedConfirm": "Bạn có thay đổi chưa lưu. Rời đi mà không lưu bản nháp?",
+        "nextStepLabel": "Bắt đầu chiến dịch",
+        "nextStepHint": "Soạn thảo chiến dịch mua chung đầu tiên của bạn và gửi phê duyệt Vận hành."
+      },
+      "approval": {
+        "title": "Phê duyệt",
+        "draft": "Bản nháp",
+        "pendingReview": "Đang xem xét",
+        "revisionsRequested": "Yêu cầu chỉnh sửa",
+        "approved": "Đã phê duyệt",
+        "rejected": "Bị từ chối",
+        "submitForReview": "Gửi để xem xét",
+        "submitting": "Đang gửi…",
+        "submitted": "Đã gửi để xem xét.",
+        "submitFailed": "Gửi thất bại. Vui lòng thử lại.",
+        "blockersTitle": "Khắc phục những điều này trước khi gửi",
+        "historyTitle": "Lịch sử phê duyệt",
+        "noHistory": "Chưa có quyết định xem xét nào.",
+        "approve": "Phê duyệt và xuất bản",
+        "requestRevisions": "Yêu cầu chỉnh sửa",
+        "reviewing": "Đang xem xét…",
+        "reasonLabel": "Ghi chú xem xét",
+        "reasonPlaceholder": "Giải thích những gì cần thay đổi trước khi chiến dịch này được xuất bản.",
+        "reviewFailed": "Xem xét thất bại. Vui lòng thử lại.",
+        "reasonRequired": "Cần có lý do khi yêu cầu chỉnh sửa.",
+        "latestRevisionNote": "Ghi chú xem xét mới nhất",
+        "awaitingReview": "Đang chờ Vận hành xem xét. Bạn sẽ được thông báo khi có quyết định.",
+        "publishedNote": "Đã phê duyệt và xuất bản. Người mua giờ có thể cam kết.",
+        "unknownReviewer": "Người xem xét không xác định",
+        "approvedToast": "Chiến dịch đã được phê duyệt và xuất bản.",
+        "revisionsToast": "Yêu cầu chỉnh sửa đã được gửi đến người tổ chức.",
+        "revisionsAdminMessage": "Gửi \"{{title}}\" trở lại người tổ chức kèm ghi chú xem xét.",
+        "decision_submitted_for_review": "Đã gửi để xem xét",
+        "decision_approved": "Đã phê duyệt",
+        "decision_revisions_requested": "Đã yêu cầu chỉnh sửa",
+        "decision_rejected": "Bị từ chối",
+        "decision_withdrawn": "Đã rút",
+        "blocker_missing_title": "Thêm tiêu đề chiến dịch.",
+        "blocker_missing_description": "Thêm mô tả về những gì người mua nhận được.",
+        "blocker_missing_lane": "Chọn một tuyến thương mại.",
+        "blocker_missing_moq": "Đặt số lượng tối thiểu ít nhất là 1.",
+        "blocker_missing_close_date": "Đặt ngày đóng cam kết.",
+        "blocker_close_date_past": "Ngày đóng cam kết phải ở tương lai.",
+        "blocker_missing_pricing": "Thêm chi phí đơn vị hoặc ước tính cước vận chuyển cho phác thảo giá.",
+        "blocker_business_verification_required": "Tuyến này yêu cầu doanh nghiệp đã xác minh. Hoàn tất xác minh doanh nghiệp trước.",
+        "blocker_lane_access_blocked": "Tuyến thương mại này không khả dụng cho thị trường của bạn."
+      },
       "joinSuccess": "Quý khách đã tham gia chiến dịch!",
       "joinForm": "Tham gia chiến dịch này",
       "joinCampaign": "Tham gia chiến dịch",
@@ -16073,6 +16186,8 @@
       }
     },
     "status": {
+      "pending_review": "Đang xem xét",
+      "revisions_requested": "Yêu cầu chỉnh sửa",
       "draft": "Bản nháp",
       "open": "Mở",
       "quoted": "Đã báo giá",
@@ -28963,6 +29078,7 @@
       "organizer": "Người tổ chức",
       "lane": "Ngõ",
       "moq": "MOQ",
+      "submitted": "Đã gửi",
       "actions": "Hành động"
     },
     "reject": "Từ chối",

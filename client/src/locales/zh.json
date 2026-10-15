@@ -15500,6 +15500,36 @@
     "emptyEyebrow": "业务启动咨询"
   },
   "logistics": {
+    "forms": {
+      "unsavedChanges": {
+        "title": "放弃未保存的更改？",
+        "body": "您有未保存的更改。现在离开将丢弃您输入的内容。",
+        "stay": "继续编辑",
+        "discard": "放弃更改"
+      }
+    },
+    "workspace": {
+      "business": {
+        "recentActivity": {
+          "empty": "暂无内容。"
+        }
+      },
+      "buyer": {
+        "recentActivity": {
+          "empty": "暂无内容。"
+        }
+      },
+      "distributor": {
+        "recentActivity": {
+          "empty": "暂无内容。"
+        }
+      },
+      "organizer": {
+        "recentActivity": {
+          "empty": "暂无内容。"
+        }
+      }
+    },
     "nav": {
       "home": "后勤",
       "campaigns": "活动",
@@ -15594,6 +15624,7 @@
       }
     },
     "complianceWorkspace": {
+      "navLabel": "合规部分",
       "title": "合规工作区",
       "subtitle": "当您拥有操作员访问权限时，请参阅每条路线的贸易规则以及海关敏感操作队列。",
       "nav": {
@@ -15741,6 +15772,88 @@
       "myStatus": "我的状态",
       "moqReached": "最小起订量已达到！",
       "lockDate": "锁定日期",
+      "newCampaign": "发起新活动",
+      "new": {
+        "title": "发起新活动",
+        "subtitle": "起草您的拼团活动。准备就绪后进行审核并提交运营审批。",
+        "fieldTitle": "活动标题",
+        "titlePlaceholder": "例如：2000 个太阳能灯",
+        "fieldDescription": "描述",
+        "descriptionPlaceholder": "买家能得到什么？关键规格、数量以及值得参加的理由。",
+        "fieldLane": "贸易路线",
+        "lanePlaceholder": "选择贸易路线",
+        "lanesFailed": "无法加载贸易路线。",
+        "laneChecks": "路线检查",
+        "riskTier": "风险等级",
+        "laneNeedsBusiness": "在此路线上开展活动需要企业验证。",
+        "laneNeedsManual": "发布此活动前需要手动合规审批。",
+        "fieldTargetMoq": "最小起订量 (MOQ)",
+        "fieldMaxParticipants": "最大参与人数（可选）",
+        "fieldCloseDate": "承诺截止日期",
+        "fieldLockDate": "锁定日期",
+        "fieldShipDate": "预计发货日期",
+        "fieldArrivalDate": "预计到达日期",
+        "pricingHeading": "价格草案",
+        "pricingHint": "草稿只需大致估算。OxSteed 会计算总成本；运营在审核时确认价格。",
+        "fieldUnitCost": "单位产品成本（美元）",
+        "fieldFreight": "单位运费估算（美元）",
+        "fieldDepositPct": "定金比例",
+        "fieldCancellationPolicy": "取消政策",
+        "saveDraft": "保存为草稿",
+        "saving": "保存中…",
+        "draftSaved": "草稿已保存。",
+        "createFailed": "无法保存草稿，请重试。",
+        "titleRequired": "标题为必填项。",
+        "laneRequired": "请选择贸易路线。",
+        "moqRequired": "请输入至少为 1 的最小数量。",
+        "back": "返回主办方工作区",
+        "unsavedConfirm": "您有未保存的更改。不保存草稿就离开吗？",
+        "nextStepLabel": "发起活动",
+        "nextStepHint": "起草您的首个拼团活动并提交运营审批。"
+      },
+      "approval": {
+        "title": "审批",
+        "draft": "草稿",
+        "pendingReview": "待审核",
+        "revisionsRequested": "需要修改",
+        "approved": "已批准",
+        "rejected": "已拒绝",
+        "submitForReview": "提交审核",
+        "submitting": "提交中…",
+        "submitted": "已提交审核。",
+        "submitFailed": "提交失败，请重试。",
+        "blockersTitle": "提交前请修正以下问题",
+        "historyTitle": "审批历史",
+        "noHistory": "暂无审核决定。",
+        "approve": "批准并发布",
+        "requestRevisions": "请求修改",
+        "reviewing": "审核中…",
+        "reasonLabel": "审核备注",
+        "reasonPlaceholder": "请说明此活动发布前需要修改的内容。",
+        "reviewFailed": "审核失败，请重试。",
+        "reasonRequired": "请求修改时必须填写原因。",
+        "latestRevisionNote": "最新审核备注",
+        "awaitingReview": "等待运营审核。做出决定后会通知您。",
+        "publishedNote": "已批准并发布，买家现在可以承诺参与。",
+        "unknownReviewer": "未知审核人",
+        "approvedToast": "活动已批准并发布。",
+        "revisionsToast": "修改请求已发送给主办方。",
+        "revisionsAdminMessage": "将\"{{title}}\"连同审核备注退回给主办方。",
+        "decision_submitted_for_review": "已提交审核",
+        "decision_approved": "已批准",
+        "decision_revisions_requested": "已请求修改",
+        "decision_rejected": "已拒绝",
+        "decision_withdrawn": "已撤回",
+        "blocker_missing_title": "请添加活动标题。",
+        "blocker_missing_description": "请添加买家所获内容的描述。",
+        "blocker_missing_lane": "请选择贸易路线。",
+        "blocker_missing_moq": "请将最小数量设置为至少 1。",
+        "blocker_missing_close_date": "请设置承诺截止日期。",
+        "blocker_close_date_past": "承诺截止日期必须是未来日期。",
+        "blocker_missing_pricing": "请为价格草案添加单位成本或运费估算。",
+        "blocker_business_verification_required": "此路线需要已验证的企业，请先完成企业验证。",
+        "blocker_lane_access_blocked": "此贸易路线不适用于您的市场。"
+      },
       "joinSuccess": "您已加入该活动！",
       "joinForm": "加入此活动",
       "joinCampaign": "加入活动",
@@ -16073,6 +16186,8 @@
       }
     },
     "status": {
+      "pending_review": "待审核",
+      "revisions_requested": "需要修改",
       "draft": "吃水",
       "open": "打开",
       "quoted": "引用",
@@ -28963,6 +29078,7 @@
       "organizer": "组织者",
       "lane": "线路",
       "moq": "MOQ",
+      "submitted": "已提交",
       "actions": "操作"
     },
     "reject": "拒绝",
