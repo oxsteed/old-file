@@ -4,6 +4,7 @@ import axios from '../../../api/axios';
 import { useAbortableFetch } from '../../lib/useAbortableFetch';
 import AdminErrorState from '../../lib/AdminErrorState';
 import '../../../styles/logistics/LogisticsHomePage.css';
+import '../../../styles/logistics/LogisticsWorkspaces.css';
 
 export default function WarehouseOpsDashboard() {
   const { t } = useTranslation();
@@ -47,8 +48,8 @@ export default function WarehouseOpsDashboard() {
         ].map(([label, value, icon]) => (
           <div key={label} className="lx-card" style={{ textAlign:'center' }}>
             <div style={{ fontSize:'1.4rem' }}>{icon}</div>
-            <div style={{ fontSize:'1.4rem', fontWeight:800, color:'#f97316' }}>{value}</div>
-            <div style={{ color:'#64748b', fontSize:'.8rem', fontWeight:600 }}>{label}</div>
+            <div style={{ fontSize:'1.4rem', fontWeight:800, color:'var(--color-primary)' }}>{value}</div>
+            <div style={{ color:'var(--color-text-muted)', fontSize:'.8rem', fontWeight:600 }}>{label}</div>
           </div>
         ))}
       </div>
@@ -64,7 +65,7 @@ export default function WarehouseOpsDashboard() {
                 <td>{allocations.filter((row) => row.warehouse_id === warehouse.id && row.status !== 'released').length}</td>
               </tr>
             ))}
-            {warehouses.length === 0 && <tr><td colSpan={4} style={{ textAlign:'center', color:'#94a3b8' }}>{t('adminWarehouseOps.noWarehouses')}</td></tr>}
+            {warehouses.length === 0 && <tr><td colSpan={4} className="lx-table-empty-cell">{t('adminWarehouseOps.noWarehouses')}</td></tr>}
           </tbody>
         </table>
       </div>
