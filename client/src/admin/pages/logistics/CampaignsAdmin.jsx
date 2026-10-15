@@ -3,16 +3,17 @@ import { useTranslation } from 'react-i18next';
 import { adminListCampaigns, adminUpdateCampaignStatus, adminListLanes } from '../../../api/logistics';
 import toast from 'react-hot-toast';
 import '../../../styles/logistics/LogisticsHomePage.css';
+import '../../../styles/logistics/LogisticsWorkspaces.css';
 import AdminErrorState from '../../lib/AdminErrorState';
+import LogisticsModal from '../../../components/logistics/LogisticsModal';
+import LogisticsStatusPill from '../../../components/logistics/LogisticsStatusPill';
 
-const STATUS_COLOR = {
-  draft:'#94a3b8', open:'#22c55e', pledging:'#f59e0b', deposit_phase:'#fb923c',
-  locked:'#f97316', placed:'#3b82f6', in_transit:'#06b6d4', receiving:'#8b5cf6',
-  distributing:'#14b8a6', completed:'#10b981', refunding:'#a855f7', cancelled:'#ef4444',
-};
+const CAMPAIGN_STATUSES = [
+  'draft', 'open', 'pledging', 'deposit_phase', 'locked', 'placed',
+  'in_transit', 'receiving', 'distributing', 'completed', 'refunding', 'cancelled',
+];
 
-const NEXT_STATUS = {
-  draft: ['open','cancelled'],
+const NEXT_STATUS = {  draft: ['open','cancelled'],
   open: ['pledging','deposit_phase','locked','cancelled'],
   pledging: ['deposit_phase','locked','cancelled'],
   deposit_phase: ['locked','cancelled'],
@@ -76,7 +77,7 @@ export default function CampaignsAdmin() {
       <div className="lx-filter-bar">
         <select className="lx-select" value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
           <option value="">{t('adminCampaigns.allStatuses')}</option>
-          {Object.keys(STATUS_COLOR).map(s => <option key={s} value={s}>{t(`logistics.admin.campaigns.statuses.${s}`, { defaultValue: s.replace(/_/g,' ') })}</option>)}
+          {CAMPAIGN_STATUSES.map(s => <option key={s} value={s}>{t(`logistics.admin.campaigns.statuses.${s}`, { defaultValue: s.replace(/_/g,' ') })}</option>)}
         </select>
       </div>
 
@@ -98,7 +99,7 @@ export default function CampaignsAdmin() {
                 <tr key={c.id}>
                   <td>
                     <div style={{ fontWeight:700 }}>{c.title}</div>
-                    <div style={{ fontSize:'.72rem', color:'#64748b' }}>{c.organizer_name || 'OxSteed'}</div>
+                    <div style={{ fontSize:'.72rem', color:'var(--color-text-muted)' }}>{c.organizer_name || 'OxSteed'}</div>
                   </td>
                   <td style={{ fontSize:'.8rem' }}>{laneMap[c.lane_id] || c.lane_id}</td>
                   <td style={{ fontSize:'.8rem' }}>{c.product_name || '—'}</td>
@@ -106,7 +107,7 @@ export default function CampaignsAdmin() {
                     <div className="lx-moq-bar-wrap">
                       <div className="lx-moq-bar" style={{ width:`${pct}%` }} />
                     </div>
-                    <div style={{ fontSize:'.72rem', color:'#64748b', marginTop:'.2rem' }}>
+                    <div style={{ fontSize:'.72rem', color:'var(--color-text-muted)', marginTop:'.2rem' }}>
                       {t('adminCampaigns.moqProgressText', { committed: c.current_committed_qty||0, moq: c.moq_quantity, pct })}
                     </div>
                   </td>
@@ -115,9 +116,10 @@ export default function CampaignsAdmin() {
                     {c.closes_at ? new Date(c.closes_at).toLocaleDateString(i18n.language) : '—'}
                   </td>
                   <td>
-                    <span className="lx-status-pill" style={{ background: STATUS_COLOR[c.status]||'#64748b' }}>
-                      {t(`logistics.admin.campaigns.statuses.${c.status}`, { defaultValue: c.status?.replace(/_/g,' ') || t('logistics.admin.unknownStatus') })}
-                    </span>
+                    <LogisticsStatusPill
+                      status={c.status}
+                      label={t(`logistics.admin.campaigns.statuses.${c.status}`, { defaultValue: c.status?.replace(/_/g,' ') || t('logistics.admin.unknownStatus') })}
+                    />
                   </td>
                   <td>
                     <button className="lx-btn-secondary" style={{ fontSize:'.72rem', padding:'.25rem .65rem' }}
@@ -129,17 +131,20 @@ export default function CampaignsAdmin() {
               );
             })}
             {campaigns.length === 0 && !loading && !loadError && (
-              <tr><td colSpan={8} style={{ textAlign:'center', padding:'2rem', color:'#94a3b8' }}>{t('adminCampaigns.noCampaigns')}</td></tr>
+              <tr><td colSpan={8} className="lx-table-empty-cell">{t('adminCampaigns.noCampaigns')}</td></tr>
             )}
           </tbody>
         </table>
       </div>
 
-      {selected && (
-        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.4)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:9999 }}>
-          <div style={{ background:'var(--card-bg,#fff)', borderRadius:'1rem', padding:'1.5rem', width:460, maxWidth:'90vw' }}>
-            <h3 style={{ fontWeight:700, marginBottom:'.5rem' }}>{selected.title}</h3>
-            <div style={{ fontSize:'.82rem', color:'#64748b', marginBottom:'1rem' }}>
+      <LogisticsModal
+        open={!!selected}
+        title={selected?.title}
+        onClose={() => setSelected(null)}
+      >
+        {selected && (
+          <>
+            <div style={{ fontSize:'.82rem', color:'var(--color-text-muted)', marginBottom:'1rem' }}>
               <strong>{t('adminCampaigns.modal.status')}</strong> {t(`logistics.admin.campaigns.statuses.${selected.status}`, { defaultValue: selected.status?.replace(/_/g,' ') || '' })} &nbsp;|&nbsp;
               <strong>{t('adminCampaigns.modal.participants')}</strong> {selected.current_participants||0} &nbsp;|&nbsp;
               <strong>{t('adminCampaigns.modal.committedQty')}</strong> {selected.current_committed_qty||0}
@@ -164,16 +169,16 @@ export default function CampaignsAdmin() {
                 </div>
               </>
             ) : (
-              <div style={{ color:'#94a3b8', fontSize:'.85rem', marginBottom:'1rem' }}>
+              <div style={{ color:'var(--color-text-faint)', fontSize:'.85rem', marginBottom:'1rem' }}>
                 {t('adminCampaigns.modal.noTransitions', { status: selected.status })}
               </div>
             )}
             {!NEXT_STATUS[selected.status]?.length && (
               <button className="lx-btn-secondary" onClick={() => setSelected(null)}>{t('common.close')}</button>
             )}
-          </div>
-        </div>
-      )}
+          </>
+        )}
+      </LogisticsModal>
     </div>
   );
 }

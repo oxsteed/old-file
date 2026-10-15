@@ -5,14 +5,8 @@ import { useAuth } from '../../../hooks/useAuth';
 import axios from '../../../api/axios';
 import { useAbortableFetch } from '../../lib/useAbortableFetch';
 import AdminErrorState from '../../lib/AdminErrorState';
+import LogisticsStatusPill from '../../../components/logistics/LogisticsStatusPill';
 import '../../../styles/logistics/LogisticsHomePage.css';
-
-const STATUS_COLORS = {
-  draft:'#94a3b8', open:'#22c55e', quoted:'#f59e0b', approved:'#22c55e',
-  placed_with_supplier:'#3b82f6', in_transit:'#06b6d4', customs_review:'#dc2626',
-  warehoused:'#0ea5e9', fulfilled:'#10b981', closed:'#475569', cancelled:'#ef4444',
-  planned:'#94a3b8', booked:'#3b82f6', completed:'#15803d', exception:'#ef4444',
-};
 
 const ADMIN_LINKS = [
   { labelKey:'sourcingOps', path:'/admin/logistics/sourcing-ops', icon:'🔍' },
@@ -35,7 +29,7 @@ const ADMIN_LINKS = [
   { labelKey:'superControl', path:'/admin/logistics/control', icon:'👑' },
 ];
 
-function StatBar({ label, rows, colorMap, t }) {
+function StatBar({ label, rows, t }) {
   const total = rows.reduce((s, r) => s + parseInt(r.count||0), 0);
   return (
     <div className="lx-card" style={{ marginBottom:'1.25rem' }}>
@@ -46,11 +40,12 @@ function StatBar({ label, rows, colorMap, t }) {
       <div style={{ display:'flex', flexWrap:'wrap', gap:'.5rem' }}>
         {rows.map(r => (
           <div key={r.status} style={{ display:'flex', gap:'.4rem', alignItems:'center' }}>
-            <span className="lx-status-pill" style={{ background: colorMap[r.status]||'#64748b' }}>
-              {t(`logistics.status.${r.status}`, { defaultValue: r.status?.replace(/_/g,' ') || t('logistics.admin.unknownStatus') })}
-            </span>
+            <LogisticsStatusPill
+              status={r.status}
+              label={t(`logistics.status.${r.status}`, { defaultValue: r.status?.replace(/_/g,' ') || t('logistics.admin.unknownStatus') })}
+            />
             <span style={{ fontWeight:700 }}>{r.count}</span>
-            {r.total_value && <span style={{ color:'#f97316', fontWeight:700, fontSize:'.8rem' }}>
+            {r.total_value && <span style={{ color:'var(--color-primary)', fontWeight:700, fontSize:'.8rem' }}>
               (${parseFloat(r.total_value).toLocaleString()})
             </span>}
           </div>
@@ -98,11 +93,11 @@ export default function LogisticsAdminDashboard() {
 
       {!loading && !error && stats && (
         <>
-          <StatBar label={t('logistics.admin.metrics.purchaseOrders')} rows={stats.purchaseOrders||[]} colorMap={STATUS_COLORS} t={t} />
-          <StatBar label={t('logistics.admin.metrics.shipments')} rows={stats.shipments||[]} colorMap={STATUS_COLORS} t={t} />
-          <StatBar label={t('logistics.admin.metrics.pooledCampaigns')} rows={stats.pooledOrders||[]} colorMap={STATUS_COLORS} t={t} />
-          <StatBar label={t('logistics.admin.metrics.sourcingRequests')} rows={stats.sourcingRequests||[]} colorMap={STATUS_COLORS} t={t} />
-          <StatBar label={t('logistics.admin.metrics.claims')} rows={stats.claims||[]} colorMap={{ open:'#f59e0b', under_review:'#f97316', approved:'#22c55e', rejected:'#ef4444', resolved:'#10b981', escalated:'#8b5cf6' }} t={t} />
+          <StatBar label={t('logistics.admin.metrics.purchaseOrders')} rows={stats.purchaseOrders||[]} t={t} />
+          <StatBar label={t('logistics.admin.metrics.shipments')} rows={stats.shipments||[]} t={t} />
+          <StatBar label={t('logistics.admin.metrics.pooledCampaigns')} rows={stats.pooledOrders||[]} t={t} />
+          <StatBar label={t('logistics.admin.metrics.sourcingRequests')} rows={stats.sourcingRequests||[]} t={t} />
+          <StatBar label={t('logistics.admin.metrics.claims')} rows={stats.claims||[]} t={t} />
 
           {stats.warehouses?.length > 0 && (
             <div className="lx-card">
