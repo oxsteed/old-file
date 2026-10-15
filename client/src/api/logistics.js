@@ -462,8 +462,32 @@ export const adminUpdateClaim = (id, data) =>
 export const adminListRefundCases = (params = {}) =>
   axios.get('/admin/logistics/refund-cases', { params }).then(r => r.data);
 
-export const adminUpdateRefundCase = (id, data) =>
-  axios.patch(`/admin/logistics/refund-cases/${id}`, data).then(r => r.data);
+// Phase 3 dual-admin refund flow. The old direct-update endpoint
+// (adminUpdateRefundCase) is REMOVED server-side: status and
+// stripe_refund_id can no longer be edited directly.
+export const adminListRefunds = (params = {}) =>
+  axios.get('/admin/logistics/refunds', { params }).then(r => r.data);
+
+export const adminGetRefund = (id) =>
+  axios.get(`/admin/logistics/refunds/${id}`).then(r => r.data);
+
+export const adminGetRefundDecisions = (id) =>
+  axios.get(`/admin/logistics/refunds/${id}/decisions`).then(r => r.data);
+
+export const adminProposeRefund = (data) =>
+  axios.post('/admin/logistics/refunds/propose', data).then(r => r.data);
+
+export const adminVerifyRefundStepUp = (code) =>
+  axios.post('/admin/logistics/refunds/stepup/verify', { code }).then(r => r.data);
+
+export const adminApproveRefund = (id, data = {}) =>
+  axios.post(`/admin/logistics/refunds/${id}/approve`, data).then(r => r.data);
+
+export const adminRejectRefund = (id, data) =>
+  axios.post(`/admin/logistics/refunds/${id}/reject`, data).then(r => r.data);
+
+export const adminExecuteRefund = (id) =>
+  axios.post(`/admin/logistics/refunds/${id}/execute`).then(r => r.data);
 
 export const adminListRestrictions = (params = {}) =>
   axios.get('/admin/logistics/restrictions', { params }).then(r => r.data);

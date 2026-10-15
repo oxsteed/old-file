@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { adminListClaims, adminUpdateClaim, adminListRefundCases, adminUpdateRefundCase } from '../../../api/logistics';
+import { adminListClaims, adminUpdateClaim, adminListRefundCases } from '../../../api/logistics';
 import toast from 'react-hot-toast';
 import '../../../styles/logistics/LogisticsHomePage.css';
 import '../../../styles/logistics/LogisticsWorkspaces.css';
@@ -42,14 +43,12 @@ export default function DisputesAdmin() {
   useEffect(() => { load(); }, [status]);
 
   const save = async () => {
+    // Claims only. Refund cases moved to the dual-admin refunds review page
+    // (/admin/logistics/refunds): direct status/stripe_refund_id editing was
+    // removed server-side. This tab is now a read-only queue with a link.
     try {
-      if (tab === 'claims') {
-        await adminUpdateClaim(selected.id, form);
-        toast.success(t(`${NS}.toastClaimUpdated`));
-      } else {
-        await adminUpdateRefundCase(selected.id, form);
-        toast.success(t(`${NS}.toastRefundUpdated`));
-      }
+      await adminUpdateClaim(selected.id, form);
+      toast.success(t(`${NS}.toastClaimUpdated`));
       setSelected(null);
       load();
     } catch (err) { toast.error(err.message); }
@@ -118,10 +117,14 @@ export default function DisputesAdmin() {
 
       {tab === 'refunds' && (
         <div className="lx-table-wrap">
+          <div className="lx-alert" role="note" style={{ marginBottom: '1rem' }}>
+            {t('logistics.refunds.movedNotice')}{' '}
+            <Link to="/admin/logistics/refunds">{t('logistics.refunds.openReviewPage')}</Link>
+          </div>
           <table className="lx-table">
             <thead>
               <tr>
-                <th>{t(`${NS}.thReference`)}</th><th>{t(`${NS}.thReason`)}</th><th>{t(`${NS}.thRequester`)}</th><th>{t(`${NS}.thRequested`)}</th><th>{t(`${NS}.thStatus`)}</th><th></th>
+                <th>{t(`${NS}.thReference`)}</th><th>{t(`${NS}.thReason`)}</th><th>{t(`${NS}.thRequester`)}</th><th>{t(`${NS}.thRequested`)}</th><th>{t(`${NS}.thStatus`)}</th>
               </tr>
             </thead>
             <tbody>
@@ -132,22 +135,17 @@ export default function DisputesAdmin() {
                   <td style={{ fontSize:'.82rem' }}>{r.requester_name || '—'}</td>
                   <td style={{ fontWeight:700, color:'var(--color-primary)' }}>${parseFloat(r.requested_amount_usd || 0).toLocaleString()}</td>
                   <td><LogisticsStatusPill status={r.status} label={statusLabel(r.status)} /></td>
-                  <td>
-                    <button className="lx-btn-secondary" style={{ fontSize:'.72rem', padding:'.25rem .65rem' }}
-                      onClick={() => { setSelected(r); setForm({ status: r.status, approved_amount_usd: r.approved_amount_usd || r.requested_amount_usd, notes: r.notes || '', stripe_refund_id: r.stripe_refund_id || '' }); }}>
-                      {t(`${NS}.review`)}
-                    </button>
-                  </td>
                 </tr>
               ))}
               {refunds.length === 0 && !loading && !loadError && (
-                <tr><td colSpan={6} className="lx-table-empty-cell">{t(`${NS}.noRefunds`)}</td></tr>
+                <tr><td colSpan={5} className="lx-table-empty-cell">{t(`${NS}.noRefunds`)}</td></tr>
               )}
             </tbody>
           </table>
         </div>
       )}
 
+      {tab === 'claims' && (
       <LogisticsModal
         open={!!selected}
         title={selected?.reference}
@@ -156,22 +154,15 @@ export default function DisputesAdmin() {
         {selected && (
           <>
             <div style={{ fontSize:'.82rem', color:'var(--color-text-muted)', marginBottom:'1rem' }}>
-              {tab === 'claims' ? (
-                <>
-                  <strong>{t(`${NS}.modalClaimType`)}</strong> {t(`${NS}.claimType.${selected.claim_type}`, { defaultValue: selected.claim_type?.replace(/_/g,' ') || '' })}<br/>
-                  <strong>{t(`${NS}.modalDescription`)}</strong> {selected.description}
-                </>
-              ) : (
-                <>
-                  <strong>{t(`${NS}.modalRefundReason`)}</strong> {selected.refund_reason}<br/>
-                  <strong>{t(`${NS}.modalRequested`)}</strong> ${parseFloat(selected.requested_amount_usd || 0).toFixed(2)}
-                </>
-              )}
+              <>
+                <strong>{t(`${NS}.modalClaimType`)}</strong> {t(`${NS}.claimType.${selected.claim_type}`, { defaultValue: selected.claim_type?.replace(/_/g,' ') || '' })}<br/>
+                <strong>{t(`${NS}.modalDescription`)}</strong> {selected.description}
+              </>
             </div>
             <div className="lx-form-group">
               <label className="lx-label">{t(`${NS}.updateStatus`)}</label>
               <select className="lx-select" value={form.status} onChange={e => setForm(f=>({...f,status:e.target.value}))}>
-                {(tab === 'claims' ? Object.keys(CLAIM_STATUS_I18N) : Object.keys(REFUND_STATUS_I18N)).map(s => <option key={s} value={s}>{statusLabel(s)}</option>)}
+                {Object.keys(CLAIM_STATUS_I18N).map(s => <option key={s} value={s}>{statusLabel(s)}</option>)}
               </select>
             </div>
             <div className="lx-form-group">
@@ -180,17 +171,10 @@ export default function DisputesAdmin() {
                 onChange={e => setForm(f=>({...f,approved_amount_usd:e.target.value}))} />
             </div>
             <div className="lx-form-group">
-              <label className="lx-label">{t(tab === 'claims' ? `${NS}.resolutionNotes` : `${NS}.notes`)}</label>
-              <textarea className="lx-textarea" value={(tab === 'claims' ? form.resolution_notes : form.notes)||''}
-                onChange={e => setForm(f=>({...f,[tab === 'claims' ? 'resolution_notes' : 'notes']:e.target.value}))} />
+              <label className="lx-label">{t(`${NS}.resolutionNotes`)}</label>
+              <textarea className="lx-textarea" value={form.resolution_notes||''}
+                onChange={e => setForm(f=>({...f,resolution_notes:e.target.value}))} />
             </div>
-            {tab === 'refunds' && (
-              <div className="lx-form-group">
-                <label className="lx-label">{t(`${NS}.stripeRefundId`)}</label>
-                <input className="lx-input" value={form.stripe_refund_id||''}
-                  onChange={e => setForm(f=>({...f,stripe_refund_id:e.target.value}))} />
-              </div>
-            )}
             <div style={{ display:'flex', gap:'.75rem' }}>
               <button className="lx-btn-primary" onClick={save}>{t(`${NS}.saveDecision`)}</button>
               <button className="lx-btn-secondary" onClick={() => setSelected(null)}>{t(`${NS}.cancel`)}</button>
@@ -198,6 +182,7 @@ export default function DisputesAdmin() {
           </>
         )}
       </LogisticsModal>
+      )}
     </div>
   );
 }

@@ -26,6 +26,7 @@ const ADMIN_LINKS = [
   { labelKey:'pricing', path:'/admin/logistics/pricing', icon:'💰' },
   { labelKey:'restrictions', path:'/admin/logistics/restrictions', icon:'⛔' },
   { labelKey:'disputes', path:'/admin/logistics/disputes', icon:'⚖' },
+  { labelKey:'refunds', path:'/admin/logistics/refunds', icon:'↩' },
   { labelKey:'superControl', path:'/admin/logistics/control', icon:'👑' },
 ];
 

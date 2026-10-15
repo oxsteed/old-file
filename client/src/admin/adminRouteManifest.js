@@ -109,6 +109,7 @@ export const ADMIN_ROUTE_MANIFEST = Object.freeze({
   logisticsPricing: defineRoute('/admin/logistics/pricing'),
   logisticsRestrictions: defineRoute('/admin/logistics/restrictions'),
   logisticsDisputes: defineRoute('/admin/logistics/disputes'),
+  logisticsRefunds: defineRoute('/admin/logistics/refunds'),
 
   superDashboard: defineRoute('/admin/super/dashboard', { superOnly: true }),
   money: defineRoute('/admin/super/money', { grant: 'view_financials' }),

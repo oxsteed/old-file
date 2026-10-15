@@ -93,6 +93,7 @@ const AllocationsAdmin = lazyWithRetry(() => import('./pages/logistics/Allocatio
 const PricingAdmin = lazyWithRetry(() => import('./pages/logistics/PricingAdmin'));
 const RestrictionsAdmin = lazyWithRetry(() => import('./pages/logistics/RestrictionsAdmin'));
 const DisputesAdmin = lazyWithRetry(() => import('./pages/logistics/DisputesAdmin'));
+const RefundsAdmin = lazyWithRetry(() => import('./pages/logistics/RefundsAdmin'));
 const SourcingOpsAdmin = lazyWithRetry(() => import('./pages/logistics/SourcingOpsAdmin'));
 const OrganizerApprovalsAdmin = lazyWithRetry(() => import('./pages/logistics/OrganizerApprovalsAdmin'));
 const ShipmentOpsAdmin = lazyWithRetry(() => import('./pages/logistics/ShipmentOpsAdmin'));
@@ -514,6 +515,7 @@ export default function AdminApp() {
           <Route path={adminRoute('logisticsPricing').relative} element={<PricingAdmin />} />
           <Route path={adminRoute('logisticsRestrictions').relative} element={<RestrictionsAdmin />} />
           <Route path={adminRoute('logisticsDisputes').relative} element={<DisputesAdmin />} />
+          <Route path={adminRoute('logisticsRefunds').relative} element={<RefundsAdmin />} />
           <Route path={adminRoute('logisticsControl').relative} element={<AdminGuard superOnly={adminRoute('logisticsControl').superOnly}><SuperAdminLogisticsControl /></AdminGuard>} />
           <Route path={adminRoute('userSettings').relative} element={<AdminGuard><AdminUserSettingsPage /></AdminGuard>} />
         </Route>
