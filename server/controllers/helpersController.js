@@ -215,7 +215,7 @@ async function listHelpers(req, res, next) {
       'u.is_active = TRUE',
       // Review P1-203: the profile endpoint serves helper/helper_pro/broker,
       // so the directory lists all three.
-      'u.role = ANY($1::text[])',
+      'u.role = ANY($1::user_role[])',
       'u.email_verified = TRUE',
       'u.onboarding_completed = TRUE',
       // Review P2-2-F12: fail closed. The directory LEFT JOINs helper_profiles,
