@@ -47,7 +47,7 @@ describe('allow_booking is enforced (P1-204)', () => {
 describe('directory and profile visibility SQL (P1-203, P1-205, P1-206)', () => {
   const src = require('fs').readFileSync(require.resolve('../controllers/helpersController'), 'utf8');
   test('directory lists all helper roles and skips admin-hidden businesses', () => {
-    expect(src).toMatch(/u\.role = ANY\(\$1::text\[\]\)/);
+    expect(src).toMatch(/u\.role = ANY\(\$1::user_role\[\]\)/);
     expect(src).toMatch(/\['helper', 'helper_pro', 'broker'\]/);
     expect(src).toMatch(/COALESCE\(b\.is_hidden_by_admin, FALSE\) = FALSE/);
   });
