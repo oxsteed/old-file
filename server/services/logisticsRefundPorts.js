@@ -32,9 +32,12 @@
  *
  * ── CONTRACT: Credit reversal (owned by Credit workstream)
  *    Reverse via reverseCredit({ refundCaseId, amountCents, currency,
- *    idempotencyKey }) -> { ledgerEntryId }. Until the Credit workstream
- *    registers its adapter, credit refunds fail closed with
- *    credit_reversal_unavailable.
+ *    idempotencyKey, client? }) -> { ledgerEntryId }. The optional client
+ *    is the caller's transaction handle ({ query }); when provided, the
+ *    adapter runs the reversal on it instead of opening its own
+ *    transaction, so the ledger reversal and the case transition commit
+ *    atomically. Until the Credit workstream registers its adapter,
+ *    credit refunds fail closed with credit_reversal_unavailable.
  */
 
 const crypto = require('crypto');
@@ -170,14 +173,14 @@ function setCreditReversalAdapter(fn) {
 }
 
 const creditPort = {
-  async reverseCredit({ refundCaseId, amountCents, currency, idempotencyKey }) {
+  async reverseCredit({ refundCaseId, amountCents, currency, idempotencyKey, client }) {
     if (!creditReversalAdapter) {
       throw new AppError(
         'Credit reversal is not implemented yet (Credit workstream). Refund blocked.',
         503, 'credit_reversal_unavailable'
       );
     }
-    return creditReversalAdapter({ refundCaseId, amountCents, currency, idempotencyKey });
+    return creditReversalAdapter({ refundCaseId, amountCents, currency, idempotencyKey, client });
   },
 };
 
@@ -203,6 +206,7 @@ const NOTIFY_EVENT_TYPES = {
   refund_approved: 'logistics:refund_approved',
   refund_rejected: 'logistics:refund_rejected',
   refund_processed: 'logistics:refund_processed',
+  refund_pending: 'logistics:refund_pending',
   refund_failed: 'logistics:refund_failed',
   refund_expired: 'logistics:refund_expired',
 };

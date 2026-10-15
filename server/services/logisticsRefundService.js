@@ -30,7 +30,9 @@
  *   deps.stripePort.createRefund({ paymentIntentId, chargeId, amountCents,
  *                                  idempotencyKey, metadata }) -> { id, status }
  *   deps.creditPort.reverseCredit({ refundCaseId, amountCents, currency,
- *                                   idempotencyKey }) -> { ledgerEntryId }
+ *                                   idempotencyKey, client }) -> { ledgerEntryId }
+ *     (client is the executor's transaction handle; the adapter runs the
+ *     reversal on it instead of opening a nested transaction)
  *   deps.userPort.getAdminUser(q, userId) -> { id, role, isBanned } | null
  *   deps.notifyPort.notify(event, buyerUserId, vars) -> Promise (fire-and-forget)
  *
@@ -93,15 +95,22 @@ async function getCaseForUpdate(query, caseId) {
 /**
  * Remaining refundable amount (cents) on a payment attempt, computed
  * server-side from attempt-linked refund cases in active statuses.
+ *
+ * excludeCaseId: the case currently being evaluated (approve/execute time)
+ * must not encumber its OWN cap computation — otherwise no refund larger
+ * than 50% of the paid amount could ever be approved, since the case's own
+ * amount would be subtracted from the balance it is checked against. Other
+ * active cases still encumber normally.
  */
-async function remainingRefundableCents(query, attemptId, paidAmountCents) {
+async function remainingRefundableCents(query, attemptId, paidAmountCents, excludeCaseId = null) {
   const { rows } = await query(
     `SELECT COALESCE(SUM(amount_cents), 0)::int AS used
        FROM logistics_refund_cases
       WHERE original_payment_attempt_id = $1
         AND status = ANY($2)
-        AND amount_cents IS NOT NULL`,
-    [attemptId, ACTIVE_REFUND_STATUSES]
+        AND amount_cents IS NOT NULL
+        AND ($3::int IS NULL OR id <> $3::int)`,
+    [attemptId, ACTIVE_REFUND_STATUSES, excludeCaseId]
   );
   return Math.max(0, paidAmountCents - (rows[0]?.used || 0));
 }
@@ -143,29 +152,44 @@ async function proposeRefund(deps, { proposerUserId, paymentAttemptId, amountCen
     );
   }
 
-  const remaining = await remainingRefundableCents(query, String(paymentAttemptId), attempt.amountCents);
-  if (cents > remaining) {
-    throw new AppError(
-      `Requested amount exceeds the remaining refundable amount of ${remaining} cents.`,
-      400, 'refund_amount_exceeds_remaining', { remainingCents: remaining }
+  // Check + insert run inside one transaction with a row lock on the
+  // payment attempt, so two concurrent proposals against the same attempt
+  // serialize: the second sees the first's encumbrance instead of racing
+  // past the cap check. The notification fires only after commit.
+  const deferNotify = [];
+  const kase = await deps.withTransaction(async (txQuery) => {
+    await txQuery(
+      `SELECT id FROM logistics_payment_attempts WHERE id::text = $1 FOR UPDATE`,
+      [String(paymentAttemptId)]
     );
+    const remaining = await remainingRefundableCents(txQuery, String(paymentAttemptId), attempt.amountCents);
+    if (cents > remaining) {
+      throw new AppError(
+        `Requested amount exceeds the remaining refundable amount of ${remaining} cents.`,
+        400, 'refund_amount_exceeds_remaining', { remainingCents: remaining }
+      );
+    }
+
+    const reference = makeReference();
+    const { rows } = await txQuery(
+      `INSERT INTO logistics_refund_cases
+         (reference, user_id, refund_reason, requested_amount_usd,
+          amount_cents, refund_method, original_payment_attempt_id,
+          status, proposed_by, notes)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, 'proposed', $8, $9)
+       RETURNING *`,
+      [reference, attempt.buyerUserId, cleanReason, (cents / 100).toFixed(2),
+       cents, refundMethod, String(paymentAttemptId), proposerUserId, cleanReason]
+    );
+    const created = rows[0];
+    await decisionRow(txQuery, { caseId: created.id, actorUserId: proposerUserId, action: 'propose', reason: cleanReason });
+    deferNotify.push(['refund_proposed', attempt.buyerUserId, { reference, amountCents: cents }]);
+    return created;
+  });
+
+  for (const [event, userId, vars] of deferNotify) {
+    notifyPort.notify(event, userId, vars).catch(() => {});
   }
-
-  const reference = makeReference();
-  const { rows } = await query(
-    `INSERT INTO logistics_refund_cases
-       (reference, user_id, refund_reason, requested_amount_usd,
-        amount_cents, refund_method, original_payment_attempt_id,
-        status, proposed_by, notes)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, 'proposed', $8, $9)
-     RETURNING *`,
-    [reference, attempt.buyerUserId, cleanReason, (cents / 100).toFixed(2),
-     cents, refundMethod, String(paymentAttemptId), proposerUserId, cleanReason]
-  );
-  const kase = rows[0];
-  await decisionRow(query, { caseId: kase.id, actorUserId: proposerUserId, action: 'propose', reason: cleanReason });
-
-  notifyPort.notify('refund_proposed', attempt.buyerUserId, { reference, amountCents: cents }).catch(() => {});
   return kase;
 }
 
@@ -192,10 +216,12 @@ async function approveRefund(deps, { caseId, approverUserId, freshAuthEvent, rea
     throw new AppError('Self-approval is forbidden. A different admin must approve this refund.', 403, 'refund_self_approval_forbidden');
   }
 
-  // Re-check the gates at approval time: payment, caps.
+  // Re-check the gates at approval time: payment, caps. The case under
+  // review is excluded from its own cap computation (it already reserved
+  // its amount at propose time); other active cases still encumber.
   const attempt = await paymentPort.getPaymentAttempt(query, String(kase.original_payment_attempt_id));
   assertAttemptRefundable(attempt);
-  const remaining = await remainingRefundableCents(query, String(kase.original_payment_attempt_id), attempt.amountCents);
+  const remaining = await remainingRefundableCents(query, String(kase.original_payment_attempt_id), attempt.amountCents, kase.id);
   if (kase.amount_cents > remaining) {
     throw new AppError(
       `Approved amount exceeds the remaining refundable amount of ${remaining} cents.`,
@@ -336,7 +362,10 @@ async function runExecute(deps, { caseId, actorUserId }, deferNotify) {
     return { case: f, failed: true, code: 'refund_dispute_open' };
   }
 
-  const remaining = await remainingRefundableCents(query, String(kase.original_payment_attempt_id), attempt.amountCents);
+  // Execution-time cap recheck: the case under execution is excluded
+  // from its own cap computation; only *other* active cases can consume
+  // the balance out from under it between approval and execution.
+  const remaining = await remainingRefundableCents(query, String(kase.original_payment_attempt_id), attempt.amountCents, kase.id);
   if (kase.amount_cents > remaining) {
     const f = await markFailed(kase, attempt, 'refund_amount_exceeds_remaining',
       `Amount exceeds remaining refundable amount of ${remaining} cents.`, { remainingCents: remaining });
@@ -376,7 +405,18 @@ async function runExecute(deps, { caseId, actorUserId }, deferNotify) {
         return { case: rows[0], replayed: false };
       }
       if (refund.status === 'pending') {
-        // Stripe workstream webhook finalizes from the reconciliation queue.
+        // The refund is created at Stripe but not yet settled. The case
+        // stays `executing` and records the Stripe refund id so the
+        // confirmation webhook (charge.refunded / refund.updated) can
+        // match it later via confirmStripeRefund. The buyer is told the
+        // refund is pending — `refund_processed` is sent only once Stripe
+        // confirms settlement.
+        await query(
+          `UPDATE logistics_refund_cases
+              SET stripe_refund_id = $2, updated_at = NOW()
+            WHERE id = $1`,
+          [caseId, refund.id]
+        );
         await decisionRow(query, { caseId, actorUserId, action: 'execute_pending', metadata: { stripeRefundId: refund.id, idempotencyKey } });
         await query(
           `INSERT INTO logistics_reconciliation_queue (source, entity_id, reason, payload, status)
@@ -384,7 +424,7 @@ async function runExecute(deps, { caseId, actorUserId }, deferNotify) {
           [kase.id, 'Stripe refund pending confirmation',
            JSON.stringify({ reference: kase.reference, stripeRefundId: refund.id, idempotencyKey })]
         );
-        notify('refund_processed', kase.user_id, { reference: kase.reference, amountCents: kase.amount_cents });
+        notify('refund_pending', kase.user_id, { reference: kase.reference, amountCents: kase.amount_cents });
         const { rows } = await query(`SELECT * FROM logistics_refund_cases WHERE id = $1`, [caseId]);
         return { case: rows[0], inProgress: true };
       }
@@ -392,11 +432,16 @@ async function runExecute(deps, { caseId, actorUserId }, deferNotify) {
     }
 
     if (kase.refund_method === 'credit') {
+      // Pass the executor's transaction client so the ledger reversal
+      // commits atomically with the case transition: no nested
+      // transaction, no separate commit window. The adapter skips its own
+      // case-row lock because this transaction already holds it.
       const reversal = await creditPort.reverseCredit({
         refundCaseId: kase.id,
         amountCents: kase.amount_cents,
         currency: 'USD',
         idempotencyKey,
+        client: { query },
       });
       const { rows } = await query(
         `UPDATE logistics_refund_cases
@@ -432,6 +477,100 @@ async function executeRefund(deps, { caseId, actorUserId }) {
     deps.notifyPort.notify(event, userId, vars).catch(() => {});
   }
   return out;
+}
+
+// ─── Confirm a Stripe refund from the processor webhook ──────
+// Called by the signed Stripe webhook handler (charge.refunded /
+// refund.updated) when the refund id matches a case we created. Moves an
+// `executing` case to `processed` only on Stripe's confirmation — never
+// on a pending status. Idempotent: replays of an already-processed case
+// are no-ops, and unknown refund ids return { matched: false } so the
+// caller can keep its external-refund reconciliation behavior.
+
+async function confirmStripeRefund(deps, { stripeRefundId, status, stripeEventId = null }) {
+  checkPorts(deps);
+  const { query, notifyPort } = deps;
+  if (!stripeRefundId) return { matched: false };
+
+  const { rows } = await query(
+    `SELECT * FROM logistics_refund_cases WHERE stripe_refund_id = $1 FOR UPDATE`,
+    [String(stripeRefundId)]
+  );
+  const kase = rows[0] || null;
+  if (!kase) return { matched: false };
+  if (kase.status === 'processed') {
+    return { matched: true, caseId: kase.id, outcome: 'already_processed' };
+  }
+
+  const normalized = String(status || '').toLowerCase();
+  const vars = { reference: kase.reference, amountCents: kase.amount_cents };
+
+  if (kase.status !== 'executing') {
+    // The processor confirmed (or failed) a refund whose case is not
+    // awaiting confirmation: record it and leave the state for staff.
+    await decisionRow(query, {
+      caseId: kase.id, actorUserId: null, action: 'confirm_unexpected_state',
+      reason: `Stripe reported refund ${stripeRefundId} as '${normalized}' while the case status is '${kase.status}'.`,
+      metadata: { stripeRefundId: String(stripeRefundId), status: normalized, stripeEventId },
+    });
+    return { matched: true, caseId: kase.id, outcome: 'unexpected_state' };
+  }
+
+  if (normalized === 'succeeded') {
+    const { rows: updated } = await query(
+      `UPDATE logistics_refund_cases
+          SET status = 'processed', processed_at = NOW(), updated_at = NOW()
+        WHERE id = $1
+        RETURNING *`,
+      [kase.id]
+    );
+    await decisionRow(query, {
+      caseId: kase.id, actorUserId: null, action: 'confirm_processed',
+      metadata: { stripeRefundId: String(stripeRefundId), stripeEventId },
+    });
+    notifyPort.notify('refund_processed', kase.user_id, vars).catch(() => {});
+    return { matched: true, caseId: kase.id, outcome: 'confirmed', case: updated[0] };
+  }
+
+  if (normalized === 'failed' || normalized === 'canceled') {
+    // Processor-side failure: fail closed -> failed status, reconciliation
+    // queue, buyer notified. Staff resolve it from there.
+    await query(
+      `UPDATE logistics_refund_cases
+          SET status = 'failed', updated_at = NOW()
+        WHERE id = $1`,
+      [kase.id]
+    );
+    await decisionRow(query, {
+      caseId: kase.id, actorUserId: null, action: 'confirm_failed',
+      reason: `Stripe reported the refund as '${normalized}'.`,
+      metadata: { stripeRefundId: String(stripeRefundId), stripeEventId },
+    });
+    await query(
+      `INSERT INTO logistics_reconciliation_queue (source, entity_id, reason, payload, status)
+       VALUES ('logistics_refund', $1, $2, $3, 'pending')`,
+      [kase.id, `Stripe reported the refund as '${normalized}'`,
+       JSON.stringify({
+         reference: kase.reference,
+         paymentAttemptId: kase.original_payment_attempt_id,
+         amountCents: kase.amount_cents,
+         refundMethod: kase.refund_method,
+         stripeRefundId: String(stripeRefundId),
+         stripeEventId,
+       })]
+    );
+    notifyPort.notify('refund_failed', kase.user_id, vars).catch(() => {});
+    return { matched: true, caseId: kase.id, outcome: 'marked_failed' };
+  }
+
+  // Still pending (or an unknown status): the case stays `executing`.
+  // The buyer was already told the refund is pending at execution time,
+  // so no duplicate notification — the decision row keeps the trail.
+  await decisionRow(query, {
+    caseId: kase.id, actorUserId: null, action: 'confirm_still_pending',
+    metadata: { stripeRefundId: String(stripeRefundId), status: normalized, stripeEventId },
+  });
+  return { matched: true, caseId: kase.id, outcome: 'still_pending' };
 }
 
 // ─── Expire stale proposals ──────────────────────────────────
@@ -513,6 +652,7 @@ module.exports = {
   approveRefund,
   rejectRefund,
   executeRefund,
+  confirmStripeRefund,
   expireStaleProposals,
   getRefundCase,
   listRefundCases,

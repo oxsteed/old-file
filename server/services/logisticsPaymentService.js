@@ -317,14 +317,19 @@ async function attachStripeIntent(client, attempt) {
     });
     throw new AppError(`Card payment could not be started: ${err.message || 'processor error'}`, 502, 'processor_error');
   }
+  // Persist the client secret: an interrupted checkout (browser closed
+  // after intent creation, before card confirmation) recovers by replaying
+  // the attempt, and the replay response returns this stored secret. The
+  // secret alone cannot move money; only the signed webhook settles.
   const { rows } = await client.query(
     `UPDATE logistics_payment_attempts
-        SET stripe_payment_intent_id = $2, status = 'processing', updated_at = NOW()
+        SET stripe_payment_intent_id = $2, stripe_client_secret = $3,
+            status = 'processing', updated_at = NOW()
       WHERE id = $1
       RETURNING *`,
-    [attempt.id, intent.id]
+    [attempt.id, intent.id, intent.client_secret || null]
   );
-  return { attempt: rows[0], clientSecret: intent.client_secret };
+  return { attempt: rows[0], clientSecret: intent.client_secret || null };
 }
 
 /**
@@ -394,7 +399,13 @@ async function createPaymentAttempt(userId, input) {
       logger.info('[logistics-payments] idempotent replay of payment attempt', {
         attemptId: attempt.id, idempotencyKey: request.idempotencyKey,
       });
-      return { attempt: publicAttempt(attempt), idempotentReplay: true, clientSecret: null, credit: null };
+      // Return the persisted client secret so an interrupted checkout can
+      // resume card confirmation with stripe.js. Never expose it for
+      // credit-method attempts (there is no secret to resume with).
+      const replaySecret = attempt.method === 'stripe'
+        ? (attempt.stripe_client_secret || null)
+        : null;
+      return { attempt: publicAttempt(attempt), idempotentReplay: true, clientSecret: replaySecret, credit: null };
     }
 
     if (input.method === 'stripe') {
@@ -613,6 +624,9 @@ const LOGISTICS_WEBHOOK_TYPES = new Set([
   'payment_intent.succeeded',
   'payment_intent.payment_failed',
   'charge.refunded',
+  // refund.updated confirms refunds we created that Stripe initially
+  // reported as pending (pending -> succeeded/failed transitions).
+  'refund.updated',
 ]);
 
 function extractWebhookRefs(event) {
@@ -646,6 +660,61 @@ async function findAttemptById(client, id) {
     [Number(id)]
   );
   return rows[0] || null;
+}
+
+/**
+ * Resolve the payment attempt behind a refund-confirmation event through
+ * our own refund cases. Matches on the Stripe refund id (stored on the
+ * case at execution time) or on the refund_case_id we stamp into the
+ * refund metadata at creation. Returns null when nothing matches, so
+ * unrelated events keep flowing to the existing handlers.
+ */
+async function findAttemptByRefundCase(client, event) {
+  try {
+    const { rows: tableCheck } = await client.query(
+      `SELECT 1 FROM information_schema.tables WHERE table_name = 'logistics_refund_cases' LIMIT 1`
+    );
+    if (!tableCheck.length) return null;
+    const { refundIds, caseIds } = collectRefundIdentifiers(event);
+    if (!refundIds.length && !caseIds.length) return null;
+    const { rows } = await client.query(
+      `SELECT original_payment_attempt_id
+         FROM logistics_refund_cases
+        WHERE (stripe_refund_id = ANY($1) OR id::text = ANY($2))
+        LIMIT 1`,
+      [refundIds, caseIds]
+    );
+    const attemptId = rows[0]?.original_payment_attempt_id;
+    if (!attemptId) return null;
+    return findAttemptById(client, attemptId);
+  } catch (err) {
+    logger.warn('[logistics-payments] refund-case attempt lookup failed', { error: err.message });
+    return null;
+  }
+}
+
+/**
+ * Pull every identifier that can link a refund event back to one of our
+ * refund cases: Stripe refund ids, plus the refund_case_id we stamp into
+ * refund metadata at creation (see logisticsRefundService execution).
+ */
+function collectRefundIdentifiers(event) {
+  const obj = (event && event.data && event.data.object) || {};
+  const refundIds = [];
+  const caseIds = [];
+  const pushRefund = (r) => {
+    if (!r || typeof r !== 'object') return;
+    if (typeof r.id === 'string' && r.id) refundIds.push(r.id);
+    const metaCaseId = r.metadata && (r.metadata.refund_case_id || r.metadata.refundCaseId);
+    if (metaCaseId != null && String(metaCaseId)) caseIds.push(String(metaCaseId));
+  };
+  if (event && event.type === 'refund.updated') {
+    pushRefund(obj);
+  } else {
+    const list = obj.refunds && Array.isArray(obj.refunds.data) ? obj.refunds.data : [];
+    for (const r of list) pushRefund(r);
+  }
+  return { refundIds, caseIds };
 }
 
 /**
@@ -695,45 +764,64 @@ async function handleStripeEvent(event) {
   if (!attempt && paymentIntentId) {
     attempt = await findAttemptByPaymentIntent(db, paymentIntentId);
   }
+  if (!attempt && (event.type === 'charge.refunded' || event.type === 'refund.updated')) {
+    // Refund-confirmation events may not carry a payment-intent link we
+    // recognize; resolve through our own refund cases (matched by the
+    // Stripe refund id or the refund_case_id we stamped in metadata).
+    attempt = await findAttemptByRefundCase(db, event);
+  }
   if (!attempt) {
     // Not a logistics payment (no marker, no matching attempt): leave it
     // for the existing handlers.
     return { handled: false };
   }
 
-  return withTransaction(db, async (client) => {
-    // Claim the event first: a duplicate delivery conflicts on
-    // stripe_event_id and is skipped before any money state changes.
-    const payloadHash = crypto
-      .createHash('sha256')
-      .update(JSON.stringify(event.data.object || {}))
-      .digest('hex');
-    const { rows: claimed } = await client.query(
-      `INSERT INTO logistics_stripe_webhook_events
-         (stripe_event_id, event_type, payment_attempt_id, payload_hash)
-       VALUES ($1, $2, $3, $4)
-       ON CONFLICT (stripe_event_id) DO NOTHING
-       RETURNING id`,
-      [event.id, event.type, attempt.id, payloadHash]
-    );
-    if (!claimed.length) {
-      logger.info('[logistics-payments] duplicate Stripe event skipped', {
-        stripeEventId: event.id, eventType: event.type, attemptId: attempt.id,
-      });
-      return { handled: true, duplicate: true, attemptId: attempt.id };
-    }
+  try {
+    return await withTransaction(db, async (client) => {
+      // Claim the event first: a duplicate delivery conflicts on
+      // stripe_event_id and is skipped before any money state changes.
+      const payloadHash = crypto
+        .createHash('sha256')
+        .update(JSON.stringify(event.data.object || {}))
+        .digest('hex');
+      const { rows: claimed } = await client.query(
+        `INSERT INTO logistics_stripe_webhook_events
+           (stripe_event_id, event_type, payment_attempt_id, payload_hash)
+         VALUES ($1, $2, $3, $4)
+         ON CONFLICT (stripe_event_id) DO NOTHING
+         RETURNING id`,
+        [event.id, event.type, attempt.id, payloadHash]
+      );
+      if (!claimed.length) {
+        logger.info('[logistics-payments] duplicate Stripe event skipped', {
+          stripeEventId: event.id, eventType: event.type, attemptId: attempt.id,
+        });
+        return { handled: true, duplicate: true, attemptId: attempt.id };
+      }
 
-    switch (event.type) {
-      case 'payment_intent.succeeded':
-        return applyPaymentSucceeded(client, event, attempt);
-      case 'payment_intent.payment_failed':
-        return applyPaymentFailed(client, event, attempt);
-      case 'charge.refunded':
-        return applyChargeRefunded(client, event, attempt);
-      default:
-        return { handled: true, attemptId: attempt.id };
+      switch (event.type) {
+        case 'payment_intent.succeeded':
+          return applyPaymentSucceeded(client, event, attempt);
+        case 'payment_intent.payment_failed':
+          return applyPaymentFailed(client, event, attempt);
+        case 'charge.refunded':
+          return applyChargeRefunded(client, event, attempt);
+        case 'refund.updated':
+          return applyRefundUpdated(client, event, attempt);
+        default:
+          return { handled: true, attemptId: attempt.id };
+      }
+    }, `logistics_webhook_${event.type}`);
+  } catch (err) {
+    if (err instanceof DuplicateSettlementError) {
+      // The concurrent winner committed and the partial unique index
+      // stopped this second credit: resolve as superseded in a fresh
+      // transaction instead of 500ing the webhook (Stripe would retry
+      // into the same failure).
+      return convertDuplicateSettlement(err.attemptId, err.event);
     }
-  }, `logistics_webhook_${event.type}`);
+    throw err;
+  }
 }
 
 /** Re-read the attempt under lock; the row is the settlement authority. */
@@ -798,6 +886,136 @@ async function bumpSubjectPaidCents(client, attempt) {
   return { paidCents: Number(rows[0]?.paid_cents || 0), dueCents };
 }
 
+/**
+ * Thrown when the settlement UPDATE hits the partial unique index
+ * uq_logistics_payment_attempts_settled_installment: a concurrent
+ * settlement for the same (subject, installment) committed first and the
+ * index stopped the second credit. handleStripeEvent converts this into
+ * the superseded path in a fresh transaction instead of failing the
+ * webhook (which would 500 on every Stripe retry).
+ */
+class DuplicateSettlementError extends Error {
+  constructor(attemptId, event) {
+    super(`concurrent duplicate settlement for logistics attempt ${attemptId}`);
+    this.name = 'DuplicateSettlementError';
+    this.attemptId = attemptId;
+    this.event = event;
+  }
+}
+
+const SETTLED_INSTALLMENT_INDEX = 'uq_logistics_payment_attempts_settled_installment';
+
+/**
+ * Find an already-succeeded attempt for the same (subject, installment)
+ * as the locked attempt, excluding the locked attempt itself. This is the
+ * double-debit guard: two different idempotency keys (two Stripe
+ * PaymentIntents, two real processor charges) must never both credit the
+ * same installment.
+ */
+async function findSucceededSibling(client, locked) {
+  const { rows } = await client.query(
+    `SELECT id, method, amount_cents, stripe_payment_intent_id, settled_at
+       FROM logistics_payment_attempts
+      WHERE id <> $1
+        AND subject_type = $2
+        AND purchase_order_id IS NOT DISTINCT FROM $3
+        AND participant_id IS NOT DISTINCT FROM $4
+        AND installment = $5
+        AND status = 'succeeded'
+      LIMIT 1`,
+    [locked.id, locked.subject_type, locked.purchase_order_id,
+     locked.participant_id, locked.installment]
+  );
+  return rows[0] || null;
+}
+
+/**
+ * Mark a duplicate-settling attempt 'superseded' and open a staff
+ * reconciliation item for the duplicate processor charge. The installment
+ * keeps exactly one credit; the buyer was charged twice at the processor,
+ * so staff must refund the duplicate through the dual-admin refund flow
+ * (this module never moves money back on its own).
+ */
+async function markAttemptSuperseded(client, locked, sibling, { event, raced = false, creditReference = null } = {}) {
+  const pi = (event && event.data && event.data.object) || {};
+  await client.query(
+    `UPDATE logistics_payment_attempts
+        SET status = 'superseded', updated_at = NOW()
+      WHERE id = $1`,
+    [locked.id]
+  );
+  await enqueueReconciliation(client, {
+    kind: 'duplicate_charge_superseded',
+    referenceId: locked.id,
+    reason: `Duplicate settlement for ${locked.subject_type} ${locked.installment} via ${locked.method}: attempt ${locked.id} superseded by succeeded attempt ${sibling ? sibling.id : '(unknown)'}; no second ledger credit applied${locked.method === 'credit' ? ' — reverse the duplicate credit debit through the dual-admin refund flow' : ' — refund the duplicate processor charge through the dual-admin refund flow'}`,
+    details: {
+      stripe_event_id: (event && event.id) || null,
+      payment_intent_id: pi.id || locked.stripe_payment_intent_id || null,
+      amount_cents: Number(locked.amount_cents),
+      method: locked.method,
+      superseding_attempt_id: sibling ? sibling.id : null,
+      superseding_settled_at: sibling ? sibling.settled_at : null,
+      concurrent_race: raced,
+      credit_reference: creditReference,
+    },
+  });
+  logger.warn('[logistics-payments] duplicate settlement superseded; no second credit', {
+    attemptId: locked.id,
+    supersedingAttemptId: sibling ? sibling.id : null,
+    installment: locked.installment,
+    amountCents: locked.amount_cents,
+    raced,
+  });
+  return { handled: true, attemptId: locked.id, outcome: 'superseded_duplicate' };
+}
+
+/**
+ * Fresh-transaction conversion for the true settlement race: the first
+ * settlement transaction aborted on the partial unique index, so re-claim
+ * the (never persisted) event and resolve against the now-visible winner.
+ */
+async function convertDuplicateSettlement(attemptId, event) {
+  return withTransaction(db, async (client) => {
+    const payloadHash = crypto
+      .createHash('sha256')
+      .update(JSON.stringify((event.data && event.data.object) || {}))
+      .digest('hex');
+    const { rows: claimed } = await client.query(
+      `INSERT INTO logistics_stripe_webhook_events
+         (stripe_event_id, event_type, payment_attempt_id, payload_hash)
+       VALUES ($1, $2, $3, $4)
+       ON CONFLICT (stripe_event_id) DO NOTHING
+       RETURNING id`,
+      [event.id, event.type, attemptId, payloadHash]
+    );
+    if (!claimed.length) {
+      logger.info('[logistics-payments] duplicate Stripe event skipped (race conversion)', {
+        stripeEventId: event.id, attemptId,
+      });
+      return { handled: true, duplicate: true, attemptId };
+    }
+    const locked = await lockAttempt(client, attemptId);
+    if (!locked) return { handled: true, attemptId, outcome: 'unknown_attempt' };
+    if (locked.status === 'succeeded') {
+      return { handled: true, attemptId, outcome: 'already_settled' };
+    }
+    if (locked.status === 'superseded') {
+      return { handled: true, attemptId, outcome: 'superseded_duplicate' };
+    }
+    if (locked.status === 'failed' || locked.status === 'canceled') {
+      await enqueueReconciliation(client, {
+        kind: 'late_success_after_terminal',
+        referenceId: locked.id,
+        reason: `payment_intent.succeeded arrived for attempt ${locked.id} already in terminal state '${locked.status}' (after a settlement race)`,
+        details: { stripe_event_id: event.id, prior_status: locked.status },
+      });
+      return { handled: true, attemptId: locked.id, outcome: 'late_success_reconcile' };
+    }
+    const sibling = await findSucceededSibling(client, locked);
+    return markAttemptSuperseded(client, locked, sibling, { event, raced: true });
+  }, 'logistics_webhook_duplicate_settlement');
+}
+
 async function applyPaymentSucceeded(client, event, attempt) {
   const pi = event.data.object || {};
   const locked = await lockAttempt(client, attempt.id);
@@ -854,15 +1072,36 @@ async function applyPaymentSucceeded(client, event, attempt) {
     return { handled: true, attemptId: locked.id, outcome: 'amount_mismatch' };
   }
 
-  await client.query(
-    `UPDATE logistics_payment_attempts
-        SET status = 'succeeded',
-            stripe_payment_intent_id = COALESCE(stripe_payment_intent_id, $2),
-            settled_at = NOW(),
-            updated_at = NOW()
-      WHERE id = $1`,
-    [locked.id, pi.id || null]
-  );
+  // Double-debit guard: the attempt row is locked; recheck for a
+  // sibling attempt that already succeeded on this (subject, installment)
+  // — e.g. two different idempotency keys raced, or a retried webhook
+  // arrived after a second checkout settled the installment. If found,
+  // this attempt is superseded: never credited twice.
+  const sibling = await findSucceededSibling(client, locked);
+  if (sibling) {
+    return markAttemptSuperseded(client, locked, sibling, { event });
+  }
+
+  try {
+    await client.query(
+      `UPDATE logistics_payment_attempts
+          SET status = 'succeeded',
+              stripe_payment_intent_id = COALESCE(stripe_payment_intent_id, $2),
+              settled_at = NOW(),
+              updated_at = NOW()
+        WHERE id = $1`,
+      [locked.id, pi.id || null]
+    );
+  } catch (err) {
+    if (err && err.code === '23505' && err.constraint === SETTLED_INSTALLMENT_INDEX) {
+      // True race: a concurrent settlement for the same (subject,
+      // installment) committed first and the partial unique index stopped
+      // this second credit. Convert to the superseded path instead of
+      // failing the webhook (Stripe would retry into the same 500).
+      throw new DuplicateSettlementError(locked.id, event);
+    }
+    throw err;
+  }
   const { paidCents, dueCents } = await bumpSubjectPaidCents(client, locked);
   logger.info('[logistics-payments] attempt settled via signed webhook', {
     attemptId: locked.id, amountCents: locked.amount_cents,
@@ -940,8 +1179,72 @@ async function applyPaymentFailed(client, event, attempt) {
   return { handled: true, attemptId: locked.id, outcome: 'failed' };
 }
 
+/**
+ * Try to confirm one of OUR refund cases from a refund event. Returns the
+ * webhook result when a candidate refund id matches a case, or null when
+ * none of the event's refunds are ours (the caller then keeps its existing
+ * external-refund behavior). Lazy-requires the refund service to avoid any
+ * module load-order cycle.
+ */
+async function confirmMatchingRefundCase(client, event, attempt) {
+  const { refundIds } = collectRefundIdentifiers(event);
+  if (!refundIds.length) return null;
+  // The event object for charge.refunded is a Charge; for refund.updated it
+  // is the Refund itself. Index statuses by refund id when available.
+  const obj = (event && event.data && event.data.object) || {};
+  const statusById = {};
+  if (event.type === 'refund.updated' && obj.id) {
+    statusById[obj.id] = obj.status || null;
+  } else if (obj.refunds && Array.isArray(obj.refunds.data)) {
+    for (const r of obj.refunds.data) {
+      if (r && r.id) statusById[r.id] = r.status || null;
+    }
+  }
+  const refundService = require('./logisticsRefundService');
+  const { createDefaultDeps } = require('./logisticsRefundPorts');
+  // Run on the webhook's own transaction client so the event claim and the
+  // case transition commit atomically; the service's withTransaction is a
+  // passthrough when given a bare query handle.
+  const deps = createDefaultDeps({ query: client.query.bind(client) });
+  for (const refundId of refundIds) {
+    const result = await refundService.confirmStripeRefund(deps, {
+      stripeRefundId: refundId,
+      status: statusById[refundId] || null,
+      stripeEventId: event.id,
+    });
+    if (!result.matched) continue;
+    const outcome = `refund_${result.outcome}`;
+    if (result.outcome === 'unexpected_state') {
+      // Processor moved a refund whose case is not awaiting confirmation:
+      // staff must review; record it alongside the decision row.
+      await enqueueReconciliation(client, {
+        kind: 'refund_unexpected_state',
+        referenceId: result.caseId,
+        reason: `Stripe refund ${refundId} confirmed while logistics refund case ${result.caseId} was not executing`,
+        details: { stripe_event_id: event.id, stripe_refund_id: refundId },
+      });
+    }
+    logger.info('[logistics-payments] refund confirmation applied', {
+      refundCaseId: result.caseId, stripeRefundId: refundId, outcome: result.outcome,
+    });
+    return { handled: true, attemptId: attempt.id, outcome, refundCaseId: result.caseId };
+  }
+  return null;
+}
+
+async function applyRefundUpdated(client, event, attempt) {
+  const confirmed = await confirmMatchingRefundCase(client, event, attempt);
+  if (confirmed) return confirmed;
+  // Not one of ours: leave it for the existing handlers.
+  return { handled: false };
+}
+
 async function applyChargeRefunded(client, event, attempt) {
   const charge = event.data.object || {};
+  // First: is this Stripe confirming one of OUR refunds? If so, finalize
+  // the case (executing -> processed) instead of treating it as external.
+  const confirmed = await confirmMatchingRefundCase(client, event, attempt);
+  if (confirmed) return confirmed;
   // Refunds always require staff review (spec): a processor-side refund is
   // recorded as a reconciliation item, never auto-applied to the attempt.
   // The attempt stays 'succeeded' — money did move in — until staff
@@ -969,37 +1272,82 @@ async function applyChargeRefunded(client, event, attempt) {
  * the Stripe path (lock, terminal-state check, amount verification).
  */
 async function settleCreditAttempt(attemptId, { amountCents, creditReference } = {}) {
-  return withTransaction(db, async (client) => {
-    const locked = await lockAttempt(client, attemptId);
-    if (!locked) throw new AppError('Payment attempt not found', 404, 'not_found');
-    if (locked.method !== 'credit') {
-      throw new AppError('Attempt is not a credit-method attempt', 409, 'method_mismatch');
+  try {
+    return await withTransaction(db, async (client) => {
+      const locked = await lockAttempt(client, attemptId);
+      if (!locked) throw new AppError('Payment attempt not found', 404, 'not_found');
+      if (locked.method !== 'credit') {
+        throw new AppError('Attempt is not a credit-method attempt', 409, 'method_mismatch');
+      }
+      if (locked.status === 'succeeded') return { attempt: publicAttempt(locked), replayed: true };
+      if (locked.status === 'failed' || locked.status === 'canceled') {
+        throw new AppError(`Attempt is already ${locked.status}`, 409, 'terminal_state');
+      }
+      if (!Number.isInteger(amountCents) || amountCents !== Number(locked.amount_cents)) {
+        await enqueueReconciliation(client, {
+          kind: 'amount_mismatch',
+          referenceId: locked.id,
+          reason: `Credit settlement amount ${amountCents} does not match attempt ${locked.id} (${locked.amount_cents}c)`,
+          details: { credit_reference: creditReference || null },
+        });
+        throw new AppError('Credit settlement amount does not match the attempt', 422, 'amount_mismatch');
+      }
+      // Double-debit guard, same as the Stripe path: a sibling that
+      // already succeeded on this (subject, installment) means the
+      // installment is paid; never credit it twice. (The credit debit
+      // itself already committed upstream; the reconciliation item tells
+      // staff to reverse the duplicate debit through the dual-admin
+      // refund flow.)
+      const sibling = await findSucceededSibling(client, locked);
+      if (sibling) {
+        await markAttemptSuperseded(client, locked, sibling, {
+          event: null,
+          creditReference,
+        });
+        const { rows } = await client.query(
+          `SELECT * FROM logistics_payment_attempts WHERE id = $1`, [locked.id]
+        );
+        return { attempt: publicAttempt(rows[0]), replayed: false, superseded: true };
+      }
+      try {
+        await client.query(
+          `UPDATE logistics_payment_attempts
+              SET status = 'succeeded', settled_at = NOW(), updated_at = NOW()
+            WHERE id = $1`,
+          [locked.id]
+        );
+      } catch (err) {
+        if (err && err.code === '23505' && err.constraint === SETTLED_INSTALLMENT_INDEX) {
+          // True race with a concurrent settlement; the winner committed.
+          // Convert in a fresh transaction below.
+          throw new DuplicateSettlementError(locked.id, null);
+        }
+        throw err;
+      }
+      await bumpSubjectPaidCents(client, locked);
+      const { rows } = await client.query(
+        `SELECT * FROM logistics_payment_attempts WHERE id = $1`, [locked.id]
+      );
+      return { attempt: publicAttempt(rows[0]), replayed: false };
+    }, 'logistics_settle_credit_attempt');
+  } catch (err) {
+    if (err instanceof DuplicateSettlementError) {
+      return withTransaction(db, async (client) => {
+        const locked = await lockAttempt(client, err.attemptId);
+        if (!locked) throw new AppError('Payment attempt not found', 404, 'not_found');
+        if (locked.status === 'succeeded') return { attempt: publicAttempt(locked), replayed: true };
+        const sibling = await findSucceededSibling(client, locked);
+        await markAttemptSuperseded(client, locked, sibling, {
+          event: null, raced: true, creditReference,
+        });
+        const { rows } = await client.query(
+          `SELECT * FROM logistics_payment_attempts WHERE id = $1`, [locked.id]
+        );
+        return { attempt: publicAttempt(rows[0]), replayed: false, superseded: true };
+      }, 'logistics_settle_credit_superseded');
     }
-    if (locked.status === 'succeeded') return { attempt: publicAttempt(locked), replayed: true };
-    if (locked.status === 'failed' || locked.status === 'canceled') {
-      throw new AppError(`Attempt is already ${locked.status}`, 409, 'terminal_state');
-    }
-    if (!Number.isInteger(amountCents) || amountCents !== Number(locked.amount_cents)) {
-      await enqueueReconciliation(client, {
-        kind: 'amount_mismatch',
-        referenceId: locked.id,
-        reason: `Credit settlement amount ${amountCents} does not match attempt ${locked.id} (${locked.amount_cents}c)`,
-        details: { credit_reference: creditReference || null },
-      });
-      throw new AppError('Credit settlement amount does not match the attempt', 422, 'amount_mismatch');
-    }
-    await client.query(
-      `UPDATE logistics_payment_attempts
-          SET status = 'succeeded', settled_at = NOW(), updated_at = NOW()
-        WHERE id = $1`,
-      [locked.id]
-    );
-    await bumpSubjectPaidCents(client, locked);
-    const { rows } = await client.query(
-      `SELECT * FROM logistics_payment_attempts WHERE id = $1`, [locked.id]
-    );
-    return { attempt: publicAttempt(rows[0]), replayed: false };
-  }, 'logistics_settle_credit_attempt');
+    throw err;
+  }
 }
 
 module.exports = {
@@ -1012,6 +1360,7 @@ module.exports = {
   publicAttempt,
   computeExpectedAmountCents,
   getCurrentQuote,
+  assertBuyerOwnsSubject,
   handleStripeEvent,
   settleCreditAttempt,
   enqueueReconciliation,
