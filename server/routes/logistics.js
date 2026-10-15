@@ -20,6 +20,7 @@ const complianceCtrl= require('../controllers/logisticsComplianceController');
 const financeCtrl   = require('../controllers/logisticsFinanceController');
 const capabilitiesCtrl = require('../controllers/logisticsCapabilitiesController');
 const paymentsCtrl  = require('../controllers/logisticsPaymentController');
+const dashboardCountsCtrl = require('../controllers/logisticsDashboardCountsController');
 const requireLogisticsPayments = require('../middleware/requireLogisticsPayments');
 const { requireLogisticsCapability, requireLaneAccess } = require('../middleware/requireLogisticsAccess');
 // Capability gates. Each resolves the caller's server-derived capabilities
@@ -132,6 +133,16 @@ router.get('/deliveries',                     requireAuth, requireWarehouseOps, 
 router.post('/deliveries',                    requireAuth, requireWarehouseOps, whCtrl.createDeliveryOrder);
 router.get('/deliveries/:id',                 requireAuth, requireWarehouseOps, whCtrl.getDeliveryOrder);
 router.patch('/deliveries/:id/status',        requireAuth, requireWarehouseOps, whCtrl.updateDeliveryStatus);
+
+// ─── Dashboard counts ──────────────────────────────────────────
+// Lightweight authoritative counters for the workspace dashboards; see
+// server/controllers/logisticsDashboardCountsController.js for the
+// visibility rules. Additive and backward compatible: existing list
+// endpoints keep their shape; /allocations, /deliveries and
+// /inventory-receipts additionally return `total`.
+router.get('/dashboard/counts', requireAuth, dashboardCountsCtrl.getDashboardCounts);
+router.get('/dashboard/warehouse-counts', requireAuth, requireWarehouseOps, dashboardCountsCtrl.getWarehouseDashboardCounts);
+
 
 // ─── Claims ───────────────────────────────────────────────────
 
@@ -305,5 +316,15 @@ router.get('/checkout/attempt/:id',                  requireAuth, requireLogisti
 router.get('/checkout/reconciliation',               requireAuth, requireLogisticsPayments, paymentsCtrl.listReconciliation);
 router.patch('/checkout/reconciliation/:id',         requireAuth, requireLogisticsPayments, paymentsCtrl.resolveReconciliation);
 router.post('/checkout/reconciliation/sweep',        requireAuth, requireLogisticsPayments, paymentsCtrl.sweepStuck);
+
+// ─── Checkout context / quotes / payment history (Phase 3) ───
+// Same LOGISTICS_PAYMENTS_ENABLED gate: quote lifecycle and checkout
+// context are payment automation and stay disabled until merchant
+// configuration and reconciliation checks pass.
+router.get('/finance/checkout-context',              requireAuth, requireLogisticsPayments, paymentsCtrl.getCheckoutContext);
+router.post('/finance/quotes',                       requireAuth, requireLogisticsPayments, paymentsCtrl.createQuote);
+router.post('/finance/quotes/:id/publish',            requireAuth, requireLogisticsPayments, paymentsCtrl.publishQuote);
+router.post('/finance/quotes/:id/accept',             requireAuth, requireLogisticsPayments, paymentsCtrl.acceptQuote);
+router.get('/finance/payment-history',               requireAuth, requireLogisticsPayments, paymentsCtrl.getPaymentHistory);
 
 module.exports = router;

@@ -5,7 +5,7 @@ import PageShell from '../../components/PageShell';
 import LogisticsLayout from '../../components/logistics/LogisticsLayout';
 import LogisticsStatusPill from '../../components/logistics/LogisticsStatusPill';
 import WorkspaceOverviewStrip, { WorkspaceDataErrorBanner } from '../../components/logistics/LogisticsWorkspacePanels';
-import { listAllocations, listDeliveries, listOrders } from '../../api/logistics';
+import { listAllocations, listDeliveries, listOrders, getDashboardCounts } from '../../api/logistics';
 import '../../styles/logistics/LogisticsHomePage.css';
 import '../../styles/logistics/LogisticsWorkspaces.css';
 
@@ -24,10 +24,21 @@ export default function DistributorResellerPage() {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
+  // Authoritative workspace metrics (see BuyerDashboardPage): headline
+  // counts must not be derived from `limit: N` list responses.
+  const [counts, setCounts] = useState(null);
+  const [countsError, setCountsError] = useState(false);
 
   const load = () => {
     setLoading(true);
     setLoadError(false);
+    setCountsError(false);
+    getDashboardCounts('distributor')
+      .then((r) => {
+        if (r && r.counts) setCounts(r.counts);
+        else setCountsError(true);
+      })
+      .catch(() => setCountsError(true));
     Promise.all([
       listAllocations({ limit: 100 }),
       listDeliveries({ limit: 100 }),
@@ -47,7 +58,7 @@ export default function DistributorResellerPage() {
 
   useEffect(() => { load(); }, []);
 
-  const stats = useMemo(() => ({
+  const listStats = useMemo(() => ({
     allocations: allocations.length,
     released: allocations.filter((row) => row.status === 'released').length,
     pendingRelease: allocations.filter((row) => row.status !== 'released').length,
@@ -58,8 +69,23 @@ export default function DistributorResellerPage() {
     warehousedOrders: orders.filter((row) => row.status === 'warehoused').length,
   }), [allocations, deliveries, orders]);
 
-  // One clear next step, driven by workspace state.
-  const nextStep = loadError
+  // Authoritative counts win once loaded; the list derivations are only a
+  // transient fallback. On a counts error the metrics render '—', never zeros.
+  const stats = {
+    allocations: counts ? counts.totalAllocations : listStats.allocations,
+    released: counts ? counts.releasedAllocations : listStats.released,
+    pendingRelease: counts ? counts.pendingAllocations : listStats.pendingRelease,
+    deliveries: counts ? counts.totalDeliveries : listStats.deliveries,
+    scheduled: counts ? counts.scheduledDeliveries : listStats.scheduled,
+    inTransit: counts ? counts.inTransitDeliveries : listStats.inTransit,
+    failed: counts ? counts.failedDeliveries : listStats.failed,
+    warehousedOrders: counts ? counts.warehousedOrders : listStats.warehousedOrders,
+  };
+  const metricValue = (value) => (counts ? value : '—');
+
+  // One clear next step, driven by workspace state. Suppressed while any
+  // data source failed.
+  const nextStep = (loadError || countsError)
     ? null
     : stats.failed > 0
       ? {
@@ -135,17 +161,17 @@ export default function DistributorResellerPage() {
               <p className="lx-page-sub">{tx('logistics.distributor.subtitle', 'Track allocated inventory, manage release methods, and keep final-mile handoff execution clean across resale or community distribution.')}</p>
               <div className="lx-dashboard-stat-grid">
                 <div className="lx-dashboard-stat">
-                  <div className="lx-dashboard-stat-value">{stats.pendingRelease}</div>
+                  <div className="lx-dashboard-stat-value">{metricValue(stats.pendingRelease)}</div>
                   <div className="lx-dashboard-stat-label">{tx('logistics.distributor.stats.pendingRelease.label', 'Pending release lots')}</div>
                   <div className="lx-dashboard-stat-meta">{tx('logistics.distributor.stats.pendingRelease.meta', 'Assigned inventory not fully handed off yet.')}</div>
                 </div>
                 <div className="lx-dashboard-stat">
-                  <div className="lx-dashboard-stat-value">{stats.inTransit}</div>
+                  <div className="lx-dashboard-stat-value">{metricValue(stats.inTransit)}</div>
                   <div className="lx-dashboard-stat-label">{tx('logistics.distributor.stats.inTransit.label', 'Deliveries in motion')}</div>
                   <div className="lx-dashboard-stat-meta">{tx('logistics.distributor.stats.inTransit.meta', 'Outbound movement you should actively watch.')}</div>
                 </div>
                 <div className="lx-dashboard-stat">
-                  <div className="lx-dashboard-stat-value">{stats.failed}</div>
+                  <div className="lx-dashboard-stat-value">{metricValue(stats.failed)}</div>
                   <div className="lx-dashboard-stat-label">{tx('logistics.distributor.stats.failed.label', 'Failed or cancelled drops')}</div>
                   <div className="lx-dashboard-stat-meta">{tx('logistics.distributor.stats.failed.meta', 'These often need rerouting or direct recipient follow-up.')}</div>
                 </div>
@@ -162,21 +188,21 @@ export default function DistributorResellerPage() {
                       <strong>{tx('logistics.distributor.pressure.release.label', 'Lots waiting on release')}</strong>
                       <span>{tx('logistics.distributor.pressure.release.hint', 'Inventory is assigned, but pickup method, forwarder handoff, or recipient readiness is still incomplete.')}</span>
                     </div>
-                    <div className="lx-alert-count">{stats.pendingRelease}</div>
+                    <div className="lx-alert-count">{metricValue(stats.pendingRelease)}</div>
                   </div>
                   <div className="lx-alert-item">
                     <div>
                       <strong>{tx('logistics.distributor.pressure.scheduled.label', 'Scheduled deliveries')}</strong>
                       <span>{tx('logistics.distributor.pressure.scheduled.hint', 'These are the next likely touchpoints where communication and timing matter.')}</span>
                     </div>
-                    <div className="lx-alert-count">{stats.scheduled}</div>
+                    <div className="lx-alert-count">{metricValue(stats.scheduled)}</div>
                   </div>
                   <div className="lx-alert-item">
                     <div>
                       <strong>{tx('logistics.distributor.pressure.exceptions.label', 'Delivery exceptions')}</strong>
                       <span>{tx('logistics.distributor.pressure.exceptions.hint', 'Failed or cancelled deliveries should get attention before customer confidence drops further.')}</span>
                     </div>
-                    <div className="lx-alert-count">{stats.failed}</div>
+                    <div className="lx-alert-count">{metricValue(stats.failed)}</div>
                   </div>
                 </div>
               </div>
@@ -193,7 +219,7 @@ export default function DistributorResellerPage() {
                   <div className="lx-checklist-item">
                     <div>
                       <strong>{tx('logistics.distributor.posture.warehousedVisible.label', 'Keep warehoused stock visible')}</strong>
-                      <span>{tx('logistics.distributor.posture.warehousedVisible.hint', '{{count}} purchase orders are already warehoused, so the bottleneck may be downstream, not upstream.', { count: stats.warehousedOrders })}</span>
+                      <span>{tx('logistics.distributor.posture.warehousedVisible.hint', '{{count}} purchase orders are already warehoused, so the bottleneck may be downstream, not upstream.', { count: metricValue(stats.warehousedOrders) })}</span>
                     </div>
                   </div>
                 </div>
@@ -201,7 +227,7 @@ export default function DistributorResellerPage() {
             </div>
           </div>
 
-          {loadError && !loading && <WorkspaceDataErrorBanner onRetry={load} />}
+          {(loadError || countsError) && !loading && <WorkspaceDataErrorBanner onRetry={load} />}
 
           <WorkspaceOverviewStrip
             loading={loading}
@@ -215,31 +241,31 @@ export default function DistributorResellerPage() {
             {[
               {
                 label: tx('logistics.distributor.metrics.allocatedLots.label', 'Allocated lots'),
-                value: stats.allocations,
+                value: metricValue(stats.allocations),
                 icon: '📊',
                 note: tx('logistics.distributor.metrics.allocatedLots.note', 'Assigned inventory across distribution recipients.'),
               },
               {
                 label: tx('logistics.distributor.metrics.releasedLots.label', 'Released lots'),
-                value: stats.released,
+                value: metricValue(stats.released),
                 icon: '📦',
                 note: tx('logistics.distributor.metrics.releasedLots.note', 'Lots already cleared for pickup or delivery execution.'),
               },
               {
                 label: tx('logistics.distributor.metrics.deliveryOrders.label', 'Delivery orders'),
-                value: stats.deliveries,
+                value: metricValue(stats.deliveries),
                 icon: '🚚',
                 note: tx('logistics.distributor.metrics.deliveryOrders.note', 'Outbound legs currently being tracked.'),
               },
               {
                 label: tx('logistics.distributor.metrics.inTransit.label', 'In transit'),
-                value: stats.inTransit,
+                value: metricValue(stats.inTransit),
                 icon: '🕐',
                 note: tx('logistics.distributor.metrics.inTransit.note', 'Deliveries that still need final-mile monitoring.'),
               },
               {
                 label: tx('logistics.distributor.metrics.warehousedOrders.label', 'Warehoused orders'),
-                value: stats.warehousedOrders,
+                value: metricValue(stats.warehousedOrders),
                 icon: '🏬',
                 note: tx('logistics.distributor.metrics.warehousedOrders.note', 'Upstream inventory already in storage and ready to allocate.'),
               },

@@ -132,6 +132,11 @@ async function listInventoryReceipts({ warehouseId, status, limit = 50, offset =
   const params = [];
   if (warehouseId) { conditions.push(`ir.warehouse_id = $${params.push(warehouseId)}`); }
   if (status)      { conditions.push(`ir.status = $${params.push(status)}`); }
+  // Authoritative total for dashboard counts (additive; the row query is unchanged).
+  const countRes = await pool.query(
+    `SELECT COUNT(*) FROM inventory_receipts ir WHERE ${conditions.join(' AND ')}`,
+    params
+  );
   const result = await pool.query(
     `SELECT ir.*, w.name AS warehouse_name, w.country AS warehouse_country
      FROM inventory_receipts ir
@@ -141,7 +146,7 @@ async function listInventoryReceipts({ warehouseId, status, limit = 50, offset =
      LIMIT $${params.push(Math.min(limit,200))} OFFSET $${params.push(offset)}`,
     params
   );
-  return result.rows;
+  return { receipts: result.rows, total: parseInt(countRes.rows[0].count, 10) || 0 };
 }
 
 // ─── Allocations ──────────────────────────────────────────────
@@ -221,6 +226,12 @@ async function listAllocations({ warehouseId, status, pooledOrderId, buyerUserId
   if (pooledOrderId) { conditions.push(`ia.pooled_order_id = $${params.push(pooledOrderId)}`); }
   if (buyerUserId)   { conditions.push(`ia.buyer_user_id = $${params.push(buyerUserId)}`); }
 
+  // Authoritative total for dashboard counts (additive; the row query is unchanged).
+  const countRes = await pool.query(
+    `SELECT COUNT(*) FROM inventory_allocations ia
+     LEFT JOIN inventory_receipts ir ON ir.id = ia.inventory_receipt_id
+     WHERE ${conditions.join(' AND ')}`, params
+  );
   const result = await pool.query(
     `SELECT ia.*, ir.reference AS receipt_ref, w.name AS warehouse_name,
             u.first_name || ' ' || u.last_name AS buyer_name
@@ -233,7 +244,7 @@ async function listAllocations({ warehouseId, status, pooledOrderId, buyerUserId
      LIMIT $${params.push(Math.min(limit,500))}`,
     params
   );
-  return result.rows;
+  return { allocations: result.rows, total: parseInt(countRes.rows[0].count, 10) || 0 };
 }
 
 // ─── Delivery Orders ──────────────────────────────────────────

@@ -116,7 +116,7 @@ export default function DistributionPage() {
                           className="lx-action-ghost"
                           onClick={() => setPreviewId(a.id)}
                         >
-                          {tx('logistics.tables.preview')}
+                          {t('logistics.tables.preview')}
                         </button>
                       </div>
                     </div>

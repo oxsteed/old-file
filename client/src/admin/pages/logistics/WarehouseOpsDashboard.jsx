@@ -10,17 +10,21 @@ export default function WarehouseOpsDashboard() {
   const { t } = useTranslation();
   const { data, loading, error, reload } = useAbortableFetch(async (signal) => {
     // Direct requests (not the api wrappers) so the abort signal reaches the network calls.
-    const [warehouses, receipts, allocations, deliveries] = await Promise.all([
+    const [warehouses, receipts, allocations, deliveries, counts] = await Promise.all([
       axios.get('/logistics/warehouses', { signal }).then(r => r.data),
       axios.get('/logistics/inventory-receipts', { signal }).then(r => r.data),
       axios.get('/logistics/allocations', { signal }).then(r => r.data),
       axios.get('/logistics/deliveries', { signal }).then(r => r.data),
+      // Authoritative headline counts; the row lists are server-capped.
+      // Non-fatal: a counts failure falls back to list-derived numbers.
+      axios.get('/logistics/dashboard/warehouse-counts', { signal }).then(r => r.data).catch(() => null),
     ]);
     return {
       warehouses: warehouses.data || [],
       receipts: receipts.data || [],
       allocations: allocations.data || [],
       deliveries: deliveries.data || [],
+      counts: counts?.counts || null,
     };
   }, []);
 
@@ -28,6 +32,10 @@ export default function WarehouseOpsDashboard() {
   const receipts    = data?.receipts    || [];
   const allocations = data?.allocations || [];
   const deliveries  = data?.deliveries  || [];
+  const counts = data?.counts || null;
+  // Authoritative totals win when available; the capped `.length` values
+  // are only a fallback when the counts endpoint is unreachable.
+  const totalOrLength = (total, rows) => (Number.isFinite(total) ? total : rows.length);
 
   return (
     <div className="lx-page">
@@ -41,10 +49,10 @@ export default function WarehouseOpsDashboard() {
       <>
       <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(180px, 1fr))', gap:'1rem', marginBottom:'1.5rem' }}>
         {[
-          [t('adminWarehouseOps.stats.warehouses'), warehouses.length, '🏗'],
-          [t('adminWarehouseOps.stats.openReceipts'), receipts.filter((row) => row.status !== 'reconciled').length, '📥'],
-          [t('adminWarehouseOps.stats.allocations'), allocations.length, '📊'],
-          [t('adminWarehouseOps.stats.deliveries'), deliveries.length, '🚚'],
+          [t('adminWarehouseOps.stats.warehouses'), totalOrLength(counts?.totalWarehouses, warehouses), '🏗'],
+          [t('adminWarehouseOps.stats.openReceipts'), counts ? counts.openReceipts : receipts.filter((row) => row.status !== 'reconciled').length, '📥'],
+          [t('adminWarehouseOps.stats.allocations'), totalOrLength(counts?.totalAllocations, allocations), '📊'],
+          [t('adminWarehouseOps.stats.deliveries'), totalOrLength(counts?.totalDeliveries, deliveries), '🚚'],
         ].map(([label, value, icon]) => (
           <div key={label} className="lx-card" style={{ textAlign:'center' }}>
             <div style={{ fontSize:'1.4rem' }}>{icon}</div>

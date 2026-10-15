@@ -153,7 +153,7 @@ export default function OrdersPage() {
                           className="lx-action-ghost"
                           onClick={(e) => { e.stopPropagation(); setPreviewId(o.id); }}
                         >
-                          {tx('logistics.tables.preview')}
+                          {t('logistics.tables.preview')}
                         </button>
                         <span className="lx-link" aria-hidden="true"> →</span>
                       </td>

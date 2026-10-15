@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../context/AuthContext';
-import { listOrganizerCampaigns, getMyParticipation, listShipments, listDeliveries, submitCampaignForReview, getCampaignApprovalHistory } from '../../api/logistics';
+import { listOrganizerCampaigns, getMyParticipation, listShipments, listDeliveries, submitCampaignForReview, getCampaignApprovalHistory, getDashboardCounts } from '../../api/logistics';
 import PageShell from '../../components/PageShell';
 import LogisticsLayout from '../../components/logistics/LogisticsLayout';
 import LogisticsStatusPill from '../../components/logistics/LogisticsStatusPill';
@@ -28,6 +28,10 @@ export default function OrganizerDashboardPage() {
   const [deliveries, setDeliveries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
+  // Authoritative workspace metrics (see BuyerDashboardPage): headline
+  // counts must not be derived from `limit: N` list responses.
+  const [counts, setCounts] = useState(null);
+  const [countsError, setCountsError] = useState(false);
   // campaignId -> latest review reason (for revisions_requested campaigns)
   const [revisionNotes, setRevisionNotes] = useState({});
   const [submitting, setSubmitting] = useState(null); // campaign id being submitted
@@ -35,6 +39,13 @@ export default function OrganizerDashboardPage() {
   const load = () => {
     setLoading(true);
     setLoadError(false);
+    setCountsError(false);
+    getDashboardCounts('organizer')
+      .then((r) => {
+        if (r && r.counts) setCounts(r.counts);
+        else setCountsError(true);
+      })
+      .catch(() => setCountsError(true));
     Promise.all([
       // Organizer-scoped endpoint: own campaigns including drafts. The public
       // /campaigns board never returns drafts.
@@ -101,14 +112,27 @@ export default function OrganizerDashboardPage() {
     }
   };
 
-  const committedUnits = campaigns.reduce((sum, row) => sum + Number(row.current_committed_qty || 0), 0);
-  const activeCampaigns = campaigns.filter((row) => ['open', 'pledging', 'deposit_phase', 'locked', 'placed'].includes(row.status)).length;
-  const campaignsNeedingMomentum = campaigns.filter((row) => Number(row.moq_pct || 0) < 50 && row.status === 'open').length;
-  const handoffDeliveries = deliveries.filter((row) => ['pending', 'scheduled', 'in_transit'].includes(row.status)).length;
-  const participantCommitments = participation.filter((row) => row.status !== 'fulfilled').length;
+  const listCommittedUnits = campaigns.reduce((sum, row) => sum + Number(row.current_committed_qty || 0), 0);
+  const listActiveCampaigns = campaigns.filter((row) => ['open', 'pledging', 'deposit_phase', 'locked', 'placed'].includes(row.status)).length;
+  const listCampaignsNeedingMomentum = campaigns.filter((row) => Number(row.moq_pct || 0) < 50 && row.status === 'open').length;
+  const listHandoffDeliveries = deliveries.filter((row) => ['pending', 'scheduled', 'in_transit'].includes(row.status)).length;
+  const listParticipantCommitments = participation.filter((row) => row.status !== 'fulfilled').length;
 
-  // One clear next step, driven by workspace state.
-  const nextStep = loadError
+  // Authoritative counts win once loaded; the list derivations are only a
+  // transient fallback. On a counts error the metrics render '—', never zeros.
+  const committedUnits = counts ? counts.committedUnits : listCommittedUnits;
+  const activeCampaigns = counts ? counts.activeCampaigns : listActiveCampaigns;
+  const campaignsNeedingMomentum = counts ? counts.needingMomentum : listCampaignsNeedingMomentum;
+  const handoffDeliveries = counts ? counts.handoffDeliveries : listHandoffDeliveries;
+  const participantCommitments = counts ? counts.openCommitments : listParticipantCommitments;
+  const totalCampaigns = counts ? counts.totalCampaigns : campaigns.length;
+  const totalShipments = counts ? counts.totalShipments : shipments.length;
+  const totalDeliveries = counts ? counts.totalDeliveries : deliveries.length;
+  const metricValue = (value) => (counts ? value : '—');
+
+  // One clear next step, driven by workspace state. Suppressed while any
+  // data source failed.
+  const nextStep = (loadError || countsError)
     ? null
     : campaignsNeedingMomentum > 0
       ? {
@@ -121,7 +145,7 @@ export default function OrganizerDashboardPage() {
             { count: campaignsNeedingMomentum }
           ),
         }
-      : campaigns.length === 0
+      : totalCampaigns === 0
         ? {
             kind: 'link',
             href: '/logistics/campaigns/new',
@@ -192,17 +216,17 @@ export default function OrganizerDashboardPage() {
               <p className="lx-page-sub">{tx('logistics.organizer.subtitle', 'Run pooled campaigns like a coordinator, keep MOQ momentum visible, and move locked orders cleanly into shipping and community handoff.')}</p>
               <div className="lx-dashboard-stat-grid">
                 <div className="lx-dashboard-stat">
-                  <div className="lx-dashboard-stat-value">{activeCampaigns}</div>
+                  <div className="lx-dashboard-stat-value">{metricValue(activeCampaigns)}</div>
                   <div className="lx-dashboard-stat-label">{tx('logistics.organizer.stats.inMotion.label', 'Campaigns still in motion')}</div>
                   <div className="lx-dashboard-stat-meta">{tx('logistics.organizer.stats.inMotion.meta', 'Across open, deposit, lock, and placement phases.')}</div>
                 </div>
                 <div className="lx-dashboard-stat">
-                  <div className="lx-dashboard-stat-value">{committedUnits}</div>
+                  <div className="lx-dashboard-stat-value">{metricValue(committedUnits)}</div>
                   <div className="lx-dashboard-stat-label">{tx('logistics.organizer.stats.committedUnits.label', 'Committed units')}</div>
                   <div className="lx-dashboard-stat-meta">{tx('logistics.organizer.stats.committedUnits.meta', 'Demand already captured from your pooled network.')}</div>
                 </div>
                 <div className="lx-dashboard-stat">
-                  <div className="lx-dashboard-stat-value">{handoffDeliveries}</div>
+                  <div className="lx-dashboard-stat-value">{metricValue(handoffDeliveries)}</div>
                   <div className="lx-dashboard-stat-label">{tx('logistics.organizer.stats.handoffs.label', 'Handoffs to coordinate')}</div>
                   <div className="lx-dashboard-stat-meta">{tx('logistics.organizer.stats.handoffs.meta', 'Delivery legs still moving toward community recipients.')}</div>
                 </div>
@@ -219,21 +243,21 @@ export default function OrganizerDashboardPage() {
                       <strong>{tx('logistics.organizer.pressure.momentum.label', 'MOQ momentum gaps')}</strong>
                       <span>{tx('logistics.organizer.pressure.momentum.hint', 'Campaigns below halfway to MOQ usually need another recruitment push or a lane/pricing rethink.')}</span>
                     </div>
-                    <div className="lx-alert-count">{campaignsNeedingMomentum}</div>
+                    <div className="lx-alert-count">{metricValue(campaignsNeedingMomentum)}</div>
                   </div>
                   <div className="lx-alert-item">
                     <div>
                       <strong>{tx('logistics.organizer.pressure.commitments.label', 'Participant commitments open')}</strong>
                       <span>{tx('logistics.organizer.pressure.commitments.hint', 'These are your own live commitments inside pooled orders that still need watching.')}</span>
                     </div>
-                    <div className="lx-alert-count">{participantCommitments}</div>
+                    <div className="lx-alert-count">{metricValue(participantCommitments)}</div>
                   </div>
                   <div className="lx-alert-item">
                     <div>
                       <strong>{tx('logistics.organizer.pressure.shipments.label', 'Shipments tied to campaigns')}</strong>
                       <span>{tx('logistics.organizer.pressure.shipments.hint', 'Keep organizer messaging aligned with freight movement so downstream buyers know what is next.')}</span>
                     </div>
-                    <div className="lx-alert-count">{shipments.length}</div>
+                    <div className="lx-alert-count">{metricValue(totalShipments)}</div>
                   </div>
                 </div>
               </div>
@@ -258,7 +282,7 @@ export default function OrganizerDashboardPage() {
             </div>
           </div>
 
-          {loadError && !loading && <WorkspaceDataErrorBanner onRetry={load} />}
+          {(loadError || countsError) && !loading && <WorkspaceDataErrorBanner onRetry={load} />}
 
           <WorkspaceOverviewStrip
             loading={loading}
@@ -272,25 +296,25 @@ export default function OrganizerDashboardPage() {
             {[
               {
                 label: tx('logistics.organizer.metrics.campaigns.label', 'Organizer campaigns'),
-                value: campaigns.length,
+                value: metricValue(totalCampaigns),
                 icon: '🤝',
                 note: tx('logistics.organizer.metrics.campaigns.note', 'Total campaigns you currently own or coordinate.'),
               },
               {
                 label: tx('logistics.organizer.metrics.committedUnits.label', 'Committed units'),
-                value: committedUnits,
+                value: metricValue(committedUnits),
                 icon: '📦',
                 note: tx('logistics.organizer.metrics.committedUnits.note', 'Useful for judging network buying power across all campaigns.'),
               },
               {
                 label: tx('logistics.organizer.metrics.shipments.label', 'Tracked shipments'),
-                value: shipments.length,
+                value: metricValue(totalShipments),
                 icon: '🚢',
                 note: tx('logistics.organizer.metrics.shipments.note', 'Movement that now affects organizer updates and handoffs.'),
               },
               {
                 label: tx('logistics.organizer.metrics.deliveries.label', 'Delivery handoffs'),
-                value: deliveries.length,
+                value: metricValue(totalDeliveries),
                 icon: '🚚',
                 note: tx('logistics.organizer.metrics.deliveries.note', 'Final-mile coordination you may need to message around.'),
               },

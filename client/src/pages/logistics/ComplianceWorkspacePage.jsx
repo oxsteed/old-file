@@ -5,7 +5,7 @@ import PageShell from '../../components/PageShell';
 import LogisticsLayout from '../../components/logistics/LogisticsLayout';
 import LogisticsStatusPill from '../../components/logistics/LogisticsStatusPill';
 import { useAuth } from '../../context/AuthContext';
-import { listLanes, listTradeRules, adminListRestrictions, adminListShipments } from '../../api/logistics';
+import { listLanes, listTradeRules, adminListRestrictions, adminListShipments, getDashboardCounts } from '../../api/logistics';
 import { canAccessComplianceWorkspace } from '../../utils/logisticsWorkspaces';
 import '../../styles/logistics/LogisticsHomePage.css';
 import '../../styles/logistics/LogisticsWorkspaces.css';
@@ -28,13 +28,22 @@ export default function ComplianceWorkspacePage() {
   const [shipments, setShipments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  // Authoritative review-queue count (see BuyerDashboardPage): the headline
+  // number must not be derived from the `limit: 100` shipments list.
+  const [queueCount, setQueueCount] = useState(null);
 
   const load = () => {
     setLoading(true);
     setError(false);
+    setQueueCount(null);
     const tasks = [listLanes(), listTradeRules()];
     if (isOperator) {
       tasks.push(adminListRestrictions({ limit: 50 }), adminListShipments({ limit: 100 }));
+      // Counts resolve independently; a list failure never turns the queue
+      // number into a misleading zero.
+      getDashboardCounts('compliance')
+        .then((r) => { if (r && r.counts) setQueueCount(r.counts.reviewQueue); })
+        .catch(() => {});
     }
     Promise.all(tasks)
       .then((results) => {
@@ -56,7 +65,9 @@ export default function ComplianceWorkspacePage() {
     return acc;
   }, {}), [lanes]);
 
-  const reviewQueueCount = shipments.filter((row) => ['arrived_destination', 'customs_hold', 'exception'].includes(row.status)).length;
+  const reviewQueueCount = queueCount !== null
+    ? queueCount
+    : shipments.filter((row) => ['arrived_destination', 'customs_hold', 'exception'].includes(row.status)).length;
 
   return (
     <PageShell>
@@ -187,7 +198,7 @@ export default function ComplianceWorkspacePage() {
                   {isOperator && (
                     <div className="lx-t-small lx-t-muted lx-mt-6">
                       {t('logistics.complianceWorkspace.queueLabel')}
-                      : <strong>{reviewQueueCount}</strong>
+                      : <strong>{queueCount !== null ? reviewQueueCount : '—'}</strong>
                     </div>
                   )}
                 </div>

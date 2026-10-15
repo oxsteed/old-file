@@ -149,7 +149,7 @@ export default function SourcingPage() {
                               className="lx-action-ghost"
                               onClick={(e) => { e.stopPropagation(); setPreviewId(r.id); }}
                             >
-                              {tx('logistics.tables.preview')}
+                              {t('logistics.tables.preview')}
                             </button>
                           </td>
                         </tr>

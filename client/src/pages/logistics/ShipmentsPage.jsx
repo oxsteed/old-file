@@ -147,7 +147,7 @@ export default function ShipmentsPage() {
                       className="lx-action-ghost lx-mt-6"
                       onClick={(e) => { e.stopPropagation(); setPreviewId(s.id); }}
                     >
-                      {tx('logistics.tables.preview')}
+                      {t('logistics.tables.preview')}
                     </button>
                   </div>
                 </div>

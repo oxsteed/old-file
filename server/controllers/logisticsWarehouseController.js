@@ -34,13 +34,14 @@ exports.createWarehouse = async (req, res, next) => {
 
 exports.listReceipts = async (req, res, next) => {
   try {
-    const receipts = await warehouseService.listInventoryReceipts({
+    const result = await warehouseService.listInventoryReceipts({
       warehouseId: req.query.warehouse_id,
       status:      req.query.status,
       limit:       Math.min(Math.max(parseInt(req.query.limit, 10) || 50, 1), 200),
       offset:      Math.min(Math.max(parseInt(req.query.offset, 10) || 0, 0), 1_000_000),
     });
-    res.json({ success: true, data: receipts });
+    // `total` is additive: existing consumers keep reading `data`.
+    res.json({ success: true, data: result.receipts, total: result.total });
   } catch (err) { next(err); }
 };
 
@@ -97,13 +98,14 @@ exports.reconcileReceipt = async (req, res, next) => {
 exports.listAllocations = async (req, res, next) => {
   try {
     const buyerUserId = req.isAdmin ? (req.query.buyer_user_id || null) : req.user.id;
-    const allocations = await warehouseService.listAllocations({
+    const result = await warehouseService.listAllocations({
       warehouseId:   req.query.warehouse_id,
       status:        req.query.status,
       pooledOrderId: req.query.pooled_order_id,
       buyerUserId,
     });
-    res.json({ success: true, data: allocations });
+    // `total` is additive: existing consumers keep reading `data`.
+    res.json({ success: true, data: result.allocations, total: result.total });
   } catch (err) { next(err); }
 };
 
@@ -154,7 +156,12 @@ exports.listDeliveryOrders = async (req, res, next) => {
        LIMIT 100`,
       params
     );
-    res.json({ success: true, data: result.rows });
+    // Authoritative total for dashboard counts (additive; `data` is unchanged).
+    const countRes = await pool.query(
+      `SELECT COUNT(*) FROM delivery_orders d WHERE ${conditions.join(' AND ')}`,
+      params
+    );
+    res.json({ success: true, data: result.rows, total: parseInt(countRes.rows[0].count, 10) || 0 });
   } catch (err) { next(err); }
 };
 

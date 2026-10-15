@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { listSourcingRequests, listOrders, listShipments, listAllocations, listDeliveries, listMyClaims, listRefundCases } from '../../api/logistics';
+import { listSourcingRequests, listOrders, listShipments, listAllocations, listDeliveries, listMyClaims, listRefundCases, getDashboardCounts } from '../../api/logistics';
 import PageShell from '../../components/PageShell';
 import LogisticsLayout from '../../components/logistics/LogisticsLayout';
 import LogisticsStatusPill from '../../components/logistics/LogisticsStatusPill';
@@ -24,9 +24,24 @@ export default function BuyerDashboardPage() {
     requests: [], orders: [], shipments: [], allocations: [], deliveries: [], claims: [], refunds: [],
     loading: true, loadError: false,
   });
+  // Authoritative workspace metrics. Headline counts must never be derived
+  // from the `limit: N` list responses above: those undercount as soon as
+  // the user has more rows than the page size.
+  const [counts, setCounts] = useState(null);
+  const [countsError, setCountsError] = useState(false);
 
   const load = () => {
     setState((s) => ({ ...s, loading: true, loadError: false }));
+    setCountsError(false);
+    // Counts resolve independently of the row lists so that a list-level
+    // failure (e.g. a capability-gated endpoint) never turns the headline
+    // metrics into misleading zeros.
+    getDashboardCounts('buyer')
+      .then((r) => {
+        if (r && r.counts) setCounts(r.counts);
+        else setCountsError(true);
+      })
+      .catch(() => setCountsError(true));
     Promise.all([
       listSourcingRequests({ limit: 12 }),
       listOrders({ limit: 8 }),
@@ -54,51 +69,76 @@ export default function BuyerDashboardPage() {
 
   useEffect(() => { load(); }, []);
 
-  const activeRequests = state.requests.filter((request) => !['fulfilled', 'closed', 'cancelled'].includes(request.status)).length;
-  const atRiskShipments = state.shipments.filter((shipment) => ['customs_review', 'exception', 'customs_hold'].includes(shipment.status)).length;
-  const pendingAllocations = state.allocations.filter((allocation) => allocation.status !== 'released').length;
-  const openIssues = state.claims.length + state.refunds.length;
+  // Authoritative metrics come from the counts endpoint. The list-derived
+  // values below are only a transient fallback while counts load; once
+  // counts resolve they always win, and on a counts error the metrics
+  // render as unavailable ('—'), never as misleading zeros.
+  const listActiveRequests = state.requests.filter((request) => !['fulfilled', 'closed', 'cancelled'].includes(request.status)).length;
+  const listAtRiskShipments = state.shipments.filter((shipment) => ['customs_review', 'exception', 'customs_hold'].includes(shipment.status)).length;
+  const listPendingAllocations = state.allocations.filter((allocation) => allocation.status !== 'released').length;
+  const listOpenIssues = state.claims.length + state.refunds.length;
+
+  const activeRequests = counts ? counts.activeRequests : listActiveRequests;
+  const atRiskShipments = counts ? counts.atRiskShipments : listAtRiskShipments;
+  const pendingAllocations = counts ? counts.pendingAllocations : listPendingAllocations;
+  const openIssues = counts ? (counts.activeClaims + counts.refundCases) : listOpenIssues;
+  const totalRequests = counts ? counts.totalRequests : state.requests.length;
+  const totalShipments = counts ? counts.totalShipments : state.shipments.length;
+  const metricValue = (value) => (counts ? value : '—');
   const latestDeliveryDate = state.deliveries
     .map((delivery) => delivery.scheduled_date || delivery.created_at)
     .filter(Boolean)
     .sort()
     .at(-1);
 
+  // While counts are loading or unavailable, notes say so instead of
+  // describing possibly-capped list derivations.
+  const unavailableNote = t('logistics.buyer.metrics.unavailableNote');
   const metrics = [
     {
       label: tx('logistics.buyer.metrics.activeRequests.label', 'Active requests'),
-      value: activeRequests,
+      value: metricValue(activeRequests),
       icon: '🔍',
-      note: tx('logistics.buyer.metrics.activeRequests.note', '{{total}} total buyer requests in motion', { total: state.requests.length }),
+      note: counts
+        ? tx('logistics.buyer.metrics.activeRequests.note', '{{total}} total buyer requests in motion', { total: totalRequests })
+        : unavailableNote,
     },
     {
       label: tx('logistics.buyer.metrics.watchShipments.label', 'Watch shipments'),
-      value: state.shipments.length,
+      value: metricValue(totalShipments),
       icon: '🚢',
-      note: atRiskShipments
-        ? tx('logistics.buyer.metrics.watchShipments.noteRisk', '{{count}} need exception follow-up', { count: atRiskShipments })
-        : tx('logistics.buyer.metrics.watchShipments.noteClear', 'No shipment exceptions flagged right now'),
+      note: !counts
+        ? unavailableNote
+        : atRiskShipments
+          ? tx('logistics.buyer.metrics.watchShipments.noteRisk', '{{count}} need exception follow-up', { count: atRiskShipments })
+          : tx('logistics.buyer.metrics.watchShipments.noteClear', 'No shipment exceptions flagged right now'),
     },
     {
       label: tx('logistics.buyer.metrics.pendingAllocations.label', 'Pending allocations'),
-      value: pendingAllocations,
+      value: metricValue(pendingAllocations),
       icon: '📦',
-      note: pendingAllocations
-        ? tx('logistics.buyer.metrics.pendingAllocations.notePending', 'Stock is assigned but not fully released yet')
-        : tx('logistics.buyer.metrics.pendingAllocations.noteClear', 'Allocation queue is clear'),
+      note: !counts
+        ? unavailableNote
+        : pendingAllocations
+          ? tx('logistics.buyer.metrics.pendingAllocations.notePending', 'Stock is assigned but not fully released yet')
+          : tx('logistics.buyer.metrics.pendingAllocations.noteClear', 'Allocation queue is clear'),
     },
     {
       label: tx('logistics.buyer.metrics.claimsRefunds.label', 'Claims & refunds'),
-      value: openIssues,
+      value: metricValue(openIssues),
       icon: '🛟',
-      note: openIssues
-        ? tx('logistics.buyer.metrics.claimsRefunds.noteOpen', 'Operator review may be needed on open issues')
-        : tx('logistics.buyer.metrics.claimsRefunds.noteClear', 'No active buyer issues'),
+      note: !counts
+        ? unavailableNote
+        : openIssues
+          ? tx('logistics.buyer.metrics.claimsRefunds.noteOpen', 'Operator review may be needed on open issues')
+          : tx('logistics.buyer.metrics.claimsRefunds.noteClear', 'No active buyer issues'),
     },
   ];
 
-  // One clear next step, driven by workspace state.
-  const nextStep = state.loadError
+  // One clear next step, driven by workspace state. Suppressed while any
+  // data source failed: the banner explains, and we never advise from
+  // misleading numbers.
+  const nextStep = (state.loadError || countsError)
     ? null
     : activeRequests === 0
       ? {
@@ -179,17 +219,17 @@ export default function BuyerDashboardPage() {
               <p className="lx-page-sub">{tx('logistics.buyer.subtitle', 'Source product demand, watch freight movement, and stay ahead of claims, refunds, and delivery release risk from one buyer control center.')}</p>
               <div className="lx-dashboard-stat-grid">
                 <div className="lx-dashboard-stat">
-                  <div className="lx-dashboard-stat-value">{activeRequests}</div>
+                  <div className="lx-dashboard-stat-value">{metricValue(activeRequests)}</div>
                   <div className="lx-dashboard-stat-label">{tx('logistics.buyer.stats.openRequests.label', 'Open buyer requests')}</div>
                   <div className="lx-dashboard-stat-meta">{tx('logistics.buyer.stats.openRequests.meta', 'Across sourcing, quoting, and procurement conversion.')}</div>
                 </div>
                 <div className="lx-dashboard-stat">
-                  <div className="lx-dashboard-stat-value">{atRiskShipments}</div>
+                  <div className="lx-dashboard-stat-value">{metricValue(atRiskShipments)}</div>
                   <div className="lx-dashboard-stat-label">{tx('logistics.buyer.stats.attentionShipments.label', 'Shipments needing attention')}</div>
                   <div className="lx-dashboard-stat-meta">{tx('logistics.buyer.stats.attentionShipments.meta', 'Customs or exception-stage movement to review.')}</div>
                 </div>
                 <div className="lx-dashboard-stat">
-                  <div className="lx-dashboard-stat-value">{openIssues}</div>
+                  <div className="lx-dashboard-stat-value">{metricValue(openIssues)}</div>
                   <div className="lx-dashboard-stat-label">{tx('logistics.buyer.stats.issues.label', 'Claims / refunds open')}</div>
                   <div className="lx-dashboard-stat-meta">{tx('logistics.buyer.stats.issues.meta', 'Keep buyer protection and resolution posture visible.')}</div>
                 </div>
@@ -206,21 +246,21 @@ export default function BuyerDashboardPage() {
                       <strong>{tx('logistics.buyer.attention.shipmentRisk.label', 'Shipment risk')}</strong>
                       <span>{tx('logistics.buyer.attention.shipmentRisk.hint', 'Customs review, exception states, or delayed freight should get buyer follow-up first.')}</span>
                     </div>
-                    <div className="lx-alert-count">{atRiskShipments}</div>
+                    <div className="lx-alert-count">{metricValue(atRiskShipments)}</div>
                   </div>
                   <div className="lx-alert-item">
                     <div>
                       <strong>{tx('logistics.buyer.attention.allocationRelease.label', 'Allocation release')}</strong>
                       <span>{tx('logistics.buyer.attention.allocationRelease.hint', 'Assigned stock still needs pickup, forwarder handoff, or final release planning.')}</span>
                     </div>
-                    <div className="lx-alert-count">{pendingAllocations}</div>
+                    <div className="lx-alert-count">{metricValue(pendingAllocations)}</div>
                   </div>
                   <div className="lx-alert-item">
                     <div>
                       <strong>{tx('logistics.buyer.attention.issuePosture.label', 'Issue posture')}</strong>
                       <span>{tx('logistics.buyer.attention.issuePosture.hint', 'Claims and refund cases tell you where buyer trust or fulfillment quality is slipping.')}</span>
                     </div>
-                    <div className="lx-alert-count">{openIssues}</div>
+                    <div className="lx-alert-count">{metricValue(openIssues)}</div>
                   </div>
                 </div>
               </div>
@@ -253,7 +293,7 @@ export default function BuyerDashboardPage() {
             </div>
           </div>
 
-          {state.loadError && !state.loading && <WorkspaceDataErrorBanner onRetry={load} />}
+          {(state.loadError || countsError) && !state.loading && <WorkspaceDataErrorBanner onRetry={load} />}
 
           <WorkspaceOverviewStrip
             loading={state.loading}

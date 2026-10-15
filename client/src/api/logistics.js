@@ -517,3 +517,15 @@ export const adminGetAudit = (params) =>
 
 export const adminListRecurringPrograms = (params = {}) =>
   axios.get('/logistics/recurring-programs', { params: { ...params, all: true } }).then(r => r.data);
+
+// ─── Dashboard counts ─────────────────────────────────────────
+// Authoritative workspace metrics. The list endpoints paginate, so
+// dashboards must not derive headline counts from `limit: N` responses.
+// scope: 'buyer' | 'organizer' | 'distributor' | 'compliance'.
+export const getDashboardCounts = (scope, params = {}) =>
+  axios.get('/logistics/dashboard/counts', { params: { scope, ...params } }).then(r => r.data);
+
+// Warehouse dashboard counters (operations/admin). The row lists are
+// server-capped, so headline counts come from here, not `.length`.
+export const getWarehouseDashboardCounts = (params = {}) =>
+  axios.get('/logistics/dashboard/warehouse-counts', { params }).then(r => r.data);
