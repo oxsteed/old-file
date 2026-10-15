@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { listAllocations } from '../../api/logistics';
+import { getAllocation } from '../../api/logistics';
 import LogisticsModal, { LogisticsModalLoading, LogisticsModalError } from './LogisticsModal';
 
 const STATUS_COLOR = {
@@ -8,11 +8,8 @@ const STATUS_COLOR = {
 };
 
 /**
- * Allocation preview modal.
- *
- * NOTE: the logistics API has no single-allocation GET endpoint (server
- * exposes only list + release), and there is no per-allocation detail page.
- * The preview therefore loads the allocation list and finds the row by id.
+ * Allocation preview modal. Loads the allocation through the direct
+ * GET /logistics/allocations/:id endpoint.
  * "Open full page" navigates to /logistics/distribution, the customer-facing
  * workspace that lists allocations.
  */
@@ -27,12 +24,8 @@ export default function AllocationPreview({ id, open, onClose }) {
     if (!id) return;
     setLoading(true);
     setError(null);
-    listAllocations({ limit: 200 })
-      .then((r) => {
-        const rows = r.data || [];
-        const match = rows.find((row) => String(row.id) === String(id));
-        setAllocation(match || null);
-      })
+    getAllocation(id)
+      .then((r) => setAllocation(r.data || null))
       .catch((err) => setError(err.response?.data?.error || tx('logistics.modal.loadError', "Couldn't load this preview.")))
       .finally(() => setLoading(false));
   }, [id, t]);

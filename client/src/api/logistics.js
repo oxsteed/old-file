@@ -54,6 +54,21 @@ export const createCampaign = (data) =>
 export const joinCampaign = (id, data) =>
   axios.post(`/logistics/campaigns/${id}/join`, data).then(r => r.data);
 
+// ─── Campaign draft lifecycle (Phase 2) ──────────────────────
+
+// Organizer-scoped listing: the organizer's own campaigns, including drafts.
+export const listOrganizerCampaigns = (params = {}) =>
+  axios.get('/logistics/organizer/campaigns', { params }).then(r => r.data);
+
+export const submitCampaignForReview = (id) =>
+  axios.post(`/logistics/campaigns/${id}/submit`).then(r => r.data);
+
+export const reviewCampaign = (id, data) =>
+  axios.post(`/logistics/campaigns/${id}/review`, data).then(r => r.data);
+
+export const getCampaignApprovalHistory = (id) =>
+  axios.get(`/logistics/campaigns/${id}/approval-history`).then(r => r.data);
+
 export const getMyParticipation = () =>
   axios.get('/logistics/my-participation').then(r => r.data);
 
@@ -132,6 +147,9 @@ export const reconcileReceipt = (id, data) =>
 
 export const listAllocations = (params = {}) =>
   axios.get('/logistics/allocations', { params }).then(r => r.data);
+
+export const getAllocation = (id) =>
+  axios.get(`/logistics/allocations/${id}`).then(r => r.data);
 
 export const listDeliveries = (params = {}) =>
   axios.get('/logistics/deliveries', { params }).then(r => r.data);

@@ -2,26 +2,27 @@ import React, { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../context/AuthContext';
-import { getCampaign, joinCampaign, checkLaneAccess } from '../../api/logistics';
+import { getCampaign, joinCampaign, checkLaneAccess, submitCampaignForReview, reviewCampaign } from '../../api/logistics';
+import PageShell from '../../components/PageShell';
 import PageMeta from '../../components/PageMeta';
+import LogisticsLayout from '../../components/logistics/LogisticsLayout';
+import LogisticsStatusPill from '../../components/logistics/LogisticsStatusPill';
+import { APPROVAL_BLOCKER_KEYS, APPROVAL_DECISION_KEYS, REVIEW_OPS_LOGISTICS_ROLES } from '../../components/logistics/approvalLabels';
 import toast from 'react-hot-toast';
 import '../../styles/logistics/LogisticsHomePage.css';
+import '../../styles/logistics/LogisticsWorkspaces.css';
 
-const STATUS_COLOR = {
-  open:'#22c55e', pledging:'#f59e0b', deposit_phase:'#f97316',
-  locked:'#8b5cf6', placed:'#3b82f6', in_transit:'#06b6d4',
-  completed:'#10b981', cancelled:'#ef4444',
-};
-
-const PARTICIPANT_STATUS_COLOR = {
-  invited:'#94a3b8', pledged:'#f59e0b', deposit_paid:'#22c55e',
-  confirmed:'#3b82f6', locked:'#8b5cf6', final_paid:'#10b981',
-  fulfilled:'#059669', refunded:'#f43f5e', disputed:'#ef4444',
-};
-
+/**
+ * CampaignDetailPage - pooled campaign detail (Phase 2 refactor).
+ *
+ * Now renders inside PageShell + the shared LogisticsLayout (previously it
+ * skipped the site chrome entirely). MOQ progress, lane-gating callouts,
+ * unit economics, and the join form use token-based classes and pills.
+ */
 export default function CampaignDetailPage() {
   const { id }       = useParams();
   const { t }        = useTranslation();
+  const tx = (key, fallback, opts = {}) => t(key, { defaultValue: fallback, ...opts });
   const { user }     = useAuth();
   const navigate     = useNavigate();
 
@@ -31,13 +32,23 @@ export default function CampaignDetailPage() {
   const [joining, setJoining]       = useState(false);
   const [showJoinForm, setShowJoinForm] = useState(false);
   const [joinData, setJoinData]     = useState({ committed_qty: 1, delivery_preference: 'warehouse_pickup' });
+  // Phase 2 draft approval lifecycle
+  const [submitting, setSubmitting] = useState(false);
+  const [reviewing, setReviewing] = useState(false);
+  const [reviewReason, setReviewReason] = useState('');
+  const [reviewError, setReviewError] = useState(null);
 
-  useEffect(() => {
+  const reload = () => getCampaign(id).then((r) => setCampaign(r.data));
+
+  const load = () => {
+    setLoading(true);
     getCampaign(id)
-      .then(r => setCampaign(r.data))
-      .catch(() => toast.error('Failed to load campaign'))
+      .then((r) => setCampaign(r.data))
+      .catch(() => toast.error(tx('logistics.campaignDetail.loadError', 'Failed to load campaign')))
       .finally(() => setLoading(false));
-  }, [id]);
+  };
+
+  useEffect(() => { load(); }, [id]);
 
   useEffect(() => {
     if (!campaign?.lane_id || !user) {
@@ -56,7 +67,7 @@ export default function CampaignDetailPage() {
     setJoining(true);
     try {
       await joinCampaign(id, joinData);
-      toast.success(t('logistics.campaigns.joinSuccess', 'You\'ve joined the campaign!'));
+      toast.success(tx('logistics.campaigns.joinSuccess', "You've joined the campaign!"));
       const r = await getCampaign(id);
       setCampaign(r.data);
       setShowJoinForm(false);
@@ -72,205 +83,388 @@ export default function CampaignDetailPage() {
   const moqPct = campaign ? Math.min(
     Math.round((campaign.current_committed_qty / campaign.target_moq) * 100), 100
   ) : 0;
-  const canJoin = campaign && ['open','pledging'].includes(campaign.status) && !myParticipation && laneAccess?.allowed !== false;
+  const canJoin = campaign && ['open', 'pledging'].includes(campaign.status) && !myParticipation && laneAccess?.allowed !== false;
 
-  if (loading) return <div className="lx-page"><div className="lx-loading">Loading…</div></div>;
-  if (!campaign) return <div className="lx-page"><div className="lx-error">Campaign not found.</div></div>;
+  // Phase 2 approval lifecycle (approval state is separate from fulfillment status)
+  const approvalState = campaign?.approval_state || 'draft';
+  const isOwner = Boolean(user && campaign && String(campaign.organizer_user_id) === String(user.id));
+  const isOpsReviewer = Boolean(user && !isOwner && (
+    ['admin', 'super_admin'].includes(user.role) ||
+    REVIEW_OPS_LOGISTICS_ROLES.includes(user.logistics_role)
+  ));
+  const availableActions = campaign?.available_actions?.actions || [];
+  const submitBlockers = campaign?.available_actions?.blockers || [];
+  const approvalHistory = campaign?.approval_history || [];
 
-  return (
-    <div className="lx-page">
-      <PageMeta
-        title={`${campaign.title} | OxSteed Logistics`}
-        description={campaign.description || `${campaign.title} pooled buying campaign on OxSteed Logistics.`}
-        url={`https://oxsteed.com/logistics/campaigns/${id}`}
-      />
-      <div style={{ marginBottom:'1rem' }}>
-        <Link to="/logistics/campaigns" className="lx-link">← {t('logistics.campaigns.allCampaigns','All Campaigns')}</Link>
-      </div>
+  const handleSubmitForReview = async () => {
+    setSubmitting(true);
+    try {
+      await submitCampaignForReview(id);
+      toast.success(tx('logistics.campaigns.approval.submitted', 'Submitted for review.'));
+      await reload();
+    } catch (err) {
+      const data = err.response?.data;
+      const blockers = data?.fields?.blockers || [];
+      if (blockers.length) {
+        toast.error(tx('logistics.campaigns.approval.blockersTitle', 'Fix these before submitting'), { duration: 6000 });
+      } else {
+        toast.error(data?.error || tx('logistics.campaigns.approval.submitFailed', 'Submission failed. Please try again.'));
+      }
+      await reload(); // refresh server-computed blockers
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
-      {/* Header */}
-      <div className="lx-card" style={{ marginBottom:'1.5rem' }}>
-        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', flexWrap:'wrap', gap:'1rem' }}>
-          <div style={{ flex:1 }}>
-            <div className="lx-campaign-lane">
-              {campaign.origin_country} → {campaign.destination_country} · {campaign.lane_name}
-            </div>
-            <h1 style={{ fontSize:'1.6rem', fontWeight:800, margin:'.25rem 0 .5rem' }}>{campaign.title}</h1>
-            <span className="lx-status-pill" style={{ background: STATUS_COLOR[campaign.status]||'#64748b' }}>
-              {campaign.status?.replace(/_/g,' ')}
-            </span>
-            {campaign.description && (
-              <p style={{ color:'#64748b', marginTop:'.75rem', lineHeight:1.6 }}>{campaign.description}</p>
-            )}
-          </div>
-          {canJoin && (
-            <button className="lx-btn-primary" onClick={() => setShowJoinForm(true)}>
-              {t('logistics.campaigns.joinCampaign','Join Campaign')}
-            </button>
-          )}
-          {myParticipation && (
-            <div className="lx-status-pill" style={{ background: PARTICIPANT_STATUS_COLOR[myParticipation.status]||'#64748b', padding:'.4rem 1rem' }}>
-              {t('logistics.campaigns.myStatus','My status')}: {myParticipation.status}
-            </div>
-          )}
+  const handleReview = async (decision) => {
+    const reason = reviewReason.trim();
+    if (decision === 'request_changes' && !reason) {
+      setReviewError(tx('logistics.campaigns.approval.reasonRequired', 'A reason is required when requesting revisions.'));
+      return;
+    }
+    setReviewing(true);
+    setReviewError(null);
+    try {
+      await reviewCampaign(id, { decision, reason: reason || undefined });
+      toast.success(decision === 'approve'
+        ? tx('logistics.campaigns.approval.approvedToast', 'Campaign approved and published.')
+        : tx('logistics.campaigns.approval.revisionsToast', 'Revision request sent to the organizer.'));
+      setReviewReason('');
+      await reload();
+    } catch (err) {
+      const data = err.response?.data;
+      setReviewError(data?.error || tx('logistics.campaigns.approval.reviewFailed', 'Review failed. Please try again.'));
+    } finally {
+      setReviewing(false);
+    }
+  };
+
+  const renderBody = () => {
+    if (loading) {
+      return (
+        <div className="lx-loading" role="status" aria-live="polite">
+          <span className="lx-spinner" aria-hidden="true" />
+          {tx('logistics.modal.loading', 'Loading…')}
         </div>
-
-        {/* MOQ progress */}
-        <div style={{ marginTop:'1.5rem' }}>
-          <div style={{ display:'flex', justifyContent:'space-between', marginBottom:'.4rem', fontSize:'.85rem', fontWeight:700 }}>
-            <span>{campaign.current_committed_qty || 0} / {campaign.target_moq} {t('logistics.campaigns.units','units committed')}</span>
-            <span style={{ color: moqPct >= 100 ? '#22c55e' : '#f97316' }}>{moqPct}%</span>
-          </div>
-          <div className="lx-moq-bar-wrap" style={{ height:'12px' }}>
-            <div className="lx-moq-bar" style={{ width:`${moqPct}%` }} />
-          </div>
-          {moqPct >= 100 && (
-            <div style={{ color:'#22c55e', fontWeight:700, fontSize:'.85rem', marginTop:'.35rem' }}>
-              ✓ {t('logistics.campaigns.moqReached','MOQ Reached!')}
-            </div>
-          )}
+      );
+    }
+    if (!campaign) {
+      return (
+        <div className="lx-empty" role="alert">
+          <p>{tx('logistics.campaignDetail.notFound', 'Campaign not found.')}</p>
+          <Link to="/logistics/campaigns" className="lx-link">{tx('logistics.campaigns.allCampaigns', 'All Campaigns')}</Link>
         </div>
-        {(campaign.requires_business_verification || campaign.requires_manual_approval || campaign.requires_reseller_approval || laneAccess?.allowed === false) && (
-          <div style={{ marginTop:'1rem', background:'#f8fafc', border:'1px solid #e2e8f0', borderRadius:'.75rem', padding:'1rem', fontSize:'.85rem', lineHeight:1.7 }}>
-            <strong>Lane gating</strong>
-            {campaign.requires_business_verification && <div style={{ color:'#c2410c' }}>Verified business context is required for this campaign lane.</div>}
-            {campaign.requires_reseller_approval && <div style={{ color:'#7c3aed' }}>Reseller/distributor approval is required for resale participation on this lane.</div>}
-            {(campaign.requires_manual_approval || laneAccess?.requiresManualApproval) && <div style={{ color:'#b91c1c' }}>Manual compliance approval is required before the campaign can move through all downstream logistics steps.</div>}
-            {laneAccess?.allowed === false && <div style={{ color:'#b91c1c', fontWeight:700 }}>Your current role or destination context is blocked for this lane: {laneAccess.reason}</div>}
-          </div>
-        )}
-      </div>
+      );
+    }
 
-      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'1.5rem', marginBottom:'1.5rem' }}>
-        {/* Economics */}
-        <div className="lx-card">
-          <h3 style={{ fontWeight:700, marginBottom:1 }}>{t('logistics.campaigns.unitEconomics','Unit Economics')}</h3>
-          <table className="lx-table" style={{ fontSize:'.85rem' }}>
-            <tbody>
-              {[
-                ['Product Cost', campaign.unit_product_cost_usd, true],
-                ['Freight (est.)', campaign.unit_freight_est_usd, true],
-                ['OxSteed Markup', campaign.unit_markup_usd, true],
-                ['Fees', campaign.unit_fees_usd, true],
-                ['Landed Cost / unit', campaign.unit_landed_cost_usd, true],
-                ['Deposit (30%)', campaign.unit_landed_cost_usd ? (parseFloat(campaign.unit_landed_cost_usd)*parseFloat(campaign.deposit_pct||0.3)).toFixed(4) : null, true],
-              ].filter(r => r[1]).map(([label, val, _]) => (
-                <tr key={label}>
-                  <td style={{ color:'#64748b' }}>{label}</td>
-                  <td style={{ fontWeight: label.includes('Landed') ? 700 : 400, color: label.includes('Landed') ? '#f97316' : 'inherit' }}>
-                    ${parseFloat(val).toFixed(2)}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+    const economics = [
+      [tx('logistics.campaignDetail.economics.productCost', 'Product Cost'), campaign.unit_product_cost_usd],
+      [tx('logistics.campaignDetail.economics.freightEst', 'Freight (est.)'), campaign.unit_freight_est_usd],
+      [tx('logistics.campaignDetail.economics.markup', 'OxSteed Markup'), campaign.unit_markup_usd],
+      [tx('logistics.campaignDetail.economics.fees', 'Fees'), campaign.unit_fees_usd],
+      [tx('logistics.campaignDetail.economics.landedCost', 'Landed Cost / unit'), campaign.unit_landed_cost_usd, true],
+      [tx('logistics.campaignDetail.economics.deposit', 'Deposit (30%)'), campaign.unit_landed_cost_usd ? (parseFloat(campaign.unit_landed_cost_usd) * parseFloat(campaign.deposit_pct || 0.3)).toFixed(4) : null],
+    ].filter(([, val]) => val);
 
-        {/* Dates & Info */}
-        <div className="lx-card">
-          <h3 style={{ fontWeight:700, marginBottom:1 }}>{t('logistics.campaigns.timeline','Timeline')}</h3>
-          <div style={{ display:'grid', gap:'.6rem', fontSize:'.85rem' }}>
-            {[
-              [t('logistics.campaigns.openDate','Open Date'), campaign.open_date],
-              [t('logistics.campaigns.closeDate','Close Date'), campaign.close_date],
-              [t('logistics.campaigns.lockDate','Lock Date'), campaign.lock_date],
-              [t('logistics.campaigns.expectedShip','Expected Ship'), campaign.expected_ship_date],
-              [t('logistics.campaigns.expectedArrival','Expected Arrival'), campaign.expected_arrival_date],
-            ].map(([label, val]) => val ? (
-              <div key={label} style={{ display:'flex', justifyContent:'space-between' }}>
-                <span style={{ color:'#64748b' }}>{label}</span>
-                <span style={{ fontWeight:600 }}>{new Date(val).toLocaleDateString()}</span>
+    const timeline = [
+      [tx('logistics.campaignDetail.timeline.openDate', 'Open Date'), campaign.open_date],
+      [tx('logistics.campaignDetail.timeline.closeDate', 'Close Date'), campaign.close_date],
+      [tx('logistics.campaignDetail.timeline.lockDate', 'Lock Date'), campaign.lock_date],
+      [tx('logistics.campaignDetail.timeline.expectedShip', 'Expected Ship'), campaign.expected_ship_date],
+      [tx('logistics.campaignDetail.timeline.expectedArrival', 'Expected Arrival'), campaign.expected_arrival_date],
+    ].filter(([, val]) => val);
+
+    return (
+      <>
+        <div className="lx-card lx-mb-6">
+          <div className="lx-detail-head">
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <p className="lx-detail-kicker">
+                {campaign.origin_country} → {campaign.destination_country} · {campaign.lane_name}
+              </p>
+              <h2 className="lx-detail-title" style={{ fontSize: 'var(--text-2xl)' }}>{campaign.title}</h2>
+              <div className="lx-btn-row" style={{ marginBlock: 'var(--space-2)' }}>
+                <LogisticsStatusPill status={campaign.status} />
+                {/* Approval state stays separate from the fulfillment status */}
+                <LogisticsStatusPill status={approvalState} />
+                {myParticipation && (
+                  <span className="lx-tag">
+                    {tx('logistics.campaigns.myStatus', 'My status')}: {myParticipation.status?.replace(/_/g, ' ')}
+                  </span>
+                )}
               </div>
-            ) : null)}
-            <div style={{ display:'flex', justifyContent:'space-between' }}>
-              <span style={{ color:'#64748b' }}>{t('logistics.campaigns.organizer','Organizer')}</span>
-              <span style={{ fontWeight:600 }}>{campaign.organizer_name}</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Join form */}
-      {showJoinForm && (
-        <div className="lx-card" style={{ marginBottom:'1.5rem', border:'2px solid #f97316' }}>
-          <h3 style={{ fontWeight:700, marginBottom:'1rem' }}>{t('logistics.campaigns.joinForm','Join This Campaign')}</h3>
-          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'1rem' }}>
-            <div className="lx-form-group">
-              <label className="lx-label">{t('logistics.campaigns.committedQty','Quantity to commit')}</label>
-              <input type="number" min="1" className="lx-input"
-                value={joinData.committed_qty}
-                onChange={e => setJoinData(d => ({...d, committed_qty: parseInt(e.target.value)||1}))}
-              />
-              {campaign.unit_landed_cost_usd && (
-                <div style={{ fontSize:'.78rem', color:'#f97316', marginTop:'.3rem', fontWeight:600 }}>
-                  Subtotal: ${(joinData.committed_qty * parseFloat(campaign.unit_landed_cost_usd)).toFixed(2)}
-                  {' '}· Deposit: ${(joinData.committed_qty * parseFloat(campaign.unit_landed_cost_usd) * parseFloat(campaign.deposit_pct||0.3)).toFixed(2)}
-                </div>
+              {campaign.description && (
+                <p className="lx-detail-sub" style={{ marginTop: 'var(--space-3)', lineHeight: 1.6 }}>{campaign.description}</p>
               )}
             </div>
-            <div className="lx-form-group">
-              <label className="lx-label">{t('logistics.campaigns.deliveryPreference','Delivery Preference')}</label>
-              <select className="lx-select" value={joinData.delivery_preference}
-                onChange={e => setJoinData(d => ({...d, delivery_preference: e.target.value}))}>
-                <option value="warehouse_pickup">Warehouse Pickup</option>
-                <option value="ship_to_buyer">Ship to Me</option>
-                <option value="freight_forward">Freight Forward</option>
-              </select>
-            </div>
-            <div className="lx-form-group">
-              <label className="lx-label">Destination country</label>
-              <input className="lx-input" maxLength={2} value={joinData.destination_country || ''}
-                onChange={e => setJoinData(d => ({ ...d, destination_country: e.target.value.toUpperCase() }))} placeholder={campaign.destination_country || 'Country code'} />
-            </div>
+            {canJoin && (
+              <button type="button" className="lx-btn-primary lx-next-step-action" onClick={() => setShowJoinForm(true)}>
+                {tx('logistics.campaigns.joinCampaign', 'Join Campaign')}
+              </button>
+            )}
           </div>
-          {campaign.cancellation_policy && (
-            <div style={{ background:'#fef3c7', borderRadius:'.5rem', padding:'.75rem', fontSize:'.82rem', marginBottom:'1rem', color:'#92400e' }}>
-              <strong>Cancellation Policy:</strong> {campaign.cancellation_policy}
+
+          {/* MOQ progress */}
+          <div className="lx-mt-6">
+            <div className="lx-kv-row lx-t-small lx-t-bold lx-mb-4">
+              <span>{tx('logistics.campaignDetail.moq.units', '{{committed}} / {{target}} units committed', { committed: campaign.current_committed_qty || 0, target: campaign.target_moq })}</span>
+              <span className="lx-kv-total">{moqPct}%</span>
+            </div>
+            <div className="lx-progress-wrap" role="img" aria-label={tx('logistics.campaignDetail.moq.progressLabel', 'MOQ progress: {{pct}} percent', { pct: moqPct })}>
+              <div className="lx-progress-bar" style={{ width: `${moqPct}%` }} />
+            </div>
+            {moqPct >= 100 && (
+              <div className="lx-t-small lx-t-bold lx-mt-6" style={{ color: 'var(--color-success)' }}>
+                ✓ {tx('logistics.campaigns.moqReached', 'MOQ Reached!')}
+              </div>
+            )}
+          </div>
+
+          {(campaign.requires_business_verification || campaign.requires_manual_approval || campaign.requires_reseller_approval || laneAccess?.allowed === false) && (
+            <div className="lx-callout lx-mt-6">
+              <strong>{tx('logistics.campaignDetail.laneGating.title', 'Lane gating')}</strong>
+              <div className="lx-callout-row">
+                {campaign.requires_business_verification && <div style={{ color: 'var(--color-warning)' }}>{tx('logistics.campaignDetail.laneGating.businessVerification', 'Verified business context is required for this campaign lane.')}</div>}
+                {campaign.requires_reseller_approval && <div style={{ color: 'var(--color-info)' }}>{tx('logistics.campaignDetail.laneGating.resellerApproval', 'Reseller/distributor approval is required for resale participation on this lane.')}</div>}
+                {(campaign.requires_manual_approval || laneAccess?.requiresManualApproval) && <div style={{ color: 'var(--color-error)' }}>{tx('logistics.campaignDetail.laneGating.manualApproval', 'Manual compliance approval is required before the campaign can move through all downstream logistics steps.')}</div>}
+                {laneAccess?.allowed === false && <div style={{ color: 'var(--color-error)', fontWeight: 700 }}>{tx('logistics.campaignDetail.laneGating.blocked', 'Your current role or destination context is blocked for this lane: {{reason}}', { reason: laneAccess.reason })}</div>}
+              </div>
             </div>
           )}
-          <div style={{ display:'flex', gap:'.75rem' }}>
-            <button className="lx-btn-primary" onClick={handleJoin} disabled={joining}>
-              {joining ? t('common.loading','Loading…') : t('logistics.campaigns.confirmJoin','Confirm Commitment')}
-            </button>
-            <button className="lx-btn-secondary" onClick={() => setShowJoinForm(false)}>
-              {t('common.cancel','Cancel')}
-            </button>
-          </div>
         </div>
-      )}
 
-      {/* Participants table (admin / organizer) */}
-      {campaign.participants?.length > 0 && (
-        <div className="lx-card">
-          <h3 style={{ fontWeight:700, marginBottom:'1rem' }}>
-            {t('logistics.campaigns.participants','Participants')} ({campaign.participants.length})
-          </h3>
-          <div className="lx-table-wrap">
-            <table className="lx-table" style={{ fontSize:'.82rem' }}>
-              <thead>
-                <tr>
-                  <th>User</th><th>Qty</th><th>Status</th><th>Deposit</th><th>Delivery</th>
-                </tr>
-              </thead>
-              <tbody>
-                {campaign.participants.map(p => (
-                  <tr key={p.id}>
-                    <td>{t('logistics.campaigns.participant','Participant')}</td>
-                    <td>{p.committed_qty}</td>
-                    <td>
-                      <span className="lx-status-pill" style={{ background: PARTICIPANT_STATUS_COLOR[p.status]||'#64748b' }}>
-                        {p.status}
+        {/* ── Phase 2: approval lifecycle ─────────────────────────── */}
+        {(isOwner || isOpsReviewer || approvalState !== 'approved') && (
+          <div className="lx-card lx-mb-6">
+            <div className="lx-btn-row lx-mb-4">
+              <h3 className="lx-card-title">{tx('logistics.campaigns.approval.title', 'Approval')}</h3>
+              <LogisticsStatusPill status={approvalState} />
+            </div>
+
+            {approvalState === 'approved' && (
+              <p className="lx-t-small" style={{ color: 'var(--color-success)' }}>
+                {tx('logistics.campaigns.approval.publishedNote', 'Approved and published. Buyers can now pledge.')}
+              </p>
+            )}
+
+            {/* Organizer: submit a draft / revised draft for review */}
+            {isOwner && availableActions.includes('submit_for_review') && (
+              <div>
+                {submitBlockers.length > 0 && (
+                  <div className="lx-callout lx-callout--warning lx-mb-4" role="alert">
+                    <strong>{tx('logistics.campaigns.approval.blockersTitle', 'Fix these before submitting')}</strong>
+                    <ul style={{ margin: '.4rem 0 0', paddingLeft: '1.2rem' }}>
+                      {submitBlockers.map((b) => (
+                        <li key={b.code}>
+                          {APPROVAL_BLOCKER_KEYS[b.code]
+                            ? tx(APPROVAL_BLOCKER_KEYS[b.code], b.message || b.code)
+                            : (b.message || b.code)}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                <button type="button" className="lx-btn-primary" onClick={handleSubmitForReview} disabled={submitting}>
+                  {submitting
+                    ? tx('logistics.campaigns.approval.submitting', 'Submitting…')
+                    : tx('logistics.campaigns.approval.submitForReview', 'Submit for review')}
+                </button>
+              </div>
+            )}
+            {isOwner && approvalState === 'pending_review' && (
+              <p className="lx-t-small" style={{ color: 'var(--color-warning)' }}>
+                {tx('logistics.campaigns.approval.awaitingReview', 'Awaiting Operations review. You will be notified when a decision is made.')}
+              </p>
+            )}
+
+            {/* Operations: approve or request revisions */}
+            {isOpsReviewer && approvalState === 'pending_review' && (
+              <div className="lx-mt-6">
+                <div className="lx-form-group">
+                  <label className="lx-label" htmlFor="lx-review-reason">{tx('logistics.campaigns.approval.reasonLabel', 'Review note')}</label>
+                  <textarea id="lx-review-reason" className="lx-textarea" rows={3} value={reviewReason}
+                    placeholder={tx('logistics.campaigns.approval.reasonPlaceholder', 'Explain what needs to change before this campaign can be published.')}
+                    onChange={(e) => { setReviewReason(e.target.value); setReviewError(null); }} />
+                </div>
+                {reviewError && (
+                  <div className="lx-t-small lx-t-bold lx-mb-4" role="alert" style={{ color: 'var(--color-error)' }}>
+                    {reviewError}
+                  </div>
+                )}
+                <div className="lx-btn-row">
+                  <button type="button" className="lx-btn-primary" onClick={() => handleReview('approve')} disabled={reviewing}>
+                    {reviewing
+                      ? tx('logistics.campaigns.approval.reviewing', 'Reviewing…')
+                      : tx('logistics.campaigns.approval.approve', 'Approve and publish')}
+                  </button>
+                  <button type="button" className="lx-btn-secondary" onClick={() => handleReview('request_changes')} disabled={reviewing}>
+                    {tx('logistics.campaigns.approval.requestRevisions', 'Request revisions')}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Approval history: every decision with who / when / reason */}
+            {approvalHistory.length > 0 && (
+              <div className="lx-mt-6">
+                <h4 className="lx-card-title lx-mb-4" style={{ fontSize: 'var(--text-sm)' }}>
+                  {tx('logistics.campaigns.approval.historyTitle', 'Approval history')}
+                </h4>
+                <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gap: '.5rem' }}>
+                  {approvalHistory.map((d) => (
+                    <li key={d.id} className="lx-t-small" style={{ borderLeft: '3px solid var(--border-subtle, #e2e8f0)', paddingLeft: '.75rem' }}>
+                      <strong>
+                        {APPROVAL_DECISION_KEYS[d.decision]
+                          ? tx(APPROVAL_DECISION_KEYS[d.decision], d.decision?.replace(/_/g, ' '))
+                          : (d.decision?.replace(/_/g, ' '))}
+                      </strong>
+                      <span className="lx-t-faint">
+                        {' · '}{d.reviewer_name?.trim() || tx('logistics.campaigns.approval.unknownReviewer', 'Unknown reviewer')}
+                        {' · '}{d.created_at ? new Date(d.created_at).toLocaleString() : ''}
                       </span>
-                    </td>
-                    <td>—</td>
-                    <td>{p.delivery_preference?.replace(/_/g,' ')}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                      {d.reason && <div className="lx-mt-4">{d.reason}</div>}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        )}
+
+        <div className="lx-two-col lx-mb-6">
+          {/* Economics */}
+          <div className="lx-card">
+            <h3 className="lx-card-title lx-mb-4">{tx('logistics.campaignDetail.economics.title', 'Unit Economics')}</h3>
+            <div className="lx-kv-list">
+              {economics.map(([label, val, highlight]) => (
+                <div key={label} className="lx-kv-row">
+                  <span className="lx-kv-label">{label}</span>
+                  <span className={highlight ? 'lx-kv-value lx-kv-total' : 'lx-kv-value'}>
+                    ${parseFloat(val).toFixed(2)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Dates & Info */}
+          <div className="lx-card">
+            <h3 className="lx-card-title lx-mb-4">{tx('logistics.campaignDetail.timeline.title', 'Timeline')}</h3>
+            <div className="lx-kv-list">
+              {timeline.map(([label, val]) => (
+                <div key={label} className="lx-kv-row">
+                  <span className="lx-kv-label">{label}</span>
+                  <span className="lx-kv-value">{new Date(val).toLocaleDateString()}</span>
+                </div>
+              ))}
+              <div className="lx-kv-row">
+                <span className="lx-kv-label">{tx('logistics.campaignDetail.timeline.organizer', 'Organizer')}</span>
+                <span className="lx-kv-value">{campaign.organizer_name}</span>
+              </div>
+            </div>
           </div>
         </div>
-      )}
-    </div>
+
+        {/* Join form */}
+        {showJoinForm && (
+          <div className="lx-card lx-login-accent lx-mb-6">
+            <h3 className="lx-card-title lx-mb-4">{tx('logistics.campaignDetail.join.title', 'Join This Campaign')}</h3>
+            <div className="lx-form-grid-2">
+              <div className="lx-form-group">
+                <label className="lx-label" htmlFor="lx-join-qty">{tx('logistics.campaignDetail.join.committedQty', 'Quantity to commit')}</label>
+                <input id="lx-join-qty" type="number" min="1" className="lx-input"
+                  value={joinData.committed_qty}
+                  onChange={(e) => setJoinData((d) => ({ ...d, committed_qty: parseInt(e.target.value) || 1 }))}
+                />
+                {campaign.unit_landed_cost_usd && (
+                  <div className="lx-t-xs lx-t-bold lx-mt-6" style={{ color: 'var(--color-primary)' }}>
+                    {tx('logistics.campaignDetail.join.subtotal', 'Subtotal')}: ${(joinData.committed_qty * parseFloat(campaign.unit_landed_cost_usd)).toFixed(2)}
+                    {' '}· {tx('logistics.campaignDetail.join.deposit', 'Deposit')}: ${(joinData.committed_qty * parseFloat(campaign.unit_landed_cost_usd) * parseFloat(campaign.deposit_pct || 0.3)).toFixed(2)}
+                  </div>
+                )}
+              </div>
+              <div className="lx-form-group">
+                <label className="lx-label" htmlFor="lx-join-delivery">{tx('logistics.campaignDetail.join.deliveryPreference', 'Delivery Preference')}</label>
+                <select id="lx-join-delivery" className="lx-select" value={joinData.delivery_preference}
+                  onChange={(e) => setJoinData((d) => ({ ...d, delivery_preference: e.target.value }))}>
+                  <option value="warehouse_pickup">{tx('logistics.campaignDetail.delivery.warehousePickup', 'Warehouse Pickup')}</option>
+                  <option value="ship_to_buyer">{tx('logistics.campaignDetail.delivery.shipToBuyer', 'Ship to Me')}</option>
+                  <option value="freight_forward">{tx('logistics.campaignDetail.delivery.freightForward', 'Freight Forward')}</option>
+                </select>
+              </div>
+              <div className="lx-form-group lx-form-group--full">
+                <label className="lx-label" htmlFor="lx-join-country">{tx('logistics.campaignDetail.join.destCountry', 'Destination country')}</label>
+                <input id="lx-join-country" className="lx-input" maxLength={2} value={joinData.destination_country || ''}
+                  onChange={(e) => setJoinData((d) => ({ ...d, destination_country: e.target.value.toUpperCase() }))} placeholder={campaign.destination_country || tx('logistics.campaignDetail.join.countryCode', 'Country code')} />
+              </div>
+            </div>
+            {campaign.cancellation_policy && (
+              <div className="lx-callout lx-callout--warning lx-mb-4">
+                <strong>{tx('logistics.campaignDetail.join.cancellationPolicy', 'Cancellation Policy')}:</strong> {campaign.cancellation_policy}
+              </div>
+            )}
+            <div className="lx-btn-row">
+              <button type="button" className="lx-btn-primary" onClick={handleJoin} disabled={joining}>
+                {joining ? tx('common.loading', 'Loading…') : tx('logistics.campaignDetail.join.confirm', 'Confirm Commitment')}
+              </button>
+              <button type="button" className="lx-btn-secondary" onClick={() => setShowJoinForm(false)}>
+                {tx('common.cancel', 'Cancel')}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Participants table (admin / organizer) */}
+        {campaign.participants?.length > 0 && (
+          <div className="lx-card">
+            <h3 className="lx-card-title lx-mb-4">
+              {tx('logistics.campaignDetail.participants.title', 'Participants ({{count}})', { count: campaign.participants.length })}
+            </h3>
+            <div className="lx-table-wrap">
+              <table className="lx-table lx-t-small">
+                <thead>
+                  <tr>
+                    <th>{tx('logistics.campaignDetail.participants.headers.user', 'User')}</th>
+                    <th>{tx('logistics.campaignDetail.participants.headers.qty', 'Qty')}</th>
+                    <th>{tx('logistics.campaignDetail.participants.headers.status', 'Status')}</th>
+                    <th>{tx('logistics.campaignDetail.participants.headers.deposit', 'Deposit')}</th>
+                    <th>{tx('logistics.campaignDetail.participants.headers.delivery', 'Delivery')}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {campaign.participants.map((p) => (
+                    <tr key={p.id}>
+                      <td>{tx('logistics.campaignDetail.participants.participant', 'Participant')}</td>
+                      <td>{p.committed_qty}</td>
+                      <td><LogisticsStatusPill status={p.status} /></td>
+                      <td>—</td>
+                      <td>{p.delivery_preference?.replace(/_/g, ' ')}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </>
+    );
+  };
+
+  return (
+    <PageShell>
+      <PageMeta
+        title={`${campaign?.title || tx('logistics.campaignDetail.meta.fallbackTitle', 'Campaign')} | OxSteed Logistics`}
+        description={campaign?.description || tx('logistics.campaignDetail.meta.fallbackDescription', 'Pooled buying campaign on OxSteed Logistics.')}
+        url={`https://oxsteed.com/logistics/campaigns/${id}`}
+      />
+      <LogisticsLayout showNav={false}>
+        <div className="lx-workspaces">
+          <div className="lx-back-row">
+            <Link to="/logistics/campaigns" className="lx-link">← {tx('logistics.campaigns.allCampaigns', 'All Campaigns')}</Link>
+          </div>
+          {renderBody()}
+        </div>
+      </LogisticsLayout>
+    </PageShell>
   );
 }
