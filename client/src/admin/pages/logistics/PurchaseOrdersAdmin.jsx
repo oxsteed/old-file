@@ -6,14 +6,16 @@ import toast from 'react-hot-toast';
 import { useAbortableFetch } from '../../lib/useAbortableFetch';
 import AdminErrorState from '../../lib/AdminErrorState';
 import '../../../styles/logistics/LogisticsHomePage.css';
+import '../../../styles/logistics/LogisticsWorkspaces.css';
+import LogisticsModal from '../../../components/logistics/LogisticsModal';
+import LogisticsStatusPill from '../../../components/logistics/LogisticsStatusPill';
 
-const STATUS_COLOR = {
-  draft:'#94a3b8', quoted:'#f59e0b', approved:'#22c55e', awaiting_deposit:'#fb923c',
-  deposit_collected:'#06b6d4', placed_with_supplier:'#3b82f6', in_production:'#8b5cf6',
-  production_complete:'#a855f7', ready_for_pickup:'#f97316', in_transit:'#0ea5e9',
-  customs_review:'#dc2626', cleared:'#16a34a', warehoused:'#0891b2',
-  allocated:'#14b8a6', fulfilled:'#10b981', closed:'#475569', cancelled:'#ef4444',
-};
+const PO_STATUSES = [
+  'draft','quoted','approved','awaiting_deposit','deposit_collected',
+  'placed_with_supplier','in_production','production_complete','ready_for_pickup',
+  'in_transit','customs_review','cleared','warehoused','allocated','fulfilled',
+  'closed','cancelled',
+];
 
 const VALID_TRANSITIONS = {
   draft: ['quoted','cancelled'],
@@ -73,7 +75,7 @@ export default function PurchaseOrdersAdmin() {
       <div className="lx-filter-bar">
         <select className="lx-select" value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
           <option value="">{t('adminPurchaseOrders.allStatuses')}</option>
-          {Object.keys(STATUS_COLOR).map(s => (
+          {PO_STATUSES.map(s => (
             <option key={s} value={s}>{t(`logistics.admin.purchaseOrders.statuses.${s}`, { defaultValue: s.replace(/_/g,' ') })}</option>
           ))}
         </select>
@@ -96,16 +98,17 @@ export default function PurchaseOrdersAdmin() {
                 <td><code style={{ fontSize:'.78rem' }}>{o.reference}</code></td>
                 <td style={{ fontSize:'.82rem' }}>{o.buyer_name || o.buyer_user_id}</td>
                 <td style={{ fontSize:'.82rem' }}>{o.supplier_name || '—'}</td>
-                <td style={{ fontSize:'.78rem', color:'#64748b' }}>{o.lane_code || o.lane_id}</td>
+                <td style={{ fontSize:'.78rem', color:'var(--color-text-muted)' }}>{o.lane_code || o.lane_id}</td>
                 <td style={{ fontSize:'.82rem' }}>{o.product_name || '—'}</td>
                 <td>{o.quantity?.toLocaleString()}</td>
-                <td style={{ fontWeight:700, color:'#f97316' }}>
+                <td style={{ fontWeight:700, color:'var(--color-primary)' }}>
                   {o.total_landed_cost_usd ? `$${parseFloat(o.total_landed_cost_usd).toLocaleString()}` : '—'}
                 </td>
                 <td>
-                  <span className="lx-status-pill" style={{ background: STATUS_COLOR[o.status]||'#64748b' }}>
-                    {t(`logistics.admin.purchaseOrders.statuses.${o.status}`, { defaultValue: o.status?.replace(/_/g,' ') || t('logistics.admin.unknownStatus') })}
-                  </span>
+                  <LogisticsStatusPill
+                    status={o.status}
+                    label={t(`logistics.admin.purchaseOrders.statuses.${o.status}`, { defaultValue: o.status?.replace(/_/g,' ') || t('logistics.admin.unknownStatus') })}
+                  />
                 </td>
                 <td>
                   <button className="lx-btn-secondary" style={{ fontSize:'.72rem', padding:'.25rem .65rem' }}
@@ -116,24 +119,27 @@ export default function PurchaseOrdersAdmin() {
               </tr>
             ))}
             {orders.length === 0 && !loading && !error && (
-              <tr><td colSpan={9} style={{ textAlign:'center', padding:'2rem', color:'#94a3b8' }}>{t('adminPurchaseOrders.noOrders')}</td></tr>
+              <tr><td colSpan={9} className="lx-table-empty-cell">{t('adminPurchaseOrders.noOrders')}</td></tr>
             )}
           </tbody>
         </table>
       </div>
 
-      {selected && (
-        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.4)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:9999 }}>
-          <div style={{ background:'var(--card-bg,#fff)', borderRadius:'1rem', padding:'1.5rem', width:520, maxWidth:'90vw' }}>
-            <h3 style={{ fontWeight:700, marginBottom:'.25rem' }}>{selected.reference}</h3>
-            <div style={{ fontSize:'.82rem', color:'#64748b', marginBottom:'1rem' }}>
+      <LogisticsModal
+        open={!!selected}
+        title={selected?.reference}
+        onClose={() => setSelected(null)}
+      >
+        {selected && (
+          <>
+            <div style={{ fontSize:'.82rem', color:'var(--color-text-muted)', marginBottom:'1rem' }}>
               <strong>{t('adminPurchaseOrders.modal.buyer', { defaultValue: 'Buyer:' })}</strong> {selected.buyer_name || selected.buyer_user_id} &nbsp;|&nbsp;
               <strong>{t('adminPurchaseOrders.modal.supplier', { defaultValue: 'Supplier:' })}</strong> {selected.supplier_name || '—'} &nbsp;|&nbsp;
               <strong>{t('adminPurchaseOrders.modal.qty', { defaultValue: 'Qty:' })}</strong> {selected.quantity?.toLocaleString()}
             </div>
 
             {/* Cost breakdown */}
-            <div style={{ background:'#f8fafc', borderRadius:'.5rem', padding:'.75rem', marginBottom:'1rem', fontSize:'.8rem' }}>
+            <div style={{ background:'var(--color-surface)', borderRadius:'.5rem', padding:'.75rem', marginBottom:'1rem', fontSize:'.8rem' }}>
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'.25rem' }}>
                 {[
                   [t('adminPurchaseOrders.costBreakdown.productCost'), selected.product_cost_usd],
@@ -146,14 +152,14 @@ export default function PurchaseOrdersAdmin() {
                   [t('adminPurchaseOrders.costBreakdown.riskSurcharge'), selected.risk_surcharge_usd],
                 ].map(([label, val]) => val ? (
                   <div key={label} style={{ display:'flex', justifyContent:'space-between', padding:'.15rem 0' }}>
-                    <span style={{ color:'#64748b' }}>{label}</span>
+                    <span style={{ color:'var(--color-text-muted)' }}>{label}</span>
                     <span style={{ fontWeight:600 }}>${parseFloat(val).toFixed(2)}</span>
                   </div>
                 ) : null)}
               </div>
-              <div style={{ borderTop:'1px solid #e2e8f0', marginTop:'.5rem', paddingTop:'.5rem', display:'flex', justifyContent:'space-between', fontWeight:700 }}>
+              <div style={{ borderTop:'1px solid var(--color-border)', marginTop:'.5rem', paddingTop:'.5rem', display:'flex', justifyContent:'space-between', fontWeight:700 }}>
                 <span>{t('adminPurchaseOrders.costBreakdown.totalLanded')}</span>
-                <span style={{ color:'#f97316' }}>${parseFloat(selected.total_landed_cost_usd||0).toLocaleString()}</span>
+                <span style={{ color:'var(--color-primary)' }}>${parseFloat(selected.total_landed_cost_usd||0).toLocaleString()}</span>
               </div>
             </div>
 
@@ -186,15 +192,15 @@ export default function PurchaseOrdersAdmin() {
               </>
             ) : (
               <div style={{ display:'flex', gap:'.75rem' }}>
-                <div style={{ color:'#94a3b8', fontSize:'.85rem', flex:1 }}>
+                <div style={{ color:'var(--color-text-faint)', fontSize:'.85rem', flex:1 }}>
 {t('adminPurchaseOrders.modal.noTransitions', { status: selected.status })}
                 </div>
                 <button className="lx-btn-secondary" onClick={() => setSelected(null)}>{t('common.close')}</button>
               </div>
             )}
-          </div>
-        </div>
-      )}
+          </>
+        )}
+      </LogisticsModal>
     </div>
   );
 }
