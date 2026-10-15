@@ -20,6 +20,12 @@ async function fixture() {
     '../context/AuthContext': `export const useAuth = () => ({ user: {
       email: 'audit@example.com', first_name: 'Test', last_name: 'Operator', country: 'US', state: 'OH'
     } });`,
+    // components/businessHub/BusinessOnboarding.jsx sits one directory deeper, so its
+    // relative specifier differs; stub the real AuthContext (which pulls in
+    // src/i18n/index.js via LanguageContext) for every depth used in this fixture.
+    '../../context/AuthContext': `export const useAuth = () => ({ user: {
+      email: 'audit@example.com', first_name: 'Test', last_name: 'Operator', country: 'US', state: 'OH'
+    } });`,
     '../api/axios': `export default {
       get: async () => ({ data: {} }),
       post: () => { throw new Error('Unexpected write in regression fixture'); }
