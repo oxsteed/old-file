@@ -6,12 +6,11 @@ import {
 } from '../../../api/logistics';
 import toast from 'react-hot-toast';
 import '../../../styles/logistics/LogisticsHomePage.css';
+import '../../../styles/logistics/LogisticsWorkspaces.css';
 import AdminErrorState from '../../lib/AdminErrorState';
 import ConfirmDialog from '../../lib/ConfirmDialog';
-
-const RECEIPT_STATUS_COLOR = {
-  pending:'#f59e0b', received:'#22c55e', discrepancy:'#dc2626', reconciled:'#10b981',
-};
+import LogisticsModal from '../../../components/logistics/LogisticsModal';
+import LogisticsStatusPill from '../../../components/logistics/LogisticsStatusPill';
 
 export default function WarehousesAdmin() {
   const { t } = useTranslation();
@@ -89,12 +88,12 @@ export default function WarehousesAdmin() {
       </div>
 
       {/* Tabs */}
-      <div style={{ display:'flex', gap:'.25rem', borderBottom:'2px solid #e2e8f0', marginBottom:'1.5rem' }}>
+      <div style={{ display:'flex', gap:'.25rem', borderBottom:'2px solid var(--color-border)', marginBottom:'1.5rem' }}>
         {['warehouses','receipts'].map(tabKey => (
           <button key={tabKey} onClick={() => setTab(tabKey)} style={{
             padding:'.6rem 1.25rem', border:'none', background:'none',
-            fontWeight: tab===tabKey ? 700 : 500, color: tab===tabKey ? '#f97316' : '#64748b',
-            borderBottom: tab===tabKey ? '2px solid #f97316' : '2px solid transparent',
+            fontWeight: tab===tabKey ? 700 : 500, color: tab===tabKey ? 'var(--color-primary)' : 'var(--color-text-muted)',
+            borderBottom: tab===tabKey ? '2px solid var(--color-primary)' : '2px solid transparent',
             marginBottom:'-2px', cursor:'pointer', textTransform:'capitalize',
           }}>{tabKey === 'warehouses' ? t('adminWarehouses.tabs.warehouses') : t('adminWarehouses.tabs.receipts')}</button>
         ))}
@@ -105,7 +104,7 @@ export default function WarehousesAdmin() {
 
       {/* Create warehouse form */}
       {showForm && tab === 'warehouses' && (
-        <div className="lx-card" style={{ marginBottom:'1.5rem', border:'2px solid #f97316' }}>
+        <div className="lx-card" style={{ marginBottom:'1.5rem', border:'2px solid var(--color-primary)' }}>
           <h3 style={{ fontWeight:700, marginBottom:'1rem' }}>{t('adminWarehouses.newWarehouse')}</h3>
           <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(220px, 1fr))', gap:'1rem' }}>
             {[
@@ -137,7 +136,7 @@ export default function WarehousesAdmin() {
           {warehouses.map(w => (
             <div key={w.id} className="lx-card">
               <div style={{ fontWeight:700, fontSize:'1rem', marginBottom:'.25rem' }}>{w.name}</div>
-              <div style={{ fontSize:'.82rem', color:'#64748b', marginBottom:'.75rem' }}>
+              <div style={{ fontSize:'.82rem', color:'var(--color-text-muted)', marginBottom:'.75rem' }}>
                 {w.city ? `${w.city}, ` : ''}{w.country}
               </div>
               {[
@@ -145,20 +144,20 @@ export default function WarehousesAdmin() {
                 [t('adminWarehouses.card.email'), w.contact_email],
                 [t('adminWarehouses.card.capacity'), w.capacity_cbm ? t('adminWarehouses.card.capacityValue', { value: w.capacity_cbm }) : null],
               ].filter(([,v])=>v).map(([k,v]) => (
-                <div key={k} style={{ display:'flex', justifyContent:'space-between', fontSize:'.8rem', padding:'.2rem 0', borderBottom:'1px solid #f1f5f9' }}>
-                  <span style={{ color:'#94a3b8' }}>{k}</span>
+                <div key={k} style={{ display:'flex', justifyContent:'space-between', fontSize:'.8rem', padding:'.2rem 0', borderBottom:'1px solid var(--color-surface-2)' }}>
+                  <span style={{ color:'var(--color-text-faint)' }}>{k}</span>
                   <span style={{ fontWeight:600 }}>{v}</span>
                 </div>
               ))}
               <div style={{ marginTop:'.75rem', display:'flex', gap:'.4rem', flexWrap:'wrap' }}>
-                <span style={{ fontSize:'.72rem', background:'#f1f5f9', borderRadius:999, padding:'.1rem .5rem', fontWeight:600 }}>
+                <span style={{ fontSize:'.72rem', background:'var(--color-surface-2)', borderRadius:999, padding:'.1rem .5rem', fontWeight:600 }}>
                   {w.is_active ? t('adminWarehouses.card.active') : t('adminWarehouses.card.inactive')}
                 </span>
               </div>
             </div>
           ))}
           {warehouses.length === 0 && !loading && !loadError && (
-            <div style={{ textAlign:'center', color:'#94a3b8', padding:'2rem' }}>{t('adminWarehouses.noWarehousesYet')}</div>
+            <div className="lx-table-empty-cell">{t('adminWarehouses.noWarehousesYet')}</div>
           )}
         </div>
       )}
@@ -181,16 +180,17 @@ export default function WarehousesAdmin() {
                   <td style={{ fontWeight: r.received_qty ? 700 : 400 }}>
                     {r.received_qty?.toLocaleString() || '—'}
                   </td>
-                  <td style={{ color: r.shortage_qty > 0 ? '#dc2626' : 'inherit', fontWeight: r.shortage_qty > 0 ? 700 : 400 }}>
+                  <td style={{ color: r.shortage_qty > 0 ? 'var(--color-error)' : 'inherit', fontWeight: r.shortage_qty > 0 ? 700 : 400 }}>
                     {r.shortage_qty > 0 ? r.shortage_qty : '—'}
                   </td>
-                  <td style={{ color: r.damaged_qty > 0 ? '#f97316' : 'inherit', fontWeight: r.damaged_qty > 0 ? 700 : 400 }}>
+                  <td style={{ color: r.damaged_qty > 0 ? 'var(--color-warning)' : 'inherit', fontWeight: r.damaged_qty > 0 ? 700 : 400 }}>
                     {r.damaged_qty > 0 ? r.damaged_qty : '—'}
                   </td>
                   <td>
-                    <span className="lx-status-pill" style={{ background: RECEIPT_STATUS_COLOR[r.status]||'#64748b' }}>
-                      {t(`logistics.status.${r.status}`, { defaultValue: r.status?.replace(/_/g,' ') || t('logistics.admin.unknownStatus') })}
-                    </span>
+                    <LogisticsStatusPill
+                      status={r.status}
+                      label={t(`logistics.status.${r.status}`, { defaultValue: r.status?.replace(/_/g,' ') || t('logistics.admin.unknownStatus') })}
+                    />
                   </td>
                   <td style={{ display:'flex', gap:'.4rem', flexWrap:'wrap' }}>
                     {r.status === 'pending' && (
@@ -209,18 +209,21 @@ export default function WarehousesAdmin() {
                 </tr>
               ))}
               {receipts.length === 0 && !loading && !loadError && (
-                <tr><td colSpan={8} style={{ textAlign:'center', padding:'2rem', color:'#94a3b8' }}>{t('adminWarehouses.noReceipts')}</td></tr>
+                <tr><td colSpan={8} className="lx-table-empty-cell">{t('adminWarehouses.noReceipts')}</td></tr>
               )}
             </tbody>
           </table>
         </div>
       )}
 
-      {receiptModal && (
-        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.4)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:9999 }}>
-          <div style={{ background:'var(--card-bg,#fff)', borderRadius:'1rem', padding:'1.5rem', width:420, maxWidth:'90vw' }}>
-            <h3 style={{ fontWeight:700, marginBottom:'.5rem' }}>{t('adminWarehouses.receiveModal.title', { reference: receiptModal.reference })}</h3>
-            <div style={{ fontSize:'.82rem', color:'#64748b', marginBottom:'1rem' }}>
+      <LogisticsModal
+        open={!!receiptModal}
+        title={receiptModal && t('adminWarehouses.receiveModal.title', { reference: receiptModal.reference })}
+        onClose={() => setReceiptModal(null)}
+      >
+        {receiptModal && (
+          <>
+            <div style={{ fontSize:'.82rem', color:'var(--color-text-muted)', marginBottom:'1rem' }}>
               {t('adminWarehouses.receiveModal.expectedText', { qty: receiptModal.expected_qty?.toLocaleString() })}
             </div>
             {['received_qty','shortage_qty','damaged_qty'].map(k => (
@@ -241,9 +244,9 @@ export default function WarehousesAdmin() {
               </button>
               <button className="lx-btn-secondary" onClick={() => setReceiptModal(null)}>{t('common.cancel')}</button>
             </div>
-          </div>
-        </div>
-      )}
+          </>
+        )}
+      </LogisticsModal>
 
       <ConfirmDialog
         open={reconcileTarget != null}
