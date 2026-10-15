@@ -19,6 +19,8 @@ const recurringCtrl = require('../controllers/logisticsRecurringProcurementContr
 const complianceCtrl= require('../controllers/logisticsComplianceController');
 const financeCtrl   = require('../controllers/logisticsFinanceController');
 const capabilitiesCtrl = require('../controllers/logisticsCapabilitiesController');
+const paymentsCtrl  = require('../controllers/logisticsPaymentController');
+const requireLogisticsPayments = require('../middleware/requireLogisticsPayments');
 const { requireLogisticsCapability, requireLaneAccess } = require('../middleware/requireLogisticsAccess');
 // Capability gates. Each resolves the caller's server-derived capabilities
 // (the same model served to the UI via GET /api/logistics/capabilities) and
@@ -292,5 +294,16 @@ router.get('/refund-cases', requireAuth, async (req, res, next) => {
     res.json({ success: true, data: result.rows });
   } catch (err) { next(err); }
 });
+
+// ─── Checkout / Payments (Phase 3) ──────────────────────────
+// New payment automation is gated on LOGISTICS_PAYMENTS_ENABLED (default
+// off): every route below answers 503 while disabled. Existing read
+// endpoints above are unaffected.
+
+router.post('/checkout/attempt',                    requireAuth, requireLogisticsPayments, paymentsCtrl.createAttempt);
+router.get('/checkout/attempt/:id',                  requireAuth, requireLogisticsPayments, paymentsCtrl.getAttempt);
+router.get('/checkout/reconciliation',               requireAuth, requireLogisticsPayments, paymentsCtrl.listReconciliation);
+router.patch('/checkout/reconciliation/:id',         requireAuth, requireLogisticsPayments, paymentsCtrl.resolveReconciliation);
+router.post('/checkout/reconciliation/sweep',        requireAuth, requireLogisticsPayments, paymentsCtrl.sweepStuck);
 
 module.exports = router;

@@ -35,6 +35,7 @@ const creditLedger = require('../services/referralCreditLedger');
 const { toLocalSubscriptionStatus } = require('../utils/subscriptionStatus');
 const jobPaymentReauth = require('../services/jobPaymentReauthorizationService');
 const paymentRailWebhooks = require('../services/paymentRails/webhooks');
+const logisticsPaymentService = require('../services/logisticsPaymentService');
 const { captureCents } = require('../services/paymentCaptureService');
 
 function extractFoodOrderId(metadata) {
@@ -628,6 +629,19 @@ async function handleVerifiedStripeEvent(event, destination, res, next) {
     if (deliveryResult.handled) {
       await markWebhookEventProcessed(receiptId);
       return res.json({ received: true });
+    }
+
+    // Phase 3 logistics buyer payments: settle payment attempts from the
+    // signed event only. handleStripeEvent claims ONLY events tied to a
+    // logistics payment attempt (via metadata or the stored payment-intent
+    // id) and returns { handled: false } for everything else, so the
+    // existing handlers below keep processing their own events unchanged.
+    // Only a verified webhook can move an attempt to 'succeeded'; browser
+    // redirects or client-reported success never settle a payment.
+    const logisticsResult = await logisticsPaymentService.handleStripeEvent(event);
+    if (logisticsResult.handled) {
+      await markWebhookEventProcessed(receiptId);
+      return res.json({ received: true, logistics: true });
     }
 
     // Review P1-297: connected-account checkout events are QR scan-to-pay
