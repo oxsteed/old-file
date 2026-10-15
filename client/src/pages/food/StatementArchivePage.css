@@ -60,6 +60,7 @@
 .sa-table-scroll th { background: var(--sa-soft); font-size: 13px; white-space: nowrap; }
 .sa-row-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 .sa-inline-error { color: var(--sa-danger); font-size: 13px; margin-block: 8px 0; }
+.sa-inline-muted { color: var(--sa-muted); font-size: 13px; margin-block: 8px 0; }
 .sa-inline-note { color: var(--sa-ok); font-size: 13px; margin-block: 8px 0; }
 .sa-pagination { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-block-start: 20px; flex-wrap: wrap; }
 @media (max-width: 900px) { .sa-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); } .sa-balances { grid-template-columns: repeat(2, minmax(0, 1fr)); } }

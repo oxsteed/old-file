@@ -1,0 +1,5 @@
+@import url('./InvestigationPanel.css');
+
+/* StatementReport shares the statement-component token set and primitives
+   from InvestigationPanel.css; this file only adds report-specific layout. */
+.stc-panel .stc-card .stc-cases { margin-block-start: 4px; }

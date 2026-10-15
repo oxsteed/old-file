@@ -1,0 +1,15 @@
+@import url('./InvestigationPanel.css');
+
+/* CorrectionDiff shares the statement-component token set and primitives
+   from InvestigationPanel.css; this file only adds diff-table styling.
+   Change meaning is carried by text badges, never color alone. */
+.stc-table-wrap { overflow-x: auto; }
+.stc-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.stc-table th, .stc-table td { text-align: start; padding: 10px 12px; border-block-end: 1px solid var(--stc-line); vertical-align: top; }
+.stc-table thead th { font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--stc-muted); }
+.stc-table tbody th[scope="row"] { font-weight: 650; }
+.stc-change { display: inline-block; font-size: 12px; font-weight: 750; border-radius: 999px; padding: 3px 12px; border: 1px solid currentColor; margin-block-end: 6px; }
+.stc-change-added { color: var(--stc-ok); }
+.stc-change-removed { color: var(--stc-danger); }
+.stc-change-modified { color: var(--stc-warn); }
+.stc-entry-id { font-size: 12px; word-break: break-all; }

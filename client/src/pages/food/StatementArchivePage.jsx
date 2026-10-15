@@ -15,6 +15,8 @@ import {
 import { formatStatementMoney } from '../../lib/creditStatementFormat';
 import { STATEMENT_PRODUCTS, statementAccessiblePath, statementCorrectionNotice } from '../../lib/statementProducts';
 import StatementExportPanel from './StatementExportPanel';
+import StatementReport from '../../components/statements/StatementReport';
+import CorrectionDiff from '../../components/statements/CorrectionDiff';
 import './StatementArchivePage.css';
 
 // Complete five-locale catalogs are authoritative; English defaults provide
@@ -97,7 +99,7 @@ export const ARCHIVE_STRINGS = Object.freeze({
   previous: 'Previous',
   next: 'Next',
   scopeNote: 'Each product, account and currency has its own statements. These are credit-account records, not bank deposit statements.',
-  correctionsUnavailable: 'Online accounting corrections are not available for Helper earnings or Business statements yet. For a review, contact Support and include the account and statement period.',
+  correctionsUnavailable: 'Corrections to Helper earnings and Business statements are issued by OxSteed as amendment versions of the statement. To request a correction, contact Support and include the account and statement period.',
   contactSupport: 'Contact Support',
 });
 
@@ -161,6 +163,11 @@ export default function StatementArchivePage({ product: productProp = 'oxsteed' 
   };
 
   const [accounts, setAccounts] = useState([]);
+  // Inconsistency #3: an account-list failure must surface as an error, never
+  // as a reassuring empty account list. accountsLoaded tracks whether the
+  // list finished loading so the "no accounts" note only shows on success.
+  const [accountsError, setAccountsError] = useState(false);
+  const [accountsLoaded, setAccountsLoaded] = useState(false);
   const [archive, setArchive] = useState({ status: 'loading', items: [], page: 1, totalPages: 1, total: 0 });
   const [refreshTick, setRefreshTick] = useState(0);
   const [expanded, setExpanded] = useState({});
@@ -216,17 +223,26 @@ export default function StatementArchivePage({ product: productProp = 'oxsteed' 
     setSearchParams(params);
   }
 
-  useEffect(() => {
+  const loadAccounts = useCallback(() => {
     let active = true;
+    setAccountsError(false);
+    setAccountsLoaded(false);
     setAccounts([]);
     const list = settlement ? () => listStatementScopes(product)
       : product === 'restaurant' ? listMyFoodRestaurantWallets : listOxsteedCreditAccounts;
     list().then(result => {
       if (!active) return;
       setAccounts(Array.isArray(result) ? result : []);
-    }).catch(() => { if (active) setAccounts([]); });
+      setAccountsLoaded(true);
+    }).catch(() => {
+      if (!active) return;
+      setAccountsError(true);
+      setAccountsLoaded(true);
+    });
     return () => { active = false; };
   }, [product, settlement]);
+
+  useEffect(() => loadAccounts(), [loadAccounts]);
 
   const loadArchive = useCallback(async () => {
     requestRef.current?.abort();
@@ -324,6 +340,27 @@ export default function StatementArchivePage({ product: productProp = 'oxsteed' 
   const dateTime = value => localizedDateTime(value, language, text('notAvailable'));
   const money = (amount, currency) => formatStatementMoney(amount, currency, language);
 
+  // Inconsistency #4: the archive totals envelope uses generic field names
+  // (openingMinor/creditsMinor/debitsMinor/closingMinor) for every product,
+  // so each slot is labeled with the product's own accounting vocabulary.
+  // The debit slot is a combined total for helper_earnings (settled payouts
+  // plus status removals) and business (collected-or-adjusted plus
+  // cancelled), so it gets one combined label rather than two invented rows.
+  function balanceRows(totals) {
+    const amounts = [totals.openingMinor, totals.creditsMinor, totals.debitsMinor, totals.closingMinor];
+    const labels = product === 'helper_earnings' ? [
+      t('archive.helperTotalsOpening'), t('archive.helperTotalsPosted'),
+      t('archive.helperTotalsOutgo'), t('archive.helperTotalsClosing'),
+    ] : product === 'business' ? [
+      t('archive.businessTotalsOpening'), t('archive.businessTotalsInvoiced'),
+      t('archive.businessTotalsOutgo'), t('archive.businessTotalsClosing'),
+    ] : product === 'restaurant_settlement' ? [
+      t('archive.settlementTotalsOpening'), t('archive.settlementTotalsCredits'),
+      t('archive.settlementTotalsDebits'), t('archive.settlementTotalsClosing'),
+    ] : [text('opening'), text('credits'), text('debits'), text('closing')];
+    return labels.map((label, index) => ({ key: `${product}-${index}`, label, amount: amounts[index] }));
+  }
+
   function statusBadge(item) {
     if (item.superseded) return <span className="sa-badge sa-badge-muted">{text('superseded')}</span>;
     if (item.corrected) return <span className="sa-badge sa-badge-warn">{text('corrected')}</span>;
@@ -388,9 +425,8 @@ export default function StatementArchivePage({ product: productProp = 'oxsteed' 
         <div><dt>{text('transactionsLabel')}</dt><dd>{document.totals?.transactionCount ?? text('notAvailable')}</dd></div>
       </dl>
       {(document.totals?.openingMinor != null) && <dl className="sa-balances">
-        {[['opening', document.totals.openingMinor], ['credits', document.totals.creditsMinor],
-          ['debits', document.totals.debitsMinor], ['closing', document.totals.closingMinor]]
-          .map(([key, amount]) => amount != null && <div key={key}><dt>{text(key)}</dt><dd><bdi>{money(amount, document.currency)}</bdi></dd></div>)}
+        {balanceRows(document.totals)
+          .map(({ key, label, amount }) => amount != null && <div key={key}><dt>{label}</dt><dd><bdi>{money(amount, document.currency)}</bdi></dd></div>)}
       </dl>}
       {document.contentHash && <details className="sa-hash"><summary>{text('contentHash')}</summary><code dir="ltr">{document.contentHash}</code></details>}
       {document.amendment?.reason && <p>{document.amendment.reason}</p>}
@@ -401,6 +437,10 @@ export default function StatementArchivePage({ product: productProp = 'oxsteed' 
           <tbody>{artifacts.map(artifact => renderArtifactRow(item, artifact))}</tbody></table>
       </div>}
       {document.kind !== 'amendment' && renderEntries(item)}
+      <StatementReport product={product} documentId={item.id} />
+      {document.kind === 'amendment' && document.amendment?.correctionId && (
+        <CorrectionDiff product={product} documentId={item.id} correctionId={document.amendment.correctionId} />
+      )}
     </div>;
   }
 
@@ -414,6 +454,11 @@ export default function StatementArchivePage({ product: productProp = 'oxsteed' 
       {statementCorrectionNotice(product) && <p className="sa-scope" role="note">{text(statementCorrectionNotice(product))} <Link to="/support/escalation">{text('contactSupport')}</Link></p>}
       <StatementExportPanel product={product} accounts={accounts} />
 
+      {accountsError && <div className="sa-state" role="alert">
+        <p>{t('archive.accountsLoadError')}</p>
+        <button type="button" onClick={loadAccounts}>{t('archive.retry')}</button>
+      </div>}
+
       <form className="sa-filters" onSubmit={event => event.preventDefault()}>
         <div className="sa-field"><label htmlFor="archive-account">{text('account')}</label>
           <select id="archive-account" value={filters.accountId || ''} onChange={event => updateFilters({ accountId: event.target.value || undefined })}>
@@ -421,7 +466,9 @@ export default function StatementArchivePage({ product: productProp = 'oxsteed' 
             {accounts.map(entry => entry.accountId && <option key={entry.accountId} value={entry.accountId}>
               {text('accountOption', { name: accountName(entry), currency: entry.currencyCode })}
             </option>)}
-          </select></div>
+          </select>
+          {accountsLoaded && !accountsError && accounts.length === 0
+            && <p className="sa-inline-muted" role="status">{t('archive.noAccounts')}</p>}</div>
         <div className="sa-field"><label htmlFor="archive-currency">{text('currency')}</label>
           <input id="archive-currency" list="archive-currencies" value={filters.currency || ''} maxLength={3}
             placeholder={text('allCurrencies')} onChange={event => updateFilters({ currency: event.target.value.toUpperCase() || undefined })} />

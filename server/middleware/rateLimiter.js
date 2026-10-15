@@ -535,6 +535,24 @@ const creditMutationLimiter = rateLimit({
   },
 });
 
+// Dispute follow-up messages: a tight per-user bucket (~10/minute) so a
+// compromised session cannot spam a dispute thread or use the idempotency
+// endpoint as a write oracle. Keyed by user id when authenticated (never
+// skipped for missing auth: unauthenticated requests fall back to req.ip,
+// fail-closed per P3-13-F22).
+const disputeMessageLimiter = rateLimit({
+  ...createStoreOption('rl:dispute_message:'),
+  windowMs: 60 * 1000,
+  max: 10,
+  keyGenerator: (req) => req.user?.id ? `user:${req.user.id}` : req.ip,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    error: 'Too many dispute messages. Please wait before trying again.',
+    retryAfter: '1 minute',
+  },
+});
+
 // Job edits: per-user bucket so edit spam (bumping, bait-and-switch probing)
 // cannot run unbounded. Material edits with bids are further capped per job
 // per day in services/jobEditService.js.
@@ -741,6 +759,7 @@ module.exports = {
   paymentsLimiter,
   connectAccountLimiter,
   creditMutationLimiter,
+  disputeMessageLimiter,
   jobEditLimiter,
   restaurantCreditMutationLimiter,
   restaurantTopupIntentLimiter,

@@ -10,6 +10,7 @@ import { formatStatementMoney } from '../../lib/creditStatementFormat';
 import { formatCreditDateTime } from '../../lib/creditDateTime';
 import { localizeCreditTransactionType } from '../../lib/creditStatus';
 import { supportsStatementCase } from '../../lib/statementProducts';
+import EntryNotes from '../../components/statements/EntryNotes';
 import './StatementTransactionView.css';
 
 // Complete five-locale catalogs are authoritative; English defaults provide
@@ -285,6 +286,8 @@ export default function StatementTransactionView() {
               </dl>
               <p className="stv-note">{data.live?.note || text('liveStatusNote')}</p>
             </section>
+
+            <EntryNotes product={data.product} documentId={documentId} entryId={entryId} />
 
             <section className="stv-card" aria-label={text('related')}>
               <h2>{text('related')}</h2>
