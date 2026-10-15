@@ -1020,9 +1020,9 @@
       }
     },
     "protection": {
-      "3": "최고 보호",
+      "1": "OxSteed의 보호 대상이 아님",
       "2": "OxSteed Credit으로 보호됨",
-      "1": "OxSteed의 보호 대상이 아님"
+      "3": "최고 보호"
     },
     "chargedNowHeld": "작업이 5일 이상 남았으므로 카드로 지금 결제되며 작업 완료까지 OxSteed가 금액을 예치합니다.",
     "localMethods": "사용 가능: {{methods}}",
@@ -1656,7 +1656,8 @@
           "label": "화물 보기",
           "noteClear": "현재 표시된 화물 예외 없음",
           "noteRisk": "{{count}}건 예외 후속 조치 필요"
-        }
+        },
+        "unavailableNote": "지표를 현재 사용할 수 없습니다."
       },
       "requests": {
         "empty": "아직 소싱 요청이 없습니다.",
@@ -1868,7 +1869,8 @@
         "warehousedOrders": {
           "label": "입고된 주문",
           "note": "이미 보관 중이며 할당 준비가 된 업스트림 재고."
-        }
+        },
+        "unavailableNote": "지표를 현재 사용할 수 없습니다."
       },
       "posture": {
         "releaseFirst": {
@@ -2107,7 +2109,8 @@
         "shipments": {
           "label": "추적 중인 화물",
           "note": "이제 주최자 업데이트와 인계에 영향을 주는 이동."
-        }
+        },
+        "unavailableNote": "지표를 현재 사용할 수 없습니다."
       },
       "pressure": {
         "commitments": {
@@ -2434,7 +2437,8 @@
     },
     "tables": {
       "actions": "작업",
-      "view": "보기"
+      "view": "보기",
+      "preview": "미리보기"
     },
     "warehousing": {
       "activeReceipts": "활성 입고 {{count}}건",
@@ -2511,7 +2515,8 @@
         "payWithCardInstead": "카드로 결제하기",
         "stripe": "Stripe 카드 결제",
         "stripeDesc": "직불카드 또는 신용카드로 결제합니다. 매번 카드 정보를 입력하며, 저장되거나 자동 청구되지 않습니다.",
-        "stripeUnavailable": "현재 카드 결제를 사용할 수 없습니다. 나중에 다시 시도하거나 OxSteed 크레딧을 사용하세요."
+        "stripeUnavailable": "현재 카드 결제를 사용할 수 없습니다. 나중에 다시 시도하거나 OxSteed 크레딧을 사용하세요.",
+        "creditBalanceUnknown": "결제를 확정할 때 크레딧 잔액을 확인합니다."
       },
       "missingSubject": "결제할 주문이나 캠페인이 선택되지 않았습니다.",
       "payments": {
@@ -2603,7 +2608,12 @@
         "supplier": "공급업체"
       },
       "title": "안전 결제",
-      "usdOnly": "모든 금액은 USD입니다."
+      "usdOnly": "모든 금액은 USD입니다.",
+      "creditUnavailableFallback": "OxSteed Credit는 물류 결제에서 사용할 수 없습니다",
+      "noQuote": {
+        "body": "운영팀이 이 주문에 대한 결제 가능한 견적을 아직 게시하지 않았습니다. 준비되면 알려드리겠습니다. 현재 납부할 금액이 없습니다.",
+        "title": "아직 준비된 견적이 없습니다"
+      }
     },
     "quotes": {
       "accept": {
@@ -2629,7 +2639,17 @@
       },
       "increase": "증가",
       "superseded": "대체됨",
-      "version": "버전 {{version}}"
+      "version": "버전 {{version}}",
+      "notif": {
+        "accepted": {
+          "body": "구매자가 물류 견적을 수락했습니다. 이제 할부금을 수금할 수 있습니다.",
+          "title": "구매자가 물류 견적을 수락했습니다"
+        },
+        "published": {
+          "body": "물류 견적의 새 버전이 준비되었습니다. 결제 전에 검토하고 수락해 주세요.",
+          "title": "새 견적이 수락 대기 중"
+        }
+      }
     },
     "refunds": {
       "title": "물류 환불",
@@ -2713,6 +2733,40 @@
       "links": {
         "refunds": "환불"
       }
+    },
+    "complianceWorkspace": {
+      "metrics": {
+        "unavailableNote": "지표를 현재 사용할 수 없습니다."
+      }
+    },
+    "forms": {
+      "unsavedChanges": {
+        "body": "저장되지 않은 변경 사항이 있습니다. 지금 나가면 입력한 내용이 삭제됩니다.",
+        "discard": "변경 사항 버리기",
+        "stay": "계속 편집",
+        "title": "저장되지 않은 변경 사항을 버리시겠습니까?"
+      }
+    },
+    "refund_pending": {
+      "body": "물류 환불이 진행 중입니다. 결제 사업자가 아직 처리 중이며, 원래 결제 수단에 도착하면 확인해 드리겠습니다.",
+      "title": "환불 대기 중"
+    },
+    "blockers": {
+      "allocation_not_found": "재고 할당을 찾을 수 없습니다.",
+      "campaign_not_found": "캠페인을 찾을 수 없습니다.",
+      "deposit_deadline_missing": "입금 창구를 열기 전에 명시적인 입금 마감일을 설정하세요.",
+      "deposit_funding_shortfall": "입금으로 조달된 수량이 캠페인 최소 수량에 미달합니다. 공급업체 주문을 할 수 없습니다.",
+      "final_balance_not_collected": "구매자의 최종 잔액이 아직 수금되지 않았습니다. 상품을 출고할 수 없습니다.",
+      "guard_check_failed": "이 작업에 필요한 조건을 확인할 수 없습니다.",
+      "min_demand_not_met": "최소 수요에 아직 도달하지 못했습니다. 입금 창구를 열 수 없습니다.",
+      "no_approved_quote": "입금 창구를 열기 전에 승인된(수락된) 공급업체 견적이 필요합니다.",
+      "no_payment_subject_linked": "이 할당은 결제 가능한 주문이나 참여와 연결되어 있지 않아 결제를 확인할 수 없습니다.",
+      "placement_approval_missing": "공급업체 발주에는 운영팀이 기록한 발주 승인이 필요합니다."
+    },
+    "review_exceptions": {
+      "funding_shortfall": "입금 마감 시 자금 부족",
+      "min_demand_unmet": "확약 마감 시 최소 수요 미달",
+      "raised_note": "자금 마감일을 놓쳐 담당자 처리에 회부했습니다. 캠페인은 진행되지 않았습니다."
     }
   }
 }

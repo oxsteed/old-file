@@ -1020,9 +1020,9 @@
       }
     },
     "protection": {
-      "3": "Perlindungan tertinggi",
+      "1": "Tidak dilindungi oleh OxSteed",
       "2": "Dilindungi oleh OxSteed Credit",
-      "1": "Tidak dilindungi oleh OxSteed"
+      "3": "Perlindungan tertinggi"
     },
     "chargedNowHeld": "Karena pekerjaan lebih dari 5 hari lagi, kartu Anda ditagih sekarang dan OxSteed menahan uang hingga pekerjaan selesai.",
     "localMethods": "Juga tersedia: {{methods}}",
@@ -1656,7 +1656,8 @@
           "label": "Pantau pengiriman",
           "noteClear": "Tidak ada pengecualian pengiriman yang ditandai saat ini",
           "noteRisk": "{{count}} perlu tindak lanjut pengecualian"
-        }
+        },
+        "unavailableNote": "Metrik tidak tersedia saat ini."
       },
       "requests": {
         "empty": "Belum ada permintaan sourcing.",
@@ -1868,7 +1869,8 @@
         "warehousedOrders": {
           "label": "Pesanan di gudang",
           "note": "Inventaris hulu sudah tersimpan dan siap dialokasikan."
-        }
+        },
+        "unavailableNote": "Metrik tidak tersedia saat ini."
       },
       "posture": {
         "releaseFirst": {
@@ -2107,7 +2109,8 @@
         "shipments": {
           "label": "Pengiriman terlacak",
           "note": "Pergerakan yang kini memengaruhi pembaruan dan serah terima penyelenggara."
-        }
+        },
+        "unavailableNote": "Metrik tidak tersedia saat ini."
       },
       "pressure": {
         "commitments": {
@@ -2434,7 +2437,8 @@
     },
     "tables": {
       "actions": "Tindakan",
-      "view": "Lihat"
+      "view": "Lihat",
+      "preview": "Pratinjau"
     },
     "warehousing": {
       "activeReceipts": "{{count}} penerimaan aktif",
@@ -2511,7 +2515,8 @@
         "payWithCardInstead": "Bayar dengan kartu saja",
         "stripe": "Kartu via Stripe",
         "stripeDesc": "Bayar dengan kartu debit atau kredit. Anda memasukkan detail kartu setiap kali; tidak ada yang disimpan atau ditagih otomatis.",
-        "stripeUnavailable": "Pembayaran kartu tidak tersedia saat ini. Silakan coba lagi nanti atau gunakan Kredit OxSteed."
+        "stripeUnavailable": "Pembayaran kartu tidak tersedia saat ini. Silakan coba lagi nanti atau gunakan Kredit OxSteed.",
+        "creditBalanceUnknown": "Saldo kredit Anda akan diperiksa saat Anda mengonfirmasi pembayaran."
       },
       "missingSubject": "Tidak ada pesanan atau kampanye yang dipilih untuk checkout.",
       "payments": {
@@ -2603,7 +2608,12 @@
         "supplier": "Pemasok"
       },
       "title": "Checkout aman",
-      "usdOnly": "Semua jumlah dalam USD."
+      "usdOnly": "Semua jumlah dalam USD.",
+      "creditUnavailableFallback": "OxSteed Credit tidak tersedia untuk checkout Logistik",
+      "noQuote": {
+        "body": "Operasi belum menerbitkan penawaran yang dapat dibayar untuk pesanan ini. Kami akan memberi tahu saat sudah siap. Tidak ada pembayaran yang jatuh tempo saat ini.",
+        "title": "Belum ada penawaran yang siap"
+      }
     },
     "quotes": {
       "accept": {
@@ -2629,7 +2639,17 @@
       },
       "increase": "kenaikan",
       "superseded": "Digantikan",
-      "version": "Versi {{version}}"
+      "version": "Versi {{version}}",
+      "notif": {
+        "accepted": {
+          "body": "Pembeli telah menerima penawaran logistik. Cicilan kini dapat ditagih.",
+          "title": "Pembeli menerima penawaran logistik"
+        },
+        "published": {
+          "body": "Versi baru penawaran logistik Anda sudah siap. Tinjau dan terima sebelum membayar.",
+          "title": "Penawaran baru menunggu penerimaan"
+        }
+      }
     },
     "refunds": {
       "title": "Pengembalian dana logistik",
@@ -2713,6 +2733,40 @@
       "links": {
         "refunds": "Pengembalian dana"
       }
+    },
+    "complianceWorkspace": {
+      "metrics": {
+        "unavailableNote": "Metrik tidak tersedia saat ini."
+      }
+    },
+    "forms": {
+      "unsavedChanges": {
+        "body": "Anda memiliki perubahan yang belum disimpan. Keluar sekarang akan membuang yang Anda masukkan.",
+        "discard": "Buang perubahan",
+        "stay": "Lanjut mengedit",
+        "title": "Buang perubahan yang belum disimpan?"
+      }
+    },
+    "refund_pending": {
+      "body": "Pengembalian dana logistik Anda sedang dalam perjalanan. Penyedia pembayaran Anda masih memprosesnya; kami akan mengonfirmasi setelah sampai ke metode pembayaran awal Anda.",
+      "title": "Pengembalian dana tertunda"
+    },
+    "blockers": {
+      "allocation_not_found": "Alokasi inventaris tidak ditemukan.",
+      "campaign_not_found": "Kampanye tidak ditemukan.",
+      "deposit_deadline_missing": "Tetapkan tenggat deposit yang jelas sebelum membuka jendela deposit.",
+      "deposit_funding_shortfall": "Kuantitas yang didanai deposit di bawah minimum kampanye. Pesanan pemasok tidak dapat dibuat.",
+      "final_balance_not_collected": "Saldo akhir pembeli belum ditagih. Barang tidak dapat dirilis.",
+      "guard_check_failed": "Tidak dapat memverifikasi persyaratan untuk tindakan ini.",
+      "min_demand_not_met": "Permintaan minimum belum terpenuhi. Jendela deposit tidak dapat dibuka.",
+      "no_approved_quote": "Penawaran pemasok yang disetujui (diterima) diperlukan sebelum membuka jendela deposit.",
+      "no_payment_subject_linked": "Alokasi ini tidak terhubung ke pesanan atau partisipasi yang dapat dibayar, sehingga pembayaran tidak dapat diverifikasi.",
+      "placement_approval_missing": "Penempatan pemasok memerlukan persetujuan penempatan yang dicatat oleh Operasi."
+    },
+    "review_exceptions": {
+      "funding_shortfall": "Kekurangan dana pada tenggat deposit",
+      "min_demand_unmet": "Permintaan minimum tidak terpenuhi saat penutupan komitmen",
+      "raised_note": "Tenggat pendanaan terlewat; diteruskan ke staf untuk penyelesaian. Kampanye tidak dilanjutkan."
     }
   }
 }

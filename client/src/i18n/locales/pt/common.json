@@ -1020,9 +1020,9 @@
       }
     },
     "protection": {
-      "3": "Proteção máxima",
+      "1": "Não coberto pela OxSteed",
       "2": "Protegido pelo OxSteed Credit",
-      "1": "Não coberto pela OxSteed"
+      "3": "Proteção máxima"
     },
     "chargedNowHeld": "Como o trabalho é daqui a mais de 5 dias, seu cartão é cobrado agora e a OxSteed retém o valor até a conclusão do trabalho.",
     "localMethods": "Também disponível: {{methods}}",
@@ -1656,7 +1656,8 @@
           "label": "Acompanhar remessas",
           "noteClear": "Nenhuma exceção de remessa sinalizada agora",
           "noteRisk": "{{count}} precisam de acompanhamento de exceção"
-        }
+        },
+        "unavailableNote": "Métrica indisponível no momento."
       },
       "requests": {
         "empty": "Ainda sem solicitações de sourcing.",
@@ -1868,7 +1869,8 @@
         "warehousedOrders": {
           "label": "Pedidos armazenados",
           "note": "Estoque de origem já armazenado e pronto para alocar."
-        }
+        },
+        "unavailableNote": "Métrica indisponível no momento."
       },
       "posture": {
         "releaseFirst": {
@@ -2107,7 +2109,8 @@
         "shipments": {
           "label": "Remessas rastreadas",
           "note": "Movimentação que agora afeta atualizações e transferências do organizador."
-        }
+        },
+        "unavailableNote": "Métrica indisponível no momento."
       },
       "pressure": {
         "commitments": {
@@ -2434,7 +2437,8 @@
     },
     "tables": {
       "actions": "Ações",
-      "view": "Ver"
+      "view": "Ver",
+      "preview": "Prévia"
     },
     "warehousing": {
       "activeReceipts": "{{count}} recebimentos ativos",
@@ -2511,7 +2515,8 @@
         "payWithCardInstead": "Pagar com cartão",
         "stripe": "Cartão via Stripe",
         "stripeDesc": "Pague com cartão de débito ou crédito. Você informa os dados do cartão a cada vez; nada é salvo nem cobrado automaticamente.",
-        "stripeUnavailable": "Pagamentos com cartão não estão disponíveis no momento. Tente novamente mais tarde ou use o Crédito OxSteed."
+        "stripeUnavailable": "Pagamentos com cartão não estão disponíveis no momento. Tente novamente mais tarde ou use o Crédito OxSteed.",
+        "creditBalanceUnknown": "Seu saldo de crédito será verificado quando você confirmar o pagamento."
       },
       "missingSubject": "Nenhum pedido ou campanha foi selecionado para pagamento.",
       "payments": {
@@ -2603,7 +2608,12 @@
         "supplier": "Fornecedor"
       },
       "title": "Pagamento seguro",
-      "usdOnly": "Todos os valores estão em USD."
+      "usdOnly": "Todos os valores estão em USD.",
+      "creditUnavailableFallback": "OxSteed Credit não está disponível para o checkout de Logística",
+      "noQuote": {
+        "body": "A Operações ainda não publicou uma cotação pagável para este pedido. Avisaremos quando estiver pronta. Nenhum pagamento é devido agora.",
+        "title": "Nenhuma cotação pronta ainda"
+      }
     },
     "quotes": {
       "accept": {
@@ -2629,7 +2639,17 @@
       },
       "increase": "aumento",
       "superseded": "Substituído",
-      "version": "Versão {{version}}"
+      "version": "Versão {{version}}",
+      "notif": {
+        "accepted": {
+          "body": "O comprador aceitou uma cotação de logística. As parcelas já podem ser cobradas.",
+          "title": "Comprador aceitou uma cotação de logística"
+        },
+        "published": {
+          "body": "Uma nova versão da sua cotação de logística está pronta. Revise e aceite antes de pagar.",
+          "title": "Nova cotação aguardando aceitação"
+        }
+      }
     },
     "refunds": {
       "title": "Reembolsos de logística",
@@ -2713,6 +2733,40 @@
       "links": {
         "refunds": "Reembolsos"
       }
+    },
+    "complianceWorkspace": {
+      "metrics": {
+        "unavailableNote": "Métrica indisponível no momento."
+      }
+    },
+    "forms": {
+      "unsavedChanges": {
+        "body": "Você tem alterações não salvas. Sair agora descartará o que você digitou.",
+        "discard": "Descartar alterações",
+        "stay": "Continuar editando",
+        "title": "Descartar alterações não salvas?"
+      }
+    },
+    "refund_pending": {
+      "body": "Seu reembolso de logística está a caminho. Seu provedor de pagamento ainda está processando; confirmaremos quando chegar ao seu método de pagamento original.",
+      "title": "Reembolso pendente"
+    },
+    "blockers": {
+      "allocation_not_found": "A alocação de inventário não foi encontrada.",
+      "campaign_not_found": "A campanha não foi encontrada.",
+      "deposit_deadline_missing": "Defina um prazo de depósito explícito antes de abrir a janela de depósito.",
+      "deposit_funding_shortfall": "A quantidade financiada por depósito está abaixo do mínimo da campanha. O pedido ao fornecedor não pode ser feito.",
+      "final_balance_not_collected": "O saldo final do comprador ainda não foi cobrado. As mercadorias não podem ser liberadas.",
+      "guard_check_failed": "Não foi possível verificar os requisitos para esta ação.",
+      "min_demand_not_met": "A demanda mínima ainda não foi atingida. A janela de depósito não pode ser aberta.",
+      "no_approved_quote": "É necessária uma cotação de fornecedor aprovada (aceita) antes de abrir a janela de depósito.",
+      "no_payment_subject_linked": "Esta alocação não está vinculada a um pedido ou participação pagável, portanto o pagamento não pode ser verificado.",
+      "placement_approval_missing": "A colocação no fornecedor requer uma aprovação de colocação registrada pela Operações."
+    },
+    "review_exceptions": {
+      "funding_shortfall": "Financiamento insuficiente no vencimento do depósito",
+      "min_demand_unmet": "Demanda mínima não atingida no fechamento dos compromissos",
+      "raised_note": "Prazo de financiamento perdido; encaminhado à equipe para resolução. A campanha não avançou."
     }
   }
 }

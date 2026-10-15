@@ -1020,9 +1020,9 @@
       }
     },
     "protection": {
-      "3": "Mức bảo vệ cao nhất",
+      "1": "Không được OxSteed bảo vệ",
       "2": "Được bảo vệ bởi OxSteed Credit",
-      "1": "Không được OxSteed bảo vệ"
+      "3": "Mức bảo vệ cao nhất"
     },
     "chargedNowHeld": "Vì công việc còn hơn 5 ngày nữa mới diễn ra, thẻ của bạn sẽ bị tính phí ngay và OxSteed sẽ giữ số tiền này cho đến khi công việc hoàn thành.",
     "localMethods": "Cũng khả dụng: {{methods}}",
@@ -1656,7 +1656,8 @@
           "label": "Xem lô hàng",
           "noteClear": "Hiện không có ngoại lệ lô hàng nào được gắn cờ",
           "noteRisk": "{{count}} cần theo dõi ngoại lệ"
-        }
+        },
+        "unavailableNote": "Chỉ số hiện không khả dụng."
       },
       "requests": {
         "empty": "Chưa có yêu cầu sourcing.",
@@ -1943,7 +1944,8 @@
         "warehousedOrders": {
           "label": "Đơn hàng trong kho",
           "note": "Tồn kho thượng nguồn đã lưu kho và sẵn sàng phân bổ."
-        }
+        },
+        "unavailableNote": "Chỉ số hiện không khả dụng."
       },
       "queue": {
         "title": "Hàng đợi bàn giao phân bổ",
@@ -2133,7 +2135,8 @@
         "deliveries": {
           "label": "Bàn giao giao hàng",
           "note": "Điều phối chặng cuối bạn có thể cần nhắn tin xung quanh."
-        }
+        },
+        "unavailableNote": "Chỉ số hiện không khả dụng."
       },
       "campaigns": {
         "title": "Chiến dịch tổ chức",
@@ -2310,7 +2313,8 @@
     },
     "tables": {
       "actions": "Hành động",
-      "view": "Xem"
+      "view": "Xem",
+      "preview": "Xem trước"
     },
     "requestDetail": {
       "loading": "Đang tải…",
@@ -2511,7 +2515,8 @@
         "payWithCardInstead": "Thanh toán bằng thẻ",
         "stripe": "Thẻ qua Stripe",
         "stripeDesc": "Thanh toán bằng thẻ ghi nợ hoặc thẻ tín dụng. Bạn nhập thông tin thẻ mỗi lần; không lưu trữ hay tự động tính phí.",
-        "stripeUnavailable": "Thanh toán bằng thẻ hiện không khả dụng. Vui lòng thử lại sau hoặc dùng Tín dụng OxSteed."
+        "stripeUnavailable": "Thanh toán bằng thẻ hiện không khả dụng. Vui lòng thử lại sau hoặc dùng Tín dụng OxSteed.",
+        "creditBalanceUnknown": "Số dư tín dụng của bạn sẽ được kiểm tra khi bạn xác nhận thanh toán."
       },
       "missingSubject": "Chưa chọn đơn hàng hoặc chiến dịch để thanh toán.",
       "payments": {
@@ -2603,7 +2608,12 @@
         "supplier": "Nhà cung cấp"
       },
       "title": "Thanh toán an toàn",
-      "usdOnly": "Mọi số tiền đều tính bằng USD."
+      "usdOnly": "Mọi số tiền đều tính bằng USD.",
+      "creditUnavailableFallback": "OxSteed Credit không khả dụng cho thanh toán Logistics",
+      "noQuote": {
+        "body": "Bộ phận vận hành chưa phát hành báo giá có thể thanh toán cho đơn hàng này. Chúng tôi sẽ thông báo khi sẵn sàng. Hiện không có khoản thanh toán nào đến hạn.",
+        "title": "Chưa có báo giá sẵn sàng"
+      }
     },
     "quotes": {
       "accept": {
@@ -2629,7 +2639,17 @@
       },
       "increase": "tăng",
       "superseded": "Đã thay thế",
-      "version": "Phiên bản {{version}}"
+      "version": "Phiên bản {{version}}",
+      "notif": {
+        "accepted": {
+          "body": "Người mua đã chấp nhận báo giá logistics. Giờ có thể thu các kỳ thanh toán.",
+          "title": "Người mua đã chấp nhận báo giá logistics"
+        },
+        "published": {
+          "body": "Phiên bản mới của báo giá logistics đã sẵn sàng. Vui lòng xem lại và chấp nhận trước khi thanh toán.",
+          "title": "Báo giá mới đang chờ chấp nhận"
+        }
+      }
     },
     "refunds": {
       "title": "Hoàn tiền logistics",
@@ -2713,6 +2733,40 @@
       "links": {
         "refunds": "Hoàn tiền"
       }
+    },
+    "complianceWorkspace": {
+      "metrics": {
+        "unavailableNote": "Chỉ số hiện không khả dụng."
+      }
+    },
+    "forms": {
+      "unsavedChanges": {
+        "body": "Bạn có thay đổi chưa lưu. Rời đi bây giờ sẽ mất những gì bạn đã nhập.",
+        "discard": "Bỏ thay đổi",
+        "stay": "Tiếp tục chỉnh sửa",
+        "title": "Bỏ các thay đổi chưa lưu?"
+      }
+    },
+    "refund_pending": {
+      "body": "Khoản hoàn tiền logistics của bạn đang được xử lý. Nhà cung cấp thanh toán vẫn đang xử lý; chúng tôi sẽ xác nhận khi tiền đến phương thức thanh toán gốc của bạn.",
+      "title": "Hoàn tiền đang chờ"
+    },
+    "blockers": {
+      "allocation_not_found": "Không tìm thấy phân bổ tồn kho.",
+      "campaign_not_found": "Không tìm thấy chiến dịch.",
+      "deposit_deadline_missing": "Đặt thời hạn đặt cọc rõ ràng trước khi mở đợt đặt cọc.",
+      "deposit_funding_shortfall": "Số lượng được tài trợ bằng đặt cọc thấp hơn mức tối thiểu của chiến dịch. Không thể đặt hàng nhà cung cấp.",
+      "final_balance_not_collected": "Số dư cuối cùng của người mua chưa được thu. Không thể xuất hàng.",
+      "guard_check_failed": "Không thể xác minh các yêu cầu cho hành động này.",
+      "min_demand_not_met": "Chưa đạt nhu cầu tối thiểu. Không thể mở đợt đặt cọc.",
+      "no_approved_quote": "Cần có báo giá nhà cung cấp đã được phê duyệt (chấp nhận) trước khi mở đợt đặt cọc.",
+      "no_payment_subject_linked": "Phân bổ này không liên kết với đơn hàng hoặc lượt tham gia có thể thanh toán nên không thể xác minh thanh toán.",
+      "placement_approval_missing": "Đặt hàng nhà cung cấp cần có phê duyệt đặt hàng đã được bộ phận Vận hành ghi nhận."
+    },
+    "review_exceptions": {
+      "funding_shortfall": "Thiếu hụt vốn tại thời hạn đặt cọc",
+      "min_demand_unmet": "Chưa đạt nhu cầu tối thiểu khi chốt cam kết",
+      "raised_note": "Đã lỡ thời hạn huy động vốn; chuyển cho nhân viên xử lý. Chiến dịch không được tiếp tục."
     }
   }
 }

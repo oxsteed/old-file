@@ -1020,9 +1020,9 @@
       }
     },
     "protection": {
-      "3": "Massima protezione",
+      "1": "Non coperto da OxSteed",
       "2": "Protetto dal Credito OxSteed",
-      "1": "Non coperto da OxSteed"
+      "3": "Massima protezione"
     },
     "chargedNowHeld": "Poiché il lavoro è a più di 5 giorni di distanza, la tua carta viene addebitata ora e OxSteed trattiene il denaro finché il lavoro non è completato.",
     "localMethods": "Disponibili anche: {{methods}}",
@@ -1656,7 +1656,8 @@
           "label": "Monitora spedizioni",
           "noteClear": "Nessuna eccezione spedizione segnalata al momento",
           "noteRisk": "{{count}} necessitano follow-up eccezioni"
-        }
+        },
+        "unavailableNote": "Metrica non disponibile al momento."
       },
       "requests": {
         "empty": "Ancora nessuna richiesta di sourcing.",
@@ -1868,7 +1869,8 @@
         "warehousedOrders": {
           "label": "Ordini in magazzino",
           "note": "Inventario upstream già stoccato e pronto da allocare."
-        }
+        },
+        "unavailableNote": "Metrica non disponibile al momento."
       },
       "posture": {
         "releaseFirst": {
@@ -2107,7 +2109,8 @@
         "shipments": {
           "label": "Spedizioni tracciate",
           "note": "Movimento che ora influisce su aggiornamenti e passaggi dell'organizzatore."
-        }
+        },
+        "unavailableNote": "Metrica non disponibile al momento."
       },
       "pressure": {
         "commitments": {
@@ -2434,7 +2437,8 @@
     },
     "tables": {
       "actions": "Azioni",
-      "view": "Vedi"
+      "view": "Vedi",
+      "preview": "Anteprima"
     },
     "warehousing": {
       "activeReceipts": "{{count}} ricezioni attive",
@@ -2511,7 +2515,8 @@
         "payWithCardInstead": "Paga invece con carta",
         "stripe": "Carta via Stripe",
         "stripeDesc": "Paga con carta di debito o di credito. Inserisci i dati della carta ogni volta; nulla viene salvato o addebitato automaticamente.",
-        "stripeUnavailable": "I pagamenti con carta non sono al momento disponibili. Riprova più tardi oppure usa il Credito OxSteed."
+        "stripeUnavailable": "I pagamenti con carta non sono al momento disponibili. Riprova più tardi oppure usa il Credito OxSteed.",
+        "creditBalanceUnknown": "Il tuo saldo credito sarà verificato quando confermerai il pagamento."
       },
       "missingSubject": "Nessun ordine o campagna selezionato per il checkout.",
       "payments": {
@@ -2603,7 +2608,12 @@
         "supplier": "Fornitore"
       },
       "title": "Checkout sicuro",
-      "usdOnly": "Tutti gli importi sono in USD."
+      "usdOnly": "Tutti gli importi sono in USD.",
+      "creditUnavailableFallback": "OxSteed Credit non è disponibile per il checkout Logistica",
+      "noQuote": {
+        "body": "Operations non ha ancora pubblicato un preventivo pagabile per questo ordine. Ti avviseremo quando sarà pronto. Nessun pagamento dovuto al momento.",
+        "title": "Nessun preventivo ancora pronto"
+      }
     },
     "quotes": {
       "accept": {
@@ -2629,7 +2639,17 @@
       },
       "increase": "aumento",
       "superseded": "Sostituito",
-      "version": "Versione {{version}}"
+      "version": "Versione {{version}}",
+      "notif": {
+        "accepted": {
+          "body": "L'acquirente ha accettato un preventivo logistico. Ora è possibile riscuotere le rate.",
+          "title": "L'acquirente ha accettato un preventivo logistico"
+        },
+        "published": {
+          "body": "Una nuova versione del tuo preventivo logistico è pronta. Esaminala e accettala prima di pagare.",
+          "title": "Nuovo preventivo in attesa di accettazione"
+        }
+      }
     },
     "refunds": {
       "title": "Rimborsi logistici",
@@ -2713,6 +2733,40 @@
       "links": {
         "refunds": "Rimborsi"
       }
+    },
+    "complianceWorkspace": {
+      "metrics": {
+        "unavailableNote": "Metrica non disponibile al momento."
+      }
+    },
+    "forms": {
+      "unsavedChanges": {
+        "body": "Hai modifiche non salvate. Uscendo ora perderai quanto inserito.",
+        "discard": "Ignora modifiche",
+        "stay": "Continua a modificare",
+        "title": "Ignorare le modifiche non salvate?"
+      }
+    },
+    "refund_pending": {
+      "body": "Il tuo rimborso logistico è in arrivo. Il tuo fornitore di pagamento lo sta ancora elaborando; ti confermeremo quando raggiungerà il tuo metodo di pagamento originale.",
+      "title": "Rimborso in sospeso"
+    },
+    "blockers": {
+      "allocation_not_found": "Impossibile trovare l'allocazione di inventario.",
+      "campaign_not_found": "Impossibile trovare la campagna.",
+      "deposit_deadline_missing": "Imposta una scadenza di deposito esplicita prima di aprire la finestra di deposito.",
+      "deposit_funding_shortfall": "La quantità finanziata dal deposito è inferiore al minimo della campagna. L'ordine al fornitore non può essere effettuato.",
+      "final_balance_not_collected": "Il saldo finale dell'acquirente non è ancora stato riscosso. Le merci non possono essere rilasciate.",
+      "guard_check_failed": "Impossibile verificare i requisiti per questa azione.",
+      "min_demand_not_met": "La domanda minima non è ancora raggiunta. La finestra di deposito non può aprirsi.",
+      "no_approved_quote": "È necessario un preventivo fornitore approvato (accettato) prima di aprire la finestra di deposito.",
+      "no_payment_subject_linked": "Questa allocazione non è collegata a un ordine o a una partecipazione pagabile, quindi il pagamento non può essere verificato.",
+      "placement_approval_missing": "Il collocamento presso il fornitore richiede un'approvazione di collocamento registrata da Operations."
+    },
+    "review_exceptions": {
+      "funding_shortfall": "Fondi insufficienti alla scadenza del deposito",
+      "min_demand_unmet": "Domanda minima non raggiunta alla chiusura degli impegni",
+      "raised_note": "Scadenza di finanziamento mancata; inoltrato allo staff per la risoluzione. La campagna non è avanzata."
     }
   }
 }

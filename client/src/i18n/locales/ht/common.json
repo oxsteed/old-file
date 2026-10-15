@@ -1020,9 +1020,9 @@
       }
     },
     "protection": {
-      "3": "Pi gwo pwoteksyon",
+      "1": "OxSteed pa kouvri l",
       "2": "Pwoteje pa Kredi OxSteed",
-      "1": "OxSteed pa kouvri l"
+      "3": "Pi gwo pwoteksyon"
     },
     "chargedNowHeld": "Paske travay la plis pase 5 jou devan, kat ou chaje kounye a epi OxSteed kenbe lajan an jiskaske travay la fini.",
     "localMethods": "Disponib tou: {{methods}}",
@@ -1656,7 +1656,8 @@
           "label": "Gade chajman",
           "noteClear": "Pa gen eksepsyon chajman siyalé kounye a",
           "noteRisk": "{{count}} bezwen swivi eksepsyon"
-        }
+        },
+        "unavailableNote": "Metrik la pa disponib pou kounye a."
       },
       "requests": {
         "empty": "Pa gen demann sourcing ankò.",
@@ -1868,7 +1869,8 @@
         "warehousedOrders": {
           "label": "Kòmand nan depo",
           "note": "Envantè an amont deja nan stokaj epi pare pou alwe."
-        }
+        },
+        "unavailableNote": "Metrik la pa disponib pou kounye a."
       },
       "posture": {
         "releaseFirst": {
@@ -2107,7 +2109,8 @@
         "shipments": {
           "label": "Chajman swivi",
           "note": "Mouvman ki kounye a afekte mizajou ak transfè òganizatè."
-        }
+        },
+        "unavailableNote": "Metrik la pa disponib pou kounye a."
       },
       "pressure": {
         "commitments": {
@@ -2310,7 +2313,8 @@
     },
     "tables": {
       "actions": "Aksyon",
-      "view": "Wè"
+      "view": "Wè",
+      "preview": "Aperçu"
     },
     "requests": {
       "stepsLabel": "Pwogrè demann",
@@ -2511,7 +2515,8 @@
         "payWithCardInstead": "Peye ak kat pito",
         "stripe": "Kat via Stripe",
         "stripeDesc": "Peye ak kat debi oswa kat kredi. Ou antre detay kat la chak fwa; anyen pa anrejistre ni chaje otomatikman.",
-        "stripeUnavailable": "Peman ak kat yo pa disponib pou kounye a. Tanpri eseye pita oswa itilize Kredi OxSteed."
+        "stripeUnavailable": "Peman ak kat yo pa disponib pou kounye a. Tanpri eseye pita oswa itilize Kredi OxSteed.",
+        "creditBalanceUnknown": "Y ap tcheke balans kredi ou lè ou konfime peman an."
       },
       "missingSubject": "Pa gen kòmand oswa kanpay ki chwazi pou peman an.",
       "payments": {
@@ -2603,7 +2608,12 @@
         "supplier": "Founisè"
       },
       "title": "Peman an sekirite",
-      "usdOnly": "Tout montan yo an USD."
+      "usdOnly": "Tout montan yo an USD.",
+      "creditUnavailableFallback": "OxSteed Credit pa disponib pou peman Lojistik",
+      "noQuote": {
+        "body": "Operasyon poko pibliye yon devis ou ka peye pou kòmand sa a. N ap fè ou konnen lè li pare. Ou pa dwe okenn peman pou kounye a.",
+        "title": "Poko gen devis ki pare"
+      }
     },
     "quotes": {
       "accept": {
@@ -2629,7 +2639,17 @@
       },
       "increase": "ogmantasyon",
       "superseded": "Ranplase",
-      "version": "Vèsyon {{version}}"
+      "version": "Vèsyon {{version}}",
+      "notif": {
+        "accepted": {
+          "body": "Achtè a aksepte yon devis lojistik. Kounye a nou ka kolekte vèsman yo.",
+          "title": "Achtè a aksepte yon devis lojistik"
+        },
+        "published": {
+          "body": "Yon nouvo vèsyon devis lojistik ou a pare. Revize li epi aksepte li anvan ou peye.",
+          "title": "Nouvo devis ap tann akseptasyon"
+        }
+      }
     },
     "refunds": {
       "title": "Ranbousman lojistik",
@@ -2713,6 +2733,40 @@
       "links": {
         "refunds": "Ranbousman"
       }
+    },
+    "complianceWorkspace": {
+      "metrics": {
+        "unavailableNote": "Metrik la pa disponib pou kounye a."
+      }
+    },
+    "forms": {
+      "unsavedChanges": {
+        "body": "Ou gen chanjman ou pa sove. Si ou kite kounye a, sa ou te ekri a ap pèdi.",
+        "discard": "Voye chanjman yo jete",
+        "stay": "Kontinye modifye",
+        "title": "Voye chanjman ou pa sove yo jete?"
+      }
+    },
+    "refund_pending": {
+      "body": "Ranbousman lojistik ou a ap vini. Founisè peman ou a ap trete li toujou; n ap konfime ou lè li rive sou mwayen peman orijinal ou a.",
+      "title": "Ranbousman ap tann"
+    },
+    "blockers": {
+      "allocation_not_found": "Nou pa t ka jwenn alokasyon envantè a.",
+      "campaign_not_found": "Nou pa t ka jwenn kanpay la.",
+      "deposit_deadline_missing": "Mete yon dat limit depo klè anvan ou louvri fenèt depo a.",
+      "deposit_funding_shortfall": "Kantite ki finanse ak depo a pi ba pase minimòm kanpay la. Nou pa ka pase kòmand founisè a.",
+      "final_balance_not_collected": "Yo poko kolekte balans final achtè a. Nou pa ka lage machandiz yo.",
+      "guard_check_failed": "Nou pa t ka verifye kondisyon yo mande pou aksyon sa a.",
+      "min_demand_not_met": "Demann minimòm nan poko atenn. Fenèt depo a pa ka louvri.",
+      "no_approved_quote": "Fòk gen yon devis founisè ki apwouve (aksepte) anvan ou louvri fenèt depo a.",
+      "no_payment_subject_linked": "Alokasyon sa a pa konekte ak okenn kòmand oswa patisipasyon ou ka peye, kidonk nou pa ka verifye peman an.",
+      "placement_approval_missing": "Plasman founisè mande yon apwobasyon plasman Operasyon anrejistre."
+    },
+    "review_exceptions": {
+      "funding_shortfall": "Fon ensifizan nan dat limit depo a",
+      "min_demand_unmet": "Demann minimòm pa atenn nan fèmen angajman yo",
+      "raised_note": "Dat limit finansman rate; voye bay estaf pou rezolisyon. Kanpay la pa avanse."
     }
   }
 }

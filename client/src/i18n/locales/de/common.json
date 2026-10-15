@@ -1020,9 +1020,9 @@
       }
     },
     "protection": {
-      "3": "Höchster Schutz",
+      "1": "Nicht durch OxSteed abgedeckt",
       "2": "Durch OxSteed Credit geschützt",
-      "1": "Nicht durch OxSteed abgedeckt"
+      "3": "Höchster Schutz"
     },
     "chargedNowHeld": "Da der Auftrag mehr als 5 Tage in der Zukunft liegt, wird Ihre Karte jetzt belastet und OxSteed hält das Geld ein, bis der Auftrag erledigt ist.",
     "localMethods": "Außerdem verfügbar: {{methods}}",
@@ -1656,7 +1656,8 @@
           "label": "Sendungen ansehen",
           "noteClear": "Derzeit keine Sendungsausnahmen gemeldet",
           "noteRisk": "{{count}} benötigen Ausnahme-Nachverfolgung"
-        }
+        },
+        "unavailableNote": "Kennzahl derzeit nicht verfügbar."
       },
       "requests": {
         "empty": "Noch keine Beschaffungsanfragen.",
@@ -1868,7 +1869,8 @@
         "warehousedOrders": {
           "label": "Eingelagerte Bestellungen",
           "note": "Vorgelagerter Bestand bereits eingelagert und zuweisungsbereit."
-        }
+        },
+        "unavailableNote": "Kennzahl derzeit nicht verfügbar."
       },
       "posture": {
         "releaseFirst": {
@@ -2107,7 +2109,8 @@
         "shipments": {
           "label": "Verfolgte Sendungen",
           "note": "Bewegung, die nun Organisator-Updates und Übergaben beeinflusst."
-        }
+        },
+        "unavailableNote": "Kennzahl derzeit nicht verfügbar."
       },
       "pressure": {
         "commitments": {
@@ -2434,7 +2437,8 @@
     },
     "tables": {
       "actions": "Aktionen",
-      "view": "Ansehen"
+      "view": "Ansehen",
+      "preview": "Vorschau"
     },
     "warehousing": {
       "activeReceipts": "{{count}} aktive Eingänge",
@@ -2511,7 +2515,8 @@
         "payWithCardInstead": "Stattdessen mit Karte zahlen",
         "stripe": "Karte via Stripe",
         "stripeDesc": "Zahlen Sie mit Debit- oder Kreditkarte. Sie geben die Kartendaten jedes Mal ein; nichts wird gespeichert oder automatisch abgebucht.",
-        "stripeUnavailable": "Kartenzahlungen sind derzeit nicht verfügbar. Bitte versuchen Sie es später erneut oder nutzen Sie das OxSteed-Guthaben."
+        "stripeUnavailable": "Kartenzahlungen sind derzeit nicht verfügbar. Bitte versuchen Sie es später erneut oder nutzen Sie das OxSteed-Guthaben.",
+        "creditBalanceUnknown": "Ihr Kreditguthaben wird geprüft, wenn Sie die Zahlung bestätigen."
       },
       "missingSubject": "Für den Checkout wurde keine Bestellung oder Kampagne ausgewählt.",
       "payments": {
@@ -2603,7 +2608,12 @@
         "supplier": "Lieferant"
       },
       "title": "Sicherer Checkout",
-      "usdOnly": "Alle Beträge in USD."
+      "usdOnly": "Alle Beträge in USD.",
+      "creditUnavailableFallback": "OxSteed Credit ist für den Logistik-Checkout nicht verfügbar",
+      "noQuote": {
+        "body": "Operations hat noch kein zahlbares Angebot für diese Bestellung veröffentlicht. Wir benachrichtigen Sie, sobald es bereit ist. Derzeit ist keine Zahlung fällig.",
+        "title": "Noch kein Angebot bereit"
+      }
     },
     "quotes": {
       "accept": {
@@ -2629,7 +2639,17 @@
       },
       "increase": "Erhöhung",
       "superseded": "Ersetzt",
-      "version": "Version {{version}}"
+      "version": "Version {{version}}",
+      "notif": {
+        "accepted": {
+          "body": "Der Käufer hat ein Logistikangebot angenommen. Die Raten können nun eingezogen werden.",
+          "title": "Käufer hat ein Logistikangebot angenommen"
+        },
+        "published": {
+          "body": "Eine neue Version Ihres Logistikangebots ist bereit. Prüfen und akzeptieren Sie sie vor der Zahlung.",
+          "title": "Neues Angebot wartet auf Annahme"
+        }
+      }
     },
     "refunds": {
       "title": "Logistik-Rückerstattungen",
@@ -2713,6 +2733,40 @@
       "links": {
         "refunds": "Rückerstattungen"
       }
+    },
+    "complianceWorkspace": {
+      "metrics": {
+        "unavailableNote": "Kennzahl derzeit nicht verfügbar."
+      }
+    },
+    "forms": {
+      "unsavedChanges": {
+        "body": "Sie haben ungespeicherte Änderungen. Wenn Sie jetzt gehen, geht Ihre Eingabe verloren.",
+        "discard": "Änderungen verwerfen",
+        "stay": "Weiter bearbeiten",
+        "title": "Ungespeicherte Änderungen verwerfen?"
+      }
+    },
+    "refund_pending": {
+      "body": "Ihre Logistik-Rückerstattung ist unterwegs. Ihr Zahlungsanbieter verarbeitet sie noch; wir bestätigen, sobald sie Ihre ursprüngliche Zahlungsmethode erreicht.",
+      "title": "Rückerstattung ausstehend"
+    },
+    "blockers": {
+      "allocation_not_found": "Die Bestandzuweisung wurde nicht gefunden.",
+      "campaign_not_found": "Die Kampagne wurde nicht gefunden.",
+      "deposit_deadline_missing": "Legen Sie eine explizite Einzahlungsfrist fest, bevor Sie das Einzahlungsfenster öffnen.",
+      "deposit_funding_shortfall": "Die per Einzahlung finanzierte Menge liegt unter dem Kampagnenminimum. Die Lieferantenbestellung kann nicht aufgegeben werden.",
+      "final_balance_not_collected": "Der Restbetrag des Käufers wurde noch nicht eingezogen. Die Ware kann nicht freigegeben werden.",
+      "guard_check_failed": "Die Voraussetzungen für diese Aktion konnten nicht geprüft werden.",
+      "min_demand_not_met": "Die Mindestnachfrage ist noch nicht erreicht. Das Einzahlungsfenster kann nicht geöffnet werden.",
+      "no_approved_quote": "Vor dem Öffnen des Einzahlungsfensters ist ein genehmigtes (angenommenes) Lieferantenangebot erforderlich.",
+      "no_payment_subject_linked": "Diese Zuweisung ist mit keiner zahlbaren Bestellung oder Teilnahme verknüpft, daher kann die Zahlung nicht verifiziert werden.",
+      "placement_approval_missing": "Die Lieferantenplatzierung erfordert eine von Operations erfasste Platzierungsgenehmigung."
+    },
+    "review_exceptions": {
+      "funding_shortfall": "Unzureichende Finanzierung bei Fälligkeit der Einzahlung",
+      "min_demand_unmet": "Mindestnachfrage bei Zusageschluss nicht erreicht",
+      "raised_note": "Finanzierungsfrist verpasst; an das Team zur Klärung weitergeleitet. Die Kampagne wurde nicht fortgesetzt."
     }
   }
 }

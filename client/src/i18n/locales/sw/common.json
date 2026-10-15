@@ -1020,9 +1020,9 @@
       }
     },
     "protection": {
-      "3": "Ulinzi wa juu zaidi",
+      "1": "Haifunikwi na OxSteed",
       "2": "Imelindwa na OxSteed Credit",
-      "1": "Haifunikwi na OxSteed"
+      "3": "Ulinzi wa juu zaidi"
     },
     "chargedNowHeld": "Kwa sababu kazi ni zaidi ya siku 5, kadi yako inatozwa sasa na OxSteed inashikilia pesa hadi kazi ikamilike.",
     "localMethods": "Pia zinapatikana: {{methods}}",
@@ -1654,7 +1654,8 @@
           "label": "Tazama mizigo",
           "noteClear": "Hakuna ubaguzi wa mizigo ulioripotiwa hivi sasa",
           "noteRisk": "{{count}} zinahitaji ufuatiliaji wa kipekee"
-        }
+        },
+        "unavailableNote": "Kipimo hakipatikani kwa sasa."
       },
       "requests": {
         "empty": "Hakuna maombi ya utafutaji bado.",
@@ -1866,7 +1867,8 @@
         "warehousedOrders": {
           "label": "Oda zilizohifadhiwa",
           "note": "Hisa ya juu tayari imehifadhiwa na iko tayari kutengwa."
-        }
+        },
+        "unavailableNote": "Kipimo hakipatikani kwa sasa."
       },
       "posture": {
         "releaseFirst": {
@@ -2105,7 +2107,8 @@
         "shipments": {
           "label": "Mizigo inayofuatiliwa",
           "note": "Mwendo unaoathiri sasa sasisho za mratibu na makabidhiano."
-        }
+        },
+        "unavailableNote": "Kipimo hakipatikani kwa sasa."
       },
       "pressure": {
         "commitments": {
@@ -2432,7 +2435,8 @@
     },
     "tables": {
       "actions": "Vitendo",
-      "view": "Tazama"
+      "view": "Tazama",
+      "preview": "Hakikisho"
     },
     "warehousing": {
       "activeReceipts": "Mapokezi {{count}} yanayotumika",
@@ -2509,7 +2513,8 @@
         "payWithCardInstead": "Lipa kwa kadi badala yake",
         "stripe": "Kadi kupitia Stripe",
         "stripeDesc": "Lipa kwa kadi ya debiti au mkopo. Unaingiza maelezo ya kadi kila mara; hakuna kinachohifadhiwa wala kutozwa kiotomatiki.",
-        "stripeUnavailable": "Malipo ya kadi hayapatikani kwa sasa. Tafadhali jaribu tena baadaye au tumia Mkopo wa OxSteed."
+        "stripeUnavailable": "Malipo ya kadi hayapatikani kwa sasa. Tafadhali jaribu tena baadaye au tumia Mkopo wa OxSteed.",
+        "creditBalanceUnknown": "Salio lako la mkopo litahakikiwa unapothibitisha malipo."
       },
       "missingSubject": "Hakuna oda au kampeni iliyochaguliwa kwa malipo.",
       "payments": {
@@ -2601,7 +2606,12 @@
         "supplier": "Msambazaji"
       },
       "title": "Malipo salama",
-      "usdOnly": "Kiasi chote kiko katika USD."
+      "usdOnly": "Kiasi chote kiko katika USD.",
+      "creditUnavailableFallback": "OxSteed Credit haipatikani kwa malipo ya Usafirishaji",
+      "noQuote": {
+        "body": "Uendeshaji bado haujachapisha nukuu inayolipika kwa oda hii. Tutakuarifu itakapokuwa tayari. Hakuna malipo yanayodaiwa kwa sasa.",
+        "title": "Hakuna nukuu tayari bado"
+      }
     },
     "quotes": {
       "accept": {
@@ -2627,7 +2637,17 @@
       },
       "increase": "kuongezeka",
       "superseded": "Imebadilishwa",
-      "version": "Toleo {{version}}"
+      "version": "Toleo {{version}}",
+      "notif": {
+        "accepted": {
+          "body": "Mnunuzi amekubali nukuu ya usafirishaji. Awamu sasa zinaweza kukusanywa.",
+          "title": "Mnunuzi amekubali nukuu ya usafirishaji"
+        },
+        "published": {
+          "body": "Toleo jipya la nukuu yako ya usafirishaji liko tayari. Kagua na ukubali kabla ya kulipa.",
+          "title": "Nukuu mpya inasubiri kukubaliwa"
+        }
+      }
     },
     "refunds": {
       "title": "Marejesho ya vifaa",
@@ -2711,6 +2731,40 @@
       "links": {
         "refunds": "Marejesho"
       }
+    },
+    "complianceWorkspace": {
+      "metrics": {
+        "unavailableNote": "Kipimo hakipatikani kwa sasa."
+      }
+    },
+    "forms": {
+      "unsavedChanges": {
+        "body": "Una mabadiliko ambayo hujayahifadhi. Ukiondoka sasa, ulichoingiza kitafutwa.",
+        "discard": "Tupa mabadiliko",
+        "stay": "Endelea kuhariri",
+        "title": "Tupa mabadiliko ambayo hujayahifadhi?"
+      }
+    },
+    "refund_pending": {
+      "body": "Marejesho yako ya usafirishaji yanakuja. Mtoa huduma wako wa malipo bado anaichakata; tutathibitisha itakapofika njia yako asili ya malipo.",
+      "title": "Marejesho yanasubiri"
+    },
+    "blockers": {
+      "allocation_not_found": "Ugavi wa hesabu haukupatikana.",
+      "campaign_not_found": "Kampeni haikupatikana.",
+      "deposit_deadline_missing": "Weka tarehe ya mwisho ya amana wazi kabla ya kufungua dirisha la amana.",
+      "deposit_funding_shortfall": "Kiasi kilichofadhiliwa na amana kiko chini ya kiwango cha chini cha kampeni. Oda ya msambazaji haiwezi kuwekwa.",
+      "final_balance_not_collected": "Salio la mwisho la mnunuzi halijakusanywa bado. Bidhaa haziwezi kutolewa.",
+      "guard_check_failed": "Imeshindikana kuthibitisha mahitaji ya kitendo hiki.",
+      "min_demand_not_met": "Mahitaji ya chini bado hayajafikiwa. Dirisha la amana haliwezi kufunguliwa.",
+      "no_approved_quote": "Nukuu ya msambazaji iliyoidhinishwa (kukubaliwa) inahitajika kabla ya kufungua dirisha la amana.",
+      "no_payment_subject_linked": "Ugavi huu haujaunganishwa na oda au ushiriki unaolipika, kwa hivyo malipo hayawezi kuthibitishwa.",
+      "placement_approval_missing": "Kuweka oda kwa msambazaji kunahitaji idhini ya kuweka iliyorekodiwa na Uendeshaji."
+    },
+    "review_exceptions": {
+      "funding_shortfall": "Upungufu wa fedha tarehe ya mwisho ya amana",
+      "min_demand_unmet": "Mahitaji ya chini hayakufikiwa kufungwa kwa ahadi",
+      "raised_note": "Tarehe ya mwisho ya ufadhili imepitwa; imepelekwa kwa wafanyakazi kwa utatuzi. Kampeni haikuendelezwa."
     }
   }
 }

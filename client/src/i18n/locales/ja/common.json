@@ -1020,9 +1020,9 @@
       }
     },
     "protection": {
-      "3": "最高の保護",
+      "1": "OxSteedの対象外",
       "2": "OxSteed Creditで保護されています",
-      "1": "OxSteedの対象外"
+      "3": "最高の保護"
     },
     "chargedNowHeld": "仕事が5日以上先のため、カードへの請求は今行われ、仕事が完了するまでOxSteedが資金を保持します。",
     "localMethods": "利用可能：{{methods}}",
@@ -1656,7 +1656,8 @@
           "label": "出荷を注視",
           "noteClear": "現在フラグ付きの出荷例外はありません",
           "noteRisk": "{{count}}件に例外フォローが必要です"
-        }
+        },
+        "unavailableNote": "指標は現在利用できません。"
       },
       "requests": {
         "empty": "調達リクエストはまだありません。",
@@ -1868,7 +1869,8 @@
         "warehousedOrders": {
           "label": "倉庫保管中の注文",
           "note": "上流在庫は保管済みで割当可能です。"
-        }
+        },
+        "unavailableNote": "指標は現在利用できません。"
       },
       "posture": {
         "releaseFirst": {
@@ -2107,7 +2109,8 @@
         "shipments": {
           "label": "追跡中の出荷",
           "note": "主催者の更新と引渡しに影響する動き。"
-        }
+        },
+        "unavailableNote": "指標は現在利用できません。"
       },
       "pressure": {
         "commitments": {
@@ -2434,7 +2437,8 @@
     },
     "tables": {
       "actions": "操作",
-      "view": "表示"
+      "view": "表示",
+      "preview": "プレビュー"
     },
     "warehousing": {
       "activeReceipts": "{{count}}件の有効な受領",
@@ -2511,7 +2515,8 @@
         "payWithCardInstead": "カードで支払う",
         "stripe": "Stripe 経由のカード払い",
         "stripeDesc": "デビットカードまたはクレジットカードで支払います。毎回カード情報を入力します。保存や自動請求は行いません。",
-        "stripeUnavailable": "現在カード払いはご利用いただけません。しばらくしてから再度お試しいただくか、OxSteed クレジットをご利用ください。"
+        "stripeUnavailable": "現在カード払いはご利用いただけません。しばらくしてから再度お試しいただくか、OxSteed クレジットをご利用ください。",
+        "creditBalanceUnknown": "お支払いの確定時にクレジット残高を確認します。"
       },
       "missingSubject": "お支払いの対象となる注文またはキャンペーンが選択されていません。",
       "payments": {
@@ -2603,7 +2608,12 @@
         "supplier": "サプライヤー"
       },
       "title": "安全なお支払い",
-      "usdOnly": "すべての金額は米ドルです。"
+      "usdOnly": "すべての金額は米ドルです。",
+      "creditUnavailableFallback": "OxSteed Credit は物流チェックアウトでは利用できません",
+      "noQuote": {
+        "body": "オペレーションはまだこの注文の支払可能な見積を公開していません。準備ができたらお知らせします。現時点でお支払いは不要です。",
+        "title": "見積はまだ準備できていません"
+      }
     },
     "quotes": {
       "accept": {
@@ -2629,7 +2639,17 @@
       },
       "increase": "増加",
       "superseded": "置換済み",
-      "version": "バージョン {{version}}"
+      "version": "バージョン {{version}}",
+      "notif": {
+        "accepted": {
+          "body": "購入者が物流見積を受け入れました。分割払いの回収が可能になりました。",
+          "title": "購入者が物流見積を受け入れました"
+        },
+        "published": {
+          "body": "物流見積の新バージョンが準備できました。お支払い前に確認して受け入れてください。",
+          "title": "新しい見積が承認待ちです"
+        }
+      }
     },
     "refunds": {
       "title": "物流の返金",
@@ -2713,6 +2733,40 @@
       "links": {
         "refunds": "返金"
       }
+    },
+    "complianceWorkspace": {
+      "metrics": {
+        "unavailableNote": "指標は現在利用できません。"
+      }
+    },
+    "forms": {
+      "unsavedChanges": {
+        "body": "保存されていない変更があります。今離れると、入力内容が破棄されます。",
+        "discard": "変更を破棄",
+        "stay": "編集を続ける",
+        "title": "保存されていない変更を破棄しますか？"
+      }
+    },
+    "refund_pending": {
+      "body": "物流返金は処理中です。決済事業者がまだ処理しています。元の支払方法に到着したらお知らせします。",
+      "title": "返金保留中"
+    },
+    "blockers": {
+      "allocation_not_found": "在庫引当が見つかりませんでした。",
+      "campaign_not_found": "キャンペーンが見つかりませんでした。",
+      "deposit_deadline_missing": "デポジット受付を開始する前に、明示的なデポジット期限を設定してください。",
+      "deposit_funding_shortfall": "デポジットによる資金調達数量がキャンペーンの最低数量を下回っています。仕入先への発注はできません。",
+      "final_balance_not_collected": "購入者の最終残高がまだ回収されていません。商品を出荷できません。",
+      "guard_check_failed": "この操作に必要な条件を確認できませんでした。",
+      "min_demand_not_met": "最低需要にまだ達していません。デポジット受付を開始できません。",
+      "no_approved_quote": "デポジット受付の開始には、承認済み（受諾済み）の仕入先見積が必要です。",
+      "no_payment_subject_linked": "この引当は支払可能な注文や参加に紐づいていないため、支払いを確認できません。",
+      "placement_approval_missing": "仕入先への発注には、オペレーションが記録した発注承認が必要です。"
+    },
+    "review_exceptions": {
+      "funding_shortfall": "デポジット期限における資金不足",
+      "min_demand_unmet": "確約締切時に最低需要未達",
+      "raised_note": "資金期限を超過したため、スタッフ対応に回付しました。キャンペーンは進行していません。"
     }
   }
 }

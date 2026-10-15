@@ -1020,9 +1020,9 @@
       }
     },
     "protection": {
-      "3": "最高保障",
+      "1": "不受 OxSteed 保障",
       "2": "受 OxSteed Credit 保障",
-      "1": "不受 OxSteed 保障"
+      "3": "最高保障"
     },
     "chargedNowHeld": "由于该工作距今超过 5 天，您的银行卡将立即扣款，OxSteed 将托管该款项直至工作完成。",
     "localMethods": "也可用：{{methods}}",
@@ -1656,7 +1656,8 @@
           "label": "查看货运",
           "noteClear": "目前没有标记的货运异常",
           "noteRisk": "{{count}} 个需要异常跟进"
-        }
+        },
+        "unavailableNote": "指标目前不可用。"
       },
       "requests": {
         "empty": "暂无采购询价。",
@@ -1868,7 +1869,8 @@
         "warehousedOrders": {
           "label": "已入库订单",
           "note": "上游库存已入库，可供分配。"
-        }
+        },
+        "unavailableNote": "指标目前不可用。"
       },
       "posture": {
         "releaseFirst": {
@@ -2107,7 +2109,8 @@
         "shipments": {
           "label": "跟踪的货运",
           "note": "影响组织者更新和交接的动态。"
-        }
+        },
+        "unavailableNote": "指标目前不可用。"
       },
       "pressure": {
         "commitments": {
@@ -2434,7 +2437,8 @@
     },
     "tables": {
       "actions": "操作",
-      "view": "查看"
+      "view": "查看",
+      "preview": "预览"
     },
     "warehousing": {
       "activeReceipts": "{{count}} 个活跃收货",
@@ -2511,7 +2515,8 @@
         "payWithCardInstead": "改用银行卡付款",
         "stripe": "通过 Stripe 刷卡",
         "stripeDesc": "使用借记卡或信用卡付款。每次都需要输入卡信息；不会保存，也不会自动扣款。",
-        "stripeUnavailable": "目前无法使用银行卡付款。请稍后再试或使用 OxSteed 信用额度。"
+        "stripeUnavailable": "目前无法使用银行卡付款。请稍后再试或使用 OxSteed 信用额度。",
+        "creditBalanceUnknown": "您确认付款时将核验您的信用余额。"
       },
       "missingSubject": "未选择要结账的订单或活动。",
       "payments": {
@@ -2603,7 +2608,12 @@
         "supplier": "供应商"
       },
       "title": "安全结账",
-      "usdOnly": "所有金额均为美元。"
+      "usdOnly": "所有金额均为美元。",
+      "creditUnavailableFallback": "OxSteed Credit 不适用于物流结账",
+      "noQuote": {
+        "body": "运营团队尚未发布此订单的可付款报价。准备就绪后我们会通知您。目前无需付款。",
+        "title": "暂无可用报价"
+      }
     },
     "quotes": {
       "accept": {
@@ -2629,7 +2639,17 @@
       },
       "increase": "增加",
       "superseded": "已取代",
-      "version": "版本 {{version}}"
+      "version": "版本 {{version}}",
+      "notif": {
+        "accepted": {
+          "body": "买家已接受物流报价。现在可以收取分期款项。",
+          "title": "买家已接受物流报价"
+        },
+        "published": {
+          "body": "您的物流报价有新版本。请在付款前查看并接受。",
+          "title": "新报价待接受"
+        }
+      }
     },
     "refunds": {
       "title": "物流退款",
@@ -2713,6 +2733,40 @@
       "links": {
         "refunds": "退款"
       }
+    },
+    "complianceWorkspace": {
+      "metrics": {
+        "unavailableNote": "指标目前不可用。"
+      }
+    },
+    "forms": {
+      "unsavedChanges": {
+        "body": "您有未保存的更改。现在离开将丢失您输入的内容。",
+        "discard": "放弃更改",
+        "stay": "继续编辑",
+        "title": "放弃未保存的更改？"
+      }
+    },
+    "refund_pending": {
+      "body": "您的物流退款正在处理中。支付服务商仍在处理；款项到达您原支付方式后我们会确认。",
+      "title": "退款待处理"
+    },
+    "blockers": {
+      "allocation_not_found": "找不到该库存分配。",
+      "campaign_not_found": "找不到该活动。",
+      "deposit_deadline_missing": "请在开启保证金窗口前设置明确的保证金截止日期。",
+      "deposit_funding_shortfall": "保证金出资数量低于活动最低要求，无法向供应商下单。",
+      "final_balance_not_collected": "买家尾款尚未收取，货物无法放行。",
+      "guard_check_failed": "无法验证此操作所需条件。",
+      "min_demand_not_met": "尚未达到最低需求量，无法开启保证金窗口。",
+      "no_approved_quote": "开启保证金窗口前需要一份已批准（已接受）的供应商报价。",
+      "no_payment_subject_linked": "该分配未关联可付款订单或参与记录，无法验证付款。",
+      "placement_approval_missing": "供应商下单需要运营团队记录的下单批准。"
+    },
+    "review_exceptions": {
+      "funding_shortfall": "保证金截止时资金不足",
+      "min_demand_unmet": "认购截止时未达到最低需求",
+      "raised_note": "已错过资金截止日期，已转交工作人员处理。活动未继续推进。"
     }
   }
 }

@@ -1020,9 +1020,9 @@
       }
     },
     "protection": {
-      "3": "Protection maximale",
+      "1": "Non couvert par OxSteed",
       "2": "Protégé par le Crédit OxSteed",
-      "1": "Non couvert par OxSteed"
+      "3": "Protection maximale"
     },
     "chargedNowHeld": "Le travail ayant lieu dans plus de 5 jours, votre carte est débitée maintenant et OxSteed retient l'argent jusqu'à la fin du travail.",
     "localMethods": "Également disponible : {{methods}}",
@@ -1672,7 +1672,8 @@
           "label": "Surveiller les envois",
           "noteClear": "Aucune exception d'envoi signalée pour le moment",
           "noteRisk": "{{count}} nécessitent un suivi d'exception"
-        }
+        },
+        "unavailableNote": "Métrique indisponible pour le moment."
       },
       "requests": {
         "empty": "Aucune demande de sourcing pour le moment.",
@@ -1870,7 +1871,8 @@
         "warehousedOrders": {
           "label": "Commandes entreposées",
           "note": "Inventaire en amont déjà en stockage et prêt à allouer."
-        }
+        },
+        "unavailableNote": "Métrique indisponible pour le moment."
       },
       "posture": {
         "releaseFirst": {
@@ -2107,7 +2109,8 @@
         "shipments": {
           "label": "Envois suivis",
           "note": "Mouvement qui affecte désormais les mises à jour et les livraisons de l'organisateur."
-        }
+        },
+        "unavailableNote": "Métrique indisponible pour le moment."
       },
       "pressure": {
         "commitments": {
@@ -2434,7 +2437,8 @@
     },
     "tables": {
       "actions": "Actions",
-      "view": "Voir"
+      "view": "Voir",
+      "preview": "Aperçu"
     },
     "warehousing": {
       "activeReceipts": "{{count}} réceptions actives",
@@ -2511,7 +2515,8 @@
         "payWithCardInstead": "Payer par carte",
         "stripe": "Carte via Stripe",
         "stripeDesc": "Payez par carte de débit ou de crédit. Vous saisissez les coordonnées à chaque fois ; rien n'est enregistré ni débité automatiquement.",
-        "stripeUnavailable": "Les paiements par carte ne sont pas disponibles pour le moment. Veuillez réessayer plus tard ou utiliser le crédit OxSteed."
+        "stripeUnavailable": "Les paiements par carte ne sont pas disponibles pour le moment. Veuillez réessayer plus tard ou utiliser le crédit OxSteed.",
+        "creditBalanceUnknown": "Votre solde de crédit sera vérifié lorsque vous confirmerez le paiement."
       },
       "missingSubject": "Aucune commande ou campagne sélectionnée pour le paiement.",
       "payments": {
@@ -2603,7 +2608,12 @@
         "supplier": "Fournisseur"
       },
       "title": "Paiement sécurisé",
-      "usdOnly": "Tous les montants sont en USD."
+      "usdOnly": "Tous les montants sont en USD.",
+      "creditUnavailableFallback": "OxSteed Credit n'est pas disponible pour le paiement Logistique",
+      "noQuote": {
+        "body": "Les opérations n'ont pas encore publié de devis payable pour cette commande. Vous serez notifié quand il sera prêt. Aucun paiement n'est dû pour le moment.",
+        "title": "Aucun devis prêt pour le moment"
+      }
     },
     "quotes": {
       "accept": {
@@ -2629,7 +2639,17 @@
       },
       "increase": "hausse",
       "superseded": "Remplacé",
-      "version": "Version {{version}}"
+      "version": "Version {{version}}",
+      "notif": {
+        "accepted": {
+          "body": "L'acheteur a accepté un devis logistique. Les versements peuvent désormais être collectés.",
+          "title": "L'acheteur a accepté un devis logistique"
+        },
+        "published": {
+          "body": "Une nouvelle version de votre devis logistique est prête. Examinez-la et acceptez-la avant de payer.",
+          "title": "Nouveau devis en attente d'acceptation"
+        }
+      }
     },
     "refunds": {
       "title": "Remboursements logistiques",
@@ -2713,6 +2733,40 @@
       "links": {
         "refunds": "Remboursements"
       }
+    },
+    "complianceWorkspace": {
+      "metrics": {
+        "unavailableNote": "Métrique indisponible pour le moment."
+      }
+    },
+    "forms": {
+      "unsavedChanges": {
+        "body": "Vous avez des modifications non enregistrées. Si vous partez maintenant, ce que vous avez saisi sera perdu.",
+        "discard": "Ignorer les modifications",
+        "stay": "Continuer la modification",
+        "title": "Ignorer les modifications non enregistrées ?"
+      }
+    },
+    "refund_pending": {
+      "body": "Votre remboursement logistique est en route. Votre prestataire de paiement le traite encore ; nous vous confirmerons dès qu'il parviendra à votre moyen de paiement d'origine.",
+      "title": "Remboursement en attente"
+    },
+    "blockers": {
+      "allocation_not_found": "L'allocation d'inventaire est introuvable.",
+      "campaign_not_found": "La campagne est introuvable.",
+      "deposit_deadline_missing": "Définissez une date limite de dépôt explicite avant d'ouvrir la fenêtre de dépôt.",
+      "deposit_funding_shortfall": "La quantité financée par dépôt est inférieure au minimum de la campagne. La commande fournisseur ne peut pas être passée.",
+      "final_balance_not_collected": "Le solde final de l'acheteur n'a pas encore été collecté. Les marchandises ne peuvent pas être libérées.",
+      "guard_check_failed": "Impossible de vérifier les conditions requises pour cette action.",
+      "min_demand_not_met": "La demande minimale n'est pas encore atteinte. La fenêtre de dépôt ne peut pas s'ouvrir.",
+      "no_approved_quote": "Un devis fournisseur approuvé (accepté) est requis avant d'ouvrir la fenêtre de dépôt.",
+      "no_payment_subject_linked": "Cette allocation n'est liée à aucune commande ou participation payable ; le paiement ne peut donc pas être vérifié.",
+      "placement_approval_missing": "Le placement fournisseur nécessite une approbation de placement enregistrée par les opérations."
+    },
+    "review_exceptions": {
+      "funding_shortfall": "Fonds insuffisants à l'échéance du dépôt",
+      "min_demand_unmet": "Demande minimale non atteinte à la clôture des engagements",
+      "raised_note": "Échéance de financement manquée ; transmis au personnel pour résolution. La campagne n'a pas avancé."
     }
   }
 }

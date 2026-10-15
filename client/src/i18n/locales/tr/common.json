@@ -1020,9 +1020,9 @@
       }
     },
     "protection": {
-      "3": "En yüksek koruma",
+      "1": "OxSteed kapsamı dışında",
       "2": "OxSteed Credit ile korunuyor",
-      "1": "OxSteed kapsamı dışında"
+      "3": "En yüksek koruma"
     },
     "chargedNowHeld": "İş 5 günden daha uzakta olduğu için kartınızdan şimdi ücret alınır ve OxSteed parayı iş bitene kadar tutar.",
     "localMethods": "Ayrıca kullanılabilir: {{methods}}",
@@ -1656,7 +1656,8 @@
           "label": "Gönderileri izle",
           "noteClear": "Şu anda işaretlenmiş gönderi istisnası yok",
           "noteRisk": "{{count}} tanesi istisna takibi gerektiriyor"
-        }
+        },
+        "unavailableNote": "Metrik şu anda kullanılamıyor."
       },
       "requests": {
         "empty": "Henüz tedarik talebi yok.",
@@ -1868,7 +1869,8 @@
         "warehousedOrders": {
           "label": "Depodaki siparişler",
           "note": "Üst akış envanteri zaten depoda ve tahsise hazır."
-        }
+        },
+        "unavailableNote": "Metrik şu anda kullanılamıyor."
       },
       "posture": {
         "releaseFirst": {
@@ -2107,7 +2109,8 @@
         "shipments": {
           "label": "Takip edilen gönderiler",
           "note": "Artık organizatör güncellemelerini ve devirleri etkileyen hareket."
-        }
+        },
+        "unavailableNote": "Metrik şu anda kullanılamıyor."
       },
       "pressure": {
         "commitments": {
@@ -2434,7 +2437,8 @@
     },
     "tables": {
       "actions": "Eylemler",
-      "view": "Gör"
+      "view": "Gör",
+      "preview": "Önizleme"
     },
     "warehousing": {
       "activeReceipts": "{{count}} aktif kabul",
@@ -2511,7 +2515,8 @@
         "payWithCardInstead": "Kartla öde",
         "stripe": "Stripe ile kart",
         "stripeDesc": "Banka veya kredi kartıyla ödeyin. Kart bilgilerini her seferinde girersiniz; hiçbir şey kaydedilmez veya otomatik tahsil edilmez.",
-        "stripeUnavailable": "Kart ödemeleri şu anda kullanılamıyor. Lütfen daha sonra tekrar deneyin veya OxSteed Kredisi kullanın."
+        "stripeUnavailable": "Kart ödemeleri şu anda kullanılamıyor. Lütfen daha sonra tekrar deneyin veya OxSteed Kredisi kullanın.",
+        "creditBalanceUnknown": "Kredi bakiyeniz ödemeyi onayladığınızda kontrol edilecek."
       },
       "missingSubject": "Ödeme için sipariş veya kampanya seçilmedi.",
       "payments": {
@@ -2603,7 +2608,12 @@
         "supplier": "Tedarikçi"
       },
       "title": "Güvenli ödeme",
-      "usdOnly": "Tüm tutarlar USD cinsindendir."
+      "usdOnly": "Tüm tutarlar USD cinsindendir.",
+      "creditUnavailableFallback": "OxSteed Credit, Lojistik ödemesi için kullanılamıyor",
+      "noQuote": {
+        "body": "Operasyon bu sipariş için henüz ödenebilir bir teklif yayınlamadı. Hazır olduğunda sizi bilgilendireceğiz. Şu anda ödenmesi gereken bir tutar yok.",
+        "title": "Henüz hazır teklif yok"
+      }
     },
     "quotes": {
       "accept": {
@@ -2629,7 +2639,17 @@
       },
       "increase": "artış",
       "superseded": "Değiştirildi",
-      "version": "Sürüm {{version}}"
+      "version": "Sürüm {{version}}",
+      "notif": {
+        "accepted": {
+          "body": "Alıcı lojistik teklifini kabul etti. Taksitler artık tahsil edilebilir.",
+          "title": "Alıcı lojistik teklifini kabul etti"
+        },
+        "published": {
+          "body": "Lojistik teklifinizin yeni sürümü hazır. Ödemeden önce inceleyip kabul edin.",
+          "title": "Yeni teklif kabul bekliyor"
+        }
+      }
     },
     "refunds": {
       "title": "Lojistik iadeleri",
@@ -2713,6 +2733,40 @@
       "links": {
         "refunds": "İadeler"
       }
+    },
+    "complianceWorkspace": {
+      "metrics": {
+        "unavailableNote": "Metrik şu anda kullanılamıyor."
+      }
+    },
+    "forms": {
+      "unsavedChanges": {
+        "body": "Kaydedilmemiş değişiklikleriniz var. Şimdi ayrılırsanız girdikleriniz kaybolur.",
+        "discard": "Değişiklikleri at",
+        "stay": "Düzenlemeye devam et",
+        "title": "Kaydedilmemiş değişiklikler atılsın mı?"
+      }
+    },
+    "refund_pending": {
+      "body": "Lojistik iadeniz yolda. Ödeme sağlayıcınız hâlâ işliyor; tutar orijinal ödeme yönteminize ulaştığında onaylayacağız.",
+      "title": "İade bekliyor"
+    },
+    "blockers": {
+      "allocation_not_found": "Envanter tahsisi bulunamadı.",
+      "campaign_not_found": "Kampanya bulunamadı.",
+      "deposit_deadline_missing": "Depozito penceresini açmadan önce açık bir depozito son tarihi belirleyin.",
+      "deposit_funding_shortfall": "Depozitoyla finanse edilen miktar kampanya minimumunun altında. Tedarikçi siparişi verilemez.",
+      "final_balance_not_collected": "Alıcının nihai bakiyesi henüz tahsil edilmedi. Mallar serbest bırakılamaz.",
+      "guard_check_failed": "Bu işlem için gereksinimler doğrulanamadı.",
+      "min_demand_not_met": "Minimum talep henüz karşılanmadı. Depozito penceresi açılamaz.",
+      "no_approved_quote": "Depozito penceresi açılmadan önce onaylanmış (kabul edilmiş) bir tedarikçi teklifi gerekir.",
+      "no_payment_subject_linked": "Bu tahsis, ödenebilir bir sipariş veya katılımla bağlantılı değil, bu nedenle ödeme doğrulanamıyor.",
+      "placement_approval_missing": "Tedarikçi yerleştirme, Operasyon tarafından kaydedilmiş bir yerleştirme onayı gerektirir."
+    },
+    "review_exceptions": {
+      "funding_shortfall": "Depozito vadesinde fon yetersizliği",
+      "min_demand_unmet": "Taahhüt kapanışında minimum talep karşılanmadı",
+      "raised_note": "Fonlama son tarihi kaçırıldı; çözüm için personele iletildi. Kampanya ilerletilmedi."
     }
   }
 }

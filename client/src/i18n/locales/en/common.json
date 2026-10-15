@@ -1020,9 +1020,9 @@
       }
     },
     "protection": {
-      "3": "Highest protection",
+      "1": "Not covered by OxSteed",
       "2": "Protected by OxSteed Credit",
-      "1": "Not covered by OxSteed"
+      "3": "Highest protection"
     },
     "chargedNowHeld": "Because the job is more than 5 days away, your card is charged now and OxSteed holds the money until the job is done.",
     "localMethods": "Also available: {{methods}}",
@@ -1732,7 +1732,8 @@
     },
     "tables": {
       "actions": "Actions",
-      "view": "View"
+      "view": "View",
+      "preview": "Preview"
     },
     "buyer": {
       "metrics": {
@@ -1754,7 +1755,8 @@
           "label": "Claims & refunds",
           "noteOpen": "Operator review may be needed on open issues",
           "noteClear": "No active buyer issues"
-        }
+        },
+        "unavailableNote": "Metric unavailable right now."
       },
       "activity": {
         "claimFallback": "Claim #{{id}}"
@@ -2043,7 +2045,8 @@
         "warehousedOrders": {
           "label": "Warehoused orders",
           "note": "Upstream inventory already in storage and ready to allocate."
-        }
+        },
+        "unavailableNote": "Metric unavailable right now."
       },
       "queue": {
         "title": "Allocation handoff queue",
@@ -2311,7 +2314,8 @@
         "deliveries": {
           "label": "Delivery handoffs",
           "note": "Final-mile coordination you may need to message around."
-        }
+        },
+        "unavailableNote": "Metric unavailable right now."
       },
       "campaigns": {
         "title": "Organizer campaigns",
@@ -2511,7 +2515,8 @@
         "payWithCardInstead": "Pay with card instead",
         "stripe": "Card via Stripe",
         "stripeDesc": "Pay with a debit or credit card. You enter card details each time; nothing is saved or auto-charged.",
-        "stripeUnavailable": "Card payments are not available right now. Please try again later or use OxSteed Credit."
+        "stripeUnavailable": "Card payments are not available right now. Please try again later or use OxSteed Credit.",
+        "creditBalanceUnknown": "Your Credit balance will be checked when you confirm the payment."
       },
       "missingSubject": "No order or campaign was selected for checkout.",
       "payments": {
@@ -2603,7 +2608,12 @@
         "supplier": "Supplier"
       },
       "title": "Secure checkout",
-      "usdOnly": "All amounts are in USD."
+      "usdOnly": "All amounts are in USD.",
+      "creditUnavailableFallback": "OxSteed Credit is unavailable for Logistics checkout",
+      "noQuote": {
+        "body": "Operations has not published a payable quote for this order. You will be notified when it is ready. No payment is due right now.",
+        "title": "No quote is ready yet"
+      }
     },
     "quotes": {
       "accept": {
@@ -2629,7 +2639,17 @@
       },
       "increase": "increase",
       "superseded": "Superseded",
-      "version": "Version {{version}}"
+      "version": "Version {{version}}",
+      "notif": {
+        "accepted": {
+          "body": "The buyer accepted a logistics quote. Installments can now be collected against it.",
+          "title": "Buyer accepted a logistics quote"
+        },
+        "published": {
+          "body": "A new version of your logistics quote is ready. Review and accept it before paying.",
+          "title": "New quote needs your acceptance"
+        }
+      }
     },
     "refunds": {
       "title": "Logistics refunds",
@@ -2713,6 +2733,40 @@
       "links": {
         "refunds": "Refunds"
       }
+    },
+    "complianceWorkspace": {
+      "metrics": {
+        "unavailableNote": "Metric unavailable right now."
+      }
+    },
+    "forms": {
+      "unsavedChanges": {
+        "body": "You have unsaved changes. Leaving now will discard what you entered.",
+        "discard": "Discard changes",
+        "stay": "Keep editing",
+        "title": "Discard unsaved changes?"
+      }
+    },
+    "refund_pending": {
+      "body": "Your logistics refund is on its way. Your payment provider is still processing it; we will confirm once it reaches your original payment method.",
+      "title": "Refund pending"
+    },
+    "blockers": {
+      "allocation_not_found": "The inventory allocation could not be found.",
+      "campaign_not_found": "The campaign could not be found.",
+      "deposit_deadline_missing": "Set an explicit deposit deadline before opening the deposit window.",
+      "deposit_funding_shortfall": "Deposit-funded quantity is below the campaign minimum. The supplier order cannot be placed.",
+      "final_balance_not_collected": "The buyer's final balance has not been collected yet. Goods cannot be released.",
+      "guard_check_failed": "Could not verify the requirements for this action.",
+      "min_demand_not_met": "Minimum demand is not met yet. The deposit window cannot open.",
+      "no_approved_quote": "An approved (accepted) supplier quote is required before the deposit window can open.",
+      "no_payment_subject_linked": "This allocation is not linked to a payable order or participation, so payment cannot be verified.",
+      "placement_approval_missing": "Supplier placement requires a recorded placement approval from Operations."
+    },
+    "review_exceptions": {
+      "funding_shortfall": "Funding shortfall at deposit deadline",
+      "min_demand_unmet": "Minimum demand not met at pledge close",
+      "raised_note": "Funding deadline missed; raised for staff resolution. The campaign was not advanced."
     }
   }
 }
