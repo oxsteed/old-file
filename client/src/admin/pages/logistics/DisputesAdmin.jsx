@@ -3,12 +3,10 @@ import { useTranslation } from 'react-i18next';
 import { adminListClaims, adminUpdateClaim, adminListRefundCases, adminUpdateRefundCase } from '../../../api/logistics';
 import toast from 'react-hot-toast';
 import '../../../styles/logistics/LogisticsHomePage.css';
+import '../../../styles/logistics/LogisticsWorkspaces.css';
 import AdminErrorState from '../../lib/AdminErrorState';
-
-const STATUS_COLOR = {
-  open:'#f59e0b', under_review:'#f97316', approved:'#22c55e',
-  rejected:'#ef4444', resolved:'#10b981', escalated:'#8b5cf6',
-};
+import LogisticsModal from '../../../components/logistics/LogisticsModal';
+import LogisticsStatusPill from '../../../components/logistics/LogisticsStatusPill';
 
 const NS = 'adminLogisticsDisputes';
 const CLAIM_STATUS_I18N = { open:'statusOpen', under_review:'statusUnderReview', approved:'statusApproved', rejected:'statusRejected', resolved:'statusResolved', escalated:'statusEscalated' };
@@ -91,18 +89,16 @@ export default function DisputesAdmin() {
               <tr key={c.id}>
                 <td><code style={{ fontSize:'.78rem' }}>{c.reference}</code></td>
                 <td>
-                  <span style={{ background:'#f1f5f9', borderRadius:'.375rem', padding:'.15rem .5rem', fontSize:'.72rem', fontWeight:700 }}>
+                  <span style={{ background:'var(--color-surface-2)', borderRadius:'.375rem', padding:'.15rem .5rem', fontSize:'.72rem', fontWeight:700 }}>
                     {t(`${NS}.claimType.${c.claim_type}`, { defaultValue: c.claim_type?.replace(/_/g,' ') || '' })}
                   </span>
                 </td>
                 <td style={{ fontSize:'.82rem' }}>{c.claimant_name || '—'}</td>
-                <td style={{ fontWeight:700, color:'#f97316' }}>
+                <td style={{ fontWeight:700, color:'var(--color-primary)' }}>
                   {c.claimed_amount_usd ? `$${parseFloat(c.claimed_amount_usd).toLocaleString()}` : '—'}
                 </td>
                 <td>
-                  <span className="lx-status-pill" style={{ background: STATUS_COLOR[c.status]||'#64748b' }}>
-                    {statusLabel(c.status)}
-                  </span>
+                  <LogisticsStatusPill status={c.status} label={statusLabel(c.status)} />
                 </td>
                 <td style={{ fontSize:'.8rem' }}>{new Date(c.created_at).toLocaleDateString()}</td>
                 <td>
@@ -114,7 +110,7 @@ export default function DisputesAdmin() {
               </tr>
             ))}
             {claims.length === 0 && !loading && !loadError && (
-              <tr><td colSpan={7} style={{ textAlign:'center', padding:'2rem', color:'#94a3b8' }}>{t(`${NS}.noClaims`)}</td></tr>
+              <tr><td colSpan={7} className="lx-table-empty-cell">{t(`${NS}.noClaims`)}</td></tr>
             )}
           </tbody>
         </table>
@@ -134,8 +130,8 @@ export default function DisputesAdmin() {
                   <td><code style={{ fontSize:'.78rem' }}>{r.reference}</code></td>
                   <td>{r.refund_reason}</td>
                   <td style={{ fontSize:'.82rem' }}>{r.requester_name || '—'}</td>
-                  <td style={{ fontWeight:700, color:'#f97316' }}>${parseFloat(r.requested_amount_usd || 0).toLocaleString()}</td>
-                  <td><span className="lx-status-pill" style={{ background: r.status === 'approved' ? '#22c55e' : r.status === 'rejected' ? '#ef4444' : '#64748b' }}>{statusLabel(r.status)}</span></td>
+                  <td style={{ fontWeight:700, color:'var(--color-primary)' }}>${parseFloat(r.requested_amount_usd || 0).toLocaleString()}</td>
+                  <td><LogisticsStatusPill status={r.status} label={statusLabel(r.status)} /></td>
                   <td>
                     <button className="lx-btn-secondary" style={{ fontSize:'.72rem', padding:'.25rem .65rem' }}
                       onClick={() => { setSelected(r); setForm({ status: r.status, approved_amount_usd: r.approved_amount_usd || r.requested_amount_usd, notes: r.notes || '', stripe_refund_id: r.stripe_refund_id || '' }); }}>
@@ -145,18 +141,21 @@ export default function DisputesAdmin() {
                 </tr>
               ))}
               {refunds.length === 0 && !loading && !loadError && (
-                <tr><td colSpan={6} style={{ textAlign:'center', padding:'2rem', color:'#94a3b8' }}>{t(`${NS}.noRefunds`)}</td></tr>
+                <tr><td colSpan={6} className="lx-table-empty-cell">{t(`${NS}.noRefunds`)}</td></tr>
               )}
             </tbody>
           </table>
         </div>
       )}
 
-      {selected && (
-        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.4)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:9999 }}>
-          <div style={{ background:'var(--card-bg,#fff)', borderRadius:'1rem', padding:'1.5rem', width:480, maxWidth:'90vw' }}>
-            <h3 style={{ fontWeight:700, marginBottom:'.5rem' }}>{selected.reference}</h3>
-            <div style={{ fontSize:'.82rem', color:'#64748b', marginBottom:'1rem' }}>
+      <LogisticsModal
+        open={!!selected}
+        title={selected?.reference}
+        onClose={() => setSelected(null)}
+      >
+        {selected && (
+          <>
+            <div style={{ fontSize:'.82rem', color:'var(--color-text-muted)', marginBottom:'1rem' }}>
               {tab === 'claims' ? (
                 <>
                   <strong>{t(`${NS}.modalClaimType`)}</strong> {t(`${NS}.claimType.${selected.claim_type}`, { defaultValue: selected.claim_type?.replace(/_/g,' ') || '' })}<br/>
@@ -196,9 +195,9 @@ export default function DisputesAdmin() {
               <button className="lx-btn-primary" onClick={save}>{t(`${NS}.saveDecision`)}</button>
               <button className="lx-btn-secondary" onClick={() => setSelected(null)}>{t(`${NS}.cancel`)}</button>
             </div>
-          </div>
-        </div>
-      )}
+          </>
+        )}
+      </LogisticsModal>
     </div>
   );
 }
