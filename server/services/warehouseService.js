@@ -204,7 +204,15 @@ async function releaseAllocation(id, actorUserId) {
   return result.record;
 }
 
-async function getAllocation(id) {
+async function getAllocation(id, { userId = null, isAdmin = false } = {}) {
+  // Ownership is enforced in the query (not just the route): non-staff
+  // callers only match rows where they are the buyer, so cross-buyer reads
+  // return null and surface as 404 without leaking existence.
+  const conditions = ['ia.id = $1'];
+  const params = [id];
+  if (!isAdmin && userId != null) {
+    conditions.push(`ia.buyer_user_id = $${params.push(userId)}`);
+  }
   const result = await pool.query(
     `SELECT ia.*, ir.reference AS receipt_ref, w.name AS warehouse_name,
             u.first_name || ' ' || u.last_name AS buyer_name
@@ -212,8 +220,8 @@ async function getAllocation(id) {
      LEFT JOIN inventory_receipts ir ON ir.id = ia.inventory_receipt_id
      LEFT JOIN warehouses w ON w.id = ir.warehouse_id
      LEFT JOIN users u ON u.id = ia.buyer_user_id
-     WHERE ia.id = $1`,
-    [id]
+     WHERE ${conditions.join(' AND ')}`,
+    params
   );
   return result.rows[0] || null;
 }
@@ -267,14 +275,22 @@ async function createDeliveryOrder(data, actorUserId) {
   return result.rows[0];
 }
 
-async function getDeliveryOrder(id) {
+async function getDeliveryOrder(id, { userId = null, isAdmin = false } = {}) {
+  // Ownership is enforced in the query (not just the route): non-staff
+  // callers only match rows where they are the recipient, so cross-buyer
+  // reads return null and surface as 404 without leaking existence.
+  const conditions = ['d.id = $1'];
+  const params = [id];
+  if (!isAdmin && userId != null) {
+    conditions.push(`d.recipient_user_id = $${params.push(userId)}`);
+  }
   const result = await pool.query(
     `SELECT d.*,
             u.first_name || ' ' || u.last_name AS recipient_name_full
      FROM delivery_orders d
      LEFT JOIN users u ON u.id = d.recipient_user_id
-     WHERE d.id = $1`,
-    [id]
+     WHERE ${conditions.join(' AND ')}`,
+    params
   );
   return result.rows[0] || null;
 }

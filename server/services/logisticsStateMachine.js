@@ -439,6 +439,7 @@ function resolveCapabilities({ user = null, logisticsRole = null } = {}) {
       manage:     ops('sourcing_operator', 'logistics_coordinator', 'warehouse_operator'),
     },
     warehouse: {
+      view:   authed,                                    // own allocations/deliveries (ownership enforced per record)
       manage: ops('warehouse_operator', 'logistics_coordinator'),
     },
     compliance: {

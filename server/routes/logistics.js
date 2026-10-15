@@ -35,6 +35,10 @@ const requireShipmentsCreate   = requireLogisticsCapability('shipments.create');
 const requireShipmentsMilestones = requireLogisticsCapability('shipments.milestones');
 const requireShipmentsManage   = requireLogisticsCapability('shipments.manage');
 const requireWarehouseOps      = requireLogisticsCapability('warehouse.manage');
+// Read-only warehouse visibility for buyers: any signed-in user may read
+// their OWN allocations/deliveries; ownership is enforced per record in the
+// controller/service layer. Writes stay behind requireWarehouseOps.
+const requireWarehouseRead     = requireLogisticsCapability('warehouse.view');
 
 function publicReference(prefix) {
   return `${prefix}-${new Date().getFullYear()}-${crypto.randomBytes(8).toString('hex').toUpperCase()}`;
@@ -128,13 +132,13 @@ router.get('/inventory-receipts',             requireAuth, requireWarehouseOps, 
 router.post('/inventory-receipts',            requireAuth, requireWarehouseOps, whCtrl.createReceipt);
 router.post('/inventory-receipts/:id/receive',requireAuth, requireWarehouseOps, whCtrl.receiveInventory);
 router.post('/inventory-receipts/:id/reconcile', requireAuth, requireWarehouseOps, whCtrl.reconcileReceipt);
-router.get('/allocations',                    requireAuth, requireWarehouseOps, whCtrl.listAllocations);
-router.get('/allocations/:id',               requireAuth, requireWarehouseOps, whCtrl.getAllocation);
+router.get('/allocations',                    requireAuth, requireWarehouseRead, whCtrl.listAllocations);
+router.get('/allocations/:id',               requireAuth, requireWarehouseRead, whCtrl.getAllocation);
 router.post('/allocations',                   requireAuth, requireWarehouseOps, whCtrl.createAllocation);
 router.post('/allocations/:id/release',       requireAuth, requireWarehouseOps, whCtrl.releaseAllocation);
-router.get('/deliveries',                     requireAuth, requireWarehouseOps, whCtrl.listDeliveryOrders);
+router.get('/deliveries',                     requireAuth, requireWarehouseRead, whCtrl.listDeliveryOrders);
 router.post('/deliveries',                    requireAuth, requireWarehouseOps, whCtrl.createDeliveryOrder);
-router.get('/deliveries/:id',                 requireAuth, requireWarehouseOps, whCtrl.getDeliveryOrder);
+router.get('/deliveries/:id',                 requireAuth, requireWarehouseRead, whCtrl.getDeliveryOrder);
 router.patch('/deliveries/:id/status',        requireAuth, requireWarehouseOps, whCtrl.updateDeliveryStatus);
 
 // ─── Dashboard counts ──────────────────────────────────────────

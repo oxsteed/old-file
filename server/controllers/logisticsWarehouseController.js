@@ -2,7 +2,19 @@
 const AppError = require('../utils/appError');
 const warehouseService = require('../services/warehouseService');
 const { buildActionContext } = require('../middleware/requireLogisticsAccess');
-const { getAvailableActions } = require('../services/logisticsStateMachine');
+const { getAvailableActions, getCapability } = require('../services/logisticsStateMachine');
+
+/**
+ * Staff with warehouse.manage (or admins) see all records; everyone else is
+ * scoped to their own buyer/recipient records. requireLogisticsCapability
+ * attaches the resolved model as req.logisticsCapabilities on the customer
+ * routes; the admin router does not run it, so fall back to req.isAdmin
+ * there (preserving its existing behavior exactly).
+ */
+function canSeeAllWarehouse(req) {
+  if (req.isAdmin) return true;
+  return !!getCapability(req.logisticsCapabilities, 'warehouse.manage');
+}
 
 // ─── Warehouses ───────────────────────────────────────────────
 
@@ -97,7 +109,10 @@ exports.reconcileReceipt = async (req, res, next) => {
 
 exports.listAllocations = async (req, res, next) => {
   try {
-    const buyerUserId = req.isAdmin ? (req.query.buyer_user_id || null) : req.user.id;
+    // Non-staff callers only ever see their own buyer records; staff with
+    // warehouse.manage (or admins) may optionally filter by buyer_user_id.
+    const seeAll = canSeeAllWarehouse(req);
+    const buyerUserId = seeAll ? (req.query.buyer_user_id || null) : req.user.id;
     const result = await warehouseService.listAllocations({
       warehouseId:   req.query.warehouse_id,
       status:        req.query.status,
@@ -111,7 +126,12 @@ exports.listAllocations = async (req, res, next) => {
 
 exports.getAllocation = async (req, res, next) => {
   try {
-    const allocation = await warehouseService.getAllocation(req.params.id);
+    // Ownership enforced in the query: a buyer asking for someone else's
+    // allocation gets a 404, never a 403 that would confirm it exists.
+    const allocation = await warehouseService.getAllocation(req.params.id, {
+      userId: req.user.id,
+      isAdmin: canSeeAllWarehouse(req),
+    });
     if (!allocation) return next(new AppError('Allocation not found', 404, 'not_found'));
     res.json({ success: true, data: allocation });
   } catch (err) { next(err); }
@@ -140,7 +160,10 @@ exports.releaseAllocation = async (req, res, next) => {
 exports.listDeliveryOrders = async (req, res, next) => {
   try {
     const pool = require('../db');
-    const recipientUserId = req.isAdmin ? (req.query.recipient_user_id || null) : req.user.id;
+    // Non-staff callers only ever see their own recipient records; staff
+    // with warehouse.manage (or admins) may optionally filter by recipient.
+    const seeAll = canSeeAllWarehouse(req);
+    const recipientUserId = seeAll ? (req.query.recipient_user_id || null) : req.user.id;
     const conditions = ['1=1'];
     const params = [];
     if (recipientUserId) { conditions.push(`d.recipient_user_id = $${params.push(recipientUserId)}`); }
@@ -174,7 +197,12 @@ exports.createDeliveryOrder = async (req, res, next) => {
 
 exports.getDeliveryOrder = async (req, res, next) => {
   try {
-    const delivery = await warehouseService.getDeliveryOrder(req.params.id);
+    // Ownership enforced in the query: a buyer asking for someone else's
+    // delivery gets a 404, never a 403 that would confirm it exists.
+    const delivery = await warehouseService.getDeliveryOrder(req.params.id, {
+      userId: req.user.id,
+      isAdmin: canSeeAllWarehouse(req),
+    });
     if (!delivery) return next(new AppError('Delivery order not found', 404, 'not_found'));
     // Advisory, additive: which status transitions the viewer may perform
     // and why the rest are unavailable. Mutations re-check server-side.
