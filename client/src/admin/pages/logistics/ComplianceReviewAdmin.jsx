@@ -2,7 +2,11 @@ import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { adminListRestrictions, adminListShipments } from '../../../api/logistics';
 import '../../../styles/logistics/LogisticsHomePage.css';
+import '../../../styles/logistics/LogisticsWorkspaces.css';
 import AdminErrorState from '../../lib/AdminErrorState';
+import LogisticsStatusPill from '../../../components/logistics/LogisticsStatusPill';
+
+const RISK_LABEL_KEY = { low:'riskLow', managed:'riskManaged', restricted:'riskRestricted', prohibited:'riskProhibited' };
 
 export default function ComplianceReviewAdmin() {
   const { t } = useTranslation();
@@ -45,11 +49,11 @@ export default function ComplianceReviewAdmin() {
                 {shipments.slice(0, 12).map((shipment) => (
                   <tr key={shipment.id}>
                     <td>{shipment.reference}</td>
-                    <td><span className="lx-status-pill" style={{ background: shipment.status === 'customs_hold' || shipment.status === 'exception' ? '#ef4444' : '#64748b' }}>{t(`logistics.status.${shipment.status}`, { defaultValue: shipment.status })}</span></td>
+                    <td><LogisticsStatusPill status={shipment.status} label={t(`logistics.status.${shipment.status}`, { defaultValue: shipment.status })} /></td>
                     <td>{shipment.origin_country} → {shipment.destination_country}</td>
                   </tr>
                 ))}
-                {!loading && !loadError && shipments.length === 0 && <tr><td colSpan={3} style={{ textAlign:'center', color:'#94a3b8' }}>{t('adminComplianceReview.noShipments')}</td></tr>}
+                {!loading && !loadError && shipments.length === 0 && <tr><td colSpan={3} className="lx-table-empty-cell">{t('adminComplianceReview.noShipments')}</td></tr>}
               </tbody>
             </table>
           </div>
@@ -65,10 +69,10 @@ export default function ComplianceReviewAdmin() {
                     <td>{rule.category}</td>
                     <td>{rule.country_code}</td>
                     <td>{rule.requires_approval ? t('adminComplianceReview.approvalRequired') : t('adminComplianceReview.approvalOpen')}</td>
-                    <td><span className="lx-status-pill" style={{ background: rule.risk_tier === 'prohibited' ? '#7f1d1d' : rule.risk_tier === 'restricted' ? '#ef4444' : rule.risk_tier === 'managed' ? '#f59e0b' : '#22c55e' }}>{t(`adminLogisticsRestrictions.${{ low:'riskLow', managed:'riskManaged', restricted:'riskRestricted', prohibited:'riskProhibited' }[rule.risk_tier] || 'riskLow'}`, { defaultValue: rule.risk_tier })}</span></td>
+                    <td><LogisticsStatusPill status={rule.risk_tier} label={t(`adminLogisticsRestrictions.${RISK_LABEL_KEY[rule.risk_tier] || 'riskLow'}`, { defaultValue: rule.risk_tier })} /></td>
                   </tr>
                 ))}
-                {!loading && !loadError && rules.length === 0 && <tr><td colSpan={4} style={{ textAlign:'center', color:'#94a3b8' }}>{t('adminComplianceReview.noRules')}</td></tr>}
+                {!loading && !loadError && rules.length === 0 && <tr><td colSpan={4} className="lx-table-empty-cell">{t('adminComplianceReview.noRules')}</td></tr>}
               </tbody>
             </table>
           </div>
