@@ -21,6 +21,9 @@ const SUBJECT_COLUMNS = Object.freeze({
   restaurant: ['restaurant_id'],
   business: ['business_id'],
   delivery_merchant: ['business_id'],
+  // Logistics: the admin-enrolled OxSteed collection entity is anchored to
+  // a business_id. Never a restaurant participant; no default merchant.
+  logistics: ['business_id'],
   helper: ['user_id'],
   consulting_seller: ['user_id'],
   subscription_merchant: ['business_id', 'user_id'],
@@ -53,9 +56,9 @@ async function resolveParticipant(client, { type, subjectId }) {
   // Build OR conditions across the candidate subject columns. Each column
   // is compared as text so BIGINT/INTEGER/UUID subjects all work.
   const subjectConditions = columns
-    .map((col, idx) => `cp.${col}::text = $${idx + 3}`)
+    .map((col, idx) => `cp.${col}::text = $${idx + 2}`)
     .join(' OR ');
-  const params = [type, String(subjectId), ...columns.map(() => String(subjectId))];
+  const params = [type, ...columns.map(() => String(subjectId))];
 
   const { rows } = await client.query(
     `SELECT cp.*,

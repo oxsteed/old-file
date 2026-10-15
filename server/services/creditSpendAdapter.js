@@ -8,6 +8,8 @@
  *   food_online, chat, card_kiosk → immediate debit
  *   pos                           → hold, then finalize = debit then adjust
  *   jobs                          → hold as escrow collateral
+ *   logistics                     → immediate debit (2026-10-15: each
+ *     installment is a discrete confirmed payment, never a hold)
  *   default                       → debit unless fulfillment unknown
  *
  * Participant resolution contract (Phase 1 — sibling workstream):
@@ -46,6 +48,8 @@ const SURFACE_MODES = Object.freeze({
   consulting: 'debit',
   invoices: 'debit',
   rentals: 'debit',
+  // Logistics buyer installments: immediate debit per confirmed installment.
+  logistics: 'debit',
 });
 
 const MODES = Object.freeze(['debit', 'hold']);
@@ -236,8 +240,10 @@ async function spendWithCreditInTransaction(client, args) {
     }
   }
 
-  // 5. Resolve participant → partner.
-  const { partnerId } = await resolveSpendParticipant(client, participantRef, normalizedSurface);
+  // 5. Resolve participant → partner. The resolved participant id is
+  // threaded into the purchase so the agreement lookup can gate on the
+  // exact enrolled participant (not just the restaurant participant).
+  const { partnerId, participant } = await resolveSpendParticipant(client, participantRef, normalizedSurface);
 
   // 6. Rail + freeze gates (fail closed).
   await creditService.assertCreditRailEnabled(client);
@@ -327,6 +333,8 @@ async function spendWithCreditInTransaction(client, args) {
   const purchase = await creditService.purchaseWithCreditInTransaction(client, {
     customerId: effectiveCustomerId,
     partnerId,
+    participantId: participant?.id || null,
+    surface: normalizedSurface,
     amountCents: amount,
     currencyCode,
     idempotencyKey: key,

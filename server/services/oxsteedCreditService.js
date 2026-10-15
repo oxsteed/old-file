@@ -1490,7 +1490,24 @@ function formatGeography(geography) {
   }, {});
 }
 
-async function findSpendAgreement(client, { customerId, partnerId, agreementId = null, orderType, category, categories, menuItemId, menuItemIds, city, state, postalCode, country, amountCents, excludeHoldId = null, strict = true, surface = 'food_online' }) {
+async function findSpendAgreement(client, { customerId, partnerId, participantId = null, agreementId = null, orderType, category, categories, menuItemId, menuItemIds, city, state, postalCode, country, amountCents, excludeHoldId = null, strict = true, surface = 'food_online' }) {
+  // Logistics Phase 3: non-restaurant participants (e.g. the logistics
+  // collection entity) anchor to partners with restaurant_id NULL. When the
+  // caller resolved an explicit participant, gate on that exact participant
+  // row; otherwise keep the legacy restaurant-participant join so existing
+  // restaurant flows are byte-for-byte unchanged.
+  const participantJoin = participantId
+    ? `JOIN credit_participants cp
+         ON cp.id = $4::uuid
+        AND cp.partner_id = p.id
+        AND cp.status = 'active'
+        AND cp.didit_verified = TRUE`
+    : `JOIN credit_participants cp
+         ON cp.partner_id = p.id
+        AND cp.participant_type = 'restaurant'
+        AND cp.status = 'active'
+        AND cp.didit_verified = TRUE`;
+  const params = participantId ? [customerId, partnerId, agreementId, participantId] : [customerId, partnerId, agreementId];
   const { rows } = await client.query(
     `SELECT a.*, p.restaurant_id, p.status AS partner_status, p.settlement_currency_code,
             cp.id AS participant_id, cp.status AS participant_status,
@@ -1508,22 +1525,22 @@ async function findSpendAgreement(client, { customerId, partnerId, agreementId =
             e.daily_limit_cents AS entitlement_daily_limit_cents
        FROM oxsteed_credit_partner_agreements a
        JOIN oxsteed_credit_partners p ON p.id = a.partner_id
-       JOIN food_restaurants fr ON fr.id = p.restaurant_id
-       -- Credit Everywhere Phase 1: every partner was backfilled with a
-       -- restaurant participant (migration 724). The participant lifecycle
-       -- and Didit gates are enforced here, atomically with agreement
-       -- resolution. Surface gating happens in JS below.
-       JOIN credit_participants cp
-         ON cp.partner_id = p.id
-        AND cp.participant_type = 'restaurant'
-        AND cp.status = 'active'
-        AND cp.didit_verified = TRUE
+       -- Logistics Phase 3: partners for non-restaurant participants carry
+       -- restaurant_id NULL; keep the restaurant join optional so those
+       -- partners resolve. Restaurant partners still require an active
+       -- restaurant row (condition below).
+       LEFT JOIN food_restaurants fr ON fr.id = p.restaurant_id
+       -- Credit Everywhere Phase 1: every restaurant partner was backfilled
+       -- with a restaurant participant (migration 724). The participant
+       -- lifecycle and Didit gates are enforced here, atomically with
+       -- agreement resolution. Surface gating happens in JS below.
+       ${participantJoin}
        LEFT JOIN oxsteed_credit_customer_entitlements e
          ON e.agreement_id = a.id AND e.customer_id = $1
       WHERE p.id = $2
         AND EXISTS (SELECT 1 FROM users customer WHERE customer.id = $1 AND customer.role = 'customer' AND customer.is_active = TRUE)
         AND p.status = 'active'
-        AND fr.status = 'active'
+        AND (p.restaurant_id IS NULL OR fr.status = 'active')
         AND a.status = 'active'
         AND ($3::uuid IS NULL OR a.id = $3::uuid)
         AND a.starts_at <= NOW()
@@ -1531,7 +1548,7 @@ async function findSpendAgreement(client, { customerId, partnerId, agreementId =
         AND ${CUSTOMER_SPEND_ACCESS_SQL}
       ORDER BY a.version DESC
       LIMIT 1`,
-    [customerId, partnerId, agreementId]
+    params
   );
   const agreement = rows[0];
   if (!agreement) {
@@ -2114,7 +2131,7 @@ async function loadCustomerCredit({ customerId, amountCents, currencyCode = CRED
   }, 'credit_load_customer');
 }
 
-async function purchaseWithCreditInTransaction(client, { customerId, partnerId, agreementId = null, amountCents, currencyCode = null, idempotencyKey, actorUserId, orderType, category, categories, menuItemId, menuItemIds, city, state, postalCode, country, excludeHoldId = null, referenceType = 'food_order', referenceId, correlationId, requestIp, description, actorType, metadata = {} }) {
+async function purchaseWithCreditInTransaction(client, { customerId, partnerId, participantId = null, surface = 'food_online', agreementId = null, amountCents, currencyCode = null, idempotencyKey, actorUserId, orderType, category, categories, menuItemId, menuItemIds, city, state, postalCode, country, excludeHoldId = null, referenceType = 'food_order', referenceId, correlationId, requestIp, description, actorType, metadata = {} }) {
   const amount = parseAmountCents(amountCents);
   const normalizedActorType = normalizeString(actorType, 32) || (actorUserId ? 'user' : 'system');
   if (['user', 'customer'].includes(normalizedActorType)) {
@@ -2170,7 +2187,7 @@ async function purchaseWithCreditInTransaction(client, { customerId, partnerId, 
   }
   await assertCreditRailEnabled(client);
   await client.query(`SELECT pg_advisory_xact_lock(hashtext($1))`, [`oxsteed-credit:${customerId}:${partnerId}`]);
-  const agreement = await findSpendAgreement(client, { customerId, partnerId, agreementId, orderType, category, categories, menuItemId, menuItemIds, city, state, postalCode, country, amountCents: amount, excludeHoldId });
+  const agreement = await findSpendAgreement(client, { customerId, partnerId, participantId, surface, agreementId, orderType, category, categories, menuItemId, menuItemIds, city, state, postalCode, country, amountCents: amount, excludeHoldId });
   const settlementCurrency = assertSupportedCreditCurrency(agreement.settlement_currency_code);
   if (currencyCode !== null && assertSupportedCreditCurrency(currencyCode) !== settlementCurrency) {
     throw new AppError('Credit currency does not match the partner agreement', 409, 'credit_currency_mismatch');

@@ -17,7 +17,8 @@
  *     participant_type TEXT NOT NULL,                -- restaurant | business | helper |
  *                                                    -- subscription_merchant | qr_merchant |
  *                                                    -- delivery_merchant | consulting_seller |
- *                                                    -- invoice_seller | product_seller | rental_seller
+ *                                                    -- invoice_seller | product_seller | rental_seller |
+ *                                                    -- logistics
  *     restaurant_id BIGINT NULL,                     -- exactly one subject column
  *     business_id INTEGER NULL,                      -- set per type (CHECK enforced)
  *     user_id UUID NULL,
@@ -48,22 +49,24 @@ const { isDiditVerificationFresh } = require('../utils/diditGate');
 const PARTICIPANT_TYPES = new Set([
   'restaurant', 'business', 'helper', 'subscription_merchant', 'qr_merchant',
   'delivery_merchant', 'consulting_seller', 'invoice_seller',
-  'product_seller', 'rental_seller',
+  'product_seller', 'rental_seller', 'logistics',
 ]);
 // Types a self-serve applicant or admin enrollment may create (restaurant
 // participants are backfilled from existing partners, never enrolled).
+// 'logistics' is the admin-enrolled OxSteed collection entity for Logistics
+// buyer payments; it is business-anchored like 'business'.
 const ENROLLABLE_TYPES = new Set([
   'business', 'helper', 'subscription_merchant', 'qr_merchant',
   'delivery_merchant', 'consulting_seller', 'invoice_seller',
-  'product_seller', 'rental_seller',
+  'product_seller', 'rental_seller', 'logistics',
 ]);
 const PARTICIPANT_STATUSES = new Set(['pending', 'active', 'suspended', 'revoked']);
 // Surfaces a participant may be approved for (must stay in sync with the
-// CHECK constraint in 725_credit_participants.sql).
+// CHECK constraint in 725_credit_participants.sql, extended by 877).
 const CREDIT_SURFACES = new Set([
   'food_online', 'food_pos', 'chat', 'jobs', 'direct', 'qr',
   'subscriptions', 'delivery', 'consulting', 'invoices',
-  'products', 'rentals',
+  'products', 'rentals', 'logistics',
 ]);
 
 function normalizeString(value, max) {
@@ -192,7 +195,7 @@ async function applyForCreditParticipation({ userId, participantType, businessId
     let restaurantId = null;
     let subjectBusinessId = null;
     let subjectUserId = null;
-    if (normalizedType === 'business' || normalizedType === 'delivery_merchant') {
+    if (normalizedType === 'business' || normalizedType === 'delivery_merchant' || normalizedType === 'logistics') {
       const normalizedBusinessId = Number(businessId);
       if (!Number.isSafeInteger(normalizedBusinessId) || normalizedBusinessId <= 0) {
         throw new AppError('A businessId you own is required', 400, 'credit_apply_business_required');
@@ -295,7 +298,7 @@ async function enrollParticipant({ actorUserId, participantType, businessId, sub
     let restaurantId = null;
     let subjectBusinessId = businessId ? Number(businessId) : null;
     let subjectUserIdValue = subjectUserId ? String(subjectUserId) : null;
-    if (normalizedType === 'business' || normalizedType === 'delivery_merchant') {
+    if (normalizedType === 'business' || normalizedType === 'delivery_merchant' || normalizedType === 'logistics') {
       if (!subjectBusinessId) {
         throw new AppError('A businessId is required for this participant type', 400, 'credit_participant_business_required');
       }
