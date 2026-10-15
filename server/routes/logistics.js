@@ -88,6 +88,9 @@ router.post('/campaigns/:id/submit',   requireAuth, pooledCtrl.submitForReview);
 router.post('/campaigns/:id/withdraw', requireAuth, pooledCtrl.withdrawCampaign);
 router.post('/campaigns/:id/review',   requireAuth, requireCampaignReview, pooledCtrl.reviewCampaign);
 router.get('/campaigns/:id/approval-history', requireAuth, pooledCtrl.getApprovalHistory);
+// Operations records supplier-placement approval (satisfies the locked →
+// placed transition guard alongside deposit-funded quantity).
+router.post('/campaigns/:id/placement-approval', requireAuth, requireCampaignReview, pooledCtrl.recordPlacementApproval);
 
 // ─── Recurring Procurement Programs ──────────────────────────
 

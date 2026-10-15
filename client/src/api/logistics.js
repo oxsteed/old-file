@@ -74,6 +74,9 @@ export const withdrawCampaign = (id) =>
 export const reviewCampaign = (id, data) =>
   axios.post(`/logistics/campaigns/${id}/review`, data).then(r => r.data);
 
+export const recordPlacementApproval = (id, reason) =>
+  axios.post(`/logistics/campaigns/${id}/placement-approval`, { reason }).then(r => r.data);
+
 export const getCampaignApprovalHistory = (id) =>
   axios.get(`/logistics/campaigns/${id}/approval-history`).then(r => r.data);
 

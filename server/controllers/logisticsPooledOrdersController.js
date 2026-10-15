@@ -221,6 +221,18 @@ exports.withdrawCampaign = async (req, res, next) => {
   } catch (err) { next(toHttpError(err) || err); }
 };
 
+// Operations records supplier-placement approval for a locked campaign.
+// Satisfies the `locked → placed` transition guard (deposit-funded quantity
+// plus recorded approval). Route-level requireLogisticsCapability ensures
+// only authorized Operations staff reach here.
+exports.recordPlacementApproval = async (req, res, next) => {
+  try {
+    const { recordPlacementApproval } = require('../services/logisticsTransitionGuards');
+    const decision = await recordPlacementApproval(pool, req.params.id, req.user.id, req.body.reason || null);
+    res.json({ success: true, data: decision });
+  } catch (err) { next(toHttpError(err) || err); }
+};
+
 // Approval history for one campaign. Organizer, Operations staff, and admins
 // only; everyone else gets 404 so draft existence is not leaked.
 exports.getApprovalHistory = async (req, res, next) => {

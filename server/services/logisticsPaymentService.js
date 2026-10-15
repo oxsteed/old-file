@@ -4,9 +4,10 @@
  *
  * Scope: durable payment attempts, server-computed amounts (integer cents,
  * USD only), Stripe PaymentIntent creation, signed-webhook settlement,
- * and the reconciliation queue. OxSteed Credit execution is owned by the
- * parallel Credit workstream; this module only records credit-method
- * attempts and exposes settleCreditAttempt() as the integration seam.
+ * and the reconciliation queue. OxSteed Credit execution runs through
+ * logisticsCreditPayService (availability-gated, exactly-one-participant,
+ * idempotent on the attempt key); this module exposes settleCreditAttempt()
+ * as the settlement seam shared by both rails.
  *
  * Money rules enforced here (fail closed):
  *  - Integer minor units everywhere. No float math on money.

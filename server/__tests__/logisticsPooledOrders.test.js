@@ -27,6 +27,10 @@ jest.mock('../middleware/requireLogisticsAccess', () => ({
 
 jest.mock('../db', () => ({ query: jest.fn() }));
 
+jest.mock('../services/logisticsTransitionGuards', () => ({
+  recordPlacementApproval: jest.fn(),
+}));
+
 const express = require('express');
 const request = require('supertest');
 const pooledOrderService = require('../services/pooledOrderService');
@@ -45,6 +49,7 @@ function buildApp(asUser) {
   app.post('/campaigns/:id/review', pooledCtrl.reviewCampaign);
   app.patch('/campaigns/:id', pooledCtrl.updatePooledOrder);
   app.get('/campaigns/:id/approval-history', pooledCtrl.getApprovalHistory);
+  app.post('/campaigns/:id/placement-approval', pooledCtrl.recordPlacementApproval);
   // eslint-disable-next-line no-unused-vars
   app.use((err, _req, res, _next) => {
     res.status(err.statusCode || err.status || 500).json({ error: err.message, code: err.code, fields: err.fields });
@@ -422,6 +427,33 @@ describe('POST /campaigns/:id/review — operations review', () => {
     const res = await request(authedApp()).post('/campaigns/9/review').send({ decision: 'approve' });
     expect(res.status).toBe(403);
     expect(res.body.code).toBe('self_approval');
+  });
+});
+
+describe('POST /campaigns/:id/placement-approval — operations placement approval', () => {
+  const { recordPlacementApproval } = require('../services/logisticsTransitionGuards');
+
+  test('records placement approval for a locked campaign', async () => {
+    recordPlacementApproval.mockResolvedValue({
+      id: 44, pooled_order_id: 9, decision: 'placement_approved',
+    });
+    const res = await request(authedApp())
+      .post('/campaigns/9/placement-approval')
+      .send({ reason: 'Supplier confirmed capacity' });
+    expect(res.status).toBe(200);
+    expect(res.body.data.decision).toBe('placement_approved');
+    expect(recordPlacementApproval).toHaveBeenCalledWith(
+      expect.anything(), '9', 'user-1', 'Supplier confirmed capacity'
+    );
+  });
+
+  test('service errors propagate with their status', async () => {
+    const err = new Error('Campaign must be locked');
+    err.code = 'invalid_transition';
+    err.status = 409;
+    recordPlacementApproval.mockRejectedValue(err);
+    const res = await request(authedApp()).post('/campaigns/9/placement-approval').send({});
+    expect(res.status).toBe(409);
   });
 });
 

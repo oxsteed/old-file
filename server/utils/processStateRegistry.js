@@ -208,6 +208,11 @@ const ENTRIES = [
     classification: 'constant', shared: 'none',
     rationale: 'Write-once registry of money-movement executors keyed by movement type (job_refund, marketplace_refund, dispute_refund, restaurant_payout, affiliate_payout), populated at server startup. Holds no money state; pending movements live in the money_movement_approvals table. Unknown types fail closed.',
   },
+  {
+    file: 'services/logisticsStateMachine.js', name: 'TRANSITION_GUARDS',
+    classification: 'constant', shared: 'none',
+    rationale: 'Write-once registry of logistics transition guard functions keyed by entity-type:target-status, populated at module load. Holds no money or workflow state; guards are pure predicates evaluated inside the applyTransition database transaction. Unknown transitions fail closed.',
+  },
 ];
 
 for (const entry of ENTRIES) registerProcessState(entry);
