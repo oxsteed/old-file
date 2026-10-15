@@ -6,6 +6,7 @@
  */
 const AppError = require('../utils/appError');
 const payments = require('../services/logisticsPaymentService');
+const quotes = require('../services/logisticsQuoteService');
 const { resolveLogisticsRole } = require('../middleware/requireLogisticsAccess');
 
 async function requireStaff(req) {
@@ -105,5 +106,68 @@ exports.sweepStuck = async (req, res, next) => {
     await requireStaff(req);
     const result = await payments.sweepStuckAttempts();
     res.json({ success: true, data: result });
+  } catch (err) { next(err); }
+};
+
+// ─── Checkout context / quotes / payment history (Phase 3) ───
+// All handlers assume the LOGISTICS_PAYMENTS_ENABLED gate (503) has run
+// via middleware/requireLogisticsPayments before them.
+
+/** GET /api/logistics/finance/checkout-context?orderId= | ?participantId= */
+exports.getCheckoutContext = async (req, res, next) => {
+  try {
+    const role = await resolveLogisticsRole(req.user);
+    const data = await quotes.getCheckoutContext(req.user.id, {
+      orderId: req.query.orderId !== undefined ? req.query.orderId : req.query.purchase_order_id,
+      participantId: req.query.participantId !== undefined ? req.query.participantId : req.query.participant_id,
+      isStaff: payments.isStaffRole(role),
+    });
+    res.json({ success: true, data });
+  } catch (err) { next(err); }
+};
+
+/** POST /api/logistics/finance/quotes — staff creates a draft quote version. */
+exports.createQuote = async (req, res, next) => {
+  try {
+    await requireStaff(req);
+    const quote = await quotes.createQuote(req.user.id, req.body || {});
+    res.status(201).json({ success: true, data: { quote } });
+  } catch (err) { next(err); }
+};
+
+/** POST /api/logistics/finance/quotes/:id/publish — staff publishes a draft. */
+exports.publishQuote = async (req, res, next) => {
+  try {
+    await requireStaff(req);
+    const quote = await quotes.publishQuote(req.user.id, req.params.id);
+    res.json({ success: true, data: { quote } });
+  } catch (err) { next(err); }
+};
+
+/** POST /api/logistics/finance/quotes/:id/accept — buyer accepts the pending version. */
+exports.acceptQuote = async (req, res, next) => {
+  try {
+    const result = await quotes.acceptQuote(req.user.id, req.params.id, {
+      idempotencyKey: req.body && req.body.idempotency_key,
+    });
+    res.json({
+      success: true,
+      idempotent_replay: result.idempotentReplay,
+      data: { quote: result.quote },
+    });
+  } catch (err) { next(err); }
+};
+
+/** GET /api/logistics/finance/payment-history — the buyer's own attempts. */
+exports.getPaymentHistory = async (req, res, next) => {
+  try {
+    const data = await quotes.getPaymentHistory(req.user.id, {
+      limit: req.query.limit,
+      offset: req.query.offset,
+      subjectType: req.query.subject_type,
+      purchaseOrderId: req.query.purchase_order_id,
+      participantId: req.query.participant_id,
+    });
+    res.json({ success: true, data });
   } catch (err) { next(err); }
 };
