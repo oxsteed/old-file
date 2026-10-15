@@ -39,16 +39,31 @@ function parseRestaurantId(value) {
 }
 
 async function requireRestaurantAccess(userId, restaurantId) {
+  // Canonical restaurant access check (mirrors foodWalletController):
+  // owner via businesses.user_id or food_restaurants.owner_user_id, else the
+  // member's active business_members role. The previous version joined
+  // food_restaurant_operators, a table no migration ever creates, which made
+  // every merchant funding call 500.
   const { rows } = await pool.query(
-    `SELECT fr.id, fr.business_id, fr.country_code, fr.currency_code, fr.display_name,
-            r.role AS operator_role
+    `SELECT fr.id, fr.business_id, fr.owner_user_id, fr.display_name, fr.currency_code,
+            CASE
+              WHEN b.user_id = $2 OR fr.owner_user_id = $2 THEN 'owner'
+              ELSE (
+                SELECT bm.role
+                  FROM business_members bm
+                 WHERE bm.business_id = fr.business_id
+                   AND bm.member_id = $2
+                   AND bm.status = 'active'
+                 LIMIT 1
+              )
+            END AS operator_role
        FROM food_restaurants fr
-       JOIN food_restaurant_operators r
-         ON r.restaurant_id = fr.id AND r.user_id = $2 AND r.revoked_at IS NULL
-      WHERE fr.id = $1 LIMIT 1`,
+       JOIN businesses b ON b.id = fr.business_id
+      WHERE fr.id = $1
+      LIMIT 1`,
     [restaurantId, userId]
   );
-  if (!rows[0]) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
+  if (!rows[0] || !rows[0].operator_role) throw new AppError('Restaurant not found', 404, 'restaurant_not_found');
   return rows[0];
 }
 
