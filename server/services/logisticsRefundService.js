@@ -518,3 +518,16 @@ module.exports = {
   listRefundCases,
   listRefundDecisions,
 };
+
+// ── Credit reversal adapter registration ─────────────────────
+// This module is on the production require chain (server/index.js ->
+// routes/logisticsAdmin.js -> controllers/logisticsRefundsController.js,
+// and middleware/requireFreshAuth.js), so loading the Credit payment
+// service here guarantees the refunds workstream's
+// setCreditReversalAdapter contract is satisfied wherever production
+// loads the refund service. No require cycle: the Credit service depends
+// on logisticsRefundPorts, never on this module (verified by the
+// adapter-registration require smoke test). Registration is idempotent.
+const { setCreditReversalAdapter } = require('./logisticsRefundPorts');
+const { reverseLogisticsCreditPayment } = require('./logisticsCreditPayService');
+setCreditReversalAdapter(reverseLogisticsCreditPayment);

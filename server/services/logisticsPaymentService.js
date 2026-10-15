@@ -25,6 +25,7 @@ const db = require('../db');
 const logger = require('../utils/logger');
 const AppError = require('../utils/appError');
 const { withTransaction } = require('../utils/transaction');
+const logisticsCreditPay = require('./logisticsCreditPayService');
 
 const INSTALLMENTS = new Set(['deposit', 'final']);
 const METHODS = new Set(['stripe', 'credit']);
@@ -401,19 +402,56 @@ async function createPaymentAttempt(userId, input) {
       return { attempt: publicAttempt(updated), idempotentReplay: false, clientSecret, credit: null };
     }
 
-    // method === 'credit': the attempt is durably recorded here; actual
-    // debit execution belongs to the parallel OxSteed Credit workstream,
-    // which settles via settleCreditAttempt() below.
-    logger.info('[logistics-payments] credit-method attempt recorded; awaiting Credit workstream execution', {
+    // method === 'credit': execute the debit NOW, inside this transaction,
+    // so the attempt row, the ledger debit, and the settlement commit
+    // atomically. Availability is checked first (fail closed with the
+    // distinct rail/participant code), then the debit runs idempotently
+    // on the attempt's idempotency key.
+    //
+    // NOTE: payLogisticsInstallmentWithCredit() must NOT be called here:
+    // it opens its own transaction, and this transaction already holds
+    // the attempt row uncommitted, so the inner INSERT ... ON CONFLICT
+    // on the same idempotency key would block on our row while we wait
+    // for it (self-deadlock). The in-transaction entry point below runs
+    // the same idempotent path on the existing attempt instead.
+    const availability = await logisticsCreditPay.getLogisticsCreditPayAvailability();
+    if (!availability.available) {
+      throw new AppError(
+        availability.message || 'OxSteed Credit is unavailable for Logistics checkout',
+        503,
+        availability.code || 'credit_unavailable'
+      );
+    }
+    const creditResult = await logisticsCreditPay.payLogisticsInstallmentInTransaction(client, {
+      buyerUserId: userId,
+      subjectType: input.subjectType,
+      subjectId: input.subjectType === 'purchase_order' ? input.purchaseOrderId : input.participantId,
+      installment: input.installment,
+      quoteId: quote.id,
+      amountCents,
+      idempotencyKey: String(input.idempotencyKey),
       attemptId: attempt.id,
+      actorUserId: userId,
     });
+    logger.info('[logistics-payments] credit-method attempt executed', {
+      attemptId: attempt.id,
+      installment: input.installment,
+      amountCents: creditResult.amountCents,
+      replayed: creditResult.replayed,
+      creditTransactionId: creditResult.creditTransactionId,
+    });
+    const settledAttempt = await findAttemptByKey(client, String(input.idempotencyKey));
     return {
-      attempt: publicAttempt(attempt),
+      attempt: publicAttempt(settledAttempt || attempt),
       idempotentReplay: false,
       clientSecret: null,
       credit: {
-        status: 'pending_execution',
-        message: 'Credit execution is handled by the OxSteed Credit integration; this attempt is recorded and pending.',
+        status: creditResult.status,
+        settledAt: creditResult.settledAt,
+        amountCents: creditResult.amountCents,
+        currency: creditResult.currency,
+        creditTransactionId: creditResult.creditTransactionId,
+        replayed: creditResult.replayed,
       },
     };
   }, 'logistics_create_payment_attempt');
