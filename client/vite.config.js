@@ -52,6 +52,10 @@ export default defineConfig(({ mode }) => {
       : []),
   ],
 
+  // Catalogs are consumed through default exports. Avoid generating named
+  // exports and a large Rollup AST for every key across all 20 languages.
+  json: { namedExports: false, stringify: true },
+
   // Strip most console.* calls from the production bundle so internal paths
   // and API shapes aren't visible in browser DevTools.
   // console.error is intentionally kept - ErrorBoundary relies on it to

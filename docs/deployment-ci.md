@@ -1,5 +1,26 @@
 # GitHub Actions and Coolify deployment
 
+## Client build heap failure on 2026-10-15
+
+Deployments of `f80927c1` failed in the Docker client-build stage with
+`FATAL ERROR: Reached heap limit`. The same build failed locally at the
+unchanged 2 GiB Node heap limit after the catalogs expanded to 20 languages.
+The earlier missing-container cleanup message and unset runtime-variable
+warnings were not the fatal error.
+
+The Vite JSON configuration now uses default-only `JSON.parse` exports rather
+than generating named exports and large syntax trees for catalog keys. All
+client JSON imports use default exports; no locale is removed or truncated.
+This changes build representation without raising the shared production VM's
+memory allocation or changing runtime credentials.
+
+Validation includes a successful default-heap production build and exact
+comparison of all 20 compiled catalogs (69 shards) with their source catalogs.
+The full client `npm run build:ci`, 17 localization/bootstrap checks, and 12
+deployment-script checks passed. The Docker `client-build` stage also built
+successfully on the production Colima VM using its unchanged default heap.
+Local checks are separate from a completed Coolify deployment.
+
 ## Current production target
 
 Read-only inspection on 2026-09-21 identified:
