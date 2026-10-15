@@ -1318,7 +1318,7 @@ const EMAIL_TEMPLATES = {
 };
 
 const DEFAULT_LANG = 'en';
-const ALLOWED = new Set(['en', 'es', 'fr', 'ht', 'ar']);
+const ALLOWED = new Set(['en', 'es', 'fr', 'ht', 'ar', 'zh', 'ko', 'sw', 'pt', 'hi', 'vi', 'ru', 'ja', 'de', 'id', 'ur', 'bn', 'it', 'tr', 'th']);
 
 function normalizeLang(lang) {
   const parsed = String(lang || DEFAULT_LANG)

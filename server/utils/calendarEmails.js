@@ -11,7 +11,7 @@ const { tNotif } = require('./i18n');
 const { renderOxSteedEmail } = require('./emailTemplate');
 
 const DEFAULT_LANGUAGE = 'en';
-const ALLOWED_LANGS = new Set(['en', 'es', 'fr', 'ht', 'ar']);
+const ALLOWED_LANGS = new Set(['en', 'es', 'fr', 'ht', 'ar', 'zh', 'ko', 'sw', 'pt', 'hi', 'vi', 'ru', 'ja', 'de', 'id', 'ur', 'bn', 'it', 'tr', 'th']);
 const EMAIL_LABELS = {
   locationPrefix: {
     en: 'Location',
@@ -19,6 +19,21 @@ const EMAIL_LABELS = {
     es: 'Lugar',
     ht: 'Kote',
     ar: 'الموقع',
+    zh: '地点',
+    ko: '위치',
+    sw: 'Mahali',
+    pt: 'Local',
+    hi: 'स्थान',
+    vi: 'Địa điểm',
+    ru: 'Место',
+    ja: '場所',
+    de: 'Ort',
+    id: 'Lokasi',
+    ur: 'مقام',
+    bn: 'অবস্থান',
+    it: 'Luogo',
+    tr: 'Konum',
+    th: 'สถานที่',
   },
   reasonPrefix: {
     en: 'Reason',
@@ -26,6 +41,21 @@ const EMAIL_LABELS = {
     es: 'Motivo',
     ht: 'Rezon',
     ar: 'السبب',
+    zh: '原因',
+    ko: '사유',
+    sw: 'Sababu',
+    pt: 'Motivo',
+    hi: 'कारण',
+    vi: 'Lý do',
+    ru: 'Причина',
+    ja: '理由',
+    de: 'Grund',
+    id: 'Alasan',
+    ur: 'وجہ',
+    bn: 'কারণ',
+    it: 'Motivo',
+    tr: 'Neden',
+    th: 'เหตุผล',
   },
   thanksLine: {
     en: 'Thanks for using OxSteed.',
@@ -33,6 +63,21 @@ const EMAIL_LABELS = {
     es: 'Gracias por usar OxSteed.',
     ht: 'Mèsi paske ou itilize OxSteed.',
     ar: 'شكراً لاستخدامك OxSteed.',
+    zh: '感谢您使用 OxSteed。',
+    ko: 'OxSteed를 이용해 주셔서 감사합니다.',
+    sw: 'Asante kwa kutumia OxSteed.',
+    pt: 'Obrigado por usar a OxSteed.',
+    hi: 'OxSteed का उपयोग करने के लिए धन्यवाद।',
+    vi: 'Cảm ơn bạn đã sử dụng OxSteed.',
+    ru: 'Спасибо, что пользуетесь OxSteed.',
+    ja: 'OxSteed をご利用いただきありがとうございます。',
+    de: 'Danke, dass Sie OxSteed nutzen.',
+    id: 'Terima kasih telah menggunakan OxSteed.',
+    ur: 'OxSteed استعمال کرنے کا شکریہ۔',
+    bn: 'OxSteed ব্যবহার করার জন্য ধন্যবাদ।',
+    it: 'Grazie per aver usato OxSteed.',
+    tr: "OxSteed'i kullandığınız için teşekkürler.",
+    th: 'ขอบคุณที่ใช้ OxSteed',
   },
 };
 

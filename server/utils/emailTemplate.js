@@ -3,7 +3,7 @@
 const escapeHtml = require('./escapeHtml');
 const { absoluteUrl } = require('./publicSiteUrl');
 
-const SUPPORTED_LANGUAGES = new Set(['en', 'es', 'fr', 'ht', 'ar']);
+const SUPPORTED_LANGUAGES = new Set(['en', 'es', 'fr', 'ht', 'ar', 'zh', 'ko', 'sw', 'pt', 'hi', 'vi', 'ru', 'ja', 'de', 'id', 'ur', 'bn', 'it', 'tr', 'th']);
 
 function normalizeEmailLanguage(language) {
   const normalized = String(language || 'en')
@@ -70,7 +70,7 @@ function renderDetails(details = []) {
 
 function renderOxSteedEmail(options = {}) {
   const language = normalizeEmailLanguage(options.language);
-  const direction = language === 'ar' ? 'rtl' : 'ltr';
+  const direction = language === 'ar' || language === 'ur' ? 'rtl' : 'ltr';
   const title = textSafe(options.title || 'A message from OxSteed');
   const preheader = textSafe(options.preheader || title);
   const eyebrow = textSafe(options.eyebrow || 'OXSTEED');
