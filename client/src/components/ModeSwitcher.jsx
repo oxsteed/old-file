@@ -90,7 +90,10 @@ export default function ModeSwitcher({ compact = false }) {
       ref={menuRef}
       data-nav-disclosure
       style={{
-        position: 'relative',
+        // Compact (mobile menu): static wrapper so the menu positions against
+        // .ox-nav-mobile-preferences and right-aligns to the container edge,
+        // mirroring the desktop right-aligned placement.
+        position: compact ? 'static' : 'relative',
         display: 'inline-block',
         maxWidth: compact ? '100%' : undefined,
       }}
@@ -144,8 +147,8 @@ export default function ModeSwitcher({ compact = false }) {
           aria-label={t('modeSwitcher.switchTo')}
           style={{
             position: 'absolute',
-            insetInlineStart: compact ? 0 : 'auto',
-            insetInlineEnd: compact ? 'auto' : 0,
+            insetInlineStart: 'auto',
+            insetInlineEnd: 0,
             top: 'calc(100% + 0.35rem)',
             width: compact ? 'min(20rem, calc(100vw - 4rem))' : undefined,
             minWidth: compact ? 0 : 'min(20rem, calc(100vw - 2rem))',
