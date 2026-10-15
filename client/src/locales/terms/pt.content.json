@@ -1,0 +1,875 @@
+{
+  "sections": {
+  "1": {
+    "search": "1. O que a OxSteed é - e o que não é A OxSteed LLC opera uma plataforma de ajuda local, trabalhos e propostas, espaços de trabalho empresariais, pedidos de comida, entrega e mídia. Ajudantes e empresas independentes são responsáveis por suas próprias ofertas. As ofertas do OxSteed Direct são identificadas separadamente; o orçamento, o pedido ou o contrato identifica o prestador de serviços e o escopo. As ferramentas da plataforma não garantem um trabalho, qualidade de serviço, licenciamento ou pagamento.",
+    "blocks": [
+      {
+        "type": "h2",
+        "text": "1. Serviços OxSteed"
+      },
+      {
+        "type": "p",
+        "text": "A OxSteed LLC opera uma plataforma de ajuda local, trabalhos e propostas, espaços de trabalho empresariais, pedidos de comida, entrega e mídia. Ajudantes e empresas independentes são responsáveis por suas próprias ofertas. As ofertas do OxSteed Direct são identificadas separadamente; o orçamento, o pedido ou o contrato identifica o prestador de serviços e o escopo. As ferramentas da plataforma não garantem um trabalho, qualidade de serviço, licenciamento ou pagamento."
+      }
+    ]
+  },
+  "2": {
+  "search": "2 elegibilidade 18 conta estados unidos",
+  "blocks": [
+  {
+  "type": "h2",
+  "text": "2. Elegibilidade"
+  },
+  {
+  "type": "p",
+  "text": "Você deve ter pelo menos 18 anos para criar uma conta ou usar a OxSteed. Ao criar uma conta, você declara e garante que:"
+  },
+  {
+  "type": "ul",
+  "items": [
+  [
+  "Você tem pelo menos 18 anos de idade;"
+  ],
+  [
+  "Você tem capacidade legal para celebrar um contrato vinculante;"
+  ],
+  [
+  "Você não está proibido por lei de usar a plataforma;"
+  ],
+  [
+  "Todas as informações que você fornecer durante o cadastro são precisas, atuais e completas;"
+  ],
+  [
+  "Você manterá a precisão das informações da sua conta."
+  ]
+  ]
+  },
+  {
+  "type": "p",
+  "text": "A OxSteed reserva-se o direito de solicitar comprovante de idade ou identidade a qualquer momento. Contas criadas por menores de 18 anos serão encerradas imediatamente."
+  },
+  {
+  "type": "note",
+  "variant": "yellow",
+  "strong": "Importante:",
+  "text": " A OxSteed está atualmente disponível nos Estados Unidos."
+  }
+  ]
+  },
+  "3": {
+    "search": "3. Níveis e serviços da plataforma Os recursos dependem do seu modo atual, permissões, região e disponibilidade. Os clientes podem encontrar ajuda, publicar trabalhos, avaliar propostas e pedir comida. Os ajudantes podem oferecer serviços e enviar propostas quando elegíveis. As empresas gerenciam seu espaço de trabalho e equipe autorizada. Assinaturas opcionais, verificação, aluguéis e ferramentas de pagamento estão disponíveis apenas onde oferecidos; um anúncio ou selo não comprova que todos os recursos estão ativos. Preços e termos de cobrança recorrente são exibidos antes da compra.",
+    "blocks": [
+      {
+        "type": "h2",
+        "text": "3. Recursos e disponibilidade"
+      },
+      {
+        "type": "p",
+        "text": "Os recursos dependem do seu modo atual, permissões, região e disponibilidade. Os clientes podem encontrar ajuda, publicar trabalhos, avaliar propostas e pedir comida. Os ajudantes podem oferecer serviços e enviar propostas quando elegíveis. As empresas gerenciam seu espaço de trabalho e equipe autorizada. Assinaturas opcionais, verificação, aluguéis e ferramentas de pagamento estão disponíveis apenas onde oferecidos; um anúncio ou selo não comprova que todos os recursos estão ativos. Preços e termos de cobrança recorrente são exibidos antes da compra."
+      }
+    ]
+  },
+  "4": {
+    "search": "4 adendo aluguel de ferramentas proprietário locatário danos segurança",
+    "blocks": [
+      {
+        "type": "h2",
+        "text": "4. Adendo de Aluguel de Ferramentas"
+      },
+      {
+        "type": "p",
+        "text": "A OxSteed permite que Ajudantes anunciem ferramentas e equipamentos para aluguel por meio da plataforma. Os seguintes termos adicionais aplicam-se a todas as transações de aluguel de ferramentas:"
+      },
+      {
+        "type": "p",
+        "segments": [
+          {
+            "strong": "Responsabilidades do Proprietário da Ferramenta."
+          },
+          " Os Ajudantes que anunciam ferramentas para aluguel declaram e garantem que: (a) são o proprietário legal da ferramenta ou têm autorização para alugá-la; (b) a ferramenta está em condição segura e de funcionamento; (c) o anúncio descreve com precisão a condição, as capacidades e quaisquer defeitos conhecidos da ferramenta; e (d) mantêm qualquer seguro exigido para o equipamento."
+        ]
+      },
+      {
+        "type": "p",
+        "segments": [
+          {
+            "strong": "Responsabilidades do Locatário."
+          },
+          " Os Clientes que alugam ferramentas concordam em: (a) usar a ferramenta apenas para o fim a que se destina; (b) devolver a ferramenta nas mesmas condições em que a receberam, exceto pelo desgaste normal; (c) não sublocar, emprestar ou transferir a ferramenta a terceiros; (d) notificar imediatamente o proprietário da ferramenta e a OxSteed sobre qualquer dano, mau funcionamento ou perda; e (e) assumir total responsabilidade por danos ou perda da ferramenta enquanto estiver em sua posse."
+        ]
+      },
+      {
+        "type": "p",
+        "segments": [
+          {
+            "strong": "Danos e Perdas."
+          },
+          " O locatário é financeiramente responsável pelo valor integral de reposição de qualquer ferramenta perdida, roubada ou danificada além do desgaste normal enquanto estiver em sua posse. Disputas sobre a condição da ferramenta seguirão o processo de resolução de disputas da Seção 16."
+        ]
+      },
+      {
+        "type": "p",
+        "text": "Para ferramentas anunciadas de forma independente, o proprietário é responsável pela condição, segurança, preço e termos de aluguel. Para uma oferta do OxSteed Direct, consulte o orçamento ou contrato que identifica o prestador e as responsabilidades. Revise os termos de pagamento e disputa específicos da transação antes de alugar."
+      },
+      {
+        "type": "note",
+        "variant": "red",
+        "strong": "Aviso de Segurança:",
+        "text": " Inspecione sempre qualquer ferramenta alugada antes de usar. Não use nenhuma ferramenta que pareça danificada, modificada ou insegura. A OxSteed não é responsável por lesões causadas por equipamentos defeituosos ou com manutenção inadequada."
+      }
+    ]
+  },
+  "5": {
+    "search": "5. Funções e definições de usuário Os modos Cliente, Ajudante e Empresa organizam diferentes fluxos de trabalho dentro de uma conta. Os proprietários de empresas podem conceder acesso ao espaço de trabalho a gerentes, funcionários, representantes ou equipe de suporte. A seleção de modo não concede autoridade para acessar os registros de outra pessoa ou agir em nome de uma empresa sem permissão. Prestadores de serviços independentes permanecem responsáveis por suas tarifas, trabalho, qualificações, impostos e contratos.",
+    "blocks": [
+      {
+        "type": "h2",
+        "text": "5. Funções e Definições de Usuário"
+      },
+      {
+        "type": "p",
+        "text": "Os modos Cliente, Ajudante e Empresa organizam diferentes fluxos de trabalho dentro de uma conta. Os proprietários de empresas podem conceder acesso ao espaço de trabalho a gerentes, funcionários, representantes ou equipe de suporte. A seleção de modo não concede autoridade para acessar os registros de outra pessoa ou agir em nome de uma empresa sem permissão. Prestadores de serviços independentes permanecem responsáveis por suas tarifas, trabalho, qualificações, impostos e contratos."
+      }
+    ]
+  },
+  "6": {
+    "search": "6. Taxas e termos de pagamento Revise o preço, as taxas, os impostos, os termos de cancelamento e o método de pagamento exibidos para o pedido, trabalho, orçamento, aluguel ou assinatura específicos antes de confirmar. Cobranças recorrentes aplicam-se apenas a uma assinatura contratada sob seus termos exibidos. Reembolsos e cancelamentos dependem da transação, da política aplicável, do processamento do provedor e da lei; uma solicitação não é um reembolso concluído. Os prestadores são responsáveis por suas obrigações fiscais; os requisitos de declaração e verificação dependem da legislação aplicável e do serviço de pagamento.",
+    "blocks": [
+      {
+        "type": "h2",
+        "text": "6. Taxas e Termos de Pagamento"
+      },
+      {
+        "type": "p",
+        "text": "Revise o preço, as taxas, os impostos, os termos de cancelamento e o método de pagamento exibidos para o pedido, trabalho, orçamento, aluguel ou assinatura específicos antes de confirmar. Cobranças recorrentes aplicam-se apenas a uma assinatura contratada sob seus termos exibidos. Reembolsos e cancelamentos dependem da transação, da política aplicável, do processamento do provedor e da lei; uma solicitação não é um reembolso concluído. Os prestadores são responsáveis por suas obrigações fiscais; os requisitos de declaração e verificação dependem da legislação aplicável e do serviço de pagamento."
+      }
+    ]
+  },
+  "7": {
+    "search": "7 verificação de antecedentes fcra checkr ação adversa selo verificado A verificação de antecedentes geralmente não está disponível no lançamento atual. As disposições a seguir aplicam-se apenas se um recurso de verificação for oferecido e autorizado separadamente. Uma assinatura ou selo de perfil por si só não significa que uma verificação de antecedentes foi realizada.",
+    "blocks": [
+      {
+        "type": "h2",
+        "text": "Verificações de Antecedentes, Verificação e Conformidade com a FCRA"
+      },
+      {
+        "type": "p",
+        "text": "A verificação de antecedentes geralmente não está disponível no lançamento atual. As disposições a seguir aplicam-se apenas se um recurso de verificação for oferecido e autorizado separadamente. Uma assinatura ou selo de perfil por si só não significa que uma verificação de antecedentes foi realizada."
+      },
+      {
+        "type": "h2",
+        "text": "7.1 Verificação de Antecedentes Opcional",
+        "sub": true
+      },
+      {
+        "type": "p",
+        "segments": [
+          "Ajudantes de Nível 2 podem optar por concluir uma verificação de antecedentes por meio da ",
+          {
+            "strong": "Checkr, Inc."
+          },
+          ", agência terceirizada de relatórios de consumidor da OxSteed. As verificações de antecedentes são totalmente voluntárias. A conclusão de uma verificação de antecedentes não garante emprego, concessão de trabalhos ou acesso contínuo à plataforma."
+        ]
+      },
+      {
+        "type": "h2",
+        "text": "7.2 Divulgação da Lei de Relatórios de Crédito Justos (FCRA)",
+        "sub": true
+      },
+      {
+        "type": "p",
+        "text": "A OxSteed cumpre a Lei de Relatórios de Crédito Justos (Fair Credit Reporting Act), 15 U.S.C. § 1681 et seq. (\"FCRA\"). Antes de iniciar uma verificação de antecedentes, a OxSteed fornecerá a você:"
+      },
+      {
+        "type": "ul",
+        "items": [
+          [
+            "Uma ",
+            {
+              "strong": "divulgação escrita autônoma da FCRA"
+            },
+            " informando que um relatório de consumidor pode ser obtido para fins de acesso à plataforma; e"
+          ],
+          [
+            "Uma solicitação de sua ",
+            {
+              "strong": "autorização escrita"
+            },
+            " para obter o relatório."
+          ]
+        ]
+      },
+      {
+        "type": "p",
+        "text": "Você deve consentir afirmativamente antes que qualquer verificação de antecedentes seja iniciada. Seu consentimento é separado da aceitação destes Termos."
+      },
+      {
+        "type": "h2",
+        "text": "7.3 Procedimento de Ação Adversa",
+        "sub": true
+      },
+      {
+        "type": "p",
+        "text": "Se a OxSteed tomar uma ação adversa com base, total ou parcialmente, em informações contidas em um relatório de consumidor - por exemplo, negar ou revogar seu selo verificado - a OxSteed irá:"
+      },
+      {
+        "type": "ol",
+        "items": [
+          [
+            "Fornecer a você um ",
+            {
+              "strong": "aviso prévio de ação adversa"
+            },
+            " e uma cópia do relatório de consumidor e um resumo dos seus direitos sob a FCRA antes que a ação seja finalizada;"
+          ],
+          [
+            "Conceder a você um prazo razoável (normalmente 5 dias úteis) para contestar quaisquer imprecisões diretamente com a Checkr;"
+          ],
+          [
+            "Fornecer um ",
+            {
+              "strong": "aviso final de ação adversa"
+            },
+            " se a decisão for mantida, incluindo informações de contato da Checkr e informações sobre seu direito de obter uma cópia gratuita do relatório."
+          ]
+        ]
+      },
+      {
+        "type": "h2",
+        "text": "7.4 Isenção de Precisão",
+        "sub": true
+      },
+      {
+        "type": "p",
+        "segments": [
+          "Os resultados da verificação de antecedentes são fornecidos exclusivamente pela ",
+          {
+            "strong": "Checkr, Inc."
+          },
+          ", que está sujeita aos seus próprios Termos de Serviço e Política de Privacidade. ",
+          {
+            "strong": "A OxSteed não declara nem garante que qualquer resultado de verificação de antecedentes seja completo, preciso ou atual."
+          },
+          " A OxSteed não é responsável por erros ou omissões nos relatórios da Checkr. Os Clientes são os únicos responsáveis por realizar sua própria diligência independente antes de contratar qualquer Ajudante, independentemente do status do selo."
+        ]
+      },
+      {
+        "type": "h2",
+        "text": "7.5 Expiração e Renovação da Verificação de Antecedentes",
+        "sub": true
+      },
+      {
+        "type": "p",
+        "text": "Os selos de verificação de antecedentes expiram 12 meses após a data do relatório subjacente e devem ser renovados para manter o status verificado. A OxSteed notificará você pelo menos 30 dias antes da expiração do seu selo."
+      },
+      {
+        "type": "ul",
+        "items": [
+          [
+            "Uma verificação de antecedentes não constitui endosso da OxSteed às habilidades, qualidade de trabalho ou caráter de qualquer Ajudante;"
+          ],
+          [
+            "Uma verificação de antecedentes não garante que um Ajudante possua qualquer licença profissional ou seguro exigido;"
+          ],
+          [
+            "Uma verificação de antecedentes não reflete atividade criminosa, alterações de licença ou outros eventos ocorridos após a data da verificação;"
+          ],
+          [
+            "Uma verificação de antecedentes não cria qualquer garantia da OxSteed quanto à aptidão do Ajudante para qualquer trabalho específico."
+          ]
+        ]
+      },
+      {
+        "type": "p",
+        "segments": [
+          {
+            "strong": "Não confie apenas no selo verificado ao contratar um Ajudante."
+          },
+          " Verifique sempre de forma independente licenças, seguros e referências para qualquer ofício regulamentado ou trabalho de alto valor."
+        ]
+      }
+    ]
+  },
+  "8": {
+  "search": "8 contratado independente emprego impostos seguro",
+  "blocks": [
+  {
+  "type": "h2",
+  "text": "8. Status de Contratado Independente"
+  },
+  {
+  "type": "p",
+  "text": "Nada nestes Termos cria uma relação de emprego, parceria, joint venture, agência, franquia ou relação empregador-empregado entre a OxSteed e qualquer Ajudante."
+  },
+  {
+  "type": "p",
+  "text": "Os Ajudantes reconhecem expressamente que:"
+  },
+  {
+  "type": "ul",
+  "items": [
+  [
+  "Eles operam um negócio independente"
+  ],
+  [
+  "Eles são os únicos responsáveis por todos os impostos federais, estaduais e locais sobre a renda obtida por meio da plataforma"
+  ],
+  [
+  "Eles devem manter qualquer seguro exigido por lei para seus serviços"
+  ],
+  [
+  "Eles são os únicos responsáveis por obter quaisquer licenças ou autorizações exigidas por lei"
+  ],
+  [
+  "A OxSteed não fornece compensação trabalhista, seguro-desemprego, benefícios de saúde ou quaisquer outros benefícios empregatícios"
+  ],
+  [
+  "Eles podem trabalhar para qualquer outra plataforma, cliente ou empregador a qualquer momento, sem restrições"
+  ]
+  ]
+  }
+  ]
+  },
+  "9": {
+  "search": "9 propriedade intelectual dmca direitos autorais marca registrada legal@oxsteed.com",
+  "blocks": [
+  {
+  "type": "h2",
+  "text": "9. Propriedade Intelectual e DMCA"
+  },
+  {
+  "type": "p",
+  "segments": [
+  {
+  "strong": "Conteúdo OxSteed."
+  },
+  " Todo o conteúdo, design, logotipos, marcas registradas, código e materiais na plataforma OxSteed (\"Conteúdo OxSteed\") são de propriedade da OxSteed LLC ou licenciados a ela e são protegidos pelas leis de direitos autorais, marcas registradas e outras leis de propriedade intelectual dos EUA e internacionais. Você não pode copiar, reproduzir, distribuir, modificar, criar obras derivadas, exibir publicamente ou explorar de qualquer outra forma qualquer Conteúdo OxSteed sem consentimento prévio por escrito da OxSteed."
+  ]
+  },
+  {
+  "type": "p",
+  "segments": [
+  {
+  "strong": "Licença de Conteúdo do Usuário."
+  },
+  " Ao publicar conteúdo na OxSteed (incluindo, entre outros, informações de perfil, fotos, avaliações, descrições de trabalhos e mensagens), você concede à OxSteed uma licença não exclusiva, mundial, isenta de royalties, transferível e sublicenciável para usar, exibir, reproduzir e distribuir seu conteúdo exclusivamente em conexão com a operação e promoção da plataforma. Você mantém a propriedade do seu conteúdo. Esta licença termina quando você exclui seu conteúdo ou sua conta, exceto para conteúdo que tenha sido compartilhado com outros usuários ou que a OxSteed seja obrigada a reter para fins legais ou de conformidade."
+  ]
+  },
+  {
+  "type": "p",
+  "segments": [
+  {
+  "strong": "Notificação e Remoção DMCA."
+  },
+  " A OxSteed respeita os direitos de propriedade intelectual e cumpre a Lei de Direitos Autorais do Milênio Digital (Digital Millennium Copyright Act) (\"DMCA\"), 17 U.S.C. § 512. Se você acredita que o conteúdo na OxSteed viola seus direitos autorais, você pode enviar uma notificação de remoção DMCA ao nosso agente designado:"
+  ]
+  },
+  {
+  "type": "dmcaBox",
+  "title": "Agente Designado DMCA:",
+  "lines": [
+  "OxSteed LLC",
+  "Aos cuidados de: Agente DMCA",
+  "Springfield, Ohio"
+  ],
+  "email": "legal@oxsteed.com"
+  },
+  {
+  "type": "p",
+  "text": "Sua notificação DMCA deve incluir: (1) identificação da obra protegida por direitos autorais; (2) identificação do material infrator e sua localização na plataforma; (3) suas informações de contato; (4) uma declaração de crença de boa-fé de que o uso não é autorizado; (5) uma declaração, sob pena de perjúrio, de que as informações são precisas e de que você é o titular dos direitos autorais ou agente autorizado; e (6) sua assinatura física ou eletrônica."
+  },
+  {
+  "type": "p",
+  "segments": [
+  {
+  "strong": "Contranotificação."
+  },
+  " Se você acredita que seu conteúdo foi removido por engano, você pode enviar uma contranotificação contendo: (1) identificação do material removido; (2) uma declaração, sob pena de perjúrio, de que a remoção foi um engano; (3) seu nome, endereço e número de telefone; (4) consentimento à jurisdição do tribunal federal do seu distrito; e (5) sua assinatura física ou eletrônica."
+  ]
+  },
+  {
+  "type": "note",
+  "variant": "red",
+  "strong": "Aviso:",
+  "text": " O envio de uma notificação ou contranotificação DMCA falsa pode resultar em responsabilidade legal sob 17 U.S.C. § 512(f), incluindo danos e honorários advocatícios."
+  }
+  ]
+  },
+  "10": {
+    "search": "10 rescisão suspensão desativar recurso garantia legal",
+    "blocks": [
+      {
+        "type": "h2",
+        "text": "10. Rescisão e Suspensão"
+      },
+      {
+        "type": "p",
+        "segments": [
+          {
+            "strong": "Pela OxSteed."
+          },
+          " A OxSteed pode suspender ou encerrar sua conta a qualquer momento, com ou sem motivo, e com ou sem aviso. Os motivos para rescisão incluem, entre outros: violação destes Termos, atividade fraudulenta ou ilegal, não pagamento de taxas, recebimento de múltiplas reclamações de outros usuários ou qualquer conduta que a OxSteed determine ser prejudicial à plataforma, a outros usuários ou a terceiros."
+        ]
+      },
+      {
+        "type": "p",
+        "text": "Você pode solicitar o encerramento da conta por meio das configurações disponíveis. O encerramento não cancela trabalhos existentes, obrigações de pagamento, disputas ou retenção legalmente exigida. Consulte a Política de Privacidade para exclusão e registros retidos."
+      },
+      {
+        "type": "p",
+        "segments": [
+          {
+            "strong": "Efeitos da Rescisão."
+          },
+          " Após a rescisão:"
+        ]
+      },
+      {
+        "type": "ul",
+        "items": [
+          [
+            "Seu direito de acessar e usar a OxSteed cessa imediatamente;"
+          ],
+          [
+            "Quaisquer fundos retidos pendentes serão tratados de acordo com o processo de resolução de disputas da Seção 16;"
+          ],
+          [
+            "A OxSteed pode reter seus dados conforme exigido por lei ou para fins comerciais legítimos (por exemplo, registros fiscais, evidências de disputas);"
+          ],
+          [
+            "As disposições que, por sua natureza, devem sobreviver à rescisão sobreviverão, incluindo as Seções 8, 9, 11, 12, 13, 16 e 20."
+          ]
+        ]
+      },
+      {
+        "type": "p",
+        "segments": [
+          {
+            "strong": "Recurso."
+          },
+          " Se sua conta for suspensa ou encerrada, você pode recorrer entrando em contato com ",
+          {
+            "mailto": "legal@oxsteed.com"
+          },
+          " dentro de 30 dias. A OxSteed analisará seu recurso e responderá dentro de 10 dias úteis. A decisão da OxSteed sobre o recurso é final."
+        ]
+      }
+    ]
+  },
+  "11": {
+  "search": "11 isenção garantias como está disponível comercialização",
+  "blocks": [
+  {
+  "type": "h2",
+  "text": "11. Isenção de Garantias"
+  },
+  {
+  "type": "p",
+  "uppercase": true,
+  "text": "A PLATAFORMA OXSTEED, INCLUINDO TODO O CONTEÚDO, RECURSOS E SERVIÇOS, É FORNECIDA \"COMO ESTÁ\" E \"CONFORME DISPONÍVEL\", SEM GARANTIAS DE QUALQUER TIPO, EXPRESSAS OU IMPLÍCITAS. NA MÁXIMA EXTENSÃO PERMITIDA POR LEI, A OXSTEED ISENTA-SE DE TODAS AS GARANTIAS, INCLUINDO, ENTRE OUTRAS, AS GARANTIAS IMPLÍCITAS DE COMERCIALIZAÇÃO, ADEQUAÇÃO A UM FIM ESPECÍFICO, NÃO VIOLAÇÃO E TITULARIDADE."
+  },
+  {
+  "type": "p",
+  "text": "Sem limitar o exposto acima, a OxSteed não garante que:"
+  },
+  {
+  "type": "ul",
+  "items": [
+  [
+  "A plataforma será ininterrupta, pontual, segura ou livre de erros;"
+  ],
+  [
+  "Os resultados obtidos na plataforma serão precisos ou confiáveis;"
+  ],
+  [
+  "Qualquer Ajudante ou Cliente cumprirá suas obrigações;"
+  ],
+  [
+  "Qualquer conteúdo na plataforma seja preciso, completo ou atual;"
+  ],
+  [
+  "A plataforma atenderá aos seus requisitos ou expectativas específicos."
+  ]
+  ]
+  },
+  {
+  "type": "p",
+  "text": "Você usa a plataforma por sua conta e risco. Nenhum conselho ou informação, seja oral ou escrito, obtido da OxSteed ou por meio da plataforma cria qualquer garantia não expressamente declarada nestes Termos."
+  }
+  ]
+  },
+  "12": {
+  "search": "12 responsabilidade seguro limitação danos ohio 4113",
+  "blocks": [
+  {
+  "type": "h2",
+  "text": "12. Limitações de Responsabilidade e Seguro"
+  },
+  {
+  "type": "p",
+  "segments": [
+  {
+  "strong": "Nenhum Seguro Fornecido."
+  },
+  " A OxSteed não fornece nenhuma cobertura de seguro para qualquer Ajudante, Cliente ou terceiro."
+  ]
+  },
+  {
+  "type": "p",
+  "segments": [
+  {
+  "strong": "Limitação de Responsabilidade."
+  },
+  " NA MÁXIMA EXTENSÃO PERMITIDA PELA LEGISLAÇÃO APLICÁVEL, A RESPONSABILIDADE TOTAL DA OXSTEED POR QUALQUER RECLAMAÇÃO DECORRENTE DESTES TERMOS OU DA PLATAFORMA OU A ELES RELACIONADA NÃO EXCEDERÁ O MAIOR DOS SEGUINTES VALORES: (A) US$ 100, OU (B) O TOTAL DE TAXAS PAGAS POR VOCÊ À OXSTEED NOS 12 MESES ANTERIORES À RECLAMAÇÃO."
+  ]
+  },
+  {
+  "type": "p",
+  "text": "A OXSTEED NÃO SERÁ RESPONSÁVEL POR QUAISQUER DANOS INDIRETOS, INCIDENTAIS, ESPECIAIS, CONSEQUENTES, PUNITIVOS OU EXEMPLARES."
+  },
+  {
+  "type": "p",
+  "segments": [
+  {
+  "strong": "Danos à Propriedade."
+  },
+  " A OxSteed não é responsável por qualquer dano à propriedade causado por um Ajudante durante a execução dos serviços."
+  ]
+  },
+  {
+  "type": "p",
+  "segments": [
+  {
+  "strong": "Lesões Corporais."
+  },
+  " A OxSteed não é responsável por qualquer lesão corporal, morte ou dano físico decorrente de serviços contratados por meio da plataforma."
+  ]
+  },
+  {
+  "type": "note",
+  "variant": "red",
+  "strong": "Aviso Específico de Ohio:",
+  "text": " O Código Revisado de Ohio (Ohio Revised Code) § 4113.15 et seq. rege disputas sobre pagamento de salários entre contratados independentes e partes contratantes. A OxSteed não é um \"empregador\" conforme definido pela legislação de Ohio."
+  }
+  ]
+  },
+  "13": {
+  "search": "13 indenização reivindicações honorários advocatícios ferramentas",
+  "blocks": [
+  {
+  "type": "h2",
+  "text": "13. Indenização"
+  },
+  {
+  "type": "p",
+  "text": "Você concorda em indenizar, defender e isentar de responsabilidade a OxSteed LLC, seus diretores, conselheiros, funcionários, agentes e afiliadas contra todo e qualquer tipo de reivindicações, danos, perdas, responsabilidades, custos e despesas (incluindo honorários advocatícios razoáveis) decorrentes de ou relacionados a:"
+  },
+  {
+  "type": "ul",
+  "items": [
+  [
+  "Seu uso ou acesso à plataforma OxSteed;"
+  ],
+  [
+  "Sua violação destes Termos de Serviço;"
+  ],
+  [
+  "Sua violação de qualquer lei, norma ou regulamento aplicável;"
+  ],
+  [
+  "Qualquer conteúdo que você publique, carregue ou transmita por meio da plataforma;"
+  ],
+  [
+  "Qualquer serviço que você preste ou receba por meio da plataforma;"
+  ],
+  [
+  "Qualquer disputa entre você e outro usuário;"
+  ],
+  [
+  "Sua negligência ou má conduta intencional;"
+  ],
+  [
+  "Qualquer reivindicação de terceiros decorrente do seu uso de ferramentas ou equipamentos alugados anunciados na plataforma."
+  ]
+  ]
+  },
+  {
+  "type": "p",
+  "text": "Esta obrigação de indenização sobrevive ao encerramento da sua conta e destes Termos."
+  }
+  ]
+  },
+  "14": {
+    "search": "14 isenção licenciamento licença selo verificado eletricista",
+    "blocks": [
+      {
+        "type": "h2",
+        "text": "14. Isenção de Licenciamento"
+      },
+      {
+        "type": "p",
+        "segments": [
+          {
+            "strong": "Nenhuma Verificação de Licença."
+          },
+          " A OxSteed não verifica, valida ou garante que qualquer Ajudante possua qualquer licença profissional, autorização, certificação ou seguro exigido pela legislação federal, estadual ou local para executar os serviços que anuncia na plataforma."
+        ]
+      },
+      {
+        "type": "p",
+        "segments": [
+          {
+            "strong": "Responsabilidade do Cliente."
+          },
+          " Os Clientes são os únicos responsáveis por verificar de forma independente se qualquer Ajudante que contratarem possui todas as licenças, autorizações, certificações e seguros exigidos pela legislação aplicável para os serviços específicos a serem executados. Isso inclui, entre outros: eletricistas, encanadores, técnicos de HVAC, empreiteiros gerais, telhadistas e qualquer outro ofício que exija licenciamento estadual ou local."
+        ]
+      },
+      {
+        "type": "p",
+        "segments": [
+          {
+            "strong": "Responsabilidade do Ajudante."
+          },
+          " Os Ajudantes declaram e garantem que possuem todas as licenças, autorizações e certificações exigidas pela legislação aplicável para os serviços que anunciam. Anunciar serviços que exigem licenciamento sem possuir a licença apropriada é uma violação destes Termos e pode resultar em encerramento imediato da conta."
+        ]
+      },
+      {
+        "type": "p",
+        "text": "Os selos descrevem o status específico exibido no perfil; eles não são uma garantia de licenciamento, seguro, verificação de antecedentes ou adequação. Verifique de forma independente as qualificações para o trabalho de que você precisa."
+      }
+    ]
+  },
+  "15": {
+    "search": "15 anúncios aluguel de ferramentas depósito nível 3 garantia locatário proprietário",
+    "blocks": [
+      {
+        "type": "h2",
+        "text": "15. Anúncios de Aluguel de Ferramentas - Termos Especiais"
+      },
+      {
+        "type": "h3",
+        "text": "15.1 Natureza dos Anúncios de Aluguel de Ferramentas"
+      },
+      {
+        "type": "p",
+        "text": "A OxSteed permite que os usuários publiquem anúncios oferecendo ferramentas e equipamentos para uso temporário por outros usuários (\"Aluguel de Ferramentas\"). Os anúncios de Aluguel de Ferramentas são uma categoria distinta dos anúncios de serviços de mão de obra. Quando ocorre uma transação de Aluguel de Ferramentas, o proprietário do anúncio (\"Proprietário da Ferramenta\") e o usuário locatário (\"Locatário\") celebram um contrato direto de depósito regido pela legislação estadual aplicável."
+      },
+      {
+        "type": "p",
+        "text": "Para ferramentas anunciadas de forma independente, o proprietário é responsável pela condição, segurança, preço e termos de aluguel. Para uma oferta do OxSteed Direct, consulte o orçamento ou contrato que identifica o prestador e as responsabilidades. Revise os termos de pagamento e disputa específicos da transação antes de alugar."
+      },
+      {
+        "type": "h3",
+        "text": "15.2 Responsabilidades do Proprietário da Ferramenta"
+      },
+      {
+        "type": "p",
+        "text": "Como Proprietário da Ferramenta que anuncia equipamentos na OxSteed, você declara, garante e concorda que:"
+      },
+      {
+        "type": "ul",
+        "items": [
+          [
+            "Você é o proprietário legítimo de todas as ferramentas anunciadas ou está autorizado a alugá-las;"
+          ],
+          [
+            "Todas as ferramentas anunciadas estão em condição segura e funcional de trabalho e estão livres de defeitos que possam causar lesões ou danos à propriedade;"
+          ],
+          [
+            "Você divulgará quaisquer limitações conhecidas, riscos de segurança ou requisitos de operação ao Locatário antes do início do aluguel;"
+          ],
+          [
+            "Você é o único responsável por cumprir quaisquer decretos ou regulamentos locais aplicáveis que regem o aluguel de ferramentas ou equipamentos;"
+          ],
+          [
+            "Seu seguro residencial, de locatário ou empresarial pode não cobrir o empréstimo comercial de ferramentas, e você deve consultar sua seguradora antes de anunciar ferramentas;"
+          ],
+          [
+            "Você é o único responsável por determinar o preço do aluguel, os requisitos de depósito e as condições de devolução;"
+          ],
+          [
+            "Qualquer avaliação de danos, disputa de depósito ou reivindicação de perda é inteiramente entre você e o Locatário."
+          ]
+        ]
+      },
+      {
+        "type": "h3",
+        "text": "15.3 Responsabilidades do Locatário"
+      },
+      {
+        "type": "p",
+        "text": "Como Locatário de ferramentas ou equipamentos anunciados na OxSteed, você concorda que:"
+      },
+      {
+        "type": "ul",
+        "items": [
+          [
+            "Você usará todas as ferramentas alugadas apenas para seu fim lícito pretendido e de acordo com todas as instruções do fabricante e diretrizes de segurança;"
+          ],
+          [
+            "Você assume todo o risco de lesões corporais, danos à propriedade e danos a terceiros decorrentes do seu uso de qualquer ferramenta alugada;"
+          ],
+          [
+            "Você é responsável por devolver as ferramentas nas mesmas condições em que as recebeu, exceto pelo desgaste normal;"
+          ],
+          [
+            "Você é responsável perante o Proprietário da Ferramenta por qualquer dano, perda ou roubo de ferramentas alugadas ocorrido enquanto estiverem em sua posse;"
+          ],
+          [
+            "Você não sublocará, emprestará ou transferirá de outra forma a posse de qualquer ferramenta alugada a terceiros sem o consentimento por escrito do Proprietário da Ferramenta."
+          ]
+        ]
+      },
+      {
+        "type": "h3",
+        "text": "15.4 Limitação de Responsabilidade da OxSteed para Aluguéis de Ferramentas"
+      },
+      {
+        "type": "p",
+        "segments": [
+          {
+            "strong": "A OxSteed isenta-se expressamente de toda e qualquer responsabilidade"
+          },
+          " decorrente de ou relacionada a transações de Aluguel de Ferramentas, incluindo, entre outras: lesões corporais ou morte causadas por uma ferramenta defeituosa ou usada de forma inadequada; danos à propriedade causados durante o uso da ferramenta; perda, roubo ou dano a ferramentas alugadas; disputas entre Proprietários de Ferramentas e Locatários sobre condição, depósitos ou devolução; e qualquer reivindicação de terceiros feridos por uma ferramenta alugada."
+        ]
+      },
+      {
+        "type": "p",
+        "segments": [
+          "A OxSteed não inspeciona, certifica ou garante a segurança ou condição de qualquer ferramenta anunciada na plataforma. ",
+          {
+            "strong": "Locatários e Proprietários de Ferramentas usam o recurso de Aluguel de Ferramentas inteiramente por sua conta e risco."
+          }
+        ]
+      },
+      {
+        "type": "h3",
+        "text": "15.5 Pagamento do Aluguel"
+      },
+      {
+        "type": "p",
+        "text": "Proteção de pagamento, depósitos, danos e perdas são cobertos apenas na medida declarada no contrato de aluguel específico e no serviço de pagamento selecionado. Um recurso de pagamento não assegura o equipamento nem garante a recuperação."
+      }
+    ]
+  },
+  "16": {
+    "search": "16. OxSteed Pay - Termos de pagamento As opções de pagamento dependem da transação e dos serviços habilitados. Um registro de pagamento direto documenta o pagamento informado pelos participantes; ele por si só não transfere dinheiro nem comprova liquidação bancária. Pagamentos com cartão, autorizações, reembolsos e repasses seguem os requisitos de processamento e verificação do provedor selecionado. A conclusão do trabalho, a confirmação do pagamento e a liquidação do repasse são estados separados; não trate um como prova dos outros. Revise quaisquer termos de retenção, liberação, disputa ou reembolso exibidos para o método de pagamento selecionado. O OxSteed Credit e os saldos de restaurantes, quando disponíveis, estão sujeitos às restrições exibidas de programa, conta e estabelecimento; eles não são uma promessa de seguro de depósito bancário, saque irrestrito em dinheiro ou aceitação universal. Entre em contato com o suporte sobre pagamentos contestados ou ausentes.",
+    "blocks": [
+      {
+        "type": "h2",
+        "text": "16. OxSteed Pay - Termos de Pagamento"
+      },
+      {
+        "type": "p",
+        "text": "As opções de pagamento dependem da transação e dos serviços habilitados. Um registro de pagamento direto documenta o pagamento informado pelos participantes; ele por si só não transfere dinheiro nem comprova liquidação bancária. Pagamentos com cartão, autorizações, reembolsos e repasses seguem os requisitos de processamento e verificação do provedor selecionado. A conclusão do trabalho, a confirmação do pagamento e a liquidação do repasse são estados separados; não trate um como prova dos outros. Revise quaisquer termos de retenção, liberação, disputa ou reembolso exibidos para o método de pagamento selecionado. O OxSteed Credit e os saldos de restaurantes, quando disponíveis, estão sujeitos às restrições exibidas de programa, conta e estabelecimento; eles não são uma promessa de seguro de depósito bancário, saque irrestrito em dinheiro ou aceitação universal. Entre em contato com o suporte sobre pagamentos contestados ou ausentes."
+      }
+    ]
+  },
+  "17": {
+    "search": "17 anúncios de trabalhos propostas cancelamento volume assinatura",
+    "blocks": [
+      {
+        "type": "h2",
+        "text": "17. Anúncios de Trabalhos e Sistema de Propostas"
+      },
+      {
+        "type": "h3",
+        "text": "17.1 Anúncios de Trabalhos de Clientes"
+      },
+      {
+        "type": "p",
+        "text": "Os Clientes podem publicar anúncios de trabalhos descrevendo o trabalho que precisam que seja executado. Ao publicar um anúncio de trabalho, você declara que o trabalho descrito é lícito, que você tem autoridade para contratar alguém para executá-lo e que o anúncio é preciso e não enganoso. A OxSteed reserva-se o direito de remover qualquer anúncio de trabalho por qualquer motivo, sem aviso ou responsabilidade."
+      },
+      {
+        "type": "p",
+        "text": "Antes de aceitar uma proposta, você pode revisar as edições disponíveis ou as opções de cancelamento. Alterações após propostas, atribuição ou pagamento podem exigir reconfirmação, reautorização de pagamento ou revisão de cancelamento. Os controles disponíveis refletem o estado atual do trabalho."
+      },
+      {
+        "type": "h3",
+        "text": "17.2 Propostas de Ajudantes"
+      },
+      {
+        "type": "p",
+        "text": "Os Ajudantes podem enviar propostas para anúncios de trabalhos publicados. Ao enviar uma proposta, você declara que:"
+      },
+      {
+        "type": "ul",
+        "items": [
+          [
+            "Você está genuinamente disponível e qualificado para executar o trabalho descrito;"
+          ],
+          [
+            "O preço da sua proposta é preciso e reflete seu custo total para o Cliente;"
+          ],
+          [
+            "Você possui quaisquer licenças, autorizações ou certificações exigidas para executar legalmente o trabalho na jurisdição aplicável."
+          ]
+        ]
+      },
+      {
+        "type": "p",
+        "text": "O envio de uma proposta é uma oferta, não um contrato."
+      },
+      {
+        "type": "h3",
+        "text": "17.3 Cancelamento de Propostas Ativas"
+      },
+      {
+        "type": "p",
+        "text": "Se um Cliente remover um anúncio de trabalho ou cancelá-lo após o envio de propostas, mas antes que uma proposta seja aceita, todas as propostas pendentes serão automaticamente anuladas. Os Ajudantes não têm nenhuma reivindicação contra a OxSteed ou o Cliente por cancelamentos de propostas."
+      },
+      {
+        "type": "h3",
+        "text": "17.4 Nenhuma Garantia de Volume de Trabalhos"
+      },
+      {
+        "type": "p",
+        "text": "A OxSteed não declara, garante ou assegura que qualquer Ajudante, em qualquer nível, receberá propostas, leads, ofertas de trabalho ou renda de qualquer valor. As taxas de assinatura são pelo acesso e recursos da plataforma, não por volume garantido de trabalho."
+      }
+    ]
+  },
+  "18": {
+    "search": "18. Serviços de terceiros Os recursos podem usar serviços terceirizados de pagamento, hospedagem, armazenamento, segurança, mensagens, mapas, análises e IA. Provedores e disponibilidade dependem do recurso e da configuração. Os termos aplicáveis deles também regem seus serviços. Respostas assistidas por IA podem ser imprecisas; revise-as antes de confiar nelas e não envie informações sensíveis desnecessárias. As Políticas de Privacidade e de Cookies explicam o processamento de dados relacionado e as opções.",
+    "blocks": [
+      {
+        "type": "h2",
+        "text": "18. Serviços de Terceiros"
+      },
+      {
+        "type": "p",
+        "text": "Os recursos podem usar serviços terceirizados de pagamento, hospedagem, armazenamento, segurança, mensagens, mapas, análises e IA. Provedores e disponibilidade dependem do recurso e da configuração. Os termos aplicáveis deles também regem seus serviços. Respostas assistidas por IA podem ser imprecisas; revise-as antes de confiar nelas e não envie informações sensíveis desnecessárias. As Políticas de Privacidade e de Cookies explicam o processamento de dados relacionado e as opções."
+      }
+    ]
+  },
+  "19": {
+  "search": "19 consentimento aceitação assinatura eletrônica criar conta continuar",
+  "blocks": [
+  {
+  "type": "h2",
+  "text": "19. Consentimento e Aceitação"
+  },
+  {
+  "type": "p",
+  "text": "Ao criar uma conta OxSteed, você confirma que leu, entendeu e concorda em estar vinculado a estes Termos de Serviço. Seu clique em \"Criar conta\" ou \"Continuar\" constitui uma assinatura eletrônica juridicamente vinculante sob a Lei E-SIGN (E-SIGN Act), 15 U.S.C. § 7001 et seq."
+  },
+  {
+  "type": "p",
+  "text": "Se você não concordar com estes Termos, não crie uma conta nem use a plataforma OxSteed."
+  }
+  ]
+  },
+  "20": {
+  "search": "20 modificações termos atualização aviso e-mail desativar",
+  "blocks": [
+  {
+  "type": "h2",
+  "text": "20. Modificações destes Termos"
+  },
+  {
+  "type": "p",
+  "text": "A OxSteed pode atualizar estes Termos a qualquer momento. Notificaremos os usuários sobre alterações materiais por e-mail pelo menos 14 dias antes de as alterações entrarem em vigor. O uso continuado da plataforma após a data de vigência dos Termos atualizados constitui aceitação dos novos Termos. Se você não concordar com os Termos atualizados, deverá parar de usar a plataforma e desativar sua conta."
+  }
+  ]
+  }
+  }
+}

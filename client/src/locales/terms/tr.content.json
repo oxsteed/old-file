@@ -1,0 +1,875 @@
+{
+  "sections": {
+    "1": {
+      "search": "1. OxSteed Nedir ve Ne Değildir OxSteed LLC, yerel yardım, iş ve teklifler, işletme çalışma alanları, yemek siparişi, teslimat ve medya için bir platform işletmektedir. Bağımsız yardımcılar ve işletmeler kendi tekliflerinden sorumludur. OxSteed Direct teklifleri ayrıca tanımlanır; teklif, sipariş veya sözleşme hizmet sağlayıcıyı ve kapsamı belirtir. Platform araçları bir işi, hizmet kalitesini, lisansı veya ödemeyi garanti etmez.",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "1. OxSteed Hizmetleri"
+        },
+        {
+          "type": "p",
+          "text": "OxSteed LLC, yerel yardım, iş ve teklifler, işletme çalışma alanları, yemek siparişi, teslimat ve medya için bir platform işletmektedir. Bağımsız yardımcılar ve işletmeler kendi tekliflerinden sorumludur. OxSteed Direct teklifleri ayrıca tanımlanır; teklif, sipariş veya sözleşme hizmet sağlayıcıyı ve kapsamı belirtir. Platform araçları bir işi, hizmet kalitesini, lisansı veya ödemeyi garanti etmez."
+        }
+      ]
+    },
+    "2": {
+      "search": "2 uygunluk 18 hesap amerika birleşik devletleri",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "2. Uygunluk"
+        },
+        {
+          "type": "p",
+          "text": "OxSteed'de bir hesap oluşturmak veya OxSteed'i kullanmak için en az 18 yaşında olmalısınız. Bir hesap oluşturarak şunları beyan ve taahhüt edersiniz:"
+        },
+        {
+          "type": "ul",
+          "items": [
+            [
+              "En az 18 yaşındasınız;"
+            ],
+            [
+              "Bağlayıcı bir sözleşme yapma hukuki ehliyetine sahipsiniz;"
+            ],
+            [
+              "Platformu kullanmanız yasalarca yasaklanmamıştır;"
+            ],
+            [
+              "Kayıt sırasında verdiğiniz tüm bilgiler doğru, güncel ve eksiksizdir;"
+            ],
+            [
+              "Hesap bilgilerinizin doğruluğunu koruyacaksınız."
+            ]
+          ]
+        },
+        {
+          "type": "p",
+          "text": "OxSteed, herhangi bir zamanda yaş veya kimlik kanıtı talep etme hakkını saklı tutar. 18 yaşından küçük herhangi biri tarafından oluşturulan hesaplar derhal kapatılacaktır."
+        },
+        {
+          "type": "note",
+          "variant": "yellow",
+          "strong": "Önemli:",
+          "text": " OxSteed şu anda yalnızca Amerika Birleşik Devletleri'nde kullanılabilmektedir."
+        }
+      ]
+    },
+    "3": {
+      "search": "3. Platform Kademeleri ve Hizmetler Özellikler mevcut modunuza, izinlerinize, bölgenize ve kullanılabilirliğe bağlıdır. Müşteriler yardım bulabilir, iş ilanları yayınlayabilir, teklifleri inceleyebilir ve yemek siparişi verebilir. Yardımcılar, uygun olduklarında hizmet sunabilir ve teklif verebilir. İşletmeler çalışma alanlarını ve yetkili ekiplerini yönetir. İsteğe bağlı abonelikler, tarama, kiralamalar ve ödeme araçları yalnızca sunuldukları yerlerde kullanılabilir; bir ilan veya rozet, her özelliğin aktif olduğunu göstermez. Fiyatlar ve yinelenen faturalandırma koşulları satın almadan önce gösterilir.",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "3. Özellikler ve Kullanılabilirlik"
+        },
+        {
+          "type": "p",
+          "text": "Özellikler mevcut modunuza, izinlerinize, bölgenize ve kullanılabilirliğe bağlıdır. Müşteriler yardım bulabilir, iş ilanları yayınlayabilir, teklifleri inceleyebilir ve yemek siparişi verebilir. Yardımcılar, uygun olduklarında hizmet sunabilir ve teklif verebilir. İşletmeler çalışma alanlarını ve yetkili ekiplerini yönetir. İsteğe bağlı abonelikler, tarama, kiralamalar ve ödeme araçları yalnızca sunuldukları yerlerde kullanılabilir; bir ilan veya rozet, her özelliğin aktif olduğunu göstermez. Fiyatlar ve yinelenen faturalandırma koşulları satın almadan önce gösterilir."
+        }
+      ]
+    },
+    "4": {
+      "search": "4 alet kiralama ek sahibi kiracı hasar güvenlik",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "4. Alet Kiralama Eki"
+        },
+        {
+          "type": "p",
+          "text": "OxSteed, Yardımcıların platform üzerinden alet ve ekipman kiralama için listelemesine olanak tanır. Tüm alet kiralama işlemlerine aşağıdaki ek koşullar uygulanır:"
+        },
+        {
+          "type": "p",
+          "segments": [
+            {
+              "strong": "Alet Sahibi Sorumlulukları."
+            },
+            " Kiralamak üzere alet listeleyen Yardımcılar şunları beyan ve taahhüt eder: (a) aletin yasal sahibidirler veya kiralama yetkisine sahiptirler; (b) alet güvenli, çalışır durumdadır; (c) ilan, aletin durumunu, yeteneklerini ve bilinen kusurları doğru şekilde açıklar; ve (d) ekipman için gerekli sigortayı sürdürürler."
+          ]
+        },
+        {
+          "type": "p",
+          "segments": [
+            {
+              "strong": "Kiracı Sorumlulukları."
+            },
+            " Alet kiralayan Müşteriler şunları kabul eder: (a) aleti yalnızca amacına uygun kullanmak; (b) aleti, normal aşınma ve yıpranma hariç, alındığı durumda iade etmek; (c) aleti herhangi bir üçüncü tarafa alt kiraya vermemek, ödünç vermemek veya devretmemek; (d) herhangi bir hasar, arıza veya kayıp durumunda alet sahibini ve OxSteed'i derhal bilgilendirmek; ve (e) alet ellerindeyken alette meydana gelen hasar veya kayıptan tam sorumluluğu üstlenmek."
+          ]
+        },
+        {
+          "type": "p",
+          "segments": [
+            {
+              "strong": "Hasar ve Kayıp."
+            },
+            " Kiracı, elindeyken kaybolan, çalınan veya normal aşınma ve yıpranmanın ötesinde hasar gören herhangi bir aletin tam yenileme değerinden mali olarak sorumludur. Alet durumuna ilişkin uyuşmazlıklar, Bölüm 16'daki uyuşmazlık çözüm sürecine tabi olacaktır."
+          ]
+        },
+        {
+          "type": "p",
+          "text": "Bağımsız olarak listelenen aletler için durum, güvenlik, fiyatlandırma ve kiralama koşullarından sahibi sorumludur. Bir OxSteed Direct teklifi için sağlayıcıyı ve sorumlulukları belirten teklife veya sözleşmeye başvurun. Kiralamadan önce işleme özgü ödeme ve uyuşmazlık koşullarını inceleyin."
+        },
+        {
+          "type": "note",
+          "variant": "red",
+          "strong": "Güvenlik Uyarısı:",
+          "text": " Kiraladığınız her aleti kullanmadan önce daima kontrol edin. Hasarlı, değiştirilmiş veya güvensiz görünen hiçbir aleti kullanmayın. OxSteed, kusurlu veya uygun şekilde bakımı yapılmamış ekipmanın neden olduğu yaralanmalardan sorumlu değildir."
+        }
+      ]
+    },
+    "5": {
+      "search": "5. Kullanıcı Rolleri ve Tanımlar Müşteri, Yardımcı ve İşletme modları bir hesap içinde farklı iş akışlarını düzenler. İşletme sahipleri, yöneticilere, çalışanlara, temsilcilere veya destek personeline çalışma alanı erişimi verebilir. Mod seçimi, başka bir kişinin kayıtlarına erişme veya izinsiz bir işletme adına hareket etme yetkisi vermez. Bağımsız hizmet sağlayıcılar; ücretlerinden, işlerinden, yeterliliklerinden, vergilerinden ve sözleşmelerinden sorumlu olmaya devam eder.",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "5. Kullanıcı Rolleri ve Tanımlar"
+        },
+        {
+          "type": "p",
+          "text": "Müşteri, Yardımcı ve İşletme modları bir hesap içinde farklı iş akışlarını düzenler. İşletme sahipleri, yöneticilere, çalışanlara, temsilcilere veya destek personeline çalışma alanı erişimi verebilir. Mod seçimi, başka bir kişinin kayıtlarına erişme veya izinsiz bir işletme adına hareket etme yetkisi vermez. Bağımsız hizmet sağlayıcılar; ücretlerinden, işlerinden, yeterliliklerinden, vergilerinden ve sözleşmelerinden sorumlu olmaya devam eder."
+        }
+      ]
+    },
+    "6": {
+      "search": "6. Ücretler ve Ödeme Koşulları Onaylamadan önce ilgili sipariş, iş, teklif, kiralama veya abonelik için gösterilen fiyatı, ücretleri, vergileri, iptal koşullarını ve ödeme yöntemini inceleyin. Yinelenen ücretler yalnızca, kayıtlı bir aboneliğe, gösterilen koşulları kapsamında uygulanır. İadeler ve iptaller işleme, geçerli politikaya, sağlayıcının işlem sürecine ve yasaya bağlıdır; bir talep, tamamlanmış bir iade değildir. Sağlayıcılar vergi yükümlülüklerinden sorumludur; raporlama ve doğrulama gereklilikleri geçerli yasaya ve ödeme hizmetine bağlıdır.",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "6. Ücretler ve Ödeme Koşulları"
+        },
+        {
+          "type": "p",
+          "text": "Onaylamadan önce ilgili sipariş, iş, teklif, kiralama veya abonelik için gösterilen fiyatı, ücretleri, vergileri, iptal koşullarını ve ödeme yöntemini inceleyin. Yinelenen ücretler yalnızca, kayıtlı bir aboneliğe, gösterilen koşulları kapsamında uygulanır. İadeler ve iptaller işleme, geçerli politikaya, sağlayıcının işlem sürecine ve yasaya bağlıdır; bir talep, tamamlanmış bir iade değildir. Sağlayıcılar vergi yükümlülüklerinden sorumludur; raporlama ve doğrulama gereklilikleri geçerli yasaya ve ödeme hizmetine bağlıdır."
+        }
+      ]
+    },
+    "7": {
+      "search": "7 geçmiş kontrolü fcra checkr olumsuz işlem rozet doğrulandı Geçmiş taraması mevcut lansmanda genel olarak kullanılamamaktadır. Aşağıdaki hükümler yalnızca bir tarama özelliği sunulur ve ayrıca yetkilendirilirse uygulanır. Yalnızca bir abonelik veya profil rozeti, bir geçmiş kontrolünün yapıldığı anlamına gelmez.",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "Geçmiş Kontrolleri, Doğrulama ve FCRA Uyumu"
+        },
+        {
+          "type": "p",
+          "text": "Geçmiş taraması mevcut lansmanda genel olarak kullanılamamaktadır. Aşağıdaki hükümler yalnızca bir tarama özelliği sunulur ve ayrıca yetkilendirilirse uygulanır. Yalnızca bir abonelik veya profil rozeti, bir geçmiş kontrolünün yapıldığı anlamına gelmez."
+        },
+        {
+          "type": "h2",
+          "text": "7.1 İsteğe Bağlı Geçmiş Taraması",
+          "sub": true
+        },
+        {
+          "type": "p",
+          "segments": [
+            "2. Kademe Yardımcılar, OxSteed'in üçüncü taraf tüketici raporlama kuruluşu olan ",
+            {
+              "strong": "Checkr, Inc."
+            },
+            " aracılığıyla bir geçmiş kontrolü tamamlamayı tercih edebilir. Geçmiş kontrolleri tamamen gönüllülük esasına dayanır. Bir geçmiş kontrolünün tamamlanması; istihdam, iş alma veya platforma sürekli erişim garantisi vermez."
+          ]
+        },
+        {
+          "type": "h2",
+          "text": "7.2 Adil Kredi Raporlama Yasası (FCRA) Açıklaması",
+          "sub": true
+        },
+        {
+          "type": "p",
+          "text": "OxSteed, Adil Kredi Raporlama Yasası'na (Fair Credit Reporting Act, 15 U.S.C. § 1681 vd.) (\"FCRA\") uyar. Bir geçmiş kontrolü başlatılmadan önce OxSteed size şunları sağlayacaktır:"
+        },
+        {
+          "type": "ul",
+          "items": [
+            [
+              "Platform erişimi amaçlarıyla bir tüketici raporu alınabileceğini bildiren ",
+              {
+                "strong": "bağımsız yazılı FCRA açıklaması"
+              },
+              "; ve"
+            ],
+            [
+              "Raporun alınması için sizden ",
+              {
+                "strong": "yazılı izin"
+              },
+              " talebi."
+            ]
+          ]
+        },
+        {
+          "type": "p",
+          "text": "Herhangi bir geçmiş kontrolü başlatılmadan önce açıkça onay vermelisiniz. Onayınız, bu Koşulların kabulünden ayrıdır."
+        },
+        {
+          "type": "h2",
+          "text": "7.3 Olumsuz İşlem Prosedürü",
+          "sub": true
+        },
+        {
+          "type": "p",
+          "text": "OxSteed, bir tüketici raporundaki bilgilere tamamen veya kısmen dayanarak olumsuz bir işlem yaparsa (örneğin, doğrulanmış rozetinizin reddedilmesi veya iptal edilmesi), OxSteed şunları yapacaktır:"
+        },
+        {
+          "type": "ol",
+          "items": [
+            [
+              "İşlem kesinleşmeden önce size ",
+              {
+                "strong": "olumsuz işlem öncesi bildirimi"
+              },
+              ", tüketici raporunun bir kopyasını ve FCRA haklarınızın bir özetini sağlamak;"
+            ],
+            [
+              "Checkr ile doğrudan herhangi bir yanlışlığa itiraz etmeniz için size makul bir süre (genellikle 5 iş günü) tanımak;"
+            ],
+            [
+              "Karar korunursa, Checkr'ın iletişim bilgilerini ve raporun ücretsiz bir kopyasını alma hakkınıza ilişkin bilgileri içeren nihai bir ",
+              {
+                "strong": "olumsuz işlem bildirimi"
+              },
+              " sağlamak."
+            ]
+          ]
+        },
+        {
+          "type": "h2",
+          "text": "7.4 Doğruluk Sorumluluk Reddi",
+          "sub": true
+        },
+        {
+          "type": "p",
+          "segments": [
+            "Geçmiş kontrolü sonuçları yalnızca ",
+            {
+              "strong": "Checkr, Inc."
+            },
+            " tarafından sağlanır; söz konusu kuruluş kendi Hizmet Koşullarına ve Gizlilik Politikasına tabidir. ",
+            {
+              "strong": "OxSteed, herhangi bir geçmiş kontrolü sonucunun eksiksiz, doğru veya güncel olduğuna dair hiçbir beyanda veya garantide bulunmaz."
+            },
+            " OxSteed, Checkr'ın raporlarındaki hata veya eksikliklerden sorumlu değildir. Müşteriler, rozet durumundan bağımsız olarak, herhangi bir Yardımcı ile çalışmadan önce kendi bağımsız durum tespitlerini yapmaktan münhasıran sorumludur."
+          ]
+        },
+        {
+          "type": "h2",
+          "text": "7.5 Geçmiş Kontrolünün Süresinin Dolması ve Yenilenmesi",
+          "sub": true
+        },
+        {
+          "type": "p",
+          "text": "Geçmiş kontrolü rozetleri, dayanak raporun tarihinden 12 ay sonra sona erer ve doğrulanmış durumu korumak için yenilenmelidir. OxSteed, rozetinizin süresi dolmadan en az 30 gün önce sizi bilgilendirecektir."
+        },
+        {
+          "type": "ul",
+          "items": [
+            [
+              "Bir geçmiş kontrolü, herhangi bir Yardımcının becerileri, iş kalitesi veya karakteri konusunda OxSteed'in onayı anlamına gelmez;"
+            ],
+            [
+              "Bir geçmiş kontrolü, bir Yardımcının gerekli herhangi bir mesleki lisansa veya sigortaya sahip olduğunu garanti etmez;"
+            ],
+            [
+              "Bir geçmiş kontrolü, kontrol tarihinden sonra meydana gelen suç faaliyetlerini, lisans değişikliklerini veya diğer olayları yansıtmaz;"
+            ],
+            [
+              "Bir geçmiş kontrolü, Yardımcının belirli bir işe uygunluğuna ilişkin OxSteed tarafından herhangi bir garanti oluşturmaz."
+            ]
+          ]
+        },
+        {
+          "type": "p",
+          "segments": [
+            {
+              "strong": "Bir Yardımcı işe alırken yalnızca doğrulanmış rozete güvenmeyin."
+            },
+            " Düzenlemeye tabi herhangi bir meslek veya yüksek değerli bir iş için lisansları, sigortayı ve referansları daima bağımsız olarak doğrulayın."
+          ]
+        }
+      ]
+    },
+    "8": {
+      "search": "8 bağımsız yüklenici istihdam vergiler sigorta",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "8. Bağımsız Yüklenici Statüsü"
+        },
+        {
+          "type": "p",
+          "text": "Bu Koşullardaki hiçbir husus, OxSteed ile herhangi bir Yardımcı arasında bir istihdam ilişkisi, ortaklık, iş ortaklığı, temsilcilik, franchise veya işveren-çalışan ilişkisi oluşturmaz."
+        },
+        {
+          "type": "p",
+          "text": "Yardımcılar açıkça kabul eder ki:"
+        },
+        {
+          "type": "ul",
+          "items": [
+            [
+              "Bağımsız bir işletme işletmektedirler"
+            ],
+            [
+              "Platform üzerinden elde edilen gelir üzerindeki tüm federal, eyalet ve yerel vergilerden münhasıran sorumludurlar"
+            ],
+            [
+              "Hizmetleri için yasalarca gerekli kılınan sigortayı taşımak zorundadırlar"
+            ],
+            [
+              "Yasalarca gerekli kılınan lisans veya izinleri almaktan münhasıran sorumludurlar"
+            ],
+            [
+              "OxSteed; işçi tazminatı, işsizlik sigortası, sağlık yardımları veya başka herhangi bir istihdam yardımı sağlamaz"
+            ],
+            [
+              "Herhangi bir zamanda, kısıtlama olmaksızın başka herhangi bir platform, müşteri veya işveren için çalışabilirler"
+            ]
+          ]
+        }
+      ]
+    },
+    "9": {
+      "search": "9 fikri mülkiyet dmca telif hakkı ticari marka legal@oxsteed.com",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "9. Fikri Mülkiyet ve DMCA"
+        },
+        {
+          "type": "p",
+          "segments": [
+            {
+              "strong": "OxSteed İçeriği."
+            },
+            " OxSteed platformundaki tüm içerik, tasarım, logolar, ticari markalar, kod ve materyaller (\"OxSteed İçeriği\"), OxSteed LLC'ye aittir veya OxSteed LLC'ye lisanslanmıştır ve ABD ile uluslararası telif hakkı, ticari marka ve diğer fikri mülkiyet yasalarıyla korunmaktadır. OxSteed'in önceden yazılı izni olmadan hiçbir OxSteed İçeriğini kopyalayamaz, çoğaltamaz, dağıtamaz, değiştiremez, türev çalışmalar oluşturamaz, kamuya açık olarak sergileyemez veya başka şekilde kullanamazsınız."
+          ]
+        },
+        {
+          "type": "p",
+          "segments": [
+            {
+              "strong": "Kullanıcı İçeriği Lisansı."
+            },
+            " OxSteed'e içerik göndererek (profil bilgileri, fotoğraflar, incelemeler, iş tanımları ve mesajlar dahil ancak bunlarla sınırlı olmamak üzere), OxSteed'e içeriğinizi yalnızca platformu işletmek ve tanıtmak amacıyla kullanma, sergileme, çoğaltma ve dağıtma için münhasır olmayan, dünya çapında, telifsiz, devredilebilir, alt lisanslanabilir bir lisans verirsiniz. İçeriğinizin mülkiyeti sizde kalır. Bu lisans, içeriğinizi veya hesabınızı sildiğinizde sona erer; diğer kullanıcılarla paylaşılan içerikler veya OxSteed'in yasal veya uyum amaçlarıyla saklaması gereken içerikler hariç."
+          ]
+        },
+        {
+          "type": "p",
+          "segments": [
+            {
+              "strong": "DMCA Bildirimi ve Kaldırma."
+            },
+            " OxSteed fikri mülkiyet haklarına saygı duyar ve Dijital Milenyum Telif Hakkı Yasası'na (Digital Millennium Copyright Act, \"DMCA\"), 17 U.S.C. § 512'ye uyar. OxSteed'deki bir içeriğin telif hakkınızı ihlal ettiğini düşünüyorsanız, yetkili temsilcimize bir DMCA kaldırma bildirimi gönderebilirsiniz:"
+          ]
+        },
+        {
+          "type": "dmcaBox",
+          "title": "DMCA Yetkili Temsilcisi:",
+          "lines": [
+            "OxSteed LLC",
+            "İlgili: DMCA Temsilcisi",
+            "Springfield, Ohio"
+          ],
+          "email": "legal@oxsteed.com"
+        },
+        {
+          "type": "p",
+          "text": "DMCA bildiriminiz şunları içermelidir: (1) telif hakkına tabi eserin tanımlanması; (2) ihlal eden materyalin ve platformdaki konumunun tanımlanması; (3) iletişim bilgileriniz; (4) kullanımın yetkili olmadığına dair iyi niyet beyanı; (5) bilgilerin doğru olduğuna ve telif hakkı sahibi veya yetkili temsilci olduğunuza dair yalan beyanda bulunma cezası altında beyan; ve (6) fiziksel veya elektronik imzanız."
+        },
+        {
+          "type": "p",
+          "segments": [
+            {
+              "strong": "Karşı Bildirim."
+            },
+            " İçeriğinizin hatalı bir şekilde kaldırıldığına inanıyorsanız, şunları içeren bir karşı bildirim gönderebilirsiniz: (1) kaldırılan materyalin tanımlanması; (2) kaldırmanın bir hata olduğuna dair yalan beyanda bulunma cezası altında beyan; (3) adınız, adresiniz ve telefon numaranız; (4) bölgenizdeki federal mahkemenin yargı yetkisini kabul; ve (5) fiziksel veya elektronik imzanız."
+          ]
+        },
+        {
+          "type": "note",
+          "variant": "red",
+          "strong": "Uyarı:",
+          "text": " Yanlış bir DMCA bildirimi veya karşı bildirim göndermek, tazminat ve avukat ücretleri dahil olmak üzere 17 U.S.C. § 512(f) kapsamında hukuki sorumluluğa yol açabilir."
+        }
+      ]
+    },
+    "10": {
+      "search": "10 fesih askıya alma devre dışı bırakma itiraz emanet hukuki",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "10. Fesih ve Askıya Alma"
+        },
+        {
+          "type": "p",
+          "segments": [
+            {
+              "strong": "OxSteed Tarafından."
+            },
+            " OxSteed, hesabınızı herhangi bir zamanda, sebepli veya sebepsiz, bildirimli veya bildirimsiz askıya alabilir veya feshedebilir. Fesih nedenleri şunları içerir ancak bunlarla sınırlı değildir: bu Koşulların ihlali, hileli veya yasa dışı faaliyet, ücretlerin ödenmemesi, diğer kullanıcılardan birden fazla şikayet alınması veya OxSteed'in platforma, diğer kullanıcılara veya üçüncü taraflara zararlı olduğunu belirlediği herhangi bir davranış."
+          ]
+        },
+        {
+          "type": "p",
+          "text": "Hesabınızın kapatılmasını mevcut ayarlar üzerinden talep edebilirsiniz. Kapatma; mevcut işleri, ödeme yükümlülüklerini, uyuşmazlıkları veya yasal olarak gerekli saklamayı ortadan kaldırmaz. Silme ve saklanan kayıtlar için Gizlilik Politikasına bakın."
+        },
+        {
+          "type": "p",
+          "segments": [
+            {
+              "strong": "Feshin Etkileri."
+            },
+            " Fesih üzerine:"
+          ]
+        },
+        {
+          "type": "ul",
+          "items": [
+            [
+              "OxSteed'e erişim ve OxSteed'i kullanma hakkınız derhal sona erer;"
+            ],
+            [
+              "Bekleyen tutulan fonlar, Bölüm 16'daki uyuşmazlık çözüm sürecine göre işleme alınır;"
+            ],
+            [
+              "OxSteed, yasalarca gerekli olduğu şekilde veya meşru ticari amaçlarla (örneğin, vergi kayıtları, uyuşmazlık kanıtları) verilerinizi saklayabilir;"
+            ],
+            [
+              "Niteliği gereği fesih sonrasında da geçerli olması gereken hükümler; 8, 9, 11, 12, 13, 16 ve 20. Bölümler dahil olmak üzere geçerliliğini korur."
+            ]
+          ]
+        },
+        {
+          "type": "p",
+          "segments": [
+            {
+              "strong": "İtiraz."
+            },
+            " Hesabınız askıya alınır veya feshedilirse, 30 gün içinde ",
+            {
+              "mailto": "legal@oxsteed.com"
+            },
+            " adresine başvurarak itiraz edebilirsiniz. OxSteed itirazınızı inceleyecek ve 10 iş günü içinde yanıt verecektir. OxSteed'in itiraz konusundaki kararı nihaidir."
+          ]
+        }
+      ]
+    },
+    "11": {
+      "search": "11 sorumluluk reddi garantiler olduğu gibi kullanılabilirlik satılabilirlik",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "11. Garanti Sorumluluk Reddi"
+        },
+        {
+          "type": "p",
+          "uppercase": true,
+          "text": "OXSTEED PLATFORMU; TÜM İÇERİK, ÖZELLİKLER VE HİZMETLER DAHİL OLMAK ÜZERE, AÇIK VEYA ZIMNİ HİÇBİR GARANTİ OLMAKSIZIN \"OLDUĞU GİBİ\" VE \"MEVCUT OLDUĞU GİBİ\" ESASINA GÖRE SAĞLANIR. YASALARIN İZİN VERDİĞİ EN GENİŞ ÖLÇÜDE OXSTEED; SATILABİLİRLİK, BELİRLİ BİR AMACA UYGUNLUK, İHLAL ETMEME VE MÜLKİYET GARANTİLERİ DAHİL ANCAK BUNLARLA SINIRLI OLMAMAK ÜZERE TÜM GARANTİLERİ REDDEDER."
+        },
+        {
+          "type": "p",
+          "text": "Yukarıdakileri sınırlamaksızın, OxSteed aşağıdakileri garanti etmez:"
+        },
+        {
+          "type": "ul",
+          "items": [
+            [
+              "Platformun kesintisiz, zamanında, güvenli veya hatasız olacağını;"
+            ],
+            [
+              "Platformdan elde edilen sonuçların doğru veya güvenilir olacağını;"
+            ],
+            [
+              "Herhangi bir Yardımcının veya Müşterinin yükümlülüklerini yerine getireceğini;"
+            ],
+            [
+              "Platformdaki herhangi bir içeriğin doğru, eksiksiz veya güncel olduğunu;"
+            ],
+            [
+              "Platformun özel gereksinimlerinizi veya beklentilerinizi karşılayacağını."
+            ]
+          ]
+        },
+        {
+          "type": "p",
+          "text": "Platformu kendi riskinizle kullanırsınız. OxSteed'den veya platform aracılığıyla elde edilen, sözlü veya yazılı hiçbir tavsiye veya bilgi, bu Koşullarda açıkça belirtilmeyen herhangi bir garanti oluşturmaz."
+        }
+      ]
+    },
+    "12": {
+      "search": "12 sorumluluk sigorta sınırlama tazminatlar ohio 4113",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "12. Sorumluluk Sınırlamaları ve Sigorta"
+        },
+        {
+          "type": "p",
+          "segments": [
+            {
+              "strong": "Sigorta Sağlanmamaktadır."
+            },
+            " OxSteed, herhangi bir Yardımcı, Müşteri veya üçüncü taraf için herhangi bir sigorta teminatı sağlamaz."
+          ]
+        },
+        {
+          "type": "p",
+          "segments": [
+            {
+              "strong": "Sorumluluğun Sınırlanması."
+            },
+            " GEÇERLİ YASALARIN İZİN VERDİĞİ AZAMİ ÖLÇÜDE, BU KOŞULLARDAN VEYA PLATFORMDAN KAYNAKLANAN VEYA BUNLARLA İLGİLİ HERHANGİ BİR TALEP İÇİN OXSTEED'İN TOPLAM SORUMLULUĞU ŞUNLARDAN YÜKSEK OLANI AŞAMAZ: (A) 100 ABD DOLARI VEYA (B) TALEBİN ÖNCESİNDEKİ 12 AYDA OXSTEED'E ÖDEDİĞİNİZ TOPLAM ÜCRETLER."
+          ]
+        },
+        {
+          "type": "p",
+          "text": "OXSTEED; DOLAYLI, ARIZİ, ÖZEL, SONUÇSAL, CEZAİ VEYA EMSAL NİTELİKTEKİ HİÇBİR ZARARDAN SORUMLU OLMAYACAKTIR."
+        },
+        {
+          "type": "p",
+          "segments": [
+            {
+              "strong": "Maddi Hasar."
+            },
+            " OxSteed, bir Yardımcının hizmetleri yerine getirmesi sırasında neden olduğu herhangi bir maddi hasardan sorumlu değildir."
+          ]
+        },
+        {
+          "type": "p",
+          "segments": [
+            {
+              "strong": "Kişisel Yaralanma."
+            },
+            " OxSteed, platform aracılığıyla düzenlenen hizmetlerden kaynaklanan herhangi bir kişisel yaralanma, ölüm veya bedensel zarardan sorumlu değildir."
+          ]
+        },
+        {
+          "type": "note",
+          "variant": "red",
+          "strong": "Ohio'ya Özgü Bildirim:",
+          "text": " Ohio Revize Kanunu (Ohio Revised Code) § 4113.15 vd., bağımsız yükleniciler ile işveren taraflar arasındaki ücret ödeme uyuşmazlıklarını düzenler. OxSteed, Ohio yasalarında tanımlandığı şekliyle bir \"işveren\" değildir."
+        }
+      ]
+    },
+    "13": {
+      "search": "13 tazmin talepler avukat ücretleri aletler",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "13. Tazmin"
+        },
+        {
+          "type": "p",
+          "text": "Aşağıdakilerden kaynaklanan veya bunlarla ilgili her türlü talep, zarar, kayıp, yükümlülük, maliyet ve gidere (makul avukat ücretleri dahil) karşı OxSteed LLC'yi, yetkililerini, yöneticilerini, çalışanlarını, temsilcilerini ve bağlı kuruluşlarını tazmin etmeyi, savunmayı ve zararsız tutmayı kabul edersiniz:"
+        },
+        {
+          "type": "ul",
+          "items": [
+            [
+              "OxSteed platformunu kullanmanız veya platformuna erişmeniz;"
+            ],
+            [
+              "Bu Hizmet Koşullarını ihlal etmeniz;"
+            ],
+            [
+              "Geçerli herhangi bir yasa, kural veya düzenlemeyi ihlal etmeniz;"
+            ],
+            [
+              "Platform aracılığıyla yayınladığınız, yüklediğiniz veya ilettiğiniz herhangi bir içerik;"
+            ],
+            [
+              "Platform aracılığıyla gerçekleştirdiğiniz veya aldığınız herhangi bir hizmet;"
+            ],
+            [
+              "Siz ile başka bir kullanıcı arasındaki herhangi bir uyuşmazlık;"
+            ],
+            [
+              "İhmaliniz veya kasıtlı kötü davranışınız;"
+            ],
+            [
+              "Platformda listelenen kiralık alet veya ekipmanları kullanmanızdan kaynaklanan herhangi bir üçüncü taraf talebi."
+            ]
+          ]
+        },
+        {
+          "type": "p",
+          "text": "Bu tazmin yükümlülüğü, hesabınızın ve bu Koşulların feshinden sonra da geçerliliğini korur."
+        }
+      ]
+    },
+    "14": {
+      "search": "14 lisans sorumluluk reddi lisans doğrulanmış rozet elektrikçi",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "14. Lisans Sorumluluk Reddi"
+        },
+        {
+          "type": "p",
+          "segments": [
+            {
+              "strong": "Lisans Doğrulaması Yapılmaz."
+            },
+            " OxSteed; herhangi bir Yardımcının platformda reklamını yaptığı hizmetleri yerine getirmek için federal, eyalet veya yerel yasalarca gerekli kılınan herhangi bir mesleki lisansa, izne, sertifikaya veya sigortaya sahip olduğunu doğrulamaz, onaylamaz veya garanti etmez."
+          ]
+        },
+        {
+          "type": "p",
+          "segments": [
+            {
+              "strong": "Müşteri Sorumluluğu."
+            },
+            " Müşteriler; çalıştıracakları herhangi bir Yardımcının, gerçekleştirilecek belirli hizmetler için geçerli yasalarca gerekli kılınan tüm lisanslara, izinlere, sertifikalara ve sigortaya sahip olduğunu bağımsız olarak doğrulamaktan münhasıran sorumludur. Bunlar şunları içerir ancak bunlarla sınırlı değildir: elektrikçiler, tesisatçılar, HVAC teknisyenleri, genel müteahhitler, çatı ustaları ve eyalet veya yerel lisans gerektiren diğer tüm meslekler."
+          ]
+        },
+        {
+          "type": "p",
+          "segments": [
+            {
+              "strong": "Yardımcı Sorumluluğu."
+            },
+            " Yardımcılar, reklamını yaptıkları hizmetler için geçerli yasalarca gerekli kılınan tüm lisanslara, izinlere ve sertifikalara sahip olduklarını beyan ve taahhüt eder. Uygun lisansa sahip olmadan lisans gerektiren hizmetleri listelemek, bu Koşulların ihlalidir ve hesabın derhal feshedilmesiyle sonuçlanabilir."
+          ]
+        },
+        {
+          "type": "p",
+          "text": "Rozetler, profilde gösterilen belirli durumu açıklar; bunlar lisans, sigorta, geçmiş taraması veya uygunluk garantisi değildir. İhtiyacınız olan iş için yeterlilikleri bağımsız olarak kontrol edin."
+        }
+      ]
+    },
+    "15": {
+      "search": "15 alet kiralama ilanları vedia kademe 3 emanet kiracı sahip",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "15. Alet Kiralama İlanları - Özel Koşullar"
+        },
+        {
+          "type": "h3",
+          "text": "15.1 Alet Kiralama İlanlarının Niteliği"
+        },
+        {
+          "type": "p",
+          "text": "OxSteed, kullanıcıların diğer kullanıcılar tarafından geçici kullanım için alet ve ekipman sunan ilanlar yayınlamasına izin verir (\"Alet Kiralama\"). Alet Kiralama ilanları, işçilik hizmeti ilanlarından ayrı bir kategoridir. Bir Alet Kiralama işlemi gerçekleştiğinde, ilan sahibi (\"Alet Sahibi\") ve kiralayan kullanıcı (\"Kiracı\"), geçerli eyalet yasalarına tabi doğrudan bir vedia sözleşmesi akdeder."
+        },
+        {
+          "type": "p",
+          "text": "Bağımsız olarak listelenen aletler için durum, güvenlik, fiyatlandırma ve kiralama koşullarından sahibi sorumludur. Bir OxSteed Direct teklifi için sağlayıcıyı ve sorumlulukları belirten teklife veya sözleşmeye başvurun. Kiralamadan önce işleme özgü ödeme ve uyuşmazlık koşullarını inceleyin."
+        },
+        {
+          "type": "h3",
+          "text": "15.2 Alet Sahibi Sorumlulukları"
+        },
+        {
+          "type": "p",
+          "text": "OxSteed'de ekipman listeleyen bir Alet Sahibi olarak, şunları beyan, taahhüt ve kabul edersiniz:"
+        },
+        {
+          "type": "ul",
+          "items": [
+            [
+              "Listelenen tüm aletlerin yasal sahibisiniz veya kiralamaya yetkilisiniz;"
+            ],
+            [
+              "Listelenen tüm aletler güvenli, işlevsel çalışır durumdadır ve yaralanmaya veya maddi hasara neden olabilecek kusurlardan aridir;"
+            ],
+            [
+              "Kiralama başlamadan önce bilinen tüm sınırlamaları, güvenlik tehlikelerini veya işletme gerekliliklerini Kiracıya açıklayacaksınız;"
+            ],
+            [
+              "Alet veya ekipman kiralamayı düzenleyen geçerli yerel yönetmeliklere veya düzenlemelere uymaktan münhasıran sorumlusunuz;"
+            ],
+            [
+              "Konut, kiracı veya işletme sigortanız ticari alet ödünç vermeyi kapsamayabilir; alet listelemeden önce sigortacınıza danışmalısınız;"
+            ],
+            [
+              "Kiralama fiyatını, depozito gerekliliklerini ve iade koşullarını belirlemekten münhasıran sorumlusunuz;"
+            ],
+            [
+              "Herhangi bir hasar değerlendirmesi, depozito uyuşmazlığı veya kayıp talebi tamamen siz ile Kiracı arasındadır."
+            ]
+          ]
+        },
+        {
+          "type": "h3",
+          "text": "15.3 Kiracı Sorumlulukları"
+        },
+        {
+          "type": "p",
+          "text": "OxSteed'de listelenen alet veya ekipmanın Kiracısı olarak, şunları kabul edersiniz:"
+        },
+        {
+          "type": "ul",
+          "items": [
+            [
+              "Kiralanan tüm aletleri yalnızca amaçlanan, yasal amacı doğrultusunda ve tüm üretici talimatlarına ve güvenlik yönergelerine uygun olarak kullanacaksınız;"
+            ],
+            [
+              "Kiralanan herhangi bir aletin kullanımından kaynaklanan tüm kişisel yaralanma, maddi hasar ve üçüncü taraf zararı riskini üstlenirsiniz;"
+            ],
+            [
+              "Aletleri, normal aşınma ve yıpranma hariç, alındığı durumda iade etmekten sorumlusunuz;"
+            ],
+            [
+              "Elinizdeyken meydana gelen kiralanan aletlerin herhangi bir hasarı, kaybı veya hırsızlığından Alet Sahibine karşı sorumlusunuz;"
+            ],
+            [
+              "Alet Sahibinin yazılı izni olmadan kiralanan herhangi bir aleti alt kiraya vermeyecek, ödünç vermeyecek veya zilyetliğini başka şekilde bir üçüncü tarafa devretmeyeceksiniz."
+            ]
+          ]
+        },
+        {
+          "type": "h3",
+          "text": "15.4 OxSteed'in Alet Kiralamalarına İlişkin Sorumluluk Sınırlaması"
+        },
+        {
+          "type": "p",
+          "segments": [
+            {
+              "strong": "OxSteed, Alet Kiralama işlemlerinden kaynaklanan veya bunlarla ilgili"
+            },
+            "tüm sorumluluğu açıkça reddeder; bunlar şunları içerir ancak bunlarla sınırlı değildir: kusurlu veya uygunsuz kullanılan bir aletin neden olduğu kişisel yaralanma veya ölüm; alet kullanımı sırasında meydana gelen maddi hasar; kiralanan aletlerin kaybı, hırsızlığı veya hasarı; Alet Sahipleri ile Kiracılar arasında durum, depozito veya iade konusundaki uyuşmazlıklar; ve kiralanan bir alet nedeniyle yaralanan bir üçüncü tarafın herhangi bir talebi."
+          ]
+        },
+        {
+          "type": "p",
+          "segments": [
+            "OxSteed, platformda listelenen herhangi bir aletin güvenliğini veya durumunu denetlemez, onaylamaz veya garanti etmez. ",
+            {
+              "strong": "Kiracılar ve Alet Sahipleri, Alet Kiralama özelliğini tamamen kendi riskleriyle kullanır."
+            }
+          ]
+        },
+        {
+          "type": "h3",
+          "text": "15.5 Kiralama Ödemesi"
+        },
+        {
+          "type": "p",
+          "text": "Ödeme koruması, depozitolar, hasar ve kayıp yalnızca ilgili kiralama sözleşmesinde ve seçilen ödeme hizmetinde belirtildiği ölçüde karşılanır. Bir ödeme özelliği, ekipmanı sigortalamaz veya geri kazanımı garanti etmez."
+        }
+      ]
+    },
+    "16": {
+      "search": "16. OxSteed Pay - Ödeme Koşulları Ödeme seçenekleri işleme ve etkin hizmetlere bağlıdır. Doğrudan ödeme kaydı, katılımcılar tarafından bildirilen ödemeyi belgeler; bu kayıt tek başına para transferi yapmaz veya banka ödemesini kanıtlamaz. Kart ödemeleri, yetkilendirmeler, iadeler ve ödemeler, seçilen sağlayıcının işlem ve doğrulama gerekliliklerine tabidir. İşin tamamlanması, ödeme onayı ve ödeme mutabakatı ayrı durumlardır; birini diğerlerinin kanıtı olarak kabul etmeyin. Seçilen ödeme yöntemi için gösterilen bekletme, serbest bırakma, uyuşmazlık veya iade koşullarını inceleyin. OxSteed Credit ve restoran bakiyeleri, mevcut oldukları durumlarda, gösterilen program, hesap ve satıcı kısıtlamalarına tabidir; bunlar banka mevduat sigortası, sınırsız nakit çekme veya evrensel kabul vaadi değildir. İtiraz edilen veya eksik ödemeler için destek ile iletişime geçin.",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "16. OxSteed Pay - Ödeme Koşulları"
+        },
+        {
+          "type": "p",
+          "text": "Ödeme seçenekleri işleme ve etkin hizmetlere bağlıdır. Doğrudan ödeme kaydı, katılımcılar tarafından bildirilen ödemeyi belgeler; bu kayıt tek başına para transferi yapmaz veya banka ödemesini kanıtlamaz. Kart ödemeleri, yetkilendirmeler, iadeler ve ödemeler, seçilen sağlayıcının işlem ve doğrulama gerekliliklerine tabidir. İşin tamamlanması, ödeme onayı ve ödeme mutabakatı ayrı durumlardır; birini diğerlerinin kanıtı olarak kabul etmeyin. Seçilen ödeme yöntemi için gösterilen bekletme, serbest bırakma, uyuşmazlık veya iade koşullarını inceleyin. OxSteed Credit ve restoran bakiyeleri, mevcut oldukları durumlarda, gösterilen program, hesap ve satıcı kısıtlamalarına tabidir; bunlar banka mevduat sigortası, sınırsız nakit çekme veya evrensel kabul vaadi değildir. İtiraz edilen veya eksik ödemeler için destek ile iletişime geçin."
+        }
+      ]
+    },
+    "17": {
+      "search": "17 iş ilanları teklifler iptal hacim abonelik",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "17. İş İlanları ve Teklif Sistemi"
+        },
+        {
+          "type": "h3",
+          "text": "17.1 Müşteri İş İlanları"
+        },
+        {
+          "type": "p",
+          "text": "Müşteriler, yapılmasını istedikleri işi açıklayan iş ilanları yayınlayabilir. Bir iş ilanı yayınlayarak; açıklanan işin yasal olduğunu, onu yaptırmak için birini görevlendirme yetkiniz olduğunu ve ilanın doğru ve yanıltıcı olmadığını beyan edersiniz. OxSteed, herhangi bir iş ilanını herhangi bir nedenle, bildirimde bulunmaksızın veya sorumluluk üstlenmeksizin kaldırma hakkını saklı tutar."
+        },
+        {
+          "type": "p",
+          "text": "Bir teklifi kabul etmeden önce mevcut düzenleme veya iptal seçeneklerini inceleyebilirsiniz. Tekliflerden, atamadan veya ödemeden sonraki değişiklikler; yeniden onay, ödemenin yeniden yetkilendirilmesi veya iptal incelemesi gerektirebilir. Mevcut kontroller, işin güncel durumunu yansıtır."
+        },
+        {
+          "type": "h3",
+          "text": "17.2 Yardımcı Teklifleri"
+        },
+        {
+          "type": "p",
+          "text": "Yardımcılar, yayınlanan iş ilanlarına teklif verebilir. Teklif vererek şunları beyan edersiniz:"
+        },
+        {
+          "type": "ul",
+          "items": [
+            [
+              "Açıklanan işi gerçekleştirmek için gerçekten uygun ve niteliklisiniz;"
+            ],
+            [
+              "Teklif fiyatınız doğrudur ve Müşteriye olan toplam maliyetinizi yansıtır;"
+            ],
+            [
+              "Geçerli yargı bölgesinde işi yasal olarak gerçekleştirmek için gerekli lisans, izin veya sertifikalara sahipsiniz."
+            ]
+          ]
+        },
+        {
+          "type": "p",
+          "text": "Teklif vermek bir tekliftir, sözleşme değildir."
+        },
+        {
+          "type": "h3",
+          "text": "17.3 Aktif Tekliflerin İptali"
+        },
+        {
+          "type": "p",
+          "text": "Bir Müşteri, teklifler verildikten ancak bir teklif kabul edilmeden önce bir iş ilanını kaldırır veya iptal ederse, bekleyen tüm teklifler otomatik olarak geçersiz hale gelir. Yardımcıların, teklif iptalleri nedeniyle OxSteed'e veya Müşteriye karşı herhangi bir talebi yoktur."
+        },
+        {
+          "type": "h3",
+          "text": "17.4 İş Hacmi Garantisi Yoktur"
+        },
+        {
+          "type": "p",
+          "text": "OxSteed, herhangi bir kademedeki herhangi bir Yardımcının teklif, müşteri adayı, iş teklifi veya herhangi bir tutarda gelir alacağına dair hiçbir beyanda, garantide veya taahhütte bulunmaz. Abonelik ücretleri, platform erişimi ve özellikleri içindir; garantili iş hacmi için değildir."
+        }
+      ]
+    },
+    "18": {
+      "search": "18. Üçüncü Taraf Hizmetler Özellikler; üçüncü taraf ödeme, barındırma, depolama, güvenlik, mesajlaşma, haritalama, analitik ve yapay zeka hizmetlerini kullanabilir. Sağlayıcılar ve kullanılabilirlik, özelliğe ve yapılandırmaya bağlıdır. Onların geçerli koşulları da kendi hizmetlerini yönetir. Yapay zeka destekli yanıtlar yanlış olabilir; onlara güvenmeden önce inceleyin ve gereksiz hassas bilgi göndermeyin. Gizlilik ve Çerez Politikaları, ilgili veri işlemeyi ve seçenekleri açıklar.",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "18. Üçüncü Taraf Hizmetler"
+        },
+        {
+          "type": "p",
+          "text": "Özellikler; üçüncü taraf ödeme, barındırma, depolama, güvenlik, mesajlaşma, haritalama, analitik ve yapay zeka hizmetlerini kullanabilir. Sağlayıcılar ve kullanılabilirlik, özelliğe ve yapılandırmaya bağlıdır. Onların geçerli koşulları da kendi hizmetlerini yönetir. Yapay zeka destekli yanıtlar yanlış olabilir; onlara güvenmeden önce inceleyin ve gereksiz hassas bilgi göndermeyin. Gizlilik ve Çerez Politikaları, ilgili veri işlemeyi ve seçenekleri açıklar."
+        }
+      ]
+    },
+    "19": {
+      "search": "19 onay kabul e-imza hesap oluştur devam",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "19. Onay ve Kabul"
+        },
+        {
+          "type": "p",
+          "text": "Bir OxSteed hesabı oluşturarak, bu Hizmet Koşullarını okuduğunuzu, anladığınızı ve bunlarla bağlı olmayı kabul ettiğinizi onaylarsınız. \"Hesap Oluştur\" veya \"Devam Et\" düğmesine tıklamanız, E-İmza Yasası (E-SIGN Act, 15 U.S.C. § 7001 vd.) kapsamında hukuken bağlayıcı bir elektronik imza oluşturur."
+        },
+        {
+          "type": "p",
+          "text": "Bu Koşulları kabul etmiyorsanız, hesap oluşturmayın veya OxSteed platformunu kullanmayın."
+        }
+      ]
+    },
+    "20": {
+      "search": "20 değişiklikler koşullar güncelleme e-posta bildirim devre dışı bırakma",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "20. Bu Koşullarda Yapılacak Değişiklikler"
+        },
+        {
+          "type": "p",
+          "text": "OxSteed bu Koşulları herhangi bir zamanda güncelleyebilir. Esaslı değişikliklerden kullanıcıları, değişiklikler yürürlüğe girmeden en az 14 gün önce e-posta ile bilgilendireceğiz. Güncellenen Koşulların yürürlük tarihinden sonra platformu kullanmaya devam etmeniz, yeni Koşulların kabulü anlamına gelir. Güncellenen Koşulları kabul etmiyorsanız, platformu kullanmayı bırakmalı ve hesabınızı devre dışı bırakmalısınız."
+        }
+      ]
+    }
+  }
+}

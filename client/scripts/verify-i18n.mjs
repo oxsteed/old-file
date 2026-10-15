@@ -492,6 +492,7 @@ const STILL_ENGLISH_ALLOWLIST = new Set([
   'legacy translation:logistics.home.unitsProgress',
   'legacy translation:adminRegionsCountryRegionSummary',
   'legacy translation:superCountryPacks.statusUpdated',
+  'legacy translation:restaurants.ops.audits.scoreSummary',
   // Correct French translations that happen to match the English spelling.
   'legacy translation:businessHub.professionalOps.title:fr',
   'legacy translation:productGallery.imageAlt:fr',

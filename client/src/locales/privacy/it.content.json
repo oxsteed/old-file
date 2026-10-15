@@ -1,0 +1,195 @@
+{
+  "sections": {
+    "1": {
+      "search": "1. Introduzione OxSteed LLC fornisce elenchi di servizi locali, offerte di lavoro e offerte, spazi di lavoro aziendali, ordini di cibo, consegne, media e relativi account e strumenti di pagamento. Questi termini descrivono le informazioni elaborate quando utilizza queste funzionalità, inclusi il contatto e l'assistenza degli ospiti. La disponibilità dipende dalla funzionalità, dall'account, dalla regione e dal fornitore di servizi.",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "1. Introduzione"
+        },
+        {
+          "type": "p",
+          "text": "OxSteed LLC fornisce annunci di servizi locali, offerte di lavoro, spazi di lavoro aziendali, ordini di cibo, consegne, media e relativi account e strumenti di pagamento. Questi termini descrivono le informazioni elaborate quando utilizza queste funzionalità, inclusi il contatto e l'assistenza degli ospiti. La disponibilità dipende dalla funzionalità, dall'account, dalla regione e dal fornitore di servizi."
+        }
+      ]
+    },
+    "2": {
+      "search": "2. Informazioni che raccogliamo Trattiamo le informazioni fornite dall'utente: dettagli di contatto e account, informazioni sul profilo e sull'attività, dettagli su lavori e ordini, messaggi, richieste di assistenza, recensioni, contenuti multimediali caricati, registri di pagamento e informazioni di verifica ove richiesto. Elaboriamo anche informazioni sul dispositivo e sulle richieste, come indirizzi IP, dettagli del browser, registri di sicurezza ed eventi di utilizzo consentiti. La posizione potrebbe provenire da un indirizzo che inserisci, dal suo profilo o dall'autorizzazione del dispositivo. I fornitori di servizi di pagamento possono raccogliere direttamente le credenziali di pagamento.",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "2. Quali dati raccogliamo"
+        },
+        {
+          "type": "p",
+          "text": "Elaboriamo le informazioni fornite dall'utente: dettagli di contatto e account, informazioni sul profilo e sull'attività, dettagli su lavori e ordini, messaggi, richieste di assistenza, recensioni, supporti caricati, registri di pagamento e informazioni di verifica, ove richiesto. Elaboriamo anche informazioni sul dispositivo e sulle richieste, come indirizzi IP, dettagli del browser, registri di sicurezza ed eventi di utilizzo consentiti. La posizione potrebbe provenire da un indirizzo che inserisci, dal suo profilo o dall'autorizzazione del dispositivo. I fornitori di servizi di pagamento possono raccogliere direttamente le credenziali di pagamento."
+        }
+      ]
+    },
+    "3": {
+      "search": "3. Come utilizziamo le sue informazioni Utilizziamo le informazioni per gestire account e spazi di lavoro; abbinare lavori e servizi; evadere gli ordini; recapitare messaggi e notifiche; elaborare e riconciliare i pagamenti; gestire supporto, contestazioni e richieste privacy; prevenire gli abusi; e adempiere agli obblighi di legge. L'analisi opzionale ci aiuta a comprendere l'utilizzo. Se si utilizzano funzioni assistite da intelligenza artificiale, il prompt e il contesto della funzione pertinente possono essere inviati al fornitore di intelligenza artificiale configurato per produrre una risposta. Evitare di inviare informazioni sensibili non necessarie; L'output AI può essere impreciso.",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "3. Come utilizziamo le informazioni degli utenti"
+        },
+        {
+          "type": "p",
+          "text": "Utilizziamo le informazioni per gestire account e spazi di lavoro; abbinare lavori e servizi; evadere gli ordini; recapitare messaggi e notifiche; elaborare e riconciliare i pagamenti; gestire supporto, contestazioni e richieste privacy; prevenire gli abusi; e adempiere agli obblighi di legge. L'analisi opzionale ci aiuta a comprendere l'utilizzo. Se si utilizzano funzioni assistite da intelligenza artificiale, il prompt e il contesto della funzione pertinente possono essere inviati al fornitore di intelligenza artificiale configurato per produrre una risposta. Evitare di inviare informazioni sensibili non necessarie; L'output AI può essere impreciso."
+        }
+      ]
+    },
+    "4": {
+      "search": "4. Come condividiamo le sue informazioni Le informazioni vengono divulgate ai partecipanti e alle aziende necessarie per fornire il servizio richiesto, al personale autorizzato e ai fornitori di servizi per pagamenti, hosting e archiviazione, consegna e sicurezza dei contenuti, e-mail o altre notifiche, mappe e funzionalità di intelligenza artificiale. Le integrazioni includono Stripe e Cloudflare; altri fornitori dipendono dalla funzione e dalla configurazione. I profili pubblici, gli annunci, le recensioni e i media pubblicati sono visibili al pubblico a cui sono destinati. Anche le informazioni legali e i trasferimenti aziendali possono richiedere la condivisione. Le integrazioni opzionali di analisi o pubblicità sono descritte nell'Informativa sui cookie.",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "4. Modalità di condivisione delle informazioni"
+        },
+        {
+          "type": "p",
+          "text": "Le informazioni vengono divulgate ai partecipanti e alle aziende necessarie per fornire il servizio richiesto, al personale autorizzato e ai fornitori di servizi per pagamenti, hosting e archiviazione, distribuzione e sicurezza dei contenuti, e-mail o altre notifiche, mappe e funzionalità di intelligenza artificiale. Le integrazioni includono Stripe e Cloudflare; altri fornitori dipendono dalla funzione e dalla configurazione. I profili pubblici, gli annunci, le recensioni e i media pubblicati sono visibili al pubblico a cui sono destinati. Anche le informazioni legali e i trasferimenti aziendali possono richiedere la condivisione. Le integrazioni opzionali di analisi o pubblicità sono descritte nell'Informativa sui cookie."
+        }
+      ]
+    },
+    "5": {
+      "search": "5. Indirizzo Privacy e mascheramento dei dati La visibilità della posizione lavorativa dipende dal ruolo, dall'assegnazione, dalla pianificazione e dai controlli di accesso applicabili. I dettagli dell'ordine e della consegna vengono condivisi con l'azienda e i partecipanti che ne hanno bisogno per l'evasione. Le informazioni che inserisci in descrizioni pubbliche, foto, recensioni o contenuti multimediali possono rivelare un indirizzo anche quando i campi di indirizzo strutturati sono limitati. Non pubblicare indirizzi privati o istruzioni di accesso in contenuti pubblici.",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "5. Privacy degli indirizzi e mascheramento dei dati"
+        },
+        {
+          "type": "p",
+          "text": "La visibilità della sede di lavoro dipende dal ruolo, dall'assegnazione, dalla pianificazione e dai controlli di accesso applicabili. I dettagli dell'ordine e della consegna vengono condivisi con l'azienda e i partecipanti che ne hanno bisogno per l'evasione. Le informazioni che inserisci in descrizioni pubbliche, foto, recensioni o contenuti multimediali possono rivelare un indirizzo anche quando i campi di indirizzo strutturati sono limitati. Non pubblicare indirizzi privati o istruzioni di accesso in contenuti pubblici."
+        }
+      ]
+    },
+    "6": {
+      "search": "6 La conservazione dei dati varia in base alla registrazione e allo scopo. I record di account, ordini, messaggi, sicurezza e supporti hanno cicli di vita diversi. Libri contabili finanziari, registri di pagamento e liquidazione, prove di consenso e cronologia di revisione possono rimanere dopo la chiusura del conto per contabilità, controversie, prevenzione delle frodi e obblighi legali. La cancellazione può essere ritardata da lavoro attivo, fondi detenuti, controversie, prove di revisione richieste o cicli di vita di backup. Non promettiamo che la chiusura di un account cancelli immediatamente ogni record o copia di terze parti.",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "6 Conservazione dei dati"
+        },
+        {
+          "type": "p",
+          "text": "La conservazione varia in base alla registrazione e allo scopo. I record di account, ordini, messaggi, sicurezza e supporti hanno cicli di vita diversi. Libri contabili finanziari, registri di pagamento e liquidazione, prove di consenso e cronologia di revisione possono rimanere dopo la chiusura del conto per contabilità, controversie, prevenzione delle frodi e obblighi legali. La cancellazione può essere ritardata da lavoro attivo, fondi detenuti, controversie, prove di revisione richieste o cicli di vita di backup. Non promettiamo che la chiusura di un account cancelli immediatamente ogni record o copia di terze parti."
+        }
+      ]
+    },
+    "7": {
+      "search": "7. I suoi diritti A seconda della legge applicabile, può richiedere l'accesso, la correzione, la cancellazione, la portabilità, i limiti all'uso di informazioni sensibili o l'opt-out dalla vendita, dalla condivisione o dalla pubblicità mirata. È possibile contattare privacy@oxsteed.com o utilizzare /non vendere senza accedere. Potremmo verificare l'identità per l'accesso o la cancellazione e spiegare eventuali eccezioni applicabili. Gestiremo le richieste entro i termini di legge applicabili e non discrimineremo per l'esercizio dei diritti alla privacy.",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "7. I suoi diritti"
+        },
+        {
+          "type": "p",
+          "text": "A seconda della legge applicabile, è possibile richiedere l'accesso, la correzione, la cancellazione, la portabilità, i limiti all'uso di informazioni sensibili o l'opt-out dalla vendita, dalla condivisione o dalla pubblicità mirata. È possibile contattare privacy@oxsteed.com o utilizzare /non vendere senza accedere. Potremmo verificare l'identità per l'accesso o la cancellazione e spiegare eventuali eccezioni applicabili. Gestiremo le richieste entro i termini di legge applicabili e non discrimineremo per l'esercizio dei diritti alla privacy."
+        }
+      ]
+    },
+    "8": {
+      "search": "8. Cookie e tecnologie di tracciamento I cookie essenziali e la memorizzazione del browser supportano l'accesso, la sicurezza, le scelte di consenso e le funzionalità richieste. Gestisci i cookie controlla le analisi opzionali, il marketing e le integrazioni funzionali aggiuntive in questo browser. Analytics può includere eventi di visualizzazione della pagina di prima parte e Google Analytics; il marketing può includere Meta Pixel quando configurato. Le impostazioni e le bozze di base possono utilizzare la memoria del browser indipendentemente dalle integrazioni opzionali. Consultare la Politica sui cookie per i controlli e le limitazioni.",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "8. COOKIE E TECNOLOGIE SIMILI"
+        },
+        {
+          "type": "p",
+          "text": "I cookie essenziali e la memorizzazione del browser supportano l'accesso, la sicurezza, le scelte di consenso e le funzionalità richieste. Gestisci i cookie controlla le analisi opzionali, il marketing e le integrazioni funzionali aggiuntive in questo browser. Analytics può includere eventi di visualizzazione della pagina di prima parte e Google Analytics; il marketing può includere Meta Pixel quando configurato. Le impostazioni e le bozze di base possono utilizzare la memoria del browser indipendentemente dalle integrazioni opzionali. Consultare la Politica sui cookie per i controlli e le limitazioni."
+        }
+      ]
+    },
+    "9": {
+      "search": "9. Sicurezza dei dati e notifica delle violazioni Utilizziamo controlli di accesso, hashing delle password, protezioni delle sessioni, convalida, limiti di velocità e registrazione di sicurezza. Nessun sistema è completamente sicuro. La copertura dipende dal servizio e dalla configurazione; questa politica non certifica ogni archivio dati o servizio di terze parti. Se un incidente richiede una notifica, informeremo le persone e le autorità interessate come richiesto dalla legge applicabile. Vedere /sicurezza per le linee guida sulla segnalazione.",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "9. Notifica di violazione della sicurezza"
+        },
+        {
+          "type": "p",
+          "text": "Utilizziamo controlli di accesso, hashing delle password, protezioni di sessione, convalida, limiti di velocità e registrazione di sicurezza. Nessun sistema è completamente sicuro. La copertura dipende dal servizio e dalla configurazione; questa politica non certifica ogni archivio dati o servizio di terze parti. Se un incidente richiede una notifica, informeremo le persone e le autorità interessate come richiesto dalla legge applicabile. Vedere /sicurezza per le linee guida sulla segnalazione."
+        }
+      ]
+    },
+    "10": {
+      "search": "10. Richiesta di eliminazione dell'account Eliminazione dell'account tramite le impostazioni dell'account disponibili o privacy@oxsteed.com. L'eliminazione può rimuovere o rendere anonimi i campi personali conservando le transazioni e i record di controllo necessari. Gli obblighi attivi potrebbero richiedere prima una risoluzione. Le copie già ricevute da altri utenti o fornitori sono soggette ai propri obblighi. Ci contatti per conoscere l'ambito e lo stato della sua richiesta.",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "10. Eliminazione dell'account"
+        },
+        {
+          "type": "p",
+          "text": "Richiedi l'eliminazione dell'account tramite le impostazioni dell'account disponibili o privacy@oxsteed.com. L'eliminazione può rimuovere o rendere anonimi i campi personali conservando le transazioni e i record di controllo necessari. Gli obblighi attivi potrebbero richiedere prima una risoluzione. Le copie già ricevute da altri utenti o fornitori sono soggette ai propri obblighi. Ci contatti per conoscere l'ambito e lo stato della sua richiesta."
+        }
+      ]
+    },
+    "11": {
+      "search": "11 minori privacy under 18 minorenni",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "11. Privacy dei bambini"
+        },
+        {
+          "type": "p",
+          "segments": [
+            "OxSteed non è destinato all'uso da parte di minori di 18 anni. Non raccogliamo consapevolmente dati personali da minori di 18 anni. Se scopriamo di aver raccolto informazioni personali da un minore di 18 anni, le cancelleremo immediatamente. Se ritieni che un minore di 18 anni ci abbia fornito informazioni personali, Ci contatti all'indirizzo",
+            {
+              "mailto": "legal@oxsteed.com"
+            },
+            "A"
+          ]
+        }
+      ]
+    },
+    "12": {
+      "search": "12 modifiche all'informativa sulla privacy e-mail 14 giorni aggiornati",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "12. Modifiche all’Informativa sulla tutela della privacy"
+        },
+        {
+          "type": "p",
+          "text": "OxSteed può aggiornare la presente Informativa sulla privacy in qualsiasi momento. Informeremo gli utenti delle modifiche sostanziali via e-mail almeno 14 giorni prima che le modifiche abbiano effetto. La data \"Ultimo aggiornamento\" nella parte superiore di questa pagina riflette la revisione più recente."
+        }
+      ]
+    },
+    "13": {
+      "search": "13 Ci contatti springfield legal@oxsteed.com",
+      "blocks": [
+        {
+          "type": "h2",
+          "text": "13. Ci contatti"
+        },
+        {
+          "type": "p",
+          "text": "Per domande sulla presente Informativa sulla privacy o per esercitare i suoi diritti sulla privacy, Ci contatti all'indirizzo:"
+        },
+        {
+          "type": "p",
+          "text": "OxSteed LLC"
+        },
+        {
+          "type": "p",
+          "text": "Springfield, Ohio"
+        },
+        {
+          "type": "p",
+          "segments": [
+            {
+              "mailto": "legal@oxsteed.com"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

@@ -9,7 +9,7 @@ import { getPublicSiteUrl, toAbsoluteUrl } from '../utils/seoDescription';
 
 const SITE_NAME = 'OxSteed';
 const TWITTER_HANDLE = '@oxsteed';
-const SEO_LANGUAGES = new Set(['en', 'es', 'fr', 'ht', 'ar']);
+const SEO_LANGUAGES = new Set(['en', 'es', 'fr', 'ht', 'ar', 'zh', 'ko', 'sw', 'pt', 'hi', 'vi', 'ru', 'ja', 'de', 'id', 'ur', 'bn', 'it', 'tr', 'th']);
 const OG_LOCALES = { en: 'en_US', es: 'es_ES', fr: 'fr_FR', ht: 'ht_HT', ar: 'ar_AR' };
 const LOCALIZED_PATHS = new Set([
   '/', '/about', '/careers', '/join', '/jobs', '/helpers', '/how-it-works', '/delivery', '/restaurants',

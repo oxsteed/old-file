@@ -13056,7 +13056,7 @@
     "serviceRequest": "Service request",
     "chooseService": "Choose a listed service",
     "otherService": "Other: type a service name",
-    "backToServices": "Choose a listed service",
+    "backToServices": "Back to services",
     "serviceName": "Service name",
     "serviceLocation": "Service location",
     "description": "Notes",
@@ -13565,7 +13565,8 @@
     "threeDaysPlus": "3+ days before",
     "twentyFourTo72Hours": "24h-3 days before",
     "lessThan24Hours": "Less than 24h before",
-    "hasBlockedTime": "has blocked their time for this job"
+    "hasBlockedTime": "has blocked their time for this job",
+    "affectingHelperWithName": "By cancelling, you're affecting {name}'s ability to earn."
   },
   "bidAcceptanceModal": {
     "choosePaymentMethod": "Choose Payment Method",

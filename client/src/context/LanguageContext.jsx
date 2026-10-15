@@ -48,7 +48,7 @@ function getStoredLanguage() {
 
 function applyDocumentLanguage(code) {
   if (typeof document === 'undefined') return;
-  const isRtl = code === 'ar';
+  const isRtl = code === 'ar' || code === 'ur';
   document.documentElement.setAttribute('lang', code);
   document.documentElement.setAttribute('dir', isRtl ? 'rtl' : 'ltr');
   document.body?.classList.toggle('rtl', isRtl);

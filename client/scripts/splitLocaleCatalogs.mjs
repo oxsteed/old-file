@@ -5,7 +5,7 @@ import { dirname, join } from 'node:path';
 const scriptDirectory = dirname(fileURLToPath(import.meta.url));
 const localeDirectory = join(scriptDirectory, '../src/locales');
 const outputDirectory = join(localeDirectory, 'generated');
-const languages = ['en', 'es', 'fr', 'ht', 'ar'];
+const languages = ['en', 'es', 'fr', 'ht', 'ar', 'zh', 'ko', 'sw', 'pt', 'hi', 'vi', 'ru', 'ja', 'de', 'id', 'ur', 'bn', 'it', 'tr', 'th'];
 // Arabic needs more than three shards after the Media recovery translations.
 // Keep the per-shard transfer cap while allowing a bounded number of shards
 // as catalogs grow.
