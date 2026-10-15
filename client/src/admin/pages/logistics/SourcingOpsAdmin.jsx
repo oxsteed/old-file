@@ -3,7 +3,10 @@ import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import { adminListSourcingRequests, adminListQuotes, adminAssignSourcingOperator, adminUpdateSourcingRequestStatus, adminListRecurringPrograms } from '../../../api/logistics';
 import '../../../styles/logistics/LogisticsHomePage.css';
+import '../../../styles/logistics/LogisticsWorkspaces.css';
 import AdminErrorState from '../../lib/AdminErrorState';
+import LogisticsModal from '../../../components/logistics/LogisticsModal';
+import LogisticsStatusPill from '../../../components/logistics/LogisticsStatusPill';
 
 const REQUEST_STATUSES = ['draft', 'quoted', 'pooled', 'procurement', 'private_label', 'cancelled', 'closed'];
 
@@ -69,8 +72,8 @@ export default function SourcingOpsAdmin() {
         ].map(([label, value, icon]) => (
           <div key={label} className="lx-card" style={{ textAlign:'center' }}>
             <div style={{ fontSize:'1.4rem' }}>{icon}</div>
-            <div style={{ fontSize:'1.4rem', fontWeight:800, color:'#f97316' }}>{value}</div>
-            <div style={{ color:'#64748b', fontSize:'.8rem', fontWeight:600 }}>{label}</div>
+            <div style={{ fontSize:'1.4rem', fontWeight:800, color:'var(--color-primary)' }}>{value}</div>
+            <div style={{ color:'var(--color-text-muted)', fontSize:'.8rem', fontWeight:600 }}>{label}</div>
           </div>
         ))}
       </div>
@@ -87,13 +90,13 @@ export default function SourcingOpsAdmin() {
                 <tr key={request.id}>
                   <td>{request.reference}</td>
                   <td>{request.title}</td>
-                  <td><span className="lx-status-pill" style={{ background:'#64748b' }}>{t(`logistics.status.${request.status}`, { defaultValue: request.status })}</span></td>
+                  <td><LogisticsStatusPill status={request.status} label={t(`logistics.status.${request.status}`, { defaultValue: request.status })} /></td>
                   <td>{request.quote_count || 0}</td>
                   <td>{request.assigned_operator || '—'}</td>
                   <td><button className="lx-btn-secondary" style={{ fontSize:'.72rem', padding:'.25rem .65rem' }} onClick={() => setSelected(request)}>{t('adminSourcingOps.manage')}</button></td>
                 </tr>
               ))}
-              {!loading && !loadError && requests.length === 0 && <tr><td colSpan={6} style={{ textAlign:'center', color:'#94a3b8' }}>{t('adminSourcingOps.noRequests')}</td></tr>}
+              {!loading && !loadError && requests.length === 0 && <tr><td colSpan={6} className="lx-table-empty-cell">{t('adminSourcingOps.noRequests')}</td></tr>}
             </tbody>
           </table>
         </div>
@@ -111,19 +114,22 @@ export default function SourcingOpsAdmin() {
                   <td>{program.cadence}</td>
                   <td>{program.next_run_date ? new Date(program.next_run_date).toLocaleDateString(i18n.language) : '—'}</td>
                   <td>{program.lane_name || t('adminSourcingOps.unassigned')}</td>
-                  <td><span className="lx-status-pill" style={{ background: program.status === 'active' ? '#22c55e' : '#64748b' }}>{program.status}</span></td>
+                  <td><LogisticsStatusPill status={program.status} /></td>
                 </tr>
               ))}
-              {!loading && !loadError && programs.length === 0 && <tr><td colSpan={5} style={{ textAlign:'center', color:'#94a3b8' }}>{t('adminSourcingOps.noPrograms')}</td></tr>}
+              {!loading && !loadError && programs.length === 0 && <tr><td colSpan={5} className="lx-table-empty-cell">{t('adminSourcingOps.noPrograms')}</td></tr>}
             </tbody>
           </table>
         </div>
       </div>
 
-      {selected && (
-        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.4)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:9999 }}>
-          <div style={{ background:'var(--card-bg,#fff)', borderRadius:'1rem', padding:'1.5rem', width:440, maxWidth:'90vw' }}>
-            <h3 style={{ fontWeight:700, marginBottom:'1rem' }}>{t('adminSourcingOps.modal.manageTitle', { reference: selected.reference })}</h3>
+      <LogisticsModal
+        open={!!selected}
+        title={selected && t('adminSourcingOps.modal.manageTitle', { reference: selected.reference })}
+        onClose={() => setSelected(null)}
+      >
+        {selected && (
+          <>
             <div className="lx-form-group">
               <label className="lx-label">{t('adminSourcingOps.modal.assignOperator')}</label>
               <input className="lx-input" value={form.operator_user_id} onChange={(e) => setForm((f) => ({ ...f, operator_user_id: e.target.value }))} placeholder={t('adminSourcingOps.modal.operatorPlaceholder')} />
@@ -143,9 +149,9 @@ export default function SourcingOpsAdmin() {
               <button className="lx-btn-primary" onClick={apply}>{t('adminSourcingOps.modal.apply')}</button>
               <button className="lx-btn-secondary" onClick={() => setSelected(null)}>{t('common.cancel')}</button>
             </div>
-          </div>
-        </div>
-      )}
+          </>
+        )}
+      </LogisticsModal>
     </div>
   );
 }
