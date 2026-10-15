@@ -3,10 +3,14 @@ import { useTranslation } from 'react-i18next';
 import { adminListShipments, adminAddMilestone } from '../../../api/logistics';
 import toast from 'react-hot-toast';
 import '../../../styles/logistics/LogisticsHomePage.css';
+import '../../../styles/logistics/LogisticsWorkspaces.css';
 import AdminErrorState from '../../lib/AdminErrorState';
+import LogisticsModal from '../../../components/logistics/LogisticsModal';
+import LogisticsStatusPill from '../../../components/logistics/LogisticsStatusPill';
 
 // Customs admin focuses on shipments at customs stages
 const CUSTOMS_STATUSES = ['arrived_destination','customs_hold','customs_cleared'];
+const RISK_LABEL_KEY = { low:'riskLow', managed:'riskManaged', restricted:'riskRestricted', prohibited:'riskProhibited' };
 
 export default function CustomsAdmin() {
   const { t, i18n } = useTranslation();
@@ -55,8 +59,6 @@ export default function CustomsAdmin() {
     finally { setSaving(false); }
   };
 
-  const RISK_COLOR = { low:'#22c55e', managed:'#f59e0b', restricted:'#dc2626', prohibited:'#7f1d1d' };
-
   return (
     <div className="lx-page">
       <div className="lx-page-header">
@@ -88,19 +90,20 @@ export default function CustomsAdmin() {
             {shipments.map(s => (
               <tr key={s.id}>
                 <td><code style={{ fontSize:'.78rem' }}>{s.reference}</code></td>
-                <td style={{ fontSize:'.8rem', color:'#64748b' }}>
+                <td style={{ fontSize:'.8rem', color:'var(--color-text-muted)' }}>
                   {s.origin_country} → {s.destination_country}
                 </td>
                 <td style={{ fontSize:'.78rem' }}>
-                  <span style={{ background:'#f1f5f9', borderRadius:'.375rem', padding:'.15rem .4rem' }}>
+                  <span style={{ background:'var(--color-surface-2)', borderRadius:'.375rem', padding:'.15rem .4rem' }}>
                     {s.freight_mode?.replace(/_/g,' ') || '—'}
                   </span>
                 </td>
                 <td>
                   {s.lane_risk_tier && (
-                    <span className="lx-status-pill" style={{ background: RISK_COLOR[s.lane_risk_tier]||'#64748b' }}>
-                      {t(`adminLogisticsRestrictions.${{ low:'riskLow', managed:'riskManaged', restricted:'riskRestricted', prohibited:'riskProhibited' }[s.lane_risk_tier] || 'riskLow'}`, { defaultValue: s.lane_risk_tier })}
-                    </span>
+                    <LogisticsStatusPill
+                      status={s.lane_risk_tier}
+                      label={t(`adminLogisticsRestrictions.${RISK_LABEL_KEY[s.lane_risk_tier] || 'riskLow'}`, { defaultValue: s.lane_risk_tier })}
+                    />
                   )}
                 </td>
                 <td style={{ textAlign:'center' }}>
@@ -110,12 +113,10 @@ export default function CustomsAdmin() {
                   {s.eta ? new Date(s.eta).toLocaleDateString(i18n.language) : '—'}
                 </td>
                 <td>
-                  <span className="lx-status-pill" style={{
-                    background: s.status === 'customs_cleared' ? '#22c55e'
-                      : s.status === 'customs_hold' ? '#dc2626' : '#f59e0b'
-                  }}>
-                    {t(`logistics.status.${s.status}`, { defaultValue: s.status?.replace(/_/g,' ') })}
-                  </span>
+                  <LogisticsStatusPill
+                    status={s.status}
+                    label={t(`logistics.status.${s.status}`, { defaultValue: s.status?.replace(/_/g,' ') })}
+                  />
                 </td>
                 <td>
                   {s.status !== 'customs_cleared' && (
@@ -128,25 +129,28 @@ export default function CustomsAdmin() {
               </tr>
             ))}
             {shipments.length === 0 && !loading && !loadError && (
-              <tr><td colSpan={8} style={{ textAlign:'center', padding:'2rem', color:'#94a3b8' }}>{t('adminCustoms.noShipments')}</td></tr>
+              <tr><td colSpan={8} className="lx-table-empty-cell">{t('adminCustoms.noShipments')}</td></tr>
             )}
           </tbody>
         </table>
       </div>
 
-      {selected && (
-        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.4)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:9999 }}>
-          <div style={{ background:'var(--card-bg,#fff)', borderRadius:'1rem', padding:'1.5rem', width:460, maxWidth:'90vw' }}>
-            <h3 style={{ fontWeight:700, marginBottom:'.5rem' }}>{t('adminCustoms.modal.title', { reference: selected.reference })}</h3>
-            <div style={{ fontSize:'.82rem', color:'#64748b', marginBottom:'1rem' }}>
+      <LogisticsModal
+        open={!!selected}
+        title={selected && t('adminCustoms.modal.title', { reference: selected.reference })}
+        onClose={() => setSelected(null)}
+      >
+        {selected && (
+          <>
+            <div style={{ fontSize:'.82rem', color:'var(--color-text-muted)', marginBottom:'1rem' }}>
               <strong>{t('adminCustoms.modal.route')}</strong> {selected.origin_country} → {selected.destination_country}<br/>
               <strong>{t('adminCustoms.modal.freight')}</strong> {selected.freight_mode?.replace(/_/g,' ') || '—'}<br/>
-              <strong>{t('adminCustoms.modal.laneRisk')}</strong> {selected.lane_risk_tier ? t(`adminLogisticsRestrictions.${{ low:'riskLow', managed:'riskManaged', restricted:'riskRestricted', prohibited:'riskProhibited' }[selected.lane_risk_tier] || 'riskLow'}`, { defaultValue: selected.lane_risk_tier }) : '—'} &nbsp;|&nbsp;
+              <strong>{t('adminCustoms.modal.laneRisk')}</strong> {selected.lane_risk_tier ? t(`adminLogisticsRestrictions.${RISK_LABEL_KEY[selected.lane_risk_tier] || 'riskLow'}`, { defaultValue: selected.lane_risk_tier }) : '—'} &nbsp;|&nbsp;
               <strong>{t('adminCustoms.modal.complexity')}</strong> {selected.customs_complexity || '—'}/5
             </div>
 
             {selected.status === 'customs_hold' && (
-              <div style={{ background:'#fef2f2', border:'1px solid #fecaca', borderRadius:'.5rem', padding:'.75rem', marginBottom:'1rem', fontSize:'.82rem', color:'#b91c1c' }}>
+              <div style={{ background:'var(--color-error-bg)', border:'1px solid var(--color-error)', borderRadius:'.5rem', padding:'.75rem', marginBottom:'1rem', fontSize:'.82rem', color:'var(--color-error)' }}>
                 {t('adminCustoms.modal.holdWarning')}
               </div>
             )}
@@ -172,9 +176,9 @@ export default function CustomsAdmin() {
               </button>
               <button className="lx-btn-secondary" onClick={() => setSelected(null)}>{t('common.cancel')}</button>
             </div>
-          </div>
-        </div>
-      )}
+          </>
+        )}
+      </LogisticsModal>
     </div>
   );
 }
