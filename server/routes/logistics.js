@@ -123,6 +123,8 @@ router.post('/allocations',                   requireAuth, requireWarehouseOps, 
 router.post('/allocations/:id/release',       requireAuth, requireWarehouseOps, whCtrl.releaseAllocation);
 router.get('/deliveries',                     requireAuth, requireWarehouseOps, whCtrl.listDeliveryOrders);
 router.post('/deliveries',                    requireAuth, requireWarehouseOps, whCtrl.createDeliveryOrder);
+router.get('/deliveries/:id',                 requireAuth, requireWarehouseOps, whCtrl.getDeliveryOrder);
+router.patch('/deliveries/:id/status',        requireAuth, requireWarehouseOps, whCtrl.updateDeliveryStatus);
 
 // ─── Claims ───────────────────────────────────────────────────
 

@@ -2,6 +2,16 @@
 const pool = require('../db');
 const crypto = require('crypto');
 const { logLogisticsAction } = require('./logisticsAuditService');
+const { applyTransition } = require('./logisticsStateMachine');
+
+function svcError(message, status, code, details) {
+  const err = new Error(message);
+  err.status = status;
+  err.statusCode = status;
+  err.code = code;
+  if (details !== undefined) err.details = details;
+  return err;
+}
 
 // Reference generator: SR-2026-00001
 async function generateSourcingRef() {
@@ -89,18 +99,33 @@ async function getSourcingRequest(id) {
 }
 
 async function updateSourcingRequestStatus(id, status, actorUserId, notes) {
-  const before = await pool.query('SELECT status FROM sourcing_requests WHERE id = $1', [id]);
-  const result = await pool.query(
-    `UPDATE sourcing_requests SET status = $1, internal_notes = COALESCE(internal_notes,'') || $2
-     WHERE id = $3 RETURNING *`,
-    [status, notes ? `\n[${new Date().toISOString()}] ${notes}` : '', id]
-  );
+  // Transactional: the current status is re-read with FOR UPDATE inside the
+  // state machine's transaction and the move is validated against the
+  // canonical sourcing-request graph (previously any status could be written).
+  const result = await applyTransition(pool, {
+    entityType: 'sourcing_request',
+    id,
+    to: status,
+    actorUserId,
+    appendNotes: notes ? { column: 'internal_notes', text: `\n[${new Date().toISOString()}] ${notes}` } : null,
+  });
+  if (!result.ok) {
+    if (result.reason === 'not_found') {
+      throw svcError('Sourcing request not found', 404, 'sourcing_request_not_found');
+    }
+    throw svcError(
+      `Cannot transition sourcing request from ${result.from || 'unknown'} to ${status}`,
+      409,
+      'invalid_transition',
+      { from: result.from, to: status, allowed: result.allowed }
+    );
+  }
   logLogisticsAction('sourcing_request', id, `status_changed_to_${status}`, {
     actorUserId,
-    beforeState: { status: before.rows[0]?.status },
+    beforeState: { status: result.from },
     afterState: { status },
   });
-  return result.rows[0];
+  return result.record;
 }
 
 async function assignOperator(id, operatorUserId, actorUserId) {
@@ -144,14 +169,32 @@ async function createQuote(data, createdBy) {
 }
 
 async function reviewQuote(id, status, reviewedBy, notes) {
-  const result = await pool.query(
-    `UPDATE supplier_quotes
-     SET status = $1, reviewed_by = $2, reviewed_at = NOW(), notes = COALESCE(notes,'') || $3
-     WHERE id = $4 RETURNING *`,
-    [status, reviewedBy, notes ? `\n${notes}` : '', id]
-  );
+  // Transactional: validated against the canonical supplier-quote graph
+  // (previously the controller only allowlisted the target status without
+  // checking the current state, so e.g. an accepted quote could be
+  // re-reviewed).
+  const result = await applyTransition(pool, {
+    entityType: 'supplier_quote',
+    id,
+    to: status,
+    actorUserId: reviewedBy,
+    set: { reviewed_by: reviewedBy },
+    nowColumns: ['reviewed_at'],
+    appendNotes: notes ? { column: 'notes', text: `\n${notes}` } : null,
+  });
+  if (!result.ok) {
+    if (result.reason === 'not_found') {
+      throw svcError('Supplier quote not found', 404, 'supplier_quote_not_found');
+    }
+    throw svcError(
+      `Cannot transition quote from ${result.from || 'unknown'} to ${status}`,
+      409,
+      'invalid_transition',
+      { from: result.from, to: status, allowed: result.allowed }
+    );
+  }
   logLogisticsAction('supplier_quote', id, `quote_${status}`, { actorUserId: reviewedBy });
-  return result.rows[0];
+  return result.record;
 }
 
 async function listQuotes({ status, sourcingRequestId, supplierId, limit = 100, offset = 0 } = {}) {

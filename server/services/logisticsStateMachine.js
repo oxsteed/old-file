@@ -89,7 +89,9 @@ const PARTICIPANT_TRANSITIONS = {
 
 // ─── INVENTORY RECEIPT STATES ────────────────────────────────────────
 const RECEIPT_TRANSITIONS = {
-  expected:     ['receiving', 'closed'],
+  // A receive call can surface a shortage/damage immediately, so expected may
+  // go straight to discrepancy without an intermediate receiving state.
+  expected:     ['receiving', 'discrepancy', 'closed'],
   receiving:    ['reconciled', 'discrepancy'],
   reconciled:   ['closed'],
   discrepancy: ['reconciled', 'closed'],
@@ -104,6 +106,36 @@ const DELIVERY_TRANSITIONS = {
   delivered:  [],
   failed:     ['pending', 'cancelled'],
   cancelled:  [],
+};
+
+// ─── SOURCING REQUEST STATES ───────────────────────────────────────
+// Statuses from the sourcing_request_status enum (migration 247). A request
+// moves from intake (draft → open → quoting → quoted) into conversion
+// (converting) and then lands on exactly one fulfillment lane
+// (direct_order / pooled / procurement / private_label) before closing.
+const SOURCING_TRANSITIONS = {
+  draft:         ['open', 'cancelled'],
+  open:          ['quoting', 'cancelled'],
+  quoting:       ['quoted', 'open', 'cancelled'],
+  quoted:        ['converting', 'quoting', 'cancelled'],
+  converting:    ['direct_order', 'pooled', 'procurement', 'private_label', 'quoted', 'cancelled'],
+  direct_order:  ['closed'],
+  pooled:        ['closed'],
+  procurement:   ['closed'],
+  private_label: ['closed'],
+  cancelled:     [],
+  closed:        [],
+};
+
+// ─── SUPPLIER QUOTE STATES ─────────────────────────────────────────
+// Statuses from the supplier_quotes.status comment (migration 247):
+// submitted, under_review, accepted, rejected, expired.
+const QUOTE_TRANSITIONS = {
+  submitted:    ['under_review', 'accepted', 'rejected', 'expired'],
+  under_review: ['accepted', 'rejected', 'expired'],
+  accepted:     [],
+  rejected:     [],
+  expired:      [],
 };
 
 function canTransition(map, from, to) {
@@ -166,6 +198,18 @@ const delivery = {
   allowedFrom: (from) => DELIVERY_TRANSITIONS[from] || [],
   states: () => Object.keys(DELIVERY_TRANSITIONS),
 };
+const sourcingRequest = {
+  canTransition: (from, to) => canTransition(SOURCING_TRANSITIONS, from, to),
+  assertTransition: (from, to) => assertTransition(SOURCING_TRANSITIONS, from, to, 'sourcing_request'),
+  allowedFrom: (from) => SOURCING_TRANSITIONS[from] || [],
+  states: () => Object.keys(SOURCING_TRANSITIONS),
+};
+const supplierQuote = {
+  canTransition: (from, to) => canTransition(QUOTE_TRANSITIONS, from, to),
+  assertTransition: (from, to) => assertTransition(QUOTE_TRANSITIONS, from, to, 'supplier_quote'),
+  allowedFrom: (from) => QUOTE_TRANSITIONS[from] || [],
+  states: () => Object.keys(QUOTE_TRANSITIONS),
+};
 
 // ─── ENTITY REGISTRY ─────────────────────────────────────────────
 // Maps the public entity-type names used by callers to the state machine
@@ -181,6 +225,8 @@ const ENTITIES = {
   participant:       { machine: participant,   table: 'pooled_order_participants', statusColumn: 'status' },
   inventory_receipt: { machine: receipt,       table: 'inventory_receipts',        statusColumn: 'status' },
   delivery_order:    { machine: delivery,      table: 'delivery_orders',           statusColumn: 'status' },
+  sourcing_request:  { machine: sourcingRequest, table: 'sourcing_requests',      statusColumn: 'status' },
+  supplier_quote:    { machine: supplierQuote, table: 'supplier_quotes',          statusColumn: 'status' },
 };
 
 function machineFor(entityType) {
@@ -443,6 +489,24 @@ const ENTITY_ACTIONS = {
     pending:    { id: 'retry_delivery',     groups: ['operations', 'admins'] },
     cancelled:  { id: 'cancel_delivery',    groups: ['operations', 'admins'] },
   },
+  sourcing_request: {
+    open:          { id: 'submit_request',           groups: ['operations', 'admins'] },
+    quoting:       { id: 'start_quoting',            groups: ['operations', 'admins'] },
+    quoted:        { id: 'mark_quoted',               groups: ['operations', 'admins'] },
+    converting:    { id: 'start_conversion',         groups: ['operations', 'admins'] },
+    direct_order:  { id: 'convert_to_direct_order',  groups: ['operations', 'admins'] },
+    pooled:        { id: 'convert_to_pooled',        groups: ['operations', 'admins'] },
+    procurement:   { id: 'convert_to_procurement',   groups: ['operations', 'admins'] },
+    private_label: { id: 'convert_to_private_label', groups: ['operations', 'admins'] },
+    cancelled:     { id: 'cancel_request',           groups: ['operations', 'admins'] },
+    closed:        { id: 'close_request',            groups: ['operations', 'admins'] },
+  },
+  supplier_quote: {
+    under_review: { id: 'review_quote',  groups: ['operations', 'admins'] },
+    accepted:     { id: 'accept_quote',  groups: ['operations', 'admins'] },
+    rejected:     { id: 'reject_quote',  groups: ['operations', 'admins'] },
+    expired:      { id: 'expire_quote',  groups: ['operations', 'admins'] },
+  },
 };
 
 // Non-transition actions the UI may offer (e.g. joining a campaign does not
@@ -536,9 +600,10 @@ function getAvailableActions(entityType, currentStatus, roleCtx = {}) {
 
 module.exports = {
   purchaseOrder, shipment, pooled, participant, receipt, delivery, approval,
+  sourcingRequest, supplierQuote,
   PO_TRANSITIONS, SHIPMENT_TRANSITIONS, POOLED_TRANSITIONS,
   PARTICIPANT_TRANSITIONS, RECEIPT_TRANSITIONS, DELIVERY_TRANSITIONS,
-  APPROVAL_TRANSITIONS,
+  APPROVAL_TRANSITIONS, SOURCING_TRANSITIONS, QUOTE_TRANSITIONS,
   ENTITIES, ROLE_GROUPS,
   machineFor, applyTransition,
   roleInGroups, resolveCapabilities, getCapability,

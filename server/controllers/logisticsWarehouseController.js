@@ -1,7 +1,8 @@
 'use strict';
 const AppError = require('../utils/appError');
 const warehouseService = require('../services/warehouseService');
-const crypto = require('crypto');
+const { buildActionContext } = require('../middleware/requireLogisticsAccess');
+const { getAvailableActions } = require('../services/logisticsStateMachine');
 
 // ─── Warehouses ───────────────────────────────────────────────
 
@@ -69,14 +70,26 @@ exports.receiveInventory = async (req, res, next) => {
       actorUserId: req.user.id,
     });
     res.json({ success: true, data: receipt });
-  } catch (err) { next(err); }
+  } catch (err) {
+    // The canonical receipt machine rejects illegal receives (e.g. receiving
+    // a closed receipt) with a 409 carrying from/to/allowed.
+    if (err.code === 'invalid_transition') {
+      return next(new AppError(err.message, 409, 'invalid_transition', err.details));
+    }
+    next(err);
+  }
 };
 
 exports.reconcileReceipt = async (req, res, next) => {
   try {
     const receipt = await warehouseService.reconcileReceipt(req.params.id, req.user.id, req.body.notes);
     res.json({ success: true, data: receipt });
-  } catch (err) { next(err); }
+  } catch (err) {
+    if (err.code === 'invalid_transition') {
+      return next(new AppError(err.message, 409, 'invalid_transition', err.details));
+    }
+    next(err);
+  }
 };
 
 // ─── Allocations ──────────────────────────────────────────────
@@ -147,19 +160,38 @@ exports.listDeliveryOrders = async (req, res, next) => {
 
 exports.createDeliveryOrder = async (req, res, next) => {
   try {
-    const pool = require('../db');
-    const reference = `DO-${new Date().getFullYear()}-${crypto.randomBytes(8).toString('hex').toUpperCase()}`;
-
-    const { allocation_id, shipment_id, recipient_user_id, recipient_name, recipient_phone,
-            delivery_address, delivery_country, delivery_city, method, scheduled_date, delivery_notes } = req.body;
-    const result = await pool.query(
-      `INSERT INTO delivery_orders
-         (reference,allocation_id,shipment_id,recipient_user_id,recipient_name,recipient_phone,
-          delivery_address,delivery_country,delivery_city,method,scheduled_date,delivery_notes)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *`,
-      [reference,allocation_id,shipment_id,recipient_user_id,recipient_name,recipient_phone,
-       delivery_address,delivery_country,delivery_city,method||'local_pickup',scheduled_date,delivery_notes]
-    );
-    res.status(201).json({ success: true, data: result.rows[0] });
+    const delivery = await warehouseService.createDeliveryOrder(req.body, req.user.id);
+    res.status(201).json({ success: true, data: delivery });
   } catch (err) { next(err); }
+};
+
+exports.getDeliveryOrder = async (req, res, next) => {
+  try {
+    const delivery = await warehouseService.getDeliveryOrder(req.params.id);
+    if (!delivery) return next(new AppError('Delivery order not found', 404, 'not_found'));
+    // Advisory, additive: which status transitions the viewer may perform
+    // and why the rest are unavailable. Mutations re-check server-side.
+    const actionCtx = await buildActionContext(req);
+    const availableActions = getAvailableActions('delivery_order', delivery.status, actionCtx);
+    res.json({ success: true, data: delivery, availableActions });
+  } catch (err) { next(err); }
+};
+
+exports.updateDeliveryStatus = async (req, res, next) => {
+  try {
+    const { status, notes, carrier, tracking_number, assigned_to } = req.body;
+    if (!status) return next(new AppError('status is required', 400, 'validation_failed'));
+    const delivery = await warehouseService.transitionDeliveryOrder(
+      req.params.id, status, req.user.id,
+      { notes, carrier, trackingNumber: tracking_number, assignedTo: assigned_to }
+    );
+    res.json({ success: true, data: delivery });
+  } catch (err) {
+    // The canonical delivery machine rejects illegal jumps (e.g. delivering
+    // a pending order that was never assigned) with a 409.
+    if (err.code === 'invalid_transition') {
+      return next(new AppError(err.message, 409, 'invalid_transition', err.details));
+    }
+    next(err);
+  }
 };

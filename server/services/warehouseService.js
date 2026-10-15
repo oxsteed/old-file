@@ -2,6 +2,16 @@
 const pool = require('../db');
 const crypto = require('crypto');
 const { logLogisticsAction } = require('./logisticsAuditService');
+const { applyTransition } = require('./logisticsStateMachine');
+
+function svcError(message, status, code, details) {
+  const err = new Error(message);
+  err.status = status;
+  err.statusCode = status;
+  err.code = code;
+  if (details !== undefined) err.details = details;
+  return err;
+}
 
 // ─── Warehouses ───────────────────────────────────────────────
 
@@ -52,28 +62,64 @@ async function createInventoryReceipt(data, actorUserId) {
 }
 
 async function receiveInventory(id, { receivedQty, shortageQty, damagedQty, storageLocation, notes, actorUserId } = {}) {
-  const result = await pool.query(
-    `UPDATE inventory_receipts
-     SET received_qty = $1, shortage_qty = $2, damaged_qty = $3,
-         storage_location = $4, received_by = $5, received_at = NOW(),
-         status = CASE WHEN ($2 > 0 OR $3 > 0) THEN 'discrepancy' ELSE 'receiving' END,
-         discrepancy_notes = $6
-     WHERE id = $7 RETURNING *`,
-    [receivedQty, shortageQty||0, damagedQty||0, storageLocation, actorUserId, notes, id]
-  );
+  // Route the status change through the canonical inventory-receipt machine:
+  // the current status is re-read with FOR UPDATE and the move to
+  // receiving/discrepancy is validated atomically (previously the status was
+  // written raw, so e.g. a closed receipt could be "received" again).
+  const target = ((shortageQty || 0) > 0 || (damagedQty || 0) > 0) ? 'discrepancy' : 'receiving';
+  const result = await applyTransition(pool, {
+    entityType: 'inventory_receipt',
+    id,
+    to: target,
+    actorUserId,
+    set: {
+      received_qty: receivedQty,
+      shortage_qty: shortageQty || 0,
+      damaged_qty: damagedQty || 0,
+      storage_location: storageLocation ?? null,
+      received_by: actorUserId,
+      discrepancy_notes: notes ?? null,
+    },
+    nowColumns: ['received_at'],
+  });
+  if (!result.ok) {
+    if (result.reason === 'not_found') {
+      throw svcError('Inventory receipt not found', 404, 'inventory_receipt_not_found');
+    }
+    throw svcError(
+      `Cannot receive inventory receipt from ${result.from || 'unknown'} state`,
+      409,
+      'invalid_transition',
+      { from: result.from, to: target, allowed: result.allowed }
+    );
+  }
   logLogisticsAction('inventory_receipt', id, 'received', { actorUserId });
-  return result.rows[0];
+  return result.record;
 }
 
 async function reconcileReceipt(id, actorUserId, notes) {
-  const result = await pool.query(
-    `UPDATE inventory_receipts SET status = 'reconciled', reconciled_at = NOW(),
-     discrepancy_notes = COALESCE(discrepancy_notes,'') || $1
-     WHERE id = $2 RETURNING *`,
-    [notes ? `\n${notes}` : '', id]
-  );
+  // Same enforcement: reconciling is only legal from receiving/discrepancy.
+  const result = await applyTransition(pool, {
+    entityType: 'inventory_receipt',
+    id,
+    to: 'reconciled',
+    actorUserId,
+    nowColumns: ['reconciled_at'],
+    appendNotes: notes ? { column: 'discrepancy_notes', text: `\n${notes}` } : null,
+  });
+  if (!result.ok) {
+    if (result.reason === 'not_found') {
+      throw svcError('Inventory receipt not found', 404, 'inventory_receipt_not_found');
+    }
+    throw svcError(
+      `Cannot reconcile inventory receipt from ${result.from || 'unknown'} state`,
+      409,
+      'invalid_transition',
+      { from: result.from, to: 'reconciled', allowed: result.allowed }
+    );
+  }
   logLogisticsAction('inventory_receipt', id, 'reconciled', { actorUserId, notes });
-  return result.rows[0];
+  return result.record;
 }
 
 async function listInventoryReceipts({ warehouseId, status, limit = 50, offset = 0 } = {}) {
@@ -157,8 +203,82 @@ async function listAllocations({ warehouseId, status, pooledOrderId, buyerUserId
   return result.rows;
 }
 
+// ─── Delivery Orders ──────────────────────────────────────────
+
+async function createDeliveryOrder(data, actorUserId) {
+  const reference = `DO-${new Date().getFullYear()}-${crypto.randomBytes(8).toString('hex').toUpperCase()}`;
+  const {
+    allocation_id, shipment_id, recipient_user_id, recipient_name, recipient_phone,
+    delivery_address, delivery_country, delivery_city, method, scheduled_date, delivery_notes,
+  } = data;
+  const result = await pool.query(
+    `INSERT INTO delivery_orders
+       (reference,allocation_id,shipment_id,recipient_user_id,recipient_name,recipient_phone,
+        delivery_address,delivery_country,delivery_city,method,scheduled_date,delivery_notes)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *`,
+    [reference,allocation_id,shipment_id,recipient_user_id,recipient_name,recipient_phone,
+     delivery_address,delivery_country,delivery_city,method||'local_pickup',scheduled_date,delivery_notes]
+  );
+  logLogisticsAction('delivery_order', result.rows[0].id, 'created', { actorUserId });
+  return result.rows[0];
+}
+
+async function getDeliveryOrder(id) {
+  const result = await pool.query(
+    `SELECT d.*,
+            u.first_name || ' ' || u.last_name AS recipient_name_full
+     FROM delivery_orders d
+     LEFT JOIN users u ON u.id = d.recipient_user_id
+     WHERE d.id = $1`,
+    [id]
+  );
+  return result.rows[0] || null;
+}
+
+async function transitionDeliveryOrder(id, toStatus, actorUserId, {
+  notes, carrier, trackingNumber, assignedTo,
+} = {}) {
+  // Route every delivery status change through the canonical delivery-order
+  // machine (previously no server path changed delivery status at all).
+  const set = {};
+  if (carrier !== undefined)       set.carrier = carrier;
+  if (trackingNumber !== undefined) set.tracking_number = trackingNumber;
+  if (assignedTo !== undefined)     set.assigned_to = assignedTo;
+  const nowColumns = [];
+  if (toStatus === 'delivered') nowColumns.push('delivered_at');
+
+  const result = await applyTransition(pool, {
+    entityType: 'delivery_order',
+    id,
+    to: toStatus,
+    actorUserId,
+    set,
+    nowColumns,
+    appendNotes: notes ? { column: 'delivery_notes', text: `\n${notes}` } : null,
+  });
+  if (!result.ok) {
+    if (result.reason === 'not_found') {
+      throw svcError('Delivery order not found', 404, 'delivery_order_not_found');
+    }
+    throw svcError(
+      `Cannot transition delivery order from ${result.from || 'unknown'} to ${toStatus}`,
+      409,
+      'invalid_transition',
+      { from: result.from, to: toStatus, allowed: result.allowed }
+    );
+  }
+  logLogisticsAction('delivery_order', id, `status_to_${toStatus}`, {
+    actorUserId,
+    beforeState: { status: result.from },
+    afterState: { status: toStatus },
+    notes,
+  });
+  return result.record;
+}
+
 module.exports = {
   listWarehouses, createWarehouse,
   createInventoryReceipt, receiveInventory, reconcileReceipt, listInventoryReceipts,
   createAllocation, releaseAllocation, listAllocations, getAllocation,
+  createDeliveryOrder, getDeliveryOrder, transitionDeliveryOrder,
 };

@@ -2,6 +2,8 @@
 const AppError = require('../utils/appError');
 const sourcingService = require('../services/sourcingService');
 const supplierService = require('../services/supplierService');
+const { buildActionContext } = require('../middleware/requireLogisticsAccess');
+const { getAvailableActions } = require('../services/logisticsStateMachine');
 
 // ─── Sourcing Requests ────────────────────────────────────────
 
@@ -40,7 +42,11 @@ exports.getRequest = async (req, res, next) => {
     if (!req.isAdmin && request.user_id !== req.user.id) {
       return next(new AppError('Not authorized', 403, 'forbidden'));
     }
-    res.json({ success: true, data: request });
+    // Advisory, additive: which status transitions the viewer may perform
+    // and why the rest are unavailable. Mutations re-check server-side.
+    const actionCtx = await buildActionContext(req, { ownerId: request.user_id });
+    const availableActions = getAvailableActions('sourcing_request', request.status, actionCtx);
+    res.json({ success: true, data: request, availableActions });
   } catch (err) { next(err); }
 };
 
@@ -52,7 +58,14 @@ exports.updateStatus = async (req, res, next) => {
       req.params.id, status, req.user.id, notes
     );
     res.json({ success: true, data: request });
-  } catch (err) { next(err); }
+  } catch (err) {
+    // The canonical sourcing-request machine rejects illegal jumps with a
+    // 409 (carrying from/to/allowed) instead of a raw PG enum error.
+    if (err.code === 'invalid_transition') {
+      return next(new AppError(err.message, 409, 'invalid_transition', err.details));
+    }
+    next(err);
+  }
 };
 
 exports.assignOperator = async (req, res, next) => {
@@ -81,13 +94,17 @@ exports.createQuote = async (req, res, next) => {
 exports.reviewQuote = async (req, res, next) => {
   try {
     const { status, notes } = req.body;
-    const valid = ['under_review','accepted','rejected'];
-    if (!valid.includes(status)) {
-      return next(new AppError(`status must be one of: ${valid.join(',')}`, 400, 'validation_failed'));
-    }
+    if (!status) return next(new AppError('status is required', 400, 'validation_failed'));
+    // Target-state validation is enforced by the canonical supplier-quote
+    // machine in the service (checks the current state, not just the target).
     const quote = await sourcingService.reviewQuote(req.params.quoteId, status, req.user.id, notes);
     res.json({ success: true, data: quote });
-  } catch (err) { next(err); }
+  } catch (err) {
+    if (err.code === 'invalid_transition') {
+      return next(new AppError(err.message, 409, 'invalid_transition', err.details));
+    }
+    next(err);
+  }
 };
 
 // ─── Suppliers (public-facing listing for sourcing context) ───
