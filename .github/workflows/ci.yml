@@ -122,7 +122,7 @@ jobs:
           LOGISTICS_CREDIT_PAY_TEST_DATABASE_URL: postgresql://oxsteed:synthetic-logistics-test-password@127.0.0.1:5434/credit_statement_test?sslmode=disable
         run: |
           npm run migrate
-          npx jest __tests__/logisticsCreditPay.db.test.js __tests__/logisticsCreditCheckoutFixes.db.test.js --runInBand --json --outputFile=logistics-db-results.json
+          npx jest __tests__/logisticsCreditPay.db.test.js __tests__/logisticsCreditCheckoutFixes.db.test.js __tests__/logisticsDashboardCounts.db.test.js --runInBand --json --outputFile=logistics-db-results.json
           node ../scripts/assert-logistics-db-tests.cjs logistics-db-results.json
 
       - name: Server entry module smoke

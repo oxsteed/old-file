@@ -58,7 +58,7 @@ async function buyerDistributorCounts(req, counts) {
   const rq = scopedUserWhere(req, 'user_id', 'user_id');
   const reqRows = await pool.query(
     `SELECT COUNT(*) AS total,
-            COUNT(*) FILTER (WHERE status NOT IN ('fulfilled', 'closed', 'cancelled')) AS active
+            COUNT(*) FILTER (WHERE status NOT IN ('closed', 'cancelled')) AS active
      FROM sourcing_requests WHERE ${rq.clause}`,
     rq.params
   );
@@ -93,13 +93,14 @@ async function buyerDistributorCounts(req, counts) {
   const dl = scopedUserWhere(req, 'recipient_user_id', 'recipient_user_id');
   const dlRows = await pool.query(
     `SELECT COUNT(*) AS total,
-            COUNT(*) FILTER (WHERE status = 'scheduled') AS scheduled,
+            COUNT(*) FILTER (WHERE status = 'assigned') AS scheduled,
             COUNT(*) FILTER (WHERE status = 'in_transit') AS in_transit,
             COUNT(*) FILTER (WHERE status IN ('failed', 'cancelled')) AS failed
      FROM delivery_orders WHERE ${dl.clause}`,
     dl.params
   );
   counts.totalDeliveries = asInt(dlRows.rows[0].total);
+  // Preserve the existing response field; assigned is the persisted scheduled state.
   counts.scheduledDeliveries = asInt(dlRows.rows[0].scheduled);
   counts.inTransitDeliveries = asInt(dlRows.rows[0].in_transit);
   counts.failedDeliveries = asInt(dlRows.rows[0].failed);
@@ -113,7 +114,7 @@ async function buyerDistributorCounts(req, counts) {
   counts.totalShipments = asInt(shTotal.rows[0].count);
   const shRisk = await pool.query(
     `SELECT COUNT(*) AS count FROM shipment_records sr
-     WHERE ${ship.clause} AND sr.status IN ('customs_review', 'exception', 'customs_hold')`,
+     WHERE ${ship.clause} AND sr.status IN ('exception', 'customs_hold')`,
     ship.params
   );
   counts.atRiskShipments = asInt(shRisk.rows[0].count);
@@ -164,7 +165,7 @@ async function organizerCounts(req, counts) {
   // Deliveries moving toward the organizer's recipients.
   const hdRows = await pool.query(
     `SELECT COUNT(*) AS count FROM delivery_orders
-     WHERE recipient_user_id = $1 AND status IN ('pending', 'scheduled', 'in_transit')`,
+     WHERE recipient_user_id = $1 AND status IN ('pending', 'assigned', 'in_transit')`,
     [userId]
   );
   counts.handoffDeliveries = asInt(hdRows.rows[0].count);

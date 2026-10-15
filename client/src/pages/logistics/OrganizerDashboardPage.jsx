@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../context/AuthContext';
@@ -36,57 +36,59 @@ export default function OrganizerDashboardPage() {
   const [revisionNotes, setRevisionNotes] = useState({});
   const [submitting, setSubmitting] = useState(null); // campaign id being submitted
 
-  const load = () => {
+  const loadVersion = useRef(0);
+  const load = async () => {
+    const version = ++loadVersion.current;
     setLoading(true);
     setLoadError(false);
+    setCounts(null);
     setCountsError(false);
-    getDashboardCounts('organizer')
-      .then((r) => {
-        if (r && r.counts) setCounts(r.counts);
-        else setCountsError(true);
-      })
-      .catch(() => setCountsError(true));
-    Promise.all([
-      // Organizer-scoped endpoint: own campaigns including drafts. The public
-      // /campaigns board never returns drafts.
-      listOrganizerCampaigns({ limit: 100 }),
-      getMyParticipation(),
-      listShipments({ limit: 20 }),
-      listDeliveries({ limit: 20 }),
-    ])
-      .then(([campaignRes, partRes, shipmentRes, deliveryRes]) => {
-        const rows = (campaignRes.orders || campaignRes.data || []);
-        setCampaigns(rows);
-        setParticipation(partRes.data || []);
-        setShipments(shipmentRes.shipments || []);
-        setDeliveries(deliveryRes.data || []);
-        setLoading(false);
-        // Pull the latest review note for campaigns sent back for revisions.
-        const needingNotes = rows.filter((row) => row.approval_state === 'revisions_requested');
-        if (needingNotes.length) {
-          Promise.all(
-            needingNotes.map((row) =>
-              getCampaignApprovalHistory(row.id)
-                .then((h) => ({ id: row.id, history: h.data || [] }))
-                .catch(() => ({ id: row.id, history: [] }))
-            )
-          ).then((results) => {
-            const notes = {};
-            results.forEach(({ id, history }) => {
-              const latest = [...history].reverse().find((d) => d.reason);
-              if (latest) notes[id] = { reason: latest.reason, by: latest.reviewer_name };
-            });
-            setRevisionNotes(notes);
+    setRevisionNotes({});
+    const [countResult, listResult] = await Promise.allSettled([
+      getDashboardCounts('organizer'),
+      Promise.all([
+        listOrganizerCampaigns({ limit: 100 }),
+        getMyParticipation(),
+        listShipments({ limit: 20 }),
+        listDeliveries({ limit: 20 }),
+      ]),
+    ]);
+    if (version !== loadVersion.current) return;
+    if (countResult.status === 'fulfilled' && countResult.value?.counts) {
+      setCounts(countResult.value.counts);
+    } else {
+      setCountsError(true);
+    }
+    if (listResult.status === 'fulfilled') {
+      const [campaignRes, partRes, shipmentRes, deliveryRes] = listResult.value;
+      const rows = campaignRes.orders || campaignRes.data || [];
+      setCampaigns(rows);
+      setParticipation(partRes.data || []);
+      setShipments(shipmentRes.shipments || []);
+      setDeliveries(deliveryRes.data || []);
+      const needingNotes = rows.filter(row => row.approval_state === 'revisions_requested');
+      Promise.all(needingNotes.map(row => getCampaignApprovalHistory(row.id)
+        .then(h => ({ id: row.id, history: h.data || [] }))
+        .catch(() => ({ id: row.id, history: [] }))))
+        .then(results => {
+          if (version !== loadVersion.current) return;
+          const notes = {};
+          results.forEach(({ id, history }) => {
+            const latest = [...history].reverse().find(d => d.reason);
+            if (latest) notes[id] = { reason: latest.reason, by: latest.reviewer_name };
           });
-        }
-      })
-      .catch(() => {
-        setLoadError(true);
-        setLoading(false);
-      });
+          setRevisionNotes(notes);
+        });
+    } else {
+      setLoadError(true);
+    }
+    setLoading(false);
   };
 
-  useEffect(() => { load(); }, [user?.id]);
+  useEffect(() => {
+    load();
+    return () => { loadVersion.current += 1; };
+  }, [user?.id]);
 
   // Submit a draft for Operations review. Server returns 422 + blockers when
   // the draft is not ready; each blocker is localized by its code.
@@ -115,7 +117,7 @@ export default function OrganizerDashboardPage() {
   const listCommittedUnits = campaigns.reduce((sum, row) => sum + Number(row.current_committed_qty || 0), 0);
   const listActiveCampaigns = campaigns.filter((row) => ['open', 'pledging', 'deposit_phase', 'locked', 'placed'].includes(row.status)).length;
   const listCampaignsNeedingMomentum = campaigns.filter((row) => Number(row.moq_pct || 0) < 50 && row.status === 'open').length;
-  const listHandoffDeliveries = deliveries.filter((row) => ['pending', 'scheduled', 'in_transit'].includes(row.status)).length;
+  const listHandoffDeliveries = deliveries.filter((row) => ['pending', 'assigned', 'in_transit'].includes(row.status)).length;
   const listParticipantCommitments = participation.filter((row) => row.status !== 'fulfilled').length;
 
   // Authoritative counts win once loaded; the list derivations are only a
@@ -286,7 +288,7 @@ export default function OrganizerDashboardPage() {
 
           <WorkspaceOverviewStrip
             loading={loading}
-            loadError={loadError}
+            loadError={loadError || countsError}
             nextStep={nextStep}
             recentActivity={recentActivity}
             emptyActivityText={t('logistics.workspace.organizer.recentActivity.empty')}
@@ -431,11 +433,11 @@ export default function OrganizerDashboardPage() {
               </div>
               <div className="lx-mini-list">
                 <div className="lx-mini-list-item">
-                  <strong>{tx('logistics.organizer.readiness.posture', '{{count}} campaigns can still change participant posture', { count: activeCampaigns })}</strong>
+                  <strong>{counts ? tx('logistics.organizer.readiness.posture', '{{count}} campaigns can still change participant posture', { count: activeCampaigns }) : '—'}</strong>
                   <span>{tx('logistics.organizer.readiness.postureHint', 'Use this to decide whether to keep recruiting demand or start preparing buyer-facing distribution expectations.')}</span>
                 </div>
                 <div className="lx-mini-list-item">
-                  <strong>{tx('logistics.organizer.readiness.handoffs', '{{count}} delivery handoffs are still active', { count: handoffDeliveries })}</strong>
+                  <strong>{counts ? tx('logistics.organizer.readiness.handoffs', '{{count}} delivery handoffs are still active', { count: handoffDeliveries }) : '—'}</strong>
                   <span>{tx('logistics.organizer.readiness.handoffsHint', 'These are the legs where organizer communication often matters most to avoid confusion at pickup or last-mile release.')}</span>
                 </div>
               </div>

@@ -63,7 +63,7 @@ export default function DistributorResellerPage() {
     released: allocations.filter((row) => row.status === 'released').length,
     pendingRelease: allocations.filter((row) => row.status !== 'released').length,
     deliveries: deliveries.length,
-    scheduled: deliveries.filter((row) => row.status === 'scheduled').length,
+    scheduled: deliveries.filter((row) => row.status === 'assigned').length,
     inTransit: deliveries.filter((row) => row.status === 'in_transit').length,
     failed: deliveries.filter((row) => ['failed', 'cancelled'].includes(row.status)).length,
     warehousedOrders: orders.filter((row) => row.status === 'warehoused').length,
