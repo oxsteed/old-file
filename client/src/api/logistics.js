@@ -434,6 +434,7 @@ export const adminUpdateCampaignStatus = (id, status, notes) =>
   axios.patch(`/admin/logistics/campaigns/${id}/status`, {
     status: typeof status === 'string' ? status : status?.status,
     notes: typeof status === 'string' ? notes : status?.notes,
+    deposit_deadline: typeof status==='object'?status.deposit_deadline:undefined,
   }).then(r => r.data);
 
 export const adminListPurchaseOrders = (params = {}) =>
@@ -573,3 +574,10 @@ export const getDashboardCounts = (scope, params = {}) =>
 // server-capped, so headline counts come from here, not `.length`.
 export const getWarehouseDashboardCounts = (params = {}) =>
   axios.get('/logistics/dashboard/warehouse-counts', { params }).then(r => r.data);
+
+export const listLogisticsReconciliation=()=>axios.get('/logistics/checkout/reconciliation').then(r=>r.data);
+export const resolveLogisticsReconciliation=(id,status,notes)=>axios.patch(`/logistics/checkout/reconciliation/${id}`,{status,notes}).then(r=>r.data);
+export const listLogisticsExceptions=()=>axios.get('/logistics/checkout/exceptions').then(r=>r.data);
+export const resolveLogisticsException=(id,notes)=>axios.post(`/logistics/checkout/exceptions/${id}/resolve`,{notes}).then(r=>r.data);
+export const cancelLogisticsPayment=id=>axios.post(`/logistics/checkout/attempt/${id}/cancel`).then(r=>r.data);
+export const listStaffQuotes=params=>axios.get('/logistics/finance/quotes',{params}).then(r=>r.data);

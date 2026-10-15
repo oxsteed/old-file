@@ -15525,32 +15525,100 @@
   "logistics": {
     "forms": {
       "unsavedChanges": {
-        "title": "Jete chanjman ou pa t sove yo?",
-        "body": "Ou gen chanjman ou pa sove. Si ou kite kounye a, sa ou te antre ap pèdi.",
+        "title": "Voye chanjman ou pa sove yo jete?",
+        "body": "Ou gen chanjman ou pa sove. Si ou kite kounye a, sa ou te ekri a ap pèdi.",
         "stay": "Kontinye modifye",
-        "discard": "Jete chanjman yo"
+        "discard": "Voye chanjman yo jete"
       }
     },
     "workspace": {
       "business": {
         "recentActivity": {
           "empty": "Anyen la pou kounye a."
+        },
+        "nextStep": {
+          "reviewRuns": {
+            "label": "Tcheke pwochen ekzekisyon yo",
+            "hint": "{{count}} ekzekisyon pwogram ap vini nan 21 jou. Tcheke kantite, wout ak destinasyon."
+          },
+          "createProgram": {
+            "label": "Kreye yon pwogram ki repete",
+            "hint": "Pa gen pwogram restokaj. Mete yon rit pou demann ki repete yo."
+          },
+          "newRequest": {
+            "label": "Louvri yon demann biznis",
+            "hint": "Pwogram yo ap mache. Mete nouvo demann lan sou youn nan biznis ou yo."
+          }
         }
       },
       "buyer": {
         "recentActivity": {
           "empty": "Anyen la pou kounye a."
+        },
+        "nextStep": {
+          "browseCampaigns": {
+            "label": "Gade kanpay yo",
+            "hint": "Pa gen demann aktif. Jwenn yon kanpay pou w rantre ladan l oswa swiv li."
+          },
+          "reviewShipments": {
+            "label": "Tcheke chajman ki an risk",
+            "hint": "{{count}} chajman bezwen swivi."
+          },
+          "startRequest": {
+            "label": "Kòmanse yon demann acha",
+            "hint": "Tout bagay ap mache. Louvri nouvo demann lè w pare."
+          }
         }
       },
       "distributor": {
         "recentActivity": {
           "empty": "Anyen la pou kounye a."
+        },
+        "nextStep": {
+          "failedDeliveries": {
+            "label": "Tcheke livrezon ki echwe yo",
+            "hint": "{{count}} livrezon echwe oswa anile epi yo ka bezwen lòt wout."
+          },
+          "releaseLots": {
+            "label": "Lage lo ki ap tann yo",
+            "hint": "{{count}} lo deja bay men yo poko lage."
+          },
+          "warehouse": {
+            "label": "Tcheke depo a",
+            "hint": "Lis la vid. Asire w stok la pare pou bay."
+          }
         }
       },
       "organizer": {
         "recentActivity": {
           "empty": "Anyen la pou kounye a."
+        },
+        "nextStep": {
+          "momentum": {
+            "label": "Pouse MOQ a",
+            "hint": "{{count}} kanpay poko rive nan mwatye MOQ epi yo bezwen plis moun."
+          },
+          "browse": {
+            "label": "Gade kanpay yo",
+            "hint": "Ou poko kowòdone okenn kanpay. Jwenn youn pou w rantre ladan l."
+          },
+          "handoffs": {
+            "label": "Kowòdone livrezon yo",
+            "hint": "Demann lan kenbe. Kenbe livrezon yo ap mache bay moun yo."
+          }
         }
+      },
+      "nextStep": {
+        "title": "Pwochen etap ou"
+      },
+      "recentActivity": {
+        "title": "Aktivite resan",
+        "empty": "Anyen pou kounye a. Nouvo aktivite ap parèt isit la."
+      },
+      "dataError": {
+        "title": "Done yo pa disponib",
+        "body": "Nou pa t ka chaje espas travay ou a kounye a. Tanpri eseye ankò.",
+        "retry": "Eseye ankò"
       }
     },
     "nav": {
@@ -15561,7 +15629,15 @@
       "shipments": "Ekspedisyon",
       "warehousing": "Depo",
       "compliance": "Konfòmite",
-      "finance": "Finans"
+      "finance": "Finans",
+      "adminControl": "Kontwòl admin",
+      "businessProcurement": "Acha pou biznis",
+      "buyer": "Achtè",
+      "distributor": "Distribitè",
+      "hub": "Gade",
+      "label": "Espas travay lojistik",
+      "operations": "Operasyon",
+      "organizer": "Òganizatè"
     },
     "home": {
       "title": "OxSteed Lojistik",
@@ -15590,7 +15666,7 @@
       "readyToStart": "Èske ou pare pou kòmanse?",
       "readyToStartBody": "Antre pou jwenn aksè nan apwovizyonman, achte an gwoup, ak vizibilite konplè sou chèn lojistik la, depi premye kontak ak founisè rive nan livrezon dènye etap la.",
       "createAccount": "Kreye yon kont",
-      "unitsProgress": "{{current}} / {{target}} {{units}}",
+      "unitsProgress": "{{current}} sou {{target}} {{units}}",
       "whyCards": {
         "moq": {
           "heading": "Pwoblèm lòd minimòm nan",
@@ -15695,7 +15771,10 @@
         "noRestrictions": "Pa gen restriksyon."
       },
       "separator": "·",
-      "queueLabel": "Machandiz sansib pou ladwann ki nan ke"
+      "queueLabel": "Machandiz sansib pou ladwann ki nan ke",
+      "metrics": {
+        "unavailableNote": "Metrik la pa disponib pou kounye a."
+      }
     },
     "operatorLogin": {
       "copy": {
@@ -15898,7 +15977,21 @@
       "closes": "Fèmen",
       "closeDate": "Dat fèmti",
       "allStatuses": "Tout estati yo",
-      "allCampaigns": "Tout kanpay yo"
+      "allCampaigns": "Tout kanpay yo",
+      "edit": {
+        "title": "Modifye bouyon kanpay la",
+        "subtitle": "Mete bouyon ou an ajou anba a. Lè li pare, soumèt li pou ekip Operasyon yo revize l.",
+        "saveChanges": "Sove chanjman yo",
+        "draftUpdated": "Bouyon an mete ajou.",
+        "updateFailed": "Pa t kapab mete bouyon an ajou. Tanpri eseye ankò.",
+        "backToCampaign": "Tounen nan kanpay la",
+        "loading": "Ap chaje bouyon kanpay la…",
+        "loadError": "Pa t kapab chaje kanpay la. Tanpri eseye ankò.",
+        "notFound": "Kanpay la pa jwenn. Li te ka efase.",
+        "notOwner": "Se òganizatè kanpay la sèlman ki ka modifye bouyon sa a.",
+        "notEditable": "Kanpay sa a pa ka modifye ankò. Se sèlman bouyon yo ak kanpay yo mande revizyon pou yo ki ka modifye.",
+        "editDraft": "Modifye bouyon an"
+      }
     },
     "campaign": {
       "organizer": "Òganizatè",
@@ -15947,7 +16040,20 @@
       "products": "Pwodui",
       "viewProducts": "Wè pwodui",
       "subtitle": "Mande, chifre epi konvèti, depi premye demann lan jouk bon kòmand lan.",
-      "startFirst": "Kòmanse premye demann ou"
+      "startFirst": "Kòmanse premye demann ou",
+      "tabsLabel": "Vi sourcing",
+      "error": "Nou pa t kapab chaje demann sourcing ou yo kounye a. Tanpri eseye ankò.",
+      "headers": {
+        "reference": "Referans",
+        "title": "Tit",
+        "category": "Kategori",
+        "lane": "Koridò",
+        "qty": "Kte",
+        "status": "Estati",
+        "quotes": "Devi"
+      },
+      "openRequest": "Louvri demann {{ref}}",
+      "viewRow": "Wè →"
     },
     "request": {
       "title": "Nouvo demann apwovizyonman",
@@ -15986,7 +16092,21 @@
       "loading": "Ap chaje…",
       "lane": "Liy",
       "landedCost": "Pri total",
-      "expected": "Previ"
+      "expected": "Previ",
+      "backToBuyer": "Retounen nan espas achtè",
+      "openOrder": "Louvri kòmand {{ref}}",
+      "pagination": "Paj kòmand yo",
+      "statusFilter": "Filtre pa estati",
+      "error": "Nou pa t kapab chaje kòmand ou yo kounye a. Tanpri eseye ankò.",
+      "headers": {
+        "reference": "Referans",
+        "product": "Pwodwi",
+        "lane": "Koridò",
+        "qty": "Kte",
+        "landedCost": "Pri rive",
+        "status": "Estati",
+        "expected": "Prevwa"
+      }
     },
     "shipments": {
       "title": "Ekspedisyon",
@@ -16003,7 +16123,15 @@
       "milestone": "Etap",
       "allStatuses": "Tout",
       "empty": "Pa jwenn okenn chajman.",
-      "loading": "Ap chaje…"
+      "loading": "Ap chaje…",
+      "lifecycleLabel": "Filtre pa etap sik lavi",
+      "error": "Nou pa t kapab chaje chajman ou yo kounye a. Tanpri eseye ankò.",
+      "openShipment": "Louvri chajman {{ref}}",
+      "noCarrier": "Pa gen transpòtè",
+      "kg": "kg",
+      "etaLabel": "ETA",
+      "exception": "Eksepsyon",
+      "backToBuyer": "Retounen nan espas achtè"
     },
     "warehousing": {
       "title": "Depo",
@@ -16015,7 +16143,24 @@
       "noAllocations": "Pa gen alokasyon jwenn.",
       "noDeliveries": "Pa gen lòd livrezon jwenn.",
       "noWarehouses": "Pa gen depo jwenn.",
-      "subtitle": "Resevwa, rekonsilye, aloke epi lage stok bay achtè yo."
+      "subtitle": "Resevwa, rekonsilye, aloke epi lage stok bay achtè yo.",
+      "tabsLabel": "Vi depo",
+      "error": "Nou pa t kapab chaje done depo yo kounye a. Tanpri eseye ankò.",
+      "bonded": "Sou ladwàn",
+      "activeReceipts": "{{count}} resepsyon aktif",
+      "sqft": "piye kare",
+      "headers": {
+        "reference": "Referans",
+        "warehouse": "Depo",
+        "expected": "Prevwa",
+        "received": "Resevwa",
+        "shortage": "Mank",
+        "status": "Estati",
+        "buyer": "Achtè",
+        "qty": "Kte",
+        "releaseMethod": "Metòd Liberasyon",
+        "released": "Libere"
+      }
     },
     "compliance": {
       "title": "Konfòmite ak restriksyon",
@@ -16036,7 +16181,33 @@
       "bv": "Verifikasyon biznis",
       "ma": "Apwobasyon manyèl",
       "explainer": "Yon wout se yon chemen chajman ant de peyi, tankou soti Lachin pou Ayiti. Chak wout gen pwòp règ li: sa yo ka enpòte, ki dokiman yo mande, epi konbyen kontwòl ladwàn fè. Nou tcheke règ sa yo pou chak chajman gwoup, epi nou okipe papye yo. Paj sa a montre sa ki aplike pou machandiz ou yo.",
-      "lanesRisk": "Apèsi risk pa wout"
+      "lanesRisk": "Apèsi risk pa wout",
+      "allLanes": "Tout koridò",
+      "businessVerificationRequired": "Verifikasyon biznis obligatwa",
+      "countryFilter": "Filtre pa kòd peyi",
+      "countryPlaceholder": "Kòd peyi (egz. HT)",
+      "customsComplexity": "Ladwàn",
+      "docRequirements": {
+        "body": "Chak koridò ka egzije: Fakti komèsyal, Lis anbalaj, Sètifika orijin, Sètifika fitosanitè, otorizasyon FDA, mak CE, fòmilè antre ladwàn, oswa rapò enspeksyon. Egzijans yo espesifik pou koridò ak kategori.",
+        "title": "Egzijans dokiman"
+      },
+      "error": "Chajman done konfòmite yo echwe. Eseye ankò.",
+      "global": "Global",
+      "headers": {
+        "category": "Kategori",
+        "country": "Peyi",
+        "docRequired": "Dok obligatwa",
+        "lane": "Koridò",
+        "notes": "Nòt",
+        "severity": "Gravite",
+        "type": "Tip"
+      },
+      "laneFilter": "Filtre pa koridò",
+      "manualApprovalRequired": "Apwobasyon manyèl obligatwa",
+      "noLanes": "Pa gen done risk koridò pibliye ankò.",
+      "riskTiers": {
+        "title": "Nivo risk"
+      }
     },
     "finance": {
       "title": "Finans lojistik",
@@ -16045,7 +16216,19 @@
       "depositsPaid": "Depo peye",
       "orderCount": "Kantite kòmand",
       "inTransit": "Valè an transit",
-      "simulator": "Simulatè koste total",
+      "simulator": {
+        "calculate": "Kalkile pri rive",
+        "calculating": "Ap kalkile…",
+        "freight": "Fret est. / inite (USD)",
+        "lane": "Koridò",
+        "markupApplied": "Maj aplike",
+        "perUnit": "/ inite rive",
+        "productCost": "Pri pwodwi / inite (USD)",
+        "quantity": "Kantite",
+        "selectLane": "— Chwazi koridò —",
+        "title": "Similatè pri rive",
+        "totalFor": "Total pou {{qty}} inite"
+      },
       "simulatorSubtitle": "Prevan dekonpozisyon koste anvan ou pase yon kòmand.",
       "unitCost": "Koste inite pwodui (USD)",
       "qty": "Kantite",
@@ -16057,7 +16240,41 @@
       "totalSpent": "Total angaje",
       "recentOrders": "Kòmand resan",
       "depositPaid": "Depo peye",
-      "byStatus": "Valè pa estati kòmand"
+      "byStatus": "Valè pa estati kòmand",
+      "error": "Nou pa t kapab chaje done finans yo kounye a. Tanpri eseye ankò.",
+      "headers": {
+        "depositPaid": "Depo peye",
+        "product": "Pwodwi",
+        "qty": "Kte",
+        "reference": "Referans",
+        "remaining": "Rete",
+        "status": "Estati",
+        "totalLanded": "Total rive"
+      },
+      "kpis": {
+        "depositsPaid": "Depo peye",
+        "inTransit": "An transit",
+        "orders": "Kòmand",
+        "totalCommitted": "Total angaje"
+      },
+      "noSpend": "Pa gen depans kòmand anrejistre ankò.",
+      "refund": {
+        "empty": "Pa gen ka ranbousman soumèt ankò.",
+        "requested": "Mande",
+        "submitted": "Ka ranbousman soumèt pou revizyon.",
+        "title": "Demann ranbousman"
+      },
+      "refundForm": {
+        "amount": "Montan mande (USD)",
+        "notes": "Nòt",
+        "poFallback": "PO",
+        "purchaseOrder": "Bon kòmand",
+        "reason": "Rezon ranbousman",
+        "selectOrder": "— Chwazi kòmand —",
+        "submit": "Soumèt ka ranbousman",
+        "submitting": "Ap soumèt…",
+        "title": "Mande yon revizyon ranbousman"
+      }
     },
     "admin": {
       "title": "Operasyon lojistik",
@@ -16082,7 +16299,8 @@
         "pricing": "Pri",
         "restrictions": "Restriksyon",
         "disputes": "Diskisyon",
-        "superControl": "Kontwòl sipè"
+        "superControl": "Kontwòl sipè",
+        "refunds": "Ranbousman"
       },
       "metrics": {
         "purchaseOrders": "Kòmand acha",
@@ -16307,6 +16525,34 @@
         "distributor": "Libere bay distribitè",
         "bulk_handoff": "Remèt an gwo",
         "restock_route": "Wout reproviznament"
+      },
+      "defaults": {
+        "buyerAllocation": "Alokasyon achtè",
+        "recipient": "Moun k ap resevwa",
+        "releasePending": "liberasyon an atant",
+        "warehouse": "Depo"
+      },
+      "empty": {
+        "allocations": "Pa gen alokasyon disponib.",
+        "deliveries": "Pa gen lòd livrezon disponib."
+      },
+      "error": "Chajman done distribisyon yo echwe. Eseye ankò.",
+      "labels": {
+        "allocatedQty": "Kte alwe",
+        "mode": "Mòd",
+        "tracking": "Swivi"
+      },
+      "loading": "Ap chaje…",
+      "sections": {
+        "allocationQueue": "Fil alokasyon",
+        "deliveryExecution": "Ekzekisyon livrezon",
+        "openWarehousing": "Louvri depo →"
+      },
+      "stats": {
+        "allocations": "Alokasyon",
+        "deliveryOrders": "Lòd livrezon",
+        "inTransit": "An transit",
+        "released": "Libere"
       }
     },
     "buyerTypes": {
@@ -16360,7 +16606,1146 @@
       "targetPrice": "Pri sib / inite (USD)",
       "targetQty": "Kantite sib",
       "titleLabel": "Tit demann lan",
-      "unit": "Inite"
+      "unit": "Inite",
+      "stepsLabel": "Pwogrè demann",
+      "goToStep": "Ale nan {{label}}",
+      "titlePlaceholder": "egz. 500 Inite Bòt Sekirite Endistriyèl",
+      "selectOption": "— Chwazi —",
+      "descriptionPlaceholder": "Dekri pwodwi a an detay: materyèl, dimansyon, sètifikasyon nesesè…",
+      "destCountryPlaceholder": "egz. US, HT, CA",
+      "letOxsteedChoose": "— Kite OxSteed chwazi —",
+      "laneChecks": "Tchèk aksè ak apwobasyon koridò",
+      "riskTier": "Nivo risk",
+      "customsComplexity": "Konpleksite ladwàn",
+      "laneBlocked": "Koridò sa a bloke kounye a pou wòl ou oswa kontèks destinasyon ou: {{reason}}",
+      "laneBusinessVerification": "Yo egzije verifikasyon biznis pou egzekite koridò sa a kòm achtè verifye.",
+      "laneResellerApproval": "Yo egzije apwobasyon revandè/distribitè anvan koridò sa a ka sèvi pou koule revente.",
+      "laneManualApproval": "Yo egzije apwobasyon konfòmite manyèl anvan demann sa a ka antre nan devi oswa acha.",
+      "anyOption": "— Nenpòt —",
+      "review": {
+        "title": "Tit",
+        "category": "Kategori",
+        "quantity": "Kantite",
+        "targetPrice": "Pri sib",
+        "destination": "Destinasyon",
+        "deadline": "Dat limit",
+        "privateLabel": "Mak Prive",
+        "yes": "Wi",
+        "no": "Non"
+      },
+      "notesPlaceholder": "Nenpòt lòt kontèks pou ekip sourcing la…"
+    },
+    "hub": {
+      "aboutBody": "Achtè yo mete demann yo ansanm pou rive nan kantite minimòm founisè a mande. Lè gen ase demann, kanpay la fèmen, yo kolekte depo yo, epi OxSteed kowòdone rès chèn apwovizyònman an.",
+      "aboutTitle": "Kijan acha an gwoup fonksyone",
+      "aboutToggle": "Kijan acha an gwoup fonksyone",
+      "clearFilters": "Efase filtè yo",
+      "emptyBody": "Eseye yon lòt rechèch oswa filtè. Nouvo kanpay ouvri regilyèman.",
+      "emptyTitle": "Okenn kanpay pa koresponn ak filtè w yo",
+      "error": "Nou pa t ka chaje kanpay yo. Tanpri eseye ankò.",
+      "eyebrow": "OxSteed Logistics",
+      "intro": "Antre nan kanpay an gwoup pou w jwenn pri an gwo, oswa òganize pa w.",
+      "laneLabel": "Liy",
+      "loading": "Ap chaje kanpay yo...",
+      "nextPage": "Apre",
+      "noCampaignsBody": "Pa gen kanpay ki louvri pou kounye a. Tounen byento, oswa òganize youn ou menm.",
+      "noCampaignsTitle": "Poko gen kanpay",
+      "organizeCta": "Òganize yon kanpay",
+      "pageOf": "Paj {{page}} sou {{pages}}",
+      "prevPage": "Anvan",
+      "procurementCta": "Acha pou biznis",
+      "resultsCount": "{{count}} kanpay",
+      "retry": "Eseye ankò",
+      "searchLabel": "Chèche kanpay",
+      "searchPlaceholder": "Chèche pa pwodwi, liy oswa tit",
+      "statusLabel": "Estati",
+      "title": "Acha an gwoup, fasil"
+    },
+    "modal": {
+      "close": "Fèmen",
+      "openFullPage": "Louvri paj konplè a",
+      "loading": "Ap chaje…",
+      "loadError": "Nou pa t ka chaje apèsi sa a.",
+      "retry": "Eseye ankò",
+      "notFound": "Nou pa t ka jwenn atik sa a.",
+      "campaignPreviewTitle": "Apèsi kanpay la",
+      "requestPreviewTitle": "Apèsi demann lan",
+      "orderPreviewTitle": "Apèsi kòmand lan",
+      "shipmentPreviewTitle": "Apèsi chajman an",
+      "allocationPreviewTitle": "Apèsi alokasyon an",
+      "campaign": {
+        "lane": "Wout",
+        "status": "Estati",
+        "moqProgress": "Pwogrè MOQ",
+        "participants": "Patisipan",
+        "committedUnits": "Angaje",
+        "targetUnits": "Objektif"
+      },
+      "request": {
+        "status": "Estati",
+        "category": "Kategori",
+        "targetQuantity": "Kantite sib",
+        "targetPrice": "Pri sib",
+        "destination": "Destinasyon",
+        "deadline": "Dènye dat",
+        "quotes": "Deviz"
+      },
+      "order": {
+        "status": "Estati",
+        "supplier": "Founisè",
+        "quantity": "Kantite",
+        "total": "Total kòmand lan",
+        "balanceDue": "Balans pou peye",
+        "expectedArrival": "Arive prevwa"
+      },
+      "shipment": {
+        "status": "Estati",
+        "carrier": "Transpòtè",
+        "trackingNumber": "Nimewo swivi",
+        "originPort": "Pò depa",
+        "destinationPort": "Pò arive",
+        "eta": "ETA"
+      },
+      "allocation": {
+        "status": "Estati",
+        "recipient": "Destinatè",
+        "warehouse": "Depo",
+        "releaseMethod": "Fason livrezon",
+        "quantity": "Kantite"
+      }
+    },
+    "adminControl": {
+      "error": "Nou pa t kapab chaje metrik kontwòl yo kounye a. Tanpri eseye ankò.",
+      "kpis": {
+        "claimsPosture": "Pozisyon reklamasyon",
+        "feeRules": "Règ frè",
+        "markupRules": "Règ maj",
+        "restrictions": "Restriksyon",
+        "trackedPOs": "PO swivi",
+        "trackedShipments": "Chajman swivi"
+      },
+      "pricing": {
+        "active": "aktif",
+        "empty": "Pa gen règ pri yo jwenn.",
+        "fee": "Frè",
+        "headers": {
+          "name": "Non",
+          "status": "Estati",
+          "type": "Tip"
+        },
+        "inactive": "inaktif",
+        "markup": "Maj",
+        "ruleFallback": "Règ {{id}}",
+        "title": "Pozisyon pri ak frè"
+      },
+      "restricted": {
+        "body": "Règ pri, restriksyon mache, ak ranplasman logistics yo disponib sèlman pou admin OxSteed ak super admin.",
+        "returnToHub": "Retounen nan sant Logistics",
+        "title": "Aksè kontwòl limite"
+      },
+      "restrictions": {
+        "empty": "Pa gen restriksyon konfigire.",
+        "headers": {
+          "category": "Kategori",
+          "country": "Peyi",
+          "risk": "Risk"
+        },
+        "title": "Kontwòl restriksyon ak risk"
+      },
+      "routes": {
+        "adminDashboard": "Tablo admin",
+        "pricingRules": "Règ pri",
+        "restrictions": "Restriksyon",
+        "superControl": "Super kontwòl",
+        "supplierApprovals": "Apwobasyon founisè"
+      },
+      "routesLabel": "Wout kontwòl admin",
+      "subtitle": "Kontwòl pri, risk, apwobasyon, ak rentabilité pou tout branch OxSteed Logistics.",
+      "title": "Kontwòl administratè"
+    },
+    "buyer": {
+      "actions": {
+        "startRequest": "Kòmanse yon demann",
+        "watchShipments": "Gade kalandriye chajman"
+      },
+      "activity": {
+        "claimFallback": "Reklamasyon #{{id}}"
+      },
+      "attention": {
+        "allocationRelease": {
+          "hint": "Stòk ki asiyen an toujou bezwen ranmasaj, transfè transitaire, oswa planifikasyon liberasyon final.",
+          "label": "Liberasyon alokasyon"
+        },
+        "copy": "Sèvi ak fil sa a pou deside si w pouse nouvo sourcing, kouri dèyè liberasyon livrezon, oswa eskalade yon pwoblèm finans.",
+        "issuePosture": {
+          "hint": "Reklamasyon ak ka ranbousman di w ki kote konfyans achtè oswa kalite ekzekisyon ap glise.",
+          "label": "Pozisyon pwoblèm"
+        },
+        "shipmentRisk": {
+          "hint": "Revizyon ladwàn, eta eksepsyon, oswa fret an reta ta dwe jwenn swivi achtè an premye.",
+          "label": "Risk chajman"
+        },
+        "title": "Atansyon kounye a"
+      },
+      "chips": {
+        "buyerFirst": "Espas achtè an premye",
+        "claimsTied": "Reklamasyon mare ak rezilta chajman",
+        "refundVisible": "Pozisyon ranbousman rete vizib"
+      },
+      "claims": {
+        "activeClaims": "{{count}} reklamasyon aktif",
+        "activeClaimsHint": "Sèvi ak reklamasyon lè yon chajman, kòmand, oswa rezilta envantè bezwen entèvansyon operatè oswa revizyon prèv.",
+        "deliveriesHint": "Kenbe estati livrezon toupre reklamasyon yo pou w ka konekte ekzekisyon ki echwe ak istwa liberasyon reyèl.",
+        "deliveriesTracked": "{{count}} dosye livrezon swivi",
+        "openFinance": "Espas finans",
+        "refundCases": "{{count}} ka ranbousman",
+        "refundCasesHint": "Fil ranbousman yo montre ki kote rekiperasyon achtè toujou ap tann konfimasyon finans oswa operasyon.",
+        "title": "Reklamasyon ak pozisyon rezolisyon"
+      },
+      "flow": {
+        "allocationFallback": "ALC-{{id}}",
+        "awaitingRelease": "Ap tann liberasyon",
+        "empty": "Pa gen dosye chajman oswa alokasyon ankò.",
+        "headers": {
+          "eta": "ETA / Livrezon",
+          "reference": "Referans",
+          "status": "Estati"
+        },
+        "openDistribution": "Distribisyon",
+        "title": "Koule chajman ak alokasyon"
+      },
+      "kicker": "Espas achtè",
+      "metrics": {
+        "activeRequests": {
+          "label": "Demann aktif",
+          "note": "{{total}} demann achtè an mouvman an total"
+        },
+        "claimsRefunds": {
+          "label": "Reklamasyon ak ranbousman",
+          "noteClear": "Pa gen pwoblèm achtè aktif",
+          "noteOpen": "Revizyon operatè ka nesesè sou pwoblèm ouvè"
+        },
+        "pendingAllocations": {
+          "label": "Alokasyon an atant",
+          "noteClear": "Fil alokasyon an vid",
+          "notePending": "Stòk asiyen men pa fin libere ankò"
+        },
+        "watchShipments": {
+          "label": "Gade chajman",
+          "noteClear": "Pa gen eksepsyon chajman siyalé kounye a",
+          "noteRisk": "{{count}} bezwen swivi eksepsyon"
+        },
+        "unavailableNote": "Metrik la pa disponib pou kounye a."
+      },
+      "requests": {
+        "empty": "Pa gen demann sourcing ankò.",
+        "headers": {
+          "category": "Kategori",
+          "quotes": "Devi",
+          "request": "Demann",
+          "status": "Estati"
+        },
+        "title": "Demann sourcing mwen yo",
+        "viewAll": "Wè tout"
+      },
+      "rhythm": {
+        "bestMove": {
+          "hasRequests": "Revize pozisyon devi ak chajman anvan w louvri plis demann.",
+          "label": "Pi bon pwochen pa",
+          "noRequests": "Louvri yon demann sourcing pou kòmanse devi founisè."
+        },
+        "latestDelivery": {
+          "label": "Dènye siyal livrezon",
+          "noDate": "Pa gen dat livrezon ki pwograme ankò.",
+          "withDate": "Aktivite livrezon ki pi resan an pwograme vè {{date}}."
+        },
+        "title": "Ritm achtè"
+      },
+      "stats": {
+        "attentionShipments": {
+          "label": "Chajman ki bezwen atansyon",
+          "meta": "Mouvman ladwàn oswa etap eksepsyon pou revize."
+        },
+        "issues": {
+          "label": "Reklamasyon / ranbousman ouvè",
+          "meta": "Kenbe pwoteksyon achtè ak pozisyon rezolisyon vizib."
+        },
+        "openRequests": {
+          "label": "Demann achtè ouvè",
+          "meta": "Atravè sourcing, devi, ak konvèsyon acha."
+        }
+      },
+      "subtitle": "Lanse demann sourcing, swiv kòmand ou yo epi veye fret aktif: tout nan yon sèl kote.",
+      "title": "Tablo achtè"
+    },
+    "campaignDetail": {
+      "delivery": {
+        "freightForward": "Transitaire",
+        "shipToBuyer": "Voye bay achtè",
+        "warehousePickup": "Ranmasaj nan depo"
+      },
+      "economics": {
+        "deposit": "Depo (30%)",
+        "fees": "Frè",
+        "freightEst": "Fret (est.)",
+        "landedCost": "Pri rive / inite",
+        "markup": "Maj OxSteed",
+        "productCost": "Pri pwodwi",
+        "title": "Ekonomi pa inite"
+      },
+      "join": {
+        "cancellationPolicy": "Politik anilasyon",
+        "committedQty": "Kte angaje",
+        "confirm": "Konfime patisipasyon",
+        "countryCode": "Kòd peyi",
+        "deliveryPreference": "Preferans livrezon",
+        "deposit": "Depo",
+        "destCountry": "Peyi destinasyon",
+        "subtotal": "Soutotal",
+        "title": "Rantre nan kanpay la"
+      },
+      "laneGating": {
+        "blocked": "Wòl ou kounye a oswa kontèks destinasyon ou bloke pou koridò sa a: {{reason}}",
+        "businessVerification": "Yo egzije yon kontèks biznis verifye pou koridò kanpay sa a.",
+        "manualApproval": "Yo egzije apwobasyon konfòmite manyèl anvan kanpay la ka pase tout etap logistics an aval yo.",
+        "resellerApproval": "Yo egzije apwobasyon revandè/distribitè pou patisipasyon revente sou koridò sa a.",
+        "title": "Kontwòl koridò"
+      },
+      "loadError": "Chajman kanpay la echwe",
+      "meta": {
+        "fallbackDescription": "Kanpay acha gwoupe sou OxSteed Logistics.",
+        "fallbackTitle": "Kanpay"
+      },
+      "moq": {
+        "progressLabel": "Pwogrè MOQ: {{pct}} pousan",
+        "units": "{{committed}} / {{target}} inite angaje"
+      },
+      "notFound": "Kanpay pa jwenn.",
+      "participants": {
+        "headers": {
+          "delivery": "Livrezon",
+          "deposit": "Depo",
+          "qty": "Kte",
+          "status": "Estati",
+          "user": "Itilizatè"
+        },
+        "participant": "Patisipan",
+        "title": "Patisipan ({{count}})"
+      },
+      "timeline": {
+        "expectedArrival": "Arive prevwa",
+        "expectedShip": "Voye prevwa",
+        "lockDate": "Dat blokaj",
+        "openDate": "Dat ouvèti",
+        "closeDate": "Dat fèmti",
+        "organizer": "Òganizatè",
+        "title": "Kalandriye"
+      }
+    },
+    "distributor": {
+      "actions": {
+        "openBoard": "Louvri tablo distribisyon",
+        "warehouseReadiness": "Tcheke preparasyon depo"
+      },
+      "activity": {
+        "allocationFallback": "ALC-{{id}}",
+        "deliveryFallback": "Livrezon #{{id}}"
+      },
+      "chips": {
+        "failedDrops": "Swiv livrezon ki echwe bonè",
+        "releaseDiscipline": "Disiplin liberasyon enpòtan",
+        "sync": "Kenbe depo ak livrezon senk"
+      },
+      "execution": {
+        "empty": "Pa gen lòd livrezon ankò.",
+        "headers": {
+          "method": "Metòd",
+          "recipient": "Moun k ap resevwa",
+          "scheduled": "Pwograme",
+          "status": "Estati"
+        },
+        "recipientFallback": "Moun k ap resevwa livrezon",
+        "seeAll": "Wè tout",
+        "title": "Ekzekisyon livrezon"
+      },
+      "kicker": "Espas distribitè",
+      "metrics": {
+        "allocatedLots": {
+          "label": "Lo alwe",
+          "note": "Envantè asiyen atravè moun k ap resevwa distribisyon."
+        },
+        "deliveryOrders": {
+          "label": "Lòd livrezon",
+          "note": "Tronson sòtan k ap swivi kounye a."
+        },
+        "inTransit": {
+          "label": "An transit",
+          "note": "Livrezon ki toujou bezwen siveyans dènye kilomèt."
+        },
+        "releasedLots": {
+          "label": "Lo libere",
+          "note": "Lo deja otorize pou ranmasaj oswa ekzekisyon livrezon."
+        },
+        "warehousedOrders": {
+          "label": "Kòmand nan depo",
+          "note": "Envantè an amont deja nan stokaj epi pare pou alwe."
+        },
+        "unavailableNote": "Metrik la pa disponib pou kounye a."
+      },
+      "posture": {
+        "releaseFirst": {
+          "hint": "Tcheke ke alokasyon yo vrèman libere anvan w pouse moun k ap resevwa yo nan planifikasyon livrezon.",
+          "label": "Libere anvan wout"
+        },
+        "title": "Pozisyon operasyonèl",
+        "warehousedVisible": {
+          "hint": "{{count}} bon kòmand deja nan depo, kidonk blokaj la ka an aval, pa an amont.",
+          "label": "Kenbe stòk nan depo vizib"
+        }
+      },
+      "pressure": {
+        "copy": "Sèvi ak vi sa a pou deside si pwochen blokaj la se liberasyon depo, planifikasyon, oswa ekzekisyon dènye kilomèt ki echwe.",
+        "exceptions": {
+          "hint": "Livrezon ki echwe oswa anile ta dwe jwenn atansyon anvan konfyans kliyan bese plis.",
+          "label": "Eksepsyon livrezon"
+        },
+        "release": {
+          "hint": "Envantè asiyen, men metòd ranmasaj, transfè transitaire, oswa preparasyon moun k ap resevwa a toujou enkonplè.",
+          "label": "Lo ap tann liberasyon"
+        },
+        "scheduled": {
+          "hint": "Sa yo se pwochen pwen kontak pwobab kote kominikasyon ak tan enpòtan.",
+          "label": "Livrezon pwograme"
+        },
+        "title": "Pwen presyon distribisyon"
+      },
+      "queue": {
+        "assignedBuyer": "Achtè asiyen",
+        "empty": "Pa gen lo alokasyon asiyen ankò.",
+        "headers": {
+          "method": "Metòd",
+          "recipient": "Moun k ap resevwa",
+          "status": "Estati",
+          "warehouse": "Depo"
+        },
+        "methodPending": "an atant",
+        "open": "Louvri espas",
+        "title": "Fil transfè alokasyon",
+        "warehousePending": "Depo an atant"
+      },
+      "stats": {
+        "failed": {
+          "label": "Depo ki echwe oswa anile",
+          "meta": "Sa yo souvan bezwen reroutage oswa swivi dirèk moun k ap resevwa."
+        },
+        "inTransit": {
+          "label": "Livrezon an mouvman",
+          "meta": "Mouvman sòtan ou ta dwe gade aktivman."
+        },
+        "pendingRelease": {
+          "label": "Lo ap tann liberasyon",
+          "meta": "Envantè asiyen ki pa fin transfere ankò."
+        }
+      },
+      "subtitle": "Swiv patisipasyon kanpay ou yo, alokasyon, ak livrezon dènye kilomèt.",
+      "title": "Tablo distribitè"
+    },
+    "operations": {
+      "error": "Nou pa t kapab chaje metrik operasyon yo kounye a. Tanpri eseye ankò.",
+      "internalOnly": {
+        "body": "Espas sa a rezève pou operatè logistics OxSteed. Achtè ak òganizatè ki konekte ka toujou sèvi ak espas Achtè, Òganizatè, Acha Biznis, ak Distribitè pou jere pwòp aktivite logistics yo.",
+        "title": "Aksè operasyon se entèn"
+      },
+      "loading": "Ap chaje metrik operasyon…",
+      "priorities": {
+        "customsHold": "{{count}} chajman nan kenbe ladwàn oswa pozisyon eksepsyon.",
+        "fullAdmin": "Tablo admin konplè",
+        "openClaims": "{{count}} reklamasyon rete ouvè pou revizyon.",
+        "openDisputes": "Louvri litij ak revizyon ranbousman →",
+        "openFreight": "Louvri fret ak fil etap →",
+        "openSourcing": "Louvri fil admisyon sourcing →",
+        "openWarehouse": "Louvri fil resepsyon depo →",
+        "operatorRoutes": "Wout operatè",
+        "queues": "Fil imedya",
+        "sourcingTouch": "{{count}} demann sourcing bezwen routage, devi, oswa manyen operatè.",
+        "title": "Priyorite operasyon"
+      },
+      "routesLabel": "Wout operasyon",
+      "subtitle": "Yon sifas kòmand entèn pou admisyon sourcing, mouvman fret aktif, koule depo, ak eksepsyon logistics.",
+      "title": "Espas operasyon",
+      "kpis": {
+        "sourcingQueue": "Fil sourcing",
+        "campaigns": "Kanpay",
+        "trackedShipments": "Chajman swivi",
+        "claimsDisputes": "Reklamasyon ak litij"
+      },
+      "routes": {
+        "finance": "Operasyon lojistik"
+      }
+    },
+    "orderDetail": {
+      "backToOrders": "← Retounen nan kòmand yo",
+      "defaults": {
+        "purchaseOrder": "Bon kòmand"
+      },
+      "finance": {
+        "customsAdmin": "Ladwàn/admin",
+        "freightEstimate": "Estimasyon fret",
+        "lastMile": "Dènye kilomèt",
+        "originHandling": "Manyen orijin",
+        "oxsteedMarkup": "Maj OxSteed",
+        "productTotal": "Total pwodwi",
+        "riskSurcharge": "Sipliman risk",
+        "sourcingFee": "Frè sourcing",
+        "warehouseFee": "Frè depo"
+      },
+      "labels": {
+        "buyer": "Achtè",
+        "destination": "Destinasyon",
+        "expectedArrival": "Arive prevwa",
+        "expectedProductionComplete": "Fin pwodiksyon prevwa",
+        "expectedShipDate": "Dat voye prevwa",
+        "freightOption": "Opsyon fret",
+        "incoterms": "Incoterms",
+        "quantity": "Kantite",
+        "supplier": "Founisè"
+      },
+      "loadError": "Chajman kòmand lan echwe.",
+      "notFound": "Bon kòmand pa jwenn.",
+      "sections": {
+        "financial": "Pil finansye",
+        "overview": "Apèsi kòmand"
+      },
+      "totals": {
+        "depositDue": "Depo dwe",
+        "finalDue": "Dènye peman dwe",
+        "remaining": "Rete",
+        "totalLanded": "Total rive"
+      },
+      "loading": "Ap chaje…"
+    },
+    "organizer": {
+      "actions": {
+        "coordinateHandoffs": "Kowòdone transfè",
+        "openBoard": "Louvri tablo kanpay"
+      },
+      "activity": {
+        "campaignFallback": "Kanpay #{{id}}",
+        "deliveryFallback": "Livrezon #{{id}}"
+      },
+      "campaigns": {
+        "browse": "Gade kanpay yo",
+        "empty": "Pa gen kanpay òganizatè ankò. Kòmanse youn nan espas kanpay yo.",
+        "moqProgress": "Pwogrè MOQ: {{pct}} pousan",
+        "participants": "{{count}} patisipan",
+        "title": "Kanpay òganizatè"
+      },
+      "commitments": {
+        "empty": "Pa gen angajman kanpay ankò.",
+        "headers": {
+          "campaign": "Kanpay",
+          "qty": "Kte",
+          "status": "Estati"
+        },
+        "open": "Louvri patisipasyon",
+        "title": "Angajman mwen kòm patisipan"
+      },
+      "kicker": "Espas òganizatè",
+      "metrics": {
+        "campaigns": {
+          "label": "Kanpay òganizatè",
+          "note": "Total kanpay ou posede oswa kowòdone kounye a."
+        },
+        "committedUnits": {
+          "label": "Inite angaje",
+          "note": "Itil pou jije pouvwa acha rezo a atravè tout kanpay yo."
+        },
+        "deliveries": {
+          "label": "Transfè livrezon",
+          "note": "Kowòdinasyon dènye kilomèt ou ka bezwen voye mesaj sou li."
+        },
+        "shipments": {
+          "label": "Chajman swivi",
+          "note": "Mouvman ki kounye a afekte mizajou ak transfè òganizatè."
+        },
+        "unavailableNote": "Metrik la pa disponib pou kounye a."
+      },
+      "pressure": {
+        "commitments": {
+          "hint": "Sa yo se pwòp angajman aktif ou andedan kòmand gwoupe ki toujou bezwen siveyans.",
+          "label": "Angajman patisipan ouvè"
+        },
+        "copy": "Sa a se lekti rapid sou ki kote enèji òganizatè ta dwe ale apre: rekritman, depo, oswa ekzekisyon transfè.",
+        "momentum": {
+          "hint": "Kanpay ki anba mwatye MOQ anjeneral bezwen yon lòt pouse rekritman oswa yon repanse koridò/pri.",
+          "label": "Twou momantòm MOQ"
+        },
+        "shipments": {
+          "hint": "Kenbe mesaj òganizatè aliyen ak mouvman fret pou achtè an aval yo konnen sa k ap vini apre.",
+          "label": "Chajman mare ak kanpay"
+        },
+        "title": "Pwen presyon òganizatè"
+      },
+      "readiness": {
+        "handoffs": "{{count}} transfè livrezon toujou aktif",
+        "handoffsHint": "Sa yo se tronson kote kominikasyon òganizatè souvan enpòtan plis pou evite konfizyon nan ranmasaj oswa liberasyon dènye kilomèt.",
+        "openDistribution": "Louvri espas distribisyon",
+        "openShipments": "Louvri kalandriye chajman",
+        "posture": "{{count}} kanpay ka toujou chanje pozisyon patisipan",
+        "postureHint": "Sèvi ak sa a pou deside si w kontinye rekrite demann oswa kòmanse prepare atant distribisyon pou achtè yo.",
+        "shipments": "Kalandriye chajman",
+        "title": "Preparasyon distribisyon"
+      },
+      "rhythm": {
+        "communicate": {
+          "hint": "Yon fwa kòmand yo plase, chanje soti nan bati demann pou ale nan vizibilite chajman ak atant livrezon.",
+          "label": "Kominike apre plasman"
+        },
+        "recruit": {
+          "hint": "Si MOQ ba, pase tan rekrite patisipan anvan w pouse konpleksite operasyonèl an aval.",
+          "label": "Rekrite anvan blokaj"
+        },
+        "title": "Ritm operasyonèl òganizatè"
+      },
+      "stats": {
+        "committedUnits": {
+          "label": "Inite angaje",
+          "meta": "Demann deja kaptire nan rezo gwoupe ou."
+        },
+        "handoffs": {
+          "label": "Transfè pou kowòdone",
+          "meta": "Tronson livrezon toujou an mouvman pou moun k ap resevwa kominote yo."
+        },
+        "inMotion": {
+          "label": "Kanpay toujou an mouvman",
+          "meta": "Atravè faz ouvèti, depo, blokaj, ak plasman."
+        }
+      },
+      "subtitle": "Mennen kanpay gwoupe tankou yon kowòdonatè, kenbe momantòm MOQ vizib, epi deplase kòmand bloke yo pwòp nan voye ak transfè kominote.",
+      "title": "Tablo òganizatè"
+    },
+    "procurement": {
+      "actions": {
+        "closePlanner": "Fèmen planifikatè",
+        "newProgram": "Nouvo pwogram frekan",
+        "newRequest": "Louvri demann mare ak biznis"
+      },
+      "chips": {
+        "businessScoped": "Sourcing biznis sèlman",
+        "laneAware": "Acha selon koridò",
+        "recurring": "Planifikasyon demann frekan"
+      },
+      "eligibleLanes": {
+        "authority": "ak otorite tip acha.",
+        "empty": "Pa gen biznis elijib ki tache ak kont sa a ankò.",
+        "ownerAccess": "Aksè pwopriyetè",
+        "roleAccess": "Aksè {{role}}",
+        "title": "Koridò biznis elijib"
+      },
+      "form": {
+        "anyLane": "Nenpòt koridò apwouve",
+        "budgetMax": "Bidjè max (USD)",
+        "cadence": "Frekans",
+        "category": "Kategori",
+        "create": "Kreye pwogram",
+        "created": "Pwogram acha frekan kreye",
+        "destCity": "Vil destinasyon",
+        "destCountry": "Peyi destinasyon",
+        "lane": "Koridò",
+        "linkedRequest": "Demann sourcing mare (opsyonèl)",
+        "noLinkedRequest": "Pa gen demann mare",
+        "nextRun": "Dat pwochen egzekisyon",
+        "notes": "Nòt",
+        "programTitle": "Tit pwogram",
+        "saving": "Ap sove…",
+        "targetQty": "Kantite sib",
+        "title": "Planifikatè acha frekan",
+        "titleRequired": "Tit pwogram obligatwa",
+        "unit": "Inite"
+      },
+      "guidance": {
+        "authority": {
+          "body": "Espas sa a sèlman mache lè demann mare ak yon biznis reyèl ou ka aji pou li, pa jis yon lide sourcing pèsonèl.",
+          "title": "Bati sou otorite biznis reyèl"
+        },
+        "businessHub": "Business Hub",
+        "laneAware": {
+          "body": "Chwazi koridò yo bonè pou pwogram frekan lè pri, konfòmite, ak restriksyon destinasyon afekte pri rive a anpil.",
+          "title": "Sèvi ak planifikasyon selon koridò"
+        },
+        "restock": {
+          "body": "Pwogram ki gen dat egzekisyon k ap vini ta dwe tcheke anvan depo, ekip, oswa ekip teren santi mank lan.",
+          "title": "Restoke anvan prese"
+        },
+        "title": "Gid operasyonèl acha"
+      },
+      "kicker": "Acha biznis",
+      "linkedRequests": {
+        "empty": "Pa gen demann acha mare ak biznis ankò.",
+        "headers": {
+          "converted": "Konvèti",
+          "reference": "Referans",
+          "request": "Demann",
+          "status": "Estati"
+        },
+        "new": "Nouvo demann",
+        "title": "Demann sourcing mare ak biznis"
+      },
+      "metrics": {
+        "activePrograms": {
+          "label": "Pwogram aktif",
+          "note": "Pwogram ki ta dwe enfliyanse planifikasyon sourcing kounye a."
+        },
+        "eligibleBusinesses": {
+          "label": "Biznis elijib",
+          "note": "Kontèks biznis separe ou ka opere acha pou yo."
+        },
+        "linkedRequests": {
+          "label": "Demann mare ak biznis",
+          "note": "Demann deja mare ak yon kontèks biznis kalifye."
+        },
+        "programs": {
+          "label": "Pwogram frekan",
+          "note": "Frekans sove pou demann envantè ak founiti repete."
+        }
+      },
+      "noAccess": {
+        "backToLogistics": "Retounen nan Logistics",
+        "body": "Espas sa a rezève pou itilizatè ki ka aji pou yon biznis nan acha ak operasyon. Kounye a, OxSteed aktive l pou pwopriyetè biznis, manadjè aktif, ak manm ki gen pèmisyon tip operasyon.",
+        "eligibleCount": "Espas biznis elijib ou yo",
+        "howDetermined": "Kijan aksè detèmine",
+        "howDeterminedHint": "pwopriyetè, manm manadjè aktif, oswa manm ki pa pwopriyetè ak pèmisyon tip operasyon/acha.",
+        "openBusinessHub": "Louvri Business Hub",
+        "title": "Acha Biznis pa aktive pou kont sa a"
+      },
+      "pressure": {
+        "copy": "Espas sa a pi fò lè l di w sa pou rekomande, sa pou asosye pa koridò, ak ki biznis bezwen aksyon an premye.",
+        "laneBound": {
+          "hint": "Sa yo deja gen yon koridò defini, kidonk planifikasyon pri ak konfòmite ka pi delibere.",
+          "label": "Pwogram mare ak koridò"
+        },
+        "linkedRequests": {
+          "hint": "Demann deja mare ak yon biznis kalifye ta dwe priyorize anvan sourcing jeneral.",
+          "label": "Demann mare ak biznis"
+        },
+        "title": "Pwen presyon acha",
+        "upcomingRuns": {
+          "hint": "Pwogram ki egzekite byento ta dwe tcheke pou kantite, ajisteman koridò, ak preparasyon destinasyon.",
+          "label": "Egzekisyon k ap vini"
+        }
+      },
+      "program": {
+        "statusChanged": "Pwogram {{status}}"
+      },
+      "programs": {
+        "activate": "Aktive",
+        "empty": "Pa gen pwogram acha frekan ankò.",
+        "general": "Acha jeneral",
+        "headers": {
+          "cadence": "Frekans",
+          "linkedRequest": "Demann mare",
+          "nextRun": "Pwochen egzekisyon",
+          "program": "Pwogram",
+          "status": "Estati"
+        },
+        "openSourcing": "Louvri sourcing",
+        "pause": "Poz",
+        "title": "Pwogram acha frekan"
+      },
+      "stats": {
+        "activePrograms": {
+          "label": "Pwogram restok aktif",
+          "meta": "Frekans ki deja pouse demann sourcing repete."
+        },
+        "eligibleBusinesses": {
+          "label": "Biznis elijib",
+          "meta": "Konpayi kont sa a ka achte pou yo lejitimman."
+        },
+        "upcomingRuns": {
+          "label": "Egzekisyon nan 21 jou",
+          "meta": "Sik acha k ap vini ki bezwen tchèk preparasyon."
+        }
+      },
+      "subtitle": "Jere ritm restok, koridò sourcing frekan, ak demann biznis apwouve san pèdi de vi pou ki konpayi kòmand lan ye.",
+      "title": "Tablo Acha Biznis"
+    },
+    "tables": {
+      "actions": "Aksyon",
+      "view": "Wè",
+      "preview": "Aperçu"
+    },
+    "requestDetail": {
+      "loading": "Ap chaje…",
+      "notFound": "Demann sourcing pa jwenn.",
+      "backToSourcing": "← Retounen nan Sourcing",
+      "defaultDescription": "Pa gen deskripsyon bay.",
+      "sections": {
+        "specifications": "Espesifikasyon"
+      },
+      "labels": {
+        "category": "Kategori",
+        "targetQuantity": "Kantite sib",
+        "targetPrice": "Pri sib",
+        "budgetMax": "Bidjè max",
+        "destination": "Destinasyon",
+        "preferredFreight": "Fret prefere",
+        "privateLabel": "Mak prive",
+        "yes": "Wi",
+        "no": "Non",
+        "customMfg": "Faktori pèsonalize",
+        "deadline": "Dat limit",
+        "business": "Biznis",
+        "structuredSpecs": "Espesifikasyon estriktire",
+        "quotedQty": "Kte devize",
+        "unitPrice": "Pri inite",
+        "freightEst": "Fret est.",
+        "leadTime": "Tan pwodiksyon",
+        "days": "jou"
+      },
+      "values": {
+        "personalRequest": "Demann pèsonèl"
+      },
+      "quotes": {
+        "title": "Devi ({{count}})",
+        "empty": "Pa gen devi founisè ankò.",
+        "supplier": "Founisè #{{id}}"
+      }
+    },
+    "shipmentDetail": {
+      "loadError": "Chajman chajman an echwe.",
+      "loading": "Ap chaje…",
+      "notFound": "Chajman pa jwenn.",
+      "backToShipments": "← Retounen nan Chajman yo",
+      "defaults": {
+        "shipment": "Chajman",
+        "document": "Dokiman",
+        "noLocation": "Pa gen kote",
+        "noNotes": "Pa gen nòt."
+      },
+      "sections": {
+        "details": "Detay chajman",
+        "documents": "Dokiman ({{count}})",
+        "milestones": "Etap"
+      },
+      "labels": {
+        "carrier": "Transpòtè",
+        "trackingNumber": "Nimewo swivi",
+        "bookingRef": "Ref. rezervasyon",
+        "originPort": "Pò orijin",
+        "destinationPort": "Pò destinasyon",
+        "totalCartons": "Total katon",
+        "totalWeight": "Pwa total",
+        "kg": "kg",
+        "totalCbm": "Total CBM",
+        "eta": "ETA"
+      },
+      "empty": {
+        "documents": "Pa gen dokiman chajman telechaje.",
+        "milestones": "Pa gen etap anrejistre ankò."
+      }
+    },
+    "checkout": {
+      "backToDashboard": "Tounen nan tablodbò achtè a",
+      "backToOrder": "Tounen nan kòmand lan",
+      "confirm": {
+        "back": "Tounen nan mwayen peman an",
+        "button": "Konfime epi peye {{amount}}",
+        "checkbox": "Mwen konfime mwen vle OxSteed chaje {{amount}} sou {{method}} pou {{installment}} kòmand {{reference}} a.",
+        "continue": "Kontinye nan konfimasyon an",
+        "line": "Ou pral peye {{amount}} ({{installment}}) pou kòmand {{reference}} a avèk {{method}}.",
+        "mustCheck": "Tanpri tcheke kaz konfimasyon an pou kontinye.",
+        "noAutoCharge": "Pa gen kat ki anrejistre. Chak chaj bezwen konfimasyon eksplisit ou isit la.",
+        "quoteNotAccepted": "Aksepte vèsyon aktyèl devis la anvan ou konfime peman an.",
+        "reviewTitle": "Revize epi konfime",
+        "submitting": "N ap voye peman an…"
+      },
+      "errors": {
+        "duplicate": "Peman sa a te deja voye. Tcheke estati peman an olye ou peye ankò.",
+        "generic": "Yon pwoblèm pase. Tanpri eseye ankò.",
+        "quoteChanged": "Devis la chanje pandan ou t ap peye a. Revize nouvo vèsyon an anvan ou peye.",
+        "paymentsDisabled": "Peman sou entènèt yo poko aktive. Tanpri eseye ankò pita."
+      },
+      "loadError": "Nou pa t ka chaje peman sa a. Tanpri eseye ankò.",
+      "loading": "N ap chaje peman an…",
+      "method": {
+        "cardDetails": "Detay kat la",
+        "cardNote": "Se Stripe ki jere detay kat la. OxSteed pa janm wè ni estoke nimewo kat ou.",
+        "choose": "Chwazi kijan pou peye tranch sa a",
+        "credit": "Kredi OxSteed",
+        "creditBalance": "Balans kredi ki disponib: {{amount}}",
+        "creditDesc": "Peye avèk balans Kredi OxSteed ou.",
+        "creditDisabled": "Kredi OxSteed la pa disponib pou kounye a",
+        "creditDisabledDetail": "Peman ak kredi yo dezaktive pou kounye a, kidonk tranch sa a pa ka soti nan kredi. Ou ka toujou peye ak kat.",
+        "creditInsufficient": "Balans kredi pa sifi",
+        "creditNotEligible": "Kòmand sa a pa kalifye pou peman ak kredi.",
+        "creditShortfall": "Ou manke {{amount}} pou rive nan montan {{installment}} lan.",
+        "creditTopUpHint": "Rechaje balans kredi ou oswa kontinye ak kat pito.",
+        "oneMethodNote": "Chak tranch peye ak yon sèl mwayen. Pa gen melanj fon, epi anyen pa chaje san konfimasyon eksplisit ou.",
+        "payWithCardInstead": "Peye ak kat pito",
+        "stripe": "Kat via Stripe",
+        "stripeDesc": "Peye ak kat debi oswa kat kredi. Ou antre detay kat la chak fwa; anyen pa anrejistre ni chaje otomatikman.",
+        "stripeUnavailable": "Peman ak kat yo pa disponib pou kounye a. Tanpri eseye pita oswa itilize Kredi OxSteed.",
+        "creditBalanceUnknown": "Y ap tcheke balans kredi ou lè ou konfime peman an."
+      },
+      "missingSubject": "Pa gen kòmand oswa kanpay ki chwazi pou peman an.",
+      "payments": {
+        "awaitingBadge": "Ap tann règleman",
+        "empty": "Pa gen tantativ peman pou kounye a.",
+        "headers": {
+          "amount": "Montan",
+          "date": "Dat",
+          "installment": "Tranch",
+          "method": "Mwayen",
+          "reference": "Referans",
+          "status": "Estati"
+        },
+        "settledBadge": "Regle",
+        "states": {
+          "failed": "Echwe",
+          "pending": "An atant",
+          "processing": "An kou",
+          "refunded": "Ranbouse",
+          "succeeded": "Reyisi",
+          "canceled": "Anile",
+          "superseded": "Debi doub la bezwen revizyon"
+        },
+        "subtitle": "Chak tantativ peman, ak règleman OxSteed konfime.",
+        "title": "Peman lojistik mwen yo"
+      },
+      "quote": {
+        "acceptedOn": "Aksepte {{date}}",
+        "depositPercent": "Depo a se {{percent}}% nan total devis la, dapre devis ki apwouve a.",
+        "expired": "Devis sa a ekspire {{date}}. Mande operasyon yon nouvo devis anvan ou peye.",
+        "expiresOn": "Devis la ekspire {{date}}",
+        "itemized": "Pri detaye yo",
+        "newVersionAvailable": "Yon vèsyon devis ki pi nouvo bezwen akseptasyon ou anvan ou ka peye.",
+        "supersededBlocked": "Devis sa a te ranplase pa vèsyon {{version}}. Revize epi aksepte nouvo vèsyon an anvan ou peye.",
+        "total": "Total devis la",
+        "version": "Devis vèsyon {{version}}"
+      },
+      "returnTo": "Tounen nan {{label}}",
+      "schedule": {
+        "alreadySettled": "Tranch sa a regle. Pa gen anyen pou peye ankò.",
+        "deposit": "Depo",
+        "dueNow": "Pou peye kounye a",
+        "dueOn": "Pou {{date}}",
+        "final": "Balans final",
+        "paid": "Peye",
+        "payNow": "Peye {{installment}}",
+        "processing": "Peman an ap trete",
+        "settled": "Regle",
+        "unpaid": "Ap tann peman"
+      },
+      "sections": {
+        "confirm": "Konfime peman an",
+        "method": "Mwayen peman",
+        "quote": "Devis",
+        "schedule": "Kalendriye peman",
+        "status": "Estati peman an",
+        "summary": "Rezime kòmand lan",
+        "terms": "Kondisyon anilasyon"
+      },
+      "status": {
+        "amount": "Montan",
+        "attempt": "Tantativ {{id}}",
+        "checking": "N ap tcheke estati peman an…",
+        "createdAt": "Te kòmanse {{date}}",
+        "failed": "Peman an echwe",
+        "failedDetail": "Rezon: {{message}}",
+        "failedUnknown": "Peman an pa t pase. Pa gen lajan ki te pran.",
+        "installment": "Tranch",
+        "method": "Mwayen",
+        "newKeyNote": "Kontinye peman",
+        "notSettled": "Fon yo poko regle. N ap konfime isit la lè peman an fin pase.",
+        "pending": "Peman an atant",
+        "processing": "N ap trete peman ou…",
+        "received": "Nou resevwa konfimasyon peman ou.",
+        "refresh": "Rafrechi estati a",
+        "refunded": "Ranbouse",
+        "retry": "Eseye ankò ak yon nouvo tantativ peman",
+        "settled": "Peman regle",
+        "settledDetail": "OxSteed konfime li resevwa {{amount}}. Tranch ou a konplè.",
+        "viewAll": "Wè tout peman mwen yo"
+      },
+      "subtitle": "Revize devis ou epi konfime chak tranch apa.",
+      "summary": {
+        "expectedArrival": "Arive prevwa",
+        "lane": "Wout",
+        "product": "Pwodui",
+        "quantity": "Kantite",
+        "reference": "Referans",
+        "status": "Estati",
+        "supplier": "Founisè"
+      },
+      "title": "Peman an sekirite",
+      "usdOnly": "Tout montan yo an USD.",
+      "creditUnavailableFallback": "OxSteed Credit pa disponib pou peman Lojistik",
+      "noQuote": {
+        "body": "Operasyon poko pibliye yon devis ou ka peye pou kòmand sa a. N ap fè ou konnen lè li pare. Ou pa dwe okenn peman pou kounye a.",
+        "title": "Poko gen devis ki pare"
+      }
+    },
+    "quotes": {
+      "accept": {
+        "accepted": "Devis vèsyon {{version}} aksepte. Ou ka peye kounye a.",
+        "accepting": "N ap aksepte…",
+        "body": "Vèsyon {{version}} ranplase vèsyon {{previous}}. Revize sa ki chanje, apre aksepte li pou kontinye nan peman an. Ou pa ka peye ak ansyen vèsyon an.",
+        "button": "Aksepte devis vèsyon {{version}}",
+        "cannotPayOld": "Peman an kanpe jiskaske ou aksepte devis aktyèl la.",
+        "decline": "Pa kounye a",
+        "title": "Yon nouvo devis bezwen akseptasyon ou"
+      },
+      "current": "Aktyèl",
+      "decrease": "diminisyon",
+      "diff": {
+        "added": "Te ajoute",
+        "changed": "Te chanje",
+        "noChanges": "Pa gen chanjman nan liy yo nan vèsyon sa a.",
+        "now": "Kounye a {{amount}}",
+        "removed": "Te retire",
+        "title": "Sa ki chanje",
+        "totalChange": "Total la chanje de {{amount}}",
+        "was": "Te {{amount}}"
+      },
+      "increase": "ogmantasyon",
+      "superseded": "Ranplase",
+      "version": "Vèsyon {{version}}",
+      "notif": {
+        "accepted": {
+          "body": "Achtè a aksepte yon devis lojistik. Kounye a nou ka kolekte vèsman yo.",
+          "title": "Achtè a aksepte yon devis lojistik"
+        },
+        "published": {
+          "body": "Yon nouvo vèsyon devis lojistik ou a pare. Revize li epi aksepte li anvan ou peye.",
+          "title": "Nouvo devis ap tann akseptasyon"
+        }
+      }
+    },
+    "refunds": {
+      "title": "Ranbousman lojistik",
+      "subtitle": "Revizyon doub admin: yon admin pwopoze, yon lòt admin apwouve ak otantifikasyon fre, apre yo egzekite ranbousman an.",
+      "proposeButton": "Pwopoze ranbousman",
+      "filterStatus": "Filtre pa estati",
+      "allStatuses": "Tout estati",
+      "thReference": "Referans",
+      "thAmount": "Kantite",
+      "thMethod": "Metòd",
+      "thReason": "Rezon",
+      "thProposer": "Pwopoze pa",
+      "thStatus": "Estati",
+      "thCreated": "Kreye",
+      "review": "Revize",
+      "empty": "Okenn ka ranbousman pa koresponn ak filtè sa a.",
+      "loading": "Ap chaje ka ranbousman yo...",
+      "cancel": "Anile",
+      "submit": "Voye pwopozisyon",
+      "verify": "Verifye",
+      "system": "sistèm",
+      "status": {
+        "proposed": "Pwopoze",
+        "approved": "Apwouve",
+        "executing": "Ap egzekite",
+        "processed": "Trete",
+        "failed": "Echwe",
+        "rejected": "Refize",
+        "expired": "Ekspire",
+        "pending": "Ap tann",
+        "reviewing": "An revizyon"
+      },
+      "method": {
+        "stripe": "Stripe",
+        "credit": "OxSteed Credit"
+      },
+      "dAmount": "Kantite",
+      "dMethod": "Metòd",
+      "dPaymentAttempt": "Tantativ peman",
+      "dReason": "Rezon",
+      "dProposer": "Pwopoze pa",
+      "dApprover": "Apwouve pa",
+      "dFreshAuthAt": "Otantifikasyon fre apwouvatè a",
+      "dProcessorRef": "Referans pwosesè a",
+      "dRejectionReason": "Rezon refi a",
+      "dStatus": "Estati",
+      "dDecisions": "Istorik desizyon",
+      "selfApprovalBlocked": "Se ou ki pwopoze ranbousman sa a. Yon lòt admin dwe apwouve l. Oto-apwobasyon pa pèmèt.",
+      "approveButtonStepup": "Verifye idantite epi apwouve",
+      "approveButton": "Apwouve ranbousman",
+      "rejectButton": "Refize",
+      "executeButton": "Egzekite ranbousman",
+      "executingNote": "Egzekisyon an pwogre. Ka a ap mete ajou lè pwosesè a konfime.",
+      "executeConfirmBody": "Egzekite ranbousman apwouve sa a kounye a? Lajan an tounen sou sous peman orijinal la.",
+      "toastProposed": "Ranbousman pwopoze. Yon lòt admin dwe apwouve l.",
+      "toastApproved": "Ranbousman apwouve.",
+      "toastRejected": "Ranbousman refize.",
+      "toastExecuted": "Ranbousman egzekite epi trete.",
+      "toastExecuteFailed": "Egzekisyon an echwe. Ka a nan ke rekonsilyasyon.",
+      "toastExecuteReplayed": "Ranbousman an te deja trete.",
+      "toastStepupOk": "Idantite verifye. Ou ka apwouve kounye a.",
+      "toastStepupFailed": "Verifikasyon an echwe. Tcheke kòd la epi eseye ankò.",
+      "proposeTitle": "Pwopoze yon ranbousman",
+      "fPaymentAttemptId": "ID tantativ peman",
+      "fPaymentAttemptHelp": "Tantativ peman lojistik orijinal y ap ranbouse a. Kantite a limite pa balans ranbousab ki rete a.",
+      "fAmountUsd": "Kantite (USD)",
+      "fMethod": "Metòd ranbousman",
+      "fReason": "Rezon",
+      "proposeInvalid": "Antre yon tantativ peman, yon kantite valid, ak yon rezon.",
+      "stepupTitle": "Verifye idantite ou",
+      "stepupBody": "Apwouve yon ranbousman mande otantifikasyon fre. Antre kòd 6 chif aplikasyon otantifikatè ou a.",
+      "fCode": "Kòd otantifikasyon",
+      "rejectTitle": "Refize pwopozisyon ranbousman",
+      "fRejectReason": "Rezon refi a",
+      "rejectReasonRequired": "Yon rezon refi obligatwa.",
+      "rejectConfirm": "Refize pwopozisyon",
+      "movedNotice": "Revizyon ranbousman yo deplase sou paj ranbousman doub admin an. Modifikasyon dirèk estati pa disponib ankò.",
+      "openReviewPage": "Louvri revizyon ranbousman"
+    },
+    "refund_pending": {
+      "body": "Ranbousman lojistik ou a ap vini. Founisè peman ou a ap trete li toujou; n ap konfime ou lè li rive sou mwayen peman orijinal ou a.",
+      "title": "Ranbousman ap tann"
+    },
+    "blockers": {
+      "allocation_not_found": "Nou pa t ka jwenn alokasyon envantè a.",
+      "campaign_not_found": "Nou pa t ka jwenn kanpay la.",
+      "deposit_deadline_missing": "Mete yon dat limit depo klè anvan ou louvri fenèt depo a.",
+      "deposit_funding_shortfall": "Kantite ki finanse ak depo a pi ba pase minimòm kanpay la. Nou pa ka pase kòmand founisè a.",
+      "final_balance_not_collected": "Yo poko kolekte balans final achtè a. Nou pa ka lage machandiz yo.",
+      "guard_check_failed": "Nou pa t ka verifye kondisyon yo mande pou aksyon sa a.",
+      "min_demand_not_met": "Demann minimòm nan poko atenn. Fenèt depo a pa ka louvri.",
+      "no_approved_quote": "Fòk gen yon devis founisè ki apwouve (aksepte) anvan ou louvri fenèt depo a.",
+      "no_payment_subject_linked": "Alokasyon sa a pa konekte ak okenn kòmand oswa patisipasyon ou ka peye, kidonk nou pa ka verifye peman an.",
+      "placement_approval_missing": "Plasman founisè mande yon apwobasyon plasman Operasyon anrejistre."
+    },
+    "review_exceptions": {
+      "funding_shortfall": "Fon ensifizan nan dat limit depo a",
+      "min_demand_unmet": "Demann minimòm pa atenn nan fèmen angajman yo",
+      "raised_note": "Dat limit finansman rate; voye bay estaf pou rezolisyon. Kanpay la pa avanse."
+    },
+    "staff": {
+      "title": "Operasyon lojistik",
+      "quoteEditor": "Prepare yon devis",
+      "subject": "Kòmand oswa patisipasyon",
+      "order": "Kòmand acha",
+      "participant": "Patisipasyon nan kanpay",
+      "id": "ID dosye",
+      "description": "Deskripsyon",
+      "amount": "Montan (USD)",
+      "depositPercent": "Depo (%)",
+      "deadline": "Dat limit depo",
+      "finalDeadline": "Dat limit balans",
+      "save": "Sove bouyon",
+      "publish": "Pibliye devis",
+      "campaign": "ID kanpay",
+      "placement": "Apwouve kòmand founisè",
+      "openDeposit": "Louvri peryòd depo",
+      "queues": "Lis revizyon",
+      "notes": "Nòt revizyon",
+      "resolve": "Rezoud",
+      "refresh": "Rafrechi",
+      "cancelPayment": "Anile peman ki poko konfime",
+      "resume": "Kontinye peman",
+      "reconciled": "Debi doub la bezwen revizyon",
+      "empty": "Pa gen dosye ouvè",
+      "reviewHint": "Anrejistre yon revizyon pa deplase lajan ni lage machandiz."
     }
   },
   "investorLogin": {

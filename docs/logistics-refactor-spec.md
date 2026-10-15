@@ -70,3 +70,5 @@ Update client API exports and every affected browser fixture. Localize new and r
 - Run focused client/server regressions, affected browser checks, migration rehearsal against an isolated database, and client `npm run build:ci`. Preserve the recent locale-build memory fix.
 - Deliver sequential, reviewable PRs against the freshly verified default branch. Preserve unrelated work and record validation for each stage.
 - Keep new payment automation disabled until merchant configuration and reconciliation checks pass. Report local validation, remote CI, and deployment separately; do not wait for deployment.
+
+Completion changes, verification evidence, and release requirements: [2026-10-15 completion record](logistics-refactor-completion-2026-10-15.md).

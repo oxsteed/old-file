@@ -1,13 +1,9 @@
+import LogisticsStatusPill from './LogisticsStatusPill';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { getCampaign } from '../../api/logistics';
 import LogisticsModal, { LogisticsModalLoading, LogisticsModalError } from './LogisticsModal';
 
-const STATUS_COLOR = {
-  open: '#22c55e', pledging: '#f59e0b', deposit_phase: '#f97316',
-  locked: '#8b5cf6', placed: '#3b82f6', in_transit: '#06b6d4',
-  completed: '#10b981', cancelled: '#ef4444',
-};
 
 /**
  * Campaign preview modal. Fetches the full campaign record and renders a
@@ -65,9 +61,7 @@ export default function CampaignPreview({ id, open, onClose }) {
           <div className="lxm-summary-row">
             <span className="lxm-summary-label">{tx('logistics.modal.campaign.status', 'Status')}</span>
             <span className="lxm-summary-value">
-              <span className="lx-status-pill" style={{ background: STATUS_COLOR[campaign.status] || '#64748b' }}>
-                {campaign.status?.replace(/_/g, ' ')}
-              </span>
+              <LogisticsStatusPill status={campaign.status} />
             </span>
           </div>
           <div className="lxm-summary-row">
@@ -82,7 +76,7 @@ export default function CampaignPreview({ id, open, onClose }) {
             <div className="lxm-moq-bar-wrap" role="progressbar" aria-valuenow={moqPct} aria-valuemin={0} aria-valuemax={100}>
               <div className="lxm-moq-bar" style={{ width: `${moqPct}%` }} />
             </div>
-            <div style={{ fontSize: '.8rem', color: '#64748b', marginTop: '.35rem' }}>
+            <div style={{ fontSize: '.8rem', color: 'var(--color-text-muted)', marginTop: '.35rem' }}>
               {tx('logistics.modal.campaign.committedUnits', 'Committed')}: {campaign.current_committed_qty || 0}
               {' · '}
               {tx('logistics.modal.campaign.targetUnits', 'Target')}: {campaign.target_moq || '—'}

@@ -1,3 +1,4 @@
+import LogisticsRouteBoundary from './components/logistics/LogisticsRouteBoundary';
 import { Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useParams } from 'react-router-dom';
 import { HelmetProvider } from 'react-helmet-async';
@@ -146,6 +147,8 @@ const DistributionPage = lazyWithRetry(() => import('./pages/logistics/Distribut
 const CompliancePage = lazyWithRetry(() => import('./pages/logistics/CompliancePage'));
 const LogisticsFinancePage = lazyWithRetry(() => import('./pages/logistics/LogisticsFinancePage'));
 const LogisticsCheckoutPage = lazyWithRetry(() => import('./pages/logistics/CheckoutPage'));
+const LogisticsOperationsFinancePage=lazyWithRetry(()=>import('./pages/logistics/OperationsFinancePage'));
+const AllocationDetailPage=lazyWithRetry(()=>import('./pages/logistics/AllocationDetailPage'));
 const LogisticsPaymentsPage = lazyWithRetry(() => import('./pages/logistics/LogisticsPaymentsPage'));
 const BusinessHubPage = lazyWithRetry(() => import('./pages/BusinessHubPage'));
 const BusinessOnboardingPage = lazyWithRetry(() => import('./pages/BusinessOnboardingPage'));
@@ -252,7 +255,7 @@ const queryClient = new QueryClient({
 // doesn't blank the entire app - only that route shows an error.
 // Plain ErrorBoundary is fine here: these are already inside <Router>.
 function Guarded({ children }) {
-  return <ErrorBoundary>{children}</ErrorBoundary>;
+ return <LogisticsRouteBoundary>{children}</LogisticsRouteBoundary>;
 }
 
 // Public landing for visitors, operational page for signed-in users.
@@ -661,6 +664,8 @@ export default function App() {
                     <Route path="/logistics/organizer"        element={<Guarded><ProtectedRoute><RouteErrorBoundary><OrganizerDashboardPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/logistics/business-procurement" element={<Guarded><ProtectedRoute><RouteErrorBoundary><BusinessProcurementPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/logistics/distributor"      element={<Guarded><ProtectedRoute><RouteErrorBoundary><DistributorResellerPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
+                    <Route path="/logistics/operations/finance" element={<Guarded><LogisticsOperatorGuard><RouteErrorBoundary><LogisticsOperationsFinancePage /></RouteErrorBoundary></LogisticsOperatorGuard></Guarded>} />
+                    <Route path="/logistics/allocations/:id" element={<Guarded><ProtectedRoute><RouteErrorBoundary><AllocationDetailPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/logistics/operations"       element={<Guarded><LogisticsOperatorGuard><RouteErrorBoundary><OperationsWorkspacePage /></RouteErrorBoundary></LogisticsOperatorGuard></Guarded>} />
                     <Route path="/logistics/operations/sourcing-ops" element={<Guarded><LogisticsOperatorGuard><RouteErrorBoundary><SourcingOpsAdmin /></RouteErrorBoundary></LogisticsOperatorGuard></Guarded>} />
                     <Route path="/logistics/operations/organizer-approvals" element={<Guarded><LogisticsOperatorGuard><RouteErrorBoundary><OrganizerApprovalsAdmin /></RouteErrorBoundary></LogisticsOperatorGuard></Guarded>} />

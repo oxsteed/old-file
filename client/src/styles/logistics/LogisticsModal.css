@@ -16,8 +16,8 @@
 }
 
 .lxm-dialog {
-  background: var(--card-bg, #fff);
-  border: 1px solid var(--border-color, #e2e8f0);
+  background: var(--card-bg, var(--color-surface));
+  border: 1px solid var(--border-color, var(--color-border));
   border-radius: 0.875rem;
   box-shadow: 0 24px 48px rgba(0, 0, 0, 0.25);
   width: 100%;
@@ -39,7 +39,7 @@
   gap: 0.75rem;
   padding-block: 1rem;
   padding-inline: 1.25rem;
-  border-bottom: 1px solid var(--border-color, #e2e8f0);
+  border-bottom: 1px solid var(--border-color, var(--color-border));
   flex-shrink: 0;
 }
 
@@ -47,7 +47,7 @@
   margin: 0;
   font-size: 1.1rem;
   font-weight: 800;
-  color: var(--app-text, #0f172a);
+  color: var(--app-text, var(--color-text));
   text-align: start;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -77,36 +77,36 @@
 }
 
 .lxm-fullpage-btn {
-  background: #f97316;
-  color: #fff;
+  background: var(--color-action);
+  color: var(--color-on-action);
   border: none;
   padding: 0 1.1rem;
   font-size: 0.85rem;
   white-space: nowrap;
 }
-.lxm-fullpage-btn:hover { background: #ea6c0a; color: #fff; }
+.lxm-fullpage-btn:hover { background: var(--color-action); color: var(--color-on-action); }
 
 .lxm-close-btn {
-  background: var(--app-bg, #f1f5f9);
-  border: 1px solid var(--border-color, #e2e8f0);
-  color: var(--app-text-muted, #475569);
+  background: var(--app-bg, var(--color-surface-2));
+  border: 1px solid var(--border-color, var(--color-border));
+  color: var(--app-text-muted, var(--color-text-muted));
   font-size: 1.4rem;
   line-height: 1;
   padding: 0 0.55rem;
 }
-.lxm-close-btn:hover { background: var(--border-color, #e2e8f0); }
+.lxm-close-btn:hover { background: var(--border-color, var(--color-surface-2)); }
 
 .lxm-fullpage-btn:focus-visible,
 .lxm-close-btn:focus-visible,
 .lxm-retry-btn:focus-visible {
-  outline: 2px solid #f97316;
+  outline: 2px solid var(--color-primary);
   outline-offset: 2px;
 }
 
 .lxm-body {
   padding: 1.25rem;
   overflow-y: auto;
-  color: var(--app-text, #0f172a);
+  color: var(--app-text, var(--color-text));
 }
 
 /* Summary rows shared by the preview components */
@@ -120,11 +120,11 @@
   justify-content: space-between;
   gap: 1rem;
   padding-block: 0.35rem;
-  border-bottom: 1px dashed var(--border-color, #e2e8f0);
+  border-bottom: 1px dashed var(--border-color, var(--color-border));
 }
 .lxm-summary-row:last-child { border-bottom: none; }
 .lxm-summary-label {
-  color: var(--app-text-muted, #64748b);
+  color: var(--app-text-muted, var(--color-text-muted));
   font-weight: 600;
   text-align: start;
 }
@@ -134,14 +134,14 @@
 }
 .lxm-moq-bar-wrap {
   height: 0.55rem;
-  background: var(--app-bg, #f1f5f9);
+  background: var(--app-bg, var(--color-surface-2));
   border-radius: 999px;
   overflow: hidden;
   margin-top: 0.35rem;
 }
 .lxm-moq-bar {
   height: 100%;
-  background: #22c55e;
+  background: var(--color-success);
   border-radius: 999px;
   transition: width 0.3s ease;
 }
@@ -155,7 +155,7 @@
   gap: 0.85rem;
   padding: 2.5rem 1rem;
   text-align: center;
-  color: var(--app-text-muted, #64748b);
+  color: var(--app-text-muted, var(--color-text-muted));
 }
 .lxm-state p { margin: 0; line-height: 1.6; }
 .lxm-state-icon { font-size: 2rem; }
@@ -163,8 +163,8 @@
 .lxm-spinner {
   width: 2.25rem;
   height: 2.25rem;
-  border: 3px solid var(--border-color, #e2e8f0);
-  border-top-color: #f97316;
+  border: 3px solid var(--border-color, var(--color-border));
+  border-top-color: var(--color-primary);
   border-radius: 50%;
   animation: lxm-spin 0.8s linear infinite;
 }
@@ -183,7 +183,7 @@
 
 /* Dark theme */
 html.dark .lxm-dialog {
-  background: var(--card-bg, #0f172a);
+  background: var(--card-bg, var(--color-surface));
   box-shadow: 0 24px 48px rgba(0, 0, 0, 0.55);
 }
 

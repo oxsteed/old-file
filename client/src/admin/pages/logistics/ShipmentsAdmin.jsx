@@ -227,7 +227,7 @@ export default function ShipmentsAdmin() {
         )}
       </LogisticsModal>
       <ShipmentPreview
-        id={previewId}
+        key={previewId} id={previewId}
         open={previewId !== null}
         onClose={() => setPreviewId(null)}
       />

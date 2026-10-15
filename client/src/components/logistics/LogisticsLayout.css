@@ -52,3 +52,10 @@
     font-size: var(--text-2xl);
   }
 }
+
+/* Shared interaction and wrapping rules for both account and internal workspaces. */
+.lx-layout button,.lx-layout input:not([type=checkbox]):not([type=radio]),.lx-layout select,.lx-btn-primary,.lx-btn-secondary{min-block-size:44px}
+.lx-layout{overflow-wrap:anywhere;min-inline-size:0;padding-block-end:max(5rem,env(safe-area-inset-bottom))}
+.lx-layout input,.lx-layout select,.lx-layout textarea{max-inline-size:100%}
+.lx-layout :focus-visible{outline:3px solid var(--color-primary);outline-offset:3px}
+.lx-btn-primary{color:var(--color-primary-text)}

@@ -1,11 +1,9 @@
+import LogisticsStatusPill from './LogisticsStatusPill';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { getAllocation } from '../../api/logistics';
 import LogisticsModal, { LogisticsModalLoading, LogisticsModalError } from './LogisticsModal';
 
-const STATUS_COLOR = {
-  released: '#22c55e', assigned: '#f59e0b', pending: '#94a3b8',
-};
 
 /**
  * Allocation preview modal. Loads the allocation through the direct
@@ -15,7 +13,7 @@ const STATUS_COLOR = {
  * detail route; it falls back to /logistics/distribution when the
  * allocation carries no pooled order.
  */
-export default function AllocationPreview({ id, open, onClose }) {
+export default function AllocationPreview({ id, open, onClose, embedded = false }) {
   const { t } = useTranslation();
   const tx = (key, fallback, opts = {}) => t(key, { defaultValue: fallback, ...opts });
   const [allocation, setAllocation] = useState(null);
@@ -41,12 +39,13 @@ export default function AllocationPreview({ id, open, onClose }) {
 
   const reference = allocation?.reference || (allocation?.id ? `ALC-${allocation.id}` : '');
 
+  const Shell = embedded ? Embedded : LogisticsModal;
   return (
-    <LogisticsModal
+    <Shell
       open={open}
       onClose={onClose}
       title={reference || tx('logistics.modal.allocationPreviewTitle', 'Allocation preview')}
-      fullPageHref={allocation?.pooled_order_id ? `/logistics/campaigns/${allocation.pooled_order_id}` : '/logistics/distribution'}
+      fullPageHref={`/logistics/allocations/${id}`}
     >
       {loading && <LogisticsModalLoading />}
       {!loading && error && <LogisticsModalError message={error} onRetry={load} />}
@@ -58,9 +57,7 @@ export default function AllocationPreview({ id, open, onClose }) {
           <div className="lxm-summary-row">
             <span className="lxm-summary-label">{tx('logistics.modal.allocation.status', 'Status')}</span>
             <span className="lxm-summary-value">
-              <span className="lx-status-pill" style={{ background: STATUS_COLOR[allocation.status] || '#64748b' }}>
-                {allocation.status?.replace(/_/g, ' ')}
-              </span>
+              <LogisticsStatusPill status={allocation.status} />
             </span>
           </div>
           <div className="lxm-summary-row">
@@ -83,6 +80,8 @@ export default function AllocationPreview({ id, open, onClose }) {
           </div>
         </div>
       )}
-    </LogisticsModal>
+    </Shell>
   );
 }
+
+function Embedded({children}) {return <section className="lx-card">{children}</section>;}

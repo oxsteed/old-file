@@ -312,7 +312,7 @@ describe('idempotent replay returns the persisted client secret', () => {
       installment: 'deposit',
       amount_cents: 3000,
       method: 'credit',
-      status: 'pending',
+      status: 'succeeded',
       idempotency_key: KEY_B,
       stripe_payment_intent_id: null,
       stripe_client_secret: null,

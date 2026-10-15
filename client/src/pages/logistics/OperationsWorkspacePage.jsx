@@ -10,6 +10,7 @@ import '../../styles/logistics/LogisticsHomePage.css';
 import '../../styles/logistics/LogisticsWorkspaces.css';
 
 const OPS_LINKS = [
+  {labelKey:'finance',path:'/logistics/operations/finance',icon:'📋'},
   { labelKey: 'sourcingOps', path: '/logistics/operations/sourcing-ops', icon: '🔍' },
   { labelKey: 'organizerApprovals', path: '/logistics/operations/organizer-approvals', icon: '🧭' },
   { labelKey: 'shipmentOps', path: '/logistics/operations/shipment-ops', icon: '🚦' },

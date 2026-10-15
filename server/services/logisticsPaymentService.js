@@ -93,7 +93,7 @@ async function assertBuyerOwnsSubject(client, userId, { subjectType, purchaseOrd
   if (subjectType === 'purchase_order') {
     const { rows } = await client.query(
       `SELECT buyer_user_id, buyer_business_id, status
-         FROM purchase_orders WHERE id = $1`,
+         FROM purchase_orders WHERE id = $1 FOR UPDATE`,
       [purchaseOrderId]
     );
     const po = rows[0];
@@ -110,7 +110,7 @@ async function assertBuyerOwnsSubject(client, userId, { subjectType, purchaseOrd
   }
   const { rows } = await client.query(
     `SELECT user_id, pooled_order_id, status
-       FROM pooled_order_participants WHERE id = $1`,
+       FROM pooled_order_participants WHERE id = $1 FOR UPDATE`,
     [participantId]
   );
   const part = rows[0];
@@ -126,7 +126,7 @@ async function assertBuyerOwnsSubject(client, userId, { subjectType, purchaseOrd
 async function getCurrentQuote(client, { subjectType, purchaseOrderId, participantId }) {
   const { rows } = await client.query(
     `SELECT * FROM logistics_buyer_quotes
-      WHERE subject_type = $1
+      WHERE subject_type = $1 AND status IN ('active','accepted')
         AND (
           ($2::int IS NOT NULL AND purchase_order_id = $2)
           OR
@@ -163,14 +163,14 @@ async function getPaidCents(client, { subjectType, purchaseOrderId, participantI
   const column = installment === 'deposit' ? 'deposit_paid_cents' : 'final_paid_cents';
   if (subjectType === 'purchase_order') {
     const { rows } = await client.query(
-      `SELECT deposit_paid_cents, final_paid_cents FROM purchase_orders WHERE id = $1`,
+      `SELECT deposit_paid_cents, final_paid_cents FROM purchase_orders WHERE id = $1 FOR UPDATE`,
       [purchaseOrderId]
     );
     if (!rows[0]) throw new AppError('Purchase order not found', 404, 'not_found');
     return Number(rows[0][column] || 0);
   }
   const { rows } = await client.query(
-    `SELECT deposit_paid_cents, final_paid_cents FROM pooled_order_participants WHERE id = $1`,
+    `SELECT deposit_paid_cents, final_paid_cents FROM pooled_order_participants WHERE id = $1 FOR UPDATE`,
     [participantId]
   );
   if (!rows[0]) throw new AppError('Participation not found', 404, 'not_found');
@@ -187,7 +187,8 @@ async function computeExpectedAmountCents(client, subject, installment) {
     await getCurrentQuote(client, subject)
   );
   const dueCents = installment === 'deposit' ? Number(quote.deposit_cents) : Number(quote.final_cents);
-  const paidCents = await getPaidCents(client, { ...subject, installment });
+  const grossPaid = await getPaidCents(client, { ...subject, installment });
+  const paidCents = Math.max(0, grossPaid - await require('./logisticsPaymentBalance').refundedCents(client, subject, installment));
   return {
     quote,
     dueCents,
@@ -339,6 +340,13 @@ async function attachStripeIntent(client, attempt) {
  * duplicate. The amount is always server-computed; a client-supplied
  * amount that does not match is rejected.
  */
+async function startCardAttempt(client,attempt){
+ try{return await attachStripeIntent(client,attempt);}catch(creationError){
+  // Commit the durable pending/failed attempt before surfacing a provider
+  // error. Recovery uses the same provider idempotency key.
+  return {creationError};
+ }
+}
 async function createPaymentAttempt(userId, input) {
   validateCreateInput(input);
   const subject = {
@@ -347,8 +355,48 @@ async function createPaymentAttempt(userId, input) {
     participantId: input.subjectType === 'pooled_participant' ? input.participantId : null,
   };
 
-  return withTransaction(db, async (client) => {
-    await assertBuyerOwnsSubject(client, userId, subject);
+  const outcome=await withTransaction(db, async (client) => {
+    const owner = await assertBuyerOwnsSubject(client, userId, subject);
+    if (['cancelled','closed','refunded','disputed'].includes(owner.status)) {
+      throw new AppError('This order cannot receive payments',409,'installment_not_due');
+    }
+    let recoveryCredit=null;
+    const keyed = await findAttemptByKey(client, String(input.idempotencyKey));
+    if (keyed) {
+      assertReplayMatches(keyed, {buyerUserId:userId, ...subject, installment:input.installment,
+        method:input.method, amountCents:input.amountCents ?? keyed.amount_cents});
+      if(keyed.method==='credit' && ['pending','processing'].includes(keyed.status)){
+        recoveryCredit=keyed;
+      } else {
+      if (keyed.method==='stripe' && keyed.status==='pending' && !keyed.stripe_payment_intent_id) {
+        const result=await startCardAttempt(client,keyed);
+        if(result.creationError)return result;
+        return {attempt:publicAttempt(result.attempt),clientSecret:result.clientSecret,idempotentReplay:true,credit:null};
+      }
+      return {attempt:publicAttempt(keyed), clientSecret:keyed.method==='stripe'?keyed.stripe_client_secret:null,
+        idempotentReplay:true,credit:null};
+      }
+    }
+    const {rows: reserved}=await client.query(`SELECT * FROM logistics_payment_attempts
+      WHERE subject_type=$1 AND purchase_order_id IS NOT DISTINCT FROM $2::int
+      AND participant_id IS NOT DISTINCT FROM $3::int AND installment=$4
+      AND status IN ('pending','processing') ORDER BY id LIMIT 1 FOR UPDATE`,
+      [subject.subjectType,subject.purchaseOrderId,subject.participantId,input.installment]);
+    if (reserved[0] && !recoveryCredit) {
+      const prior=reserved[0];
+      if (String(prior.buyer_user_id)!==String(userId) || prior.method!==input.method || prior.method!=='stripe')
+        throw new AppError('Resume the existing payment before changing payment method',409,'payment_in_progress');
+      const result=prior.stripe_payment_intent_id?{attempt:prior,clientSecret:prior.stripe_client_secret}:
+        await startCardAttempt(client,prior);
+      if(result.creationError)return result;
+      return {attempt:publicAttempt(result.attempt),clientSecret:result.clientSecret,idempotentReplay:true,credit:null};
+    }
+    const {rows: methods}=await client.query(`SELECT method FROM logistics_payment_attempts
+      WHERE subject_type=$1 AND purchase_order_id IS NOT DISTINCT FROM $2::int
+      AND participant_id IS NOT DISTINCT FROM $3::int AND installment=$4 AND status='succeeded' LIMIT 1`,
+      [subject.subjectType,subject.purchaseOrderId,subject.participantId,input.installment]);
+    if (methods[0] && methods[0].method!==input.method)
+      throw new AppError('Use the original installment payment method',409,'installment_method_locked');
     const { quote, expectedCents, dueCents, paidCents } = await computeExpectedAmountCents(
       client, subject, input.installment
     );
@@ -388,7 +436,7 @@ async function createPaymentAttempt(userId, input) {
       idempotencyKey: String(input.idempotencyKey),
     };
 
-    let attempt = await insertAttemptRow(client, request);
+    let attempt = recoveryCredit || await insertAttemptRow(client, request);
     if (!attempt) {
       // Same key raced us (or this is a client retry): converge on the
       // single existing row instead of creating a duplicate.
@@ -410,7 +458,9 @@ async function createPaymentAttempt(userId, input) {
     }
 
     if (input.method === 'stripe') {
-      const { attempt: updated, clientSecret } = await attachStripeIntent(client, attempt);
+      const started=await startCardAttempt(client,attempt);
+      if(started.creationError)return started;
+      const {attempt:updated,clientSecret}=started;
       return { attempt: publicAttempt(updated), idempotentReplay: false, clientSecret, credit: null };
     }
 
@@ -467,6 +517,23 @@ async function createPaymentAttempt(userId, input) {
       },
     };
   }, 'logistics_create_payment_attempt');
+  if(outcome.creationError)throw outcome.creationError;
+  if(outcome.attempt?.method==='credit' && outcome.attempt.status==='succeeded' && !outcome.idempotentReplay) {
+    notifyPaymentOutcome(outcome.attempt,'succeeded');
+  }
+  return outcome;
+}
+
+// Called only after the accounting transaction has committed. Stable keys
+// deduplicate repeat confirmations and webhook deliveries.
+function notifyPaymentOutcome(attempt, outcome) {
+  require('./notificationService').sendNotification({
+    userId: attempt.buyer_user_id,
+    type: `logistics_payment_${outcome}`,
+    data: {attempt_id: attempt.id, amount_cents: attempt.amount_cents, currency: 'USD'},
+    action_url: '/logistics/payments',
+    idempotencyKey: `logistics:payment:${outcome}:${attempt.id}`,
+  }).catch(err => logger.warn('Logistics notification failed', {attemptId: attempt.id, error: err.message}));
 }
 
 async function getPaymentAttempt(id) {
@@ -532,7 +599,7 @@ async function enqueueReconciliation(client, { kind, referenceId, reason, detail
 const RECON_STATUS_IN = { open: 'pending', pending: 'pending', investigating: 'claimed', claimed: 'claimed', resolved: 'resolved' };
 
 async function listReconciliation({ status, kind, limit = 50, offset = 0 } = {}) {
-  const where = [`source = '${RECON_SOURCE}'`];
+  const where = ["source IN ('logistics_payment','logistics_refund','logistics_backfill_unverified')"];
   const params = [];
   if (status) {
     const mapped = RECON_STATUS_IN[String(status)];
@@ -577,7 +644,7 @@ async function resolveReconciliation(id, { status, notes, resolvedBy }) {
               claimed_at = CASE WHEN $2 IN ('investigating', 'resolved') THEN COALESCE(claimed_at, NOW()) ELSE NULL END,
               resolved_at = CASE WHEN $2 = 'resolved' THEN NOW() ELSE NULL END,
               updated_at = NOW()
-        WHERE id = $1 AND source = 'logistics_payment'
+        WHERE id = $1 AND source IN ('logistics_payment','logistics_refund','logistics_backfill_unverified')
         RETURNING *, payload->>'kind' AS kind`,
       [itemId, status, notes ?? null, resolvedBy ?? null]
     );
@@ -812,7 +879,12 @@ async function handleStripeEvent(event) {
         default:
           return { handled: true, attemptId: attempt.id };
       }
-    }, `logistics_webhook_${event.type}`);
+    }, `logistics_webhook_${event.type}`).then(result=>{
+      if(['settled','failed'].includes(result.outcome)) {
+        notifyPaymentOutcome(attempt,result.outcome==='settled'?'succeeded':'failed');
+      }
+      return result;
+    });
   } catch (err) {
     if (err instanceof DuplicateSettlementError) {
       // The concurrent winner committed and the partial unique index
@@ -904,7 +976,7 @@ class DuplicateSettlementError extends Error {
   }
 }
 
-const SETTLED_INSTALLMENT_INDEX = 'uq_logistics_payment_attempts_settled_installment';
+const SETTLED_INSTALLMENT_INDEX = 'uq_logistics_payment_attempts_settled_quote';
 
 /**
  * Find an already-succeeded attempt for the same (subject, installment)
@@ -921,11 +993,11 @@ async function findSucceededSibling(client, locked) {
         AND subject_type = $2
         AND purchase_order_id IS NOT DISTINCT FROM $3
         AND participant_id IS NOT DISTINCT FROM $4
-        AND installment = $5
+        AND installment = $5 AND quote_id IS NOT DISTINCT FROM $6::int
         AND status = 'succeeded'
       LIMIT 1`,
     [locked.id, locked.subject_type, locked.purchase_order_id,
-     locked.participant_id, locked.installment]
+     locked.participant_id, locked.installment, locked.quote_id]
   );
   return rows[0] || null;
 }
@@ -1107,25 +1179,6 @@ async function applyPaymentSucceeded(client, event, attempt) {
   logger.info('[logistics-payments] attempt settled via signed webhook', {
     attemptId: locked.id, amountCents: locked.amount_cents,
     installment: locked.installment, paidCents, dueCents,
-  });
-
-  // Best-effort buyer notification, after the money is committed.
-  setImmediate(() => {
-    const { sendNotification } = require('./notificationService');
-    sendNotification({
-      userId: locked.buyer_user_id,
-      type: 'logistics_payment_succeeded',
-      data: {
-        attempt_id: locked.id,
-        installment: locked.installment,
-        amount_cents: locked.amount_cents,
-        currency: locked.currency,
-      },
-      action_url: '/logistics/finance/my-schedule',
-      idempotencyKey: `logistics:payment:succeeded:${locked.id}`,
-    }).catch((err) => logger.warn('[logistics-payments] payment notification failed', {
-      attemptId: locked.id, error: err.message,
-    }));
   });
 
   return { handled: true, attemptId: locked.id, outcome: 'settled' };
@@ -1369,3 +1422,15 @@ module.exports = {
   resolveReconciliation,
   sweepStuckAttempts,
 };
+
+module.exports.cancelAttempt=async(id)=>withTransaction(db,async client=>{
+ const attempt=await lockAttempt(client,id);if(!attempt)throw new AppError('Payment not found',404,'not_found');
+ if(attempt.status==='canceled')return publicAttempt(attempt);
+ if(!['pending','processing','failed'].includes(attempt.status))throw new AppError('Payment cannot be cancelled',409,'payment_in_progress');
+ if(attempt.method==='stripe'){
+   let a=attempt;
+   if(!a.stripe_payment_intent_id)a=(await attachStripeIntent(client,a)).attempt;
+   const stripe=getStripe();await stripe.paymentIntents.cancel(a.stripe_payment_intent_id,{}, {idempotencyKey:`logistics-cancel:${id}`});
+ }
+ const {rows}=await client.query(`UPDATE logistics_payment_attempts SET status='canceled',updated_at=NOW() WHERE id=$1 RETURNING *`,[id]);return publicAttempt(rows[0]);
+},'logistics_cancel_payment');

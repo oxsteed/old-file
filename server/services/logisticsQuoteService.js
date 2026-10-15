@@ -233,9 +233,7 @@ function buildSchedule(quote, { depositPaidCents, finalPaidCents }, inflight) {
         ? 'settled'
         : inflight.has(leg.installment)
           ? 'processing'
-          : leg.paid > 0
-            ? 'paid'
-            : 'unpaid',
+          : 'unpaid',
       due_at: leg.due_at,
     }));
 }
@@ -302,6 +300,12 @@ async function getCheckoutContext(userId, { orderId, participantId, isStaff = fa
   }
 
   const detail = await loadSubjectDetail(db, subject);
+  const {rows: activeAttempts}=await db.query(`SELECT * FROM logistics_payment_attempts
+    WHERE subject_type=$1 AND purchase_order_id IS NOT DISTINCT FROM $2::int
+    AND participant_id IS NOT DISTINCT FROM $3::int AND status IN ('pending','processing') ORDER BY id`,
+    [subject.subjectType,subject.purchaseOrderId||null,subject.participantId||null]);
+  detail.depositPaidCents=Math.max(0,detail.depositPaidCents-await require('./logisticsPaymentBalance').refundedCents(db,subject,'deposit'));
+  detail.finalPaidCents=Math.max(0,detail.finalPaidCents-await require('./logisticsPaymentBalance').refundedCents(db,subject,'final'));
   const latest = await getLatestQuote(db, subject);
   const accepted = await getAcceptedQuote(db, subject);
 
@@ -351,6 +355,7 @@ async function getCheckoutContext(userId, { orderId, participantId, isStaff = fa
   };
 
   return {
+    active_attempts: activeAttempts.map(publicAttempt),
     subject: {
       kind: detail.kind,
       id: detail.id,
@@ -494,7 +499,7 @@ function notifyQuoteEvent({ userId, type, title, body, data, actionUrl, idempote
 
 function checkoutUrlFor(subject) {
   return subject.subjectType === 'purchase_order'
-    ? `/logistics/checkout?po_id=${subject.purchaseOrderId}`
+    ? `/logistics/checkout?purchase_order_id=${subject.purchaseOrderId}`
     : `/logistics/checkout?participant_id=${subject.participantId}`;
 }
 
@@ -519,6 +524,10 @@ async function publishQuote(staffUserId, quoteId) {
       purchaseOrderId: quote.purchase_order_id,
       participantId: quote.participant_id,
     };
+    const table=subject.subjectType==='purchase_order'?'purchase_orders':'pooled_order_participants';
+    await client.query(`SELECT id FROM ${table} WHERE id=$1 FOR UPDATE`,[subject.purchaseOrderId||subject.participantId]);
+    const inflight=await getInflightInstallments(client,subject);
+    if(inflight.size) throw new AppError('Finish the pending payment before publishing a revised quote',409,'payment_in_progress');
     // Fail closed: a draft that is no longer the newest version for its
     // subject can never be published over the newer one.
     const w = quoteWhere(subject);
@@ -745,4 +754,10 @@ module.exports = {
   publicQuote,
   buildSchedule,
   diffLineItems,
+};
+
+module.exports.listStaffQuotes=async (input)=>{
+ const subject=normalizeSubjectInput({subjectType:input.subject_type,purchaseOrderId:input.purchase_order_id,participantId:input.participant_id});
+ const w=quoteWhere(subject);const {rows}=await db.query(`SELECT * FROM logistics_buyer_quotes WHERE ${w.text} ORDER BY version DESC LIMIT 50`,w.params);
+ return rows.map(publicQuote);
 };

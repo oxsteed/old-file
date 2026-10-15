@@ -171,3 +171,24 @@ exports.getPaymentHistory = async (req, res, next) => {
     res.json({ success: true, data });
   } catch (err) { next(err); }
 };
+
+exports.listExceptions=async(req,res,next)=>{try{await requireStaff(req);
+ const {rows}=await require('../db').query(`SELECT e.*,p.title FROM logistics_review_exceptions e
+ LEFT JOIN pooled_orders p ON p.id=e.pooled_order_id WHERE e.status='open' ORDER BY e.created_at LIMIT 200`);
+ res.json({success:true,data:{items:rows}});
+}catch(e){next(e)}};
+exports.resolveException=async(req,res,next)=>{try{await requireStaff(req);
+ const notes=String(req.body.notes||'').trim();if(!notes)throw new AppError('Resolution notes required',400,'validation_failed');
+ const {rows}=await require('../db').query(`UPDATE logistics_review_exceptions SET status='resolved',
+ resolution_notes=$2,resolved_by=$3,resolved_at=NOW(),updated_at=NOW() WHERE id=$1 AND status='open' RETURNING *`,[req.params.id,notes,req.user.id]);
+ if(!rows[0])throw new AppError('Exception not found',404,'not_found');
+ require('../services/logisticsAuditService').logLogisticsAction('pooled_order',rows[0].pooled_order_id,'exception_resolved',{actorUserId:req.user.id,notes});
+ res.json({success:true,data:{item:rows[0]}});
+}catch(e){next(e)}};
+
+exports.listStaffQuotes=async(req,res,next)=>{try{await requireStaff(req);res.json({success:true,data:{quotes:await quotes.listStaffQuotes(req.query)}});}catch(e){next(e)}};
+exports.cancelAttempt=async(req,res,next)=>{try{const attempt=await payments.getPaymentAttempt(req.params.id);
+ if(!attempt)throw new AppError('Payment not found',404,'not_found');
+ if(String(attempt.buyer_user_id)!==String(req.user.id))await requireStaff(req);
+ const result=await payments.cancelAttempt(attempt.id);res.json({success:true,data:{attempt:result}});
+}catch(e){next(e)}};

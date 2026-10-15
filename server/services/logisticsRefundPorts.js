@@ -77,7 +77,7 @@ const paymentPort = {
       pick('purchase_order_id'), pick('participant_id'),
     ].filter(Boolean).join(', ');
     const { rows } = await query(
-      `SELECT ${selectList} FROM logistics_payment_attempts WHERE id::text = $1 LIMIT 1`,
+      `SELECT ${selectList} FROM logistics_payment_attempts WHERE id::text = $1 LIMIT 1 FOR UPDATE`,
       [String(attemptId)]
     );
     const r = rows[0];

@@ -438,7 +438,7 @@ export default function CampaignBrowser() {
       </div>
 
       <CampaignPreview
-        id={previewId}
+        key={previewId} id={previewId}
         open={previewId !== null}
         onClose={() => setPreviewId(null)}
       />

@@ -246,7 +246,7 @@ export default function AllocationsAdmin() {
         onClose={() => setReleaseTarget(null)}
       />
       <AllocationPreview
-        id={previewId}
+        key={previewId} id={previewId}
         open={previewId !== null}
         onClose={() => setPreviewId(null)}
       />

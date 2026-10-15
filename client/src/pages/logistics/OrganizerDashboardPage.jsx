@@ -379,7 +379,7 @@ export default function OrganizerDashboardPage() {
                       )}
                     </div>
                     {note && (
-                      <div style={{ marginTop: '.5rem', fontSize: '.8rem', color: '#b91c1c', background: '#fef2f2', borderRadius: '.5rem', padding: '.5rem .75rem' }}>
+                      <div style={{ marginTop: '.5rem', fontSize: '.8rem', color: 'var(--color-error)', background: 'var(--color-error)', borderRadius: '.5rem', padding: '.5rem .75rem' }}>
                         <strong>{tx('logistics.campaigns.approval.latestRevisionNote', 'Latest review note')}</strong>
                         {note.by ? ` (${note.by})` : ''}: {note.reason}
                       </div>

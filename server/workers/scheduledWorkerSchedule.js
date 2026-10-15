@@ -82,6 +82,7 @@ function buildSchedule() {
     // deadline with insufficient funding raise staff review exceptions
     // (logistics_review_exceptions). Never auto-advances or refunds;
     // idempotent per (campaign, exception type). Every 15 minutes.
+    ['logisticsPaymentAttemptSweep', () => require('../services/logisticsPaymentService').sweepStuckAttempts(),15*60*1000,{}],
     ['logisticsFundingDeadlineSweep',
       (options) => require('../services/logisticsTransitionGuards').sweepFundingDeadlines(require('../db'), options),
       15 * 60 * 1000, { limit: 200 }],

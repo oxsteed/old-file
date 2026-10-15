@@ -15503,7 +15503,7 @@
     "forms": {
       "unsavedChanges": {
         "title": "Ungespeicherte Änderungen verwerfen?",
-        "body": "Sie haben ungespeicherte Änderungen. Wenn Sie jetzt gehen, gehen Ihre Eingaben verloren.",
+        "body": "Sie haben ungespeicherte Änderungen. Wenn Sie jetzt gehen, geht Ihre Eingabe verloren.",
         "stay": "Weiter bearbeiten",
         "discard": "Änderungen verwerfen"
       }
@@ -15512,22 +15512,90 @@
       "business": {
         "recentActivity": {
           "empty": "Noch nichts hier."
+        },
+        "nextStep": {
+          "reviewRuns": {
+            "label": "Anstehende Läufe prüfen",
+            "hint": "{{count}} Programmläufe in 21 Tagen. Menge, Route und Ziel prüfen."
+          },
+          "createProgram": {
+            "label": "Wiederkehrendes Programm erstellen",
+            "hint": "Noch keine Nachschubprogramme. Legen Sie einen Rhythmus für wiederkehrende Nachfrage fest."
+          },
+          "newRequest": {
+            "label": "Geschäftliche Anfrage öffnen",
+            "hint": "Die Programme laufen. Verknüpfen Sie neue Nachfrage mit einem Ihrer Unternehmen."
+          }
         }
       },
       "buyer": {
         "recentActivity": {
           "empty": "Noch nichts hier."
+        },
+        "nextStep": {
+          "browseCampaigns": {
+            "label": "Kampagnen ansehen",
+            "hint": "Keine aktiven Anfragen. Finden Sie eine Sammelkampagne zum Mitmachen oder Verfolgen."
+          },
+          "reviewShipments": {
+            "label": "Risikosendungen prüfen",
+            "hint": "{{count}} Sendungen brauchen Nachverfolgung."
+          },
+          "startRequest": {
+            "label": "Beschaffungsanfrage starten",
+            "hint": "Alles läuft. Eröffnen Sie neue Nachfrage, wenn Sie bereit sind."
+          }
         }
       },
       "distributor": {
         "recentActivity": {
           "empty": "Noch nichts hier."
+        },
+        "nextStep": {
+          "failedDeliveries": {
+            "label": "Fehlgeschlagene Lieferungen prüfen",
+            "hint": "{{count}} Lieferungen sind fehlgeschlagen oder storniert und müssen ggf. umgeleitet werden."
+          },
+          "releaseLots": {
+            "label": "Wartende Lose freigeben",
+            "hint": "{{count}} Lose sind zugeteilt, aber noch nicht freigegeben."
+          },
+          "warehouse": {
+            "label": "Lagerbereitschaft prüfen",
+            "hint": "Die Warteschlange ist leer. Stellen Sie sicher, dass der Bestand zuteilungsbereit ist."
+          }
         }
       },
       "organizer": {
         "recentActivity": {
           "empty": "Noch nichts hier."
+        },
+        "nextStep": {
+          "momentum": {
+            "label": "MOQ-Schwung erhöhen",
+            "hint": "{{count}} Kampagnen liegen unter der Hälfte des MOQ und brauchen mehr Teilnehmer."
+          },
+          "browse": {
+            "label": "Kampagnen ansehen",
+            "hint": "Sie koordinieren noch keine Kampagnen. Finden Sie eine zum Mitmachen."
+          },
+          "handoffs": {
+            "label": "Übergaben koordinieren",
+            "hint": "Die Nachfrage steht. Halten Sie die Übergaben an die Empfänger am Laufen."
+          }
         }
+      },
+      "nextStep": {
+        "title": "Ihr nächster Schritt"
+      },
+      "recentActivity": {
+        "title": "Letzte Aktivitäten",
+        "empty": "Noch nichts hier. Neue Aktivitäten erscheinen hier."
+      },
+      "dataError": {
+        "title": "Daten nicht verfügbar",
+        "body": "Ihr Arbeitsbereich konnte gerade nicht geladen werden. Bitte versuchen Sie es erneut.",
+        "retry": "Erneut versuchen"
       }
     },
     "nav": {
@@ -15538,7 +15606,15 @@
       "shipments": "Sendungen",
       "warehousing": "Lagerung",
       "compliance": "Compliance",
-      "finance": "Finanzen"
+      "finance": "Finanzen",
+      "adminControl": "Admin-Steuerung",
+      "businessProcurement": "Geschäftliche Beschaffung",
+      "buyer": "Käufer",
+      "distributor": "Händler",
+      "hub": "Stöbern",
+      "label": "Logistik-Arbeitsbereiche",
+      "operations": "Betrieb",
+      "organizer": "Organisator"
     },
     "home": {
       "title": "OxSteed Logistics",
@@ -15567,7 +15643,7 @@
       "readyToStart": "Bereit anzufangen?",
       "readyToStartBody": "Treten Sie bei, um Beschaffung, gemeinsamen Einkauf und vollständige Transparenz der Lieferkette zu erhalten, vom ersten Lieferantenkontakt bis zur Zustellung auf der letzten Meile.",
       "createAccount": "Konto erstellen",
-      "unitsProgress": "{{current}} / {{target}} {{units}}",
+      "unitsProgress": "{{current}} von {{target}} {{units}}",
       "whyCards": {
         "moq": {
           "heading": "Das Mindestbestellmengen-Problem",
@@ -15672,7 +15748,10 @@
         "noRestrictions": "Keine Beschränkungen verfügbar."
       },
       "separator": "·",
-      "queueLabel": "Zollsensible Sendungen in der Warteschlange"
+      "queueLabel": "Zollsensible Sendungen in der Warteschlange",
+      "metrics": {
+        "unavailableNote": "Kennzahl derzeit nicht verfügbar."
+      }
     },
     "operatorLogin": {
       "copy": {
@@ -15875,7 +15954,21 @@
       "closes": "Schließt",
       "closeDate": "Schlussdatum",
       "allStatuses": "Alle Status",
-      "allCampaigns": "Alle Kampagnen"
+      "allCampaigns": "Alle Kampagnen",
+      "edit": {
+        "title": "Kampagnenentwurf bearbeiten",
+        "subtitle": "Aktualisieren Sie unten Ihren Entwurf. Wenn er fertig ist, reichen Sie ihn zur Prüfung durch Operations ein.",
+        "saveChanges": "Änderungen speichern",
+        "draftUpdated": "Entwurf aktualisiert.",
+        "updateFailed": "Der Entwurf konnte nicht aktualisiert werden. Bitte versuchen Sie es erneut.",
+        "backToCampaign": "Zurück zur Kampagne",
+        "loading": "Kampagnenentwurf wird geladen…",
+        "loadError": "Die Kampagne konnte nicht geladen werden. Bitte versuchen Sie es erneut.",
+        "notFound": "Kampagne nicht gefunden. Sie wurde möglicherweise gelöscht.",
+        "notOwner": "Nur der Organisator der Kampagne kann diesen Entwurf bearbeiten.",
+        "notEditable": "Diese Kampagne kann nicht mehr bearbeitet werden. Nur Entwürfe und Kampagnen mit angeforderten Überarbeitungen können bearbeitet werden.",
+        "editDraft": "Entwurf bearbeiten"
+      }
     },
     "campaign": {
       "organizer": "Organisator",
@@ -15924,7 +16017,20 @@
       "products": "Produkte",
       "viewProducts": "Produkte ansehen",
       "subtitle": "Anfragen, Angebote und Umwandlung, von der ersten Anfrage bis zur Bestellung.",
-      "startFirst": "Ihre erste Anfrage starten"
+      "startFirst": "Ihre erste Anfrage starten",
+      "error": "Ihre Beschaffungsanfragen konnten derzeit nicht geladen werden. Bitte erneut versuchen.",
+      "headers": {
+        "category": "Kategorie",
+        "lane": "Korridor",
+        "qty": "Menge",
+        "quotes": "Angebote",
+        "reference": "Referenz",
+        "status": "Status",
+        "title": "Titel"
+      },
+      "openRequest": "Anfrage {{ref}} öffnen",
+      "tabsLabel": "Beschaffungsansichten",
+      "viewRow": "Ansehen →"
     },
     "request": {
       "title": "Neue Beschaffungsanfrage",
@@ -15963,7 +16069,21 @@
       "loading": "Wird geladen …",
       "lane": "Route",
       "landedCost": "Gelieferte Kosten",
-      "expected": "Voraussichtlich"
+      "expected": "Voraussichtlich",
+      "backToBuyer": "Zurück zum Käufer-Arbeitsbereich",
+      "error": "Ihre Bestellungen konnten derzeit nicht geladen werden. Bitte erneut versuchen.",
+      "headers": {
+        "expected": "Erwartet",
+        "landedCost": "Landed Cost",
+        "lane": "Korridor",
+        "product": "Produkt",
+        "qty": "Menge",
+        "reference": "Referenz",
+        "status": "Status"
+      },
+      "openOrder": "Bestellung {{ref}} öffnen",
+      "pagination": "Bestellseiten",
+      "statusFilter": "Nach Status filtern"
     },
     "shipments": {
       "title": "Sendungen",
@@ -15980,7 +16100,15 @@
       "milestone": "Meilenstein",
       "allStatuses": "Alle",
       "empty": "Keine Sendungen gefunden.",
-      "loading": "Wird geladen …"
+      "loading": "Wird geladen …",
+      "backToBuyer": "Zurück zum Käufer-Arbeitsbereich",
+      "error": "Ihre Sendungen konnten derzeit nicht geladen werden. Bitte erneut versuchen.",
+      "etaLabel": "ETA",
+      "exception": "Ausnahme",
+      "kg": "kg",
+      "lifecycleLabel": "Nach Lebenszyklusphase filtern",
+      "noCarrier": "Kein Frachtführer",
+      "openShipment": "Sendung {{ref}} öffnen"
     },
     "warehousing": {
       "title": "Lagerung",
@@ -15992,7 +16120,24 @@
       "noAllocations": "Keine Zuteilungen gefunden.",
       "noDeliveries": "Keine Lieferaufträge gefunden.",
       "noWarehouses": "Keine Lager gefunden.",
-      "subtitle": "Bestand annehmen, abstimmen, Käufern zuteilen und freigeben."
+      "subtitle": "Bestand annehmen, abstimmen, Käufern zuteilen und freigeben.",
+      "activeReceipts": "{{count}} aktive Eingänge",
+      "bonded": "Zollverschlossen",
+      "error": "Lagerdaten konnten derzeit nicht geladen werden. Bitte erneut versuchen.",
+      "headers": {
+        "buyer": "Käufer",
+        "expected": "Erwartet",
+        "qty": "Menge",
+        "received": "Empfangen",
+        "reference": "Referenz",
+        "releaseMethod": "Freigabemethode",
+        "released": "Freigegeben",
+        "shortage": "Fehlmenge",
+        "status": "Status",
+        "warehouse": "Lager"
+      },
+      "sqft": "sqft",
+      "tabsLabel": "Lageransichten"
     },
     "compliance": {
       "title": "Compliance und Beschränkungen",
@@ -16013,7 +16158,33 @@
       "bv": "Unternehmensverifizierung",
       "ma": "Manuelle Genehmigung",
       "explainer": "Eine Route ist eine Versandverbindung zwischen zwei Ländern, etwa von China nach Haiti. Jede Route hat eigene Regeln: was importiert werden darf, welche Dokumente erforderlich sind und wie streng der Zoll prüft. Wir prüfen diese Regeln für jede Sammelsendung und übernehmen den Papierkram. Diese Seite zeigt, was für Ihre Waren gilt.",
-      "lanesRisk": "Übersicht Routenrisiko"
+      "lanesRisk": "Übersicht Routenrisiko",
+      "allLanes": "Alle Korridore",
+      "businessVerificationRequired": "Geschäftsverifizierung erforderlich",
+      "countryFilter": "Nach Ländercode filtern",
+      "countryPlaceholder": "Ländercode (z. B. HT)",
+      "customsComplexity": "Zoll",
+      "docRequirements": {
+        "body": "Jeder Korridor kann erfordern: Handelsrechnung, Packliste, Ursprungszeugnis, Pflanzengesundheitszeugnis, FDA-Freigabe, CE-Kennzeichnung, Zolleintrittsformulare oder Inspektionsberichte. Anforderungen sind korridor- und kategoriespezifisch.",
+        "title": "Dokumentenanforderungen"
+      },
+      "error": "Compliance-Daten konnten derzeit nicht geladen werden. Bitte versuchen Sie es erneut.",
+      "global": "Global",
+      "headers": {
+        "category": "Kategorie",
+        "country": "Land",
+        "docRequired": "Dok. erforderlich",
+        "lane": "Korridor",
+        "notes": "Notizen",
+        "severity": "Schweregrad",
+        "type": "Typ"
+      },
+      "laneFilter": "Nach Korridor filtern",
+      "manualApprovalRequired": "Manuelle Freigabe erforderlich",
+      "noLanes": "Noch keine Korridrorisikodaten veröffentlicht.",
+      "riskTiers": {
+        "title": "Risikostufen"
+      }
     },
     "finance": {
       "title": "Logistik-Finanzen",
@@ -16022,7 +16193,19 @@
       "depositsPaid": "Gezahlte Anzahlungen",
       "orderCount": "Anzahl Bestellungen",
       "inTransit": "Unterwegs-Wert",
-      "simulator": "Simulator gelieferte Kosten",
+      "simulator": {
+        "calculate": "Landed Cost berechnen",
+        "calculating": "Wird berechnet…",
+        "freight": "Fracht gesch. / Einheit (USD)",
+        "lane": "Korridor",
+        "markupApplied": "Marge angewendet",
+        "perUnit": "/ Einheit landed",
+        "productCost": "Produktkosten / Einheit (USD)",
+        "quantity": "Menge",
+        "selectLane": "— Korridor wählen —",
+        "title": "Landed-Cost-Simulator",
+        "totalFor": "Gesamt für {{qty}} Einheiten"
+      },
       "simulatorSubtitle": "Sehen Sie die vollständige Kostenaufschlüsselung vor der Bestellung an.",
       "unitCost": "Stückkosten Produkt (USD)",
       "qty": "Menge",
@@ -16034,7 +16217,41 @@
       "totalSpent": "Gesamt zugesagt",
       "recentOrders": "Aktuelle Bestellungen",
       "depositPaid": "Gezahlte Anzahlungen",
-      "byStatus": "Wert nach Bestellstatus"
+      "byStatus": "Wert nach Bestellstatus",
+      "error": "Finanzdaten konnten derzeit nicht geladen werden. Bitte erneut versuchen.",
+      "headers": {
+        "depositPaid": "Gezahlte Anzahlung",
+        "product": "Produkt",
+        "qty": "Menge",
+        "reference": "Referenz",
+        "remaining": "Verbleibend",
+        "status": "Status",
+        "totalLanded": "Landed Total"
+      },
+      "kpis": {
+        "depositsPaid": "Gezahlte Anzahlungen",
+        "inTransit": "In Transit",
+        "orders": "Bestellungen",
+        "totalCommitted": "Gesamt zugesagt"
+      },
+      "noSpend": "Noch keine Bestellausgaben erfasst.",
+      "refund": {
+        "empty": "Noch keine Rückerstattungsfälle eingereicht.",
+        "requested": "Angefordert",
+        "submitted": "Rückerstattungsfall zur Prüfung eingereicht.",
+        "title": "Rückerstattungsanträge"
+      },
+      "refundForm": {
+        "amount": "Angeforderter Betrag (USD)",
+        "notes": "Notizen",
+        "poFallback": "Best.",
+        "purchaseOrder": "Bestellung",
+        "reason": "Rückerstattungsgrund",
+        "selectOrder": "— Bestellung wählen —",
+        "submit": "Rückerstattungsfall einreichen",
+        "submitting": "Wird eingereicht…",
+        "title": "Rückerstattungsprüfung anfordern"
+      }
     },
     "admin": {
       "title": "Logistik-Betrieb",
@@ -16059,7 +16276,8 @@
         "pricing": "Preisgestaltung",
         "restrictions": "Beschränkungen",
         "disputes": "Streitfälle",
-        "superControl": "Super-Kontrolle"
+        "superControl": "Super-Kontrolle",
+        "refunds": "Rückerstattungen"
       },
       "metrics": {
         "purchaseOrders": "Bestellungen",
@@ -16284,6 +16502,34 @@
         "distributor": "Freigabe an Händler",
         "bulk_handoff": "Sammelübergabe",
         "restock_route": "Nachschubroute"
+      },
+      "defaults": {
+        "buyerAllocation": "Käuferzuweisung",
+        "recipient": "Empfänger",
+        "releasePending": "Freigabe ausstehend",
+        "warehouse": "Lager"
+      },
+      "empty": {
+        "allocations": "Keine Zuweisungen verfügbar.",
+        "deliveries": "Keine Lieferaufträge verfügbar."
+      },
+      "error": "Verteilungsdaten konnten derzeit nicht geladen werden. Bitte erneut versuchen.",
+      "labels": {
+        "allocatedQty": "Zugewiesene Menge",
+        "mode": "Modus",
+        "tracking": "Verfolgung"
+      },
+      "loading": "Wird geladen…",
+      "sections": {
+        "allocationQueue": "Zuweisungswarteschlange",
+        "deliveryExecution": "Lieferausführung",
+        "openWarehousing": "Lagerhaltung öffnen →"
+      },
+      "stats": {
+        "allocations": "Zuweisungen",
+        "deliveryOrders": "Lieferaufträge",
+        "inTransit": "In Transit",
+        "released": "Freigegeben"
       }
     },
     "buyerTypes": {
@@ -16337,7 +16583,1146 @@
       "targetPrice": "Zielpreis / Einheit (USD)",
       "targetQty": "Zielmenge",
       "titleLabel": "Anfragetitel",
-      "unit": "Einheit"
+      "unit": "Einheit",
+      "anyOption": "— Beliebig —",
+      "customsComplexity": "Zollkomplexität",
+      "descriptionPlaceholder": "Beschreiben Sie das Produkt im Detail: Materialien, Abmessungen, benötigte Zertifizierungen…",
+      "destCountryPlaceholder": "z. B. US, HT, CA",
+      "goToStep": "Zu {{label}} gehen",
+      "laneBlocked": "Dieser Korridor ist derzeit für Ihre Rolle oder Ihren Zielkontext blockiert: {{reason}}",
+      "laneBusinessVerification": "Für diesen Korridor ist eine Geschäftsverifizierung als verifizierter Käufer erforderlich.",
+      "laneChecks": "Korridorzugangs- und Freigabeprüfungen",
+      "laneManualApproval": "Vor Angebot oder Beschaffung ist eine manuelle Compliance-Freigabe für diese Anfrage erforderlich.",
+      "laneResellerApproval": "Vor Nutzung dieses Korridors für Wiederverkaufsabläufe ist eine Händler-/Distributor-Freigabe erforderlich.",
+      "letOxsteedChoose": "— OxSteed wählen lassen —",
+      "notesPlaceholder": "Weiterer Kontext für das Beschaffungsteam…",
+      "review": {
+        "category": "Kategorie",
+        "deadline": "Frist",
+        "destination": "Ziel",
+        "no": "Nein",
+        "privateLabel": "Eigenmarke",
+        "quantity": "Menge",
+        "targetPrice": "Zielpreis",
+        "title": "Titel",
+        "yes": "Ja"
+      },
+      "riskTier": "Risikostufe",
+      "selectOption": "— Wählen —",
+      "stepsLabel": "Anfragefortschritt",
+      "titlePlaceholder": "z. B. 500 Einheiten Industriesicherheitsstiefel"
+    },
+    "hub": {
+      "aboutBody": "Käufer bündeln ihre Nachfrage bis zur Mindestbestellmenge des Lieferanten. Sobald genug Nachfrage zugesagt ist, wird die Kampagne gesperrt, Anzahlungen werden eingezogen und OxSteed koordiniert den Rest der Lieferkette.",
+      "aboutTitle": "So funktioniert gemeinsames Einkaufen",
+      "aboutToggle": "So funktioniert gemeinsames Einkaufen",
+      "clearFilters": "Filter zurücksetzen",
+      "emptyBody": "Versuche eine andere Suche oder andere Filter. Neue Kampagnen starten regelmäßig.",
+      "emptyTitle": "Keine Kampagnen entsprechen deinen Filtern",
+      "error": "Kampagnen konnten nicht geladen werden. Bitte versuche es erneut.",
+      "eyebrow": "OxSteed Logistics",
+      "intro": "Nimm an Gruppenkampagnen teil, um Großhandelspreise zu erhalten, oder organisiere deine eigene.",
+      "laneLabel": "Route",
+      "loading": "Kampagnen werden geladen...",
+      "nextPage": "Weiter",
+      "noCampaignsBody": "Derzeit sind keine Kampagnen geöffnet. Schau bald wieder vorbei oder organisiere selbst eine.",
+      "noCampaignsTitle": "Noch keine Kampagnen",
+      "organizeCta": "Kampagne organisieren",
+      "pageOf": "Seite {{page}} von {{pages}}",
+      "prevPage": "Zurück",
+      "procurementCta": "Geschäftliche Beschaffung",
+      "resultsCount": "{{count}} Kampagnen",
+      "retry": "Erneut versuchen",
+      "searchLabel": "Kampagnen suchen",
+      "searchPlaceholder": "Nach Produkt, Route oder Titel suchen",
+      "statusLabel": "Status",
+      "title": "Gemeinsam einkaufen, ganz einfach"
+    },
+    "modal": {
+      "close": "Schließen",
+      "openFullPage": "Volle Seite öffnen",
+      "loading": "Wird geladen…",
+      "loadError": "Diese Vorschau konnte nicht geladen werden.",
+      "retry": "Erneut versuchen",
+      "notFound": "Dieses Element wurde nicht gefunden.",
+      "campaignPreviewTitle": "Kampagnen-Vorschau",
+      "requestPreviewTitle": "Anfrage-Vorschau",
+      "orderPreviewTitle": "Bestell-Vorschau",
+      "shipmentPreviewTitle": "Sendungs-Vorschau",
+      "allocationPreviewTitle": "Zuteilungs-Vorschau",
+      "campaign": {
+        "lane": "Route",
+        "status": "Status",
+        "moqProgress": "MOQ-Fortschritt",
+        "participants": "Teilnehmer",
+        "committedUnits": "Zugesagt",
+        "targetUnits": "Ziel"
+      },
+      "request": {
+        "status": "Status",
+        "category": "Kategorie",
+        "targetQuantity": "Zielmenge",
+        "targetPrice": "Zielpreis",
+        "destination": "Zielort",
+        "deadline": "Frist",
+        "quotes": "Angebote"
+      },
+      "order": {
+        "status": "Status",
+        "supplier": "Lieferant",
+        "quantity": "Menge",
+        "total": "Bestellsumme",
+        "balanceDue": "Offener Restbetrag",
+        "expectedArrival": "Voraussichtliche Ankunft"
+      },
+      "shipment": {
+        "status": "Status",
+        "carrier": "Spediteur",
+        "trackingNumber": "Sendungsnummer",
+        "originPort": "Abgangshafen",
+        "destinationPort": "Zielhafen",
+        "eta": "Voraussichtliche Ankunftszeit"
+      },
+      "allocation": {
+        "status": "Status",
+        "recipient": "Empfänger",
+        "warehouse": "Lager",
+        "releaseMethod": "Freigabemethode",
+        "quantity": "Menge"
+      }
+    },
+    "adminControl": {
+      "error": "Die Kontrollmetriken konnten derzeit nicht geladen werden. Bitte versuchen Sie es erneut.",
+      "kpis": {
+        "claimsPosture": "Reklamationslage",
+        "feeRules": "Gebührenregeln",
+        "markupRules": "Margenregeln",
+        "restrictions": "Beschränkungen",
+        "trackedPOs": "Verfolgte Bestellungen",
+        "trackedShipments": "Verfolgte Sendungen"
+      },
+      "pricing": {
+        "active": "aktiv",
+        "empty": "Keine Preisregeln gefunden.",
+        "fee": "Gebühr",
+        "headers": {
+          "name": "Name",
+          "status": "Status",
+          "type": "Typ"
+        },
+        "inactive": "inaktiv",
+        "markup": "Marge",
+        "ruleFallback": "Regel {{id}}",
+        "title": "Preis- und Gebührenlage"
+      },
+      "restricted": {
+        "body": "Preisregeln, Marktbeschränkungen und logistikweite Überschreibungen sind nur für OxSteed-Admins und Super-Admins verfügbar.",
+        "returnToHub": "Zurück zum Logistics-Hub",
+        "title": "Kontrollzugriff eingeschränkt"
+      },
+      "restrictions": {
+        "empty": "Keine Beschränkungen konfiguriert.",
+        "headers": {
+          "category": "Kategorie",
+          "country": "Land",
+          "risk": "Risiko"
+        },
+        "title": "Beschränkungs- und Risikokontrollen"
+      },
+      "routes": {
+        "adminDashboard": "Admin-Dashboard",
+        "pricingRules": "Preisregeln",
+        "restrictions": "Beschränkungen",
+        "superControl": "Super-Kontrolle",
+        "supplierApprovals": "Lieferantenfreigaben"
+      },
+      "routesLabel": "Admin-Kontrollrouten",
+      "subtitle": "Preis-, Risiko-, Freigabe- und Rentabilitätskontrollen für den gesamten OxSteed-Logistics-Bereich.",
+      "title": "Admin-Kontrolle"
+    },
+    "buyer": {
+      "actions": {
+        "startRequest": "Anfrage starten",
+        "watchShipments": "Sendungszeitplan ansehen"
+      },
+      "activity": {
+        "claimFallback": "Reklamation #{{id}}"
+      },
+      "attention": {
+        "allocationRelease": {
+          "hint": "Zugewiesener Bestand benötigt noch Abholung, Spediteurübergabe oder finale Freigabeplanung.",
+          "label": "Zuweisungsfreigabe"
+        },
+        "copy": "Nutzen Sie diese Warteschlange, um zu entscheiden, ob Sie neue Beschaffung anstoßen, Lieferfreigaben nachverfolgen oder ein Finanzproblem eskalieren.",
+        "issuePosture": {
+          "hint": "Reklamationen und Rückerstattungsfälle zeigen, wo Käufervertrauen oder Erfüllungsqualität nachlassen.",
+          "label": "Problemlage"
+        },
+        "shipmentRisk": {
+          "hint": "Zollprüfung, Ausnahmestatus oder verspätete Fracht sollten zuerst vom Käufer nachverfolgt werden.",
+          "label": "Sendungsrisiko"
+        },
+        "title": "Jetzt Aufmerksamkeit"
+      },
+      "chips": {
+        "buyerFirst": "Käuferorientierter Arbeitsbereich",
+        "claimsTied": "Reklamationen an Sendungsergebnisse geknüpft",
+        "refundVisible": "Rückerstattungslage bleibt sichtbar"
+      },
+      "claims": {
+        "activeClaims": "{{count}} aktive Reklamationen",
+        "activeClaimsHint": "Nutzen Sie Reklamationen, wenn eine Sendung, Bestellung oder ein Bestandsergebnis ein Eingreifen des Operators oder eine Beweisprüfung erfordert.",
+        "deliveriesHint": "Halten Sie den Lieferstatus nah an den Reklamationen, um fehlgeschlagene Erfüllung mit dem tatsächlichen Freigabeverlauf zu verknüpfen.",
+        "deliveriesTracked": "{{count}} Lieferdatensätze verfolgt",
+        "openFinance": "Finanz-Arbeitsbereich",
+        "refundCases": "{{count}} Rückerstattungsfälle",
+        "refundCasesHint": "Rückerstattungswarteschlangen zeigen, wo die Käuferentschädigung noch auf Finanz- oder Operationsbestätigung wartet.",
+        "title": "Reklamations- und Lösungslage"
+      },
+      "flow": {
+        "allocationFallback": "ALC-{{id}}",
+        "awaitingRelease": "Wartet auf Freigabe",
+        "empty": "Noch keine Sendungs- oder Zuweisungsdatensätze.",
+        "headers": {
+          "eta": "ETA / Lieferung",
+          "reference": "Referenz",
+          "status": "Status"
+        },
+        "openDistribution": "Verteilung",
+        "title": "Sendungs- und Zuweisungsfluss"
+      },
+      "kicker": "Käufer-Arbeitsbereich",
+      "metrics": {
+        "activeRequests": {
+          "label": "Aktive Anfragen",
+          "note": "{{total}} Käuferanfragen insgesamt in Bewegung"
+        },
+        "claimsRefunds": {
+          "label": "Reklamationen & Rückerstattungen",
+          "noteClear": "Keine aktiven Käuferprobleme",
+          "noteOpen": "Operatorprüfung bei offenen Problemen ggf. erforderlich"
+        },
+        "pendingAllocations": {
+          "label": "Ausstehende Zuweisungen",
+          "noteClear": "Zuweisungswarteschlange ist leer",
+          "notePending": "Bestand ist zugewiesen, aber noch nicht vollständig freigegeben"
+        },
+        "watchShipments": {
+          "label": "Sendungen ansehen",
+          "noteClear": "Derzeit keine Sendungsausnahmen gemeldet",
+          "noteRisk": "{{count}} benötigen Ausnahme-Nachverfolgung"
+        },
+        "unavailableNote": "Kennzahl derzeit nicht verfügbar."
+      },
+      "requests": {
+        "empty": "Noch keine Beschaffungsanfragen.",
+        "headers": {
+          "category": "Kategorie",
+          "quotes": "Angebote",
+          "request": "Anfrage",
+          "status": "Status"
+        },
+        "title": "Meine Beschaffungsanfragen",
+        "viewAll": "Alle ansehen"
+      },
+      "rhythm": {
+        "bestMove": {
+          "hasRequests": "Prüfen Sie Angebots- und Sendungslage, bevor Sie weitere Nachfrage öffnen.",
+          "label": "Bester nächster Schritt",
+          "noRequests": "Öffnen Sie eine Beschaffungsanfrage, um Lieferantenangebote zu starten."
+        },
+        "latestDelivery": {
+          "label": "Neuestes Liefersignal",
+          "noDate": "Noch keine Liefertermine geplant.",
+          "withDate": "Die neueste Lieferaktivität ist um den {{date}} geplant."
+        },
+        "title": "Käuferrhythmus"
+      },
+      "stats": {
+        "attentionShipments": {
+          "label": "Sendungen mit Aufmerksamkeitsbedarf",
+          "meta": "Zoll- oder Ausnahmebewegung zur Prüfung."
+        },
+        "issues": {
+          "label": "Offene Reklamationen / Rückerstattungen",
+          "meta": "Käuferschutz und Lösungslage sichtbar halten."
+        },
+        "openRequests": {
+          "label": "Offene Käuferanfragen",
+          "meta": "Über Beschaffung, Angebote und Beschaffungsumwandlung."
+        }
+      },
+      "subtitle": "Starten Sie Beschaffungsanfragen, verfolgen Sie Ihre Bestellungen und überwachen Sie aktive Fracht: alles an einem Ort.",
+      "title": "Käufer-Dashboard"
+    },
+    "campaignDetail": {
+      "delivery": {
+        "freightForward": "Spediteur",
+        "shipToBuyer": "Versand an Käufer",
+        "warehousePickup": "Abholung im Lager"
+      },
+      "economics": {
+        "deposit": "Anzahlung (30 %)",
+        "fees": "Gebühren",
+        "freightEst": "Fracht (gesch.)",
+        "landedCost": "Landed Cost / Einheit",
+        "markup": "OxSteed-Marge",
+        "productCost": "Produktkosten",
+        "title": "Stückkosten"
+      },
+      "join": {
+        "cancellationPolicy": "Stornierungsbedingungen",
+        "committedQty": "Zugesagte Menge",
+        "confirm": "Teilnahme bestätigen",
+        "countryCode": "Ländercode",
+        "deliveryPreference": "Lieferpräferenz",
+        "deposit": "Anzahlung",
+        "destCountry": "Zielland",
+        "subtotal": "Zwischensumme",
+        "title": "Kampagne beitreten"
+      },
+      "laneGating": {
+        "blocked": "Ihre aktuelle Rolle oder Ihr Zielkontext ist für diesen Korridor blockiert: {{reason}}",
+        "businessVerification": "Für diesen Kampagnenkorridor ist ein verifizierter Geschäftskontext erforderlich.",
+        "manualApproval": "Eine manuelle Compliance-Freigabe ist erforderlich, bevor die Kampagne alle nachgelagerten Logistikschritte durchlaufen kann.",
+        "resellerApproval": "Für die Wiederverkaufsteilnahme auf diesem Korridor ist eine Händler-/Distributor-Freigabe erforderlich.",
+        "title": "Korridorprüfung"
+      },
+      "loadError": "Kampagne konnte nicht geladen werden",
+      "meta": {
+        "fallbackDescription": "Sammelbeschaffungskampagne auf OxSteed Logistics.",
+        "fallbackTitle": "Kampagne"
+      },
+      "moq": {
+        "progressLabel": "MOQ-Fortschritt: {{pct}} Prozent",
+        "units": "{{committed}} / {{target}} Einheiten zugesagt"
+      },
+      "notFound": "Kampagne nicht gefunden.",
+      "participants": {
+        "headers": {
+          "delivery": "Lieferung",
+          "deposit": "Anzahlung",
+          "qty": "Menge",
+          "status": "Status",
+          "user": "Benutzer"
+        },
+        "participant": "Teilnehmer",
+        "title": "Teilnehmer"
+      },
+      "timeline": {
+        "expectedArrival": "Voraussichtliche Ankunft",
+        "expectedShip": "Voraussichtlicher Versand",
+        "lockDate": "Fixierungsdatum",
+        "openDate": "Eröffnungsdatum",
+        "closeDate": "Schlussdatum",
+        "organizer": "Organisator",
+        "title": "Zeitplan"
+      }
+    },
+    "distributor": {
+      "actions": {
+        "openBoard": "Verteilungsboard öffnen",
+        "warehouseReadiness": "Lagerbereitschaft prüfen"
+      },
+      "activity": {
+        "allocationFallback": "ALC-{{id}}",
+        "deliveryFallback": "Lieferung #{{id}}"
+      },
+      "chips": {
+        "failedDrops": "Fehlgeschlagene Drops früh verfolgen",
+        "releaseDiscipline": "Freigabedisziplin zählt",
+        "sync": "Lager und Lieferung synchron halten"
+      },
+      "execution": {
+        "empty": "Noch keine Lieferaufträge.",
+        "headers": {
+          "method": "Methode",
+          "recipient": "Empfänger",
+          "scheduled": "Geplant",
+          "status": "Status"
+        },
+        "recipientFallback": "Lieferempfänger",
+        "seeAll": "Alle ansehen",
+        "title": "Lieferausführung"
+      },
+      "kicker": "Distributor-Arbeitsbereich",
+      "metrics": {
+        "allocatedLots": {
+          "label": "Zugewiesene Lose",
+          "note": "Zugewiesener Bestand über Verteilungsempfänger."
+        },
+        "deliveryOrders": {
+          "label": "Lieferaufträge",
+          "note": "Derzeit verfolgte ausgehende Etappen."
+        },
+        "inTransit": {
+          "label": "In Transit",
+          "note": "Lieferungen, die noch Letzte-Meile-Überwachung benötigen."
+        },
+        "releasedLots": {
+          "label": "Freigegebene Lose",
+          "note": "Lose bereits zur Abholung oder Lieferausführung freigegeben."
+        },
+        "warehousedOrders": {
+          "label": "Eingelagerte Bestellungen",
+          "note": "Vorgelagerter Bestand bereits eingelagert und zuweisungsbereit."
+        },
+        "unavailableNote": "Kennzahl derzeit nicht verfügbar."
+      },
+      "posture": {
+        "releaseFirst": {
+          "hint": "Prüfen Sie, ob Zuweisungen wirklich freigegeben sind, bevor Sie Empfänger in die Lieferplanung drängen.",
+          "label": "Freigeben vor Routen"
+        },
+        "title": "Operative Haltung",
+        "warehousedVisible": {
+          "hint": "{{count}} Bestellungen sind bereits eingelagert, der Engpass liegt also ggf. nachgelagert, nicht vorgelagert.",
+          "label": "Eingelagerten Bestand sichtbar halten"
+        }
+      },
+      "pressure": {
+        "copy": "Nutzen Sie diese Ansicht, um zu entscheiden, ob der nächste Engpass Lagerfreigabe, Planung oder fehlgeschlagene Letzte-Meile-Ausführung ist.",
+        "exceptions": {
+          "hint": "Fehlgeschlagene oder stornierte Lieferungen sollten Aufmerksamkeit erhalten, bevor das Kundenvertrauen weiter sinkt.",
+          "label": "Lieferausnahmen"
+        },
+        "release": {
+          "hint": "Bestand ist zugewiesen, aber Abholmethode, Spediteurübergabe oder Empfängerbereitschaft sind noch unvollständig.",
+          "label": "Lose warten auf Freigabe"
+        },
+        "scheduled": {
+          "hint": "Dies sind die nächsten wahrscheinlichen Kontaktpunkte, bei denen Kommunikation und Timing zählen.",
+          "label": "Geplante Lieferungen"
+        },
+        "title": "Verteilungsdruckpunkte"
+      },
+      "queue": {
+        "assignedBuyer": "Zugewiesener Käufer",
+        "empty": "Noch keine Zuweisungslose zugewiesen.",
+        "headers": {
+          "method": "Methode",
+          "recipient": "Empfänger",
+          "status": "Status",
+          "warehouse": "Lager"
+        },
+        "methodPending": "ausstehend",
+        "open": "Arbeitsbereich öffnen",
+        "title": "Zuweisungsübergabe-Warteschlange",
+        "warehousePending": "Lager ausstehend"
+      },
+      "stats": {
+        "failed": {
+          "label": "Fehlgeschlagene oder stornierte Drops",
+          "meta": "Diese benötigen oft Umleitung oder direkte Empfängernachverfolgung."
+        },
+        "inTransit": {
+          "label": "Lieferungen in Bewegung",
+          "meta": "Ausgehende Bewegung, die Sie aktiv beobachten sollten."
+        },
+        "pendingRelease": {
+          "label": "Lose warten auf Freigabe",
+          "meta": "Zugewiesener Bestand noch nicht vollständig übergeben."
+        }
+      },
+      "subtitle": "Verfolgen Sie Ihre Kampagnenteilnahmen, Zuweisungen und Letzte-Meile-Lieferungen.",
+      "title": "Distributor-Dashboard"
+    },
+    "operations": {
+      "error": "Operations-Metriken konnten derzeit nicht geladen werden. Bitte erneut versuchen.",
+      "internalOnly": {
+        "body": "Dieser Arbeitsbereich ist OxSteed-Logistikoperatoren vorbehalten. Angemeldete Käufer und Organisatoren können weiterhin die Arbeitsbereiche Käufer, Organisator, Geschäftliche Beschaffung und Distributor nutzen, um ihre eigene Logistikaktivität zu verwalten.",
+        "title": "Operations-Zugang ist intern"
+      },
+      "kpis": {
+        "campaigns": "Kampagnen",
+        "claimsDisputes": "Reklamationen & Streitfälle",
+        "sourcingQueue": "Beschaffungswarteschlange",
+        "trackedShipments": "Verfolgte Sendungen"
+      },
+      "loading": "Operations-Metriken werden geladen…",
+      "priorities": {
+        "customsHold": "{{count}} Sendungen in Zollverwahrung oder Ausnahmelage.",
+        "fullAdmin": "Vollständiges Admin-Dashboard",
+        "openClaims": "{{count}} Reklamationen zur Prüfung offen.",
+        "openDisputes": "Streitfälle und Rückerstattungsprüfung öffnen →",
+        "openFreight": "Fracht- und Meilensteinwarteschlange öffnen →",
+        "openSourcing": "Beschaffungs-Eingangswarteschlange öffnen →",
+        "openWarehouse": "Lager-Eingangswarteschlange öffnen →",
+        "operatorRoutes": "Operator-Routen",
+        "queues": "Sofortige Warteschlangen",
+        "sourcingTouch": "{{count}} Beschaffungsanfragen benötigen Routing, Angebot oder Operator-Eingriff.",
+        "title": "Operations-Prioritäten"
+      },
+      "routesLabel": "Operations-Routen",
+      "subtitle": "Eine interne Befehlsoberfläche für Beschaffungseingang, aktive Frachtbewegung, Lagerfluss und Logistikausnahmen.",
+      "title": "Operations-Arbeitsbereich",
+      "routes": {
+        "finance": "Logistikbetrieb"
+      }
+    },
+    "orderDetail": {
+      "backToOrders": "← Zurück zu Bestellungen",
+      "defaults": {
+        "purchaseOrder": "Bestellung"
+      },
+      "finance": {
+        "customsAdmin": "Zoll/Admin",
+        "freightEstimate": "Frachtschätzung",
+        "lastMile": "Letzte Meile",
+        "originHandling": "Ursprungsabfertigung",
+        "oxsteedMarkup": "OxSteed-Marge",
+        "productTotal": "Produktsumme",
+        "riskSurcharge": "Risikozuschlag",
+        "sourcingFee": "Beschaffungsgebühr",
+        "warehouseFee": "Lagergebühr"
+      },
+      "labels": {
+        "buyer": "Käufer",
+        "destination": "Ziel",
+        "expectedArrival": "Voraussichtliche Ankunft",
+        "expectedProductionComplete": "Voraussichtlicher Produktionsabschluss",
+        "expectedShipDate": "Voraussichtliches Versanddatum",
+        "freightOption": "Frachtoption",
+        "incoterms": "Incoterms",
+        "quantity": "Menge",
+        "supplier": "Lieferant"
+      },
+      "loadError": "Bestellung konnte nicht geladen werden.",
+      "loading": "Wird geladen…",
+      "notFound": "Bestellung nicht gefunden.",
+      "sections": {
+        "financial": "Finanzstruktur",
+        "overview": "Bestellübersicht"
+      },
+      "totals": {
+        "depositDue": "Anzahlung fällig",
+        "finalDue": "Restzahlung fällig",
+        "remaining": "Verbleibend",
+        "totalLanded": "Landed Total"
+      }
+    },
+    "organizer": {
+      "actions": {
+        "coordinateHandoffs": "Übergaben koordinieren",
+        "openBoard": "Kampagnenboard öffnen"
+      },
+      "activity": {
+        "campaignFallback": "Kampagne #{{id}}",
+        "deliveryFallback": "Lieferung #{{id}}"
+      },
+      "campaigns": {
+        "browse": "Kampagnen durchsuchen",
+        "empty": "Noch keine Organisatorkampagnen. Starten Sie eine aus dem Kampagnen-Arbeitsbereich.",
+        "moqProgress": "MOQ-Fortschritt: {{pct}} Prozent",
+        "participants": "{{count}} Teilnehmer",
+        "title": "Organisatorkampagnen"
+      },
+      "commitments": {
+        "empty": "Noch keine Kampagnenzusagen.",
+        "headers": {
+          "campaign": "Kampagne",
+          "qty": "Menge",
+          "status": "Status"
+        },
+        "open": "Teilnahme öffnen",
+        "title": "Meine Zusagen als Teilnehmer"
+      },
+      "kicker": "Organisator-Arbeitsbereich",
+      "metrics": {
+        "campaigns": {
+          "label": "Organisatorkampagnen",
+          "note": "Kampagnen, die Sie derzeit besitzen oder koordinieren."
+        },
+        "committedUnits": {
+          "label": "Zugesagte Einheiten",
+          "note": "Nützlich zur Beurteilung der Netzwerkkaufkraft über alle Kampagnen."
+        },
+        "deliveries": {
+          "label": "Lieferübergaben",
+          "note": "Letzte-Meile-Koordination, zu der Sie ggf. kommunizieren müssen."
+        },
+        "shipments": {
+          "label": "Verfolgte Sendungen",
+          "note": "Bewegung, die nun Organisator-Updates und Übergaben beeinflusst."
+        },
+        "unavailableNote": "Kennzahl derzeit nicht verfügbar."
+      },
+      "pressure": {
+        "commitments": {
+          "hint": "Dies sind Ihre eigenen aktiven Zusagen in Sammelbestellungen, die noch Beobachtung benötigen.",
+          "label": "Offene Teilnehmerzusagen"
+        },
+        "copy": "Dies ist die schnelle Lesart, wohin Organisatorenergie als Nächstes gehen sollte: Rekrutierung, Anzahlungen oder Übergabeausführung.",
+        "momentum": {
+          "hint": "Kampagnen unterhalb der halben MOQ brauchen meist einen weiteren Rekrutierungsschub oder ein Korridor-/Preis-Umdenken.",
+          "label": "MOQ-Momentum-Lücken"
+        },
+        "shipments": {
+          "hint": "Halten Sie Organisator-Messaging an der Frachtbewegung ausgerichtet, damit nachgelagerte Käufer wissen, was als Nächstes kommt.",
+          "label": "An Kampagnen gebundene Sendungen"
+        },
+        "title": "Organisator-Druckpunkte"
+      },
+      "readiness": {
+        "handoffs": "{{count}} Lieferübergaben noch aktiv",
+        "handoffsHint": "Dies sind die Etappen, auf denen Organisatorkommunikation am wichtigsten ist, um Verwirrung bei Abholung oder Letzte-Meile-Freigabe zu vermeiden.",
+        "openDistribution": "Verteilungs-Arbeitsbereich öffnen",
+        "openShipments": "Sendungszeitplan öffnen",
+        "posture": "{{count}} Kampagnen können die Teilnehmerhaltung noch ändern",
+        "postureHint": "Nutzen Sie dies, um zu entscheiden, ob Sie weiter Nachfrage rekrutieren oder mit der Vorbereitung käuferseitiger Verteilungserwartungen beginnen.",
+        "shipments": "Sendungszeitplan",
+        "title": "Verteilungsbereitschaft"
+      },
+      "rhythm": {
+        "communicate": {
+          "hint": "Wechseln Sie nach der Platzierung von Nachfrageaufbau zu Sendungssichtbarkeit und Liefererwartungen.",
+          "label": "Nach Platzierung kommunizieren"
+        },
+        "recruit": {
+          "hint": "Wenn die MOQ niedrig ist, investieren Sie Zeit in Teilnehmerrekrutierung, bevor Sie operative Komplexität nachgelagert schieben.",
+          "label": "Vor Fixierung rekrutieren"
+        },
+        "title": "Operativer Organisatorrhythmus"
+      },
+      "stats": {
+        "committedUnits": {
+          "label": "Zugesagte Einheiten",
+          "meta": "Bereits erfasste Nachfrage aus Ihrem Sammelnetzwerk."
+        },
+        "handoffs": {
+          "label": "Zu koordinierende Übergaben",
+          "meta": "Lieferetappen noch in Bewegung zu Empfängern."
+        },
+        "inMotion": {
+          "label": "Kampagnen noch in Bewegung",
+          "meta": "Über Öffnungs-, Anzahlungs-, Fixierungs- und Platzierungsphasen."
+        }
+      },
+      "subtitle": "Führen Sie Sammelkampagnen wie ein Koordinator, halten Sie MOQ-Momentum sichtbar und überführen Sie fixierte Bestellungen sauber in Versand und Übergabe.",
+      "title": "Organisator-Dashboard"
+    },
+    "procurement": {
+      "actions": {
+        "closePlanner": "Planer schließen",
+        "newProgram": "Neues wiederkehrendes Programm",
+        "newRequest": "Geschäftsgebundene Anfrage öffnen"
+      },
+      "chips": {
+        "businessScoped": "Nur geschäftsbezogene Beschaffung",
+        "laneAware": "Korridorbewusste Beschaffung",
+        "recurring": "Wiederkehrende Bedarfsplanung"
+      },
+      "eligibleLanes": {
+        "authority": "mit beschaffungsartiger Befugnis.",
+        "empty": "Diesem Konto sind noch keine berechtigten Unternehmen zugeordnet.",
+        "ownerAccess": "Inhaberzugang",
+        "roleAccess": "{{role}}-Zugang",
+        "title": "Berechtigte Geschäftskorridore"
+      },
+      "form": {
+        "anyLane": "Jeder freigegebene Korridor",
+        "budgetMax": "Budget max. (USD)",
+        "cadence": "Rhythmus",
+        "category": "Kategorie",
+        "create": "Programm erstellen",
+        "created": "Wiederkehrendes Beschaffungsprogramm erstellt",
+        "destCity": "Zielstadt",
+        "destCountry": "Zielland",
+        "lane": "Korridor",
+        "linkedRequest": "Verknüpfte Beschaffungsanfrage (optional)",
+        "noLinkedRequest": "Keine verknüpfte Anfrage",
+        "nextRun": "Nächstes Ausführungsdatum",
+        "notes": "Notizen",
+        "programTitle": "Programmtitel",
+        "saving": "Wird gespeichert…",
+        "targetQty": "Zielmenge",
+        "title": "Planer für wiederkehrende Beschaffung",
+        "titleRequired": "Programmtitel ist erforderlich",
+        "unit": "Einheit"
+      },
+      "guidance": {
+        "authority": {
+          "body": "Dieser Arbeitsbereich funktioniert nur, wenn Nachfrage an ein tatsächliches Unternehmen gebunden ist, für das Sie handeln können, nicht nur an eine persönliche Beschaffungsidee.",
+          "title": "Auf echter Geschäftsbefugnis aufbauen"
+        },
+        "businessHub": "Business Hub",
+        "laneAware": {
+          "body": "Wählen Sie Korridore früh für wiederkehrende Programme, wenn Preise, Compliance und Zielbeschränkungen die Landed Cost wesentlich beeinflussen.",
+          "title": "Korridorbewusste Planung nutzen"
+        },
+        "restock": {
+          "body": "Programme mit baldigen Ausführungsterminen sollten geprüft werden, bevor Lager, Teams oder Außendienst den Mangel spüren.",
+          "title": "Vor dem Ansturm nachbestellen"
+        },
+        "title": "Operative Beschaffungsleitlinie"
+      },
+      "kicker": "Geschäftliche Beschaffung",
+      "linkedRequests": {
+        "empty": "Noch keine geschäftsgebundenen Beschaffungsanfragen.",
+        "headers": {
+          "converted": "Umgewandelt",
+          "reference": "Referenz",
+          "request": "Anfrage",
+          "status": "Status"
+        },
+        "new": "Neue Anfrage",
+        "title": "Geschäftsgebundene Beschaffungsanfragen"
+      },
+      "metrics": {
+        "activePrograms": {
+          "label": "Aktive Programme",
+          "note": "Programme, die derzeit die Beschaffungsplanung beeinflussen sollten."
+        },
+        "eligibleBusinesses": {
+          "label": "Berechtigte Unternehmen",
+          "note": "Separate Geschäftskontexte, für die Sie Beschaffung betreiben können."
+        },
+        "linkedRequests": {
+          "label": "Geschäftsgebundene Anfragen",
+          "note": "Anfragen bereits an einen qualifizierten Geschäftskontext gebunden."
+        },
+        "programs": {
+          "label": "Wiederkehrende Programme",
+          "note": "Gespeicherte Rhythmen für wiederkehrenden Bestands- und Lieferbedarf."
+        }
+      },
+      "noAccess": {
+        "backToLogistics": "Zurück zu Logistics",
+        "body": "Dieser Arbeitsbereich ist Benutzern vorbehalten, die im Namen eines Unternehmens in Beschaffung und Operations handeln können. Derzeit aktiviert OxSteed ihn für Unternehmensinhaber, aktive Manager und Mitgliedschaften mit operationsartigen Berechtigungen.",
+        "eligibleCount": "Ihre berechtigten Geschäftsarbeitsbereiche",
+        "howDetermined": "Wie der Zugang bestimmt wird",
+        "howDeterminedHint": "Inhaberschaft, aktive Manager-Mitgliedschaft oder Nicht-Inhaber-Mitgliedschaft mit operations-/beschaffungsartigen Berechtigungen.",
+        "openBusinessHub": "Business Hub öffnen",
+        "title": "Geschäftliche Beschaffung für dieses Konto nicht aktiviert"
+      },
+      "pressure": {
+        "copy": "Dieser Arbeitsbereich ist am stärksten, wenn er Ihnen sagt, was nachzubestellen, was korridorweise zuzuordnen und welches Unternehmen zuerst Handeln braucht.",
+        "laneBound": {
+          "hint": "Diese haben bereits einen definierten Korridor, sodass Preis- und Compliance-Planung bewusster sein kann.",
+          "label": "Korridorgebundene Programme"
+        },
+        "linkedRequests": {
+          "hint": "Nachfrage, die bereits an ein qualifiziertes Unternehmen gebunden ist, sollte vor generischer Beschaffung priorisiert werden.",
+          "label": "Geschäftsgebundene Anfragen"
+        },
+        "title": "Beschaffungsdruckpunkte",
+        "upcomingRuns": {
+          "hint": "Bald ausführende Programme sollten auf Menge, Korridoreignung und Zielbereitschaft geprüft werden.",
+          "label": "Anstehende Ausführungen"
+        }
+      },
+      "program": {
+        "statusChanged": "Programm {{status}}"
+      },
+      "programs": {
+        "activate": "Aktivieren",
+        "empty": "Noch keine wiederkehrenden Beschaffungsprogramme.",
+        "general": "Allgemeine Beschaffung",
+        "headers": {
+          "cadence": "Rhythmus",
+          "linkedRequest": "Verknüpfte Anfrage",
+          "nextRun": "Nächste Ausführung",
+          "program": "Programm",
+          "status": "Status"
+        },
+        "openSourcing": "Beschaffung öffnen",
+        "pause": "Pausieren",
+        "title": "Wiederkehrende Beschaffungsprogramme"
+      },
+      "stats": {
+        "activePrograms": {
+          "label": "Aktive Nachbestellprogramme",
+          "meta": "Rhythmen, die bereits wiederkehrende Beschaffungsnachfrage treiben."
+        },
+        "eligibleBusinesses": {
+          "label": "Berechtigte Unternehmen",
+          "meta": "Unternehmen, für die dieses Konto legitim kaufen kann."
+        },
+        "upcomingRuns": {
+          "label": "Ausführungen in 21 Tagen",
+          "meta": "Anstehende Beschaffungszyklen, die Bereitschaftsprüfungen benötigen."
+        }
+      },
+      "subtitle": "Verwalten Sie Nachbestellrhythmus, wiederkehrende Beschaffungskorridore und geschäftsfreigegebene Nachfrage, ohne aus den Augen zu verlieren, für welches Unternehmen die Bestellung ist.",
+      "title": "Dashboard Geschäftliche Beschaffung"
+    },
+    "requestDetail": {
+      "backToSourcing": "← Zurück zur Beschaffung",
+      "defaultDescription": "Keine Beschreibung angegeben.",
+      "labels": {
+        "budgetMax": "Budget max.",
+        "business": "Unternehmen",
+        "category": "Kategorie",
+        "customMfg": "Kundenspezifische Fertigung",
+        "days": "Tage",
+        "deadline": "Frist",
+        "destination": "Ziel",
+        "freightEst": "Fracht gesch.",
+        "leadTime": "Vorlaufzeit",
+        "no": "Nein",
+        "preferredFreight": "Bevorzugte Fracht",
+        "privateLabel": "Eigenmarke",
+        "quotedQty": "Angebotene Menge",
+        "structuredSpecs": "Strukturierte Spezifikationen",
+        "targetPrice": "Zielpreis",
+        "targetQuantity": "Zielmenge",
+        "unitPrice": "Stückpreis",
+        "yes": "Ja"
+      },
+      "loading": "Wird geladen…",
+      "notFound": "Beschaffungsanfrage nicht gefunden.",
+      "quotes": {
+        "empty": "Noch keine Lieferantenangebote.",
+        "supplier": "Lieferant #{{id}}",
+        "title": "Angebote ({{count}})"
+      },
+      "sections": {
+        "specifications": "Spezifikationen"
+      },
+      "values": {
+        "personalRequest": "Persönliche Anfrage"
+      }
+    },
+    "shipmentDetail": {
+      "backToShipments": "← Zurück zu Sendungen",
+      "defaults": {
+        "document": "Dokument",
+        "noLocation": "Kein Standort",
+        "noNotes": "Keine Notizen.",
+        "shipment": "Sendung"
+      },
+      "empty": {
+        "documents": "Keine Versanddokumente hochgeladen.",
+        "milestones": "Noch keine Meilensteine erfasst."
+      },
+      "labels": {
+        "bookingRef": "Buchungsref.",
+        "carrier": "Frachtführer",
+        "destinationPort": "Zielhafen",
+        "eta": "ETA",
+        "kg": "kg",
+        "originPort": "Ursprungshafen",
+        "totalCartons": "Kartons gesamt",
+        "totalCbm": "CBM gesamt",
+        "totalWeight": "Gesamtgewicht",
+        "trackingNumber": "Sendungsnummer"
+      },
+      "loadError": "Sendung konnte nicht geladen werden.",
+      "loading": "Wird geladen…",
+      "notFound": "Sendung nicht gefunden.",
+      "sections": {
+        "details": "Sendungsdetails",
+        "documents": "Dokumente ({{count}})",
+        "milestones": "Meilensteine"
+      }
+    },
+    "tables": {
+      "actions": "Aktionen",
+      "view": "Ansehen",
+      "preview": "Vorschau"
+    },
+    "checkout": {
+      "backToDashboard": "Zurück zum Käufer-Dashboard",
+      "backToOrder": "Zurück zur Bestellung",
+      "confirm": {
+        "back": "Zurück zur Zahlungsmethode",
+        "button": "Bestätigen und {{amount}} zahlen",
+        "checkbox": "Ich bestätige, dass OxSteed {{amount}} per {{method}} für {{installment}} der Bestellung {{reference}} abbuchen soll.",
+        "continue": "Weiter zur Bestätigung",
+        "line": "Sie sind dabei, {{amount}} ({{installment}}) für die Bestellung {{reference}} per {{method}} zu zahlen.",
+        "mustCheck": "Bitte setzen Sie den Haken im Bestätigungsfeld, um fortzufahren.",
+        "noAutoCharge": "Keine gespeicherten Karten. Jede Abbuchung braucht hier Ihre ausdrückliche Bestätigung.",
+        "quoteNotAccepted": "Akzeptieren Sie die aktuelle Angebotsversion, bevor Sie die Zahlung bestätigen.",
+        "reviewTitle": "Prüfen und bestätigen",
+        "submitting": "Zahlung wird übermittelt…"
+      },
+      "errors": {
+        "duplicate": "Diese Zahlung wurde bereits übermittelt. Prüfen Sie den Zahlungsstatus, statt erneut zu zahlen.",
+        "generic": "Etwas ist schiefgelaufen. Bitte versuchen Sie es erneut.",
+        "quoteChanged": "Das Angebot hat sich während des Checkouts geändert. Prüfen Sie die neue Version vor der Zahlung.",
+        "paymentsDisabled": "Online-Zahlungen sind noch nicht aktiviert. Bitte versuchen Sie es später erneut."
+      },
+      "loadError": "Dieser Checkout konnte nicht geladen werden. Bitte versuchen Sie es erneut.",
+      "loading": "Checkout wird geladen…",
+      "method": {
+        "cardDetails": "Kartendaten",
+        "cardNote": "Kartendaten werden von Stripe verarbeitet. OxSteed sieht Ihre Kartennummer nie und speichert sie nicht.",
+        "choose": "Wählen Sie, wie Sie diese Rate zahlen",
+        "credit": "OxSteed-Guthaben",
+        "creditBalance": "Verfügbares Guthaben: {{amount}}",
+        "creditDesc": "Zahlen Sie mit Ihrem OxSteed-Guthaben.",
+        "creditDisabled": "OxSteed-Guthaben ist vorübergehend nicht verfügbar",
+        "creditDisabledDetail": "Guthabenzahlungen sind derzeit deaktiviert, daher kann diese Rate nicht vom Guthaben abgebucht werden. Sie können weiterhin per Karte zahlen.",
+        "creditInsufficient": "Unzureichendes Guthaben",
+        "creditNotEligible": "Diese Bestellung ist nicht für die Guthabenzahlung geeignet.",
+        "creditShortfall": "Ihnen fehlen {{amount}} zum Betrag von {{installment}}.",
+        "creditTopUpHint": "Laden Sie Ihr Guthaben auf oder fahren Sie stattdessen mit Karte fort.",
+        "oneMethodNote": "Jede Rate wird mit genau einer Methode gezahlt. Keine gemischte Finanzierung, und nichts wird ohne Ihre ausdrückliche Bestätigung abgebucht.",
+        "payWithCardInstead": "Stattdessen mit Karte zahlen",
+        "stripe": "Karte via Stripe",
+        "stripeDesc": "Zahlen Sie mit Debit- oder Kreditkarte. Sie geben die Kartendaten jedes Mal ein; nichts wird gespeichert oder automatisch abgebucht.",
+        "stripeUnavailable": "Kartenzahlungen sind derzeit nicht verfügbar. Bitte versuchen Sie es später erneut oder nutzen Sie das OxSteed-Guthaben.",
+        "creditBalanceUnknown": "Ihr Kreditguthaben wird geprüft, wenn Sie die Zahlung bestätigen."
+      },
+      "missingSubject": "Für den Checkout wurde keine Bestellung oder Kampagne ausgewählt.",
+      "payments": {
+        "awaitingBadge": "Abwicklung ausstehend",
+        "empty": "Noch keine Zahlungsversuche.",
+        "headers": {
+          "amount": "Betrag",
+          "date": "Datum",
+          "installment": "Rate",
+          "method": "Methode",
+          "reference": "Referenz",
+          "status": "Status"
+        },
+        "settledBadge": "Abgewickelt",
+        "states": {
+          "failed": "Fehlgeschlagen",
+          "pending": "Ausstehend",
+          "processing": "Wird verarbeitet",
+          "refunded": "Erstattet",
+          "succeeded": "Erfolgreich",
+          "canceled": "Abgebrochen",
+          "superseded": "Doppelte Belastung prüfen"
+        },
+        "subtitle": "Jeder Zahlungsversuch, mit von OxSteed bestätigter Abwicklung.",
+        "title": "Meine Logistikzahlungen"
+      },
+      "quote": {
+        "acceptedOn": "Akzeptiert am {{date}}",
+        "depositPercent": "Die Anzahlung beträgt {{percent}} % der Angebotssumme gemäß dem genehmigten Angebot.",
+        "expired": "Dieses Angebot ist am {{date}} abgelaufen. Fordern Sie vor der Zahlung ein neues Angebot beim Betrieb an.",
+        "expiresOn": "Angebot gültig bis {{date}}",
+        "itemized": "Aufgeschlüsselte Kosten",
+        "newVersionAvailable": "Eine neuere Angebotsversion braucht vor der Zahlung Ihre Zustimmung.",
+        "supersededBlocked": "Dieses Angebot wurde durch Version {{version}} ersetzt. Prüfen und akzeptieren Sie die neue Version vor der Zahlung.",
+        "total": "Angebotssumme",
+        "version": "Angebot Version {{version}}"
+      },
+      "returnTo": "Zurück zu {{label}}",
+      "schedule": {
+        "alreadySettled": "Diese Rate ist abgewickelt. Es ist nichts mehr zu zahlen.",
+        "deposit": "Anzahlung",
+        "dueNow": "Jetzt fällig",
+        "dueOn": "Fällig am {{date}}",
+        "final": "Restbetrag",
+        "paid": "Bezahlt",
+        "payNow": "{{installment}} zahlen",
+        "processing": "Zahlung wird verarbeitet",
+        "settled": "Abgewickelt",
+        "unpaid": "Zahlung ausstehend"
+      },
+      "sections": {
+        "confirm": "Zahlung bestätigen",
+        "method": "Zahlungsmethode",
+        "quote": "Angebot",
+        "schedule": "Zahlungsplan",
+        "status": "Zahlungsstatus",
+        "summary": "Bestellübersicht",
+        "terms": "Stornobedingungen"
+      },
+      "status": {
+        "amount": "Betrag",
+        "attempt": "Versuch {{id}}",
+        "checking": "Zahlungsstatus wird geprüft…",
+        "createdAt": "Gestartet am {{date}}",
+        "failed": "Zahlung fehlgeschlagen",
+        "failedDetail": "Grund: {{message}}",
+        "failedUnknown": "Die Zahlung ist nicht durchgegangen. Es wurde kein Geld abgebucht.",
+        "installment": "Rate",
+        "method": "Methode",
+        "newKeyNote": "Zahlung fortsetzen",
+        "notSettled": "Die Gelder sind noch nicht abgewickelt. Wir bestätigen hier, sobald die Zahlung eingegangen ist.",
+        "pending": "Zahlung ausstehend",
+        "processing": "Ihre Zahlung wird verarbeitet…",
+        "received": "Wir haben Ihre Zahlungsbestätigung erhalten.",
+        "refresh": "Status aktualisieren",
+        "refunded": "Erstattet",
+        "retry": "Mit einem neuen Zahlungsversuch erneut versuchen",
+        "settled": "Zahlung abgewickelt",
+        "settledDetail": "OxSteed hat den Erhalt von {{amount}} bestätigt. Ihre Rate ist abgeschlossen.",
+        "viewAll": "Alle meine Zahlungen ansehen"
+      },
+      "subtitle": "Prüfen Sie Ihr Angebot und bestätigen Sie jede Rate einzeln.",
+      "summary": {
+        "expectedArrival": "Voraussichtliche Ankunft",
+        "lane": "Route",
+        "product": "Produkt",
+        "quantity": "Menge",
+        "reference": "Referenz",
+        "status": "Status",
+        "supplier": "Lieferant"
+      },
+      "title": "Sicherer Checkout",
+      "usdOnly": "Alle Beträge in USD.",
+      "creditUnavailableFallback": "OxSteed Credit ist für den Logistik-Checkout nicht verfügbar",
+      "noQuote": {
+        "body": "Operations hat noch kein zahlbares Angebot für diese Bestellung veröffentlicht. Wir benachrichtigen Sie, sobald es bereit ist. Derzeit ist keine Zahlung fällig.",
+        "title": "Noch kein Angebot bereit"
+      }
+    },
+    "quotes": {
+      "accept": {
+        "accepted": "Angebot Version {{version}} akzeptiert. Sie können jetzt zahlen.",
+        "accepting": "Wird akzeptiert…",
+        "body": "Version {{version}} ersetzt Version {{previous}}. Prüfen Sie die Änderungen und akzeptieren Sie sie, um zur Zahlung zu gelangen. Mit der alten Version kann nicht gezahlt werden.",
+        "button": "Angebot Version {{version}} akzeptieren",
+        "cannotPayOld": "Die Zahlung ist pausiert, bis Sie das aktuelle Angebot akzeptieren.",
+        "decline": "Nicht jetzt",
+        "title": "Ein neues Angebot braucht Ihre Zustimmung"
+      },
+      "current": "Aktuell",
+      "decrease": "Senkung",
+      "diff": {
+        "added": "Hinzugefügt",
+        "changed": "Geändert",
+        "noChanges": "Keine Positionsänderungen in dieser Version.",
+        "now": "Jetzt {{amount}}",
+        "removed": "Entfernt",
+        "title": "Was sich geändert hat",
+        "totalChange": "Summe geändert um {{amount}}",
+        "was": "War {{amount}}"
+      },
+      "increase": "Erhöhung",
+      "superseded": "Ersetzt",
+      "version": "Version {{version}}",
+      "notif": {
+        "accepted": {
+          "body": "Der Käufer hat ein Logistikangebot angenommen. Die Raten können nun eingezogen werden.",
+          "title": "Käufer hat ein Logistikangebot angenommen"
+        },
+        "published": {
+          "body": "Eine neue Version Ihres Logistikangebots ist bereit. Prüfen und akzeptieren Sie sie vor der Zahlung.",
+          "title": "Neues Angebot wartet auf Annahme"
+        }
+      }
+    },
+    "refunds": {
+      "title": "Logistik-Rückerstattungen",
+      "subtitle": "Doppelte Admin-Prüfung: Ein Administrator schlägt vor, ein anderer genehmigt mit frischer Authentifizierung, dann wird die Rückerstattung ausgeführt.",
+      "proposeButton": "Rückerstattung vorschlagen",
+      "filterStatus": "Nach Status filtern",
+      "allStatuses": "Alle Status",
+      "thReference": "Referenz",
+      "thAmount": "Betrag",
+      "thMethod": "Methode",
+      "thReason": "Grund",
+      "thProposer": "Vorgeschlagen von",
+      "thStatus": "Status",
+      "thCreated": "Erstellt",
+      "review": "Prüfen",
+      "empty": "Keine Rückerstattungsfälle für diesen Filter.",
+      "loading": "Rückerstattungsfälle werden geladen...",
+      "cancel": "Abbrechen",
+      "submit": "Vorschlag senden",
+      "verify": "Verifizieren",
+      "system": "System",
+      "status": {
+        "proposed": "Vorgeschlagen",
+        "approved": "Genehmigt",
+        "executing": "Wird ausgeführt",
+        "processed": "Verarbeitet",
+        "failed": "Fehlgeschlagen",
+        "rejected": "Abgelehnt",
+        "expired": "Abgelaufen",
+        "pending": "Ausstehend",
+        "reviewing": "In Prüfung"
+      },
+      "method": {
+        "stripe": "Stripe",
+        "credit": "OxSteed Credit"
+      },
+      "dAmount": "Betrag",
+      "dMethod": "Methode",
+      "dPaymentAttempt": "Zahlungsversuch",
+      "dReason": "Grund",
+      "dProposer": "Vorgeschlagen von",
+      "dApprover": "Genehmigt von",
+      "dFreshAuthAt": "Frische Authentifizierung des Genehmigers",
+      "dProcessorRef": "Prozessor-Referenz",
+      "dRejectionReason": "Ablehnungsgrund",
+      "dStatus": "Status",
+      "dDecisions": "Entscheidungsverlauf",
+      "selfApprovalBlocked": "Sie haben diese Rückerstattung vorgeschlagen. Ein anderer Administrator muss sie genehmigen. Selbstgenehmigung ist nicht erlaubt.",
+      "approveButtonStepup": "Identität verifizieren und genehmigen",
+      "approveButton": "Rückerstattung genehmigen",
+      "rejectButton": "Ablehnen",
+      "executeButton": "Rückerstattung ausführen",
+      "executingNote": "Ausführung läuft. Der Fall wird aktualisiert, sobald der Prozessor bestätigt.",
+      "executeConfirmBody": "Diese genehmigte Rückerstattung jetzt ausführen? Das Geld kehrt zur ursprünglichen Zahlungsquelle zurück.",
+      "toastProposed": "Rückerstattung vorgeschlagen. Ein anderer Administrator muss sie genehmigen.",
+      "toastApproved": "Rückerstattung genehmigt.",
+      "toastRejected": "Rückerstattung abgelehnt.",
+      "toastExecuted": "Rückerstattung ausgeführt und verarbeitet.",
+      "toastExecuteFailed": "Ausführung fehlgeschlagen. Der Fall wurde in die Abstimmungs-Warteschlange gestellt.",
+      "toastExecuteReplayed": "Die Rückerstattung war bereits verarbeitet.",
+      "toastStepupOk": "Identität verifiziert. Sie können jetzt genehmigen.",
+      "toastStepupFailed": "Verifizierung fehlgeschlagen. Prüfen Sie den Code und versuchen Sie es erneut.",
+      "proposeTitle": "Rückerstattung vorschlagen",
+      "fPaymentAttemptId": "Zahlungsversuch-ID",
+      "fPaymentAttemptHelp": "Der ursprüngliche Logistik-Zahlungsversuch, der erstattet wird. Der Betrag ist auf den verbleibenden erstattungsfähigen Saldo begrenzt.",
+      "fAmountUsd": "Betrag (USD)",
+      "fMethod": "Rückerstattungsmethode",
+      "fReason": "Grund",
+      "proposeInvalid": "Geben Sie einen Zahlungsversuch, einen gültigen Betrag und einen Grund ein.",
+      "stepupTitle": "Identität verifizieren",
+      "stepupBody": "Die Genehmigung einer Rückerstattung erfordert eine frische Authentifizierung. Geben Sie den 6-stelligen Code Ihrer Authenticator-App ein.",
+      "fCode": "Authentifizierungscode",
+      "rejectTitle": "Rückerstattungsvorschlag ablehnen",
+      "fRejectReason": "Ablehnungsgrund",
+      "rejectReasonRequired": "Ein Ablehnungsgrund ist erforderlich.",
+      "rejectConfirm": "Vorschlag ablehnen",
+      "movedNotice": "Rückerstattungsprüfungen sind auf die Dual-Admin-Rückerstattungsseite umgezogen. Direktes Bearbeiten des Status ist nicht mehr möglich.",
+      "openReviewPage": "Rückerstattungsprüfung öffnen"
+    },
+    "refund_pending": {
+      "body": "Ihre Logistik-Rückerstattung ist unterwegs. Ihr Zahlungsanbieter verarbeitet sie noch; wir bestätigen, sobald sie Ihre ursprüngliche Zahlungsmethode erreicht.",
+      "title": "Rückerstattung ausstehend"
+    },
+    "blockers": {
+      "allocation_not_found": "Die Bestandzuweisung wurde nicht gefunden.",
+      "campaign_not_found": "Die Kampagne wurde nicht gefunden.",
+      "deposit_deadline_missing": "Legen Sie eine explizite Einzahlungsfrist fest, bevor Sie das Einzahlungsfenster öffnen.",
+      "deposit_funding_shortfall": "Die per Einzahlung finanzierte Menge liegt unter dem Kampagnenminimum. Die Lieferantenbestellung kann nicht aufgegeben werden.",
+      "final_balance_not_collected": "Der Restbetrag des Käufers wurde noch nicht eingezogen. Die Ware kann nicht freigegeben werden.",
+      "guard_check_failed": "Die Voraussetzungen für diese Aktion konnten nicht geprüft werden.",
+      "min_demand_not_met": "Die Mindestnachfrage ist noch nicht erreicht. Das Einzahlungsfenster kann nicht geöffnet werden.",
+      "no_approved_quote": "Vor dem Öffnen des Einzahlungsfensters ist ein genehmigtes (angenommenes) Lieferantenangebot erforderlich.",
+      "no_payment_subject_linked": "Diese Zuweisung ist mit keiner zahlbaren Bestellung oder Teilnahme verknüpft, daher kann die Zahlung nicht verifiziert werden.",
+      "placement_approval_missing": "Die Lieferantenplatzierung erfordert eine von Operations erfasste Platzierungsgenehmigung."
+    },
+    "review_exceptions": {
+      "funding_shortfall": "Unzureichende Finanzierung bei Fälligkeit der Einzahlung",
+      "min_demand_unmet": "Mindestnachfrage bei Zusageschluss nicht erreicht",
+      "raised_note": "Finanzierungsfrist verpasst; an das Team zur Klärung weitergeleitet. Die Kampagne wurde nicht fortgesetzt."
+    },
+    "staff": {
+      "title": "Logistikbetrieb",
+      "quoteEditor": "Käuferangebot erstellen",
+      "subject": "Bestellung oder Teilnahme",
+      "order": "Einkaufsbestellung",
+      "participant": "Kampagnenteilnahme",
+      "id": "Datensatz-ID",
+      "description": "Beschreibung",
+      "amount": "Betrag (USD)",
+      "depositPercent": "Anzahlung (%)",
+      "deadline": "Anzahlungsfrist",
+      "finalDeadline": "Restzahlungsfrist",
+      "save": "Entwurf speichern",
+      "publish": "Angebot veröffentlichen",
+      "campaign": "Kampagnen-ID",
+      "placement": "Lieferantenbestellung genehmigen",
+      "openDeposit": "Anzahlungszeitraum öffnen",
+      "queues": "Prüfliste",
+      "notes": "Prüfnotizen",
+      "resolve": "Erledigen",
+      "refresh": "Aktualisieren",
+      "cancelPayment": "Unbestätigte Zahlung abbrechen",
+      "resume": "Zahlung fortsetzen",
+      "reconciled": "Doppelte Belastung prüfen",
+      "empty": "Keine offenen Einträge",
+      "reviewHint": "Eine Prüfung bewegt kein Geld und gibt keine Waren frei."
     }
   },
   "investorLogin": {

@@ -124,7 +124,7 @@ function assertAttemptRefundable(attempt) {
   }
   // logistics_payment_attempts (879): only 'succeeded' attempts hold settled
   // funds that can be returned.
-  if (!['succeeded'].includes(attempt.status)) {
+  if (!['succeeded','superseded'].includes(attempt.status) || (attempt.status==='superseded' && attempt.method!=='stripe')) {
     throw new AppError(`Payment attempt is not in a refundable state (status: ${attempt.status}).`, 409, 'refund_payment_not_refundable');
   }
 }

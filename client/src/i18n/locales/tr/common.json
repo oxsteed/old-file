@@ -1368,6 +1368,1118 @@
     }
   },
   "logistics": {
+    "forms": {
+      "unsavedChanges": {
+        "title": "Kaydedilmemiş değişiklikler atılsın mı?",
+        "body": "Kaydedilmemiş değişiklikleriniz var. Şimdi ayrılırsanız girdikleriniz kaybolur.",
+        "stay": "Düzenlemeye devam et",
+        "discard": "Değişiklikleri at"
+      }
+    },
+    "workspace": {
+      "business": {
+        "recentActivity": {
+          "empty": "Henüz burada bir şey yok."
+        },
+        "nextStep": {
+          "reviewRuns": {
+            "label": "Yaklaşan çalışmaları incele",
+            "hint": "21 gün içinde {{count}} program çalışması var. Miktar, güzergah ve varış noktasını kontrol edin."
+          },
+          "createProgram": {
+            "label": "Tekrarlayan program oluştur",
+            "hint": "Henüz stok yenileme programı yok. Tekrarlayan talep için bir ritim belirleyin."
+          },
+          "newRequest": {
+            "label": "İşletme talebi aç",
+            "hint": "Programlar çalışıyor. Yeni talebi işletmelerinizden birine bağlayın."
+          }
+        }
+      },
+      "buyer": {
+        "recentActivity": {
+          "empty": "Henüz burada bir şey yok."
+        },
+        "nextStep": {
+          "browseCampaigns": {
+            "label": "Kampanyalara göz at",
+            "hint": "Aktif talep yok. Katılmak veya izlemek için toplu bir kampanya bulun."
+          },
+          "reviewShipments": {
+            "label": "Riskli sevkiyatları incele",
+            "hint": "{{count}} sevkiyat takip gerektiriyor."
+          },
+          "startRequest": {
+            "label": "Tedarik talebi başlat",
+            "hint": "Her şey yolunda. Hazır olduğunuzda yeni talep açın."
+          }
+        }
+      },
+      "distributor": {
+        "recentActivity": {
+          "empty": "Henüz burada bir şey yok."
+        },
+        "nextStep": {
+          "failedDeliveries": {
+            "label": "Başarısız teslimatları incele",
+            "hint": "{{count}} teslimat başarısız oldu veya iptal edildi; yeniden yönlendirme gerekebilir."
+          },
+          "releaseLots": {
+            "label": "Bekleyen partileri serbest bırak",
+            "hint": "{{count}} parti tahsis edildi ama henüz serbest bırakılmadı."
+          },
+          "warehouse": {
+            "label": "Depo hazırlığını kontrol et",
+            "hint": "Kuyruk boş. Stoğun tahsise hazır olduğundan emin olun."
+          }
+        }
+      },
+      "organizer": {
+        "recentActivity": {
+          "empty": "Henüz burada bir şey yok."
+        },
+        "nextStep": {
+          "momentum": {
+            "label": "MOQ ivmesini artır",
+            "hint": "{{count}} kampanya MOQ’nun yarısının altında ve daha fazla katılımcı gerekiyor."
+          },
+          "browse": {
+            "label": "Kampanyalara göz at",
+            "hint": "Henüz koordine ettiğiniz kampanya yok. Katılmak için bir tane bulun."
+          },
+          "handoffs": {
+            "label": "Teslimatları koordine et",
+            "hint": "Talep toplandı. Alıcılara teslimatları sürdürün."
+          }
+        }
+      },
+      "nextStep": {
+        "title": "Sonraki adımınız"
+      },
+      "recentActivity": {
+        "title": "Son aktiviteler",
+        "empty": "Henüz bir şey yok. Yeni aktiviteler burada görünecek."
+      },
+      "dataError": {
+        "title": "Veri kullanılamıyor",
+        "body": "Çalışma alanınız şu anda yüklenemedi. Lütfen tekrar deneyin.",
+        "retry": "Tekrar dene"
+      }
+    },
+    "nav": {
+      "home": "Lojistik",
+      "campaigns": "Kampanyalar",
+      "sourcing": "Tedarik",
+      "orders": "Siparişler",
+      "shipments": "Sevkiyatlar",
+      "warehousing": "Depolama",
+      "compliance": "Uyumluluk",
+      "finance": "Finans",
+      "adminControl": "Yönetici kontrolü",
+      "businessProcurement": "Kurumsal satın alma",
+      "buyer": "Alıcı",
+      "distributor": "Distribütör",
+      "hub": "Göz at",
+      "label": "Lojistik çalışma alanları",
+      "operations": "Operasyonlar",
+      "organizer": "Organizatör"
+    },
+    "home": {
+      "title": "OxSteed Lojistik",
+      "subtitle": "Uçtan uca ithalat, tedarik, ortak satın alma ve dağıtım.",
+      "openCampaigns": "Açık Kampanyalar",
+      "myCampaigns": "Katılımlarım",
+      "recentOrders": "Son Siparişler",
+      "joinCampaign": "Katıl",
+      "ctaTitle": "Küresel ölçekte tedarik yapmaya hazır mısınız?",
+      "ctaSubtitle": "Kampanyalara katılmak ve sipariş vermek için hesap oluşturun veya giriş yapın.",
+      "signUp": "Kaydol",
+      "logIn": "Giriş Yap",
+      "noCampaigns": "Şu anda açık kampanya yok.",
+      "noParticipation": "Henüz hiçbir kampanyaya katılmadınız.",
+      "noOrders": "Henüz sipariş yok.",
+      "moqProgress": "MOQ'nun %{{pct}}'si tamamlandı",
+      "closes": "Kapanış",
+      "deposit": "Depozito",
+      "perUnit": "/ birim",
+      "heroTitle": "Küresel tedarik zincirleri şirketler için kuruldu.",
+      "heroSubtitle": "Biz ise 200 birime ihtiyacı olan alıcı, Haiti'ye sevkiyat yapan organizatör ve navlun komisyoncusuna bütçe ayıramayan işletme için bir tane kurduk.",
+      "openWorkspace": "Çalışma alanınızı açın →",
+      "getStarted": "Hemen başlayın",
+      "browseOpenCampaigns": "Açık kampanyalara göz atın",
+      "viewAll": "Tümünü görüntüle",
+      "readyToStart": "Başlamaya hazır mısınız?",
+      "readyToStartBody": "İlk tedarikçi iletişiminden son kilometre teslimata kadar tedarik, ortak satın alma ve tam tedarik zinciri görünürlüğüne erişmek için katılın.",
+      "createAccount": "Hesap oluşturun",
+      "unitsProgress": "{{current}} / {{target}} {{units}}",
+      "whyCards": {
+        "moq": {
+          "heading": "Minimum sipariş sorunu",
+          "body": "Üreticiler minimumları fabrikalar için belirler, bireyler için değil. Çoğu alıcı fiyat yüzünden değil, hacim yüzünden dışarıda kalır. Kampanyalar, hesap herkes için tutana kadar talebi birleştirir."
+        },
+        "compliance": {
+          "heading": "Uyumluluk isteğe bağlı değildir",
+          "body": "Her sevkiyat düzenlemelerle karşılaşır: ticaret kuralları, vergiler, kısıtlı kategoriler, ithalat lisansları. OxSteed, kısıtlamaları mallarınız gümrükte bekletildikten sonra değil, taahhütte bulunmadan önce gösterir."
+        },
+        "lastmile": {
+          "heading": "Son kilometre başlı başına bir sorundur",
+          "body": "Mallar limana ulaşır. Peki sonra? Depolama, tahsis ve teslimat siparişleri. Her biri ayrı bir devir teslimdir. OxSteed zinciri koordine eder, böylece her adım bir sonrakinin neye ihtiyacı olduğunu bilir."
+        }
+      },
+      "howItWorksLink": "Nasıl çalışır",
+      "partOfOxsteed": "OxSteed'in bir parçası: yerel yardım bulma, yemek siparişi ve mal taşıma için aynı güvenilir ağ.",
+      "howItWorks": {
+        "title": "Nasıl çalışır",
+        "subtitle": "Tedarikçiden kapınıza tek bir ortak sevkiyat.",
+        "pool": {
+          "heading": "Talebi birleştirin",
+          "body": "Açık bir kampanyaya katılın veya kendiniz başlatın. Her alıcı, ihtiyacı olan birimleri tek bir ortak siparişe taahhüt eder."
+        },
+        "minimum": {
+          "heading": "Minimuma ulaşın",
+          "body": "Taahhütler üreticinin minimum siparişine ulaştığında depozitolar toplanır ve kampanya kilitlenir. Minimuma hiç ulaşılamazsa depozitolar iade edilir."
+        },
+        "chain": {
+          "heading": "Zinciri biz yönetiyoruz",
+          "body": "Navlun, gümrük, depolama ve son kilometre teslimat; mallarınız ulaşana kadar her adımda takip edilir."
+        }
+      },
+      "roles": {
+        "title": "Siz hangisisiniz?",
+        "subtitle": "Yapmak istediğinize uygun yolu seçin.",
+        "buyer": {
+          "intent": "Satın almak istiyorum",
+          "heading": "Grup sevkiyatına katılın",
+          "body": "Açık kampanyalara göz atın, ihtiyacınız olan birimleri taahhüt edin ve mallarınızı fabrikadan kapınıza kadar takip edin.",
+          "cta": "Kampanyalara göz atın"
+        },
+        "organizer": {
+          "intent": "Organize etmek istiyorum",
+          "heading": "Grup alımı yönetin",
+          "body": "Topluluğunuzun ihtiyaç duyduğu ürünler için bir kampanya başlatın, alıcıları toplayın ve sevkiyatı koordine edin.",
+          "cta": "Kampanya başlatın"
+        },
+        "business": {
+          "intent": "Bir işletmeyim",
+          "heading": "Komisyoncu olmadan stok yenileyin",
+          "body": "Güzergâh duyarlı satın alma ile düzenli tedarik ve stok yenileme planlaması, navlun komisyoncusu ücretleri olmadan.",
+          "cta": "Tedariği keşfedin"
+        }
+      }
+    },
+    "complianceWorkspace": {
+      "navLabel": "Uyumluluk bölümleri",
+      "title": "Uyumluluk Çalışma Alanı",
+      "subtitle": "Her güzergâh için ticaret kurallarını ve operatör erişiminiz olduğunda gümrük hassasiyetli işlem kuyruğunu görün.",
+      "nav": {
+        "tradeRules": "Ticaret kuralları",
+        "reviewQueue": "İnceleme kuyruğu",
+        "customsOps": "Gümrük işlemleri",
+        "restrictions": "Kısıtlamalar"
+      },
+      "kpis": {
+        "lowRisk": "Düşük riskli güzergâhlar",
+        "managed": "Yönetilen güzergâhlar",
+        "restricted": "Kısıtlı güzergâhlar",
+        "prohibited": "Yasak güzergâhlar"
+      },
+      "cardTitleLaneMarketRules": "Güzergâh ve pazar kuralları",
+      "cardTitleOperator": "Operatör inceleme yaklaşımı",
+      "cardTitleCategoryRestrictions": "Kategori kısıtlamaları özeti",
+      "tableHeaders": {
+        "lane": "Güzergâh",
+        "countries": "Ülkeler",
+        "risk": "Risk",
+        "flags": "İşaretler",
+        "item": "Öğe",
+        "routeOrCountry": "Güzergâh / Ülke",
+        "country": "Ülke",
+        "status": "Durum",
+        "category": "Kategori"
+      },
+      "risk": {
+        "low": "Düşük",
+        "managed": "Yönetilen",
+        "restricted": "Kısıtlı",
+        "prohibited": "Yasak"
+      },
+      "flags": {
+        "open": "Açık",
+        "businessVerification": "İşletme doğrulaması",
+        "manualApproval": "Manuel onay"
+      },
+      "status": {
+        "approvalRequired": "Onay gerekli"
+      },
+      "empty": {
+        "noLanes": "Henüz kullanılabilir güzergâh yok.",
+        "noRestrictions": "Kullanılabilir kısıtlama yok."
+      },
+      "separator": "·",
+      "queueLabel": "Kuyruktaki gümrük hassasiyetli sevkiyatlar",
+      "metrics": {
+        "unavailableNote": "Metrik şu anda kullanılamıyor."
+      }
+    },
+    "operatorLogin": {
+      "copy": {
+        "compliance": {
+          "title": "Uyumluluk Çalışma Alanı Girişi",
+          "subtitle": "Dahili uyumluluk erişimi, parola ile girişten önce atanmış adınızı ve güvenlik anahtarınızı gerektirir."
+        },
+        "adminControl": {
+          "title": "Yönetici Kontrol Girişi",
+          "subtitle": "Dahili yönetici kontrolü yalnızca operatörlere özeldir. Devam etmek için bağlı yönetici hesabınızı kullanın."
+        },
+        "operations": {
+          "title": "Operasyon Çalışma Alanı Girişi",
+          "subtitle": "Dahili operasyon erişimi, parola ile girişten önce atanmış adınızı ve güvenlik anahtarınızı gerektirir."
+        }
+      },
+      "twoFaTitle": "İki Faktörlü Kimlik Doğrulama",
+      "twoFaPrompt": "Kimlik doğrulama uygulamanızdaki 6 haneli kodu veya bir yedek kodu girin.",
+      "labels": {
+        "email": "E-posta",
+        "password": "Parola",
+        "internalName": "Dahili ad",
+        "securityKey": "Güvenlik anahtarı",
+        "twoFaCode": "2FA Kodu"
+      },
+      "placeholders": {
+        "email": "operator@oxsteed.com",
+        "password": "Parolanızı girin",
+        "internalName": "Atanmış dahili adınız",
+        "securityKey": "Süper yönetici tarafından sağlanan güvenlik anahtarı"
+      },
+      "approvedAccountLabel": "Onaylı hesap",
+      "approvedAccountNote": "Bu giriş yalnızca şu OxSteed hesabıyla devam edebilir:",
+      "verifying": "Doğrulanıyor…",
+      "verify": "Doğrula",
+      "checking": "Kontrol ediliyor…",
+      "continue": "Devam Et",
+      "signingIn": "Giriş yapılıyor…",
+      "signIn": "Giriş Yap",
+      "locked": "Hesap Kilitli",
+      "requestRecoveryEmail": "Kurtarma e-postası isteyin",
+      "recoveryPrompt": "Kayıtlı kurtarma e-postasını girin:",
+      "resetIdentity": "Farklı bir dahili erişim kimliği kullanın",
+      "footer": {
+        "internalKeyRequired": "Operasyon ve Uyumluluk erişimi artık süper yönetici tarafından verilmiş bir dahili ad ve güvenlik anahtarı gerektirir.",
+        "adminOnly": "Bu portala yalnızca yönetici veya süper yönetici rolüne sahip kullanıcılar girebilir.",
+        "standardSignIn": "Standart OxSteed girişine gidin"
+      },
+      "errors": {
+        "tooManyAttempts": "Çok fazla başarısız deneme. {{minutes}} dakika sonra tekrar deneyin.",
+        "tooManyAttemptsLocked": "Çok fazla başarısız deneme. Süre dolana kadar kilitli.",
+        "internalNameAndKeyRequired": "Ad ve güvenlik anahtarı gereklidir.",
+        "internalAccessFailed": "Dahili erişim doğrulaması başarısız oldu.",
+        "lockedRecovery": "Erişim geçici olarak kilitlendi. Kurtarma e-postası isteyin veya bir süper yöneticiyle iletişime geçin.",
+        "invalidCredentialsRemaining": "Geçersiz kimlik bilgileri. Kilitlenmeden önce {{attemptsLeft}} deneme kaldı.",
+        "recoveryEmailSent": "Bu e-posta kurtarma için yetkilendirilmişse, tek kullanımlık bir bağlantı gönderildi. Gelen kutunuzu kontrol edin.",
+        "recoveryEmailFailed": "Kurtarma e-postası istenemedi.",
+        "internalAccessRequired": "Önce dahili erişim doğrulamasını tamamlayın.",
+        "passwordRequired": "Parola gereklidir.",
+        "passwordLocked": "Çok fazla başarısız deneme nedeniyle erişim geçici olarak kilitlendi.",
+        "passwordFailed": "Giriş başarısız oldu. Lütfen parolanızı kontrol edin.",
+        "emailAndPasswordRequired": "E-posta ve parola gereklidir.",
+        "accountLocked": "Çok fazla başarısız deneme nedeniyle hesap geçici olarak kilitlendi.",
+        "credentialsFailed": "Giriş başarısız oldu. Lütfen kimlik bilgilerinizi kontrol edin.",
+        "twoFaExpired": "2FA oturumunuzun süresi doldu. Lütfen tekrar giriş yapın.",
+        "twoFaCodeRequired": "Lütfen 2FA kodunuzu girin.",
+        "operatorPrivilegesRequired": "Erişim reddedildi. Lojistik operatör yetkileri gereklidir.",
+        "invalid2Fa": "Geçersiz 2FA kodu."
+      }
+    },
+    "campaigns": {
+      "title": "Ortak Kampanyalar",
+      "subtitle": "Konteyner maliyetlerini paylaşmak ve toptan fiyatların kilidini açmak için bir kampanyaya katılın.",
+      "openOnly": "Yalnızca açık",
+      "allLanes": "Tüm güzergâhlar",
+      "noCampaigns": "Filtrelerinize uyan kampanya yok.",
+      "moq": "MOQ",
+      "units": "birim",
+      "closesIn": "{{days}} gün içinde kapanıyor",
+      "closedOn": "Kapalı",
+      "deposit": "Depozito",
+      "participants": "katılımcı",
+      "joined": "Katıldınız",
+      "viewDetails": "Detayları Görüntüle",
+      "emptyTitle": "Şu anda eşleşen kampanya yok",
+      "emptyExplainer": "Kampanya bir grup siparişidir: alıcılar, tek bir ortak sevkiyat için birim taahhüt eder. Taahhütler üreticinin minimumuna ulaştığında sipariş verilir ve OxSteed zinciri yönetir.",
+      "exampleLabel": "Örnek",
+      "exampleTitle": "Güneş enerjili fenerler, toptan paket",
+      "howItWorks": "Nasıl çalışır",
+      "unitEconomics": "Birim Ekonomisi",
+      "timeline": "Zaman Çizelgesi",
+      "startRequest": "Talep Başlatın",
+      "perUnit": "/birim teslim",
+      "participant": "Katılımcı",
+      "organizer": "Organizatör",
+      "openDate": "Açılış Tarihi",
+      "myStatus": "Durumum",
+      "moqReached": "MOQ'a Ulaşıldı!",
+      "lockDate": "Kilitlenme Tarihi",
+      "newCampaign": "Yeni kampanya başlat",
+      "new": {
+        "title": "Yeni kampanya başlat",
+        "subtitle": "Toplu kampanya taslağınızı oluşturun. Hazır olduğunda inceleyin ve Operasyon onayına gönderin.",
+        "fieldTitle": "Kampanya başlığı",
+        "titlePlaceholder": "örn. 2.000 adet güneş feneri",
+        "fieldDescription": "Açıklama",
+        "descriptionPlaceholder": "Alıcılar ne alacak? Temel özellikler, miktarlar ve katılma nedenleri.",
+        "fieldLane": "Ticaret hattı",
+        "lanePlaceholder": "Ticaret hattı seçin",
+        "lanesFailed": "Ticaret hatları yüklenemedi.",
+        "laneChecks": "Hat kontrolleri",
+        "riskTier": "Risk seviyesi",
+        "laneNeedsBusiness": "Bu hatta kampanya yürütmek için işletme doğrulaması gerekir.",
+        "laneNeedsManual": "Bu kampanya yayınlanmadan önce manuel uyumluluk onayı gerekir.",
+        "fieldTargetMoq": "Minimum miktar (MOQ)",
+        "fieldMaxParticipants": "Maks. katılımcı (isteğe bağlı)",
+        "fieldCloseDate": "Taahhüt kapanış tarihi",
+        "fieldLockDate": "Kilitlenme tarihi",
+        "fieldShipDate": "Beklenen sevkiyat tarihi",
+        "fieldArrivalDate": "Beklenen varış tarihi",
+        "pricingHeading": "Fiyat taslağı",
+        "pricingHint": "Taslak için kabaca bir özet yeterlidir. OxSteed toplam maliyeti hesaplar; Operasyon incelemede fiyatları onaylar.",
+        "fieldUnitCost": "Birim ürün maliyeti (USD)",
+        "fieldFreight": "Birim navlun tahmini (USD)",
+        "fieldDepositPct": "Depozito yüzdesi",
+        "fieldCancellationPolicy": "İptal politikası",
+        "saveDraft": "Taslak olarak kaydet",
+        "saving": "Kaydediliyor…",
+        "draftSaved": "Taslak kaydedildi.",
+        "createFailed": "Taslak kaydedilemedi. Lütfen tekrar deneyin.",
+        "titleRequired": "Başlık zorunludur.",
+        "laneRequired": "Bir ticaret hattı seçin.",
+        "moqRequired": "En az 1 olan minimum miktarı girin.",
+        "back": "Organizatör çalışma alanına dön",
+        "unsavedConfirm": "Kaydedilmemiş değişiklikleriniz var. Taslağı kaydetmeden ayrılsın mı?",
+        "nextStepLabel": "Kampanya başlat",
+        "nextStepHint": "İlk toplu kampanyanızın taslağını oluşturun ve Operasyon onayına gönderin."
+      },
+      "approval": {
+        "title": "Onay",
+        "draft": "Taslak",
+        "pendingReview": "İncelemede",
+        "revisionsRequested": "Revizyon istendi",
+        "approved": "Onaylandı",
+        "rejected": "Reddedildi",
+        "submitForReview": "İncelemeye gönder",
+        "submitting": "Gönderiliyor…",
+        "submitted": "İncelemeye gönderildi.",
+        "submitFailed": "Gönderim başarısız oldu. Lütfen tekrar deneyin.",
+        "blockersTitle": "Göndermeden önce bunları düzeltin",
+        "historyTitle": "Onay geçmişi",
+        "noHistory": "Henüz inceleme kararı yok.",
+        "approve": "Onayla ve yayınla",
+        "requestRevisions": "Revizyon iste",
+        "reviewing": "İnceleniyor…",
+        "reasonLabel": "İnceleme notu",
+        "reasonPlaceholder": "Bu kampanya yayınlanmadan önce neyin değişmesi gerektiğini açıklayın.",
+        "reviewFailed": "İnceleme başarısız oldu. Lütfen tekrar deneyin.",
+        "reasonRequired": "Revizyon isterken gerekçe zorunludur.",
+        "latestRevisionNote": "Son inceleme notu",
+        "awaitingReview": "Operasyon incelemesi bekleniyor. Karar verildiğinde bilgilendirileceksiniz.",
+        "publishedNote": "Onaylandı ve yayınlandı. Alıcılar artık taahhütte bulunabilir.",
+        "unknownReviewer": "Bilinmeyen inceleyen",
+        "approvedToast": "Kampanya onaylandı ve yayınlandı.",
+        "revisionsToast": "Revizyon isteği organizatöre gönderildi.",
+        "revisionsAdminMessage": "\"{{title}}\" adlı kampanyayı inceleme notuyla organizatöre geri gönder.",
+        "decision_submitted_for_review": "İncelemeye gönderildi",
+        "decision_approved": "Onaylandı",
+        "decision_revisions_requested": "Revizyon istendi",
+        "decision_rejected": "Reddedildi",
+        "decision_withdrawn": "Geri çekildi",
+        "blocker_missing_title": "Kampanya başlığı ekleyin.",
+        "blocker_missing_description": "Alıcıların ne alacağına dair açıklama ekleyin.",
+        "blocker_missing_lane": "Bir ticaret hattı seçin.",
+        "blocker_missing_moq": "En az 1 olan minimum miktar belirleyin.",
+        "blocker_missing_close_date": "Taahhüt kapanış tarihi belirleyin.",
+        "blocker_close_date_past": "Taahhüt kapanış tarihi gelecekte olmalıdır.",
+        "blocker_missing_pricing": "Fiyat taslağı için birim maliyet veya navlun tahmini ekleyin.",
+        "blocker_business_verification_required": "Bu hat doğrulanmış bir işletme gerektirir. Önce işletme doğrulamasını tamamlayın.",
+        "blocker_lane_access_blocked": "Bu ticaret hattı pazarınız için uygun değil.",
+        "withdraw": "İncelemeden geri çek",
+        "withdrawing": "Geri çekiliyor…",
+        "withdrawConfirm": "Bu kampanyayı incelemeden geri çekmek istiyor musunuz? Taslağa dönecek, böylece düzenleyip yeniden gönderebilirsiniz.",
+        "withdrawnToast": "Kampanya incelemeden geri çekildi.",
+        "withdrawFailed": "Geri çekme başarısız oldu. Lütfen tekrar deneyin.",
+        "reject": "Reddet",
+        "rejectToast": "Kampanya reddedildi. Organizatör bilgilendirildi.",
+        "rejectFailed": "Reddetme başarısız oldu. Lütfen tekrar deneyin.",
+        "rejectReasonRequired": "Bir kampanyayı reddederken gerekçe gereklidir.",
+        "rejectConfirmMessage": "\"{{title}}\" reddedilsin mi? Organizatör gerekçenizle birlikte bilgilendirilecek."
+      },
+      "joinSuccess": "Kampanyaya katıldınız!",
+      "joinForm": "Bu Kampanyaya Katılın",
+      "joinCampaign": "Kampanyaya Katıl",
+      "expectedShip": "Tahmini Sevkiyat",
+      "expectedArrival": "Tahmini Varış",
+      "deliveryPreference": "Teslimat Tercihi",
+      "confirmJoin": "Taahhüdü Onaylayın",
+      "committedQty": "Taahhüt edilecek miktar",
+      "closes": "Kapanış",
+      "closeDate": "Kapanış Tarihi",
+      "allStatuses": "Tüm Durumlar",
+      "allCampaigns": "Tüm Kampanyalar",
+      "edit": {
+        "title": "Kampanya taslağını düzenle",
+        "subtitle": "Taslağınızı aşağıda güncelleyin. Hazır olduğunda Operasyon incelemesine gönderin.",
+        "saveChanges": "Değişiklikleri kaydet",
+        "draftUpdated": "Taslak güncellendi.",
+        "updateFailed": "Taslak güncellenemedi. Lütfen tekrar deneyin.",
+        "backToCampaign": "Kampanyaya dön",
+        "loading": "Kampanya taslağı yükleniyor…",
+        "loadError": "Kampanya yüklenemedi. Lütfen tekrar deneyin.",
+        "notFound": "Kampanya bulunamadı. Silinmiş olabilir.",
+        "notOwner": "Bu taslağı yalnızca kampanya düzenleyicisi düzenleyebilir.",
+        "notEditable": "Bu kampanya artık düzenlenemez. Yalnızca taslaklar ve revizyon istenen kampanyalar düzenlenebilir.",
+        "editDraft": "Taslağı düzenle"
+      }
+    },
+    "campaign": {
+      "organizer": "Organizatör",
+      "unitEconomics": "Birim Ekonomisi",
+      "productCost": "Ürün Maliyeti",
+      "freightShare": "Navlun Payı",
+      "markup": "OxSteed Kâr Marjı",
+      "fees": "Ücret ve Vergi Tahmini",
+      "landedCost": "Teslim Maliyeti",
+      "depositDue": "Ödenecek Depozito (%30)",
+      "timeline": "Kampanya Zaman Çizelgesi",
+      "opensAt": "Açılış",
+      "closesAt": "Kapanış",
+      "locksAt": "Kilitlenme",
+      "shipsAt": "Sevkiyat",
+      "arrivesAt": "Varış",
+      "joinTitle": "Bu Kampanyaya Katılın",
+      "committing": "Taahhüt edilecek birim",
+      "deliveryPref": "Teslimat tercihi",
+      "cancellationWarning": "Kampanya kilitlendikten sonra taahhüt edilen miktarlar azaltılamaz.",
+      "join": "Kampanyaya Katıl",
+      "joining": "Katılınıyor...",
+      "alreadyJoined": "Bu kampanyaya zaten katıldınız.",
+      "participants": "Katılımcılar",
+      "buyerLabel": "Alıcı",
+      "qtyLabel": "Adet",
+      "statusLabel": "Durum"
+    },
+    "sourcing": {
+      "title": "Tedarik",
+      "myRequests": "Taleplerim",
+      "suppliers": "Tedarikçiler",
+      "newRequest": "Yeni Talep",
+      "reference": "Referans",
+      "category": "Kategori",
+      "lane": "Güzergâh",
+      "qty": "Adet",
+      "quotes": "Teklifler",
+      "status": "Durum",
+      "created": "Oluşturulma",
+      "noRequests": "Henüz tedarik talebi yok.",
+      "noSuppliers": "Henüz onaylı tedarikçi yok.",
+      "trustRating": "Güven Puanı",
+      "qualityScore": "Kalite",
+      "onTimeRate": "Zamanında Teslim",
+      "products": "Ürünler",
+      "viewProducts": "Ürünleri Görüntüle",
+      "subtitle": "İlk sorgudan satın alma siparişine kadar talep edin, teklif alın ve dönüştürün.",
+      "startFirst": "İlk Talebinizi Başlatın",
+      "error": "Tedarik taleplerinizi şu anda yükleyemedik. Lütfen tekrar deneyin.",
+      "headers": {
+        "category": "Kategori",
+        "lane": "Hat",
+        "qty": "Adet",
+        "quotes": "Teklifler",
+        "reference": "Referans",
+        "status": "Durum",
+        "title": "Başlık"
+      },
+      "openRequest": "Talebi aç {{ref}}",
+      "tabsLabel": "Tedarik görünümleri",
+      "viewRow": "Gör →"
+    },
+    "request": {
+      "title": "Yeni Tedarik Talebi",
+      "step1": "Ne ve Kaç Adet",
+      "step2": "Lojistik",
+      "step3": "İncele ve Gönder",
+      "productTitle": "Ürün Başlığı",
+      "category": "Kategori",
+      "description": "Açıklama / Özellikler",
+      "qty": "Miktar",
+      "targetPrice": "Hedef Birim Fiyat (USD)",
+      "budget": "Toplam Bütçe (USD)",
+      "laneLabel": "Güzergâh",
+      "destinationCountry": "Varış Ülkesi",
+      "freightMode": "Tercih Edilen Navlun Modu",
+      "needsByDate": "Gereken Tarih",
+      "attachments": "Ekler (isteğe bağlı)",
+      "reviewTitle": "Talebinizi inceleyin",
+      "submit": "Talebi Gönder",
+      "submitting": "Gönderiliyor...",
+      "back": "Geri",
+      "next": "İleri"
+    },
+    "orders": {
+      "title": "Satın Alma Siparişleri",
+      "subtitle": "Tüm lojistik satın alma siparişlerinizi takip edin.",
+      "reference": "Referans",
+      "product": "Ürün",
+      "qty": "Adet",
+      "landed": "Toplam Teslim",
+      "status": "Durum",
+      "created": "Oluşturulma",
+      "noOrders": "Satın alma siparişi bulunamadı.",
+      "allStatuses": "Tüm Durumlar",
+      "empty": "Sipariş bulunamadı.",
+      "loading": "Yükleniyor…",
+      "lane": "Güzergâh",
+      "landedCost": "Teslim Maliyeti",
+      "expected": "Tahmini",
+      "backToBuyer": "Alıcı çalışma alanına dön",
+      "error": "Siparişlerinizi şu anda yükleyemedik. Lütfen tekrar deneyin.",
+      "headers": {
+        "expected": "Tahmini",
+        "landedCost": "Landed Maliyet",
+        "lane": "Hat",
+        "product": "Ürün",
+        "qty": "Adet",
+        "reference": "Referans",
+        "status": "Durum"
+      },
+      "openOrder": "Siparişi aç {{ref}}",
+      "pagination": "Sipariş sayfaları",
+      "statusFilter": "Duruma göre filtrele"
+    },
+    "shipments": {
+      "title": "Sevkiyatlar",
+      "subtitle": "Transit halindeki mallarınızı takip edin.",
+      "reference": "Referans",
+      "route": "Güzergâh",
+      "carrier": "Taşıyıcı",
+      "tracking": "Takip No",
+      "weight": "Ağırlık",
+      "cbm": "CBM",
+      "eta": "ETA",
+      "status": "Durum",
+      "noShipments": "Sevkiyat bulunamadı.",
+      "milestone": "Kilometre Taşı",
+      "allStatuses": "Tümü",
+      "empty": "Sevkiyat bulunamadı.",
+      "loading": "Yükleniyor…",
+      "backToBuyer": "Alıcı çalışma alanına dön",
+      "error": "Gönderilerinizi şu anda yükleyemedik. Lütfen tekrar deneyin.",
+      "etaLabel": "Tahmini varış",
+      "exception": "İstisna",
+      "kg": "kg",
+      "lifecycleLabel": "Yaşam döngüsü aşamasına göre filtrele",
+      "noCarrier": "Taşıyıcı yok",
+      "openShipment": "Gönderiyi aç {{ref}}"
+    },
+    "warehousing": {
+      "title": "Depolama",
+      "receipts": "Stok Girişleri",
+      "allocations": "Tahsisler",
+      "deliveries": "Teslimat Siparişleri",
+      "warehouses": "Depolar",
+      "noReceipts": "Giriş bulunamadı.",
+      "noAllocations": "Tahsis bulunamadı.",
+      "noDeliveries": "Teslimat siparişi bulunamadı.",
+      "noWarehouses": "Depo bulunamadı.",
+      "subtitle": "Stoku alın, mutabakat yapın, tahsis edin ve alıcılara teslim edin.",
+      "activeReceipts": "{{count}} aktif kabul",
+      "bonded": "Gümrüklü",
+      "error": "Depo verilerini şu anda yükleyemedik. Lütfen tekrar deneyin.",
+      "headers": {
+        "buyer": "Alıcı",
+        "expected": "Tahmini",
+        "qty": "Adet",
+        "received": "Alındı",
+        "reference": "Referans",
+        "releaseMethod": "Çıkış Yöntemi",
+        "released": "Çıkışı Yapıldı",
+        "shortage": "Eksik",
+        "status": "Durum",
+        "warehouse": "Depo"
+      },
+      "sqft": "metrekare",
+      "tabsLabel": "Depo görünümleri"
+    },
+    "compliance": {
+      "title": "Uyumluluk ve Kısıtlamalar",
+      "subtitle": "Lojistik güzergâhlarınızı yöneten güzergâh risk kademeleri ve ticaret kuralları.",
+      "laneRisk": "Güzergâh Riski Genel Bakış",
+      "tradeRules": "Ticaret Kuralları",
+      "lane": "Güzergâh",
+      "route": "Rota",
+      "risk": "Risk Kademesi",
+      "markup": "Kâr Marjı",
+      "customs": "Gümrük Karmaşıklığı",
+      "flags": "İşaretler",
+      "noRules": "Ticaret kuralı bulunamadı.",
+      "riskLow": "Düşük",
+      "riskManaged": "Yönetilen",
+      "riskRestricted": "Kısıtlı",
+      "riskProhibited": "Yasak",
+      "bv": "İşletme Doğrulaması",
+      "ma": "Manuel Onay",
+      "explainer": "Güzergâh, Çin'den Haiti'ye gibi iki ülke arasındaki bir nakliye rotasıdır. Her güzergâhın kendi kuralları vardır: neyin ithal edilebileceği, hangi belgelerin gerektiği ve gümrüğün ne kadar inceleme uyguladığı. Bu kuralları her ortak sevkiyat için kontrol eder ve evrak işlerini biz hallederiz. Bu sayfada mallarınıza uygulanan kurallar gösterilir.",
+      "lanesRisk": "Güzergâh Riski Genel Bakış",
+      "allLanes": "Tüm Hatlar",
+      "businessVerificationRequired": "İşletme doğrulaması gerekli",
+      "countryFilter": "Ülke koduna göre filtrele",
+      "countryPlaceholder": "Ülke kodu (örn. HT)",
+      "customsComplexity": "Gümrük",
+      "docRequirements": {
+        "body": "Her hat şunları gerektirebilir: Ticari Fatura, Paketleme Listesi, Menşe Şahadetnamesi, Bitki Sağlık Sertifikası, FDA izni, CE işaretleri, gümrük giriş formları veya muayene raporları. Gereksinimler hat ve kategoriye özeldir.",
+        "title": "Belge Gereksinimleri"
+      },
+      "error": "Uyumluluk verilerini şu anda yükleyemedik. Lütfen tekrar deneyin.",
+      "global": "Küresel",
+      "headers": {
+        "category": "Kategori",
+        "country": "Ülke",
+        "docRequired": "Belge Gerekli",
+        "lane": "Hat",
+        "notes": "Notlar",
+        "severity": "Ciddiyet",
+        "type": "Tür"
+      },
+      "laneFilter": "Hatta göre filtrele",
+      "manualApprovalRequired": "Manuel onay gerekli",
+      "noLanes": "Henüz yayınlanmış hat risk verisi yok.",
+      "riskTiers": {
+        "title": "Risk Kademeleri"
+      }
+    },
+    "finance": {
+      "title": "Lojistik Finansı",
+      "subtitle": "Taahhüt edilen değer, ücretler ve sipariş ekonomisine genel bakış.",
+      "totalCommitted": "Toplam Taahhüt",
+      "depositsPaid": "Ödenen Depozitolar",
+      "orderCount": "Sipariş Sayısı",
+      "inTransit": "Transit Değeri",
+      "simulator": {
+        "calculate": "Landed Maliyeti Hesapla",
+        "calculating": "Hesaplanıyor…",
+        "freight": "Navlun Tahmini / Birim (USD)",
+        "lane": "Hat",
+        "markupApplied": "Kar marjı uygulandı",
+        "perUnit": "/ birim landed",
+        "productCost": "Ürün Maliyeti / Birim (USD)",
+        "quantity": "Miktar",
+        "selectLane": "— Hat Seç —",
+        "title": "Landed Maliyet Simülatörü",
+        "totalFor": "{{qty}} birim için toplam"
+      },
+      "simulatorSubtitle": "Sipariş vermeden önce tam maliyet dökümünü önizleyin.",
+      "unitCost": "Birim Ürün Maliyeti (USD)",
+      "qty": "Miktar",
+      "laneLabel": "Güzergâh",
+      "freightEst": "Navlun Tahmini (USD, isteğe bağlı)",
+      "calculate": "Hesapla",
+      "calculating": "Hesaplanıyor...",
+      "noOrders": "Henüz sipariş yok.",
+      "totalSpent": "Toplam Taahhüt",
+      "recentOrders": "Son Siparişler",
+      "depositPaid": "Ödenen Depozitolar",
+      "byStatus": "Sipariş Durumuna Göre Değer",
+      "error": "Finans verilerini şu anda yükleyemedik. Lütfen tekrar deneyin.",
+      "headers": {
+        "depositPaid": "Depozito Ödendi",
+        "product": "Ürün",
+        "qty": "Adet",
+        "reference": "Referans",
+        "remaining": "Kalan",
+        "status": "Durum",
+        "totalLanded": "Toplam Landed"
+      },
+      "kpis": {
+        "depositsPaid": "Ödenen Depozitolar",
+        "inTransit": "Transit Halinde",
+        "orders": "Siparişler",
+        "totalCommitted": "Toplam Taahhüt"
+      },
+      "noSpend": "Henüz kaydedilmiş sipariş harcaması yok.",
+      "refund": {
+        "empty": "Henüz gönderilmiş iade davası yok.",
+        "requested": "Talep Edildi",
+        "submitted": "İade davası incelemeye gönderildi.",
+        "title": "İade Talepleri"
+      },
+      "refundForm": {
+        "amount": "Talep Edilen Tutar (USD)",
+        "notes": "Notlar",
+        "poFallback": "SA",
+        "purchaseOrder": "Satın Alma Siparişi",
+        "reason": "İade Nedeni",
+        "selectOrder": "— Sipariş seç —",
+        "submit": "İade Davasını Gönder",
+        "submitting": "Gönderiliyor…",
+        "title": "İade İncelemesi Talep Et"
+      }
+    },
+    "admin": {
+      "title": "Lojistik Operasyonları",
+      "subtitle": "Güzergâhlar, tedarikçiler, siparişler, sevkiyatlar, depolar, fiyatlandırma ve uyumluluk üzerinde tam kontrol.",
+      "loading": "İstatistikler yükleniyor…",
+      "unknownStatus": "Bilinmeyen durum",
+      "links": {
+        "sourcingOps": "Tedarik Operasyonları",
+        "organizerApprovals": "Organizatör Onayları",
+        "lanes": "Güzergâhlar",
+        "suppliers": "Tedarikçiler",
+        "quotes": "Teklifler",
+        "campaigns": "Kampanyalar",
+        "purchaseOrders": "Satın Alma Siparişleri",
+        "shipmentOps": "Sevkiyat Operasyonları",
+        "shipments": "Sevkiyatlar",
+        "complianceReview": "Uyumluluk İncelemesi",
+        "customs": "Gümrük",
+        "warehouseOps": "Depo Operasyonları",
+        "warehouses": "Depolar",
+        "allocations": "Tahsisler",
+        "pricing": "Fiyatlandırma",
+        "restrictions": "Kısıtlamalar",
+        "disputes": "Anlaşmazlıklar",
+        "superControl": "Süper Kontrol",
+        "refunds": "İadeler"
+      },
+      "metrics": {
+        "purchaseOrders": "Satın Alma Siparişleri",
+        "shipments": "Sevkiyatlar",
+        "pooledCampaigns": "Ortak Kampanyalar",
+        "sourcingRequests": "Tedarik Talepleri",
+        "claims": "Talepler"
+      },
+      "warehouseTable": {
+        "title": "Depolar",
+        "warehouse": "Depo",
+        "activeReceipts": "Aktif Girişler",
+        "totalUnits": "Alınan Toplam Birim"
+      },
+      "shipmentOps": {
+        "title": "Sevkiyat Operasyonları Çalışma Alanı",
+        "subtitle": "Aktif navlun hattını, gümrük kuyruğunu ve tüm lojistik güzergâhlarındaki istisna durumunu izleyin.",
+        "activeShipments": "Aktif sevkiyatlar",
+        "customsQueue": "Gümrük kuyruğu",
+        "exceptions": "İstisnalar",
+        "reference": "Referans",
+        "route": "Rota",
+        "freight": "Navlun",
+        "status": "Durum",
+        "eta": "ETA",
+        "empty": "Sevkiyat bulunamadı."
+      },
+      "quotes": {
+        "title": "Teklif Yönetimi",
+        "subtitle": "Tedarik talepleri için gönderilen tedarikçi tekliflerini inceleyin.",
+        "allStatuses": "Tüm durumlar",
+        "reference": "Referans",
+        "sourcingRequest": "Tedarik Talebi",
+        "supplier": "Tedarikçi",
+        "unitPrice": "Birim Fiyat",
+        "moq": "MOQ",
+        "leadDays": "Teslim Süresi (Gün)",
+        "status": "Durum",
+        "submitted": "Gönderildi",
+        "review": "İncele",
+        "empty": "Teklif bulunamadı.",
+        "loading": "Yükleniyor…",
+        "reviewTitle": "Teklifi İncele",
+        "supplierLabel": "Tedarikçi",
+        "unitPriceLabel": "Birim Fiyat",
+        "moqLabel": "MOQ",
+        "leadTime": "Teslim Süresi",
+        "days": "gün",
+        "freightIncluded": "Navlun Dahil",
+        "yes": "Evet",
+        "supplierNotes": "Tedarikçi Notları",
+        "sampleAvailable": "Numune mevcut",
+        "dayAbbrev": "g",
+        "leadShort": "teslim süresi",
+        "decision": "Karar",
+        "choose": "Seç",
+        "accept": "Kabul Et",
+        "reject": "Reddet",
+        "adminNotes": "Yönetici Notları (alıcıyla paylaşılır)",
+        "submitDecision": "Kararı Gönder",
+        "cancel": "İptal",
+        "selectDecisionError": "Kabul et veya reddet seçin.",
+        "reviewAccepted": "Teklif kabul edildi.",
+        "reviewRejected": "Teklif reddedildi.",
+        "reviewFailed": "Teklif incelemesi başarısız oldu.",
+        "statuses": {
+          "submitted": "Gönderildi",
+          "under_review": "İnceleniyor",
+          "accepted": "Kabul edildi",
+          "rejected": "Reddedildi",
+          "expired": "Süresi doldu"
+        }
+      },
+      "shipments": {
+        "title": "Sevkiyat Yönetimi",
+        "subtitle": "Sevkiyat kilometre taşlarını takip edin ve nakliye belgelerini yönetin.",
+        "allStatuses": "Tüm durumlar",
+        "loading": "Yükleniyor…",
+        "reference": "Referans",
+        "route": "Rota",
+        "carrier": "Taşıyıcı",
+        "tracking": "Takip",
+        "weightCbm": "Ağırlık/CBM",
+        "eta": "ETA",
+        "status": "Durum",
+        "update": "Güncelle",
+        "empty": "Sevkiyat bulunamadı.",
+        "addMilestone": "Kilometre Taşı Ekle",
+        "uploadDocument": "Belge Yükle",
+        "milestoneStatus": "Kilometre Taşı Durumu",
+        "select": "Seç",
+        "location": "Konum",
+        "locationPlaceholder": "ör. Şanghay Limanı",
+        "notes": "Notlar",
+        "saving": "Kaydediliyor…",
+        "cancel": "İptal",
+        "documentType": "Belge Türü",
+        "file": "Dosya",
+        "upload": "Yükle",
+        "uploading": "Yükleniyor…",
+        "selectMilestoneError": "Bir kilometre taşı durumu seçin.",
+        "milestoneAdded": "Kilometre taşı eklendi.",
+        "milestoneFailed": "Kilometre taşı eklenemedi.",
+        "documentRequired": "Bir belge türü ve dosya seçin.",
+        "documentUploaded": "Belge yüklendi.",
+        "documentFailed": "Belge yüklenemedi.",
+        "statuses": {
+          "planned": "Planlandı",
+          "booked": "Rezerve edildi",
+          "origin_received": "Çıkış noktasında alındı",
+          "consolidating": "Birleştiriliyor",
+          "departed_origin": "Çıkış noktasından ayrıldı",
+          "transshipment": "Aktarma",
+          "arrived_destination": "Varış noktasına ulaştı",
+          "customs_hold": "Gümrükte bekliyor",
+          "customs_cleared": "Gümrükten geçti",
+          "delivered_to_warehouse": "Depoya teslim edildi",
+          "receiving": "Alınıyor",
+          "allocation_ready": "Tahsise hazır",
+          "distributed": "Dağıtıldı",
+          "completed": "Tamamlandı",
+          "delivered": "Teslim edildi",
+          "exception": "İstisna"
+        },
+        "docTypes": {
+          "bill_of_lading": "Konşimento",
+          "commercial_invoice": "Ticari fatura",
+          "packing_list": "Paketleme listesi",
+          "certificate_of_origin": "Menşe şahadetnamesi",
+          "customs_declaration": "Gümrük beyannamesi",
+          "insurance_cert": "Sigorta sertifikası",
+          "other": "Diğer"
+        }
+      }
+    },
+    "status": {
+      "pending_review": "İncelemede",
+      "revisions_requested": "Revizyon istendi",
+      "draft": "Taslak",
+      "open": "Açık",
+      "quoted": "Teklif verildi",
+      "pledging": "Taahhüt toplanıyor",
+      "deposit_phase": "Depozito aşaması",
+      "approved": "Onaylandı",
+      "placed_with_supplier": "Tedarikçiye verildi",
+      "placed": "Verildi",
+      "deposit_paid": "Depozito Ödendi",
+      "production": "Üretimde",
+      "ready_to_ship": "Sevkiyata Hazır",
+      "in_transit": "Transit Halinde",
+      "at_customs": "Gümrükte",
+      "customs_cleared": "Gümrükten Geçti",
+      "at_warehouse": "Depoda",
+      "fulfilled": "Karşılandı",
+      "closed": "Kapalı",
+      "cancelled": "İptal edildi",
+      "disputed": "Anlaşmazlıklı",
+      "planned": "Planlandı",
+      "booked": "Rezerve edildi",
+      "departed_origin": "Çıkış Noktasından Ayrıldı",
+      "arrived_transship": "Ulaştı (Aktarma)",
+      "departed_transship": "Ayrıldı (Aktarma)",
+      "arrived_destination": "Varış Noktasına Ulaştı",
+      "customs_hold": "Gümrükte Bekliyor",
+      "delivered_to_wh": "Depoya Teslim Edildi",
+      "completed": "Tamamlandı",
+      "exception": "İstisna",
+      "under_review": "İnceleniyor",
+      "rejected": "Reddedildi",
+      "resolved": "Çözüldü",
+      "escalated": "Yükseltildi",
+      "locked": "Kilitli",
+      "shipping": "Sevkiyatta",
+      "arrived": "Ulaştı",
+      "pending": "Beklemede",
+      "received": "Alındı",
+      "discrepancy": "Tutarsızlık",
+      "reconciled": "Mutabakat yapıldı",
+      "reserved": "Rezerve edildi",
+      "released": "Serbest bırakıldı",
+      "expired": "Süresi doldu",
+      "dispatched": "Sevk edildi",
+      "delivered": "Teslim edildi",
+      "failed": "Başarısız",
+      "accepted": "Kabul edildi"
+    },
+    "sections": {
+      "sourcing": "Tedarik",
+      "procurement": "Satın Alma",
+      "shipments": "Sevkiyatlar",
+      "warehousing": "Depolama",
+      "distribution": "Dağıtım",
+      "compliance": "Uyumluluk",
+      "finance": "Finans",
+      "operations": "Operasyonlar"
+    },
+    "lanes": {
+      "title": "Lojistik güzergâhları",
+      "subtitle": "Her ürün, kampanya ve sipariş bir güzergâhta yaşar. Bir güzergâh; çıkış noktası, varış noktası, izin verilen alıcı ülkeler ve roller, kısıtlı kategoriler, belge gereklilikleri, varsayılan kâr marjı, ücretler, navlun seçenekleri, gümrük karmaşıklığı, risk kademesi ve teslimat modelini tanımlar.",
+      "originLabel": "Çıkış Noktası",
+      "destLabel": "Varış Noktası",
+      "riskLabel": "Risk kademesi",
+      "freightLabel": "Navlun seçenekleri",
+      "customsLabel": "Gümrük karmaşıklığı",
+      "approvalRequired": "Manuel onay gerekli",
+      "businessVerifRequired": "İşletme doğrulaması gerekli",
+      "resellerApprovalRequired": "Satıcı onayı gerekli",
+      "noLanes": "Henüz yayınlanmış aktif güzergâh yok."
+    },
+    "distribution": {
+      "title": "Dağıtım",
+      "subtitle": "Alınan stoku tahsis edin ve son kilometre teslimatı gerçekleştirin: yerel teslim alma, alıcıya sevkiyat, organizatöre navlun iletimi, distribütöre teslim, bölgeye göre bölme veya düzenli stok yenileme rotası.",
+      "allocations": "Tahsisler",
+      "deliveries": "Teslimat siparişleri",
+      "release": "Teslim Et",
+      "method": "Yöntem",
+      "recipient": "Alıcı",
+      "methodOptions": {
+        "local_pickup": "Yerel teslim alma",
+        "ship_to_buyer": "Alıcıya sevkiyat",
+        "freight_forward": "Navlun iletimi",
+        "distributor": "Distribütöre teslim",
+        "bulk_handoff": "Toplu devir",
+        "restock_route": "Stok yenileme rotası"
+      },
+      "defaults": {
+        "buyerAllocation": "Alıcı tahsisi",
+        "recipient": "Alıcı",
+        "releasePending": "çıkış bekliyor",
+        "warehouse": "Depo"
+      },
+      "empty": {
+        "allocations": "Kullanılabilir tahsis yok.",
+        "deliveries": "Kullanılabilir teslimat siparişi yok."
+      },
+      "error": "Dağıtım verilerini şu anda yükleyemedik. Lütfen tekrar deneyin.",
+      "labels": {
+        "allocatedQty": "Tahsis edilen adet",
+        "mode": "Mod",
+        "tracking": "Takip"
+      },
+      "loading": "Yükleniyor…",
+      "sections": {
+        "allocationQueue": "Tahsis kuyruğu",
+        "deliveryExecution": "Teslimat yürütme",
+        "openWarehousing": "Depoyu aç →"
+      },
+      "stats": {
+        "allocations": "Tahsisler",
+        "deliveryOrders": "Teslimat Siparişleri",
+        "inTransit": "Transit Halinde",
+        "released": "Çıkışı Yapıldı"
+      }
+    },
+    "buyerTypes": {
+      "individual_buyer": "Bireysel alıcı",
+      "business_buyer": "Kurumsal alıcı",
+      "organizer": "Organizatör",
+      "reseller": "Satıcı / distribütör",
+      "franchise_buyer": "Franchise / ağ alıcısı",
+      "sourcing_operator": "Tedarik operatörü",
+      "logistics_coordinator": "Lojistik koordinatörü",
+      "warehouse_operator": "Depo operatörü",
+      "compliance_reviewer": "Uyumluluk inceleyicisi",
+      "admin": "Yönetici",
+      "super_admin": "Süper yönetici"
+    },
+    "claims": {
+      "title": "Talepler",
+      "subtitle": "Eksik, hasarlı, gecikmiş, yanlış ürün, gümrük reddi veya dolandırıcılığı bildirin. OxSteed inceler ve iade yapabilir.",
+      "newClaim": "Talep oluşturun",
+      "claimType": "Talep türü",
+      "description": "Açıklama",
+      "claimedAmount": "Talep edilen tutar (USD)",
+      "evidence": "Kanıt",
+      "status": "Durum",
+      "noClaims": "Henüz talep oluşturulmadı."
+    },
+    "suppliers": {
+      "products": "ürün"
+    },
+    "requests": {
+      "additionalNotes": "Ek Notlar",
+      "back": "Tedariğe Dön",
+      "budgetMax": "Maks. Bütçe (USD)",
+      "categoryLabel": "Kategori",
+      "created": "Tedarik talebi gönderildi!",
+      "customMfg": "Özel Üretim",
+      "deadline": "Son Tarih",
+      "description": "Açıklama",
+      "destCity": "Varış Şehri",
+      "destCountry": "Varış Ülkesi",
+      "freightPreference": "Tercih Edilen Navlun",
+      "lane": "Lojistik Güzergâhı",
+      "newSub": "Bize neye ihtiyacınız olduğunu söyleyin. OxSteed tedarikçileri bulup teklifleri iletecek.",
+      "newTitle": "Yeni Tedarik Talebi",
+      "privateLabel": "Özel Marka",
+      "requiredFields": "Başlık ve kategori zorunludur",
+      "step1": "Adım 1: Neye ihtiyacınız var?",
+      "step2": "Adım 2: Varış Noktası ve Güzergâh",
+      "step3": "Adım 3: İncele ve Gönder",
+      "submit": "Talebi Gönder",
+      "targetPrice": "Hedef Fiyat / Birim (USD)",
+      "targetQty": "Hedef Miktar",
+      "titleLabel": "Talep Başlığı",
+      "unit": "Birim",
+      "anyOption": "— Tümü —",
+      "customsComplexity": "Gümrük karmaşıklığı",
+      "descriptionPlaceholder": "Ürünü ayrıntılı açıklayın: malzemeler, boyutlar, gerekli sertifikalar…",
+      "destCountryPlaceholder": "örn. US, HT, CA",
+      "goToStep": "{{label}} adımına git",
+      "laneBlocked": "Bu hat şu anda rolünüz veya varış bağlamınız için engelli: {{reason}}",
+      "laneBusinessVerification": "Doğrulanmış alıcı olarak bu hattı çalıştırmak için işletme doğrulaması gereklidir.",
+      "laneChecks": "Hat erişim ve onay kontrolleri",
+      "laneManualApproval": "Bu talep teklif veya tedariğe geçmeden önce manuel uyumluluk onayı gereklidir.",
+      "laneResellerApproval": "Bu hat yeniden satış akışları için kullanılmadan önce bayi/distribütör onayı gereklidir.",
+      "letOxsteedChoose": "— OxSteed seçsin —",
+      "notesPlaceholder": "Tedarik ekibi için başka bağlam…",
+      "review": {
+        "category": "Kategori",
+        "deadline": "Son tarih",
+        "destination": "Varış yeri",
+        "no": "Hayır",
+        "privateLabel": "Özel Etiket",
+        "quantity": "Miktar",
+        "targetPrice": "Hedef Fiyat",
+        "title": "Başlık",
+        "yes": "Evet"
+      },
+      "riskTier": "Risk kademesi",
+      "selectOption": "— Seç —",
+      "stepsLabel": "Talep ilerlemesi",
+      "titlePlaceholder": "örn. 500 Adet Endüstriyel Güvenlik Botu"
+    },
     "hub": {
       "aboutBody": "Alıcılar, tedarikçinin minimum sipariş miktarına ulaşmak için taleplerini birleştirir. Yeterli talep toplandığında kampanya kilitlenir, depozitolar toplanır ve OxSteed tedarik zincirinin geri kalanını koordine eder.",
       "aboutTitle": "Toplu satın alma nasıl çalışır",
@@ -1393,17 +2505,6 @@
       "searchPlaceholder": "Ürün, hat veya başlığa göre ara",
       "statusLabel": "Durum",
       "title": "Toplu satın alma, kolayca"
-    },
-    "nav": {
-      "adminControl": "Yönetici kontrolü",
-      "businessProcurement": "Kurumsal satın alma",
-      "buyer": "Alıcı",
-      "compliance": "Uyumluluk",
-      "distributor": "Distribütör",
-      "hub": "Göz at",
-      "label": "Lojistik çalışma alanları",
-      "operations": "Operasyonlar",
-      "organizer": "Organizatör"
     },
     "modal": {
       "close": "Kapat",
@@ -1456,84 +2557,6 @@
         "warehouse": "Depo",
         "releaseMethod": "Serbest bırakma yöntemi",
         "quantity": "Miktar"
-      }
-    },
-    "workspace": {
-      "nextStep": {
-        "title": "Sonraki adımınız"
-      },
-      "recentActivity": {
-        "title": "Son aktiviteler",
-        "empty": "Henüz bir şey yok. Yeni aktiviteler burada görünecek."
-      },
-      "dataError": {
-        "title": "Veri kullanılamıyor",
-        "body": "Çalışma alanınız şu anda yüklenemedi. Lütfen tekrar deneyin.",
-        "retry": "Tekrar dene"
-      },
-      "buyer": {
-        "nextStep": {
-          "browseCampaigns": {
-            "label": "Kampanyalara göz at",
-            "hint": "Aktif talep yok. Katılmak veya izlemek için toplu bir kampanya bulun."
-          },
-          "reviewShipments": {
-            "label": "Riskli sevkiyatları incele",
-            "hint": "{{count}} sevkiyat takip gerektiriyor."
-          },
-          "startRequest": {
-            "label": "Tedarik talebi başlat",
-            "hint": "Her şey yolunda. Hazır olduğunuzda yeni talep açın."
-          }
-        }
-      },
-      "organizer": {
-        "nextStep": {
-          "momentum": {
-            "label": "MOQ ivmesini artır",
-            "hint": "{{count}} kampanya MOQ’nun yarısının altında ve daha fazla katılımcı gerekiyor."
-          },
-          "browse": {
-            "label": "Kampanyalara göz at",
-            "hint": "Henüz koordine ettiğiniz kampanya yok. Katılmak için bir tane bulun."
-          },
-          "handoffs": {
-            "label": "Teslimatları koordine et",
-            "hint": "Talep toplandı. Alıcılara teslimatları sürdürün."
-          }
-        }
-      },
-      "business": {
-        "nextStep": {
-          "reviewRuns": {
-            "label": "Yaklaşan çalışmaları incele",
-            "hint": "21 gün içinde {{count}} program çalışması var. Miktar, güzergah ve varış noktasını kontrol edin."
-          },
-          "createProgram": {
-            "label": "Tekrarlayan program oluştur",
-            "hint": "Henüz stok yenileme programı yok. Tekrarlayan talep için bir ritim belirleyin."
-          },
-          "newRequest": {
-            "label": "İşletme talebi aç",
-            "hint": "Programlar çalışıyor. Yeni talebi işletmelerinizden birine bağlayın."
-          }
-        }
-      },
-      "distributor": {
-        "nextStep": {
-          "failedDeliveries": {
-            "label": "Başarısız teslimatları incele",
-            "hint": "{{count}} teslimat başarısız oldu veya iptal edildi; yeniden yönlendirme gerekebilir."
-          },
-          "releaseLots": {
-            "label": "Bekleyen partileri serbest bırak",
-            "hint": "{{count}} parti tahsis edildi ama henüz serbest bırakılmadı."
-          },
-          "warehouse": {
-            "label": "Depo hazırlığını kontrol et",
-            "hint": "Kuyruk boş. Stoğun tahsise hazır olduğundan emin olun."
-          }
-        }
       }
     },
     "adminControl": {
@@ -1764,64 +2787,6 @@
         "title": "Zaman çizelgesi"
       }
     },
-    "compliance": {
-      "allLanes": "Tüm Hatlar",
-      "businessVerificationRequired": "İşletme doğrulaması gerekli",
-      "countryFilter": "Ülke koduna göre filtrele",
-      "countryPlaceholder": "Ülke kodu (örn. HT)",
-      "customsComplexity": "Gümrük",
-      "docRequirements": {
-        "body": "Her hat şunları gerektirebilir: Ticari Fatura, Paketleme Listesi, Menşe Şahadetnamesi, Bitki Sağlık Sertifikası, FDA izni, CE işaretleri, gümrük giriş formları veya muayene raporları. Gereksinimler hat ve kategoriye özeldir.",
-        "title": "Belge Gereksinimleri"
-      },
-      "error": "Uyumluluk verilerini şu anda yükleyemedik. Lütfen tekrar deneyin.",
-      "global": "Küresel",
-      "headers": {
-        "category": "Kategori",
-        "country": "Ülke",
-        "docRequired": "Belge Gerekli",
-        "lane": "Hat",
-        "notes": "Notlar",
-        "severity": "Ciddiyet",
-        "type": "Tür"
-      },
-      "laneFilter": "Hatta göre filtrele",
-      "manualApprovalRequired": "Manuel onay gerekli",
-      "noLanes": "Henüz yayınlanmış hat risk verisi yok.",
-      "riskTiers": {
-        "title": "Risk Kademeleri"
-      }
-    },
-    "distribution": {
-      "defaults": {
-        "buyerAllocation": "Alıcı tahsisi",
-        "recipient": "Alıcı",
-        "releasePending": "çıkış bekliyor",
-        "warehouse": "Depo"
-      },
-      "empty": {
-        "allocations": "Kullanılabilir tahsis yok.",
-        "deliveries": "Kullanılabilir teslimat siparişi yok."
-      },
-      "error": "Dağıtım verilerini şu anda yükleyemedik. Lütfen tekrar deneyin.",
-      "labels": {
-        "allocatedQty": "Tahsis edilen adet",
-        "mode": "Mod",
-        "tracking": "Takip"
-      },
-      "loading": "Yükleniyor…",
-      "sections": {
-        "allocationQueue": "Tahsis kuyruğu",
-        "deliveryExecution": "Teslimat yürütme",
-        "openWarehousing": "Depoyu aç →"
-      },
-      "stats": {
-        "allocations": "Tahsisler",
-        "deliveryOrders": "Teslimat Siparişleri",
-        "inTransit": "Transit Halinde",
-        "released": "Çıkışı Yapıldı"
-      }
-    },
     "distributor": {
       "actions": {
         "openBoard": "Dağıtım panosunu aç",
@@ -1930,55 +2895,6 @@
       "subtitle": "Tahsis edilen envanteri takip edin, çıkış yöntemlerini yönetin ve yeniden satış veya topluluk dağıtımında son mil devir yürütmesini temiz tutun.",
       "title": "Distribütör / Bayi Çalışma Alanı"
     },
-    "finance": {
-      "error": "Finans verilerini şu anda yükleyemedik. Lütfen tekrar deneyin.",
-      "headers": {
-        "depositPaid": "Depozito Ödendi",
-        "product": "Ürün",
-        "qty": "Adet",
-        "reference": "Referans",
-        "remaining": "Kalan",
-        "status": "Durum",
-        "totalLanded": "Toplam Landed"
-      },
-      "kpis": {
-        "depositsPaid": "Ödenen Depozitolar",
-        "inTransit": "Transit Halinde",
-        "orders": "Siparişler",
-        "totalCommitted": "Toplam Taahhüt"
-      },
-      "noSpend": "Henüz kaydedilmiş sipariş harcaması yok.",
-      "refund": {
-        "empty": "Henüz gönderilmiş iade davası yok.",
-        "requested": "Talep Edildi",
-        "submitted": "İade davası incelemeye gönderildi.",
-        "title": "İade Talepleri"
-      },
-      "refundForm": {
-        "amount": "Talep Edilen Tutar (USD)",
-        "notes": "Notlar",
-        "poFallback": "SA",
-        "purchaseOrder": "Satın Alma Siparişi",
-        "reason": "İade Nedeni",
-        "selectOrder": "— Sipariş seç —",
-        "submit": "İade Davasını Gönder",
-        "submitting": "Gönderiliyor…",
-        "title": "İade İncelemesi Talep Et"
-      },
-      "simulator": {
-        "calculate": "Landed Maliyeti Hesapla",
-        "calculating": "Hesaplanıyor…",
-        "freight": "Navlun Tahmini / Birim (USD)",
-        "lane": "Hat",
-        "markupApplied": "Kar marjı uygulandı",
-        "perUnit": "/ birim landed",
-        "productCost": "Ürün Maliyeti / Birim (USD)",
-        "quantity": "Miktar",
-        "selectLane": "— Hat Seç —",
-        "title": "Landed Maliyet Simülatörü",
-        "totalFor": "{{qty}} birim için toplam"
-      }
-    },
     "operations": {
       "error": "Operasyon metriklerini şu anda yükleyemedik. Lütfen tekrar deneyin.",
       "internalOnly": {
@@ -2007,7 +2923,10 @@
       },
       "routesLabel": "Operasyon rotaları",
       "subtitle": "Tedarik alımı, aktif navlun hareketi, depo akışı ve lojistik istisnaları için tek bir dahili komuta yüzeyi.",
-      "title": "Operasyon Çalışma Alanı"
+      "title": "Operasyon Çalışma Alanı",
+      "routes": {
+        "finance": "Lojistik operasyonları"
+      }
     },
     "orderDetail": {
       "backToOrders": "← Siparişlere Dön",
@@ -2049,22 +2968,6 @@
         "remaining": "Kalan",
         "totalLanded": "Toplam landed"
       }
-    },
-    "orders": {
-      "backToBuyer": "Alıcı çalışma alanına dön",
-      "error": "Siparişlerinizi şu anda yükleyemedik. Lütfen tekrar deneyin.",
-      "headers": {
-        "expected": "Tahmini",
-        "landedCost": "Landed Maliyet",
-        "lane": "Hat",
-        "product": "Ürün",
-        "qty": "Adet",
-        "reference": "Referans",
-        "status": "Durum"
-      },
-      "openOrder": "Siparişi aç {{ref}}",
-      "pagination": "Sipariş sayfaları",
-      "statusFilter": "Duruma göre filtrele"
     },
     "organizer": {
       "actions": {
@@ -2348,35 +3251,6 @@
         "personalRequest": "Kişisel talep"
       }
     },
-    "requests": {
-      "anyOption": "— Tümü —",
-      "customsComplexity": "Gümrük karmaşıklığı",
-      "descriptionPlaceholder": "Ürünü ayrıntılı açıklayın: malzemeler, boyutlar, gerekli sertifikalar…",
-      "destCountryPlaceholder": "örn. US, HT, CA",
-      "goToStep": "{{label}} adımına git",
-      "laneBlocked": "Bu hat şu anda rolünüz veya varış bağlamınız için engelli: {{reason}}",
-      "laneBusinessVerification": "Doğrulanmış alıcı olarak bu hattı çalıştırmak için işletme doğrulaması gereklidir.",
-      "laneChecks": "Hat erişim ve onay kontrolleri",
-      "laneManualApproval": "Bu talep teklif veya tedariğe geçmeden önce manuel uyumluluk onayı gereklidir.",
-      "laneResellerApproval": "Bu hat yeniden satış akışları için kullanılmadan önce bayi/distribütör onayı gereklidir.",
-      "letOxsteedChoose": "— OxSteed seçsin —",
-      "notesPlaceholder": "Tedarik ekibi için başka bağlam…",
-      "review": {
-        "category": "Kategori",
-        "deadline": "Son tarih",
-        "destination": "Varış yeri",
-        "no": "Hayır",
-        "privateLabel": "Özel Etiket",
-        "quantity": "Miktar",
-        "targetPrice": "Hedef Fiyat",
-        "title": "Başlık",
-        "yes": "Evet"
-      },
-      "riskTier": "Risk kademesi",
-      "selectOption": "— Seç —",
-      "stepsLabel": "Talep ilerlemesi",
-      "titlePlaceholder": "örn. 500 Adet Endüstriyel Güvenlik Botu"
-    },
     "shipmentDetail": {
       "backToShipments": "← Gönderilere Dön",
       "defaults": {
@@ -2410,70 +3284,10 @@
         "milestones": "Kilometre taşları"
       }
     },
-    "shipments": {
-      "backToBuyer": "Alıcı çalışma alanına dön",
-      "error": "Gönderilerinizi şu anda yükleyemedik. Lütfen tekrar deneyin.",
-      "etaLabel": "Tahmini varış",
-      "exception": "İstisna",
-      "kg": "kg",
-      "lifecycleLabel": "Yaşam döngüsü aşamasına göre filtrele",
-      "noCarrier": "Taşıyıcı yok",
-      "openShipment": "Gönderiyi aç {{ref}}"
-    },
-    "sourcing": {
-      "error": "Tedarik taleplerinizi şu anda yükleyemedik. Lütfen tekrar deneyin.",
-      "headers": {
-        "category": "Kategori",
-        "lane": "Hat",
-        "qty": "Adet",
-        "quotes": "Teklifler",
-        "reference": "Referans",
-        "status": "Durum",
-        "title": "Başlık"
-      },
-      "openRequest": "Talebi aç {{ref}}",
-      "tabsLabel": "Tedarik görünümleri",
-      "viewRow": "Gör →"
-    },
     "tables": {
       "actions": "Eylemler",
       "view": "Gör",
       "preview": "Önizleme"
-    },
-    "warehousing": {
-      "activeReceipts": "{{count}} aktif kabul",
-      "bonded": "Gümrüklü",
-      "error": "Depo verilerini şu anda yükleyemedik. Lütfen tekrar deneyin.",
-      "headers": {
-        "buyer": "Alıcı",
-        "expected": "Tahmini",
-        "qty": "Adet",
-        "received": "Alındı",
-        "reference": "Referans",
-        "releaseMethod": "Çıkış Yöntemi",
-        "released": "Çıkışı Yapıldı",
-        "shortage": "Eksik",
-        "status": "Durum",
-        "warehouse": "Depo"
-      },
-      "sqft": "metrekare",
-      "tabsLabel": "Depo görünümleri"
-    },
-    "campaigns": {
-      "edit": {
-        "title": "Kampanya taslağını düzenle",
-        "subtitle": "Taslağınızı aşağıda güncelleyin. Hazır olduğunda Operasyon incelemesine gönderin.",
-        "saveChanges": "Değişiklikleri kaydet",
-        "draftUpdated": "Taslak güncellendi.",
-        "updateFailed": "Taslak güncellenemedi. Lütfen tekrar deneyin.",
-        "backToCampaign": "Kampanyaya dön",
-        "loading": "Kampanya taslağı yükleniyor…",
-        "loadError": "Kampanya yüklenemedi. Lütfen tekrar deneyin.",
-        "notFound": "Kampanya bulunamadı. Silinmiş olabilir.",
-        "notOwner": "Bu taslağı yalnızca kampanya düzenleyicisi düzenleyebilir.",
-        "notEditable": "Bu kampanya artık düzenlenemez. Yalnızca taslaklar ve revizyon istenen kampanyalar düzenlenebilir.",
-        "editDraft": "Taslağı düzenle"
-      }
     },
     "checkout": {
       "backToDashboard": "Alıcı paneline dön",
@@ -2537,7 +3351,8 @@
           "processing": "İşleniyor",
           "refunded": "İade edildi",
           "succeeded": "Başarılı",
-          "canceled": "İptal edildi"
+          "canceled": "İptal edildi",
+          "superseded": "Çift tahsilat inceleme gerektiriyor"
         },
         "subtitle": "Her ödeme denemesi; mutabakat OxSteed tarafından onaylanır.",
         "title": "Lojistik ödemelerim"
@@ -2585,7 +3400,7 @@
         "failedUnknown": "Ödeme gerçekleşmedi. Para alınmadı.",
         "installment": "Taksit",
         "method": "Yöntem",
-        "newKeyNote": "Her yeniden deneme yeni bir ödeme denemesi oluşturur, böylece aynı onay için iki kez ücretlendirilmezsiniz.",
+        "newKeyNote": "Ödemeye devam et",
         "notSettled": "Fonların mutabakatı henüz tamamlanmadı. Ödeme tamamlanınca burada onaylayacağız.",
         "pending": "Ödeme bekleniyor",
         "processing": "Ödemeniz işleniyor…",
@@ -2729,24 +3544,6 @@
       "movedNotice": "İade incelemeleri çift yönetici iade sayfasına taşındı. Doğrudan durum düzenleme artık kullanılamıyor.",
       "openReviewPage": "İade incelemesini aç"
     },
-    "admin": {
-      "links": {
-        "refunds": "İadeler"
-      }
-    },
-    "complianceWorkspace": {
-      "metrics": {
-        "unavailableNote": "Metrik şu anda kullanılamıyor."
-      }
-    },
-    "forms": {
-      "unsavedChanges": {
-        "body": "Kaydedilmemiş değişiklikleriniz var. Şimdi ayrılırsanız girdikleriniz kaybolur.",
-        "discard": "Değişiklikleri at",
-        "stay": "Düzenlemeye devam et",
-        "title": "Kaydedilmemiş değişiklikler atılsın mı?"
-      }
-    },
     "refund_pending": {
       "body": "Lojistik iadeniz yolda. Ödeme sağlayıcınız hâlâ işliyor; tutar orijinal ödeme yönteminize ulaştığında onaylayacağız.",
       "title": "İade bekliyor"
@@ -2767,6 +3564,33 @@
       "funding_shortfall": "Depozito vadesinde fon yetersizliği",
       "min_demand_unmet": "Taahhüt kapanışında minimum talep karşılanmadı",
       "raised_note": "Fonlama son tarihi kaçırıldı; çözüm için personele iletildi. Kampanya ilerletilmedi."
+    },
+    "staff": {
+      "title": "Lojistik operasyonları",
+      "quoteEditor": "Alıcı teklifi hazırla",
+      "subject": "Sipariş veya katılım",
+      "order": "Satın alma siparişi",
+      "participant": "Kampanya katılımı",
+      "id": "Kayıt kimliği",
+      "description": "Açıklama",
+      "amount": "Tutar (USD)",
+      "depositPercent": "Depozito (%)",
+      "deadline": "Depozito son tarihi",
+      "finalDeadline": "Bakiye son tarihi",
+      "save": "Taslağı kaydet",
+      "publish": "Teklifi yayımla",
+      "campaign": "Kampanya kimliği",
+      "placement": "Tedarikçi siparişini onayla",
+      "openDeposit": "Depozito dönemini aç",
+      "queues": "İnceleme kuyruğu",
+      "notes": "İnceleme notları",
+      "resolve": "Çöz",
+      "refresh": "Yenile",
+      "cancelPayment": "Onaylanmamış ödemeyi iptal et",
+      "resume": "Ödemeye devam et",
+      "reconciled": "Çift tahsilat inceleme gerektiriyor",
+      "empty": "Açık öğe yok",
+      "reviewHint": "İnceleme kaydı para taşımaz veya malları serbest bırakmaz."
     }
   }
 }

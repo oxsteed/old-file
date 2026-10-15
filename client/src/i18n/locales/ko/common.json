@@ -1368,6 +1368,1118 @@
     }
   },
   "logistics": {
+    "forms": {
+      "unsavedChanges": {
+        "title": "저장되지 않은 변경 사항을 버리시겠습니까?",
+        "body": "저장되지 않은 변경 사항이 있습니다. 지금 나가면 입력한 내용이 삭제됩니다.",
+        "stay": "계속 편집",
+        "discard": "변경 사항 버리기"
+      }
+    },
+    "workspace": {
+      "business": {
+        "recentActivity": {
+          "empty": "아직 내용이 없습니다."
+        },
+        "nextStep": {
+          "reviewRuns": {
+            "label": "예정된 실행 검토",
+            "hint": "21일 이내에 {{count}}건의 프로그램 실행이 있습니다. 수량, 노선, 목적지를 확인하세요."
+          },
+          "createProgram": {
+            "label": "정기 프로그램 만들기",
+            "hint": "아직 재입고 프로그램이 없습니다. 반복 수요에 맞는 주기를 설정하세요."
+          },
+          "newRequest": {
+            "label": "비즈니스 연계 요청 열기",
+            "hint": "프로그램이 실행 중입니다. 새 수요를 비즈니스에 연결하세요."
+          }
+        }
+      },
+      "buyer": {
+        "recentActivity": {
+          "empty": "아직 내용이 없습니다."
+        },
+        "nextStep": {
+          "browseCampaigns": {
+            "label": "캠페인 찾아보기",
+            "hint": "진행 중인 구매 요청이 없습니다. 참여하거나 지켜볼 공동구매 캠페인을 찾아보세요."
+          },
+          "reviewShipments": {
+            "label": "위험 배송 검토",
+            "hint": "{{count}}건의 배송에 후속 조치가 필요합니다."
+          },
+          "startRequest": {
+            "label": "소싱 요청 시작",
+            "hint": "모든 것이 순조롭습니다. 준비되면 새 수요를 여세요."
+          }
+        }
+      },
+      "distributor": {
+        "recentActivity": {
+          "empty": "아직 내용이 없습니다."
+        },
+        "nextStep": {
+          "failedDeliveries": {
+            "label": "실패한 배송 검토",
+            "hint": "{{count}}건의 배송이 실패하거나 취소되어 재배송이나 후속 조치가 필요할 수 있습니다."
+          },
+          "releaseLots": {
+            "label": "대기 중인 로트 출고",
+            "hint": "{{count}}개 로트가 할당되었지만 아직 출고되지 않았습니다."
+          },
+          "warehouse": {
+            "label": "창고 준비 상태 확인",
+            "hint": "대기열이 비어 있습니다. 상위 재고가 할당 준비되었는지 확인하세요."
+          }
+        }
+      },
+      "organizer": {
+        "recentActivity": {
+          "empty": "아직 내용이 없습니다."
+        },
+        "nextStep": {
+          "momentum": {
+            "label": "MOQ 모멘텀 끌어올리기",
+            "hint": "{{count}}개 캠페인이 MOQ의 절반에 못 미쳐 추가 모집이 필요합니다."
+          },
+          "browse": {
+            "label": "캠페인 찾아보기",
+            "hint": "아직 운영하는 캠페인이 없습니다. 참여할 캠페인을 찾아보세요."
+          },
+          "handoffs": {
+            "label": "인도 조율",
+            "hint": "수요가 확보되었습니다. 수령인에게 인도가 이어지도록 하세요."
+          }
+        }
+      },
+      "nextStep": {
+        "title": "다음 단계"
+      },
+      "recentActivity": {
+        "title": "최근 활동",
+        "empty": "아직 없습니다. 새 활동이 여기에 표시됩니다."
+      },
+      "dataError": {
+        "title": "데이터를 사용할 수 없음",
+        "body": "작업 공간을 지금 로드할 수 없습니다. 다시 시도해 주세요.",
+        "retry": "다시 시도"
+      }
+    },
+    "nav": {
+      "home": "물류",
+      "campaigns": "캠페인",
+      "sourcing": "소싱",
+      "orders": "주문",
+      "shipments": "배송",
+      "warehousing": "창고",
+      "compliance": "준수",
+      "finance": "금융",
+      "adminControl": "관리자 제어",
+      "businessProcurement": "기업 구매",
+      "buyer": "구매자",
+      "distributor": "유통업체",
+      "hub": "둘러보기",
+      "label": "물류 워크스페이스",
+      "operations": "운영",
+      "organizer": "주최자"
+    },
+    "home": {
+      "title": "OxSteed 물류",
+      "subtitle": "엔드 투 엔드 수입, 소싱, 공동 조달 및 유통.",
+      "openCampaigns": "공개 캠페인",
+      "myCampaigns": "나의 참여",
+      "recentOrders": "최근 주문",
+      "joinCampaign": "가입",
+      "ctaTitle": "전 세계적으로 소싱할 준비가 되셨나요?",
+      "ctaSubtitle": "캠페인에 참여하고 주문하려면 계정을 만들거나 로그인하세요.",
+      "signUp": "가입",
+      "logIn": "로그인",
+      "noCampaigns": "현재 진행 중인 캠페인이 없습니다.",
+      "noParticipation": "아직 캠페인에 참여하지 않았습니다.",
+      "noOrders": "아직 주문이 없습니다.",
+      "moqProgress": "MOQ의 {{pct}}%에 도달했습니다.",
+      "closes": "마감",
+      "deposit": "예금",
+      "perUnit": "/단위",
+      "heroTitle": "글로벌 공급망은 기업을 위해 구축되었습니다.",
+      "heroSubtitle": "우리는 200개 단위가 필요한 구매자, 아이티로 배송하는 주최자, 화물 중개인을 고용할 여유가 없는 기업을 위해 하나를 만들었습니다.",
+      "openWorkspace": "작업 공간 열기 →",
+      "getStarted": "시작하기",
+      "browseOpenCampaigns": "공개 캠페인 찾아보기",
+      "viewAll": "모두 보기",
+      "readyToStart": "시작할 준비가 되셨나요?",
+      "readyToStartBody": "첫 번째 공급업체 접촉부터 최종 배송까지 소싱, 공동 구매, 전체 공급망 가시성에 액세스하려면 가입하세요.",
+      "createAccount": "계정 만들기",
+      "unitsProgress": "{{current}} 중 {{target}} {{units}}",
+      "whyCards": {
+        "moq": {
+          "heading": "최소 주문 문제",
+          "body": "제조업체는 개인이 아닌 공장에 대한 최소값을 설정합니다. 대부분의 구매자는 가격 때문이 아니라 거래량 때문에 거래가 차단됩니다. 캠페인은 수학이 모든 사람에게 적합할 때까지 수요를 모읍니다."
+        },
+        "compliance": {
+          "heading": "규정 준수는 선택 사항이 아닙니다",
+          "body": "모든 배송은 무역 규칙, 관세, 제한된 카테고리, 수입 허가 등의 규정을 준수합니다. OxSteed는 상품이 세관에 보관된 후가 아니라, 약속하기 전에 제한 사항을 표시합니다."
+        },
+        "lastmile": {
+          "heading": "라스트 마일은 그 자체의 문제이다",
+          "body": "물품이 항구에 도착합니다. 그러면 어쩌죠? 창고 보관, 할당 및 배송 주문. 각각은 자체 핸드오프입니다. OxSteed는 체인을 조정하므로 모든 단계에서 다음 단계에 필요한 것이 무엇인지 알 수 있습니다."
+        }
+      },
+      "howItWorksLink": "작동 원리",
+      "partOfOxsteed": "OxSteed의 일부: 지역 도우미 고용, 음식 주문, 물품 이동을 위한 동일한 신뢰할 수 있는 네트워크입니다.",
+      "howItWorks": {
+        "title": "작동 원리",
+        "subtitle": "공급업체에서 귀하의 집까지 하나의 공유 배송입니다.",
+        "pool": {
+          "heading": "풀 수요",
+          "body": "공개 캠페인에 참여하거나 직접 시작해보세요. 모든 구매자는 하나의 공유 주문에 필요한 단위를 약속합니다."
+        },
+        "minimum": {
+          "heading": "최소값을 달성하세요",
+          "body": "서약 금액이 제조업체의 최소 주문량에 도달하면 보증금이 징수되고 캠페인이 잠깁니다. 최소 금액에 도달하지 못한 경우 보증금은 환불됩니다."
+        },
+        "chain": {
+          "heading": "우리는 체인을 운영합니다",
+          "body": "화물, 통관, 창고 보관, 라스트마일 배송 등 상품이 도착할 때까지 모든 단계를 추적합니다."
+        }
+      },
+      "roles": {
+        "title": "당신은 어느 쪽인가요?",
+        "subtitle": "수행하려는 작업과 일치하는 경로를 선택하세요.",
+        "buyer": {
+          "intent": "나는 사고 싶다",
+          "heading": "그룹 배송에 참여하세요",
+          "body": "공개 캠페인을 탐색하고, 필요한 단위를 약속하고, 공장에서 집까지 상품을 추적하세요.",
+          "cta": "캠페인 찾아보기"
+        },
+        "organizer": {
+          "intent": "나는 정리하고 싶다",
+          "heading": "공동구매 실행",
+          "body": "지역 사회에 필요한 제품에 대한 캠페인을 시작하고, 구매자를 모으고, 배송을 조정하세요.",
+          "cta": "캠페인 시작"
+        },
+        "business": {
+          "intent": "나는 사업이다",
+          "heading": "브로커 없이 재입고",
+          "body": "화물 중개인 수수료를 제외하고 차선 인식 구매를 통한 반복 조달 및 재입고 계획입니다.",
+          "cta": "조달 살펴보기"
+        }
+      }
+    },
+    "complianceWorkspace": {
+      "navLabel": "컴플라이언스 섹션",
+      "title": "규정 준수 작업 공간",
+      "subtitle": "교환원 액세스 권한이 있는 경우 각 경로 및 세관에 민감한 작업 대기열에 대한 무역 규칙을 확인하세요.",
+      "nav": {
+        "tradeRules": "무역 규칙",
+        "reviewQueue": "검토 대기열",
+        "customsOps": "통관 업무",
+        "restrictions": "제한 사항"
+      },
+      "kpis": {
+        "lowRisk": "위험도가 낮은 차선",
+        "managed": "관리형 차선",
+        "restricted": "제한된 차선",
+        "prohibited": "금지된 차선"
+      },
+      "cardTitleLaneMarketRules": "차선 및 시장 규칙",
+      "cardTitleOperator": "운전자 검토 자세",
+      "cardTitleCategoryRestrictions": "카테고리 제한 스냅샷",
+      "tableHeaders": {
+        "lane": "레인",
+        "countries": "국가",
+        "risk": "위험도",
+        "flags": "플래그",
+        "item": "품목",
+        "routeOrCountry": "노선 / 국가",
+        "country": "국가",
+        "status": "상태",
+        "category": "카테고리"
+      },
+      "risk": {
+        "low": "낮음",
+        "managed": "관리됨",
+        "restricted": "제한됨",
+        "prohibited": "금지"
+      },
+      "flags": {
+        "open": "열기",
+        "businessVerification": "사업 검증",
+        "manualApproval": "수동 승인"
+      },
+      "status": {
+        "approvalRequired": "승인 필요"
+      },
+      "empty": {
+        "noLanes": "아직 이용 가능한 차선이 없습니다.",
+        "noRestrictions": "제한사항이 없습니다."
+      },
+      "separator": "·",
+      "queueLabel": "세관에 민감한 배송물이 대기열에 있습니다.",
+      "metrics": {
+        "unavailableNote": "지표를 현재 사용할 수 없습니다."
+      }
+    },
+    "operatorLogin": {
+      "copy": {
+        "compliance": {
+          "title": "규정 준수 작업 공간 로그인",
+          "subtitle": "내부 규정 준수에 액세스하려면 비밀번호 로그인 전에 할당된 이름과 보안 키가 필요합니다."
+        },
+        "adminControl": {
+          "title": "관리자 제어 로그인",
+          "subtitle": "내부 관리자 제어는 운영자 전용으로 유지됩니다. 계속하려면 연결된 관리자 계정을 사용하세요."
+        },
+        "operations": {
+          "title": "운영 작업 공간 로그인",
+          "subtitle": "내부 작업에 액세스하려면 비밀번호 로그인 전에 할당된 이름과 보안 키가 필요합니다."
+        }
+      },
+      "twoFaTitle": "2단계 인증",
+      "twoFaPrompt": "인증 앱의 6자리 코드 또는 백업 코드를 입력하세요.",
+      "labels": {
+        "email": "이메일",
+        "password": "비밀번호",
+        "internalName": "내부 이름",
+        "securityKey": "보안 키",
+        "twoFaCode": "2FA 코드"
+      },
+      "placeholders": {
+        "email": "operator@oxsteed.com",
+        "password": "비밀번호를 입력하세요",
+        "internalName": "귀하에게 할당된 내부 이름",
+        "securityKey": "최고 관리자가 제공한 보안 키"
+      },
+      "approvedAccountLabel": "승인된 계정",
+      "approvedAccountNote": "이 로그인은 다음에 연결된 OxSteed 계정으로만 계속할 수 있습니다.",
+      "verifying": "확인 중…",
+      "verify": "확인",
+      "checking": "확인 중…",
+      "continue": "계속",
+      "signingIn": "로그인 중…",
+      "signIn": "로그인",
+      "locked": "계정이 잠겼습니다.",
+      "requestRecoveryEmail": "복구 이메일 요청",
+      "recoveryPrompt": "파일에 복구 이메일을 입력하세요.",
+      "resetIdentity": "다른 내부 액세스 ID 사용",
+      "footer": {
+        "internalKeyRequired": "이제 운영 및 규정 준수 액세스에는 최고 관리자가 발급한 내부 이름과 보안 키가 필요합니다.",
+        "adminOnly": "관리자 또는 최고 관리자 역할을 가진 사용자만 이 포털에 들어갈 수 있습니다.",
+        "standardSignIn": "표준 OxSteed 로그인으로 이동"
+      },
+      "errors": {
+        "tooManyAttempts": "실패한 시도가 너무 많습니다. {{minutes}}분 후에 다시 시도하세요.",
+        "tooManyAttemptsLocked": "실패한 시도가 너무 많습니다. 타이머가 만료될 때까지 잠겨 있습니다.",
+        "internalNameAndKeyRequired": "이름과 보안 키가 필요합니다.",
+        "internalAccessFailed": "내부 액세스 확인에 실패했습니다.",
+        "lockedRecovery": "일시적으로 액세스가 잠겨 있습니다. 복구 이메일을 요청하거나 최고 관리자에게 문의하세요.",
+        "invalidCredentialsRemaining": "자격 증명이 잘못되었습니다. 잠금 전에 {{attemptsLeft}} 시도 횟수가 남아 있습니다.",
+        "recoveryEmailSent": "해당 이메일이 복구 승인을 받은 경우 일회성 링크가 전송되었습니다. 받은편지함을 확인하세요.",
+        "recoveryEmailFailed": "복구 이메일을 요청할 수 없습니다.",
+        "internalAccessRequired": "먼저 내부 접근 인증을 완료하세요.",
+        "passwordRequired": "비밀번호가 필요합니다.",
+        "passwordLocked": "시도 실패 횟수가 너무 많아 액세스가 일시적으로 잠겼습니다.",
+        "passwordFailed": "로그인에 실패했습니다. 비밀번호를 확인해주세요.",
+        "emailAndPasswordRequired": "이메일과 비밀번호가 필요합니다.",
+        "accountLocked": "시도 실패 횟수가 너무 많아 계정이 일시적으로 잠겼습니다.",
+        "credentialsFailed": "로그인에 실패했습니다. 자격 증명을 확인하세요.",
+        "twoFaExpired": "귀하의 2FA 세션이 만료되었습니다. 다시 로그인해 주세요.",
+        "twoFaCodeRequired": "2FA 코드를 입력해주세요.",
+        "operatorPrivilegesRequired": "접근 불가. 물류 운영자 권한이 필요합니다.",
+        "invalid2Fa": "2FA 코드가 잘못되었습니다."
+      }
+    },
+    "campaigns": {
+      "title": "통합된 캠페인",
+      "subtitle": "컨테이너 비용을 공유하고 도매 가격을 잠금 해제하는 캠페인에 참여하세요.",
+      "openOnly": "공개만 가능",
+      "allLanes": "모든 차선",
+      "noCampaigns": "필터와 일치하는 캠페인이 없습니다.",
+      "moq": "MOQ",
+      "units": "단위",
+      "closesIn": "{{days}}일 후 종료",
+      "closedOn": "휴무",
+      "deposit": "예금",
+      "participants": "참가자",
+      "joined": "가입하셨습니다",
+      "viewDetails": "세부정보 보기",
+      "emptyTitle": "지금은 일치하는 캠페인이 없습니다.",
+      "emptyExplainer": "캠페인은 그룹 주문입니다. 구매자는 하나의 공유 배송에 대해 단위를 약속합니다. 서약이 제조업체의 최소 금액에 도달하면 주문이 이루어지고 OxSteed가 체인을 실행합니다.",
+      "exampleLabel": "예",
+      "exampleTitle": "태양광 랜턴, 도매 팩",
+      "howItWorks": "작동 원리",
+      "unitEconomics": "단위경제학",
+      "timeline": "타임라인",
+      "startRequest": "요청 시작",
+      "perUnit": "/단위 착륙",
+      "participant": "참가자",
+      "organizer": "주최자",
+      "openDate": "오픈 날짜",
+      "myStatus": "내 상태",
+      "moqReached": "MOQ에 도달했습니다!",
+      "lockDate": "잠금 날짜",
+      "newCampaign": "새 캠페인 시작",
+      "new": {
+        "title": "새 캠페인 시작",
+        "subtitle": "공동 구매 캠페인 초안을 작성하세요. 준비되면 검토하고 운영 승인에 제출하세요.",
+        "fieldTitle": "캠페인 제목",
+        "titlePlaceholder": "예: 태양광 랜턴 2,000개",
+        "fieldDescription": "설명",
+        "descriptionPlaceholder": "구매자는 무엇을 받나요? 주요 사양, 수량, 참여 이유를 적어주세요.",
+        "fieldLane": "무역 경로",
+        "lanePlaceholder": "무역 경로 선택",
+        "lanesFailed": "무역 경로를 불러오지 못했습니다.",
+        "laneChecks": "경로 검사",
+        "riskTier": "위험 등급",
+        "laneNeedsBusiness": "이 경로에서 캠페인을 실행하려면 사업자 인증이 필요합니다.",
+        "laneNeedsManual": "이 캠페인을 게시하려면 수동 컴플라이언스 승인이 필요합니다.",
+        "fieldTargetMoq": "최소 수량(MOQ)",
+        "fieldMaxParticipants": "최대 참가자 수(선택)",
+        "fieldCloseDate": "참여 마감일",
+        "fieldLockDate": "확정일",
+        "fieldShipDate": "출하 예정일",
+        "fieldArrivalDate": "도착 예정일",
+        "pricingHeading": "가격 개요",
+        "pricingHint": "초안에는 대략적인 개요로 충분합니다. OxSteed가 총 비용을 계산하고, 운영팀이 검토 시 가격을 확정합니다.",
+        "fieldUnitCost": "제품 단가(USD)",
+        "fieldFreight": "단위당 운임 예상(USD)",
+        "fieldDepositPct": "보증금 비율",
+        "fieldCancellationPolicy": "취소 정책",
+        "saveDraft": "초안으로 저장",
+        "saving": "저장 중…",
+        "draftSaved": "초안을 저장했습니다.",
+        "createFailed": "초안을 저장하지 못했습니다. 다시 시도해 주세요.",
+        "titleRequired": "제목은 필수입니다.",
+        "laneRequired": "무역 경로를 선택하세요.",
+        "moqRequired": "최소 1개 이상의 수량을 입력하세요.",
+        "back": "주최자 작업 공간으로 돌아가기",
+        "unsavedConfirm": "저장되지 않은 변경 사항이 있습니다. 초안을 저장하지 않고 나가시겠습니까?",
+        "nextStepLabel": "캠페인 시작",
+        "nextStepHint": "첫 공동 구매 캠페인 초안을 작성하고 운영 승인에 제출하세요."
+      },
+      "approval": {
+        "title": "승인",
+        "draft": "초안",
+        "pendingReview": "검토 중",
+        "revisionsRequested": "수정 요청됨",
+        "approved": "승인됨",
+        "rejected": "거부됨",
+        "submitForReview": "검토에 제출",
+        "submitting": "제출 중…",
+        "submitted": "검토에 제출했습니다.",
+        "submitFailed": "제출하지 못했습니다. 다시 시도해 주세요.",
+        "blockersTitle": "제출하기 전에 다음을 수정하세요",
+        "historyTitle": "승인 기록",
+        "noHistory": "아직 검토 결정이 없습니다.",
+        "approve": "승인하고 게시",
+        "requestRevisions": "수정 요청",
+        "reviewing": "검토 중…",
+        "reasonLabel": "검토 메모",
+        "reasonPlaceholder": "이 캠페인을 게시하기 전에 변경해야 할 사항을 설명해 주세요.",
+        "reviewFailed": "검토하지 못했습니다. 다시 시도해 주세요.",
+        "reasonRequired": "수정을 요청할 때는 사유가 필수입니다.",
+        "latestRevisionNote": "최신 검토 메모",
+        "awaitingReview": "운영 검토를 기다리는 중입니다. 결정이 내려지면 알려드리겠습니다.",
+        "publishedNote": "승인 및 게시되었습니다. 구매자가 이제 참여할 수 있습니다.",
+        "unknownReviewer": "알 수 없는 검토자",
+        "approvedToast": "캠페인을 승인하고 게시했습니다.",
+        "revisionsToast": "수정 요청을 주최자에게 보냈습니다.",
+        "revisionsAdminMessage": "\"{{title}}\"을(를) 검토 메모와 함께 주최자에게 돌려보냅니다.",
+        "decision_submitted_for_review": "검토에 제출",
+        "decision_approved": "승인",
+        "decision_revisions_requested": "수정 요청",
+        "decision_rejected": "거부",
+        "decision_withdrawn": "철회",
+        "blocker_missing_title": "캠페인 제목을 입력하세요.",
+        "blocker_missing_description": "구매자가 받게 될 내용에 대한 설명을 추가하세요.",
+        "blocker_missing_lane": "무역 경로를 선택하세요.",
+        "blocker_missing_moq": "최소 수량을 1 이상으로 설정하세요.",
+        "blocker_missing_close_date": "참여 마감일을 설정하세요.",
+        "blocker_close_date_past": "참여 마감일은 미래 날짜여야 합니다.",
+        "blocker_missing_pricing": "가격 개요에 제품 단가 또는 운임 예상을 추가하세요.",
+        "blocker_business_verification_required": "이 경로에는 인증된 사업자가 필요합니다. 먼저 사업자 인증을 완료하세요.",
+        "blocker_lane_access_blocked": "이 무역 경로는 귀하의 시장에서 이용할 수 없습니다.",
+        "withdraw": "검토에서 철회",
+        "withdrawing": "철회 중…",
+        "withdrawConfirm": "이 캠페인을 검토에서 철회하시겠습니까? 초안으로 돌아가 편집 후 다시 제출할 수 있습니다.",
+        "withdrawnToast": "캠페인이 검토에서 철회되었습니다.",
+        "withdrawFailed": "철회에 실패했습니다. 다시 시도하세요.",
+        "reject": "거부",
+        "rejectToast": "캠페인이 거부되었습니다. 주최자에게 알림이 전송되었습니다.",
+        "rejectFailed": "거부에 실패했습니다. 다시 시도하세요.",
+        "rejectReasonRequired": "캠페인을 거부할 때는 사유가 필요합니다.",
+        "rejectConfirmMessage": "\"{{title}}\"을(를) 거부하시겠습니까? 사유와 함께 주최자에게 알림이 전송됩니다."
+      },
+      "joinSuccess": "캠페인에 참여하셨습니다!",
+      "joinForm": "이 캠페인에 참여하세요",
+      "joinCampaign": "캠페인 참여",
+      "expectedShip": "예상 배송",
+      "expectedArrival": "예상 도착",
+      "deliveryPreference": "배송 기본 설정",
+      "confirmJoin": "약속 확인",
+      "committedQty": "커밋할 수량",
+      "closes": "마감",
+      "closeDate": "마감일",
+      "allStatuses": "모든 상태",
+      "allCampaigns": "모든 캠페인",
+      "edit": {
+        "title": "캠페인 초안 편집",
+        "subtitle": "아래에서 초안을 업데이트하세요. 준비가 되면 운영팀 검토를 위해 제출하세요.",
+        "saveChanges": "변경 사항 저장",
+        "draftUpdated": "초안이 업데이트되었습니다.",
+        "updateFailed": "초안을 업데이트할 수 없습니다. 다시 시도해 주세요.",
+        "backToCampaign": "캠페인으로 돌아가기",
+        "loading": "캠페인 초안 불러오는 중…",
+        "loadError": "캠페인을 불러올 수 없습니다. 다시 시도해 주세요.",
+        "notFound": "캠페인을 찾을 수 없습니다. 삭제되었을 수 있습니다.",
+        "notOwner": "캠페인 주최자만 이 초안을 편집할 수 있습니다.",
+        "notEditable": "이 캠페인은 더 이상 편집할 수 없습니다. 초안과 수정 요청된 캠페인만 편집할 수 있습니다.",
+        "editDraft": "초안 편집"
+      }
+    },
+    "campaign": {
+      "organizer": "주최자",
+      "unitEconomics": "단위경제학",
+      "productCost": "제품 원가",
+      "freightShare": "화물분담",
+      "markup": "OxSteed 마크업",
+      "fees": "수수료 및 관세",
+      "landedCost": "착륙 비용",
+      "depositDue": "예치금(30%)",
+      "timeline": "캠페인 타임라인",
+      "opensAt": "열림",
+      "closesAt": "마감",
+      "locksAt": "자물쇠",
+      "shipsAt": "선박",
+      "arrivesAt": "도착",
+      "joinTitle": "이 캠페인에 참여하세요",
+      "committing": "커밋할 단위",
+      "deliveryPref": "배송 환경설정",
+      "cancellationWarning": "캠페인이 잠긴 후에는 약정 수량을 줄일 수 없습니다.",
+      "join": "캠페인 참여",
+      "joining": "가입 중...",
+      "alreadyJoined": "이미 이 캠페인에 참여하셨습니다.",
+      "participants": "참가자",
+      "buyerLabel": "구매자",
+      "qtyLabel": "수량",
+      "statusLabel": "상태"
+    },
+    "sourcing": {
+      "title": "소싱",
+      "myRequests": "내 요청",
+      "suppliers": "공급자",
+      "newRequest": "새로운 요청",
+      "reference": "참고자료",
+      "category": "카테고리",
+      "lane": "레인",
+      "qty": "수량",
+      "quotes": "인용문",
+      "status": "상태",
+      "created": "생성됨",
+      "noRequests": "아직 소싱 요청이 없습니다.",
+      "noSuppliers": "아직 승인된 공급업체가 없습니다.",
+      "trustRating": "신뢰도",
+      "qualityScore": "품질",
+      "onTimeRate": "정시",
+      "products": "제품",
+      "viewProducts": "제품 보기",
+      "subtitle": "첫 번째 문의부터 구매 주문까지 요청, 견적, 전환이 가능합니다.",
+      "startFirst": "첫 번째 요청 시작",
+      "error": "현재 소싱 요청을 로드할 수 없습니다. 다시 시도해 주세요.",
+      "headers": {
+        "category": "카테고리",
+        "lane": "레인",
+        "qty": "수량",
+        "quotes": "견적",
+        "reference": "참조",
+        "status": "상태",
+        "title": "제목"
+      },
+      "openRequest": "요청 {{ref}} 열기",
+      "tabsLabel": "소싱 보기",
+      "viewRow": "보기 →"
+    },
+    "request": {
+      "title": "새로운 소싱 요청",
+      "step1": "무엇을 & 얼마나 많이",
+      "step2": "물류",
+      "step3": "검토 및 제출",
+      "productTitle": "제품명",
+      "category": "카테고리",
+      "description": "설명/사양",
+      "qty": "수량",
+      "targetPrice": "목표단가(USD)",
+      "budget": "총예산(USD)",
+      "laneLabel": "레인",
+      "destinationCountry": "목적지 국가",
+      "freightMode": "선호하는 화물 모드",
+      "needsByDate": "납기 요청 날짜",
+      "attachments": "첨부파일(선택사항)",
+      "reviewTitle": "요청을 검토하세요",
+      "submit": "요청 제출",
+      "submitting": "제출 중...",
+      "back": "뒤로",
+      "next": "다음"
+    },
+    "orders": {
+      "title": "구매 주문",
+      "subtitle": "모든 물류 구매 주문을 추적하세요.",
+      "reference": "참고자료",
+      "product": "제품",
+      "qty": "수량",
+      "landed": "착륙 총계",
+      "status": "상태",
+      "created": "생성됨",
+      "noOrders": "구매주문서를 찾을 수 없습니다.",
+      "allStatuses": "모든 상태",
+      "empty": "주문을 찾을 수 없습니다.",
+      "loading": "로드 중…",
+      "lane": "레인",
+      "landedCost": "착륙 비용",
+      "expected": "예상",
+      "backToBuyer": "구매자 워크스페이스로 돌아가기",
+      "error": "현재 주문을 로드할 수 없습니다. 다시 시도해 주세요.",
+      "headers": {
+        "expected": "예상",
+        "landedCost": "착지 원가",
+        "lane": "레인",
+        "product": "제품",
+        "qty": "수량",
+        "reference": "참조",
+        "status": "상태"
+      },
+      "openOrder": "주문 {{ref}} 열기",
+      "pagination": "주문 페이지",
+      "statusFilter": "상태로 필터링"
+    },
+    "shipments": {
+      "title": "배송",
+      "subtitle": "운송 중인 상품을 추적하세요.",
+      "reference": "참고자료",
+      "route": "경로",
+      "carrier": "캐리어",
+      "tracking": "추적 #",
+      "weight": "무게",
+      "cbm": "CBM",
+      "eta": "ETA",
+      "status": "상태",
+      "noShipments": "배송물을 찾을 수 없습니다.",
+      "milestone": "마일스톤",
+      "allStatuses": "모두",
+      "empty": "배송물을 찾을 수 없습니다.",
+      "loading": "로드 중…",
+      "backToBuyer": "구매자 워크스페이스로 돌아가기",
+      "error": "현재 화물을 로드할 수 없습니다. 다시 시도해 주세요.",
+      "etaLabel": "도착 예정",
+      "exception": "예외",
+      "kg": "kg",
+      "lifecycleLabel": "수명 주기 단계로 필터링",
+      "noCarrier": "운송업체 없음",
+      "openShipment": "화물 {{ref}} 열기"
+    },
+    "warehousing": {
+      "title": "창고",
+      "receipts": "재고 영수증",
+      "allocations": "할당",
+      "deliveries": "배달 주문",
+      "warehouses": "창고",
+      "noReceipts": "영수증을 찾을 수 없습니다.",
+      "noAllocations": "할당을 찾을 수 없습니다.",
+      "noDeliveries": "배송 주문을 찾을 수 없습니다.",
+      "noWarehouses": "창고를 찾을 수 없습니다.",
+      "subtitle": "구매자에게 재고를 수령, 조정, 할당 및 릴리스합니다.",
+      "activeReceipts": "활성 입고 {{count}}건",
+      "bonded": "보세",
+      "error": "현재 창고 데이터를 로드할 수 없습니다. 다시 시도해 주세요.",
+      "headers": {
+        "buyer": "구매자",
+        "expected": "예상",
+        "qty": "수량",
+        "received": "입고됨",
+        "reference": "참조",
+        "releaseMethod": "출고 방법",
+        "released": "출고됨",
+        "shortage": "부족",
+        "status": "상태",
+        "warehouse": "창고"
+      },
+      "sqft": "제곱피트",
+      "tabsLabel": "창고 보기"
+    },
+    "compliance": {
+      "title": "규정 준수 및 제한 사항",
+      "subtitle": "물류 경로를 관리하는 경로 위험 계층 및 무역 규칙입니다.",
+      "laneRisk": "차선 위험 개요",
+      "tradeRules": "무역 규칙",
+      "lane": "레인",
+      "route": "경로",
+      "risk": "위험 등급",
+      "markup": "마크업",
+      "customs": "관세 복잡성",
+      "flags": "플래그",
+      "noRules": "거래 규칙이 없습니다.",
+      "riskLow": "낮음",
+      "riskManaged": "관리됨",
+      "riskRestricted": "제한됨",
+      "riskProhibited": "금지",
+      "bv": "사업 검증",
+      "ma": "수동 승인",
+      "explainer": "항로는 중국과 아이티 등 두 국가 간의 운송 경로입니다. 모든 차선에는 수입할 수 있는 품목, 필요한 서류, 정밀한 관세 적용 정도 등 고유한 규칙이 있습니다. 우리는 모든 공동 발송물에 대해 이러한 규칙을 확인하고 서류 작업을 처리합니다. 이 페이지에는 귀하의 상품에 적용되는 사항이 표시됩니다.",
+      "lanesRisk": "차선 위험 개요",
+      "allLanes": "모든 레인",
+      "businessVerificationRequired": "비즈니스 검증 필요",
+      "countryFilter": "국가 코드로 필터링",
+      "countryPlaceholder": "국가 코드 (예: HT)",
+      "customsComplexity": "세관",
+      "docRequirements": {
+        "body": "각 레인마다 다음이 필요할 수 있습니다: 상업 송장, 포장 명세서, 원산지 증명서, 식물위생 증명서, 통관 서류, 적합성 표시, 세관 신고서 또는 검사 보고서. 요구사항은 레인 및 카테고리별로 다릅니다.",
+        "title": "문서 요구사항"
+      },
+      "error": "현재 컴플라이언스 데이터를 로드할 수 없습니다. 다시 시도해 주세요.",
+      "global": "글로벌",
+      "headers": {
+        "category": "카테고리",
+        "country": "국가",
+        "docRequired": "문서 필요",
+        "lane": "레인",
+        "notes": "메모",
+        "severity": "심각도",
+        "type": "유형"
+      },
+      "laneFilter": "레인으로 필터링",
+      "manualApprovalRequired": "수동 승인 필요",
+      "noLanes": "아직 게시된 레인 위험 데이터가 없습니다.",
+      "riskTiers": {
+        "title": "위험 등급"
+      }
+    },
+    "finance": {
+      "title": "물류금융",
+      "subtitle": "약속된 가치, 수수료, 주문 경제에 대한 개요입니다.",
+      "totalCommitted": "총 약정",
+      "depositsPaid": "지불된 예금",
+      "orderCount": "주문수",
+      "inTransit": "운송 중 금액",
+      "simulator": {
+        "calculate": "착지 원가 계산",
+        "calculating": "계산 중…",
+        "freight": "운임 예상 / 단위 (USD)",
+        "lane": "레인",
+        "markupApplied": "마진 적용됨",
+        "perUnit": "/ 착지 단위",
+        "productCost": "제품 원가 / 단위 (USD)",
+        "quantity": "수량",
+        "selectLane": "— 레인 선택 —",
+        "title": "착지 원가 시뮬레이터",
+        "totalFor": "{{qty}} 단위 총액"
+      },
+      "simulatorSubtitle": "주문하기 전에 전체 비용 내역을 미리 확인하세요.",
+      "unitCost": "단위 제품 비용(USD)",
+      "qty": "수량",
+      "laneLabel": "레인",
+      "freightEst": "예상 화물 (USD, 선택사항)",
+      "calculate": "계산하다",
+      "calculating": "계산 중...",
+      "noOrders": "아직 주문이 없습니다.",
+      "totalSpent": "총 약정",
+      "recentOrders": "최근 주문",
+      "depositPaid": "지불된 예금",
+      "byStatus": "주문 상태별 값",
+      "error": "현재 재무 데이터를 로드할 수 없습니다. 다시 시도해 주세요.",
+      "headers": {
+        "depositPaid": "지불된 보증금",
+        "product": "제품",
+        "qty": "수량",
+        "reference": "참조",
+        "remaining": "잔여",
+        "status": "상태",
+        "totalLanded": "착지 총액"
+      },
+      "kpis": {
+        "depositsPaid": "지불된 보증금",
+        "inTransit": "운송 중",
+        "orders": "주문",
+        "totalCommitted": "확약 총액"
+      },
+      "noSpend": "아직 기록된 주문 지출이 없습니다.",
+      "refund": {
+        "empty": "아직 제출된 환불 케이스가 없습니다.",
+        "requested": "요청됨",
+        "submitted": "환불 케이스가 검토를 위해 제출되었습니다.",
+        "title": "환불 요청"
+      },
+      "refundForm": {
+        "amount": "요청 금액 (USD)",
+        "notes": "메모",
+        "poFallback": "발주서",
+        "purchaseOrder": "발주서",
+        "reason": "환불 사유",
+        "selectOrder": "— 주문 선택 —",
+        "submit": "환불 케이스 제출",
+        "submitting": "제출 중…",
+        "title": "환불 검토 요청"
+      }
+    },
+    "admin": {
+      "title": "물류 운영",
+      "subtitle": "경로, 공급업체, 주문, 선적, 창고, 가격 책정 및 규정 준수를 완벽하게 제어합니다.",
+      "loading": "통계 로드 중…",
+      "unknownStatus": "알 수 없는 상태",
+      "links": {
+        "sourcingOps": "소싱 작업",
+        "organizerApprovals": "주최자 승인",
+        "lanes": "차선",
+        "suppliers": "공급자",
+        "quotes": "인용문",
+        "campaigns": "캠페인",
+        "purchaseOrders": "구매 주문",
+        "shipmentOps": "배송 운영",
+        "shipments": "배송",
+        "complianceReview": "규정 준수 검토",
+        "customs": "세관",
+        "warehouseOps": "창고 운영",
+        "warehouses": "창고",
+        "allocations": "할당",
+        "pricing": "가격",
+        "restrictions": "제한 사항",
+        "disputes": "분쟁",
+        "superControl": "슈퍼 컨트롤",
+        "refunds": "환불"
+      },
+      "metrics": {
+        "purchaseOrders": "구매 주문",
+        "shipments": "배송",
+        "pooledCampaigns": "통합된 캠페인",
+        "sourcingRequests": "소싱 요청",
+        "claims": "청구"
+      },
+      "warehouseTable": {
+        "title": "창고",
+        "warehouse": "창고",
+        "activeReceipts": "활성 영수증",
+        "totalUnits": "받은 총 단위"
+      },
+      "shipmentOps": {
+        "title": "배송 작업 작업 공간",
+        "subtitle": "모든 물류 경로에 걸쳐 활성 화물 파이프라인, 통관 대기열 및 예외 상태를 관찰하세요.",
+        "activeShipments": "활성 배송",
+        "customsQueue": "세관 대기열",
+        "exceptions": "예외",
+        "reference": "참고자료",
+        "route": "경로",
+        "freight": "화물",
+        "status": "상태",
+        "eta": "ETA",
+        "empty": "배송물을 찾을 수 없습니다."
+      },
+      "quotes": {
+        "title": "견적 관리",
+        "subtitle": "소싱 요청을 위해 제출된 공급업체 견적을 검토합니다.",
+        "allStatuses": "모든 상태",
+        "reference": "참고자료",
+        "sourcingRequest": "소싱 요청",
+        "supplier": "공급자",
+        "unitPrice": "단가",
+        "moq": "MOQ",
+        "leadDays": "리드 데이",
+        "status": "상태",
+        "submitted": "제출됨",
+        "review": "검토",
+        "empty": "견적을 찾을 수 없습니다.",
+        "loading": "로드 중…",
+        "reviewTitle": "견적 검토",
+        "supplierLabel": "공급자",
+        "unitPriceLabel": "단가",
+        "moqLabel": "MOQ",
+        "leadTime": "리드타임",
+        "days": "일",
+        "freightIncluded": "화물 포함",
+        "yes": "예",
+        "supplierNotes": "공급업체 메모",
+        "sampleAvailable": "샘플 사용 가능",
+        "dayAbbrev": "디",
+        "leadShort": "리드",
+        "decision": "결정",
+        "choose": "선택",
+        "accept": "수락",
+        "reject": "거부",
+        "adminNotes": "관리자 메모(구매자와 공유)",
+        "submitDecision": "결정 제출",
+        "cancel": "취소",
+        "selectDecisionError": "수락 또는 거부를 선택합니다.",
+        "reviewAccepted": "견적이 승인되었습니다.",
+        "reviewRejected": "견적이 거부되었습니다.",
+        "reviewFailed": "견적 검토에 실패했습니다.",
+        "statuses": {
+          "submitted": "제출됨",
+          "under_review": "검토중",
+          "accepted": "수락됨",
+          "rejected": "거부됨",
+          "expired": "만료됨"
+        }
+      },
+      "shipments": {
+        "title": "배송관리",
+        "subtitle": "배송 일정을 추적하고 배송 문서를 관리하세요.",
+        "allStatuses": "모든 상태",
+        "loading": "로드 중…",
+        "reference": "참고자료",
+        "route": "경로",
+        "carrier": "캐리어",
+        "tracking": "추적",
+        "weightCbm": "무게/CBM",
+        "eta": "ETA",
+        "status": "상태",
+        "update": "업데이트",
+        "empty": "배송물을 찾을 수 없습니다.",
+        "addMilestone": "마일스톤 추가",
+        "uploadDocument": "문서 업로드",
+        "milestoneStatus": "마일스톤 상태",
+        "select": "선택",
+        "location": "위치",
+        "locationPlaceholder": "예를 들어 상하이항",
+        "notes": "메모",
+        "saving": "저장 중…",
+        "cancel": "취소",
+        "documentType": "문서 유형",
+        "file": "파일",
+        "upload": "업로드",
+        "uploading": "업로드 중…",
+        "selectMilestoneError": "마일스톤 상태를 선택하세요.",
+        "milestoneAdded": "마일스톤이 추가되었습니다.",
+        "milestoneFailed": "마일스톤을 추가할 수 없습니다.",
+        "documentRequired": "문서 유형과 파일을 선택합니다.",
+        "documentUploaded": "문서가 업로드되었습니다.",
+        "documentFailed": "문서를 업로드할 수 없습니다.",
+        "statuses": {
+          "planned": "예정",
+          "booked": "예약됨",
+          "origin_received": "원산지 수신됨",
+          "consolidating": "통합",
+          "departed_origin": "출발지",
+          "transshipment": "환적",
+          "arrived_destination": "도착지",
+          "customs_hold": "관세 보류",
+          "customs_cleared": "통관이 완료되었습니다",
+          "delivered_to_warehouse": "창고로 배송됨",
+          "receiving": "수신",
+          "allocation_ready": "할당 준비 완료",
+          "distributed": "분산",
+          "completed": "완료됨",
+          "delivered": "배달됨",
+          "exception": "예외"
+        },
+        "docTypes": {
+          "bill_of_lading": "선하증권",
+          "commercial_invoice": "상업송장",
+          "packing_list": "포장 목록",
+          "certificate_of_origin": "원산지 증명서",
+          "customs_declaration": "세관신고",
+          "insurance_cert": "보험 증서",
+          "other": "기타"
+        }
+      }
+    },
+    "status": {
+      "pending_review": "검토 중",
+      "revisions_requested": "수정 요청됨",
+      "draft": "초안",
+      "open": "열기",
+      "quoted": "인용됨",
+      "pledging": "서약",
+      "deposit_phase": "입금 단계",
+      "approved": "승인됨",
+      "placed_with_supplier": "배치됨",
+      "placed": "배치됨",
+      "deposit_paid": "보증금 지불",
+      "production": "생산 중",
+      "ready_to_ship": "배송 준비 완료",
+      "in_transit": "운송 중",
+      "at_customs": "세관에서",
+      "customs_cleared": "통관이 완료되었습니다",
+      "at_warehouse": "창고에서",
+      "fulfilled": "이행됨",
+      "closed": "휴무",
+      "cancelled": "취소됨",
+      "disputed": "논쟁의 여지가 있는",
+      "planned": "예정",
+      "booked": "예약됨",
+      "departed_origin": "출발지",
+      "arrived_transship": "도착(환승)",
+      "departed_transship": "출발함(환승)",
+      "arrived_destination": "도착지",
+      "customs_hold": "관세 보류",
+      "delivered_to_wh": "WH로 배송됨",
+      "completed": "완료됨",
+      "exception": "예외",
+      "under_review": "검토중",
+      "rejected": "거부됨",
+      "resolved": "해결됨",
+      "escalated": "에스컬레이션됨",
+      "locked": "잠김",
+      "shipping": "배송",
+      "arrived": "도착",
+      "pending": "보류 중",
+      "received": "접수됨",
+      "discrepancy": "불일치",
+      "reconciled": "화해됨",
+      "reserved": "예약됨",
+      "released": "출시됨",
+      "expired": "만료됨",
+      "dispatched": "파견됨",
+      "delivered": "배달됨",
+      "failed": "실패",
+      "accepted": "수락됨"
+    },
+    "sections": {
+      "sourcing": "소싱",
+      "procurement": "조달",
+      "shipments": "배송",
+      "warehousing": "창고",
+      "distribution": "유통",
+      "compliance": "규정 준수",
+      "finance": "금융",
+      "operations": "운영"
+    },
+    "lanes": {
+      "title": "물류 차선",
+      "subtitle": "모든 제품, 캠페인 및 주문은 하나의 차선에 있습니다. 레인은 출발지, 도착지, 허용된 구매자 국가 및 역할, 제한된 범주, 문서 요구 사항, 기본 가격 인상, 수수료, 화물 옵션, 관세 복잡성, 위험 계층 및 이행 모델을 정의합니다.",
+      "originLabel": "원산지",
+      "destLabel": "목적지",
+      "riskLabel": "위험 등급",
+      "freightLabel": "화물 옵션",
+      "customsLabel": "관세의 복잡성",
+      "approvalRequired": "수동 승인 필요",
+      "businessVerifRequired": "비즈니스 인증이 필요합니다.",
+      "resellerApprovalRequired": "리셀러 승인 필요",
+      "noLanes": "아직 게시된 활성 레인이 없습니다."
+    },
+    "distribution": {
+      "title": "유통",
+      "subtitle": "수령한 재고를 할당하고 최종 배송을 실행합니다. 즉, 현지 픽업, 구매자에게 배송, 주최자에게 화물 전달, 유통업체에 릴리스, 지역별로 분할 또는 반복적인 재입고 경로를 수행합니다.",
+      "allocations": "할당",
+      "deliveries": "배달 주문",
+      "release": "출시",
+      "method": "방법",
+      "recipient": "수신자",
+      "methodOptions": {
+        "local_pickup": "현지 픽업",
+        "ship_to_buyer": "구매자에게 배송",
+        "freight_forward": "화물 운송",
+        "distributor": "유통업체에 출시",
+        "bulk_handoff": "대량 핸드오프",
+        "restock_route": "재입고 경로"
+      },
+      "defaults": {
+        "buyerAllocation": "구매자 할당",
+        "recipient": "수령인",
+        "releasePending": "출고 대기 중",
+        "warehouse": "창고"
+      },
+      "empty": {
+        "allocations": "사용 가능한 할당이 없습니다.",
+        "deliveries": "사용 가능한 배송 주문이 없습니다."
+      },
+      "error": "현재 유통 데이터를 로드할 수 없습니다. 다시 시도해 주세요.",
+      "labels": {
+        "allocatedQty": "할당 수량",
+        "mode": "모드",
+        "tracking": "추적"
+      },
+      "loading": "로드 중…",
+      "sections": {
+        "allocationQueue": "할당 큐",
+        "deliveryExecution": "배송 실행",
+        "openWarehousing": "창고 열기 →"
+      },
+      "stats": {
+        "allocations": "할당",
+        "deliveryOrders": "배송 주문",
+        "inTransit": "운송 중",
+        "released": "출고됨"
+      }
+    },
+    "buyerTypes": {
+      "individual_buyer": "개인구매자",
+      "business_buyer": "비즈니스 구매자",
+      "organizer": "주최자",
+      "reseller": "리셀러/유통업체",
+      "franchise_buyer": "프랜차이즈/네트워크 구매자",
+      "sourcing_operator": "소싱 운영자",
+      "logistics_coordinator": "물류 코디네이터",
+      "warehouse_operator": "창고 운영자",
+      "compliance_reviewer": "규정 준수 검토자",
+      "admin": "관리자",
+      "super_admin": "최고 관리자"
+    },
+    "claims": {
+      "title": "청구",
+      "subtitle": "부족, 손상, 지연, 잘못된 품목, 통관 거부 또는 사기를 신고하십시오. OxSteed에서 검토한 후 환불을 발행할 수 있습니다.",
+      "newClaim": "청구서를 제출하세요",
+      "claimType": "청구 유형",
+      "description": "설명",
+      "claimedAmount": "청구 금액(USD)",
+      "evidence": "증거",
+      "status": "상태",
+      "noClaims": "아직 접수된 클레임이 없습니다."
+    },
+    "suppliers": {
+      "products": "제품"
+    },
+    "requests": {
+      "additionalNotes": "추가 참고 사항",
+      "back": "소싱으로 돌아가기",
+      "budgetMax": "최대 예산(USD)",
+      "categoryLabel": "카테고리",
+      "created": "소싱 요청이 제출되었습니다!",
+      "customMfg": "맞춤형 제조",
+      "deadline": "마감일",
+      "description": "설명",
+      "destCity": "대상 도시",
+      "destCountry": "목적지 국가",
+      "freightPreference": "선호하는 화물",
+      "lane": "물류레인",
+      "newSub": "필요한 것이 무엇인지 알려주십시오. OxSteed는 공급업체를 찾아 견적을 반환합니다.",
+      "newTitle": "새로운 소싱 요청",
+      "privateLabel": "개인 상표",
+      "requiredFields": "제목과 카테고리는 필수 항목입니다.",
+      "step1": "1단계: 무엇이 필요합니까?",
+      "step2": "2단계: 목적지 및 차선",
+      "step3": "3단계: 검토 및 제출",
+      "submit": "요청 제출",
+      "targetPrice": "목표가격/단위(USD)",
+      "targetQty": "목표 수량",
+      "titleLabel": "제목 요청",
+      "unit": "단위",
+      "anyOption": "— 모두 —",
+      "customsComplexity": "세관 복잡성",
+      "descriptionPlaceholder": "제품을 자세히 설명하세요: 자재, 치수, 필요한 인증…",
+      "destCountryPlaceholder": "예: US, HT, CA",
+      "goToStep": "{{label}}로 이동",
+      "laneBlocked": "이 레인은 현재 귀하의 역할 또는 목적지 컨텍스트에서 차단되었습니다: {{reason}}",
+      "laneBusinessVerification": "검증된 구매자로 이 레인을 운영하려면 비즈니스 검증이 필요합니다.",
+      "laneChecks": "레인 액세스 및 승인 검사",
+      "laneManualApproval": "이 요청이 견적이나 조달로 이동하기 전에 수동 컴플라이언스 승인이 필요합니다.",
+      "laneResellerApproval": "이 레인을 재판매 흐름에 사용하기 전에 리셀러/유통업체 승인이 필요합니다.",
+      "letOxsteedChoose": "— OxSteed가 선택하도록 —",
+      "notesPlaceholder": "소싱 팀을 위한 기타 맥락…",
+      "review": {
+        "category": "카테고리",
+        "deadline": "마감일",
+        "destination": "목적지",
+        "no": "아니요",
+        "privateLabel": "자체 브랜드",
+        "quantity": "수량",
+        "targetPrice": "목표 가격",
+        "title": "제목",
+        "yes": "예"
+      },
+      "riskTier": "위험 등급",
+      "selectOption": "— 선택 —",
+      "stepsLabel": "요청 진행률",
+      "titlePlaceholder": "예: 산업용 안전화 500켤레"
+    },
     "hub": {
       "aboutBody": "구매자들이 수요를 모아 공급업체의 최소 주문 수량을 맞춥니다. 충분한 수요가 모이면 캠페인이 잠기고, 예치금이 징수되며, OxSteed가 나머지 공급망을 조율합니다.",
       "aboutTitle": "공동 구매 작동 방식",
@@ -1393,17 +2505,6 @@
       "searchPlaceholder": "상품, 노선 또는 제목으로 검색",
       "statusLabel": "상태",
       "title": "공동 구매, 간편하게"
-    },
-    "nav": {
-      "adminControl": "관리자 제어",
-      "businessProcurement": "기업 구매",
-      "buyer": "구매자",
-      "compliance": "준수",
-      "distributor": "유통업체",
-      "hub": "둘러보기",
-      "label": "물류 워크스페이스",
-      "operations": "운영",
-      "organizer": "주최자"
     },
     "modal": {
       "close": "닫기",
@@ -1456,84 +2557,6 @@
         "warehouse": "창고",
         "releaseMethod": "출고 방식",
         "quantity": "수량"
-      }
-    },
-    "workspace": {
-      "nextStep": {
-        "title": "다음 단계"
-      },
-      "recentActivity": {
-        "title": "최근 활동",
-        "empty": "아직 없습니다. 새 활동이 여기에 표시됩니다."
-      },
-      "dataError": {
-        "title": "데이터를 사용할 수 없음",
-        "body": "작업 공간을 지금 로드할 수 없습니다. 다시 시도해 주세요.",
-        "retry": "다시 시도"
-      },
-      "buyer": {
-        "nextStep": {
-          "browseCampaigns": {
-            "label": "캠페인 찾아보기",
-            "hint": "진행 중인 구매 요청이 없습니다. 참여하거나 지켜볼 공동구매 캠페인을 찾아보세요."
-          },
-          "reviewShipments": {
-            "label": "위험 배송 검토",
-            "hint": "{{count}}건의 배송에 후속 조치가 필요합니다."
-          },
-          "startRequest": {
-            "label": "소싱 요청 시작",
-            "hint": "모든 것이 순조롭습니다. 준비되면 새 수요를 여세요."
-          }
-        }
-      },
-      "organizer": {
-        "nextStep": {
-          "momentum": {
-            "label": "MOQ 모멘텀 끌어올리기",
-            "hint": "{{count}}개 캠페인이 MOQ의 절반에 못 미쳐 추가 모집이 필요합니다."
-          },
-          "browse": {
-            "label": "캠페인 찾아보기",
-            "hint": "아직 운영하는 캠페인이 없습니다. 참여할 캠페인을 찾아보세요."
-          },
-          "handoffs": {
-            "label": "인도 조율",
-            "hint": "수요가 확보되었습니다. 수령인에게 인도가 이어지도록 하세요."
-          }
-        }
-      },
-      "business": {
-        "nextStep": {
-          "reviewRuns": {
-            "label": "예정된 실행 검토",
-            "hint": "21일 이내에 {{count}}건의 프로그램 실행이 있습니다. 수량, 노선, 목적지를 확인하세요."
-          },
-          "createProgram": {
-            "label": "정기 프로그램 만들기",
-            "hint": "아직 재입고 프로그램이 없습니다. 반복 수요에 맞는 주기를 설정하세요."
-          },
-          "newRequest": {
-            "label": "비즈니스 연계 요청 열기",
-            "hint": "프로그램이 실행 중입니다. 새 수요를 비즈니스에 연결하세요."
-          }
-        }
-      },
-      "distributor": {
-        "nextStep": {
-          "failedDeliveries": {
-            "label": "실패한 배송 검토",
-            "hint": "{{count}}건의 배송이 실패하거나 취소되어 재배송이나 후속 조치가 필요할 수 있습니다."
-          },
-          "releaseLots": {
-            "label": "대기 중인 로트 출고",
-            "hint": "{{count}}개 로트가 할당되었지만 아직 출고되지 않았습니다."
-          },
-          "warehouse": {
-            "label": "창고 준비 상태 확인",
-            "hint": "대기열이 비어 있습니다. 상위 재고가 할당 준비되었는지 확인하세요."
-          }
-        }
       }
     },
     "adminControl": {
@@ -1764,64 +2787,6 @@
         "title": "타임라인"
       }
     },
-    "compliance": {
-      "allLanes": "모든 레인",
-      "businessVerificationRequired": "비즈니스 검증 필요",
-      "countryFilter": "국가 코드로 필터링",
-      "countryPlaceholder": "국가 코드 (예: HT)",
-      "customsComplexity": "세관",
-      "docRequirements": {
-        "body": "각 레인마다 다음이 필요할 수 있습니다: 상업 송장, 포장 명세서, 원산지 증명서, 식물위생 증명서, 통관 서류, 적합성 표시, 세관 신고서 또는 검사 보고서. 요구사항은 레인 및 카테고리별로 다릅니다.",
-        "title": "문서 요구사항"
-      },
-      "error": "현재 컴플라이언스 데이터를 로드할 수 없습니다. 다시 시도해 주세요.",
-      "global": "글로벌",
-      "headers": {
-        "category": "카테고리",
-        "country": "국가",
-        "docRequired": "문서 필요",
-        "lane": "레인",
-        "notes": "메모",
-        "severity": "심각도",
-        "type": "유형"
-      },
-      "laneFilter": "레인으로 필터링",
-      "manualApprovalRequired": "수동 승인 필요",
-      "noLanes": "아직 게시된 레인 위험 데이터가 없습니다.",
-      "riskTiers": {
-        "title": "위험 등급"
-      }
-    },
-    "distribution": {
-      "defaults": {
-        "buyerAllocation": "구매자 할당",
-        "recipient": "수령인",
-        "releasePending": "출고 대기 중",
-        "warehouse": "창고"
-      },
-      "empty": {
-        "allocations": "사용 가능한 할당이 없습니다.",
-        "deliveries": "사용 가능한 배송 주문이 없습니다."
-      },
-      "error": "현재 유통 데이터를 로드할 수 없습니다. 다시 시도해 주세요.",
-      "labels": {
-        "allocatedQty": "할당 수량",
-        "mode": "모드",
-        "tracking": "추적"
-      },
-      "loading": "로드 중…",
-      "sections": {
-        "allocationQueue": "할당 큐",
-        "deliveryExecution": "배송 실행",
-        "openWarehousing": "창고 열기 →"
-      },
-      "stats": {
-        "allocations": "할당",
-        "deliveryOrders": "배송 주문",
-        "inTransit": "운송 중",
-        "released": "출고됨"
-      }
-    },
     "distributor": {
       "actions": {
         "openBoard": "유통 보드 열기",
@@ -1930,55 +2895,6 @@
       "subtitle": "캠페인 참여, 할당 및 라스트마일 배송을 추적하세요.",
       "title": "유통업체 대시보드"
     },
-    "finance": {
-      "error": "현재 재무 데이터를 로드할 수 없습니다. 다시 시도해 주세요.",
-      "headers": {
-        "depositPaid": "지불된 보증금",
-        "product": "제품",
-        "qty": "수량",
-        "reference": "참조",
-        "remaining": "잔여",
-        "status": "상태",
-        "totalLanded": "착지 총액"
-      },
-      "kpis": {
-        "depositsPaid": "지불된 보증금",
-        "inTransit": "운송 중",
-        "orders": "주문",
-        "totalCommitted": "확약 총액"
-      },
-      "noSpend": "아직 기록된 주문 지출이 없습니다.",
-      "refund": {
-        "empty": "아직 제출된 환불 케이스가 없습니다.",
-        "requested": "요청됨",
-        "submitted": "환불 케이스가 검토를 위해 제출되었습니다.",
-        "title": "환불 요청"
-      },
-      "refundForm": {
-        "amount": "요청 금액 (USD)",
-        "notes": "메모",
-        "poFallback": "발주서",
-        "purchaseOrder": "발주서",
-        "reason": "환불 사유",
-        "selectOrder": "— 주문 선택 —",
-        "submit": "환불 케이스 제출",
-        "submitting": "제출 중…",
-        "title": "환불 검토 요청"
-      },
-      "simulator": {
-        "calculate": "착지 원가 계산",
-        "calculating": "계산 중…",
-        "freight": "운임 예상 / 단위 (USD)",
-        "lane": "레인",
-        "markupApplied": "마진 적용됨",
-        "perUnit": "/ 착지 단위",
-        "productCost": "제품 원가 / 단위 (USD)",
-        "quantity": "수량",
-        "selectLane": "— 레인 선택 —",
-        "title": "착지 원가 시뮬레이터",
-        "totalFor": "{{qty}} 단위 총액"
-      }
-    },
     "operations": {
       "error": "현재 운영 지표를 로드할 수 없습니다. 다시 시도해 주세요.",
       "internalOnly": {
@@ -2007,7 +2923,10 @@
       },
       "routesLabel": "운영 경로",
       "subtitle": "소싱 접수, 활성 화물 이동, 창고 흐름 및 물류 예외를 위한 하나의 내부 지휘 화면.",
-      "title": "운영 워크스페이스"
+      "title": "운영 워크스페이스",
+      "routes": {
+        "finance": "물류 운영"
+      }
     },
     "orderDetail": {
       "backToOrders": "← 주문으로 돌아가기",
@@ -2049,22 +2968,6 @@
         "remaining": "잔여",
         "totalLanded": "착지 총액"
       }
-    },
-    "orders": {
-      "backToBuyer": "구매자 워크스페이스로 돌아가기",
-      "error": "현재 주문을 로드할 수 없습니다. 다시 시도해 주세요.",
-      "headers": {
-        "expected": "예상",
-        "landedCost": "착지 원가",
-        "lane": "레인",
-        "product": "제품",
-        "qty": "수량",
-        "reference": "참조",
-        "status": "상태"
-      },
-      "openOrder": "주문 {{ref}} 열기",
-      "pagination": "주문 페이지",
-      "statusFilter": "상태로 필터링"
     },
     "organizer": {
       "actions": {
@@ -2348,35 +3251,6 @@
         "personalRequest": "개인 요청"
       }
     },
-    "requests": {
-      "anyOption": "— 모두 —",
-      "customsComplexity": "세관 복잡성",
-      "descriptionPlaceholder": "제품을 자세히 설명하세요: 자재, 치수, 필요한 인증…",
-      "destCountryPlaceholder": "예: US, HT, CA",
-      "goToStep": "{{label}}로 이동",
-      "laneBlocked": "이 레인은 현재 귀하의 역할 또는 목적지 컨텍스트에서 차단되었습니다: {{reason}}",
-      "laneBusinessVerification": "검증된 구매자로 이 레인을 운영하려면 비즈니스 검증이 필요합니다.",
-      "laneChecks": "레인 액세스 및 승인 검사",
-      "laneManualApproval": "이 요청이 견적이나 조달로 이동하기 전에 수동 컴플라이언스 승인이 필요합니다.",
-      "laneResellerApproval": "이 레인을 재판매 흐름에 사용하기 전에 리셀러/유통업체 승인이 필요합니다.",
-      "letOxsteedChoose": "— OxSteed가 선택하도록 —",
-      "notesPlaceholder": "소싱 팀을 위한 기타 맥락…",
-      "review": {
-        "category": "카테고리",
-        "deadline": "마감일",
-        "destination": "목적지",
-        "no": "아니요",
-        "privateLabel": "자체 브랜드",
-        "quantity": "수량",
-        "targetPrice": "목표 가격",
-        "title": "제목",
-        "yes": "예"
-      },
-      "riskTier": "위험 등급",
-      "selectOption": "— 선택 —",
-      "stepsLabel": "요청 진행률",
-      "titlePlaceholder": "예: 산업용 안전화 500켤레"
-    },
     "shipmentDetail": {
       "backToShipments": "← 화물로 돌아가기",
       "defaults": {
@@ -2410,70 +3284,10 @@
         "milestones": "마일스톤"
       }
     },
-    "shipments": {
-      "backToBuyer": "구매자 워크스페이스로 돌아가기",
-      "error": "현재 화물을 로드할 수 없습니다. 다시 시도해 주세요.",
-      "etaLabel": "도착 예정",
-      "exception": "예외",
-      "kg": "kg",
-      "lifecycleLabel": "수명 주기 단계로 필터링",
-      "noCarrier": "운송업체 없음",
-      "openShipment": "화물 {{ref}} 열기"
-    },
-    "sourcing": {
-      "error": "현재 소싱 요청을 로드할 수 없습니다. 다시 시도해 주세요.",
-      "headers": {
-        "category": "카테고리",
-        "lane": "레인",
-        "qty": "수량",
-        "quotes": "견적",
-        "reference": "참조",
-        "status": "상태",
-        "title": "제목"
-      },
-      "openRequest": "요청 {{ref}} 열기",
-      "tabsLabel": "소싱 보기",
-      "viewRow": "보기 →"
-    },
     "tables": {
       "actions": "작업",
       "view": "보기",
       "preview": "미리보기"
-    },
-    "warehousing": {
-      "activeReceipts": "활성 입고 {{count}}건",
-      "bonded": "보세",
-      "error": "현재 창고 데이터를 로드할 수 없습니다. 다시 시도해 주세요.",
-      "headers": {
-        "buyer": "구매자",
-        "expected": "예상",
-        "qty": "수량",
-        "received": "입고됨",
-        "reference": "참조",
-        "releaseMethod": "출고 방법",
-        "released": "출고됨",
-        "shortage": "부족",
-        "status": "상태",
-        "warehouse": "창고"
-      },
-      "sqft": "제곱피트",
-      "tabsLabel": "창고 보기"
-    },
-    "campaigns": {
-      "edit": {
-        "title": "캠페인 초안 편집",
-        "subtitle": "아래에서 초안을 업데이트하세요. 준비가 되면 운영팀 검토를 위해 제출하세요.",
-        "saveChanges": "변경 사항 저장",
-        "draftUpdated": "초안이 업데이트되었습니다.",
-        "updateFailed": "초안을 업데이트할 수 없습니다. 다시 시도해 주세요.",
-        "backToCampaign": "캠페인으로 돌아가기",
-        "loading": "캠페인 초안 불러오는 중…",
-        "loadError": "캠페인을 불러올 수 없습니다. 다시 시도해 주세요.",
-        "notFound": "캠페인을 찾을 수 없습니다. 삭제되었을 수 있습니다.",
-        "notOwner": "캠페인 주최자만 이 초안을 편집할 수 있습니다.",
-        "notEditable": "이 캠페인은 더 이상 편집할 수 없습니다. 초안과 수정 요청된 캠페인만 편집할 수 있습니다.",
-        "editDraft": "초안 편집"
-      }
     },
     "checkout": {
       "backToDashboard": "구매자 대시보드로 돌아가기",
@@ -2537,7 +3351,8 @@
           "processing": "처리 중",
           "refunded": "환불됨",
           "succeeded": "성공",
-          "canceled": "취소됨"
+          "canceled": "취소됨",
+          "superseded": "중복 청구 검토 필요"
         },
         "subtitle": "모든 결제 시도이며, 정산은 OxSteed가 확인합니다.",
         "title": "내 물류 결제"
@@ -2585,7 +3400,7 @@
         "failedUnknown": "결제가 이루어지지 않았습니다. 청구된 금액이 없습니다.",
         "installment": "할부",
         "method": "방법",
-        "newKeyNote": "재시도할 때마다 새로운 결제 시도가 생성되므로 같은 확인에 대해 이중 청구되지 않습니다.",
+        "newKeyNote": "결제 재개",
         "notSettled": "아직 자금이 정산되지 않았습니다. 결제가 완료되면 여기서 확인해 드립니다.",
         "pending": "결제 대기 중",
         "processing": "결제를 처리하는 중…",
@@ -2729,24 +3544,6 @@
       "movedNotice": "환불 검토가 이중 관리자 환불 페이지로 이동했습니다. 직접 상태 편집은 더 이상 지원되지 않습니다.",
       "openReviewPage": "환불 검토 열기"
     },
-    "admin": {
-      "links": {
-        "refunds": "환불"
-      }
-    },
-    "complianceWorkspace": {
-      "metrics": {
-        "unavailableNote": "지표를 현재 사용할 수 없습니다."
-      }
-    },
-    "forms": {
-      "unsavedChanges": {
-        "body": "저장되지 않은 변경 사항이 있습니다. 지금 나가면 입력한 내용이 삭제됩니다.",
-        "discard": "변경 사항 버리기",
-        "stay": "계속 편집",
-        "title": "저장되지 않은 변경 사항을 버리시겠습니까?"
-      }
-    },
     "refund_pending": {
       "body": "물류 환불이 진행 중입니다. 결제 사업자가 아직 처리 중이며, 원래 결제 수단에 도착하면 확인해 드리겠습니다.",
       "title": "환불 대기 중"
@@ -2767,6 +3564,33 @@
       "funding_shortfall": "입금 마감 시 자금 부족",
       "min_demand_unmet": "확약 마감 시 최소 수요 미달",
       "raised_note": "자금 마감일을 놓쳐 담당자 처리에 회부했습니다. 캠페인은 진행되지 않았습니다."
+    },
+    "staff": {
+      "title": "물류 운영",
+      "quoteEditor": "구매자 견적 작성",
+      "subject": "주문 또는 참여",
+      "order": "구매 주문",
+      "participant": "캠페인 참여",
+      "id": "기록 ID",
+      "description": "설명",
+      "amount": "금액 (USD)",
+      "depositPercent": "보증금 (%)",
+      "deadline": "보증금 기한",
+      "finalDeadline": "잔금 기한",
+      "save": "초안 저장",
+      "publish": "견적 게시",
+      "campaign": "캠페인 ID",
+      "placement": "공급업체 주문 승인",
+      "openDeposit": "보증금 기간 시작",
+      "queues": "검토 대기열",
+      "notes": "검토 메모",
+      "resolve": "해결",
+      "refresh": "새로고침",
+      "cancelPayment": "미확인 결제 취소",
+      "resume": "결제 재개",
+      "reconciled": "중복 청구 검토 필요",
+      "empty": "진행 중 항목 없음",
+      "reviewHint": "검토 기록은 자금을 이동하거나 상품을 출고하지 않습니다."
     }
   }
 }

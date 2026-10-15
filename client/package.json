@@ -39,6 +39,7 @@
     "test:job-edit": "node --test scripts/jobSchema.test.mjs scripts/jobEdit.test.mjs scripts/paymentReauth.test.mjs",
     "test:payment-reauth-browser": "node --test scripts/paymentReauth.browser-check.cjs",
     "test:attention-inbox-browser": "node --test scripts/attentionInbox.browser-check.cjs",
+    "test:logistics-browser": "node --test scripts/logisticsCompletion.browser-check.cjs",
     "test:job-detail-browser": "node --test scripts/jobDetail.browser-check.cjs",
     "test:job-edit-browser": "node --test scripts/jobEdit.browser-check.cjs",
     "test:footer-navigation": "node --test scripts/footerNavigation.test.mjs",

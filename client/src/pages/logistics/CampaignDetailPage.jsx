@@ -288,7 +288,7 @@ export default function CampaignDetailPage() {
                 {submitBlockers.length > 0 && (
                   <div className="lx-callout lx-callout--warning lx-mb-4" role="alert">
                     <strong>{tx('logistics.campaigns.approval.blockersTitle', 'Fix these before submitting')}</strong>
-                    <ul style={{ margin: '.4rem 0 0', paddingLeft: '1.2rem' }}>
+                    <ul style={{ margin: '.4rem 0 0', paddingInlineStart: '1.2rem' }}>
                       {submitBlockers.map((b) => (
                         <li key={b.code}>
                           {APPROVAL_BLOCKER_KEYS[b.code]
@@ -361,7 +361,7 @@ export default function CampaignDetailPage() {
                 </h4>
                 <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gap: '.5rem' }}>
                   {approvalHistory.map((d) => (
-                    <li key={d.id} className="lx-t-small" style={{ borderLeft: '3px solid var(--border-subtle, #e2e8f0)', paddingLeft: '.75rem' }}>
+                    <li key={d.id} className="lx-t-small" style={{ borderLeft: '3px solid var(--border-subtle, #e2e8f0)', paddingInlineStart: '.75rem' }}>
                       <strong>
                         {APPROVAL_DECISION_KEYS[d.decision]
                           ? tx(APPROVAL_DECISION_KEYS[d.decision], d.decision?.replace(/_/g, ' '))

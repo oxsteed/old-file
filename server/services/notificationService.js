@@ -279,6 +279,8 @@ exports.sendNotification = async ({
       // (non-transactional: respects their email frequency/prefs).
       'logistics_campaign_approved', 'logistics_campaign_revisions_requested',
       'logistics_campaign_rejected',
+      'logistics_payment_succeeded','logistics_payment_failed','logistics:quote_published','logistics:quote_accepted',
+      'logistics:refund_proposed','logistics:refund_approved','logistics:refund_pending','logistics:refund_rejected','logistics:refund_processed','logistics:refund_failed','logistics:refund_expired',
     ];
     // Transactional: always attempt email when we have an address (cannot opt out of
     // security-relevant account notices via marketing-style toggles).

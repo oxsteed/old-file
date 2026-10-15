@@ -16,9 +16,10 @@
 jest.unmock('pg');
 jest.unmock('../db');
 jest.unmock('../utils/transaction');
-const { disposableDatabaseOptIn } = require('./helpers/statementTestDatabase');
+const { isDisposableDatabase } = require('./helpers/statementTestDatabase');
 
-const database = disposableDatabaseOptIn('LOGISTICS_CREDIT_PAY_TEST_DATABASE_URL');
+const database = process.env.LOGISTICS_CREDIT_PAY_TEST_DATABASE_URL || '';
+if (database && !isDisposableDatabase(database)) throw new Error('Logistics requires its own explicit disposable database URL');
 if (database) process.env.DATABASE_URL = database;
 
 const describeDatabase = database ? describe : describe.skip;
@@ -254,6 +255,26 @@ describeDatabase('logistics credit release blockers', () => {
     expect(Number(po.deposit_paid_cents)).toBe(f.depositCents);
   });
 
+  test('an interrupted pending Credit attempt resumes once with its original key', async () => {
+    const f = await happyFixture();
+    const key = crypto.randomUUID();
+    const {rows: [pending]} = await pool.query(`INSERT INTO logistics_payment_attempts
+      (idempotency_key,buyer_user_id,subject_type,purchase_order_id,quote_id,
+       installment,amount_cents,currency,method,status)
+      VALUES ($1,$2,'purchase_order',$3,$4,'deposit',$5,'USD','credit','pending') RETURNING id`,
+      [key,f.buyerId,f.poId,f.quoteId,f.depositCents]);
+    const input = {idempotencyKey:key,subjectType:'purchase_order',purchaseOrderId:f.poId,
+      installment:'deposit',method:'credit'};
+    const first = await payments.createPaymentAttempt(f.buyerId,input);
+    expect(String(first.attempt.id)).toBe(String(pending.id));
+    expect(first.attempt.status).toBe('succeeded');
+    const replay = await payments.createPaymentAttempt(f.buyerId,input);
+    expect(replay.idempotentReplay).toBe(true);
+    expect(replay.clientSecret).toBeNull();
+    expect(await walletBalanceCents(f.buyerId)).toBe(100000-f.depositCents);
+    expect(await purchaseCountForKey(key)).toBe(1);
+  });
+
   test('credit checkout fails closed with a distinct code when the rail is suspended', async () => {
     const f = await happyFixture();
     await setRailEnabled(false);
@@ -392,3 +413,5 @@ describeDatabase('logistics credit release blockers', () => {
     }
   });
 });
+
+afterAll(async()=>{await pool.end();});

@@ -398,14 +398,16 @@ function installRoutes(mockQuery, store) {
       const a = store.attempts.find((r) => r.id === Number(params[0]));
       return { rows: a ? [copy(a)] : [] };
     }],
+    [/select \* from logistics_payment_attempts\s+where subject_type=\$1/i,(sql,p)=>({rows:store.attempts.filter(a=>a.subject_type===p[0]&&(a.purchase_order_id??null)===(p[1]??null)&&(a.participant_id??null)===(p[2]??null)&&(!p[3]||a.installment===p[3])&&['pending','processing'].includes(a.status)).map(copy)})],
+    [/select method from logistics_payment_attempts/i,(sql,p)=>({rows:store.attempts.filter(a=>a.subject_type===p[0]&&(a.purchase_order_id??null)===(p[1]??null)&&(a.participant_id??null)===(p[2]??null)&&a.installment===p[3]&&a.status==='succeeded').map(copy)})],
     // Double-debit guard: already-succeeded sibling on (subject, installment).
     [/from logistics_payment_attempts\s+where id <> \$1/i, (sql, params) => {
-      const [id, subjectType, poId, partId, installment] = params;
+      const [id, subjectType, poId, partId, installment, quoteId] = params;
       const sib = store.attempts.find((a) => a.id !== Number(id)
         && a.subject_type === subjectType
         && (a.purchase_order_id ?? null) === (poId ?? null)
         && (a.participant_id ?? null) === (partId ?? null)
-        && a.installment === installment
+        && a.installment === installment && a.quote_id === quoteId
         && a.status === 'succeeded');
       return { rows: sib ? [copy(sib)] : [] };
     }],
@@ -479,9 +481,9 @@ function installRoutes(mockQuery, store) {
             updated_at: nowIso(store),
           });
         }
-        const err = new Error('duplicate key value violates unique constraint "uq_logistics_payment_attempts_settled_installment"');
+        const err = new Error('duplicate key value violates unique constraint "uq_logistics_payment_attempts_settled_quote"');
         err.code = '23505';
-        err.constraint = 'uq_logistics_payment_attempts_settled_installment';
+        err.constraint = 'uq_logistics_payment_attempts_settled_quote';
         return err;
       }
       const a = store.attempts.find((r) => r.id === params[0]);

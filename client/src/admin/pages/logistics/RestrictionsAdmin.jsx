@@ -196,8 +196,8 @@ export default function RestrictionsAdmin() {
                   {r.max_order_value_usd ? `$${parseFloat(r.max_order_value_usd).toLocaleString()}` : '—'}
                 </td>
                 <td style={{ fontSize:'.72rem' }}>
-                  {r.requires_license && <span style={{ background:'var(--color-warning-bg)', borderRadius:999, padding:'.1rem .4rem', marginRight:'.25rem' }}>LIC</span>}
-                  {r.requires_certificate && <span style={{ background:'var(--color-info-bg)', borderRadius:999, padding:'.1rem .4rem', marginRight:'.25rem' }}>CERT</span>}
+                  {r.requires_license && <span style={{ background:'var(--color-warning-bg)', borderRadius:999, padding:'.1rem .4rem', marginInlineEnd:'.25rem' }}>LIC</span>}
+                  {r.requires_certificate && <span style={{ background:'var(--color-info-bg)', borderRadius:999, padding:'.1rem .4rem', marginInlineEnd:'.25rem' }}>CERT</span>}
                   {r.requires_business_only && <span style={{ background:'var(--color-info-bg)', borderRadius:999, padding:'.1rem .4rem' }}>BIZ</span>}
                 </td>
                 <td style={{ fontSize:'.78rem', color:'var(--color-text-muted)', maxWidth:200 }}>

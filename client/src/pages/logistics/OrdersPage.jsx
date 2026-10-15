@@ -184,7 +184,7 @@ export default function OrdersPage() {
         </div>
       </LogisticsLayout>
       <OrderPreview
-        id={previewId}
+        key={previewId} id={previewId}
         open={previewId !== null}
         onClose={() => setPreviewId(null)}
       />
