@@ -15852,7 +15852,17 @@
         "blocker_close_date_past": "Der Stichtag für Zusagen muss in der Zukunft liegen.",
         "blocker_missing_pricing": "Fügen Sie Stückkosten oder eine Frachtschätzung für die Preisskizze hinzu.",
         "blocker_business_verification_required": "Diese Route erfordert ein verifiziertes Unternehmen. Schließen Sie zuerst die Unternehmensverifizierung ab.",
-        "blocker_lane_access_blocked": "Diese Handelsroute ist für Ihren Markt nicht verfügbar."
+        "blocker_lane_access_blocked": "Diese Handelsroute ist für Ihren Markt nicht verfügbar.",
+        "withdraw": "Aus der Prüfung zurückziehen",
+        "withdrawing": "Wird zurückgezogen…",
+        "withdrawConfirm": "Diese Kampagne aus der Prüfung zurückziehen? Sie kehrt in den Entwurf zurück, damit Sie sie bearbeiten und erneut einreichen können.",
+        "withdrawnToast": "Kampagne aus der Prüfung zurückgezogen.",
+        "withdrawFailed": "Das Zurückziehen ist fehlgeschlagen. Bitte versuchen Sie es erneut.",
+        "reject": "Ablehnen",
+        "rejectToast": "Kampagne abgelehnt. Der Organisator wurde benachrichtigt.",
+        "rejectFailed": "Die Ablehnung ist fehlgeschlagen. Bitte versuchen Sie es erneut.",
+        "rejectReasonRequired": "Bei der Ablehnung einer Kampagne ist ein Grund erforderlich.",
+        "rejectConfirmMessage": "\"{{title}}\" ablehnen? Der Organisator wird mit Ihrem Grund benachrichtigt."
       },
       "joinSuccess": "Sie sind der Kampagne beigetreten!",
       "joinForm": "Dieser Kampagne beitreten",

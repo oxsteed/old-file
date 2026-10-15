@@ -5,6 +5,8 @@ const { logLogisticsAction } = require('./logisticsAuditService');
 const { calculateLandedCost } = require('./logisticsPricingService');
 const { approval: approvalMachine, pooled: pooledMachine, applyTransition } = require('./logisticsStateMachine');
 const accessService = require('./logisticsAccessService');
+const { sendNotification } = require('./notificationService');
+const logger = require('../utils/logger');
 
 // Roles (besides platform admins) allowed to review campaign drafts.
 const REVIEW_OPS_ROLES = new Set(['sourcing_operator', 'logistics_coordinator']);
@@ -686,16 +688,21 @@ async function submitCampaignForReview(id, userId, { userCountry = null, userRol
  * Operations review of a pending campaign.
  * decision: 'approve' (publishes: approval approved + fulfillment draft→open)
  *           | 'request_changes' (returns to the organizer with a required reason)
+ *           | 'reject' (terminal for this review round: the organizer must
+ *             resubmit a fresh draft; reason required)
  * Self-review is forbidden: the organizer cannot approve their own campaign,
  * even when they also hold an Operations role.
  */
 async function reviewCampaign(id, reviewerUserId, { decision, reason = null } = {}) {
-  if (!['approve', 'request_changes'].includes(decision)) {
-    throw svcError('decision must be approve or request_changes', 400, 'invalid_review_decision');
+  if (!['approve', 'request_changes', 'reject'].includes(decision)) {
+    throw svcError('decision must be approve, request_changes, or reject', 400, 'invalid_review_decision');
   }
   const trimmedReason = typeof reason === 'string' ? reason.trim() : '';
   if (decision === 'request_changes' && !trimmedReason) {
     throw svcError('A reason is required when requesting revisions', 400, 'review_reason_required');
+  }
+  if (decision === 'reject' && !trimmedReason) {
+    throw svcError('A reason is required when rejecting a campaign', 400, 'review_reason_required');
   }
 
   const client = await pool.connect();
@@ -715,7 +722,7 @@ async function reviewCampaign(id, reviewerUserId, { decision, reason = null } = 
       throw svcError('Reviewers cannot approve their own campaign', 403, 'self_approval');
     }
 
-    const toState = decision === 'approve' ? 'approved' : 'revisions_requested';
+    const toState = decision === 'approve' ? 'approved' : decision === 'reject' ? 'rejected' : 'revisions_requested';
     approvalMachine.assertTransition(fromState, toState);
 
     let nextStatus = order.status;
@@ -746,6 +753,18 @@ async function reviewCampaign(id, reviewerUserId, { decision, reason = null } = 
       afterState: { approval_state: toState, status: nextStatus },
       notes: trimmedReason || undefined,
     });
+    // Best-effort organizer notification: the review decision is committed
+    // first, so a notification failure must never roll it back.
+    notifyOrganizerOfReviewDecision({
+      order: { ...order, approval_state: toState, status: nextStatus },
+      decision,
+      reason: trimmedReason,
+      decisionId: decisionRow.id,
+    }).catch((err) => logger.warn('logistics: review decision notification failed', {
+      campaignId: id,
+      decision,
+      error: err.message,
+    }));
     return {
       ...order,
       approval_state: toState,
@@ -757,6 +776,102 @@ async function reviewCampaign(id, reviewerUserId, { decision, reason = null } = 
     throw err;
   } finally {
     client.release();
+  }
+}
+
+/**
+ * Organizer withdraws a campaign that is awaiting Operations review.
+ * Guards: only the owning organizer may withdraw, and only while the
+ * approval state is pending_review (never after a decision was made).
+ * The campaign returns to draft; the reserved 'withdrawn' decision is
+ * recorded in the approval history.
+ */
+async function withdrawCampaign(id, userId) {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const res = await client.query(
+      'SELECT * FROM pooled_orders WHERE id = $1 FOR UPDATE',
+      [id]
+    );
+    const order = res.rows[0];
+    if (!order) throw svcError('Pooled order not found', 404, 'pooled_order_not_found');
+    if (String(order.organizer_user_id) !== String(userId)) {
+      throw svcError('Only the campaign organizer can withdraw it from review', 403, 'not_owner');
+    }
+    const fromState = order.approval_state || 'draft';
+    if (fromState !== 'pending_review') {
+      throw svcError('Only campaigns pending review can be withdrawn', 409, 'campaign_not_pending_review');
+    }
+    approvalMachine.assertTransition(fromState, 'draft');
+
+    await client.query(
+      `UPDATE pooled_orders SET approval_state = 'draft', updated_at = NOW() WHERE id = $1`,
+      [id]
+    );
+    const decision = await recordApprovalDecision(client, {
+      pooledOrderId: id,
+      decision: 'withdrawn',
+      fromState,
+      toState: 'draft',
+      decidedByUserId: userId,
+    });
+    await client.query('COMMIT');
+    logLogisticsAction('pooled_order', id, 'withdrawn_from_review', {
+      actorUserId: userId,
+      beforeState: { approval_state: fromState, status: order.status },
+      afterState: { approval_state: 'draft', status: order.status },
+    });
+    return { ...order, approval_state: 'draft', latest_decision: decision };
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
+// Notification types for campaign review decisions, keyed by the review
+// endpoint's decision values. Copy lives in utils/campaignReviewNotifications
+// (localized via tNotif in notificationService).
+const REVIEW_DECISION_NOTIFICATION_TYPES = {
+  approve: 'logistics_campaign_approved',
+  request_changes: 'logistics_campaign_revisions_requested',
+  reject: 'logistics_campaign_rejected',
+};
+
+/**
+ * Notify the organizing user about an Operations review decision.
+ * Email, in-app and push are all handled by sendNotification according to
+ * the user's preferences; the campaign title and (for revisions/rejection)
+ * the reviewer note are appended as quoted user-generated content after the
+ * localized notification copy. Never throws: notification failures must not
+ * break the review flow.
+ */
+async function notifyOrganizerOfReviewDecision({ order, decision, reason = '', decisionId = null }) {
+  const type = REVIEW_DECISION_NOTIFICATION_TYPES[decision];
+  if (!type || !order?.organizer_user_id) return;
+  try {
+    const quotedTitle = `"${order.title || 'Untitled campaign'}"`;
+    const body = reason ? `${quotedTitle}: "${reason}"` : quotedTitle;
+    await sendNotification({
+      userId: order.organizer_user_id,
+      type,
+      body,
+      data: {
+        campaign_id: String(order.id),
+        decision,
+        reason: reason || undefined,
+      },
+      action_url: `/logistics/campaigns/${order.id}`,
+      idempotencyKey: `logistics:review:${order.id}:${decisionId || 'unknown'}:${decision}`,
+    });
+  } catch (err) {
+    logger.warn('logistics: review decision notification failed', {
+      campaignId: order.id,
+      decision,
+      error: err.message,
+    });
   }
 }
 
@@ -796,8 +911,11 @@ async function describeActions(order, {
     // Blocker evaluation uses the organizer's own market/business context.
     blockers = await evaluateCampaignBlockers(order, { userId, userCountry, userRole });
   }
+  if (isOwner && approvalState === 'pending_review') {
+    actions.push('withdraw_from_review');
+  }
   if ((isOps || isAdmin) && approvalState === 'pending_review') {
-    actions.push('approve_campaign', 'request_revisions');
+    actions.push('approve_campaign', 'request_revisions', 'reject_campaign');
   }
   if (isOwner || isOps || isAdmin) {
     actions.push('view_approval_history');
@@ -809,6 +927,7 @@ module.exports = {
   listPooledOrders, listOrganizerCampaigns, getPooledOrder, createPooledOrder,
   updateCampaignDraft,
   joinPooledOrder, updatePooledOrderStatus,
+  submitCampaignForReview, reviewCampaign, withdrawCampaign, getApprovalHistory, describeActions,
   evaluateCampaignBlockers,
   REVIEW_OPS_ROLES: Array.from(REVIEW_OPS_ROLES),
 };

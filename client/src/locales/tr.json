@@ -15852,7 +15852,17 @@
         "blocker_close_date_past": "Taahhüt kapanış tarihi gelecekte olmalıdır.",
         "blocker_missing_pricing": "Fiyat taslağı için birim maliyet veya navlun tahmini ekleyin.",
         "blocker_business_verification_required": "Bu hat doğrulanmış bir işletme gerektirir. Önce işletme doğrulamasını tamamlayın.",
-        "blocker_lane_access_blocked": "Bu ticaret hattı pazarınız için uygun değil."
+        "blocker_lane_access_blocked": "Bu ticaret hattı pazarınız için uygun değil.",
+        "withdraw": "İncelemeden geri çek",
+        "withdrawing": "Geri çekiliyor…",
+        "withdrawConfirm": "Bu kampanyayı incelemeden geri çekmek istiyor musunuz? Taslağa dönecek, böylece düzenleyip yeniden gönderebilirsiniz.",
+        "withdrawnToast": "Kampanya incelemeden geri çekildi.",
+        "withdrawFailed": "Geri çekme başarısız oldu. Lütfen tekrar deneyin.",
+        "reject": "Reddet",
+        "rejectToast": "Kampanya reddedildi. Organizatör bilgilendirildi.",
+        "rejectFailed": "Reddetme başarısız oldu. Lütfen tekrar deneyin.",
+        "rejectReasonRequired": "Bir kampanyayı reddederken gerekçe gereklidir.",
+        "rejectConfirmMessage": "\"{{title}}\" reddedilsin mi? Organizatör gerekçenizle birlikte bilgilendirilecek."
       },
       "joinSuccess": "Kampanyaya katıldınız!",
       "joinForm": "Bu Kampanyaya Katılın",

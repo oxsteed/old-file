@@ -82,6 +82,7 @@ router.patch('/campaigns/:id',        requireAuth, pooledCtrl.updatePooledOrder)
 // Draft submission and Operations review (approval state stays separate
 // from the fulfillment status; every decision is recorded with history).
 router.post('/campaigns/:id/submit',   requireAuth, pooledCtrl.submitForReview);
+router.post('/campaigns/:id/withdraw', requireAuth, pooledCtrl.withdrawCampaign);
 router.post('/campaigns/:id/review',   requireAuth, requireCampaignReview, pooledCtrl.reviewCampaign);
 router.get('/campaigns/:id/approval-history', requireAuth, pooledCtrl.getApprovalHistory);
 

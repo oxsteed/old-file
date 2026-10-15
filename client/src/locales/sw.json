@@ -15714,7 +15714,17 @@
         "blocker_close_date_past": "Tarehe ya kufunga ahadi lazima iwe ya baadaye.",
         "blocker_missing_pricing": "Ongeza gharama ya kitengo au makadirio ya usafirishaji kwa muhtasari wa bei.",
         "blocker_business_verification_required": "Njia hii inahitaji biashara iliyothibitishwa. Kamilisha uthibitishaji wa biashara kwanza.",
-        "blocker_lane_access_blocked": "Njia hii ya biashara haipatikani kwa soko lako."
+        "blocker_lane_access_blocked": "Njia hii ya biashara haipatikani kwa soko lako.",
+        "withdraw": "Ondoa kutoka ukaguzi",
+        "withdrawing": "Inaondolewa…",
+        "withdrawConfirm": "Kuondoa kampeni hii kutoka ukaguzi? Itarudi kuwa rasimu ili uweze kuihariri na kuituma tena.",
+        "withdrawnToast": "Kampeni imeondolewa kutoka ukaguzi.",
+        "withdrawFailed": "Kuondoa kumeshindikana. Tafadhali jaribu tena.",
+        "reject": "Kataa",
+        "rejectToast": "Kampeni imekataliwa. Mratibu amearifiwa.",
+        "rejectFailed": "Kukataa kumeshindikana. Tafadhali jaribu tena.",
+        "rejectReasonRequired": "Sababu inahitajika unapokataa kampeni.",
+        "rejectConfirmMessage": "Kukataa \"{{title}}\"? Mratibu ataarifiwa pamoja na sababu yako."
       },
       "joinSuccess": "Umejiunga na kampeni!",
       "joinForm": "Jiunge na Kampeni Hii",

@@ -15852,7 +15852,17 @@
         "blocker_close_date_past": "A data de encerramento das adesões deve ser futura.",
         "blocker_missing_pricing": "Adicione um custo unitário ou estimativa de frete para o esboço de preços.",
         "blocker_business_verification_required": "Esta rota exige uma empresa verificada. Conclua a verificação empresarial primeiro.",
-        "blocker_lane_access_blocked": "Esta rota comercial não está disponível para o seu mercado."
+        "blocker_lane_access_blocked": "Esta rota comercial não está disponível para o seu mercado.",
+        "withdraw": "Retirar da revisão",
+        "withdrawing": "Retirando…",
+        "withdrawConfirm": "Retirar esta campanha da revisão? Ela voltará a rascunho para que você possa editá-la e reenviá-la.",
+        "withdrawnToast": "Campanha retirada da revisão.",
+        "withdrawFailed": "Falha ao retirar. Tente novamente.",
+        "reject": "Rejeitar",
+        "rejectToast": "Campanha rejeitada. O organizador foi notificado.",
+        "rejectFailed": "Falha ao rejeitar. Tente novamente.",
+        "rejectReasonRequired": "É necessário informar um motivo ao rejeitar uma campanha.",
+        "rejectConfirmMessage": "Rejeitar \"{{title}}\"? O organizador será notificado com o seu motivo."
       },
       "joinSuccess": "Você entrou na campanha!",
       "joinForm": "Participe desta campanha",

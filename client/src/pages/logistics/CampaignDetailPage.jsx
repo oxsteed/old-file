@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../context/AuthContext';
-import { getCampaign, joinCampaign, checkLaneAccess, submitCampaignForReview, reviewCampaign } from '../../api/logistics';
+import { getCampaign, joinCampaign, checkLaneAccess, submitCampaignForReview, withdrawCampaign, reviewCampaign } from '../../api/logistics';
 import PageShell from '../../components/PageShell';
 import PageMeta from '../../components/PageMeta';
 import LogisticsLayout from '../../components/logistics/LogisticsLayout';
@@ -34,6 +34,7 @@ export default function CampaignDetailPage() {
   const [joinData, setJoinData]     = useState({ committed_qty: 1, delivery_preference: 'warehouse_pickup' });
   // Phase 2 draft approval lifecycle
   const [submitting, setSubmitting] = useState(false);
+  const [withdrawing, setWithdrawing] = useState(false);
   const [reviewing, setReviewing] = useState(false);
   const [reviewReason, setReviewReason] = useState('');
   const [reviewError, setReviewError] = useState(null);
@@ -116,10 +117,33 @@ export default function CampaignDetailPage() {
     }
   };
 
+  const handleWithdraw = async () => {
+    const confirmed = window.confirm(tx(
+      'logistics.campaigns.approval.withdrawConfirm',
+      'Withdraw this campaign from review? It will return to draft so you can edit it and resubmit.'
+    ));
+    if (!confirmed) return;
+    setWithdrawing(true);
+    try {
+      await withdrawCampaign(id);
+      toast.success(tx('logistics.campaigns.approval.withdrawnToast', 'Campaign withdrawn from review.'));
+      await reload();
+    } catch (err) {
+      const data = err.response?.data;
+      toast.error(data?.error || tx('logistics.campaigns.approval.withdrawFailed', 'Withdrawal failed. Please try again.'));
+    } finally {
+      setWithdrawing(false);
+    }
+  };
+
   const handleReview = async (decision) => {
     const reason = reviewReason.trim();
     if (decision === 'request_changes' && !reason) {
       setReviewError(tx('logistics.campaigns.approval.reasonRequired', 'A reason is required when requesting revisions.'));
+      return;
+    }
+    if (decision === 'reject' && !reason) {
+      setReviewError(tx('logistics.campaigns.approval.rejectReasonRequired', 'A reason is required when rejecting a campaign.'));
       return;
     }
     setReviewing(true);
@@ -128,12 +152,16 @@ export default function CampaignDetailPage() {
       await reviewCampaign(id, { decision, reason: reason || undefined });
       toast.success(decision === 'approve'
         ? tx('logistics.campaigns.approval.approvedToast', 'Campaign approved and published.')
-        : tx('logistics.campaigns.approval.revisionsToast', 'Revision request sent to the organizer.'));
+        : decision === 'reject'
+          ? tx('logistics.campaigns.approval.rejectToast', 'Campaign rejected. The organizer has been notified.')
+          : tx('logistics.campaigns.approval.revisionsToast', 'Revision request sent to the organizer.'));
       setReviewReason('');
       await reload();
     } catch (err) {
       const data = err.response?.data;
-      setReviewError(data?.error || tx('logistics.campaigns.approval.reviewFailed', 'Review failed. Please try again.'));
+      setReviewError(data?.error || (decision === 'reject'
+        ? tx('logistics.campaigns.approval.rejectFailed', 'Rejection failed. Please try again.')
+        : tx('logistics.campaigns.approval.reviewFailed', 'Review failed. Please try again.')));
     } finally {
       setReviewing(false);
     }
@@ -284,7 +312,18 @@ export default function CampaignDetailPage() {
               </p>
             )}
 
-            {/* Operations: approve or request revisions */}
+            {/* Organizer: withdraw a submitted draft back to draft */}
+            {isOwner && availableActions.includes('withdraw_from_review') && (
+              <div className="lx-mt-4">
+                <button type="button" className="lx-btn-secondary" onClick={handleWithdraw} disabled={withdrawing}>
+                  {withdrawing
+                    ? tx('logistics.campaigns.approval.withdrawing', 'Withdrawing…')
+                    : tx('logistics.campaigns.approval.withdraw', 'Withdraw from review')}
+                </button>
+              </div>
+            )}
+
+            {/* Operations: approve, request revisions, or reject */}
             {isOpsReviewer && approvalState === 'pending_review' && (
               <div className="lx-mt-6">
                 <div className="lx-form-group">
@@ -306,6 +345,9 @@ export default function CampaignDetailPage() {
                   </button>
                   <button type="button" className="lx-btn-secondary" onClick={() => handleReview('request_changes')} disabled={reviewing}>
                     {tx('logistics.campaigns.approval.requestRevisions', 'Request revisions')}
+                  </button>
+                  <button type="button" className="lx-btn-secondary" style={{ color: 'var(--color-error)', borderColor: 'var(--color-error)' }} onClick={() => handleReview('reject')} disabled={reviewing}>
+                    {tx('logistics.campaigns.approval.reject', 'Reject')}
                   </button>
                 </div>
               </div>

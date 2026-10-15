@@ -15852,7 +15852,17 @@
         "blocker_close_date_past": "参加締切日は未来の日付にしてください。",
         "blocker_missing_pricing": "価格の概算に製品単価または運賃見積を追加してください。",
         "blocker_business_verification_required": "このレーンでは確認済み事業者が必要です。先に事業者確認を完了してください。",
-        "blocker_lane_access_blocked": "この貿易レーンはお客様の市場では利用できません。"
+        "blocker_lane_access_blocked": "この貿易レーンはお客様の市場では利用できません。",
+        "withdraw": "レビューから取り下げる",
+        "withdrawing": "取り下げ中…",
+        "withdrawConfirm": "このキャンペーンをレビューから取り下げますか？下書きに戻り、編集して再提出できます。",
+        "withdrawnToast": "キャンペーンをレビューから取り下げました。",
+        "withdrawFailed": "取り下げに失敗しました。もう一度お試しください。",
+        "reject": "却下する",
+        "rejectToast": "キャンペーンを却下しました。主催者に通知しました。",
+        "rejectFailed": "却下に失敗しました。もう一度お試しください。",
+        "rejectReasonRequired": "キャンペーンを却下する際は理由が必要です。",
+        "rejectConfirmMessage": "「{{title}}」を却下しますか？理由とともに主催者に通知されます。"
       },
       "joinSuccess": "キャンペーンに参加しました！",
       "joinForm": "このキャンペーンに参加",

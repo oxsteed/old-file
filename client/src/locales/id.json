@@ -15852,7 +15852,17 @@
         "blocker_close_date_past": "Tanggal penutupan komitmen harus di masa mendatang.",
         "blocker_missing_pricing": "Tambahkan biaya per unit atau estimasi ongkos kirim untuk sketsa harga.",
         "blocker_business_verification_required": "Rute ini memerlukan bisnis terverifikasi. Selesaikan verifikasi bisnis terlebih dahulu.",
-        "blocker_lane_access_blocked": "Rute dagang ini tidak tersedia untuk pasar Anda."
+        "blocker_lane_access_blocked": "Rute dagang ini tidak tersedia untuk pasar Anda.",
+        "withdraw": "Tarik dari peninjauan",
+        "withdrawing": "Menarik…",
+        "withdrawConfirm": "Menarik kampanye ini dari peninjauan? Kampanye akan kembali menjadi draf sehingga Anda dapat mengedit dan mengirim ulang.",
+        "withdrawnToast": "Kampanye ditarik dari peninjauan.",
+        "withdrawFailed": "Penarikan gagal. Silakan coba lagi.",
+        "reject": "Tolak",
+        "rejectToast": "Kampanye ditolak. Penyelenggara telah diberi tahu.",
+        "rejectFailed": "Penolakan gagal. Silakan coba lagi.",
+        "rejectReasonRequired": "Alasan diperlukan saat menolak kampanye.",
+        "rejectConfirmMessage": "Menolak \"{{title}}\"? Penyelenggara akan diberi tahu beserta alasan Anda."
       },
       "joinSuccess": "Anda telah bergabung dengan kampanye!",
       "joinForm": "Gabung Kampanye Ini",

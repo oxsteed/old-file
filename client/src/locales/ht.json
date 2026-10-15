@@ -15851,7 +15851,17 @@
         "blocker_close_date_past": "Dat fèmen angajman an dwe nan lavni.",
         "blocker_missing_pricing": "Ajoute yon pri inite oswa yon estimasyon frè pou bouyon pri a.",
         "blocker_business_verification_required": "Liy sa a egzije yon biznis verifye. Fè verifikasyon biznis la anvan.",
-        "blocker_lane_access_blocked": "Liy komès sa a pa disponib pou mache ou a."
+        "blocker_lane_access_blocked": "Liy komès sa a pa disponib pou mache ou a.",
+        "withdraw": "Retire nan revizyon an",
+        "withdrawing": "Ap retire…",
+        "withdrawConfirm": "Retire kanpay sa a nan revizyon an? Li ap tounen bouyon pou ou ka modifye li epi soumèt li ankò.",
+        "withdrawnToast": "Kanpay retire nan revizyon an.",
+        "withdrawFailed": "Retrè a echwe. Tanpri eseye ankò.",
+        "reject": "Rejte",
+        "rejectToast": "Kanpay rejte. Yo notifye òganizatè a.",
+        "rejectFailed": "Rejè a echwe. Tanpri eseye ankò.",
+        "rejectReasonRequired": "Yon rezon obligatwa lè w ap rejte yon kanpay.",
+        "rejectConfirmMessage": "Rejte \"{{title}}\"? Y ap notifye òganizatè a ak rezon ou."
       },
       "joinSuccess": "Ou antre nan kanpay la!",
       "joinForm": "Antre nan kanpay sa a",

@@ -68,6 +68,9 @@ export const listOrganizerCampaigns = (params = {}) =>
 export const submitCampaignForReview = (id) =>
   axios.post(`/logistics/campaigns/${id}/submit`).then(r => r.data);
 
+export const withdrawCampaign = (id) =>
+  axios.post(`/logistics/campaigns/${id}/withdraw`).then(r => r.data);
+
 export const reviewCampaign = (id, data) =>
   axios.post(`/logistics/campaigns/${id}/review`, data).then(r => r.data);
 

@@ -52,11 +52,16 @@ export default function OrganizerApprovalsAdmin() {
     if (decision === 'request_changes' && !reason) {
       throw new Error(t('logistics.campaigns.approval.reasonRequired', 'A reason is required when requesting revisions.'));
     }
+    if (decision === 'reject' && !reason) {
+      throw new Error(t('logistics.campaigns.approval.rejectReasonRequired', 'A reason is required when rejecting a campaign.'));
+    }
     try {
       await reviewCampaign(campaign.id, { decision, reason: reason || undefined });
       toast.success(decision === 'approve'
         ? t('logistics.campaigns.approval.approvedToast', 'Campaign approved and published.')
-        : t('logistics.campaigns.approval.revisionsToast', 'Revision request sent to the organizer.'));
+        : decision === 'reject'
+          ? t('logistics.campaigns.approval.rejectToast', 'Campaign rejected. The organizer has been notified.')
+          : t('logistics.campaigns.approval.revisionsToast', 'Revision request sent to the organizer.'));
       setReviewTarget(null);
       load();
     } catch (err) {
@@ -99,6 +104,10 @@ export default function OrganizerApprovalsAdmin() {
                       onClick={() => setReviewTarget({ campaign, decision: 'request_changes' })}>
                       {t('logistics.campaigns.approval.requestRevisions', 'Request revisions')}
                     </button>
+                    <button className="lx-btn-secondary" style={{ fontSize: '.72rem', padding: '.25rem .65rem', color: 'var(--color-error)', borderColor: 'var(--color-error)' }}
+                      onClick={() => setReviewTarget({ campaign, decision: 'reject' })}>
+                      {t('logistics.campaigns.approval.reject', 'Reject')}
+                    </button>
                   </td>
                 </tr>
                 {expanded === campaign.id && (
@@ -133,17 +142,23 @@ export default function OrganizerApprovalsAdmin() {
         open={reviewTarget != null}
         title={reviewTarget?.decision === 'request_changes'
           ? t('logistics.campaigns.approval.requestRevisions', 'Request revisions')
-          : t('adminOrganizerApprovals.approveTitle')}
+          : reviewTarget?.decision === 'reject'
+            ? t('logistics.campaigns.approval.reject', 'Reject')
+            : t('adminOrganizerApprovals.approveTitle')}
         message={reviewTarget?.decision === 'request_changes'
           ? t('logistics.campaigns.approval.revisionsAdminMessage', 'Send "{{title}}" back to the organizer with a revision note.', { title: reviewTarget?.campaign?.title || '' })
-          : t('adminOrganizerApprovals.approveMessage', { title: reviewTarget?.campaign?.title || '' })}
-        danger={reviewTarget?.decision === 'request_changes'}
-        requireReason={reviewTarget?.decision === 'request_changes'}
+          : reviewTarget?.decision === 'reject'
+            ? t('logistics.campaigns.approval.rejectConfirmMessage', 'Reject "{{title}}"? The organizer will be notified with your reason.', { title: reviewTarget?.campaign?.title || '' })
+            : t('adminOrganizerApprovals.approveMessage', { title: reviewTarget?.campaign?.title || '' })}
+        danger={reviewTarget?.decision === 'request_changes' || reviewTarget?.decision === 'reject'}
+        requireReason={reviewTarget?.decision === 'request_changes' || reviewTarget?.decision === 'reject'}
         reasonLabel={t('logistics.campaigns.approval.reasonLabel', 'Review note')}
         reasonPlaceholder={t('logistics.campaigns.approval.reasonPlaceholder', 'Explain what needs to change before this campaign can be published.')}
         confirmLabel={reviewTarget?.decision === 'request_changes'
           ? t('logistics.campaigns.approval.requestRevisions', 'Request revisions')
-          : t('common.approve')}
+          : reviewTarget?.decision === 'reject'
+            ? t('logistics.campaigns.approval.reject', 'Reject')
+            : t('common.approve')}
         onConfirm={doReview}
         onClose={() => setReviewTarget(null)}
       />

@@ -15851,7 +15851,17 @@
         "blocker_close_date_past": "The pledge close date must be in the future.",
         "blocker_missing_pricing": "Add a unit cost or freight estimate for the pricing sketch.",
         "blocker_business_verification_required": "This lane requires a verified business. Complete business verification first.",
-        "blocker_lane_access_blocked": "This trade lane is not available for your market."
+        "blocker_lane_access_blocked": "This trade lane is not available for your market.",
+        "withdraw": "Withdraw from review",
+        "withdrawing": "Withdrawing…",
+        "withdrawConfirm": "Withdraw this campaign from review? It will return to draft so you can edit it and resubmit.",
+        "withdrawnToast": "Campaign withdrawn from review.",
+        "withdrawFailed": "Withdrawal failed. Please try again.",
+        "reject": "Reject",
+        "rejectToast": "Campaign rejected. The organizer has been notified.",
+        "rejectFailed": "Rejection failed. Please try again.",
+        "rejectReasonRequired": "A reason is required when rejecting a campaign.",
+        "rejectConfirmMessage": "Reject \"{{title}}\"? The organizer will be notified with your reason."
       },
       "joinSuccess": "You've joined the campaign!",
       "joinForm": "Join This Campaign",

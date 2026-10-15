@@ -15852,7 +15852,17 @@
         "blocker_close_date_past": "Ngày đóng cam kết phải ở tương lai.",
         "blocker_missing_pricing": "Thêm chi phí đơn vị hoặc ước tính cước vận chuyển cho phác thảo giá.",
         "blocker_business_verification_required": "Tuyến này yêu cầu doanh nghiệp đã xác minh. Hoàn tất xác minh doanh nghiệp trước.",
-        "blocker_lane_access_blocked": "Tuyến thương mại này không khả dụng cho thị trường của bạn."
+        "blocker_lane_access_blocked": "Tuyến thương mại này không khả dụng cho thị trường của bạn.",
+        "withdraw": "Rút khỏi quá trình xem xét",
+        "withdrawing": "Đang rút…",
+        "withdrawConfirm": "Rút chiến dịch này khỏi quá trình xem xét? Chiến dịch sẽ trở lại bản nháp để bạn có thể chỉnh sửa và gửi lại.",
+        "withdrawnToast": "Chiến dịch đã được rút khỏi quá trình xem xét.",
+        "withdrawFailed": "Rút thất bại. Vui lòng thử lại.",
+        "reject": "Từ chối",
+        "rejectToast": "Chiến dịch bị từ chối. Người tổ chức đã được thông báo.",
+        "rejectFailed": "Từ chối thất bại. Vui lòng thử lại.",
+        "rejectReasonRequired": "Cần có lý do khi từ chối chiến dịch.",
+        "rejectConfirmMessage": "Từ chối \"{{title}}\"? Người tổ chức sẽ được thông báo kèm lý do của bạn."
       },
       "joinSuccess": "Quý khách đã tham gia chiến dịch!",
       "joinForm": "Tham gia chiến dịch này",

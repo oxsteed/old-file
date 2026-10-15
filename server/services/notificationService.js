@@ -274,6 +274,11 @@ exports.sendNotification = async ({
       // Agreement/job lifecycle notices respect the participant's email choices.
       'warranty_claim_filed', 'warranty_claim_updated', 'job_started',
       'learn_video_review_received', 'learn_video_review_overdue',
+      // Logistics campaign review decisions: the organizer learns about
+      // Operations approve / request-revisions / reject by email too
+      // (non-transactional: respects their email frequency/prefs).
+      'logistics_campaign_approved', 'logistics_campaign_revisions_requested',
+      'logistics_campaign_rejected',
     ];
     // Transactional: always attempt email when we have an address (cannot opt out of
     // security-relevant account notices via marketing-style toggles).

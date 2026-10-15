@@ -15851,7 +15851,17 @@
         "blocker_close_date_past": "La date de clôture des engagements doit être future.",
         "blocker_missing_pricing": "Ajoutez un coût unitaire ou une estimation de fret pour l'esquisse tarifaire.",
         "blocker_business_verification_required": "Ce couloir exige une entreprise vérifiée. Effectuez d'abord la vérification d'entreprise.",
-        "blocker_lane_access_blocked": "Ce couloir commercial n'est pas disponible pour votre marché."
+        "blocker_lane_access_blocked": "Ce couloir commercial n'est pas disponible pour votre marché.",
+        "withdraw": "Retirer de l’examen",
+        "withdrawing": "Retrait en cours…",
+        "withdrawConfirm": "Retirer cette campagne de l’examen ? Elle repassera en brouillon pour que vous puissiez la modifier et la soumettre à nouveau.",
+        "withdrawnToast": "Campagne retirée de l’examen.",
+        "withdrawFailed": "Le retrait a échoué. Veuillez réessayer.",
+        "reject": "Rejeter",
+        "rejectToast": "Campagne rejetée. L’organisateur a été notifié.",
+        "rejectFailed": "Le rejet a échoué. Veuillez réessayer.",
+        "rejectReasonRequired": "Un motif est requis pour rejeter une campagne.",
+        "rejectConfirmMessage": "Rejeter « {{title}} » ? L’organisateur sera notifié avec votre motif."
       },
       "joinSuccess": "Vous avez rejoint la campagne !",
       "joinForm": "Rejoindre cette campagne",

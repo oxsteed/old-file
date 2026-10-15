@@ -15852,7 +15852,17 @@
         "blocker_close_date_past": "承诺截止日期必须是未来日期。",
         "blocker_missing_pricing": "请为价格草案添加单位成本或运费估算。",
         "blocker_business_verification_required": "此路线需要已验证的企业，请先完成企业验证。",
-        "blocker_lane_access_blocked": "此贸易路线不适用于您的市场。"
+        "blocker_lane_access_blocked": "此贸易路线不适用于您的市场。",
+        "withdraw": "撤回审核",
+        "withdrawing": "撤回中…",
+        "withdrawConfirm": "要将此活动从审核中撤回吗？它将返回草稿状态，以便您编辑并重新提交。",
+        "withdrawnToast": "活动已从审核中撤回。",
+        "withdrawFailed": "撤回失败，请重试。",
+        "reject": "拒绝",
+        "rejectToast": "活动已被拒绝。已通知组织者。",
+        "rejectFailed": "拒绝失败，请重试。",
+        "rejectReasonRequired": "拒绝活动时必须填写原因。",
+        "rejectConfirmMessage": "拒绝\"{{title}}\"？组织者将收到包含您原因的通知。"
       },
       "joinSuccess": "您已加入该活动！",
       "joinForm": "加入此活动",

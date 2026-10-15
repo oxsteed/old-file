@@ -200,13 +200,22 @@ exports.submitForReview = async (req, res, next) => {
   } catch (err) { next(toHttpError(err) || err); }
 };
 
-// Operations review: approve (publishes) or request revisions (with reason).
-// Route-level requireLogisticsRole ensures only Operations staff reach here;
-// the service additionally forbids self-review.
+// Operations review: approve (publishes), request revisions (with reason),
+// or reject (with reason). Route-level requireLogisticsRole ensures only
+// Operations staff reach here; the service additionally forbids self-review.
 exports.reviewCampaign = async (req, res, next) => {
   try {
     const { decision, reason } = req.body;
     const order = await pooledOrderService.reviewCampaign(req.params.id, req.user.id, { decision, reason });
+    res.json({ success: true, data: order });
+  } catch (err) { next(toHttpError(err) || err); }
+};
+
+// Organizer withdraws a submitted draft from Operations review. Guards live
+// in the service: only the owning organizer, only while pending_review.
+exports.withdrawCampaign = async (req, res, next) => {
+  try {
+    const order = await pooledOrderService.withdrawCampaign(req.params.id, req.user.id);
     res.json({ success: true, data: order });
   } catch (err) { next(toHttpError(err) || err); }
 };

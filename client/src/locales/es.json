@@ -15851,7 +15851,17 @@
         "blocker_close_date_past": "La fecha de cierre de compromisos debe ser futura.",
         "blocker_missing_pricing": "Agrega un costo unitario o una estimación de flete para el borrador de precios.",
         "blocker_business_verification_required": "Esta ruta requiere una empresa verificada. Completa la verificación empresarial primero.",
-        "blocker_lane_access_blocked": "Esta ruta comercial no está disponible para tu mercado."
+        "blocker_lane_access_blocked": "Esta ruta comercial no está disponible para tu mercado.",
+        "withdraw": "Retirar de la revisión",
+        "withdrawing": "Retirando…",
+        "withdrawConfirm": "¿Retirar esta campaña de la revisión? Volverá a borrador para que puedas editarla y volver a enviarla.",
+        "withdrawnToast": "Campaña retirada de la revisión.",
+        "withdrawFailed": "No se pudo retirar. Inténtalo de nuevo.",
+        "reject": "Rechazar",
+        "rejectToast": "Campaña rechazada. Se ha notificado al organizador.",
+        "rejectFailed": "No se pudo rechazar. Inténtalo de nuevo.",
+        "rejectReasonRequired": "Se requiere un motivo al rechazar una campaña.",
+        "rejectConfirmMessage": "¿Rechazar \"{{title}}\"? Se notificará al organizador con tu motivo."
       },
       "joinSuccess": "¡Te uniste a la campaña!",
       "joinForm": "Unirse a esta campaña",
