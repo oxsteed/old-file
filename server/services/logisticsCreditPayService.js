@@ -12,6 +12,10 @@
  *     refunds workstream, registered via logisticsRefundPorts'
  *     setCreditReversalAdapter contract:
  *       ({ refundCaseId, amountCents, currency, idempotencyKey }) => { ledgerEntryId }
+ *     Accepts an optional transaction client (first-arg `client` or
+ *     second-arg `{ client }`): when provided it runs on that connection
+ *     with no nested transaction and no re-lock of the refund-case row
+ *     (the refund executor holds that lock), so it cannot deadlock.
  *   - getLogisticsCreditPayAvailability(): read-only availability probe so
  *     the checkout UI can distinguish "rail disabled" from "insufficient
  *     funds" from "no logistics participant configured".
@@ -569,7 +573,76 @@ async function getLogisticsCreditPayAvailability() {
 // NOT gated: returning funds to the original source must keep working
 // while the rail is suspended or frozen.
 
-async function reverseLogisticsCreditPayment({ refundCaseId, amountCents, currency, idempotencyKey }) {
+async function reverseLogisticsCreditPaymentInClient(client, { caseId, cents, key, lockCaseRow }) {
+  let kase;
+  if (lockCaseRow) {
+    const { rows: caseRows } = await client.query(
+      `SELECT * FROM logistics_refund_cases WHERE id = $1 FOR UPDATE`,
+      [caseId]
+    );
+    kase = caseRows[0];
+  } else {
+    // The caller (refund executor) already holds the refund-case row lock
+    // in its own transaction: re-locking it here on the same connection
+    // would self-block, and on a separate connection it would deadlock.
+    // Read without FOR UPDATE; amount/attempt validation still applies.
+    const { rows: caseRows } = await client.query(
+      `SELECT * FROM logistics_refund_cases WHERE id = $1`,
+      [caseId]
+    );
+    kase = caseRows[0];
+  }
+  if (!kase) failClosed('Refund case not found', 404, 'refund_case_not_found');
+  if (kase.amount_cents != null && Number(kase.amount_cents) !== cents) {
+    failClosed('Reversal amount does not match the approved refund amount', 409, 'logistics_refund_amount_mismatch');
+  }
+
+  const attemptId = normalizeId(kase.original_payment_attempt_id);
+  if (!attemptId) {
+    failClosed('Refund case has no linked payment attempt', 409, 'refund_payment_attempt_not_found');
+  }
+  const { rows: attemptRows } = await client.query(
+    `SELECT * FROM logistics_payment_attempts WHERE id::text = $1 LIMIT 1`,
+    [attemptId]
+  );
+  const attempt = attemptRows[0];
+  if (!attempt) failClosed('Original payment attempt not found', 404, 'refund_payment_attempt_not_found');
+  if (attempt.method !== 'credit') {
+    failClosed('Original payment was not made with OxSteed Credit', 409, 'refund_method_mismatch');
+  }
+  if (attempt.status !== 'succeeded') {
+    failClosed('Original credit payment is not in a succeeded state', 409, 'refund_payment_not_refundable');
+  }
+
+  // Committed ledger reversal, idempotent by idempotency key. The core
+  // caps total refunds at the original purchase amount and replays on
+  // key reuse, so retries can never double-refund.
+  const result = await creditService.refundCreditForReferenceInTransaction(client, {
+    referenceType: LOGISTICS_REFERENCE_TYPE,
+    referenceId: String(attempt.id),
+    amountCents: cents,
+    idempotencyKey: key,
+    actorType: 'system',
+    reason: `Logistics refund case ${kase.reference || caseId}`,
+    correlationId: `logistics-credit-refund-${key}`.slice(0, 160),
+    metadata: {
+      logisticsRefundCaseId: String(caseId),
+      logisticsAttemptId: String(attempt.id),
+      logisticsRefund: true,
+    },
+  });
+  const ledgerEntryId = result?.transaction?.id != null ? String(result.transaction.id) : null;
+  logger.info('logistics_credit_pay.reversed', {
+    refundCaseId: caseId, attemptId: attempt.id, amountCents: cents,
+    ledgerEntryId, replayed: Boolean(result?.replayed),
+  });
+  return { ledgerEntryId, replayed: Boolean(result?.replayed) };
+}
+
+async function reverseLogisticsCreditPayment(
+  { refundCaseId, amountCents, currency, idempotencyKey, client: inlineClient } = {},
+  opts = {}
+) {
   const caseId = parsePositiveInt(refundCaseId, 'refundCaseId', 'refund_case_invalid');
   const cents = parsePositiveInt(amountCents, 'amountCents', 'credit_amount_invalid');
   const key = requireIdempotencyKey(idempotencyKey);
@@ -578,58 +651,19 @@ async function reverseLogisticsCreditPayment({ refundCaseId, amountCents, curren
     failClosed('Only USD credit reversals are supported', 400, 'logistics_refund_currency_unsupported');
   }
 
-  return withTransaction(pool, async (client) => {
-    const { rows: caseRows } = await client.query(
-      `SELECT * FROM logistics_refund_cases WHERE id = $1 FOR UPDATE`,
-      [caseId]
-    );
-    const kase = caseRows[0];
-    if (!kase) failClosed('Refund case not found', 404, 'refund_case_not_found');
-    if (kase.amount_cents != null && Number(kase.amount_cents) !== cents) {
-      failClosed('Reversal amount does not match the approved refund amount', 409, 'logistics_refund_amount_mismatch');
-    }
+  // The refund executor passes its own transaction client (same object or
+  // second-argument options). With a client, run everything on it: no
+  // nested transaction, no re-lock of the refund-case row (the caller
+  // holds that lock). Without one, keep the standalone behavior.
+  const client = inlineClient || opts.client || null;
+  if (client) {
+    return reverseLogisticsCreditPaymentInClient(client, { caseId, cents, key, lockCaseRow: false });
+  }
 
-    const attemptId = normalizeId(kase.original_payment_attempt_id);
-    if (!attemptId) {
-      failClosed('Refund case has no linked payment attempt', 409, 'refund_payment_attempt_not_found');
-    }
-    const { rows: attemptRows } = await client.query(
-      `SELECT * FROM logistics_payment_attempts WHERE id::text = $1 LIMIT 1`,
-      [attemptId]
-    );
-    const attempt = attemptRows[0];
-    if (!attempt) failClosed('Original payment attempt not found', 404, 'refund_payment_attempt_not_found');
-    if (attempt.method !== 'credit') {
-      failClosed('Original payment was not made with OxSteed Credit', 409, 'refund_method_mismatch');
-    }
-    if (attempt.status !== 'succeeded') {
-      failClosed('Original credit payment is not in a succeeded state', 409, 'refund_payment_not_refundable');
-    }
-
-    // Committed ledger reversal, idempotent by idempotency key. The core
-    // caps total refunds at the original purchase amount and replays on
-    // key reuse, so retries can never double-refund.
-    const result = await creditService.refundCreditForReferenceInTransaction(client, {
-      referenceType: LOGISTICS_REFERENCE_TYPE,
-      referenceId: String(attempt.id),
-      amountCents: cents,
-      idempotencyKey: key,
-      actorType: 'system',
-      reason: `Logistics refund case ${kase.reference || caseId}`,
-      correlationId: `logistics-credit-refund-${key}`.slice(0, 160),
-      metadata: {
-        logisticsRefundCaseId: String(caseId),
-        logisticsAttemptId: String(attempt.id),
-        logisticsRefund: true,
-      },
-    });
-    const ledgerEntryId = result?.transaction?.id != null ? String(result.transaction.id) : null;
-    logger.info('logistics_credit_pay.reversed', {
-      refundCaseId: caseId, attemptId: attempt.id, amountCents: cents,
-      ledgerEntryId, replayed: Boolean(result?.replayed),
-    });
-    return { ledgerEntryId, replayed: Boolean(result?.replayed) };
-  }, 'logistics_credit_refund');
+  return withTransaction(pool, (txClient) =>
+    reverseLogisticsCreditPaymentInClient(txClient, { caseId, cents, key, lockCaseRow: true }),
+    'logistics_credit_refund'
+  );
 }
 
 // Register the reversal adapter for the refunds workstream. Until this

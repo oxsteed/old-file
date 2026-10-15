@@ -20,6 +20,17 @@ jest.mock('../middleware/requireLogisticsAccess', () => ({
   resolveLogisticsRole: (...args) => mockResolveLogisticsRole(...args),
 }));
 
+// Credit execution boundary: the checkout service must check availability
+// first, then execute the debit in-transaction on the attempt's
+// idempotency key. Mocked here so these HTTP tests stay hermetic; the
+// DB-backed suite proves the real execution path.
+const mockCreditAvailability = jest.fn();
+const mockCreditPayInTransaction = jest.fn();
+jest.mock('../services/logisticsCreditPayService', () => ({
+  getLogisticsCreditPayAvailability: (...args) => mockCreditAvailability(...args),
+  payLogisticsInstallmentInTransaction: (...args) => mockCreditPayInTransaction(...args),
+}));
+
 const stripe = require('stripe');
 const stripeInstance = stripe.__mockInstance;
 
@@ -141,8 +152,60 @@ describe('POST /checkout/attempt — happy path', () => {
     expect(res.body.data.attempt.amount_cents).toBe(3000);
   });
 
-  test('records a credit-method attempt as pending without touching Stripe', async () => {
+  test('credit-method checkout checks availability, then executes the debit (no pending limbo)', async () => {
     const { po } = seedPoFlow();
+    const key = newKey();
+    mockCreditAvailability.mockResolvedValue({ available: true, code: 'ok' });
+    mockCreditPayInTransaction.mockImplementation(async (client, args) => {
+      // Executed idempotently on the attempt's idempotency key, inside the
+      // same transaction as the attempt insert.
+      expect(String(args.idempotencyKey)).toBe(key);
+      const row = store.attempts.find((a) => a.id === args.attemptId);
+      expect(row).toBeDefined();
+      row.status = 'succeeded';
+      row.settled_at = new Date().toISOString();
+      return {
+        attemptId: row.id,
+        status: 'succeeded',
+        settledAt: row.settled_at,
+        amountCents: Number(row.amount_cents),
+        currency: 'USD',
+        method: 'credit',
+        installment: row.installment,
+        replayed: false,
+        creditTransactionId: 'ct-1',
+      };
+    });
+
+    const res = await request(buyerApp())
+      .post('/checkout/attempt')
+      .send({
+        idempotency_key: key,
+        subject_type: 'purchase_order',
+        purchase_order_id: po.id,
+        installment: 'deposit',
+        method: 'credit',
+      });
+
+    expect(res.status).toBe(201);
+    expect(mockCreditAvailability).toHaveBeenCalled();
+    expect(mockCreditPayInTransaction).toHaveBeenCalledTimes(1);
+    expect(res.body.data.attempt.method).toBe('credit');
+    expect(res.body.data.attempt.status).toBe('succeeded');
+    expect(res.body.data.credit.status).toBe('succeeded');
+    expect(res.body.data.credit.creditTransactionId).toBe('ct-1');
+    expect(res.body.data.client_secret).toBeNull();
+    expect(stripeInstance.paymentIntents.create).not.toHaveBeenCalled();
+  });
+
+  test('credit checkout fails closed with the availability code when the rail is unavailable', async () => {
+    const { po } = seedPoFlow();
+    mockCreditAvailability.mockResolvedValue({
+      available: false,
+      code: 'credit_rail_suspended',
+      message: 'OxSteed Credit is temporarily suspended',
+    });
+
     const res = await request(buyerApp())
       .post('/checkout/attempt')
       .send({
@@ -152,10 +215,10 @@ describe('POST /checkout/attempt — happy path', () => {
         installment: 'deposit',
         method: 'credit',
       });
-    expect(res.status).toBe(201);
-    expect(res.body.data.attempt.method).toBe('credit');
-    expect(res.body.data.attempt.status).toBe('pending');
-    expect(res.body.data.credit.status).toBe('pending_execution');
+
+    expect(res.status).toBe(503);
+    expect(res.body.code).toBe('credit_rail_suspended');
+    expect(mockCreditPayInTransaction).not.toHaveBeenCalled();
     expect(stripeInstance.paymentIntents.create).not.toHaveBeenCalled();
   });
 
