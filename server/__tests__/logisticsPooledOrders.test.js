@@ -9,6 +9,7 @@ jest.mock('../services/pooledOrderService', () => ({
   listOrganizerCampaigns: jest.fn(),
   getPooledOrder: jest.fn(),
   createPooledOrder: jest.fn(),
+  updateCampaignDraft: jest.fn(),
   joinPooledOrder: jest.fn(),
   updatePooledOrderStatus: jest.fn(),
   submitCampaignForReview: jest.fn(),
@@ -42,6 +43,7 @@ function buildApp(asUser) {
   app.get('/organizer/campaigns', pooledCtrl.listOrganizerCampaigns);
   app.post('/campaigns/:id/submit', pooledCtrl.submitForReview);
   app.post('/campaigns/:id/review', pooledCtrl.reviewCampaign);
+  app.patch('/campaigns/:id', pooledCtrl.updatePooledOrder);
   app.get('/campaigns/:id/approval-history', pooledCtrl.getApprovalHistory);
   // eslint-disable-next-line no-unused-vars
   app.use((err, _req, res, _next) => {
@@ -307,6 +309,72 @@ describe('POST /campaigns/:id/submit — draft submission', () => {
     const res = await request(authedApp()).post('/campaigns/9/submit');
     expect(res.status).toBe(403);
     expect(res.body.code).toBe('forbidden');
+  });
+});
+
+describe('PATCH /campaigns/:id — draft edits', () => {
+  test('owner edit returns the updated draft', async () => {
+    pooledOrderService.updateCampaignDraft.mockResolvedValue({
+      id: 9, title: 'Solar lanterns v2', approval_state: 'draft', status: 'draft',
+    });
+    const res = await request(authedApp())
+      .patch('/campaigns/9')
+      .send({ title: 'Solar lanterns v2' });
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(res.body.data.title).toBe('Solar lanterns v2');
+    expect(pooledOrderService.updateCampaignDraft).toHaveBeenCalledWith(
+      '9', 'user-1', { title: 'Solar lanterns v2' },
+      expect.objectContaining({ userRole: 'individual_buyer' })
+    );
+  });
+
+  test('non-owner edit is forbidden', async () => {
+    const err = new Error('Only the campaign organizer can edit this draft');
+    err.code = 'not_owner';
+    err.status = 403;
+    pooledOrderService.updateCampaignDraft.mockRejectedValue(err);
+    const res = await request(authedApp())
+      .patch('/campaigns/9')
+      .send({ title: 'Hijacked title' });
+    expect(res.status).toBe(403);
+    expect(res.body.code).toBe('forbidden');
+  });
+
+  test('editing a non-editable approval state is a conflict', async () => {
+    const err = new Error('Campaign drafts can only be edited while in draft or revisions_requested (current: approved)');
+    err.code = 'campaign_not_editable';
+    err.status = 409;
+    pooledOrderService.updateCampaignDraft.mockRejectedValue(err);
+    const res = await request(authedApp())
+      .patch('/campaigns/9')
+      .send({ title: 'Too late' });
+    expect(res.status).toBe(409);
+    expect(res.body.code).toBe('campaign_not_editable');
+  });
+
+  test('editing a missing campaign is a 404', async () => {
+    const err = new Error('Pooled order not found');
+    err.code = 'pooled_order_not_found';
+    err.status = 404;
+    pooledOrderService.updateCampaignDraft.mockRejectedValue(err);
+    const res = await request(authedApp())
+      .patch('/campaigns/999')
+      .send({ title: 'Ghost' });
+    expect(res.status).toBe(404);
+    expect(res.body.code).toBe('not_found');
+  });
+
+  test('invalid field values are rejected', async () => {
+    const err = new Error('target_moq must be at least 1');
+    err.code = 'validation_failed';
+    err.status = 400;
+    pooledOrderService.updateCampaignDraft.mockRejectedValue(err);
+    const res = await request(authedApp())
+      .patch('/campaigns/9')
+      .send({ target_moq: 0 });
+    expect(res.status).toBe(400);
+    expect(res.body.code).toBe('validation_failed');
   });
 });
 

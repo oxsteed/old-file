@@ -2454,6 +2454,22 @@
         "releaseMethod": "Metòd Liberasyon",
         "released": "Libere"
       }
+    },
+    "campaigns": {
+      "edit": {
+        "title": "Modifye bouyon kanpay la",
+        "subtitle": "Mete bouyon ou an ajou anba a. Lè li pare, soumèt li pou ekip Operasyon yo revize l.",
+        "saveChanges": "Sove chanjman yo",
+        "draftUpdated": "Bouyon an mete ajou.",
+        "updateFailed": "Pa t kapab mete bouyon an ajou. Tanpri eseye ankò.",
+        "backToCampaign": "Tounen nan kanpay la",
+        "loading": "Ap chaje bouyon kanpay la…",
+        "loadError": "Pa t kapab chaje kanpay la. Tanpri eseye ankò.",
+        "notFound": "Kanpay la pa jwenn. Li te ka efase.",
+        "notOwner": "Se òganizatè kanpay la sèlman ki ka modifye bouyon sa a.",
+        "notEditable": "Kanpay sa a pa ka modifye ankò. Se sèlman bouyon yo ak kanpay yo mande revizyon pou yo ki ka modifye.",
+        "editDraft": "Modifye bouyon an"
+      }
     }
   }
 }

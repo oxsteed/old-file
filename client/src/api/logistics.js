@@ -51,6 +51,11 @@ export const getCampaign = (id) =>
 export const createCampaign = (data) =>
   axios.post('/logistics/campaigns', data).then(r => r.data);
 
+// Organizer draft edits (partial update). The server re-checks ownership
+// and approval state; editing never changes the approval state.
+export const updateCampaign = (id, data) =>
+  axios.patch(`/logistics/campaigns/${id}`, data).then(r => r.data);
+
 export const joinCampaign = (id, data) =>
   axios.post(`/logistics/campaigns/${id}/join`, data).then(r => r.data);
 

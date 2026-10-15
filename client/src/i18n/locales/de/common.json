@@ -2454,6 +2454,22 @@
       },
       "sqft": "sqft",
       "tabsLabel": "Lageransichten"
+    },
+    "campaigns": {
+      "edit": {
+        "title": "Kampagnenentwurf bearbeiten",
+        "subtitle": "Aktualisieren Sie unten Ihren Entwurf. Wenn er fertig ist, reichen Sie ihn zur Prüfung durch Operations ein.",
+        "saveChanges": "Änderungen speichern",
+        "draftUpdated": "Entwurf aktualisiert.",
+        "updateFailed": "Der Entwurf konnte nicht aktualisiert werden. Bitte versuchen Sie es erneut.",
+        "backToCampaign": "Zurück zur Kampagne",
+        "loading": "Kampagnenentwurf wird geladen…",
+        "loadError": "Die Kampagne konnte nicht geladen werden. Bitte versuchen Sie es erneut.",
+        "notFound": "Kampagne nicht gefunden. Sie wurde möglicherweise gelöscht.",
+        "notOwner": "Nur der Organisator der Kampagne kann diesen Entwurf bearbeiten.",
+        "notEditable": "Diese Kampagne kann nicht mehr bearbeitet werden. Nur Entwürfe und Kampagnen mit angeforderten Überarbeitungen können bearbeitet werden.",
+        "editDraft": "Entwurf bearbeiten"
+      }
     }
   }
 }

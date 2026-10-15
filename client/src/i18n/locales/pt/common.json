@@ -2454,6 +2454,22 @@
       },
       "sqft": "pés²",
       "tabsLabel": "Visões de armazenagem"
+    },
+    "campaigns": {
+      "edit": {
+        "title": "Editar rascunho da campanha",
+        "subtitle": "Atualize seu rascunho abaixo. Quando estiver pronto, envie-o para revisão da Operações.",
+        "saveChanges": "Salvar alterações",
+        "draftUpdated": "Rascunho atualizado.",
+        "updateFailed": "Não foi possível atualizar o rascunho. Tente novamente.",
+        "backToCampaign": "Voltar para a campanha",
+        "loading": "Carregando rascunho da campanha…",
+        "loadError": "Não foi possível carregar a campanha. Tente novamente.",
+        "notFound": "Campanha não encontrada. Ela pode ter sido excluída.",
+        "notOwner": "Somente o organizador da campanha pode editar este rascunho.",
+        "notEditable": "Esta campanha não pode mais ser editada. Somente rascunhos e campanhas com revisões solicitadas podem ser editados.",
+        "editDraft": "Editar rascunho"
+      }
     }
   }
 }

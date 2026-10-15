@@ -2454,6 +2454,22 @@
       },
       "sqft": "kaki persegi",
       "tabsLabel": "Tampilan pergudangan"
+    },
+    "campaigns": {
+      "edit": {
+        "title": "Edit draf kampanye",
+        "subtitle": "Perbarui draf Anda di bawah. Jika sudah siap, kirimkan untuk ditinjau Operasi.",
+        "saveChanges": "Simpan perubahan",
+        "draftUpdated": "Draf diperbarui.",
+        "updateFailed": "Tidak dapat memperbarui draf. Silakan coba lagi.",
+        "backToCampaign": "Kembali ke kampanye",
+        "loading": "Memuat draf kampanye…",
+        "loadError": "Tidak dapat memuat kampanye. Silakan coba lagi.",
+        "notFound": "Kampanye tidak ditemukan. Mungkin telah dihapus.",
+        "notOwner": "Hanya penyelenggara kampanye yang dapat mengedit draf ini.",
+        "notEditable": "Kampanye ini tidak dapat lagi diedit. Hanya draf dan kampanye dengan revisi yang diminta yang dapat diedit.",
+        "editDraft": "Edit draf"
+      }
     }
   }
 }

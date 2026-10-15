@@ -2454,6 +2454,22 @@
       },
       "sqft": "平方英尺",
       "tabsLabel": "仓储视图"
+    },
+    "campaigns": {
+      "edit": {
+        "title": "编辑活动草稿",
+        "subtitle": "在下方更新您的草稿。准备就绪后，请提交给运营团队审核。",
+        "saveChanges": "保存更改",
+        "draftUpdated": "草稿已更新。",
+        "updateFailed": "无法更新草稿。请重试。",
+        "backToCampaign": "返回活动",
+        "loading": "正在加载活动草稿…",
+        "loadError": "无法加载活动。请重试。",
+        "notFound": "未找到活动。它可能已被删除。",
+        "notOwner": "只有活动组织者才能编辑此草稿。",
+        "notEditable": "此活动已无法编辑。只有草稿和已请求修改的活动可以编辑。",
+        "editDraft": "编辑草稿"
+      }
     }
   }
 }

@@ -133,6 +133,7 @@ const InternalDepartmentWorkspacePage = lazyWithRetry(() => import('./pages/inte
 const CampaignsPage = lazyWithRetry(() => import('./pages/logistics/CampaignsPage'));
 const CampaignDetailPage = lazyWithRetry(() => import('./pages/logistics/CampaignDetailPage'));
 const NewCampaignPage = lazyWithRetry(() => import('./pages/logistics/NewCampaignPage'));
+const EditCampaignPage = lazyWithRetry(() => import('./pages/logistics/EditCampaignPage'));
 const SourcingPage = lazyWithRetry(() => import('./pages/logistics/SourcingPage'));
 const NewRequestPage = lazyWithRetry(() => import('./pages/logistics/NewRequestPage'));
 const RequestDetailPage = lazyWithRetry(() => import('./pages/logistics/RequestDetailPage'));
@@ -672,6 +673,7 @@ export default function App() {
                     <Route path="/logistics/admin-control"    element={<Guarded><LogisticsOperatorGuard><RouteErrorBoundary><AdminControlWorkspacePage /></RouteErrorBoundary></LogisticsOperatorGuard></Guarded>} />
                     <Route path="/logistics/campaigns"        element={<Guarded><RouteErrorBoundary><CampaignsPage /></RouteErrorBoundary></Guarded>} />
                     <Route path="/logistics/campaigns/new"    element={<Guarded><ProtectedRoute><RouteErrorBoundary><NewCampaignPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
+                    <Route path="/logistics/campaigns/:id/edit" element={<Guarded><ProtectedRoute><RouteErrorBoundary><EditCampaignPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/logistics/campaigns/:id"    element={<Guarded><RouteErrorBoundary><CampaignDetailPage /></RouteErrorBoundary></Guarded>} />
                     <Route path="/logistics/sourcing"         element={<Guarded><ProtectedRoute><RouteErrorBoundary><SourcingPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />
                     <Route path="/logistics/sourcing/new"     element={<Guarded><ProtectedRoute><RouteErrorBoundary><NewRequestPage /></RouteErrorBoundary></ProtectedRoute></Guarded>} />

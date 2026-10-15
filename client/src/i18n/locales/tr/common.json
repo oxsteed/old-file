@@ -2454,6 +2454,22 @@
       },
       "sqft": "metrekare",
       "tabsLabel": "Depo görünümleri"
+    },
+    "campaigns": {
+      "edit": {
+        "title": "Kampanya taslağını düzenle",
+        "subtitle": "Taslağınızı aşağıda güncelleyin. Hazır olduğunda Operasyon incelemesine gönderin.",
+        "saveChanges": "Değişiklikleri kaydet",
+        "draftUpdated": "Taslak güncellendi.",
+        "updateFailed": "Taslak güncellenemedi. Lütfen tekrar deneyin.",
+        "backToCampaign": "Kampanyaya dön",
+        "loading": "Kampanya taslağı yükleniyor…",
+        "loadError": "Kampanya yüklenemedi. Lütfen tekrar deneyin.",
+        "notFound": "Kampanya bulunamadı. Silinmiş olabilir.",
+        "notOwner": "Bu taslağı yalnızca kampanya düzenleyicisi düzenleyebilir.",
+        "notEditable": "Bu kampanya artık düzenlenemez. Yalnızca taslaklar ve revizyon istenen kampanyalar düzenlenebilir.",
+        "editDraft": "Taslağı düzenle"
+      }
     }
   }
 }

@@ -2454,6 +2454,22 @@
         "releaseMethod": "Release Method",
         "released": "Released"
       }
+    },
+    "campaigns": {
+      "edit": {
+        "title": "Edit campaign draft",
+        "subtitle": "Update your draft below. When it is ready, submit it for Operations review.",
+        "saveChanges": "Save changes",
+        "draftUpdated": "Draft updated.",
+        "updateFailed": "Could not update the draft. Please try again.",
+        "backToCampaign": "Back to campaign",
+        "loading": "Loading campaign draft…",
+        "loadError": "Could not load the campaign. Please try again.",
+        "notFound": "Campaign not found. It may have been deleted.",
+        "notOwner": "Only the campaign organizer can edit this draft.",
+        "notEditable": "This campaign can no longer be edited. Only drafts and campaigns with requested revisions can be edited.",
+        "editDraft": "Edit draft"
+      }
     }
   }
 }

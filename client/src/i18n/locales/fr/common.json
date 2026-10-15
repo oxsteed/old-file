@@ -2454,6 +2454,22 @@
       },
       "sqft": "pi²",
       "tabsLabel": "Opérations d'entrepôt"
+    },
+    "campaigns": {
+      "edit": {
+        "title": "Modifier le brouillon de campagne",
+        "subtitle": "Mettez à jour votre brouillon ci-dessous. Quand il est prêt, soumettez-le pour révision par les Opérations.",
+        "saveChanges": "Enregistrer les modifications",
+        "draftUpdated": "Brouillon mis à jour.",
+        "updateFailed": "Impossible de mettre à jour le brouillon. Veuillez réessayer.",
+        "backToCampaign": "Retour à la campagne",
+        "loading": "Chargement du brouillon de campagne…",
+        "loadError": "Impossible de charger la campagne. Veuillez réessayer.",
+        "notFound": "Campagne introuvable. Elle a peut-être été supprimée.",
+        "notOwner": "Seul l'organisateur de la campagne peut modifier ce brouillon.",
+        "notEditable": "Cette campagne ne peut plus être modifiée. Seuls les brouillons et les campagnes avec des révisions demandées peuvent être modifiés.",
+        "editDraft": "Modifier le brouillon"
+      }
     }
   }
 }

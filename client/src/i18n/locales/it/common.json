@@ -2454,6 +2454,22 @@
       },
       "sqft": "piedi quadri",
       "tabsLabel": "Viste magazzino"
+    },
+    "campaigns": {
+      "edit": {
+        "title": "Modifica bozza della campagna",
+        "subtitle": "Aggiorna la tua bozza qui sotto. Quando è pronta, inviala per la revisione delle Operazioni.",
+        "saveChanges": "Salva modifiche",
+        "draftUpdated": "Bozza aggiornata.",
+        "updateFailed": "Impossibile aggiornare la bozza. Riprova.",
+        "backToCampaign": "Torna alla campagna",
+        "loading": "Caricamento bozza della campagna…",
+        "loadError": "Impossibile caricare la campagna. Riprova.",
+        "notFound": "Campagna non trovata. Potrebbe essere stata eliminata.",
+        "notOwner": "Solo l'organizzatore della campagna può modificare questa bozza.",
+        "notEditable": "Questa campagna non può più essere modificata. Solo le bozze e le campagne con revisioni richieste possono essere modificate.",
+        "editDraft": "Modifica bozza"
+      }
     }
   }
 }

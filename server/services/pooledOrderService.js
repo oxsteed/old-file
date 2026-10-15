@@ -342,6 +342,182 @@ async function createPooledOrder(data, organizerUserId, { userCountry = null, us
   return order;
 }
 
+// Draft fields the organizer may edit. Ownership and identity fields
+// (organizer_user_id, supplier product/quote, business, warehouse, notes)
+// are intentionally not editable through this endpoint.
+const DRAFT_EDITABLE_FIELDS = [
+  'title', 'description', 'lane_id', 'target_moq',
+  'close_date', 'lock_date', 'expected_ship_date', 'expected_arrival_date',
+  'unit_product_cost_usd', 'unit_freight_est_usd', 'deposit_pct',
+  'cancellation_policy', 'max_participants',
+];
+
+function nullIfBlank(value) {
+  if (value === undefined || value === null) return null;
+  const text = String(value).trim();
+  return text === '' ? null : text;
+}
+
+/**
+ * Organizer edits their campaign draft. Transactional: the row is locked,
+ * ownership and approval state are re-checked inside the transaction, and
+ * the pricing sketch is recomputed when cost/freight/MOQ change.
+ *
+ * Only the owning organizer may edit, and only while approval_state is
+ * 'draft' or 'revisions_requested'. Editing never changes the approval
+ * state; resubmission goes through submitCampaignForReview.
+ */
+async function updateCampaignDraft(id, userId, data, { userCountry = null, userRole = null } = {}) {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const res = await client.query(
+      'SELECT * FROM pooled_orders WHERE id = $1 FOR UPDATE',
+      [id]
+    );
+    const order = res.rows[0];
+    if (!order) throw svcError('Pooled order not found', 404, 'pooled_order_not_found');
+    // Ownership check: only the organizing user may edit their draft.
+    if (String(order.organizer_user_id) !== String(userId)) {
+      throw svcError('Only the campaign organizer can edit this draft', 403, 'not_owner');
+    }
+    const approvalState = order.approval_state || 'draft';
+    if (!['draft', 'revisions_requested'].includes(approvalState)) {
+      throw svcError(
+        `Campaign drafts can only be edited while in draft or revisions_requested (current: ${approvalState})`,
+        409,
+        'campaign_not_editable'
+      );
+    }
+
+    const body = data || {};
+    const patch = {};
+    for (const field of DRAFT_EDITABLE_FIELDS) {
+      if (body[field] !== undefined) patch[field] = body[field];
+    }
+    if (Object.keys(patch).length === 0) {
+      throw svcError('No editable draft fields provided', 400, 'validation_failed');
+    }
+
+    // Field-level validation (mirrors the create path).
+    if (patch.title !== undefined && !String(patch.title).trim()) {
+      throw svcError('title must not be empty', 400, 'validation_failed');
+    }
+    if (patch.target_moq !== undefined && !(Number(patch.target_moq) >= 1)) {
+      throw svcError('target_moq must be at least 1', 400, 'validation_failed');
+    }
+    if (patch.deposit_pct !== undefined) {
+      const cleaned = nullIfBlank(patch.deposit_pct);
+      if (cleaned !== null && (!Number.isFinite(Number(cleaned)) || Number(cleaned) < 0 || Number(cleaned) > 1)) {
+        throw svcError('deposit_pct must be between 0 and 1', 400, 'validation_failed');
+      }
+    }
+    for (const moneyField of ['unit_product_cost_usd', 'unit_freight_est_usd']) {
+      const cleaned = patch[moneyField] !== undefined ? nullIfBlank(patch[moneyField]) : 'skip';
+      if (cleaned !== 'skip' && cleaned !== null && Number(cleaned) < 0) {
+        throw svcError(`${moneyField} must not be negative`, 400, 'validation_failed');
+      }
+    }
+    if (patch.max_participants !== undefined) {
+      const cleaned = nullIfBlank(patch.max_participants);
+      if (cleaned !== null && !(Number(cleaned) >= 1)) {
+        throw svcError('max_participants must be at least 1', 400, 'validation_failed');
+      }
+    }
+
+    // Lane changes re-run the create-time lane checks: a draft must always
+    // sit on a lane the organizer is allowed to run.
+    const effectiveLaneId = patch.lane_id !== undefined ? patch.lane_id : order.lane_id;
+    if (patch.lane_id !== undefined && String(patch.lane_id) !== String(order.lane_id)) {
+      await assertCanCreateCampaign({
+        userId,
+        userCountry,
+        userRole,
+        laneId: patch.lane_id,
+        organizerBusinessId: order.organizer_business_id,
+      });
+    }
+
+    // Recompute the landed-cost sketch when cost, freight, or MOQ changes,
+    // using the effective (post-edit) values.
+    const pricingTouched = ['unit_product_cost_usd', 'unit_freight_est_usd', 'target_moq']
+      .some((field) => patch[field] !== undefined);
+    let unitLandedCostUSD = order.unit_landed_cost_usd;
+    let unitMarkupUSD = order.unit_markup_usd;
+    let unitFeesUSD = order.unit_fees_usd;
+    if (pricingTouched) {
+      const effective = (field) => (patch[field] !== undefined ? nullIfBlank(patch[field]) : order[field]);
+      const cost = effective('unit_product_cost_usd');
+      if (cost !== null && Number(cost)) {
+        const freight = effective('unit_freight_est_usd');
+        const moq = effective('target_moq');
+        const pricing = await calculateLandedCost({
+          unitProductCostUSD: Number(cost),
+          qty: Number(moq),
+          laneId: effectiveLaneId,
+          freightEstUSD: freight !== null ? Number(freight) : null,
+          isPooled: true,
+        });
+        unitLandedCostUSD = pricing.unitCost.landed;
+        unitMarkupUSD     = pricing.unitCost.markup;
+        unitFeesUSD       = pricing.unitCost.sourcingFee + pricing.unitCost.customsAdmin +
+                            pricing.unitCost.warehouse + pricing.unitCost.lastMile +
+                            pricing.unitCost.riskSurcharge;
+      } else {
+        unitLandedCostUSD = null;
+        unitMarkupUSD = null;
+        unitFeesUSD = null;
+      }
+    }
+
+    const sets = [];
+    const values = [];
+    const setCol = (col, val) => { sets.push(`${col} = $${sets.length + 1}`); values.push(val); };
+    for (const field of DRAFT_EDITABLE_FIELDS) {
+      if (patch[field] === undefined) continue;
+      const cleaned = nullIfBlank(patch[field]);
+      let value = cleaned;
+      if (['title', 'description', 'cancellation_policy'].includes(field)) {
+        value = cleaned; // blank clears the text field
+      } else if (field === 'lane_id') {
+        value = Number(cleaned);
+      } else if (['target_moq', 'max_participants', 'unit_product_cost_usd', 'unit_freight_est_usd'].includes(field)) {
+        value = cleaned === null ? null : Number(cleaned);
+      } else if (field === 'deposit_pct') {
+        // An empty deposit keeps the existing value; the form always sends
+        // one, so this only matters for partial API updates.
+        if (cleaned === null) continue;
+        value = Number(cleaned);
+      } else {
+        value = cleaned; // date fields: blank clears the date
+      }
+      setCol(field, value);
+    }
+    if (pricingTouched) {
+      setCol('unit_markup_usd', unitMarkupUSD);
+      setCol('unit_fees_usd', unitFeesUSD);
+      setCol('unit_landed_cost_usd', unitLandedCostUSD);
+    }
+
+    const updated = await client.query(
+      `UPDATE pooled_orders SET ${sets.join(', ')}, updated_at = NOW() WHERE id = $${sets.length + 1} RETURNING *`,
+      [...values, id]
+    );
+    await client.query('COMMIT');
+    logLogisticsAction('pooled_order', id, 'draft_updated', {
+      actorUserId: userId,
+      beforeState: { approval_state: approvalState },
+      afterState: { approval_state: approvalState },
+    });
+    return updated.rows[0];
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
 async function joinPooledOrder(pooledOrderId, userId, { committedQty, businessId, destinationCountry, destinationAddress, deliveryPreference } = {}) {
   const client = await pool.connect();
   try {
@@ -631,8 +807,8 @@ async function describeActions(order, {
 
 module.exports = {
   listPooledOrders, listOrganizerCampaigns, getPooledOrder, createPooledOrder,
+  updateCampaignDraft,
   joinPooledOrder, updatePooledOrderStatus,
-  submitCampaignForReview, reviewCampaign, getApprovalHistory, describeActions,
   evaluateCampaignBlockers,
   REVIEW_OPS_ROLES: Array.from(REVIEW_OPS_ROLES),
 };

@@ -75,6 +75,10 @@ router.get('/my-participation',        requireAuth, pooledCtrl.getMyParticipatio
 // The organizer's own campaigns including drafts. Drafts are never returned
 // by the public /campaigns endpoint above.
 router.get('/organizer/campaigns',     requireAuth, pooledCtrl.listOrganizerCampaigns);
+// Draft edits (partial update; PATCH matches the recurring-programs update
+// convention in this router). Ownership and approval-state guards live in
+// the service; editing never changes the approval state.
+router.patch('/campaigns/:id',        requireAuth, pooledCtrl.updatePooledOrder);
 // Draft submission and Operations review (approval state stays separate
 // from the fulfillment status; every decision is recorded with history).
 router.post('/campaigns/:id/submit',   requireAuth, pooledCtrl.submitForReview);

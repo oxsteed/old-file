@@ -344,6 +344,15 @@ export default function OrganizerDashboardPage() {
                             : tx('logistics.campaigns.approval.submitForReview', 'Submit for review')}
                         </button>
                       )}
+                      {canSubmit && (
+                        <Link
+                          to={`/logistics/campaigns/${campaign.id}/edit`}
+                          className="lx-link"
+                          style={{ fontSize: '.78rem' }}
+                        >
+                          {tx('logistics.campaigns.edit.editDraft', 'Edit draft')}
+                        </Link>
+                      )}
                     </div>
                     {note && (
                       <div style={{ marginTop: '.5rem', fontSize: '.8rem', color: '#b91c1c', background: '#fef2f2', borderRadius: '.5rem', padding: '.5rem .75rem' }}>

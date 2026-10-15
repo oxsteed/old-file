@@ -2454,6 +2454,22 @@
         "releaseMethod": "Phương thức xuất kho",
         "released": "Đã xuất kho"
       }
+    },
+    "campaigns": {
+      "edit": {
+        "title": "Chỉnh sửa bản nháp chiến dịch",
+        "subtitle": "Cập nhật bản nháp của bạn bên dưới. Khi đã sẵn sàng, hãy gửi để nhóm Vận hành xem xét.",
+        "saveChanges": "Lưu thay đổi",
+        "draftUpdated": "Đã cập nhật bản nháp.",
+        "updateFailed": "Không thể cập nhật bản nháp. Vui lòng thử lại.",
+        "backToCampaign": "Quay lại chiến dịch",
+        "loading": "Đang tải bản nháp chiến dịch…",
+        "loadError": "Không thể tải chiến dịch. Vui lòng thử lại.",
+        "notFound": "Không tìm thấy chiến dịch. Chiến dịch có thể đã bị xóa.",
+        "notOwner": "Chỉ người tổ chức chiến dịch mới có thể chỉnh sửa bản nháp này.",
+        "notEditable": "Chiến dịch này không thể chỉnh sửa được nữa. Chỉ bản nháp và chiến dịch được yêu cầu chỉnh sửa mới có thể chỉnh sửa.",
+        "editDraft": "Chỉnh sửa bản nháp"
+      }
     }
   }
 }

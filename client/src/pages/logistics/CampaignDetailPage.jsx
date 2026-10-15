@@ -248,6 +248,13 @@ export default function CampaignDetailPage() {
             )}
 
             {/* Organizer: submit a draft / revised draft for review */}
+            {isOwner && availableActions.includes('edit_draft') && (
+              <div style={{ marginBottom: '.75rem' }}>
+                <Link to={`/logistics/campaigns/${id}/edit`} className="lx-btn-secondary">
+                  {tx('logistics.campaigns.edit.editDraft', 'Edit draft')}
+                </Link>
+              </div>
+            )}
             {isOwner && availableActions.includes('submit_for_review') && (
               <div>
                 {submitBlockers.length > 0 && (

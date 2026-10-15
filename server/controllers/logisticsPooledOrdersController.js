@@ -15,6 +15,7 @@ const APPROVAL_ERROR_MAP = {
   not_owner:                    [403, 'forbidden'],
   self_approval:                [403, 'self_approval'],
   campaign_not_draft:           [409, 'campaign_not_draft'],
+  campaign_not_editable:        [409, 'campaign_not_editable'],
   campaign_not_pending_review:  [409, 'campaign_not_pending_review'],
   approval_blockers:            [422, 'approval_blockers'],
   review_reason_required:       [400, 'validation_failed'],
@@ -169,6 +170,20 @@ exports.createPooledOrder = async (req, res, next) => {
       userRole: logisticsRole,
     });
     res.status(201).json({ success: true, data: order });
+  } catch (err) { next(toHttpError(err) || err); }
+};
+
+// Organizer edits their campaign draft. Only the owning organizer may edit,
+// and only while the approval state is draft or revisions_requested; the
+// service enforces both guards transactionally.
+exports.updatePooledOrder = async (req, res, next) => {
+  try {
+    const logisticsRole = await resolveLogisticsRole(req.user);
+    const order = await pooledOrderService.updateCampaignDraft(req.params.id, req.user.id, req.body, {
+      userCountry: viewerCountry(req),
+      userRole: logisticsRole,
+    });
+    res.json({ success: true, data: order });
   } catch (err) { next(toHttpError(err) || err); }
 };
 

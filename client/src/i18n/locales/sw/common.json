@@ -2452,6 +2452,22 @@
       },
       "sqft": "futi za mraba",
       "tabsLabel": "Maoni ya ghala"
+    },
+    "campaigns": {
+      "edit": {
+        "title": "Hariri rasimu ya kampeni",
+        "subtitle": "Sasisha rasimu yako hapa chini. Ikishakuwa tayari, iwasilishe kwa ukaguzi wa Uendeshaji.",
+        "saveChanges": "Hifadhi mabadiliko",
+        "draftUpdated": "Rasimu imesasishwa.",
+        "updateFailed": "Imeshindwa kusasisha rasimu. Tafadhali jaribu tena.",
+        "backToCampaign": "Rudi kwenye kampeni",
+        "loading": "Inapakia rasimu ya kampeni…",
+        "loadError": "Imeshindwa kupakia kampeni. Tafadhali jaribu tena.",
+        "notFound": "Kampeni haijapatikana. Huenda ilifutwa.",
+        "notOwner": "Mratibu wa kampeni pekee ndiye anayeweza kuhariri rasimu hii.",
+        "notEditable": "Kampeni hii haiwezi kuhaririwa tena. Rasimu na kampeni zilizoombwa marekebisho pekee ndizo zinazoweza kuhaririwa.",
+        "editDraft": "Hariri rasimu"
+      }
     }
   }
 }

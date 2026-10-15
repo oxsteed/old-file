@@ -2454,6 +2454,22 @@
     "tables": {
       "actions": "Acciones",
       "view": "Ver"
+    },
+    "campaigns": {
+      "edit": {
+        "title": "Editar borrador de campaña",
+        "subtitle": "Actualiza tu borrador a continuación. Cuando esté listo, envíalo para la revisión de Operaciones.",
+        "saveChanges": "Guardar cambios",
+        "draftUpdated": "Borrador actualizado.",
+        "updateFailed": "No se pudo actualizar el borrador. Inténtalo de nuevo.",
+        "backToCampaign": "Volver a la campaña",
+        "loading": "Cargando borrador de campaña…",
+        "loadError": "No se pudo cargar la campaña. Inténtalo de nuevo.",
+        "notFound": "Campaña no encontrada. Es posible que se haya eliminado.",
+        "notOwner": "Solo el organizador de la campaña puede editar este borrador.",
+        "notEditable": "Esta campaña ya no se puede editar. Solo se pueden editar los borradores y las campañas con revisiones solicitadas.",
+        "editDraft": "Editar borrador"
+      }
     }
   }
 }
