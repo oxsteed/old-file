@@ -4,6 +4,7 @@ import axios from '../../../api/axios';
 import { useAbortableFetch } from '../../lib/useAbortableFetch';
 import AdminErrorState from '../../lib/AdminErrorState';
 import '../../../styles/logistics/LogisticsHomePage.css';
+import '../../../styles/logistics/LogisticsWorkspaces.css';
 
 export default function SuperAdminLogisticsControl() {
   const { t } = useTranslation();
@@ -52,8 +53,8 @@ export default function SuperAdminLogisticsControl() {
         ].map(([label, value, icon]) => (
           <div key={label} className="lx-card" style={{ textAlign:'center' }}>
             <div style={{ fontSize:'1.4rem' }}>{icon}</div>
-            <div style={{ fontSize:'1.4rem', fontWeight:800, color:'#f97316' }}>{value}</div>
-            <div style={{ color:'#64748b', fontSize:'.8rem', fontWeight:600 }}>{label}</div>
+            <div style={{ fontSize:'1.4rem', fontWeight:800, color:'var(--color-primary)' }}>{value}</div>
+            <div style={{ color:'var(--color-text-muted)', fontSize:'.8rem', fontWeight:600 }}>{label}</div>
           </div>
         ))}
       </div>
@@ -72,14 +73,14 @@ export default function SuperAdminLogisticsControl() {
                     <td>{rule.priority}</td>
                   </tr>
                 ))}
-                {markup.length === 0 && <tr><td colSpan={4} style={{ textAlign:'center', color:'#94a3b8' }}>{t('adminLogisticsControl.noMarkupRules', { defaultValue: 'No markup rules configured.' })}</td></tr>}
+                {markup.length === 0 && <tr><td colSpan={4} className="lx-table-empty-cell">{t('adminLogisticsControl.noMarkupRules', { defaultValue: 'No markup rules configured.' })}</td></tr>}
               </tbody>
             </table>
           </div>
         </div>
         <div className="lx-card">
           <h2 style={{ marginTop:0 }}>{t('adminLogisticsControl.feesTitle')}</h2>
-          <div style={{ fontSize:'.85rem', color:'#64748b', lineHeight:1.8, marginBottom:'1rem' }}>
+          <div style={{ fontSize:'.85rem', color:'var(--color-text-muted)', lineHeight:1.8, marginBottom:'1rem' }}>
             {t('adminLogisticsControl.feesDescription')}
           </div>
           <div className="lx-table-wrap">
@@ -100,7 +101,7 @@ export default function SuperAdminLogisticsControl() {
                     <td>{rule.requires_approval ? t('adminLogisticsControl.approvalRequired') : t('adminLogisticsControl.approvalOpen')}</td>
                   </tr>
                 ))}
-                {fees.length === 0 && restrictions.length === 0 && <tr><td colSpan={3} style={{ textAlign:'center', color:'#94a3b8' }}>{t('adminLogisticsControl.noFeeRules', { defaultValue: 'No fee or restriction rules configured.' })}</td></tr>}
+                {fees.length === 0 && restrictions.length === 0 && <tr><td colSpan={3} className="lx-table-empty-cell">{t('adminLogisticsControl.noFeeRules', { defaultValue: 'No fee or restriction rules configured.' })}</td></tr>}
               </tbody>
             </table>
           </div>
