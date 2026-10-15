@@ -5,6 +5,7 @@ import { listShipments } from '../../api/logistics';
 import PageShell from '../../components/PageShell';
 import LogisticsLayout from '../../components/logistics/LogisticsLayout';
 import LogisticsStatusPill from '../../components/logistics/LogisticsStatusPill';
+import ShipmentPreview from '../../components/logistics/ShipmentPreview';
 import '../../styles/logistics/LogisticsHomePage.css';
 import '../../styles/logistics/LogisticsWorkspaces.css';
 
@@ -27,6 +28,7 @@ export default function ShipmentsPage() {
   const navigate = useNavigate();
   const [shipments, setShipments] = useState([]);
   const [status, setStatus] = useState('');
+  const [previewId, setPreviewId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
@@ -140,6 +142,13 @@ export default function ShipmentsPage() {
                         ⚠ {tx('logistics.shipments.exception', 'Exception')}
                       </div>
                     )}
+                    <button
+                      type="button"
+                      className="lx-action-ghost lx-mt-6"
+                      onClick={(e) => { e.stopPropagation(); setPreviewId(s.id); }}
+                    >
+                      {tx('logistics.tables.preview')}
+                    </button>
                   </div>
                 </div>
               ))}
@@ -151,6 +160,11 @@ export default function ShipmentsPage() {
           </p>
         </div>
       </LogisticsLayout>
+      <ShipmentPreview
+        id={previewId}
+        open={previewId !== null}
+        onClose={() => setPreviewId(null)}
+      />
     </PageShell>
   );
 }

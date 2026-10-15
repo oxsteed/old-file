@@ -5,6 +5,7 @@ import { listAllocations, listDeliveries } from '../../api/logistics';
 import PageShell from '../../components/PageShell';
 import LogisticsLayout from '../../components/logistics/LogisticsLayout';
 import LogisticsStatusPill from '../../components/logistics/LogisticsStatusPill';
+import AllocationPreview from '../../components/logistics/AllocationPreview';
 import '../../styles/logistics/LogisticsHomePage.css';
 import '../../styles/logistics/LogisticsWorkspaces.css';
 
@@ -19,6 +20,7 @@ export default function DistributionPage() {
   const tx = (key, fallback, opts = {}) => t(key, { defaultValue: fallback, ...opts });
   const [allocations, setAllocations] = useState([]);
   const [deliveries, setDeliveries] = useState([]);
+  const [previewId, setPreviewId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
@@ -108,6 +110,15 @@ export default function DistributionPage() {
                       <div className="lx-t-small lx-mt-6">
                         <strong>{tx('logistics.distribution.labels.allocatedQty', 'Allocated qty')}:</strong> {a.allocated_qty || a.qty || '—'}
                       </div>
+                      <div className="lx-mt-6">
+                        <button
+                          type="button"
+                          className="lx-action-ghost"
+                          onClick={() => setPreviewId(a.id)}
+                        >
+                          {tx('logistics.tables.preview')}
+                        </button>
+                      </div>
                     </div>
                   ))}
                   {allocations.length === 0 && (
@@ -143,6 +154,11 @@ export default function DistributionPage() {
           )}
         </div>
       </LogisticsLayout>
+      <AllocationPreview
+        id={previewId}
+        open={previewId !== null}
+        onClose={() => setPreviewId(null)}
+      />
     </PageShell>
   );
 }

@@ -5,6 +5,7 @@ import { listOrders } from '../../api/logistics';
 import PageShell from '../../components/PageShell';
 import LogisticsLayout from '../../components/logistics/LogisticsLayout';
 import LogisticsStatusPill from '../../components/logistics/LogisticsStatusPill';
+import OrderPreview from '../../components/logistics/OrderPreview';
 import '../../styles/logistics/LogisticsHomePage.css';
 import '../../styles/logistics/LogisticsWorkspaces.css';
 
@@ -32,6 +33,7 @@ export default function OrdersPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError]     = useState(false);
   const [page, setPage]       = useState(1);
+  const [previewId, setPreviewId] = useState(null);
   const limit = 20;
 
   const load = () => {
@@ -145,7 +147,16 @@ export default function OrdersPage() {
                       <td className="lx-t-small">
                         {o.expected_arrival_date ? new Date(o.expected_arrival_date).toLocaleDateString() : '—'}
                       </td>
-                      <td><span className="lx-link" aria-hidden="true">→</span></td>
+                      <td>
+                        <button
+                          type="button"
+                          className="lx-action-ghost"
+                          onClick={(e) => { e.stopPropagation(); setPreviewId(o.id); }}
+                        >
+                          {tx('logistics.tables.preview')}
+                        </button>
+                        <span className="lx-link" aria-hidden="true"> →</span>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -172,6 +183,11 @@ export default function OrdersPage() {
           </p>
         </div>
       </LogisticsLayout>
+      <OrderPreview
+        id={previewId}
+        open={previewId !== null}
+        onClose={() => setPreviewId(null)}
+      />
     </PageShell>
   );
 }

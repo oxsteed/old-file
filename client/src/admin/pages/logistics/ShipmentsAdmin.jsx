@@ -7,6 +7,7 @@ import '../../../styles/logistics/LogisticsWorkspaces.css';
 import AdminErrorState from '../../lib/AdminErrorState';
 import LogisticsModal from '../../../components/logistics/LogisticsModal';
 import LogisticsStatusPill from '../../../components/logistics/LogisticsStatusPill';
+import ShipmentPreview from '../../../components/logistics/ShipmentPreview';
 
 const MILESTONE_OPTS = [
   'booked','origin_received','consolidating','departed_origin','transshipment',
@@ -27,6 +28,7 @@ export default function ShipmentsAdmin() {
   const [loadError, setLoadError] = useState(null);
   const [statusFilter, setStatusFilter] = useState('');
   const [selected, setSelected]   = useState(null);
+  const [previewId, setPreviewId] = useState(null);
   const [view, setView]           = useState('milestone'); // milestone | doc
   const [milestone, setMilestone] = useState({ status:'', location:'', notes:'' });
   const [doc, setDoc]             = useState({ doc_type:'', file:null, notes:'' });
@@ -120,6 +122,10 @@ export default function ShipmentsAdmin() {
                   />
                 </td>
                 <td>
+                  <button className="lx-btn-secondary" style={{ fontSize:'.72rem', padding:'.25rem .65rem', marginInlineEnd:'.4rem' }}
+                    onClick={() => setPreviewId(s.id)}>
+                    {t('logistics.tables.preview')}
+                  </button>
                   <button className="lx-btn-secondary" style={{ fontSize:'.72rem', padding:'.25rem .65rem' }}
                     onClick={() => { setSelected(s); setView('milestone'); setMilestone({ status:'', location:'', notes:'' }); setDoc({ doc_type:'', file:null, notes:'' }); }}>
                     {t('logistics.admin.shipments.update')}
@@ -220,6 +226,11 @@ export default function ShipmentsAdmin() {
           </>
         )}
       </LogisticsModal>
+      <ShipmentPreview
+        id={previewId}
+        open={previewId !== null}
+        onClose={() => setPreviewId(null)}
+      />
     </div>
   );
 }

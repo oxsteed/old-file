@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { listCampaigns, listLanes } from '../../api/logistics';
+import CampaignPreview from './CampaignPreview';
 import './CampaignBrowser.css';
 
 /**
@@ -90,6 +91,7 @@ export default function CampaignBrowser() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [retryNonce, setRetryNonce] = useState(0);
+  const [previewId, setPreviewId] = useState(null);
 
   const debounceRef = useRef(null);
   const resultsTopRef = useRef(null);
@@ -349,17 +351,14 @@ export default function CampaignBrowser() {
             {campaigns.map((c) => {
               const pct = progressPct(c);
               return (
-                <Link
-                  key={c.id}
-                  to={`/logistics/campaigns/${c.id}`}
-                  className="lx-cb-card"
-                  aria-label={c.title}
-                >
+                <article key={c.id} className="lx-cb-card" aria-labelledby={`lx-cb-title-${c.id}`}>
                   <span className="lx-cb-card-lane">
                     {c.origin_country} → {c.destination_country}
                     {c.lane_name && <span className="lx-cb-card-lane-name"> · {c.lane_name}</span>}
                   </span>
-                  <span className="lx-cb-card-title">{c.title}</span>
+                  <Link to={`/logistics/campaigns/${c.id}`} className="lx-cb-card-title-link">
+                    <span className="lx-cb-card-title" id={`lx-cb-title-${c.id}`}>{c.title}</span>
+                  </Link>
                   {c.product_title && (
                     <span className="lx-cb-card-product">
                       {c.product_category ? `${c.product_category} · ` : ''}
@@ -398,8 +397,15 @@ export default function CampaignBrowser() {
                         {new Date(c.close_date).toLocaleDateString()}
                       </span>
                     )}
+                    <button
+                      type="button"
+                      className="lx-cb-btn-ghost"
+                      onClick={() => setPreviewId(c.id)}
+                    >
+                      {t('logistics.tables.preview')}
+                    </button>
                   </span>
-                </Link>
+                </article>
               );
             })}
           </div>
@@ -430,6 +436,12 @@ export default function CampaignBrowser() {
           </nav>
         )}
       </div>
+
+      <CampaignPreview
+        id={previewId}
+        open={previewId !== null}
+        onClose={() => setPreviewId(null)}
+      />
     </section>
   );
 }

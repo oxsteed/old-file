@@ -7,6 +7,7 @@ import '../../../styles/logistics/LogisticsWorkspaces.css';
 import AdminErrorState from '../../lib/AdminErrorState';
 import LogisticsModal from '../../../components/logistics/LogisticsModal';
 import LogisticsStatusPill from '../../../components/logistics/LogisticsStatusPill';
+import RequestPreview from '../../../components/logistics/RequestPreview';
 
 const REQUEST_STATUSES = ['draft', 'quoted', 'pooled', 'procurement', 'private_label', 'cancelled', 'closed'];
 
@@ -18,6 +19,7 @@ export default function SourcingOpsAdmin() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
   const [selected, setSelected] = useState(null);
+  const [previewId, setPreviewId] = useState(null);
   const [form, setForm] = useState({ operator_user_id: '', status: '', notes: '' });
 
   const load = () => {
@@ -93,7 +95,10 @@ export default function SourcingOpsAdmin() {
                   <td><LogisticsStatusPill status={request.status} label={t(`logistics.status.${request.status}`, { defaultValue: request.status })} /></td>
                   <td>{request.quote_count || 0}</td>
                   <td>{request.assigned_operator || '—'}</td>
-                  <td><button className="lx-btn-secondary" style={{ fontSize:'.72rem', padding:'.25rem .65rem' }} onClick={() => setSelected(request)}>{t('adminSourcingOps.manage')}</button></td>
+                  <td>
+                    <button className="lx-btn-secondary" style={{ fontSize:'.72rem', padding:'.25rem .65rem', marginInlineEnd:'.4rem' }} onClick={() => setPreviewId(request.id)}>{t('logistics.tables.preview')}</button>
+                    <button className="lx-btn-secondary" style={{ fontSize:'.72rem', padding:'.25rem .65rem' }} onClick={() => setSelected(request)}>{t('adminSourcingOps.manage')}</button>
+                  </td>
                 </tr>
               ))}
               {!loading && !loadError && requests.length === 0 && <tr><td colSpan={6} className="lx-table-empty-cell">{t('adminSourcingOps.noRequests')}</td></tr>}
@@ -152,6 +157,11 @@ export default function SourcingOpsAdmin() {
           </>
         )}
       </LogisticsModal>
+      <RequestPreview
+        id={previewId}
+        open={previewId !== null}
+        onClose={() => setPreviewId(null)}
+      />
     </div>
   );
 }

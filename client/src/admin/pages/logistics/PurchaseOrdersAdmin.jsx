@@ -9,6 +9,7 @@ import '../../../styles/logistics/LogisticsHomePage.css';
 import '../../../styles/logistics/LogisticsWorkspaces.css';
 import LogisticsModal from '../../../components/logistics/LogisticsModal';
 import LogisticsStatusPill from '../../../components/logistics/LogisticsStatusPill';
+import OrderPreview from '../../../components/logistics/OrderPreview';
 
 const PO_STATUSES = [
   'draft','quoted','approved','awaiting_deposit','deposit_collected',
@@ -39,6 +40,7 @@ export default function PurchaseOrdersAdmin() {
   const { t } = useTranslation();
   const [statusFilter, setStatusFilter] = useState('');
   const [selected, setSelected] = useState(null);
+  const [previewId, setPreviewId] = useState(null);
   const [toStatus, setToStatus] = useState('');
   const [notes, setNotes]       = useState('');
   const [saving, setSaving]     = useState(false);
@@ -111,6 +113,10 @@ export default function PurchaseOrdersAdmin() {
                   />
                 </td>
                 <td>
+                  <button className="lx-btn-secondary" style={{ fontSize:'.72rem', padding:'.25rem .65rem', marginInlineEnd:'.4rem' }}
+                    onClick={() => setPreviewId(o.id)}>
+                    {t('logistics.tables.preview')}
+                  </button>
                   <button className="lx-btn-secondary" style={{ fontSize:'.72rem', padding:'.25rem .65rem' }}
                     onClick={() => { setSelected(o); setToStatus(''); setNotes(''); }}>
 {t('adminPurchaseOrders.manage')}
@@ -201,6 +207,11 @@ export default function PurchaseOrdersAdmin() {
           </>
         )}
       </LogisticsModal>
+      <OrderPreview
+        id={previewId}
+        open={previewId !== null}
+        onClose={() => setPreviewId(null)}
+      />
     </div>
   );
 }

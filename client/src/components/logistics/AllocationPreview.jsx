@@ -10,8 +10,10 @@ const STATUS_COLOR = {
 /**
  * Allocation preview modal. Loads the allocation through the direct
  * GET /logistics/allocations/:id endpoint.
- * "Open full page" navigates to /logistics/distribution, the customer-facing
- * workspace that lists allocations.
+ * "Open full page" navigates to the owning pooled-order (campaign) record
+ * at /logistics/campaigns/:id, because there is no dedicated allocation
+ * detail route; it falls back to /logistics/distribution when the
+ * allocation carries no pooled order.
  */
 export default function AllocationPreview({ id, open, onClose }) {
   const { t } = useTranslation();
@@ -44,7 +46,7 @@ export default function AllocationPreview({ id, open, onClose }) {
       open={open}
       onClose={onClose}
       title={reference || tx('logistics.modal.allocationPreviewTitle', 'Allocation preview')}
-      fullPageHref="/logistics/distribution"
+      fullPageHref={allocation?.pooled_order_id ? `/logistics/campaigns/${allocation.pooled_order_id}` : '/logistics/distribution'}
     >
       {loading && <LogisticsModalLoading />}
       {!loading && error && <LogisticsModalError message={error} onRetry={load} />}

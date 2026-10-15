@@ -10,6 +10,7 @@ import '../../../styles/logistics/LogisticsWorkspaces.css';
 import AdminErrorState from '../../lib/AdminErrorState';
 import ConfirmDialog from '../../lib/ConfirmDialog';
 import LogisticsStatusPill from '../../../components/logistics/LogisticsStatusPill';
+import AllocationPreview from '../../../components/logistics/AllocationPreview';
 
 const DELIVERY_MODES     = ['courier','freight','self_pickup','local_delivery'];
 
@@ -24,6 +25,7 @@ export default function AllocationsAdmin() {
   const [showDoForm, setShowDoForm] = useState(false);
   const [doForm, setDoForm]       = useState({ allocation_id:'', delivery_mode:'courier', recipient_name:'', recipient_address:'', notes:'' });
   const [saving, setSaving]       = useState(false);
+  const [previewId, setPreviewId] = useState(null);
 
   const load = () => {
     setLoading(true);
@@ -172,6 +174,10 @@ export default function AllocationsAdmin() {
                     />
                   </td>
                   <td>
+                    <button className="lx-btn-secondary" style={{ fontSize:'.72rem', padding:'.25rem .5rem', marginInlineEnd:'.4rem' }}
+                      onClick={() => setPreviewId(a.id)}>
+                      {t('logistics.tables.preview')}
+                    </button>
                     {a.status === 'reserved' && (
                       <button className="lx-btn-secondary" style={{ fontSize:'.72rem', padding:'.25rem .5rem' }}
                         onClick={() => setReleaseTarget(a.id)}>
@@ -238,6 +244,11 @@ export default function AllocationsAdmin() {
         confirmLabel={t('adminAllocations.release')}
         onConfirm={doRelease}
         onClose={() => setReleaseTarget(null)}
+      />
+      <AllocationPreview
+        id={previewId}
+        open={previewId !== null}
+        onClose={() => setPreviewId(null)}
       />
     </div>
   );

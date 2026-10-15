@@ -5,6 +5,7 @@ import { listSourcingRequests, listSuppliers } from '../../api/logistics';
 import PageShell from '../../components/PageShell';
 import LogisticsLayout from '../../components/logistics/LogisticsLayout';
 import LogisticsStatusPill from '../../components/logistics/LogisticsStatusPill';
+import RequestPreview from '../../components/logistics/RequestPreview';
 import '../../styles/logistics/LogisticsHomePage.css';
 import '../../styles/logistics/LogisticsWorkspaces.css';
 
@@ -24,6 +25,7 @@ export default function SourcingPage() {
   const [loadingReqs, setLoadingReqs] = useState(true);
   const [loadError, setLoadError] = useState(false);
   const [tab, setTab] = useState('my-requests');
+  const [previewId, setPreviewId] = useState(null);
 
   useEffect(() => {
     listSourcingRequests({ limit: 20 })
@@ -139,7 +141,17 @@ export default function SourcingPage() {
                           <td>{r.target_qty ? `${r.target_qty} ${r.target_unit}` : '—'}</td>
                           <td><LogisticsStatusPill status={r.status} /></td>
                           <td>{r.quote_count || 0}</td>
-                          <td><span className="lx-link" aria-hidden="true">{tx('logistics.sourcing.viewRow', 'View →')}</span></td>
+                          <td>
+                            <span className="lx-link" aria-hidden="true">{tx('logistics.sourcing.viewRow', 'View →')}</span>
+                            {' '}
+                            <button
+                              type="button"
+                              className="lx-action-ghost"
+                              onClick={(e) => { e.stopPropagation(); setPreviewId(r.id); }}
+                            >
+                              {tx('logistics.tables.preview')}
+                            </button>
+                          </td>
                         </tr>
                       ))}
                     </tbody>
@@ -187,6 +199,11 @@ export default function SourcingPage() {
           )}
         </div>
       </LogisticsLayout>
+      <RequestPreview
+        id={previewId}
+        open={previewId !== null}
+        onClose={() => setPreviewId(null)}
+      />
     </PageShell>
   );
 }

@@ -7,6 +7,7 @@ import '../../../styles/logistics/LogisticsWorkspaces.css';
 import AdminErrorState from '../../lib/AdminErrorState';
 import LogisticsModal from '../../../components/logistics/LogisticsModal';
 import LogisticsStatusPill from '../../../components/logistics/LogisticsStatusPill';
+import CampaignPreview from '../../../components/logistics/CampaignPreview';
 
 const CAMPAIGN_STATUSES = [
   'draft', 'open', 'pledging', 'deposit_phase', 'locked', 'placed',
@@ -33,6 +34,7 @@ export default function CampaignsAdmin() {
   const [loadError, setLoadError] = useState(null);
   const [statusFilter, setStatusFilter] = useState('');
   const [selected, setSelected]   = useState(null);
+  const [previewId, setPreviewId] = useState(null);
   const [transition, setTransition] = useState('');
   const [saving, setSaving]       = useState(false);
 
@@ -122,6 +124,10 @@ export default function CampaignsAdmin() {
                     />
                   </td>
                   <td>
+                    <button className="lx-btn-secondary" style={{ fontSize:'.72rem', padding:'.25rem .65rem', marginInlineEnd:'.4rem' }}
+                      onClick={() => setPreviewId(c.id)}>
+                      {t('logistics.tables.preview')}
+                    </button>
                     <button className="lx-btn-secondary" style={{ fontSize:'.72rem', padding:'.25rem .65rem' }}
                       onClick={() => { setSelected(c); setTransition(''); }}>
                       {t('adminCampaigns.manage')}
@@ -179,6 +185,11 @@ export default function CampaignsAdmin() {
           </>
         )}
       </LogisticsModal>
+      <CampaignPreview
+        id={previewId}
+        open={previewId !== null}
+        onClose={() => setPreviewId(null)}
+      />
     </div>
   );
 }

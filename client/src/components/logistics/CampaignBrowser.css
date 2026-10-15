@@ -298,6 +298,21 @@
   color: var(--color-text-faint);
 }
 
+.lx-cb-card-title-link {
+  color: inherit;
+  text-decoration: none;
+  border-radius: var(--radius-sm);
+}
+
+.lx-cb-card-title-link:hover .lx-cb-card-title {
+  color: var(--color-primary);
+}
+
+.lx-cb-card-title-link:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
 /* ── Pagination ── */
 .lx-cb-pagination {
   display: flex;
