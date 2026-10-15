@@ -3,12 +3,12 @@ import { useTranslation } from 'react-i18next';
 import { adminListRestrictions, adminUpsertRestriction } from '../../../api/logistics';
 import toast from 'react-hot-toast';
 import '../../../styles/logistics/LogisticsHomePage.css';
+import '../../../styles/logistics/LogisticsWorkspaces.css';
 import AdminErrorState from '../../lib/AdminErrorState';
+import LogisticsStatusPill from '../../../components/logistics/LogisticsStatusPill';
 
 const ACCESS_LEVELS   = ['open','business_only','verified_only','invite_only','blocked'];
 const RISK_TIERS      = ['low','managed','restricted','prohibited'];
-const ACCESS_COLOR    = { open:'#22c55e', business_only:'#3b82f6', verified_only:'#f59e0b', invite_only:'#8b5cf6', blocked:'#ef4444' };
-const RISK_COLOR      = { low:'#22c55e', managed:'#f59e0b', restricted:'#dc2626', prohibited:'#7f1d1d' };
 
 const NS = 'adminLogisticsRestrictions';
 const ACCESS_LEVEL_I18N = { open:'accessOpen', business_only:'accessBusinessOnly', verified_only:'accessVerifiedOnly', invite_only:'accessInviteOnly', blocked:'accessBlocked' };
@@ -92,14 +92,14 @@ export default function RestrictionsAdmin() {
       </div>
 
       {/* Info box */}
-      <div style={{ background:'#eff6ff', border:'1px solid #bfdbfe', borderRadius:'.75rem', padding:'1rem', marginBottom:'1.5rem', fontSize:'.875rem' }}>
+      <div style={{ background:'var(--color-info-bg)', border:'1px solid color-mix(in srgb, var(--color-info) 35%, transparent)', borderRadius:'.75rem', padding:'1rem', marginBottom:'1.5rem', fontSize:'.875rem' }}>
         <strong>ℹ️ {t(`${NS}.infoTitle`)}</strong> {t(`${NS}.infoBody1`)}
         {t(`${NS}.infoBody2`)}
         {t(`${NS}.infoBody3`)} <strong>{t(`${NS}.openWord`)}</strong>.
       </div>
 
       {showForm && (
-        <div className="lx-card" style={{ marginBottom:'1.5rem', border:'2px solid #f97316' }}>
+        <div className="lx-card" style={{ marginBottom:'1.5rem', border:'2px solid var(--color-primary)' }}>
           <h3 style={{ fontWeight:700, marginBottom:'1.25rem' }}>
             {editing ? t(`${NS}.editTitle`, { code: editing.country_code, direction: editing.direction }) : t(`${NS}.newTitle`)}
           </h3>
@@ -182,29 +182,25 @@ export default function RestrictionsAdmin() {
                   <span style={{ fontWeight:700, fontSize:'1rem' }}>{r.country_code}</span>
                 </td>
                 <td>
-                  <span style={{ background:'#f1f5f9', borderRadius:'.375rem', padding:'.15rem .5rem', fontSize:'.75rem', fontWeight:700 }}>
+                  <span style={{ background:'var(--color-surface-2)', borderRadius:'.375rem', padding:'.15rem .5rem', fontSize:'.75rem', fontWeight:700 }}>
                     {labelFor(DIRECTION_I18N, r.direction)}
                   </span>
                 </td>
                 <td>
-                  <span className="lx-status-pill" style={{ background: ACCESS_COLOR[r.access_level]||'#64748b' }}>
-                    {labelFor(ACCESS_LEVEL_I18N, r.access_level)}
-                  </span>
+                  <LogisticsStatusPill status={r.access_level} label={labelFor(ACCESS_LEVEL_I18N, r.access_level)} />
                 </td>
                 <td>
-                  <span className="lx-status-pill" style={{ background: RISK_COLOR[r.risk_tier]||'#64748b' }}>
-                    {labelFor(RISK_I18N, r.risk_tier)}
-                  </span>
+                  <LogisticsStatusPill status={r.risk_tier} label={labelFor(RISK_I18N, r.risk_tier)} />
                 </td>
                 <td style={{ fontSize:'.82rem' }}>
                   {r.max_order_value_usd ? `$${parseFloat(r.max_order_value_usd).toLocaleString()}` : '—'}
                 </td>
                 <td style={{ fontSize:'.72rem' }}>
-                  {r.requires_license && <span style={{ background:'#fef3c7', borderRadius:999, padding:'.1rem .4rem', marginRight:'.25rem' }}>LIC</span>}
-                  {r.requires_certificate && <span style={{ background:'#ede9fe', borderRadius:999, padding:'.1rem .4rem', marginRight:'.25rem' }}>CERT</span>}
-                  {r.requires_business_only && <span style={{ background:'#dbeafe', borderRadius:999, padding:'.1rem .4rem' }}>BIZ</span>}
+                  {r.requires_license && <span style={{ background:'var(--color-warning-bg)', borderRadius:999, padding:'.1rem .4rem', marginRight:'.25rem' }}>LIC</span>}
+                  {r.requires_certificate && <span style={{ background:'var(--color-info-bg)', borderRadius:999, padding:'.1rem .4rem', marginRight:'.25rem' }}>CERT</span>}
+                  {r.requires_business_only && <span style={{ background:'var(--color-info-bg)', borderRadius:999, padding:'.1rem .4rem' }}>BIZ</span>}
                 </td>
-                <td style={{ fontSize:'.78rem', color:'#64748b', maxWidth:200 }}>
+                <td style={{ fontSize:'.78rem', color:'var(--color-text-muted)', maxWidth:200 }}>
                   {r.notes ? r.notes.slice(0,60) + (r.notes.length > 60 ? '…' : '') : '—'}
                 </td>
                 <td>
@@ -216,7 +212,7 @@ export default function RestrictionsAdmin() {
               </tr>
             ))}
             {rules.length === 0 && !loading && !loadError && (
-              <tr><td colSpan={8} style={{ textAlign:'center', padding:'2rem', color:'#94a3b8' }}>{t(`${NS}.emptyState`)}</td></tr>
+              <tr><td colSpan={8} className="lx-table-empty-cell">{t(`${NS}.emptyState`)}</td></tr>
             )}
           </tbody>
         </table>
