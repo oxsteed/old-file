@@ -3,7 +3,9 @@ import { useTranslation } from 'react-i18next';
 import { listLanes, adminCreateLane, adminUpdateLane } from '../../../api/logistics';
 import toast from 'react-hot-toast';
 import '../../../styles/logistics/LogisticsHomePage.css';
+import '../../../styles/logistics/LogisticsWorkspaces.css';
 import AdminErrorState from '../../lib/AdminErrorState';
+import LogisticsStatusPill from '../../../components/logistics/LogisticsStatusPill';
 
 const RISK_TIERS   = ['low','managed','restricted','prohibited'];
 const FREIGHT_OPTS = ['air','sea_fcl','sea_lcl','road','rail','multimodal','courier','express'];
@@ -93,7 +95,7 @@ export default function LanesManagement() {
       {!loading && loadError && <AdminErrorState onRetry={load} />}
 
       {showForm && (
-        <div className="lx-card" style={{ marginBottom:'1.5rem', border:'2px solid #f97316' }}>
+        <div className="lx-card" style={{ marginBottom:'1.5rem', border:'2px solid var(--color-primary)' }}>
           <h3 style={{ fontWeight:700, marginBottom:'1.25rem' }}>{editLane ? t(`${NS}.formEditTitle`) : t(`${NS}.formCreateTitle`)}</h3>
           <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(220px, 1fr))', gap:'1rem' }}>
             {!editLane && <div className="lx-form-group">
@@ -146,9 +148,9 @@ export default function LanesManagement() {
                   onClick={() => toggleFreight(opt)}
                   style={{
                     padding:'.25rem .75rem', borderRadius:999, border:'2px solid',
-                    borderColor: form.freight_options.includes(opt) ? '#f97316' : '#e2e8f0',
-                    background: form.freight_options.includes(opt) ? '#fff7ed' : 'transparent',
-                    color: form.freight_options.includes(opt) ? '#f97316' : '#64748b',
+                    borderColor: form.freight_options.includes(opt) ? 'var(--color-primary)' : 'var(--color-border)',
+                    background: form.freight_options.includes(opt) ? 'var(--color-primary-bg)' : 'transparent',
+                    color: form.freight_options.includes(opt) ? 'var(--color-primary)' : 'var(--color-text-muted)',
                     fontWeight:600, fontSize:'.78rem', cursor:'pointer',
                   }}
                 >{t(`${NS}.${FREIGHT_I18N[opt]}`)}</button>
@@ -198,20 +200,21 @@ export default function LanesManagement() {
               <tr key={l.id}>
                 <td><code style={{ fontSize:'.75rem' }}>{l.code}</code></td>
                 <td style={{ fontWeight:600 }}>{l.name}</td>
-                <td style={{ fontSize:'.8rem', color:'#64748b' }}>{l.origin_country} → {l.destination_country}</td>
+                <td style={{ fontSize:'.8rem', color:'var(--color-text-muted)' }}>{l.origin_country} → {l.destination_country}</td>
                 <td>
-                  <span className="lx-status-pill" style={{
-                    background: {low:'#22c55e',managed:'#f59e0b',restricted:'#dc2626',prohibited:'#7f1d1d'}[l.risk_tier]||'#64748b'
-                  }}>{RISK_I18N[l.risk_tier] ? t(`${NS}.${RISK_I18N[l.risk_tier]}`) : l.risk_tier}</span>
+                  <LogisticsStatusPill
+                    status={l.risk_tier}
+                    label={RISK_I18N[l.risk_tier] ? t(`${NS}.${RISK_I18N[l.risk_tier]}`) : l.risk_tier}
+                  />
                 </td>
                 <td>{(parseFloat(l.default_markup_pct||0)*100).toFixed(0)}%</td>
                 <td>{l.customs_complexity}/5</td>
                 <td style={{ fontSize:'.72rem' }}>
-                  {l.requires_business_verification && <span style={{ color:'#f97316' }}>BV </span>}
-                  {l.requires_manual_approval && <span style={{ color:'#dc2626' }}>MA</span>}
+                  {l.requires_business_verification && <span style={{ color:'var(--color-primary)' }}>BV </span>}
+                  {l.requires_manual_approval && <span style={{ color:'var(--color-error)' }}>MA</span>}
                 </td>
                 <td>
-                  <span style={{ color: l.is_active ? '#22c55e' : '#ef4444', fontWeight:700, fontSize:'.8rem' }}>
+                  <span style={{ color: l.is_active ? 'var(--color-success)' : 'var(--color-error)', fontWeight:700, fontSize:'.8rem' }}>
                     {t(l.is_active ? `${NS}.active` : `${NS}.inactive`)}
                   </span>
                 </td>
@@ -223,7 +226,7 @@ export default function LanesManagement() {
               </tr>
             ))}
             {lanes.length === 0 && !loading && !loadError && (
-              <tr><td colSpan={10} style={{ textAlign:'center', padding:'2rem', color:'#94a3b8' }}>{t(`${NS}.emptyLanes`, { defaultValue: 'No lanes configured yet.' })}</td></tr>
+              <tr><td colSpan={10} className="lx-table-empty-cell">{t(`${NS}.emptyLanes`, { defaultValue: 'No lanes configured yet.' })}</td></tr>
             )}
           </tbody>
         </table>
