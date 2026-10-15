@@ -172,7 +172,9 @@
     "currentLanguage": "Aktuelle Sprache: {{language}}",
     "chooseLanguage": "{{language}} wählen",
     "preferred": "bevorzugt",
-    "setPreferred": "{{language}} als bevorzugte Sprache festlegen"
+    "setPreferred": "{{language}} als bevorzugte Sprache festlegen",
+    "searchLanguages": "Sprachen suchen",
+    "noResults": "Keine Sprachen gefunden"
   },
   "forms": {
     "country": {

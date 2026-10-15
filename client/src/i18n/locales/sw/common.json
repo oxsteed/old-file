@@ -83,7 +83,9 @@
     "currentLanguage": "Lugha ya sasa: {{language}}",
     "chooseLanguage": "Chagua {{language}}",
     "preferred": "pendeleo",
-    "setPreferred": "Weka {{language}} kama lugha pendelo"
+    "setPreferred": "Weka {{language}} kama lugha pendelo",
+    "searchLanguages": "Tafuta lugha",
+    "noResults": "Hakuna lugha zilizopatikana"
   },
   "forms": {
     "country": {

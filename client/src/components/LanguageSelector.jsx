@@ -6,10 +6,20 @@ export default function LanguageSelector({ menuAlign = 'end', appearance }) {
   const { language, setLanguage, preferredLanguage, setPreferredLanguage, availableLanguages } = useLanguage();
   const { t } = useTranslation('common');
   const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState('');
   const ref = useRef(null);
   const menuId = useId();
+  const searchId = useId();
 
   const current = availableLanguages.find(l => l.code === language) || availableLanguages[0];
+
+  const normalizedQuery = query.trim().toLowerCase();
+  const filteredLanguages = normalizedQuery
+    ? availableLanguages.filter(l =>
+        (l.nativeName || '').toLowerCase().includes(normalizedQuery) ||
+        (l.name || '').toLowerCase().includes(normalizedQuery) ||
+        (l.code || '').toLowerCase().includes(normalizedQuery))
+    : availableLanguages;
 
   useEffect(() => {
     if (!open) return;
@@ -29,7 +39,7 @@ export default function LanguageSelector({ menuAlign = 'end', appearance }) {
     <div ref={ref} style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
       <button
         type="button"
-        onClick={() => setOpen(o => !o)}
+        onClick={() => { setQuery(''); setOpen(o => !o); }}
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-controls={menuId}
@@ -75,7 +85,38 @@ export default function LanguageSelector({ menuAlign = 'end', appearance }) {
             overflow: 'hidden',
           }}
         >
-          {availableLanguages.map(lang => {
+          <div style={{ padding: '0.5rem 0.6rem 0.25rem' }}>
+            <label htmlFor={searchId} style={{ position: 'absolute', width: '1px', height: '1px', overflow: 'hidden', clip: 'rect(0 0 0 0)' }}>
+              {t('languageSelector.searchLanguages')}
+            </label>
+            <input
+              id={searchId}
+              type="search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder={t('languageSelector.searchLanguages')}
+              autoComplete="off"
+              style={{
+                width: '100%',
+                padding: '0.5rem 0.65rem',
+                fontSize: '0.875rem',
+                border: '1px solid var(--color-border)',
+                borderRadius: '6px',
+                background: 'var(--color-input-bg, transparent)',
+                color: 'var(--color-text)',
+                outline: 'none',
+              }}
+            />
+          </div>
+          <div
+            role="presentation"
+            style={{
+              maxHeight: 'min(490px, 70vh)',
+              overflowY: 'auto',
+              overscrollBehavior: 'contain',
+            }}
+          >
+          {filteredLanguages.map(lang => {
             const isPreferred = lang.code === preferredLanguage;
             return (
             <button
@@ -127,6 +168,12 @@ export default function LanguageSelector({ menuAlign = 'end', appearance }) {
             </button>
             );
           })}
+          {filteredLanguages.length === 0 && (
+            <div style={{ padding: '1rem', fontSize: '0.875rem', color: 'var(--color-text-muted, var(--color-text-secondary, #6b7280))', textAlign: 'center' }}>
+              {t('languageSelector.noResults')}
+            </div>
+          )}
+          </div>
         </div>
       )}
     </div>

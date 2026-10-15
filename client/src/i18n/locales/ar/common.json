@@ -172,7 +172,9 @@
     "currentLanguage": "اللغة الحالية: {{language}}",
     "chooseLanguage": "اختيار {{language}}",
     "preferred": "مفضل",
-    "setPreferred": "تعيين {{language}} كلغة مفضلة"
+    "setPreferred": "تعيين {{language}} كلغة مفضلة",
+    "searchLanguages": "ابحث عن اللغات",
+    "noResults": "لم يتم العثور على لغات"
   },
   "forms": {
     "country": {

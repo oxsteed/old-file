@@ -172,7 +172,9 @@
     "currentLanguage": "Geçerli dil: {{language}}",
     "chooseLanguage": "{{language}} seçin",
     "preferred": "tercih edilen",
-    "setPreferred": "{{language}} dilini tercih edilen dil olarak ayarla"
+    "setPreferred": "{{language}} dilini tercih edilen dil olarak ayarla",
+    "searchLanguages": "Dil ara",
+    "noResults": "Dil bulunamadı"
   },
   "forms": {
     "country": {

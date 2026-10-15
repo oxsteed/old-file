@@ -172,7 +172,9 @@
     "currentLanguage": "現在の言語: {{language}}",
     "chooseLanguage": "{{language}}を選択",
     "preferred": "優先",
-    "setPreferred": "{{language}}を優先言語に設定"
+    "setPreferred": "{{language}}を優先言語に設定",
+    "searchLanguages": "言語を検索",
+    "noResults": "言語が見つかりません"
   },
   "forms": {
     "country": {

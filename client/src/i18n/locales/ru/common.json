@@ -172,7 +172,9 @@
     "currentLanguage": "Текущий язык: {{language}}",
     "chooseLanguage": "Выбрать {{language}}",
     "preferred": "предпочитаемый",
-    "setPreferred": "Установить {{language}} предпочитаемым языком"
+    "setPreferred": "Установить {{language}} предпочитаемым языком",
+    "searchLanguages": "Поиск языков",
+    "noResults": "Языки не найдены"
   },
   "forms": {
     "country": {

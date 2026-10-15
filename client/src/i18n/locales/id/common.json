@@ -172,7 +172,9 @@
     "currentLanguage": "Bahasa saat ini: {{language}}",
     "chooseLanguage": "Pilih {{language}}",
     "preferred": "preferensi",
-    "setPreferred": "Jadikan {{language}} sebagai bahasa preferensi"
+    "setPreferred": "Jadikan {{language}} sebagai bahasa preferensi",
+    "searchLanguages": "Cari bahasa",
+    "noResults": "Tidak ada bahasa ditemukan"
   },
   "forms": {
     "country": {

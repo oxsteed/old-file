@@ -172,7 +172,9 @@
     "currentLanguage": "Lang aktyèl: {{language}}",
     "chooseLanguage": "Chwazi {{language}}",
     "preferred": "preferans",
-    "setPreferred": "Mete {{language}} kòm lang preferans"
+    "setPreferred": "Mete {{language}} kòm lang preferans",
+    "searchLanguages": "Chèche lang",
+    "noResults": "Pa jwenn okenn lang"
   },
   "forms": {
     "country": {

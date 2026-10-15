@@ -172,7 +172,9 @@
     "currentLanguage": "Ngôn ngữ hiện tại: {{language}}",
     "chooseLanguage": "Chọn {{language}}",
     "preferred": "ưa thích",
-    "setPreferred": "Đặt {{language}} làm ngôn ngữ ưa thích"
+    "setPreferred": "Đặt {{language}} làm ngôn ngữ ưa thích",
+    "searchLanguages": "Tìm kiếm ngôn ngữ",
+    "noResults": "Không tìm thấy ngôn ngữ"
   },
   "forms": {
     "country": {

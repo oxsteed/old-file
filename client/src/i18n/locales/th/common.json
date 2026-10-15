@@ -172,7 +172,9 @@
     "currentLanguage": "ภาษาปัจจุบัน: {{language}}",
     "chooseLanguage": "เลือก {{language}}",
     "preferred": "ที่ต้องการ",
-    "setPreferred": "ตั้ง{{language}}เป็นภาษาที่ต้องการ"
+    "setPreferred": "ตั้ง{{language}}เป็นภาษาที่ต้องการ",
+    "searchLanguages": "ค้นหาภาษา",
+    "noResults": "ไม่พบภาษา"
   },
   "forms": {
     "country": {

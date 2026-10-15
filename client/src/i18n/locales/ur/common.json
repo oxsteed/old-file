@@ -172,7 +172,9 @@
     "currentLanguage": "موجودہ زبان: {{language}}",
     "chooseLanguage": "{{language}} منتخب کریں",
     "preferred": "پسندیدہ",
-    "setPreferred": "{{language}} کو پسندیدہ زبان کے طور پر سیٹ کریں"
+    "setPreferred": "{{language}} کو پسندیدہ زبان کے طور پر سیٹ کریں",
+    "searchLanguages": "زبانیں تلاش کریں",
+    "noResults": "کوئی زبان نہیں ملی"
   },
   "forms": {
     "country": {
