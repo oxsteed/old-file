@@ -114,11 +114,97 @@ ddescribe('dispute messaging (disposable DB)', () => {
     return id;
   }
 
+  async function ensureTreasuryAccount(client) {
+    const inserted = await client.query(
+      `INSERT INTO oxsteed_credit_accounts (account_type, currency_code)
+       VALUES ('platform_treasury', 'USD')
+       ON CONFLICT DO NOTHING
+       RETURNING id`,
+    );
+    if (inserted.rows[0]) return inserted.rows[0].id;
+    const { rows: [existing] } = await client.query(
+      `SELECT id FROM oxsteed_credit_accounts
+        WHERE account_type = 'platform_treasury' AND currency_code = 'USD'
+        LIMIT 1`,
+    );
+    return existing.id;
+  }
+
+  // The dispute integrity trigger requires a posted transaction the customer
+  // owns. A treasury-to-wallet load is the smallest journal row that satisfies it.
+  async function createPostedLoad(customerId) {
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      const adminId = crypto.randomUUID();
+      await client.query(
+        `INSERT INTO users (id, email, password_hash, first_name, last_name, role, is_active)
+         VALUES ($1, $2, 'synthetic', 'Stmt', 'Fixture', 'admin', TRUE)`,
+        [adminId, `${adminId}@example.invalid`],
+      );
+      const { rows: [wallet] } = await client.query(
+        `INSERT INTO oxsteed_credit_accounts (account_type, customer_id, currency_code)
+         VALUES ('customer_wallet', $1, 'USD') RETURNING id, balance_cents, ledger_version, last_entry_hash`,
+        [customerId],
+      );
+      const treasuryId = await ensureTreasuryAccount(client);
+      const { rows: [treasury] } = await client.query(
+        `SELECT id, balance_cents, ledger_version, last_entry_hash
+           FROM oxsteed_credit_accounts WHERE id = $1 FOR UPDATE`,
+        [treasuryId],
+      );
+      const txId = crypto.randomUUID();
+      const postedAt = new Date().toISOString();
+      const amount = 1000;
+      await client.query(
+        `INSERT INTO oxsteed_credit_transactions
+           (id, transaction_type, status, debit_account_id, credit_account_id,
+            amount_cents, currency_code, idempotency_key, description, reference_type, reference_id,
+            actor_type, actor_user_id, reason, posted_at)
+         VALUES ($1, 'load', 'posted', $2, $3, $4, 'USD', $5, 'Synthetic dispute load',
+            'stripe_topup', $6, 'admin', $7, 'Synthetic test fixture', $8)`,
+        [txId, treasury.id, wallet.id, amount, `stmt-dispute-${txId}`, `pi_${txId}`, adminId, postedAt],
+      );
+      await client.query("SELECT set_config('oxsteed.credit_ledger_transaction_id', $1, TRUE)", [txId]);
+      for (const [account, side, sign] of [
+        [treasury, 'debit', -1n],
+        [wallet, 'credit', 1n],
+      ]) {
+        const balance = BigInt(account.balance_cents) + sign * BigInt(amount);
+        const sequence = BigInt(account.ledger_version) + 1n;
+        const entryHash = crypto.createHash('sha256').update(`${txId}:${account.id}:${side}`).digest('hex');
+        await client.query(
+          `INSERT INTO oxsteed_credit_transaction_entries
+             (transaction_id, account_id, entry_side, amount_cents, balance_after_cents,
+              sequence, previous_entry_hash, entry_hash)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+          [txId, account.id, side, amount, String(balance), String(sequence), account.last_entry_hash, entryHash],
+        );
+        await client.query(
+          `UPDATE oxsteed_credit_accounts
+              SET balance_cents = $2, ledger_version = $3, last_entry_hash = $4, last_posted_at = $5
+            WHERE id = $1`,
+          [account.id, String(balance), String(sequence), entryHash, postedAt],
+        );
+      }
+      await client.query('COMMIT');
+      return txId;
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
   async function createDispute(customerId) {
     const id = crypto.randomUUID();
+    const transactionId = await createPostedLoad(customerId);
     await pool.query(
-      'INSERT INTO oxsteed_credit_disputes (id, customer_id, opened_by) VALUES ($1, $2, $2)',
-      [id, customerId]
+      `INSERT INTO oxsteed_credit_disputes
+         (id, transaction_id, customer_id, opened_by, reason_code, description)
+       VALUES ($1, $2, $3, $3, 'duplicate_charge', 'Synthetic dispute fixture')`,
+      [id, transactionId, customerId],
     );
     return id;
   }

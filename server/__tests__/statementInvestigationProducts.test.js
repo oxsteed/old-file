@@ -282,26 +282,61 @@ ddescribe('statement investigation: all products (disposable DB)', () => {
       [helperDocId, helperId, PERIOD.from, PERIOD.to, JSON.stringify(helperDocument), helperDocument.contentHash]);
 
     // ── restaurant_settlement document + sub-bank journal transaction ──
-    // The journal rows are inserted directly: the stub database lacks the
-    // idempotency/balance columns postJournalTransaction writes, and the
-    // route only reads the identity columns below.
+    // Sequence numbers follow each account's locked ledger head. A shared
+    // platform treasury already has sequences from other suites, so a
+    // hardcoded 1/2 collides with oxsteed_credit_transaction_entries_account_id_sequence_key.
     const credit = require('../services/oxsteedCreditService');
     const treasury = await credit.ensureAccount(pool, { accountType: 'platform_treasury', currencyCode: 'USD' });
     const subBank = await credit.ensureAccount(pool, { accountType: 'restaurant_sub_bank', restaurantId: restaurant.id, currencyCode: 'USD' });
     const settleTxId = crypto.randomUUID();
-    await pool.query(
-      `INSERT INTO oxsteed_credit_transactions
-         (id, transaction_type, status, debit_account_id, credit_account_id, amount_cents,
-          currency_code, reference_type, reference_id, description, posted_at, created_at, idempotency_key)
-       VALUES ($1, 'sub_bank_load', 'posted', $2, $3, 12000, 'USD', 'food_order', $4,
-         'Synthetic settlement load', NOW(), NOW(), $5)`,
-      [settleTxId, treasury.id, subBank.id, String(order.id), `stmt-fixture-${settleTxId}`]);
-    await pool.query(
-      `INSERT INTO oxsteed_credit_transaction_entries
-         (transaction_id, account_id, entry_side, amount_cents, balance_after_cents, sequence, entry_hash)
-       VALUES ($1, $2, 'credit', 12000, 12000, 1, $3),
-              ($1, $4, 'debit', 12000, 0, 2, $3)`,
-      [settleTxId, subBank.id, crypto.createHash('sha256').update(settleTxId).digest('hex'), treasury.id]);
+    const journal = await pool.connect();
+    try {
+      await journal.query('BEGIN');
+      const postedAt = new Date().toISOString();
+      const { rows: balances } = await journal.query(
+        `SELECT id, balance_cents, ledger_version, last_entry_hash
+           FROM oxsteed_credit_accounts
+          WHERE id = ANY($1::bigint[])
+          ORDER BY id
+          FOR UPDATE`,
+        [[treasury.id, subBank.id]],
+      );
+      const debit = balances.find((row) => Number(row.id) === Number(treasury.id));
+      const creditAccount = balances.find((row) => Number(row.id) === Number(subBank.id));
+      await journal.query(
+        `INSERT INTO oxsteed_credit_transactions
+           (id, transaction_type, status, debit_account_id, credit_account_id, amount_cents,
+            currency_code, reference_type, reference_id, description, posted_at, created_at, idempotency_key)
+         VALUES ($1, 'sub_bank_load', 'posted', $2, $3, 12000, 'USD', 'food_order', $4,
+           'Synthetic settlement load', $5, $5, $6)`,
+        [settleTxId, treasury.id, subBank.id, String(order.id), postedAt, `stmt-fixture-${settleTxId}`]);
+      await journal.query("SELECT set_config('oxsteed.credit_ledger_transaction_id', $1, TRUE)", [settleTxId]);
+      for (const [account, side, sign] of [
+        [debit, 'debit', -1n],
+        [creditAccount, 'credit', 1n],
+      ]) {
+        const balance = BigInt(account.balance_cents) + sign * 12000n;
+        const sequence = BigInt(account.ledger_version) + 1n;
+        const entryHash = crypto.createHash('sha256').update(`${settleTxId}:${account.id}:${side}`).digest('hex');
+        await journal.query(
+          `INSERT INTO oxsteed_credit_transaction_entries
+             (transaction_id, account_id, entry_side, amount_cents, balance_after_cents,
+              sequence, previous_entry_hash, entry_hash)
+           VALUES ($1, $2, $3, 12000, $4, $5, $6, $7)`,
+          [settleTxId, account.id, side, String(balance), String(sequence), account.last_entry_hash, entryHash]);
+        await journal.query(
+          `UPDATE oxsteed_credit_accounts
+              SET balance_cents = $2, ledger_version = $3, last_entry_hash = $4, last_posted_at = $5
+            WHERE id = $1`,
+          [account.id, String(balance), String(sequence), entryHash, postedAt]);
+      }
+      await journal.query('COMMIT');
+    } catch (error) {
+      await journal.query('ROLLBACK');
+      throw error;
+    } finally {
+      journal.release();
+    }
     const settlementDocId = crypto.randomUUID();
     const settlementDocument = {
       id: settlementDocId, version: 2, kind: 'monthly', product: 'restaurant_settlement',
