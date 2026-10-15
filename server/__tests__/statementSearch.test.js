@@ -164,6 +164,91 @@ ddescribe('statement search, trends, saved views (disposable DB)', () => {
       END $$`);
   }
 
+  async function ensureTreasuryAccount() {
+    const inserted = await pool.query(
+      `INSERT INTO oxsteed_credit_accounts (account_type, currency_code)
+       VALUES ('platform_treasury', 'USD')
+       ON CONFLICT DO NOTHING
+       RETURNING id`,
+    );
+    if (inserted.rows[0]) return inserted.rows[0].id;
+    const { rows: [existing] } = await pool.query(
+      `SELECT id FROM oxsteed_credit_accounts
+        WHERE account_type = 'platform_treasury' AND currency_code = 'USD'
+        LIMIT 1`,
+    );
+    return existing.id;
+  }
+
+  // Posts one balanced journal transaction and advances both account heads.
+  // Sequence numbers come from the locked ledger_version so a shared treasury
+  // cannot collide with rows other suites already posted.
+  async function postCreditJournal({
+    type, debitAccountId, creditAccountId, amount, description,
+    referenceType, referenceId, postedAt, partnerId = null, agreementId = null,
+    actorType, actorUserId, reason,
+  }) {
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      const { rows: balances } = await client.query(
+        `SELECT id, balance_cents, ledger_version, last_entry_hash
+           FROM oxsteed_credit_accounts
+          WHERE id = ANY($1::bigint[])
+          ORDER BY id
+          FOR UPDATE`,
+        [[debitAccountId, creditAccountId]],
+      );
+      const debit = balances.find((row) => Number(row.id) === Number(debitAccountId));
+      const credit = balances.find((row) => Number(row.id) === Number(creditAccountId));
+      const txId = crypto.randomUUID();
+      const posted = postedAt || new Date().toISOString();
+      await client.query(
+        `INSERT INTO oxsteed_credit_transactions
+           (id, transaction_type, status, debit_account_id, credit_account_id,
+            amount_cents, currency_code, idempotency_key, description,
+            reference_type, reference_id, partner_id, agreement_id,
+            actor_type, actor_user_id, reason, posted_at)
+         VALUES ($1, $2, 'posted', $3, $4, $5, 'USD', $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`,
+        [txId, type, debitAccountId, creditAccountId, amount, `stmt-search-${txId}`,
+          description, referenceType, referenceId, partnerId, agreementId,
+          actorType, actorUserId, reason, posted],
+      );
+      await client.query("SELECT set_config('oxsteed.credit_ledger_transaction_id', $1, TRUE)", [txId]);
+      for (const [account, side, sign] of [
+        [debit, 'debit', -1n],
+        [credit, 'credit', 1n],
+      ]) {
+        const balance = BigInt(account.balance_cents) + sign * BigInt(amount);
+        const sequence = BigInt(account.ledger_version) + 1n;
+        const entryHash = crypto.createHash('sha256').update(`${txId}:${account.id}:${side}`).digest('hex');
+        await client.query(
+          `INSERT INTO oxsteed_credit_transaction_entries
+             (transaction_id, account_id, entry_side, amount_cents, balance_after_cents,
+              sequence, previous_entry_hash, entry_hash, created_at)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+          [txId, account.id, side, amount, String(balance), String(sequence), account.last_entry_hash, entryHash, posted],
+        );
+        await client.query(
+          `UPDATE oxsteed_credit_accounts
+              SET balance_cents = $2, ledger_version = $3, last_entry_hash = $4, last_posted_at = $5
+            WHERE id = $1`,
+          [account.id, String(balance), String(sequence), entryHash, posted],
+        );
+        account.balance_cents = String(balance);
+        account.ledger_version = String(sequence);
+        account.last_entry_hash = entryHash;
+      }
+      await client.query('COMMIT');
+      return txId;
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
   // Fresh, mutually-unlinked fixtures per test: unique users and rows, so no
   // cleanup is required.
   async function newFixture() {
@@ -181,59 +266,78 @@ ddescribe('statement search, trends, saved views (disposable DB)', () => {
         managerId, `${managerId}@example.invalid`, adminId, `${adminId}@example.invalid`],
     );
 
-    // OxSteed credit wallet + journal rows for the owner.
+    // OxSteed credit wallet + a real double-entry journal for the owner.
+    // Loads debit the platform treasury; purchases debit the customer wallet
+    // into an active partner payable. The direction, actor, and agreement
+    // guards reject a one-sided insert.
     const { rows: [wallet] } = await pool.query(
       `INSERT INTO oxsteed_credit_accounts (account_type, customer_id, currency_code)
        VALUES ('customer_wallet', $1, 'USD') RETURNING id`, [ownerId]);
-    let sequence = 0;
-    async function addOxsteedEntry({ type, direction, amount, description, referenceType, referenceId, postedAt }) {
-      sequence += 1;
-      const txId = crypto.randomUUID();
-      await pool.query(
-        `INSERT INTO oxsteed_credit_transactions
-           (id, debit_account_id, credit_account_id, amount_cents, status, currency_code,
-            transaction_type, description, reference_type, reference_id, posted_at,
-            actor_type, actor_user_id, reason)
-         VALUES ($1, $2, $2, $3, 'posted', 'USD', $4, $5, $6, $7, $8,
-            'admin', $9, 'Synthetic test fixture')`,
-        [txId, wallet.id, amount, type, description, referenceType, referenceId, postedAt || new Date().toISOString(), adminId]);
-      await pool.query(
-        `INSERT INTO oxsteed_credit_transaction_entries
-           (transaction_id, account_id, balance_after_cents, entry_side, amount_cents, sequence)
-         VALUES ($1, $2, $3, $4, $5, $6)`,
-        [txId, wallet.id, 0, direction, amount, sequence]);
-      return txId;
-    }
-    const loadId = await addOxsteedEntry({
-      type: 'load', direction: 'credit', amount: 10000,
-      description: 'Card top-up for groceries', referenceType: 'stripe_topup',
-      referenceId: 'pi_topup_1', postedAt: '2026-09-10T12:00:00.000Z',
-    });
-    const purchaseId = await addOxsteedEntry({
-      type: 'purchase', direction: 'debit', amount: 2500,
-      description: 'Test purchase at bistro', referenceType: 'food_order',
-      referenceId: 'order-1001', postedAt: '2026-09-12T12:00:00.000Z',
-    });
-    // Same amount, different description: amount search must find it,
-    // description search must not.
-    const decoyId = await addOxsteedEntry({
-      type: 'purchase', direction: 'debit', amount: 2500,
-      description: 'Decoy sandwich run', referenceType: null, referenceId: null,
-      postedAt: '2026-09-13T12:00:00.000Z',
-    });
-    // Previous-period row for the trends test.
-    await addOxsteedEntry({
-      type: 'load', direction: 'credit', amount: 5000,
-      description: 'August top-up', referenceType: 'stripe_topup',
-      referenceId: 'pi_topup_0', postedAt: '2026-08-05T12:00:00.000Z',
-    });
-
-    // Restaurant credit wallet + ledger rows for the owner.
+    const treasuryId = await ensureTreasuryAccount();
     const { rows: [business] } = await pool.query(
       `INSERT INTO businesses (user_id, business_name) VALUES ($1, 'Search Testaurant') RETURNING id`, [ownerId]);
     const { rows: [restaurant] } = await pool.query(
       `INSERT INTO food_restaurants (business_id, owner_user_id, display_name, status)
        VALUES ($1, $2, 'Search Testaurant', 'active') RETURNING id`, [business.id, ownerId]);
+    const { rows: [partner] } = await pool.query(
+      `INSERT INTO oxsteed_credit_partners (restaurant_id, business_id, status, created_by)
+       VALUES ($1, $2, 'active', $3) RETURNING id`,
+      [restaurant.id, business.id, adminId]);
+    const { rows: [agreement] } = await pool.query(
+      `INSERT INTO oxsteed_credit_partner_agreements
+         (partner_id, version, status, starts_at, created_by, approved_by)
+       VALUES ($1, 1, 'active', '2020-01-01T00:00:00.000Z', $2, $2) RETURNING id`,
+      [partner.id, adminId]);
+    const { rows: [payable] } = await pool.query(
+      `INSERT INTO oxsteed_credit_accounts (account_type, partner_id, currency_code)
+       VALUES ('partner_payable', $1, 'USD') RETURNING id`,
+      [partner.id]);
+    const { rows: [order] } = await pool.query(
+      `INSERT INTO food_orders
+         (restaurant_id, business_id, customer_id, queue_number, status, payment_status, total_cents, currency_code)
+       VALUES ($1, $2, $3, 1, 'completed', 'paid', 2500, 'USD') RETURNING id`,
+      [restaurant.id, business.id, ownerId]);
+    const loadArgs = {
+      debitAccountId: treasuryId,
+      creditAccountId: wallet.id,
+      actorType: 'admin',
+      actorUserId: adminId,
+      reason: 'Synthetic test fixture',
+    };
+    const purchaseArgs = {
+      debitAccountId: wallet.id,
+      creditAccountId: payable.id,
+      partnerId: partner.id,
+      agreementId: agreement.id,
+      actorType: 'customer',
+      actorUserId: ownerId,
+      reason: 'Synthetic test fixture',
+    };
+    const loadId = await postCreditJournal({
+      ...loadArgs, type: 'load', amount: 10000,
+      description: 'Card top-up for groceries', referenceType: 'stripe_topup',
+      referenceId: 'pi_topup_1', postedAt: '2026-09-10T12:00:00.000Z',
+    });
+    const purchaseId = await postCreditJournal({
+      ...purchaseArgs, type: 'purchase', amount: 2500,
+      description: 'Test purchase at bistro', referenceType: 'food_order',
+      referenceId: String(order.id), postedAt: '2026-09-12T12:00:00.000Z',
+    });
+    // Same amount, different description: amount search must find it,
+    // description search must not.
+    const decoyId = await postCreditJournal({
+      ...purchaseArgs, type: 'purchase', amount: 2500,
+      description: 'Decoy sandwich run', referenceType: null,
+      referenceId: `decoy-${crypto.randomUUID()}`, postedAt: '2026-09-13T12:00:00.000Z',
+    });
+    // Previous-period row for the trends test.
+    await postCreditJournal({
+      ...loadArgs, type: 'load', amount: 5000,
+      description: 'August top-up', referenceType: 'stripe_topup',
+      referenceId: 'pi_topup_0', postedAt: '2026-08-05T12:00:00.000Z',
+    });
+
+    // Restaurant credit wallet + ledger rows for the owner.
     const { rows: [rwallet] } = await pool.query(
       `INSERT INTO food_customer_wallet_accounts (restaurant_id, customer_id, currency_code, balance_cents)
        VALUES ($1, $2, 'USD', 3000) RETURNING id`, [restaurant.id, ownerId]);
