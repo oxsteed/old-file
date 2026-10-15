@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import { adminListPendingOrganizerApprovals, reviewCampaign, getCampaignApprovalHistory } from '../../../api/logistics';
 import '../../../styles/logistics/LogisticsHomePage.css';
+import '../../../styles/logistics/LogisticsWorkspaces.css';
 import AdminErrorState from '../../lib/AdminErrorState';
 import ConfirmDialog from '../../lib/ConfirmDialog';
 
@@ -85,7 +86,7 @@ export default function OrganizerApprovalsAdmin() {
                       {campaign.title}
                     </button>
                   </td>
-                  <td>{campaign.organizer_name}<div style={{ fontSize: '.75rem', color: '#64748b' }}>{campaign.organizer_email}</div></td>
+                  <td>{campaign.organizer_name}<div style={{ fontSize: '.75rem', color: 'var(--color-text-muted)' }}>{campaign.organizer_email}</div></td>
                   <td>{campaign.lane_id || '—'}</td>
                   <td>{campaign.target_moq || '—'}</td>
                   <td>{campaign.submitted_at ? new Date(campaign.submitted_at).toLocaleDateString() : '—'}</td>
@@ -102,16 +103,16 @@ export default function OrganizerApprovalsAdmin() {
                 </tr>
                 {expanded === campaign.id && (
                   <tr>
-                    <td colSpan={7} style={{ background: '#f8fafc' }}>
+                    <td colSpan={7} style={{ background: 'var(--color-surface)' }}>
                       <strong style={{ fontSize: '.8rem' }}>{t('logistics.campaigns.approval.historyTitle', 'Approval history')}</strong>
                       {(histories[campaign.id] || []).length === 0 && (
-                        <div style={{ fontSize: '.8rem', color: '#64748b' }}>{t('logistics.campaigns.approval.noHistory', 'No review decisions yet.')}</div>
+                        <div style={{ fontSize: '.8rem', color: 'var(--color-text-muted)' }}>{t('logistics.campaigns.approval.noHistory', 'No review decisions yet.')}</div>
                       )}
                       <ul style={{ listStyle: 'none', margin: '.4rem 0 0', padding: 0, display: 'grid', gap: '.35rem', fontSize: '.8rem' }}>
                         {(histories[campaign.id] || []).map((d) => (
                           <li key={d.id}>
                             <strong>{String(d.decision || '').replace(/_/g, ' ')}</strong>
-                            <span style={{ color: '#64748b' }}>
+                            <span style={{ color: 'var(--color-text-muted)' }}>
                               {' · '}{(d.reviewer_name || '').trim() || '—'}
                               {' · '}{d.created_at ? new Date(d.created_at).toLocaleString() : ''}
                             </span>
@@ -124,7 +125,7 @@ export default function OrganizerApprovalsAdmin() {
                 )}
               </React.Fragment>
             ))}
-            {!loading && !loadError && campaigns.length === 0 && <tr><td colSpan={7} style={{ textAlign: 'center', color: '#94a3b8' }}>{t('adminOrganizerApprovals.noApprovals')}</td></tr>}
+            {!loading && !loadError && campaigns.length === 0 && <tr><td colSpan={7} className="lx-table-empty-cell">{t('adminOrganizerApprovals.noApprovals')}</td></tr>}
           </tbody>
         </table>
       </div>
