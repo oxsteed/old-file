@@ -4,6 +4,11 @@ const crypto = require('crypto');
 const { logLogisticsAction } = require('./logisticsAuditService');
 const { calculateLandedCost } = require('./logisticsPricingService');
 const { approval: approvalMachine, pooled: pooledMachine, applyTransition } = require('./logisticsStateMachine');
+const { registerLogisticsGuards } = require('./logisticsTransitionGuards');
+
+// Load the funding/fulfillment gates for pooled-order transitions
+// (pledging → deposit_phase, locked → placed). Idempotent.
+registerLogisticsGuards();
 const accessService = require('./logisticsAccessService');
 const { sendNotification } = require('./notificationService');
 const logger = require('../utils/logger');
@@ -349,7 +354,7 @@ async function createPooledOrder(data, organizerUserId, { userCountry = null, us
 // are intentionally not editable through this endpoint.
 const DRAFT_EDITABLE_FIELDS = [
   'title', 'description', 'lane_id', 'target_moq',
-  'close_date', 'lock_date', 'expected_ship_date', 'expected_arrival_date',
+  'close_date', 'lock_date', 'deposit_deadline', 'expected_ship_date', 'expected_arrival_date',
   'unit_product_cost_usd', 'unit_freight_est_usd', 'deposit_pct',
   'cancellation_policy', 'max_participants',
 ];
@@ -579,19 +584,43 @@ async function joinPooledOrder(pooledOrderId, userId, { committedQty, businessId
   }
 }
 
-async function updatePooledOrderStatus(id, status, actorUserId, notes) {
+async function updatePooledOrderStatus(id, status, actorUserId, notes, options = {}) {
   // Transactional: the current status is re-read with FOR UPDATE inside the
   // state machine's transaction and the move is validated against the
   // canonical pooled-order graph (previously any status could be written).
+  // Registered funding guards (see logisticsTransitionGuards.js) may refuse
+  // the move even when the graph allows it; their blockers surface as 422.
+  //
+  // options.depositDeadline: when staff opens the deposit window
+  // (→ deposit_phase), the explicit deadline is stamped atomically with the
+  // transition so the guard's "deadline is set" requirement is satisfiable
+  // in the same call.
+  const set = {};
+  if (status === 'deposit_phase' && options.depositDeadline !== undefined && options.depositDeadline !== null) {
+    const deadline = new Date(options.depositDeadline);
+    if (Number.isNaN(deadline.getTime())) {
+      throw svcError('depositDeadline must be a valid date', 400, 'validation_failed');
+    }
+    set.deposit_deadline = deadline.toISOString();
+  }
   const result = await applyTransition(pool, {
     entityType: 'pooled_order',
     id,
     to: status,
     actorUserId,
+    set,
   });
   if (!result.ok) {
     if (result.reason === 'not_found') {
       throw svcError('Pooled order not found', 404, 'pooled_order_not_found');
+    }
+    if (result.reason === 'guard_blocked') {
+      throw svcError(
+        result.blocker.message || 'Transition blocked by a funding gate',
+        422,
+        'transition_guard_blocked',
+        { blocker: result.blocker, from: result.from, to: status }
+      );
     }
     throw svcError(
       `Cannot transition campaign from ${result.from || 'unknown'} to ${status}`,

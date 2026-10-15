@@ -3,6 +3,11 @@ const pool = require('../db');
 const crypto = require('crypto');
 const { logLogisticsAction } = require('./logisticsAuditService');
 const { applyTransition } = require('./logisticsStateMachine');
+const { registerLogisticsGuards } = require('./logisticsTransitionGuards');
+
+// Load the funding/fulfillment gates (allocation release requires the
+// buyer's final balance to be collected). Idempotent.
+registerLogisticsGuards();
 
 function svcError(message, status, code, details) {
   const err = new Error(message);
@@ -157,13 +162,41 @@ async function createAllocation(data, actorUserId) {
 }
 
 async function releaseAllocation(id, actorUserId) {
-  const result = await pool.query(
-    `UPDATE inventory_allocations SET status = 'released', released_by = $1, released_at = NOW()
-     WHERE id = $2 RETURNING *`,
-    [actorUserId, id]
-  );
+  // Route the release through the canonical inventory-allocation machine:
+  // the current status is re-read with FOR UPDATE and the move to released
+  // is validated atomically (previously the status was written raw).
+  // A registered funding guard additionally requires the buyer's final
+  // balance to be collected (final installment 'succeeded' on the linked
+  // payment attempts); underfunded releases fail closed with a blocker.
+  const result = await applyTransition(pool, {
+    entityType: 'inventory_allocation',
+    id,
+    to: 'released',
+    actorUserId,
+    set: { released_by: actorUserId },
+    nowColumns: ['released_at'],
+  });
+  if (!result.ok) {
+    if (result.reason === 'not_found') {
+      throw svcError('Inventory allocation not found', 404, 'inventory_allocation_not_found');
+    }
+    if (result.reason === 'guard_blocked') {
+      throw svcError(
+        result.blocker.message || 'Allocation release blocked by a funding gate',
+        422,
+        'transition_guard_blocked',
+        { blocker: result.blocker, from: result.from, to: result.to }
+      );
+    }
+    throw svcError(
+      `Cannot release inventory allocation from ${result.from || 'unknown'} state`,
+      409,
+      'invalid_transition',
+      { from: result.from, to: 'released', allowed: result.allowed }
+    );
+  }
   logLogisticsAction('inventory_allocation', id, 'released', { actorUserId });
-  return result.rows[0];
+  return result.record;
 }
 
 async function getAllocation(id) {

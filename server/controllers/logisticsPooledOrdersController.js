@@ -21,6 +21,7 @@ const APPROVAL_ERROR_MAP = {
   review_reason_required:       [400, 'validation_failed'],
   invalid_review_decision:      [400, 'validation_failed'],
   invalid_transition:           [409, 'invalid_transition'],
+  transition_guard_blocked:     [422, 'transition_guard_blocked'],
 };
 
 function toHttpError(err) {
@@ -272,12 +273,16 @@ exports.joinPooledOrder = async (req, res, next) => {
 
 exports.updateStatus = async (req, res, next) => {
   try {
-    const { status, notes } = req.body;
+    const { status, notes, deposit_deadline } = req.body;
     const VALID = ['draft','open','pledging','deposit_phase','locked','placed','in_transit','receiving','distributing','completed','cancelled','refunding'];
     if (!VALID.includes(status)) {
       return next(new AppError('Invalid status', 400, 'validation_failed'));
     }
-    const order = await pooledOrderService.updatePooledOrderStatus(req.params.id, status, req.user.id, notes);
+    // deposit_deadline may accompany the deposit-window opening; the service
+    // validates it and stamps it atomically with the transition.
+    const order = await pooledOrderService.updatePooledOrderStatus(
+      req.params.id, status, req.user.id, notes, { depositDeadline: deposit_deadline }
+    );
     res.json({ success: true, data: order });
   } catch (err) { next(toHttpError(err) || err); }
 };

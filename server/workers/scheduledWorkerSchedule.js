@@ -78,6 +78,13 @@ function buildSchedule() {
     // balances to OxSteed Credit once a revoked restaurant's 30-day grace
     // period ends. Hourly; each run is fenced and the worker is idempotent.
     ['processRevocationGracePeriods', processRevocationGracePeriods, 60 * 60 * 1000, { limit: 100 }],
+    // Logistics funding gates: campaigns past their deposit/minimum-demand
+    // deadline with insufficient funding raise staff review exceptions
+    // (logistics_review_exceptions). Never auto-advances or refunds;
+    // idempotent per (campaign, exception type). Every 15 minutes.
+    ['logisticsFundingDeadlineSweep',
+      (options) => require('../services/logisticsTransitionGuards').sweepFundingDeadlines(require('../db'), options),
+      15 * 60 * 1000, { limit: 200 }],
   ];
 }
 

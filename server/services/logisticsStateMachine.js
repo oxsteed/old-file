@@ -108,6 +108,19 @@ const DELIVERY_TRANSITIONS = {
   cancelled:  [],
 };
 
+// ─── INVENTORY ALLOCATION STATES ─────────────────────────────────────
+// Statuses from the inventory_allocations.status comment (migration 247):
+// pending, ready, released, delivered, disputed. Releasing goods is gated
+// by a funding guard (see logisticsTransitionGuards.js): the buyer's final
+// balance must be collected before an allocation may move to released.
+const ALLOCATION_TRANSITIONS = {
+  pending:   ['ready', 'released', 'disputed'],
+  ready:     ['released', 'disputed'],
+  released:  ['delivered', 'disputed'],
+  delivered: [],
+  disputed:  ['pending', 'ready'],
+};
+
 // ─── SOURCING REQUEST STATES ───────────────────────────────────────
 // Statuses from the sourcing_request_status enum (migration 247). A request
 // moves from intake (draft → open → quoting → quoted) into conversion
@@ -198,6 +211,12 @@ const delivery = {
   allowedFrom: (from) => DELIVERY_TRANSITIONS[from] || [],
   states: () => Object.keys(DELIVERY_TRANSITIONS),
 };
+const allocation = {
+  canTransition: (from, to) => canTransition(ALLOCATION_TRANSITIONS, from, to),
+  assertTransition: (from, to) => assertTransition(ALLOCATION_TRANSITIONS, from, to, 'inventory_allocation'),
+  allowedFrom: (from) => ALLOCATION_TRANSITIONS[from] || [],
+  states: () => Object.keys(ALLOCATION_TRANSITIONS),
+};
 const sourcingRequest = {
   canTransition: (from, to) => canTransition(SOURCING_TRANSITIONS, from, to),
   assertTransition: (from, to) => assertTransition(SOURCING_TRANSITIONS, from, to, 'sourcing_request'),
@@ -225,12 +244,44 @@ const ENTITIES = {
   participant:       { machine: participant,   table: 'pooled_order_participants', statusColumn: 'status' },
   inventory_receipt: { machine: receipt,       table: 'inventory_receipts',        statusColumn: 'status' },
   delivery_order:    { machine: delivery,      table: 'delivery_orders',           statusColumn: 'status' },
+  inventory_allocation: { machine: allocation,   table: 'inventory_allocations',   statusColumn: 'status' },
   sourcing_request:  { machine: sourcingRequest, table: 'sourcing_requests',      statusColumn: 'status' },
   supplier_quote:    { machine: supplierQuote, table: 'supplier_quotes',          statusColumn: 'status' },
 };
 
 function machineFor(entityType) {
   return ENTITIES[entityType]?.machine || null;
+}
+
+// ─── TRANSITION GUARDS ─────────────────────────────────────────────
+// Funding and fulfillment gates registered per (entityType → to-state).
+// A guard runs INSIDE applyTransition's transaction, after the legality
+// check and before the status UPDATE, with the row already locked
+// (SELECT ... FOR UPDATE). It receives the transaction client and a
+// context object, and returns null when the transition may proceed or a
+// blocker { code, message, details? } when it must not. Blockers follow
+// the { code, message } convention used by getAvailableActions so the UI
+// can surface them the same way. Guards never mutate fulfillment state
+// themselves; they only approve or refuse the requested move (fail closed).
+//
+// Guards are registered by server/services/logisticsTransitionGuards.js.
+// The state machine does not require that module itself (the guards module
+// is the dependent direction); consumers that need the gates loaded call
+// registerLogisticsGuards() once at startup.
+const TRANSITION_GUARDS = new Map(); // `${entityType}:${to}` -> guardFn
+
+function guardKey(entityType, to) {
+  return `${entityType}:${to}`;
+}
+
+function registerTransitionGuard(entityType, to, guardFn) {
+  if (!entityType || !to) throw new Error('registerTransitionGuard requires an entityType and target state');
+  if (typeof guardFn !== 'function') throw new Error('registerTransitionGuard requires a guard function');
+  TRANSITION_GUARDS.set(guardKey(entityType, to), guardFn);
+}
+
+function getTransitionGuard(entityType, to) {
+  return TRANSITION_GUARDS.get(guardKey(entityType, to)) || null;
 }
 
 /**
@@ -281,6 +332,21 @@ async function applyTransition(db, {
         ok: false, reason: 'illegal_transition', code: 'invalid_transition',
         entityType, id, from, to, allowed: machine.allowedFrom(from),
       };
+    }
+    // Funding/fulfillment gate: a registered guard may refuse the move even
+    // when the graph allows it. Refusals roll back and surface as
+    // { ok: false, reason: 'guard_blocked', blocker } so callers can return
+    // the blocker to the UI instead of throwing a generic 409.
+    const guard = getTransitionGuard(entityType, to);
+    if (guard && from !== to) {
+      const blocker = await guard(client, { entityType, id, from, to, actorUserId });
+      if (blocker) {
+        await client.query('ROLLBACK');
+        return {
+          ok: false, reason: 'guard_blocked', code: 'transition_guard_blocked',
+          entityType, id, from, to, blocker,
+        };
+      }
     }
     const sets = [`${statusColumn} = $1`];
     const params = [to];
@@ -489,6 +555,13 @@ const ENTITY_ACTIONS = {
     pending:    { id: 'retry_delivery',     groups: ['operations', 'admins'] },
     cancelled:  { id: 'cancel_delivery',    groups: ['operations', 'admins'] },
   },
+  inventory_allocation: {
+    ready:     { id: 'mark_allocation_ready',     groups: ['operations', 'admins'] },
+    released:  { id: 'release_allocation',        groups: ['operations', 'admins'] },
+    delivered: { id: 'mark_allocation_delivered', groups: ['operations', 'admins'] },
+    disputed:  { id: 'flag_allocation_dispute',   groups: ['operations', 'admins'] },
+    pending:   { id: 'reopen_allocation',         groups: ['operations', 'admins'] },
+  },
   sourcing_request: {
     open:          { id: 'submit_request',           groups: ['operations', 'admins'] },
     quoting:       { id: 'start_quoting',            groups: ['operations', 'admins'] },
@@ -598,14 +671,70 @@ function getAvailableActions(entityType, currentStatus, roleCtx = {}) {
   return { actions, blockers };
 }
 
+/**
+ * Advisory available-actions that also evaluates the registered funding /
+ * fulfillment guards for each advertised transition target, so the UI can
+ * show (or disable with a reason) actions that the graph allows but a gate
+ * currently refuses. Same { actions, blockers } shape as
+ * getAvailableActions; guard blockers are appended with their own codes.
+ *
+ * This is advisory only: mutations still re-check inside applyTransition's
+ * transaction, so a guard passing here does not guarantee it passes there.
+ *
+ * @param db  pg Pool (guards run read-only SELECTs; no transaction needed)
+ * @param {{ entityType, id, currentStatus, roleCtx }} opts  id is required
+ *        for guards that inspect the row (e.g. allocation → released).
+ */
+async function describeActionsWithGuards(db, { entityType, id, currentStatus, roleCtx = {} } = {}) {
+  const base = getAvailableActions(entityType, currentStatus, roleCtx);
+  const actions = [];
+  const blockers = [...base.blockers];
+  for (const action of base.actions) {
+    if (!action.to || id === undefined || id === null) {
+      actions.push(action);
+      continue;
+    }
+    const guard = getTransitionGuard(entityType, action.to);
+    if (!guard) {
+      actions.push(action);
+      continue;
+    }
+    let blocker = null;
+    try {
+      blocker = await guard(db, { entityType, id, from: currentStatus, to: action.to, advisory: true });
+    } catch (err) {
+      blocker = {
+        code: 'guard_check_failed',
+        message: 'Could not verify the requirements for this action.',
+        details: { error: err.message },
+      };
+    }
+    if (blocker) {
+      blockers.push({
+        code: blocker.code,
+        message: blocker.message,
+        action: action.action,
+        to: action.to,
+        requiredGroups: [],
+        details: blocker.details || null,
+      });
+    } else {
+      actions.push(action);
+    }
+  }
+  return { actions, blockers };
+}
+
 module.exports = {
   purchaseOrder, shipment, pooled, participant, receipt, delivery, approval,
-  sourcingRequest, supplierQuote,
+  sourcingRequest, supplierQuote, allocation,
   PO_TRANSITIONS, SHIPMENT_TRANSITIONS, POOLED_TRANSITIONS,
   PARTICIPANT_TRANSITIONS, RECEIPT_TRANSITIONS, DELIVERY_TRANSITIONS,
   APPROVAL_TRANSITIONS, SOURCING_TRANSITIONS, QUOTE_TRANSITIONS,
+  ALLOCATION_TRANSITIONS,
   ENTITIES, ROLE_GROUPS,
   machineFor, applyTransition,
+  registerTransitionGuard, getTransitionGuard,
   roleInGroups, resolveCapabilities, getCapability,
-  getAvailableActions,
+  getAvailableActions, describeActionsWithGuards,
 };
