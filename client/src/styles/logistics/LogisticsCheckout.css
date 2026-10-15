@@ -1,0 +1,260 @@
+/* ── LogisticsCheckout: buyer checkout, quote acceptance, payment status ──
+   Token-based, logical properties (RTL-safe), 44px targets, keyboard
+   accessible. Shared classes (lx-card, lx-btn-*, lx-callout, lx-kv-*) come
+   from LogisticsHomePage.css / LogisticsWorkspaces.css. */
+
+.lx-checkout-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+  gap: var(--space-6);
+  align-items: start;
+}
+
+@media (max-width: 60rem) {
+  .lx-checkout-grid { grid-template-columns: 1fr; }
+}
+
+/* ── Payment method radio cards ─────────────────────────────────────── */
+.lx-method-list {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.lx-method-option {
+  display: flex;
+  gap: var(--space-3);
+  align-items: flex-start;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface-1);
+  padding: var(--space-4);
+  cursor: pointer;
+  min-block-size: 2.75rem; /* 44px touch target */
+}
+
+.lx-method-option:hover { border-color: var(--color-border-strong); }
+
+.lx-method-option:focus-within {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.lx-method-option--selected {
+  border-color: var(--color-primary);
+  background: var(--color-surface-2);
+}
+
+.lx-method-option--disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.lx-method-option input[type="radio"] {
+  inline-size: 1.25rem;
+  block-size: 1.25rem;
+  margin-block-start: 0.15rem;
+  flex-shrink: 0;
+  accent-color: var(--color-primary);
+}
+
+.lx-method-body { min-width: 0; flex: 1; }
+
+.lx-method-title {
+  font-weight: 700;
+  font-size: var(--text-sm);
+  color: var(--color-text);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.lx-method-desc {
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+  margin-block-start: var(--space-1);
+  line-height: 1.6;
+}
+
+.lx-method-balance {
+  font-size: var(--text-sm);
+  font-weight: 700;
+  color: var(--color-text);
+  margin-block-start: var(--space-2);
+}
+
+/* ── Explicit confirmation panel ─────────────────────────────────────── */
+.lx-confirm-box {
+  border: 2px solid var(--color-primary);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface-2);
+  padding: var(--space-5);
+}
+
+.lx-confirm-line {
+  font-size: var(--text-base);
+  font-weight: 700;
+  color: var(--color-text);
+  line-height: 1.6;
+  margin-block-end: var(--space-4);
+}
+
+.lx-checkbox-row {
+  display: flex;
+  gap: var(--space-3);
+  align-items: flex-start;
+  min-block-size: 2.75rem; /* 44px touch target */
+  cursor: pointer;
+  font-size: var(--text-sm);
+  line-height: 1.7;
+  color: var(--color-text);
+}
+
+.lx-checkbox-row input[type="checkbox"] {
+  inline-size: 1.375rem;
+  block-size: 1.375rem;
+  margin-block-start: 0.2rem;
+  flex-shrink: 0;
+  accent-color: var(--color-primary);
+  cursor: pointer;
+}
+
+/* ── Quote acceptance gate ───────────────────────────────────────────── */
+.lx-quote-gate {
+  border: 2px solid var(--color-warning);
+  border-radius: var(--radius-lg);
+  background: var(--color-warning-bg);
+  padding: var(--space-5);
+}
+
+.lx-quote-gate h3 {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-lg);
+  color: var(--color-text);
+}
+
+.lx-diff-change {
+  display: inline-flex;
+  align-items: center;
+  border-radius: var(--radius-sm);
+  padding: var(--space-1) var(--space-2);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.lx-diff-change--added {
+  background: var(--color-success-bg, var(--color-surface-3));
+  color: var(--color-success, var(--color-text));
+}
+
+.lx-diff-change--removed {
+  background: var(--color-error-bg);
+  color: var(--color-error);
+}
+
+.lx-diff-change--changed {
+  background: var(--color-warning-bg);
+  color: var(--color-warning);
+}
+
+/* ── Payment attempt timeline ────────────────────────────────────────── */
+.lx-attempt-timeline {
+  list-style: none;
+  margin: var(--space-4) 0 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-2);
+}
+
+.lx-attempt-step {
+  display: flex;
+  gap: var(--space-3);
+  align-items: flex-start;
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}
+
+.lx-attempt-step--active {
+  color: var(--color-text);
+  font-weight: 700;
+}
+
+.lx-attempt-dot {
+  inline-size: 0.875rem;
+  block-size: 0.875rem;
+  border-radius: var(--radius-full);
+  background: var(--color-surface-3);
+  border: 1px solid var(--color-border-strong);
+  margin-block-start: 0.2rem;
+  flex-shrink: 0;
+}
+
+.lx-attempt-step--active .lx-attempt-dot {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+}
+
+.lx-attempt-step--done .lx-attempt-dot {
+  background: var(--color-success, var(--color-primary));
+  border-color: var(--color-success, var(--color-primary));
+}
+
+.lx-attempt-step--failed .lx-attempt-dot {
+  background: var(--color-error);
+  border-color: var(--color-error);
+}
+
+/* ── Settled vs awaiting badges ──────────────────────────────────────── */
+.lx-settle-badge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: var(--radius-full);
+  padding: var(--space-1) var(--space-3);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.lx-settle-badge--settled {
+  background: var(--color-success-bg, var(--color-surface-3));
+  color: var(--color-success, var(--color-text));
+  border: 1px solid color-mix(in srgb, var(--color-success, var(--color-primary)) 35%, transparent);
+}
+
+.lx-settle-badge--awaiting {
+  background: var(--color-warning-bg);
+  color: var(--color-warning);
+  border: 1px solid color-mix(in srgb, var(--color-warning) 35%, transparent);
+}
+
+/* ── Checkout summary sidebar ────────────────────────────────────────── */
+.lx-checkout-summary {
+  position: sticky;
+  inset-block-start: var(--space-4);
+}
+
+@media (max-width: 60rem) {
+  .lx-checkout-summary { position: static; }
+}
+
+.lx-checkout-total-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--space-3);
+  padding-block: var(--space-3);
+  border-block-start: 2px solid var(--color-border-strong);
+  margin-block-start: var(--space-2);
+}
+
+.lx-checkout-total-amount {
+  font-size: var(--text-2xl);
+  font-weight: 800;
+  color: var(--color-text);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lx-method-option,
+  .lx-checkbox-row { transition: none; }
+}
