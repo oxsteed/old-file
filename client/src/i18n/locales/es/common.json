@@ -3,9 +3,9 @@
     "background": "Verificación de antecedentes (puede ser requerida para ciertas actividades o solicitada por algunos clientes)"
   },
   "reviewW11Learn": {
-    "flagNotFound": "Reporte de video no encontrado.",
+    "flagNotFound": "No se encontró el reporte del video.",
     "flagAlreadyDecided": "Este reporte de video ya fue revisado.",
-    "guideNotFound": "Guía no encontrada.",
+    "guideNotFound": "No se encontró la guía.",
     "videoDuplicate": "Este video ya está en esta guía.",
     "videoModerated": "Este video fue eliminado por moderación y no puede enviarse a esta guía.",
     "moderationActionFailed": "No se pudo guardar la decisión de moderación. Inténtalo de nuevo.",
