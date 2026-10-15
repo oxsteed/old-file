@@ -144,18 +144,18 @@ function formatBytes(bytes) {
   return `${(bytes / 1048576).toFixed(1)} MB`;
 }
 
-export default function StatementArchivePage({ product: productProp = 'oxsteed' }) {
+export default function StatementArchivePage({ product: productProp = 'oxsteed', embedded = false, accountScope = null }) {
   const { t, i18n } = useTranslation('credit');
   const [searchParams, setSearchParams] = useSearchParams();
   const language = (i18n.resolvedLanguage || i18n.language || 'en').split(/[-_]/)[0];
   const text = (key, options = {}) => t(`${ARCHIVE_STRINGS[key] ? 'archive' : 'statementCenter'}.${key}`, { defaultValue: ARCHIVE_STRINGS[key], ...options });
 
-  const product = Object.hasOwn(STATEMENT_PRODUCTS, searchParams.get('product'))
+  const product = !embedded && Object.hasOwn(STATEMENT_PRODUCTS, searchParams.get('product'))
     ? searchParams.get('product') : (Object.hasOwn(STATEMENT_PRODUCTS, productProp) ? productProp : 'oxsteed');
   const filters = {
     product,
-    accountId: searchParams.get('accountId') || undefined,
-    currency: searchParams.get('currency') || undefined,
+    accountId: accountScope ? accountScope.accountId : searchParams.get('accountId') || undefined,
+    currency: accountScope?.currency || searchParams.get('currency') || undefined,
     year: searchParams.get('year') || undefined,
     month: searchParams.get('month') || undefined,
     page: Math.max(1, Number.parseInt(searchParams.get('page') || '1', 10) || 1),
@@ -232,7 +232,11 @@ export default function StatementArchivePage({ product: productProp = 'oxsteed' 
       : product === 'restaurant' ? listMyFoodRestaurantWallets : listOxsteedCreditAccounts;
     list().then(result => {
       if (!active) return;
-      setAccounts(Array.isArray(result) ? result : []);
+      const visible = (Array.isArray(result) ? result : []).filter(entry => !accountScope || (
+        settlement ? String(entry.accountId) === String(accountScope.accountId)
+          : (entry.currencyCode === accountScope.currency && (product !== 'restaurant' || String(entry.restaurantId) === String(accountScope.restaurantId)))
+      ));
+      setAccounts(accountScope ? visible.map(entry => ({ ...entry, currencyCode: accountScope.currency || entry.currencyCode })) : visible);
       setAccountsLoaded(true);
     }).catch(() => {
       if (!active) return;
@@ -240,7 +244,7 @@ export default function StatementArchivePage({ product: productProp = 'oxsteed' 
       setAccountsLoaded(true);
     });
     return () => { active = false; };
-  }, [product, settlement]);
+  }, [product, settlement, accountScope?.accountId, accountScope?.restaurantId, accountScope?.currency]);
 
   useEffect(() => loadAccounts(), [loadAccounts]);
 
@@ -444,15 +448,16 @@ export default function StatementArchivePage({ product: productProp = 'oxsteed' 
     </div>;
   }
 
-  return <div className="statement-archive-shell" dir={i18n.dir(language)}>
-    <PageMeta title={text('title')} description={text('description')} noIndex />
-    <Navbar />
-    <main className="statement-archive-page">
-      <Link to="/statements" className="sa-back"><ArrowLeft size={16} aria-hidden="true" />{text('back')}</Link>
-      <header className="sa-header"><FileText size={30} aria-hidden="true" /><div><h1>{text('title')}</h1><p>{text('description')}</p></div></header>
+  const Content = embedded ? 'div' : 'main';
+  return <div className={`statement-archive-shell${embedded ? ' statement-center-embedded' : ''}`} dir={i18n.dir(language)}>
+    {!embedded && <PageMeta title={text('title')} description={text('description')} noIndex />}
+    {!embedded && <Navbar />}
+    <Content className="statement-archive-page">
+      {!embedded && <Link to="/statements" className="sa-back"><ArrowLeft size={16} aria-hidden="true" />{text('back')}</Link>}
+      {!embedded && <header className="sa-header"><FileText size={30} aria-hidden="true" /><div><h1>{text('title')}</h1><p>{text('description')}</p></div></header>}
       <p className="sa-scope">{text(settlement ? 'settlementScopeNote' : 'scopeNote')}</p>
       {statementCorrectionNotice(product) && <p className="sa-scope" role="note">{text(statementCorrectionNotice(product))} <Link to="/support/escalation">{text('contactSupport')}</Link></p>}
-      <StatementExportPanel product={product} accounts={accounts} />
+      <details className="sa-export-disclosure"><summary>{text('export')}</summary><StatementExportPanel product={product} accounts={accounts} /></details>
 
       {accountsError && <div className="sa-state" role="alert">
         <p>{t('archive.accountsLoadError')}</p>
@@ -460,7 +465,7 @@ export default function StatementArchivePage({ product: productProp = 'oxsteed' 
       </div>}
 
       <form className="sa-filters" onSubmit={event => event.preventDefault()}>
-        <div className="sa-field"><label htmlFor="archive-account">{text('account')}</label>
+        {!accountScope && <div className="sa-field"><label htmlFor="archive-account">{text('account')}</label>
           <select id="archive-account" value={filters.accountId || ''} onChange={event => updateFilters({ accountId: event.target.value || undefined })}>
             <option value="">{text('allAccounts')}</option>
             {accounts.map(entry => entry.accountId && <option key={entry.accountId} value={entry.accountId}>
@@ -468,11 +473,11 @@ export default function StatementArchivePage({ product: productProp = 'oxsteed' 
             </option>)}
           </select>
           {accountsLoaded && !accountsError && accounts.length === 0
-            && <p className="sa-inline-muted" role="status">{t('archive.noAccounts')}</p>}</div>
-        <div className="sa-field"><label htmlFor="archive-currency">{text('currency')}</label>
+            && <p className="sa-inline-muted" role="status">{t('archive.noAccounts')}</p>}</div>}
+        {(!accountScope || !accountScope.currency) && <div className="sa-field"><label htmlFor="archive-currency">{text('currency')}</label>
           <input id="archive-currency" list="archive-currencies" value={filters.currency || ''} maxLength={3}
             placeholder={text('allCurrencies')} onChange={event => updateFilters({ currency: event.target.value.toUpperCase() || undefined })} />
-          <datalist id="archive-currencies">{currencies.map(code => <option key={code} value={code} />)}</datalist></div>
+          <datalist id="archive-currencies">{currencies.map(code => <option key={code} value={code} />)}</datalist></div>}
         <div className="sa-field"><label htmlFor="archive-year">{text('year')}</label>
           <select id="archive-year" value={filters.year || ''} onChange={event => updateFilters({ year: event.target.value || undefined })}>
             <option value="">{text('allYears')}</option>
@@ -530,7 +535,7 @@ export default function StatementArchivePage({ product: productProp = 'oxsteed' 
                 <button type="button" disabled={archive.page >= archive.totalPages} onClick={() => updateFilters({ page: archive.page + 1 })}>{text('next')}</button>
               </nav>
             </>}
-    </main>
-    <Footer />
+    </Content>
+    {!embedded && <Footer />}
   </div>;
 }

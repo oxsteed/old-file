@@ -90,6 +90,7 @@ describe('getStatementCenter service', () => {
     expect(credit.summary.lastPeriodDebits).toEqual({ currency: 'USD', amountCents: 500 });
     expect(credit.scopes).toHaveLength(1);
     expect(credit.scopes[0].latestDocumentId).toBe('doc-1');
+    expect(credit.scopes[0].accountId).toBe('7');
   });
 
   test('multi-currency accounts keep currencies separate', async () => {
@@ -188,7 +189,7 @@ describe('getStatementCenter service', () => {
     };
     mockQuery.mockImplementation(async (sql) => {
       if (sql.includes('FROM food_restaurants fr')) {
-        return { rows: [{ id: 9, display_name: 'Bistro' }] };
+        return { rows: [{ id: 9, display_name: 'Bistro', business_id: 42 }] };
       }
       if (sql.includes("account_type = 'restaurant_sub_bank'")) {
         return { rows: [{ restaurant_id: 9, currency_code: 'USD', balance_cents: 7600 }] };
@@ -202,6 +203,7 @@ describe('getStatementCenter service', () => {
     const settlement = result.products.restaurantSettlement;
     expect(settlement.hasAccount).toBe(true);
     expect(settlement.setupState).toBe('ready');
+    expect(settlement.scopes[0]).toMatchObject({ restaurantId: '9', businessId: '42' });
     expect(settlement.latestPeriod).toBe('2026-09');
     expect(settlement.summary.outstanding).toEqual({ currency: 'USD', amountCents: 7500 });
     expect(settlement.summary.invoiced).toEqual({ currency: 'USD', amountCents: 12000 });

@@ -151,6 +151,7 @@ async function buildOxsteedCredit(userId) {
     const status = document ? 'ready' : (preparing ? 'preparing' : 'none');
     return {
       scopeKey: `oxsteed:${account.currency_code}`,
+      accountId: String(account.id),
       label: 'OxSteed Credit',
       currency: account.currency_code,
       latestPeriod: document ? periodMonth(document.period_to) : null,
@@ -206,6 +207,7 @@ async function buildRestaurantCredit(userId) {
     const status = document ? 'ready' : (preparing ? 'preparing' : 'none');
     return {
       scopeKey: `restaurant:${wallet.restaurant_id}:${wallet.currency_code}`,
+      accountId: String(wallet.id),
       label: String(wallet.restaurant_name || 'Restaurant Credit'),
       currency: wallet.currency_code,
       restaurantId: String(wallet.restaurant_id),
@@ -238,7 +240,7 @@ async function buildRestaurantSettlement(userId) {
   // business owner (businesses.user_id; owners are never stored in
   // business_members), or an active manager member.
   const { rows: restaurants } = await pool.query(
-    `SELECT DISTINCT fr.id, fr.display_name
+    `SELECT DISTINCT fr.id, fr.display_name, fr.business_id
        FROM food_restaurants fr
        LEFT JOIN businesses b ON b.id = fr.business_id
        LEFT JOIN business_members bm
@@ -286,6 +288,7 @@ async function buildRestaurantSettlement(userId) {
     if (!currencies.size) {
       scopes.push({
         scopeKey: `restaurant_settlement:${restaurant.id}`,
+        businessId: restaurant.business_id == null ? null : String(restaurant.business_id),
         label: String(restaurant.display_name || 'Restaurant'),
         currency: null,
         restaurantId: String(restaurant.id),
@@ -315,6 +318,7 @@ async function buildRestaurantSettlement(userId) {
         }, 0);
       scopes.push({
         scopeKey: `restaurant_settlement:${restaurant.id}:${currency}`,
+        businessId: restaurant.business_id == null ? null : String(restaurant.business_id),
         label: String(restaurant.display_name || 'Restaurant'),
         currency,
         restaurantId: String(restaurant.id),

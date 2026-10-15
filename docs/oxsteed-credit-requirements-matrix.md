@@ -1229,6 +1229,22 @@ for the exact local revision, commands, qualifications and synthetic reproductio
 | Statement automated accessibility | 11 focused tag/text/HTML checks passed after temporary installation of already-declared `pdf2json`; 2 database tests excluded. All 4 browser fixture tests passed, including 20 locale/theme/viewport combinations. | Human reader evidence absent. Execute `docs/statement-screen-reader-checklist.md` and record reader/viewer versions, samples and results. No broad screen-reader or PDF/UA claim. |
 | Private statement publication | Private adapter/storage/PDF/payout focused run: 3 suites / 61 tests passed. `oxsteed-statement-artifacts` created in Cloudflare R2; Eastern North America automatic location, Standard class, public access and development URL disabled, empty, no custom domain or lifecycle/lock rule. | Credentials, Coolify config, account-level privacy review, retention, issuance, and object verification remain incomplete. Complete the owner handoff and run `docs/statement-r2-setup-checklist.md` through existing deployment ownership. |
 
+### Account-first Statements navigation (2026-10-15)
+
+This delivery completes the account-first presentation discussed for Statements,
+replacing the five equally prominent product cards. It does not declare all
+statement operations or the overall Credit goal complete.
+
+| Criterion | Implementation / evidence | Remaining status / next exact action |
+| --- | --- | --- |
+| Account discovery and relevance | `statementAccounts.js` groups server-authorized scopes into Personal and Work & business. Empty sections, setup-only products, and unavailable records are hidden; partial loading failures remain explicit and retryable. | Verify the deployed center with real authorized accounts after release. |
+| Restaurant/business identity | The existing center response adds wallet account IDs and restaurant business IDs. A business combines its restaurant settlement/credit journal records and business records by ID; personal restaurant wallets stay separate. No balance or currency aggregation. | No authorization, ledger, schema, or payment policy changes. |
+| Account → period → review/download | The center embeds the existing credit and archive views with a fixed account scope. Currency selection, record switching, period controls, review and downloads stay within `/statements`; full-page links carry account/currency/period context. Legacy destinations remain available. | Broader investigation, reconciliation, correction, and export defects from the statement audit are separate follow-up work. |
+| Isolation and localization | Five-language active-namespace and legacy parity; user changes hide stale state and cancel obsolete requests. Browser fixtures exercise account changes, late responses, retry, account visibility, period selection, download, keyboard focus return, long names, RTL, and light/dark layouts at 320/390/768/1360/1600px. | Automated fixtures are not production-data acceptance or a human screen-reader session. |
+
+Verification commands and final results are recorded in
+`docs/statement-account-navigation-2026-10-15.md`.
+
 ## Completion Gate
 
 The code-completion goal is complete only when every `implemented` row has been

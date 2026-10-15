@@ -23,7 +23,7 @@
     "test:credit-request-guards": "node --test scripts/creditRequestGuards.test.mjs",
     "test:credit-status": "node --test scripts/creditStatus.test.mjs",
     "test:credit-errors": "node --test scripts/creditErrors.test.mjs",
-    "test:credit-statements": "node --test scripts/creditStatements.test.mjs",
+    "test:credit-statements": "node --test scripts/creditStatements.test.mjs scripts/statementAccounts.test.mjs",
     "test:credit-admin-localization": "node --test scripts/creditAdminLocalization.test.mjs",
     "test:credit-cards-localization": "node --test scripts/creditCardsLocalization.test.mjs",
     "test:destructive-confirm": "node --test scripts/destructiveConfirmContract.test.mjs",

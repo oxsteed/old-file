@@ -192,14 +192,15 @@ function compareEntries(a, b, key, dir) {
   return dir === 'desc' ? -result : result;
 }
 
-export default function CreditStatementsPage({ product = 'oxsteed' }) {
+export default function CreditStatementsPage({ product = 'oxsteed', embedded = false, accountScope = null }) {
   const { t, i18n } = useTranslation('credit');
   const [searchParams, setSearchParams] = useSearchParams();
   const language = (i18n.resolvedLanguage || i18n.language || 'en').split(/[-_]/)[0];
   const text = (key, options = {}) => t(`statements.${key}`, { defaultValue: STATEMENT_STRINGS[key], ...options });
   const [accounts, setAccounts] = useState({ product: null, entries: [], status: 'loading' });
   const [accountRetry, setAccountRetry] = useState(0);
-  const [dates, setDates] = useState(previousStatementMonth);
+  const [dates, setDates] = useState(() => validStatementPeriod(searchParams.get('from'), searchParams.get('to'))
+    ? { from: searchParams.get('from'), to: searchParams.get('to') } : previousStatementMonth());
   const [report, setReport] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -211,7 +212,9 @@ export default function CreditStatementsPage({ product = 'oxsteed' }) {
   const [filterError, setFilterError] = useState(null);
   const requestRef = useRef(null);
   const downloadRef = useRef(null);
-  const entries = accounts.product === product ? accounts.entries : [];
+  const entries = (accounts.product === product ? accounts.entries : []).filter(entry => !accountScope
+    || (entry.currencyCode === accountScope.currency
+      && (product !== 'restaurant' || String(entry.restaurantId) === String(accountScope.restaurantId))));
   const accountsLoading = accounts.product !== product || accounts.status === 'loading';
   const accountsFailed = accounts.product === product && accounts.status === 'error';
   const selected = entries.find(entry => (!searchParams.get('currencyCode') || entry.currencyCode === searchParams.get('currencyCode'))
@@ -354,6 +357,10 @@ export default function CreditStatementsPage({ product = 'oxsteed' }) {
       setError('invalidPeriod');
       return;
     }
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.set('from', dates.from);
+    nextParams.set('to', dates.to);
+    setSearchParams(nextParams, { replace: true });
     requestRef.current?.abort();
     downloadRef.current?.abort();
     const controller = new AbortController();
@@ -440,22 +447,23 @@ export default function CreditStatementsPage({ product = 'oxsteed' }) {
     { key: 'balance', label: text('balance') },
   ];
 
-  return <div className="credit-statements-shell" dir={i18n.dir(language)}>
-    <PageMeta title={text('title')} description={text('description')} noIndex />
-    <Navbar />
-    <main className="credit-statements-page">
-      <Link to="/statements" className="cs-back"><ArrowLeft size={16} aria-hidden="true" />{text('back')}</Link>
-      <header className="cs-header"><FileText size={30} aria-hidden="true" /><div><h1>{text('title')}</h1><p>{text('description')}</p></div></header>
+  const Content = embedded ? 'div' : 'main';
+  return <div className={`credit-statements-shell${embedded ? ' statement-center-embedded' : ''}`} dir={i18n.dir(language)}>
+    {!embedded && <PageMeta title={text('title')} description={text('description')} noIndex />}
+    {!embedded && <Navbar />}
+    <Content className="credit-statements-page">
+      {!embedded && <Link to="/statements" className="cs-back"><ArrowLeft size={16} aria-hidden="true" />{text('back')}</Link>}
+      {!embedded && <header className="cs-header"><FileText size={30} aria-hidden="true" /><div><h1>{text('title')}</h1><p>{text('description')}</p></div></header>}
       <p className="cs-scope">{text('scope')}</p>
-      <p className="cs-archive-link"><Link to={`${root}/statements/archive`}>{text('archiveLink')}</Link></p>
+      {!embedded && <p className="cs-archive-link"><Link to={`${root}/statements/archive`}>{text('archiveLink')}</Link></p>}
       {accountsLoading ? <div className="cs-state" role="status">{text('loadingAccounts')}</div>
         : accountsFailed ? <div className="cs-state" role="alert"><p>{text('accountsError')}</p><button type="button" onClick={() => setAccountRetry(value => value + 1)}>{text('retry')}</button></div>
           : !entries.length ? <div className="cs-state" role="status"><h2>{text('noAccounts')}</h2><p>{text('noAccountsBody')}</p><Link to="/statements">{text('back')}</Link></div>
             : <>
               <form className="cs-filters" onSubmit={apply}>
-                <div className="cs-field"><label htmlFor="statement-account">{text('account')}</label><select id="statement-account" value={accountKey(selected, product)} onChange={changeAccount}>
+                {!accountScope && <div className="cs-field"><label htmlFor="statement-account">{text('account')}</label><select id="statement-account" value={accountKey(selected, product)} onChange={changeAccount}>
                   {entries.map(entry => <option key={accountKey(entry, product)} value={accountKey(entry, product)}>{text('accountOption', { name: product === 'restaurant' ? entry.restaurantName || text('restaurantProduct') : text('oxsteedProduct'), currency: entry.currencyCode })}</option>)}
-                </select></div>
+                </select></div>}
                 <div className="cs-field"><label htmlFor="statement-from">{text('from')}</label><input id="statement-from" type="date" value={dates.from} onChange={event => setDates(current => ({ ...current, from: event.target.value }))} max={new Date().toISOString().slice(0, 10)} required aria-describedby="statement-period-help" /></div>
                 <div className="cs-field"><label htmlFor="statement-to">{text('to')}</label><input id="statement-to" type="date" value={dates.to} onChange={event => setDates(current => ({ ...current, to: event.target.value }))} max={new Date().toISOString().slice(0, 10)} required aria-describedby="statement-period-help" /></div>
                 <button type="submit" className="cs-primary" disabled={loading}>{text('apply')}</button>
@@ -537,7 +545,7 @@ export default function CreditStatementsPage({ product = 'oxsteed' }) {
                     </>}
               </div>
             </>}
-    </main>
-    <Footer />
+    </Content>
+    {!embedded && <Footer />}
   </div>;
 }
