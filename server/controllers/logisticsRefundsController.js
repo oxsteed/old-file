@@ -23,7 +23,8 @@ const { createDefaultDeps, _internal } = require('../services/logisticsRefundPor
 const { logLogisticsAction } = require('../services/logisticsAuditService');
 
 function deps() {
-  return createDefaultDeps(pool.query.bind(pool));
+  // Pass the pool itself so withTransaction can hold a dedicated connection.
+  return createDefaultDeps(pool);
 }
 
 async function logAction(caseId, action, actorUserId, meta) {

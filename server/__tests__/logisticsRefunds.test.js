@@ -144,7 +144,7 @@ function makePorts(overrides = {}) {
     amountCents: 10000, // $100.00 paid
     currency: 'USD',
     method: 'stripe',
-    status: 'paid',
+    status: 'succeeded', // 879: only 'succeeded' attempts are refundable
     paymentIntentId: 'pi_1',
     chargeId: 'ch_1',
   };
@@ -192,6 +192,13 @@ function freshAuth(minutesAgo = 2) {
   };
 }
 
+// Binds the fake DB query + a passthrough withTransaction to the ports.
+function bindDb(ports, query) {
+  ports.query = query;
+  ports.withTransaction = async (work) => work(query);
+  return ports;
+}
+
 async function proposeOk(ports, overrides = {}) {
   return svc.proposeRefund(ports, {
     proposerUserId: 'admin-1',
@@ -208,7 +215,7 @@ async function proposeOk(ports, overrides = {}) {
 describe('proposeRefund', () => {
   test('creates a proposed case with proposed_by and an audit decision, and notifies the buyer', async () => {
     const { query, db } = makeFakeDb();
-    const ports = makePorts(); ports.query = query;
+    const ports = bindDb(makePorts(), query);
     const kase = await proposeOk(ports);
     expect(kase.status).toBe('proposed');
     expect(kase.proposed_by).toBe('admin-1');
@@ -223,14 +230,14 @@ describe('proposeRefund', () => {
 
   test('rejects amounts above the remaining refundable amount (server-side cap)', async () => {
     const { query } = makeFakeDb();
-    const ports = makePorts(); ports.query = query;
+    const ports = bindDb(makePorts(), query);
     await expect(proposeOk(ports, { amountCents: 10001 }))
       .rejects.toMatchObject({ statusCode: 400, code: 'refund_amount_exceeds_remaining' });
   });
 
   test('partial refunds are capped by prior refunds on the same attempt', async () => {
     const { query, db } = makeFakeDb();
-    const ports = makePorts(); ports.query = query;
+    const ports = bindDb(makePorts(), query);
     // First: propose/approve/execute a $40 refund.
     const c1 = await proposeOk(ports, { amountCents: 4000 });
     await svc.approveRefund(ports, { caseId: c1.id, approverUserId: 'admin-2', freshAuthEvent: freshAuth() });
@@ -244,25 +251,38 @@ describe('proposeRefund', () => {
     expect(c2.status).toBe('proposed');
   });
 
+  test('concurrent proposals encumber the balance: a second proposal cannot overdraw', async () => {
+    const { query } = makeFakeDb();
+    const ports = bindDb(makePorts(), query);
+    // $100 paid. First proposal reserves $70 while still 'proposed'.
+    await proposeOk(ports, { amountCents: 7000, proposerUserId: 'admin-1' });
+    // Second proposal for $40 must fail: only $30 remains.
+    await expect(proposeOk(ports, { amountCents: 4000, proposerUserId: 'admin-2' }))
+      .rejects.toMatchObject({ code: 'refund_amount_exceeds_remaining' });
+    // $30 exactly is allowed.
+    const c2 = await proposeOk(ports, { amountCents: 3000, proposerUserId: 'admin-2' });
+    expect(c2.status).toBe('proposed');
+  });
+
   test('fails closed on an unknown payment attempt', async () => {
     const { query } = makeFakeDb();
-    const ports = makePorts(); ports.query = query;
+    const ports = bindDb(makePorts(), query);
     await expect(proposeOk(ports, { paymentAttemptId: 'nope' }))
       .rejects.toMatchObject({ code: 'refund_payment_attempt_not_found' });
   });
 
   test('rejects method mismatch: funds must return to the original source', async () => {
     const { query } = makeFakeDb();
-    const ports = makePorts({ attempt: { method: 'credit' } }); ports.query = query;
+    const ports = bindDb(makePorts({ attempt: { method: 'credit' } }), query);
     await expect(proposeOk(ports, { refundMethod: 'stripe' }))
       .rejects.toMatchObject({ code: 'refund_method_mismatch' });
   });
 
   test('rejects non-USD and non-paid attempts', async () => {
     const { query } = makeFakeDb();
-    let ports = makePorts({ attempt: { currency: 'EUR' } }); ports.query = query;
+    let ports = bindDb(makePorts({ attempt: { currency: 'EUR' } }), query);
     await expect(proposeOk(ports)).rejects.toMatchObject({ code: 'refund_currency_not_supported' });
-    ports = makePorts({ attempt: { status: 'voided' } }); ports.query = query;
+    ports = bindDb(makePorts({ attempt: { status: 'voided' } }), query);
     await expect(proposeOk(ports)).rejects.toMatchObject({ code: 'refund_payment_not_refundable' });
   });
 });
@@ -270,7 +290,7 @@ describe('proposeRefund', () => {
 describe('approveRefund', () => {
   test('a different admin with fresh auth approves; decision records the fresh-auth hash', async () => {
     const { query, db } = makeFakeDb();
-    const ports = makePorts(); ports.query = query;
+    const ports = bindDb(makePorts(), query);
     const kase = await proposeOk(ports);
     const approved = await svc.approveRefund(ports, {
       caseId: kase.id, approverUserId: 'admin-2', freshAuthEvent: freshAuth(), reason: 'Verified with buyer',
@@ -285,7 +305,7 @@ describe('approveRefund', () => {
 
   test('self-approval is rejected with 403', async () => {
     const { query } = makeFakeDb();
-    const ports = makePorts(); ports.query = query;
+    const ports = bindDb(makePorts(), query);
     const kase = await proposeOk(ports); // proposed by admin-1
     await expect(svc.approveRefund(ports, {
       caseId: kase.id, approverUserId: 'admin-1', freshAuthEvent: freshAuth(),
@@ -294,7 +314,7 @@ describe('approveRefund', () => {
 
   test('stale fresh auth is rejected (401)', async () => {
     const { query } = makeFakeDb();
-    const ports = makePorts(); ports.query = query;
+    const ports = bindDb(makePorts(), query);
     const kase = await proposeOk(ports);
     await expect(svc.approveRefund(ports, {
       caseId: kase.id, approverUserId: 'admin-2', freshAuthEvent: freshAuth(30),
@@ -303,7 +323,7 @@ describe('approveRefund', () => {
 
   test('missing fresh auth is rejected (401)', async () => {
     const { query } = makeFakeDb();
-    const ports = makePorts(); ports.query = query;
+    const ports = bindDb(makePorts(), query);
     const kase = await proposeOk(ports);
     await expect(svc.approveRefund(ports, {
       caseId: kase.id, approverUserId: 'admin-2', freshAuthEvent: null,
@@ -312,7 +332,7 @@ describe('approveRefund', () => {
 
   test('only proposed cases can be approved', async () => {
     const { query } = makeFakeDb();
-    const ports = makePorts(); ports.query = query;
+    const ports = bindDb(makePorts(), query);
     const kase = await proposeOk(ports);
     await svc.approveRefund(ports, { caseId: kase.id, approverUserId: 'admin-2', freshAuthEvent: freshAuth() });
     await expect(svc.approveRefund(ports, {
@@ -324,7 +344,7 @@ describe('approveRefund', () => {
 describe('rejectRefund', () => {
   test('a different admin can reject with a reason', async () => {
     const { query, db } = makeFakeDb();
-    const ports = makePorts(); ports.query = query;
+    const ports = bindDb(makePorts(), query);
     const kase = await proposeOk(ports);
     const rejected = await svc.rejectRefund(ports, { caseId: kase.id, actorUserId: 'admin-2', reason: 'Duplicate request' });
     expect(rejected.status).toBe('rejected');
@@ -335,7 +355,7 @@ describe('rejectRefund', () => {
 
   test('the proposer cannot reject their own proposal', async () => {
     const { query } = makeFakeDb();
-    const ports = makePorts(); ports.query = query;
+    const ports = bindDb(makePorts(), query);
     const kase = await proposeOk(ports);
     await expect(svc.rejectRefund(ports, { caseId: kase.id, actorUserId: 'admin-1', reason: 'oops' }))
       .rejects.toMatchObject({ statusCode: 403 });
@@ -350,7 +370,7 @@ describe('executeRefund', () => {
 
   test('executes on Stripe confirmation; deterministic idempotency key is passed', async () => {
     const { query, db } = makeFakeDb();
-    const ports = makePorts(); ports.query = query;
+    const ports = bindDb(makePorts(), query);
     const approved = await approvedCase(ports);
     const { case: kase, replayed, failed } = await svc.executeRefund(ports, { caseId: approved.id, actorUserId: 'admin-3' });
     expect(failed).toBeFalsy();
@@ -371,7 +391,7 @@ describe('executeRefund', () => {
 
   test('double execution is safe: replay returns the processed case without a second Stripe call', async () => {
     const { query } = makeFakeDb();
-    const ports = makePorts(); ports.query = query;
+    const ports = bindDb(makePorts(), query);
     const approved = await approvedCase(ports);
     const first = await svc.executeRefund(ports, { caseId: approved.id, actorUserId: 'admin-3' });
     expect(first.case.status).toBe('processed');
@@ -385,7 +405,7 @@ describe('executeRefund', () => {
     const { query, db } = makeFakeDb();
     const stripeError = new Error('card declined by issuer');
     stripeError.code = 'stripe_card_error';
-    const ports = makePorts({ stripeError }); ports.query = query;
+    const ports = bindDb(makePorts({ stripeError }), query);
     const approved = await approvedCase(ports);
     const { case: kase, failed, code } = await svc.executeRefund(ports, { caseId: approved.id, actorUserId: 'admin-3' });
     expect(failed).toBe(true);
@@ -400,7 +420,7 @@ describe('executeRefund', () => {
 
   test('open dispute blocks execution (fail closed)', async () => {
     const { query } = makeFakeDb();
-    const ports = makePorts({ dispute: { known: true, open: true } }); ports.query = query;
+    const ports = bindDb(makePorts({ dispute: { known: true, open: true } }), query);
     const approved = await approvedCase(ports);
     const { case: kase, failed, code } = await svc.executeRefund(ports, { caseId: approved.id, actorUserId: 'admin-3' });
     expect(failed).toBe(true);
@@ -411,7 +431,7 @@ describe('executeRefund', () => {
 
   test('unknown dispute status blocks execution (fail closed)', async () => {
     const { query } = makeFakeDb();
-    const ports = makePorts({ dispute: { known: false, open: false } }); ports.query = query;
+    const ports = bindDb(makePorts({ dispute: { known: false, open: false } }), query);
     const approved = await approvedCase(ports);
     const { failed, code } = await svc.executeRefund(ports, { caseId: approved.id, actorUserId: 'admin-3' });
     expect(failed).toBe(true);
@@ -421,7 +441,7 @@ describe('executeRefund', () => {
 
   test('approver who lost admin rights blocks execution (fail closed)', async () => {
     const { query } = makeFakeDb();
-    const ports = makePorts({ approver: { id: 'admin-2', role: 'support', isBanned: false } }); ports.query = query;
+    const ports = bindDb(makePorts({ approver: { id: 'admin-2', role: 'support', isBanned: false } }), query);
     const approved = await approvedCase(ports);
     const { failed, code } = await svc.executeRefund(ports, { caseId: approved.id, actorUserId: 'admin-3' });
     expect(failed).toBe(true);
@@ -430,7 +450,7 @@ describe('executeRefund', () => {
 
   test('credit refund fails closed until the Credit workstream registers its adapter', async () => {
     const { query, db } = makeFakeDb();
-    const ports = makePorts({ attempt: { method: 'credit' } }); ports.query = query;
+    const ports = bindDb(makePorts({ attempt: { method: 'credit' } }), query);
     const proposed = await proposeOk(ports, { refundMethod: 'credit' });
     const approved = await svc.approveRefund(ports, { caseId: proposed.id, approverUserId: 'admin-2', freshAuthEvent: freshAuth() });
     const { case: kase, failed, code } = await svc.executeRefund(ports, { caseId: approved.id, actorUserId: 'admin-3' });
@@ -442,7 +462,7 @@ describe('executeRefund', () => {
 
   test('non-approved cases cannot be executed', async () => {
     const { query } = makeFakeDb();
-    const ports = makePorts(); ports.query = query;
+    const ports = bindDb(makePorts(), query);
     const kase = await proposeOk(ports); // still proposed
     await expect(svc.executeRefund(ports, { caseId: kase.id, actorUserId: 'admin-3' }))
       .rejects.toMatchObject({ statusCode: 409, code: 'refund_invalid_state' });
@@ -452,7 +472,7 @@ describe('executeRefund', () => {
 describe('expireStaleProposals', () => {
   test('expires proposals older than the TTL, keeps fresh ones', async () => {
     const { query, db } = makeFakeDb();
-    const ports = makePorts(); ports.query = query;
+    const ports = bindDb(makePorts(), query);
     const old = await proposeOk(ports, { amountCents: 1000 });
     const fresh = await proposeOk(ports, { amountCents: 1000 });
     db.cases.find((c) => c.id === old.id).created_at = new Date(Date.now() - 80 * 3600 * 1000);

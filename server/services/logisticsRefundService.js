@@ -21,6 +21,10 @@
  *
  * All functions take a `deps` object so tests can inject fakes:
  *   deps.query(sql, params)              -> { rows }
+ *   deps.withTransaction(work)           -> runs work(txQuery) on a DEDICATED
+ *                                           connection; commits/rolls back.
+ *                                           (pool.query('BEGIN') does NOT hold
+ *                                           a transaction — never use it.)
  *   deps.paymentPort.getPaymentAttempt(q, attemptId) -> attempt | null
  *   deps.disputePort.checkDispute(q, attemptId)      -> { known: bool, open: bool }
  *   deps.stripePort.createRefund({ paymentIntentId, chargeId, amountCents,
@@ -38,7 +42,10 @@ const { AppError } = require('../middleware/errorHandler');
 
 const FRESH_AUTH_TTL_MINUTES = 15; // approver step-up must be this fresh
 const PROPOSAL_TTL_HOURS = 72;     // unapproved proposals auto-expire
-const ACTIVE_REFUND_STATUSES = ['approved', 'executing', 'processed'];
+// Statuses that ENCUMBER the payment attempt's refundable balance. Proposed
+// cases count: otherwise two concurrent proposals could each pass the cap
+// and both be approved, over-refunding the attempt.
+const ACTIVE_REFUND_STATUSES = ['proposed', 'approved', 'executing', 'processed'];
 const ADMIN_ROLES = new Set(['admin', 'super_admin']);
 
 function isFreshAuth(event) {
@@ -64,7 +71,7 @@ function executionIdempotencyKey(caseId) {
 }
 
 function checkPorts(deps) {
-  for (const name of ['paymentPort', 'disputePort', 'stripePort', 'creditPort', 'userPort', 'notifyPort']) {
+  for (const name of ['paymentPort', 'disputePort', 'stripePort', 'creditPort', 'userPort', 'notifyPort', 'withTransaction']) {
     if (!deps[name]) throw new Error(`logisticsRefundService: missing port "${name}"`);
   }
 }
@@ -106,7 +113,9 @@ function assertAttemptRefundable(attempt) {
   if (attempt.currency !== 'USD') {
     throw new AppError('Only USD payments can be refunded.', 400, 'refund_currency_not_supported');
   }
-  if (!['paid', 'captured', 'succeeded'].includes(attempt.status)) {
+  // logistics_payment_attempts (879): only 'succeeded' attempts hold settled
+  // funds that can be returned.
+  if (!['succeeded'].includes(attempt.status)) {
     throw new AppError(`Payment attempt is not in a refundable state (status: ${attempt.status}).`, 409, 'refund_payment_not_refundable');
   }
 }
@@ -247,168 +256,182 @@ async function rejectRefund(deps, { caseId, actorUserId, reason }) {
 
 // ─── Execute ─────────────────────────────────────────────────
 
-async function markFailed(query, notifyPort, kase, attempt, code, message, extra = {}) {
-  await query(
-    `UPDATE logistics_refund_cases
-        SET status = 'failed', updated_at = NOW()
-      WHERE id = $1`,
-    [kase.id]
-  );
-  await decisionRow(query, {
-    caseId: kase.id, actorUserId: kase.executedBy || null, action: 'execute_failed',
-    reason: message, metadata: { code, ...extra },
-  });
-  await query(
-    `INSERT INTO logistics_reconciliation_queue (source, entity_id, reason, payload, status)
-     VALUES ('logistics_refund', $1, $2, $3, 'pending')`,
-    [kase.id, `Refund execution failed: ${code}`,
-     JSON.stringify({
-       reference: kase.reference,
-       paymentAttemptId: kase.original_payment_attempt_id,
-       amountCents: kase.amount_cents,
-       refundMethod: kase.refund_method,
-       errorCode: code,
-       errorMessage: message,
-     })]
-  );
-  notifyPort.notify('refund_failed', kase.user_id, { reference: kase.reference, amountCents: kase.amount_cents }).catch(() => {});
-  const { rows } = await query(`SELECT * FROM logistics_refund_cases WHERE id = $1`, [kase.id]);
-  return rows[0];
+// ─── Execute ─────────────────────────────────────────────────
+// Runs inside deps.withTransaction on a dedicated connection. Notifications
+// are deferred until after commit: the database state is authoritative, and
+// a rolled-back transaction must never have notified the buyer.
+
+async function runExecute(deps, { caseId, actorUserId }, deferNotify) {
+  const { query, paymentPort, disputePort, stripePort, creditPort, userPort } = deps;
+
+  const notify = (event, userId, vars) => deferNotify.push([event, userId, vars]);
+
+  async function markFailed(kase, attempt, code, message, extra = {}) {
+    await query(
+      `UPDATE logistics_refund_cases
+          SET status = 'failed', updated_at = NOW()
+        WHERE id = $1`,
+      [kase.id]
+    );
+    await decisionRow(query, {
+      caseId: kase.id, actorUserId: actorUserId || null, action: 'execute_failed',
+      reason: message, metadata: { code, ...extra },
+    });
+    await query(
+      `INSERT INTO logistics_reconciliation_queue (source, entity_id, reason, payload, status)
+       VALUES ('logistics_refund', $1, $2, $3, 'pending')`,
+      [kase.id, `Refund execution failed: ${code}`,
+       JSON.stringify({
+         reference: kase.reference,
+         paymentAttemptId: kase.original_payment_attempt_id,
+         amountCents: kase.amount_cents,
+         refundMethod: kase.refund_method,
+         errorCode: code,
+         errorMessage: message,
+       })]
+    );
+    notify('refund_failed', kase.user_id, { reference: kase.reference, amountCents: kase.amount_cents });
+    const { rows } = await query(`SELECT * FROM logistics_refund_cases WHERE id = $1`, [kase.id]);
+    return rows[0];
+  }
+
+  let kase = await getCaseForUpdate(query, caseId);
+  if (!kase) throw new AppError('Refund case not found.', 404, 'not_found');
+
+  // Idempotency: replaying an execution never moves money twice.
+  if (kase.status === 'processed') {
+    return { case: kase, replayed: true };
+  }
+  if (kase.status === 'executing') {
+    return { case: kase, inProgress: true };
+  }
+  if (kase.status !== 'approved') {
+    throw new AppError(
+      `Only approved refunds can be executed (status: ${kase.status}).` +
+      (kase.status === 'failed' ? ' Failed refunds go through the reconciliation queue.' : ''),
+      409, 'refund_invalid_state'
+    );
+  }
+
+  await query(`UPDATE logistics_refund_cases SET status = 'executing', updated_at = NOW() WHERE id = $1`, [caseId]);
+  kase = { ...kase, status: 'executing' };
+
+  // ── Execution-time rechecks (all gates, before any money moves) ──
+  const attempt = await paymentPort.getPaymentAttempt(query, String(kase.original_payment_attempt_id));
+  try { assertAttemptRefundable(attempt); }
+  catch (e) {
+    const f = await markFailed(kase, attempt, e.code || 'refund_payment_not_refundable', e.message);
+    return { case: f, failed: true, code: e.code };
+  }
+
+  const dispute = await disputePort.checkDispute(query, String(kase.original_payment_attempt_id));
+  if (!dispute.known) {
+    const f = await markFailed(kase, attempt, 'refund_dispute_status_unknown',
+      'Dispute status could not be determined. Refund blocked pending dispute linkage.');
+    return { case: f, failed: true, code: 'refund_dispute_status_unknown' };
+  }
+  if (dispute.open) {
+    const f = await markFailed(kase, attempt, 'refund_dispute_open',
+      'An open fraud dispute exists on the original payment. Refund blocked.');
+    return { case: f, failed: true, code: 'refund_dispute_open' };
+  }
+
+  const remaining = await remainingRefundableCents(query, String(kase.original_payment_attempt_id), attempt.amountCents);
+  if (kase.amount_cents > remaining) {
+    const f = await markFailed(kase, attempt, 'refund_amount_exceeds_remaining',
+      `Amount exceeds remaining refundable amount of ${remaining} cents.`, { remainingCents: remaining });
+    return { case: f, failed: true, code: 'refund_amount_exceeds_remaining' };
+  }
+
+  // Approver authorization must still be valid at execution time.
+  const approver = await userPort.getAdminUser(query, kase.approved_by);
+  if (!approver || !ADMIN_ROLES.has(approver.role) || approver.isBanned) {
+    const f = await markFailed(kase, attempt, 'refund_approver_no_longer_authorized',
+      'The approving admin is no longer authorized. Refund blocked.');
+    return { case: f, failed: true, code: 'refund_approver_no_longer_authorized' };
+  }
+
+  // ── Processor call: funds return to the ORIGINAL source only ──
+  const idempotencyKey = executionIdempotencyKey(kase.id);
+  try {
+    if (kase.refund_method === 'stripe') {
+      const refund = await stripePort.createRefund({
+        paymentIntentId: attempt.paymentIntentId,
+        chargeId: attempt.chargeId,
+        amountCents: kase.amount_cents,
+        idempotencyKey,
+        metadata: { refund_case_id: String(kase.id), reference: kase.reference },
+      });
+      if (refund.status === 'succeeded') {
+        const { rows } = await query(
+          `UPDATE logistics_refund_cases
+              SET status = 'processed', stripe_refund_id = $2,
+                  processed_by = $3, processed_at = NOW(), updated_at = NOW()
+            WHERE id = $1
+            RETURNING *`,
+          [caseId, refund.id, actorUserId]
+        );
+        await decisionRow(query, { caseId, actorUserId, action: 'execute', metadata: { stripeRefundId: refund.id, idempotencyKey } });
+        notify('refund_processed', kase.user_id, { reference: kase.reference, amountCents: kase.amount_cents });
+        return { case: rows[0], replayed: false };
+      }
+      if (refund.status === 'pending') {
+        // Stripe workstream webhook finalizes from the reconciliation queue.
+        await decisionRow(query, { caseId, actorUserId, action: 'execute_pending', metadata: { stripeRefundId: refund.id, idempotencyKey } });
+        await query(
+          `INSERT INTO logistics_reconciliation_queue (source, entity_id, reason, payload, status)
+           VALUES ('logistics_refund', $1, $2, $3, 'pending')`,
+          [kase.id, 'Stripe refund pending confirmation',
+           JSON.stringify({ reference: kase.reference, stripeRefundId: refund.id, idempotencyKey })]
+        );
+        notify('refund_processed', kase.user_id, { reference: kase.reference, amountCents: kase.amount_cents });
+        const { rows } = await query(`SELECT * FROM logistics_refund_cases WHERE id = $1`, [caseId]);
+        return { case: rows[0], inProgress: true };
+      }
+      throw new AppError(`Stripe refund returned unexpected status: ${refund.status}`, 502, 'refund_processor_unexpected_status');
+    }
+
+    if (kase.refund_method === 'credit') {
+      const reversal = await creditPort.reverseCredit({
+        refundCaseId: kase.id,
+        amountCents: kase.amount_cents,
+        currency: 'USD',
+        idempotencyKey,
+      });
+      const { rows } = await query(
+        `UPDATE logistics_refund_cases
+            SET status = 'processed', processor_ref = $2,
+                processed_by = $3, processed_at = NOW(), updated_at = NOW()
+          WHERE id = $1
+          RETURNING *`,
+        [caseId, reversal.ledgerEntryId || reversal.id || null, actorUserId]
+      );
+      await decisionRow(query, { caseId, actorUserId, action: 'execute', metadata: { creditReversal: reversal, idempotencyKey } });
+      notify('refund_processed', kase.user_id, { reference: kase.reference, amountCents: kase.amount_cents });
+      return { case: rows[0], replayed: false };
+    }
+
+    throw new AppError(`Unsupported refund method: ${kase.refund_method}`, 400, 'validation_failed');
+  } catch (procErr) {
+    // Processor failure: fail closed -> failed status + reconciliation queue.
+    if (procErr instanceof AppError && procErr.code === 'refund_processor_unexpected_status') throw procErr;
+    const f = await markFailed(kase, attempt,
+      procErr.code || 'refund_processor_error', procErr.message || 'Processor call failed.');
+    return { case: f, failed: true, code: procErr.code || 'refund_processor_error' };
+  }
 }
 
 async function executeRefund(deps, { caseId, actorUserId }) {
   checkPorts(deps);
-  const { query, paymentPort, disputePort, stripePort, creditPort, userPort, notifyPort } = deps;
-
-  await query('BEGIN');
-  try {
-    let kase = await getCaseForUpdate(query, caseId);
-    if (!kase) { await query('ROLLBACK'); throw new AppError('Refund case not found.', 404, 'not_found'); }
-
-    // Idempotency: replaying an execution never moves money twice.
-    if (kase.status === 'processed') {
-      await query('ROLLBACK');
-      return { case: kase, replayed: true };
-    }
-    if (kase.status === 'executing') {
-      await query('ROLLBACK');
-      return { case: kase, inProgress: true };
-    }
-    if (kase.status !== 'approved') {
-      await query('ROLLBACK');
-      throw new AppError(`Only approved refunds can be executed (status: ${kase.status}).`, 409, 'refund_invalid_state');
-    }
-
-    await query(`UPDATE logistics_refund_cases SET status = 'executing', updated_at = NOW() WHERE id = $1`, [caseId]);
-    kase = { ...kase, status: 'executing', executedBy: actorUserId };
-
-    // ── Execution-time rechecks (all gates, before any money moves) ──
-    const attempt = await paymentPort.getPaymentAttempt(query, String(kase.original_payment_attempt_id));
-    try { assertAttemptRefundable(attempt); }
-    catch (e) { const f = await markFailed(query, notifyPort, kase, attempt, e.code || 'refund_payment_not_refundable', e.message); await query('COMMIT'); return { case: f, failed: true, code: e.code }; }
-
-    const dispute = await disputePort.checkDispute(query, String(kase.original_payment_attempt_id));
-    if (!dispute.known) {
-      const f = await markFailed(query, notifyPort, kase, attempt, 'refund_dispute_status_unknown',
-        'Dispute status could not be determined. Refund blocked pending dispute linkage.');
-      await query('COMMIT'); return { case: f, failed: true, code: 'refund_dispute_status_unknown' };
-    }
-    if (dispute.open) {
-      const f = await markFailed(query, notifyPort, kase, attempt, 'refund_dispute_open',
-        'An open dispute exists on the original payment. Refund blocked.');
-      await query('COMMIT'); return { case: f, failed: true, code: 'refund_dispute_open' };
-    }
-
-    const remaining = await remainingRefundableCents(query, String(kase.original_payment_attempt_id), attempt.amountCents);
-    if (kase.amount_cents > remaining) {
-      const f = await markFailed(query, notifyPort, kase, attempt, 'refund_amount_exceeds_remaining',
-        `Amount exceeds remaining refundable amount of ${remaining} cents.`, { remainingCents: remaining });
-      await query('COMMIT'); return { case: f, failed: true, code: 'refund_amount_exceeds_remaining' };
-    }
-
-    // Approver authorization must still be valid at execution time.
-    const approver = await userPort.getAdminUser(query, kase.approved_by);
-    if (!approver || !ADMIN_ROLES.has(approver.role) || approver.isBanned) {
-      const f = await markFailed(query, notifyPort, kase, attempt, 'refund_approver_no_longer_authorized',
-        'The approving admin is no longer authorized. Refund blocked.');
-      await query('COMMIT'); return { case: f, failed: true, code: 'refund_approver_no_longer_authorized' };
-    }
-
-    // ── Processor call: funds return to the ORIGINAL source only ──
-    const idempotencyKey = executionIdempotencyKey(kase.id);
-    try {
-      if (kase.refund_method === 'stripe') {
-        const refund = await stripePort.createRefund({
-          paymentIntentId: attempt.paymentIntentId,
-          chargeId: attempt.chargeId,
-          amountCents: kase.amount_cents,
-          idempotencyKey,
-          metadata: { refund_case_id: String(kase.id), reference: kase.reference },
-        });
-        if (refund.status === 'succeeded') {
-          const { rows } = await query(
-            `UPDATE logistics_refund_cases
-                SET status = 'processed', stripe_refund_id = $2,
-                    processed_by = $3, processed_at = NOW(), updated_at = NOW()
-              WHERE id = $1
-              RETURNING *`,
-            [caseId, refund.id, actorUserId]
-          );
-          await decisionRow(query, { caseId, actorUserId, action: 'execute', metadata: { stripeRefundId: refund.id, idempotencyKey } });
-          await query('COMMIT');
-          notifyPort.notify('refund_processed', kase.user_id, { reference: kase.reference, amountCents: kase.amount_cents }).catch(() => {});
-          return { case: rows[0], replayed: false };
-        }
-        if (refund.status === 'pending') {
-          // Stripe workstream webhook finalizes from the reconciliation queue.
-          await decisionRow(query, { caseId, actorUserId, action: 'execute_pending', metadata: { stripeRefundId: refund.id, idempotencyKey } });
-          await query(
-            `INSERT INTO logistics_reconciliation_queue (source, entity_id, reason, payload, status)
-             VALUES ('logistics_refund', $1, $2, $3, 'pending')`,
-            [kase.id, 'Stripe refund pending confirmation',
-             JSON.stringify({ reference: kase.reference, stripeRefundId: refund.id, idempotencyKey })]
-          );
-          await query('COMMIT');
-          const { rows } = await query(`SELECT * FROM logistics_refund_cases WHERE id = $1`, [caseId]);
-          return { case: rows[0], inProgress: true };
-        }
-        throw new AppError(`Stripe refund returned unexpected status: ${refund.status}`, 502, 'refund_processor_unexpected_status');
-      }
-
-      if (kase.refund_method === 'credit') {
-        const reversal = await creditPort.reverseCredit({
-          refundCaseId: kase.id,
-          amountCents: kase.amount_cents,
-          currency: 'USD',
-          idempotencyKey,
-        });
-        const { rows } = await query(
-          `UPDATE logistics_refund_cases
-              SET status = 'processed', processor_ref = $2,
-                  processed_by = $3, processed_at = NOW(), updated_at = NOW()
-            WHERE id = $1
-            RETURNING *`,
-          [caseId, reversal.ledgerEntryId || reversal.id || null, actorUserId]
-        );
-        await decisionRow(query, { caseId, actorUserId, action: 'execute', metadata: { creditReversal: reversal, idempotencyKey } });
-        await query('COMMIT');
-        notifyPort.notify('refund_processed', kase.user_id, { reference: kase.reference, amountCents: kase.amount_cents }).catch(() => {});
-        return { case: rows[0], replayed: false };
-      }
-
-      throw new AppError(`Unsupported refund method: ${kase.refund_method}`, 400, 'validation_failed');
-    } catch (procErr) {
-      // Processor failure: fail closed -> failed status + reconciliation queue.
-      if (procErr instanceof AppError && procErr.code === 'refund_processor_unexpected_status') throw procErr;
-      const f = await markFailed(query, notifyPort, kase, attempt,
-        procErr.code || 'refund_processor_error', procErr.message || 'Processor call failed.');
-      await query('COMMIT');
-      return { case: f, failed: true, code: procErr.code || 'refund_processor_error' };
-    }
-  } catch (err) {
-    try { await query('ROLLBACK'); } catch (_) { /* already rolled back */ }
-    throw err;
+  const deferNotify = [];
+  const out = await deps.withTransaction((txQuery) =>
+    runExecute({ ...deps, query: txQuery }, { caseId, actorUserId }, deferNotify)
+  );
+  // Notifications go out only after the transaction commits.
+  for (const [event, userId, vars] of deferNotify) {
+    deps.notifyPort.notify(event, userId, vars).catch(() => {});
   }
+  return out;
 }
 
 // ─── Expire stale proposals ──────────────────────────────────
