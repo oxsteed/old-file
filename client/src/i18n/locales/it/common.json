@@ -2470,6 +2470,163 @@
         "notEditable": "Questa campagna non può più essere modificata. Solo le bozze e le campagne con revisioni richieste possono essere modificate.",
         "editDraft": "Modifica bozza"
       }
+    },
+    "checkout": {
+      "backToDashboard": "Torna alla dashboard acquirente",
+      "backToOrder": "Torna all'ordine",
+      "confirm": {
+        "back": "Torna al metodo di pagamento",
+        "button": "Conferma e paga {{amount}}",
+        "checkbox": "Confermo di voler addebitare {{amount}} su {{method}} da parte di OxSteed per {{installment}} dell'ordine {{reference}}.",
+        "continue": "Continua alla conferma",
+        "line": "Stai per pagare {{amount}} ({{installment}}) per l'ordine {{reference}} con {{method}}.",
+        "mustCheck": "Spunta la casella di conferma per continuare.",
+        "noAutoCharge": "Nessuna carta salvata. Ogni addebito richiede la tua conferma esplicita qui.",
+        "quoteNotAccepted": "Accetta la versione corrente del preventivo prima di confermare il pagamento.",
+        "reviewTitle": "Rivedi e conferma",
+        "submitting": "Invio del pagamento…"
+      },
+      "errors": {
+        "duplicate": "Questo pagamento è già stato inviato. Controlla lo stato del pagamento invece di pagare di nuovo.",
+        "generic": "Qualcosa è andato storto. Riprova.",
+        "quoteChanged": "Il preventivo è cambiato durante il checkout. Esamina la nuova versione prima di pagare."
+      },
+      "loadError": "Impossibile caricare questo checkout. Riprova.",
+      "loading": "Caricamento del pagamento…",
+      "method": {
+        "cardDetails": "Dati della carta",
+        "cardNote": "I dati della carta sono gestiti da Stripe. OxSteed non vede né memorizza mai il tuo numero di carta.",
+        "choose": "Scegli come pagare questa rata",
+        "credit": "Credito OxSteed",
+        "creditBalance": "Credito disponibile: {{amount}}",
+        "creditDesc": "Paga con il tuo saldo Credito OxSteed.",
+        "creditDisabled": "Il Credito OxSteed non è al momento disponibile",
+        "creditDisabledDetail": "I pagamenti con credito sono disattivati, quindi questa rata non può essere prelevata dal credito. Puoi comunque pagare con carta.",
+        "creditInsufficient": "Credito insufficiente",
+        "creditNotEligible": "Questo ordine non è idoneo al pagamento con credito.",
+        "creditShortfall": "Ti mancano {{amount}} rispetto all'importo di {{installment}}.",
+        "creditTopUpHint": "Ricarica il tuo credito oppure continua con la carta.",
+        "oneMethodNote": "Ogni rata si paga con un unico metodo. Niente fondi misti, e nulla viene addebitato senza la tua conferma esplicita.",
+        "payWithCardInstead": "Paga invece con carta",
+        "stripe": "Carta via Stripe",
+        "stripeDesc": "Paga con carta di debito o di credito. Inserisci i dati della carta ogni volta; nulla viene salvato o addebitato automaticamente."
+      },
+      "missingSubject": "Nessun ordine o campagna selezionato per il checkout.",
+      "payments": {
+        "awaitingBadge": "In attesa di regolamento",
+        "empty": "Nessun tentativo di pagamento ancora.",
+        "headers": {
+          "amount": "Importo",
+          "date": "Data",
+          "installment": "Rata",
+          "method": "Metodo",
+          "reference": "Riferimento",
+          "status": "Stato"
+        },
+        "settledBadge": "Regolato",
+        "states": {
+          "failed": "Fallito",
+          "pending": "In attesa",
+          "processing": "In elaborazione",
+          "refunded": "Rimborsato",
+          "succeeded": "Riuscito"
+        },
+        "subtitle": "Ogni tentativo di pagamento, con regolamento confermato da OxSteed.",
+        "title": "I miei pagamenti logistici"
+      },
+      "quote": {
+        "acceptedOn": "Accettato il {{date}}",
+        "depositPercent": "L'acconto è il {{percent}}% del totale del preventivo, secondo il preventivo approvato.",
+        "expired": "Questo preventivo è scaduto il {{date}}. Richiedi un nuovo preventivo alle operations prima di pagare.",
+        "expiresOn": "Preventivo valido fino al {{date}}",
+        "itemized": "Costi dettagliati",
+        "newVersionAvailable": "Una versione più recente del preventivo richiede la tua accettazione prima del pagamento.",
+        "supersededBlocked": "Questo preventivo è stato sostituito dalla versione {{version}}. Esamina e accetta la nuova versione prima di pagare.",
+        "total": "Totale preventivo",
+        "version": "Preventivo versione {{version}}"
+      },
+      "returnTo": "Torna a {{label}}",
+      "schedule": {
+        "alreadySettled": "Questa rata è regolata. Non c'è altro da pagare.",
+        "deposit": "Acconto",
+        "dueNow": "Scade ora",
+        "dueOn": "Scade il {{date}}",
+        "final": "Saldo finale",
+        "paid": "Pagato",
+        "payNow": "Paga {{installment}}",
+        "processing": "Pagamento in elaborazione",
+        "settled": "Regolato",
+        "unpaid": "In attesa di pagamento"
+      },
+      "sections": {
+        "confirm": "Conferma pagamento",
+        "method": "Metodo di pagamento",
+        "quote": "Preventivo",
+        "schedule": "Piano di pagamento",
+        "status": "Stato del pagamento",
+        "summary": "Riepilogo ordine",
+        "terms": "Termini di cancellazione"
+      },
+      "status": {
+        "amount": "Importo",
+        "attempt": "Tentativo {{id}}",
+        "checking": "Verifica dello stato del pagamento…",
+        "createdAt": "Avviato il {{date}}",
+        "failed": "Pagamento non riuscito",
+        "failedDetail": "Motivo: {{message}}",
+        "failedUnknown": "Il pagamento non è andato a buon fine. Non è stato prelevato denaro.",
+        "installment": "Rata",
+        "method": "Metodo",
+        "newKeyNote": "Ogni nuovo tentativo crea un nuovo tentativo di pagamento, quindi non ti viene mai addebitato due volte per la stessa conferma.",
+        "notSettled": "I fondi non sono ancora regolati. Confermeremo qui una volta accreditato il pagamento.",
+        "pending": "Pagamento in attesa",
+        "processing": "Elaborazione del pagamento…",
+        "received": "Abbiamo ricevuto la tua conferma di pagamento.",
+        "refresh": "Aggiorna stato",
+        "refunded": "Rimborsato",
+        "retry": "Riprova con un nuovo tentativo di pagamento",
+        "settled": "Pagamento regolato",
+        "settledDetail": "OxSteed ha confermato la ricezione di {{amount}}. La tua rata è completa.",
+        "viewAll": "Vedi tutti i miei pagamenti"
+      },
+      "subtitle": "Esamina il preventivo e conferma ogni rata separatamente.",
+      "summary": {
+        "expectedArrival": "Arrivo previsto",
+        "lane": "Rotta",
+        "product": "Prodotto",
+        "quantity": "Quantità",
+        "reference": "Riferimento",
+        "status": "Stato",
+        "supplier": "Fornitore"
+      },
+      "title": "Checkout sicuro",
+      "usdOnly": "Tutti gli importi sono in USD."
+    },
+    "quotes": {
+      "accept": {
+        "accepted": "Preventivo versione {{version}} accettato. Ora puoi pagare.",
+        "accepting": "Accettazione…",
+        "body": "La versione {{version}} sostituisce la versione {{previous}}. Esamina le modifiche, poi accettala per procedere al pagamento. Non puoi pagare con la vecchia versione.",
+        "button": "Accetta il preventivo versione {{version}}",
+        "cannotPayOld": "Il pagamento è in pausa finché non accetti il preventivo corrente.",
+        "decline": "Non ora",
+        "title": "Un nuovo preventivo richiede la tua accettazione"
+      },
+      "current": "Corrente",
+      "decrease": "diminuzione",
+      "diff": {
+        "added": "Aggiunto",
+        "changed": "Modificato",
+        "noChanges": "Nessuna modifica alle voci in questa versione.",
+        "now": "Ora {{amount}}",
+        "removed": "Rimosso",
+        "title": "Cosa è cambiato",
+        "totalChange": "Totale variato di {{amount}}",
+        "was": "Era {{amount}}"
+      },
+      "increase": "aumento",
+      "superseded": "Sostituito",
+      "version": "Versione {{version}}"
     }
   }
 }

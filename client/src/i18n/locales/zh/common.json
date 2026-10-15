@@ -2470,6 +2470,163 @@
         "notEditable": "此活动已无法编辑。只有草稿和已请求修改的活动可以编辑。",
         "editDraft": "编辑草稿"
       }
+    },
+    "checkout": {
+      "backToDashboard": "返回买家面板",
+      "backToOrder": "返回订单",
+      "confirm": {
+        "back": "返回付款方式",
+        "button": "确认并支付 {{amount}}",
+        "checkbox": "我确认希望 OxSteed 从{{method}}扣除 {{amount}}，用于订单 {{reference}} 的{{installment}}。",
+        "continue": "继续确认",
+        "line": "您即将使用{{method}}为订单 {{reference}} 支付 {{amount}}（{{installment}}）。",
+        "mustCheck": "请勾选确认框以继续。",
+        "noAutoCharge": "无已保存的卡。每笔扣款都需要在本页面明确确认。",
+        "quoteNotAccepted": "确认付款前请先接受当前报价版本。",
+        "reviewTitle": "核对并确认",
+        "submitting": "正在提交付款…"
+      },
+      "errors": {
+        "duplicate": "该笔付款已提交。请查看付款状态，不要重复付款。",
+        "generic": "出现错误，请重试。",
+        "quoteChanged": "结账期间报价已变更。请先查看新版本再付款。"
+      },
+      "loadError": "无法加载此次结账，请重试。",
+      "loading": "正在加载结账…",
+      "method": {
+        "cardDetails": "卡信息",
+        "cardNote": "卡信息由 Stripe 处理。OxSteed 不会查看或存储您的卡号。",
+        "choose": "选择本期款项的付款方式",
+        "credit": "OxSteed 信用额度",
+        "creditBalance": "可用信用余额：{{amount}}",
+        "creditDesc": "使用您的 OxSteed 信用余额付款。",
+        "creditDisabled": "OxSteed 信用额度暂时不可用",
+        "creditDisabledDetail": "信用付款目前已停用，本期款项无法从信用额度扣除。您仍可使用银行卡付款。",
+        "creditInsufficient": "信用余额不足",
+        "creditNotEligible": "该订单不符合信用付款条件。",
+        "creditShortfall": "距离{{installment}}金额还差 {{amount}}。",
+        "creditTopUpHint": "请充值信用余额，或改用银行卡付款。",
+        "oneMethodNote": "每期款项仅使用一种付款方式。不支持混合付款，未经您明确确认不会扣款。",
+        "payWithCardInstead": "改用银行卡付款",
+        "stripe": "通过 Stripe 刷卡",
+        "stripeDesc": "使用借记卡或信用卡付款。每次都需要输入卡信息；不会保存，也不会自动扣款。"
+      },
+      "missingSubject": "未选择要结账的订单或活动。",
+      "payments": {
+        "awaitingBadge": "等待结算",
+        "empty": "暂无付款记录。",
+        "headers": {
+          "amount": "金额",
+          "date": "日期",
+          "installment": "分期",
+          "method": "方式",
+          "reference": "订单号",
+          "status": "状态"
+        },
+        "settledBadge": "已结算",
+        "states": {
+          "failed": "失败",
+          "pending": "待处理",
+          "processing": "处理中",
+          "refunded": "已退款",
+          "succeeded": "成功"
+        },
+        "subtitle": "所有付款记录，结算状态由 OxSteed 确认。",
+        "title": "我的物流付款"
+      },
+      "quote": {
+        "acceptedOn": "已于 {{date}} 接受",
+        "depositPercent": "定金为报价总额的 {{percent}}%，以已批准报价为准。",
+        "expired": "该报价已于 {{date}} 过期。付款前请向运营团队索取新报价。",
+        "expiresOn": "报价有效期至 {{date}}",
+        "itemized": "费用明细",
+        "newVersionAvailable": "有新版报价需要您接受后才能付款。",
+        "supersededBlocked": "该报价已被版本 {{version}} 取代。请先查看并接受新版本再付款。",
+        "total": "报价总额",
+        "version": "报价版本 {{version}}"
+      },
+      "returnTo": "返回{{label}}",
+      "schedule": {
+        "alreadySettled": "本期款项已结算，无需再付款。",
+        "deposit": "定金",
+        "dueNow": "立即到期",
+        "dueOn": "到期日 {{date}}",
+        "final": "尾款",
+        "paid": "已付款",
+        "payNow": "支付{{installment}}",
+        "processing": "付款处理中",
+        "settled": "已结算",
+        "unpaid": "等待付款"
+      },
+      "sections": {
+        "confirm": "确认付款",
+        "method": "付款方式",
+        "quote": "报价",
+        "schedule": "付款计划",
+        "status": "付款状态",
+        "summary": "订单摘要",
+        "terms": "取消条款"
+      },
+      "status": {
+        "amount": "金额",
+        "attempt": "第 {{id}} 次尝试",
+        "checking": "正在查询付款状态…",
+        "createdAt": "开始于 {{date}}",
+        "failed": "付款失败",
+        "failedDetail": "原因：{{message}}",
+        "failedUnknown": "付款未成功，未扣除任何款项。",
+        "installment": "分期",
+        "method": "方式",
+        "newKeyNote": "每次重试都会创建新的付款记录，因此同一确认不会被重复扣款。",
+        "notSettled": "款项尚未结算。款项到账后我们会在此确认。",
+        "pending": "付款待处理",
+        "processing": "正在处理您的付款…",
+        "received": "我们已收到您的付款确认。",
+        "refresh": "刷新状态",
+        "refunded": "已退款",
+        "retry": "以新的付款记录重试",
+        "settled": "付款已结算",
+        "settledDetail": "OxSteed 已确认收到 {{amount}}。您的分期已完成。",
+        "viewAll": "查看我的全部付款"
+      },
+      "subtitle": "查看报价，并分别确认每期款项。",
+      "summary": {
+        "expectedArrival": "预计到达",
+        "lane": "线路",
+        "product": "商品",
+        "quantity": "数量",
+        "reference": "订单号",
+        "status": "状态",
+        "supplier": "供应商"
+      },
+      "title": "安全结账",
+      "usdOnly": "所有金额均为美元。"
+    },
+    "quotes": {
+      "accept": {
+        "accepted": "已接受报价版本 {{version}}，现在可以付款。",
+        "accepting": "接受中…",
+        "body": "版本 {{version}} 取代了版本 {{previous}}。请查看变更内容，然后接受以继续付款。旧版本不可用于付款。",
+        "button": "接受报价版本 {{version}}",
+        "cannotPayOld": "在您接受当前报价之前，付款已暂停。",
+        "decline": "稍后",
+        "title": "新报价需要您的接受"
+      },
+      "current": "当前",
+      "decrease": "减少",
+      "diff": {
+        "added": "新增",
+        "changed": "变更",
+        "noChanges": "本版本无明细变更。",
+        "now": "现为 {{amount}}",
+        "removed": "删除",
+        "title": "变更内容",
+        "totalChange": "总额变化 {{amount}}",
+        "was": "原为 {{amount}}"
+      },
+      "increase": "增加",
+      "superseded": "已取代",
+      "version": "版本 {{version}}"
     }
   }
 }

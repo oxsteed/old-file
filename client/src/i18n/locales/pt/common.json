@@ -2470,6 +2470,163 @@
         "notEditable": "Esta campanha não pode mais ser editada. Somente rascunhos e campanhas com revisões solicitadas podem ser editados.",
         "editDraft": "Editar rascunho"
       }
+    },
+    "checkout": {
+      "backToDashboard": "Voltar ao painel do comprador",
+      "backToOrder": "Voltar ao pedido",
+      "confirm": {
+        "back": "Voltar à forma de pagamento",
+        "button": "Confirmar e pagar {{amount}}",
+        "checkbox": "Confirmo que quero que a OxSteed cobre {{amount}} em {{method}} referente a {{installment}} do pedido {{reference}}.",
+        "continue": "Continuar para a confirmação",
+        "line": "Você está prestes a pagar {{amount}} ({{installment}}) do pedido {{reference}} usando {{method}}.",
+        "mustCheck": "Marque a caixa de confirmação para continuar.",
+        "noAutoCharge": "Sem cartões salvos. Toda cobrança precisa da sua confirmação explícita aqui.",
+        "quoteNotAccepted": "Aceite a versão atual do orçamento antes de confirmar o pagamento.",
+        "reviewTitle": "Revisar e confirmar",
+        "submitting": "Enviando pagamento…"
+      },
+      "errors": {
+        "duplicate": "Este pagamento já foi enviado. Verifique o status do pagamento em vez de pagar novamente.",
+        "generic": "Algo deu errado. Tente novamente.",
+        "quoteChanged": "O orçamento mudou durante o pagamento. Revise a nova versão antes de pagar."
+      },
+      "loadError": "Não foi possível carregar este pagamento. Tente novamente.",
+      "loading": "Carregando pagamento…",
+      "method": {
+        "cardDetails": "Dados do cartão",
+        "cardNote": "Os dados do cartão são processados pela Stripe. A OxSteed nunca vê nem armazena o número do seu cartão.",
+        "choose": "Escolha como pagar esta parcela",
+        "credit": "Crédito OxSteed",
+        "creditBalance": "Saldo de crédito disponível: {{amount}}",
+        "creditDesc": "Pague com seu saldo de Crédito OxSteed.",
+        "creditDisabled": "O Crédito OxSteed está temporariamente indisponível",
+        "creditDisabledDetail": "Os pagamentos com crédito estão desativados no momento, então esta parcela não pode sair do crédito. Você ainda pode pagar com cartão.",
+        "creditInsufficient": "Saldo de crédito insuficiente",
+        "creditNotEligible": "Este pedido não é elegível para pagamento com crédito.",
+        "creditShortfall": "Faltam {{amount}} para o valor de {{installment}}.",
+        "creditTopUpHint": "Recarregue seu saldo de crédito ou continue com cartão.",
+        "oneMethodNote": "Cada parcela é paga com exatamente um método. Sem fundos mistos, e nada é cobrado sem sua confirmação explícita.",
+        "payWithCardInstead": "Pagar com cartão",
+        "stripe": "Cartão via Stripe",
+        "stripeDesc": "Pague com cartão de débito ou crédito. Você informa os dados do cartão a cada vez; nada é salvo nem cobrado automaticamente."
+      },
+      "missingSubject": "Nenhum pedido ou campanha foi selecionado para pagamento.",
+      "payments": {
+        "awaitingBadge": "Aguardando liquidação",
+        "empty": "Nenhuma tentativa de pagamento ainda.",
+        "headers": {
+          "amount": "Valor",
+          "date": "Data",
+          "installment": "Parcela",
+          "method": "Método",
+          "reference": "Referência",
+          "status": "Status"
+        },
+        "settledBadge": "Liquidado",
+        "states": {
+          "failed": "Falhou",
+          "pending": "Pendente",
+          "processing": "Processando",
+          "refunded": "Reembolsado",
+          "succeeded": "Concluído"
+        },
+        "subtitle": "Cada tentativa de pagamento, com liquidação confirmada pela OxSteed.",
+        "title": "Meus pagamentos de logística"
+      },
+      "quote": {
+        "acceptedOn": "Aceito em {{date}}",
+        "depositPercent": "O depósito é {{percent}}% do total do orçamento, conforme o orçamento aprovado.",
+        "expired": "Este orçamento expirou em {{date}}. Peça um novo orçamento às operações antes de pagar.",
+        "expiresOn": "Orçamento válido até {{date}}",
+        "itemized": "Custos detalhados",
+        "newVersionAvailable": "Uma versão mais recente do orçamento precisa da sua aceitação antes do pagamento.",
+        "supersededBlocked": "Este orçamento foi substituído pela versão {{version}}. Revise e aceite a nova versão antes de pagar.",
+        "total": "Total do orçamento",
+        "version": "Orçamento versão {{version}}"
+      },
+      "returnTo": "Voltar para {{label}}",
+      "schedule": {
+        "alreadySettled": "Esta parcela está liquidada. Nada mais a pagar.",
+        "deposit": "Depósito",
+        "dueNow": "Vence agora",
+        "dueOn": "Vence em {{date}}",
+        "final": "Saldo final",
+        "paid": "Pago",
+        "payNow": "Pagar {{installment}}",
+        "processing": "Pagamento em processamento",
+        "settled": "Liquidado",
+        "unpaid": "Aguardando pagamento"
+      },
+      "sections": {
+        "confirm": "Confirmar pagamento",
+        "method": "Forma de pagamento",
+        "quote": "Orçamento",
+        "schedule": "Cronograma de pagamento",
+        "status": "Status do pagamento",
+        "summary": "Resumo do pedido",
+        "terms": "Termos de cancelamento"
+      },
+      "status": {
+        "amount": "Valor",
+        "attempt": "Tentativa {{id}}",
+        "checking": "Verificando o status do pagamento…",
+        "createdAt": "Iniciada em {{date}}",
+        "failed": "Pagamento falhou",
+        "failedDetail": "Motivo: {{message}}",
+        "failedUnknown": "O pagamento não foi concluído. Nenhum valor foi cobrado.",
+        "installment": "Parcela",
+        "method": "Método",
+        "newKeyNote": "Cada nova tentativa cria uma tentativa de pagamento nova, então você nunca é cobrado duas vezes pela mesma confirmação.",
+        "notSettled": "Os fundos ainda não foram liquidados. Confirmaremos aqui quando o pagamento for compensado.",
+        "pending": "Pagamento pendente",
+        "processing": "Processando seu pagamento…",
+        "received": "Recebemos sua confirmação de pagamento.",
+        "refresh": "Atualizar status",
+        "refunded": "Reembolsado",
+        "retry": "Tentar novamente com uma nova tentativa de pagamento",
+        "settled": "Pagamento liquidado",
+        "settledDetail": "A OxSteed confirmou o recebimento de {{amount}}. Sua parcela está concluída.",
+        "viewAll": "Ver todos os meus pagamentos"
+      },
+      "subtitle": "Revise seu orçamento e confirme cada parcela separadamente.",
+      "summary": {
+        "expectedArrival": "Chegada prevista",
+        "lane": "Rota",
+        "product": "Produto",
+        "quantity": "Quantidade",
+        "reference": "Referência",
+        "status": "Status",
+        "supplier": "Fornecedor"
+      },
+      "title": "Pagamento seguro",
+      "usdOnly": "Todos os valores estão em USD."
+    },
+    "quotes": {
+      "accept": {
+        "accepted": "Orçamento versão {{version}} aceito. Agora você pode pagar.",
+        "accepting": "Aceitando…",
+        "body": "A versão {{version}} substitui a versão {{previous}}. Revise o que mudou e aceite para continuar ao pagamento. Você não pode pagar com a versão antiga.",
+        "button": "Aceitar o orçamento versão {{version}}",
+        "cannotPayOld": "O pagamento está pausado até você aceitar o orçamento atual.",
+        "decline": "Agora não",
+        "title": "Um novo orçamento precisa da sua aceitação"
+      },
+      "current": "Atual",
+      "decrease": "redução",
+      "diff": {
+        "added": "Adicionado",
+        "changed": "Alterado",
+        "noChanges": "Sem alterações nos itens nesta versão.",
+        "now": "Agora {{amount}}",
+        "removed": "Removido",
+        "title": "O que mudou",
+        "totalChange": "Total alterado em {{amount}}",
+        "was": "Era {{amount}}"
+      },
+      "increase": "aumento",
+      "superseded": "Substituído",
+      "version": "Versão {{version}}"
     }
   }
 }

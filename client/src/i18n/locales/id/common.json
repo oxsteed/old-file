@@ -2470,6 +2470,163 @@
         "notEditable": "Kampanye ini tidak dapat lagi diedit. Hanya draf dan kampanye dengan revisi yang diminta yang dapat diedit.",
         "editDraft": "Edit draf"
       }
+    },
+    "checkout": {
+      "backToDashboard": "Kembali ke dasbor pembeli",
+      "backToOrder": "Kembali ke pesanan",
+      "confirm": {
+        "back": "Kembali ke metode pembayaran",
+        "button": "Konfirmasi dan bayar {{amount}}",
+        "checkbox": "Saya mengonfirmasi ingin OxSteed menagih {{amount}} ke {{method}} untuk {{installment}} pesanan {{reference}}.",
+        "continue": "Lanjut ke konfirmasi",
+        "line": "Anda akan membayar {{amount}} ({{installment}}) untuk pesanan {{reference}} menggunakan {{method}}.",
+        "mustCheck": "Centang kotak konfirmasi untuk melanjutkan.",
+        "noAutoCharge": "Tidak ada kartu tersimpan. Setiap penagihan memerlukan konfirmasi eksplisit Anda di sini.",
+        "quoteNotAccepted": "Terima versi penawaran saat ini sebelum mengonfirmasi pembayaran.",
+        "reviewTitle": "Tinjau dan konfirmasi",
+        "submitting": "Mengirim pembayaran…"
+      },
+      "errors": {
+        "duplicate": "Pembayaran ini sudah dikirim. Periksa status pembayaran alih-alih membayar lagi.",
+        "generic": "Terjadi kesalahan. Silakan coba lagi.",
+        "quoteChanged": "Penawaran berubah saat Anda checkout. Tinjau versi baru sebelum membayar."
+      },
+      "loadError": "Checkout ini tidak dapat dimuat. Silakan coba lagi.",
+      "loading": "Memuat checkout…",
+      "method": {
+        "cardDetails": "Detail kartu",
+        "cardNote": "Detail kartu ditangani oleh Stripe. OxSteed tidak pernah melihat atau menyimpan nomor kartu Anda.",
+        "choose": "Pilih cara membayar cicilan ini",
+        "credit": "Kredit OxSteed",
+        "creditBalance": "Saldo kredit tersedia: {{amount}}",
+        "creditDesc": "Bayar dari saldo Kredit OxSteed Anda.",
+        "creditDisabled": "Kredit OxSteed sementara tidak tersedia",
+        "creditDisabledDetail": "Pembayaran kredit saat ini dinonaktifkan, jadi cicilan ini tidak dapat diambil dari kredit. Anda tetap bisa membayar dengan kartu.",
+        "creditInsufficient": "Saldo kredit tidak mencukupi",
+        "creditNotEligible": "Pesanan ini tidak memenuhi syarat pembayaran kredit.",
+        "creditShortfall": "Anda kurang {{amount}} dari jumlah {{installment}}.",
+        "creditTopUpHint": "Isi ulang saldo kredit Anda atau lanjutkan dengan kartu.",
+        "oneMethodNote": "Setiap cicilan dibayar dengan tepat satu metode. Tidak ada pendanaan campuran, dan tidak ada yang ditagih tanpa konfirmasi eksplisit Anda.",
+        "payWithCardInstead": "Bayar dengan kartu saja",
+        "stripe": "Kartu via Stripe",
+        "stripeDesc": "Bayar dengan kartu debit atau kredit. Anda memasukkan detail kartu setiap kali; tidak ada yang disimpan atau ditagih otomatis."
+      },
+      "missingSubject": "Tidak ada pesanan atau kampanye yang dipilih untuk checkout.",
+      "payments": {
+        "awaitingBadge": "Menunggu pelunasan",
+        "empty": "Belum ada upaya pembayaran.",
+        "headers": {
+          "amount": "Jumlah",
+          "date": "Tanggal",
+          "installment": "Cicilan",
+          "method": "Metode",
+          "reference": "Referensi",
+          "status": "Status"
+        },
+        "settledBadge": "Lunas",
+        "states": {
+          "failed": "Gagal",
+          "pending": "Tertunda",
+          "processing": "Diproses",
+          "refunded": "Dikembalikan",
+          "succeeded": "Berhasil"
+        },
+        "subtitle": "Setiap upaya pembayaran, dengan pelunasan yang dikonfirmasi OxSteed.",
+        "title": "Pembayaran logistik saya"
+      },
+      "quote": {
+        "acceptedOn": "Diterima {{date}}",
+        "depositPercent": "Uang muka adalah {{percent}}% dari total penawaran, sesuai penawaran yang disetujui.",
+        "expired": "Penawaran ini kedaluwarsa pada {{date}}. Minta penawaran baru ke operasional sebelum membayar.",
+        "expiresOn": "Penawaran kedaluwarsa {{date}}",
+        "itemized": "Rincian biaya",
+        "newVersionAvailable": "Versi penawaran yang lebih baru memerlukan persetujuan Anda sebelum membayar.",
+        "supersededBlocked": "Penawaran ini telah digantikan oleh versi {{version}}. Tinjau dan terima versi baru sebelum membayar.",
+        "total": "Total penawaran",
+        "version": "Penawaran versi {{version}}"
+      },
+      "returnTo": "Kembali ke {{label}}",
+      "schedule": {
+        "alreadySettled": "Cicilan ini sudah lunas. Tidak ada lagi yang perlu dibayar.",
+        "deposit": "Uang muka",
+        "dueNow": "Jatuh tempo sekarang",
+        "dueOn": "Jatuh tempo {{date}}",
+        "final": "Saldo akhir",
+        "paid": "Dibayar",
+        "payNow": "Bayar {{installment}}",
+        "processing": "Pembayaran diproses",
+        "settled": "Lunas",
+        "unpaid": "Menunggu pembayaran"
+      },
+      "sections": {
+        "confirm": "Konfirmasi pembayaran",
+        "method": "Metode pembayaran",
+        "quote": "Penawaran",
+        "schedule": "Jadwal pembayaran",
+        "status": "Status pembayaran",
+        "summary": "Ringkasan pesanan",
+        "terms": "Ketentuan pembatalan"
+      },
+      "status": {
+        "amount": "Jumlah",
+        "attempt": "Upaya {{id}}",
+        "checking": "Memeriksa status pembayaran…",
+        "createdAt": "Dimulai {{date}}",
+        "failed": "Pembayaran gagal",
+        "failedDetail": "Alasan: {{message}}",
+        "failedUnknown": "Pembayaran tidak berhasil. Tidak ada dana yang diambil.",
+        "installment": "Cicilan",
+        "method": "Metode",
+        "newKeyNote": "Setiap percobaan ulang membuat upaya pembayaran baru, jadi Anda tidak pernah ditagih dua kali untuk konfirmasi yang sama.",
+        "notSettled": "Dana belum lunas. Kami akan mengonfirmasi di sini setelah pembayaran selesai.",
+        "pending": "Pembayaran tertunda",
+        "processing": "Memproses pembayaran Anda…",
+        "received": "Kami menerima konfirmasi pembayaran Anda.",
+        "refresh": "Muat ulang status",
+        "refunded": "Dikembalikan",
+        "retry": "Coba lagi dengan upaya pembayaran baru",
+        "settled": "Pembayaran lunas",
+        "settledDetail": "OxSteed telah mengonfirmasi penerimaan {{amount}}. Cicilan Anda selesai.",
+        "viewAll": "Lihat semua pembayaran saya"
+      },
+      "subtitle": "Tinjau penawaran Anda dan konfirmasi setiap cicilan secara terpisah.",
+      "summary": {
+        "expectedArrival": "Perkiraan tiba",
+        "lane": "Rute",
+        "product": "Produk",
+        "quantity": "Jumlah",
+        "reference": "Referensi",
+        "status": "Status",
+        "supplier": "Pemasok"
+      },
+      "title": "Checkout aman",
+      "usdOnly": "Semua jumlah dalam USD."
+    },
+    "quotes": {
+      "accept": {
+        "accepted": "Penawaran versi {{version}} diterima. Anda kini dapat membayar.",
+        "accepting": "Menerima…",
+        "body": "Versi {{version}} menggantikan versi {{previous}}. Tinjau perubahannya, lalu terima untuk lanjut ke pembayaran. Anda tidak dapat membayar dengan versi lama.",
+        "button": "Terima penawaran versi {{version}}",
+        "cannotPayOld": "Pembayaran dijeda hingga Anda menerima penawaran saat ini.",
+        "decline": "Nanti saja",
+        "title": "Penawaran baru memerlukan persetujuan Anda"
+      },
+      "current": "Saat ini",
+      "decrease": "penurunan",
+      "diff": {
+        "added": "Ditambahkan",
+        "changed": "Diubah",
+        "noChanges": "Tidak ada perubahan rincian pada versi ini.",
+        "now": "Kini {{amount}}",
+        "removed": "Dihapus",
+        "title": "Yang berubah",
+        "totalChange": "Total berubah {{amount}}",
+        "was": "Sebelumnya {{amount}}"
+      },
+      "increase": "kenaikan",
+      "superseded": "Digantikan",
+      "version": "Versi {{version}}"
     }
   }
 }

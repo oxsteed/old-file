@@ -2470,6 +2470,163 @@
         "notEditable": "Diese Kampagne kann nicht mehr bearbeitet werden. Nur Entwürfe und Kampagnen mit angeforderten Überarbeitungen können bearbeitet werden.",
         "editDraft": "Entwurf bearbeiten"
       }
+    },
+    "checkout": {
+      "backToDashboard": "Zurück zum Käufer-Dashboard",
+      "backToOrder": "Zurück zur Bestellung",
+      "confirm": {
+        "back": "Zurück zur Zahlungsmethode",
+        "button": "Bestätigen und {{amount}} zahlen",
+        "checkbox": "Ich bestätige, dass OxSteed {{amount}} per {{method}} für {{installment}} der Bestellung {{reference}} abbuchen soll.",
+        "continue": "Weiter zur Bestätigung",
+        "line": "Sie sind dabei, {{amount}} ({{installment}}) für die Bestellung {{reference}} per {{method}} zu zahlen.",
+        "mustCheck": "Bitte setzen Sie den Haken im Bestätigungsfeld, um fortzufahren.",
+        "noAutoCharge": "Keine gespeicherten Karten. Jede Abbuchung braucht hier Ihre ausdrückliche Bestätigung.",
+        "quoteNotAccepted": "Akzeptieren Sie die aktuelle Angebotsversion, bevor Sie die Zahlung bestätigen.",
+        "reviewTitle": "Prüfen und bestätigen",
+        "submitting": "Zahlung wird übermittelt…"
+      },
+      "errors": {
+        "duplicate": "Diese Zahlung wurde bereits übermittelt. Prüfen Sie den Zahlungsstatus, statt erneut zu zahlen.",
+        "generic": "Etwas ist schiefgelaufen. Bitte versuchen Sie es erneut.",
+        "quoteChanged": "Das Angebot hat sich während des Checkouts geändert. Prüfen Sie die neue Version vor der Zahlung."
+      },
+      "loadError": "Dieser Checkout konnte nicht geladen werden. Bitte versuchen Sie es erneut.",
+      "loading": "Checkout wird geladen…",
+      "method": {
+        "cardDetails": "Kartendaten",
+        "cardNote": "Kartendaten werden von Stripe verarbeitet. OxSteed sieht Ihre Kartennummer nie und speichert sie nicht.",
+        "choose": "Wählen Sie, wie Sie diese Rate zahlen",
+        "credit": "OxSteed-Guthaben",
+        "creditBalance": "Verfügbares Guthaben: {{amount}}",
+        "creditDesc": "Zahlen Sie mit Ihrem OxSteed-Guthaben.",
+        "creditDisabled": "OxSteed-Guthaben ist vorübergehend nicht verfügbar",
+        "creditDisabledDetail": "Guthabenzahlungen sind derzeit deaktiviert, daher kann diese Rate nicht vom Guthaben abgebucht werden. Sie können weiterhin per Karte zahlen.",
+        "creditInsufficient": "Unzureichendes Guthaben",
+        "creditNotEligible": "Diese Bestellung ist nicht für die Guthabenzahlung geeignet.",
+        "creditShortfall": "Ihnen fehlen {{amount}} zum Betrag von {{installment}}.",
+        "creditTopUpHint": "Laden Sie Ihr Guthaben auf oder fahren Sie stattdessen mit Karte fort.",
+        "oneMethodNote": "Jede Rate wird mit genau einer Methode gezahlt. Keine gemischte Finanzierung, und nichts wird ohne Ihre ausdrückliche Bestätigung abgebucht.",
+        "payWithCardInstead": "Stattdessen mit Karte zahlen",
+        "stripe": "Karte via Stripe",
+        "stripeDesc": "Zahlen Sie mit Debit- oder Kreditkarte. Sie geben die Kartendaten jedes Mal ein; nichts wird gespeichert oder automatisch abgebucht."
+      },
+      "missingSubject": "Für den Checkout wurde keine Bestellung oder Kampagne ausgewählt.",
+      "payments": {
+        "awaitingBadge": "Abwicklung ausstehend",
+        "empty": "Noch keine Zahlungsversuche.",
+        "headers": {
+          "amount": "Betrag",
+          "date": "Datum",
+          "installment": "Rate",
+          "method": "Methode",
+          "reference": "Referenz",
+          "status": "Status"
+        },
+        "settledBadge": "Abgewickelt",
+        "states": {
+          "failed": "Fehlgeschlagen",
+          "pending": "Ausstehend",
+          "processing": "Wird verarbeitet",
+          "refunded": "Erstattet",
+          "succeeded": "Erfolgreich"
+        },
+        "subtitle": "Jeder Zahlungsversuch, mit von OxSteed bestätigter Abwicklung.",
+        "title": "Meine Logistikzahlungen"
+      },
+      "quote": {
+        "acceptedOn": "Akzeptiert am {{date}}",
+        "depositPercent": "Die Anzahlung beträgt {{percent}} % der Angebotssumme gemäß dem genehmigten Angebot.",
+        "expired": "Dieses Angebot ist am {{date}} abgelaufen. Fordern Sie vor der Zahlung ein neues Angebot beim Betrieb an.",
+        "expiresOn": "Angebot gültig bis {{date}}",
+        "itemized": "Aufgeschlüsselte Kosten",
+        "newVersionAvailable": "Eine neuere Angebotsversion braucht vor der Zahlung Ihre Zustimmung.",
+        "supersededBlocked": "Dieses Angebot wurde durch Version {{version}} ersetzt. Prüfen und akzeptieren Sie die neue Version vor der Zahlung.",
+        "total": "Angebotssumme",
+        "version": "Angebot Version {{version}}"
+      },
+      "returnTo": "Zurück zu {{label}}",
+      "schedule": {
+        "alreadySettled": "Diese Rate ist abgewickelt. Es ist nichts mehr zu zahlen.",
+        "deposit": "Anzahlung",
+        "dueNow": "Jetzt fällig",
+        "dueOn": "Fällig am {{date}}",
+        "final": "Restbetrag",
+        "paid": "Bezahlt",
+        "payNow": "{{installment}} zahlen",
+        "processing": "Zahlung wird verarbeitet",
+        "settled": "Abgewickelt",
+        "unpaid": "Zahlung ausstehend"
+      },
+      "sections": {
+        "confirm": "Zahlung bestätigen",
+        "method": "Zahlungsmethode",
+        "quote": "Angebot",
+        "schedule": "Zahlungsplan",
+        "status": "Zahlungsstatus",
+        "summary": "Bestellübersicht",
+        "terms": "Stornobedingungen"
+      },
+      "status": {
+        "amount": "Betrag",
+        "attempt": "Versuch {{id}}",
+        "checking": "Zahlungsstatus wird geprüft…",
+        "createdAt": "Gestartet am {{date}}",
+        "failed": "Zahlung fehlgeschlagen",
+        "failedDetail": "Grund: {{message}}",
+        "failedUnknown": "Die Zahlung ist nicht durchgegangen. Es wurde kein Geld abgebucht.",
+        "installment": "Rate",
+        "method": "Methode",
+        "newKeyNote": "Jeder neue Versuch erzeugt einen neuen Zahlungsversuch, sodass Sie für dieselbe Bestätigung nie doppelt belastet werden.",
+        "notSettled": "Die Gelder sind noch nicht abgewickelt. Wir bestätigen hier, sobald die Zahlung eingegangen ist.",
+        "pending": "Zahlung ausstehend",
+        "processing": "Ihre Zahlung wird verarbeitet…",
+        "received": "Wir haben Ihre Zahlungsbestätigung erhalten.",
+        "refresh": "Status aktualisieren",
+        "refunded": "Erstattet",
+        "retry": "Mit einem neuen Zahlungsversuch erneut versuchen",
+        "settled": "Zahlung abgewickelt",
+        "settledDetail": "OxSteed hat den Erhalt von {{amount}} bestätigt. Ihre Rate ist abgeschlossen.",
+        "viewAll": "Alle meine Zahlungen ansehen"
+      },
+      "subtitle": "Prüfen Sie Ihr Angebot und bestätigen Sie jede Rate einzeln.",
+      "summary": {
+        "expectedArrival": "Voraussichtliche Ankunft",
+        "lane": "Route",
+        "product": "Produkt",
+        "quantity": "Menge",
+        "reference": "Referenz",
+        "status": "Status",
+        "supplier": "Lieferant"
+      },
+      "title": "Sicherer Checkout",
+      "usdOnly": "Alle Beträge in USD."
+    },
+    "quotes": {
+      "accept": {
+        "accepted": "Angebot Version {{version}} akzeptiert. Sie können jetzt zahlen.",
+        "accepting": "Wird akzeptiert…",
+        "body": "Version {{version}} ersetzt Version {{previous}}. Prüfen Sie die Änderungen und akzeptieren Sie sie, um zur Zahlung zu gelangen. Mit der alten Version kann nicht gezahlt werden.",
+        "button": "Angebot Version {{version}} akzeptieren",
+        "cannotPayOld": "Die Zahlung ist pausiert, bis Sie das aktuelle Angebot akzeptieren.",
+        "decline": "Nicht jetzt",
+        "title": "Ein neues Angebot braucht Ihre Zustimmung"
+      },
+      "current": "Aktuell",
+      "decrease": "Senkung",
+      "diff": {
+        "added": "Hinzugefügt",
+        "changed": "Geändert",
+        "noChanges": "Keine Positionsänderungen in dieser Version.",
+        "now": "Jetzt {{amount}}",
+        "removed": "Entfernt",
+        "title": "Was sich geändert hat",
+        "totalChange": "Summe geändert um {{amount}}",
+        "was": "War {{amount}}"
+      },
+      "increase": "Erhöhung",
+      "superseded": "Ersetzt",
+      "version": "Version {{version}}"
     }
   }
 }

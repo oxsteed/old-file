@@ -2470,6 +2470,163 @@
         "notEditable": "Kanpay sa a pa ka modifye ankò. Se sèlman bouyon yo ak kanpay yo mande revizyon pou yo ki ka modifye.",
         "editDraft": "Modifye bouyon an"
       }
+    },
+    "checkout": {
+      "backToDashboard": "Tounen nan tablodbò achtè a",
+      "backToOrder": "Tounen nan kòmand lan",
+      "confirm": {
+        "back": "Tounen nan mwayen peman an",
+        "button": "Konfime epi peye {{amount}}",
+        "checkbox": "Mwen konfime mwen vle OxSteed chaje {{amount}} sou {{method}} pou {{installment}} kòmand {{reference}} a.",
+        "continue": "Kontinye nan konfimasyon an",
+        "line": "Ou pral peye {{amount}} ({{installment}}) pou kòmand {{reference}} a avèk {{method}}.",
+        "mustCheck": "Tanpri tcheke kaz konfimasyon an pou kontinye.",
+        "noAutoCharge": "Pa gen kat ki anrejistre. Chak chaj bezwen konfimasyon eksplisit ou isit la.",
+        "quoteNotAccepted": "Aksepte vèsyon aktyèl devis la anvan ou konfime peman an.",
+        "reviewTitle": "Revize epi konfime",
+        "submitting": "N ap voye peman an…"
+      },
+      "errors": {
+        "duplicate": "Peman sa a te deja voye. Tcheke estati peman an olye ou peye ankò.",
+        "generic": "Yon pwoblèm pase. Tanpri eseye ankò.",
+        "quoteChanged": "Devis la chanje pandan ou t ap peye a. Revize nouvo vèsyon an anvan ou peye."
+      },
+      "loadError": "Nou pa t ka chaje peman sa a. Tanpri eseye ankò.",
+      "loading": "N ap chaje peman an…",
+      "method": {
+        "cardDetails": "Detay kat la",
+        "cardNote": "Se Stripe ki jere detay kat la. OxSteed pa janm wè ni estoke nimewo kat ou.",
+        "choose": "Chwazi kijan pou peye tranch sa a",
+        "credit": "Kredi OxSteed",
+        "creditBalance": "Balans kredi ki disponib: {{amount}}",
+        "creditDesc": "Peye avèk balans Kredi OxSteed ou.",
+        "creditDisabled": "Kredi OxSteed la pa disponib pou kounye a",
+        "creditDisabledDetail": "Peman ak kredi yo dezaktive pou kounye a, kidonk tranch sa a pa ka soti nan kredi. Ou ka toujou peye ak kat.",
+        "creditInsufficient": "Balans kredi pa sifi",
+        "creditNotEligible": "Kòmand sa a pa kalifye pou peman ak kredi.",
+        "creditShortfall": "Ou manke {{amount}} pou rive nan montan {{installment}} lan.",
+        "creditTopUpHint": "Rechaje balans kredi ou oswa kontinye ak kat pito.",
+        "oneMethodNote": "Chak tranch peye ak yon sèl mwayen. Pa gen melanj fon, epi anyen pa chaje san konfimasyon eksplisit ou.",
+        "payWithCardInstead": "Peye ak kat pito",
+        "stripe": "Kat via Stripe",
+        "stripeDesc": "Peye ak kat debi oswa kat kredi. Ou antre detay kat la chak fwa; anyen pa anrejistre ni chaje otomatikman."
+      },
+      "missingSubject": "Pa gen kòmand oswa kanpay ki chwazi pou peman an.",
+      "payments": {
+        "awaitingBadge": "Ap tann règleman",
+        "empty": "Pa gen tantativ peman pou kounye a.",
+        "headers": {
+          "amount": "Montan",
+          "date": "Dat",
+          "installment": "Tranch",
+          "method": "Mwayen",
+          "reference": "Referans",
+          "status": "Estati"
+        },
+        "settledBadge": "Regle",
+        "states": {
+          "failed": "Echwe",
+          "pending": "An atant",
+          "processing": "An kou",
+          "refunded": "Ranbouse",
+          "succeeded": "Reyisi"
+        },
+        "subtitle": "Chak tantativ peman, ak règleman OxSteed konfime.",
+        "title": "Peman lojistik mwen yo"
+      },
+      "quote": {
+        "acceptedOn": "Aksepte {{date}}",
+        "depositPercent": "Depo a se {{percent}}% nan total devis la, dapre devis ki apwouve a.",
+        "expired": "Devis sa a ekspire {{date}}. Mande operasyon yon nouvo devis anvan ou peye.",
+        "expiresOn": "Devis la ekspire {{date}}",
+        "itemized": "Pri detaye yo",
+        "newVersionAvailable": "Yon vèsyon devis ki pi nouvo bezwen akseptasyon ou anvan ou ka peye.",
+        "supersededBlocked": "Devis sa a te ranplase pa vèsyon {{version}}. Revize epi aksepte nouvo vèsyon an anvan ou peye.",
+        "total": "Total devis la",
+        "version": "Devis vèsyon {{version}}"
+      },
+      "returnTo": "Tounen nan {{label}}",
+      "schedule": {
+        "alreadySettled": "Tranch sa a regle. Pa gen anyen pou peye ankò.",
+        "deposit": "Depo",
+        "dueNow": "Pou peye kounye a",
+        "dueOn": "Pou {{date}}",
+        "final": "Balans final",
+        "paid": "Peye",
+        "payNow": "Peye {{installment}}",
+        "processing": "Peman an ap trete",
+        "settled": "Regle",
+        "unpaid": "Ap tann peman"
+      },
+      "sections": {
+        "confirm": "Konfime peman an",
+        "method": "Mwayen peman",
+        "quote": "Devis",
+        "schedule": "Kalendriye peman",
+        "status": "Estati peman an",
+        "summary": "Rezime kòmand lan",
+        "terms": "Kondisyon anilasyon"
+      },
+      "status": {
+        "amount": "Montan",
+        "attempt": "Tantativ {{id}}",
+        "checking": "N ap tcheke estati peman an…",
+        "createdAt": "Te kòmanse {{date}}",
+        "failed": "Peman an echwe",
+        "failedDetail": "Rezon: {{message}}",
+        "failedUnknown": "Peman an pa t pase. Pa gen lajan ki te pran.",
+        "installment": "Tranch",
+        "method": "Mwayen",
+        "newKeyNote": "Chak nouvo esè kreye yon nouvo tantativ peman, kidonk ou pa janm chaje de fwa pou menm konfimasyon an.",
+        "notSettled": "Fon yo poko regle. N ap konfime isit la lè peman an fin pase.",
+        "pending": "Peman an atant",
+        "processing": "N ap trete peman ou…",
+        "received": "Nou resevwa konfimasyon peman ou.",
+        "refresh": "Rafrechi estati a",
+        "refunded": "Ranbouse",
+        "retry": "Eseye ankò ak yon nouvo tantativ peman",
+        "settled": "Peman regle",
+        "settledDetail": "OxSteed konfime li resevwa {{amount}}. Tranch ou a konplè.",
+        "viewAll": "Wè tout peman mwen yo"
+      },
+      "subtitle": "Revize devis ou epi konfime chak tranch apa.",
+      "summary": {
+        "expectedArrival": "Arive prevwa",
+        "lane": "Wout",
+        "product": "Pwodui",
+        "quantity": "Kantite",
+        "reference": "Referans",
+        "status": "Estati",
+        "supplier": "Founisè"
+      },
+      "title": "Peman an sekirite",
+      "usdOnly": "Tout montan yo an USD."
+    },
+    "quotes": {
+      "accept": {
+        "accepted": "Devis vèsyon {{version}} aksepte. Ou ka peye kounye a.",
+        "accepting": "N ap aksepte…",
+        "body": "Vèsyon {{version}} ranplase vèsyon {{previous}}. Revize sa ki chanje, apre aksepte li pou kontinye nan peman an. Ou pa ka peye ak ansyen vèsyon an.",
+        "button": "Aksepte devis vèsyon {{version}}",
+        "cannotPayOld": "Peman an kanpe jiskaske ou aksepte devis aktyèl la.",
+        "decline": "Pa kounye a",
+        "title": "Yon nouvo devis bezwen akseptasyon ou"
+      },
+      "current": "Aktyèl",
+      "decrease": "diminisyon",
+      "diff": {
+        "added": "Te ajoute",
+        "changed": "Te chanje",
+        "noChanges": "Pa gen chanjman nan liy yo nan vèsyon sa a.",
+        "now": "Kounye a {{amount}}",
+        "removed": "Te retire",
+        "title": "Sa ki chanje",
+        "totalChange": "Total la chanje de {{amount}}",
+        "was": "Te {{amount}}"
+      },
+      "increase": "ogmantasyon",
+      "superseded": "Ranplase",
+      "version": "Vèsyon {{version}}"
     }
   }
 }

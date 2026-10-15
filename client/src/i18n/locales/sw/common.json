@@ -2468,6 +2468,163 @@
         "notEditable": "Kampeni hii haiwezi kuhaririwa tena. Rasimu na kampeni zilizoombwa marekebisho pekee ndizo zinazoweza kuhaririwa.",
         "editDraft": "Hariri rasimu"
       }
+    },
+    "checkout": {
+      "backToDashboard": "Rudi kwenye dashibodi ya mnunuzi",
+      "backToOrder": "Rudi kwenye oda",
+      "confirm": {
+        "back": "Rudi kwenye njia ya malipo",
+        "button": "Thibitisha na ulipe {{amount}}",
+        "checkbox": "Nathibitisha nataka OxSteed itoe {{amount}} kwenye {{method}} kwa {{installment}} ya oda {{reference}}.",
+        "continue": "Endelea kwenye uthibitisho",
+        "line": "Unakaribia kulipa {{amount}} ({{installment}}) kwa oda {{reference}} ukitumia {{method}}.",
+        "mustCheck": "Tafadhali weka tiki kwenye kisanduku cha uthibitisho ili uendelee.",
+        "noAutoCharge": "Hakuna kadi zilizohifadhiwa. Kila malipo yanahitaji uthibitisho wako hapa.",
+        "quoteNotAccepted": "Kubali toleo la sasa la nukuu kabla hujathibitisha malipo.",
+        "reviewTitle": "Kagua na uthibitishe",
+        "submitting": "Inatuma malipo…"
+      },
+      "errors": {
+        "duplicate": "Malipo haya yametumwa tayari. Angalia hali ya malipo badala ya kulipa tena.",
+        "generic": "Kuna tatizo. Tafadhali jaribu tena.",
+        "quoteChanged": "Nukuu ilibadilika ulipokuwa unalipa. Kagua toleo jipya kabla hujalipa."
+      },
+      "loadError": "Hatukuweza kupakia malipo haya. Tafadhali jaribu tena.",
+      "loading": "Inapakia malipo…",
+      "method": {
+        "cardDetails": "Maelezo ya kadi",
+        "cardNote": "Maelezo ya kadi yanashughulikiwa na Stripe. OxSteed haioni wala haihifadhi nambari ya kadi yako.",
+        "choose": "Chagua jinsi ya kulipa awamu hii",
+        "credit": "Mkopo wa OxSteed",
+        "creditBalance": "Salio la mkopo linalopatikana: {{amount}}",
+        "creditDesc": "Lipa kwa salio lako la Mkopo wa OxSteed.",
+        "creditDisabled": "Mkopo wa OxSteed haupatikani kwa muda",
+        "creditDisabledDetail": "Malipo ya mkopo yamezimwa kwa sasa, kwa hivyo awamu hii haiwezi kutolewa kwenye mkopo. Bado unaweza kulipa kwa kadi.",
+        "creditInsufficient": "Salio la mkopo halitoshi",
+        "creditNotEligible": "Oda hii haistahili kulipwa kwa mkopo.",
+        "creditShortfall": "Unapungukiwa {{amount}} kufikia kiasi cha {{installment}}.",
+        "creditTopUpHint": "Jaza salio lako la mkopo au endelea kwa kadi badala yake.",
+        "oneMethodNote": "Kila awamu hulipwa kwa njia moja tu. Hakuna mchanganyiko wa fedha, na hakuna kinachotozwa bila uthibitisho wako.",
+        "payWithCardInstead": "Lipa kwa kadi badala yake",
+        "stripe": "Kadi kupitia Stripe",
+        "stripeDesc": "Lipa kwa kadi ya debiti au mkopo. Unaingiza maelezo ya kadi kila mara; hakuna kinachohifadhiwa wala kutozwa kiotomatiki."
+      },
+      "missingSubject": "Hakuna oda au kampeni iliyochaguliwa kwa malipo.",
+      "payments": {
+        "awaitingBadge": "Inasubiri malipo kamili",
+        "empty": "Hakuna majaribio ya malipo bado.",
+        "headers": {
+          "amount": "Kiasi",
+          "date": "Tarehe",
+          "installment": "Awamu",
+          "method": "Njia",
+          "reference": "Rejea",
+          "status": "Hali"
+        },
+        "settledBadge": "Imekamilika",
+        "states": {
+          "failed": "Imeshindwa",
+          "pending": "Inasubiri",
+          "processing": "Inachakatwa",
+          "refunded": "Imerejeshwa",
+          "succeeded": "Imefanikiwa"
+        },
+        "subtitle": "Kila jaribio la malipo, na OxSteed imethibitisha ukamilishaji.",
+        "title": "Malipo yangu ya usafirishaji"
+      },
+      "quote": {
+        "acceptedOn": "Imekubaliwa {{date}}",
+        "depositPercent": "Amana ni {{percent}}% ya jumla ya nukuu, kama ilivyo katika nukuu iliyoidhinishwa.",
+        "expired": "Nukuu hii iliisha {{date}}. Omba nukuu mpya kutoka kwa uendeshaji kabla hujalipa.",
+        "expiresOn": "Nukuu inaisha {{date}}",
+        "itemized": "Gharama zilizoorodheshwa",
+        "newVersionAvailable": "Toleo jipya la nukuu linahitaji kukubaliwa kwako kabla hujalipa.",
+        "supersededBlocked": "Nukuu hii imebadilishwa na toleo {{version}}. Kagua na ukubali toleo jipya kabla hujalipa.",
+        "total": "Jumla ya nukuu",
+        "version": "Nukuu toleo {{version}}"
+      },
+      "returnTo": "Rudi kwenye {{label}}",
+      "schedule": {
+        "alreadySettled": "Awamu hii imekamilika. Hakuna cha kulipa zaidi.",
+        "deposit": "Amana",
+        "dueNow": "Inastahili sasa",
+        "dueOn": "Inastahili {{date}}",
+        "final": "Salio la mwisho",
+        "paid": "Imelipwa",
+        "payNow": "Lipa {{installment}}",
+        "processing": "Malipo yanachakatwa",
+        "settled": "Imekamilika",
+        "unpaid": "Inasubiri malipo"
+      },
+      "sections": {
+        "confirm": "Thibitisha malipo",
+        "method": "Njia ya malipo",
+        "quote": "Nukuu",
+        "schedule": "Ratiba ya malipo",
+        "status": "Hali ya malipo",
+        "summary": "Muhtasari wa oda",
+        "terms": "Masharti ya kughairi"
+      },
+      "status": {
+        "amount": "Kiasi",
+        "attempt": "Jaribio {{id}}",
+        "checking": "Inaangalia hali ya malipo…",
+        "createdAt": "Ilianza {{date}}",
+        "failed": "Malipo yameshindwa",
+        "failedDetail": "Sababu: {{message}}",
+        "failedUnknown": "Malipo hayakufanyika. Hakuna pesa iliyochukuliwa.",
+        "installment": "Awamu",
+        "method": "Njia",
+        "newKeyNote": "Kila jaribio jipya huunda jaribio jipya la malipo, kwa hivyo hutozwi mara mbili kwa uthibitisho mmoja.",
+        "notSettled": "Fedha hazijakamilika bado. Tutathibitisha hapa malipo yatakapokamilika.",
+        "pending": "Malipo yanasubiri",
+        "processing": "Inachakata malipo yako…",
+        "received": "Tumepokea uthibitisho wako wa malipo.",
+        "refresh": "Onyesha upya hali",
+        "refunded": "Imerejeshwa",
+        "retry": "Jaribu tena kwa jaribio jipya la malipo",
+        "settled": "Malipo yamekamilika",
+        "settledDetail": "OxSteed imethibitisha kupokea {{amount}}. Awamu yako imekamilika.",
+        "viewAll": "Angalia malipo yangu yote"
+      },
+      "subtitle": "Kagua nukuu yako na uthibitishe kila awamu kivyake.",
+      "summary": {
+        "expectedArrival": "Kuwasili kunakotarajiwa",
+        "lane": "Njia",
+        "product": "Bidhaa",
+        "quantity": "Kiasi",
+        "reference": "Rejea",
+        "status": "Hali",
+        "supplier": "Msambazaji"
+      },
+      "title": "Malipo salama",
+      "usdOnly": "Kiasi chote kiko katika USD."
+    },
+    "quotes": {
+      "accept": {
+        "accepted": "Nukuu toleo {{version}} imekubaliwa. Sasa unaweza kulipa.",
+        "accepting": "Inakubali…",
+        "body": "Toleo {{version}} linachukua nafasi ya toleo {{previous}}. Kagua yaliyobadilika, kisha ukubali ili uendelee kwenye malipo. Huwezi kulipa kwa toleo la zamani.",
+        "button": "Kubali nukuu toleo {{version}}",
+        "cannotPayOld": "Malipo yamesimamishwa hadi ukubali nukuu ya sasa.",
+        "decline": "Si sasa",
+        "title": "Nukuu mpya inahitaji kukubaliwa kwako"
+      },
+      "current": "Ya sasa",
+      "decrease": "kupungua",
+      "diff": {
+        "added": "Imeongezwa",
+        "changed": "Imebadilishwa",
+        "noChanges": "Hakuna mabadiliko ya vipengee katika toleo hili.",
+        "now": "Sasa {{amount}}",
+        "removed": "Imeondolewa",
+        "title": "Yaliyobadilika",
+        "totalChange": "Jumla imebadilika kwa {{amount}}",
+        "was": "Ilikuwa {{amount}}"
+      },
+      "increase": "kuongezeka",
+      "superseded": "Imebadilishwa",
+      "version": "Toleo {{version}}"
     }
   }
 }

@@ -2470,6 +2470,163 @@
         "notEditable": "Esta campaña ya no se puede editar. Solo se pueden editar los borradores y las campañas con revisiones solicitadas.",
         "editDraft": "Editar borrador"
       }
+    },
+    "checkout": {
+      "backToDashboard": "Volver al panel del comprador",
+      "backToOrder": "Volver al pedido",
+      "confirm": {
+        "back": "Volver al método de pago",
+        "button": "Confirmar y pagar {{amount}}",
+        "checkbox": "Confirmo que quiero que OxSteed cobre {{amount}} a {{method}} por {{installment}} del pedido {{reference}}.",
+        "continue": "Continuar a la confirmación",
+        "line": "Estás por pagar {{amount}} ({{installment}}) del pedido {{reference}} con {{method}}.",
+        "mustCheck": "Marca la casilla de confirmación para continuar.",
+        "noAutoCharge": "Sin tarjetas guardadas. Cada cobro necesita tu confirmación explícita aquí.",
+        "quoteNotAccepted": "Acepta la versión actual de la cotización antes de confirmar el pago.",
+        "reviewTitle": "Revisa y confirma",
+        "submitting": "Enviando el pago…"
+      },
+      "errors": {
+        "duplicate": "Este pago ya fue enviado. Revisa el estado del pago en lugar de pagar de nuevo.",
+        "generic": "Algo salió mal. Inténtalo de nuevo.",
+        "quoteChanged": "La cotización cambió mientras pagabas. Revisa la nueva versión antes de pagar."
+      },
+      "loadError": "No pudimos cargar este pago. Inténtalo de nuevo.",
+      "loading": "Cargando el pago…",
+      "method": {
+        "cardDetails": "Datos de la tarjeta",
+        "cardNote": "Los datos de la tarjeta los gestiona Stripe. OxSteed nunca ve ni almacena tu número de tarjeta.",
+        "choose": "Elige cómo pagar esta cuota",
+        "credit": "Crédito OxSteed",
+        "creditBalance": "Saldo de Crédito disponible: {{amount}}",
+        "creditDesc": "Paga con tu saldo de Crédito OxSteed.",
+        "creditDisabled": "El Crédito OxSteed no está disponible temporalmente",
+        "creditDisabledDetail": "Los pagos con Crédito están desactivados ahora, así que esta cuota no puede tomarse del Crédito. Aún puedes pagar con tarjeta.",
+        "creditInsufficient": "Saldo de Crédito insuficiente",
+        "creditNotEligible": "Este pedido no es elegible para pago con Crédito.",
+        "creditShortfall": "Te faltan {{amount}} para el monto de {{installment}}.",
+        "creditTopUpHint": "Recarga tu saldo de Crédito o continúa con tarjeta.",
+        "oneMethodNote": "Cada cuota se paga con un solo método. Sin fondos mixtos, y nada se cobra sin tu confirmación explícita.",
+        "payWithCardInstead": "Pagar con tarjeta",
+        "stripe": "Tarjeta vía Stripe",
+        "stripeDesc": "Paga con tarjeta de débito o crédito. Ingresas los datos de la tarjeta cada vez; nada se guarda ni se cobra automáticamente."
+      },
+      "missingSubject": "No se seleccionó ningún pedido o campaña para el pago.",
+      "payments": {
+        "awaitingBadge": "En espera de liquidación",
+        "empty": "Aún no hay intentos de pago.",
+        "headers": {
+          "amount": "Monto",
+          "date": "Fecha",
+          "installment": "Cuota",
+          "method": "Método",
+          "reference": "Referencia",
+          "status": "Estado"
+        },
+        "settledBadge": "Liquidado",
+        "states": {
+          "failed": "Fallido",
+          "pending": "Pendiente",
+          "processing": "En proceso",
+          "refunded": "Reembolsado",
+          "succeeded": "Exitoso"
+        },
+        "subtitle": "Cada intento de pago, con liquidación confirmada por OxSteed.",
+        "title": "Mis pagos de logística"
+      },
+      "quote": {
+        "acceptedOn": "Aceptada el {{date}}",
+        "depositPercent": "El depósito es el {{percent}}% del total de la cotización, según la cotización aprobada.",
+        "expired": "Esta cotización venció el {{date}}. Pide a operaciones una nueva cotización antes de pagar.",
+        "expiresOn": "La cotización vence el {{date}}",
+        "itemized": "Costos detallados",
+        "newVersionAvailable": "Una versión más reciente de la cotización necesita tu aceptación antes de pagar.",
+        "supersededBlocked": "Esta cotización fue reemplazada por la versión {{version}}. Revisa y acepta la nueva versión antes de pagar.",
+        "total": "Total de la cotización",
+        "version": "Cotización versión {{version}}"
+      },
+      "returnTo": "Volver a {{label}}",
+      "schedule": {
+        "alreadySettled": "Esta cuota está liquidada. No hay más que pagar.",
+        "deposit": "Depósito",
+        "dueNow": "Vence ahora",
+        "dueOn": "Vence el {{date}}",
+        "final": "Saldo final",
+        "paid": "Pagado",
+        "payNow": "Pagar {{installment}}",
+        "processing": "Pago en proceso",
+        "settled": "Liquidado",
+        "unpaid": "En espera de pago"
+      },
+      "sections": {
+        "confirm": "Confirmar pago",
+        "method": "Método de pago",
+        "quote": "Cotización",
+        "schedule": "Calendario de pagos",
+        "status": "Estado del pago",
+        "summary": "Resumen del pedido",
+        "terms": "Condiciones de cancelación"
+      },
+      "status": {
+        "amount": "Monto",
+        "attempt": "Intento {{id}}",
+        "checking": "Verificando el estado del pago…",
+        "createdAt": "Iniciado el {{date}}",
+        "failed": "El pago falló",
+        "failedDetail": "Motivo: {{message}}",
+        "failedUnknown": "El pago no se realizó. No se cobró dinero.",
+        "installment": "Cuota",
+        "method": "Método",
+        "newKeyNote": "Cada reintento crea un nuevo intento de pago, así nunca se te cobra dos veces por la misma confirmación.",
+        "notSettled": "Los fondos aún no están liquidados. Lo confirmaremos aquí cuando el pago se acredite.",
+        "pending": "Pago pendiente",
+        "processing": "Procesando tu pago…",
+        "received": "Recibimos tu confirmación de pago.",
+        "refresh": "Actualizar estado",
+        "refunded": "Reembolsado",
+        "retry": "Intentar de nuevo con un nuevo intento de pago",
+        "settled": "Pago liquidado",
+        "settledDetail": "OxSteed confirmó la recepción de {{amount}}. Tu cuota está completa.",
+        "viewAll": "Ver todos mis pagos"
+      },
+      "subtitle": "Revisa tu cotización y confirma cada cuota por separado.",
+      "summary": {
+        "expectedArrival": "Llegada estimada",
+        "lane": "Ruta",
+        "product": "Producto",
+        "quantity": "Cantidad",
+        "reference": "Referencia",
+        "status": "Estado",
+        "supplier": "Proveedor"
+      },
+      "title": "Pago seguro",
+      "usdOnly": "Todos los montos están en USD."
+    },
+    "quotes": {
+      "accept": {
+        "accepted": "Cotización versión {{version}} aceptada. Ya puedes pagar.",
+        "accepting": "Aceptando…",
+        "body": "La versión {{version}} reemplaza la versión {{previous}}. Revisa los cambios y acéptala para continuar al pago. No puedes pagar con la versión anterior.",
+        "button": "Aceptar la cotización versión {{version}}",
+        "cannotPayOld": "El pago está en pausa hasta que aceptes la cotización actual.",
+        "decline": "Ahora no",
+        "title": "Una nueva cotización necesita tu aceptación"
+      },
+      "current": "Actual",
+      "decrease": "disminución",
+      "diff": {
+        "added": "Agregado",
+        "changed": "Modificado",
+        "noChanges": "Sin cambios en los conceptos de esta versión.",
+        "now": "Ahora {{amount}}",
+        "removed": "Eliminado",
+        "title": "Qué cambió",
+        "totalChange": "El total cambió en {{amount}}",
+        "was": "Era {{amount}}"
+      },
+      "increase": "aumento",
+      "superseded": "Reemplazada",
+      "version": "Versión {{version}}"
     }
   }
 }

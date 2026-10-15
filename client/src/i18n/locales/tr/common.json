@@ -2470,6 +2470,163 @@
         "notEditable": "Bu kampanya artık düzenlenemez. Yalnızca taslaklar ve revizyon istenen kampanyalar düzenlenebilir.",
         "editDraft": "Taslağı düzenle"
       }
+    },
+    "checkout": {
+      "backToDashboard": "Alıcı paneline dön",
+      "backToOrder": "Siparişe dön",
+      "confirm": {
+        "back": "Ödeme yöntemine dön",
+        "button": "Onayla ve {{amount}} öde",
+        "checkbox": "OxSteed'in {{reference}} numaralı siparişin {{installment}} tutarı için {{method}} üzerinden {{amount}} tahsil etmesini onaylıyorum.",
+        "continue": "Onaya devam et",
+        "line": "{{method}} ile {{reference}} numaralı sipariş için {{amount}} ({{installment}}) ödemek üzeresiniz.",
+        "mustCheck": "Devam etmek için lütfen onay kutusunu işaretleyin.",
+        "noAutoCharge": "Kayıtlı kart yok. Her tahsilat burada açık onayınızı gerektirir.",
+        "quoteNotAccepted": "Ödemeyi onaylamadan önce güncel teklif sürümünü kabul edin.",
+        "reviewTitle": "İncele ve onayla",
+        "submitting": "Ödeme gönderiliyor…"
+      },
+      "errors": {
+        "duplicate": "Bu ödeme zaten gönderildi. Tekrar ödemek yerine ödeme durumunu kontrol edin.",
+        "generic": "Bir şeyler ters gitti. Lütfen tekrar deneyin.",
+        "quoteChanged": "Ödeme sırasında teklif değişti. Ödemeden önce yeni sürümü inceleyin."
+      },
+      "loadError": "Bu ödeme yüklenemedi. Lütfen tekrar deneyin.",
+      "loading": "Ödeme yükleniyor…",
+      "method": {
+        "cardDetails": "Kart bilgileri",
+        "cardNote": "Kart bilgileri Stripe tarafından işlenir. OxSteed kart numaranızı asla görmez veya saklamaz.",
+        "choose": "Bu taksiti nasıl ödeyeceğinizi seçin",
+        "credit": "OxSteed Kredisi",
+        "creditBalance": "Kullanılabilir kredi bakiyesi: {{amount}}",
+        "creditDesc": "OxSteed kredi bakiyenizden ödeyin.",
+        "creditDisabled": "OxSteed Kredisi geçici olarak kullanılamıyor",
+        "creditDisabledDetail": "Kredi ödemeleri şu anda kapalı, bu nedenle bu taksit krediden alınamaz. Yine de kartla ödeyebilirsiniz.",
+        "creditInsufficient": "Yetersiz kredi bakiyesi",
+        "creditNotEligible": "Bu sipariş kredi ödemesine uygun değil.",
+        "creditShortfall": "{{installment}} tutarına {{amount}} eksiğiniz var.",
+        "creditTopUpHint": "Kredi bakiyenizi yükleyin veya kartla devam edin.",
+        "oneMethodNote": "Her taksit tam olarak tek yöntemle ödenir. Karışık ödeme yok ve açık onayınız olmadan hiçbir tahsilat yapılmaz.",
+        "payWithCardInstead": "Kartla öde",
+        "stripe": "Stripe ile kart",
+        "stripeDesc": "Banka veya kredi kartıyla ödeyin. Kart bilgilerini her seferinde girersiniz; hiçbir şey kaydedilmez veya otomatik tahsil edilmez."
+      },
+      "missingSubject": "Ödeme için sipariş veya kampanya seçilmedi.",
+      "payments": {
+        "awaitingBadge": "Mutabakat bekleniyor",
+        "empty": "Henüz ödeme denemesi yok.",
+        "headers": {
+          "amount": "Tutar",
+          "date": "Tarih",
+          "installment": "Taksit",
+          "method": "Yöntem",
+          "reference": "Referans",
+          "status": "Durum"
+        },
+        "settledBadge": "Mutabakat tamamlandı",
+        "states": {
+          "failed": "Başarısız",
+          "pending": "Bekliyor",
+          "processing": "İşleniyor",
+          "refunded": "İade edildi",
+          "succeeded": "Başarılı"
+        },
+        "subtitle": "Her ödeme denemesi; mutabakat OxSteed tarafından onaylanır.",
+        "title": "Lojistik ödemelerim"
+      },
+      "quote": {
+        "acceptedOn": "{{date}} tarihinde kabul edildi",
+        "depositPercent": "Depozito, onaylanan teklife göre teklif toplamının %{{percent}}'idir.",
+        "expired": "Bu teklifin süresi {{date}} tarihinde doldu. Ödemeden önce operasyondan yeni teklif isteyin.",
+        "expiresOn": "Teklif geçerlilik {{date}}",
+        "itemized": "Kalem kalem maliyetler",
+        "newVersionAvailable": "Ödemeden önce daha yeni bir teklif sürümünün onayınız gerekiyor.",
+        "supersededBlocked": "Bu teklif {{version}} sürümüyle değiştirildi. Ödemeden önce yeni sürümü inceleyip kabul edin.",
+        "total": "Teklif toplamı",
+        "version": "Teklif sürümü {{version}}"
+      },
+      "returnTo": "{{label}} öğesine dön",
+      "schedule": {
+        "alreadySettled": "Bu taksitin mutabakatı tamamlandı. Ödenecek başka tutar yok.",
+        "deposit": "Depozito",
+        "dueNow": "Şimdi ödenecek",
+        "dueOn": "Vade {{date}}",
+        "final": "Kalan bakiye",
+        "paid": "Ödendi",
+        "payNow": "{{installment}} öde",
+        "processing": "Ödeme işleniyor",
+        "settled": "Mutabakat tamamlandı",
+        "unpaid": "Ödeme bekleniyor"
+      },
+      "sections": {
+        "confirm": "Ödemeyi onayla",
+        "method": "Ödeme yöntemi",
+        "quote": "Teklif",
+        "schedule": "Ödeme planı",
+        "status": "Ödeme durumu",
+        "summary": "Sipariş özeti",
+        "terms": "İptal koşulları"
+      },
+      "status": {
+        "amount": "Tutar",
+        "attempt": "Deneme {{id}}",
+        "checking": "Ödeme durumu kontrol ediliyor…",
+        "createdAt": "Başlangıç {{date}}",
+        "failed": "Ödeme başarısız",
+        "failedDetail": "Neden: {{message}}",
+        "failedUnknown": "Ödeme gerçekleşmedi. Para alınmadı.",
+        "installment": "Taksit",
+        "method": "Yöntem",
+        "newKeyNote": "Her yeniden deneme yeni bir ödeme denemesi oluşturur, böylece aynı onay için iki kez ücretlendirilmezsiniz.",
+        "notSettled": "Fonların mutabakatı henüz tamamlanmadı. Ödeme tamamlanınca burada onaylayacağız.",
+        "pending": "Ödeme bekleniyor",
+        "processing": "Ödemeniz işleniyor…",
+        "received": "Ödeme onayınızı aldık.",
+        "refresh": "Durumu yenile",
+        "refunded": "İade edildi",
+        "retry": "Yeni bir ödeme denemesiyle tekrar dene",
+        "settled": "Ödeme mutabakatı tamamlandı",
+        "settledDetail": "OxSteed, {{amount}} tutarının alındığını onayladı. Taksitiniz tamamlandı.",
+        "viewAll": "Tüm ödemelerimi görüntüle"
+      },
+      "subtitle": "Teklifinizi inceleyin ve her taksiti ayrı ayrı onaylayın.",
+      "summary": {
+        "expectedArrival": "Tahmini varış",
+        "lane": "Güzergâh",
+        "product": "Ürün",
+        "quantity": "Adet",
+        "reference": "Referans",
+        "status": "Durum",
+        "supplier": "Tedarikçi"
+      },
+      "title": "Güvenli ödeme",
+      "usdOnly": "Tüm tutarlar USD cinsindendir."
+    },
+    "quotes": {
+      "accept": {
+        "accepted": "Teklif sürümü {{version}} kabul edildi. Artık ödeyebilirsiniz.",
+        "accepting": "Kabul ediliyor…",
+        "body": "{{version}} sürümü, {{previous}} sürümünün yerini alıyor. Değişiklikleri inceleyin, ardından ödemeye devam etmek için kabul edin. Eski sürümle ödeme yapamazsınız.",
+        "button": "Teklif sürümü {{version}} kabul et",
+        "cannotPayOld": "Güncel teklifi kabul edene kadar ödeme duraklatıldı.",
+        "decline": "Şimdi değil",
+        "title": "Yeni bir teklif onayınızı bekliyor"
+      },
+      "current": "Güncel",
+      "decrease": "azalış",
+      "diff": {
+        "added": "Eklendi",
+        "changed": "Değiştirildi",
+        "noChanges": "Bu sürümde kalem değişikliği yok.",
+        "now": "Şimdi {{amount}}",
+        "removed": "Kaldırıldı",
+        "title": "Neler değişti",
+        "totalChange": "Toplam {{amount}} değişti",
+        "was": "Önceki {{amount}}"
+      },
+      "increase": "artış",
+      "superseded": "Değiştirildi",
+      "version": "Sürüm {{version}}"
     }
   }
 }

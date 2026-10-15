@@ -2470,6 +2470,163 @@
         "notEditable": "This campaign can no longer be edited. Only drafts and campaigns with requested revisions can be edited.",
         "editDraft": "Edit draft"
       }
+    },
+    "checkout": {
+      "backToDashboard": "Back to buyer dashboard",
+      "backToOrder": "Back to order",
+      "confirm": {
+        "back": "Back to payment method",
+        "button": "Confirm and pay {{amount}}",
+        "checkbox": "I confirm I want OxSteed to charge {{amount}} to {{method}} for the {{installment}} of order {{reference}}.",
+        "continue": "Continue to confirmation",
+        "line": "You are about to pay {{amount}} ({{installment}}) for order {{reference}} using {{method}}.",
+        "mustCheck": "Please tick the confirmation box to continue.",
+        "noAutoCharge": "No saved cards. Every charge needs your explicit confirmation here.",
+        "quoteNotAccepted": "Accept the current quote version before confirming payment.",
+        "reviewTitle": "Review and confirm",
+        "submitting": "Submitting payment…"
+      },
+      "errors": {
+        "duplicate": "This payment was already submitted. Check the payment status instead of paying again.",
+        "generic": "Something went wrong. Please try again.",
+        "quoteChanged": "The quote changed while you were checking out. Review the new version before paying."
+      },
+      "loadError": "We could not load this checkout. Please try again.",
+      "loading": "Loading checkout…",
+      "method": {
+        "cardDetails": "Card details",
+        "cardNote": "Card details are handled by Stripe. OxSteed never sees or stores your card number.",
+        "choose": "Choose how to pay this installment",
+        "credit": "OxSteed Credit",
+        "creditBalance": "Available Credit balance: {{amount}}",
+        "creditDesc": "Pay from your OxSteed Credit balance.",
+        "creditDisabled": "OxSteed Credit is temporarily unavailable",
+        "creditDisabledDetail": "Credit payments are disabled right now, so this installment cannot be taken from Credit. You can still pay by card.",
+        "creditInsufficient": "Insufficient Credit balance",
+        "creditNotEligible": "This order is not eligible for Credit payment.",
+        "creditShortfall": "You are {{amount}} short of the {{installment}} amount.",
+        "creditTopUpHint": "Top up your Credit balance or continue with a card instead.",
+        "oneMethodNote": "Each installment is paid with exactly one method. No mixed funding, and nothing is charged without your explicit confirmation.",
+        "payWithCardInstead": "Pay with card instead",
+        "stripe": "Card via Stripe",
+        "stripeDesc": "Pay with a debit or credit card. You enter card details each time; nothing is saved or auto-charged."
+      },
+      "missingSubject": "No order or campaign was selected for checkout.",
+      "payments": {
+        "awaitingBadge": "Awaiting settlement",
+        "empty": "No payment attempts yet.",
+        "headers": {
+          "amount": "Amount",
+          "date": "Date",
+          "installment": "Installment",
+          "method": "Method",
+          "reference": "Reference",
+          "status": "Status"
+        },
+        "settledBadge": "Settled",
+        "states": {
+          "failed": "Failed",
+          "pending": "Pending",
+          "processing": "Processing",
+          "refunded": "Refunded",
+          "succeeded": "Succeeded"
+        },
+        "subtitle": "Every payment attempt, with settlement confirmed by OxSteed.",
+        "title": "My logistics payments"
+      },
+      "quote": {
+        "acceptedOn": "Accepted {{date}}",
+        "depositPercent": "Deposit is {{percent}}% of the quote total, set in the approved quote.",
+        "expired": "This quote expired on {{date}}. Ask operations for a new quote before paying.",
+        "expiresOn": "Quote expires {{date}}",
+        "itemized": "Itemized costs",
+        "newVersionAvailable": "A newer quote version needs your acceptance before you can pay.",
+        "supersededBlocked": "This quote was replaced by version {{version}}. Review and accept the new version before paying.",
+        "total": "Quote total",
+        "version": "Quote version {{version}}"
+      },
+      "returnTo": "Return to {{label}}",
+      "schedule": {
+        "alreadySettled": "This installment is settled. Nothing more to pay.",
+        "deposit": "Deposit",
+        "dueNow": "Due now",
+        "dueOn": "Due {{date}}",
+        "final": "Final balance",
+        "paid": "Paid",
+        "payNow": "Pay {{installment}}",
+        "processing": "Payment processing",
+        "settled": "Settled",
+        "unpaid": "Awaiting payment"
+      },
+      "sections": {
+        "confirm": "Confirm payment",
+        "method": "Payment method",
+        "quote": "Quote",
+        "schedule": "Payment schedule",
+        "status": "Payment status",
+        "summary": "Order summary",
+        "terms": "Cancellation terms"
+      },
+      "status": {
+        "amount": "Amount",
+        "attempt": "Attempt {{id}}",
+        "checking": "Checking payment status…",
+        "createdAt": "Started {{date}}",
+        "failed": "Payment failed",
+        "failedDetail": "Reason: {{message}}",
+        "failedUnknown": "The payment did not go through. No money was taken.",
+        "installment": "Installment",
+        "method": "Method",
+        "newKeyNote": "Retries always create a new payment attempt, so you are never charged twice for the same confirmation.",
+        "notSettled": "Funds are not settled yet. We will confirm here once the payment clears.",
+        "pending": "Payment pending",
+        "processing": "Processing your payment…",
+        "received": "We received your payment confirmation.",
+        "refresh": "Refresh status",
+        "refunded": "Refunded",
+        "retry": "Try again with a new payment attempt",
+        "settled": "Payment settled",
+        "settledDetail": "OxSteed has confirmed receipt of {{amount}}. Your installment is complete.",
+        "viewAll": "View all my payments"
+      },
+      "subtitle": "Review your quote and confirm each installment separately.",
+      "summary": {
+        "expectedArrival": "Expected arrival",
+        "lane": "Lane",
+        "product": "Product",
+        "quantity": "Quantity",
+        "reference": "Reference",
+        "status": "Status",
+        "supplier": "Supplier"
+      },
+      "title": "Secure checkout",
+      "usdOnly": "All amounts are in USD."
+    },
+    "quotes": {
+      "accept": {
+        "accepted": "Quote version {{version}} accepted. You can now pay.",
+        "accepting": "Accepting…",
+        "body": "Version {{version}} replaces version {{previous}}. Review what changed, then accept it to continue to payment. You cannot pay against the older version.",
+        "button": "Accept quote version {{version}}",
+        "cannotPayOld": "Payment is paused until you accept the current quote.",
+        "decline": "Not now",
+        "title": "A new quote needs your acceptance"
+      },
+      "current": "Current",
+      "decrease": "decrease",
+      "diff": {
+        "added": "Added",
+        "changed": "Changed",
+        "noChanges": "No line-item changes in this version.",
+        "now": "Now {{amount}}",
+        "removed": "Removed",
+        "title": "What changed",
+        "totalChange": "Total changed by {{amount}}",
+        "was": "Was {{amount}}"
+      },
+      "increase": "increase",
+      "superseded": "Superseded",
+      "version": "Version {{version}}"
     }
   }
 }

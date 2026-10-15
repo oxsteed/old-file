@@ -2470,6 +2470,163 @@
         "notEditable": "このキャンペーンは編集できなくなりました。編集できるのは下書きと修正依頼中のキャンペーンのみです。",
         "editDraft": "下書きを編集"
       }
+    },
+    "checkout": {
+      "backToDashboard": "購入者ダッシュボードに戻る",
+      "backToOrder": "注文に戻る",
+      "confirm": {
+        "back": "支払い方法に戻る",
+        "button": "確認して {{amount}} を支払う",
+        "checkbox": "注文 {{reference}} の{{installment}}について、{{method}}から {{amount}} を請求することに同意します。",
+        "continue": "確認に進む",
+        "line": "{{method}}を使用して注文 {{reference}} の {{amount}}（{{installment}}）を支払おうとしています。",
+        "mustCheck": "続行するには確認チェックボックスにチェックを入れてください。",
+        "noAutoCharge": "保存されたカードはありません。すべての請求にはここでの明示的な確認が必要です。",
+        "quoteNotAccepted": "支払いを確認する前に、現在の見積バージョンを承認してください。",
+        "reviewTitle": "内容の確認",
+        "submitting": "支払いを送信しています…"
+      },
+      "errors": {
+        "duplicate": "この支払いは既に送信されています。再度支払うのではなく、支払いステータスを確認してください。",
+        "generic": "問題が発生しました。もう一度お試しください。",
+        "quoteChanged": "お支払い手続き中に見積もりが変更されました。支払い前に新しいバージョンを確認してください。"
+      },
+      "loadError": "このお支払いを読み込めませんでした。もう一度お試しください。",
+      "loading": "お支払いを読み込んでいます…",
+      "method": {
+        "cardDetails": "カード情報",
+        "cardNote": "カード情報は Stripe が処理します。OxSteed がカード番号を閲覧・保存することはありません。",
+        "choose": "この分割払いの支払い方法を選択",
+        "credit": "OxSteed クレジット",
+        "creditBalance": "利用可能なクレジット残高：{{amount}}",
+        "creditDesc": "OxSteed クレジット残高から支払います。",
+        "creditDisabled": "OxSteed クレジットは一時的に利用できません",
+        "creditDisabledDetail": "クレジット払いは現在無効のため、この分割払いをクレジットから引き落とすことはできません。カードでは引き続きお支払いいただけます。",
+        "creditInsufficient": "クレジット残高が不足しています",
+        "creditNotEligible": "この注文はクレジット払いの対象外です。",
+        "creditShortfall": "{{installment}}の金額まで {{amount}} 不足しています。",
+        "creditTopUpHint": "クレジット残高をチャージするか、カードで続行してください。",
+        "oneMethodNote": "各分割払いは1つの方法でのみ支払います。混合払いは不可で、明示的な確認なしに請求されることはありません。",
+        "payWithCardInstead": "カードで支払う",
+        "stripe": "Stripe 経由のカード払い",
+        "stripeDesc": "デビットカードまたはクレジットカードで支払います。毎回カード情報を入力します。保存や自動請求は行いません。"
+      },
+      "missingSubject": "お支払いの対象となる注文またはキャンペーンが選択されていません。",
+      "payments": {
+        "awaitingBadge": "決済待ち",
+        "empty": "まだ支払い履歴がありません。",
+        "headers": {
+          "amount": "金額",
+          "date": "日付",
+          "installment": "分割払い",
+          "method": "方法",
+          "reference": "参照番号",
+          "status": "ステータス"
+        },
+        "settledBadge": "決済済み",
+        "states": {
+          "failed": "失敗",
+          "pending": "保留中",
+          "processing": "処理中",
+          "refunded": "返金済み",
+          "succeeded": "成功"
+        },
+        "subtitle": "すべての支払い履歴。決済は OxSteed が確認します。",
+        "title": "物流のお支払い履歴"
+      },
+      "quote": {
+        "acceptedOn": "{{date}}に承認済み",
+        "depositPercent": "デポジットは承認済み見積もりに基づき、見積もり総額の {{percent}}% です。",
+        "expired": "この見積もりは {{date}} に期限切れとなりました。お支払い前に運営に新しい見積もりを依頼してください。",
+        "expiresOn": "見積もり有効期限 {{date}}",
+        "itemized": "内訳",
+        "newVersionAvailable": "お支払いの前に、新しい見積もりバージョンの承認が必要です。",
+        "supersededBlocked": "この見積もりはバージョン {{version}} に置き換えられました。お支払い前に新しいバージョンを確認・承認してください。",
+        "total": "見積もり合計",
+        "version": "見積もりバージョン {{version}}"
+      },
+      "returnTo": "{{label}}に戻る",
+      "schedule": {
+        "alreadySettled": "この分割払いは決済済みです。これ以上の支払いは不要です。",
+        "deposit": "デポジット",
+        "dueNow": "今すぐ支払期日",
+        "dueOn": "支払期日 {{date}}",
+        "final": "残額",
+        "paid": "支払い済み",
+        "payNow": "{{installment}}を支払う",
+        "processing": "支払い処理中",
+        "settled": "決済済み",
+        "unpaid": "支払い待ち"
+      },
+      "sections": {
+        "confirm": "支払いの確認",
+        "method": "支払い方法",
+        "quote": "見積もり",
+        "schedule": "支払いスケジュール",
+        "status": "支払いステータス",
+        "summary": "注文概要",
+        "terms": "キャンセル条件"
+      },
+      "status": {
+        "amount": "金額",
+        "attempt": "試行 {{id}}",
+        "checking": "支払いステータスを確認しています…",
+        "createdAt": "開始 {{date}}",
+        "failed": "支払いに失敗しました",
+        "failedDetail": "理由：{{message}}",
+        "failedUnknown": "支払いは完了しませんでした。請求は発生していません。",
+        "installment": "分割払い",
+        "method": "方法",
+        "newKeyNote": "再試行のたびに新しい支払い試行が作成されるため、同じ確認で二重請求されることはありません。",
+        "notSettled": "資金はまだ決済されていません。支払いが完了次第、ここでお知らせします。",
+        "pending": "支払い保留中",
+        "processing": "お支払いを処理しています…",
+        "received": "お支払いの確認を受け取りました。",
+        "refresh": "ステータスを更新",
+        "refunded": "返金済み",
+        "retry": "新しい支払い試行で再試行する",
+        "settled": "支払い決済済み",
+        "settledDetail": "OxSteed が {{amount}} の受領を確認しました。分割払いは完了です。",
+        "viewAll": "すべての支払いを見る"
+      },
+      "subtitle": "見積もりを確認し、各分割払いを個別に承認してください。",
+      "summary": {
+        "expectedArrival": "到着予定日",
+        "lane": "ルート",
+        "product": "商品",
+        "quantity": "数量",
+        "reference": "参照番号",
+        "status": "ステータス",
+        "supplier": "サプライヤー"
+      },
+      "title": "安全なお支払い",
+      "usdOnly": "すべての金額は米ドルです。"
+    },
+    "quotes": {
+      "accept": {
+        "accepted": "見積もりバージョン {{version}} を承認しました。これでお支払いいただけます。",
+        "accepting": "承認しています…",
+        "body": "バージョン {{version}} はバージョン {{previous}} に代わるものです。変更内容を確認して承認すると、お支払いに進めます。古いバージョンではお支払いいただけません。",
+        "button": "見積もりバージョン {{version}} を承認する",
+        "cannotPayOld": "現在の見積もりを承認するまで、お支払いは一時停止されます。",
+        "decline": "後で",
+        "title": "新しい見積もりの承認が必要です"
+      },
+      "current": "現在",
+      "decrease": "減少",
+      "diff": {
+        "added": "追加",
+        "changed": "変更",
+        "noChanges": "このバージョンでの明細の変更はありません。",
+        "now": "現在 {{amount}}",
+        "removed": "削除",
+        "title": "変更内容",
+        "totalChange": "合計の変更 {{amount}}",
+        "was": "以前 {{amount}}"
+      },
+      "increase": "増加",
+      "superseded": "置換済み",
+      "version": "バージョン {{version}}"
     }
   }
 }

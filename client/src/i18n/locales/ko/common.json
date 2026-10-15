@@ -2470,6 +2470,163 @@
         "notEditable": "이 캠페인은 더 이상 편집할 수 없습니다. 초안과 수정 요청된 캠페인만 편집할 수 있습니다.",
         "editDraft": "초안 편집"
       }
+    },
+    "checkout": {
+      "backToDashboard": "구매자 대시보드로 돌아가기",
+      "backToOrder": "주문으로 돌아가기",
+      "confirm": {
+        "back": "결제 수단으로 돌아가기",
+        "button": "{{amount}} 확인하고 결제하기",
+        "checkbox": "주문 {{reference}}의 {{installment}}에 대해 {{method}}에서 {{amount}}를 청구하는 것에 동의합니다.",
+        "continue": "확인 단계로 계속",
+        "line": "{{method}}을(를) 사용하여 주문 {{reference}}의 {{amount}}({{installment}})을(를) 결제하려고 합니다.",
+        "mustCheck": "계속하려면 확인란을 선택하세요.",
+        "noAutoCharge": "저장된 카드가 없습니다. 모든 청구는 여기서 명시적으로 확인해야 합니다.",
+        "quoteNotAccepted": "결제를 확인하기 전에 현재 견적 버전을 수락하세요.",
+        "reviewTitle": "검토 및 확인",
+        "submitting": "결제 제출 중…"
+      },
+      "errors": {
+        "duplicate": "이 결제는 이미 제출되었습니다. 다시 결제하지 말고 결제 상태를 확인하세요.",
+        "generic": "문제가 발생했습니다. 다시 시도하세요.",
+        "quoteChanged": "결제 중에 견적이 변경되었습니다. 결제하기 전에 새 버전을 검토하세요."
+      },
+      "loadError": "이 결제를 불러올 수 없습니다. 다시 시도하세요.",
+      "loading": "결제 불러오는 중…",
+      "method": {
+        "cardDetails": "카드 정보",
+        "cardNote": "카드 정보는 Stripe에서 처리합니다. OxSteed는 카드 번호를 보거나 저장하지 않습니다.",
+        "choose": "이번 할부금을 결제할 방법 선택",
+        "credit": "OxSteed 크레딧",
+        "creditBalance": "사용 가능한 크레딧 잔액: {{amount}}",
+        "creditDesc": "OxSteed 크레딧 잔액으로 결제합니다.",
+        "creditDisabled": "OxSteed 크레딧을 일시적으로 사용할 수 없습니다",
+        "creditDisabledDetail": "현재 크레딧 결제가 비활성화되어 있어 이번 할부금을 크레딧에서 차감할 수 없습니다. 카드로는 결제할 수 있습니다.",
+        "creditInsufficient": "크레딧 잔액 부족",
+        "creditNotEligible": "이 주문은 크레딧 결제가 불가능합니다.",
+        "creditShortfall": "{{installment}} 금액보다 {{amount}} 부족합니다.",
+        "creditTopUpHint": "크레딧 잔액을 충전하거나 카드로 계속하세요.",
+        "oneMethodNote": "각 할부금은 정확히 하나의 방법으로 결제합니다. 혼합 결제는 불가하며, 명시적 확인 없이는 청구되지 않습니다.",
+        "payWithCardInstead": "카드로 결제하기",
+        "stripe": "Stripe 카드 결제",
+        "stripeDesc": "직불카드 또는 신용카드로 결제합니다. 매번 카드 정보를 입력하며, 저장되거나 자동 청구되지 않습니다."
+      },
+      "missingSubject": "결제할 주문이나 캠페인이 선택되지 않았습니다.",
+      "payments": {
+        "awaitingBadge": "정산 대기 중",
+        "empty": "아직 결제 시도가 없습니다.",
+        "headers": {
+          "amount": "금액",
+          "date": "날짜",
+          "installment": "할부",
+          "method": "방법",
+          "reference": "참조",
+          "status": "상태"
+        },
+        "settledBadge": "정산 완료",
+        "states": {
+          "failed": "실패",
+          "pending": "대기 중",
+          "processing": "처리 중",
+          "refunded": "환불됨",
+          "succeeded": "성공"
+        },
+        "subtitle": "모든 결제 시도이며, 정산은 OxSteed가 확인합니다.",
+        "title": "내 물류 결제"
+      },
+      "quote": {
+        "acceptedOn": "{{date}} 수락됨",
+        "depositPercent": "계약금은 승인된 견적에 따라 견적 총액의 {{percent}}%입니다.",
+        "expired": "이 견적은 {{date}}에 만료되었습니다. 결제 전에 운영팀에 새 견적을 요청하세요.",
+        "expiresOn": "견적 만료일 {{date}}",
+        "itemized": "항목별 비용",
+        "newVersionAvailable": "결제 전에 새 견적 버전을 수락해야 합니다.",
+        "supersededBlocked": "이 견적은 버전 {{version}}(으)로 대체되었습니다. 결제 전에 새 버전을 검토하고 수락하세요.",
+        "total": "견적 총액",
+        "version": "견적 버전 {{version}}"
+      },
+      "returnTo": "{{label}}(으)로 돌아가기",
+      "schedule": {
+        "alreadySettled": "이 할부금은 정산되었습니다. 추가로 결제할 금액이 없습니다.",
+        "deposit": "계약금",
+        "dueNow": "지금 납부",
+        "dueOn": "납부 기한 {{date}}",
+        "final": "잔금",
+        "paid": "결제됨",
+        "payNow": "{{installment}} 결제하기",
+        "processing": "결제 처리 중",
+        "settled": "정산 완료",
+        "unpaid": "결제 대기 중"
+      },
+      "sections": {
+        "confirm": "결제 확인",
+        "method": "결제 수단",
+        "quote": "견적",
+        "schedule": "결제 일정",
+        "status": "결제 상태",
+        "summary": "주문 요약",
+        "terms": "취소 약관"
+      },
+      "status": {
+        "amount": "금액",
+        "attempt": "시도 {{id}}",
+        "checking": "결제 상태 확인 중…",
+        "createdAt": "시작 {{date}}",
+        "failed": "결제 실패",
+        "failedDetail": "사유: {{message}}",
+        "failedUnknown": "결제가 이루어지지 않았습니다. 청구된 금액이 없습니다.",
+        "installment": "할부",
+        "method": "방법",
+        "newKeyNote": "재시도할 때마다 새로운 결제 시도가 생성되므로 같은 확인에 대해 이중 청구되지 않습니다.",
+        "notSettled": "아직 자금이 정산되지 않았습니다. 결제가 완료되면 여기서 확인해 드립니다.",
+        "pending": "결제 대기 중",
+        "processing": "결제를 처리하는 중…",
+        "received": "결제 확인을 받았습니다.",
+        "refresh": "상태 새로고침",
+        "refunded": "환불됨",
+        "retry": "새 결제 시도로 다시 시도",
+        "settled": "결제 정산 완료",
+        "settledDetail": "OxSteed가 {{amount}} 수령을 확인했습니다. 할부금이 완료되었습니다.",
+        "viewAll": "내 모든 결제 보기"
+      },
+      "subtitle": "견적을 검토하고 각 할부금을 개별적으로 확인하세요.",
+      "summary": {
+        "expectedArrival": "예상 도착일",
+        "lane": "노선",
+        "product": "상품",
+        "quantity": "수량",
+        "reference": "참조",
+        "status": "상태",
+        "supplier": "공급업체"
+      },
+      "title": "안전 결제",
+      "usdOnly": "모든 금액은 USD입니다."
+    },
+    "quotes": {
+      "accept": {
+        "accepted": "견적 버전 {{version}}이(가) 수락되었습니다. 이제 결제할 수 있습니다.",
+        "accepting": "수락 중…",
+        "body": "버전 {{version}}이(가) 버전 {{previous}}을(를) 대체합니다. 변경 내용을 검토한 후 수락하면 결제로 계속됩니다. 이전 버전으로는 결제할 수 없습니다.",
+        "button": "견적 버전 {{version}} 수락하기",
+        "cannotPayOld": "현재 견적을 수락할 때까지 결제가 중단됩니다.",
+        "decline": "나중에",
+        "title": "새 견적 수락이 필요합니다"
+      },
+      "current": "현재",
+      "decrease": "감소",
+      "diff": {
+        "added": "추가됨",
+        "changed": "변경됨",
+        "noChanges": "이 버전의 항목 변경이 없습니다.",
+        "now": "현재 {{amount}}",
+        "removed": "삭제됨",
+        "title": "변경 내용",
+        "totalChange": "총액 변경 {{amount}}",
+        "was": "이전 {{amount}}"
+      },
+      "increase": "증가",
+      "superseded": "대체됨",
+      "version": "버전 {{version}}"
     }
   }
 }

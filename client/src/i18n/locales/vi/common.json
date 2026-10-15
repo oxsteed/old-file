@@ -2470,6 +2470,163 @@
         "notEditable": "Chiến dịch này không thể chỉnh sửa được nữa. Chỉ bản nháp và chiến dịch được yêu cầu chỉnh sửa mới có thể chỉnh sửa.",
         "editDraft": "Chỉnh sửa bản nháp"
       }
+    },
+    "checkout": {
+      "backToDashboard": "Về bảng điều khiển người mua",
+      "backToOrder": "Về đơn hàng",
+      "confirm": {
+        "back": "Về phương thức thanh toán",
+        "button": "Xác nhận và thanh toán {{amount}}",
+        "checkbox": "Tôi xác nhận muốn OxSteed tính {{amount}} vào {{method}} cho {{installment}} của đơn hàng {{reference}}.",
+        "continue": "Tiếp tục xác nhận",
+        "line": "Bạn sắp thanh toán {{amount}} ({{installment}}) cho đơn hàng {{reference}} bằng {{method}}.",
+        "mustCheck": "Vui lòng tích vào ô xác nhận để tiếp tục.",
+        "noAutoCharge": "Không có thẻ đã lưu. Mọi khoản tính phí đều cần xác nhận rõ ràng của bạn tại đây.",
+        "quoteNotAccepted": "Hãy chấp nhận phiên bản báo giá hiện tại trước khi xác nhận thanh toán.",
+        "reviewTitle": "Xem lại và xác nhận",
+        "submitting": "Đang gửi thanh toán…"
+      },
+      "errors": {
+        "duplicate": "Khoản thanh toán này đã được gửi. Hãy kiểm tra trạng thái thanh toán thay vì thanh toán lại.",
+        "generic": "Đã xảy ra lỗi. Vui lòng thử lại.",
+        "quoteChanged": "Báo giá đã thay đổi trong lúc bạn thanh toán. Hãy xem phiên bản mới trước khi thanh toán."
+      },
+      "loadError": "Không thể tải lần thanh toán này. Vui lòng thử lại.",
+      "loading": "Đang tải thanh toán…",
+      "method": {
+        "cardDetails": "Thông tin thẻ",
+        "cardNote": "Thông tin thẻ do Stripe xử lý. OxSteed không bao giờ xem hay lưu số thẻ của bạn.",
+        "choose": "Chọn cách thanh toán cho kỳ này",
+        "credit": "Tín dụng OxSteed",
+        "creditBalance": "Số dư tín dụng khả dụng: {{amount}}",
+        "creditDesc": "Thanh toán bằng số dư Tín dụng OxSteed của bạn.",
+        "creditDisabled": "Tín dụng OxSteed tạm thời không khả dụng",
+        "creditDisabledDetail": "Thanh toán bằng tín dụng hiện đang tắt nên kỳ này không thể trừ từ tín dụng. Bạn vẫn có thể thanh toán bằng thẻ.",
+        "creditInsufficient": "Số dư tín dụng không đủ",
+        "creditNotEligible": "Đơn hàng này không đủ điều kiện thanh toán bằng tín dụng.",
+        "creditShortfall": "Bạn còn thiếu {{amount}} so với số tiền {{installment}}.",
+        "creditTopUpHint": "Hãy nạp thêm số dư tín dụng hoặc tiếp tục bằng thẻ.",
+        "oneMethodNote": "Mỗi kỳ chỉ thanh toán bằng đúng một phương thức. Không trộn nguồn tiền, và không tính phí nếu bạn chưa xác nhận rõ ràng.",
+        "payWithCardInstead": "Thanh toán bằng thẻ",
+        "stripe": "Thẻ qua Stripe",
+        "stripeDesc": "Thanh toán bằng thẻ ghi nợ hoặc thẻ tín dụng. Bạn nhập thông tin thẻ mỗi lần; không lưu trữ hay tự động tính phí."
+      },
+      "missingSubject": "Chưa chọn đơn hàng hoặc chiến dịch để thanh toán.",
+      "payments": {
+        "awaitingBadge": "Chờ quyết toán",
+        "empty": "Chưa có lần thanh toán nào.",
+        "headers": {
+          "amount": "Số tiền",
+          "date": "Ngày",
+          "installment": "Kỳ thanh toán",
+          "method": "Phương thức",
+          "reference": "Mã tham chiếu",
+          "status": "Trạng thái"
+        },
+        "settledBadge": "Đã quyết toán",
+        "states": {
+          "failed": "Thất bại",
+          "pending": "Đang chờ",
+          "processing": "Đang xử lý",
+          "refunded": "Đã hoàn tiền",
+          "succeeded": "Thành công"
+        },
+        "subtitle": "Mọi lần thanh toán, với quyết toán do OxSteed xác nhận.",
+        "title": "Thanh toán logistics của tôi"
+      },
+      "quote": {
+        "acceptedOn": "Đã chấp nhận {{date}}",
+        "depositPercent": "Tiền đặt cọc là {{percent}}% tổng báo giá, theo báo giá đã phê duyệt.",
+        "expired": "Báo giá này đã hết hạn vào {{date}}. Hãy yêu cầu báo giá mới từ bộ phận vận hành trước khi thanh toán.",
+        "expiresOn": "Báo giá hết hạn {{date}}",
+        "itemized": "Chi phí chi tiết",
+        "newVersionAvailable": "Phiên bản báo giá mới hơn cần bạn chấp nhận trước khi thanh toán.",
+        "supersededBlocked": "Báo giá này đã được thay bằng phiên bản {{version}}. Hãy xem và chấp nhận phiên bản mới trước khi thanh toán.",
+        "total": "Tổng báo giá",
+        "version": "Báo giá phiên bản {{version}}"
+      },
+      "returnTo": "Về {{label}}",
+      "schedule": {
+        "alreadySettled": "Kỳ này đã quyết toán. Không còn gì để thanh toán.",
+        "deposit": "Tiền đặt cọc",
+        "dueNow": "Đến hạn ngay",
+        "dueOn": "Đến hạn {{date}}",
+        "final": "Số dư cuối",
+        "paid": "Đã thanh toán",
+        "payNow": "Thanh toán {{installment}}",
+        "processing": "Đang xử lý thanh toán",
+        "settled": "Đã quyết toán",
+        "unpaid": "Chờ thanh toán"
+      },
+      "sections": {
+        "confirm": "Xác nhận thanh toán",
+        "method": "Phương thức thanh toán",
+        "quote": "Báo giá",
+        "schedule": "Lịch thanh toán",
+        "status": "Trạng thái thanh toán",
+        "summary": "Tóm tắt đơn hàng",
+        "terms": "Điều khoản hủy"
+      },
+      "status": {
+        "amount": "Số tiền",
+        "attempt": "Lần thử {{id}}",
+        "checking": "Đang kiểm tra trạng thái thanh toán…",
+        "createdAt": "Bắt đầu {{date}}",
+        "failed": "Thanh toán thất bại",
+        "failedDetail": "Lý do: {{message}}",
+        "failedUnknown": "Thanh toán không thành công. Không bị trừ tiền.",
+        "installment": "Kỳ thanh toán",
+        "method": "Phương thức",
+        "newKeyNote": "Mỗi lần thử lại đều tạo một lần thanh toán mới, nên bạn không bao giờ bị tính phí hai lần cho cùng một xác nhận.",
+        "notSettled": "Tiền chưa được quyết toán. Chúng tôi sẽ xác nhận tại đây khi thanh toán hoàn tất.",
+        "pending": "Thanh toán đang chờ",
+        "processing": "Đang xử lý thanh toán của bạn…",
+        "received": "Chúng tôi đã nhận được xác nhận thanh toán của bạn.",
+        "refresh": "Làm mới trạng thái",
+        "refunded": "Đã hoàn tiền",
+        "retry": "Thử lại với một lần thanh toán mới",
+        "settled": "Thanh toán đã quyết toán",
+        "settledDetail": "OxSteed đã xác nhận nhận {{amount}}. Kỳ thanh toán của bạn đã hoàn tất.",
+        "viewAll": "Xem tất cả thanh toán của tôi"
+      },
+      "subtitle": "Xem lại báo giá và xác nhận từng kỳ riêng biệt.",
+      "summary": {
+        "expectedArrival": "Ngày dự kiến đến",
+        "lane": "Tuyến",
+        "product": "Sản phẩm",
+        "quantity": "Số lượng",
+        "reference": "Mã tham chiếu",
+        "status": "Trạng thái",
+        "supplier": "Nhà cung cấp"
+      },
+      "title": "Thanh toán an toàn",
+      "usdOnly": "Mọi số tiền đều tính bằng USD."
+    },
+    "quotes": {
+      "accept": {
+        "accepted": "Đã chấp nhận báo giá phiên bản {{version}}. Bây giờ bạn có thể thanh toán.",
+        "accepting": "Đang chấp nhận…",
+        "body": "Phiên bản {{version}} thay thế phiên bản {{previous}}. Hãy xem những gì đã thay đổi, rồi chấp nhận để tiếp tục thanh toán. Bạn không thể thanh toán bằng phiên bản cũ.",
+        "button": "Chấp nhận báo giá phiên bản {{version}}",
+        "cannotPayOld": "Thanh toán tạm dừng cho đến khi bạn chấp nhận báo giá hiện tại.",
+        "decline": "Để sau",
+        "title": "Báo giá mới cần bạn chấp nhận"
+      },
+      "current": "Hiện tại",
+      "decrease": "giảm",
+      "diff": {
+        "added": "Đã thêm",
+        "changed": "Đã thay đổi",
+        "noChanges": "Không có thay đổi mục nào trong phiên bản này.",
+        "now": "Hiện tại {{amount}}",
+        "removed": "Đã xóa",
+        "title": "Nội dung thay đổi",
+        "totalChange": "Tổng thay đổi {{amount}}",
+        "was": "Trước đây {{amount}}"
+      },
+      "increase": "tăng",
+      "superseded": "Đã thay thế",
+      "version": "Phiên bản {{version}}"
     }
   }
 }

@@ -2470,6 +2470,163 @@
         "notEditable": "Cette campagne ne peut plus être modifiée. Seuls les brouillons et les campagnes avec des révisions demandées peuvent être modifiés.",
         "editDraft": "Modifier le brouillon"
       }
+    },
+    "checkout": {
+      "backToDashboard": "Retour au tableau de bord acheteur",
+      "backToOrder": "Retour à la commande",
+      "confirm": {
+        "back": "Retour au mode de paiement",
+        "button": "Confirmer et payer {{amount}}",
+        "checkbox": "Je confirme vouloir qu'OxSteed facture {{amount}} sur {{method}} pour {{installment}} de la commande {{reference}}.",
+        "continue": "Continuer vers la confirmation",
+        "line": "Vous êtes sur le point de payer {{amount}} ({{installment}}) pour la commande {{reference}} via {{method}}.",
+        "mustCheck": "Veuillez cocher la case de confirmation pour continuer.",
+        "noAutoCharge": "Aucune carte enregistrée. Chaque débit exige votre confirmation explicite ici.",
+        "quoteNotAccepted": "Acceptez la version actuelle du devis avant de confirmer le paiement.",
+        "reviewTitle": "Vérifier et confirmer",
+        "submitting": "Envoi du paiement…"
+      },
+      "errors": {
+        "duplicate": "Ce paiement a déjà été envoyé. Vérifiez son statut plutôt que de payer à nouveau.",
+        "generic": "Un problème est survenu. Veuillez réessayer.",
+        "quoteChanged": "Le devis a changé pendant votre paiement. Examinez la nouvelle version avant de payer."
+      },
+      "loadError": "Nous n'avons pas pu charger ce paiement. Veuillez réessayer.",
+      "loading": "Chargement du paiement…",
+      "method": {
+        "cardDetails": "Coordonnées de la carte",
+        "cardNote": "Les coordonnées bancaires sont traitées par Stripe. OxSteed ne voit ni ne stocke votre numéro de carte.",
+        "choose": "Choisissez comment payer cette échéance",
+        "credit": "Crédit OxSteed",
+        "creditBalance": "Solde de crédit disponible : {{amount}}",
+        "creditDesc": "Payez avec votre solde de crédit OxSteed.",
+        "creditDisabled": "Le crédit OxSteed est temporairement indisponible",
+        "creditDisabledDetail": "Les paiements par crédit sont désactivés pour le moment, cette échéance ne peut donc pas être prélevée sur le crédit. Vous pouvez toujours payer par carte.",
+        "creditInsufficient": "Solde de crédit insuffisant",
+        "creditNotEligible": "Cette commande n'est pas éligible au paiement par crédit.",
+        "creditShortfall": "Il vous manque {{amount}} pour le montant de {{installment}}.",
+        "creditTopUpHint": "Rechargez votre solde de crédit ou continuez plutôt par carte.",
+        "oneMethodNote": "Chaque échéance est payée avec un seul mode. Pas de financement mixte, et rien n'est débité sans votre confirmation explicite.",
+        "payWithCardInstead": "Payer par carte",
+        "stripe": "Carte via Stripe",
+        "stripeDesc": "Payez par carte de débit ou de crédit. Vous saisissez les coordonnées à chaque fois ; rien n'est enregistré ni débité automatiquement."
+      },
+      "missingSubject": "Aucune commande ou campagne sélectionnée pour le paiement.",
+      "payments": {
+        "awaitingBadge": "En attente de règlement",
+        "empty": "Aucune tentative de paiement pour le moment.",
+        "headers": {
+          "amount": "Montant",
+          "date": "Date",
+          "installment": "Échéance",
+          "method": "Mode",
+          "reference": "Référence",
+          "status": "Statut"
+        },
+        "settledBadge": "Réglé",
+        "states": {
+          "failed": "Échoué",
+          "pending": "En attente",
+          "processing": "En cours",
+          "refunded": "Remboursé",
+          "succeeded": "Réussi"
+        },
+        "subtitle": "Chaque tentative de paiement, avec règlement confirmé par OxSteed.",
+        "title": "Mes paiements logistiques"
+      },
+      "quote": {
+        "acceptedOn": "Accepté le {{date}}",
+        "depositPercent": "L'acompte représente {{percent}} % du total du devis, selon le devis approuvé.",
+        "expired": "Ce devis a expiré le {{date}}. Demandez un nouveau devis aux opérations avant de payer.",
+        "expiresOn": "Devis expire le {{date}}",
+        "itemized": "Coûts détaillés",
+        "newVersionAvailable": "Une version plus récente du devis nécessite votre acceptation avant le paiement.",
+        "supersededBlocked": "Ce devis a été remplacé par la version {{version}}. Examinez et acceptez la nouvelle version avant de payer.",
+        "total": "Total du devis",
+        "version": "Devis version {{version}}"
+      },
+      "returnTo": "Retour à {{label}}",
+      "schedule": {
+        "alreadySettled": "Cette échéance est réglée. Rien de plus à payer.",
+        "deposit": "Acompte",
+        "dueNow": "Échéance immédiate",
+        "dueOn": "Échéance le {{date}}",
+        "final": "Solde final",
+        "paid": "Payé",
+        "payNow": "Payer {{installment}}",
+        "processing": "Paiement en cours",
+        "settled": "Réglé",
+        "unpaid": "En attente de paiement"
+      },
+      "sections": {
+        "confirm": "Confirmer le paiement",
+        "method": "Mode de paiement",
+        "quote": "Devis",
+        "schedule": "Échéancier de paiement",
+        "status": "Statut du paiement",
+        "summary": "Résumé de la commande",
+        "terms": "Conditions d'annulation"
+      },
+      "status": {
+        "amount": "Montant",
+        "attempt": "Tentative {{id}}",
+        "checking": "Vérification du statut du paiement…",
+        "createdAt": "Démarrée le {{date}}",
+        "failed": "Le paiement a échoué",
+        "failedDetail": "Motif : {{message}}",
+        "failedUnknown": "Le paiement n'a pas abouti. Aucun montant n'a été débité.",
+        "installment": "Échéance",
+        "method": "Mode",
+        "newKeyNote": "Chaque nouvel essai crée une nouvelle tentative de paiement, vous n'êtes donc jamais débité deux fois pour la même confirmation.",
+        "notSettled": "Les fonds ne sont pas encore réglés. Nous le confirmerons ici une fois le paiement encaissé.",
+        "pending": "Paiement en attente",
+        "processing": "Traitement de votre paiement…",
+        "received": "Nous avons reçu votre confirmation de paiement.",
+        "refresh": "Actualiser le statut",
+        "refunded": "Remboursé",
+        "retry": "Réessayer avec une nouvelle tentative de paiement",
+        "settled": "Paiement réglé",
+        "settledDetail": "OxSteed a confirmé la réception de {{amount}}. Votre échéance est complète.",
+        "viewAll": "Voir tous mes paiements"
+      },
+      "subtitle": "Examinez votre devis et confirmez chaque échéance séparément.",
+      "summary": {
+        "expectedArrival": "Arrivée prévue",
+        "lane": "Itinéraire",
+        "product": "Produit",
+        "quantity": "Quantité",
+        "reference": "Référence",
+        "status": "Statut",
+        "supplier": "Fournisseur"
+      },
+      "title": "Paiement sécurisé",
+      "usdOnly": "Tous les montants sont en USD."
+    },
+    "quotes": {
+      "accept": {
+        "accepted": "Devis version {{version}} accepté. Vous pouvez maintenant payer.",
+        "accepting": "Acceptation…",
+        "body": "La version {{version}} remplace la version {{previous}}. Examinez les modifications, puis acceptez-la pour continuer vers le paiement. Vous ne pouvez pas payer avec l'ancienne version.",
+        "button": "Accepter le devis version {{version}}",
+        "cannotPayOld": "Le paiement est suspendu jusqu'à ce que vous acceptiez le devis actuel.",
+        "decline": "Pas maintenant",
+        "title": "Un nouveau devis nécessite votre acceptation"
+      },
+      "current": "Actuel",
+      "decrease": "baisse",
+      "diff": {
+        "added": "Ajouté",
+        "changed": "Modifié",
+        "noChanges": "Aucune modification des lignes dans cette version.",
+        "now": "Désormais {{amount}}",
+        "removed": "Supprimé",
+        "title": "Ce qui a changé",
+        "totalChange": "Total modifié de {{amount}}",
+        "was": "Était {{amount}}"
+      },
+      "increase": "hausse",
+      "superseded": "Remplacé",
+      "version": "Version {{version}}"
     }
   }
 }
