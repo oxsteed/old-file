@@ -7,6 +7,7 @@ import { useAbortableFetch } from '../../lib/useAbortableFetch';
 import ConfirmDialog from '../../lib/ConfirmDialog';
 import AdminErrorState from '../../lib/AdminErrorState';
 import '../../../styles/logistics/LogisticsHomePage.css';
+import '../../../styles/logistics/LogisticsWorkspaces.css';
 
 const NS = 'adminSuppliers';
 
@@ -84,7 +85,7 @@ export default function SuppliersManagement() {
               <tr key={s.id} onClick={() => setSelected(s)} style={{ cursor:'pointer' }}>
                 <td>
                   <div style={{ fontWeight:700 }}>{s.company_name}</div>
-                  <div style={{ fontSize:'.75rem', color:'#64748b' }}>{s.contact_email}</div>
+                  <div style={{ fontSize:'.75rem', color:'var(--color-text-muted)' }}>{s.contact_email}</div>
                 </td>
                 <td>{s.country} {s.city && `· ${s.city}`}</td>
                 <td style={{ fontSize:'.75rem' }}>{s.approved_categories?.slice(0,2).join(', ')}</td>
@@ -94,12 +95,12 @@ export default function SuppliersManagement() {
                 </td>
                 <td>{parseFloat(s.quality_score||0).toFixed(1)}/5</td>
                 <td>
-                  <span style={{ color: s.kyb_verified ? '#22c55e' : '#dc2626', fontWeight:700, fontSize:'.8rem' }}>
+                  <span style={{ color: s.kyb_verified ? 'var(--color-success)' : 'var(--color-error)', fontWeight:700, fontSize:'.8rem' }}>
                     {s.kyb_verified ? '✓' : '✗'}
                   </span>
                 </td>
                 <td>
-                  <span style={{ color: s.is_active ? '#22c55e' : '#ef4444', fontWeight:700, fontSize:'.8rem' }}>
+                  <span style={{ color: s.is_active ? 'var(--color-success)' : 'var(--color-error)', fontWeight:700, fontSize:'.8rem' }}>
                     {s.is_active ? t(`${NS}.statusActive`, { defaultValue: 'Active' }) : t(`${NS}.statusInactive`, { defaultValue: 'Inactive' })}
                   </span>
                 </td>
@@ -117,7 +118,7 @@ export default function SuppliersManagement() {
               </tr>
             ))}
             {suppliers.length === 0 && !loading && !error && (
-              <tr><td colSpan={9} style={{ textAlign:'center', padding:'2rem', color:'#94a3b8' }}>{t(`${NS}.noSuppliers`, { defaultValue: 'No suppliers found.' })}</td></tr>
+              <tr><td colSpan={9} className="lx-table-empty-cell">{t(`${NS}.noSuppliers`, { defaultValue: 'No suppliers found.' })}</td></tr>
             )}
           </tbody>
         </table>
@@ -127,7 +128,7 @@ export default function SuppliersManagement() {
       {selected && (
         <div style={{
           position:'fixed', right:0, top:0, bottom:0, width:420, maxWidth:'100vw',
-          background:'var(--card-bg,#fff)', boxShadow:'-4px 0 24px rgba(0,0,0,.15)',
+          background:'var(--color-card-bg)', boxShadow:'-4px 0 24px rgba(0,0,0,.15)',
           overflow:'auto', padding:'1.5rem', zIndex:9999,
         }}>
           <div style={{ display:'flex', justifyContent:'space-between', marginBottom:'1rem' }}>
@@ -152,8 +153,8 @@ export default function SuppliersManagement() {
             [t(`${NS}.detailKybVerified`, { defaultValue: 'KYB Verified' }), selected.kyb_verified ? (selected.kyb_verified_at ? t(`${NS}.kybYes`, { defaultValue: 'Yes ({{date}})', date: new Date(selected.kyb_verified_at).toLocaleDateString() }) : t('common.yes')) : t('common.no')],
             [t(`${NS}.detailApproved`, { defaultValue: 'Approved' }), selected.approved_at ? new Date(selected.approved_at).toLocaleDateString() : t(`${NS}.pendingApproval`, { defaultValue: 'Pending' })],
           ].filter(([,v]) => v).map(([k,v]) => (
-            <div key={k} style={{ display:'flex', justifyContent:'space-between', padding:'.4rem 0', borderBottom:'1px solid #f1f5f9', fontSize:'.85rem' }}>
-              <span style={{ color:'#64748b' }}>{k}</span>
+            <div key={k} style={{ display:'flex', justifyContent:'space-between', padding:'.4rem 0', borderBottom:'1px solid var(--color-surface-2)', fontSize:'.85rem' }}>
+              <span style={{ color:'var(--color-text-muted)' }}>{k}</span>
               <span style={{ fontWeight:600 }}>{v}</span>
             </div>
           ))}
@@ -162,13 +163,13 @@ export default function SuppliersManagement() {
               <div style={{ fontWeight:700, fontSize:'.85rem', marginBottom:'.4rem' }}>{t(`${NS}.approvedCategories`, { defaultValue: 'Approved Categories' })}</div>
               <div style={{ display:'flex', gap:'.35rem', flexWrap:'wrap' }}>
                 {selected.approved_categories.map(c => (
-                  <span key={c} style={{ background:'#f1f5f9', borderRadius:999, padding:'.15rem .6rem', fontSize:'.72rem', fontWeight:700 }}>{c}</span>
+                  <span key={c} style={{ background:'var(--color-surface-2)', borderRadius:999, padding:'.15rem .6rem', fontSize:'.72rem', fontWeight:700 }}>{c}</span>
                 ))}
               </div>
             </div>
           )}
           {selected.compliance_notes && (
-            <div style={{ marginTop:'.75rem', background:'#fef2f2', borderRadius:'.5rem', padding:'.75rem', fontSize:'.82rem', color:'#b91c1c' }}>
+            <div style={{ marginTop:'.75rem', background:'var(--color-error-bg)', borderRadius:'.5rem', padding:'.75rem', fontSize:'.82rem', color:'var(--color-error)' }}>
               <strong>{t(`${NS}.complianceNotes`, { defaultValue: 'Compliance Notes:' })}</strong> {selected.compliance_notes}
             </div>
           )}
