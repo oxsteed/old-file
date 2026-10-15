@@ -81,7 +81,9 @@
     "changeLanguage": "Badilisha lugha",
     "languageMenu": "Menyu ya lugha",
     "currentLanguage": "Lugha ya sasa: {{language}}",
-    "chooseLanguage": "Chagua {{language}}"
+    "chooseLanguage": "Chagua {{language}}",
+    "preferred": "pendeleo",
+    "setPreferred": "Weka {{language}} kama lugha pendelo"
   },
   "forms": {
     "country": {

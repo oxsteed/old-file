@@ -170,7 +170,9 @@
     "changeLanguage": "Đổi ngôn ngữ",
     "languageMenu": "Menu ngôn ngữ",
     "currentLanguage": "Ngôn ngữ hiện tại: {{language}}",
-    "chooseLanguage": "Chọn {{language}}"
+    "chooseLanguage": "Chọn {{language}}",
+    "preferred": "ưa thích",
+    "setPreferred": "Đặt {{language}} làm ngôn ngữ ưa thích"
   },
   "forms": {
     "country": {
