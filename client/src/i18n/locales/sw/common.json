@@ -1364,5 +1364,175 @@
       "12": "12. Mabadiliko ya Sera Hii ya Faragha",
       "13": "13. Wasiliana Nasi"
     }
+  },
+  "logistics": {
+    "hub": {
+      "aboutBody": "Wanunuzi huunganisha mahitaji yao kufikia kiwango cha chini cha oda cha msambazaji. Mahitaji ya kutosha yakiahidiwa, kampeni hufungwa, amana hukusanywa, na OxSteed huratibu sehemu iliyobaki ya msururu wa ugavi.",
+      "aboutTitle": "Jinsi ununuzi wa pamoja unavyofanya kazi",
+      "aboutToggle": "Jinsi ununuzi wa pamoja unavyofanya kazi",
+      "clearFilters": "Futa vichungi",
+      "emptyBody": "Jaribu utafutaji au kichungi tofauti. Kampeni mpya hufunguliwa mara kwa mara.",
+      "emptyTitle": "Hakuna kampeni zinazolingana na vichungi vyako",
+      "error": "Imeshindwa kupakia kampeni. Tafadhali jaribu tena.",
+      "eyebrow": "OxSteed Logistics",
+      "intro": "Jiunge na kampeni za pamoja ili upate bei za jumla, au andaa yako mwenyewe.",
+      "laneLabel": "Njia",
+      "loading": "Inapakia kampeni...",
+      "nextPage": "Ifuatayo",
+      "noCampaignsBody": "Hakuna kampeni zilizo wazi kwa sasa. Rudi tena hivi karibuni, au andaa moja mwenyewe.",
+      "noCampaignsTitle": "Hakuna kampeni bado",
+      "organizeCta": "Andaa kampeni",
+      "pageOf": "Ukurasa {{page}} kati ya {{pages}}",
+      "prevPage": "Iliyotangulia",
+      "procurementCta": "Ununuzi wa biashara",
+      "resultsCount": "kampeni {{count}}",
+      "retry": "Jaribu tena",
+      "searchLabel": "Tafuta kampeni",
+      "searchPlaceholder": "Tafuta kwa bidhaa, njia au kichwa",
+      "statusLabel": "Hali",
+      "title": "Ununuzi wa pamoja, kwa urahisi"
+    },
+    "nav": {
+      "adminControl": "Udhibiti wa msimamizi",
+      "businessProcurement": "Ununuzi wa biashara",
+      "buyer": "Mnunuzi",
+      "compliance": "Uzingatiaji",
+      "distributor": "Msambazaji",
+      "hub": "Vinjari",
+      "label": "Nafasi za kazi za usafirishaji",
+      "operations": "Uendeshaji",
+      "organizer": "Mwandalizi"
+    },
+    "modal": {
+      "close": "Funga",
+      "openFullPage": "Fungua ukurasa kamili",
+      "loading": "Inapakia…",
+      "loadError": "Imeshindwa kupakia hakikisho hili.",
+      "retry": "Jaribu tena",
+      "notFound": "Kipengee hiki hakikupatikana.",
+      "campaignPreviewTitle": "Hakikisho la kampeni",
+      "requestPreviewTitle": "Hakikisho la ombi",
+      "orderPreviewTitle": "Hakikisho la oda",
+      "shipmentPreviewTitle": "Hakikisho la shehena",
+      "allocationPreviewTitle": "Hakikisho la ugawaji",
+      "campaign": {
+        "lane": "Njia",
+        "status": "Hali",
+        "moqProgress": "Maendeleo ya MOQ",
+        "participants": "Washiriki",
+        "committedUnits": "Imeahidiwa",
+        "targetUnits": "Lengo"
+      },
+      "request": {
+        "status": "Hali",
+        "category": "Aina",
+        "targetQuantity": "Kiasi kinacholengwa",
+        "targetPrice": "Bei inayolengwa",
+        "destination": "Unakoenda",
+        "deadline": "Tarehe ya mwisho",
+        "quotes": "Nukuu za bei"
+      },
+      "order": {
+        "status": "Hali",
+        "supplier": "Msambazaji",
+        "quantity": "Kiasi",
+        "total": "Jumla ya oda",
+        "balanceDue": "Salio linalodaiwa",
+        "expectedArrival": "Kuwasili kunakotarajiwa"
+      },
+      "shipment": {
+        "status": "Hali",
+        "carrier": "Msafirishaji",
+        "trackingNumber": "Nambari ya ufuatiliaji",
+        "originPort": "Bandari ya asili",
+        "destinationPort": "Bandari ya unakoenda",
+        "eta": "Muda wa kuwasili"
+      },
+      "allocation": {
+        "status": "Hali",
+        "recipient": "Mpokeaji",
+        "warehouse": "Ghala",
+        "releaseMethod": "Njia ya kutoa",
+        "quantity": "Kiasi"
+      }
+    },
+    "workspace": {
+      "nextStep": {
+        "title": "Hatua yako inayofuata"
+      },
+      "recentActivity": {
+        "title": "Shughuli za hivi karibuni",
+        "empty": "Hakuna chochote bado. Shughuli mpya zitaonekana hapa."
+      },
+      "dataError": {
+        "title": "Data haipatikani",
+        "body": "Imeshindwa kupakia eneo lako la kazi sasa. Tafadhali jaribu tena.",
+        "retry": "Jaribu tena"
+      },
+      "buyer": {
+        "nextStep": {
+          "browseCampaigns": {
+            "label": "Vinjari kampeni",
+            "hint": "Hakuna maombi yanayoendelea. Tafuta kampeni ya pamoja ujiunge nayo au uifuatilie."
+          },
+          "reviewShipments": {
+            "label": "Pitia shehena zilizo hatarini",
+            "hint": "Shehena {{count}} zinahitaji ufuatiliaji."
+          },
+          "startRequest": {
+            "label": "Anzisha ombi la ununuzi",
+            "hint": "Kila kitu kinaendelea. Fungua mahitaji mapya ukiwa tayari."
+          }
+        }
+      },
+      "organizer": {
+        "nextStep": {
+          "momentum": {
+            "label": "Sukuma kasi ya MOQ",
+            "hint": "Kampeni {{count}} ziko chini ya nusu ya MOQ na zinahitaji uhamasishaji zaidi."
+          },
+          "browse": {
+            "label": "Vinjari kampeni",
+            "hint": "Bado huratibu kampeni yoyote. Tafuta moja ujiunge nayo."
+          },
+          "handoffs": {
+            "label": "Ratibu makabidhiano",
+            "hint": "Mahitaji yamekusanywa. Endelea kusukuma makabidhiano kwa wapokeaji."
+          }
+        }
+      },
+      "business": {
+        "nextStep": {
+          "reviewRuns": {
+            "label": "Pitia uendeshaji ujao",
+            "hint": "Uendeshaji {{count}} wa programu unafanyika ndani ya siku 21. Angalia kiasi, njia na unakoenda."
+          },
+          "createProgram": {
+            "label": "Unda programu inayojirudia",
+            "hint": "Hakuna programu za kujaza hisa bado. Weka ratiba ya mahitaji yanayojirudia."
+          },
+          "newRequest": {
+            "label": "Fungua ombi la biashara",
+            "hint": "Programu zinaendeshwa. Unganisha mahitaji mapya na mojawapo ya biashara zako."
+          }
+        }
+      },
+      "distributor": {
+        "nextStep": {
+          "failedDeliveries": {
+            "label": "Pitia uwasilishaji ulioshindwa",
+            "hint": "Uwasilishaji {{count}} umeshindwa au umeghairiwa na unaweza kuhitaji uelekezaji mwingine."
+          },
+          "releaseLots": {
+            "label": "Achilia shehena zinazosubiri",
+            "hint": "Makundi {{count}} yametengwa lakini bado hayajatolewa."
+          },
+          "warehouse": {
+            "label": "Angalia utayari wa ghala",
+            "hint": "Foleni iko wazi. Hakikisha hisa iko tayari kugawiwa."
+          }
+        }
+      }
+    }
   }
 }

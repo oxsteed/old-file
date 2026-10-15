@@ -1366,5 +1366,175 @@
       "12": "12. 本隐私政策的变更",
       "13": "13. 联系我们"
     }
+  },
+  "logistics": {
+    "hub": {
+      "aboutBody": "买家汇集需求，达到供应商的最低起订量。当承诺的需求足够时，活动锁定，收取定金，OxSteed 协调供应链的其余环节。",
+      "aboutTitle": "拼单采购如何运作",
+      "aboutToggle": "拼单采购如何运作",
+      "clearFilters": "清除筛选",
+      "emptyBody": "请尝试其他搜索或筛选条件。新活动会定期开启。",
+      "emptyTitle": "没有符合筛选条件的活动",
+      "error": "无法加载活动，请重试。",
+      "eyebrow": "OxSteed Logistics",
+      "intro": "加入拼单活动，解锁批发价格，或自己组织一场。",
+      "laneLabel": "线路",
+      "loading": "正在加载活动...",
+      "nextPage": "下一页",
+      "noCampaignsBody": "目前没有进行中的活动。请稍后再来，或自己组织一场。",
+      "noCampaignsTitle": "暂无活动",
+      "organizeCta": "组织活动",
+      "pageOf": "第 {{page}} 页，共 {{pages}} 页",
+      "prevPage": "上一页",
+      "procurementCta": "企业采购",
+      "resultsCount": "{{count}} 个活动",
+      "retry": "重试",
+      "searchLabel": "搜索活动",
+      "searchPlaceholder": "按产品、线路或标题搜索",
+      "statusLabel": "状态",
+      "title": "拼单采购，简单高效"
+    },
+    "nav": {
+      "adminControl": "管理控制台",
+      "businessProcurement": "企业采购",
+      "buyer": "买家",
+      "compliance": "合规",
+      "distributor": "分销商",
+      "hub": "浏览",
+      "label": "物流工作区",
+      "operations": "运营",
+      "organizer": "组织者"
+    },
+    "modal": {
+      "close": "关闭",
+      "openFullPage": "打开完整页面",
+      "loading": "加载中…",
+      "loadError": "无法加载此预览。",
+      "retry": "重试",
+      "notFound": "找不到此项目。",
+      "campaignPreviewTitle": "活动预览",
+      "requestPreviewTitle": "需求预览",
+      "orderPreviewTitle": "订单预览",
+      "shipmentPreviewTitle": "货运预览",
+      "allocationPreviewTitle": "分配预览",
+      "campaign": {
+        "lane": "线路",
+        "status": "状态",
+        "moqProgress": "起订量进度",
+        "participants": "参与者",
+        "committedUnits": "已承诺",
+        "targetUnits": "目标"
+      },
+      "request": {
+        "status": "状态",
+        "category": "类别",
+        "targetQuantity": "目标数量",
+        "targetPrice": "目标价格",
+        "destination": "目的地",
+        "deadline": "截止日期",
+        "quotes": "报价"
+      },
+      "order": {
+        "status": "状态",
+        "supplier": "供应商",
+        "quantity": "数量",
+        "total": "订单总额",
+        "balanceDue": "应付余额",
+        "expectedArrival": "预计到达"
+      },
+      "shipment": {
+        "status": "状态",
+        "carrier": "承运商",
+        "trackingNumber": "跟踪号",
+        "originPort": "起运港",
+        "destinationPort": "目的港",
+        "eta": "预计到达时间"
+      },
+      "allocation": {
+        "status": "状态",
+        "recipient": "收货人",
+        "warehouse": "仓库",
+        "releaseMethod": "放货方式",
+        "quantity": "数量"
+      }
+    },
+    "workspace": {
+      "nextStep": {
+        "title": "您的下一步"
+      },
+      "recentActivity": {
+        "title": "近期动态",
+        "empty": "暂无内容。新的动态将显示在这里。"
+      },
+      "dataError": {
+        "title": "数据不可用",
+        "body": "目前无法加载您的工作区。请重试。",
+        "retry": "重试"
+      },
+      "buyer": {
+        "nextStep": {
+          "browseCampaigns": {
+            "label": "浏览活动",
+            "hint": "暂无进行中的采购需求。找一个拼单活动加入或关注。"
+          },
+          "reviewShipments": {
+            "label": "查看有风险的货运",
+            "hint": "有 {{count}} 票货运需要跟进。"
+          },
+          "startRequest": {
+            "label": "发起采购需求",
+            "hint": "一切进展顺利。准备好后可发起新的需求。"
+          }
+        }
+      },
+      "organizer": {
+        "nextStep": {
+          "momentum": {
+            "label": "推动起订量",
+            "hint": "有 {{count}} 个活动未达到起订量的一半，需要继续招募。"
+          },
+          "browse": {
+            "label": "浏览活动",
+            "hint": "您还没有组织任何活动。找一个加入吧。"
+          },
+          "handoffs": {
+            "label": "协调交付",
+            "hint": "需求已锁定。请保持向收货人的交付顺畅。"
+          }
+        }
+      },
+      "business": {
+        "nextStep": {
+          "reviewRuns": {
+            "label": "查看即将执行的计划",
+            "hint": "21 天内有 {{count}} 个补货计划执行。请检查数量、线路和目的地。"
+          },
+          "createProgram": {
+            "label": "创建定期补货计划",
+            "hint": "还没有补货计划。为重复性需求设定一个节奏。"
+          },
+          "newRequest": {
+            "label": "发起企业采购需求",
+            "hint": "计划运行正常。将新需求关联到您的企业。"
+          }
+        }
+      },
+      "distributor": {
+        "nextStep": {
+          "failedDeliveries": {
+            "label": "查看失败的交付",
+            "hint": "有 {{count}} 票交付失败或取消，可能需要改道或跟进。"
+          },
+          "releaseLots": {
+            "label": "放行待处理的批次",
+            "hint": "有 {{count}} 个批次已分配但尚未放行。"
+          },
+          "warehouse": {
+            "label": "检查仓库就绪情况",
+            "hint": "待办队列已清空。请确保上游库存已准备好分配。"
+          }
+        }
+      }
+    }
   }
 }

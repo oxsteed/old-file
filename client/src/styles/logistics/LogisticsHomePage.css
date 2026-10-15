@@ -981,3 +981,128 @@ html.dark .lxh-role-heading { color: #f1f5f9; }
 
 .lx-error { text-align: center; padding: 2rem 1rem; }
 .lx-error p { margin-bottom: 1rem; color: #dc2626; }
+
+/* ────────────────────────────────────────────────────────────────
+   Logistics browsing hub (/logistics) — Phase 1 refactor styles.
+   Appended 2026-10-15. Scoped .lx-hub-* classes; existing .lx-* shared
+   styles above are left untouched for the workspace/admin pages.
+   ──────────────────────────────────────────────────────────────── */
+
+.lx-hub {
+  max-width: 100%;
+}
+
+.lx-hub-eyebrow {
+  font-size: var(--text-xs);
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-primary);
+  margin: 0 0 var(--space-2);
+}
+
+.lx-hub-title {
+  font-size: var(--text-3xl);
+  font-weight: 800;
+  line-height: 1.2;
+  color: var(--color-text);
+  margin: 0 0 var(--space-2);
+}
+
+.lx-hub-intro {
+  font-size: var(--text-base);
+  color: var(--color-text-muted);
+  line-height: 1.6;
+  margin: 0 0 var(--space-5);
+  max-width: 44rem;
+}
+
+.lx-hub-actions {
+  display: flex;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  margin-block-end: var(--space-2);
+}
+
+/* Buttons share CampaignBrowser's token-based styles. */
+.lx-hub-actions .lx-cb-btn-primary,
+.lx-hub-actions .lx-cb-btn-ghost {
+  text-decoration: none;
+}
+
+/* ── Collapsed explainer below the useful actions ── */
+.lx-hub-about {
+  margin-block: var(--space-12) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  background: var(--color-surface);
+}
+
+.lx-hub-about-summary {
+  cursor: pointer;
+  padding: var(--space-4) var(--space-5);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  color: var(--color-text);
+  list-style: none;
+  min-block-size: 2.75rem;
+  display: flex;
+  align-items: center;
+}
+
+.lx-hub-about-summary::-webkit-details-marker {
+  display: none;
+}
+
+.lx-hub-about-summary::before {
+  content: '▸';
+  color: var(--color-primary);
+  margin-inline-end: var(--space-2);
+  transition: transform var(--transition-fast);
+}
+
+.lx-hub-about[open] .lx-hub-about-summary::before {
+  transform: rotate(90deg);
+}
+
+[dir="rtl"] .lx-hub-about[open] .lx-hub-about-summary::before {
+  transform: rotate(-90deg);
+}
+
+.lx-hub-about-summary:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+  border-radius: var(--radius-xl);
+}
+
+.lx-hub-about-body {
+  padding: 0 var(--space-5) var(--space-6);
+  border-block-start: 1px solid var(--color-border);
+}
+
+.lx-hub-about-heading {
+  font-size: var(--text-lg);
+  font-weight: 800;
+  color: var(--color-text);
+  margin: var(--space-5) 0 var(--space-2);
+}
+
+.lx-hub-about-body p {
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+  line-height: 1.7;
+  max-width: 44rem;
+  margin: 0 0 var(--space-4);
+}
+
+@media (max-width: 48rem) {
+  .lx-hub-title {
+    font-size: var(--text-2xl);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lx-hub-about-summary::before {
+    transition: none;
+  }
+}

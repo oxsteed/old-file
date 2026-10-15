@@ -42,7 +42,7 @@ export default function CampaignsAdmin() {
       adminListCampaigns({ status: statusFilter||undefined }),
       adminListLanes(),
     ]).then(([cRes, lRes]) => {
-      setCampaigns(cRes.data||[]);
+      setCampaigns(cRes.data ?? cRes.orders ?? []);
       setLanes(lRes.data||[]);
     }).catch((err) => setLoadError(err)).finally(() => setLoading(false));
   };

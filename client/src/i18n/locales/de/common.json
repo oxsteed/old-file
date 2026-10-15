@@ -1366,5 +1366,175 @@
       "12": "12. Änderungen dieser Datenschutzerklärung",
       "13": "13. Kontaktieren Sie uns"
     }
+  },
+  "logistics": {
+    "hub": {
+      "aboutBody": "Käufer bündeln ihre Nachfrage bis zur Mindestbestellmenge des Lieferanten. Sobald genug Nachfrage zugesagt ist, wird die Kampagne gesperrt, Anzahlungen werden eingezogen und OxSteed koordiniert den Rest der Lieferkette.",
+      "aboutTitle": "So funktioniert gemeinsames Einkaufen",
+      "aboutToggle": "So funktioniert gemeinsames Einkaufen",
+      "clearFilters": "Filter zurücksetzen",
+      "emptyBody": "Versuche eine andere Suche oder andere Filter. Neue Kampagnen starten regelmäßig.",
+      "emptyTitle": "Keine Kampagnen entsprechen deinen Filtern",
+      "error": "Kampagnen konnten nicht geladen werden. Bitte versuche es erneut.",
+      "eyebrow": "OxSteed Logistics",
+      "intro": "Nimm an Gruppenkampagnen teil, um Großhandelspreise zu erhalten, oder organisiere deine eigene.",
+      "laneLabel": "Route",
+      "loading": "Kampagnen werden geladen...",
+      "nextPage": "Weiter",
+      "noCampaignsBody": "Derzeit sind keine Kampagnen geöffnet. Schau bald wieder vorbei oder organisiere selbst eine.",
+      "noCampaignsTitle": "Noch keine Kampagnen",
+      "organizeCta": "Kampagne organisieren",
+      "pageOf": "Seite {{page}} von {{pages}}",
+      "prevPage": "Zurück",
+      "procurementCta": "Geschäftliche Beschaffung",
+      "resultsCount": "{{count}} Kampagnen",
+      "retry": "Erneut versuchen",
+      "searchLabel": "Kampagnen suchen",
+      "searchPlaceholder": "Nach Produkt, Route oder Titel suchen",
+      "statusLabel": "Status",
+      "title": "Gemeinsam einkaufen, ganz einfach"
+    },
+    "nav": {
+      "adminControl": "Admin-Steuerung",
+      "businessProcurement": "Geschäftliche Beschaffung",
+      "buyer": "Käufer",
+      "compliance": "Compliance",
+      "distributor": "Händler",
+      "hub": "Stöbern",
+      "label": "Logistik-Arbeitsbereiche",
+      "operations": "Betrieb",
+      "organizer": "Organisator"
+    },
+    "modal": {
+      "close": "Schließen",
+      "openFullPage": "Volle Seite öffnen",
+      "loading": "Wird geladen…",
+      "loadError": "Diese Vorschau konnte nicht geladen werden.",
+      "retry": "Erneut versuchen",
+      "notFound": "Dieses Element wurde nicht gefunden.",
+      "campaignPreviewTitle": "Kampagnen-Vorschau",
+      "requestPreviewTitle": "Anfrage-Vorschau",
+      "orderPreviewTitle": "Bestell-Vorschau",
+      "shipmentPreviewTitle": "Sendungs-Vorschau",
+      "allocationPreviewTitle": "Zuteilungs-Vorschau",
+      "campaign": {
+        "lane": "Route",
+        "status": "Status",
+        "moqProgress": "MOQ-Fortschritt",
+        "participants": "Teilnehmer",
+        "committedUnits": "Zugesagt",
+        "targetUnits": "Ziel"
+      },
+      "request": {
+        "status": "Status",
+        "category": "Kategorie",
+        "targetQuantity": "Zielmenge",
+        "targetPrice": "Zielpreis",
+        "destination": "Zielort",
+        "deadline": "Frist",
+        "quotes": "Angebote"
+      },
+      "order": {
+        "status": "Status",
+        "supplier": "Lieferant",
+        "quantity": "Menge",
+        "total": "Bestellsumme",
+        "balanceDue": "Offener Restbetrag",
+        "expectedArrival": "Voraussichtliche Ankunft"
+      },
+      "shipment": {
+        "status": "Status",
+        "carrier": "Spediteur",
+        "trackingNumber": "Sendungsnummer",
+        "originPort": "Abgangshafen",
+        "destinationPort": "Zielhafen",
+        "eta": "Voraussichtliche Ankunftszeit"
+      },
+      "allocation": {
+        "status": "Status",
+        "recipient": "Empfänger",
+        "warehouse": "Lager",
+        "releaseMethod": "Freigabemethode",
+        "quantity": "Menge"
+      }
+    },
+    "workspace": {
+      "nextStep": {
+        "title": "Ihr nächster Schritt"
+      },
+      "recentActivity": {
+        "title": "Letzte Aktivitäten",
+        "empty": "Noch nichts hier. Neue Aktivitäten erscheinen hier."
+      },
+      "dataError": {
+        "title": "Daten nicht verfügbar",
+        "body": "Ihr Arbeitsbereich konnte gerade nicht geladen werden. Bitte versuchen Sie es erneut.",
+        "retry": "Erneut versuchen"
+      },
+      "buyer": {
+        "nextStep": {
+          "browseCampaigns": {
+            "label": "Kampagnen ansehen",
+            "hint": "Keine aktiven Anfragen. Finden Sie eine Sammelkampagne zum Mitmachen oder Verfolgen."
+          },
+          "reviewShipments": {
+            "label": "Risikosendungen prüfen",
+            "hint": "{{count}} Sendungen brauchen Nachverfolgung."
+          },
+          "startRequest": {
+            "label": "Beschaffungsanfrage starten",
+            "hint": "Alles läuft. Eröffnen Sie neue Nachfrage, wenn Sie bereit sind."
+          }
+        }
+      },
+      "organizer": {
+        "nextStep": {
+          "momentum": {
+            "label": "MOQ-Schwung erhöhen",
+            "hint": "{{count}} Kampagnen liegen unter der Hälfte des MOQ und brauchen mehr Teilnehmer."
+          },
+          "browse": {
+            "label": "Kampagnen ansehen",
+            "hint": "Sie koordinieren noch keine Kampagnen. Finden Sie eine zum Mitmachen."
+          },
+          "handoffs": {
+            "label": "Übergaben koordinieren",
+            "hint": "Die Nachfrage steht. Halten Sie die Übergaben an die Empfänger am Laufen."
+          }
+        }
+      },
+      "business": {
+        "nextStep": {
+          "reviewRuns": {
+            "label": "Anstehende Läufe prüfen",
+            "hint": "{{count}} Programmläufe in 21 Tagen. Menge, Route und Ziel prüfen."
+          },
+          "createProgram": {
+            "label": "Wiederkehrendes Programm erstellen",
+            "hint": "Noch keine Nachschubprogramme. Legen Sie einen Rhythmus für wiederkehrende Nachfrage fest."
+          },
+          "newRequest": {
+            "label": "Geschäftliche Anfrage öffnen",
+            "hint": "Die Programme laufen. Verknüpfen Sie neue Nachfrage mit einem Ihrer Unternehmen."
+          }
+        }
+      },
+      "distributor": {
+        "nextStep": {
+          "failedDeliveries": {
+            "label": "Fehlgeschlagene Lieferungen prüfen",
+            "hint": "{{count}} Lieferungen sind fehlgeschlagen oder storniert und müssen ggf. umgeleitet werden."
+          },
+          "releaseLots": {
+            "label": "Wartende Lose freigeben",
+            "hint": "{{count}} Lose sind zugeteilt, aber noch nicht freigegeben."
+          },
+          "warehouse": {
+            "label": "Lagerbereitschaft prüfen",
+            "hint": "Die Warteschlange ist leer. Stellen Sie sicher, dass der Bestand zuteilungsbereit ist."
+          }
+        }
+      }
+    }
   }
 }

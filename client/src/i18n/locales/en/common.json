@@ -1366,5 +1366,175 @@
       "12": "12. Changes to This Privacy Policy",
       "13": "13. Contact Us"
     }
+  },
+  "logistics": {
+    "hub": {
+      "aboutBody": "Buyers pool their demand toward a supplier minimum order quantity. When enough demand is committed, the campaign is locked, deposits are collected, and OxSteed coordinates the rest of the supply chain.",
+      "aboutTitle": "How pooled buying works",
+      "aboutToggle": "How pooled buying works",
+      "clearFilters": "Clear filters",
+      "emptyBody": "Try a different search or filter. New campaigns open regularly.",
+      "emptyTitle": "No campaigns match your filters",
+      "error": "Campaigns could not be loaded. Please try again.",
+      "eyebrow": "OxSteed Logistics",
+      "intro": "Join group campaigns to unlock wholesale prices, or organize one of your own.",
+      "laneLabel": "Lane",
+      "loading": "Loading campaigns...",
+      "nextPage": "Next",
+      "noCampaignsBody": "There are no campaigns open right now. Check back soon, or organize one yourself.",
+      "noCampaignsTitle": "No campaigns yet",
+      "organizeCta": "Organize a campaign",
+      "pageOf": "Page {{page}} of {{pages}}",
+      "prevPage": "Previous",
+      "procurementCta": "Business procurement",
+      "resultsCount": "{{count}} campaigns",
+      "retry": "Try again",
+      "searchLabel": "Search campaigns",
+      "searchPlaceholder": "Search by product, lane, or title",
+      "statusLabel": "Status",
+      "title": "Pooled buying, made simple"
+    },
+    "nav": {
+      "adminControl": "Admin control",
+      "businessProcurement": "Business procurement",
+      "buyer": "Buyer",
+      "compliance": "Compliance",
+      "distributor": "Distributor",
+      "hub": "Browse",
+      "label": "Logistics workspaces",
+      "operations": "Operations",
+      "organizer": "Organizer"
+    },
+    "modal": {
+      "close": "Close",
+      "openFullPage": "Open full page",
+      "loading": "Loading…",
+      "loadError": "Couldn't load this preview.",
+      "retry": "Retry",
+      "notFound": "This item could not be found.",
+      "campaignPreviewTitle": "Campaign preview",
+      "requestPreviewTitle": "Request preview",
+      "orderPreviewTitle": "Order preview",
+      "shipmentPreviewTitle": "Shipment preview",
+      "allocationPreviewTitle": "Allocation preview",
+      "campaign": {
+        "lane": "Lane",
+        "status": "Status",
+        "moqProgress": "MOQ progress",
+        "participants": "Participants",
+        "committedUnits": "Committed",
+        "targetUnits": "Target"
+      },
+      "request": {
+        "status": "Status",
+        "category": "Category",
+        "targetQuantity": "Target quantity",
+        "targetPrice": "Target price",
+        "destination": "Destination",
+        "deadline": "Deadline",
+        "quotes": "Quotes"
+      },
+      "order": {
+        "status": "Status",
+        "supplier": "Supplier",
+        "quantity": "Quantity",
+        "total": "Order total",
+        "balanceDue": "Balance due",
+        "expectedArrival": "Expected arrival"
+      },
+      "shipment": {
+        "status": "Status",
+        "carrier": "Carrier",
+        "trackingNumber": "Tracking number",
+        "originPort": "Origin port",
+        "destinationPort": "Destination port",
+        "eta": "ETA"
+      },
+      "allocation": {
+        "status": "Status",
+        "recipient": "Recipient",
+        "warehouse": "Warehouse",
+        "releaseMethod": "Release method",
+        "quantity": "Quantity"
+      }
+    },
+    "workspace": {
+      "nextStep": {
+        "title": "Your next step"
+      },
+      "recentActivity": {
+        "title": "Recent activity",
+        "empty": "Nothing here yet. New activity will appear here."
+      },
+      "dataError": {
+        "title": "Data unavailable",
+        "body": "We couldn't load this workspace right now. Please try again.",
+        "retry": "Try again"
+      },
+      "buyer": {
+        "nextStep": {
+          "browseCampaigns": {
+            "label": "Browse campaigns",
+            "hint": "No active buyer requests. Find a pooled campaign to join or watch."
+          },
+          "reviewShipments": {
+            "label": "Review at-risk shipments",
+            "hint": "{{count}} shipments need buyer follow-up."
+          },
+          "startRequest": {
+            "label": "Start a sourcing request",
+            "hint": "Everything is moving. Open new demand when you are ready."
+          }
+        }
+      },
+      "organizer": {
+        "nextStep": {
+          "momentum": {
+            "label": "Push MOQ momentum",
+            "hint": "{{count}} campaigns are below half of MOQ and need another recruiting push."
+          },
+          "browse": {
+            "label": "Browse campaigns",
+            "hint": "You do not coordinate any campaigns yet. Find one to join or watch."
+          },
+          "handoffs": {
+            "label": "Coordinate handoffs",
+            "hint": "Demand is captured. Keep delivery handoffs moving toward recipients."
+          }
+        }
+      },
+      "business": {
+        "nextStep": {
+          "reviewRuns": {
+            "label": "Review upcoming runs",
+            "hint": "{{count}} program runs land within 21 days. Check quantity, lane fit, and destination readiness."
+          },
+          "createProgram": {
+            "label": "Create a recurring program",
+            "hint": "No restock programs yet. Set a cadence so repeat demand plans itself."
+          },
+          "newRequest": {
+            "label": "Open a business-linked request",
+            "hint": "Programs are running. Tie new demand to one of your businesses."
+          }
+        }
+      },
+      "distributor": {
+        "nextStep": {
+          "failedDeliveries": {
+            "label": "Review failed deliveries",
+            "hint": "{{count}} drops failed or were cancelled and may need rerouting or recipient follow-up."
+          },
+          "releaseLots": {
+            "label": "Release waiting lots",
+            "hint": "{{count}} lots are assigned but not fully released yet."
+          },
+          "warehouse": {
+            "label": "Check warehouse readiness",
+            "hint": "The handoff queue is clear. Make sure upstream stock is ready to allocate."
+          }
+        }
+      }
+    }
   }
 }

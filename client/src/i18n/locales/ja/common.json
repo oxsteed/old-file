@@ -1366,5 +1366,175 @@
       "12": "12. プライバシーポリシーの変更",
       "13": "13. お問い合わせ"
     }
+  },
+  "logistics": {
+    "hub": {
+      "aboutBody": "購入者は需要をまとめ、サプライヤーの最小発注数量に到達させます。十分な需要が集まるとキャンペーンはロックされ、デポジットが徴収され、OxSteed がサプライチェーンの残りを調整します。",
+      "aboutTitle": "共同購入の仕組み",
+      "aboutToggle": "共同購入の仕組み",
+      "clearFilters": "フィルターをクリア",
+      "emptyBody": "別の検索やフィルターをお試しください。新しいキャンペーンは定期的に開始されます。",
+      "emptyTitle": "フィルターに一致するキャンペーンがありません",
+      "error": "キャンペーンを読み込めませんでした。もう一度お試しください。",
+      "eyebrow": "OxSteed Logistics",
+      "intro": "グループキャンペーンに参加して卸価格を手に入れるか、自分でキャンペーンを主催しましょう。",
+      "laneLabel": "レーン",
+      "loading": "キャンペーンを読み込み中...",
+      "nextPage": "次へ",
+      "noCampaignsBody": "現在開催中のキャンペーンはありません。後ほどご確認いただくか、ご自身で主催してください。",
+      "noCampaignsTitle": "まだキャンペーンがありません",
+      "organizeCta": "キャンペーンを主催する",
+      "pageOf": "{{pages}} ページ中 {{page}} ページ目",
+      "prevPage": "前へ",
+      "procurementCta": "法人調達",
+      "resultsCount": "{{count}} 件のキャンペーン",
+      "retry": "再試行",
+      "searchLabel": "キャンペーンを検索",
+      "searchPlaceholder": "商品、レーン、タイトルで検索",
+      "statusLabel": "ステータス",
+      "title": "共同購入を、シンプルに"
+    },
+    "nav": {
+      "adminControl": "管理者コントロール",
+      "businessProcurement": "法人調達",
+      "buyer": "購入者",
+      "compliance": "コンプライアンス",
+      "distributor": "販売代理店",
+      "hub": "閲覧",
+      "label": "物流ワークスペース",
+      "operations": "オペレーション",
+      "organizer": "主催者"
+    },
+    "modal": {
+      "close": "閉じる",
+      "openFullPage": "フルページを開く",
+      "loading": "読み込み中…",
+      "loadError": "このプレビューを読み込めませんでした。",
+      "retry": "再試行",
+      "notFound": "このアイテムが見つかりませんでした。",
+      "campaignPreviewTitle": "キャンペーンのプレビュー",
+      "requestPreviewTitle": "リクエストのプレビュー",
+      "orderPreviewTitle": "注文のプレビュー",
+      "shipmentPreviewTitle": "出荷のプレビュー",
+      "allocationPreviewTitle": "割当のプレビュー",
+      "campaign": {
+        "lane": "ルート",
+        "status": "ステータス",
+        "moqProgress": "MOQの進捗",
+        "participants": "参加者",
+        "committedUnits": "確定済み",
+        "targetUnits": "目標"
+      },
+      "request": {
+        "status": "ステータス",
+        "category": "カテゴリ",
+        "targetQuantity": "目標数量",
+        "targetPrice": "目標価格",
+        "destination": "目的地",
+        "deadline": "期限",
+        "quotes": "見積"
+      },
+      "order": {
+        "status": "ステータス",
+        "supplier": "サプライヤー",
+        "quantity": "数量",
+        "total": "注文合計",
+        "balanceDue": "未払い残高",
+        "expectedArrival": "到着予定"
+      },
+      "shipment": {
+        "status": "ステータス",
+        "carrier": "運送業者",
+        "trackingNumber": "追跡番号",
+        "originPort": "出発港",
+        "destinationPort": "到着港",
+        "eta": "到着予定時刻"
+      },
+      "allocation": {
+        "status": "ステータス",
+        "recipient": "受取人",
+        "warehouse": "倉庫",
+        "releaseMethod": "出庫方法",
+        "quantity": "数量"
+      }
+    },
+    "workspace": {
+      "nextStep": {
+        "title": "次のステップ"
+      },
+      "recentActivity": {
+        "title": "最近のアクティビティ",
+        "empty": "まだ何もありません。新しいアクティビティがここに表示されます。"
+      },
+      "dataError": {
+        "title": "データを利用できません",
+        "body": "ワークスペースを読み込めませんでした。もう一度お試しください。",
+        "retry": "再試行"
+      },
+      "buyer": {
+        "nextStep": {
+          "browseCampaigns": {
+            "label": "キャンペーンを探す",
+            "hint": "進行中のリクエストがありません。参加またはフォローする共同購入キャンペーンを探しましょう。"
+          },
+          "reviewShipments": {
+            "label": "要注意の出荷を確認",
+            "hint": "{{count}}件の出荷にフォローアップが必要です。"
+          },
+          "startRequest": {
+            "label": "調達リクエストを作成",
+            "hint": "すべて順調です。準備ができたら新しい需要を作成しましょう。"
+          }
+        }
+      },
+      "organizer": {
+        "nextStep": {
+          "momentum": {
+            "label": "MOQを押し上げる",
+            "hint": "{{count}}件のキャンペーンがMOQの半分未満で、追加の募集が必要です。"
+          },
+          "browse": {
+            "label": "キャンペーンを探す",
+            "hint": "まだ運営しているキャンペーンがありません。参加できるものを探しましょう。"
+          },
+          "handoffs": {
+            "label": "引き渡しを調整",
+            "hint": "需要は確保されました。受取人への引き渡しを進めましょう。"
+          }
+        }
+      },
+      "business": {
+        "nextStep": {
+          "reviewRuns": {
+            "label": "今後の実行を確認",
+            "hint": "21日以内に{{count}}件のプログラム実行があります。数量・ルート・目的地を確認してください。"
+          },
+          "createProgram": {
+            "label": "定期プログラムを作成",
+            "hint": "補充プログラムはまだありません。繰り返しの需要にリズムを設定しましょう。"
+          },
+          "newRequest": {
+            "label": "ビジネス連携リクエストを開く",
+            "hint": "プログラムは稼働中です。新しい需要をいずれかのビジネスに紐づけましょう。"
+          }
+        }
+      },
+      "distributor": {
+        "nextStep": {
+          "failedDeliveries": {
+            "label": "失敗した配送を確認",
+            "hint": "{{count}}件の配送が失敗またはキャンセルされ、再ルートが必要な場合があります。"
+          },
+          "releaseLots": {
+            "label": "待機中のロットを出庫",
+            "hint": "{{count}}件のロットが割当済みですが、まだ出庫されていません。"
+          },
+          "warehouse": {
+            "label": "倉庫の準備を確認",
+            "hint": "キューは空です。上流の在庫が割当可能か確認してください。"
+          }
+        }
+      }
+    }
   }
 }

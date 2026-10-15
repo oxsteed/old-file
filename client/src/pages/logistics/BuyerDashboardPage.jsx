@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { listSourcingRequests, listOrders, listShipments, listAllocations, listDeliveries, listMyClaims, listRefundCases } from '../../api/logistics';
 import PageShell from '../../components/PageShell';
 import LogisticsWorkspaceSwitcher from '../../components/logistics/LogisticsWorkspaceSwitcher';
@@ -11,11 +12,15 @@ const STATUS_COLOR = {
 };
 
 export default function BuyerDashboardPage() {
+  const { t } = useTranslation();
+  const tx = (key, fallback, opts = {}) => t(key, { defaultValue: fallback, ...opts });
   const [state, setState] = useState({
-    requests: [], orders: [], shipments: [], allocations: [], deliveries: [], claims: [], refunds: [], loading: true,
+    requests: [], orders: [], shipments: [], allocations: [], deliveries: [], claims: [], refunds: [],
+    loading: true, loadError: false,
   });
 
-  useEffect(() => {
+  const load = () => {
+    setState((s) => ({ ...s, loading: true, loadError: false }));
     Promise.all([
       listSourcingRequests({ limit: 12 }),
       listOrders({ limit: 8 }),
@@ -35,10 +40,13 @@ export default function BuyerDashboardPage() {
           claims: claims.data || [],
           refunds: refunds.data || [],
           loading: false,
+          loadError: false,
         });
       })
-      .catch(() => setState((s) => ({ ...s, loading: false })));
-  }, []);
+      .catch(() => setState((s) => ({ ...s, loading: false, loadError: true })));
+  };
+
+  useEffect(() => { load(); }, []);
 
   const activeRequests = state.requests.filter((request) => !['fulfilled', 'closed', 'cancelled'].includes(request.status)).length;
   const atRiskShipments = state.shipments.filter((shipment) => ['customs_review', 'exception', 'customs_hold'].includes(shipment.status)).length;
@@ -56,6 +64,61 @@ export default function BuyerDashboardPage() {
     ['Pending allocations', pendingAllocations, '📦', pendingAllocations ? 'Stock is assigned but not fully released yet' : 'Allocation queue is clear'],
     ['Claims & refunds', openIssues, '🛟', openIssues ? 'Operator review may be needed on open issues' : 'No active buyer issues'],
   ];
+
+  // One clear next step, driven by workspace state.
+  const nextStep = state.loadError
+    ? null
+    : activeRequests === 0
+      ? {
+          href: '/logistics/campaigns',
+          label: tx('logistics.workspace.buyer.nextStep.browseCampaigns.label', 'Browse campaigns'),
+          hint: tx(
+            'logistics.workspace.buyer.nextStep.browseCampaigns.hint',
+            'No active buyer requests. Find a pooled campaign to join or watch.'
+          ),
+        }
+      : atRiskShipments > 0
+        ? {
+            href: '/logistics/shipments',
+            label: tx('logistics.workspace.buyer.nextStep.reviewShipments.label', 'Review at-risk shipments'),
+            hint: tx(
+              'logistics.workspace.buyer.nextStep.reviewShipments.hint',
+              '{{count}} shipments need buyer follow-up.',
+              { count: atRiskShipments }
+            ),
+          }
+        : {
+            href: '/logistics/requests/new',
+            label: tx('logistics.workspace.buyer.nextStep.startRequest.label', 'Start a sourcing request'),
+            hint: tx(
+              'logistics.workspace.buyer.nextStep.startRequest.hint',
+              'Everything is moving. Open new demand when you are ready.'
+            ),
+          };
+
+  const recentActivity = [
+    ...state.requests.map((row) => ({
+      key: `request-${row.id}`,
+      label: row.title,
+      href: `/logistics/requests/${row.id}`,
+      date: row.created_at || row.updated_at,
+    })),
+    ...state.shipments.map((row) => ({
+      key: `shipment-${row.id}`,
+      label: row.reference,
+      href: `/logistics/shipments/${row.id}`,
+      date: row.updated_at || row.created_at,
+    })),
+    ...state.claims.map((row) => ({
+      key: `claim-${row.id}`,
+      label: row.reference || `Claim #${row.id}`,
+      href: '/logistics/finance',
+      date: row.created_at || row.updated_at,
+    })),
+  ]
+    .filter((item) => item.date && !Number.isNaN(new Date(item.date).getTime()))
+    .sort((a, b) => new Date(b.date) - new Date(a.date))
+    .slice(0, 5);
 
   return (
     <PageShell>
@@ -142,6 +205,57 @@ export default function BuyerDashboardPage() {
         </div>
       </div>
 
+      {state.loadError && !state.loading && (
+        <div className="lx-data-error-banner" role="alert">
+          <div>
+            <h2>{tx('logistics.workspace.dataError.title', 'Data unavailable')}</h2>
+            <p>{tx('logistics.workspace.dataError.body', "We couldn't load your buyer workspace right now. Please try again.")}</p>
+          </div>
+          <button type="button" className="lx-btn-secondary" onClick={load}>
+            {tx('logistics.workspace.dataError.retry', 'Try again')}
+          </button>
+        </div>
+      )}
+
+      <div className="lx-overview-strip">
+        <div className="lx-card">
+          <h2 className="lx-dashboard-panel-title">{tx('logistics.workspace.nextStep.title', 'Your next step')}</h2>
+          <div className="lx-next-step-body">
+            {state.loading && (
+              <p className="lx-overview-empty">{tx('logistics.modal.loading', 'Loading…')}</p>
+            )}
+            {!state.loading && state.loadError && (
+              <p className="lx-overview-empty">{tx('logistics.workspace.dataError.body', "We couldn't load your buyer workspace right now. Please try again.")}</p>
+            )}
+            {!state.loading && !state.loadError && nextStep && (
+              <>
+                <p className="lx-next-step-hint">{nextStep.hint}</p>
+                <Link to={nextStep.href} className="lx-btn-primary lx-next-step-action">{nextStep.label}</Link>
+              </>
+            )}
+          </div>
+        </div>
+        <div className="lx-card">
+          <h2 className="lx-dashboard-panel-title">{tx('logistics.workspace.recentActivity.title', 'Recent activity')}</h2>
+          {state.loading ? (
+            <p className="lx-overview-empty">{tx('logistics.modal.loading', 'Loading…')}</p>
+          ) : state.loadError ? (
+            <p className="lx-overview-empty">{tx('logistics.workspace.dataError.body', "We couldn't load your buyer workspace right now. Please try again.")}</p>
+          ) : recentActivity.length > 0 ? (
+            <div className="lx-activity-list">
+              {recentActivity.map((item) => (
+                <div key={item.key} className="lx-activity-item">
+                  <span className="lx-activity-label"><Link to={item.href} className="lx-link">{item.label}</Link></span>
+                  <span className="lx-activity-date">{new Date(item.date).toLocaleDateString()}</span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="lx-overview-empty">{tx('logistics.workspace.recentActivity.empty', 'Nothing here yet. New requests, shipments, and claims will appear here.')}</p>
+          )}
+        </div>
+      </div>
+
       <div className="lx-key-metrics">
         {metrics.map(([label, value, icon, note]) => (
           <div key={label} className="lx-key-metric-card">
@@ -177,7 +291,7 @@ export default function BuyerDashboardPage() {
                   <td><Link to={`/logistics/requests/${request.id}`} className="lx-link">View</Link></td>
                 </tr>
               ))}
-              {!state.loading && state.requests.length === 0 && <tr><td colSpan={5} style={{ textAlign:'center', color:'#94a3b8' }}>No sourcing requests yet.</td></tr>}
+              {!state.loading && !state.loadError && state.requests.length === 0 && <tr><td colSpan={5} style={{ textAlign:'center', color:'#94a3b8' }}>No sourcing requests yet.</td></tr>}
             </tbody>
           </table>
         </div>
@@ -204,7 +318,7 @@ export default function BuyerDashboardPage() {
                     <td>{allocation.recipient_name || allocation.warehouse_name || 'Awaiting release'}</td>
                   </tr>
                 ))}
-                {!state.loading && state.shipments.length === 0 && state.allocations.length === 0 && <tr><td colSpan={3} style={{ textAlign:'center', color:'#94a3b8' }}>No shipment or allocation records yet.</td></tr>}
+                {!state.loading && !state.loadError && state.shipments.length === 0 && state.allocations.length === 0 && <tr><td colSpan={3} style={{ textAlign:'center', color:'#94a3b8' }}>No shipment or allocation records yet.</td></tr>}
               </tbody>
             </table>
           </div>

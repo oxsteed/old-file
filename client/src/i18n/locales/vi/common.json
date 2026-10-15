@@ -1366,5 +1366,175 @@
       "12": "12. Thay đổi đối với Chính sách quyền riêng tư này",
       "13": "13. Liên hệ với chúng tôi"
     }
+  },
+  "logistics": {
+    "hub": {
+      "aboutBody": "Người mua gộp nhu cầu để đạt số lượng đặt hàng tối thiểu của nhà cung cấp. Khi đã cam kết đủ nhu cầu, chiến dịch được khóa, tiền đặt cọc được thu và OxSteed điều phối phần còn lại của chuỗi cung ứng.",
+      "aboutTitle": "Cách mua chung hoạt động",
+      "aboutToggle": "Cách mua chung hoạt động",
+      "clearFilters": "Xóa bộ lọc",
+      "emptyBody": "Hãy thử tìm kiếm hoặc bộ lọc khác. Các chiến dịch mới mở thường xuyên.",
+      "emptyTitle": "Không có chiến dịch nào khớp với bộ lọc",
+      "error": "Không thể tải chiến dịch. Vui lòng thử lại.",
+      "eyebrow": "OxSteed Logistics",
+      "intro": "Tham gia các chiến dịch nhóm để mở khóa giá sỉ, hoặc tự tổ chức một chiến dịch.",
+      "laneLabel": "Tuyến",
+      "loading": "Đang tải chiến dịch...",
+      "nextPage": "Tiếp",
+      "noCampaignsBody": "Hiện không có chiến dịch nào đang mở. Hãy quay lại sau, hoặc tự tổ chức một chiến dịch.",
+      "noCampaignsTitle": "Chưa có chiến dịch nào",
+      "organizeCta": "Tổ chức chiến dịch",
+      "pageOf": "Trang {{page}} / {{pages}}",
+      "prevPage": "Trước",
+      "procurementCta": "Mua sắm doanh nghiệp",
+      "resultsCount": "{{count}} chiến dịch",
+      "retry": "Thử lại",
+      "searchLabel": "Tìm kiếm chiến dịch",
+      "searchPlaceholder": "Tìm theo sản phẩm, tuyến hoặc tiêu đề",
+      "statusLabel": "Trạng thái",
+      "title": "Mua chung, đơn giản"
+    },
+    "nav": {
+      "adminControl": "Quản trị",
+      "businessProcurement": "Mua sắm doanh nghiệp",
+      "buyer": "Người mua",
+      "compliance": "Tuân thủ",
+      "distributor": "Nhà phân phối",
+      "hub": "Duyệt",
+      "label": "Không gian làm việc logistics",
+      "operations": "Vận hành",
+      "organizer": "Người tổ chức"
+    },
+    "modal": {
+      "close": "Đóng",
+      "openFullPage": "Mở trang đầy đủ",
+      "loading": "Đang tải…",
+      "loadError": "Không thể tải bản xem trước này.",
+      "retry": "Thử lại",
+      "notFound": "Không tìm thấy mục này.",
+      "campaignPreviewTitle": "Xem trước chiến dịch",
+      "requestPreviewTitle": "Xem trước yêu cầu",
+      "orderPreviewTitle": "Xem trước đơn hàng",
+      "shipmentPreviewTitle": "Xem trước lô hàng",
+      "allocationPreviewTitle": "Xem trước phân bổ",
+      "campaign": {
+        "lane": "Tuyến",
+        "status": "Trạng thái",
+        "moqProgress": "Tiến độ MOQ",
+        "participants": "Người tham gia",
+        "committedUnits": "Đã cam kết",
+        "targetUnits": "Mục tiêu"
+      },
+      "request": {
+        "status": "Trạng thái",
+        "category": "Danh mục",
+        "targetQuantity": "Số lượng mục tiêu",
+        "targetPrice": "Giá mục tiêu",
+        "destination": "Điểm đến",
+        "deadline": "Hạn chót",
+        "quotes": "Báo giá"
+      },
+      "order": {
+        "status": "Trạng thái",
+        "supplier": "Nhà cung cấp",
+        "quantity": "Số lượng",
+        "total": "Tổng đơn hàng",
+        "balanceDue": "Số dư còn nợ",
+        "expectedArrival": "Dự kiến đến"
+      },
+      "shipment": {
+        "status": "Trạng thái",
+        "carrier": "Đơn vị vận chuyển",
+        "trackingNumber": "Mã vận đơn",
+        "originPort": "Cảng đi",
+        "destinationPort": "Cảng đến",
+        "eta": "Thời gian dự kiến đến"
+      },
+      "allocation": {
+        "status": "Trạng thái",
+        "recipient": "Người nhận",
+        "warehouse": "Kho",
+        "releaseMethod": "Phương thức xuất kho",
+        "quantity": "Số lượng"
+      }
+    },
+    "workspace": {
+      "nextStep": {
+        "title": "Bước tiếp theo của bạn"
+      },
+      "recentActivity": {
+        "title": "Hoạt động gần đây",
+        "empty": "Chưa có gì. Hoạt động mới sẽ hiển thị ở đây."
+      },
+      "dataError": {
+        "title": "Không có dữ liệu",
+        "body": "Hiện không thể tải không gian làm việc của bạn. Vui lòng thử lại.",
+        "retry": "Thử lại"
+      },
+      "buyer": {
+        "nextStep": {
+          "browseCampaigns": {
+            "label": "Duyệt chiến dịch",
+            "hint": "Không có yêu cầu nào đang hoạt động. Tìm một chiến dịch gom đơn để tham gia hoặc theo dõi."
+          },
+          "reviewShipments": {
+            "label": "Xem lại các lô hàng rủi ro",
+            "hint": "{{count}} lô hàng cần được theo dõi."
+          },
+          "startRequest": {
+            "label": "Tạo yêu cầu mua hàng",
+            "hint": "Mọi thứ đang tiến triển. Hãy mở nhu cầu mới khi bạn sẵn sàng."
+          }
+        }
+      },
+      "organizer": {
+        "nextStep": {
+          "momentum": {
+            "label": "Đẩy tiến độ MOQ",
+            "hint": "{{count}} chiến dịch đang dưới một nửa MOQ và cần tuyển thêm."
+          },
+          "browse": {
+            "label": "Duyệt chiến dịch",
+            "hint": "Bạn chưa điều phối chiến dịch nào. Hãy tìm một chiến dịch để tham gia."
+          },
+          "handoffs": {
+            "label": "Điều phối bàn giao",
+            "hint": "Nhu cầu đã được chốt. Hãy duy trì việc bàn giao đến người nhận."
+          }
+        }
+      },
+      "business": {
+        "nextStep": {
+          "reviewRuns": {
+            "label": "Xem lại các đợt chạy sắp tới",
+            "hint": "{{count}} đợt chạy chương trình trong 21 ngày tới. Kiểm tra số lượng, tuyến và điểm đến."
+          },
+          "createProgram": {
+            "label": "Tạo chương trình định kỳ",
+            "hint": "Chưa có chương trình bổ sung hàng. Hãy đặt nhịp độ cho nhu cầu lặp lại."
+          },
+          "newRequest": {
+            "label": "Mở yêu cầu cho doanh nghiệp",
+            "hint": "Các chương trình đang chạy. Hãy gắn nhu cầu mới với một doanh nghiệp của bạn."
+          }
+        }
+      },
+      "distributor": {
+        "nextStep": {
+          "failedDeliveries": {
+            "label": "Xem lại các giao hàng thất bại",
+            "hint": "{{count}} giao hàng đã thất bại hoặc bị hủy và có thể cần chuyển hướng."
+          },
+          "releaseLots": {
+            "label": "Xuất các lô đang chờ",
+            "hint": "{{count}} lô đã được phân bổ nhưng chưa xuất kho."
+          },
+          "warehouse": {
+            "label": "Kiểm tra kho",
+            "hint": "Hàng đợi đã trống. Hãy đảm bảo hàng tồn kho đã sẵn sàng để phân bổ."
+          }
+        }
+      }
+    }
   }
 }

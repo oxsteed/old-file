@@ -10,7 +10,8 @@ async function generatePooledRef() {
 }
 
 async function listPooledOrders({
-  status, laneId, organizerUserId, open = null, limit = 50, offset = 0, publicSafe = true
+  status, laneId, organizerUserId, open = null, limit = 50, offset = 0, publicSafe = true,
+  search = null, excludeDrafts = false,
 } = {}) {
   const conditions = ['1=1'];
   const params = [];
@@ -18,6 +19,20 @@ async function listPooledOrders({
   if (laneId)          { conditions.push(`po.lane_id = $${params.push(laneId)}`); }
   if (organizerUserId) { conditions.push(`po.organizer_user_id = $${params.push(organizerUserId)}`); }
   if (open === true)   { conditions.push(`po.status IN ('open','pledging','deposit_phase')`); }
+  // Phase 1 public visibility: guests must only see published/approved
+  // campaigns. Drafts are organizer-owned working copies until staff approve
+  // publication (Phase 2 approval workflow).
+  if (excludeDrafts)   { conditions.push(`po.status <> 'draft'`); }
+  if (search) {
+    // Literal ILIKE match on title/description. Escape LIKE wildcards so a
+    // query such as "100%" cannot act as a wildcard.
+    const escaped = String(search).replace(/[\\%_]/g, (ch) => `\\${ch}`);
+    const pattern = `%${escaped}%`;
+    conditions.push(
+      `(po.title ILIKE $${params.push(pattern)} ESCAPE '\\' OR ` +
+      `po.description ILIKE $${params.push(pattern)} ESCAPE '\\')`
+    );
+  }
 
   const countRes = await pool.query(
     `SELECT COUNT(*) FROM pooled_orders po WHERE ${conditions.join(' AND ')}`, params

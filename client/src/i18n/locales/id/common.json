@@ -1366,5 +1366,175 @@
       "12": "12. Perubahan Kebijakan Privasi Ini",
       "13": "13. Hubungi Kami"
     }
+  },
+  "logistics": {
+    "hub": {
+      "aboutBody": "Pembeli menggabungkan permintaan hingga mencapai jumlah pesanan minimum pemasok. Ketika permintaan yang berkomitmen sudah cukup, kampanye dikunci, deposit dikumpulkan, dan OxSteed mengoordinasikan sisa rantai pasok.",
+      "aboutTitle": "Cara kerja pembelian bersama",
+      "aboutToggle": "Cara kerja pembelian bersama",
+      "clearFilters": "Hapus filter",
+      "emptyBody": "Coba pencarian atau filter lain. Kampanye baru dibuka secara berkala.",
+      "emptyTitle": "Tidak ada kampanye yang cocok dengan filter Anda",
+      "error": "Kampanye tidak dapat dimuat. Silakan coba lagi.",
+      "eyebrow": "OxSteed Logistics",
+      "intro": "Ikut kampanye grup untuk membuka harga grosir, atau selenggarakan kampanye Anda sendiri.",
+      "laneLabel": "Rute",
+      "loading": "Memuat kampanye...",
+      "nextPage": "Berikutnya",
+      "noCampaignsBody": "Saat ini tidak ada kampanye yang dibuka. Kembali lagi nanti, atau selenggarakan sendiri.",
+      "noCampaignsTitle": "Belum ada kampanye",
+      "organizeCta": "Selenggarakan kampanye",
+      "pageOf": "Halaman {{page}} dari {{pages}}",
+      "prevPage": "Sebelumnya",
+      "procurementCta": "Pengadaan bisnis",
+      "resultsCount": "{{count}} kampanye",
+      "retry": "Coba lagi",
+      "searchLabel": "Cari kampanye",
+      "searchPlaceholder": "Cari berdasarkan produk, rute, atau judul",
+      "statusLabel": "Status",
+      "title": "Pembelian bersama, dibuat sederhana"
+    },
+    "nav": {
+      "adminControl": "Kontrol admin",
+      "businessProcurement": "Pengadaan bisnis",
+      "buyer": "Pembeli",
+      "compliance": "Kepatuhan",
+      "distributor": "Distributor",
+      "hub": "Jelajahi",
+      "label": "Ruang kerja logistik",
+      "operations": "Operasi",
+      "organizer": "Penyelenggara"
+    },
+    "modal": {
+      "close": "Tutup",
+      "openFullPage": "Buka halaman penuh",
+      "loading": "Memuat…",
+      "loadError": "Pratinjau ini gagal dimuat.",
+      "retry": "Coba lagi",
+      "notFound": "Item ini tidak ditemukan.",
+      "campaignPreviewTitle": "Pratinjau kampanye",
+      "requestPreviewTitle": "Pratinjau permintaan",
+      "orderPreviewTitle": "Pratinjau pesanan",
+      "shipmentPreviewTitle": "Pratinjau pengiriman",
+      "allocationPreviewTitle": "Pratinjau alokasi",
+      "campaign": {
+        "lane": "Rute",
+        "status": "Status",
+        "moqProgress": "Kemajuan MOQ",
+        "participants": "Peserta",
+        "committedUnits": "Terkomitmen",
+        "targetUnits": "Target"
+      },
+      "request": {
+        "status": "Status",
+        "category": "Kategori",
+        "targetQuantity": "Jumlah target",
+        "targetPrice": "Harga target",
+        "destination": "Tujuan",
+        "deadline": "Batas waktu",
+        "quotes": "Penawaran"
+      },
+      "order": {
+        "status": "Status",
+        "supplier": "Pemasok",
+        "quantity": "Jumlah",
+        "total": "Total pesanan",
+        "balanceDue": "Sisa terutang",
+        "expectedArrival": "Perkiraan tiba"
+      },
+      "shipment": {
+        "status": "Status",
+        "carrier": "Pengangkut",
+        "trackingNumber": "Nomor pelacakan",
+        "originPort": "Pelabuhan asal",
+        "destinationPort": "Pelabuhan tujuan",
+        "eta": "Perkiraan waktu tiba"
+      },
+      "allocation": {
+        "status": "Status",
+        "recipient": "Penerima",
+        "warehouse": "Gudang",
+        "releaseMethod": "Metode pelepasan",
+        "quantity": "Jumlah"
+      }
+    },
+    "workspace": {
+      "nextStep": {
+        "title": "Langkah Anda berikutnya"
+      },
+      "recentActivity": {
+        "title": "Aktivitas terkini",
+        "empty": "Belum ada apa-apa. Aktivitas baru akan muncul di sini."
+      },
+      "dataError": {
+        "title": "Data tidak tersedia",
+        "body": "Ruang kerja Anda tidak dapat dimuat saat ini. Silakan coba lagi.",
+        "retry": "Coba lagi"
+      },
+      "buyer": {
+        "nextStep": {
+          "browseCampaigns": {
+            "label": "Jelajahi kampanye",
+            "hint": "Tidak ada permintaan aktif. Temukan kampanye bersama untuk diikuti atau diawasi."
+          },
+          "reviewShipments": {
+            "label": "Tinjau pengiriman berisiko",
+            "hint": "{{count}} pengiriman perlu ditindaklanjuti."
+          },
+          "startRequest": {
+            "label": "Mulai permintaan pengadaan",
+            "hint": "Semuanya berjalan. Buka permintaan baru saat Anda siap."
+          }
+        }
+      },
+      "organizer": {
+        "nextStep": {
+          "momentum": {
+            "label": "Dorong momentum MOQ",
+            "hint": "{{count}} kampanye berada di bawah setengah MOQ dan butuh perekrutan lagi."
+          },
+          "browse": {
+            "label": "Jelajahi kampanye",
+            "hint": "Anda belum mengoordinasikan kampanye apa pun. Temukan satu untuk diikuti."
+          },
+          "handoffs": {
+            "label": "Koordinasikan serah terima",
+            "hint": "Permintaan sudah terkumpul. Terus dorong serah terima ke penerima."
+          }
+        }
+      },
+      "business": {
+        "nextStep": {
+          "reviewRuns": {
+            "label": "Tinjau jadwal berikutnya",
+            "hint": "{{count}} jadwal program dalam 21 hari. Periksa jumlah, rute, dan tujuan."
+          },
+          "createProgram": {
+            "label": "Buat program berulang",
+            "hint": "Belum ada program restock. Tetapkan ritme untuk permintaan berulang."
+          },
+          "newRequest": {
+            "label": "Buka permintaan bisnis",
+            "hint": "Program berjalan. Tautkan permintaan baru ke salah satu bisnis Anda."
+          }
+        }
+      },
+      "distributor": {
+        "nextStep": {
+          "failedDeliveries": {
+            "label": "Tinjau pengiriman yang gagal",
+            "hint": "{{count}} pengiriman gagal atau dibatalkan dan mungkin perlu dialihkan."
+          },
+          "releaseLots": {
+            "label": "Lepaskan lot yang menunggu",
+            "hint": "{{count}} lot sudah dialokasikan tetapi belum dilepas."
+          },
+          "warehouse": {
+            "label": "Periksa kesiapan gudang",
+            "hint": "Antrean kosong. Pastikan stok siap dialokasikan."
+          }
+        }
+      }
+    }
   }
 }

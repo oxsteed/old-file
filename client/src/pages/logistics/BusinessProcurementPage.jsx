@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import { listSourcingRequests, listRecurringPrograms, createRecurringProgram, updateRecurringProgramStatus, listLanes, getBusinessProcurementAccess } from '../../api/logistics';
 import PageShell from '../../components/PageShell';
@@ -12,11 +13,14 @@ const CADENCE_OPTIONS = ['weekly', 'biweekly', 'monthly', 'quarterly', 'custom']
 
 export default function BusinessProcurementPage() {
   const { user } = useAuth();
+  const { t } = useTranslation();
+  const tx = (key, fallback, opts = {}) => t(key, { defaultValue: fallback, ...opts });
   const [requests, setRequests] = useState([]);
   const [programs, setPrograms] = useState([]);
   const [lanes, setLanes] = useState([]);
   const [businessAccess, setBusinessAccess] = useState({ businesses: [], eligibleBusinesses: [] });
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
@@ -36,6 +40,7 @@ export default function BusinessProcurementPage() {
 
   const load = () => {
     setLoading(true);
+    setLoadError(false);
     Promise.all([
       listSourcingRequests({ limit: 50 }),
       listRecurringPrograms(),
@@ -52,7 +57,7 @@ export default function BusinessProcurementPage() {
           eligibleBusinesses: businesses.filter(isBusinessProcurementEligibleMembership),
         });
       })
-      .catch(() => {})
+      .catch(() => setLoadError(true))
       .finally(() => setLoading(false));
   };
 
@@ -78,6 +83,59 @@ export default function BusinessProcurementPage() {
     return nextRun >= now && nextRun <= horizon;
   }).length;
   const laneBoundPrograms = programs.filter((program) => !!program.lane_id).length;
+
+  // One clear next step, driven by workspace state.
+  const openProgramForm = () => setShowForm(true);
+  const nextStep = loadError
+    ? null
+    : upcomingRuns > 0
+      ? {
+          kind: 'link',
+          href: '#lx-procurement-programs',
+          label: tx('logistics.workspace.business.nextStep.reviewRuns.label', 'Review upcoming runs'),
+          hint: tx(
+            'logistics.workspace.business.nextStep.reviewRuns.hint',
+            '{{count}} program runs land within 21 days. Check quantity, lane fit, and destination readiness.',
+            { count: upcomingRuns }
+          ),
+        }
+      : programs.length === 0
+        ? {
+            kind: 'action',
+            onClick: openProgramForm,
+            label: tx('logistics.workspace.business.nextStep.createProgram.label', 'Create a recurring program'),
+            hint: tx(
+              'logistics.workspace.business.nextStep.createProgram.hint',
+              'No restock programs yet. Set a cadence so repeat demand plans itself.'
+            ),
+          }
+        : {
+            kind: 'link',
+            href: '/logistics/requests/new',
+            label: tx('logistics.workspace.business.nextStep.newRequest.label', 'Open a business-linked request'),
+            hint: tx(
+              'logistics.workspace.business.nextStep.newRequest.hint',
+              'Programs are running. Tie new demand to one of your businesses.'
+            ),
+          };
+
+  const recentActivity = [
+    ...programs.map((row) => ({
+      key: `program-${row.id}`,
+      label: row.title,
+      href: '#lx-procurement-programs',
+      date: row.updated_at || row.created_at,
+    })),
+    ...requests.map((row) => ({
+      key: `request-${row.id}`,
+      label: row.title,
+      href: `/logistics/requests/${row.id}`,
+      date: row.created_at || row.updated_at,
+    })),
+  ]
+    .filter((item) => item.date && !Number.isNaN(new Date(item.date).getTime()))
+    .sort((a, b) => new Date(b.date) - new Date(a.date))
+    .slice(0, 5);
 
   const createProgramFromForm = async () => {
     if (!form.title) {
@@ -222,6 +280,65 @@ export default function BusinessProcurementPage() {
         </div>
       </div>
 
+      {loadError && !loading && (
+        <div className="lx-data-error-banner" role="alert">
+          <div>
+            <h2>{tx('logistics.workspace.dataError.title', 'Data unavailable')}</h2>
+            <p>{tx('logistics.workspace.dataError.body', "We couldn't load your procurement workspace right now. Please try again.")}</p>
+          </div>
+          <button type="button" className="lx-btn-secondary" onClick={load}>
+            {tx('logistics.workspace.dataError.retry', 'Try again')}
+          </button>
+        </div>
+      )}
+
+      <div className="lx-overview-strip">
+        <div className="lx-card">
+          <h2 className="lx-dashboard-panel-title">{tx('logistics.workspace.nextStep.title', 'Your next step')}</h2>
+          <div className="lx-next-step-body">
+            {loading && (
+              <p className="lx-overview-empty">{tx('logistics.modal.loading', 'Loading…')}</p>
+            )}
+            {!loading && loadError && (
+              <p className="lx-overview-empty">{tx('logistics.workspace.dataError.body', "We couldn't load your procurement workspace right now. Please try again.")}</p>
+            )}
+            {!loading && !loadError && nextStep && (
+              <>
+                <p className="lx-next-step-hint">{nextStep.hint}</p>
+                {nextStep.kind === 'action' ? (
+                  <button type="button" className="lx-btn-primary lx-next-step-action" onClick={nextStep.onClick}>
+                    {nextStep.label}
+                  </button>
+                ) : (
+                  <Link to={nextStep.href} className="lx-btn-primary lx-next-step-action">{nextStep.label}</Link>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+        <div className="lx-card">
+          <h2 className="lx-dashboard-panel-title">{tx('logistics.workspace.recentActivity.title', 'Recent activity')}</h2>
+          {loading ? (
+            <p className="lx-overview-empty">{tx('logistics.modal.loading', 'Loading…')}</p>
+          ) : loadError ? (
+            <p className="lx-overview-empty">{tx('logistics.workspace.dataError.body', "We couldn't load your procurement workspace right now. Please try again.")}</p>
+          ) : recentActivity.length > 0 ? (
+            <div className="lx-activity-list">
+              {recentActivity.map((item) => (
+                <div key={item.key} className="lx-activity-item">
+                  <span className="lx-activity-label">
+                    {item.href.startsWith('#') ? item.label : <Link to={item.href} className="lx-link">{item.label}</Link>}
+                  </span>
+                  <span className="lx-activity-date">{new Date(item.date).toLocaleDateString()}</span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="lx-overview-empty">{tx('logistics.workspace.recentActivity.empty', 'Nothing here yet. Programs and requests will appear here.')}</p>
+          )}
+        </div>
+      </div>
+
       <div className="lx-key-metrics">
         {[
           ['Recurring programs', programs.length, '🔁', 'Saved cadences for repeat inventory and supply demand.'],
@@ -270,7 +387,7 @@ export default function BusinessProcurementPage() {
         </div>
       )}
 
-      <div className="lx-card" style={{ marginBottom:'1.5rem' }}>
+      <div className="lx-card" id="lx-procurement-programs" style={{ marginBottom:'1.5rem' }}>
         <div className="lx-section-header"><h2>Recurring procurement programs</h2><Link to="/logistics/sourcing">Open sourcing</Link></div>
         <div className="lx-table-wrap">
           <table className="lx-table">
@@ -286,7 +403,7 @@ export default function BusinessProcurementPage() {
                   <td><button className="lx-btn-secondary" style={{ fontSize:'.72rem', padding:'.25rem .65rem' }} onClick={() => toggleProgram(program)}>{program.status === 'active' ? 'Pause' : 'Activate'}</button></td>
                 </tr>
               ))}
-              {!loading && programs.length === 0 && <tr><td colSpan={6} style={{ textAlign:'center', color:'#94a3b8' }}>No recurring procurement programs yet.</td></tr>}
+              {!loading && !loadError && programs.length === 0 && <tr><td colSpan={6} style={{ textAlign:'center', color:'#94a3b8' }}>No recurring procurement programs yet.</td></tr>}
             </tbody>
           </table>
         </div>
@@ -307,7 +424,7 @@ export default function BusinessProcurementPage() {
                     <td>{request.converted_to || '—'}</td>
                   </tr>
                 ))}
-                {!loading && procurementEligible.length === 0 && <tr><td colSpan={4} style={{ textAlign:'center', color:'#94a3b8' }}>No business-linked procurement requests yet.</td></tr>}
+                {!loading && !loadError && procurementEligible.length === 0 && <tr><td colSpan={4} style={{ textAlign:'center', color:'#94a3b8' }}>No business-linked procurement requests yet.</td></tr>}
               </tbody>
             </table>
           </div>

@@ -1366,5 +1366,175 @@
       "12": "12. Chanjman nan Politik Konfidansyalite Sa a",
       "13": "13. Kontakte Nou"
     }
+  },
+  "logistics": {
+    "hub": {
+      "aboutBody": "Achtè yo mete demann yo ansanm pou rive nan kantite minimòm founisè a mande. Lè gen ase demann, kanpay la fèmen, yo kolekte depo yo, epi OxSteed kowòdone rès chèn apwovizyònman an.",
+      "aboutTitle": "Kijan acha an gwoup fonksyone",
+      "aboutToggle": "Kijan acha an gwoup fonksyone",
+      "clearFilters": "Efase filtè yo",
+      "emptyBody": "Eseye yon lòt rechèch oswa filtè. Nouvo kanpay ouvri regilyèman.",
+      "emptyTitle": "Okenn kanpay pa koresponn ak filtè w yo",
+      "error": "Nou pa t ka chaje kanpay yo. Tanpri eseye ankò.",
+      "eyebrow": "OxSteed Logistics",
+      "intro": "Antre nan kanpay an gwoup pou w jwenn pri an gwo, oswa òganize pa w.",
+      "laneLabel": "Liy",
+      "loading": "Ap chaje kanpay yo...",
+      "nextPage": "Apre",
+      "noCampaignsBody": "Pa gen kanpay ki louvri pou kounye a. Tounen byento, oswa òganize youn ou menm.",
+      "noCampaignsTitle": "Poko gen kanpay",
+      "organizeCta": "Òganize yon kanpay",
+      "pageOf": "Paj {{page}} sou {{pages}}",
+      "prevPage": "Anvan",
+      "procurementCta": "Acha pou biznis",
+      "resultsCount": "{{count}} kanpay",
+      "retry": "Eseye ankò",
+      "searchLabel": "Chèche kanpay",
+      "searchPlaceholder": "Chèche pa pwodwi, liy oswa tit",
+      "statusLabel": "Estati",
+      "title": "Acha an gwoup, fasil"
+    },
+    "nav": {
+      "adminControl": "Kontwòl admin",
+      "businessProcurement": "Acha pou biznis",
+      "buyer": "Achtè",
+      "compliance": "Konfòmite",
+      "distributor": "Distribitè",
+      "hub": "Gade",
+      "label": "Espas travay lojistik",
+      "operations": "Operasyon",
+      "organizer": "Òganizatè"
+    },
+    "modal": {
+      "close": "Fèmen",
+      "openFullPage": "Louvri paj konplè a",
+      "loading": "Ap chaje…",
+      "loadError": "Nou pa t ka chaje apèsi sa a.",
+      "retry": "Eseye ankò",
+      "notFound": "Nou pa t ka jwenn atik sa a.",
+      "campaignPreviewTitle": "Apèsi kanpay la",
+      "requestPreviewTitle": "Apèsi demann lan",
+      "orderPreviewTitle": "Apèsi kòmand lan",
+      "shipmentPreviewTitle": "Apèsi chajman an",
+      "allocationPreviewTitle": "Apèsi alokasyon an",
+      "campaign": {
+        "lane": "Wout",
+        "status": "Estati",
+        "moqProgress": "Pwogrè MOQ",
+        "participants": "Patisipan",
+        "committedUnits": "Angaje",
+        "targetUnits": "Objektif"
+      },
+      "request": {
+        "status": "Estati",
+        "category": "Kategori",
+        "targetQuantity": "Kantite sib",
+        "targetPrice": "Pri sib",
+        "destination": "Destinasyon",
+        "deadline": "Dènye dat",
+        "quotes": "Deviz"
+      },
+      "order": {
+        "status": "Estati",
+        "supplier": "Founisè",
+        "quantity": "Kantite",
+        "total": "Total kòmand lan",
+        "balanceDue": "Balans pou peye",
+        "expectedArrival": "Arive prevwa"
+      },
+      "shipment": {
+        "status": "Estati",
+        "carrier": "Transpòtè",
+        "trackingNumber": "Nimewo swivi",
+        "originPort": "Pò depa",
+        "destinationPort": "Pò arive",
+        "eta": "ETA"
+      },
+      "allocation": {
+        "status": "Estati",
+        "recipient": "Destinatè",
+        "warehouse": "Depo",
+        "releaseMethod": "Fason livrezon",
+        "quantity": "Kantite"
+      }
+    },
+    "workspace": {
+      "nextStep": {
+        "title": "Pwochen etap ou"
+      },
+      "recentActivity": {
+        "title": "Aktivite resan",
+        "empty": "Anyen pou kounye a. Nouvo aktivite ap parèt isit la."
+      },
+      "dataError": {
+        "title": "Done yo pa disponib",
+        "body": "Nou pa t ka chaje espas travay ou a kounye a. Tanpri eseye ankò.",
+        "retry": "Eseye ankò"
+      },
+      "buyer": {
+        "nextStep": {
+          "browseCampaigns": {
+            "label": "Gade kanpay yo",
+            "hint": "Pa gen demann aktif. Jwenn yon kanpay pou w rantre ladan l oswa swiv li."
+          },
+          "reviewShipments": {
+            "label": "Tcheke chajman ki an risk",
+            "hint": "{{count}} chajman bezwen swivi."
+          },
+          "startRequest": {
+            "label": "Kòmanse yon demann acha",
+            "hint": "Tout bagay ap mache. Louvri nouvo demann lè w pare."
+          }
+        }
+      },
+      "organizer": {
+        "nextStep": {
+          "momentum": {
+            "label": "Pouse MOQ a",
+            "hint": "{{count}} kanpay poko rive nan mwatye MOQ epi yo bezwen plis moun."
+          },
+          "browse": {
+            "label": "Gade kanpay yo",
+            "hint": "Ou poko kowòdone okenn kanpay. Jwenn youn pou w rantre ladan l."
+          },
+          "handoffs": {
+            "label": "Kowòdone livrezon yo",
+            "hint": "Demann lan kenbe. Kenbe livrezon yo ap mache bay moun yo."
+          }
+        }
+      },
+      "business": {
+        "nextStep": {
+          "reviewRuns": {
+            "label": "Tcheke pwochen ekzekisyon yo",
+            "hint": "{{count}} ekzekisyon pwogram ap vini nan 21 jou. Tcheke kantite, wout ak destinasyon."
+          },
+          "createProgram": {
+            "label": "Kreye yon pwogram ki repete",
+            "hint": "Pa gen pwogram restokaj. Mete yon rit pou demann ki repete yo."
+          },
+          "newRequest": {
+            "label": "Louvri yon demann biznis",
+            "hint": "Pwogram yo ap mache. Mete nouvo demann lan sou youn nan biznis ou yo."
+          }
+        }
+      },
+      "distributor": {
+        "nextStep": {
+          "failedDeliveries": {
+            "label": "Tcheke livrezon ki echwe yo",
+            "hint": "{{count}} livrezon echwe oswa anile epi yo ka bezwen lòt wout."
+          },
+          "releaseLots": {
+            "label": "Lage lo ki ap tann yo",
+            "hint": "{{count}} lo deja bay men yo poko lage."
+          },
+          "warehouse": {
+            "label": "Tcheke depo a",
+            "hint": "Lis la vid. Asire w stok la pare pou bay."
+          }
+        }
+      }
+    }
   }
 }

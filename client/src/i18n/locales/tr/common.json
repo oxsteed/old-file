@@ -1366,5 +1366,175 @@
       "12": "12. Bu Gizlilik Politikasındaki Değişiklikler",
       "13": "13. Bize Ulaşın"
     }
+  },
+  "logistics": {
+    "hub": {
+      "aboutBody": "Alıcılar, tedarikçinin minimum sipariş miktarına ulaşmak için taleplerini birleştirir. Yeterli talep toplandığında kampanya kilitlenir, depozitolar toplanır ve OxSteed tedarik zincirinin geri kalanını koordine eder.",
+      "aboutTitle": "Toplu satın alma nasıl çalışır",
+      "aboutToggle": "Toplu satın alma nasıl çalışır",
+      "clearFilters": "Filtreleri temizle",
+      "emptyBody": "Farklı bir arama veya filtre deneyin. Yeni kampanyalar düzenli olarak açılır.",
+      "emptyTitle": "Filtrelerinize uygun kampanya yok",
+      "error": "Kampanyalar yüklenemedi. Lütfen tekrar deneyin.",
+      "eyebrow": "OxSteed Logistics",
+      "intro": "Toptan fiyatlar için grup kampanyalarına katılın veya kendi kampanyanızı düzenleyin.",
+      "laneLabel": "Hat",
+      "loading": "Kampanyalar yükleniyor...",
+      "nextPage": "Sonraki",
+      "noCampaignsBody": "Şu anda açık kampanya yok. Yakında tekrar bakın veya kendiniz bir tane düzenleyin.",
+      "noCampaignsTitle": "Henüz kampanya yok",
+      "organizeCta": "Kampanya düzenle",
+      "pageOf": "Sayfa {{page}} / {{pages}}",
+      "prevPage": "Önceki",
+      "procurementCta": "Kurumsal satın alma",
+      "resultsCount": "{{count}} kampanya",
+      "retry": "Tekrar dene",
+      "searchLabel": "Kampanya ara",
+      "searchPlaceholder": "Ürün, hat veya başlığa göre ara",
+      "statusLabel": "Durum",
+      "title": "Toplu satın alma, kolayca"
+    },
+    "nav": {
+      "adminControl": "Yönetici kontrolü",
+      "businessProcurement": "Kurumsal satın alma",
+      "buyer": "Alıcı",
+      "compliance": "Uyumluluk",
+      "distributor": "Distribütör",
+      "hub": "Göz at",
+      "label": "Lojistik çalışma alanları",
+      "operations": "Operasyonlar",
+      "organizer": "Organizatör"
+    },
+    "modal": {
+      "close": "Kapat",
+      "openFullPage": "Tam sayfayı aç",
+      "loading": "Yükleniyor…",
+      "loadError": "Bu önizleme yüklenemedi.",
+      "retry": "Tekrar dene",
+      "notFound": "Bu öğe bulunamadı.",
+      "campaignPreviewTitle": "Kampanya önizlemesi",
+      "requestPreviewTitle": "Talep önizlemesi",
+      "orderPreviewTitle": "Sipariş önizlemesi",
+      "shipmentPreviewTitle": "Sevkiyat önizlemesi",
+      "allocationPreviewTitle": "Tahsis önizlemesi",
+      "campaign": {
+        "lane": "Güzergah",
+        "status": "Durum",
+        "moqProgress": "MOQ ilerlemesi",
+        "participants": "Katılımcılar",
+        "committedUnits": "Taahhüt edilen",
+        "targetUnits": "Hedef"
+      },
+      "request": {
+        "status": "Durum",
+        "category": "Kategori",
+        "targetQuantity": "Hedef miktar",
+        "targetPrice": "Hedef fiyat",
+        "destination": "Varış noktası",
+        "deadline": "Son tarih",
+        "quotes": "Teklifler"
+      },
+      "order": {
+        "status": "Durum",
+        "supplier": "Tedarikçi",
+        "quantity": "Miktar",
+        "total": "Sipariş toplamı",
+        "balanceDue": "Ödenecek bakiye",
+        "expectedArrival": "Tahmini varış"
+      },
+      "shipment": {
+        "status": "Durum",
+        "carrier": "Taşıyıcı",
+        "trackingNumber": "Takip numarası",
+        "originPort": "Çıkış limanı",
+        "destinationPort": "Varış limanı",
+        "eta": "Tahmini varış saati"
+      },
+      "allocation": {
+        "status": "Durum",
+        "recipient": "Alıcı",
+        "warehouse": "Depo",
+        "releaseMethod": "Serbest bırakma yöntemi",
+        "quantity": "Miktar"
+      }
+    },
+    "workspace": {
+      "nextStep": {
+        "title": "Sonraki adımınız"
+      },
+      "recentActivity": {
+        "title": "Son aktiviteler",
+        "empty": "Henüz bir şey yok. Yeni aktiviteler burada görünecek."
+      },
+      "dataError": {
+        "title": "Veri kullanılamıyor",
+        "body": "Çalışma alanınız şu anda yüklenemedi. Lütfen tekrar deneyin.",
+        "retry": "Tekrar dene"
+      },
+      "buyer": {
+        "nextStep": {
+          "browseCampaigns": {
+            "label": "Kampanyalara göz at",
+            "hint": "Aktif talep yok. Katılmak veya izlemek için toplu bir kampanya bulun."
+          },
+          "reviewShipments": {
+            "label": "Riskli sevkiyatları incele",
+            "hint": "{{count}} sevkiyat takip gerektiriyor."
+          },
+          "startRequest": {
+            "label": "Tedarik talebi başlat",
+            "hint": "Her şey yolunda. Hazır olduğunuzda yeni talep açın."
+          }
+        }
+      },
+      "organizer": {
+        "nextStep": {
+          "momentum": {
+            "label": "MOQ ivmesini artır",
+            "hint": "{{count}} kampanya MOQ’nun yarısının altında ve daha fazla katılımcı gerekiyor."
+          },
+          "browse": {
+            "label": "Kampanyalara göz at",
+            "hint": "Henüz koordine ettiğiniz kampanya yok. Katılmak için bir tane bulun."
+          },
+          "handoffs": {
+            "label": "Teslimatları koordine et",
+            "hint": "Talep toplandı. Alıcılara teslimatları sürdürün."
+          }
+        }
+      },
+      "business": {
+        "nextStep": {
+          "reviewRuns": {
+            "label": "Yaklaşan çalışmaları incele",
+            "hint": "21 gün içinde {{count}} program çalışması var. Miktar, güzergah ve varış noktasını kontrol edin."
+          },
+          "createProgram": {
+            "label": "Tekrarlayan program oluştur",
+            "hint": "Henüz stok yenileme programı yok. Tekrarlayan talep için bir ritim belirleyin."
+          },
+          "newRequest": {
+            "label": "İşletme talebi aç",
+            "hint": "Programlar çalışıyor. Yeni talebi işletmelerinizden birine bağlayın."
+          }
+        }
+      },
+      "distributor": {
+        "nextStep": {
+          "failedDeliveries": {
+            "label": "Başarısız teslimatları incele",
+            "hint": "{{count}} teslimat başarısız oldu veya iptal edildi; yeniden yönlendirme gerekebilir."
+          },
+          "releaseLots": {
+            "label": "Bekleyen partileri serbest bırak",
+            "hint": "{{count}} parti tahsis edildi ama henüz serbest bırakılmadı."
+          },
+          "warehouse": {
+            "label": "Depo hazırlığını kontrol et",
+            "hint": "Kuyruk boş. Stoğun tahsise hazır olduğundan emin olun."
+          }
+        }
+      }
+    }
   }
 }

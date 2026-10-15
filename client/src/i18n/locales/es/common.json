@@ -1366,5 +1366,175 @@
       "12": "12. Cambios en esta política de privacidad",
       "13": "13. Contáctenos"
     }
+  },
+  "logistics": {
+    "hub": {
+      "aboutBody": "Los compradores agrupan su demanda hasta alcanzar la cantidad mínima de pedido del proveedor. Cuando se compromete suficiente demanda, la campaña se bloquea, se recogen los depósitos y OxSteed coordina el resto de la cadena de suministro.",
+      "aboutTitle": "Cómo funcionan las compras grupales",
+      "aboutToggle": "Cómo funcionan las compras grupales",
+      "clearFilters": "Borrar filtros",
+      "emptyBody": "Prueba otra búsqueda o filtro. Se abren nuevas campañas con regularidad.",
+      "emptyTitle": "Ninguna campaña coincide con tus filtros",
+      "error": "No se pudieron cargar las campañas. Inténtalo de nuevo.",
+      "eyebrow": "OxSteed Logistics",
+      "intro": "Únete a campañas grupales para desbloquear precios mayoristas u organiza la tuya.",
+      "laneLabel": "Ruta",
+      "loading": "Cargando campañas...",
+      "nextPage": "Siguiente",
+      "noCampaignsBody": "No hay campañas abiertas en este momento. Vuelve pronto u organiza una tú mismo.",
+      "noCampaignsTitle": "Aún no hay campañas",
+      "organizeCta": "Organizar una campaña",
+      "pageOf": "Página {{page}} de {{pages}}",
+      "prevPage": "Anterior",
+      "procurementCta": "Compras empresariales",
+      "resultsCount": "{{count}} campañas",
+      "retry": "Reintentar",
+      "searchLabel": "Buscar campañas",
+      "searchPlaceholder": "Buscar por producto, ruta o título",
+      "statusLabel": "Estado",
+      "title": "Compras grupales, simplificadas"
+    },
+    "nav": {
+      "adminControl": "Control de administrador",
+      "businessProcurement": "Compras empresariales",
+      "buyer": "Comprador",
+      "compliance": "Cumplimiento",
+      "distributor": "Distribuidor",
+      "hub": "Explorar",
+      "label": "Espacios de trabajo de logística",
+      "operations": "Operaciones",
+      "organizer": "Organizador"
+    },
+    "modal": {
+      "close": "Cerrar",
+      "openFullPage": "Abrir página completa",
+      "loading": "Cargando…",
+      "loadError": "No se pudo cargar esta vista previa.",
+      "retry": "Reintentar",
+      "notFound": "No se pudo encontrar este elemento.",
+      "campaignPreviewTitle": "Vista previa de la campaña",
+      "requestPreviewTitle": "Vista previa de la solicitud",
+      "orderPreviewTitle": "Vista previa del pedido",
+      "shipmentPreviewTitle": "Vista previa del envío",
+      "allocationPreviewTitle": "Vista previa de la asignación",
+      "campaign": {
+        "lane": "Ruta",
+        "status": "Estado",
+        "moqProgress": "Progreso del MOQ",
+        "participants": "Participantes",
+        "committedUnits": "Comprometido",
+        "targetUnits": "Objetivo"
+      },
+      "request": {
+        "status": "Estado",
+        "category": "Categoría",
+        "targetQuantity": "Cantidad objetivo",
+        "targetPrice": "Precio objetivo",
+        "destination": "Destino",
+        "deadline": "Fecha límite",
+        "quotes": "Cotizaciones"
+      },
+      "order": {
+        "status": "Estado",
+        "supplier": "Proveedor",
+        "quantity": "Cantidad",
+        "total": "Total del pedido",
+        "balanceDue": "Saldo pendiente",
+        "expectedArrival": "Llegada prevista"
+      },
+      "shipment": {
+        "status": "Estado",
+        "carrier": "Transportista",
+        "trackingNumber": "Número de seguimiento",
+        "originPort": "Puerto de origen",
+        "destinationPort": "Puerto de destino",
+        "eta": "ETA"
+      },
+      "allocation": {
+        "status": "Estado",
+        "recipient": "Destinatario",
+        "warehouse": "Almacén",
+        "releaseMethod": "Método de entrega",
+        "quantity": "Cantidad"
+      }
+    },
+    "workspace": {
+      "nextStep": {
+        "title": "Tu próximo paso"
+      },
+      "recentActivity": {
+        "title": "Actividad reciente",
+        "empty": "Nada aquí todavía. La actividad nueva aparecerá aquí."
+      },
+      "dataError": {
+        "title": "Datos no disponibles",
+        "body": "No pudimos cargar este espacio de trabajo ahora. Inténtalo de nuevo.",
+        "retry": "Intentar de nuevo"
+      },
+      "buyer": {
+        "nextStep": {
+          "browseCampaigns": {
+            "label": "Explorar campañas",
+            "hint": "No hay solicitudes activas. Encuentra una campaña conjunta para unirte o seguir."
+          },
+          "reviewShipments": {
+            "label": "Revisar envíos en riesgo",
+            "hint": "{{count}} envíos necesitan seguimiento."
+          },
+          "startRequest": {
+            "label": "Iniciar una solicitud de compra",
+            "hint": "Todo avanza. Abre nueva demanda cuando estés listo."
+          }
+        }
+      },
+      "organizer": {
+        "nextStep": {
+          "momentum": {
+            "label": "Impulsar el MOQ",
+            "hint": "{{count}} campañas están por debajo de la mitad del MOQ y necesitan más reclutamiento."
+          },
+          "browse": {
+            "label": "Explorar campañas",
+            "hint": "Aún no coordinas campañas. Encuentra una para unirte o seguir."
+          },
+          "handoffs": {
+            "label": "Coordinar entregas",
+            "hint": "La demanda está captada. Mantén las entregas en movimiento."
+          }
+        }
+      },
+      "business": {
+        "nextStep": {
+          "reviewRuns": {
+            "label": "Revisar próximas ejecuciones",
+            "hint": "{{count}} ejecuciones del programa llegan en 21 días. Revisa cantidad, ruta y destino."
+          },
+          "createProgram": {
+            "label": "Crear un programa recurrente",
+            "hint": "Sin programas de reposición. Define una cadencia para la demanda repetida."
+          },
+          "newRequest": {
+            "label": "Abrir una solicitud empresarial",
+            "hint": "Los programas están en marcha. Vincula la nueva demanda a una de tus empresas."
+          }
+        }
+      },
+      "distributor": {
+        "nextStep": {
+          "failedDeliveries": {
+            "label": "Revisar entregas fallidas",
+            "hint": "{{count}} entregas fallaron o se cancelaron y pueden necesitar redirección."
+          },
+          "releaseLots": {
+            "label": "Liberar lotes en espera",
+            "hint": "{{count}} lotes están asignados pero aún no liberados."
+          },
+          "warehouse": {
+            "label": "Revisar el almacén",
+            "hint": "La cola está despejada. Asegúrate de que el inventario esté listo."
+          }
+        }
+      }
+    }
   }
 }

@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import PageShell from '../../components/PageShell';
 import { listAllocations, listDeliveries, listOrders } from '../../api/logistics';
 import LogisticsWorkspaceSwitcher from '../../components/logistics/LogisticsWorkspaceSwitcher';
@@ -15,12 +16,17 @@ const DELIVERY_COLOR = {
 };
 
 export default function DistributorResellerPage() {
+  const { t } = useTranslation();
+  const tx = (key, fallback, opts = {}) => t(key, { defaultValue: fallback, ...opts });
   const [allocations, setAllocations] = useState([]);
   const [deliveries, setDeliveries] = useState([]);
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
 
-  useEffect(() => {
+  const load = () => {
+    setLoading(true);
+    setLoadError(false);
     Promise.all([
       listAllocations({ limit: 100 }),
       listDeliveries({ limit: 100 }),
@@ -30,10 +36,15 @@ export default function DistributorResellerPage() {
         setAllocations(allocationRes.data || []);
         setDeliveries(deliveryRes.data || []);
         setOrders(orderRes.orders || []);
+        setLoading(false);
       })
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, []);
+      .catch(() => {
+        setLoadError(true);
+        setLoading(false);
+      });
+  };
+
+  useEffect(() => { load(); }, []);
 
   const stats = useMemo(() => ({
     allocations: allocations.length,
@@ -45,6 +56,56 @@ export default function DistributorResellerPage() {
     failed: deliveries.filter((row) => ['failed', 'cancelled'].includes(row.status)).length,
     warehousedOrders: orders.filter((row) => row.status === 'warehoused').length,
   }), [allocations, deliveries, orders]);
+
+  // One clear next step, driven by workspace state.
+  const nextStep = loadError
+    ? null
+    : stats.failed > 0
+      ? {
+          href: '/logistics/distribution',
+          label: tx('logistics.workspace.distributor.nextStep.failedDeliveries.label', 'Review failed deliveries'),
+          hint: tx(
+            'logistics.workspace.distributor.nextStep.failedDeliveries.hint',
+            '{{count}} drops failed or were cancelled and may need rerouting or recipient follow-up.',
+            { count: stats.failed }
+          ),
+        }
+      : stats.pendingRelease > 0
+        ? {
+            href: '/logistics/distribution',
+            label: tx('logistics.workspace.distributor.nextStep.releaseLots.label', 'Release waiting lots'),
+            hint: tx(
+              'logistics.workspace.distributor.nextStep.releaseLots.hint',
+              '{{count}} lots are assigned but not fully released yet.',
+              { count: stats.pendingRelease }
+            ),
+          }
+        : {
+            href: '/logistics/warehousing',
+            label: tx('logistics.workspace.distributor.nextStep.warehouse.label', 'Check warehouse readiness'),
+            hint: tx(
+              'logistics.workspace.distributor.nextStep.warehouse.hint',
+              'The handoff queue is clear. Make sure upstream stock is ready to allocate.'
+            ),
+          };
+
+  const recentActivity = [
+    ...deliveries.map((row) => ({
+      key: `delivery-${row.id}`,
+      label: row.recipient_name || `Delivery #${row.id}`,
+      href: '/logistics/distribution',
+      date: row.updated_at || row.created_at || row.scheduled_date,
+    })),
+    ...allocations.map((row) => ({
+      key: `allocation-${row.id}`,
+      label: row.reference || `ALC-${row.id}`,
+      href: '/logistics/distribution',
+      date: row.updated_at || row.created_at,
+    })),
+  ]
+    .filter((item) => item.date && !Number.isNaN(new Date(item.date).getTime()))
+    .sort((a, b) => new Date(b.date) - new Date(a.date))
+    .slice(0, 5);
 
   return (
     <PageShell>
@@ -131,6 +192,57 @@ export default function DistributorResellerPage() {
           </div>
         </div>
 
+        {loadError && !loading && (
+          <div className="lx-data-error-banner" role="alert">
+            <div>
+              <h2>{tx('logistics.workspace.dataError.title', 'Data unavailable')}</h2>
+              <p>{tx('logistics.workspace.dataError.body', "We couldn't load your distributor workspace right now. Please try again.")}</p>
+            </div>
+            <button type="button" className="lx-btn-secondary" onClick={load}>
+              {tx('logistics.workspace.dataError.retry', 'Try again')}
+            </button>
+          </div>
+        )}
+
+        <div className="lx-overview-strip">
+          <div className="lx-card">
+            <h2 className="lx-dashboard-panel-title">{tx('logistics.workspace.nextStep.title', 'Your next step')}</h2>
+            <div className="lx-next-step-body">
+              {loading && (
+                <p className="lx-overview-empty">{tx('logistics.modal.loading', 'Loading…')}</p>
+              )}
+              {!loading && loadError && (
+                <p className="lx-overview-empty">{tx('logistics.workspace.dataError.body', "We couldn't load your distributor workspace right now. Please try again.")}</p>
+              )}
+              {!loading && !loadError && nextStep && (
+                <>
+                  <p className="lx-next-step-hint">{nextStep.hint}</p>
+                  <Link to={nextStep.href} className="lx-btn-primary lx-next-step-action">{nextStep.label}</Link>
+                </>
+              )}
+            </div>
+          </div>
+          <div className="lx-card">
+            <h2 className="lx-dashboard-panel-title">{tx('logistics.workspace.recentActivity.title', 'Recent activity')}</h2>
+            {loading ? (
+              <p className="lx-overview-empty">{tx('logistics.modal.loading', 'Loading…')}</p>
+            ) : loadError ? (
+              <p className="lx-overview-empty">{tx('logistics.workspace.dataError.body', "We couldn't load your distributor workspace right now. Please try again.")}</p>
+            ) : recentActivity.length > 0 ? (
+              <div className="lx-activity-list">
+                {recentActivity.map((item) => (
+                  <div key={item.key} className="lx-activity-item">
+                    <span className="lx-activity-label"><Link to={item.href} className="lx-link">{item.label}</Link></span>
+                    <span className="lx-activity-date">{new Date(item.date).toLocaleDateString()}</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="lx-overview-empty">{tx('logistics.workspace.recentActivity.empty', 'Nothing here yet. Allocations and deliveries will appear here.')}</p>
+            )}
+          </div>
+        </div>
+
         <div className="lx-nav-grid" style={{ marginBottom: '1.5rem' }}>
           <Link to="/logistics/distribution" className="lx-nav-tile"><span className="lx-nav-icon">🚚</span><span className="lx-nav-label">Distribution board</span></Link>
           <Link to="/logistics/warehousing" className="lx-nav-tile"><span className="lx-nav-icon">🏭</span><span className="lx-nav-label">Warehousing</span></Link>
@@ -175,7 +287,7 @@ export default function DistributorResellerPage() {
                       <td><span className="lx-status-pill" style={{ background: allocation.status === 'released' ? '#22c55e' : '#64748b' }}>{allocation.status}</span></td>
                     </tr>
                   ))}
-                  {!loading && allocations.length === 0 && <tr><td colSpan={4} style={{ textAlign: 'center', color: '#94a3b8' }}>No allocation lots assigned yet.</td></tr>}
+                  {!loading && !loadError && allocations.length === 0 && <tr><td colSpan={4} style={{ textAlign: 'center', color: '#94a3b8' }}>No allocation lots assigned yet.</td></tr>}
                 </tbody>
               </table>
             </div>
@@ -198,7 +310,7 @@ export default function DistributorResellerPage() {
                       <td><span className="lx-status-pill" style={{ background: DELIVERY_COLOR[delivery.status] || '#64748b' }}>{delivery.status}</span></td>
                     </tr>
                   ))}
-                  {!loading && deliveries.length === 0 && <tr><td colSpan={4} style={{ textAlign: 'center', color: '#94a3b8' }}>No delivery orders yet.</td></tr>}
+                  {!loading && !loadError && deliveries.length === 0 && <tr><td colSpan={4} style={{ textAlign: 'center', color: '#94a3b8' }}>No delivery orders yet.</td></tr>}
                 </tbody>
               </table>
             </div>

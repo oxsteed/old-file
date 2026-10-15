@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../context/AuthContext';
 import { listCampaigns, getMyParticipation, listShipments, listDeliveries } from '../../api/logistics';
 import PageShell from '../../components/PageShell';
@@ -13,13 +14,18 @@ const STATUS_COLOR = {
 
 export default function OrganizerDashboardPage() {
   const { user } = useAuth();
+  const { t } = useTranslation();
+  const tx = (key, fallback, opts = {}) => t(key, { defaultValue: fallback, ...opts });
   const [campaigns, setCampaigns] = useState([]);
   const [participation, setParticipation] = useState([]);
   const [shipments, setShipments] = useState([]);
   const [deliveries, setDeliveries] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
 
-  useEffect(() => {
+  const load = () => {
+    setLoading(true);
+    setLoadError(false);
     Promise.all([
       listCampaigns({ limit: 100 }),
       getMyParticipation(),
@@ -31,16 +37,76 @@ export default function OrganizerDashboardPage() {
         setParticipation(partRes.data || []);
         setShipments(shipmentRes.shipments || []);
         setDeliveries(deliveryRes.data || []);
+        setLoading(false);
       })
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, [user?.id]);
+      .catch(() => {
+        setLoadError(true);
+        setLoading(false);
+      });
+  };
+
+  useEffect(() => { load(); }, [user?.id]);
 
   const committedUnits = campaigns.reduce((sum, row) => sum + Number(row.current_committed_qty || 0), 0);
   const activeCampaigns = campaigns.filter((row) => ['open', 'pledging', 'deposit_phase', 'locked', 'placed'].includes(row.status)).length;
   const campaignsNeedingMomentum = campaigns.filter((row) => Number(row.moq_pct || 0) < 50 && row.status === 'open').length;
   const handoffDeliveries = deliveries.filter((row) => ['pending', 'scheduled', 'in_transit'].includes(row.status)).length;
   const participantCommitments = participation.filter((row) => row.status !== 'fulfilled').length;
+
+  // One clear next step, driven by workspace state.
+  const nextStep = loadError
+    ? null
+    : campaignsNeedingMomentum > 0
+      ? {
+          href: '/logistics/campaigns',
+          label: tx('logistics.workspace.organizer.nextStep.momentum.label', 'Push MOQ momentum'),
+          hint: tx(
+            'logistics.workspace.organizer.nextStep.momentum.hint',
+            '{{count}} campaigns are below half of MOQ and need another recruiting push.',
+            { count: campaignsNeedingMomentum }
+          ),
+        }
+      : campaigns.length === 0
+        ? {
+            href: '/logistics/campaigns',
+            label: tx('logistics.workspace.organizer.nextStep.browse.label', 'Browse campaigns'),
+            hint: tx(
+              'logistics.workspace.organizer.nextStep.browse.hint',
+              'You do not coordinate any campaigns yet. Find one to join or watch.'
+            ),
+          }
+        : {
+            href: '/logistics/distribution',
+            label: tx('logistics.workspace.organizer.nextStep.handoffs.label', 'Coordinate handoffs'),
+            hint: tx(
+              'logistics.workspace.organizer.nextStep.handoffs.hint',
+              'Demand is captured. Keep delivery handoffs moving toward recipients.'
+            ),
+          };
+
+  const recentActivity = [
+    ...campaigns.map((row) => ({
+      key: `campaign-${row.id}`,
+      label: row.title,
+      href: `/logistics/campaigns/${row.id}`,
+      date: row.created_at || row.updated_at,
+    })),
+    ...deliveries.map((row) => ({
+      key: `delivery-${row.id}`,
+      label: row.recipient_name || `Delivery #${row.id}`,
+      href: '/logistics/distribution',
+      date: row.created_at || row.updated_at || row.scheduled_date,
+    })),
+    ...participation.map((row) => ({
+      key: `participation-${row.id}`,
+      label: row.order_title || `Campaign #${row.pooled_order_id}`,
+      href: `/logistics/campaigns/${row.pooled_order_id}`,
+      date: row.created_at || row.updated_at,
+    })),
+  ]
+    .filter((item) => item.date && !Number.isNaN(new Date(item.date).getTime()))
+    .sort((a, b) => new Date(b.date) - new Date(a.date))
+    .slice(0, 5);
 
   return (
     <PageShell>
@@ -127,6 +193,57 @@ export default function OrganizerDashboardPage() {
         </div>
       </div>
 
+      {loadError && !loading && (
+        <div className="lx-data-error-banner" role="alert">
+          <div>
+            <h2>{tx('logistics.workspace.dataError.title', 'Data unavailable')}</h2>
+            <p>{tx('logistics.workspace.dataError.body', "We couldn't load your organizer workspace right now. Please try again.")}</p>
+          </div>
+          <button type="button" className="lx-btn-secondary" onClick={load}>
+            {tx('logistics.workspace.dataError.retry', 'Try again')}
+          </button>
+        </div>
+      )}
+
+      <div className="lx-overview-strip">
+        <div className="lx-card">
+          <h2 className="lx-dashboard-panel-title">{tx('logistics.workspace.nextStep.title', 'Your next step')}</h2>
+          <div className="lx-next-step-body">
+            {loading && (
+              <p className="lx-overview-empty">{tx('logistics.modal.loading', 'Loading…')}</p>
+            )}
+            {!loading && loadError && (
+              <p className="lx-overview-empty">{tx('logistics.workspace.dataError.body', "We couldn't load your organizer workspace right now. Please try again.")}</p>
+            )}
+            {!loading && !loadError && nextStep && (
+              <>
+                <p className="lx-next-step-hint">{nextStep.hint}</p>
+                <Link to={nextStep.href} className="lx-btn-primary lx-next-step-action">{nextStep.label}</Link>
+              </>
+            )}
+          </div>
+        </div>
+        <div className="lx-card">
+          <h2 className="lx-dashboard-panel-title">{tx('logistics.workspace.recentActivity.title', 'Recent activity')}</h2>
+          {loading ? (
+            <p className="lx-overview-empty">{tx('logistics.modal.loading', 'Loading…')}</p>
+          ) : loadError ? (
+            <p className="lx-overview-empty">{tx('logistics.workspace.dataError.body', "We couldn't load your organizer workspace right now. Please try again.")}</p>
+          ) : recentActivity.length > 0 ? (
+            <div className="lx-activity-list">
+              {recentActivity.map((item) => (
+                <div key={item.key} className="lx-activity-item">
+                  <span className="lx-activity-label"><Link to={item.href} className="lx-link">{item.label}</Link></span>
+                  <span className="lx-activity-date">{new Date(item.date).toLocaleDateString()}</span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="lx-overview-empty">{tx('logistics.workspace.recentActivity.empty', 'Nothing here yet. Campaigns and handoffs will appear here.')}</p>
+          )}
+        </div>
+      </div>
+
       <div className="lx-key-metrics">
         {[
           ['Organizer campaigns', campaigns.length, '🤝', 'Total campaigns you currently own or coordinate.'],
@@ -159,7 +276,7 @@ export default function OrganizerDashboardPage() {
               </div>
             </Link>
           ))}
-          {!loading && campaigns.length === 0 && <div className="lx-card" style={{ color:'#94a3b8' }}>No organizer campaigns yet. Start one from the campaigns workspace.</div>}
+          {!loading && !loadError && campaigns.length === 0 && <div className="lx-card" style={{ color:'#94a3b8' }}>No organizer campaigns yet. Start one from the campaigns workspace.</div>}
         </div>
       </div>
 
@@ -177,7 +294,7 @@ export default function OrganizerDashboardPage() {
                     <td><span className="lx-status-pill" style={{ background: STATUS_COLOR[row.order_status] || '#64748b' }}>{row.status}</span></td>
                   </tr>
                 ))}
-                {!loading && participation.length === 0 && <tr><td colSpan={3} style={{ textAlign:'center', color:'#94a3b8' }}>No campaign commitments yet.</td></tr>}
+                {!loading && !loadError && participation.length === 0 && <tr><td colSpan={3} style={{ textAlign:'center', color:'#94a3b8' }}>No campaign commitments yet.</td></tr>}
               </tbody>
             </table>
           </div>

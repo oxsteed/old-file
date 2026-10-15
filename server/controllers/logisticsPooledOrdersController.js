@@ -5,18 +5,63 @@ const pool = require('../db');
 
 exports.listPooledOrders = async (req, res, next) => {
   try {
-    const { status, lane_id, open, limit = 20, offset = 0 } = req.query;
+    const { status, lane, lane_id, open, search, limit, offset, page } = req.query;
+
+    // Phase 1 searchable browsing: `page`/`limit` opt into the paginated
+    // envelope. Without them the legacy shape is returned unchanged.
+    // `lane` is the documented filter name; `lane_id` stays as an alias.
+    const paginated = page !== undefined || limit !== undefined;
+    const pageSize = Math.min(Math.max(parseInt(limit, 10) || 20, 1), 100);
+    // An explicit `page` wins; otherwise a legacy `offset` is honored as-is
+    // so existing limit+offset callers keep working.
+    const explicitOffset = parseInt(offset, 10) || 0;
+    const pageNum = page !== undefined
+      ? Math.max(parseInt(page, 10) || 1, 1)
+      : Math.floor(explicitOffset / pageSize) + 1;
+    const queryOffset = page !== undefined ? (pageNum - 1) * pageSize : explicitOffset;
+
     const result = await pooledOrderService.listPooledOrders({
-      status,
-      laneId:       lane_id,
+      status: status || undefined,
+      laneId: parseLaneId(lane !== undefined && lane !== '' ? lane : lane_id),
+      search: typeof search === 'string' && search.trim() ? search.trim() : null,
       open:         open === 'true' ? true : null,
       publicSafe:   !req.isAdmin,
-      limit:        Math.min(parseInt(limit)||20, 100),
-      offset:       parseInt(offset)||0,
+      // Phase 1 public visibility: unauthenticated (guest) requests must only
+      // see published/approved campaigns, so drafts are excluded. Authenticated
+      // callers keep the current behavior because the organizer workspace
+      // lists the organizer's own drafts through this endpoint; Phase 2 will
+      // add a scoped organizer endpoint and can extend the exclusion.
+      excludeDrafts: !req.user,
+      limit:        pageSize,
+      offset:       queryOffset,
     });
+
+    if (paginated) {
+      return res.json({
+        success: true,
+        data: result.orders,
+        pagination: {
+          page: pageNum,
+          limit: pageSize,
+          total: result.total,
+          totalPages: Math.ceil(result.total / pageSize),
+        },
+        // Legacy fields preserved for existing clients (they read
+        // `orders`/`total`). Additive only: nothing removed or renamed.
+        orders: result.orders,
+        total: result.total,
+      });
+    }
     res.json({ success: true, ...result });
   } catch (err) { next(err); }
 };
+
+// lane_id is an integer FK; ignore (rather than 500 on) non-numeric input.
+function parseLaneId(value) {
+  if (value === undefined || value === null || value === '') return undefined;
+  const n = parseInt(value, 10);
+  return Number.isFinite(n) ? n : undefined;
+}
 
 exports.getPooledOrder = async (req, res, next) => {
   try {
@@ -25,6 +70,13 @@ exports.getPooledOrder = async (req, res, next) => {
       includePrivate: Boolean(req.isAdmin),
     });
     if (!order) return next(new AppError('Pooled order not found', 404, 'not_found'));
+    // Phase 1 public visibility: guests must not see draft (unapproved)
+    // campaigns. Report as not found so draft existence is not leaked.
+    // Authenticated callers keep the current behavior (organizers view their
+    // own drafts; the public board links only to listed campaigns).
+    if (!req.user && order.status === 'draft') {
+      return next(new AppError('Pooled order not found', 404, 'not_found'));
+    }
     res.json({ success: true, data: order });
   } catch (err) { next(err); }
 };
