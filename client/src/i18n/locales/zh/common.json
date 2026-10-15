@@ -1535,6 +1535,925 @@
           }
         }
       }
+    },
+    "adminControl": {
+      "error": "目前无法加载控制指标。请重试。",
+      "kpis": {
+        "claimsPosture": "索赔态势",
+        "feeRules": "费用规则",
+        "markupRules": "加价规则",
+        "restrictions": "限制",
+        "trackedPOs": "跟踪的采购订单",
+        "trackedShipments": "跟踪的货运"
+      },
+      "pricing": {
+        "active": "有效",
+        "empty": "未找到定价规则。",
+        "fee": "费用",
+        "headers": {
+          "name": "名称",
+          "status": "状态",
+          "type": "类型"
+        },
+        "inactive": "无效",
+        "markup": "加价",
+        "ruleFallback": "规则 {{id}}",
+        "title": "定价与费用态势"
+      },
+      "restricted": {
+        "body": "定价规则、市场限制和物流全局覆盖仅适用于 OxSteed 管理员和超级管理员。",
+        "returnToHub": "返回物流中心",
+        "title": "控制访问受限"
+      },
+      "restrictions": {
+        "empty": "未配置限制。",
+        "headers": {
+          "category": "类别",
+          "country": "国家",
+          "risk": "风险"
+        },
+        "title": "限制与风险控制"
+      },
+      "routes": {
+        "adminDashboard": "管理仪表板",
+        "pricingRules": "定价规则",
+        "restrictions": "限制",
+        "superControl": "超级控制",
+        "supplierApprovals": "供应商审批"
+      },
+      "routesLabel": "管理控制路由",
+      "subtitle": "整个 OxSteed Logistics 分支的定价、风险、审批和盈利控制。",
+      "title": "管理员控制"
+    },
+    "buyer": {
+      "actions": {
+        "startRequest": "发起询价",
+        "watchShipments": "查看货运时间线"
+      },
+      "activity": {
+        "claimFallback": "索赔 #{{id}}"
+      },
+      "attention": {
+        "allocationRelease": {
+          "hint": "已分配库存仍需提货、货代交接或最终放货计划。",
+          "label": "分配放货"
+        },
+        "copy": "使用此队列决定是推动新的采购需求、跟进交货放货，还是升级财务问题。",
+        "issuePosture": {
+          "hint": "索赔和退款案例告诉您买家信任或履约质量在哪里下滑。",
+          "label": "问题态势"
+        },
+        "shipmentRisk": {
+          "hint": "海关审查、异常状态或延误货运应优先由买家跟进。",
+          "label": "货运风险"
+        },
+        "title": "立即关注"
+      },
+      "chips": {
+        "buyerFirst": "买家优先工作区",
+        "claimsTied": "索赔与货运结果挂钩",
+        "refundVisible": "退款态势保持可见"
+      },
+      "claims": {
+        "activeClaims": "{{count}} 个活跃索赔",
+        "activeClaimsHint": "当货运、订单或库存结果需要运营商干预或证据审查时使用索赔。",
+        "deliveriesHint": "将交货状态与索赔保持接近，以便将失败的履约与实际放货历史关联。",
+        "deliveriesTracked": "已跟踪 {{count}} 条交货记录",
+        "openFinance": "财务工作区",
+        "refundCases": "{{count}} 个退款案例",
+        "refundCasesHint": "退款队列显示买家追回款项仍在等待财务或运营确认的位置。",
+        "title": "索赔与解决态势"
+      },
+      "flow": {
+        "allocationFallback": "ALC-{{id}}",
+        "awaitingRelease": "等待放货",
+        "empty": "暂无货运或分配记录。",
+        "headers": {
+          "eta": "预计到达 / 交货",
+          "reference": "参考号",
+          "status": "状态"
+        },
+        "openDistribution": "分销",
+        "title": "货运与分配流程"
+      },
+      "kicker": "买家工作区",
+      "metrics": {
+        "activeRequests": {
+          "label": "活跃询价",
+          "note": "进行中的买家询价共 {{total}} 个"
+        },
+        "claimsRefunds": {
+          "label": "索赔与退款",
+          "noteClear": "暂无活跃的买家问题",
+          "noteOpen": "未决问题可能需要运营商审查"
+        },
+        "pendingAllocations": {
+          "label": "待分配",
+          "noteClear": "分配队列为空",
+          "notePending": "库存已分配但尚未完全放货"
+        },
+        "watchShipments": {
+          "label": "查看货运",
+          "noteClear": "目前没有标记的货运异常",
+          "noteRisk": "{{count}} 个需要异常跟进"
+        }
+      },
+      "requests": {
+        "empty": "暂无采购询价。",
+        "headers": {
+          "category": "类别",
+          "quotes": "报价",
+          "request": "询价",
+          "status": "状态"
+        },
+        "title": "我的采购询价",
+        "viewAll": "查看全部"
+      },
+      "rhythm": {
+        "bestMove": {
+          "hasRequests": "在开启更多需求前，请审查报价和货运态势。",
+          "label": "最佳下一步",
+          "noRequests": "开启采购询价以启动供应商报价。"
+        },
+        "latestDelivery": {
+          "label": "最新交货信号",
+          "noDate": "尚未安排交货日期。",
+          "withDate": "最近的交货活动安排在 {{date}} 左右。"
+        },
+        "title": "买家节奏"
+      },
+      "stats": {
+        "attentionShipments": {
+          "label": "需要关注的货运",
+          "meta": "待审查的海关或异常阶段动态。"
+        },
+        "issues": {
+          "label": "待处理的索赔 / 退款",
+          "meta": "保持买家保护和解决态势可见。"
+        },
+        "openRequests": {
+          "label": "待处理的买家询价",
+          "meta": "涵盖采购、报价和采购转化。"
+        }
+      },
+      "subtitle": "发起采购询价、跟踪您的订单并监控在途货运：一切尽在一处。",
+      "title": "买家仪表板"
+    },
+    "campaignDetail": {
+      "delivery": {
+        "freightForward": "货运代理",
+        "shipToBuyer": "发往买家",
+        "warehousePickup": "仓库自提"
+      },
+      "economics": {
+        "deposit": "定金 (30%)",
+        "fees": "费用",
+        "freightEst": "运费 (预估)",
+        "landedCost": "到岸成本 / 件",
+        "markup": "OxSteed 加价",
+        "productCost": "产品成本",
+        "title": "单位经济"
+      },
+      "join": {
+        "cancellationPolicy": "取消政策",
+        "committedQty": "已承诺数量",
+        "confirm": "确认参加",
+        "countryCode": "国家代码",
+        "deliveryPreference": "交货偏好",
+        "deposit": "定金",
+        "destCountry": "目的国",
+        "subtotal": "小计",
+        "title": "参加团购"
+      },
+      "laneGating": {
+        "blocked": "您当前的角色或目的国上下文被此线路屏蔽：{{reason}}",
+        "businessVerification": "此团购线路需要经过验证的商业背景。",
+        "manualApproval": "在团购进入所有下游物流步骤之前，需要人工合规审批。",
+        "resellerApproval": "在此线路参与转售需要经销商/分销商批准。",
+        "title": "线路准入"
+      },
+      "loadError": "加载团购失败",
+      "meta": {
+        "fallbackDescription": "OxSteed Logistics 上的团购活动。",
+        "fallbackTitle": "团购"
+      },
+      "moq": {
+        "progressLabel": "起订量进度：{{pct}}%",
+        "units": "已承诺 {{committed}} / {{target}} 件"
+      },
+      "notFound": "未找到团购。",
+      "participants": {
+        "headers": {
+          "delivery": "交货",
+          "deposit": "定金",
+          "qty": "数量",
+          "status": "状态",
+          "user": "用户"
+        },
+        "participant": "参与者",
+        "title": "参与者"
+      },
+      "timeline": {
+        "expectedArrival": "预计到达",
+        "expectedShip": "预计发货",
+        "lockDate": "锁单日期",
+        "openDate": "开放日期",
+        "closeDate": "截止日期",
+        "organizer": "组织者",
+        "title": "时间线"
+      }
+    },
+    "compliance": {
+      "allLanes": "所有线路",
+      "businessVerificationRequired": "需要商业验证",
+      "countryFilter": "按国家代码筛选",
+      "countryPlaceholder": "国家代码 (例如 HT)",
+      "customsComplexity": "海关",
+      "docRequirements": {
+        "body": "每条线路可能需要：商业发票、装箱单、原产地证书、植物检疫证书、海关清关文件、合规标识、海关入境表格或检验报告。具体要求因线路和品类而异。",
+        "title": "文件要求"
+      },
+      "error": "目前无法加载合规数据。请重试。",
+      "global": "全球",
+      "headers": {
+        "category": "类别",
+        "country": "国家",
+        "docRequired": "需要文件",
+        "lane": "线路",
+        "notes": "备注",
+        "severity": "严重程度",
+        "type": "类型"
+      },
+      "laneFilter": "按线路筛选",
+      "manualApprovalRequired": "需要人工审批",
+      "noLanes": "尚未发布线路风险数据。",
+      "riskTiers": {
+        "title": "风险等级"
+      }
+    },
+    "distribution": {
+      "defaults": {
+        "buyerAllocation": "买家分配",
+        "recipient": "收货人",
+        "releasePending": "待放货",
+        "warehouse": "仓库"
+      },
+      "empty": {
+        "allocations": "暂无可用分配。",
+        "deliveries": "暂无可用交货单。"
+      },
+      "error": "目前无法加载分销数据。请重试。",
+      "labels": {
+        "allocatedQty": "已分配数量",
+        "mode": "模式",
+        "tracking": "跟踪"
+      },
+      "loading": "加载中…",
+      "sections": {
+        "allocationQueue": "分配队列",
+        "deliveryExecution": "交货执行",
+        "openWarehousing": "打开仓储 →"
+      },
+      "stats": {
+        "allocations": "分配",
+        "deliveryOrders": "交货单",
+        "inTransit": "在途",
+        "released": "已放货"
+      }
+    },
+    "distributor": {
+      "actions": {
+        "openBoard": "打开分销看板",
+        "warehouseReadiness": "检查仓库准备度"
+      },
+      "activity": {
+        "allocationFallback": "ALC-{{id}}",
+        "deliveryFallback": "交货 #{{id}}"
+      },
+      "chips": {
+        "failedDrops": "及早跟踪失败的投递",
+        "releaseDiscipline": "放货纪律很重要",
+        "sync": "保持仓库与交货同步"
+      },
+      "execution": {
+        "empty": "暂无交货单。",
+        "headers": {
+          "method": "方式",
+          "recipient": "收货人",
+          "scheduled": "已安排",
+          "status": "状态"
+        },
+        "recipientFallback": "交货收货人",
+        "seeAll": "查看全部",
+        "title": "交货执行"
+      },
+      "kicker": "分销商工作区",
+      "metrics": {
+        "allocatedLots": {
+          "label": "已分配批次",
+          "note": "分配给各分销收货人的库存。"
+        },
+        "deliveryOrders": {
+          "label": "交货单",
+          "note": "当前跟踪的出库行程。"
+        },
+        "inTransit": {
+          "label": "在途",
+          "note": "仍需最后一公里监控的交货。"
+        },
+        "releasedLots": {
+          "label": "已放货批次",
+          "note": "已批准提货或执行交货的批次。"
+        },
+        "warehousedOrders": {
+          "label": "已入库订单",
+          "note": "上游库存已入库，可供分配。"
+        }
+      },
+      "posture": {
+        "releaseFirst": {
+          "hint": "在推动收货人安排交货之前，请确认分配确实已经放货。",
+          "label": "先放货再配送"
+        },
+        "title": "运营态势",
+        "warehousedVisible": {
+          "hint": "{{count}} 个采购订单已入库，因此瓶颈可能在下游而非上游。",
+          "label": "保持入库库存可见"
+        }
+      },
+      "pressure": {
+        "copy": "使用此视图判断下一个瓶颈是仓库放货、排期还是最后一公里执行失败。",
+        "exceptions": {
+          "hint": "失败或取消的交货应在客户信心进一步下降之前得到处理。",
+          "label": "交货异常"
+        },
+        "release": {
+          "hint": "库存已分配，但提货方式、货代交接或收货人准备仍不完整。",
+          "label": "等待放货的批次"
+        },
+        "scheduled": {
+          "hint": "这些是下一个可能的接触点，沟通和时机很重要。",
+          "label": "已安排的交货"
+        },
+        "title": "分销压力点"
+      },
+      "queue": {
+        "assignedBuyer": "指定买家",
+        "empty": "暂无已分配的批次。",
+        "headers": {
+          "method": "方式",
+          "recipient": "收货人",
+          "status": "状态",
+          "warehouse": "仓库"
+        },
+        "methodPending": "待定",
+        "open": "打开工作区",
+        "title": "分配交接队列",
+        "warehousePending": "仓库待定"
+      },
+      "stats": {
+        "failed": {
+          "label": "失败或取消的投递",
+          "meta": "这些通常需要改道或直接跟进收货人。"
+        },
+        "inTransit": {
+          "label": "在途交货",
+          "meta": "应主动关注的出库动态。"
+        },
+        "pendingRelease": {
+          "label": "等待放货的批次",
+          "meta": "已分配但尚未完全交接的库存。"
+        }
+      },
+      "subtitle": "跟踪您的团购参与、分配和最后一公里交货。",
+      "title": "分销商仪表板"
+    },
+    "finance": {
+      "error": "目前无法加载财务数据。请重试。",
+      "headers": {
+        "depositPaid": "已付定金",
+        "product": "产品",
+        "qty": "数量",
+        "reference": "参考号",
+        "remaining": "剩余",
+        "status": "状态",
+        "totalLanded": "到岸总额"
+      },
+      "kpis": {
+        "depositsPaid": "已付定金",
+        "inTransit": "在途",
+        "orders": "订单",
+        "totalCommitted": "承诺总额"
+      },
+      "noSpend": "暂无订单支出记录。",
+      "refund": {
+        "empty": "暂无提交的退款案例。",
+        "requested": "已申请",
+        "submitted": "退款案例已提交审核。",
+        "title": "退款申请"
+      },
+      "refundForm": {
+        "amount": "申请金额 (美元)",
+        "notes": "备注",
+        "poFallback": "采购订单",
+        "purchaseOrder": "采购订单",
+        "reason": "退款原因",
+        "selectOrder": "— 选择订单 —",
+        "submit": "提交退款案例",
+        "submitting": "提交中…",
+        "title": "申请退款审核"
+      },
+      "simulator": {
+        "calculate": "计算到岸成本",
+        "calculating": "计算中…",
+        "freight": "预估运费 / 件 (美元)",
+        "lane": "线路",
+        "markupApplied": "已应用加价",
+        "perUnit": "/ 到岸件",
+        "productCost": "产品成本 / 件 (美元)",
+        "quantity": "数量",
+        "selectLane": "— 选择线路 —",
+        "title": "到岸成本模拟器",
+        "totalFor": "{{qty}} 件总计"
+      }
+    },
+    "operations": {
+      "error": "目前无法加载运营指标。请重试。",
+      "internalOnly": {
+        "body": "此工作区仅供 OxSteed 物流运营商使用。已登录的买家和组织者仍可使用买家、组织者、企业采购和分销商工作区来管理自己的物流活动。",
+        "title": "运营访问仅限内部"
+      },
+      "kpis": {
+        "campaigns": "团购",
+        "claimsDisputes": "索赔与争议",
+        "sourcingQueue": "采购队列",
+        "trackedShipments": "跟踪的货运"
+      },
+      "loading": "正在加载运营指标…",
+      "priorities": {
+        "customsHold": "{{count}} 个货运处于海关扣留或异常状态。",
+        "fullAdmin": "完整管理仪表板",
+        "openClaims": "{{count}} 个索赔待审核。",
+        "openDisputes": "打开争议与退款审核 →",
+        "openFreight": "打开货运与里程碑队列 →",
+        "openSourcing": "打开采购接收队列 →",
+        "openWarehouse": "打开仓库接收队列 →",
+        "operatorRoutes": "运营商路由",
+        "queues": "即时队列",
+        "sourcingTouch": "{{count}} 个采购询价需要路由、报价或运营商处理。",
+        "title": "运营优先级"
+      },
+      "routesLabel": "运营路由",
+      "subtitle": "用于采购接收、在途货运动态、仓库流程和物流异常的统一内部指挥面。",
+      "title": "运营工作区"
+    },
+    "orderDetail": {
+      "backToOrders": "← 返回订单",
+      "defaults": {
+        "purchaseOrder": "采购订单"
+      },
+      "finance": {
+        "customsAdmin": "海关/管理",
+        "freightEstimate": "运费预估",
+        "lastMile": "最后一公里",
+        "originHandling": "起运地操作",
+        "oxsteedMarkup": "OxSteed 加价",
+        "productTotal": "产品总额",
+        "riskSurcharge": "风险附加费",
+        "sourcingFee": "采购费",
+        "warehouseFee": "仓储费"
+      },
+      "labels": {
+        "buyer": "买家",
+        "destination": "目的地",
+        "expectedArrival": "预计到达",
+        "expectedProductionComplete": "预计完工",
+        "expectedShipDate": "预计发货日期",
+        "freightOption": "货运选项",
+        "incoterms": "国际贸易术语",
+        "quantity": "数量",
+        "supplier": "供应商"
+      },
+      "loadError": "加载订单失败。",
+      "loading": "加载中…",
+      "notFound": "未找到采购订单。",
+      "sections": {
+        "financial": "财务结构",
+        "overview": "订单概览"
+      },
+      "totals": {
+        "depositDue": "应付定金",
+        "finalDue": "应付尾款",
+        "remaining": "剩余",
+        "totalLanded": "到岸总额"
+      }
+    },
+    "orders": {
+      "backToBuyer": "返回买家工作区",
+      "error": "目前无法加载您的订单。请重试。",
+      "headers": {
+        "expected": "预计",
+        "landedCost": "到岸成本",
+        "lane": "线路",
+        "product": "产品",
+        "qty": "数量",
+        "reference": "参考号",
+        "status": "状态"
+      },
+      "openOrder": "打开订单 {{ref}}",
+      "pagination": "订单分页",
+      "statusFilter": "按状态筛选"
+    },
+    "organizer": {
+      "actions": {
+        "coordinateHandoffs": "协调交接",
+        "openBoard": "打开团购看板"
+      },
+      "activity": {
+        "campaignFallback": "团购 #{{id}}",
+        "deliveryFallback": "交货 #{{id}}"
+      },
+      "campaigns": {
+        "browse": "浏览团购",
+        "empty": "暂无组织者团购。请从团购工作区发起一个。",
+        "moqProgress": "起订量进度：{{pct}}%",
+        "participants": "{{count}} 名参与者",
+        "title": "组织者的团购"
+      },
+      "commitments": {
+        "empty": "暂无团购承诺。",
+        "headers": {
+          "campaign": "团购",
+          "qty": "数量",
+          "status": "状态"
+        },
+        "open": "打开参与",
+        "title": "我作为参与者的承诺"
+      },
+      "kicker": "组织者工作区",
+      "metrics": {
+        "campaigns": {
+          "label": "组织者的团购",
+          "note": "您当前拥有或协调的团购总数。"
+        },
+        "committedUnits": {
+          "label": "已承诺单位",
+          "note": "便于衡量各团购的网络购买力。"
+        },
+        "deliveries": {
+          "label": "交货交接",
+          "note": "可能需要围绕其发送消息的最后一公里协调。"
+        },
+        "shipments": {
+          "label": "跟踪的货运",
+          "note": "影响组织者更新和交接的动态。"
+        }
+      },
+      "pressure": {
+        "commitments": {
+          "hint": "这些是您在拼单中仍需关注的活跃承诺。",
+          "label": "待处理的参与者承诺"
+        },
+        "copy": "快速了解组织者精力应投向何处：招募、定金或交接执行。",
+        "momentum": {
+          "hint": "起订量未过半的团购通常需要再一轮招募或重新思考线路/定价。",
+          "label": "起订量动量缺口"
+        },
+        "shipments": {
+          "hint": "让组织者消息与货运动态保持一致，以便下游买家知道下一步。",
+          "label": "与团购相关的货运"
+        },
+        "title": "组织者压力点"
+      },
+      "readiness": {
+        "handoffs": "{{count}} 个交货交接仍在进行",
+        "handoffsHint": "这些环节最需要组织者沟通，以避免提货或最后一公里放货时的混乱。",
+        "openDistribution": "打开分销工作区",
+        "openShipments": "打开货运时间线",
+        "posture": "{{count}} 个团购仍可能改变参与者态势",
+        "postureHint": "据此决定是继续招募需求，还是开始为买家准备分销预期。",
+        "shipments": "货运时间线",
+        "title": "分销准备度"
+      },
+      "rhythm": {
+        "communicate": {
+          "hint": "订单下达后，从需求建设转向货运可见性和交货预期。",
+          "label": "下单后沟通"
+        },
+        "recruit": {
+          "hint": "如果起订量较低，先花时间招募参与者，再将运营复杂性推向下游。",
+          "label": "锁单前招募"
+        },
+        "title": "组织者运营节奏"
+      },
+      "stats": {
+        "committedUnits": {
+          "label": "已承诺单位",
+          "meta": "已从您的拼单网络捕获的需求。"
+        },
+        "handoffs": {
+          "label": "待协调的交接",
+          "meta": "仍在发往社区收货人的交货环节。"
+        },
+        "inMotion": {
+          "label": "进行中的团购",
+          "meta": "涵盖开放、定金、锁单和下单阶段。"
+        }
+      },
+      "subtitle": "像协调员一样运营团购，保持起订量动量可见，并将锁单干净地转入发货和社区交接。",
+      "title": "组织者仪表板"
+    },
+    "procurement": {
+      "actions": {
+        "closePlanner": "关闭计划器",
+        "newProgram": "新建周期性计划",
+        "newRequest": "打开企业关联询价"
+      },
+      "chips": {
+        "businessScoped": "仅限企业范围采购",
+        "laneAware": "线路感知采购",
+        "recurring": "周期性需求计划"
+      },
+      "eligibleLanes": {
+        "authority": "具有采购权限。",
+        "empty": "此账户暂无关联的合格企业。",
+        "ownerAccess": "所有者访问",
+        "roleAccess": "{{role}} 访问",
+        "title": "合格的企业线路"
+      },
+      "form": {
+        "anyLane": "任何已批准线路",
+        "budgetMax": "预算上限 (美元)",
+        "cadence": "周期",
+        "category": "类别",
+        "create": "创建计划",
+        "created": "周期性采购计划已创建",
+        "destCity": "目的城市",
+        "destCountry": "目的国",
+        "lane": "线路",
+        "linkedRequest": "关联的采购询价 (可选)",
+        "noLinkedRequest": "无关联询价",
+        "nextRun": "下次执行日期",
+        "notes": "备注",
+        "programTitle": "计划标题",
+        "saving": "保存中…",
+        "targetQty": "目标数量",
+        "title": "周期性采购计划器",
+        "titleRequired": "计划标题为必填项",
+        "unit": "单位"
+      },
+      "guidance": {
+        "authority": {
+          "body": "仅当需求与您可代表的真实企业挂钩时，此工作区才有效，而不仅仅是个人采购想法。",
+          "title": "围绕真实的企业授权构建"
+        },
+        "businessHub": "企业中心",
+        "laneAware": {
+          "body": "当定价、合规和目的地限制实质影响到岸成本时，为周期性计划尽早选择线路。",
+          "title": "使用线路感知计划"
+        },
+        "restock": {
+          "body": "执行日期临近的计划应在仓库、团队或外勤人员感到短缺之前进行检查。",
+          "title": "在抢购前补货"
+        },
+        "title": "采购运营指南"
+      },
+      "kicker": "企业采购",
+      "linkedRequests": {
+        "empty": "暂无企业关联的采购询价。",
+        "headers": {
+          "converted": "已转化",
+          "reference": "参考号",
+          "request": "询价",
+          "status": "状态"
+        },
+        "new": "新建询价",
+        "title": "企业关联的采购询价"
+      },
+      "metrics": {
+        "activePrograms": {
+          "label": "活跃计划",
+          "note": "当前应影响采购计划的计划。"
+        },
+        "eligibleBusinesses": {
+          "label": "合格企业",
+          "note": "您可以为其运营采购的独立商业背景。"
+        },
+        "linkedRequests": {
+          "label": "企业关联询价",
+          "note": "已与合格商业背景关联的询价。"
+        },
+        "programs": {
+          "label": "周期性计划",
+          "note": "为重复库存和供应需求保存的周期。"
+        }
+      },
+      "noAccess": {
+        "backToLogistics": "返回物流",
+        "body": "此工作区仅供可代表企业进行采购和运营的用户使用。目前，OxSteed 为企业所有者、活跃经理和具有运营类权限的成员启用。",
+        "eligibleCount": "您的合格企业工作区",
+        "howDetermined": "访问权限如何确定",
+        "howDeterminedHint": "所有权、活跃经理成员资格，或具有运营/采购类权限的非所有者成员资格。",
+        "openBusinessHub": "打开企业中心",
+        "title": "此账户未启用企业采购"
+      },
+      "pressure": {
+        "copy": "当它告诉您要补什么货、按线路匹配什么、哪家企业最需要行动时，此工作区最强大。",
+        "laneBound": {
+          "hint": "这些已有明确线路，因此定价和合规计划可以更加审慎。",
+          "label": "线路绑定计划"
+        },
+        "linkedRequests": {
+          "hint": "已与合格企业挂钩的需求应优先于通用采购。",
+          "label": "企业关联询价"
+        },
+        "title": "采购压力点",
+        "upcomingRuns": {
+          "hint": "即将执行的计划应检查数量、线路匹配度和目的地准备情况。",
+          "label": "即将执行"
+        }
+      },
+      "program": {
+        "statusChanged": "计划 {{status}}"
+      },
+      "programs": {
+        "activate": "激活",
+        "empty": "暂无周期性采购计划。",
+        "general": "通用采购",
+        "headers": {
+          "cadence": "周期",
+          "linkedRequest": "关联询价",
+          "nextRun": "下次执行",
+          "program": "计划",
+          "status": "状态"
+        },
+        "openSourcing": "打开采购",
+        "pause": "暂停",
+        "title": "周期性采购计划"
+      },
+      "stats": {
+        "activePrograms": {
+          "label": "活跃的补货计划",
+          "meta": "已在驱动重复采购需求的周期。"
+        },
+        "eligibleBusinesses": {
+          "label": "合格企业",
+          "meta": "此账户可合法为其采购的公司。"
+        },
+        "upcomingRuns": {
+          "label": "21 天内的执行",
+          "meta": "需要就绪检查的即将到来的采购周期。"
+        }
+      },
+      "subtitle": "管理补货节奏、周期性采购线路和企业批准的需求，同时不忘记订单是为哪家公司下的。",
+      "title": "企业采购仪表板"
+    },
+    "requestDetail": {
+      "backToSourcing": "← 返回采购",
+      "defaultDescription": "未提供描述。",
+      "labels": {
+        "budgetMax": "预算上限",
+        "business": "企业",
+        "category": "类别",
+        "customMfg": "定制生产",
+        "days": "天",
+        "deadline": "截止日期",
+        "destination": "目的地",
+        "freightEst": "运费预估",
+        "leadTime": "生产周期",
+        "no": "否",
+        "preferredFreight": "首选货运",
+        "privateLabel": "自有品牌",
+        "quotedQty": "报价数量",
+        "structuredSpecs": "结构化规格",
+        "targetPrice": "目标价格",
+        "targetQuantity": "目标数量",
+        "unitPrice": "单价",
+        "yes": "是"
+      },
+      "loading": "加载中…",
+      "notFound": "未找到采购询价。",
+      "quotes": {
+        "empty": "暂无供应商报价。",
+        "supplier": "供应商 #{{id}}",
+        "title": "报价 ({{count}})"
+      },
+      "sections": {
+        "specifications": "规格"
+      },
+      "values": {
+        "personalRequest": "个人询价"
+      }
+    },
+    "requests": {
+      "anyOption": "— 任意 —",
+      "customsComplexity": "海关复杂性",
+      "descriptionPlaceholder": "详细描述产品：材料、尺寸、所需认证…",
+      "destCountryPlaceholder": "例如 US、HT、CA",
+      "goToStep": "前往{{label}}",
+      "laneBlocked": "此线路目前对您的角色或目的地上下文被屏蔽：{{reason}}",
+      "laneBusinessVerification": "作为已验证买家运营此线路需要商业验证。",
+      "laneChecks": "线路准入与审批检查",
+      "laneManualApproval": "在此询价进入报价或采购之前，需要人工合规审批。",
+      "laneResellerApproval": "在此线路用于转售流程之前，需要经销商/分销商批准。",
+      "letOxsteedChoose": "— 让 OxSteed 选择 —",
+      "notesPlaceholder": "给采购团队的其他背景…",
+      "review": {
+        "category": "类别",
+        "deadline": "截止日期",
+        "destination": "目的地",
+        "no": "否",
+        "privateLabel": "自有品牌",
+        "quantity": "数量",
+        "targetPrice": "目标价格",
+        "title": "标题",
+        "yes": "是"
+      },
+      "riskTier": "风险等级",
+      "selectOption": "— 选择 —",
+      "stepsLabel": "询价进度",
+      "titlePlaceholder": "例如：500 双工业安全靴"
+    },
+    "shipmentDetail": {
+      "backToShipments": "← 返回货运",
+      "defaults": {
+        "document": "文件",
+        "noLocation": "无位置",
+        "noNotes": "无备注。",
+        "shipment": "货运"
+      },
+      "empty": {
+        "documents": "未上传货运文件。",
+        "milestones": "暂无记录的里程碑。"
+      },
+      "labels": {
+        "bookingRef": "订舱号",
+        "carrier": "承运人",
+        "destinationPort": "目的港",
+        "eta": "预计到达",
+        "kg": "千克",
+        "originPort": "起运港",
+        "totalCartons": "总箱数",
+        "totalCbm": "总立方米",
+        "totalWeight": "总重量",
+        "trackingNumber": "跟踪号"
+      },
+      "loadError": "加载货运失败。",
+      "loading": "加载中…",
+      "notFound": "未找到货运。",
+      "sections": {
+        "details": "货运详情",
+        "documents": "文件 ({{count}})",
+        "milestones": "里程碑"
+      }
+    },
+    "shipments": {
+      "backToBuyer": "返回买家工作区",
+      "error": "目前无法加载您的货运。请重试。",
+      "etaLabel": "预计到达",
+      "exception": "异常",
+      "kg": "千克",
+      "lifecycleLabel": "按生命周期阶段筛选",
+      "noCarrier": "无承运人",
+      "openShipment": "打开货运 {{ref}}"
+    },
+    "sourcing": {
+      "error": "目前无法加载您的采购询价。请重试。",
+      "headers": {
+        "category": "类别",
+        "lane": "线路",
+        "qty": "数量",
+        "quotes": "报价",
+        "reference": "参考号",
+        "status": "状态",
+        "title": "标题"
+      },
+      "openRequest": "打开询价 {{ref}}",
+      "tabsLabel": "采购视图",
+      "viewRow": "查看 →"
+    },
+    "tables": {
+      "actions": "操作",
+      "view": "查看"
+    },
+    "warehousing": {
+      "activeReceipts": "{{count}} 个活跃收货",
+      "bonded": "保税",
+      "error": "目前无法加载仓储数据。请重试。",
+      "headers": {
+        "buyer": "买家",
+        "expected": "预计",
+        "qty": "数量",
+        "received": "已收货",
+        "reference": "参考号",
+        "releaseMethod": "放货方式",
+        "released": "已放货",
+        "shortage": "短缺",
+        "status": "状态",
+        "warehouse": "仓库"
+      },
+      "sqft": "平方英尺",
+      "tabsLabel": "仓储视图"
     }
   }
 }

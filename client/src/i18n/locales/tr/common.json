@@ -1535,6 +1535,925 @@
           }
         }
       }
+    },
+    "adminControl": {
+      "error": "Kontrol metriklerini şu anda yükleyemedik. Lütfen tekrar deneyin.",
+      "kpis": {
+        "claimsPosture": "Talep durumu",
+        "feeRules": "Ücret kuralları",
+        "markupRules": "Kar marjı kuralları",
+        "restrictions": "Kısıtlamalar",
+        "trackedPOs": "Takip edilen SA'lar",
+        "trackedShipments": "Takip edilen gönderiler"
+      },
+      "pricing": {
+        "active": "etkin",
+        "empty": "Fiyatlandırma kuralı bulunamadı.",
+        "fee": "Ücret",
+        "headers": {
+          "name": "Ad",
+          "status": "Durum",
+          "type": "Tür"
+        },
+        "inactive": "etkin değil",
+        "markup": "Kar marjı",
+        "ruleFallback": "Kural {{id}}",
+        "title": "Fiyat ve ücret durumu"
+      },
+      "restricted": {
+        "body": "Fiyatlandırma kuralları, pazar kısıtlamaları ve lojistik genelindeki geçersiz kılmalar yalnızca OxSteed yöneticileri ve süper yöneticileri tarafından kullanılabilir.",
+        "returnToHub": "Lojistik merkezine dön",
+        "title": "Kontrol erişimi kısıtlı"
+      },
+      "restrictions": {
+        "empty": "Yapılandırılmış kısıtlama yok.",
+        "headers": {
+          "category": "Kategori",
+          "country": "Ülke",
+          "risk": "Risk"
+        },
+        "title": "Kısıtlama ve risk kontrolleri"
+      },
+      "routes": {
+        "adminDashboard": "Yönetici paneli",
+        "pricingRules": "Fiyatlandırma kuralları",
+        "restrictions": "Kısıtlamalar",
+        "superControl": "Süper kontrol",
+        "supplierApprovals": "Tedarikçi onayları"
+      },
+      "routesLabel": "Yönetici kontrol rotaları",
+      "subtitle": "Tüm OxSteed Logistics kolu için fiyat, risk, onay ve kârlılık kontrolleri.",
+      "title": "Yönetici / Süper Yönetici Kontrolü"
+    },
+    "buyer": {
+      "actions": {
+        "startRequest": "Tedarik talebi başlat",
+        "watchShipments": "Gönderi zaman çizelgesini izle"
+      },
+      "activity": {
+        "claimFallback": "Talep #{{id}}"
+      },
+      "attention": {
+        "allocationRelease": {
+          "hint": "Tahsis edilen stokun hâlâ teslim alınması, forwarder'a devredilmesi veya nihai çıkış planlaması gerekiyor.",
+          "label": "Tahsis çıkışı"
+        },
+        "copy": "Yeni tedarik mi iteceğinize, teslimat çıkışını mı kovalayacağınıza yoksa mali bir sorunu mu yükselteceğinize bu kuyrukla karar verin.",
+        "issuePosture": {
+          "hint": "Talepler ve iade davaları, alıcı güveninin veya yerine getirme kalitesinin nerede düştüğünü gösterir.",
+          "label": "Sorun durumu"
+        },
+        "shipmentRisk": {
+          "hint": "Gümrük incelemesi, istisna durumları veya geciken navlun önce alıcı takibini hak eder.",
+          "label": "Gönderi riski"
+        },
+        "title": "Şimdi dikkat"
+      },
+      "chips": {
+        "buyerFirst": "Alıcı öncelikli çalışma alanı",
+        "claimsTied": "Talepler gönderi sonuçlarına bağlı",
+        "refundVisible": "İade durumu görünür kalır"
+      },
+      "claims": {
+        "activeClaims": "{{count}} aktif talep",
+        "activeClaimsHint": "Bir gönderi, sipariş veya envanter sonucu operatör müdahalesi veya kanıt incelemesi gerektirdiğinde talepleri kullanın.",
+        "deliveriesHint": "Başarısız yerine getirmeyi gerçek çıkış geçmişiyle bağlayabilmek için teslimat durumunu taleplere yakın tutun.",
+        "deliveriesTracked": "{{count}} teslimat kaydı takip ediliyor",
+        "openFinance": "Finans çalışma alanı",
+        "refundCases": "{{count}} iade davası",
+        "refundCasesHint": "İade kuyrukları, alıcı kurtarmanın hâlâ finans veya operasyon onayını nerede beklediğini gösterir.",
+        "title": "Talepler ve çözüm durumu"
+      },
+      "flow": {
+        "allocationFallback": "ALC-{{id}}",
+        "awaitingRelease": "Çıkış bekleniyor",
+        "empty": "Henüz gönderi veya tahsis kaydı yok.",
+        "headers": {
+          "eta": "Tahmini varış / Teslimat",
+          "reference": "Referans",
+          "status": "Durum"
+        },
+        "openDistribution": "Dağıtım",
+        "title": "Gönderi ve tahsis akışı"
+      },
+      "kicker": "Alıcı çalışma alanı",
+      "metrics": {
+        "activeRequests": {
+          "label": "Aktif talepler",
+          "note": "Devam eden toplam {{total}} alıcı talebi"
+        },
+        "claimsRefunds": {
+          "label": "Talep ve iadeler",
+          "noteClear": "Aktif alıcı sorunu yok",
+          "noteOpen": "Açık sorunlarda operatör incelemesi gerekebilir"
+        },
+        "pendingAllocations": {
+          "label": "Bekleyen tahsisler",
+          "noteClear": "Tahsis kuyruğu temiz",
+          "notePending": "Stok tahsis edildi ama henüz tam çıkışı yapılmadı"
+        },
+        "watchShipments": {
+          "label": "Gönderileri izle",
+          "noteClear": "Şu anda işaretlenmiş gönderi istisnası yok",
+          "noteRisk": "{{count}} tanesi istisna takibi gerektiriyor"
+        }
+      },
+      "requests": {
+        "empty": "Henüz tedarik talebi yok.",
+        "headers": {
+          "category": "Kategori",
+          "quotes": "Teklifler",
+          "request": "Talep",
+          "status": "Durum"
+        },
+        "title": "Tedarik taleplerim",
+        "viewAll": "Tümünü gör"
+      },
+      "rhythm": {
+        "bestMove": {
+          "hasRequests": "Daha fazla talep açmadan önce teklif ve gönderi durumunu gözden geçirin.",
+          "label": "En iyi sonraki hamle",
+          "noRequests": "Tedarikçi teklifini başlatmak için bir tedarik talebi açın."
+        },
+        "latestDelivery": {
+          "label": "En son teslimat sinyali",
+          "noDate": "Henüz planlanmış teslimat tarihi yok.",
+          "withDate": "En son teslimat faaliyeti {{date}} civarında planlanmış."
+        },
+        "title": "Alıcı ritmi"
+      },
+      "stats": {
+        "attentionShipments": {
+          "label": "Dikkat gerektiren gönderiler",
+          "meta": "İncelenecek gümrük veya istisna aşaması hareketi."
+        },
+        "issues": {
+          "label": "Açık talep / iadeler",
+          "meta": "Alıcı korumasını ve çözüm durumunu görünür tutun."
+        },
+        "openRequests": {
+          "label": "Açık alıcı talepleri",
+          "meta": "Tedarik, teklif ve satın alma dönüşümü genelinde."
+        }
+      },
+      "subtitle": "Ürün talebini tedarik edin, navlun hareketini izleyin ve tek bir alıcı kontrol merkezinden talep, iade ve teslimat çıkış riskinin önünde olun.",
+      "title": "Alıcı Paneli"
+    },
+    "campaignDetail": {
+      "delivery": {
+        "freightForward": "Navlun İletme",
+        "shipToBuyer": "Bana Gönder",
+        "warehousePickup": "Depodan Teslim Al"
+      },
+      "economics": {
+        "deposit": "Depozito (%30)",
+        "fees": "Ücretler",
+        "freightEst": "Navlun (tahmini)",
+        "landedCost": "Birim başına landed maliyet",
+        "markup": "OxSteed Kar Marjı",
+        "productCost": "Ürün Maliyeti",
+        "title": "Birim Ekonomisi"
+      },
+      "join": {
+        "cancellationPolicy": "İptal Politikası",
+        "committedQty": "Taahhüt edilecek miktar",
+        "confirm": "Taahhüdü Onayla",
+        "countryCode": "Ülke kodu",
+        "deliveryPreference": "Teslimat Tercihi",
+        "deposit": "Depozito",
+        "destCountry": "Varış ülkesi",
+        "subtotal": "Ara toplam",
+        "title": "Bu Kampanyaya Katıl"
+      },
+      "laneGating": {
+        "blocked": "Mevcut rolünüz veya varış bağlamınız bu hat için engelli: {{reason}}",
+        "businessVerification": "Bu kampanya hattı için doğrulanmış işletme bağlamı gereklidir.",
+        "manualApproval": "Kampanya tüm sonraki lojistik adımlarından geçmeden önce manuel uyumluluk onayı gereklidir.",
+        "resellerApproval": "Bu hatta yeniden satış katılımı için bayi/distribütör onayı gereklidir.",
+        "title": "Hat geçitlendirme"
+      },
+      "loadError": "Kampanya yüklenemedi",
+      "meta": {
+        "fallbackDescription": "OxSteed Logistics'te toplu alım kampanyası.",
+        "fallbackTitle": "Kampanya"
+      },
+      "moq": {
+        "progressLabel": "MOQ ilerlemesi: yüzde {{pct}}",
+        "units": "{{committed}} / {{target}} birim taahhüt edildi"
+      },
+      "notFound": "Kampanya bulunamadı.",
+      "participants": {
+        "headers": {
+          "delivery": "Teslimat",
+          "deposit": "Depozito",
+          "qty": "Adet",
+          "status": "Durum",
+          "user": "Kullanıcı"
+        },
+        "participant": "Katılımcı",
+        "title": "Katılımcılar ({{count}})"
+      },
+      "timeline": {
+        "closeDate": "Kapanış Tarihi",
+        "expectedArrival": "Tahmini Varış",
+        "expectedShip": "Tahmini Gönderim",
+        "lockDate": "Kilit Tarihi",
+        "openDate": "Açılış Tarihi",
+        "organizer": "Organizatör",
+        "title": "Zaman çizelgesi"
+      }
+    },
+    "compliance": {
+      "allLanes": "Tüm Hatlar",
+      "businessVerificationRequired": "İşletme doğrulaması gerekli",
+      "countryFilter": "Ülke koduna göre filtrele",
+      "countryPlaceholder": "Ülke kodu (örn. HT)",
+      "customsComplexity": "Gümrük",
+      "docRequirements": {
+        "body": "Her hat şunları gerektirebilir: Ticari Fatura, Paketleme Listesi, Menşe Şahadetnamesi, Bitki Sağlık Sertifikası, FDA izni, CE işaretleri, gümrük giriş formları veya muayene raporları. Gereksinimler hat ve kategoriye özeldir.",
+        "title": "Belge Gereksinimleri"
+      },
+      "error": "Uyumluluk verilerini şu anda yükleyemedik. Lütfen tekrar deneyin.",
+      "global": "Küresel",
+      "headers": {
+        "category": "Kategori",
+        "country": "Ülke",
+        "docRequired": "Belge Gerekli",
+        "lane": "Hat",
+        "notes": "Notlar",
+        "severity": "Ciddiyet",
+        "type": "Tür"
+      },
+      "laneFilter": "Hatta göre filtrele",
+      "manualApprovalRequired": "Manuel onay gerekli",
+      "noLanes": "Henüz yayınlanmış hat risk verisi yok.",
+      "riskTiers": {
+        "title": "Risk Kademeleri"
+      }
+    },
+    "distribution": {
+      "defaults": {
+        "buyerAllocation": "Alıcı tahsisi",
+        "recipient": "Alıcı",
+        "releasePending": "çıkış bekliyor",
+        "warehouse": "Depo"
+      },
+      "empty": {
+        "allocations": "Kullanılabilir tahsis yok.",
+        "deliveries": "Kullanılabilir teslimat siparişi yok."
+      },
+      "error": "Dağıtım verilerini şu anda yükleyemedik. Lütfen tekrar deneyin.",
+      "labels": {
+        "allocatedQty": "Tahsis edilen adet",
+        "mode": "Mod",
+        "tracking": "Takip"
+      },
+      "loading": "Yükleniyor…",
+      "sections": {
+        "allocationQueue": "Tahsis kuyruğu",
+        "deliveryExecution": "Teslimat yürütme",
+        "openWarehousing": "Depoyu aç →"
+      },
+      "stats": {
+        "allocations": "Tahsisler",
+        "deliveryOrders": "Teslimat Siparişleri",
+        "inTransit": "Transit Halinde",
+        "released": "Çıkışı Yapıldı"
+      }
+    },
+    "distributor": {
+      "actions": {
+        "openBoard": "Dağıtım panosunu aç",
+        "warehouseReadiness": "Depo hazırlığını kontrol et"
+      },
+      "activity": {
+        "allocationFallback": "ALC-{{id}}",
+        "deliveryFallback": "Teslimat #{{id}}"
+      },
+      "chips": {
+        "failedDrops": "Başarısız teslimatları erken takip et",
+        "releaseDiscipline": "Çıkış disiplini önemli",
+        "sync": "Depo ve teslimatı senkron tut"
+      },
+      "execution": {
+        "empty": "Henüz teslimat siparişi yok.",
+        "headers": {
+          "method": "Yöntem",
+          "recipient": "Alıcı",
+          "scheduled": "Planlandı",
+          "status": "Durum"
+        },
+        "recipientFallback": "Teslimat alıcısı",
+        "seeAll": "Tümünü gör",
+        "title": "Teslimat yürütme"
+      },
+      "kicker": "Distribütör / bayi",
+      "metrics": {
+        "allocatedLots": {
+          "label": "Tahsis edilen partiler",
+          "note": "Dağıtım alıcıları arasında atanan envanter."
+        },
+        "deliveryOrders": {
+          "label": "Teslimat siparişleri",
+          "note": "Şu anda takip edilen giden bacaklar."
+        },
+        "inTransit": {
+          "label": "Transit halinde",
+          "note": "Hâlâ son mil izlemesi gereken teslimatlar."
+        },
+        "releasedLots": {
+          "label": "Çıkışı yapılan partiler",
+          "note": "Teslim alma veya teslimat yürütme için zaten izinli partiler."
+        },
+        "warehousedOrders": {
+          "label": "Depodaki siparişler",
+          "note": "Üst akış envanteri zaten depoda ve tahsise hazır."
+        }
+      },
+      "posture": {
+        "releaseFirst": {
+          "hint": "Alıcıları teslimat planlamasına itmeden önce tahsislerin gerçekten çıkışının yapıldığını kontrol edin.",
+          "label": "Yönlendirmeden önce çıkış"
+        },
+        "title": "Operasyonel duruş",
+        "warehousedVisible": {
+          "hint": "{{count}} satın alma siparişi zaten depoda, bu yüzden darboğaz yukarıda değil aşağıda olabilir.",
+          "label": "Depo stoğunu görünür tut"
+        }
+      },
+      "pressure": {
+        "copy": "Sonraki darboğazın depo çıkışı, planlama veya başarısız son mil yürütme olup olmadığına bu görünümle karar verin.",
+        "exceptions": {
+          "hint": "Müşteri güveni daha fazla düşmeden başarısız veya iptal edilen teslimatlar ilgiyi hak eder.",
+          "label": "Teslimat istisnaları"
+        },
+        "release": {
+          "hint": "Envanter atandı, ancak teslim alma yöntemi, forwarder devri veya alıcı hazırlığı hâlâ eksik.",
+          "label": "Çıkış bekleyen partiler"
+        },
+        "scheduled": {
+          "hint": "Bunlar, iletişim ve zamanlamanın önemli olduğu sonraki olası temas noktalarıdır.",
+          "label": "Planlanmış teslimatlar"
+        },
+        "title": "Dağıtım baskı noktaları"
+      },
+      "queue": {
+        "assignedBuyer": "Atanan alıcı",
+        "empty": "Henüz atanmış tahsis partisi yok.",
+        "headers": {
+          "method": "Yöntem",
+          "recipient": "Alıcı",
+          "status": "Durum",
+          "warehouse": "Depo"
+        },
+        "methodPending": "bekliyor",
+        "open": "Çalışma alanını aç",
+        "title": "Tahsis devir kuyruğu",
+        "warehousePending": "Depo bekliyor"
+      },
+      "stats": {
+        "failed": {
+          "label": "Başarısız veya iptal edilen teslimatlar",
+          "meta": "Bunlar genellikle yeniden yönlendirme veya doğrudan alıcı takibi gerektirir."
+        },
+        "inTransit": {
+          "label": "Devam eden teslimatlar",
+          "meta": "Aktif olarak izlenmesi gereken giden hareket."
+        },
+        "pendingRelease": {
+          "label": "Çıkış bekleyen partiler",
+          "meta": "Atanan envanter henüz tam devredilmedi."
+        }
+      },
+      "subtitle": "Tahsis edilen envanteri takip edin, çıkış yöntemlerini yönetin ve yeniden satış veya topluluk dağıtımında son mil devir yürütmesini temiz tutun.",
+      "title": "Distribütör / Bayi Çalışma Alanı"
+    },
+    "finance": {
+      "error": "Finans verilerini şu anda yükleyemedik. Lütfen tekrar deneyin.",
+      "headers": {
+        "depositPaid": "Depozito Ödendi",
+        "product": "Ürün",
+        "qty": "Adet",
+        "reference": "Referans",
+        "remaining": "Kalan",
+        "status": "Durum",
+        "totalLanded": "Toplam Landed"
+      },
+      "kpis": {
+        "depositsPaid": "Ödenen Depozitolar",
+        "inTransit": "Transit Halinde",
+        "orders": "Siparişler",
+        "totalCommitted": "Toplam Taahhüt"
+      },
+      "noSpend": "Henüz kaydedilmiş sipariş harcaması yok.",
+      "refund": {
+        "empty": "Henüz gönderilmiş iade davası yok.",
+        "requested": "Talep Edildi",
+        "submitted": "İade davası incelemeye gönderildi.",
+        "title": "İade Talepleri"
+      },
+      "refundForm": {
+        "amount": "Talep Edilen Tutar (USD)",
+        "notes": "Notlar",
+        "poFallback": "SA",
+        "purchaseOrder": "Satın Alma Siparişi",
+        "reason": "İade Nedeni",
+        "selectOrder": "— Sipariş seç —",
+        "submit": "İade Davasını Gönder",
+        "submitting": "Gönderiliyor…",
+        "title": "İade İncelemesi Talep Et"
+      },
+      "simulator": {
+        "calculate": "Landed Maliyeti Hesapla",
+        "calculating": "Hesaplanıyor…",
+        "freight": "Navlun Tahmini / Birim (USD)",
+        "lane": "Hat",
+        "markupApplied": "Kar marjı uygulandı",
+        "perUnit": "/ birim landed",
+        "productCost": "Ürün Maliyeti / Birim (USD)",
+        "quantity": "Miktar",
+        "selectLane": "— Hat Seç —",
+        "title": "Landed Maliyet Simülatörü",
+        "totalFor": "{{qty}} birim için toplam"
+      }
+    },
+    "operations": {
+      "error": "Operasyon metriklerini şu anda yükleyemedik. Lütfen tekrar deneyin.",
+      "internalOnly": {
+        "body": "Bu çalışma alanı OxSteed lojistik operatörlerine ayrılmıştır. Giriş yapmış alıcılar ve organizatörler, kendi lojistik faaliyetlerini yönetmek için Alıcı, Organizatör, Kurumsal Tedarik ve Distribütör çalışma alanlarını kullanmaya devam edebilir.",
+        "title": "Operasyon erişimi şirket içidir"
+      },
+      "kpis": {
+        "campaigns": "Kampanyalar",
+        "claimsDisputes": "Talep ve anlaşmazlıklar",
+        "sourcingQueue": "Tedarik kuyruğu",
+        "trackedShipments": "Takip edilen gönderiler"
+      },
+      "loading": "Operasyon metrikleri yükleniyor…",
+      "priorities": {
+        "customsHold": "{{count}} gönderi gümrük beklemesinde veya istisna durumunda.",
+        "fullAdmin": "Tam yönetici paneli",
+        "openClaims": "{{count}} talep inceleme için açık kalıyor.",
+        "openDisputes": "Anlaşmazlık ve iade incelemesini aç →",
+        "openFreight": "Navlun ve kilometre taşı kuyruğunu aç →",
+        "openSourcing": "Tedarik alım kuyruğunu aç →",
+        "openWarehouse": "Depo kabul kuyruğunu aç →",
+        "operatorRoutes": "Operatör rotaları",
+        "queues": "Acil kuyruklar",
+        "sourcingTouch": "{{count}} tedarik talebi yönlendirme, teklif veya operatör dokunuşu gerektiriyor.",
+        "title": "Operasyon öncelikleri"
+      },
+      "routesLabel": "Operasyon rotaları",
+      "subtitle": "Tedarik alımı, aktif navlun hareketi, depo akışı ve lojistik istisnaları için tek bir dahili komuta yüzeyi.",
+      "title": "Operasyon Çalışma Alanı"
+    },
+    "orderDetail": {
+      "backToOrders": "← Siparişlere Dön",
+      "defaults": {
+        "purchaseOrder": "Satın Alma Siparişi"
+      },
+      "finance": {
+        "customsAdmin": "Gümrük/idari",
+        "freightEstimate": "Navlun tahmini",
+        "lastMile": "Son mil",
+        "originHandling": "Çıkış elleçleme",
+        "oxsteedMarkup": "OxSteed kar marjı",
+        "productTotal": "Ürün toplamı",
+        "riskSurcharge": "Risk ek ücreti",
+        "sourcingFee": "Tedarik ücreti",
+        "warehouseFee": "Depo ücreti"
+      },
+      "labels": {
+        "buyer": "Alıcı",
+        "destination": "Varış yeri",
+        "expectedArrival": "Tahmini varış",
+        "expectedProductionComplete": "Tahmini üretim tamamlanma",
+        "expectedShipDate": "Tahmini gönderim tarihi",
+        "freightOption": "Navlun seçeneği",
+        "incoterms": "Incoterms",
+        "quantity": "Miktar",
+        "supplier": "Tedarikçi"
+      },
+      "loadError": "Sipariş yüklenemedi.",
+      "loading": "Yükleniyor…",
+      "notFound": "Satın alma siparişi bulunamadı.",
+      "sections": {
+        "financial": "Mali yapı",
+        "overview": "Sipariş özeti"
+      },
+      "totals": {
+        "depositDue": "Vadesi gelen depozito",
+        "finalDue": "Vadesi gelen kalan",
+        "remaining": "Kalan",
+        "totalLanded": "Toplam landed"
+      }
+    },
+    "orders": {
+      "backToBuyer": "Alıcı çalışma alanına dön",
+      "error": "Siparişlerinizi şu anda yükleyemedik. Lütfen tekrar deneyin.",
+      "headers": {
+        "expected": "Tahmini",
+        "landedCost": "Landed Maliyet",
+        "lane": "Hat",
+        "product": "Ürün",
+        "qty": "Adet",
+        "reference": "Referans",
+        "status": "Durum"
+      },
+      "openOrder": "Siparişi aç {{ref}}",
+      "pagination": "Sipariş sayfaları",
+      "statusFilter": "Duruma göre filtrele"
+    },
+    "organizer": {
+      "actions": {
+        "coordinateHandoffs": "Devirleri koordine et",
+        "openBoard": "Kampanya panosunu aç"
+      },
+      "activity": {
+        "campaignFallback": "Kampanya #{{id}}",
+        "deliveryFallback": "Teslimat #{{id}}"
+      },
+      "campaigns": {
+        "browse": "Kampanyalara göz at",
+        "empty": "Henüz organizatör kampanyası yok. Kampanyalar çalışma alanından bir tane başlatın.",
+        "moqProgress": "MOQ ilerlemesi: yüzde {{pct}}",
+        "participants": "{{count}} katılımcı",
+        "title": "Organizatör kampanyaları"
+      },
+      "commitments": {
+        "empty": "Henüz kampanya taahhüdü yok.",
+        "headers": {
+          "campaign": "Kampanya",
+          "qty": "Adet",
+          "status": "Durum"
+        },
+        "open": "Katılımı aç",
+        "title": "Katılımcı olarak taahhütlerim"
+      },
+      "kicker": "Organizatör çalışma alanı",
+      "metrics": {
+        "campaigns": {
+          "label": "Organizatör kampanyaları",
+          "note": "Şu anda sahip olduğunuz veya koordine ettiğiniz toplam kampanya."
+        },
+        "committedUnits": {
+          "label": "Taahhüt edilen birimler",
+          "note": "Tüm kampanyalarda ağ alım gücünü değerlendirmede faydalı."
+        },
+        "deliveries": {
+          "label": "Teslimat devirleri",
+          "note": "Etrafında mesajlaşmanız gerekebilecek son mil koordinasyonu."
+        },
+        "shipments": {
+          "label": "Takip edilen gönderiler",
+          "note": "Artık organizatör güncellemelerini ve devirleri etkileyen hareket."
+        }
+      },
+      "pressure": {
+        "commitments": {
+          "hint": "Bunlar, hâlâ izlenmesi gereken toplu siparişlerdeki kendi aktif taahhütlerinizdir.",
+          "label": "Açık katılımcı taahhütleri"
+        },
+        "copy": "Bu, organizatör enerjisinin bundan sonra nereye gitmesi gerektiğinin hızlı okumasıdır: işe alım, depozito veya devir yürütme.",
+        "momentum": {
+          "hint": "MOQ'ya yarı yoldan az kalan kampanyalar genellikle bir işe alım hamlesi veya hat/fiyat yeniden düşünmesi gerektirir.",
+          "label": "MOQ momentum boşlukları"
+        },
+        "shipments": {
+          "hint": "Organizatör mesajlaşmasını navlun hareketiyle hizalı tutun ki alt akış alıcıları sırada ne olduğunu bilsin.",
+          "label": "Kampanyalara bağlı gönderiler"
+        },
+        "title": "Organizatör baskı noktaları"
+      },
+      "readiness": {
+        "handoffs": "{{count}} teslimat devri hâlâ aktif",
+        "handoffsHint": "Bunlar, teslim alma veya son mil çıkışında karışıklığı önlemek için organizatör iletişiminin genellikle en önemli olduğu bacaklardır.",
+        "openDistribution": "Dağıtım çalışma alanını aç",
+        "openShipments": "Gönderi zaman çizelgesini aç",
+        "posture": "{{count}} kampanya katılımcı duruşunu hâlâ değiştirebilir",
+        "postureHint": "Talep işe alımına devam mı edeceğinize yoksa alıcıya dönük dağıtım beklentilerini hazırlamaya mı başlayacağınıza karar vermek için bunu kullanın.",
+        "shipments": "Gönderi zaman çizelgesi",
+        "title": "Dağıtım hazırlığı"
+      },
+      "rhythm": {
+        "communicate": {
+          "hint": "Siparişler verildikten sonra talep oluşturmadan gönderi görünürlüğüne ve teslimat beklentilerine geçin.",
+          "label": "Yerleştirmeden sonra iletişim kur"
+        },
+        "recruit": {
+          "hint": "MOQ düşükse, operasyonel karmaşıklığı aşağı itmeden önce katılımcı işe alımına zaman ayırın.",
+          "label": "Kilitleme öncesi işe al"
+        },
+        "title": "Organizatör operasyon ritmi"
+      },
+      "stats": {
+        "committedUnits": {
+          "label": "Taahhüt edilen birimler",
+          "meta": "Toplu ağınızdan zaten yakalanan talep."
+        },
+        "handoffs": {
+          "label": "Koordine edilecek devirler",
+          "meta": "Topluluk alıcılarına doğru hareket eden teslimat bacakları."
+        },
+        "inMotion": {
+          "label": "Hâlâ devam eden kampanyalar",
+          "meta": "Açık, depozito, kilit ve yerleştirme aşamalarında."
+        }
+      },
+      "subtitle": "Toplu kampanyaları bir koordinatör gibi yürütün, MOQ momentumunu görünür tutun ve kilitli siparişleri temiz bir şekilde nakliyeye ve topluluk devrine taşıyın.",
+      "title": "Organizatör Paneli"
+    },
+    "procurement": {
+      "actions": {
+        "closePlanner": "Planlayıcıyı kapat",
+        "newProgram": "Yeni yinelenen program",
+        "newRequest": "İşletmeye bağlı talep aç"
+      },
+      "chips": {
+        "businessScoped": "Yalnızca işletme kapsamlı tedarik",
+        "laneAware": "Hat bilinçli satın alma",
+        "recurring": "Yinelenen talep planlama"
+      },
+      "eligibleLanes": {
+        "authority": "tedarik tarzı yetkiyle.",
+        "empty": "Bu hesaba henüz uygun işletme bağlı değil.",
+        "ownerAccess": "Sahip erişimi",
+        "roleAccess": "{{role}} erişimi",
+        "title": "Uygun işletme hatları"
+      },
+      "form": {
+        "anyLane": "Onaylı herhangi bir hat",
+        "budgetMax": "Bütçe maks (USD)",
+        "cadence": "Ritim",
+        "category": "Kategori",
+        "create": "Program oluştur",
+        "created": "Yinelenen tedarik programı oluşturuldu",
+        "destCity": "Varış şehri",
+        "destCountry": "Varış ülkesi",
+        "lane": "Hat",
+        "linkedRequest": "Bağlı tedarik talebi (isteğe bağlı)",
+        "nextRun": "Sonraki çalışma tarihi",
+        "noLinkedRequest": "Bağlı talep yok",
+        "notes": "Notlar",
+        "programTitle": "Program başlığı",
+        "saving": "Kaydediliyor…",
+        "targetQty": "Hedef miktar",
+        "title": "Yinelenen tedarik planlayıcı",
+        "titleRequired": "Program başlığı gerekli",
+        "unit": "Birim"
+      },
+      "guidance": {
+        "authority": {
+          "body": "Bu çalışma alanı, yalnızca talep, hareket edebileceğiniz gerçek bir işletmeye bağlı olduğunda çalışır, yalnızca kişisel bir tedarik fikrine değil.",
+          "title": "Gerçek işletme yetkisi etrafında inşa edin"
+        },
+        "businessHub": "İş Merkezi",
+        "laneAware": {
+          "body": "Fiyatlandırma, uyumluluk ve varış kısıtlamaları landed maliyeti maddi olarak etkilediğinde yinelenen programlar için hatları erken seçin.",
+          "title": "Hat bilinçli planlama kullanın"
+        },
+        "restock": {
+          "body": "Yaklaşan çalışma tarihleri olan programlar, depolar, ekipler veya saha ekipleri sıkıntıyı hissetmeden önce kontrol edilmelidir.",
+          "title": "Yoğunluktan önce yeniden stoklayın"
+        },
+        "title": "Tedarik operasyon rehberi"
+      },
+      "kicker": "Kurumsal tedarik",
+      "linkedRequests": {
+        "empty": "Henüz işletmeye bağlı tedarik talebi yok.",
+        "headers": {
+          "converted": "Dönüştürüldü",
+          "reference": "Referans",
+          "request": "Talep",
+          "status": "Durum"
+        },
+        "new": "Yeni talep",
+        "title": "İşletmeye bağlı tedarik talepleri"
+      },
+      "metrics": {
+        "activePrograms": {
+          "label": "Aktif programlar",
+          "note": "Şu anda tedarik planlamasını etkilemesi gereken programlar."
+        },
+        "eligibleBusinesses": {
+          "label": "Uygun işletmeler",
+          "note": "Tedarik işletebileceğiniz ayrı işletme bağlamları."
+        },
+        "linkedRequests": {
+          "label": "İşletmeye bağlı talepler",
+          "note": "Zaten uygun bir işletme bağlamına bağlı talepler."
+        },
+        "programs": {
+          "label": "Yinelenen programlar",
+          "note": "Tekrarlanan envanter ve tedarik talebi için kaydedilmiş ritimler."
+        }
+      },
+      "noAccess": {
+        "backToLogistics": "Lojistiğe Dön",
+        "body": "Bu çalışma alanı, tedarik ve operasyonlarda bir işletme adına hareket edebilen kullanıcılara ayrılmıştır. Şu anda OxSteed bunu işletme sahipleri, aktif yöneticiler ve operasyon tarzı izinlere sahip üyelikler için etkinleştirir.",
+        "eligibleCount": "Uygun işletme çalışma alanlarınız",
+        "howDetermined": "Erişim nasıl belirlenir",
+        "howDeterminedHint": "sahiplik, aktif yönetici üyeliği veya operasyon/tedarik tarzı izinlere sahip sahip olmayan üyelik.",
+        "openBusinessHub": "İş Merkezini Aç",
+        "title": "Kurumsal Tedarik bu hesap için etkin değil"
+      },
+      "pressure": {
+        "copy": "Bu çalışma alanı, size neyi yeniden sipariş edeceğinizi, neyi hatta eşleştireceğinizi ve hangi işletmenin önce eyleme ihtiyacı olduğunu söylediğinde en güçlüdür.",
+        "laneBound": {
+          "hint": "Bunların zaten tanımlı bir hattı var, bu yüzden fiyatlandırma ve uyumluluk planlaması daha bilinçli olabilir.",
+          "label": "Hatta bağlı programlar"
+        },
+        "linkedRequests": {
+          "hint": "Zaten uygun bir işletmeye bağlı talep, genel tedarikten önce önceliklendirilmelidir.",
+          "label": "İşletmeye bağlı talepler"
+        },
+        "title": "Tedarik baskı noktaları",
+        "upcomingRuns": {
+          "hint": "Yakında çalışacak programlar miktar, hat uyumu ve varış hazırlığı açısından kontrol edilmelidir.",
+          "label": "Yaklaşan çalışmalar"
+        }
+      },
+      "program": {
+        "statusChanged": "Program {{status}}"
+      },
+      "programs": {
+        "activate": "Etkinleştir",
+        "empty": "Henüz yinelenen tedarik programı yok.",
+        "general": "Genel tedarik",
+        "headers": {
+          "cadence": "Ritim",
+          "linkedRequest": "Bağlı talep",
+          "nextRun": "Sonraki çalışma",
+          "program": "Program",
+          "status": "Durum"
+        },
+        "openSourcing": "Tedariği aç",
+        "pause": "Duraklat",
+        "title": "Yinelenen tedarik programları"
+      },
+      "stats": {
+        "activePrograms": {
+          "label": "Aktif yeniden stok programları",
+          "meta": "Zaten tekrarlanan tedarik talebini yönlendiren ritimler."
+        },
+        "eligibleBusinesses": {
+          "label": "Uygun işletmeler",
+          "meta": "Bu hesabın meşru olarak satın alabileceği şirketler."
+        },
+        "upcomingRuns": {
+          "label": "21 gün içinde çalışmalar",
+          "meta": "Hazırlık kontrolleri gerektiren yaklaşan tedarik döngüleri."
+        }
+      },
+      "subtitle": "Siparişin hangi şirkete ait olduğunu gözden kaçırmadan yeniden stok ritmini, yinelenen tedarik hatlarını ve işletme onaylı talebi yönetin.",
+      "title": "Kurumsal Tedarik Paneli"
+    },
+    "requestDetail": {
+      "backToSourcing": "← Tedariğe Dön",
+      "defaultDescription": "Açıklama sağlanmadı.",
+      "labels": {
+        "budgetMax": "Bütçe maks",
+        "business": "İşletme",
+        "category": "Kategori",
+        "customMfg": "Özel üretim",
+        "days": "gün",
+        "deadline": "Son tarih",
+        "destination": "Varış yeri",
+        "freightEst": "Navlun tahmini",
+        "leadTime": "Teslim süresi",
+        "no": "Hayır",
+        "preferredFreight": "Tercih edilen navlun",
+        "privateLabel": "Özel etiket",
+        "quotedQty": "Teklif edilen adet",
+        "structuredSpecs": "Yapılandırılmış özellikler",
+        "targetPrice": "Hedef fiyat",
+        "targetQuantity": "Hedef miktar",
+        "unitPrice": "Birim fiyat",
+        "yes": "Evet"
+      },
+      "loading": "Yükleniyor…",
+      "notFound": "Tedarik talebi bulunamadı.",
+      "quotes": {
+        "empty": "Henüz tedarikçi teklifi yok.",
+        "supplier": "Tedarikçi #{{id}}",
+        "title": "Teklifler ({{count}})"
+      },
+      "sections": {
+        "specifications": "Özellikler"
+      },
+      "values": {
+        "personalRequest": "Kişisel talep"
+      }
+    },
+    "requests": {
+      "anyOption": "— Tümü —",
+      "customsComplexity": "Gümrük karmaşıklığı",
+      "descriptionPlaceholder": "Ürünü ayrıntılı açıklayın: malzemeler, boyutlar, gerekli sertifikalar…",
+      "destCountryPlaceholder": "örn. US, HT, CA",
+      "goToStep": "{{label}} adımına git",
+      "laneBlocked": "Bu hat şu anda rolünüz veya varış bağlamınız için engelli: {{reason}}",
+      "laneBusinessVerification": "Doğrulanmış alıcı olarak bu hattı çalıştırmak için işletme doğrulaması gereklidir.",
+      "laneChecks": "Hat erişim ve onay kontrolleri",
+      "laneManualApproval": "Bu talep teklif veya tedariğe geçmeden önce manuel uyumluluk onayı gereklidir.",
+      "laneResellerApproval": "Bu hat yeniden satış akışları için kullanılmadan önce bayi/distribütör onayı gereklidir.",
+      "letOxsteedChoose": "— OxSteed seçsin —",
+      "notesPlaceholder": "Tedarik ekibi için başka bağlam…",
+      "review": {
+        "category": "Kategori",
+        "deadline": "Son tarih",
+        "destination": "Varış yeri",
+        "no": "Hayır",
+        "privateLabel": "Özel Etiket",
+        "quantity": "Miktar",
+        "targetPrice": "Hedef Fiyat",
+        "title": "Başlık",
+        "yes": "Evet"
+      },
+      "riskTier": "Risk kademesi",
+      "selectOption": "— Seç —",
+      "stepsLabel": "Talep ilerlemesi",
+      "titlePlaceholder": "örn. 500 Adet Endüstriyel Güvenlik Botu"
+    },
+    "shipmentDetail": {
+      "backToShipments": "← Gönderilere Dön",
+      "defaults": {
+        "document": "Belge",
+        "noLocation": "Konum yok",
+        "noNotes": "Not yok.",
+        "shipment": "Gönderi"
+      },
+      "empty": {
+        "documents": "Yüklenmiş nakliye belgesi yok.",
+        "milestones": "Henüz kaydedilmiş kilometre taşı yok."
+      },
+      "labels": {
+        "bookingRef": "Rezervasyon ref",
+        "carrier": "Taşıyıcı",
+        "destinationPort": "Varış limanı",
+        "eta": "Tahmini varış",
+        "kg": "kg",
+        "originPort": "Çıkış limanı",
+        "totalCartons": "Toplam koli",
+        "totalCbm": "Toplam CBM",
+        "totalWeight": "Toplam ağırlık",
+        "trackingNumber": "Takip numarası"
+      },
+      "loadError": "Gönderi yüklenemedi.",
+      "loading": "Yükleniyor…",
+      "notFound": "Gönderi bulunamadı.",
+      "sections": {
+        "details": "Gönderi ayrıntıları",
+        "documents": "Belgeler ({{count}})",
+        "milestones": "Kilometre taşları"
+      }
+    },
+    "shipments": {
+      "backToBuyer": "Alıcı çalışma alanına dön",
+      "error": "Gönderilerinizi şu anda yükleyemedik. Lütfen tekrar deneyin.",
+      "etaLabel": "Tahmini varış",
+      "exception": "İstisna",
+      "kg": "kg",
+      "lifecycleLabel": "Yaşam döngüsü aşamasına göre filtrele",
+      "noCarrier": "Taşıyıcı yok",
+      "openShipment": "Gönderiyi aç {{ref}}"
+    },
+    "sourcing": {
+      "error": "Tedarik taleplerinizi şu anda yükleyemedik. Lütfen tekrar deneyin.",
+      "headers": {
+        "category": "Kategori",
+        "lane": "Hat",
+        "qty": "Adet",
+        "quotes": "Teklifler",
+        "reference": "Referans",
+        "status": "Durum",
+        "title": "Başlık"
+      },
+      "openRequest": "Talebi aç {{ref}}",
+      "tabsLabel": "Tedarik görünümleri",
+      "viewRow": "Gör →"
+    },
+    "tables": {
+      "actions": "Eylemler",
+      "view": "Gör"
+    },
+    "warehousing": {
+      "activeReceipts": "{{count}} aktif kabul",
+      "bonded": "Gümrüklü",
+      "error": "Depo verilerini şu anda yükleyemedik. Lütfen tekrar deneyin.",
+      "headers": {
+        "buyer": "Alıcı",
+        "expected": "Tahmini",
+        "qty": "Adet",
+        "received": "Alındı",
+        "reference": "Referans",
+        "releaseMethod": "Çıkış Yöntemi",
+        "released": "Çıkışı Yapıldı",
+        "shortage": "Eksik",
+        "status": "Durum",
+        "warehouse": "Depo"
+      },
+      "sqft": "metrekare",
+      "tabsLabel": "Depo görünümleri"
     }
   }
 }

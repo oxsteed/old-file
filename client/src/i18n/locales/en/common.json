@@ -1535,6 +1535,925 @@
           }
         }
       }
+    },
+    "adminControl": {
+      "title": "Admin / Super Admin Control",
+      "subtitle": "Pricing, risk, approvals, and profitability controls for the full OxSteed Logistics branch.",
+      "restricted": {
+        "title": "Control access is restricted",
+        "body": "Pricing rules, market restrictions, and logistics-wide overrides are only available to OxSteed admins and super admins.",
+        "returnToHub": "Return to Logistics hub"
+      },
+      "routesLabel": "Admin control routes",
+      "routes": {
+        "adminDashboard": "Admin dashboard",
+        "pricingRules": "Pricing rules",
+        "restrictions": "Restrictions",
+        "supplierApprovals": "Supplier approvals",
+        "superControl": "Super control"
+      },
+      "error": "We couldn't load control metrics right now. Please try again.",
+      "kpis": {
+        "markupRules": "Markup rules",
+        "feeRules": "Fee rules",
+        "restrictions": "Restrictions",
+        "trackedPOs": "Tracked POs",
+        "trackedShipments": "Tracked shipments",
+        "claimsPosture": "Claims posture"
+      },
+      "pricing": {
+        "title": "Pricing and fee posture",
+        "headers": {
+          "type": "Type",
+          "name": "Name",
+          "status": "Status"
+        },
+        "markup": "Markup",
+        "ruleFallback": "Rule {{id}}",
+        "inactive": "inactive",
+        "active": "active",
+        "fee": "Fee",
+        "empty": "No pricing rules found."
+      },
+      "restrictions": {
+        "title": "Restriction and risk controls",
+        "headers": {
+          "category": "Category",
+          "country": "Country",
+          "risk": "Risk"
+        },
+        "empty": "No restrictions configured."
+      }
+    },
+    "procurement": {
+      "form": {
+        "titleRequired": "Program title is required",
+        "created": "Recurring procurement program created",
+        "title": "Recurring procurement planner",
+        "programTitle": "Program title",
+        "category": "Category",
+        "cadence": "Cadence",
+        "lane": "Lane",
+        "anyLane": "Any approved lane",
+        "targetQty": "Target quantity",
+        "unit": "Unit",
+        "destCountry": "Destination country",
+        "destCity": "Destination city",
+        "budgetMax": "Budget max (USD)",
+        "nextRun": "Next run date",
+        "linkedRequest": "Linked sourcing request (optional)",
+        "noLinkedRequest": "No linked request",
+        "notes": "Notes",
+        "saving": "Saving…",
+        "create": "Create program"
+      },
+      "program": {
+        "statusChanged": "Program {{status}}"
+      },
+      "title": "Business Procurement Dashboard",
+      "subtitle": "Manage restock rhythm, recurring sourcing lanes, and business-approved demand without losing sight of which company the order is for.",
+      "actions": {
+        "closePlanner": "Close planner",
+        "newProgram": "New recurring program",
+        "newRequest": "Open business-linked request"
+      },
+      "noAccess": {
+        "title": "Business Procurement is not enabled for this account",
+        "body": "This workspace is reserved for users who can act on behalf of a business in procurement and operations. Right now, OxSteed enables it for business owners, active managers, and memberships that hold operations-style permissions.",
+        "eligibleCount": "Your eligible business workspaces",
+        "howDetermined": "How access is determined",
+        "howDeterminedHint": "ownership, active manager membership, or a non-owner membership with operations/procurement-style permissions.",
+        "backToLogistics": "Back to Logistics",
+        "openBusinessHub": "Open Business Hub"
+      },
+      "kicker": "Business procurement",
+      "stats": {
+        "activePrograms": {
+          "label": "Active restock programs",
+          "meta": "Cadences already driving repeat sourcing demand."
+        },
+        "eligibleBusinesses": {
+          "label": "Eligible businesses",
+          "meta": "Companies this account can legitimately buy for."
+        },
+        "upcomingRuns": {
+          "label": "Runs within 21 days",
+          "meta": "Upcoming procurement cycles that need readiness checks."
+        }
+      },
+      "pressure": {
+        "title": "Procurement pressure points",
+        "copy": "This workspace is strongest when it tells you what to reorder, what to lane-match, and which business needs action first.",
+        "upcomingRuns": {
+          "label": "Upcoming runs",
+          "hint": "Programs that execute soon should be checked for quantity, lane fit, and destination readiness."
+        },
+        "laneBound": {
+          "label": "Lane-bound programs",
+          "hint": "These already have a defined lane, so pricing and compliance planning can be more deliberate."
+        },
+        "linkedRequests": {
+          "label": "Business-linked requests",
+          "hint": "Demand already tied to a qualified business should be prioritized before generic sourcing."
+        }
+      },
+      "eligibleLanes": {
+        "title": "Eligible business lanes",
+        "ownerAccess": "Owner access",
+        "roleAccess": "{{role}} access",
+        "authority": "with procurement-style authority.",
+        "empty": "No eligible businesses are attached to this account yet."
+      },
+      "metrics": {
+        "programs": {
+          "label": "Recurring programs",
+          "note": "Saved cadences for repeat inventory and supply demand."
+        },
+        "linkedRequests": {
+          "label": "Business-linked requests",
+          "note": "Requests already tied to a qualified business context."
+        },
+        "activePrograms": {
+          "label": "Active programs",
+          "note": "Programs that should currently influence sourcing planning."
+        },
+        "eligibleBusinesses": {
+          "label": "Eligible businesses",
+          "note": "Separate business contexts you can operate procurement for."
+        }
+      },
+      "programs": {
+        "title": "Recurring procurement programs",
+        "openSourcing": "Open sourcing",
+        "headers": {
+          "program": "Program",
+          "cadence": "Cadence",
+          "nextRun": "Next run",
+          "status": "Status",
+          "linkedRequest": "Linked request"
+        },
+        "general": "General procurement",
+        "pause": "Pause",
+        "activate": "Activate",
+        "empty": "No recurring procurement programs yet."
+      },
+      "linkedRequests": {
+        "title": "Business-linked sourcing requests",
+        "new": "New request",
+        "headers": {
+          "reference": "Reference",
+          "request": "Request",
+          "status": "Status",
+          "converted": "Converted"
+        },
+        "empty": "No business-linked procurement requests yet."
+      },
+      "guidance": {
+        "title": "Procurement operating guidance",
+        "businessHub": "Business Hub",
+        "authority": {
+          "title": "Build around real business authority",
+          "body": "This workspace only works when demand is tied to an actual business you can act for, not just a personal sourcing idea."
+        },
+        "laneAware": {
+          "title": "Use lane-aware planning",
+          "body": "Choose lanes early for recurring programs when pricing, compliance, and destination restrictions materially affect landed cost."
+        },
+        "restock": {
+          "title": "Restock before the rush",
+          "body": "Programs with soon-coming run dates should be checked before warehouses, teams, or field crews feel the shortage."
+        }
+      },
+      "chips": {
+        "recurring": "Recurring demand planning",
+        "businessScoped": "Business-scoped sourcing only",
+        "laneAware": "Lane-aware purchasing"
+      }
+    },
+    "tables": {
+      "actions": "Actions",
+      "view": "View"
+    },
+    "buyer": {
+      "metrics": {
+        "activeRequests": {
+          "label": "Active requests",
+          "note": "{{total}} total buyer requests in motion"
+        },
+        "watchShipments": {
+          "label": "Watch shipments",
+          "noteRisk": "{{count}} need exception follow-up",
+          "noteClear": "No shipment exceptions flagged right now"
+        },
+        "pendingAllocations": {
+          "label": "Pending allocations",
+          "notePending": "Stock is assigned but not fully released yet",
+          "noteClear": "Allocation queue is clear"
+        },
+        "claimsRefunds": {
+          "label": "Claims & refunds",
+          "noteOpen": "Operator review may be needed on open issues",
+          "noteClear": "No active buyer issues"
+        }
+      },
+      "activity": {
+        "claimFallback": "Claim #{{id}}"
+      },
+      "title": "Buyer Dashboard",
+      "subtitle": "Source product demand, watch freight movement, and stay ahead of claims, refunds, and delivery release risk from one buyer control center.",
+      "actions": {
+        "startRequest": "Start a sourcing request",
+        "watchShipments": "Watch shipment timeline"
+      },
+      "kicker": "Buyer workspace",
+      "stats": {
+        "openRequests": {
+          "label": "Open buyer requests",
+          "meta": "Across sourcing, quoting, and procurement conversion."
+        },
+        "attentionShipments": {
+          "label": "Shipments needing attention",
+          "meta": "Customs or exception-stage movement to review."
+        },
+        "issues": {
+          "label": "Claims / refunds open",
+          "meta": "Keep buyer protection and resolution posture visible."
+        }
+      },
+      "attention": {
+        "title": "Attention now",
+        "copy": "Use this queue to decide whether to push new sourcing, chase delivery release, or escalate a finance issue.",
+        "shipmentRisk": {
+          "label": "Shipment risk",
+          "hint": "Customs review, exception states, or delayed freight should get buyer follow-up first."
+        },
+        "allocationRelease": {
+          "label": "Allocation release",
+          "hint": "Assigned stock still needs pickup, forwarder handoff, or final release planning."
+        },
+        "issuePosture": {
+          "label": "Issue posture",
+          "hint": "Claims and refund cases tell you where buyer trust or fulfillment quality is slipping."
+        }
+      },
+      "rhythm": {
+        "title": "Buyer rhythm",
+        "latestDelivery": {
+          "label": "Latest delivery signal",
+          "withDate": "Most recent delivery activity is scheduled around {{date}}.",
+          "noDate": "No delivery dates have been scheduled yet."
+        },
+        "bestMove": {
+          "label": "Best next move",
+          "noRequests": "Open a sourcing request to get supplier quoting started.",
+          "hasRequests": "Review quote and shipment posture before opening more demand."
+        }
+      },
+      "requests": {
+        "title": "My sourcing requests",
+        "viewAll": "View all",
+        "headers": {
+          "request": "Request",
+          "category": "Category",
+          "status": "Status",
+          "quotes": "Quotes"
+        },
+        "empty": "No sourcing requests yet."
+      },
+      "flow": {
+        "title": "Shipment and allocation flow",
+        "openDistribution": "Distribution",
+        "headers": {
+          "reference": "Reference",
+          "status": "Status",
+          "eta": "ETA / Delivery"
+        },
+        "allocationFallback": "ALC-{{id}}",
+        "awaitingRelease": "Awaiting release",
+        "empty": "No shipment or allocation records yet."
+      },
+      "claims": {
+        "title": "Claims and resolution posture",
+        "openFinance": "Finance workspace",
+        "activeClaims": "{{count}} active claims",
+        "activeClaimsHint": "Use claims when a shipment, order, or inventory outcome needs operator intervention or evidence review.",
+        "refundCases": "{{count}} refund cases",
+        "refundCasesHint": "Refund queues show where buyer recovery is still waiting on finance or operations confirmation.",
+        "deliveriesTracked": "{{count}} delivery records tracked",
+        "deliveriesHint": "Keep delivery status close to claims so you can connect failed fulfillment with actual release history."
+      },
+      "chips": {
+        "buyerFirst": "Buyer-first workspace",
+        "claimsTied": "Claims tied to shipment outcomes",
+        "refundVisible": "Refund posture stays visible"
+      }
+    },
+    "campaignDetail": {
+      "loadError": "Failed to load campaign",
+      "notFound": "Campaign not found.",
+      "economics": {
+        "productCost": "Product Cost",
+        "freightEst": "Freight (est.)",
+        "markup": "OxSteed Markup",
+        "fees": "Fees",
+        "landedCost": "Landed Cost / unit",
+        "deposit": "Deposit (30%)",
+        "title": "Unit Economics"
+      },
+      "timeline": {
+        "openDate": "Open Date",
+        "closeDate": "Close Date",
+        "lockDate": "Lock Date",
+        "expectedShip": "Expected Ship",
+        "expectedArrival": "Expected Arrival",
+        "title": "Timeline",
+        "organizer": "Organizer"
+      },
+      "moq": {
+        "units": "{{committed}} / {{target}} units committed",
+        "progressLabel": "MOQ progress: {{pct}} percent"
+      },
+      "laneGating": {
+        "title": "Lane gating",
+        "businessVerification": "Verified business context is required for this campaign lane.",
+        "resellerApproval": "Reseller/distributor approval is required for resale participation on this lane.",
+        "manualApproval": "Manual compliance approval is required before the campaign can move through all downstream logistics steps.",
+        "blocked": "Your current role or destination context is blocked for this lane: {{reason}}"
+      },
+      "join": {
+        "title": "Join This Campaign",
+        "committedQty": "Quantity to commit",
+        "subtotal": "Subtotal",
+        "deposit": "Deposit",
+        "deliveryPreference": "Delivery Preference",
+        "destCountry": "Destination country",
+        "countryCode": "Country code",
+        "cancellationPolicy": "Cancellation Policy",
+        "confirm": "Confirm Commitment"
+      },
+      "delivery": {
+        "warehousePickup": "Warehouse Pickup",
+        "shipToBuyer": "Ship to Me",
+        "freightForward": "Freight Forward"
+      },
+      "participants": {
+        "title": "Participants ({{count}})",
+        "headers": {
+          "user": "User",
+          "qty": "Qty",
+          "status": "Status",
+          "deposit": "Deposit",
+          "delivery": "Delivery"
+        },
+        "participant": "Participant"
+      },
+      "meta": {
+        "fallbackTitle": "Campaign",
+        "fallbackDescription": "Pooled buying campaign on OxSteed Logistics."
+      }
+    },
+    "compliance": {
+      "error": "We couldn't load compliance data right now. Please try again.",
+      "customsComplexity": "Customs",
+      "businessVerificationRequired": "Business verification required",
+      "manualApprovalRequired": "Manual approval required",
+      "noLanes": "No lane risk data published yet.",
+      "laneFilter": "Filter by lane",
+      "allLanes": "All Lanes",
+      "countryFilter": "Filter by country code",
+      "countryPlaceholder": "Country code (e.g. HT)",
+      "headers": {
+        "lane": "Lane",
+        "type": "Type",
+        "country": "Country",
+        "category": "Category",
+        "severity": "Severity",
+        "docRequired": "Doc Required",
+        "notes": "Notes"
+      },
+      "global": "Global",
+      "docRequirements": {
+        "title": "Document Requirements",
+        "body": "Each lane may require: Commercial Invoice, Packing List, Certificate of Origin, Phytosanitary Certificate, FDA clearance, CE markings, customs entry forms, or inspection reports. Requirements are lane- and category-specific."
+      },
+      "riskTiers": {
+        "title": "Risk Tiers"
+      }
+    },
+    "distribution": {
+      "stats": {
+        "allocations": "Allocations",
+        "released": "Released",
+        "deliveryOrders": "Delivery Orders",
+        "inTransit": "In Transit"
+      },
+      "loading": "Loading…",
+      "error": "We couldn't load distribution data right now. Please try again.",
+      "sections": {
+        "allocationQueue": "Allocation queue",
+        "openWarehousing": "Open warehousing →",
+        "deliveryExecution": "Delivery execution"
+      },
+      "defaults": {
+        "buyerAllocation": "Buyer allocation",
+        "warehouse": "Warehouse",
+        "releasePending": "release pending",
+        "recipient": "Recipient"
+      },
+      "labels": {
+        "allocatedQty": "Allocated qty",
+        "mode": "Mode",
+        "tracking": "Tracking"
+      },
+      "empty": {
+        "allocations": "No allocations available.",
+        "deliveries": "No delivery orders available."
+      }
+    },
+    "distributor": {
+      "activity": {
+        "deliveryFallback": "Delivery #{{id}}",
+        "allocationFallback": "ALC-{{id}}"
+      },
+      "title": "Distributor / Reseller Workspace",
+      "subtitle": "Track allocated inventory, manage release methods, and keep final-mile handoff execution clean across resale or community distribution.",
+      "actions": {
+        "openBoard": "Open distribution board",
+        "warehouseReadiness": "Check warehouse readiness"
+      },
+      "kicker": "Distributor / reseller",
+      "stats": {
+        "pendingRelease": {
+          "label": "Pending release lots",
+          "meta": "Assigned inventory not fully handed off yet."
+        },
+        "inTransit": {
+          "label": "Deliveries in motion",
+          "meta": "Outbound movement you should actively watch."
+        },
+        "failed": {
+          "label": "Failed or cancelled drops",
+          "meta": "These often need rerouting or direct recipient follow-up."
+        }
+      },
+      "pressure": {
+        "title": "Distribution pressure points",
+        "copy": "Use this view to decide whether the next bottleneck is warehouse release, scheduling, or failed final-mile execution.",
+        "release": {
+          "label": "Lots waiting on release",
+          "hint": "Inventory is assigned, but pickup method, forwarder handoff, or recipient readiness is still incomplete."
+        },
+        "scheduled": {
+          "label": "Scheduled deliveries",
+          "hint": "These are the next likely touchpoints where communication and timing matter."
+        },
+        "exceptions": {
+          "label": "Delivery exceptions",
+          "hint": "Failed or cancelled deliveries should get attention before customer confidence drops further."
+        }
+      },
+      "posture": {
+        "title": "Operational posture",
+        "releaseFirst": {
+          "label": "Release before routing",
+          "hint": "Check that allocations are truly released before pushing recipients into delivery scheduling."
+        },
+        "warehousedVisible": {
+          "label": "Keep warehoused stock visible",
+          "hint": "{{count}} purchase orders are already warehoused, so the bottleneck may be downstream, not upstream."
+        }
+      },
+      "metrics": {
+        "allocatedLots": {
+          "label": "Allocated lots",
+          "note": "Assigned inventory across distribution recipients."
+        },
+        "releasedLots": {
+          "label": "Released lots",
+          "note": "Lots already cleared for pickup or delivery execution."
+        },
+        "deliveryOrders": {
+          "label": "Delivery orders",
+          "note": "Outbound legs currently being tracked."
+        },
+        "inTransit": {
+          "label": "In transit",
+          "note": "Deliveries that still need final-mile monitoring."
+        },
+        "warehousedOrders": {
+          "label": "Warehoused orders",
+          "note": "Upstream inventory already in storage and ready to allocate."
+        }
+      },
+      "queue": {
+        "title": "Allocation handoff queue",
+        "open": "Open workspace",
+        "headers": {
+          "recipient": "Recipient",
+          "warehouse": "Warehouse",
+          "method": "Method",
+          "status": "Status"
+        },
+        "assignedBuyer": "Assigned buyer",
+        "warehousePending": "Warehouse pending",
+        "methodPending": "pending",
+        "empty": "No allocation lots assigned yet."
+      },
+      "execution": {
+        "title": "Delivery execution",
+        "seeAll": "See all",
+        "headers": {
+          "recipient": "Recipient",
+          "method": "Method",
+          "scheduled": "Scheduled",
+          "status": "Status"
+        },
+        "recipientFallback": "Delivery recipient",
+        "empty": "No delivery orders yet."
+      },
+      "chips": {
+        "releaseDiscipline": "Release discipline matters",
+        "failedDrops": "Track failed drops early",
+        "sync": "Keep warehouse and delivery in sync"
+      }
+    },
+    "finance": {
+      "refund": {
+        "submitted": "Refund case submitted for review.",
+        "title": "Refund Requests",
+        "requested": "Requested",
+        "empty": "No refund cases submitted yet."
+      },
+      "error": "We couldn't load finance data right now. Please try again.",
+      "kpis": {
+        "totalCommitted": "Total Committed",
+        "depositsPaid": "Deposits Paid",
+        "orders": "Orders",
+        "inTransit": "In Transit"
+      },
+      "noSpend": "No order spend recorded yet.",
+      "simulator": {
+        "title": "Landed Cost Simulator",
+        "productCost": "Product Cost / Unit (USD)",
+        "quantity": "Quantity",
+        "freight": "Freight Est / Unit (USD)",
+        "lane": "Lane",
+        "selectLane": "— Select Lane —",
+        "calculating": "Calculating…",
+        "calculate": "Calculate Landed Cost",
+        "perUnit": "/ unit landed",
+        "totalFor": "Total for {{qty}} units",
+        "markupApplied": "Markup applied"
+      },
+      "headers": {
+        "reference": "Reference",
+        "product": "Product",
+        "qty": "Qty",
+        "totalLanded": "Total Landed",
+        "depositPaid": "Deposit Paid",
+        "remaining": "Remaining",
+        "status": "Status"
+      },
+      "refundForm": {
+        "title": "Request a Refund Review",
+        "purchaseOrder": "Purchase Order",
+        "selectOrder": "— Select order —",
+        "poFallback": "PO",
+        "reason": "Refund Reason",
+        "amount": "Requested Amount (USD)",
+        "notes": "Notes",
+        "submitting": "Submitting…",
+        "submit": "Submit Refund Case"
+      }
+    },
+    "requests": {
+      "stepsLabel": "Request progress",
+      "goToStep": "Go to {{label}}",
+      "titlePlaceholder": "e.g. 500 Units of Industrial Safety Boots",
+      "selectOption": "— Select —",
+      "descriptionPlaceholder": "Describe the product in detail: materials, dimensions, certifications needed…",
+      "destCountryPlaceholder": "e.g. US, HT, CA",
+      "letOxsteedChoose": "— Let OxSteed choose —",
+      "laneChecks": "Lane access and approval checks",
+      "riskTier": "Risk tier",
+      "customsComplexity": "Customs complexity",
+      "laneBlocked": "This lane is currently blocked for your role or destination context: {{reason}}",
+      "laneBusinessVerification": "Business verification is required to run this lane as a verified buyer.",
+      "laneResellerApproval": "Reseller/distributor approval is required before this lane can be used for resale flows.",
+      "laneManualApproval": "Manual compliance approval is required before this request can move into quoting or procurement.",
+      "anyOption": "— Any —",
+      "review": {
+        "title": "Title",
+        "category": "Category",
+        "quantity": "Quantity",
+        "targetPrice": "Target Price",
+        "destination": "Destination",
+        "deadline": "Deadline",
+        "privateLabel": "Private Label",
+        "yes": "Yes",
+        "no": "No"
+      },
+      "notesPlaceholder": "Any other context for the sourcing team…"
+    },
+    "operations": {
+      "title": "Operations Workspace",
+      "subtitle": "One internal command surface for sourcing intake, active freight movement, warehouse flow, and logistics exceptions.",
+      "internalOnly": {
+        "title": "Operations access is internal",
+        "body": "This workspace is reserved for OxSteed logistics operators. Signed-in buyers and organizers can still use the Buyer, Organizer, Business Procurement, and Distributor workspaces to manage their own logistics activity."
+      },
+      "routesLabel": "Operations routes",
+      "loading": "Loading operations metrics…",
+      "error": "We couldn't load operations metrics right now. Please try again.",
+      "kpis": {
+        "sourcingQueue": "Sourcing queue",
+        "campaigns": "Campaigns",
+        "trackedShipments": "Tracked shipments",
+        "claimsDisputes": "Claims & disputes"
+      },
+      "priorities": {
+        "title": "Operations priorities",
+        "fullAdmin": "Full admin dashboard",
+        "queues": "Immediate queues",
+        "sourcingTouch": "{{count}} sourcing requests require routing, quoting, or operator touch.",
+        "customsHold": "{{count}} shipments are in customs hold or exception posture.",
+        "openClaims": "{{count}} claims remain open for review.",
+        "operatorRoutes": "Operator routes",
+        "openSourcing": "Open sourcing intake queue →",
+        "openFreight": "Open freight and milestone queue →",
+        "openWarehouse": "Open warehouse receipt queue →",
+        "openDisputes": "Open disputes and refund review →"
+      }
+    },
+    "orderDetail": {
+      "loadError": "Failed to load order.",
+      "loading": "Loading…",
+      "notFound": "Purchase order not found.",
+      "backToOrders": "← Back to Orders",
+      "finance": {
+        "productTotal": "Product total",
+        "originHandling": "Origin handling",
+        "sourcingFee": "Sourcing fee",
+        "oxsteedMarkup": "OxSteed markup",
+        "freightEstimate": "Freight estimate",
+        "customsAdmin": "Customs/admin",
+        "warehouseFee": "Warehouse fee",
+        "lastMile": "Last mile",
+        "riskSurcharge": "Risk surcharge"
+      },
+      "defaults": {
+        "purchaseOrder": "Purchase Order"
+      },
+      "sections": {
+        "overview": "Order overview",
+        "financial": "Financial stack"
+      },
+      "labels": {
+        "supplier": "Supplier",
+        "buyer": "Buyer",
+        "quantity": "Quantity",
+        "freightOption": "Freight option",
+        "incoterms": "Incoterms",
+        "expectedProductionComplete": "Expected production complete",
+        "expectedShipDate": "Expected ship date",
+        "expectedArrival": "Expected arrival",
+        "destination": "Destination"
+      },
+      "totals": {
+        "totalLanded": "Total landed",
+        "depositDue": "Deposit due",
+        "finalDue": "Final due",
+        "remaining": "Remaining"
+      }
+    },
+    "orders": {
+      "statusFilter": "Filter by status",
+      "error": "We couldn't load your orders right now. Please try again.",
+      "headers": {
+        "reference": "Reference",
+        "product": "Product",
+        "lane": "Lane",
+        "qty": "Qty",
+        "landedCost": "Landed Cost",
+        "status": "Status",
+        "expected": "Expected"
+      },
+      "openOrder": "Open order {{ref}}",
+      "pagination": "Orders pages",
+      "backToBuyer": "Back to Buyer workspace"
+    },
+    "organizer": {
+      "activity": {
+        "deliveryFallback": "Delivery #{{id}}",
+        "campaignFallback": "Campaign #{{id}}"
+      },
+      "title": "Organizer Dashboard",
+      "subtitle": "Run pooled campaigns like a coordinator, keep MOQ momentum visible, and move locked orders cleanly into shipping and community handoff.",
+      "actions": {
+        "openBoard": "Open campaign board",
+        "coordinateHandoffs": "Coordinate handoffs"
+      },
+      "kicker": "Organizer workspace",
+      "stats": {
+        "inMotion": {
+          "label": "Campaigns still in motion",
+          "meta": "Across open, deposit, lock, and placement phases."
+        },
+        "committedUnits": {
+          "label": "Committed units",
+          "meta": "Demand already captured from your pooled network."
+        },
+        "handoffs": {
+          "label": "Handoffs to coordinate",
+          "meta": "Delivery legs still moving toward community recipients."
+        }
+      },
+      "pressure": {
+        "title": "Organizer pressure points",
+        "copy": "This is the fast read on where organizer energy should go next: recruiting, deposits, or handoff execution.",
+        "momentum": {
+          "label": "MOQ momentum gaps",
+          "hint": "Campaigns below halfway to MOQ usually need another recruitment push or a lane/pricing rethink."
+        },
+        "commitments": {
+          "label": "Participant commitments open",
+          "hint": "These are your own live commitments inside pooled orders that still need watching."
+        },
+        "shipments": {
+          "label": "Shipments tied to campaigns",
+          "hint": "Keep organizer messaging aligned with freight movement so downstream buyers know what is next."
+        }
+      },
+      "rhythm": {
+        "title": "Organizer operating rhythm",
+        "recruit": {
+          "label": "Recruit before lock",
+          "hint": "If MOQ is low, spend time recruiting participants before pushing operational complexity downstream."
+        },
+        "communicate": {
+          "label": "Communicate after placement",
+          "hint": "Once orders place, switch from demand building to shipment visibility and delivery expectations."
+        }
+      },
+      "metrics": {
+        "campaigns": {
+          "label": "Organizer campaigns",
+          "note": "Total campaigns you currently own or coordinate."
+        },
+        "committedUnits": {
+          "label": "Committed units",
+          "note": "Useful for judging network buying power across all campaigns."
+        },
+        "shipments": {
+          "label": "Tracked shipments",
+          "note": "Movement that now affects organizer updates and handoffs."
+        },
+        "deliveries": {
+          "label": "Delivery handoffs",
+          "note": "Final-mile coordination you may need to message around."
+        }
+      },
+      "campaigns": {
+        "title": "Organizer campaigns",
+        "browse": "Browse campaigns",
+        "moqProgress": "MOQ progress: {{pct}} percent",
+        "participants": "{{count}} participants",
+        "empty": "No organizer campaigns yet. Start one from the campaigns workspace."
+      },
+      "commitments": {
+        "title": "My commitments as participant",
+        "open": "Open participation",
+        "headers": {
+          "campaign": "Campaign",
+          "qty": "Qty",
+          "status": "Status"
+        },
+        "empty": "No campaign commitments yet."
+      },
+      "readiness": {
+        "title": "Distribution readiness",
+        "shipments": "Shipment timeline",
+        "posture": "{{count}} campaigns can still change participant posture",
+        "postureHint": "Use this to decide whether to keep recruiting demand or start preparing buyer-facing distribution expectations.",
+        "handoffs": "{{count}} delivery handoffs are still active",
+        "handoffsHint": "These are the legs where organizer communication often matters most to avoid confusion at pickup or last-mile release.",
+        "openShipments": "Open shipment timeline",
+        "openDistribution": "Open distribution workspace"
+      }
+    },
+    "requestDetail": {
+      "loading": "Loading…",
+      "notFound": "Sourcing request not found.",
+      "backToSourcing": "← Back to Sourcing",
+      "defaultDescription": "No description provided.",
+      "sections": {
+        "specifications": "Specifications"
+      },
+      "labels": {
+        "category": "Category",
+        "targetQuantity": "Target quantity",
+        "targetPrice": "Target price",
+        "budgetMax": "Budget max",
+        "destination": "Destination",
+        "preferredFreight": "Preferred freight",
+        "privateLabel": "Private label",
+        "yes": "Yes",
+        "no": "No",
+        "customMfg": "Custom manufacturing",
+        "deadline": "Deadline",
+        "business": "Business",
+        "structuredSpecs": "Structured specs",
+        "quotedQty": "Quoted qty",
+        "unitPrice": "Unit price",
+        "freightEst": "Freight est",
+        "leadTime": "Lead time",
+        "days": "days"
+      },
+      "values": {
+        "personalRequest": "Personal request"
+      },
+      "quotes": {
+        "title": "Quotes ({{count}})",
+        "empty": "No supplier quotes yet.",
+        "supplier": "Supplier #{{id}}"
+      }
+    },
+    "shipmentDetail": {
+      "loadError": "Failed to load shipment.",
+      "loading": "Loading…",
+      "notFound": "Shipment not found.",
+      "backToShipments": "← Back to Shipments",
+      "defaults": {
+        "shipment": "Shipment",
+        "document": "Document",
+        "noLocation": "No location",
+        "noNotes": "No notes."
+      },
+      "sections": {
+        "details": "Shipment details",
+        "documents": "Documents ({{count}})",
+        "milestones": "Milestones"
+      },
+      "labels": {
+        "carrier": "Carrier",
+        "trackingNumber": "Tracking number",
+        "bookingRef": "Booking ref",
+        "originPort": "Origin port",
+        "destinationPort": "Destination port",
+        "totalCartons": "Total cartons",
+        "totalWeight": "Total weight",
+        "kg": "kg",
+        "totalCbm": "Total CBM",
+        "eta": "ETA"
+      },
+      "empty": {
+        "documents": "No shipping documents uploaded.",
+        "milestones": "No milestones recorded yet."
+      }
+    },
+    "shipments": {
+      "lifecycleLabel": "Filter by lifecycle stage",
+      "error": "We couldn't load your shipments right now. Please try again.",
+      "openShipment": "Open shipment {{ref}}",
+      "noCarrier": "No carrier",
+      "kg": "kg",
+      "etaLabel": "ETA",
+      "exception": "Exception",
+      "backToBuyer": "Back to Buyer workspace"
+    },
+    "sourcing": {
+      "tabsLabel": "Sourcing views",
+      "error": "We couldn't load your sourcing requests right now. Please try again.",
+      "headers": {
+        "reference": "Reference",
+        "title": "Title",
+        "category": "Category",
+        "lane": "Lane",
+        "qty": "Qty",
+        "status": "Status",
+        "quotes": "Quotes"
+      },
+      "openRequest": "Open request {{ref}}",
+      "viewRow": "View →"
+    },
+    "warehousing": {
+      "tabsLabel": "Warehousing views",
+      "error": "We couldn't load warehousing data right now. Please try again.",
+      "bonded": "Bonded",
+      "activeReceipts": "{{count}} active receipts",
+      "sqft": "sqft",
+      "headers": {
+        "reference": "Reference",
+        "warehouse": "Warehouse",
+        "expected": "Expected",
+        "received": "Received",
+        "shortage": "Shortage",
+        "status": "Status",
+        "buyer": "Buyer",
+        "qty": "Qty",
+        "releaseMethod": "Release Method",
+        "released": "Released"
+      }
     }
   }
 }

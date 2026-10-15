@@ -1535,6 +1535,925 @@
           }
         }
       }
+    },
+    "adminControl": {
+      "title": "Contrôle administrateur",
+      "error": "Échec du chargement des métriques de contrôle pour le moment. Réessayez.",
+      "kpis": {
+        "claimsPosture": "Posture des réclamations",
+        "feeRules": "Règles de frais",
+        "markupRules": "Règles de marge",
+        "restrictions": "Restrictions",
+        "trackedPOs": "BC suivis",
+        "trackedShipments": "Envois suivis"
+      },
+      "pricing": {
+        "active": "actif",
+        "empty": "Aucune règle de tarification trouvée.",
+        "fee": "Frais",
+        "headers": {
+          "name": "Nom",
+          "status": "Statut",
+          "type": "Type"
+        },
+        "inactive": "inactif",
+        "markup": "Marge",
+        "ruleFallback": "Règle {{id}}",
+        "title": "Posture tarifaire et de frais"
+      },
+      "restricted": {
+        "body": "Les règles de tarification, les restrictions de marché et les substitutions à l'échelle logistics sont réservées aux administrateurs et super-administrateurs OxSteed.",
+        "returnToHub": "Retour au hub Logistics",
+        "title": "Accès au contrôle restreint"
+      },
+      "restrictions": {
+        "empty": "Aucune restriction configurée.",
+        "headers": {
+          "category": "Catégorie",
+          "country": "Pays",
+          "risk": "Risque"
+        },
+        "title": "Contrôles de restriction et de risque"
+      },
+      "routes": {
+        "adminDashboard": "Tableau de bord admin",
+        "pricingRules": "Règles de tarification",
+        "restrictions": "Restrictions",
+        "superControl": "Super contrôle",
+        "supplierApprovals": "Approbations fournisseurs"
+      },
+      "routesLabel": "Itinéraires du contrôle admin",
+      "subtitle": "Contrôles de tarification, de risque, d'approbations et de rentabilité pour l'ensemble de la branche OxSteed Logistics."
+    },
+    "buyer": {
+      "actions": {
+        "startRequest": "Démarrer une demande",
+        "watchShipments": "Suivre le calendrier des envois"
+      },
+      "kicker": "Espace acheteur",
+      "stats": {
+        "openRequests": {
+          "label": "Demandes d'acheteur ouvertes",
+          "meta": "Sur le sourcing, les devis et la conversion en achats."
+        },
+        "attentionShipments": {
+          "label": "Envois nécessitant une attention",
+          "meta": "Mouvement en douane ou en phase d'exception à examiner."
+        },
+        "issues": {
+          "label": "Réclamations / remboursements ouverts",
+          "meta": "Gardez la protection de l'acheteur et la posture de résolution visibles."
+        }
+      },
+      "subtitle": "Lancez des demandes de sourcing, suivez vos commandes et surveillez le fret actif : le tout en un seul endroit.",
+      "title": "Tableau de bord acheteur",
+      "activity": {
+        "claimFallback": "Réclamation #{{id}}"
+      },
+      "attention": {
+        "allocationRelease": {
+          "hint": "Le stock attribué nécessite encore un retrait, un transfert au transitaire ou une planification de libération finale.",
+          "label": "Libération d'allocation"
+        },
+        "copy": "Utilisez cette file pour décider s'il faut pousser de nouveaux sourcings, relancer la libération des livraisons ou escalader un problème financier.",
+        "issuePosture": {
+          "hint": "Les réclamations et les dossiers de remboursement indiquent où la confiance des acheteurs ou la qualité d'exécution se dégrade.",
+          "label": "Posture des problèmes"
+        },
+        "shipmentRisk": {
+          "hint": "La révision douanière, les états d'exception ou le fret retardé doivent être suivis en priorité par l'acheteur.",
+          "label": "Risque d'envoi"
+        },
+        "title": "Attention immédiate"
+      },
+      "chips": {
+        "buyerFirst": "Espace centré acheteur",
+        "claimsTied": "Réclamations liées aux résultats d'envoi",
+        "refundVisible": "Posture de remboursement visible"
+      },
+      "claims": {
+        "activeClaims": "{{count}} réclamations actives",
+        "activeClaimsHint": "Utilisez les réclamations lorsqu'un envoi, une commande ou un résultat d'inventaire nécessite une intervention de l'opérateur ou un examen des preuves.",
+        "deliveriesHint": "Gardez le statut de livraison proche des réclamations pour relier l'exécution manquée à l'historique réel des libérations.",
+        "deliveriesTracked": "{{count}} enregistrements de livraison suivis",
+        "openFinance": "Espace finance",
+        "refundCases": "{{count}} dossiers de remboursement",
+        "refundCasesHint": "Les files de remboursement montrent où la récupération de l'acheteur attend encore la confirmation de la finance ou des opérations.",
+        "title": "Réclamations et posture de résolution"
+      },
+      "flow": {
+        "allocationFallback": "ALC-{{id}}",
+        "awaitingRelease": "En attente de libération",
+        "empty": "Aucun enregistrement d'envoi ou d'allocation pour le moment.",
+        "headers": {
+          "eta": "ETA / Livraison",
+          "reference": "Référence",
+          "status": "Statut"
+        },
+        "openDistribution": "Distribution",
+        "title": "Flux d'envois et d'allocations"
+      },
+      "metrics": {
+        "activeRequests": {
+          "label": "Demandes actives",
+          "note": "Nombre total de demandes d'acheteur en mouvement : {{total}}"
+        },
+        "claimsRefunds": {
+          "label": "Réclamations et remboursements",
+          "noteClear": "Aucun problème d'acheteur actif",
+          "noteOpen": "Un examen de l'opérateur peut être nécessaire sur les problèmes ouverts"
+        },
+        "pendingAllocations": {
+          "label": "Allocations en attente",
+          "noteClear": "La file d'allocation est vide",
+          "notePending": "Le stock est attribué mais pas encore entièrement libéré"
+        },
+        "watchShipments": {
+          "label": "Surveiller les envois",
+          "noteClear": "Aucune exception d'envoi signalée pour le moment",
+          "noteRisk": "{{count}} nécessitent un suivi d'exception"
+        }
+      },
+      "requests": {
+        "empty": "Aucune demande de sourcing pour le moment.",
+        "headers": {
+          "category": "Catégorie",
+          "quotes": "Devis",
+          "request": "Demande",
+          "status": "Statut"
+        },
+        "title": "Mes demandes de sourcing",
+        "viewAll": "Tout voir"
+      },
+      "rhythm": {
+        "bestMove": {
+          "hasRequests": "Examinez la posture des devis et des envois avant d'ouvrir plus de demande.",
+          "label": "Meilleur prochain pas",
+          "noRequests": "Ouvrez une demande de sourcing pour lancer les devis fournisseurs."
+        },
+        "latestDelivery": {
+          "label": "Dernier signal de livraison",
+          "noDate": "Aucune date de livraison n'a encore été planifiée.",
+          "withDate": "L'activité de livraison la plus récente est prévue autour du {{date}}."
+        },
+        "title": "Rythme de l'acheteur"
+      }
+    },
+    "campaignDetail": {
+      "economics": {
+        "deposit": "Dépôt (30 %)",
+        "fees": "Frais",
+        "freightEst": "Fret (est.)",
+        "landedCost": "Coût rendu / unité",
+        "markup": "Marge OxSteed",
+        "productCost": "Coût du produit",
+        "title": "Économie par unité"
+      },
+      "join": {
+        "deliveryPreference": "Préférence de livraison",
+        "title": "Rejoindre la campagne",
+        "cancellationPolicy": "Politique d'annulation",
+        "committedQty": "Qté engagée",
+        "confirm": "Confirmer la participation",
+        "countryCode": "Code pays",
+        "deposit": "Dépôt",
+        "destCountry": "Pays de destination",
+        "subtotal": "Sous-total"
+      },
+      "laneGating": {
+        "blocked": "Votre rôle actuel ou votre contexte de destination est bloqué pour ce corridor : {{reason}}",
+        "businessVerification": "Un contexte commercial vérifié est requis pour ce corridor de campagne.",
+        "manualApproval": "Une approbation de conformité manuelle est requise avant que la campagne puisse passer par toutes les étapes logistics en aval.",
+        "resellerApproval": "Une approbation revendeur/distributeur est requise pour la participation à la revente sur ce corridor.",
+        "title": "Contrôle du corridor"
+      },
+      "loadError": "Échec du chargement de la campagne",
+      "meta": {
+        "fallbackDescription": "Campagne d'achat groupé sur OxSteed Logistics.",
+        "fallbackTitle": "Campagne"
+      },
+      "moq": {
+        "progressLabel": "Progression MOQ : {{pct}} pour cent",
+        "units": "{{committed}} / {{target}} unités engagées"
+      },
+      "notFound": "Campagne introuvable.",
+      "participants": {
+        "headers": {
+          "delivery": "Livraison",
+          "qty": "Qté",
+          "status": "Statut",
+          "deposit": "Dépôt",
+          "user": "Utilisateur"
+        },
+        "participant": "Participant",
+        "title": "Participants ({{count}})"
+      },
+      "timeline": {
+        "expectedArrival": "Arrivée prévue",
+        "expectedShip": "Envoi prévu",
+        "lockDate": "Date de verrouillage",
+        "openDate": "Date d'ouverture",
+        "closeDate": "Date de clôture",
+        "organizer": "Organisateur",
+        "title": "Calendrier"
+      },
+      "delivery": {
+        "freightForward": "Transitaire",
+        "shipToBuyer": "Expédition à l'acheteur",
+        "warehousePickup": "Retrait à l'entrepôt"
+      }
+    },
+    "compliance": {
+      "error": "Échec du chargement des données de conformité. Réessayez.",
+      "allLanes": "Tous les corridors",
+      "businessVerificationRequired": "Vérification commerciale requise",
+      "countryFilter": "Filtrer par code pays",
+      "countryPlaceholder": "Code pays (p. ex. HT)",
+      "customsComplexity": "Douane",
+      "docRequirements": {
+        "body": "Chaque corridor peut exiger : facture commerciale, liste de colisage, certificat d'origine, certificat phytosanitaire, dédouanement FDA, marquages CE, formulaires d'entrée en douane ou rapports d'inspection. Les exigences dépendent du corridor et de la catégorie.",
+        "title": "Exigences documentaires"
+      },
+      "global": "Mondial",
+      "headers": {
+        "category": "Catégorie",
+        "country": "Pays",
+        "docRequired": "Doc requis",
+        "lane": "Corridor",
+        "notes": "Notes",
+        "severity": "Gravité",
+        "type": "Type"
+      },
+      "laneFilter": "Filtrer par corridor",
+      "manualApprovalRequired": "Approbation manuelle requise",
+      "noLanes": "Aucune donnée de risque de corridor publiée pour le moment.",
+      "riskTiers": {
+        "title": "Niveaux de risque"
+      }
+    },
+    "distribution": {
+      "error": "Échec du chargement des données de distribution. Réessayez.",
+      "defaults": {
+        "buyerAllocation": "Allocation d'acheteur",
+        "recipient": "Destinataire",
+        "releasePending": "libération en attente",
+        "warehouse": "Entrepôt"
+      },
+      "empty": {
+        "allocations": "Aucune allocation disponible.",
+        "deliveries": "Aucun ordre de livraison disponible."
+      },
+      "labels": {
+        "allocatedQty": "Qté allouée",
+        "mode": "Mode",
+        "tracking": "Suivi"
+      },
+      "loading": "Chargement…",
+      "sections": {
+        "allocationQueue": "File d'allocation",
+        "deliveryExecution": "Exécution des livraisons",
+        "openWarehousing": "Ouvrir l'entreposage →"
+      },
+      "stats": {
+        "allocations": "Allocations",
+        "deliveryOrders": "Ordres de livraison",
+        "inTransit": "En transit",
+        "released": "Libéré"
+      }
+    },
+    "distributor": {
+      "kicker": "Espace distributeur",
+      "subtitle": "Suivez vos participations aux campagnes, les allocations et les livraisons de dernier kilomètre.",
+      "title": "Tableau de bord distributeur",
+      "actions": {
+        "openBoard": "Ouvrir le tableau de distribution",
+        "warehouseReadiness": "Vérifier la préparation de l'entrepôt"
+      },
+      "activity": {
+        "allocationFallback": "ALC-{{id}}",
+        "deliveryFallback": "Livraison #{{id}}"
+      },
+      "chips": {
+        "failedDrops": "Suivez tôt les livraisons manquées",
+        "releaseDiscipline": "La discipline de libération compte",
+        "sync": "Gardez l'entrepôt et la livraison synchronisés"
+      },
+      "execution": {
+        "empty": "Aucun ordre de livraison pour le moment.",
+        "headers": {
+          "method": "Méthode",
+          "recipient": "Destinataire",
+          "scheduled": "Planifié",
+          "status": "Statut"
+        },
+        "recipientFallback": "Destinataire de la livraison",
+        "seeAll": "Tout voir",
+        "title": "Exécution des livraisons"
+      },
+      "metrics": {
+        "allocatedLots": {
+          "label": "Lots alloués",
+          "note": "Inventaire attribué entre les destinataires de distribution."
+        },
+        "deliveryOrders": {
+          "label": "Ordres de livraison",
+          "note": "Tronçons sortants actuellement suivis."
+        },
+        "inTransit": {
+          "label": "En transit",
+          "note": "Livraisons nécessitant encore un suivi de dernier kilomètre."
+        },
+        "releasedLots": {
+          "label": "Lots libérés",
+          "note": "Lots déjà débloqués pour retrait ou exécution de livraison."
+        },
+        "warehousedOrders": {
+          "label": "Commandes entreposées",
+          "note": "Inventaire en amont déjà en stockage et prêt à allouer."
+        }
+      },
+      "posture": {
+        "releaseFirst": {
+          "hint": "Vérifiez que les allocations sont bien libérées avant d'engager les destinataires dans la planification des livraisons.",
+          "label": "Libérer avant d'acheminer"
+        },
+        "title": "Posture opérationnelle",
+        "warehousedVisible": {
+          "hint": "{{count}} bons de commande sont déjà entreposés, le goulot peut donc être en aval, pas en amont.",
+          "label": "Gardez le stock entreposé visible"
+        }
+      },
+      "pressure": {
+        "copy": "Utilisez cette vue pour décider si le prochain goulot est la libération d'entrepôt, la planification ou l'exécution manquée du dernier kilomètre.",
+        "exceptions": {
+          "hint": "Les livraisons manquées ou annulées doivent être traitées avant que la confiance des clients ne baisse davantage.",
+          "label": "Exceptions de livraison"
+        },
+        "release": {
+          "hint": "L'inventaire est attribué, mais la méthode de retrait, le transfert au transitaire ou la préparation du destinataire sont encore incomplets.",
+          "label": "Lots en attente de libération"
+        },
+        "scheduled": {
+          "hint": "Ce sont les prochains points de contact probables où la communication et le timing comptent.",
+          "label": "Livraisons planifiées"
+        },
+        "title": "Points de pression de distribution"
+      },
+      "queue": {
+        "assignedBuyer": "Acheteur attribué",
+        "empty": "Aucun lot d'allocation attribué pour le moment.",
+        "headers": {
+          "method": "Méthode",
+          "recipient": "Destinataire",
+          "status": "Statut",
+          "warehouse": "Entrepôt"
+        },
+        "methodPending": "en attente",
+        "open": "Ouvrir l'espace",
+        "title": "File de transfert d'allocation",
+        "warehousePending": "Entrepôt en attente"
+      },
+      "stats": {
+        "failed": {
+          "label": "Dépôts manqués ou annulés",
+          "meta": "Ceux-ci nécessitent souvent un réacheminement ou un suivi direct du destinataire."
+        },
+        "inTransit": {
+          "label": "Livraisons en mouvement",
+          "meta": "Mouvement sortant à surveiller activement."
+        },
+        "pendingRelease": {
+          "label": "Lots en attente de libération",
+          "meta": "Inventaire attribué pas encore entièrement transféré."
+        }
+      }
+    },
+    "finance": {
+      "error": "Échec du chargement des données financières pour le moment. Réessayez.",
+      "headers": {
+        "depositPaid": "Dépôt payé",
+        "product": "Produit",
+        "qty": "Qté",
+        "reference": "Référence",
+        "remaining": "Restant",
+        "status": "Statut",
+        "totalLanded": "Total rendu"
+      },
+      "kpis": {
+        "depositsPaid": "Dépôts payés",
+        "inTransit": "En transit",
+        "orders": "Commandes",
+        "totalCommitted": "Total engagé"
+      },
+      "noSpend": "Aucune dépense enregistrée sur les commandes pour le moment.",
+      "refund": {
+        "empty": "Aucun dossier de remboursement soumis pour le moment.",
+        "requested": "Demandé",
+        "submitted": "Dossier de remboursement soumis pour examen.",
+        "title": "Demandes de remboursement"
+      },
+      "refundForm": {
+        "amount": "Montant demandé (USD)",
+        "notes": "Notes",
+        "poFallback": "BC",
+        "purchaseOrder": "Bon de commande",
+        "reason": "Motif du remboursement",
+        "selectOrder": "— Sélectionner une commande —",
+        "submit": "Soumettre le dossier de remboursement",
+        "submitting": "Envoi en cours…",
+        "title": "Demander un examen de remboursement"
+      },
+      "simulator": {
+        "calculate": "Calculer le coût rendu",
+        "calculating": "Calcul en cours…",
+        "freight": "Fret est. / unité (USD)",
+        "lane": "Corridor",
+        "markupApplied": "Marge appliquée",
+        "perUnit": "/ unité rendue",
+        "productCost": "Coût du produit / unité (USD)",
+        "quantity": "Quantité",
+        "selectLane": "— Sélectionner un corridor —",
+        "title": "Simulateur de coût rendu",
+        "totalFor": "Total pour {{qty}} unités"
+      }
+    },
+    "operations": {
+      "error": "Échec du chargement des métriques d'opérations pour le moment. Réessayez.",
+      "internalOnly": {
+        "body": "Cet espace est réservé aux opérateurs logistics d'OxSteed. Les acheteurs et organisateurs inscrits peuvent utiliser les espaces Acheteur, Organisateur, Achats commerciaux et Distributeur pour gérer leur propre activité logistics.",
+        "title": "Accès aux opérations réservé en interne"
+      },
+      "kpis": {
+        "campaigns": "Campagnes",
+        "claimsDisputes": "Réclamations et litiges",
+        "sourcingQueue": "File de sourcing",
+        "trackedShipments": "Envois suivis"
+      },
+      "loading": "Chargement des métriques d'opérations…",
+      "priorities": {
+        "customsHold": "{{count}} envois sont en retenue douanière ou en situation d'exception.",
+        "fullAdmin": "Panneau d'administration complet",
+        "openDisputes": "Ouvrir les litiges et l'examen des remboursements →",
+        "openFreight": "Ouvrir la file de fret et les jalons →",
+        "openSourcing": "Ouvrir la file de réception du sourcing →",
+        "openWarehouse": "Ouvrir la file de réception de l'entrepôt →",
+        "operatorRoutes": "Itinéraires opérateur",
+        "queues": "Files immédiates",
+        "sourcingTouch": "{{count}} demandes de sourcing nécessitent un routage, un devis ou une intervention de l'opérateur.",
+        "openClaims": "{{count}} réclamations restent ouvertes pour examen.",
+        "title": "Priorités des opérations"
+      },
+      "routesLabel": "Itinéraires des opérations",
+      "subtitle": "Une surface de commande interne pour la réception du sourcing, le mouvement du fret actif, le flux d'entrepôt et les exceptions logistics.",
+      "title": "Espace opérations"
+    },
+    "orderDetail": {
+      "backToOrders": "← Retour aux commandes",
+      "defaults": {
+        "purchaseOrder": "Bon de commande"
+      },
+      "finance": {
+        "customsAdmin": "Douane/admin",
+        "freightEstimate": "Estimation du fret",
+        "lastMile": "Dernier kilomètre",
+        "originHandling": "Manutention à l'origine",
+        "oxsteedMarkup": "Marge OxSteed",
+        "productTotal": "Total produit",
+        "riskSurcharge": "Surcharge de risque",
+        "sourcingFee": "Frais de sourcing",
+        "warehouseFee": "Frais d'entrepôt"
+      },
+      "labels": {
+        "buyer": "Acheteur",
+        "destination": "Destination",
+        "expectedArrival": "Arrivée prévue",
+        "expectedProductionComplete": "Fin de production prévue",
+        "expectedShipDate": "Date d'envoi prévue",
+        "freightOption": "Option de fret",
+        "incoterms": "Incoterms",
+        "quantity": "Quantité",
+        "supplier": "Fournisseur"
+      },
+      "sections": {
+        "financial": "Structure financière",
+        "overview": "Aperçu de la commande"
+      },
+      "totals": {
+        "depositDue": "Dépôt dû",
+        "finalDue": "Solde final dû",
+        "remaining": "Restant",
+        "totalLanded": "Total rendu"
+      },
+      "loadError": "Échec du chargement de la commande.",
+      "loading": "Chargement…",
+      "notFound": "Bon de commande introuvable."
+    },
+    "orders": {
+      "backToBuyer": "Retour à l'espace acheteur",
+      "error": "Échec du chargement de vos commandes pour le moment. Réessayez.",
+      "headers": {
+        "expected": "Prévu",
+        "landedCost": "Coût rendu",
+        "lane": "Corridor",
+        "product": "Produit",
+        "qty": "Qté",
+        "reference": "Référence",
+        "status": "Statut"
+      },
+      "openOrder": "Ouvrir la commande {{ref}}",
+      "pagination": "Pages des commandes",
+      "statusFilter": "Filtrer par statut"
+    },
+    "organizer": {
+      "actions": {
+        "coordinateHandoffs": "Coordonner les transferts",
+        "openBoard": "Ouvrir le tableau des campagnes"
+      },
+      "activity": {
+        "campaignFallback": "Campagne #{{id}}",
+        "deliveryFallback": "Livraison #{{id}}"
+      },
+      "campaigns": {
+        "browse": "Parcourir les campagnes",
+        "empty": "Aucune campagne d'organisateur pour le moment. Démarrez-en une depuis l'espace campagnes.",
+        "moqProgress": "Progression MOQ : {{pct}} pour cent",
+        "participants": "{{count}} participants",
+        "title": "Campagnes de l'organisateur"
+      },
+      "commitments": {
+        "empty": "Aucun engagement dans les campagnes pour le moment.",
+        "headers": {
+          "campaign": "Campagne",
+          "qty": "Qté",
+          "status": "Statut"
+        },
+        "open": "Ouvrir la participation",
+        "title": "Mes engagements en tant que participant"
+      },
+      "kicker": "Espace organisateur",
+      "metrics": {
+        "campaigns": {
+          "label": "Campagnes de l'organisateur",
+          "note": "Nombre total de campagnes que vous possédez ou coordonnez actuellement."
+        },
+        "committedUnits": {
+          "label": "Unités engagées",
+          "note": "Utile pour mesurer le pouvoir d'achat du réseau sur toutes les campagnes."
+        },
+        "deliveries": {
+          "label": "Livraisons",
+          "note": "Coordination du dernier kilomètre dont vous devrez peut-être rendre compte."
+        },
+        "shipments": {
+          "label": "Envois suivis",
+          "note": "Mouvement qui affecte désormais les mises à jour et les livraisons de l'organisateur."
+        }
+      },
+      "pressure": {
+        "commitments": {
+          "hint": "Ce sont vos propres engagements actifs dans les commandes groupées qui nécessitent encore un suivi.",
+          "label": "Engagements de participants ouverts"
+        },
+        "copy": "Ceci est la lecture rapide de là où l'énergie de l'organisateur doit aller : recrutement, dépôts ou exécution des livraisons.",
+        "momentum": {
+          "hint": "Les campagnes sous la moitié du MOQ ont généralement besoin d'un nouvel élan de recrutement ou d'un repositionnement corridor/prix.",
+          "label": "Écarts d'élan MOQ"
+        },
+        "shipments": {
+          "hint": "Gardez la messagerie de l'organisateur alignée sur le mouvement du fret pour que les acheteurs sachent ce qui suit.",
+          "label": "Envois liés aux campagnes"
+        },
+        "title": "Points de pression de l'organisateur"
+      },
+      "readiness": {
+        "handoffs": "{{count}} transferts toujours actifs",
+        "handoffsHint": "Ce sont les tronçons où la communication de l'organisateur compte le plus pour éviter la confusion lors du retrait ou de la libération de dernier kilomètre.",
+        "openDistribution": "Ouvrir l'espace de distribution",
+        "openShipments": "Ouvrir le calendrier des envois",
+        "posture": "{{count}} campagnes peuvent encore changer la posture des participants",
+        "postureHint": "Utilisez ceci pour décider s'il faut continuer à recruter la demande ou commencer à préparer les attentes de distribution pour les acheteurs.",
+        "shipments": "Calendrier des envois",
+        "title": "Préparation de la distribution"
+      },
+      "rhythm": {
+        "communicate": {
+          "hint": "Une fois les commandes placées, passez de la création de la demande à la visibilité des envois et aux attentes de livraison.",
+          "label": "Communiquez après le placement"
+        },
+        "recruit": {
+          "hint": "Si le MOQ est bas, consacrez du temps au recrutement de participants avant d'introduire de la complexité opérationnelle en aval.",
+          "label": "Recrutez avant le verrouillage"
+        },
+        "title": "Rythme opérationnel de l'organisateur"
+      },
+      "stats": {
+        "committedUnits": {
+          "label": "Unités engagées",
+          "meta": "Demande déjà captée de votre réseau groupé."
+        },
+        "handoffs": {
+          "label": "Transferts à coordonner",
+          "meta": "Tronçons de livraison toujours en mouvement vers les destinataires communautaires."
+        },
+        "inMotion": {
+          "label": "Campagnes toujours en mouvement",
+          "meta": "Dans les phases d'ouverture, de dépôt, de verrouillage et de placement."
+        }
+      },
+      "subtitle": "Menez des campagnes groupées en coordinateur, gardez l'élan du MOQ visible et amenez les commandes verrouillées proprement vers l'envoi et la livraison communautaire.",
+      "title": "Tableau de bord organisateur"
+    },
+    "procurement": {
+      "actions": {
+        "closePlanner": "Fermer le planificateur",
+        "newProgram": "Nouveau programme récurrent",
+        "newRequest": "Ouvrir une demande liée à l'entreprise"
+      },
+      "chips": {
+        "businessScoped": "Sourcing réservé aux entreprises",
+        "laneAware": "Achats selon le corridor",
+        "recurring": "Planification de la demande récurrente"
+      },
+      "eligibleLanes": {
+        "authority": "avec autorité d'achat.",
+        "empty": "Aucune entreprise éligible liée à ce compte pour le moment.",
+        "ownerAccess": "Accès propriétaire",
+        "roleAccess": "Accès {{role}}",
+        "title": "Corridors commerciaux éligibles"
+      },
+      "form": {
+        "anyLane": "Tout corridor approuvé",
+        "budgetMax": "Budget max (USD)",
+        "cadence": "Fréquence",
+        "category": "Catégorie",
+        "create": "Créer le programme",
+        "created": "Programme d'achats récurrents créé",
+        "destCity": "Ville de destination",
+        "destCountry": "Pays de destination",
+        "lane": "Corridor",
+        "linkedRequest": "Demande de sourcing liée (facultatif)",
+        "noLinkedRequest": "Aucune demande liée",
+        "nextRun": "Date de la prochaine exécution",
+        "notes": "Notes",
+        "programTitle": "Titre du programme",
+        "saving": "Enregistrement…",
+        "targetQty": "Quantité cible",
+        "title": "Planificateur d'achats récurrents",
+        "titleRequired": "Le titre du programme est requis",
+        "unit": "Unité"
+      },
+      "guidance": {
+        "authority": {
+          "body": "Cet espace ne fonctionne que lorsque la demande est liée à une entreprise réelle pour laquelle vous pouvez agir, et non à une simple idée de sourcing personnel.",
+          "title": "Créez sur une autorité commerciale réelle"
+        },
+        "businessHub": "Business Hub",
+        "laneAware": {
+          "body": "Choisissez les corridors tôt pour les programmes récurrents lorsque les prix, la conformité et les contraintes de destination affectent matériellement le coût rendu.",
+          "title": "Utilisez une planification selon le corridor"
+        },
+        "restock": {
+          "body": "Les programmes dont les dates d'exécution approchent doivent être examinés avant que les entrepôts, les équipes ou les équipages ne ressentent la pénurie.",
+          "title": "Réapprovisionnez avant la ruée"
+        },
+        "title": "Guide opérationnel des achats"
+      },
+      "kicker": "Achats commerciaux",
+      "linkedRequests": {
+        "empty": "Aucune demande de sourcing liée à l'entreprise pour le moment.",
+        "headers": {
+          "converted": "Convertie",
+          "reference": "Référence",
+          "request": "Demande",
+          "status": "Statut"
+        },
+        "new": "Nouvelle demande",
+        "title": "Demandes de sourcing liées à l'entreprise"
+      },
+      "metrics": {
+        "activePrograms": {
+          "label": "Programmes actifs",
+          "note": "Programmes qui devraient actuellement influencer la planification du sourcing."
+        },
+        "eligibleBusinesses": {
+          "label": "Entreprises éligibles",
+          "note": "Contextes commerciaux distincts pour lesquels vous pouvez effectuer des achats."
+        },
+        "linkedRequests": {
+          "label": "Demandes liées à l'entreprise",
+          "note": "Demandes déjà liées à un contexte commercial qualifié."
+        },
+        "programs": {
+          "label": "Programmes récurrents",
+          "note": "Fréquences enregistrées pour la demande répétée d'inventaire et de fournitures."
+        }
+      },
+      "noAccess": {
+        "backToLogistics": "Retour à Logistics",
+        "body": "Cet espace est réservé aux utilisateurs pouvant agir au nom d'une entreprise pour les achats et les opérations. Actuellement, OxSteed l'active pour les propriétaires d'entreprise, les gestionnaires actifs et les adhésions avec des autorisations de type opérationnel.",
+        "eligibleCount": "Vos espaces commerciaux éligibles",
+        "howDetermined": "Comment l'accès est déterminé",
+        "howDeterminedHint": "propriété, adhésion active de gestionnaire ou adhésion non propriétaire avec des autorisations de type opérations/achats.",
+        "openBusinessHub": "Ouvrir le Business Hub",
+        "title": "Achats commerciaux non activé pour ce compte"
+      },
+      "pressure": {
+        "copy": "Cet espace est plus fort lorsqu'il vous dit quoi réapprovisionner, quoi associer par corridor et quelle entreprise a besoin d'action en premier.",
+        "laneBound": {
+          "hint": "Ceux-ci ont déjà un corridor défini, de sorte que la planification des prix et de la conformité peut être plus délibérée.",
+          "label": "Programmes liés au corridor"
+        },
+        "linkedRequests": {
+          "hint": "La demande déjà liée à une entreprise qualifiée doit être priorisée avant le sourcing générique.",
+          "label": "Demandes liées à l'entreprise"
+        },
+        "title": "Points de pression des achats",
+        "upcomingRuns": {
+          "hint": "Les programmes qui s'exécutent bientôt doivent être examinés pour la quantité, l'ajustement du corridor et la préparation de la destination.",
+          "label": "Exécutions à venir"
+        }
+      },
+      "programs": {
+        "activate": "Activer",
+        "empty": "Aucun programme d'achats récurrents pour le moment.",
+        "general": "Achats généraux",
+        "headers": {
+          "cadence": "Fréquence",
+          "linkedRequest": "Demande liée",
+          "nextRun": "Prochaine exécution",
+          "program": "Programme",
+          "status": "Statut"
+        },
+        "openSourcing": "Ouvrir le sourcing",
+        "pause": "Suspendre",
+        "title": "Programmes d'achats récurrents"
+      },
+      "program": {
+        "statusChanged": "Programme {{status}}"
+      },
+      "stats": {
+        "activePrograms": {
+          "label": "Programmes de réapprovisionnement actifs",
+          "meta": "Fréquences qui alimentent déjà la demande de sourcing répétée."
+        },
+        "eligibleBusinesses": {
+          "label": "Entreprises éligibles",
+          "meta": "Entreprises pour lesquelles ce compte peut légitimement acheter."
+        },
+        "upcomingRuns": {
+          "label": "Exécutions dans 21 jours",
+          "meta": "Cycles d'achat à venir nécessitant des vérifications de préparation."
+        }
+      },
+      "subtitle": "Gérez le rythme de réapprovisionnement, les corridors de sourcing récurrents et la demande approuvée par l'entreprise sans perdre de vue pour quelle société la commande est passée.",
+      "title": "Tableau de bord des achats commerciaux"
+    },
+    "requestDetail": {
+      "backToSourcing": "← Retour au sourcing",
+      "defaultDescription": "Aucune description fournie.",
+      "labels": {
+        "business": "Entreprise",
+        "budgetMax": "Budget max",
+        "category": "Catégorie",
+        "customMfg": "Fabrication sur mesure",
+        "days": "jours",
+        "deadline": "Date limite",
+        "destination": "Destination",
+        "freightEst": "Fret est.",
+        "leadTime": "Délai de production",
+        "no": "Non",
+        "preferredFreight": "Fret préféré",
+        "privateLabel": "Marque privée",
+        "quotedQty": "Qté devisée",
+        "structuredSpecs": "Spécifications structurées",
+        "targetPrice": "Prix cible",
+        "targetQuantity": "Quantité cible",
+        "unitPrice": "Prix unitaire",
+        "yes": "Oui"
+      },
+      "loading": "Chargement…",
+      "notFound": "Demande de sourcing introuvable.",
+      "quotes": {
+        "empty": "Aucun devis fournisseur pour le moment.",
+        "supplier": "Fournisseur #{{id}}",
+        "title": "Devis ({{count}})"
+      },
+      "sections": {
+        "specifications": "Spécifications"
+      },
+      "values": {
+        "personalRequest": "Demande personnelle"
+      }
+    },
+    "requests": {
+      "anyOption": "Au choix",
+      "customsComplexity": "Complexité douanière (1=faible, 5=élevée)",
+      "descriptionPlaceholder": "Décrivez votre produit : matériaux, spécifications, normes de qualité…",
+      "destCountryPlaceholder": "p. ex. HT, NG, KE",
+      "goToStep": "Aller à {{label}}",
+      "laneBlocked": "Ce corridor est bloqué pour votre contexte actuel : {{reason}}",
+      "laneBusinessVerification": "Une vérification commerciale est requise pour ce corridor.",
+      "laneChecks": "Vérifications du corridor",
+      "laneManualApproval": "Ce corridor nécessite une approbation manuelle avant que la commande puisse avancer.",
+      "laneResellerApproval": "Une approbation revendeur est requise pour la participation à la revente sur ce corridor.",
+      "letOxsteedChoose": "Laisser OxSteed choisir",
+      "notesPlaceholder": "Notes supplémentaires pour l'équipe de sourcing…",
+      "review": {
+        "category": "Catégorie",
+        "deadline": "Date limite",
+        "destination": "Destination",
+        "no": "Non",
+        "privateLabel": "Marque privée",
+        "quantity": "Quantité",
+        "targetPrice": "Prix cible",
+        "title": "Vérifiez votre demande",
+        "yes": "Oui"
+      },
+      "riskTier": "Niveau de risque",
+      "selectOption": "Sélectionner…",
+      "stepsLabel": "Étapes de la demande",
+      "titlePlaceholder": "p. ex. Lampes solaires pour villages ruraux"
+    },
+    "shipmentDetail": {
+      "backToShipments": "← Retour aux envois",
+      "defaults": {
+        "document": "Document",
+        "noLocation": "Lieu inconnu",
+        "noNotes": "Aucune note",
+        "shipment": "Envoi"
+      },
+      "empty": {
+        "documents": "Aucun document pour le moment.",
+        "milestones": "Aucun jalon enregistré pour le moment."
+      },
+      "labels": {
+        "bookingRef": "Réf. de réservation",
+        "carrier": "Transporteur",
+        "destinationPort": "Port de destination",
+        "eta": "ETA",
+        "kg": "kg",
+        "originPort": "Port d'origine",
+        "totalCartons": "Total des cartons",
+        "totalCbm": "Total (m³)",
+        "totalWeight": "Poids total",
+        "trackingNumber": "N° de suivi"
+      },
+      "loading": "Chargement…",
+      "loadError": "Échec du chargement de l'envoi.",
+      "notFound": "Envoi introuvable.",
+      "sections": {
+        "details": "Détails de l'envoi",
+        "documents": "Documents ({{count}})",
+        "milestones": "Jalons de l'envoi"
+      }
+    },
+    "shipments": {
+      "backToBuyer": "← Retour à Logistics",
+      "error": "Échec du chargement de vos envois pour le moment. Réessayez.",
+      "etaLabel": "ETA",
+      "exception": "Exception",
+      "kg": "kg",
+      "lifecycleLabel": "Cycle de vie de l'envoi",
+      "noCarrier": "Aucun transporteur",
+      "openShipment": "Ouvrir l'envoi {{ref}}"
+    },
+    "sourcing": {
+      "error": "Échec du chargement des demandes de sourcing pour le moment. Réessayez.",
+      "headers": {
+        "category": "Catégorie",
+        "lane": "Corridor",
+        "qty": "Qté",
+        "quotes": "Devis",
+        "reference": "Référence",
+        "status": "Statut",
+        "title": "Titre"
+      },
+      "openRequest": "Ouvrir la demande {{ref}}",
+      "tabsLabel": "Demandes de sourcing",
+      "viewRow": "Voir la demande"
+    },
+    "tables": {
+      "actions": "Actions",
+      "view": "Voir"
+    },
+    "warehousing": {
+      "activeReceipts": "{{count}} réceptions actives",
+      "bonded": "Sous douane",
+      "error": "Échec du chargement des opérations d'entrepôt pour le moment. Réessayez.",
+      "headers": {
+        "buyer": "Acheteur",
+        "expected": "Prévu",
+        "qty": "Qté",
+        "received": "Reçu",
+        "reference": "Référence",
+        "releaseMethod": "Méthode de libération",
+        "released": "Libéré",
+        "shortage": "Manquant",
+        "status": "Statut",
+        "warehouse": "Entrepôt"
+      },
+      "sqft": "pi²",
+      "tabsLabel": "Opérations d'entrepôt"
     }
   }
 }
