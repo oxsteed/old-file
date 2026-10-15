@@ -170,7 +170,9 @@
     "changeLanguage": "Chanje lang",
     "languageMenu": "Meni lang",
     "currentLanguage": "Lang aktyèl: {{language}}",
-    "chooseLanguage": "Chwazi {{language}}"
+    "chooseLanguage": "Chwazi {{language}}",
+    "preferred": "preferans",
+    "setPreferred": "Mete {{language}} kòm lang preferans"
   },
   "forms": {
     "country": {

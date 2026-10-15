@@ -170,7 +170,9 @@
     "changeLanguage": "Ubah bahasa",
     "languageMenu": "Menu bahasa",
     "currentLanguage": "Bahasa saat ini: {{language}}",
-    "chooseLanguage": "Pilih {{language}}"
+    "chooseLanguage": "Pilih {{language}}",
+    "preferred": "preferensi",
+    "setPreferred": "Jadikan {{language}} sebagai bahasa preferensi"
   },
   "forms": {
     "country": {

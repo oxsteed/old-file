@@ -170,7 +170,9 @@
     "changeLanguage": "زبان تبدیل کریں",
     "languageMenu": "زبان کا مینو",
     "currentLanguage": "موجودہ زبان: {{language}}",
-    "chooseLanguage": "{{language}} منتخب کریں"
+    "chooseLanguage": "{{language}} منتخب کریں",
+    "preferred": "پسندیدہ",
+    "setPreferred": "{{language}} کو پسندیدہ زبان کے طور پر سیٹ کریں"
   },
   "forms": {
     "country": {

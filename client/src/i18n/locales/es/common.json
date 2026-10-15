@@ -170,7 +170,9 @@
     "changeLanguage": "Cambiar idioma",
     "languageMenu": "Menú de idiomas",
     "currentLanguage": "Idioma actual: {{language}}",
-    "chooseLanguage": "Elegir {{language}}"
+    "chooseLanguage": "Elegir {{language}}",
+    "preferred": "preferido",
+    "setPreferred": "Establecer {{language}} como idioma preferido"
   },
   "forms": {
     "country": {

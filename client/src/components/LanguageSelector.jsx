@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useLanguage } from '../context/LanguageContext';
 
 export default function LanguageSelector({ menuAlign = 'end', appearance }) {
-  const { language, setLanguage, availableLanguages } = useLanguage();
+  const { language, setLanguage, preferredLanguage, setPreferredLanguage, availableLanguages } = useLanguage();
   const { t } = useTranslation('common');
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
@@ -75,7 +75,9 @@ export default function LanguageSelector({ menuAlign = 'end', appearance }) {
             overflow: 'hidden',
           }}
         >
-          {availableLanguages.map(lang => (
+          {availableLanguages.map(lang => {
+            const isPreferred = lang.code === preferredLanguage;
+            return (
             <button
               type="button"
               key={lang.code}
@@ -94,16 +96,37 @@ export default function LanguageSelector({ menuAlign = 'end', appearance }) {
               }}
             >
               <span style={{ fontSize: '1.1rem' }}>{lang.flag}</span>
-              <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '0.1rem' }}>
+              <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '0.1rem', flex: 1 }}>
                 <span>{lang.nativeName || lang.name}</span>
-                {(lang.nativeName && lang.nativeName !== lang.name) ? (
-                  <span style={{ fontSize: '0.72rem', color: 'var(--color-text-muted, var(--color-text-secondary, #6b7280))', fontWeight: 500 }}>
-                    {lang.name}
-                  </span>
-                ) : null}
+                <span style={{ fontSize: '0.72rem', color: 'var(--color-text-muted, var(--color-text-secondary, #6b7280))', fontWeight: 500 }}>
+                  {lang.name}
+                  {isPreferred ? (
+                    <span style={{ color: 'var(--color-primary)', fontWeight: 700 }}>
+                      {' '}· {t('languageSelector.preferred')}
+                    </span>
+                  ) : null}
+                </span>
+              </span>
+              <span
+                role="button"
+                tabIndex={0}
+                aria-label={t('languageSelector.setPreferred', { language: lang.nativeName || lang.name })}
+                title={t('languageSelector.setPreferred', { language: lang.nativeName || lang.name })}
+                onClick={(e) => { e.stopPropagation(); setPreferredLanguage(lang.code); }}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); setPreferredLanguage(lang.code); } }}
+                style={{ display: 'flex', alignItems: 'center', padding: '0.25rem', cursor: 'pointer' }}
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24"
+                  fill={isPreferred ? 'var(--color-primary)' : 'none'}
+                  stroke={isPreferred ? 'var(--color-primary)' : 'currentColor'}
+                  strokeWidth="1.8" strokeLinejoin="round"
+                  style={{ opacity: isPreferred ? 1 : 0.45 }}>
+                  <path d="M12 2.5l2.9 6 6.6.9-4.8 4.6 1.2 6.5L12 17.4 6.1 20.5l1.2-6.5L2.5 9.4l6.6-.9z" />
+                </svg>
               </span>
             </button>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>

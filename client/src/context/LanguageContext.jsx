@@ -46,6 +46,12 @@ function getStoredLanguage() {
   return localStorage.getItem('oxs:language') || detectInitialLanguage();
 }
 
+function getStoredPreferredLanguage() {
+  if (typeof localStorage === 'undefined') return null;
+  const stored = localStorage.getItem('oxs:preferred-language');
+  return stored && SUPPORTED.has(stored) ? stored : null;
+}
+
 function applyDocumentLanguage(code) {
   if (typeof document === 'undefined') return;
   const isRtl = code === 'ar' || code === 'ur';
@@ -60,6 +66,9 @@ function applyDocumentLanguage(code) {
 export function LanguageProvider({ children }) {
   const [language, setLanguageState] = useState(
     () => normalizeLanguage(getStoredLanguage())
+  );
+  const [preferredLanguage, setPreferredLanguageState] = useState(
+    () => getStoredPreferredLanguage() || normalizeLanguage(getStoredLanguage())
   );
 
   useEffect(() => {
@@ -97,10 +106,17 @@ export function LanguageProvider({ children }) {
       setLanguageState(normalizedCode);
       i18n.changeLanguage(normalizedCode);
       applyDocumentLanguage(normalizedCode);
-      void api.patch('/users/me', { preferred_language: normalizedCode })
-        .catch(() => {});
     });
   }, [language]);
+
+  const setPreferredLanguage = useCallback((code) => {
+    const normalizedCode = normalizeLanguage(code);
+    localStorage.setItem('oxs:preferred-language', normalizedCode);
+    setPreferredLanguageState(normalizedCode);
+    // Persist to the account when signed in; used for outbound emails.
+    void api.patch('/users/me', { preferred_language: normalizedCode })
+      .catch(() => {});
+  }, []);
 
   const syncLanguageFromServer = useCallback((code) => {
     if (!code) return;
@@ -108,6 +124,10 @@ export function LanguageProvider({ children }) {
     // authenticated profile fetch silently overwrite it with the server copy.
     if (hasExplicitLanguagePreference(typeof window !== 'undefined' ? window.localStorage : null)) return;
     const normalizedCode = normalizeLanguage(code);
+    // The server's preferred_language becomes both the display language
+    // (first load) and the preferred language for outbound communication.
+    localStorage.setItem('oxs:preferred-language', normalizedCode);
+    setPreferredLanguageState(normalizedCode);
     if (normalizedCode === language) return;
     localStorage.setItem('oxs:language', normalizedCode);
     void ensureLanguageLoaded(normalizedCode).then(() => {
@@ -119,7 +139,7 @@ export function LanguageProvider({ children }) {
   }, [language]);
 
   return (
-    <LanguageContext.Provider value={{ language, setLanguage, syncLanguageFromServer, availableLanguages: LANGUAGES }}>
+    <LanguageContext.Provider value={{ language, setLanguage, preferredLanguage, setPreferredLanguage, syncLanguageFromServer, availableLanguages: LANGUAGES }}>
       {children}
     </LanguageContext.Provider>
   );

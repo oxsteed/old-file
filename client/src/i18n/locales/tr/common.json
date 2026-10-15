@@ -170,7 +170,9 @@
     "changeLanguage": "Dili değiştir",
     "languageMenu": "Dil menüsü",
     "currentLanguage": "Geçerli dil: {{language}}",
-    "chooseLanguage": "{{language}} seçin"
+    "chooseLanguage": "{{language}} seçin",
+    "preferred": "tercih edilen",
+    "setPreferred": "{{language}} dilini tercih edilen dil olarak ayarla"
   },
   "forms": {
     "country": {

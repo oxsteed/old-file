@@ -170,7 +170,9 @@
     "changeLanguage": "更改语言",
     "languageMenu": "语言菜单",
     "currentLanguage": "当前语言：{{language}}",
-    "chooseLanguage": "选择{{language}}"
+    "chooseLanguage": "选择{{language}}",
+    "preferred": "首选",
+    "setPreferred": "将{{language}}设为首选语言"
   },
   "forms": {
     "country": {

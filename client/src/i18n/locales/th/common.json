@@ -170,7 +170,9 @@
     "changeLanguage": "เปลี่ยนภาษา",
     "languageMenu": "เมนูภาษา",
     "currentLanguage": "ภาษาปัจจุบัน: {{language}}",
-    "chooseLanguage": "เลือก {{language}}"
+    "chooseLanguage": "เลือก {{language}}",
+    "preferred": "ที่ต้องการ",
+    "setPreferred": "ตั้ง{{language}}เป็นภาษาที่ต้องการ"
   },
   "forms": {
     "country": {
