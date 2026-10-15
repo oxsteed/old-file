@@ -22,11 +22,11 @@ import '../../styles/logistics/LogisticsCheckout.css';
  *
  * Flow:
  *   1. Load checkout context (order summary, versioned quote, payment
- *      schedule, cancellation terms, Credit rail state). PROPOSED endpoint:
- *      GET /logistics/finance/checkout-context (server workstream).
+ *      schedule, cancellation terms, Credit rail state) via the LIVE
+ *      GET /logistics/finance/checkout-context.
  *   2. If quote.pending_version is non-null, the QuoteAcceptanceGate blocks
  *      payment entirely (never pay against a superseded quote). Acceptance
- *      posts to the PROPOSED POST /logistics/finance/quotes/:id/accept.
+ *      posts to the LIVE POST /logistics/finance/quotes/:id/accept.
  *   3. Buyer picks exactly ONE method per installment: Stripe card or
  *      OxSteed Credit. No mixed funding, no saved-card auto-charge.
  *   4. Dedicated confirmation step: checkbox + explicit confirm button.
@@ -126,9 +126,14 @@ function CheckoutFlow({ context, returnPath, returnLabel, onQuoteAccepted }) {
 
   const creditRailOn = credit?.rail_enabled === true;
   const creditEligible = credit?.eligible !== false;
-  const balanceCents = Number(credit?.balance_cents || 0);
+  // balance_cents is null when the server cannot report a balance (no
+  // per-user balance probe exists yet); null means "unknown", never zero.
+  // The client only warns/blocks on a KNOWN shortfall; the server enforces
+  // the balance at execution time either way.
+  const balanceKnown = credit?.balance_cents !== null && credit?.balance_cents !== undefined;
+  const balanceCents = balanceKnown ? Number(credit.balance_cents) : 0;
   const creditBlocked = !creditRailOn || !creditEligible;
-  const shortfallCents = Math.max(0, amountCents - balanceCents); // integer math only
+  const shortfallCents = balanceKnown ? Math.max(0, amountCents - balanceCents) : 0; // integer math only
 
   const stripeKeyConfigured = Boolean(import.meta.env?.VITE_STRIPE_PUBLISHABLE_KEY);
 
@@ -366,12 +371,20 @@ function CheckoutFlow({ context, returnPath, returnLabel, onQuoteAccepted }) {
                         {tx('logistics.checkout.method.creditNotEligible', 'This order is not eligible for Credit payment.')}
                       </span>
                     )}
-                    {creditRailOn && creditEligible && (
+                    {creditRailOn && creditEligible && balanceKnown && (
                       <span className="lx-method-balance">
                         {tx('logistics.checkout.method.creditBalance', 'Available Credit balance: {{amount}}', { amount: money(balanceCents) })}
                       </span>
                     )}
-                    {creditRailOn && creditEligible && shortfallCents > 0 && (
+                    {creditRailOn && creditEligible && !balanceKnown && (
+                      <span className="lx-method-desc" role="note">
+                        {tx(
+                          'logistics.checkout.method.creditBalanceUnknown',
+                          'Your Credit balance will be checked when you confirm the payment.'
+                        )}
+                      </span>
+                    )}
+                    {creditRailOn && creditEligible && balanceKnown && shortfallCents > 0 && (
                       <span className="lx-method-desc" role="alert" style={{ color: 'var(--color-error)', fontWeight: 700 }}>
                         {tx('logistics.checkout.method.creditInsufficient', 'Insufficient Credit balance')}
                         {' — '}
@@ -649,7 +662,7 @@ function CheckoutPageInner() {
     }
     setLoading(true);
     setError(null);
-    getCheckoutContext(poId ? { purchase_order_id: poId } : { participant_id: participantId })
+    getCheckoutContext(poId ? { orderId: poId } : { participant_id: participantId })
       .then((res) => setContext(res?.data || null))
       .catch((err) => setError(
         err.response?.data?.error
@@ -701,6 +714,34 @@ function CheckoutPageInner() {
     }
 
     const { quote } = context;
+    // No payable quote yet (none published, or only a staff draft): there
+    // is nothing to pay against, so show an informative state instead of
+    // the payment flow.
+    if (!quote) {
+      return (
+        <div className="lx-empty" role="status">
+          <p>
+            <strong>
+              {tx('logistics.checkout.noQuote.title', 'No quote is ready yet')}
+            </strong>
+          </p>
+          <p>
+            {tx(
+              'logistics.checkout.noQuote.body',
+              'Operations has not published a payable quote for this order. You will be notified when it is ready. No payment is due right now.'
+            )}
+          </p>
+          <div className="lx-btn-row lx-mt-6" style={{ justifyContent: 'center' }}>
+            <button type="button" onClick={load} className="lx-action-secondary">
+              {tx('logistics.workspace.dataError.retry', 'Try again')}
+            </button>
+            <Link to="/logistics/buyer" className="lx-action-ghost">
+              {tx('logistics.checkout.backToDashboard', 'Back to buyer dashboard')}
+            </Link>
+          </div>
+        </div>
+      );
+    }
     // A non-null pending_version means a newer quote needs acceptance
     // before any payment (never pay against a superseded quote).
     const needsAcceptance = quote?.pending_version != null;

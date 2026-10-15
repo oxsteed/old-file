@@ -236,22 +236,24 @@ export const getProfitabilitySummary = () =>
   axios.get('/logistics/finance/profitability').then(r => r.data);
 
 // ─── Phase 3: buyer checkout, versioned quotes, payment attempts ─
-// The payment-attempt endpoints below match the LIVE server workstream
-// shapes (server/controllers/logisticsPaymentController.js, in-flight on
-// this branch): POST /api/logistics/checkout/attempt and
-// GET /api/logistics/checkout/attempt/:id, both gated on
-// LOGISTICS_PAYMENTS_ENABLED (503 + code 'logistics_payments_disabled'
-// while off). Quote-context/accept and the buyer attempt list are still
-// documented proposals for the server workstream (see JSDoc).
+// LIVE server workstream (server/controllers/logisticsPaymentController.js
+// + server/services/logisticsQuoteService.js):
+//   POST /api/logistics/checkout/attempt, GET /api/logistics/checkout/attempt/:id,
+//   GET /api/logistics/finance/checkout-context,
+//   POST /api/logistics/finance/quotes, POST /api/logistics/finance/quotes/:id/publish,
+//   POST /api/logistics/finance/quotes/:id/accept,
+//   GET /api/logistics/finance/payment-history.
+// All are gated on LOGISTICS_PAYMENTS_ENABLED (503 + code
+// 'logistics_payments_disabled' while off).
 // All money is integer minor units (USD cents) — the client never computes
 // amounts, it only displays server-provided values.
 
 /**
  * Buyer checkout context for one purchase order or pooled participation.
- * PROPOSED (not yet built): GET /logistics/finance/checkout-context
- *   ?purchase_order_id=123 | ?participant_id=456
+ * LIVE: GET /logistics/finance/checkout-context
+ *   ?orderId=123 | ?participant_id=456
  *
- * Proposed response: { success: true, data: {
+ * Response: { success: true, data: {
  *   subject: { kind: 'purchase_order'|'pooled_participant', id, reference,
  *     title, qty, lane_name, supplier_name, expected_arrival_date, status },
  *   quote: { id, reference, version,
@@ -260,25 +262,62 @@ export const getProfitabilitySummary = () =>
  *     line_items: [{ label, amount_cents }], subtotal_cents, fees_cents,
  *     tax_cents, total_cents, deposit_cents, final_cents, deposit_pct,
  *     schedule: [{ installment: 'deposit'|'final', amount_cents,
- *       paid_cents, status: 'unpaid'|'processing'|'paid'|'settled',
- *       due_at }],
+ *       paid_cents, outstanding_cents,
+ *       status: 'unpaid'|'processing'|'paid'|'settled', due_at }],
  *     deposit_due_at, final_due_at, cancellation_terms,
  *     pending_version: { id, version, line_items, total_cents,
  *       vs_version, changes: [{ label, kind: 'added'|'removed'|'changed',
- *         previous_cents, current_cents }], total_delta_cents } | null },
- *   credit: { rail_enabled, eligible, balance_cents },
+ *         previous_cents, current_cents }], total_delta_cents } | null }
+ *     | null (no payable quote yet),
+ *   credit: { rail_enabled, eligible, balance_cents, code },
+ *   methods: { stripe: { enabled }, credit },
  *   return_label } }
- * Column names mirror migration 873 (logistics_buyer_quotes).
+ * Column names mirror migration 878 (logistics_buyer_quotes).
+ * balance_cents is null when the balance is unknown (there is no
+ * per-user balance probe); the client must not treat null as zero.
+ * 503 + code 'logistics_payments_disabled' while the payments flag is off.
  */
 export const getCheckoutContext = (params = {}) =>
   axios.get('/logistics/finance/checkout-context', { params }).then(r => r.data);
 
 /**
- * Accept a pending quote version before paying.
- * PROPOSED (not yet built): POST /logistics/finance/quotes/:quoteId/accept
+ * Staff: create a draft quote version for an order or participation.
+ * LIVE: POST /logistics/finance/quotes
+ *   { subject_type: 'purchase_order'|'pooled_participant',
+ *     purchase_order_id, participant_id,
+ *     line_items: [{ label, amount_cents }], fees_cents, tax_cents,
+ *     deposit_pct (default 0.30), deposit_due_at, final_due_at,
+ *     cancellation_terms, valid_until }
+ * The server computes subtotal/total/deposit/final in integer cents;
+ * deposit_pct is capped at 4 decimals. The new version number is
+ * max+1 for the subject; the draft must be published before the buyer
+ * can accept it.
+ * Response: { success: true, data: { quote } } (201).
+ */
+export const createQuote = (payload) =>
+  axios.post('/logistics/finance/quotes', payload).then(r => r.data);
+
+/**
+ * Staff: publish a draft quote version (it becomes the pending version
+ * the buyer must accept before paying). Old versions are never mutated;
+ * a previously accepted version stays as immutable history.
+ * LIVE: POST /logistics/finance/quotes/:quoteId/publish
+ * Response: { success: true, data: { quote } }.
+ * 409 codes: 'quote_not_draft' | 'quote_not_latest' | 'not_found'.
+ */
+export const publishQuote = (quoteId) =>
+  axios.post(`/logistics/finance/quotes/${quoteId}/publish`).then(r => r.data);
+
+/**
+ * Accept the pending quote version before paying.
+ * LIVE: POST /logistics/finance/quotes/:quoteId/accept
  *   { idempotency_key }
- * Proposed response: { success: true, data: { quote: { id, version, status: 'accepted' } } }
- * Server must reject acceptance of a superseded/expired version (409).
+ * Response: { success: true, idempotent_replay: bool,
+ *   data: { quote: { id, version, status: 'accepted', accepted_at, ... } } }
+ * The server rejects acceptance of a superseded/expired/draft version
+ * (409: 'quote_superseded' | 'quote_expired' | 'quote_not_published' |
+ * 'quote_not_acceptable' | 'quote_already_accepted'). Accepting twice
+ * converges idempotently on the single accepted row.
  */
 export const acceptQuoteVersion = (quoteId, idempotencyKey) =>
   axios.post(`/logistics/finance/quotes/${quoteId}/accept`, { idempotency_key: idempotencyKey }).then(r => r.data);
@@ -299,7 +338,9 @@ export const acceptQuoteVersion = (quoteId, idempotencyKey) =>
  *      settled_at, created_at, updated_at }
  *  - Stripe: data.client_secret is the PaymentIntent secret; the client
  *    confirms with stripe.js, and ONLY the signed webhook may mark the
- *    attempt 'succeeded' (+ settled_at). client_secret is null on replay.
+ *    attempt 'succeeded' (+ settled_at). On idempotent replay the server
+ *    returns the persisted client secret so an interrupted checkout can
+ *    resume confirmation (null only for credit-method attempts).
  *  - Credit: data.credit = { status: 'pending_execution', ... }; the
  *    parallel Credit workstream executes the debit and settles the attempt.
  *  - Error codes: 'quote_missing' | 'quote_not_accepted' | 'quote_expired' |
@@ -326,15 +367,15 @@ export const getPaymentAttempt = (attemptId) =>
   axios.get(`/logistics/checkout/attempt/${attemptId}`).then(r => r.data);
 
 /**
- * List the buyer's payment attempts (newest first).
- * PROPOSED (not yet built): GET /logistics/finance/payment-attempts
- * Proposed response: { success: true, data: { attempts: [attempt, ...] } }
- * with the public attempt shape from createPaymentAttempt.
- * (The live server only exposes a staff-only reconciliation list at
- * GET /logistics/checkout/reconciliation.)
+ * List the buyer's own payment attempts (newest first).
+ * LIVE: GET /logistics/finance/payment-history
+ * Response: { success: true, data: { attempts: [attempt, ...], total, limit, offset } }
+ * with the public attempt shape from createPaymentAttempt. Optional
+ * filters: subject_type, purchase_order_id, participant_id.
+ * Gated on LOGISTICS_PAYMENTS_ENABLED like the other payment endpoints.
  */
 export const listMyPaymentAttempts = (params = {}) =>
-  axios.get('/logistics/finance/payment-attempts', { params }).then(r => r.data);
+  axios.get('/logistics/finance/payment-history', { params }).then(r => r.data);
 
 // ─── Admin ────────────────────────────────────────────────────
 
