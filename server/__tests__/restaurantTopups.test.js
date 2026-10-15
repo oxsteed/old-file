@@ -907,6 +907,10 @@ describe('restaurant top-up webhook handling', () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [{ id: 77 }] }) // webhook_event_receipts
       .mockResolvedValueOnce({ rows: [{ event_id: 'evt_rt_1' }] }); // watermarks
+    // The logistics webhook handler runs first and looks up the payment
+    // intent in logistics_payment_attempts; a restaurant top-up PI is never
+    // there, so the event must fall through to the restaurant branch.
+    mockQuery.mockResolvedValueOnce({ rows: [] }); // logistics attempt lookup (no match)
     const { queries } = happyPathQueries();
     queries.forEach((q) => mockQuery.mockResolvedValueOnce(q));
     mockQuery.mockResolvedValue({ rows: [] }); // any trailing bookkeeping
