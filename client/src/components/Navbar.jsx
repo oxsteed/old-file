@@ -80,6 +80,7 @@ export const NAVBAR_STYLES = `
             min-width: 0;
             align-items: center;
             flex-wrap: wrap;
+            justify-content: flex-end;
             gap: var(--space-2);
             padding: 0 var(--space-2) var(--space-3);
             margin-bottom: var(--space-1);
@@ -90,6 +91,8 @@ export const NAVBAR_STYLES = `
           .ox-nav-mobile-preferences .ox-biz-switcher__menu {
             inset-inline-start: 0; inset-inline-end: 0; width: auto; max-width: 100%;
           }
+          .ox-nav-mobile-menu { text-align: end; }
+          .ox-nav-mobile-menu .ox-nav-signout { text-align: end; }
         }
         .ox-nav-join-option {
           display: flex;
@@ -573,8 +576,8 @@ function MobileNavLink({ to, children, onClick, active, primary }) {
     transition: 'background var(--transition-fast), color var(--transition-fast)',
     color: primary ? 'var(--color-on-action)' : active ? 'var(--color-primary)' : 'var(--color-nav-link)',
     background: primary ? 'var(--color-action)' : 'transparent',
-    textAlign: 'start',
-    justifyContent: 'flex-start',
+    textAlign: 'end',
+    justifyContent: 'flex-end',
     marginTop: primary ? 'var(--space-2)' : 0,
   };
 
