@@ -2,23 +2,33 @@ import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { listWarehouses, listInventoryReceipts, listAllocations, listDeliveries } from '../../api/logistics';
 import PageShell from '../../components/PageShell';
+import LogisticsLayout from '../../components/logistics/LogisticsLayout';
+import LogisticsStatusPill from '../../components/logistics/LogisticsStatusPill';
 import '../../styles/logistics/LogisticsHomePage.css';
+import '../../styles/logistics/LogisticsWorkspaces.css';
 
-const RECEIPT_COLOR = {
-  expected:'#94a3b8', receiving:'#f59e0b', reconciled:'#22c55e',
-  discrepancy:'#dc2626', closed:'#475569',
-};
-
+/**
+ * WarehousingPage - inventory receipts, allocations, deliveries, warehouses
+ * (Phase 2 refactor).
+ *
+ * Keyboard-operable tabs (role=tablist, aria-selected, 44px targets);
+ * receipt/allocation/delivery status pills use theme tokens; bonded badge
+ * and shortage coloring use token classes.
+ */
 export default function WarehousingPage() {
   const { t } = useTranslation();
+  const tx = (key, fallback, opts = {}) => t(key, { defaultValue: fallback, ...opts });
   const [tab, setTab]               = useState('receipts');
   const [warehouses, setWarehouses] = useState([]);
   const [receipts, setReceipts]     = useState([]);
   const [allocations, setAllocations] = useState([]);
   const [deliveries, setDeliveries] = useState([]);
   const [loading, setLoading]       = useState(true);
+  const [error, setError]           = useState(false);
 
-  useEffect(() => {
+  const load = () => {
+    setLoading(true);
+    setError(false);
     Promise.all([
       listWarehouses(),
       listInventoryReceipts({ limit: 30 }),
@@ -29,168 +39,188 @@ export default function WarehousingPage() {
       setReceipts(rRes.data || []);
       setAllocations(aRes.data || []);
       setDeliveries(dRes.data || []);
-    }).catch(() => {}).finally(() => setLoading(false));
-  }, []);
+    }).catch(() => setError(true)).finally(() => setLoading(false));
+  };
+
+  useEffect(() => { load(); }, []);
 
   const TABS = [
-    { key:'receipts',    label: t('logistics.warehousing.receipts','Inventory Receipts') },
-    { key:'allocations', label: t('logistics.warehousing.allocations','Allocations') },
-    { key:'deliveries',  label: t('logistics.warehousing.deliveries','Delivery Orders') },
-    { key:'warehouses',  label: t('logistics.warehousing.warehouses','Warehouses') },
+    { key: 'receipts',    label: tx('logistics.warehousing.receipts', 'Inventory Receipts') },
+    { key: 'allocations', label: tx('logistics.warehousing.allocations', 'Allocations') },
+    { key: 'deliveries',  label: tx('logistics.warehousing.deliveries', 'Delivery Orders') },
+    { key: 'warehouses',  label: tx('logistics.warehousing.warehouses', 'Warehouses') },
   ];
 
   return (
     <PageShell>
-      <div className="lx-page">
-      <div className="lx-page-header">
-        <h1 className="lx-page-title">{t('logistics.warehousing.title','Warehousing & Distribution')}</h1>
-        <p className="lx-page-sub">{t('logistics.warehousing.subtitle','Receive, reconcile, allocate, and release inventory to buyers.')}</p>
-      </div>
+      <LogisticsLayout
+        title={tx('logistics.warehousing.title', 'Warehousing & Distribution')}
+        subtitle={tx('logistics.warehousing.subtitle', 'Receive, reconcile, allocate, and release inventory to buyers.')}
+      >
+        <div className="lx-workspaces">
+          {/* Tab bar */}
+          <div className="lx-tabs" role="tablist" aria-label={tx('logistics.warehousing.tabsLabel', 'Warehousing views')}>
+            {TABS.map((tb) => (
+              <button
+                key={tb.key}
+                role="tab"
+                type="button"
+                className="lx-tab"
+                aria-selected={tab === tb.key}
+                onClick={() => setTab(tb.key)}
+              >
+                {tb.label}
+              </button>
+            ))}
+          </div>
 
-      {/* Tab bar */}
-      <div style={{ display:'flex', gap:'.25rem', borderBottom:'2px solid #e2e8f0', marginBottom:'1.5rem' }}>
-        {TABS.map(tb => (
-          <button key={tb.key}
-            style={{
-              padding:'.6rem 1.25rem', border:'none', background:'none',
-              fontWeight: tab === tb.key ? 700 : 500,
-              color: tab === tb.key ? '#f97316' : '#64748b',
-              borderBottom: tab === tb.key ? '2px solid #f97316' : '2px solid transparent',
-              marginBottom:'-2px', cursor:'pointer', fontSize:'.875rem',
-            }}
-            onClick={() => setTab(tb.key)}
-          >{tb.label}</button>
-        ))}
-      </div>
-
-      {loading && <div className="lx-loading">Loading…</div>}
-
-      {tab === 'warehouses' && (
-        <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(280px, 1fr))', gap:'1rem' }}>
-          {warehouses.map(w => (
-            <div key={w.id} className="lx-card">
-              <div style={{ display:'flex', justifyContent:'space-between', marginBottom:'.5rem' }}>
-                <span style={{ fontSize:'.72rem', color:'#64748b', fontWeight:700 }}>🏭 {w.country} · {w.city}</span>
-                {w.is_bonded && <span style={{ background:'#fef3c7', color:'#92400e', fontSize:'.7rem', padding:'.1rem .5rem', borderRadius:999, fontWeight:700 }}>Bonded</span>}
-              </div>
-              <h3 style={{ fontWeight:700, fontSize:'1rem', margin:'0 0 .4rem' }}>{w.name}</h3>
-              <div style={{ fontSize:'.8rem', color:'#64748b' }}>
-                {w.active_receipts} active receipts
-                {w.total_sqft && ` · ${w.total_sqft.toLocaleString()} sqft`}
-              </div>
-            </div>
-          ))}
-          {warehouses.length === 0 && !loading && (
-            <div className="lx-empty" style={{ gridColumn:'1/-1' }}>
-              <div className="lx-empty-icon">🏭</div>
-              <p>No warehouses configured yet.</p>
+          {loading && (
+            <div className="lx-loading" role="status" aria-live="polite">
+              <span className="lx-spinner" aria-hidden="true" />
+              {tx('logistics.modal.loading', 'Loading…')}
             </div>
           )}
-        </div>
-      )}
 
-      {tab === 'receipts' && (
-        <div className="lx-table-wrap">
-          <table className="lx-table">
-            <thead>
-              <tr>
-                <th>Reference</th><th>Warehouse</th><th>Expected</th>
-                <th>Received</th><th>Shortage</th><th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {receipts.map(r => (
-                <tr key={r.id}>
-                  <td><code style={{ fontSize:'.78rem' }}>{r.reference}</code></td>
-                  <td>{r.warehouse_name}</td>
-                  <td>{r.expected_qty}</td>
-                  <td style={{ fontWeight: r.received_qty >= r.expected_qty ? 700 : 400,
-                    color: r.received_qty >= r.expected_qty ? '#22c55e' : 'inherit' }}>
-                    {r.received_qty || 0}
-                  </td>
-                  <td style={{ color: r.shortage_qty > 0 ? '#dc2626' : 'inherit' }}>
-                    {r.shortage_qty || 0}
-                  </td>
-                  <td>
-                    <span className="lx-status-pill" style={{ background: RECEIPT_COLOR[r.status]||'#64748b' }}>
-                      {r.status}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-              {receipts.length === 0 && !loading && (
-                <tr><td colSpan={6} style={{ textAlign:'center', color:'#94a3b8', padding:'2rem' }}>No inventory receipts.</td></tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      )}
+          {!loading && error && (
+            <div className="lx-data-error-banner" role="alert">
+              <div>
+                <h2>{tx('logistics.workspace.dataError.title', 'Data unavailable')}</h2>
+                <p>{tx('logistics.warehousing.error', "We couldn't load warehousing data right now. Please try again.")}</p>
+              </div>
+              <button type="button" className="lx-btn-secondary" onClick={load}>
+                {tx('logistics.workspace.dataError.retry', 'Try again')}
+              </button>
+            </div>
+          )}
 
-      {tab === 'allocations' && (
-        <div className="lx-table-wrap">
-          <table className="lx-table">
-            <thead>
-              <tr>
-                <th>Buyer</th><th>Qty</th><th>Status</th><th>Warehouse</th><th>Release Method</th><th>Released</th>
-              </tr>
-            </thead>
-            <tbody>
-              {allocations.map(a => (
-                <tr key={a.id}>
-                  <td>{a.buyer_name || a.buyer_user_id?.slice(0,8)+'…'}</td>
-                  <td style={{ fontWeight:700 }}>{a.allocated_qty}</td>
-                  <td>
-                    <span className="lx-status-pill" style={{
-                      background: {pending:'#94a3b8',ready:'#22c55e',released:'#3b82f6',delivered:'#10b981',disputed:'#ef4444'}[a.status]||'#64748b'
-                    }}>{a.status}</span>
-                  </td>
-                  <td>{a.warehouse_name}</td>
-                  <td style={{ fontSize:'.8rem' }}>{a.release_method?.replace(/_/g,' ')}</td>
-                  <td style={{ fontSize:'.8rem', color:'#64748b' }}>
-                    {a.released_at ? new Date(a.released_at).toLocaleDateString() : '—'}
-                  </td>
-                </tr>
-              ))}
-              {allocations.length === 0 && !loading && (
-                <tr><td colSpan={6} style={{ textAlign:'center', color:'#94a3b8', padding:'2rem' }}>No allocations.</td></tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      {tab === 'deliveries' && (
-        <div style={{ display:'grid', gap:'1rem' }}>
-          {deliveries.map(d => (
-            <div key={d.id} className="lx-card">
-              <div style={{ display:'flex', justifyContent:'space-between', flexWrap:'wrap', gap:'.5rem' }}>
-                <div>
-                  <code style={{ fontSize:'.78rem', color:'#64748b' }}>{d.reference}</code>
-                  <div style={{ fontWeight:700, marginTop:'.2rem' }}>{d.recipient_name || '—'}</div>
-                  <div style={{ fontSize:'.8rem', color:'#64748b' }}>
-                    {d.delivery_city}, {d.delivery_country} · {d.method?.replace(/_/g,' ')}
+          {!loading && !error && tab === 'warehouses' && (
+            <div role="tabpanel" className="lx-campaign-grid">
+              {warehouses.map((w) => (
+                <div key={w.id} className="lx-card">
+                  <div className="lx-item-card-head lx-mb-4">
+                    <span className="lx-t-xs lx-t-faint lx-t-bold">🏭 {w.country} · {w.city}</span>
+                    {w.is_bonded && <span className="lx-tag lx-tag--warning">{tx('logistics.warehousing.bonded', 'Bonded')}</span>}
+                  </div>
+                  <h3 className="lx-t-semibold" style={{ fontSize: '1rem', margin: '0 0 .4rem' }}>{w.name}</h3>
+                  <div className="lx-t-xs lx-t-faint">
+                    {tx('logistics.warehousing.activeReceipts', '{{count}} active receipts', { count: w.active_receipts })}
+                    {w.total_sqft && ` · ${w.total_sqft.toLocaleString()} ${tx('logistics.warehousing.sqft', 'sqft')}`}
                   </div>
                 </div>
-                <span className="lx-status-pill" style={{
-                  background: {pending:'#94a3b8',assigned:'#3b82f6',in_transit:'#f59e0b',delivered:'#22c55e',failed:'#ef4444',cancelled:'#64748b'}[d.status]||'#64748b'
-                }}>{d.status}</span>
-              </div>
-              {d.tracking_number && (
-                <div style={{ fontSize:'.8rem', marginTop:'.5rem', color:'#64748b' }}>
-                  📦 {d.carrier} · {d.tracking_number}
+              ))}
+              {warehouses.length === 0 && (
+                <div className="lx-empty" style={{ gridColumn: '1/-1' }}>
+                  <div className="lx-empty-icon" aria-hidden="true">🏭</div>
+                  <p>{tx('logistics.warehousing.noWarehouses', 'No warehouses configured yet.')}</p>
                 </div>
               )}
             </div>
-          ))}
-          {deliveries.length === 0 && !loading && (
-            <div className="lx-empty">
-              <div className="lx-empty-icon">🚚</div>
-              <p>No delivery orders.</p>
+          )}
+
+          {!loading && !error && tab === 'receipts' && (
+            <div role="tabpanel" className="lx-table-wrap">
+              <table className="lx-table">
+                <thead>
+                  <tr>
+                    <th>{tx('logistics.warehousing.headers.reference', 'Reference')}</th>
+                    <th>{tx('logistics.warehousing.headers.warehouse', 'Warehouse')}</th>
+                    <th>{tx('logistics.warehousing.headers.expected', 'Expected')}</th>
+                    <th>{tx('logistics.warehousing.headers.received', 'Received')}</th>
+                    <th>{tx('logistics.warehousing.headers.shortage', 'Shortage')}</th>
+                    <th>{tx('logistics.warehousing.headers.status', 'Status')}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {receipts.map((r) => {
+                    const full = (r.received_qty || 0) >= (r.expected_qty || 0);
+                    return (
+                      <tr key={r.id}>
+                        <td><span className="lx-code">{r.reference}</span></td>
+                        <td>{r.warehouse_name}</td>
+                        <td>{r.expected_qty}</td>
+                        <td className="lx-t-bold" style={{ color: full ? 'var(--color-success)' : 'inherit' }}>
+                          {r.received_qty || 0}
+                        </td>
+                        <td style={{ color: r.shortage_qty > 0 ? 'var(--color-error)' : 'inherit' }}>
+                          {r.shortage_qty || 0}
+                        </td>
+                        <td><LogisticsStatusPill status={r.status} /></td>
+                      </tr>
+                    );
+                  })}
+                  {receipts.length === 0 && (
+                    <tr><td colSpan={6} className="lx-table-empty-cell">{tx('logistics.warehousing.noReceipts', 'No inventory receipts.')}</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {!loading && !error && tab === 'allocations' && (
+            <div role="tabpanel" className="lx-table-wrap">
+              <table className="lx-table">
+                <thead>
+                  <tr>
+                    <th>{tx('logistics.warehousing.headers.buyer', 'Buyer')}</th>
+                    <th>{tx('logistics.warehousing.headers.qty', 'Qty')}</th>
+                    <th>{tx('logistics.warehousing.headers.status', 'Status')}</th>
+                    <th>{tx('logistics.warehousing.headers.warehouse', 'Warehouse')}</th>
+                    <th>{tx('logistics.warehousing.headers.releaseMethod', 'Release Method')}</th>
+                    <th>{tx('logistics.warehousing.headers.released', 'Released')}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {allocations.map((a) => (
+                    <tr key={a.id}>
+                      <td>{a.buyer_name || (a.buyer_user_id ? `${a.buyer_user_id.slice(0, 8)}…` : '—')}</td>
+                      <td className="lx-t-bold">{a.allocated_qty}</td>
+                      <td><LogisticsStatusPill status={a.status} /></td>
+                      <td>{a.warehouse_name}</td>
+                      <td className="lx-t-xs">{a.release_method?.replace(/_/g, ' ')}</td>
+                      <td className="lx-t-xs lx-t-faint">
+                        {a.released_at ? new Date(a.released_at).toLocaleDateString() : '—'}
+                      </td>
+                    </tr>
+                  ))}
+                  {allocations.length === 0 && (
+                    <tr><td colSpan={6} className="lx-table-empty-cell">{tx('logistics.warehousing.noAllocations', 'No allocations.')}</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {!loading && !error && tab === 'deliveries' && (
+            <div role="tabpanel" className="lx-compact-stack">
+              {deliveries.map((d) => (
+                <div key={d.id} className="lx-card">
+                  <div className="lx-item-card-head">
+                    <div>
+                      <span className="lx-code">{d.reference}</span>
+                      <div className="lx-t-bold lx-t-small lx-mt-6" style={{ marginTop: '.2rem' }}>{d.recipient_name || '—'}</div>
+                      <div className="lx-t-xs lx-t-faint">
+                        {d.delivery_city}, {d.delivery_country} · {d.method?.replace(/_/g, ' ')}
+                      </div>
+                    </div>
+                    <LogisticsStatusPill status={d.status} />
+                  </div>
+                  {d.tracking_number && (
+                    <div className="lx-t-xs lx-t-faint lx-mt-6">
+                      📦 {d.carrier} · {d.tracking_number}
+                    </div>
+                  )}
+                </div>
+              ))}
+              {deliveries.length === 0 && (
+                <div className="lx-empty">
+                  <div className="lx-empty-icon" aria-hidden="true">🚚</div>
+                  <p>{tx('logistics.warehousing.noDeliveries', 'No delivery orders.')}</p>
+                </div>
+              )}
             </div>
           )}
         </div>
-      )}
-      </div>
+      </LogisticsLayout>
     </PageShell>
   );
 }

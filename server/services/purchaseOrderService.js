@@ -4,29 +4,14 @@ const crypto = require('crypto');
 const { logLogisticsAction } = require('./logisticsAuditService');
 const { calculateLandedCost } = require('./logisticsPricingService');
 
-const VALID_TRANSITIONS = {
-  draft:               ['quoted','cancelled'],
-  quoted:              ['approved','draft','cancelled'],
-  approved:            ['awaiting_deposit','cancelled'],
-  awaiting_deposit:    ['deposit_collected','cancelled'],
-  deposit_collected:   ['placed_with_supplier','cancelled'],
-  placed_with_supplier:['in_production','cancelled'],
-  in_production:       ['production_complete','cancelled'],
-  production_complete: ['ready_for_pickup'],
-  ready_for_pickup:    ['in_transit'],
-  in_transit:          ['customs_review','cleared'],
-  customs_review:      ['cleared','customs_review'],
-  cleared:             ['warehoused'],
-  warehoused:          ['allocated'],
-  allocated:           ['fulfilled'],
-  fulfilled:           ['closed'],
-  closed:              [],
-  cancelled:           [],
-};
+const { purchaseOrder: poMachine, PO_TRANSITIONS, applyTransition } = require('./logisticsStateMachine');
 
-function canTransition(from, to) {
-  return (VALID_TRANSITIONS[from] || []).includes(to);
-}
+// Canonical transition graph lives in logisticsStateMachine.js (and is
+// mirrored by DB migration 605's purchase_order_state_integrity_guard
+// trigger). These aliases stay for backward compatibility with any
+// importers of the old local names.
+const VALID_TRANSITIONS = PO_TRANSITIONS;
+const canTransition = poMachine.canTransition;
 
 async function generatePORef() {
   const year = new Date().getFullYear();
@@ -142,41 +127,44 @@ async function listPurchaseOrders({
 }
 
 async function transitionStatus(id, toStatus, actorUserId, { notes, approvedBy } = {}) {
-  const before = await pool.query('SELECT status FROM purchase_orders WHERE id = $1', [id]);
-  const fromStatus = before.rows[0]?.status;
-  if (!fromStatus) throw new Error('purchase_order_not_found');
-  if (!canTransition(fromStatus, toStatus)) {
-    throw Object.assign(new Error(`Cannot transition from ${fromStatus} to ${toStatus}`), { code: 'invalid_transition' });
-  }
-
-  const extra = {};
+  // Transactional: the current status is re-read with FOR UPDATE inside the
+  // state machine's transaction, so two concurrent transitions cannot both
+  // pass validation against the same stale status.
+  const set = {};
+  const nowColumns = [];
   if (toStatus === 'approved' && approvedBy) {
-    extra.approved_by = approvedBy;
-    extra.approved_at = 'NOW()';
+    set.approved_by = approvedBy;
+    nowColumns.push('approved_at');
   }
-  if (toStatus === 'placed_with_supplier') {
-    extra.placed_with_supplier_at = 'NOW()';
+  if (toStatus === 'placed_with_supplier') nowColumns.push('placed_with_supplier_at');
+
+  const result = await applyTransition(pool, {
+    entityType: 'purchase_order',
+    id,
+    to: toStatus,
+    actorUserId,
+    set,
+    nowColumns,
+    appendNotes: notes ? { column: 'internal_notes', text: `\n${notes}` } : null,
+  });
+  if (!result.ok) {
+    if (result.reason === 'not_found') throw new Error('purchase_order_not_found');
+    if (result.reason === 'unknown_entity_type' || result.reason === 'missing_target_status') {
+      throw Object.assign(new Error('invalid_target_status'), { code: 'invalid_transition' });
+    }
+    throw Object.assign(
+      new Error(`Cannot transition from ${result.from} to ${result.to}`),
+      { code: 'invalid_transition' }
+    );
   }
 
-  const sets = [`status = $1`];
-  const params = [toStatus, id];
-  if (toStatus === 'approved' && approvedBy) {
-    sets.push(`approved_by = $${params.push(approvedBy)}`, `approved_at = NOW()`);
-  }
-  if (toStatus === 'placed_with_supplier') sets.push(`placed_with_supplier_at = NOW()`);
-  if (notes) sets.push(`internal_notes = COALESCE(internal_notes,'') || $${params.push('\n' + notes)}`);
-
-  const result = await pool.query(
-    `UPDATE purchase_orders SET ${sets.join(',')} WHERE id = $${params.indexOf(id)+1} RETURNING *`,
-    params
-  );
   logLogisticsAction('purchase_order', id, `status_to_${toStatus}`, {
     actorUserId,
-    beforeState: { status: fromStatus },
-    afterState: { status: toStatus },
+    beforeState: { status: result.from },
+    afterState: { status: result.to },
     notes,
   });
-  return result.rows[0];
+  return result.record;
 }
 
 module.exports = {

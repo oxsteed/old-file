@@ -2,16 +2,19 @@ import React, { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { getOrder } from '../../api/logistics';
 import { useTranslation } from 'react-i18next';
+import PageShell from '../../components/PageShell';
+import LogisticsLayout from '../../components/logistics/LogisticsLayout';
+import LogisticsStatusPill from '../../components/logistics/LogisticsStatusPill';
 import '../../styles/logistics/LogisticsHomePage.css';
+import '../../styles/logistics/LogisticsWorkspaces.css';
 
-const STATUS_COLOR = {
-  draft:'#94a3b8', quoted:'#f59e0b', approved:'#22c55e', awaiting_deposit:'#fb923c',
-  deposit_collected:'#8b5cf6', placed_with_supplier:'#3b82f6', in_production:'#06b6d4',
-  production_complete:'#10b981', ready_for_pickup:'#22d3ee', in_transit:'#0284c7',
-  customs_review:'#dc2626', cleared:'#16a34a', warehoused:'#7c3aed',
-  allocated:'#0891b2', fulfilled:'#059669', closed:'#475569', cancelled:'#ef4444',
-};
-
+/**
+ * OrderDetailPage - purchase order detail (Phase 2 refactor).
+ *
+ * Now renders inside PageShell + the shared LogisticsLayout (previously it
+ * skipped the site chrome entirely). Financial stack and overview use
+ * token-based key/value rows; the status pill uses theme tokens.
+ */
 export default function OrderDetailPage() {
   const { t } = useTranslation();
   const tx = (key, fallback, opts = {}) => t(key, { defaultValue: fallback, ...opts });
@@ -25,109 +28,130 @@ export default function OrderDetailPage() {
     setError(null);
     getOrder(id)
       .then((r) => setOrder(r.data))
-      .catch((err) => setError(err.response?.data?.error || tx('orderDetailPage.loadError', 'Failed to load order.')))
+      .catch((err) => setError(err.response?.data?.error || tx('logistics.orderDetail.loadError', 'Failed to load order.')))
       .finally(() => setLoading(false));
   };
 
   useEffect(() => { load(); }, [id]);
 
-  if (loading) return <div className="lx-page"><div className="lx-loading">{tx('orderDetailPage.loading', 'Loading…')}</div></div>;
-  if (error) return (
-    <div className="lx-page">
-      <div className="lx-error">
-        <p>{error}</p>
-        <button type="button" onClick={load} className="lx-btn">{tx('common.retry', 'Retry')}</button>
-      </div>
-    </div>
-  );
-  if (!order) return (
-    <div className="lx-page">
-      <div className="lx-error">
-        <p>{tx('orderDetailPage.notFound', 'Purchase order not found.')}</p>
-        <Link to="/logistics/orders" className="lx-link">{tx('orderDetailPage.backToOrders', '← Back to Orders')}</Link>
-      </div>
-    </div>
-  );
+  const renderBody = () => {
+    if (loading) {
+      return (
+        <div className="lx-loading" role="status" aria-live="polite">
+          <span className="lx-spinner" aria-hidden="true" />
+          {tx('logistics.orderDetail.loading', 'Loading…')}
+        </div>
+      );
+    }
+    if (error) {
+      return (
+        <div className="lx-empty" role="alert">
+          <p>{error}</p>
+          <button type="button" onClick={load} className="lx-action-secondary">
+            {tx('logistics.workspace.dataError.retry', 'Try again')}
+          </button>
+        </div>
+      );
+    }
+    if (!order) {
+      return (
+        <div className="lx-empty" role="alert">
+          <p>{tx('logistics.orderDetail.notFound', 'Purchase order not found.')}</p>
+          <Link to="/logistics/orders" className="lx-link">{tx('logistics.orderDetail.backToOrders', '← Back to Orders')}</Link>
+        </div>
+      );
+    }
 
-  const remaining = Math.max(0, parseFloat(order.final_due_usd || 0) - parseFloat(order.final_paid_usd || 0));
+    const remaining = Math.max(0, parseFloat(order.final_due_usd || 0) - parseFloat(order.final_paid_usd || 0));
+    const financeRows = [
+      [tx('logistics.orderDetail.finance.productTotal', 'Product total'), order.total_product_usd],
+      [tx('logistics.orderDetail.finance.originHandling', 'Origin handling'), order.origin_handling_usd],
+      [tx('logistics.orderDetail.finance.sourcingFee', 'Sourcing fee'), order.sourcing_fee_usd],
+      [tx('logistics.orderDetail.finance.oxsteedMarkup', 'OxSteed markup'), order.oxsteed_markup_usd],
+      [tx('logistics.orderDetail.finance.freightEstimate', 'Freight estimate'), order.freight_est_usd],
+      [tx('logistics.orderDetail.finance.customsAdmin', 'Customs/admin'), order.customs_admin_usd],
+      [tx('logistics.orderDetail.finance.warehouseFee', 'Warehouse fee'), order.warehouse_fee_usd],
+      [tx('logistics.orderDetail.finance.lastMile', 'Last mile'), order.last_mile_usd],
+      [tx('logistics.orderDetail.finance.riskSurcharge', 'Risk surcharge'), order.risk_surcharge_usd],
+    ];
+
+    return (
+      <>
+        <div className="lx-card lx-mb-6">
+          <div className="lx-detail-head">
+            <div>
+              <p className="lx-detail-kicker">{order.reference}</p>
+              <h2 className="lx-detail-title" style={{ fontSize: 'var(--text-2xl)' }}>
+                {order.product_title || tx('logistics.orderDetail.defaults.purchaseOrder', 'Purchase Order')}
+              </h2>
+              <p className="lx-detail-sub">{order.lane_name} · {order.origin_country} → {order.destination_country}</p>
+            </div>
+            <LogisticsStatusPill status={order.status} />
+          </div>
+        </div>
+
+        <div className="lx-two-col">
+          <div className="lx-card">
+            <h3 className="lx-card-title lx-mb-4">{tx('logistics.orderDetail.sections.overview', 'Order overview')}</h3>
+            <div className="lx-kv-list">
+              <div className="lx-kv-row"><span className="lx-kv-label">{tx('logistics.orderDetail.labels.supplier', 'Supplier')}</span><span className="lx-kv-value">{order.supplier_name || '—'}</span></div>
+              <div className="lx-kv-row"><span className="lx-kv-label">{tx('logistics.orderDetail.labels.buyer', 'Buyer')}</span><span className="lx-kv-value">{order.business_name || order.buyer_name || '—'}</span></div>
+              <div className="lx-kv-row"><span className="lx-kv-label">{tx('logistics.orderDetail.labels.quantity', 'Quantity')}</span><span className="lx-kv-value">{order.qty_ordered}</span></div>
+              <div className="lx-kv-row"><span className="lx-kv-label">{tx('logistics.orderDetail.labels.freightOption', 'Freight option')}</span><span className="lx-kv-value">{order.freight_option?.replace(/_/g, ' ') || '—'}</span></div>
+              <div className="lx-kv-row"><span className="lx-kv-label">{tx('logistics.orderDetail.labels.incoterms', 'Incoterms')}</span><span className="lx-kv-value">{order.incoterms || '—'}</span></div>
+              <div className="lx-kv-row"><span className="lx-kv-label">{tx('logistics.orderDetail.labels.expectedProductionComplete', 'Expected production complete')}</span><span className="lx-kv-value">{order.expected_production_complete ? new Date(order.expected_production_complete).toLocaleDateString() : '—'}</span></div>
+              <div className="lx-kv-row"><span className="lx-kv-label">{tx('logistics.orderDetail.labels.expectedShipDate', 'Expected ship date')}</span><span className="lx-kv-value">{order.expected_ship_date ? new Date(order.expected_ship_date).toLocaleDateString() : '—'}</span></div>
+              <div className="lx-kv-row"><span className="lx-kv-label">{tx('logistics.orderDetail.labels.expectedArrival', 'Expected arrival')}</span><span className="lx-kv-value">{order.expected_arrival_date ? new Date(order.expected_arrival_date).toLocaleDateString() : '—'}</span></div>
+              <div className="lx-kv-row"><span className="lx-kv-label">{tx('logistics.orderDetail.labels.destination', 'Destination')}</span><span className="lx-kv-value">{order.destination_address || order.destination_country || '—'}</span></div>
+            </div>
+          </div>
+
+          <div className="lx-card">
+            <h3 className="lx-card-title lx-mb-4">{tx('logistics.orderDetail.sections.financial', 'Financial stack')}</h3>
+            <div className="lx-kv-list">
+              {financeRows.map(([label, value]) => (
+                <div key={label} className="lx-kv-row">
+                  <span className="lx-kv-label">{label}</span>
+                  <span className="lx-kv-value">{value ? `$${parseFloat(value).toFixed(2)}` : '—'}</span>
+                </div>
+              ))}
+            </div>
+            <div className="lx-kv-divider">
+              <div className="lx-kv-row">
+                <span className="lx-kv-label lx-t-semibold lx-t-muted">{tx('logistics.orderDetail.totals.totalLanded', 'Total landed')}</span>
+                <span className="lx-kv-value lx-kv-total">${parseFloat(order.total_landed_usd || 0).toFixed(2)}</span>
+              </div>
+              <div className="lx-kv-row">
+                <span className="lx-kv-label">{tx('logistics.orderDetail.totals.depositDue', 'Deposit due')}</span>
+                <span className="lx-kv-value">${parseFloat(order.deposit_due_usd || 0).toFixed(2)}</span>
+              </div>
+              <div className="lx-kv-row">
+                <span className="lx-kv-label">{tx('logistics.orderDetail.totals.finalDue', 'Final due')}</span>
+                <span className="lx-kv-value">${parseFloat(order.final_due_usd || 0).toFixed(2)}</span>
+              </div>
+              <div className="lx-kv-row">
+                <span className="lx-kv-label">{tx('logistics.orderDetail.totals.remaining', 'Remaining')}</span>
+                <span className="lx-kv-value">{remaining ? `$${remaining.toFixed(2)}` : '$0.00'}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </>
+    );
+  };
 
   return (
-    <div className="lx-page">
-      <div style={{ marginBottom: '1rem' }}>
-        <Link to="/logistics/orders" className="lx-link">
-          {tx('orderDetailPage.backToOrders', '← Back to Orders')}
-        </Link>
-      </div>
-
-      <div className="lx-card" style={{ marginBottom: '1.5rem' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
-          <div>
-            <div style={{ fontSize: '.78rem', color: '#64748b', fontWeight: 700 }}>{order.reference}</div>
-            <h1 style={{ fontSize: '1.65rem', fontWeight: 800, margin: '.35rem 0' }}>{order.product_title || tx('orderDetailPage.defaults.purchaseOrder', 'Purchase Order')}</h1>
-            <p style={{ color: '#64748b', margin: 0 }}>{order.lane_name} · {order.origin_country} → {order.destination_country}</p>
+    <PageShell>
+      <LogisticsLayout showNav={false}>
+        <div className="lx-workspaces">
+          <div className="lx-back-row">
+            <Link to="/logistics/orders" className="lx-link">
+              {tx('logistics.orderDetail.backToOrders', '← Back to Orders')}
+            </Link>
           </div>
-          <span className="lx-status-pill" style={{ background: STATUS_COLOR[order.status] || '#64748b', alignSelf: 'flex-start' }}>
-            {tx(`orderDetailPage.statuses.${order.status}`, order.status?.replace(/_/g, ' '))}
-          </span>
+          {renderBody()}
         </div>
-      </div>
-
-      <div className="lx-detail-grid">
-        <div className="lx-card">
-          <h3 style={{ fontWeight: 700, marginBottom: '1rem' }}>{tx('orderDetailPage.sections.overview', 'Order overview')}</h3>
-          <div style={{ display: 'grid', gap: '.55rem', fontSize: '.88rem' }}>
-            <div><strong>{tx('orderDetailPage.labels.supplier', 'Supplier')}:</strong> {order.supplier_name || '—'}</div>
-            <div><strong>{tx('orderDetailPage.labels.buyer', 'Buyer')}:</strong> {order.business_name || order.buyer_name || '—'}</div>
-            <div><strong>{tx('orderDetailPage.labels.quantity', 'Quantity')}:</strong> {order.qty_ordered}</div>
-            <div><strong>{tx('orderDetailPage.labels.freightOption', 'Freight option')}:</strong> {order.freight_option?.replace(/_/g, ' ') || '—'}</div>
-            <div><strong>{tx('orderDetailPage.labels.incoterms', 'Incoterms')}:</strong> {order.incoterms || '—'}</div>
-            <div><strong>{tx('orderDetailPage.labels.expectedProductionComplete', 'Expected production complete')}:</strong> {order.expected_production_complete ? new Date(order.expected_production_complete).toLocaleDateString() : '—'}</div>
-            <div><strong>{tx('orderDetailPage.labels.expectedShipDate', 'Expected ship date')}:</strong> {order.expected_ship_date ? new Date(order.expected_ship_date).toLocaleDateString() : '—'}</div>
-            <div><strong>{tx('orderDetailPage.labels.expectedArrival', 'Expected arrival')}:</strong> {order.expected_arrival_date ? new Date(order.expected_arrival_date).toLocaleDateString() : '—'}</div>
-            <div><strong>{tx('orderDetailPage.labels.destination', 'Destination')}:</strong> {order.destination_address || order.destination_country || '—'}</div>
-          </div>
-        </div>
-
-        <div className="lx-card">
-          <h3 style={{ fontWeight: 700, marginBottom: '1rem' }}>{tx('orderDetailPage.sections.financial', 'Financial stack')}</h3>
-          <div style={{ display: 'grid', gap: '.45rem', fontSize: '.88rem' }}>
-            {[
-              [tx('orderDetailPage.finance.productTotal', 'Product total'), order.total_product_usd],
-              [tx('orderDetailPage.finance.originHandling', 'Origin handling'), order.origin_handling_usd],
-              [tx('orderDetailPage.finance.sourcingFee', 'Sourcing fee'), order.sourcing_fee_usd],
-              [tx('orderDetailPage.finance.oxsteedMarkup', 'OxSteed markup'), order.oxsteed_markup_usd],
-              [tx('orderDetailPage.finance.freightEstimate', 'Freight estimate'), order.freight_est_usd],
-              [tx('orderDetailPage.finance.customsAdmin', 'Customs/admin'), order.customs_admin_usd],
-              [tx('orderDetailPage.finance.warehouseFee', 'Warehouse fee'), order.warehouse_fee_usd],
-              [tx('orderDetailPage.finance.lastMile', 'Last mile'), order.last_mile_usd],
-              [tx('orderDetailPage.finance.riskSurcharge', 'Risk surcharge'), order.risk_surcharge_usd],
-            ].map(([label, value]) => (
-              <div key={label} style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: '#64748b' }}>{label}</span>
-                <strong>{value ? `$${parseFloat(value).toFixed(2)}` : '—'}</strong>
-              </div>
-            ))}
-          </div>
-          <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '2px solid #e2e8f0', display: 'grid', gap: '.45rem' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span>{tx('orderDetailPage.totals.totalLanded', 'Total landed')}</span>
-              <strong style={{ color: '#f97316' }}>${parseFloat(order.total_landed_usd || 0).toFixed(2)}</strong>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span>{tx('orderDetailPage.totals.depositDue', 'Deposit due')}</span>
-              <strong>${parseFloat(order.deposit_due_usd || 0).toFixed(2)}</strong>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span>{tx('orderDetailPage.totals.finalDue', 'Final due')}</span>
-              <strong>${parseFloat(order.final_due_usd || 0).toFixed(2)}</strong>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span>{tx('orderDetailPage.totals.remaining', 'Remaining')}</span>
-              <strong>{remaining ? `$${remaining.toFixed(2)}` : '$0.00'}</strong>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+      </LogisticsLayout>
+    </PageShell>
   );
 }

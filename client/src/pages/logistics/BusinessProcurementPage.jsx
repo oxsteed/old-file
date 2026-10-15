@@ -4,13 +4,25 @@ import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import { listSourcingRequests, listRecurringPrograms, createRecurringProgram, updateRecurringProgramStatus, listLanes, getBusinessProcurementAccess } from '../../api/logistics';
 import PageShell from '../../components/PageShell';
+import LogisticsLayout from '../../components/logistics/LogisticsLayout';
+import LogisticsStatusPill from '../../components/logistics/LogisticsStatusPill';
+import UnsavedChangesGuard from '../../components/logistics/UnsavedChangesGuard';
+import WorkspaceOverviewStrip, { WorkspaceDataErrorBanner } from '../../components/logistics/LogisticsWorkspacePanels';
 import { useAuth } from '../../context/AuthContext';
 import { canAccessBusinessProcurementWorkspace, isBusinessProcurementEligibleMembership } from '../../utils/logisticsWorkspaces';
-import LogisticsWorkspaceSwitcher from '../../components/logistics/LogisticsWorkspaceSwitcher';
 import '../../styles/logistics/LogisticsHomePage.css';
+import '../../styles/logistics/LogisticsWorkspaces.css';
 
 const CADENCE_OPTIONS = ['weekly', 'biweekly', 'monthly', 'quarterly', 'custom'];
 
+/**
+ * BusinessProcurementPage - business procurement workspace (Phase 2 refactor).
+ *
+ * Shared LogisticsLayout replaces the workspace tile grid; the layout gets
+ * the businessAccess grant so the nav stays permission-aware. Recurring
+ * program creation is guarded by an unsaved-changes confirmation. All
+ * status pills and colors use theme tokens.
+ */
 export default function BusinessProcurementPage() {
   const { user } = useAuth();
   const { t } = useTranslation();
@@ -139,7 +151,7 @@ export default function BusinessProcurementPage() {
 
   const createProgramFromForm = async () => {
     if (!form.title) {
-      toast.error('Program title is required');
+      toast.error(tx('logistics.procurement.form.titleRequired', 'Program title is required'));
       return;
     }
     setSaving(true);
@@ -152,7 +164,7 @@ export default function BusinessProcurementPage() {
         sourcing_request_id: form.sourcing_request_id || null,
         status: 'active',
       });
-      toast.success('Recurring procurement program created');
+      toast.success(tx('logistics.procurement.form.created', 'Recurring procurement program created'));
       setShowForm(false);
       setForm({
         title: '', category: '', cadence: 'monthly', lane_id: '', target_qty: '', target_unit: 'unit',
@@ -170,292 +182,325 @@ export default function BusinessProcurementPage() {
     const nextStatus = program.status === 'active' ? 'paused' : 'active';
     try {
       await updateRecurringProgramStatus(program.id, nextStatus);
-      toast.success(`Program ${nextStatus}`);
+      toast.success(tx('logistics.procurement.program.statusChanged', 'Program {{status}}', { status: nextStatus }));
       load();
     } catch (err) {
       toast.error(err.response?.data?.message || err.message);
     }
   };
 
+  const formDirty = showForm && Object.values(form).some((value) => value !== '' && value !== 'monthly' && value !== 'unit');
+
   return (
     <PageShell>
-      <div className="lx-page">
-      {!loading && !hasAccess && (
-        <div className="lx-card" style={{ marginBottom:'1.5rem', border:'1px solid #f97316' }}>
-          <h2 style={{ marginTop:0 }}>Business Procurement is not enabled for this account</h2>
-          <p style={{ color:'#64748b', lineHeight:1.7 }}>
-            This workspace is reserved for users who can act on behalf of a business in procurement and operations. Right now, OxSteed enables it for business owners, active managers, and memberships that hold operations-style permissions.
-          </p>
-          <div style={{ display:'grid', gap:'.5rem', color:'#475569', fontSize:'.9rem' }}>
-            <div><strong>Your eligible business workspaces:</strong> {businessAccess.eligibleBusinesses.length}</div>
-            <div><strong>How access is determined:</strong> ownership, active manager membership, or a non-owner membership with operations/procurement-style permissions.</div>
-          </div>
-          <div style={{ display:'flex', gap:'.75rem', marginTop:'1rem', flexWrap:'wrap' }}>
-            <Link to="/logistics" className="lx-btn-secondary">Back to Logistics</Link>
-            <Link to="/business-hub" className="lx-btn-primary">Open Business Hub</Link>
-          </div>
-        </div>
-      )}
-
-      {hasAccess && (
-        <>
-      <LogisticsWorkspaceSwitcher
-        currentKey="business_procurement"
-        availability={{ buyer: true, organizer: true, business_procurement: hasAccess, distributor: true }}
-      />
-      <div className="lx-dashboard-hero">
-        <div className="lx-card lx-dashboard-hero-main">
-          <div className="lx-dashboard-kicker">Business procurement</div>
-          <h1 className="lx-page-title">Business Procurement Dashboard</h1>
-          <p className="lx-page-sub">Manage restock rhythm, recurring sourcing lanes, and business-approved demand without losing sight of which company the order is for.</p>
-          <div className="lx-dashboard-actions">
-            <button className="lx-btn-primary" onClick={() => setShowForm((current) => !current)}>
-              {showForm ? 'Close planner' : 'New recurring program'}
-            </button>
-            <Link to="/logistics/requests/new" className="lx-btn-ghost">Open business-linked request</Link>
-          </div>
-          <div className="lx-dashboard-stat-grid">
-            <div className="lx-dashboard-stat">
-              <div className="lx-dashboard-stat-value">{activePrograms}</div>
-              <div className="lx-dashboard-stat-label">Active restock programs</div>
-              <div className="lx-dashboard-stat-meta">Cadences already driving repeat sourcing demand.</div>
-            </div>
-            <div className="lx-dashboard-stat">
-              <div className="lx-dashboard-stat-value">{businessAccess.eligibleBusinesses.length}</div>
-              <div className="lx-dashboard-stat-label">Eligible businesses</div>
-              <div className="lx-dashboard-stat-meta">Companies this account can legitimately buy for.</div>
-            </div>
-            <div className="lx-dashboard-stat">
-              <div className="lx-dashboard-stat-value">{upcomingRuns}</div>
-              <div className="lx-dashboard-stat-label">Runs within 21 days</div>
-              <div className="lx-dashboard-stat-meta">Upcoming procurement cycles that need readiness checks.</div>
-            </div>
-          </div>
-        </div>
-
-        <div className="lx-dashboard-side">
-          <div className="lx-card">
-            <h2 className="lx-dashboard-panel-title">Procurement pressure points</h2>
-            <p className="lx-dashboard-panel-copy">This workspace is strongest when it tells you what to reorder, what to lane-match, and which business needs action first.</p>
-            <div className="lx-alert-list">
-              <div className="lx-alert-item">
-                <div>
-                  <strong>Upcoming runs</strong>
-                  <span>Programs that execute soon should be checked for quantity, lane fit, and destination readiness.</span>
+      <LogisticsLayout
+        title={tx('logistics.procurement.title', 'Business Procurement Dashboard')}
+        subtitle={tx('logistics.procurement.subtitle', 'Manage restock rhythm, recurring sourcing lanes, and business-approved demand without losing sight of which company the order is for.')}
+        businessAccess={businessAccess}
+        actions={
+          hasAccess && (
+            <>
+              <button type="button" className="lx-btn-primary lx-next-step-action" onClick={() => setShowForm((current) => !current)}>
+                {showForm
+                  ? tx('logistics.procurement.actions.closePlanner', 'Close planner')
+                  : tx('logistics.procurement.actions.newProgram', 'New recurring program')}
+              </button>
+              <Link to="/logistics/requests/new" className="lx-action-ghost">
+                {tx('logistics.procurement.actions.newRequest', 'Open business-linked request')}
+              </Link>
+            </>
+          )
+        }
+      >
+        <UnsavedChangesGuard when={formDirty && !saving} />
+        <div className="lx-workspaces">
+          {!loading && !hasAccess && (
+            <div className="lx-card lx-callout lx-callout--warning lx-mb-6" role="alert">
+              <h2 className="lx-card-title">{tx('logistics.procurement.noAccess.title', 'Business Procurement is not enabled for this account')}</h2>
+              <p>{tx('logistics.procurement.noAccess.body', 'This workspace is reserved for users who can act on behalf of a business in procurement and operations. Right now, OxSteed enables it for business owners, active managers, and memberships that hold operations-style permissions.')}</p>
+              <div className="lx-kv-list">
+                <div className="lx-kv-row">
+                  <span className="lx-kv-label">{tx('logistics.procurement.noAccess.eligibleCount', 'Your eligible business workspaces')}</span>
+                  <span className="lx-kv-value">{businessAccess.eligibleBusinesses.length}</span>
                 </div>
-                <div className="lx-alert-count">{upcomingRuns}</div>
+                <div className="lx-kv-row">
+                  <span className="lx-kv-label">{tx('logistics.procurement.noAccess.howDetermined', 'How access is determined')}</span>
+                  <span className="lx-kv-value lx-t-small">{tx('logistics.procurement.noAccess.howDeterminedHint', 'ownership, active manager membership, or a non-owner membership with operations/procurement-style permissions.')}</span>
+                </div>
               </div>
-              <div className="lx-alert-item">
-                <div>
-                  <strong>Lane-bound programs</strong>
-                  <span>These already have a defined lane, so pricing and compliance planning can be more deliberate.</span>
-                </div>
-                <div className="lx-alert-count">{laneBoundPrograms}</div>
-              </div>
-              <div className="lx-alert-item">
-                <div>
-                  <strong>Business-linked requests</strong>
-                  <span>Demand already tied to a qualified business should be prioritized before generic sourcing.</span>
-                </div>
-                <div className="lx-alert-count">{procurementEligible.length}</div>
+              <div className="lx-btn-row lx-mt-6">
+                <Link to="/logistics" className="lx-action-secondary">{tx('logistics.procurement.noAccess.backToLogistics', 'Back to Logistics')}</Link>
+                <Link to="/business-hub" className="lx-action-primary">{tx('logistics.procurement.noAccess.openBusinessHub', 'Open Business Hub')}</Link>
               </div>
             </div>
-          </div>
+          )}
 
-          <div className="lx-card">
-            <h2 className="lx-dashboard-panel-title">Eligible business lanes</h2>
-            {businessAccess.eligibleBusinesses.length > 0 ? (
-              <div className="lx-mini-list">
-                {businessAccess.eligibleBusinesses.slice(0, 3).map((entry) => (
-                  <div key={entry.business_id} className="lx-mini-list-item">
-                    <strong>{entry.business_name}</strong>
-                    <span>{entry.is_owner ? 'Owner access' : `${entry.role} access`} with procurement-style authority.</span>
+          {hasAccess && (
+            <>
+              <div className="lx-dashboard-hero">
+                <div className="lx-card lx-dashboard-hero-main">
+                  <div className="lx-dashboard-kicker">{tx('logistics.procurement.kicker', 'Business procurement')}</div>
+                  <h2 className="lx-page-title">{tx('logistics.procurement.title', 'Business Procurement Dashboard')}</h2>
+                  <p className="lx-page-sub">{tx('logistics.procurement.subtitle', 'Manage restock rhythm, recurring sourcing lanes, and business-approved demand without losing sight of which company the order is for.')}</p>
+                  <div className="lx-dashboard-stat-grid">
+                    <div className="lx-dashboard-stat">
+                      <div className="lx-dashboard-stat-value">{activePrograms}</div>
+                      <div className="lx-dashboard-stat-label">{tx('logistics.procurement.stats.activePrograms.label', 'Active restock programs')}</div>
+                      <div className="lx-dashboard-stat-meta">{tx('logistics.procurement.stats.activePrograms.meta', 'Cadences already driving repeat sourcing demand.')}</div>
+                    </div>
+                    <div className="lx-dashboard-stat">
+                      <div className="lx-dashboard-stat-value">{businessAccess.eligibleBusinesses.length}</div>
+                      <div className="lx-dashboard-stat-label">{tx('logistics.procurement.stats.eligibleBusinesses.label', 'Eligible businesses')}</div>
+                      <div className="lx-dashboard-stat-meta">{tx('logistics.procurement.stats.eligibleBusinesses.meta', 'Companies this account can legitimately buy for.')}</div>
+                    </div>
+                    <div className="lx-dashboard-stat">
+                      <div className="lx-dashboard-stat-value">{upcomingRuns}</div>
+                      <div className="lx-dashboard-stat-label">{tx('logistics.procurement.stats.upcomingRuns.label', 'Runs within 21 days')}</div>
+                      <div className="lx-dashboard-stat-meta">{tx('logistics.procurement.stats.upcomingRuns.meta', 'Upcoming procurement cycles that need readiness checks.')}</div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="lx-dashboard-side">
+                  <div className="lx-card">
+                    <h2 className="lx-dashboard-panel-title">{tx('logistics.procurement.pressure.title', 'Procurement pressure points')}</h2>
+                    <p className="lx-dashboard-panel-copy">{tx('logistics.procurement.pressure.copy', 'This workspace is strongest when it tells you what to reorder, what to lane-match, and which business needs action first.')}</p>
+                    <div className="lx-alert-list">
+                      <div className="lx-alert-item">
+                        <div>
+                          <strong>{tx('logistics.procurement.pressure.upcomingRuns.label', 'Upcoming runs')}</strong>
+                          <span>{tx('logistics.procurement.pressure.upcomingRuns.hint', 'Programs that execute soon should be checked for quantity, lane fit, and destination readiness.')}</span>
+                        </div>
+                        <div className="lx-alert-count">{upcomingRuns}</div>
+                      </div>
+                      <div className="lx-alert-item">
+                        <div>
+                          <strong>{tx('logistics.procurement.pressure.laneBound.label', 'Lane-bound programs')}</strong>
+                          <span>{tx('logistics.procurement.pressure.laneBound.hint', 'These already have a defined lane, so pricing and compliance planning can be more deliberate.')}</span>
+                        </div>
+                        <div className="lx-alert-count">{laneBoundPrograms}</div>
+                      </div>
+                      <div className="lx-alert-item">
+                        <div>
+                          <strong>{tx('logistics.procurement.pressure.linkedRequests.label', 'Business-linked requests')}</strong>
+                          <span>{tx('logistics.procurement.pressure.linkedRequests.hint', 'Demand already tied to a qualified business should be prioritized before generic sourcing.')}</span>
+                        </div>
+                        <div className="lx-alert-count">{procurementEligible.length}</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="lx-card">
+                    <h2 className="lx-dashboard-panel-title">{tx('logistics.procurement.eligibleLanes.title', 'Eligible business lanes')}</h2>
+                    {businessAccess.eligibleBusinesses.length > 0 ? (
+                      <div className="lx-mini-list">
+                        {businessAccess.eligibleBusinesses.slice(0, 3).map((entry) => (
+                          <div key={entry.business_id} className="lx-mini-list-item">
+                            <strong>{entry.business_name}</strong>
+                            <span>
+                              {entry.is_owner
+                                ? tx('logistics.procurement.eligibleLanes.ownerAccess', 'Owner access')
+                                : tx('logistics.procurement.eligibleLanes.roleAccess', '{{role}} access', { role: entry.role })}
+                              {' '}{tx('logistics.procurement.eligibleLanes.authority', 'with procurement-style authority.')}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="lx-empty-state">{tx('logistics.procurement.eligibleLanes.empty', 'No eligible businesses are attached to this account yet.')}</div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {loadError && !loading && <WorkspaceDataErrorBanner onRetry={load} />}
+
+              <WorkspaceOverviewStrip
+                loading={loading}
+                loadError={loadError}
+                nextStep={nextStep}
+                recentActivity={recentActivity}
+                emptyActivityText={t('logistics.workspace.business.recentActivity.empty')}
+              />
+
+              <div className="lx-key-metrics">
+                {[
+                  {
+                    label: tx('logistics.procurement.metrics.programs.label', 'Recurring programs'),
+                    value: programs.length,
+                    icon: '🔁',
+                    note: tx('logistics.procurement.metrics.programs.note', 'Saved cadences for repeat inventory and supply demand.'),
+                  },
+                  {
+                    label: tx('logistics.procurement.metrics.linkedRequests.label', 'Business-linked requests'),
+                    value: procurementEligible.length,
+                    icon: '🏢',
+                    note: tx('logistics.procurement.metrics.linkedRequests.note', 'Requests already tied to a qualified business context.'),
+                  },
+                  {
+                    label: tx('logistics.procurement.metrics.activePrograms.label', 'Active programs'),
+                    value: activePrograms,
+                    icon: '✅',
+                    note: tx('logistics.procurement.metrics.activePrograms.note', 'Programs that should currently influence sourcing planning.'),
+                  },
+                  {
+                    label: tx('logistics.procurement.metrics.eligibleBusinesses.label', 'Eligible businesses'),
+                    value: businessAccess.eligibleBusinesses.length,
+                    icon: '🏬',
+                    note: tx('logistics.procurement.metrics.eligibleBusinesses.note', 'Separate business contexts you can operate procurement for.'),
+                  },
+                ].map((metric) => (
+                  <div key={metric.label} className="lx-key-metric-card">
+                    <div className="lx-key-metric-top">
+                      <div className="lx-key-metric-value">{metric.value}</div>
+                      <div className="lx-key-metric-icon" aria-hidden="true">{metric.icon}</div>
+                    </div>
+                    <div className="lx-key-metric-label">{metric.label}</div>
+                    <div className="lx-key-metric-note">{metric.note}</div>
                   </div>
                 ))}
               </div>
-            ) : (
-              <div className="lx-empty-state">No eligible businesses are attached to this account yet.</div>
-            )}
-          </div>
-        </div>
-      </div>
 
-      {loadError && !loading && (
-        <div className="lx-data-error-banner" role="alert">
-          <div>
-            <h2>{tx('logistics.workspace.dataError.title', 'Data unavailable')}</h2>
-            <p>{tx('logistics.workspace.dataError.body', "We couldn't load your procurement workspace right now. Please try again.")}</p>
-          </div>
-          <button type="button" className="lx-btn-secondary" onClick={load}>
-            {tx('logistics.workspace.dataError.retry', 'Try again')}
-          </button>
-        </div>
-      )}
-
-      <div className="lx-overview-strip">
-        <div className="lx-card">
-          <h2 className="lx-dashboard-panel-title">{tx('logistics.workspace.nextStep.title', 'Your next step')}</h2>
-          <div className="lx-next-step-body">
-            {loading && (
-              <p className="lx-overview-empty">{tx('logistics.modal.loading', 'Loading…')}</p>
-            )}
-            {!loading && loadError && (
-              <p className="lx-overview-empty">{tx('logistics.workspace.dataError.body', "We couldn't load your procurement workspace right now. Please try again.")}</p>
-            )}
-            {!loading && !loadError && nextStep && (
-              <>
-                <p className="lx-next-step-hint">{nextStep.hint}</p>
-                {nextStep.kind === 'action' ? (
-                  <button type="button" className="lx-btn-primary lx-next-step-action" onClick={nextStep.onClick}>
-                    {nextStep.label}
-                  </button>
-                ) : (
-                  <Link to={nextStep.href} className="lx-btn-primary lx-next-step-action">{nextStep.label}</Link>
-                )}
-              </>
-            )}
-          </div>
-        </div>
-        <div className="lx-card">
-          <h2 className="lx-dashboard-panel-title">{tx('logistics.workspace.recentActivity.title', 'Recent activity')}</h2>
-          {loading ? (
-            <p className="lx-overview-empty">{tx('logistics.modal.loading', 'Loading…')}</p>
-          ) : loadError ? (
-            <p className="lx-overview-empty">{tx('logistics.workspace.dataError.body', "We couldn't load your procurement workspace right now. Please try again.")}</p>
-          ) : recentActivity.length > 0 ? (
-            <div className="lx-activity-list">
-              {recentActivity.map((item) => (
-                <div key={item.key} className="lx-activity-item">
-                  <span className="lx-activity-label">
-                    {item.href.startsWith('#') ? item.label : <Link to={item.href} className="lx-link">{item.label}</Link>}
-                  </span>
-                  <span className="lx-activity-date">{new Date(item.date).toLocaleDateString()}</span>
+              {showForm && (
+                <div className="lx-card lx-login-accent lx-mb-6">
+                  <h2 className="lx-section-title lx-mb-4">{tx('logistics.procurement.form.title', 'Recurring procurement planner')}</h2>
+                  <div className="lx-form-grid-2">
+                    <div className="lx-form-group"><label className="lx-label" htmlFor="lx-program-title">{tx('logistics.procurement.form.programTitle', 'Program title')}</label><input id="lx-program-title" className="lx-input" value={form.title} onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))} /></div>
+                    <div className="lx-form-group"><label className="lx-label" htmlFor="lx-program-category">{tx('logistics.procurement.form.category', 'Category')}</label><input id="lx-program-category" className="lx-input" value={form.category} onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))} /></div>
+                    <div className="lx-form-group"><label className="lx-label" htmlFor="lx-program-cadence">{tx('logistics.procurement.form.cadence', 'Cadence')}</label><select id="lx-program-cadence" className="lx-select" value={form.cadence} onChange={(e) => setForm((f) => ({ ...f, cadence: e.target.value }))}>{CADENCE_OPTIONS.map((option) => <option key={option} value={option}>{tx(`logistics.procurement.cadence.${option}`, option)}</option>)}</select></div>
+                    <div className="lx-form-group"><label className="lx-label" htmlFor="lx-program-lane">{tx('logistics.procurement.form.lane', 'Lane')}</label><select id="lx-program-lane" className="lx-select" value={form.lane_id} onChange={(e) => setForm((f) => ({ ...f, lane_id: e.target.value }))}><option value="">{tx('logistics.procurement.form.anyLane', 'Any approved lane')}</option>{lanes.map((lane) => <option key={lane.id} value={lane.id}>{lane.name} ({lane.origin_country} → {lane.destination_country})</option>)}</select></div>
+                    <div className="lx-form-group"><label className="lx-label" htmlFor="lx-program-qty">{tx('logistics.procurement.form.targetQty', 'Target quantity')}</label><input id="lx-program-qty" className="lx-input" type="number" value={form.target_qty} onChange={(e) => setForm((f) => ({ ...f, target_qty: e.target.value }))} /></div>
+                    <div className="lx-form-group"><label className="lx-label" htmlFor="lx-program-unit">{tx('logistics.procurement.form.unit', 'Unit')}</label><input id="lx-program-unit" className="lx-input" value={form.target_unit} onChange={(e) => setForm((f) => ({ ...f, target_unit: e.target.value }))} /></div>
+                    <div className="lx-form-group"><label className="lx-label" htmlFor="lx-program-country">{tx('logistics.procurement.form.destCountry', 'Destination country')}</label><input id="lx-program-country" className="lx-input" maxLength={2} value={form.destination_country} onChange={(e) => setForm((f) => ({ ...f, destination_country: e.target.value.toUpperCase() }))} /></div>
+                    <div className="lx-form-group"><label className="lx-label" htmlFor="lx-program-city">{tx('logistics.procurement.form.destCity', 'Destination city')}</label><input id="lx-program-city" className="lx-input" value={form.destination_city} onChange={(e) => setForm((f) => ({ ...f, destination_city: e.target.value }))} /></div>
+                    <div className="lx-form-group"><label className="lx-label" htmlFor="lx-program-budget">{tx('logistics.procurement.form.budgetMax', 'Budget max (USD)')}</label><input id="lx-program-budget" className="lx-input" type="number" value={form.budget_max_usd} onChange={(e) => setForm((f) => ({ ...f, budget_max_usd: e.target.value }))} /></div>
+                    <div className="lx-form-group"><label className="lx-label" htmlFor="lx-program-nextrun">{tx('logistics.procurement.form.nextRun', 'Next run date')}</label><input id="lx-program-nextrun" className="lx-input" type="date" value={form.next_run_date} onChange={(e) => setForm((f) => ({ ...f, next_run_date: e.target.value }))} /></div>
+                    <div className="lx-form-group lx-form-group--full">
+                      <label className="lx-label" htmlFor="lx-program-linked">{tx('logistics.procurement.form.linkedRequest', 'Linked sourcing request (optional)')}</label>
+                      <select id="lx-program-linked" className="lx-select" value={form.sourcing_request_id} onChange={(e) => setForm((f) => ({ ...f, sourcing_request_id: e.target.value }))}>
+                        <option value="">{tx('logistics.procurement.form.noLinkedRequest', 'No linked request')}</option>
+                        {procurementEligible.map((request) => <option key={request.id} value={request.id}>{request.reference} · {request.title}</option>)}
+                      </select>
+                    </div>
+                    <div className="lx-form-group lx-form-group--full"><label className="lx-label" htmlFor="lx-program-notes">{tx('logistics.procurement.form.notes', 'Notes')}</label><textarea id="lx-program-notes" className="lx-textarea" value={form.notes} onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))} /></div>
+                  </div>
+                  <div className="lx-btn-row">
+                    <button type="button" className="lx-btn-primary" disabled={saving} onClick={createProgramFromForm}>{saving ? tx('logistics.procurement.form.saving', 'Saving…') : tx('logistics.procurement.form.create', 'Create program')}</button>
+                    <button type="button" className="lx-btn-secondary" onClick={() => setShowForm(false)}>{tx('common.cancel', 'Cancel')}</button>
+                  </div>
                 </div>
-              ))}
-            </div>
-          ) : (
-            <p className="lx-overview-empty">{tx('logistics.workspace.recentActivity.empty', 'Nothing here yet. Programs and requests will appear here.')}</p>
+              )}
+
+              <div className="lx-card lx-mb-6" id="lx-procurement-programs">
+                <div className="lx-section-header">
+                  <h2 className="lx-section-title">{tx('logistics.procurement.programs.title', 'Recurring procurement programs')}</h2>
+                  <Link to="/logistics/sourcing" className="lx-link">{tx('logistics.procurement.programs.openSourcing', 'Open sourcing')}</Link>
+                </div>
+                <div className="lx-table-wrap">
+                  <table className="lx-table">
+                    <thead>
+                      <tr>
+                        <th>{tx('logistics.procurement.programs.headers.program', 'Program')}</th>
+                        <th>{tx('logistics.procurement.programs.headers.cadence', 'Cadence')}</th>
+                        <th>{tx('logistics.procurement.programs.headers.nextRun', 'Next run')}</th>
+                        <th>{tx('logistics.procurement.programs.headers.status', 'Status')}</th>
+                        <th>{tx('logistics.procurement.programs.headers.linkedRequest', 'Linked request')}</th>
+                        <th><span className="lx-visually-hidden">{tx('logistics.tables.actions', 'Actions')}</span></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {programs.map((program) => (
+                        <tr key={program.id}>
+                          <td><strong>{program.title}</strong><div className="lx-t-xs lx-t-faint">{program.category || tx('logistics.procurement.programs.general', 'General procurement')}</div></td>
+                          <td>{tx(`logistics.procurement.cadence.${program.cadence}`, program.cadence)}</td>
+                          <td>{program.next_run_date ? new Date(program.next_run_date).toLocaleDateString() : '—'}</td>
+                          <td><LogisticsStatusPill status={program.status} /></td>
+                          <td>{program.sourcing_reference || '—'}</td>
+                          <td>
+                            <button
+                              type="button"
+                              className="lx-action-secondary"
+                              style={{ fontSize: '.72rem', padding: '.25rem .65rem', minBlockSize: '2.75rem' }}
+                              onClick={() => toggleProgram(program)}
+                            >
+                              {program.status === 'active'
+                                ? tx('logistics.procurement.programs.pause', 'Pause')
+                                : tx('logistics.procurement.programs.activate', 'Activate')}
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                      {!loading && !loadError && programs.length === 0 && (
+                        <tr><td colSpan={6} className="lx-table-empty-cell">{tx('logistics.procurement.programs.empty', 'No recurring procurement programs yet.')}</td></tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div className="lx-dashboard-grid">
+                <div className="lx-card">
+                  <div className="lx-section-header">
+                    <h2 className="lx-section-title">{tx('logistics.procurement.linkedRequests.title', 'Business-linked sourcing requests')}</h2>
+                    <Link to="/logistics/requests/new" className="lx-link">{tx('logistics.procurement.linkedRequests.new', 'New request')}</Link>
+                  </div>
+                  <div className="lx-table-wrap">
+                    <table className="lx-table">
+                      <thead>
+                        <tr>
+                          <th>{tx('logistics.procurement.linkedRequests.headers.reference', 'Reference')}</th>
+                          <th>{tx('logistics.procurement.linkedRequests.headers.request', 'Request')}</th>
+                          <th>{tx('logistics.procurement.linkedRequests.headers.status', 'Status')}</th>
+                          <th>{tx('logistics.procurement.linkedRequests.headers.converted', 'Converted')}</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {procurementEligible.slice(0, 10).map((request) => (
+                          <tr key={request.id}>
+                            <td><Link to={`/logistics/requests/${request.id}`} className="lx-link">{request.reference}</Link></td>
+                            <td>{request.title}</td>
+                            <td><LogisticsStatusPill status={request.status} /></td>
+                            <td>{request.converted_to || '—'}</td>
+                          </tr>
+                        ))}
+                        {!loading && !loadError && procurementEligible.length === 0 && (
+                          <tr><td colSpan={4} className="lx-table-empty-cell">{tx('logistics.procurement.linkedRequests.empty', 'No business-linked procurement requests yet.')}</td></tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                <div className="lx-card">
+                  <div className="lx-section-header">
+                    <h2 className="lx-section-title">{tx('logistics.procurement.guidance.title', 'Procurement operating guidance')}</h2>
+                    <Link to="/business-hub" className="lx-link">{tx('logistics.procurement.guidance.businessHub', 'Business Hub')}</Link>
+                  </div>
+                  <div className="lx-mini-list">
+                    <div className="lx-mini-list-item">
+                      <strong>{tx('logistics.procurement.guidance.authority.title', 'Build around real business authority')}</strong>
+                      <span>{tx('logistics.procurement.guidance.authority.body', 'This workspace only works when demand is tied to an actual business you can act for, not just a personal sourcing idea.')}</span>
+                    </div>
+                    <div className="lx-mini-list-item">
+                      <strong>{tx('logistics.procurement.guidance.laneAware.title', 'Use lane-aware planning')}</strong>
+                      <span>{tx('logistics.procurement.guidance.laneAware.body', 'Choose lanes early for recurring programs when pricing, compliance, and destination restrictions materially affect landed cost.')}</span>
+                    </div>
+                    <div className="lx-mini-list-item">
+                      <strong>{tx('logistics.procurement.guidance.restock.title', 'Restock before the rush')}</strong>
+                      <span>{tx('logistics.procurement.guidance.restock.body', 'Programs with soon-coming run dates should be checked before warehouses, teams, or field crews feel the shortage.')}</span>
+                    </div>
+                  </div>
+                  <div className="lx-insight-chip-row">
+                    <span className="lx-insight-chip">{tx('logistics.procurement.chips.recurring', 'Recurring demand planning')}</span>
+                    <span className="lx-insight-chip">{tx('logistics.procurement.chips.businessScoped', 'Business-scoped sourcing only')}</span>
+                    <span className="lx-insight-chip">{tx('logistics.procurement.chips.laneAware', 'Lane-aware purchasing')}</span>
+                  </div>
+                </div>
+              </div>
+            </>
           )}
         </div>
-      </div>
-
-      <div className="lx-key-metrics">
-        {[
-          ['Recurring programs', programs.length, '🔁', 'Saved cadences for repeat inventory and supply demand.'],
-          ['Business-linked requests', procurementEligible.length, '🏢', 'Requests already tied to a qualified business context.'],
-          ['Active programs', activePrograms, '✅', 'Programs that should currently influence sourcing planning.'],
-          ['Eligible businesses', businessAccess.eligibleBusinesses.length, '🏬', 'Separate business contexts you can operate procurement for.'],
-        ].map(([label, value, icon, note]) => (
-          <div key={label} className="lx-key-metric-card">
-            <div className="lx-key-metric-top">
-              <div className="lx-key-metric-value">{value}</div>
-              <div className="lx-key-metric-icon">{icon}</div>
-            </div>
-            <div className="lx-key-metric-label">{label}</div>
-            <div className="lx-key-metric-note">{note}</div>
-          </div>
-        ))}
-      </div>
-
-      {showForm && (
-        <div className="lx-card" style={{ marginBottom:'1.5rem', border:'2px solid #f97316' }}>
-          <h2 style={{ marginTop:0 }}>Recurring procurement planner</h2>
-          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'1rem' }}>
-            <div className="lx-form-group"><label className="lx-label">Program title</label><input className="lx-input" value={form.title} onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))} /></div>
-            <div className="lx-form-group"><label className="lx-label">Category</label><input className="lx-input" value={form.category} onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))} /></div>
-            <div className="lx-form-group"><label className="lx-label">Cadence</label><select className="lx-select" value={form.cadence} onChange={(e) => setForm((f) => ({ ...f, cadence: e.target.value }))}>{CADENCE_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}</select></div>
-            <div className="lx-form-group"><label className="lx-label">Lane</label><select className="lx-select" value={form.lane_id} onChange={(e) => setForm((f) => ({ ...f, lane_id: e.target.value }))}><option value="">Any approved lane</option>{lanes.map((lane) => <option key={lane.id} value={lane.id}>{lane.name} ({lane.origin_country} → {lane.destination_country})</option>)}</select></div>
-            <div className="lx-form-group"><label className="lx-label">Target quantity</label><input className="lx-input" type="number" value={form.target_qty} onChange={(e) => setForm((f) => ({ ...f, target_qty: e.target.value }))} /></div>
-            <div className="lx-form-group"><label className="lx-label">Unit</label><input className="lx-input" value={form.target_unit} onChange={(e) => setForm((f) => ({ ...f, target_unit: e.target.value }))} /></div>
-            <div className="lx-form-group"><label className="lx-label">Destination country</label><input className="lx-input" maxLength={2} value={form.destination_country} onChange={(e) => setForm((f) => ({ ...f, destination_country: e.target.value.toUpperCase() }))} /></div>
-            <div className="lx-form-group"><label className="lx-label">Destination city</label><input className="lx-input" value={form.destination_city} onChange={(e) => setForm((f) => ({ ...f, destination_city: e.target.value }))} /></div>
-            <div className="lx-form-group"><label className="lx-label">Budget max (USD)</label><input className="lx-input" type="number" value={form.budget_max_usd} onChange={(e) => setForm((f) => ({ ...f, budget_max_usd: e.target.value }))} /></div>
-            <div className="lx-form-group"><label className="lx-label">Next run date</label><input className="lx-input" type="date" value={form.next_run_date} onChange={(e) => setForm((f) => ({ ...f, next_run_date: e.target.value }))} /></div>
-            <div className="lx-form-group" style={{ gridColumn:'1 / -1' }}>
-              <label className="lx-label">Linked sourcing request (optional)</label>
-              <select className="lx-select" value={form.sourcing_request_id} onChange={(e) => setForm((f) => ({ ...f, sourcing_request_id: e.target.value }))}>
-                <option value="">No linked request</option>
-                {procurementEligible.map((request) => <option key={request.id} value={request.id}>{request.reference} · {request.title}</option>)}
-              </select>
-            </div>
-            <div className="lx-form-group" style={{ gridColumn:'1 / -1' }}><label className="lx-label">Notes</label><textarea className="lx-textarea" value={form.notes} onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))} /></div>
-          </div>
-          <div style={{ display:'flex', gap:'.75rem' }}>
-            <button className="lx-btn-primary" disabled={saving} onClick={createProgramFromForm}>{saving ? 'Saving…' : 'Create program'}</button>
-            <button className="lx-btn-secondary" onClick={() => setShowForm(false)}>Cancel</button>
-          </div>
-        </div>
-      )}
-
-      <div className="lx-card" id="lx-procurement-programs" style={{ marginBottom:'1.5rem' }}>
-        <div className="lx-section-header"><h2>Recurring procurement programs</h2><Link to="/logistics/sourcing">Open sourcing</Link></div>
-        <div className="lx-table-wrap">
-          <table className="lx-table">
-            <thead><tr><th>Program</th><th>Cadence</th><th>Next run</th><th>Status</th><th>Linked request</th><th></th></tr></thead>
-            <tbody>
-              {programs.map((program) => (
-                <tr key={program.id}>
-                  <td><strong>{program.title}</strong><div style={{ fontSize:'.75rem', color:'#64748b' }}>{program.category || 'General procurement'}</div></td>
-                  <td>{program.cadence}</td>
-                  <td>{program.next_run_date ? new Date(program.next_run_date).toLocaleDateString() : '—'}</td>
-                  <td><span className="lx-status-pill" style={{ background: program.status === 'active' ? '#22c55e' : program.status === 'paused' ? '#f59e0b' : '#64748b' }}>{program.status}</span></td>
-                  <td>{program.sourcing_reference || '—'}</td>
-                  <td><button className="lx-btn-secondary" style={{ fontSize:'.72rem', padding:'.25rem .65rem' }} onClick={() => toggleProgram(program)}>{program.status === 'active' ? 'Pause' : 'Activate'}</button></td>
-                </tr>
-              ))}
-              {!loading && !loadError && programs.length === 0 && <tr><td colSpan={6} style={{ textAlign:'center', color:'#94a3b8' }}>No recurring procurement programs yet.</td></tr>}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      <div className="lx-dashboard-grid">
-        <div className="lx-card">
-          <div className="lx-section-header"><h2>Business-linked sourcing requests</h2><Link to="/logistics/requests/new">New request</Link></div>
-          <div className="lx-table-wrap">
-            <table className="lx-table">
-              <thead><tr><th>Reference</th><th>Request</th><th>Status</th><th>Converted</th></tr></thead>
-              <tbody>
-                {procurementEligible.slice(0, 10).map((request) => (
-                  <tr key={request.id}>
-                    <td><Link to={`/logistics/requests/${request.id}`} className="lx-link">{request.reference}</Link></td>
-                    <td>{request.title}</td>
-                    <td><span className="lx-status-pill" style={{ background:'#64748b' }}>{request.status}</span></td>
-                    <td>{request.converted_to || '—'}</td>
-                  </tr>
-                ))}
-                {!loading && !loadError && procurementEligible.length === 0 && <tr><td colSpan={4} style={{ textAlign:'center', color:'#94a3b8' }}>No business-linked procurement requests yet.</td></tr>}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        <div className="lx-card">
-          <div className="lx-section-header"><h2>Procurement operating guidance</h2><Link to="/business-hub">Business Hub</Link></div>
-          <div className="lx-mini-list">
-            <div className="lx-mini-list-item">
-              <strong>Build around real business authority</strong>
-              <span>This workspace only works when demand is tied to an actual business you can act for, not just a personal sourcing idea.</span>
-            </div>
-            <div className="lx-mini-list-item">
-              <strong>Use lane-aware planning</strong>
-              <span>Choose lanes early for recurring programs when pricing, compliance, and destination restrictions materially affect landed cost.</span>
-            </div>
-            <div className="lx-mini-list-item">
-              <strong>Restock before the rush</strong>
-              <span>Programs with soon-coming run dates should be checked before warehouses, teams, or field crews feel the shortage.</span>
-            </div>
-          </div>
-          <div className="lx-insight-chip-row">
-            <span className="lx-insight-chip">Recurring demand planning</span>
-            <span className="lx-insight-chip">Business-scoped sourcing only</span>
-            <span className="lx-insight-chip">Lane-aware purchasing</span>
-          </div>
-        </div>
-      </div>
-        </>
-      )}
-      </div>
+      </LogisticsLayout>
     </PageShell>
   );
 }

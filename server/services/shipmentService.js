@@ -2,23 +2,11 @@
 const pool = require('../db');
 const { logLogisticsAction } = require('./logisticsAuditService');
 
-const VALID_SHIPMENT_TRANSITIONS = {
-  planned:               ['booked','exception'],
-  booked:                ['origin_received','exception'],
-  origin_received:       ['consolidating','departed_origin','exception'],
-  consolidating:         ['departed_origin','exception'],
-  departed_origin:       ['transshipment','arrived_destination','exception'],
-  transshipment:         ['departed_origin','arrived_destination','exception'],
-  arrived_destination:   ['customs_hold','customs_cleared','exception'],
-  customs_hold:          ['customs_cleared','exception'],
-  customs_cleared:       ['delivered_to_warehouse'],
-  delivered_to_warehouse:['receiving'],
-  receiving:             ['allocation_ready'],
-  allocation_ready:      ['distributed'],
-  distributed:           ['completed'],
-  completed:             [],
-  exception:             ['planned','booked','origin_received'],
-};
+const { shipment: shipmentMachine, SHIPMENT_TRANSITIONS } = require('./logisticsStateMachine');
+
+// Canonical transition graph lives in logisticsStateMachine.js. This alias
+// stays for backward compatibility with importers of the old local name.
+const VALID_SHIPMENT_TRANSITIONS = SHIPMENT_TRANSITIONS;
 
 async function generateShipmentRef() {
   const year = new Date().getFullYear();
@@ -154,7 +142,10 @@ async function addMilestone(shipmentId, milestone, { location, notes, actorUserI
     );
     const current = shipRes.rows[0]?.status;
     if (!current) throw new Error('shipment_not_found');
-    if (!VALID_SHIPMENT_TRANSITIONS[current]?.includes(milestone)) {
+    // Canonical graph from logisticsStateMachine. Same-state milestones are
+    // rejected (they would duplicate the milestone row); everything else
+    // must be a legal transition.
+    if (current === milestone || !shipmentMachine.canTransition(current, milestone)) {
       throw Object.assign(new Error(`Cannot move from ${current} to ${milestone}`), { code: 'invalid_transition' });
     }
 

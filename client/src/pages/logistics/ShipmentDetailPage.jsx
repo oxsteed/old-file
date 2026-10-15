@@ -2,16 +2,19 @@ import React, { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { getShipment } from '../../api/logistics';
 import { useTranslation } from 'react-i18next';
+import PageShell from '../../components/PageShell';
+import LogisticsLayout from '../../components/logistics/LogisticsLayout';
+import LogisticsStatusPill from '../../components/logistics/LogisticsStatusPill';
 import '../../styles/logistics/LogisticsHomePage.css';
+import '../../styles/logistics/LogisticsWorkspaces.css';
 
-const STATUS_COLOR = {
-  planned:'#94a3b8', booked:'#3b82f6', origin_received:'#f59e0b',
-  consolidating:'#f97316', departed_origin:'#8b5cf6', transshipment:'#7c3aed',
-  arrived_destination:'#06b6d4', customs_hold:'#dc2626', customs_cleared:'#22c55e',
-  delivered_to_warehouse:'#10b981', receiving:'#0284c7', allocation_ready:'#059669',
-  distributed:'#16a34a', completed:'#15803d', exception:'#ef4444',
-};
-
+/**
+ * ShipmentDetailPage - shipment detail (Phase 2 refactor).
+ *
+ * Now renders inside PageShell + the shared LogisticsLayout (previously it
+ * skipped the site chrome entirely). Milestones, documents, and detail rows
+ * use token-based classes; status pills use theme tones.
+ */
 export default function ShipmentDetailPage() {
   const { t } = useTranslation();
   const tx = (key, fallback, opts = {}) => t(key, { defaultValue: fallback, ...opts });
@@ -25,106 +28,132 @@ export default function ShipmentDetailPage() {
     setError(null);
     getShipment(id)
       .then((r) => setShipment(r.data))
-      .catch((err) => setError(err.response?.data?.error || tx('shipmentDetailPage.loadError', 'Failed to load shipment.')))
+      .catch((err) => setError(err.response?.data?.error || tx('logistics.shipmentDetail.loadError', 'Failed to load shipment.')))
       .finally(() => setLoading(false));
   };
 
   useEffect(() => { load(); }, [id]);
 
-  if (loading) return <div className="lx-page"><div className="lx-loading">{tx('shipmentDetailPage.loading', 'Loading…')}</div></div>;
-  if (error) return (
-    <div className="lx-page">
-      <div className="lx-error">
-        <p>{error}</p>
-        <button type="button" onClick={load} className="lx-btn">{tx('common.retry', 'Retry')}</button>
-      </div>
-    </div>
-  );
-  if (!shipment) return (
-    <div className="lx-page">
-      <div className="lx-error">
-        <p>{tx('shipmentDetailPage.notFound', 'Shipment not found.')}</p>
-        <Link to="/logistics/shipments" className="lx-link">{tx('shipmentDetailPage.backToShipments', '← Back to Shipments')}</Link>
-      </div>
-    </div>
-  );
-
-  return (
-    <div className="lx-page">
-      <div style={{ marginBottom: '1rem' }}>
-        <Link to="/logistics/shipments" className="lx-link">
-          {tx('shipmentDetailPage.backToShipments', '← Back to Shipments')}
-        </Link>
-      </div>
-
-      <div className="lx-card" style={{ marginBottom: '1.5rem' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
-          <div>
-            <div style={{ fontSize: '.78rem', color: '#64748b', fontWeight: 700 }}>{shipment.reference}</div>
-            <h1 style={{ fontSize: '1.65rem', fontWeight: 800, margin: '.35rem 0' }}>{shipment.lane_name || tx('shipmentDetailPage.defaults.shipment', 'Shipment')}</h1>
-            <p style={{ color: '#64748b', margin: 0 }}>{shipment.origin_country} → {shipment.destination_country} · {shipment.freight_option?.replace(/_/g, ' ')}</p>
-          </div>
-          <span className="lx-status-pill" style={{ background: STATUS_COLOR[shipment.status] || '#64748b', alignSelf: 'flex-start' }}>
-            {tx(`shipmentDetailPage.statuses.${shipment.status}`, shipment.status?.replace(/_/g, ' '))}
-          </span>
+  const renderBody = () => {
+    if (loading) {
+      return (
+        <div className="lx-loading" role="status" aria-live="polite">
+          <span className="lx-spinner" aria-hidden="true" />
+          {tx('logistics.shipmentDetail.loading', 'Loading…')}
         </div>
-      </div>
-
-      <div className="lx-detail-grid">
-        <div className="lx-card">
-          <h3 style={{ fontWeight: 700, marginBottom: '1rem' }}>{tx('shipmentDetailPage.sections.details', 'Shipment details')}</h3>
-          <div style={{ display: 'grid', gap: '.55rem', fontSize: '.88rem' }}>
-            <div><strong>{tx('shipmentDetailPage.labels.carrier', 'Carrier')}:</strong> {shipment.carrier || '—'}</div>
-            <div><strong>{tx('shipmentDetailPage.labels.trackingNumber', 'Tracking number')}:</strong> {shipment.tracking_number || '—'}</div>
-            <div><strong>{tx('shipmentDetailPage.labels.bookingRef', 'Booking ref')}:</strong> {shipment.carrier_booking_ref || '—'}</div>
-            <div><strong>{tx('shipmentDetailPage.labels.originPort', 'Origin port')}:</strong> {shipment.origin_port || '—'}</div>
-            <div><strong>{tx('shipmentDetailPage.labels.destinationPort', 'Destination port')}:</strong> {shipment.destination_port || '—'}</div>
-            <div><strong>{tx('shipmentDetailPage.labels.totalCartons', 'Total cartons')}:</strong> {shipment.total_cartons || '—'}</div>
-            <div><strong>{tx('shipmentDetailPage.labels.totalWeight', 'Total weight')}:</strong> {shipment.total_weight_kg ? `${shipment.total_weight_kg} ${tx('shipmentDetailPage.labels.kg', 'kg')}` : '—'}</div>
-            <div><strong>{tx('shipmentDetailPage.labels.totalCbm', 'Total CBM')}:</strong> {shipment.total_cbm || '—'}</div>
-            <div><strong>{tx('shipmentDetailPage.labels.eta', 'ETA')}:</strong> {shipment.eta ? new Date(shipment.eta).toLocaleDateString() : '—'}</div>
-          </div>
+      );
+    }
+    if (error) {
+      return (
+        <div className="lx-empty" role="alert">
+          <p>{error}</p>
+          <button type="button" onClick={load} className="lx-action-secondary">
+            {tx('logistics.workspace.dataError.retry', 'Try again')}
+          </button>
         </div>
+      );
+    }
+    if (!shipment) {
+      return (
+        <div className="lx-empty" role="alert">
+          <p>{tx('logistics.shipmentDetail.notFound', 'Shipment not found.')}</p>
+          <Link to="/logistics/shipments" className="lx-link">{tx('logistics.shipmentDetail.backToShipments', '← Back to Shipments')}</Link>
+        </div>
+      );
+    }
 
-        <div className="lx-card">
-          <h3 style={{ fontWeight: 700, marginBottom: '1rem' }}>
-            {tx('shipmentDetailPage.sections.documents', 'Documents {{count}}', { count: shipment.documents?.length || 0 })}
-          </h3>
-          {!shipment.documents?.length && <div className="lx-empty"><div className="lx-empty-icon">📄</div><p>{tx('shipmentDetailPage.empty.documents', 'No shipping documents uploaded.')}</p></div>}
-          {!!shipment.documents?.length && (
-            <div style={{ display: 'grid', gap: '.75rem' }}>
-              {shipment.documents.map((doc) => (
-                <a key={doc.id} href={doc.file_url} target="_blank" rel="noreferrer" className="lx-card" style={{ padding: '.9rem', textDecoration: 'none' }}>
-                  <div style={{ fontWeight: 700, color: '#0f172a' }}>{doc.doc_type || tx('shipmentDetailPage.defaults.document', 'Document')}</div>
-                  <div style={{ fontSize: '.8rem', color: '#64748b' }}>{doc.filename}</div>
-                </a>
-              ))}
+    return (
+      <>
+        <div className="lx-card lx-mb-6">
+          <div className="lx-detail-head">
+            <div>
+              <p className="lx-detail-kicker">{shipment.reference}</p>
+              <h2 className="lx-detail-title" style={{ fontSize: 'var(--text-2xl)' }}>
+                {shipment.lane_name || tx('logistics.shipmentDetail.defaults.shipment', 'Shipment')}
+              </h2>
+              <p className="lx-detail-sub">{shipment.origin_country} → {shipment.destination_country} · {shipment.freight_option?.replace(/_/g, ' ')}</p>
             </div>
-          )}
+            <LogisticsStatusPill status={shipment.status} />
+          </div>
         </div>
-      </div>
 
-      <div className="lx-card" style={{ marginTop: '1.5rem' }}>
-        <h3 style={{ fontWeight: 700, marginBottom: '1rem' }}>{tx('shipmentDetailPage.sections.milestones', 'Milestones')}</h3>
-        <div style={{ display: 'grid', gap: '.75rem' }}>
-          {(shipment.milestones || []).map((m) => (
-            <div key={m.id} style={{ display: 'grid', gridTemplateColumns: '180px 1fr', gap: '1rem', borderBottom: '1px solid #e2e8f0', paddingBottom: '.75rem' }}>
-              <div>
-                <span className="lx-status-pill" style={{ background: STATUS_COLOR[m.milestone] || '#64748b' }}>
-                  {tx(`shipmentDetailPage.milestones.${m.milestone}`, m.milestone?.replace(/_/g, ' '))}
-                </span>
-                <div style={{ fontSize: '.78rem', color: '#94a3b8', marginTop: '.35rem' }}>
-                  {m.occurred_at ? new Date(m.occurred_at).toLocaleString() : '—'}
+        <div className="lx-two-col">
+          <div className="lx-card">
+            <h3 className="lx-card-title lx-mb-4">{tx('logistics.shipmentDetail.sections.details', 'Shipment details')}</h3>
+            <div className="lx-kv-list">
+              <div className="lx-kv-row"><span className="lx-kv-label">{tx('logistics.shipmentDetail.labels.carrier', 'Carrier')}</span><span className="lx-kv-value">{shipment.carrier || '—'}</span></div>
+              <div className="lx-kv-row"><span className="lx-kv-label">{tx('logistics.shipmentDetail.labels.trackingNumber', 'Tracking number')}</span><span className="lx-kv-value">{shipment.tracking_number || '—'}</span></div>
+              <div className="lx-kv-row"><span className="lx-kv-label">{tx('logistics.shipmentDetail.labels.bookingRef', 'Booking ref')}</span><span className="lx-kv-value">{shipment.carrier_booking_ref || '—'}</span></div>
+              <div className="lx-kv-row"><span className="lx-kv-label">{tx('logistics.shipmentDetail.labels.originPort', 'Origin port')}</span><span className="lx-kv-value">{shipment.origin_port || '—'}</span></div>
+              <div className="lx-kv-row"><span className="lx-kv-label">{tx('logistics.shipmentDetail.labels.destinationPort', 'Destination port')}</span><span className="lx-kv-value">{shipment.destination_port || '—'}</span></div>
+              <div className="lx-kv-row"><span className="lx-kv-label">{tx('logistics.shipmentDetail.labels.totalCartons', 'Total cartons')}</span><span className="lx-kv-value">{shipment.total_cartons || '—'}</span></div>
+              <div className="lx-kv-row"><span className="lx-kv-label">{tx('logistics.shipmentDetail.labels.totalWeight', 'Total weight')}</span><span className="lx-kv-value">{shipment.total_weight_kg ? `${shipment.total_weight_kg} ${tx('logistics.shipmentDetail.labels.kg', 'kg')}` : '—'}</span></div>
+              <div className="lx-kv-row"><span className="lx-kv-label">{tx('logistics.shipmentDetail.labels.totalCbm', 'Total CBM')}</span><span className="lx-kv-value">{shipment.total_cbm || '—'}</span></div>
+              <div className="lx-kv-row"><span className="lx-kv-label">{tx('logistics.shipmentDetail.labels.eta', 'ETA')}</span><span className="lx-kv-value">{shipment.eta ? new Date(shipment.eta).toLocaleDateString() : '—'}</span></div>
+            </div>
+          </div>
+
+          <div className="lx-card">
+            <h3 className="lx-card-title lx-mb-4">
+              {tx('logistics.shipmentDetail.sections.documents', 'Documents ({{count}})', { count: shipment.documents?.length || 0 })}
+            </h3>
+            {!shipment.documents?.length && (
+              <div className="lx-empty">
+                <div className="lx-empty-icon" aria-hidden="true">📄</div>
+                <p>{tx('logistics.shipmentDetail.empty.documents', 'No shipping documents uploaded.')}</p>
+              </div>
+            )}
+            {!!shipment.documents?.length && (
+              <div className="lx-compact-stack">
+                {shipment.documents.map((doc) => (
+                  <a key={doc.id} href={doc.file_url} target="_blank" rel="noreferrer" className="lx-item-card" style={{ textDecoration: 'none', padding: 'var(--space-3)' }}>
+                    <div className="lx-t-semibold lx-t-small" style={{ color: 'var(--color-text)' }}>{doc.doc_type || tx('logistics.shipmentDetail.defaults.document', 'Document')}</div>
+                    <div className="lx-t-xs lx-t-faint">{doc.filename}</div>
+                  </a>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="lx-card lx-mt-6">
+          <h3 className="lx-card-title lx-mb-4">{tx('logistics.shipmentDetail.sections.milestones', 'Milestones')}</h3>
+          {(shipment.milestones || []).length === 0 && (
+            <p className="lx-overview-empty">{tx('logistics.shipmentDetail.empty.milestones', 'No milestones recorded yet.')}</p>
+          )}
+          <div className="lx-compact-stack">
+            {(shipment.milestones || []).map((m) => (
+              <div key={m.id} className="lx-item-card-head" style={{ borderBlockEnd: '1px solid var(--color-border-faint)', paddingBlockEnd: 'var(--space-3)' }}>
+                <div>
+                  <LogisticsStatusPill status={m.milestone} />
+                  <div className="lx-t-xs lx-t-faint lx-mt-6" style={{ marginTop: '.35rem' }}>
+                    {m.occurred_at ? new Date(m.occurred_at).toLocaleString() : '—'}
+                  </div>
+                </div>
+                <div>
+                  <div className="lx-t-semibold lx-t-small">{m.location || tx('logistics.shipmentDetail.defaults.noLocation', 'No location')}</div>
+                  <div className="lx-t-faint lx-t-small">{m.notes || tx('logistics.shipmentDetail.defaults.noNotes', 'No notes.')}</div>
                 </div>
               </div>
-              <div>
-                <div style={{ fontWeight: 600 }}>{m.location || tx('shipmentDetailPage.defaults.noLocation', 'No location')}</div>
-                <div style={{ color: '#64748b' }}>{m.notes || tx('shipmentDetailPage.defaults.noNotes', 'No notes.')}</div>
-              </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
-      </div>
-    </div>
+      </>
+    );
+  };
+
+  return (
+    <PageShell>
+      <LogisticsLayout showNav={false}>
+        <div className="lx-workspaces">
+          <div className="lx-back-row">
+            <Link to="/logistics/shipments" className="lx-link">
+              {tx('logistics.shipmentDetail.backToShipments', '← Back to Shipments')}
+            </Link>
+          </div>
+          {renderBody()}
+        </div>
+      </LogisticsLayout>
+    </PageShell>
   );
 }

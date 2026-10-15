@@ -2,6 +2,8 @@
 const AppError = require('../utils/appError');
 const shipmentService = require('../services/shipmentService');
 const storage = require('../utils/storage');
+const { buildActionContext } = require('../middleware/requireLogisticsAccess');
+const { getAvailableActions } = require('../services/logisticsStateMachine');
 
 exports.listShipments = async (req, res, next) => {
   try {
@@ -25,7 +27,11 @@ exports.getShipment = async (req, res, next) => {
       isAdmin: !!req.isAdmin,
     });
     if (!shipment) return next(new AppError('Shipment not found', 404, 'not_found'));
-    res.json({ success: true, data: shipment });
+    // Advisory, additive: which milestones the viewer may record and why
+    // the rest are unavailable. Mutations re-check server-side.
+    const actionCtx = await buildActionContext(req, { assignedId: shipment.assigned_coordinator });
+    const availableActions = getAvailableActions('shipment', shipment.status, actionCtx);
+    res.json({ success: true, data: shipment, availableActions });
   } catch (err) { next(err); }
 };
 

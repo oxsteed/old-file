@@ -2,14 +2,27 @@ import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { listOrders, previewLandedCost, listLanes, listRefundCases, createRefundCase } from '../../api/logistics';
 import PageShell from '../../components/PageShell';
+import LogisticsLayout from '../../components/logistics/LogisticsLayout';
+import LogisticsStatusPill from '../../components/logistics/LogisticsStatusPill';
+import toast from 'react-hot-toast';
 import '../../styles/logistics/LogisticsHomePage.css';
+import '../../styles/logistics/LogisticsWorkspaces.css';
 
+/**
+ * LogisticsFinancePage - landed cost, deposits, refund cases (Phase 2).
+ *
+ * Shared LogisticsLayout for navigation; KPI strip, simulator, and refund
+ * panels use token-based classes; status pills use theme tones. The refund
+ * form labels are htmlFor-linked; submission surfaces success/error toasts.
+ */
 export default function LogisticsFinancePage() {
   const { t } = useTranslation();
+  const tx = (key, fallback, opts = {}) => t(key, { defaultValue: fallback, ...opts });
   const [orders, setOrders] = useState([]);
   const [lanes, setLanes]   = useState([]);
   const [refundCases, setRefundCases] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [refundSubmitting, setRefundSubmitting] = useState(false);
   const [refundForm, setRefundForm] = useState({ purchase_order_id: '', refund_reason: '', requested_amount_usd: '', notes: '' });
 
@@ -18,7 +31,9 @@ export default function LogisticsFinancePage() {
   const [simResult, setSimResult] = useState(null);
   const [simLoading, setSimLoading] = useState(false);
 
-  useEffect(() => {
+  const load = () => {
+    setLoading(true);
+    setError(false);
     Promise.all([
       listOrders({ limit: 100 }),
       listLanes(),
@@ -27,15 +42,17 @@ export default function LogisticsFinancePage() {
       setOrders(oRes.orders || []);
       setLanes(lRes.data || []);
       setRefundCases(refundRes.data || []);
-    }).catch(() => {}).finally(() => setLoading(false));
-  }, []);
+    }).catch(() => setError(true)).finally(() => setLoading(false));
+  };
 
-  const totalSpent = orders.reduce((s, o) => s + parseFloat(o.total_landed_usd||0), 0);
+  useEffect(() => { load(); }, []);
+
+  const totalSpent = orders.reduce((s, o) => s + parseFloat(o.total_landed_usd || 0), 0);
   const byStatus = orders.reduce((acc, o) => {
-    acc[o.status] = (acc[o.status]||0) + parseFloat(o.total_landed_usd||0);
+    acc[o.status] = (acc[o.status] || 0) + parseFloat(o.total_landed_usd || 0);
     return acc;
   }, {});
-  const depositPaid = orders.reduce((s, o) => s + parseFloat(o.deposit_paid_usd||0), 0);
+  const depositPaid = orders.reduce((s, o) => s + parseFloat(o.deposit_paid_usd || 0), 0);
 
   const runSimulator = async () => {
     if (!simData.unit_product_cost_usd || !simData.qty || !simData.lane_id) return;
@@ -44,7 +61,7 @@ export default function LogisticsFinancePage() {
       const r = await previewLandedCost({ ...simData });
       setSimResult(r.data);
     } catch (err) {
-      console.error(err);
+      toast.error(err.response?.data?.message || err.message);
     } finally {
       setSimLoading(false);
     }
@@ -58,8 +75,9 @@ export default function LogisticsFinancePage() {
       const refreshed = await listRefundCases();
       setRefundCases(refreshed.data || []);
       setRefundForm({ purchase_order_id: '', refund_reason: '', requested_amount_usd: '', notes: '' });
+      toast.success(tx('logistics.finance.refund.submitted', 'Refund case submitted for review.'));
     } catch (err) {
-      console.error(err);
+      toast.error(err.response?.data?.message || err.message);
     } finally {
       setRefundSubmitting(false);
     }
@@ -67,184 +85,213 @@ export default function LogisticsFinancePage() {
 
   return (
     <PageShell>
-      <div className="lx-page">
-      <div className="lx-page-header">
-        <h1 className="lx-page-title">{t('logistics.finance.title','Logistics Finance')}</h1>
-        <p className="lx-page-sub">{t('logistics.finance.subtitle','Landed cost breakdown, deposit tracking, and profitability overview.')}</p>
-      </div>
-
-      {/* KPI strip */}
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(180px, 1fr))', gap:'1rem', marginBottom:'2rem' }}>
-        {[
-          { label: t('logistics.finance.totalSpent','Total Committed'), value: `$${totalSpent.toLocaleString()}`, icon:'💰' },
-          { label: t('logistics.finance.depositPaid','Deposits Paid'), value: `$${depositPaid.toLocaleString()}`, icon:'✅' },
-          { label: t('logistics.finance.orderCount','Orders'), value: orders.length, icon:'📦' },
-          { label: t('logistics.finance.inTransit','In Transit'), value: orders.filter(o=>o.status==='in_transit').length, icon:'🚢' },
-        ].map(k => (
-          <div key={k.label} className="lx-card" style={{ textAlign:'center' }}>
-            <div style={{ fontSize:'1.75rem' }}>{k.icon}</div>
-            <div style={{ fontSize:'1.35rem', fontWeight:800, color:'#f97316', margin:'.25rem 0' }}>{k.value}</div>
-            <div style={{ fontSize:'.78rem', color:'#64748b', fontWeight:600 }}>{k.label}</div>
-          </div>
-        ))}
-      </div>
-
-      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'1.5rem', marginBottom:'2rem' }}>
-        {/* Spending by status */}
-        <div className="lx-card">
-          <h3 style={{ fontWeight:700, marginBottom:'1rem' }}>{t('logistics.finance.byStatus','Value by Order Status')}</h3>
-          {Object.entries(byStatus).sort((a,b) => b[1]-a[1]).map(([status, val]) => (
-            <div key={status} style={{ display:'flex', justifyContent:'space-between', padding:'.4rem 0', borderBottom:'1px solid #f1f5f9', fontSize:'.85rem' }}>
-              <span style={{ textTransform:'capitalize' }}>{status.replace(/_/g,' ')}</span>
-              <span style={{ fontWeight:700 }}>${val.toLocaleString()}</span>
-            </div>
-          ))}
-        </div>
-
-        {/* Landed Cost Simulator */}
-        <div className="lx-card">
-          <h3 style={{ fontWeight:700, marginBottom:'1rem' }}>🧮 {t('logistics.finance.simulator','Landed Cost Simulator')}</h3>
-          <div className="lx-form-group">
-            <label className="lx-label">Product Cost / Unit (USD)</label>
-            <input type="number" className="lx-input" value={simData.unit_product_cost_usd}
-              onChange={e => setSimData(d=>({...d,unit_product_cost_usd:e.target.value}))} />
-          </div>
-          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'1rem' }}>
-            <div className="lx-form-group">
-              <label className="lx-label">Quantity</label>
-              <input type="number" className="lx-input" value={simData.qty}
-                onChange={e => setSimData(d=>({...d,qty:e.target.value}))} />
-            </div>
-            <div className="lx-form-group">
-              <label className="lx-label">Freight Est / Unit (USD)</label>
-              <input type="number" className="lx-input" value={simData.freight_est_usd}
-                onChange={e => setSimData(d=>({...d,freight_est_usd:e.target.value}))} />
-            </div>
-          </div>
-          <div className="lx-form-group">
-            <label className="lx-label">Lane</label>
-            <select className="lx-select" value={simData.lane_id} onChange={e => setSimData(d=>({...d,lane_id:e.target.value}))}>
-              <option value="">— Select Lane —</option>
-              {lanes.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
-            </select>
-          </div>
-          <button className="lx-btn-primary" onClick={runSimulator} disabled={simLoading} style={{ width:'100%' }}>
-            {simLoading ? 'Calculating…' : 'Calculate Landed Cost'}
-          </button>
-
-          {simResult && (
-            <div style={{ marginTop:'1rem', background:'#f8fafc', borderRadius:'.625rem', padding:'1rem' }}>
-              <div style={{ fontWeight:800, fontSize:'1.15rem', color:'#f97316', marginBottom:'.75rem', textAlign:'center' }}>
-                ${simResult.unitCost?.landed?.toFixed(2)} / unit landed
-              </div>
-              {Object.entries(simResult.unitCost||{}).filter(([k])=>k!=='landed').map(([k,v]) => (
-                <div key={k} style={{ display:'flex', justifyContent:'space-between', fontSize:'.82rem', padding:'.2rem 0' }}>
-                  <span style={{ color:'#64748b', textTransform:'capitalize' }}>{k.replace(/([A-Z])/g,' $1').trim()}</span>
-                  <span style={{ fontWeight:600 }}>${parseFloat(v).toFixed(4)}</span>
-                </div>
-              ))}
-              <div style={{ display:'flex', justifyContent:'space-between', fontWeight:800, marginTop:'.5rem', paddingTop:'.5rem', borderTop:'2px solid #e2e8f0' }}>
-                <span>Total for {simResult.qty} units</span>
-                <span style={{ color:'#f97316' }}>${simResult.totals?.landed?.toLocaleString()}</span>
-              </div>
-              <div style={{ fontSize:'.78rem', color:'#94a3b8', marginTop:'.5rem', textAlign:'center' }}>
-                Markup applied: {((simResult.markupPct||0)*100).toFixed(1)}%
-              </div>
+      <LogisticsLayout
+        title={tx('logistics.finance.title', 'Logistics Finance')}
+        subtitle={tx('logistics.finance.subtitle', 'Landed cost breakdown, deposit tracking, and profitability overview.')}
+      >
+        <div className="lx-workspaces">
+          {loading && (
+            <div className="lx-loading" role="status" aria-live="polite">
+              <span className="lx-spinner" aria-hidden="true" />
+              {tx('logistics.modal.loading', 'Loading…')}
             </div>
           )}
-        </div>
-      </div>
 
-      {/* Recent orders table */}
-      {orders.length > 0 && (
-        <div className="lx-card">
-          <h3 style={{ fontWeight:700, marginBottom:'1rem' }}>{t('logistics.finance.recentOrders','Recent Orders')}</h3>
-          <div className="lx-table-wrap">
-            <table className="lx-table" style={{ fontSize:'.82rem' }}>
-              <thead>
-                <tr>
-                  <th>Reference</th><th>Product</th><th>Qty</th>
-                  <th>Total Landed</th><th>Deposit Paid</th><th>Remaining</th><th>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {orders.slice(0,15).map(o => {
-                  const remaining = parseFloat(o.total_landed_usd||0) - parseFloat(o.deposit_paid_usd||0);
-                  return (
-                    <tr key={o.id}>
-                      <td><code>{o.reference}</code></td>
-                      <td>{o.product_title||'—'}</td>
-                      <td>{o.qty_ordered}</td>
-                      <td style={{ fontWeight:700 }}>${parseFloat(o.total_landed_usd||0).toLocaleString()}</td>
-                      <td style={{ color:'#22c55e' }}>${parseFloat(o.deposit_paid_usd||0).toLocaleString()}</td>
-                      <td style={{ color: remaining > 0 ? '#f97316' : '#22c55e' }}>${remaining.toLocaleString()}</td>
-                      <td>
-                        <span className="lx-status-pill" style={{ background:'#64748b', fontSize:'.65rem' }}>
-                          {o.status?.replace(/_/g,' ')}
-                        </span>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
+          {!loading && error && (
+            <div className="lx-data-error-banner" role="alert">
+              <div>
+                <h2>{tx('logistics.workspace.dataError.title', 'Data unavailable')}</h2>
+                <p>{tx('logistics.finance.error', "We couldn't load finance data right now. Please try again.")}</p>
+              </div>
+              <button type="button" className="lx-btn-secondary" onClick={load}>
+                {tx('logistics.workspace.dataError.retry', 'Try again')}
+              </button>
+            </div>
+          )}
 
-      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'1.5rem', marginTop:'1.5rem' }}>
-        <div className="lx-card">
-          <h3 style={{ fontWeight:700, marginBottom:'1rem' }}>Refund Requests</h3>
-          <div style={{ display:'grid', gap:'.75rem' }}>
-            {refundCases.slice(0, 10).map((refund) => (
-              <div key={refund.id} style={{ border:'1px solid #e2e8f0', borderRadius:'.85rem', padding:'.9rem' }}>
-                <div style={{ display:'flex', justifyContent:'space-between', gap:'.75rem' }}>
-                  <div>
-                    <div style={{ fontWeight:700 }}>{refund.reference}</div>
-                    <div style={{ fontSize:'.8rem', color:'#64748b' }}>{refund.refund_reason}</div>
+          {!loading && !error && (
+            <>
+              {/* KPI strip */}
+              <div className="lx-kpi-grid">
+                {[
+                  { label: tx('logistics.finance.kpis.totalCommitted', 'Total Committed'), value: `$${totalSpent.toLocaleString()}`, icon: '💰' },
+                  { label: tx('logistics.finance.kpis.depositsPaid', 'Deposits Paid'), value: `$${depositPaid.toLocaleString()}`, icon: '✅' },
+                  { label: tx('logistics.finance.kpis.orders', 'Orders'), value: orders.length, icon: '📦' },
+                  { label: tx('logistics.finance.kpis.inTransit', 'In Transit'), value: orders.filter((o) => o.status === 'in_transit').length, icon: '🚢' },
+                ].map((k) => (
+                  <div key={k.label} className="lx-kpi-card">
+                    <div className="lx-kpi-icon" aria-hidden="true">{k.icon}</div>
+                    <div className="lx-kpi-value">{k.value}</div>
+                    <div className="lx-kpi-label">{k.label}</div>
                   </div>
-                  <span className="lx-status-pill" style={{ background: refund.status === 'approved' ? '#22c55e' : refund.status === 'rejected' ? '#ef4444' : '#64748b' }}>
-                    {refund.status}
-                  </span>
+                ))}
+              </div>
+
+              <div className="lx-two-col lx-mb-6">
+                {/* Spending by status */}
+                <div className="lx-card">
+                  <h3 className="lx-card-title lx-mb-4">{tx('logistics.finance.byStatus', 'Value by Order Status')}</h3>
+                  <div className="lx-kv-list">
+                    {Object.entries(byStatus).sort((a, b) => b[1] - a[1]).map(([status, val]) => (
+                      <div key={status} className="lx-kv-row">
+                        <LogisticsStatusPill status={status} />
+                        <span className="lx-kv-value">${val.toLocaleString()}</span>
+                      </div>
+                    ))}
+                    {Object.keys(byStatus).length === 0 && (
+                      <p className="lx-overview-empty">{tx('logistics.finance.noSpend', 'No order spend recorded yet.')}</p>
+                    )}
+                  </div>
                 </div>
-                <div style={{ fontSize:'.82rem', marginTop:'.45rem' }}>
-                  Requested: <strong>${parseFloat(refund.requested_amount_usd || 0).toFixed(2)}</strong>
+
+                {/* Landed Cost Simulator */}
+                <div className="lx-card">
+                  <h3 className="lx-card-title lx-mb-4">🧮 {tx('logistics.finance.simulator.title', 'Landed Cost Simulator')}</h3>
+                  <div className="lx-form-group">
+                    <label className="lx-label" htmlFor="lx-sim-cost">{tx('logistics.finance.simulator.productCost', 'Product Cost / Unit (USD)')}</label>
+                    <input id="lx-sim-cost" type="number" className="lx-input" value={simData.unit_product_cost_usd}
+                      onChange={(e) => setSimData((d) => ({ ...d, unit_product_cost_usd: e.target.value }))} />
+                  </div>
+                  <div className="lx-form-grid-2">
+                    <div className="lx-form-group">
+                      <label className="lx-label" htmlFor="lx-sim-qty">{tx('logistics.finance.simulator.quantity', 'Quantity')}</label>
+                      <input id="lx-sim-qty" type="number" className="lx-input" value={simData.qty}
+                        onChange={(e) => setSimData((d) => ({ ...d, qty: e.target.value }))} />
+                    </div>
+                    <div className="lx-form-group">
+                      <label className="lx-label" htmlFor="lx-sim-freight">{tx('logistics.finance.simulator.freight', 'Freight Est / Unit (USD)')}</label>
+                      <input id="lx-sim-freight" type="number" className="lx-input" value={simData.freight_est_usd}
+                        onChange={(e) => setSimData((d) => ({ ...d, freight_est_usd: e.target.value }))} />
+                    </div>
+                  </div>
+                  <div className="lx-form-group">
+                    <label className="lx-label" htmlFor="lx-sim-lane">{tx('logistics.finance.simulator.lane', 'Lane')}</label>
+                    <select id="lx-sim-lane" className="lx-select" value={simData.lane_id} onChange={(e) => setSimData((d) => ({ ...d, lane_id: e.target.value }))}>
+                      <option value="">{tx('logistics.finance.simulator.selectLane', '— Select Lane —')}</option>
+                      {lanes.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
+                    </select>
+                  </div>
+                  <button type="button" className="lx-btn-primary lx-btn-block" onClick={runSimulator} disabled={simLoading}>
+                    {simLoading ? tx('logistics.finance.simulator.calculating', 'Calculating…') : tx('logistics.finance.simulator.calculate', 'Calculate Landed Cost')}
+                  </button>
+
+                  {simResult && (
+                    <div className="lx-review-box lx-mt-6" role="status">
+                      <div className="lx-t-bold lx-mb-4" style={{ fontSize: '1.15rem', color: 'var(--color-primary)', textAlign: 'center' }}>
+                        ${simResult.unitCost?.landed?.toFixed(2)} {tx('logistics.finance.simulator.perUnit', '/ unit landed')}
+                      </div>
+                      {Object.entries(simResult.unitCost || {}).filter(([k]) => k !== 'landed').map(([k, v]) => (
+                        <div key={k} className="lx-review-row">
+                          <span className="lx-kv-label" style={{ textTransform: 'capitalize' }}>{k.replace(/([A-Z])/g, ' $1').trim()}</span>
+                          <span className="lx-kv-value">${parseFloat(v).toFixed(4)}</span>
+                        </div>
+                      ))}
+                      <div className="lx-kv-divider">
+                        <div className="lx-kv-row">
+                          <span className="lx-kv-label lx-t-bold">{tx('logistics.finance.simulator.totalFor', 'Total for {{qty}} units', { qty: simResult.qty })}</span>
+                          <span className="lx-kv-value lx-kv-total">${simResult.totals?.landed?.toLocaleString()}</span>
+                        </div>
+                      </div>
+                      <div className="lx-t-xs lx-t-faint lx-mt-6" style={{ textAlign: 'center' }}>
+                        {tx('logistics.finance.simulator.markupApplied', 'Markup applied')}: {((simResult.markupPct || 0) * 100).toFixed(1)}%
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
-            ))}
-            {!refundCases.length && !loading && (
-              <div className="lx-empty"><div className="lx-empty-icon">↩️</div><p>No refund cases submitted yet.</p></div>
-            )}
-          </div>
-        </div>
 
-        <div className="lx-card">
-          <h3 style={{ fontWeight:700, marginBottom:'1rem' }}>Request a Refund Review</h3>
-          <div className="lx-form-group">
-            <label className="lx-label">Purchase Order</label>
-            <select className="lx-select" value={refundForm.purchase_order_id} onChange={e => setRefundForm((f) => ({ ...f, purchase_order_id: e.target.value }))}>
-              <option value="">— Select order —</option>
-              {orders.map((o) => <option key={o.id} value={o.id}>{o.reference} · {o.product_title || 'PO'}</option>)}
-            </select>
-          </div>
-          <div className="lx-form-group">
-            <label className="lx-label">Refund Reason</label>
-            <input className="lx-input" value={refundForm.refund_reason} onChange={e => setRefundForm((f) => ({ ...f, refund_reason: e.target.value }))} />
-          </div>
-          <div className="lx-form-group">
-            <label className="lx-label">Requested Amount (USD)</label>
-            <input type="number" className="lx-input" value={refundForm.requested_amount_usd} onChange={e => setRefundForm((f) => ({ ...f, requested_amount_usd: e.target.value }))} />
-          </div>
-          <div className="lx-form-group">
-            <label className="lx-label">Notes</label>
-            <textarea className="lx-textarea" value={refundForm.notes} onChange={e => setRefundForm((f) => ({ ...f, notes: e.target.value }))} />
-          </div>
-          <button className="lx-btn-primary" onClick={submitRefund} disabled={refundSubmitting}>
-            {refundSubmitting ? 'Submitting…' : 'Submit Refund Case'}
-          </button>
+              {/* Recent orders table */}
+              {orders.length > 0 && (
+                <div className="lx-card lx-mb-6">
+                  <h3 className="lx-card-title lx-mb-4">{tx('logistics.finance.recentOrders', 'Recent Orders')}</h3>
+                  <div className="lx-table-wrap">
+                    <table className="lx-table lx-t-small">
+                      <thead>
+                        <tr>
+                          <th>{tx('logistics.finance.headers.reference', 'Reference')}</th>
+                          <th>{tx('logistics.finance.headers.product', 'Product')}</th>
+                          <th>{tx('logistics.finance.headers.qty', 'Qty')}</th>
+                          <th>{tx('logistics.finance.headers.totalLanded', 'Total Landed')}</th>
+                          <th>{tx('logistics.finance.headers.depositPaid', 'Deposit Paid')}</th>
+                          <th>{tx('logistics.finance.headers.remaining', 'Remaining')}</th>
+                          <th>{tx('logistics.finance.headers.status', 'Status')}</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {orders.slice(0, 15).map((o) => {
+                          const remaining = parseFloat(o.total_landed_usd || 0) - parseFloat(o.deposit_paid_usd || 0);
+                          return (
+                            <tr key={o.id}>
+                              <td><span className="lx-code">{o.reference}</span></td>
+                              <td>{o.product_title || '—'}</td>
+                              <td>{o.qty_ordered}</td>
+                              <td className="lx-t-bold">${parseFloat(o.total_landed_usd || 0).toLocaleString()}</td>
+                              <td style={{ color: 'var(--color-success)' }}>${parseFloat(o.deposit_paid_usd || 0).toLocaleString()}</td>
+                              <td style={{ color: remaining > 0 ? 'var(--color-primary)' : 'var(--color-success)' }}>${remaining.toLocaleString()}</td>
+                              <td><LogisticsStatusPill status={o.status} /></td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              <div className="lx-two-col">
+                <div className="lx-card">
+                  <h3 className="lx-card-title lx-mb-4">{tx('logistics.finance.refund.title', 'Refund Requests')}</h3>
+                  <div className="lx-compact-stack">
+                    {refundCases.slice(0, 10).map((refund) => (
+                      <div key={refund.id} className="lx-item-card">
+                        <div className="lx-item-card-head">
+                          <div>
+                            <div className="lx-t-bold lx-t-small">{refund.reference}</div>
+                            <div className="lx-t-xs lx-t-faint">{refund.refund_reason}</div>
+                          </div>
+                          <LogisticsStatusPill status={refund.status} />
+                        </div>
+                        <div className="lx-t-small lx-mt-6">
+                          {tx('logistics.finance.refund.requested', 'Requested')}: <strong>${parseFloat(refund.requested_amount_usd || 0).toFixed(2)}</strong>
+                        </div>
+                      </div>
+                    ))}
+                    {refundCases.length === 0 && (
+                      <div className="lx-empty"><div className="lx-empty-icon" aria-hidden="true">↩️</div><p>{tx('logistics.finance.refund.empty', 'No refund cases submitted yet.')}</p></div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="lx-card">
+                  <h3 className="lx-card-title lx-mb-4">{tx('logistics.finance.refundForm.title', 'Request a Refund Review')}</h3>
+                  <div className="lx-form-group">
+                    <label className="lx-label" htmlFor="lx-refund-order">{tx('logistics.finance.refundForm.purchaseOrder', 'Purchase Order')}</label>
+                    <select id="lx-refund-order" className="lx-select" value={refundForm.purchase_order_id} onChange={(e) => setRefundForm((f) => ({ ...f, purchase_order_id: e.target.value }))}>
+                      <option value="">{tx('logistics.finance.refundForm.selectOrder', '— Select order —')}</option>
+                      {orders.map((o) => <option key={o.id} value={o.id}>{o.reference} · {o.product_title || tx('logistics.finance.refundForm.poFallback', 'PO')}</option>)}
+                    </select>
+                  </div>
+                  <div className="lx-form-group">
+                    <label className="lx-label" htmlFor="lx-refund-reason">{tx('logistics.finance.refundForm.reason', 'Refund Reason')}</label>
+                    <input id="lx-refund-reason" className="lx-input" value={refundForm.refund_reason} onChange={(e) => setRefundForm((f) => ({ ...f, refund_reason: e.target.value }))} />
+                  </div>
+                  <div className="lx-form-group">
+                    <label className="lx-label" htmlFor="lx-refund-amount">{tx('logistics.finance.refundForm.amount', 'Requested Amount (USD)')}</label>
+                    <input id="lx-refund-amount" type="number" className="lx-input" value={refundForm.requested_amount_usd} onChange={(e) => setRefundForm((f) => ({ ...f, requested_amount_usd: e.target.value }))} />
+                  </div>
+                  <div className="lx-form-group">
+                    <label className="lx-label" htmlFor="lx-refund-notes">{tx('logistics.finance.refundForm.notes', 'Notes')}</label>
+                    <textarea id="lx-refund-notes" className="lx-textarea" value={refundForm.notes} onChange={(e) => setRefundForm((f) => ({ ...f, notes: e.target.value }))} />
+                  </div>
+                  <button type="button" className="lx-btn-primary" onClick={submitRefund} disabled={refundSubmitting}>
+                    {refundSubmitting ? tx('logistics.finance.refundForm.submitting', 'Submitting…') : tx('logistics.finance.refundForm.submit', 'Submit Refund Case')}
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
         </div>
-      </div>
-      </div>
+      </LogisticsLayout>
     </PageShell>
   );
 }

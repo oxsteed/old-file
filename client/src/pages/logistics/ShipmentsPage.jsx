@@ -1,111 +1,156 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { listShipments } from '../../api/logistics';
 import PageShell from '../../components/PageShell';
+import LogisticsLayout from '../../components/logistics/LogisticsLayout';
+import LogisticsStatusPill from '../../components/logistics/LogisticsStatusPill';
 import '../../styles/logistics/LogisticsHomePage.css';
-
-const STATUS_COLOR = {
-  planned:'#94a3b8', booked:'#3b82f6', origin_received:'#f59e0b',
-  consolidating:'#f97316', departed_origin:'#8b5cf6', transshipment:'#7c3aed',
-  arrived_destination:'#06b6d4', customs_hold:'#dc2626', customs_cleared:'#22c55e',
-  delivered_to_warehouse:'#10b981', receiving:'#0284c7', allocation_ready:'#059669',
-  distributed:'#16a34a', completed:'#15803d', exception:'#ef4444',
-};
+import '../../styles/logistics/LogisticsWorkspaces.css';
 
 const LIFECYCLE = [
-  'planned','booked','origin_received','consolidating','departed_origin',
-  'transshipment','arrived_destination','customs_hold','customs_cleared',
-  'delivered_to_warehouse','receiving','allocation_ready','distributed','completed',
+  'planned', 'booked', 'origin_received', 'consolidating', 'departed_origin',
+  'transshipment', 'arrived_destination', 'customs_hold', 'customs_cleared',
+  'delivered_to_warehouse', 'receiving', 'allocation_ready', 'distributed', 'completed',
 ];
 
+/**
+ * ShipmentsPage - shipment tracking list (Phase 2 refactor).
+ *
+ * The lifecycle legend becomes keyboard-operable toggle chips (aria-pressed,
+ * 44px targets, theme tokens) instead of inline-styled buttons. Shipment
+ * cards and status pills use the shared token-based components.
+ */
 export default function ShipmentsPage() {
   const { t } = useTranslation();
+  const tx = (key, fallback, opts = {}) => t(key, { defaultValue: fallback, ...opts });
   const navigate = useNavigate();
   const [shipments, setShipments] = useState([]);
-  const [total, setTotal]         = useState(0);
-  const [status, setStatus]       = useState('');
-  const [loading, setLoading]     = useState(true);
+  const [status, setStatus] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
-  useEffect(() => {
+  const load = () => {
     setLoading(true);
-    listShipments({ status: status||undefined, limit:50 })
-      .then(r => { setShipments(r.shipments||[]); setTotal(r.total||0); })
-      .catch(() => {})
+    setError(false);
+    listShipments({ status: status || undefined, limit: 50 })
+      .then((r) => setShipments(r.shipments || []))
+      .catch(() => setError(true))
       .finally(() => setLoading(false));
-  }, [status]);
+  };
+
+  useEffect(() => { load(); }, [status]);
+
+  const toggleStatus = (s) => setStatus((current) => (current === s ? '' : s));
 
   return (
     <PageShell>
-      <div className="lx-page">
-      <div className="lx-page-header">
-        <h1 className="lx-page-title">{t('logistics.shipments.title','Shipments')}</h1>
-        <p className="lx-page-sub">{t('logistics.shipments.subtitle','Track shipments from origin through customs to warehouse receipt.')}</p>
-      </div>
-
-      {/* Lifecycle legend */}
-      <div style={{ overflowX:'auto', marginBottom:'1.5rem' }}>
-        <div style={{ display:'flex', gap:'.5rem', padding:'.75rem 0', minWidth:'max-content' }}>
-          {LIFECYCLE.map((s, i) => (
-            <React.Fragment key={s}>
-              <button
-                onClick={() => setStatus(status === s ? '' : s)}
-                style={{
-                  padding:'.3rem .75rem', borderRadius:999,
-                  border: `2px solid ${STATUS_COLOR[s]}`,
-                  background: status === s ? STATUS_COLOR[s] : 'transparent',
-                  color: status === s ? '#fff' : STATUS_COLOR[s],
-                  fontWeight:700, fontSize:'.72rem', cursor:'pointer', whiteSpace:'nowrap',
-                }}
-              >{s.replace(/_/g,' ')}</button>
-              {i < LIFECYCLE.length - 1 && <span style={{ color:'#cbd5e1', alignSelf:'center' }}>→</span>}
-            </React.Fragment>
-          ))}
-        </div>
-      </div>
-
-      {loading && <div className="lx-loading">{t('logistics.shipments.loading')}</div>}
-
-      {!loading && shipments.length === 0 && (
-        <div className="lx-empty">
-          <div className="lx-empty-icon">🚢</div>
-          <p>{t('logistics.shipments.empty','No shipments found.')}</p>
-        </div>
-      )}
-
-      {shipments.length > 0 && (
-        <div style={{ display:'grid', gap:'1rem' }}>
-          {shipments.map(s => (
-            <div key={s.id} className="lx-card" style={{ cursor:'pointer', display:'grid', gridTemplateColumns:'1fr auto', gap:'1rem' }}
-              onClick={() => navigate(`/logistics/shipments/${s.id}`)}>
-              <div>
-                <div style={{ fontSize:'.75rem', color:'#64748b', fontWeight:700, marginBottom:'.25rem' }}>
-                  {s.origin_country} → {s.destination_country} · {s.freight_option?.replace(/_/g,' ')} · {s.carrier || 'No carrier'}
-                </div>
-                <div style={{ fontWeight:700, fontSize:'.95rem', marginBottom:'.35rem' }}>
-                  <code style={{ color:'#64748b', marginRight:'.5rem', fontSize:'.8rem' }}>{s.reference}</code>
-                  {s.lane_name}
-                </div>
-                <div style={{ display:'flex', gap:'1rem', fontSize:'.8rem', color:'#64748b', flexWrap:'wrap' }}>
-                  {s.tracking_number && <span>🔍 {s.tracking_number}</span>}
-                  {s.total_weight_kg && <span>⚖️ {s.total_weight_kg} kg</span>}
-                  {s.total_cbm && <span>📦 {s.total_cbm} CBM</span>}
-                  {s.eta && <span>🕐 ETA {new Date(s.eta).toLocaleDateString()}</span>}
-                </div>
-              </div>
-              <div style={{ textAlign:'right' }}>
-                <span className="lx-status-pill" style={{ background: STATUS_COLOR[s.status]||'#64748b' }}>
-                  {s.status?.replace(/_/g,' ')}
-                </span>
-                {s.status === 'exception' && (
-                  <div style={{ color:'#ef4444', fontWeight:700, fontSize:'.8rem', marginTop:'.3rem' }}>⚠ Exception</div>
+      <LogisticsLayout
+        title={tx('logistics.shipments.title', 'Shipments')}
+        subtitle={tx('logistics.shipments.subtitle', 'Track shipments from origin through customs to warehouse receipt.')}
+      >
+        <div className="lx-workspaces">
+          {/* Lifecycle legend: toggle chips */}
+          <div className="lx-filter-chips" role="group" aria-label={tx('logistics.shipments.lifecycleLabel', 'Filter by lifecycle stage')}>
+            {LIFECYCLE.map((s, i) => (
+              <React.Fragment key={s}>
+                <button
+                  type="button"
+                  className="lx-filter-chip"
+                  aria-pressed={status === s}
+                  onClick={() => toggleStatus(s)}
+                >
+                  {tx(`logistics.status.${s}`, s.replace(/_/g, ' '))}
+                </button>
+                {i < LIFECYCLE.length - 1 && (
+                  <span className="lx-filter-chip-separator" aria-hidden="true">→</span>
                 )}
-              </div>
+              </React.Fragment>
+            ))}
+          </div>
+
+          {loading && (
+            <div className="lx-loading" role="status" aria-live="polite">
+              <span className="lx-spinner" aria-hidden="true" />
+              {tx('logistics.shipments.loading', 'Loading…')}
             </div>
-          ))}
+          )}
+
+          {!loading && error && (
+            <div className="lx-data-error-banner" role="alert">
+              <div>
+                <h2>{tx('logistics.workspace.dataError.title', 'Data unavailable')}</h2>
+                <p>{tx('logistics.shipments.error', "We couldn't load your shipments right now. Please try again.")}</p>
+              </div>
+              <button type="button" className="lx-btn-secondary" onClick={load}>
+                {tx('logistics.workspace.dataError.retry', 'Try again')}
+              </button>
+            </div>
+          )}
+
+          {!loading && !error && shipments.length === 0 && (
+            <div className="lx-empty">
+              <div className="lx-empty-icon" aria-hidden="true">🚢</div>
+              <p>{tx('logistics.shipments.empty', 'No shipments found.')}</p>
+              {status && (
+                <button type="button" className="lx-action-secondary" onClick={() => setStatus('')}>
+                  {tx('logistics.hub.clearFilters', 'Clear filters')}
+                </button>
+              )}
+            </div>
+          )}
+
+          {!loading && !error && shipments.length > 0 && (
+            <div className="lx-compact-stack">
+              {shipments.map((s) => (
+                <div
+                  key={s.id}
+                  className="lx-card lx-item-card-head"
+                  role="link"
+                  tabIndex={0}
+                  aria-label={tx('logistics.shipments.openShipment', 'Open shipment {{ref}}', { ref: s.reference })}
+                  onClick={() => navigate(`/logistics/shipments/${s.id}`)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      navigate(`/logistics/shipments/${s.id}`);
+                    }
+                  }}
+                  style={{ cursor: 'pointer' }}
+                >
+                  <div>
+                    <div className="lx-t-xs lx-t-faint lx-t-bold lx-mb-4">
+                      {s.origin_country} → {s.destination_country} · {s.freight_option?.replace(/_/g, ' ')} · {s.carrier || tx('logistics.shipments.noCarrier', 'No carrier')}
+                    </div>
+                    <div className="lx-t-semibold lx-t-small lx-mb-4">
+                      <span className="lx-code" style={{ marginInlineEnd: '.5rem' }}>{s.reference}</span>
+                      {s.lane_name}
+                    </div>
+                    <div className="lx-t-xs lx-t-faint lx-btn-row">
+                      {s.tracking_number && <span>🔍 {s.tracking_number}</span>}
+                      {s.total_weight_kg && <span>⚖️ {s.total_weight_kg} {tx('logistics.shipments.kg', 'kg')}</span>}
+                      {s.total_cbm && <span>📦 {s.total_cbm} {tx('logistics.shipments.cbm', 'CBM')}</span>}
+                      {s.eta && <span>🕐 {tx('logistics.shipments.etaLabel', 'ETA')} {new Date(s.eta).toLocaleDateString()}</span>}
+                    </div>
+                  </div>
+                  <div style={{ textAlign: 'end' }}>
+                    <LogisticsStatusPill status={s.status} />
+                    {s.status === 'exception' && (
+                      <div className="lx-t-xs lx-t-bold lx-mt-6" style={{ color: 'var(--color-error)' }}>
+                        ⚠ {tx('logistics.shipments.exception', 'Exception')}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <p className="lx-t-small lx-t-faint lx-mt-6">
+            <Link to="/logistics/buyer" className="lx-link">← {tx('logistics.shipments.backToBuyer', 'Back to Buyer workspace')}</Link>
+          </p>
         </div>
-      )}
-      </div>
+      </LogisticsLayout>
     </PageShell>
   );
 }

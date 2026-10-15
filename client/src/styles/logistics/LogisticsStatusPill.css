@@ -1,0 +1,43 @@
+/* ── LogisticsStatusPill: semantic status tones on theme tokens ────────────
+   Extends the shared .lx-status-pill base (LogisticsHomePage.css) with
+   tinted backgrounds + colored text so pills stay legible in both light
+   and dark themes without hardcoded hex colors. */
+
+.lx-status-pill--neutral {
+  background: var(--color-surface-3);
+  color: var(--color-text-muted);
+  border: 1px solid var(--color-border-strong);
+}
+
+.lx-status-pill--success {
+  background: var(--color-success-bg);
+  color: var(--color-success);
+  border: 1px solid color-mix(in srgb, var(--color-success) 35%, transparent);
+}
+
+.lx-status-pill--warning {
+  background: var(--color-warning-bg);
+  color: var(--color-warning);
+  border: 1px solid color-mix(in srgb, var(--color-warning) 35%, transparent);
+}
+
+.lx-status-pill--info {
+  background: var(--color-info-bg);
+  color: var(--color-info);
+  border: 1px solid color-mix(in srgb, var(--color-info) 35%, transparent);
+}
+
+.lx-status-pill--danger {
+  background: var(--color-error-bg);
+  color: var(--color-error);
+  border: 1px solid color-mix(in srgb, var(--color-error) 35%, transparent);
+}
+
+/* Pills rendered inside the dark dashboard hero keep readable contrast. */
+.lx-dashboard-hero-main .lx-status-pill--neutral,
+.lx-dashboard-hero-main .lx-status-pill--success,
+.lx-dashboard-hero-main .lx-status-pill--warning,
+.lx-dashboard-hero-main .lx-status-pill--info,
+.lx-dashboard-hero-main .lx-status-pill--danger {
+  color: #fff;
+}

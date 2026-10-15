@@ -2,6 +2,8 @@
 const AppError = require('../utils/appError');
 const poService = require('../services/purchaseOrderService');
 const { calculateLandedCost } = require('../services/logisticsPricingService');
+const { buildActionContext } = require('../middleware/requireLogisticsAccess');
+const { getAvailableActions } = require('../services/logisticsStateMachine');
 
 exports.listPurchaseOrders = async (req, res, next) => {
   try {
@@ -24,7 +26,11 @@ exports.getPurchaseOrder = async (req, res, next) => {
     if (!req.isAdmin && order.buyer_user_id !== req.user.id) {
       return next(new AppError('Not authorized', 403, 'forbidden'));
     }
-    res.json({ success: true, data: order });
+    // Advisory, additive: which status transitions the viewer may perform
+    // and why the rest are unavailable. Mutations re-check server-side.
+    const actionCtx = await buildActionContext(req, { ownerId: order.buyer_user_id });
+    const availableActions = getAvailableActions('purchase_order', order.status, actionCtx);
+    res.json({ success: true, data: order, availableActions });
   } catch (err) { next(err); }
 };
 

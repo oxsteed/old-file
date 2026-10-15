@@ -11,6 +11,7 @@ const pool = require('../db');
 const logger = require('../utils/logger');
 const laneService = require('../services/logisticsLaneService');
 const accessService = require('../services/logisticsAccessService');
+const stateMachine = require('../services/logisticsStateMachine');
 
 const LOGISTICS_ROLES = new Set([
   'individual_buyer', 'business_buyer', 'organizer', 'reseller',
@@ -156,9 +157,77 @@ function enforceCountryRestriction() {
   };
 }
 
+/**
+ * Capability gate for logistics mutations.
+ *
+ *   requireLogisticsCapability('orders.transition', 'shipments.manage')
+ *
+ * Resolves the caller's server-derived capabilities (the same model served
+ * to the UI by GET /api/logistics/capabilities) and requires every named
+ * capability. Admins / super_admins pass every check. Sets
+ * req.logisticsRole and req.logisticsCapabilities for downstream handlers.
+ * Rejects with 401 when unauthenticated, 403 when a capability is missing.
+ */
+function requireLogisticsCapability(...paths) {
+  return async (req, res, next) => {
+    try {
+      if (!req.user) return res.status(401).json({ error: 'unauthenticated' });
+      const role = req.logisticsRole || await resolveLogisticsRole(req.user);
+      req.logisticsRole = role;
+      const capabilities = stateMachine.resolveCapabilities({ user: req.user, logisticsRole: role });
+      req.logisticsCapabilities = capabilities;
+      const missing = paths.filter((p) => !stateMachine.getCapability(capabilities, p));
+      if (missing.length) {
+        return res.status(403).json({
+          error: 'logistics_capability_required',
+          required: missing,
+          role,
+        });
+      }
+      return next();
+    } catch (err) {
+      logger.error('requireLogisticsCapability failed', { err: err.message });
+      return res.status(500).json({ error: 'logistics_capability_check_failed' });
+    }
+  };
+}
+
+/**
+ * Build the role context object consumed by
+ * logisticsStateMachine.getAvailableActions for a single entity.
+ *
+ *   buildActionContext(req, { ownerId, assignedId })
+ *
+ * Never throws: role resolution failures degrade to an unauthenticated
+ * context (all gated actions surface as blockers).
+ */
+async function buildActionContext(req, { ownerId = null, assignedId = null } = {}) {
+  let logisticsRole = req.logisticsRole || null;
+  if (!logisticsRole) {
+    try {
+      logisticsRole = await resolveLogisticsRole(req.user);
+    } catch (_) {
+      logisticsRole = null;
+    }
+  }
+  const userId = req.user?.id ?? null;
+  const isAdminUser = logisticsRole === 'admin' || logisticsRole === 'super_admin';
+  return {
+    logisticsRole,
+    userId,
+    isAdmin: Boolean(req.isAdmin) || isAdminUser,
+    isOwner: userId !== null && userId !== undefined && ownerId !== null && ownerId !== undefined
+      && String(ownerId) === String(userId),
+    isAssigned: userId !== null && userId !== undefined && assignedId !== null && assignedId !== undefined
+      && String(assignedId) === String(userId),
+  };
+}
+
 module.exports = {
   resolveLogisticsRole,
   requireLogisticsRole,
+  requireLogisticsCapability,
+  buildActionContext,
   requireLaneAccess,
   enforceCountryRestriction,
   LOGISTICS_ROLES: Array.from(LOGISTICS_ROLES),
