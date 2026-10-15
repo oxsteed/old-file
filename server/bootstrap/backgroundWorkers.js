@@ -57,6 +57,7 @@ const { startMessageNotificationOutboxJob } = require('../jobs/messageNotificati
 const { startMarketplaceRefundReconciliationJob } = require('../jobs/marketplaceRefundReconciliation');
 const { startPaymentRefundReconciliationJob } = require('../jobs/paymentRefundReconciliation');
 const { startExternalRefundReconciliationJob } = require('../jobs/externalRefundReconciliation');
+const { startLogisticsRefundProposalExpiryJob } = require('../jobs/logisticsRefundProposalExpiry');
 const { startPayoutSettlementReconciliationJob } = require('../jobs/payoutSettlementReconciliation');
 const { startRestaurantPayoutReconciliationJob } = require('../jobs/restaurantPayoutReconciliation');
 const { startWebhookRetryJob } = require('../jobs/webhookRetryWorker');
@@ -139,6 +140,7 @@ class BackgroundWorkers {
       startMarketplaceRefundReconciliationJob();
       startPaymentRefundReconciliationJob();
       startExternalRefundReconciliationJob();
+      startLogisticsRefundProposalExpiryJob();
       startPayoutSettlementReconciliationJob();
       startRestaurantPayoutReconciliationJob();
       startWebhookRetryJob();
