@@ -2,7 +2,9 @@ import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { adminListShipments } from '../../../api/logistics';
 import '../../../styles/logistics/LogisticsHomePage.css';
+import '../../../styles/logistics/LogisticsWorkspaces.css';
 import AdminErrorState from '../../lib/AdminErrorState';
+import LogisticsStatusPill from '../../../components/logistics/LogisticsStatusPill';
 
 export default function ShipmentOpsAdmin() {
   const { t, i18n } = useTranslation();
@@ -39,8 +41,8 @@ export default function ShipmentOpsAdmin() {
         ].map(([label, value, icon]) => (
           <div key={label} className="lx-card" style={{ textAlign:'center' }}>
             <div style={{ fontSize:'1.4rem' }}>{icon}</div>
-            <div style={{ fontSize:'1.4rem', fontWeight:800, color:'#f97316' }}>{value}</div>
-            <div style={{ color:'#64748b', fontSize:'.8rem', fontWeight:600 }}>{label}</div>
+            <div style={{ fontSize:'1.4rem', fontWeight:800, color:'var(--color-primary)' }}>{value}</div>
+            <div style={{ color:'var(--color-text-muted)', fontSize:'.8rem', fontWeight:600 }}>{label}</div>
           </div>
         ))}
       </div>
@@ -54,11 +56,11 @@ export default function ShipmentOpsAdmin() {
                 <td>{shipment.reference}</td>
                 <td>{shipment.origin_country} → {shipment.destination_country}</td>
                 <td>{shipment.freight_mode || '—'}</td>
-                <td><span className="lx-status-pill" style={{ background: shipment.status === 'exception' ? '#ef4444' : shipment.status === 'completed' ? '#22c55e' : '#64748b' }}>{t(`logistics.status.${shipment.status}`, { defaultValue: shipment.status || t('logistics.admin.unknownStatus') })}</span></td>
+                <td><LogisticsStatusPill status={shipment.status} label={t(`logistics.status.${shipment.status}`, { defaultValue: shipment.status || t('logistics.admin.unknownStatus') })} /></td>
                 <td>{shipment.eta ? new Date(shipment.eta).toLocaleDateString(i18n.language) : '—'}</td>
               </tr>
             ))}
-            {!loading && !loadError && shipments.length === 0 && <tr><td colSpan={5} style={{ textAlign:'center', color:'#94a3b8' }}>{t('logistics.admin.shipmentOps.empty')}</td></tr>}
+            {!loading && !loadError && shipments.length === 0 && <tr><td colSpan={5} className="lx-table-empty-cell">{t('logistics.admin.shipmentOps.empty')}</td></tr>}
           </tbody>
         </table>
       </div>
