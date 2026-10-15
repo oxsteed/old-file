@@ -3,21 +3,19 @@ import { useTranslation } from 'react-i18next';
 import { adminListShipments, adminAddMilestone, adminUploadShipmentDoc } from '../../../api/logistics';
 import toast from 'react-hot-toast';
 import '../../../styles/logistics/LogisticsHomePage.css';
+import '../../../styles/logistics/LogisticsWorkspaces.css';
 import AdminErrorState from '../../lib/AdminErrorState';
-
-const STATUS_COLOR = {
-  planned:'#94a3b8', booked:'#3b82f6', origin_received:'#fbbf24', consolidating:'#fb923c',
-  departed_origin:'#f59e0b', transshipment:'#8b5cf6', arrived_destination:'#22c55e',
-  customs_hold:'#dc2626', customs_cleared:'#16a34a', delivered_to_warehouse:'#10b981',
-  receiving:'#0ea5e9', allocation_ready:'#14b8a6', distributed:'#22c55e',
-  completed:'#15803d', exception:'#ef4444',
-};
+import LogisticsModal from '../../../components/logistics/LogisticsModal';
+import LogisticsStatusPill from '../../../components/logistics/LogisticsStatusPill';
 
 const MILESTONE_OPTS = [
   'booked','origin_received','consolidating','departed_origin','transshipment',
   'arrived_destination','customs_hold','customs_cleared','delivered_to_warehouse',
   'receiving','allocation_ready','distributed','completed','exception',
 ];
+
+// Full filter list: every milestone status plus the pre-booking 'planned' state.
+const SHIPMENT_STATUSES = ['planned', ...MILESTONE_OPTS];
 
 const DOC_TYPES = ['bill_of_lading','commercial_invoice','packing_list','certificate_of_origin',
   'customs_declaration','insurance_cert','other'];
@@ -82,7 +80,7 @@ export default function ShipmentsAdmin() {
       <div className="lx-filter-bar">
         <select className="lx-select" value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
           <option value="">{t('logistics.admin.shipments.allStatuses')}</option>
-          {Object.keys(STATUS_COLOR).map(s => (
+          {SHIPMENT_STATUSES.map(s => (
             <option key={s} value={s}>{t(`logistics.admin.shipments.statuses.${s}`, { defaultValue: s.replace(/_/g,' ') })}</option>
           ))}
         </select>
@@ -103,11 +101,11 @@ export default function ShipmentsAdmin() {
             {shipments.map(s => (
               <tr key={s.id}>
                 <td><code style={{ fontSize:'.78rem' }}>{s.reference}</code></td>
-                <td style={{ fontSize:'.8rem', color:'#64748b' }}>
+                <td style={{ fontSize:'.8rem', color:'var(--color-text-muted)' }}>
                   {s.origin_country} → {s.destination_country}
                 </td>
                 <td style={{ fontSize:'.82rem' }}>{s.carrier_name || '—'}</td>
-                <td style={{ fontSize:'.78rem', color:'#64748b' }}>{s.tracking_number || '—'}</td>
+                <td style={{ fontSize:'.78rem', color:'var(--color-text-muted)' }}>{s.tracking_number || '—'}</td>
                 <td style={{ fontSize:'.8rem' }}>
                   {s.weight_kg ? `${s.weight_kg}kg` : '—'}
                   {s.cbm ? ` / ${s.cbm}m³` : ''}
@@ -116,9 +114,10 @@ export default function ShipmentsAdmin() {
                   {s.eta ? new Date(s.eta).toLocaleDateString(i18n.language) : '—'}
                 </td>
                 <td>
-                  <span className="lx-status-pill" style={{ background: STATUS_COLOR[s.status]||'#64748b' }}>
-                    {t(`logistics.admin.shipments.statuses.${s.status}`, { defaultValue: s.status?.replace(/_/g,' ') || t('logistics.admin.unknownStatus') })}
-                  </span>
+                  <LogisticsStatusPill
+                    status={s.status}
+                    label={t(`logistics.admin.shipments.statuses.${s.status}`, { defaultValue: s.status?.replace(/_/g,' ') || t('logistics.admin.unknownStatus') })}
+                  />
                 </td>
                 <td>
                   <button className="lx-btn-secondary" style={{ fontSize:'.72rem', padding:'.25rem .65rem' }}
@@ -129,27 +128,30 @@ export default function ShipmentsAdmin() {
               </tr>
             ))}
             {shipments.length === 0 && !loading && !loadError && (
-              <tr><td colSpan={8} style={{ textAlign:'center', padding:'2rem', color:'#94a3b8' }}>{t('logistics.admin.shipments.empty')}</td></tr>
+              <tr><td colSpan={8} className="lx-table-empty-cell">{t('logistics.admin.shipments.empty')}</td></tr>
             )}
           </tbody>
         </table>
       </div>
 
-      {selected && (
-        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.4)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:9999 }}>
-          <div style={{ background:'var(--card-bg,#fff)', borderRadius:'1rem', padding:'1.5rem', width:480, maxWidth:'90vw' }}>
-            <h3 style={{ fontWeight:700, marginBottom:'.5rem' }}>{selected.reference}</h3>
-            <div style={{ fontSize:'.82rem', color:'#64748b', marginBottom:'1rem' }}>
-              {selected.origin_country} → {selected.destination_country} &nbsp;|&nbsp; {t('logistics.admin.shipments.status')}: <strong>{t(`logistics.admin.shipments.statuses.${selected.status}`, { defaultValue: selected.status?.replace(/_/g,' ') || t('logistics.admin.unknownStatus') })}</strong>
+      <LogisticsModal
+        open={!!selected}
+        title={selected?.reference}
+        onClose={() => setSelected(null)}
+      >
+        {selected && (
+          <>
+            <div style={{ fontSize:'.82rem', color:'var(--color-text-muted)', marginBottom:'1rem' }}>
+              {selected.origin_country} → {selected.destination_country} &nbsp;|&nbsp; {t('logistics.admin.shipments.status')}: <strong><LogisticsStatusPill status={selected.status} label={t(`logistics.admin.shipments.statuses.${selected.status}`, { defaultValue: selected.status?.replace(/_/g,' ') || t('logistics.admin.unknownStatus') })} /></strong>
             </div>
 
             {/* Tab bar */}
-            <div style={{ display:'flex', gap:'.25rem', borderBottom:'2px solid #e2e8f0', marginBottom:'1rem' }}>
+            <div style={{ display:'flex', gap:'.25rem', borderBottom:'2px solid var(--color-border)', marginBottom:'1rem' }}>
               {['milestone','doc'].map(v => (
                 <button key={v} onClick={() => setView(v)} style={{
                   padding:'.4rem 1rem', border:'none', background:'none',
-                  fontWeight: view===v ? 700 : 500, color: view===v ? '#f97316' : '#64748b',
-                  borderBottom: view===v ? '2px solid #f97316' : '2px solid transparent',
+                  fontWeight: view===v ? 700 : 500, color: view===v ? 'var(--color-primary)' : 'var(--color-text-muted)',
+                  borderBottom: view===v ? '2px solid var(--color-primary)' : '2px solid transparent',
                   marginBottom:'-2px', cursor:'pointer',
                 }}>{v === 'milestone' ? t('logistics.admin.shipments.addMilestone') : t('logistics.admin.shipments.uploadDocument')}</button>
               ))}
@@ -215,9 +217,9 @@ export default function ShipmentsAdmin() {
                 </div>
               </>
             )}
-          </div>
-        </div>
-      )}
+          </>
+        )}
+      </LogisticsModal>
     </div>
   );
 }
