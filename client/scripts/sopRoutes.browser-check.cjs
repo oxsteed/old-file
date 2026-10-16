@@ -10,10 +10,20 @@ const { build } = require('esbuild');
 const { chromium } = require('playwright-core');
 
 const root = path.resolve(__dirname, '..');
-const SHELL = path.join(
-  process.env.HOME || '/home/hatch',
-  '.cache/ms-playwright/chromium_headless_shell-1243/chrome-headless-shell-linux64/chrome-headless-shell'
-);
+const SHELL =
+  process.env.SOP_CHROME_PATH ||
+  path.join(
+    process.env.HOME || '/home/hatch',
+    '.cache/ms-playwright/chromium_headless_shell-1243/chrome-headless-shell-linux64/chrome-headless-shell'
+  );
+// CI installs Chrome via browser-actions/setup-chrome; local dev uses the
+// headless shell. SOP_CHROME_PATH overrides both (e.g. local runs).
+async function launchBrowser() {
+  if (process.env.SOP_CHROME_PATH || fs.existsSync(SHELL)) {
+    return chromium.launch({ executablePath: process.env.SOP_CHROME_PATH || SHELL });
+  }
+  return chromium.launch({ channel: 'chrome' });
+}
 
 const mocks = {
   'react-i18next': `export const useTranslation = () => ({ t: (k) => k, i18n: { language: 'en' } }); export const initReactI18next = { type: '3rdParty', init: () => {} };`,
@@ -127,7 +137,7 @@ function routeParam(req) {
 test('SOP library routes render for guests', async (t) => {
   const server = await fixture();
   const port = server.address().port;
-  const browser = await chromium.launch({ executablePath: SHELL });
+  const browser = await launchBrowser();
   t.after(async () => { await browser.close(); server.close(); });
 
   async function loadRoute(route) {
