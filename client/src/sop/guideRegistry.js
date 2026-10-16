@@ -1,75 +1,22 @@
-/**
- * guideRegistry.js - Visual SOP library guide registry.
- *
- * Data-driven by design: the coverage-audit worker's docs/sop/coverage-matrix.json
- * output slots into this registry later (areas, guide records, handbooks) without
- * touching the renderer or the pages.
- *
- * GUIDE CONTENT CONTRACT: content workers write guide data files at
- * client/src/sop/guides/<family>/<guide-id>.js (families: account, hiring,
- * helper-work, business-work, restaurants, financial, logistics, other), each a
- * default export of one guide object matching the model.js schema. The
- * coordinator provides a single contract file at client/src/sop/guides/index.js
- * exporting GUIDES (array), GUIDES_BY_ID (object keyed by guide id), and AREAS.
- * Until that file exists, the registry falls back to the local samples in
- * samples.js. The guarded import below keeps build:ci green with or without it.
- *
- * Guide BODY content is English-only. UI chrome strings live in the `sop`
- * i18n namespace.
- */
+/** Published English end-user guides. Shared by pages, contextual help and PDF generation. */
 
 import { validateGuide, validateHandbook } from './model.js';
-import { SAMPLE_AREAS, SAMPLE_GUIDES, SAMPLE_HANDBOOKS } from './samples.js';
+import { GUIDES, GUIDES_BY_ID, AREAS } from './guides/index.js';
+export { GUIDES, GUIDES_BY_ID, AREAS };
+export function getArea(slug) { return AREAS.find(area => area.slug === slug) || null; }
+export const HANDBOOKS = ['customer','helper','business','restaurant','logistics'].map(role => ({
+  role, title: `${role.charAt(0).toUpperCase()+role.slice(1)} handbook`,
+  guideIds: GUIDES.filter(guide => guide.audiences.includes(role)).map(guide => guide.id),
+}));
 
-// ---------------------------------------------------------------------------
-// Content contract loading (guarded: works with or without guides/index.js)
-// ---------------------------------------------------------------------------
-
-// No top-level await: some test harnesses bundle this module to CJS, where
-// top-level await is a build error. import.meta.glob is statically resolved
-// by Vite (absent file yields {}); everywhere else the call throws and the
-// samples below are used.
-let contractModule = null;
-try {
-  const matched = import.meta.glob('./guides/index.js', { eager: true });
-  contractModule = matched['./guides/index.js'] || null;
-} catch {
-  contractModule = null;
+export function suggestedAudience(user) {
+  const mode = user?.default_mode || user?.role || '';
+  if (mode.includes('restaurant')) return 'restaurant';
+  if (mode.includes('business')) return 'business';
+  if (mode.includes('logistics')) return 'logistics';
+  if (['helper','helper_pro','broker'].includes(mode)) return 'helper';
+  return mode === 'customer' ? 'customer' : null;
 }
-
-function contractList(value, fallback) {
-  return Array.isArray(value) && value.length > 0 ? value : fallback;
-}
-
-// ---------------------------------------------------------------------------
-// Areas / guides / handbooks
-// ---------------------------------------------------------------------------
-
-/**
- * Product areas. Titles and descriptions are guide metadata (English-only,
- * like guide bodies); the surrounding chrome labels ("Area", "Audience") are
- * localized via the `sop` i18n namespace.
- */
-export const AREAS = contractList(contractModule?.AREAS, SAMPLE_AREAS);
-
-export function getArea(slug) {
-  return AREAS.find((area) => area.slug === slug) || null;
-}
-
-/** All guides currently in the registry. Content workers append via guides/index.js. */
-export const GUIDES = contractList(contractModule?.GUIDES, SAMPLE_GUIDES);
-
-/** Guides keyed by guide id (from the contract file when present). */
-export const GUIDES_BY_ID =
-  contractModule?.GUIDES_BY_ID && typeof contractModule.GUIDES_BY_ID === 'object'
-    ? contractModule.GUIDES_BY_ID
-    : Object.fromEntries(GUIDES.map((guide) => [guide.id, guide]));
-
-/**
- * Role handbooks: ordered reading lists. guideIds MAY reference guides that
- * are not published yet; renderers must skip or placeholder them gracefully.
- */
-export const HANDBOOKS = contractList(contractModule?.HANDBOOKS, SAMPLE_HANDBOOKS);
 
 export function getHandbook(role) {
   return HANDBOOKS.find((handbook) => handbook.role === role) || null;
@@ -128,28 +75,31 @@ export function searchGuides(query, { audience = null, area = null } = {}) {
 // ---------------------------------------------------------------------------
 
 /**
- * Provisional route -> guide id map for contextual "Step-by-step guide"
- * buttons. Content workers extend this as guides ship. Routes with no guides
- * yet map to an empty array and the button renders nothing there.
+ * Resolve real documented route patterns, including workspace and dashboard aliases.
+ * Guides suggest the current audience without changing account mode.
  */
-const ROUTE_GUIDE_MAP = {
-  '/jobs/new': ['post-a-job'],
-  // /post-job is the live job-posting route (PostJobPage); /jobs/new is kept
-  // as a provisional alias target for inbound links.
-  '/post-job': ['post-a-job'],
-  '/helpers': [],
-  '/login': ['sign-in-to-oxsteed'],
-  '/join': [],
-  '/wallet': [],
-  '/messages': [],
-  '/restaurants': [],
-  '/logistics': [],
-};
-
-export function guidesForRoute(pathname) {
-  const normalized = String(pathname || '').split('?')[0].split('#')[0].replace(/\/+$/, '') || '/';
-  const ids = ROUTE_GUIDE_MAP[normalized] || [];
-  return ids.map(getGuideById).filter(Boolean);
+function routePattern(href) {
+  if (typeof href !== 'string' || !href.startsWith('/') || href.startsWith('//')) return null;
+  return href.split(/[?# ]/)[0].replace(/\/+$/, '') || '/';
+}
+function matchesRoute(pattern, pathname) {
+  const a = pattern.split('/'); const b = pathname.split('/');
+  return a.length === b.length && a.every((part,index) => part.startsWith(':') || part === b[index]);
+}
+export function guidesForRoute(pathname, user) {
+  const requested = routePattern(pathname);
+  const normalized = requested === '/helper-dashboard' ? '/dashboard' : requested?.replace(/^\/business\/[^/]+\/workspace(?:\/[^/]+)?$/, '/business-hub');
+  if (!normalized || /^\/(how-it-works|admin|investor|impersonate)(\/|$)/.test(normalized)
+    || normalized.startsWith('/support/agent') || normalized.startsWith('/logistics/operations')) return [];
+  const audience = suggestedAudience(user);
+  const matches = GUIDES.filter(guide => {
+    const paths = [...(guide.siteLinks || []).map(link => link.href),
+      ...(guide.sources || []).filter(source => source.type === 'route').map(source => source.ref),
+      ...guide.steps.flatMap(step => step.screenshots.map(shot => shot.screen))];
+    return paths.some(href => {const pattern = routePattern(href); return pattern && matchesRoute(pattern, normalized);});
+  });
+  const relevance = guide => guide.steps.filter(step=>step.screenshots.some(shot=>{const pattern=routePattern(shot.screen);return pattern&&matchesRoute(pattern,normalized);})).length;
+  return matches.sort((a,b) => relevance(b)-relevance(a) || Number(!!audience && b.audiences.includes(audience))-Number(!!audience && a.audiences.includes(audience)) || a.title.localeCompare(b.title));
 }
 
 // ---------------------------------------------------------------------------

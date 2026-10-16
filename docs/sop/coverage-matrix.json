@@ -1,8 +1,8 @@
 {
-  "generatedAt": "2026-10-16T03:55:20Z",
+  "generatedAt": "2026-10-16T09:38:06.801Z",
   "source": {
-    "repo": "~/workspace/old-file",
-    "branch": "feat/sop-library",
+    "repo": ".",
+    "branch": "old-files-claude",
     "audited": [
       "client/src/App.jsx (<Route> paths)",
       "client/src/pages/*.jsx (screens)",
@@ -14,7 +14,8 @@
       "platform admin pages and /api/admin/*",
       "support-agent tooling (/support/agent, agent* routes)",
       "internal operations (/internal/*, /logistics/operations/*, compliance-workspace, admin-control, delivery operations)"
-    ]
+    ],
+    "guideIndex": "client/src/sop/guides/index.js"
   },
   "workflows": [
     {
@@ -24,9 +25,7 @@
       "status": "supported",
       "condition": "",
       "clientRoutes": [
-        "/join",
-        "/register/customer (redirect)",
-        "/register/helper (redirect)"
+        "/join"
       ],
       "screenFiles": [
         "client/src/pages/JoinPage.jsx"
@@ -46,7 +45,8 @@
         "helper",
         "business"
       ],
-      "notes": "Email OTP verification is part of the flow; /verify-email handles verification links. Mode-specific onboarding follows (see account-onboarding)."
+      "notes": "Current guide revision 2. ",
+      "guideId": "account-join"
     },
     {
       "id": "account-signin",
@@ -55,9 +55,7 @@
       "status": "supported",
       "condition": "",
       "clientRoutes": [
-        "/login",
-        "/investor/login",
-        "/access-gate/recovery"
+        "/login"
       ],
       "screenFiles": [
         "client/src/pages/Login.jsx",
@@ -81,7 +79,8 @@
         "restaurant",
         "logistics"
       ],
-      "notes": "Supports password, TOTP 2FA step-up, and passkey login. Sessions managed at /settings/sessions."
+      "notes": "Current guide revision 3. ",
+      "guideId": "account-signin"
     },
     {
       "id": "account-password-recovery",
@@ -110,7 +109,8 @@
         "restaurant",
         "logistics"
       ],
-      "notes": "Standard email-token reset flow; no admin involvement needed."
+      "notes": "Current guide revision 2. ",
+      "guideId": "account-password-recovery"
     },
     {
       "id": "account-mode-switching",
@@ -118,9 +118,7 @@
       "title": "Switch between customer, helper, business and other modes",
       "status": "supported",
       "condition": "",
-      "clientRoutes": [
-        "Mode switcher (in-app navigation; no dedicated route)"
-      ],
+      "clientRoutes": [],
       "screenFiles": [
         "client/src/pages/SmartDashboard.jsx",
         "mode switcher component"
@@ -142,7 +140,8 @@
         "restaurant",
         "logistics"
       ],
-      "notes": "Modes map to RBAC roles (e.g. restaurant_owner -> helper class). Granted modes require proof of underlying membership; they do not auto-activate."
+      "notes": "Current guide revision 1. ",
+      "guideId": "account-mode-switching"
     },
     {
       "id": "account-identity-verification",
@@ -151,8 +150,7 @@
       "status": "supported",
       "condition": "",
       "clientRoutes": [
-        "/verify-identity",
-        "/media/verify-identity"
+        "/verify-identity"
       ],
       "screenFiles": [
         "client/src/pages/VerifyIdentityPage.tsx"
@@ -172,7 +170,8 @@
         "customer",
         "helper"
       ],
-      "notes": "Didit phase two: verification anchored to the universal public entity ID, 2-year TTL, fail-closed; Didit-verified users auto-pass the credit rail identity review. DIDIT_ALLOW_USER_SKIP is default-open per standing decision. The background-check request UI in HelperDashboard is additionally gated by the backgroundChecks launch flag (default false)."
+      "notes": "Current guide revision 2. ",
+      "guideId": "account-identity-verification"
     },
     {
       "id": "account-onboarding",
@@ -180,11 +179,7 @@
       "title": "Complete helper or business onboarding",
       "status": "supported",
       "condition": "",
-      "clientRoutes": [
-        "/business/:businessId/onboarding",
-        "/business-launch-status",
-        "/franchise/status"
-      ],
+      "clientRoutes": [],
       "screenFiles": [
         "client/src/pages/BusinessOnboardingPage.jsx",
         "client/src/pages/BusinessLaunchStatusPage.jsx",
@@ -207,7 +202,8 @@
         "helper",
         "business"
       ],
-      "notes": "Helpers onboard via the helper-registration API (tiers helper/helper_pro/broker, W-9); businesses via BusinessOnboardingPage and the launch-request flow."
+      "notes": "Current guide revision 3. ",
+      "guideId": "account-onboarding"
     },
     {
       "id": "account-settings",
@@ -216,13 +212,7 @@
       "status": "supported",
       "condition": "",
       "clientRoutes": [
-        "/settings",
-        "/settings/2fa",
-        "/settings/passkeys",
-        "/settings/sessions",
-        "/settings/notifications",
-        "/settings/country",
-        "/settings/payment-policies"
+        "/settings"
       ],
       "screenFiles": [
         "client/src/pages/SettingsPage.jsx",
@@ -250,7 +240,8 @@
         "restaurant",
         "logistics"
       ],
-      "notes": "Includes 2FA, passkeys, sessions, notification and country settings. The tax (W-9) tab is helper-only and satisfies the tax-identity gate on payouts."
+      "notes": "Current guide revision 3. ",
+      "guideId": "account-settings"
     },
     {
       "id": "account-privacy",
@@ -260,10 +251,7 @@
       "condition": "",
       "clientRoutes": [
         "/privacy",
-        "/do-not-sell",
-        "/cookie-policy",
-        "/terms",
-        "/legal/*"
+        "/do-not-sell"
       ],
       "screenFiles": [
         "client/src/pages/privacy.tsx",
@@ -289,7 +277,8 @@
         "restaurant",
         "logistics"
       ],
-      "notes": "Public legal pages plus authenticated data-subject actions (verified export, deletion request)."
+      "notes": "Current guide revision 2. ",
+      "guideId": "account-privacy"
     },
     {
       "id": "account-support",
@@ -320,7 +309,8 @@
         "business",
         "restaurant"
       ],
-      "notes": "Excludes /support/agent and /support/agent/workspace, which are support-agent tooling and out of scope for this matrix."
+      "notes": "Current guide revision 2. ",
+      "guideId": "account-support"
     },
     {
       "id": "hiring-find-help",
@@ -330,12 +320,7 @@
       "condition": "",
       "clientRoutes": [
         "/helpers",
-        "/discover",
-        "/helpers/:id",
-        "/direct",
-        "/direct/services",
-        "/direct/skills",
-        "/direct/tools"
+        "/helpers/:id"
       ],
       "screenFiles": [
         "client/src/pages/HelpersDirectoryPage.tsx",
@@ -356,7 +341,8 @@
       "audiences": [
         "customer"
       ],
-      "notes": "Public helper directory plus the OxSteed-operated Direct catalog. Helper profiles at /helpers/:id are public."
+      "notes": "Current guide revision 2. ",
+      "guideId": "hiring-find-help"
     },
     {
       "id": "hiring-post-job",
@@ -379,7 +365,8 @@
       "audiences": [
         "customer"
       ],
-      "notes": "Draft autosave supported via the draft endpoints; the public job page /jobs/public/:jobId is read-only."
+      "notes": "Current guide revision 2. ",
+      "guideId": "hiring-post-job"
     },
     {
       "id": "hiring-manage-jobs",
@@ -390,8 +377,7 @@
       "clientRoutes": [
         "/my-jobs",
         "/jobs/:id",
-        "/jobs/:id/edit",
-        "/jobs/public/:jobId"
+        "/jobs/:id/edit"
       ],
       "screenFiles": [
         "client/src/pages/MyJobsPage.jsx",
@@ -413,7 +399,8 @@
       "audiences": [
         "customer"
       ],
-      "notes": "Covers edit, cancel, complete, assign, and appointment scheduling on owned jobs."
+      "notes": "Current guide revision 2. ",
+      "guideId": "hiring-manage-jobs"
     },
     {
       "id": "hiring-compare-bids",
@@ -444,7 +431,8 @@
         "customer",
         "helper"
       ],
-      "notes": "Customers compare per-job bids and accept/decline; helpers track their own bids in the same views."
+      "notes": "Current guide revision 2. ",
+      "guideId": "hiring-compare-bids"
     },
     {
       "id": "hiring-book",
@@ -454,10 +442,6 @@
       "condition": "",
       "clientRoutes": [
         "/book/:id",
-        "/book/business/:id",
-        "/business/:businessId/services/:serviceId/book",
-        "/direct/book-slot",
-        "/direct/book/:id",
         "/my-bookings"
       ],
       "screenFiles": [
@@ -484,7 +468,8 @@
       "audiences": [
         "customer"
       ],
-      "notes": "Supports counter-proposals, recurring bookings (pause/resume/cancel), and converting a booking into a job."
+      "notes": "Current guide revision 2. ",
+      "guideId": "hiring-book"
     },
     {
       "id": "hiring-message",
@@ -494,9 +479,7 @@
       "condition": "",
       "clientRoutes": [
         "/messages",
-        "/messages/:conversationId",
-        "/messages/conversations/:conversationId",
-        "/messages/guest/:inquiryId"
+        "/messages/:conversationId"
       ],
       "screenFiles": [
         "client/src/pages/MessagesPage.jsx",
@@ -514,7 +497,8 @@
         "customer",
         "helper"
       ],
-      "notes": "Job-scoped conversations plus guest inquiries so customers can ask pre-booking questions."
+      "notes": "Current guide revision 2. ",
+      "guideId": "hiring-message"
     },
     {
       "id": "hiring-payment-records",
@@ -526,7 +510,6 @@
         "/my-bookings",
         "/orders",
         "/orders/:id",
-        "/food/orders/:orderId",
         "/food/track/:token"
       ],
       "screenFiles": [
@@ -546,7 +529,8 @@
       "audiences": [
         "customer"
       ],
-      "notes": "Bookings, product orders, and food orders each have their own history views."
+      "notes": "Current guide revision 2. ",
+      "guideId": "hiring-payment-records"
     },
     {
       "id": "hiring-completion",
@@ -574,7 +558,8 @@
         "customer",
         "helper"
       ],
-      "notes": "Completion opens review eligibility; work-agreement completion is a separate step from job completion."
+      "notes": "Current guide revision 2. ",
+      "guideId": "hiring-completion"
     },
     {
       "id": "hiring-reviews",
@@ -582,9 +567,7 @@
       "title": "Leave and respond to reviews",
       "status": "supported",
       "condition": "",
-      "clientRoutes": [
-        "(in job detail and order views; no dedicated route)"
-      ],
+      "clientRoutes": [],
       "screenFiles": [
         "client/src/pages/JobDetailPage.jsx",
         "client/src/pages/OrderDetailsPage.jsx"
@@ -604,7 +587,8 @@
         "helper",
         "restaurant"
       ],
-      "notes": "Bilateral reviews (review plus response); food order reviews are a separate per-order flow."
+      "notes": "Current guide revision 2. ",
+      "guideId": "hiring-reviews"
     },
     {
       "id": "hiring-cancellations",
@@ -635,7 +619,8 @@
         "customer",
         "helper"
       ],
-      "notes": "Helper cancellation policies are configurable at /settings/payment-policies; food-order cancellation is POST /api/orders/:orderId/cancel (see restaurant-cancellations)."
+      "notes": "Current guide revision 2. ",
+      "guideId": "hiring-cancellations"
     },
     {
       "id": "hiring-disputes",
@@ -664,7 +649,8 @@
         "customer",
         "helper"
       ],
-      "notes": "User-facing dispute flow with evidence and messaging. Admin review/resolve endpoints are platform-admin tooling (excluded); the arbitration policy page at /legal/arbitration is public."
+      "notes": "Current guide revision 2. ",
+      "guideId": "hiring-disputes"
     },
     {
       "id": "hiring-work-agreements",
@@ -698,7 +684,8 @@
         "customer",
         "helper"
       ],
-      "notes": "Records-room model: drawn signatures required from both parties, version timeline, change orders, warranty claims."
+      "notes": "Current guide revision 2. ",
+      "guideId": "hiring-work-agreements"
     },
     {
       "id": "hiring-request-quote",
@@ -708,10 +695,7 @@
       "condition": "",
       "clientRoutes": [
         "/direct/request-quote",
-        "/request-quote",
-        "/quote-request",
-        "/direct/view-quote",
-        "/direct/quotes/:id"
+        "/direct/view-quote"
       ],
       "screenFiles": [
         "client/src/pages/DirectPortalPage.jsx (views: request, lookup, quote)",
@@ -728,17 +712,18 @@
       "audiences": [
         "customer"
       ],
-      "notes": "Distinct from helper quotes (helper-quotes) and business quotes (business-quotes)."
+      "notes": "Current guide revision 2. ",
+      "guideId": "hiring-request-quote"
     },
     {
       "id": "helper-profile",
       "family": "helper-work",
-      "title": "Manage helper profile and public listing",
+      "title": "Manage your helper profile and public listing",
       "status": "supported",
       "condition": "",
       "clientRoutes": [
-        "/helpers/:id (public)",
-        "/dashboard (edit profile tab)"
+        "/dashboard?tab=editprofile",
+        "/helpers/:id"
       ],
       "screenFiles": [
         "client/src/pages/HelperBusinessProfilePage.tsx",
@@ -758,12 +743,13 @@
       "audiences": [
         "helper"
       ],
-      "notes": "Vanity slug support via profileSlugs; services and FAQs managed on the profile."
+      "notes": "Current guide revision 2. ",
+      "guideId": "helper-work-profile"
     },
     {
       "id": "helper-skills",
       "family": "helper-work",
-      "title": "Manage skills",
+      "title": "Manage your skills",
       "status": "supported",
       "condition": "",
       "clientRoutes": [
@@ -785,17 +771,17 @@
       "audiences": [
         "helper"
       ],
-      "notes": "Skill categories with lookup; /profile/tool-rentals redirects to the skills tab."
+      "notes": "Current guide revision 2. ",
+      "guideId": "helper-work-skills"
     },
     {
       "id": "helper-availability",
       "family": "helper-work",
-      "title": "Set availability",
+      "title": "Set your availability",
       "status": "supported",
       "condition": "",
       "clientRoutes": [
-        "/dashboard",
-        "/consultant-availability"
+        "/dashboard?tab=availability"
       ],
       "screenFiles": [
         "client/src/pages/HelperDashboard.jsx",
@@ -810,7 +796,8 @@
       "audiences": [
         "helper"
       ],
-      "notes": "General availability on the helper profile plus a dedicated consultant availability page (consultant is a helper-class mode)."
+      "notes": "Current guide revision 2. ",
+      "guideId": "helper-work-availability"
     },
     {
       "id": "helper-find-work",
@@ -835,7 +822,8 @@
       "audiences": [
         "helper"
       ],
-      "notes": "The job list is public; bidding is gated on auth and onboarding."
+      "notes": "Current guide revision 2. ",
+      "guideId": "helper-work-find-work"
     },
     {
       "id": "helper-bid",
@@ -844,9 +832,8 @@
       "status": "supported",
       "condition": "",
       "clientRoutes": [
-        "/my-bids",
-        "/bids/:bidId",
-        "/jobs/:id"
+        "/jobs/:id",
+        "/my-bids"
       ],
       "screenFiles": [
         "client/src/pages/MyBidsPage.jsx",
@@ -865,7 +852,8 @@
       "audiences": [
         "helper"
       ],
-      "notes": "Bid withdrawal and reconfirmation supported."
+      "notes": "Current guide revision 2. ",
+      "guideId": "helper-work-bid"
     },
     {
       "id": "helper-quotes",
@@ -874,8 +862,7 @@
       "status": "supported",
       "condition": "",
       "clientRoutes": [
-        "/my-bids",
-        "/dashboard"
+        "/messages/:conversationId"
       ],
       "screenFiles": [
         "client/src/pages/MyBidsPage.jsx",
@@ -894,7 +881,8 @@
       "audiences": [
         "helper"
       ],
-      "notes": "Helper-issued quotes, distinct from business quotes and Direct quote requests."
+      "notes": "Current guide revision 2. ",
+      "guideId": "helper-work-quotes"
     },
     {
       "id": "helper-assigned-jobs",
@@ -903,8 +891,7 @@
       "status": "supported",
       "condition": "",
       "clientRoutes": [
-        "/helper-dashboard",
-        "/my-jobs"
+        "/calendar"
       ],
       "screenFiles": [
         "client/src/pages/HelperDashboard.jsx",
@@ -921,7 +908,8 @@
       "audiences": [
         "helper"
       ],
-      "notes": "Helpers accept or decline incoming booking requests and work assigned jobs."
+      "notes": "Current guide revision 2. ",
+      "guideId": "helper-work-assigned-jobs"
     },
     {
       "id": "helper-invoices",
@@ -930,7 +918,7 @@
       "status": "supported",
       "condition": "",
       "clientRoutes": [
-        "/invoices",
+        "/dashboard?tab=invoices",
         "/invoice/p/:token"
       ],
       "screenFiles": [
@@ -950,7 +938,8 @@
       "audiences": [
         "helper"
       ],
-      "notes": "Public invoice link via token; separate from business invoices (/api/invoices)."
+      "notes": "Current guide revision 2. ",
+      "guideId": "helper-work-invoices"
     },
     {
       "id": "helper-payouts",
@@ -973,16 +962,17 @@
       "audiences": [
         "helper"
       ],
-      "notes": "Payouts require tax identity; the dashboard earnings overview section is separately gated (see helper-earnings)."
+      "notes": "Current guide revision 2. ",
+      "guideId": "helper-work-payouts"
     },
     {
       "id": "helper-earnings",
       "family": "helper-work",
-      "title": "View earnings overview",
+      "title": "View your earnings overview",
       "status": "conditional",
-      "condition": "Visible only when the helperEarnings launch flag is enabled (default off). The /helper/payouts page and helper-earnings statements remain available while the dashboard section is hidden.",
+      "condition": "The Earnings tab on the helper dashboard is visible only while the helperEarnings launch flag is enabled (it is off by default). Your payouts at /helper/payouts and your earnings statements at /helper-earnings/statements stay available while the tab is hidden.",
       "clientRoutes": [
-        "/helper-dashboard (earnings section)",
+        "/dashboard?tab=earnings",
         "/helper-earnings/statements"
       ],
       "screenFiles": [
@@ -1000,7 +990,8 @@
       "audiences": [
         "helper"
       ],
-      "notes": "The flag only hides the dashboard earnings section; payouts and statements are not flag-gated."
+      "notes": "Current guide revision 2. The Earnings tab on the helper dashboard is visible only while the helperEarnings launch flag is enabled (it is off by default). Your payouts at /helper/payouts and your earnings statements at /helper-earnings/statements stay available while the tab is hidden.",
+      "guideId": "helper-work-earnings"
     },
     {
       "id": "helper-clients",
@@ -1024,20 +1015,18 @@
       "audiences": [
         "helper"
       ],
-      "notes": "Client management is conversation- and quote-history based; there is no separate helper CRM record store."
+      "notes": "Current guide revision 2. ",
+      "guideId": "helper-work-clients"
     },
     {
       "id": "business-setup",
       "family": "business-work",
-      "title": "Set up a business (launch request, onboarding, franchise)",
+      "title": "Set up your business",
       "status": "supported",
       "condition": "",
       "clientRoutes": [
-        "/business-launch-status",
-        "/business/:businessId/onboarding",
-        "/franchise/apply",
-        "/franchise/status",
-        "/franchise/territory"
+        "/business-hub",
+        "/business/:businessId/onboarding"
       ],
       "screenFiles": [
         "client/src/pages/BusinessLaunchStatusPage.jsx",
@@ -1057,7 +1046,8 @@
       "audiences": [
         "business"
       ],
-      "notes": "Launch requests go through a request/approval flow, not instant provisioning; franchise is a separate intake track."
+      "notes": "Current guide revision 2. ",
+      "guideId": "business-work-setup"
     },
     {
       "id": "business-select",
@@ -1067,8 +1057,7 @@
       "condition": "",
       "clientRoutes": [
         "/business-hub",
-        "/business/:businessId/workspace",
-        "/business/:businessId/workspace/:tab"
+        "/business/:businessId/workspace"
       ],
       "screenFiles": [
         "client/src/pages/BusinessHubPage.jsx"
@@ -1086,7 +1075,8 @@
       "audiences": [
         "business"
       ],
-      "notes": "Users with several businesses switch via the managed list; team invitations are accepted here."
+      "notes": "Current guide revision 2. ",
+      "guideId": "business-work-select"
     },
     {
       "id": "business-team-access",
@@ -1095,8 +1085,7 @@
       "status": "supported",
       "condition": "",
       "clientRoutes": [
-        "/business-hub (team tab)",
-        "/business/:businessId/workspace/team"
+        "/business-hub?tab=team"
       ],
       "screenFiles": [
         "client/src/pages/BusinessHubPage.jsx"
@@ -1112,7 +1101,8 @@
       "audiences": [
         "business"
       ],
-      "notes": "Team member modes (business_manager, business_representative, business_employee) are granted, not self-selected, and entered via the mode switcher."
+      "notes": "Current guide revision 2. ",
+      "guideId": "business-work-team-access"
     },
     {
       "id": "business-services",
@@ -1121,8 +1111,7 @@
       "status": "supported",
       "condition": "",
       "clientRoutes": [
-        "/business-hub (services tab)",
-        "/business/:businessId/workspace/services"
+        "/business-hub?tab=services"
       ],
       "screenFiles": [
         "client/src/pages/BusinessHubPage.jsx"
@@ -1139,21 +1128,17 @@
       "audiences": [
         "business"
       ],
-      "notes": "Core services CRUD is live; specialized intake request pages are separately gated (see business-specialized-intakes)."
+      "notes": "Current guide revision 2. ",
+      "guideId": "business-work-services"
     },
     {
       "id": "business-specialized-intakes",
       "family": "business-work",
       "title": "Submit specialized intake requests (maintenance, trades, beauty, creative, professional, continuity)",
       "status": "conditional",
-      "condition": "Requires the specializedProfileTemplates launch flag (default false). While disabled the server launchGate returns 404 for the public intake API and the client hides the flow; the hub intake tabs are pre-defined in LAUNCH_BUSINESS_HUB_TABS for launch.",
+      "condition": "Specialized intake requests require the specializedProfileTemplates launch flag, which is off by default. While it is off, the intake entry buttons are hidden on business profile pages and the public intake API returns 404. The hub intake triage tabs (beauty-ops, creative-ops, continuity-ops, professional-ops, trades-ops, maintenance) are already registered so they appear automatically at launch.",
       "clientRoutes": [
-        "/business/:businessId/maintenance-request",
-        "/business/:businessId/trades-request",
-        "/business/:businessId/beauty-intake",
-        "/business/:businessId/creative-intake",
-        "/business/:businessId/professional-intake",
-        "/business/:businessId/continuity-intake"
+        "/business/:businessId/maintenance-request"
       ],
       "screenFiles": [
         "client/src/pages/MaintenanceRequestPage.jsx",
@@ -1175,7 +1160,8 @@
         "customer",
         "business"
       ],
-      "notes": "Intake triage tabs (beauty-ops, creative-ops, continuity-ops, professional-ops, trades-ops, maintenance) exist in the hub tab registry for when the flag launches."
+      "notes": "Current guide revision 2. Specialized intake requests require the specializedProfileTemplates launch flag, which is off by default. While it is off, the intake entry buttons are hidden on business profile pages and the public intake API returns 404. The hub intake triage tabs (beauty-ops, creative-ops, continuity-ops, professional-ops, trades-ops, maintenance) are already registered so they appear automatically at launch.",
+      "guideId": "business-work-specialized-intakes"
     },
     {
       "id": "business-clients",
@@ -1184,7 +1170,7 @@
       "status": "supported",
       "condition": "",
       "clientRoutes": [
-        "/business-hub (clients tab)"
+        "/business-hub?tab=clients"
       ],
       "screenFiles": [
         "client/src/pages/BusinessHubPage.jsx"
@@ -1200,7 +1186,8 @@
       "audiences": [
         "business"
       ],
-      "notes": "Full client record CRUD scoped to the business."
+      "notes": "Current guide revision 2. ",
+      "guideId": "business-work-clients"
     },
     {
       "id": "business-scheduling",
@@ -1209,9 +1196,8 @@
       "status": "supported",
       "condition": "",
       "clientRoutes": [
-        "/calendar",
-        "/calendar/appointments/:appointmentId",
-        "/business-hub (calendar tab)"
+        "/business-hub?tab=calendar",
+        "/calendar"
       ],
       "screenFiles": [
         "client/src/pages/CalendarPage.jsx",
@@ -1232,7 +1218,8 @@
         "business",
         "helper"
       ],
-      "notes": "Shared calendar across modes; iCal export per appointment; staff scheduling and time entries for teams."
+      "notes": "Current guide revision 2. ",
+      "guideId": "business-work-scheduling"
     },
     {
       "id": "business-jobs",
@@ -1241,8 +1228,8 @@
       "status": "supported",
       "condition": "",
       "clientRoutes": [
-        "/business-hub (hiring tab)",
-        "/post-job"
+        "/post-job",
+        "/business-hub?tab=hiring"
       ],
       "screenFiles": [
         "client/src/pages/BusinessHubPage.jsx",
@@ -1256,7 +1243,8 @@
       "audiences": [
         "business"
       ],
-      "notes": "Businesses reuse the standard job workflows (post, assign, cancel, complete)."
+      "notes": "Current guide revision 2. ",
+      "guideId": "business-work-jobs"
     },
     {
       "id": "business-invoices",
@@ -1265,7 +1253,7 @@
       "status": "supported",
       "condition": "",
       "clientRoutes": [
-        "/business-hub (invoices tab)",
+        "/business-hub?tab=invoices",
         "/invoice/p/:token"
       ],
       "screenFiles": [
@@ -1287,7 +1275,8 @@
       "audiences": [
         "business"
       ],
-      "notes": "Per-invoice OxSteed Credit and card payment eligibility checks (businessInvoiceCreditPayService)."
+      "notes": "Current guide revision 2. ",
+      "guideId": "business-work-invoices"
     },
     {
       "id": "business-attention-inbox",
@@ -1296,7 +1285,7 @@
       "status": "supported",
       "condition": "",
       "clientRoutes": [
-        "/business-hub (overview tab)"
+        "/dashboard (business_owner mode)"
       ],
       "screenFiles": [
         "client/src/pages/BusinessHubPage.jsx"
@@ -1309,7 +1298,8 @@
       "audiences": [
         "business"
       ],
-      "notes": "Aggregates tasks needing owner attention (intakes, approvals, alerts) into the hub overview."
+      "notes": "Current guide revision 2. ",
+      "guideId": "business-work-attention-inbox"
     },
     {
       "id": "business-leads",
@@ -1341,8 +1331,7 @@
       "status": "supported",
       "condition": "",
       "clientRoutes": [
-        "/restaurants/merchant",
-        "/food/merchant"
+        "/restaurants/merchant"
       ],
       "screenFiles": [
         "client/src/pages/food/FoodMerchantPage.jsx",
@@ -1359,7 +1348,8 @@
       "audiences": [
         "restaurant"
       ],
-      "notes": "Setup progress tracking plus the restaurant-credit approval funding path with proof submission."
+      "notes": "Current guide revision 2. ",
+      "guideId": "restaurant-setup"
     },
     {
       "id": "restaurant-menus",
@@ -1368,7 +1358,7 @@
       "status": "supported",
       "condition": "",
       "clientRoutes": [
-        "/restaurants/merchant (menus section)"
+        "/restaurants/merchant"
       ],
       "screenFiles": [
         "client/src/pages/food/RestaurantMenuManager.jsx"
@@ -1386,7 +1376,8 @@
       "audiences": [
         "restaurant"
       ],
-      "notes": "Full menu-item CRUD with duplication and modifier groups."
+      "notes": "Current guide revision 2. ",
+      "guideId": "restaurant-menus"
     },
     {
       "id": "restaurant-store-settings",
@@ -1418,7 +1409,8 @@
       "audiences": [
         "restaurant"
       ],
-      "notes": "Store panels cover ops, reports, audit, and training; device pairing for displays and POS."
+      "notes": "Current guide revision 2. ",
+      "guideId": "restaurant-store-settings"
     },
     {
       "id": "restaurant-ordering",
@@ -1428,11 +1420,8 @@
       "condition": "",
       "clientRoutes": [
         "/food",
-        "/restaurants",
         "/food/restaurants/:restaurantId",
-        "/restaurants/r/:restaurantId",
-        "/food/orders/:orderId",
-        "/orders"
+        "/food/orders/:orderId"
       ],
       "screenFiles": [
         "client/src/pages/food/FoodHomePage.jsx",
@@ -1456,7 +1445,8 @@
       "audiences": [
         "customer"
       ],
-      "notes": "Quote-to-checkout flow with restaurant-credit wallet payment sessions. Separate from the product-marketplace cart checkout, which is launch-gated (productMarketplace: false)."
+      "notes": "Current guide revision 2. ",
+      "guideId": "restaurant-ordering"
     },
     {
       "id": "restaurant-preparation",
@@ -1483,7 +1473,8 @@
       "audiences": [
         "restaurant"
       ],
-      "notes": "Kitchen display feed with device API for KDS-style screens; order splitting supported."
+      "notes": "Current guide revision 2. ",
+      "guideId": "restaurant-preparation"
     },
     {
       "id": "restaurant-pickup-delivery-handoff",
@@ -1516,7 +1507,8 @@
         "customer",
         "restaurant"
       ],
-      "notes": "Public order tracking plus runner handoff through local delivery jobs with proof-of-delivery."
+      "notes": "Current guide revision 2. ",
+      "guideId": "restaurant-pickup-delivery-handoff"
     },
     {
       "id": "restaurant-cancellations",
@@ -1541,7 +1533,8 @@
         "customer",
         "restaurant"
       ],
-      "notes": "Both customer-initiated cancellation and merchant status-driven cancellation."
+      "notes": "Current guide revision 2. ",
+      "guideId": "restaurant-cancellations"
     },
     {
       "id": "restaurant-refund-requests",
@@ -1571,7 +1564,8 @@
         "customer",
         "restaurant"
       ],
-      "notes": "Food-order refunds re-credit credit transactionally; direct/pay-at-restaurant orders are marked refunded with no automatic money movement. Support cases are the escalation path."
+      "notes": "Current guide revision 2. ",
+      "guideId": "restaurant-refund-requests"
     },
     {
       "id": "restaurant-staff-tools",
@@ -1603,7 +1597,8 @@
       "audiences": [
         "restaurant"
       ],
-      "notes": "Device-oriented staff tooling (POS, inventory, crew, runner) with heartbeat and issue reporting."
+      "notes": "Current guide revision 2. ",
+      "guideId": "restaurant-staff-tools"
     },
     {
       "id": "financial-wallet",
@@ -1626,14 +1621,15 @@
       "audiences": [
         "customer"
       ],
-      "notes": "/wallet is the overview; full credit detail lives at /oxsteed-credit."
+      "notes": "Current guide revision 2. ",
+      "guideId": "financial-wallet"
     },
     {
       "id": "financial-oxsteed-credit",
       "family": "financial",
       "title": "Use OxSteed Credit (top-ups, transfers, withdrawals, cards)",
       "status": "conditional",
-      "condition": "Requires the oxsteed_credit_enabled feature flag (feature_flags table). It is ON in production as of 2026-10-11. When the rail is off, food-wallet writes fail open with backfill markers replayed by a sweeper on re-enable, while fiat paths (top-ups, withdrawals, conversions, cards, compliance) fail closed.",
+      "condition": "OxSteed Credit requires the oxsteed_credit_enabled feature flag. It is ON in production as of 2026-10-11. If the rail is off, the page shows \"OxSteed Credit is temporarily paused\" and spending, top-ups, and withdrawals stay paused while balances and history remain visible.",
       "clientRoutes": [
         "/oxsteed-credit",
         "/oxsteed-credit/cards",
@@ -1666,7 +1662,8 @@
       "audiences": [
         "customer"
       ],
-      "notes": "Distinct from Restaurant Credit (restaurant-scoped wallets). Identity verification via Didit auto-passes the credit rail review."
+      "notes": "Current guide revision 2. OxSteed Credit requires the oxsteed_credit_enabled feature flag. It is ON in production as of 2026-10-11. If the rail is off, the page shows \"OxSteed Credit is temporarily paused\" and spending, top-ups, and withdrawals stay paused while balances and history remain visible.",
+      "guideId": "financial-oxsteed-credit"
     },
     {
       "id": "financial-restaurant-credit",
@@ -1676,8 +1673,7 @@
       "condition": "",
       "clientRoutes": [
         "/restaurant-credit",
-        "/restaurant-credit/statements",
-        "/restaurant-credit/statements/archive"
+        "/restaurant-credit/statements"
       ],
       "screenFiles": [
         "client/src/pages/food/RestaurantCreditPage.jsx",
@@ -1705,19 +1701,19 @@
         "customer",
         "restaurant"
       ],
-      "notes": "Distinct from OxSteed Credit: wallets are scoped per restaurant. Customer top-ups $5-$500 with a $1,000/day/user/restaurant cap and step-up auth at $250."
+      "notes": "Current guide revision 2. ",
+      "guideId": "financial-restaurant-credit"
     },
     {
       "id": "financial-qr-payments",
       "family": "financial",
-      "title": "Get paid by QR / pay by QR",
+      "title": "Get paid by QR and pay by QR",
       "status": "supported",
       "condition": "",
       "clientRoutes": [
         "/qr-payments",
         "/pay/:code",
-        "/pay/:code/success",
-        "/qr-generator"
+        "/pay/:code/success"
       ],
       "screenFiles": [
         "client/src/pages/QrPaySetupPage.jsx",
@@ -1743,7 +1739,8 @@
         "business",
         "customer"
       ],
-      "notes": "Helpers and businesses create reusable pay codes; payers need no account (Stripe Checkout)."
+      "notes": "Current guide revision 2. ",
+      "guideId": "financial-qr-payments"
     },
     {
       "id": "financial-receipts",
@@ -1752,8 +1749,8 @@
       "status": "supported",
       "condition": "",
       "clientRoutes": [
-        "/direct/payments/:id (receipt view)",
-        "/food/orders/:orderId (order detail)"
+        "/direct/payments/:id",
+        "/food/orders/:orderId"
       ],
       "screenFiles": [
         "client/src/pages/DirectPortalPage.jsx (view=receipt)",
@@ -1767,7 +1764,8 @@
       "audiences": [
         "customer"
       ],
-      "notes": "Receipts are rendered in context (Direct payment receipt, food order detail); there is no standalone receipts hub."
+      "notes": "Current guide revision 2. ",
+      "guideId": "financial-receipts"
     },
     {
       "id": "financial-statements",
@@ -1779,9 +1777,6 @@
         "/statements",
         "/restaurant-credit/statements",
         "/oxsteed-credit/statements",
-        "/helper-earnings/statements",
-        "/business/statements",
-        "/restaurant-settlement/statements",
         "/statements/:documentId/entries/:entryId",
         "/statements/:documentId/accessible"
       ],
@@ -1806,7 +1801,8 @@
         "business",
         "restaurant"
       ],
-      "notes": "Per-product statement archives (restaurant, oxsteed, helper_earnings, business, restaurant_settlement) with an accessible view."
+      "notes": "Current guide revision 2. ",
+      "guideId": "financial-statements"
     },
     {
       "id": "financial-archives",
@@ -1816,7 +1812,10 @@
       "condition": "",
       "clientRoutes": [
         "/restaurant-credit/statements/archive",
-        "/oxsteed-credit/statements/archive"
+        "/oxsteed-credit/statements/archive",
+        "/restaurant-settlement/statements",
+        "/helper-earnings/statements",
+        "/business/statements"
       ],
       "screenFiles": [
         "client/src/pages/food/StatementArchivePage.jsx"
@@ -1834,7 +1833,8 @@
         "business",
         "restaurant"
       ],
-      "notes": "Archive is per product; documents support download and share links."
+      "notes": "Current guide revision 2. ",
+      "guideId": "financial-archives"
     },
     {
       "id": "financial-downloads",
@@ -1843,7 +1843,8 @@
       "status": "supported",
       "condition": "",
       "clientRoutes": [
-        "/statements/exports/:jobId"
+        "/statements/exports/:jobId",
+        "/oxsteed-credit/statements/archive"
       ],
       "screenFiles": [
         "client/src/pages/food/StatementExportPage.jsx",
@@ -1862,7 +1863,8 @@
         "customer",
         "business"
       ],
-      "notes": "Bulk and accounting exports plus CSV/PDF statement downloads; export jobs tracked by ID."
+      "notes": "Current guide revision 3. ",
+      "guideId": "financial-downloads"
     },
     {
       "id": "logistics-browse",
@@ -1872,8 +1874,7 @@
       "condition": "",
       "clientRoutes": [
         "/logistics",
-        "/logistics/campaigns",
-        "/logistics/campaigns/:id"
+        "/logistics/campaigns"
       ],
       "screenFiles": [
         "client/src/pages/logistics/LogisticsHomePage.jsx",
@@ -1894,7 +1895,8 @@
         "logistics",
         "customer"
       ],
-      "notes": "Campaign browsing is public; participation, sourcing, and finance require auth."
+      "notes": "Current guide revision 2. ",
+      "guideId": "logistics-browse"
     },
     {
       "id": "logistics-pledge",
@@ -1903,9 +1905,8 @@
       "status": "supported",
       "condition": "",
       "clientRoutes": [
-        "/logistics/buyer",
         "/logistics/campaigns/:id",
-        "/logistics/allocations/:id"
+        "/logistics/buyer"
       ],
       "screenFiles": [
         "client/src/pages/logistics/BuyerDashboardPage.jsx",
@@ -1924,7 +1925,8 @@
       "audiences": [
         "logistics"
       ],
-      "notes": "Pledging is joining a campaign; allocations track the buyer's share with release support."
+      "notes": "Current guide revision 2. ",
+      "guideId": "logistics-pledge"
     },
     {
       "id": "logistics-organize-campaign",
@@ -1934,8 +1936,7 @@
       "condition": "",
       "clientRoutes": [
         "/logistics/organizer",
-        "/logistics/campaigns/new",
-        "/logistics/campaigns/:id/edit"
+        "/logistics/campaigns/new"
       ],
       "screenFiles": [
         "client/src/pages/logistics/OrganizerDashboardPage.jsx",
@@ -1956,7 +1957,8 @@
       "audiences": [
         "logistics"
       ],
-      "notes": "Draft submission/approval state machine with guarded transitions and approval history; recurring programs supported."
+      "notes": "Current guide revision 2. ",
+      "guideId": "logistics-organize-campaign"
     },
     {
       "id": "logistics-sourcing",
@@ -1967,9 +1969,7 @@
       "clientRoutes": [
         "/logistics/sourcing",
         "/logistics/sourcing/new",
-        "/logistics/requests/new",
-        "/logistics/requests/:id",
-        "/logistics/business-procurement"
+        "/logistics/requests/:id"
       ],
       "screenFiles": [
         "client/src/pages/logistics/SourcingPage.jsx",
@@ -1989,17 +1989,18 @@
         "logistics",
         "business"
       ],
-      "notes": "Supplier quotes attach to requests; quote acceptance is the gated payments flow (see logistics-accept-quotes)."
+      "notes": "Current guide revision 2. ",
+      "guideId": "logistics-sourcing"
     },
     {
       "id": "logistics-accept-quotes",
       "family": "logistics",
       "title": "Publish and accept quotes",
       "status": "conditional",
-      "condition": "Requires LOGISTICS_PAYMENTS_ENABLED=true (default off). While disabled the quote lifecycle routes answer 503.",
+      "condition": "Requires LOGISTICS_PAYMENTS_ENABLED=true (default off). While disabled, the quote lifecycle routes answer 503 and the checkout shows a disabled state.",
       "clientRoutes": [
-        "/logistics/finance",
-        "/logistics/checkout"
+        "/logistics/checkout",
+        "/logistics/finance"
       ],
       "screenFiles": [
         "client/src/pages/logistics/LogisticsFinancePage.jsx",
@@ -2018,14 +2019,15 @@
       "audiences": [
         "logistics"
       ],
-      "notes": "Versioned quotes; dual-admin refund approval is platform-admin tooling (excluded)."
+      "notes": "Current guide revision 2. Requires LOGISTICS_PAYMENTS_ENABLED=true (default off). While disabled, the quote lifecycle routes answer 503 and the checkout shows a disabled state.",
+      "guideId": "logistics-accept-quotes"
     },
     {
       "id": "logistics-confirm-payments",
       "family": "logistics",
       "title": "Confirm payments at checkout",
       "status": "conditional",
-      "condition": "Requires LOGISTICS_PAYMENTS_ENABLED=true (default off). While disabled every route below answers 503 and the client checkout shows a disabled state.",
+      "condition": "Requires LOGISTICS_PAYMENTS_ENABLED=true (default off). While disabled, every checkout route answers 503 and the checkout shows the disabled state \"Online payments are not enabled yet. Please try again later.\"",
       "clientRoutes": [
         "/logistics/checkout",
         "/logistics/payments"
@@ -2050,7 +2052,8 @@
       "audiences": [
         "logistics"
       ],
-      "notes": "Stripe plus OxSteed Credit checkout with signed-webhook-only settlement and reconciliation."
+      "notes": "Current guide revision 2. Requires LOGISTICS_PAYMENTS_ENABLED=true (default off). While disabled, every checkout route answers 503 and the checkout shows the disabled state \"Online payments are not enabled yet. Please try again later.\"",
+      "guideId": "logistics-confirm-payments"
     },
     {
       "id": "logistics-track-shipments",
@@ -2079,7 +2082,8 @@
       "audiences": [
         "logistics"
       ],
-      "notes": "Milestone and document tracking per shipment."
+      "notes": "Current guide revision 2. ",
+      "guideId": "logistics-track-shipments"
     },
     {
       "id": "logistics-distribution",
@@ -2106,7 +2110,8 @@
       "audiences": [
         "logistics"
       ],
-      "notes": "Distributor/reseller dashboard plus delivery status management."
+      "notes": "Current guide revision 2. ",
+      "guideId": "logistics-distribution"
     },
     {
       "id": "logistics-claims",
@@ -2115,7 +2120,7 @@
       "status": "supported",
       "condition": "",
       "clientRoutes": [
-        "/logistics/buyer (claims section)"
+        "/logistics/buyer"
       ],
       "screenFiles": [
         "client/src/pages/logistics/BuyerDashboardPage.jsx"
@@ -2129,7 +2134,8 @@
       "audiences": [
         "logistics"
       ],
-      "notes": "Claims are filed via API and surfaced in the buyer dashboard; there is no standalone claims page."
+      "notes": "Current guide revision 2. ",
+      "guideId": "logistics-claims"
     },
     {
       "id": "logistics-refund-requests",
@@ -2138,7 +2144,6 @@
       "status": "supported",
       "condition": "",
       "clientRoutes": [
-        "/logistics/buyer (refunds section)",
         "/logistics/finance"
       ],
       "screenFiles": [
@@ -2154,7 +2159,8 @@
       "audiences": [
         "logistics"
       ],
-      "notes": "User-scoped refund cases linked to claims; dual-admin approval is platform-admin tooling (excluded)."
+      "notes": "Current guide revision 2. ",
+      "guideId": "logistics-refund-requests"
     },
     {
       "id": "logistics-warehousing",
@@ -2180,7 +2186,8 @@
       "audiences": [
         "logistics"
       ],
-      "notes": "Inventory receipts with receive/reconcile; operator warehouse-ops dashboards are internal (excluded)."
+      "notes": "Current guide revision 2. ",
+      "guideId": "logistics-warehousing"
     },
     {
       "id": "logistics-compliance",
@@ -2204,7 +2211,8 @@
       "audiences": [
         "logistics"
       ],
-      "notes": "Buyer-facing restrictions and trade rules; the compliance review workspace is operator-gated (excluded)."
+      "notes": "Current guide revision 2. ",
+      "guideId": "logistics-compliance"
     },
     {
       "id": "other-media",
@@ -2215,17 +2223,8 @@
       "clientRoutes": [
         "/media",
         "/media/compose",
-        "/media/bookmarks",
-        "/media/verification",
-        "/media/verify-identity",
-        "/media/creator",
-        "/media/post/:id",
         "/media/search",
-        "/media/communities",
-        "/media/communities/:slug",
-        "/media/notifications",
-        "/media/messages",
-        "/media/:handle"
+        "/media/communities"
       ],
       "screenFiles": [
         "client/src/pages/media/MediaFeedPage.jsx",
@@ -2261,7 +2260,8 @@
         "helper",
         "business"
       ],
-      "notes": "Media is launched; compose, notifications, and messages require sign-in."
+      "notes": "Current guide revision 2. ",
+      "guideId": "other-media"
     },
     {
       "id": "other-direct",
@@ -2272,20 +2272,8 @@
       "clientRoutes": [
         "/direct",
         "/direct/services",
-        "/direct/skills",
-        "/direct/tools",
         "/direct/request-quote",
-        "/direct/view-quote",
-        "/direct/quotes/:id",
-        "/direct/book-slot",
-        "/direct/book/:id",
-        "/direct/jobs/:id",
-        "/direct/payments/:id",
-        "/direct/payments/:id/proof",
-        "/direct/history",
-        "/direct/support",
-        "/direct/account",
-        "/direct/jobs/:id/change"
+        "/direct/history"
       ],
       "screenFiles": [
         "client/src/pages/DirectPortalPage.jsx",
@@ -2307,7 +2295,8 @@
       "audiences": [
         "customer"
       ],
-      "notes": "Direct is OxSteed-operated services, distinct from the helper marketplace. Excludes /direct/admin/* (platform admin tooling)."
+      "notes": "Current guide revision 2. ",
+      "guideId": "other-direct"
     },
     {
       "id": "other-delivery",
@@ -2344,7 +2333,8 @@
         "customer",
         "helper"
       ],
-      "notes": "Excludes /delivery/operations/*, which is logistics-operator-gated internal dispatch."
+      "notes": "Current guide revision 2. ",
+      "guideId": "other-delivery"
     },
     {
       "id": "other-calendar",
@@ -2376,7 +2366,8 @@
         "helper",
         "business"
       ],
-      "notes": "Shared calendar across modes with confirm/cancel/reschedule and iCal export."
+      "notes": "Current guide revision 2. ",
+      "guideId": "other-calendar"
     },
     {
       "id": "other-messages",
@@ -2387,8 +2378,7 @@
       "clientRoutes": [
         "/messages",
         "/messages/:conversationId",
-        "/helper/messages",
-        "/helper/messages/:conversationId"
+        "/helper/messages"
       ],
       "screenFiles": [
         "client/src/pages/MessagesPage.jsx",
@@ -2407,20 +2397,18 @@
         "helper",
         "business"
       ],
-      "notes": "Mode-specific inboxes (customer and helper); job-context messaging is covered under hiring-message."
+      "notes": "Current guide revision 2. ",
+      "guideId": "other-messages"
     },
     {
       "id": "other-consulting",
       "family": "other",
-      "title": "Request and deliver consulting",
+      "title": "Request business consulting",
       "status": "supported",
       "condition": "",
       "clientRoutes": [
         "/consulting-intake",
-        "/consulting",
         "/consulting/portal",
-        "/consulting/feedback/:sessionId/:token",
-        "/consultant-availability",
         "/consulting/contractor-dashboard"
       ],
       "screenFiles": [
@@ -2445,7 +2433,8 @@
         "customer",
         "helper"
       ],
-      "notes": "Consultant is a helper-class mode with its own availability and contractor dashboard."
+      "notes": "Current guide revision 3. ",
+      "guideId": "other-consulting"
     },
     {
       "id": "other-rentals",
@@ -2477,16 +2466,18 @@
         "customer",
         "helper"
       ],
-      "notes": "tool_owner is a helper-class mode; owners get an analytics dashboard."
+      "notes": "Current guide revision 2. ",
+      "guideId": "other-rentals"
     },
     {
       "id": "other-planned-needs",
       "family": "other",
-      "title": "Plan recurring needs",
-      "status": "supported",
-      "condition": "",
+      "title": "Arrange recurring household work",
+      "status": "conditional",
+      "condition": "This specialized workspace is not available in the current launch. Its legacy address redirects to your dashboard.",
       "clientRoutes": [
-        "/planned-needs"
+        "/planned-needs",
+        "/post-job"
       ],
       "screenFiles": [
         "client/src/pages/PlannedNeedsPage.jsx"
@@ -2502,16 +2493,18 @@
       "audiences": [
         "customer"
       ],
-      "notes": "Recurring household-need planning with templates, suggestions, and preferred-helper offers."
+      "notes": "Current guide revision 2. This specialized workspace is not available in the current launch. Its legacy address redirects to your dashboard.",
+      "guideId": "other-planned-needs"
     },
     {
       "id": "other-car-care",
       "family": "other",
-      "title": "Manage vehicle records (car care garage)",
-      "status": "supported",
-      "condition": "",
+      "title": "Get help with vehicle care",
+      "status": "conditional",
+      "condition": "This specialized workspace is not available in the current launch. Its legacy address redirects to your dashboard.",
       "clientRoutes": [
-        "/car-care"
+        "/car-care",
+        "/post-job"
       ],
       "screenFiles": [
         "client/src/pages/CarCarePage.jsx"
@@ -2526,7 +2519,8 @@
       "audiences": [
         "customer"
       ],
-      "notes": "A vehicle garage for owned-vehicle records (makes/models), not a service-booking flow."
+      "notes": "Current guide revision 2. This specialized workspace is not available in the current launch. Its legacy address redirects to your dashboard.",
+      "guideId": "other-car-care"
     }
   ]
 }

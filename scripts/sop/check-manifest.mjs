@@ -1,119 +1,90 @@
 #!/usr/bin/env node
-/**
- * check-manifest.mjs — flags SOP guides affected by source changes.
- *
- * Reads docs/sop/source-manifest.json and verifies every source reference
- * still exists in the current tree:
- *   route      -> path appears in client/src/App.jsx
- *   screen     -> file exists under client/
- *   handler    -> file exists under server/
- *   flag       -> symbol appears somewhere under client/src or server/
- *   permission -> symbol appears somewhere under server/
- *
- * Exit 0: all references resolve. Exit 1: stale references found (listed
- * with the guide IDs they affect, so screenshots/content can be regenerated).
- *
- * Usage: node scripts/sop/check-manifest.mjs [--regenerate]
- *   --regenerate  rewrites docs/sop/source-manifest.json from current guides.
- */
-import fs from 'fs';
-import path from 'path';
-import { execSync } from 'child_process';
-
-const root = path.resolve(new URL('.', import.meta.url).pathname, '..', '..');
-const manifestPath = path.join(root, 'docs/sop/source-manifest.json');
-
-function regenerate() {
-  const index = {};
-  let guideCount = 0;
-  const guidesDir = path.join(root, 'client/src/sop/guides');
-  for (const fam of fs.readdirSync(guidesDir)) {
-    const dir = path.join(guidesDir, fam);
-    if (!fs.statSync(dir).isDirectory()) continue;
-    for (const f of fs.readdirSync(dir)) {
-      if (!f.endsWith('.js')) continue;
-      guideCount++;
-    }
+/** Explicit review baseline. --regenerate records reviewed inputs; normal checks never update it. */
+import fs from 'node:fs';
+import path from 'node:path';
+import {fileURLToPath} from 'node:url';
+import {createHash} from 'node:crypto';
+import {guidePrintInput,digest} from './artifact-inputs.mjs';
+import {pathToFileURL} from 'node:url';
+import {GUIDES} from '../../client/src/sop/guides/index.js';
+import {HANDBOOKS} from '../../client/src/sop/guideRegistry.js';
+import {validateGuide,validateScreenshotSidecar,validateHandbook} from '../../client/src/sop/model.js';
+export const root = fileURLToPath(new URL('../../',import.meta.url));
+const manifestPath=path.join(root,'docs/sop/source-manifest.json');
+const hash=data=>createHash('sha256').update(data).digest('hex');
+const relative=p=>path.relative(root,p).split(path.sep).join('/');
+function sourceFiles(g) {
+ const common=['client/src/components/Navbar.jsx','client/src/components/Footer.jsx','client/src/utils/launchScope.js','client/src/components/ProtectedRoute.jsx','server/middleware/launchGate.js','server/utils/modeRole.js','server/constants/roles.js','server/middleware/requireLogisticsPayments.js'];
+ common.push('client/src/locales/en.json', ...fs.readdirSync(path.join(root,'client/src/i18n/locales/en')).filter(f=>f.endsWith('.json')).map(f=>'client/src/i18n/locales/en/'+f));
+ const files=new Set(common.filter(file=>fs.existsSync(path.join(root,file))));
+ for(const s of g.sources) {
+  for(const match of s.ref.matchAll(/(?:client|server)\/[\w/.-]+\.(?:jsx?|tsx?)/g)) files.add(match[0]);
+ }
+ // Capture direct local component dependencies, which often hold the controls shown in a page.
+ for(const file of [...files]) {
+  const abs=path.join(root,file); if(!fs.existsSync(abs)) throw new Error(`${g.id}: missing source ${file}`);
+  if(!/\.(?:js|jsx|ts|tsx)$/.test(file)) continue;
+  for(const m of fs.readFileSync(abs,'utf8').matchAll(/(?:from\s*|import\s*)['"](\.[^'"]+)['"]/g)) {
+   const base=path.resolve(path.dirname(abs),m[1]);
+   const found=[base,base+'.js',base+'.jsx',base+'.ts',base+'.tsx',path.join(base,'index.js')].find(p=>fs.existsSync(p)&&fs.statSync(p).isFile());
+   if(found && /\.(?:js|jsx|ts|tsx|css)$/.test(found)) files.add(relative(found));
   }
-  // NOTE: full regeneration imports each guide; keep the checked-in
-  // manifest as the source of truth and use this flag only to rebuild it
-  // after guide edits. The coordinator regenerates via the build script.
-  console.log('Regeneration is performed by scripts/sop/pdf/generate.mjs helpers;');
-  console.log('manifest currently covers ' + guideCount + ' guide files.');
+ }
+ return [...files].sort();
 }
-
-function grepCount(pattern, dirs) {
-  try {
-    const out = execSync(
-      `grep -rl --include='*.js' --include='*.jsx' --include='*.ts' --include='*.tsx' -e ${JSON.stringify(pattern)} ${dirs.join(' ')} 2>/dev/null | head -5`,
-      { cwd: root, encoding: 'utf8' }
-    ).trim();
-    return out ? out.split('\n').length : 0;
-  } catch {
-    return 0;
-  }
+export function compareSnapshots(before,after) {
+ const changed=[];
+ for(const [id,value] of Object.entries(after.guides)) if(JSON.stringify(before.guides?.[id])!==JSON.stringify(value)) changed.push(id);
+ for(const id of Object.keys(before.guides||{})) if(!after.guides[id]) changed.push(id);
+ for(const [role,value] of Object.entries(after.handbooks)) if(JSON.stringify(before.handbooks?.[role])!==JSON.stringify(value)) changed.push(`handbook:${role}`);
+ return changed;
 }
-
-async function main() {
-  if (process.argv.includes('--regenerate')) {
-    regenerate();
-    return;
+export function snapshot() {
+ const sidecar=JSON.parse(fs.readFileSync(path.join(root,'client/src/sop/screenshots.json')));
+ const errors=GUIDES.flatMap(g=>validateGuide(g).map(e=>`${g.id}: ${e}`));
+ errors.push(...validateScreenshotSidecar(sidecar,{guides:GUIDES}));
+ for(const h of HANDBOOKS) errors.push(...validateHandbook(h));
+ const printMetadata=JSON.parse(fs.readFileSync(path.join(root,'docs/sop/pdf-build.json')));
+ const printInputs=Object.fromEntries(GUIDES.map(g=>[g.id,guidePrintInput(g,sidecar,pathToFileURL(path.join(root,'client/public/')))]));
+ const ids=new Set(GUIDES.map(g=>g.id));
+ const sourceHashes=new Map();
+ const fileHash=file=>{if(!sourceHashes.has(file)) sourceHashes.set(file,hash(fs.readFileSync(path.join(root,file))));return sourceHashes.get(file);};
+ const result={version:2,guideCount:GUIDES.length,guides:{},handbooks:{}};
+ const app=fs.readFileSync(path.join(root,'client/src/App.jsx'),'utf8');
+ const routes=[...app.matchAll(/<Route\b[^>]*\bpath="([^"]+)"/g)].map(m=>m[1]).sort();
+ for(const g of GUIDES) {
+  for(const id of [...g.relatedGuides,...g.prerequisites.map(p=>p.guideId).filter(Boolean)]) if(!ids.has(id)) errors.push(`${g.id}: unknown related guide ${id}`);
+  const sources=Object.fromEntries(sourceFiles(g).map(f=>[f,fileHash(f)]));
+  // Hash documented route declarations and retain their references for human review.
+  const documented=[...new Set([...g.sources.filter(s=>s.type==='route').map(s=>s.ref),...g.steps.flatMap(s=>s.screenshots.map(x=>x.screen))])].sort();
+  const routeParts=documented.map(ref=>{const clean=ref.split(/[?#\s]/)[0];const match=routes.find(p=>p.replace(/:[^/]+/g, ':id')===clean.replace(/:[^/]+/g, ':id')); if(!match) errors.push(`${g.id}: missing documented route ${clean}`);return {path:match||clean,declaration:hash((app.split("\n").find(line=>line.includes(`path="${match}"`))||clean).trim())};});
+  const screenshots={};
+  for(const s of g.steps) for(const viewport of ['desktop','mobile']) {
+   const key=`${g.id}/${s.id}/${viewport}`, rec=sidecar[key];
+   if(!rec?.src) {errors.push(`Missing screenshot ${key}`);continue;}
+   const file=path.join(root,'client/public',rec.src);
+   if(!fs.existsSync(file)) {errors.push(`Missing image ${file}`);continue;}
+   if(rec.annotations.some(a=>a.x===0 && a.y===0)) errors.push(`Unresolved annotation ${key}`);
+   const planned=s.screenshots.find(x=>x.viewport===viewport)?.annotations || [];
+   for(const annotation of planned) if(!rec.annotations.some(actual=>actual.n===annotation.n && actual.label===annotation.label)) errors.push(`Missing reviewed callout ${key}#${annotation.n}`);
+   screenshots[key]={src:rec.src,image:hash(fs.readFileSync(file)),metadata:hash(JSON.stringify(rec))};
   }
-  const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
-  const appJsx = fs.readFileSync(path.join(root, 'client/src/App.jsx'), 'utf8');
-  const stale = [];
-  for (const entry of manifest.entries) {
-    // Prefer an explicit file path in parens ("desc (server/routes/x.js)"),
-    // otherwise strip human annotations before resolving.
-    const parenPath = entry.ref.match(/\(([^)]+\.jsx?)\)/);
-    const bareRef = parenPath ? parenPath[1] : entry.ref.replace(/\s*\(.*?\)\s*/g, '').trim();
-    let ok = false;
-    if (entry.type === 'route') {
-      const cleanRef = bareRef.split('?')[0].split('#')[0].trim();
-      ok = appJsx.includes(`"${cleanRef}"`) || appJsx.includes(`'${cleanRef}'`) || appJsx.includes(`\`${cleanRef}\``);
-    } else if (entry.type === 'screen') {
-      ok = fs.existsSync(path.join(root, bareRef));
-    } else if (entry.type === 'handler') {
-      const methodMatch = bareRef.match(/^(?:GET|POST|PUT|PATCH|DELETE)(?:\/(?:GET|POST|PUT|PATCH|DELETE))*\s+(\/[\w/:.\-{}]+)/);
-      if (methodMatch) {
-        // API endpoint reference: routers are mounted with prefixes, so check
-        // the final path segment appears in server/routes/.
-        const routePath = methodMatch[1].split(',')[0].trim().replace(/^\/api\//, '');
-        const segs = routePath.split('/').filter(Boolean);
-        const lastSeg = segs[segs.length - 1].replace(/:[a-zA-Z_]+/g, '').replace(/[{}]/g, '');
-        try {
-          const out = execSync(
-            `grep -rl -F ${JSON.stringify('/' + lastSeg)} server/routes/ server/index.js 2>/dev/null | head -3`,
-            { cwd: root, encoding: 'utf8' }
-          ).trim();
-          ok = out.length > 0;
-        } catch {
-          ok = false;
-        }
-      } else {
-        ok = fs.existsSync(path.join(root, bareRef));
-      }
-    } else if (entry.type === 'flag') {
-      ok = grepCount(entry.ref, ['client/src', 'server']) > 0;
-    } else if (entry.type === 'permission') {
-      // Descriptive prose; check any code-like tokens, otherwise informational pass.
-      const tokens = entry.ref.match(/[a-zA-Z_$][\w$]*\([^)]*\)|[a-z]+_[a-z_]+|[a-z]+[A-Z][\w$]*/g) || [];
-      const stopwords = new Set(['Authenticated', 'Guest', 'customer', 'manager', 'mutations']);
-      const meaningful = tokens.filter((t) => t.length > 4 && !stopwords.has(t));
-      ok = meaningful.length === 0 || meaningful.some((t) => grepCount(t, ['server', 'client/src']) > 0);
-    }
-    if (!ok) stale.push(entry);
-  }
-  if (stale.length === 0) {
-    console.log(`OK: all ${manifest.entries.length} source references resolve (${manifest.guideCount} guides).`);
-    return;
-  }
-  console.log(`STALE: ${stale.length} source reference(s) no longer resolve. Affected guides:`);
-  for (const e of stale) {
-    console.log(`  [${e.type}] ${e.ref}`);
-    for (const gid of e.guideIds) console.log(`      -> ${gid} (review content + regenerate screenshots)`);
-  }
-  process.exit(1);
+  const pdf=`client/public/sop/pdfs/guides/${g.id}.pdf`;
+  if(!fs.existsSync(path.join(root,pdf))) errors.push(`Missing PDF ${pdf}`);
+  if(printMetadata.guides[g.id]?.input!==printInputs[g.id] || printMetadata.guides[g.id]?.pdf!==hash(fs.readFileSync(path.join(root,pdf)))) errors.push(`Stale PDF: ${g.id}. Rebuild the guide download.`);
+  result.guides[g.id]={revision:g.revision,content:hash(JSON.stringify(g)),references:g.sources,sources,routes:routeParts,screenshots,pdf:fs.existsSync(path.join(root,pdf))?hash(fs.readFileSync(path.join(root,pdf))):null};
+ }
+ for(const h of HANDBOOKS) {const file=path.join(root,`client/public/sop/pdfs/handbooks/${h.role}.pdf`);if(!fs.existsSync(file))errors.push(`Missing handbook ${h.role}`);if(printMetadata.handbooks[h.role]?.input!==digest(JSON.stringify(h.guideIds.map(id=>printInputs[id]))) || printMetadata.handbooks[h.role]?.pdf!==hash(fs.readFileSync(file))) errors.push(`Stale handbook: ${h.role}. Rebuild the role download.`);result.handbooks[h.role]={guideIds:h.guideIds,pdf:fs.existsSync(file)?hash(fs.readFileSync(file)):null};}
+ if(errors.length) throw new Error(errors.join('\n'));
+ return result;
 }
-
-main();
+export function main() {
+ const current=snapshot();
+ if(process.argv.includes('--regenerate')) {fs.writeFileSync(manifestPath,JSON.stringify(current,null,2)+'\n');console.log(`Recorded reviewed baseline: ${current.guideCount} guides, 5 handbooks.`);return;}
+ const changed=compareSnapshots(JSON.parse(fs.readFileSync(manifestPath)),current);
+ if(changed.length) throw new Error(`SOP inputs changed. Review instructions, recapture affected screenshots and rebuild PDFs before --regenerate:\n${changed.join('\n')}`);
+ console.log(`SOP content, routes, sources, screenshots and PDFs match the reviewed baseline (${GUIDES.length} guides).`);
+}
+if(process.argv[1] && path.resolve(process.argv[1])===fileURLToPath(import.meta.url)) {
+ try {main();} catch(e) {console.error(e.message);process.exitCode=1;}
+}

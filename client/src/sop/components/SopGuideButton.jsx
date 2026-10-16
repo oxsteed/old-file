@@ -7,7 +7,7 @@
  * - none: renders nothing (pages stay untouched until guides ship).
  */
 
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, useId } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useLocation } from 'react-router-dom';
 import { guidesForRoute } from '../guideRegistry.js';
@@ -23,12 +23,16 @@ function GuideIcon() {
   );
 }
 
-export default function SopGuideButton({ className = '' }) {
+export default function SopGuideButton({ className = '', user = null }) {
   const { t } = useTranslation();
   const { pathname } = useLocation();
+  const dialogId = useId();
   const [open, setOpen] = useState(false);
 
-  const guides = useMemo(() => guidesForRoute(pathname), [pathname]);
+  const guides = useMemo(() => guidesForRoute(pathname,user), [pathname,user?.default_mode,user?.role]);
+
+  const close = useCallback(() => setOpen(false), []);
+  useEffect(() => setOpen(false), [pathname,user?.id,user?.default_mode]);
 
   if (guides.length === 0) return null;
 
@@ -37,12 +41,15 @@ export default function SopGuideButton({ className = '' }) {
       <button
         type="button"
         className={`sop-guide-button ${className}`.trim()}
+        aria-haspopup="dialog"
+        aria-expanded={open}
+        aria-controls={open ? dialogId : undefined}
         onClick={() => setOpen(true)}
       >
         <GuideIcon />
         {t('sop.guideButton')}
       </button>
-      {open && <SopGuideModal guides={guides} onClose={() => setOpen(false)} />}
+      {open && <SopGuideModal id={dialogId} guides={guides} onClose={close} />}
     </>
   );
 }

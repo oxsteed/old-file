@@ -30,11 +30,15 @@
  */
 
 import fs from 'node:fs';
+import {digest,guidePrintInput} from '../artifact-inputs.mjs';
 import path from 'node:path';
-import { pathToFileURL } from 'node:url';
-import { chromium } from '/home/hatch/workspace/old-file/client/node_modules/playwright-core/index.mjs';
+import { pathToFileURL, fileURLToPath } from 'node:url';
+import { createRequire } from 'node:module';
+const require = createRequire(new URL('../../../client/package.json', import.meta.url));
+const { chromium } = require('playwright-core');
 
-const REPO = '/home/hatch/workspace/old-file';
+const REPO = fileURLToPath(new URL('../../../', import.meta.url));
+import { GUIDES, HANDBOOKS } from '../../../client/src/sop/guideRegistry.js';
 const GUIDES_DIR = path.join(REPO, 'client/src/sop/guides');
 const SIDECAR_PATH = path.join(REPO, 'client/src/sop/screenshots.json');
 const IMG_ROOT = path.join(REPO, 'client/public');
@@ -42,8 +46,7 @@ const OUT_GUIDES = path.join(REPO, 'client/public/sop/pdfs/guides');
 const OUT_HANDBOOKS = path.join(REPO, 'client/public/sop/pdfs/handbooks');
 const TMP_HTML = '/tmp/sop-pdf-html';
 
-const CHROME = process.env.SOP_PDF_CHROME ||
-  '/home/hatch/.cache/ms-playwright/chromium_headless_shell-1243/chrome-headless-shell-linux64/chrome-headless-shell';
+const CHROME = process.env.SOP_PDF_CHROME || process.env.SOP_CHROME_PATH;
 
 // Area order and labels mirror client/src/sop/guides/index.js AREAS.
 const AREAS = [
@@ -96,20 +99,7 @@ const guideSort = (a, b) =>
   (AREA_RANK.get(a.area) ?? 99) - (AREA_RANK.get(b.area) ?? 99) ||
   a.id.localeCompare(b.id);
 
-async function loadGuides() {
-  const files = [];
-  for (const dir of fs.readdirSync(GUIDES_DIR)) {
-    const p = path.join(GUIDES_DIR, dir);
-    if (!fs.statSync(p).isDirectory()) continue;
-    for (const f of fs.readdirSync(p)) {
-      if (f.endsWith('.js')) files.push(path.join(p, f));
-    }
-  }
-  const guides = [];
-  for (const f of files) guides.push((await import(pathToFileURL(f).href)).default);
-  guides.sort(guideSort);
-  return guides;
-}
+async function loadGuides() { return [...GUIDES].sort(guideSort); }
 
 const imageCache = new Map();
 function imageDataUri(src) {
@@ -273,12 +263,7 @@ function renderProcessMap(pm, processMapText) {
 function renderFigure(guide, step, shot, figNum, sidecar) {
   const key = `${guide.id}/${step.id}/${shot.viewport}`;
   const entry = sidecar[key];
-  if (!entry) {
-    // Known screenshot gap: labeled placeholder, never a failure.
-    return `<div class="placeholder"><div class="ph-title">Screenshot planned</div>` +
-      `<div class="ph-desc">Screen: <strong>${clean(shot.screen)}</strong><br>` +
-      `State: ${clean(shot.state)}</div></div>`;
-  }
+  if (!entry?.src) throw new Error(`Missing published screenshot: ${key}`);
   const badges = (entry.annotations || []).map(a =>
     `<span class="ann-badge" style="left:${Number(a.x)}%;top:${Number(a.y)}%">${Number(a.n)}</span>`
   ).join('');
@@ -337,12 +322,12 @@ function renderGuideBody(guide, sidecar, guidesById) {
     ? `<div class="section"><h2>Related guides</h2><ul>` +
       guide.relatedGuides.map(id => {
         const g = guidesById.get(id);
-        return `<li>${clean(g ? g.title : id)} <span style="color:#64748b">(${clean(id)})</span></li>`;
+        return g ? `<li><a href="https://oxsteed.com/how-it-works/${clean(g.area)}/${clean(g.slug)}">${clean(g.title)}</a></li>` : `<li>${clean(id)}</li>`;
       }).join('') + `</ul></div>`
     : '';
   const siteLinks = (guide.siteLinks || []).length
     ? `<div class="section"><h2>Links in the app</h2><ul>` +
-      guide.siteLinks.map(l => `<li>${clean(l.label)} <span style="color:#64748b">${clean(l.href)}</span></li>`).join('') +
+      guide.siteLinks.map(l => /\/:[A-Za-z]/.test(l.href) ? `<li>${clean(l.label)} (open the corresponding record from your workspace)</li>` : `<li><a href="https://oxsteed.com${clean(l.href)}">${clean(l.label)}</a></li>`).join('') +
       `</ul></div>`
     : '';
 
@@ -442,13 +427,13 @@ const handbooksOnly = args.includes('--handbooks-only');
 const onlyGuide = args.includes('--guide') ? args[args.indexOf('--guide') + 1] : null;
 
 async function main() {
-  if (!fs.existsSync(CHROME)) {
-    console.error(`Chrome headless shell not found at ${CHROME}. Set SOP_PDF_CHROME.`);
-    process.exit(1);
-  }
   const guides = await loadGuides();
   const guidesById = new Map(guides.map(g => [g.id, g]));
   const sidecar = JSON.parse(fs.readFileSync(SIDECAR_PATH, 'utf8'));
+  const metadataPath=path.join(REPO,'docs/sop/pdf-build.json');
+  const metadata=fs.existsSync(metadataPath)?JSON.parse(fs.readFileSync(metadataPath)):{guides:{},handbooks:{}};
+  const publicRoot=pathToFileURL(IMG_ROOT+'/');
+  const inputById=Object.fromEntries(guides.map(g=>[g.id,guidePrintInput(g,sidecar,publicRoot)]));
 
   const targets = onlyGuide ? guides.filter(g => g.id === onlyGuide) : guides;
   if (onlyGuide && !targets.length) {
@@ -460,12 +445,12 @@ async function main() {
   fs.mkdirSync(OUT_HANDBOOKS, { recursive: true });
   fs.mkdirSync(TMP_HTML, { recursive: true });
 
-  const browser = await chromium.launch({ executablePath: CHROME });
+  const browser = await chromium.launch(CHROME ? { executablePath: CHROME } : { channel: 'chrome' });
   const page = await browser.newPage();
 
   const pdfOpts = (headerTemplate, footerTemplate) => ({
     format: 'Letter',
-    printBackground: true,
+    printBackground: true, tagged: true, outline: true,
     displayHeaderFooter: true,
     headerTemplate,
     footerTemplate,
@@ -483,17 +468,21 @@ async function main() {
 
   if (!handbooksOnly) {
     for (const g of targets) {
-      await printDoc(buildGuideDoc(g, sidecar, guidesById), path.join(OUT_GUIDES, `${g.id}.pdf`));
+      const file=path.join(OUT_GUIDES, `${g.id}.pdf`);
+      await printDoc(buildGuideDoc(g, sidecar, guidesById), file);
+      metadata.guides[g.id]={input:inputById[g.id],pdf:digest(fs.readFileSync(file))};
     }
   }
   if (!guidesOnly && !onlyGuide) {
     for (const role of ROLES) {
-      const rg = guides.filter(g => (g.audiences || []).includes(role.slug));
+      const rg = HANDBOOKS.find(h => h.role === role.slug).guideIds.map(id => guidesById.get(id));
       await printDoc(
         buildHandbookDoc(role.slug, rg, sidecar, guidesById),
         path.join(OUT_HANDBOOKS, `${role.slug}.pdf`));
+      metadata.handbooks[role.slug]={input:digest(JSON.stringify(rg.map(g=>inputById[g.id]))),pdf:digest(fs.readFileSync(path.join(OUT_HANDBOOKS, `${role.slug}.pdf`)))};
     }
   }
+  fs.writeFileSync(metadataPath,JSON.stringify(metadata,null,2)+'\n');
   await browser.close();
   console.log('done');
 }

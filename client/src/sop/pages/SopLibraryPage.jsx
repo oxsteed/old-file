@@ -8,7 +8,7 @@
  * content is English-only.
  */
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import PageMeta from '../../components/PageMeta';
@@ -20,7 +20,9 @@ import {
   guideUrl,
   handbookUrl,
   searchGuides,
+  suggestedAudience as audienceForUser,
 } from '../guideRegistry.js';
+import { UNAVAILABLE_TASKS } from '../unavailableTasks.js';
 import { AUDIENCES } from '../model.js';
 import '../sop.css';
 
@@ -50,8 +52,8 @@ function GuideCard({ guide }) {
           {t(`sop.library.${guide.availability}`)}
         </span>
       </div>
-      <h3 className="sop-guide-card-title">{guide.title}</h3>
-      <p className="sop-guide-card-goal">{guide.goal}</p>
+      <h3 className="sop-guide-card-title" lang="en" dir="ltr">{guide.title}</h3>
+      <p className="sop-guide-card-goal" lang="en" dir="ltr">{guide.goal}</p>
       <div className="sop-guide-card-foot">
         <span className="sop-area-tag">{area ? area.title : guide.area}</span>
         <span className="sop-view-link">{t('sop.library.viewGuide')}</span>
@@ -64,11 +66,12 @@ export default function SopLibraryPage() {
   const { t } = useTranslation();
   const { user } = useAuth();
 
-  const suggestedAudience = useMemo(() => suggestAudienceForRole(user?.role), [user?.role]);
+  const suggestedAudience = useMemo(() => audienceForUser(user), [user?.default_mode,user?.role]);
 
   const [query, setQuery] = useState('');
   const [areaFilter, setAreaFilter] = useState('all');
-  const [audienceFilter, setAudienceFilter] = useState('all');
+  const [audienceFilter, setAudienceFilter] = useState(() => audienceForUser(user) || 'all');
+  useEffect(() => setAudienceFilter(audienceForUser(user) || 'all'), [user?.id, user?.default_mode, user?.role]);
 
   const results = useMemo(
     () =>
@@ -79,6 +82,7 @@ export default function SopLibraryPage() {
     [query, audienceFilter, areaFilter],
   );
 
+  const unavailableResults=UNAVAILABLE_TASKS.filter(task => (audienceFilter === 'all' || task.audiences.includes(audienceFilter)) && (areaFilter === 'all' || task.area === areaFilter) && `${task.title} ${task.reason}`.toLowerCase().includes(query.trim().toLowerCase()));
   const filtersActive = query.trim() !== '' || areaFilter !== 'all' || audienceFilter !== 'all';
 
   const clearFilters = () => {
@@ -202,6 +206,10 @@ export default function SopLibraryPage() {
             </Link>
           ))}
         </div>
+        {unavailableResults.length > 0 && <section className="sop-section" aria-label={t('sop.unavailableTitle')}>
+          <h2>{t('sop.unavailableTitle')}</h2>
+          {unavailableResults.map(task => <article key={task.id} className="sop-guide-card"><span className="sop-badge">{t('sop.unavailable')}</span><h3 lang="en" dir="ltr">{task.title}</h3><p lang="en" dir="ltr">{task.reason}</p></article>)}
+        </section>}
       </div>
     </div>
   );

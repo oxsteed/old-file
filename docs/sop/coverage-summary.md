@@ -1,96 +1,41 @@
-# SOP Coverage Summary
+# SOP coverage and review
 
-Coverage audit for the OxSteed Visual SOP library. Source of truth: `coverage-matrix.json` in this directory.
-Branch audited: `feat/sop-library`. Generated 2026-10-16.
+Reviewed against default branch `old-files-claude` on 2026-10-16. The published registry contains 81 English end-user guides and five role handbooks. One additional lead-pipeline workflow is explicitly unavailable; it has no action link or fabricated walkthrough.
 
-Scope: primary user workflows only. Platform admin pages, support-agent tooling, and internal
-operations procedures are excluded entirely. Every route, screen, and handler claim below was
-verified against the actual code; nothing was guessed.
+| Family | Supported | Conditional |
+|---|---:|---:|
+| account | 9 | 0 |
+| business-work | 9 | 1 |
+| financial | 7 | 1 |
+| helper-work | 10 | 1 |
+| hiring | 13 | 0 |
+| logistics | 10 | 2 |
+| other | 7 | 2 |
+| restaurants | 9 | 0 |
 
-## Counts per family per status
+## Plan reconciliation
 
-| Family | Supported | Conditional | Unavailable | Total |
-|---|---|---|---|---|
-| account | 9 | 0 | 0 | 9 |
-| hiring | 13 | 0 | 0 | 13 |
-| helper-work | 10 | 1 | 0 | 11 |
-| business-work | 9 | 1 | 1 | 11 |
-| restaurants | 9 | 0 | 0 | 9 |
-| financial | 7 | 1 | 0 | 8 |
-| logistics | 10 | 2 | 0 | 12 |
-| other | 9 | 0 | 0 | 9 |
-| **Total** | **76** | **5** | **1** | **82** |
+- Shared full instructions in canonical guide pages and contextual dialogs; Close returns focus and full guides open separately.
+- Shared navigation/footer, search, area/audience filters, current-mode suggestions, and library links in How It Works and Help.
+- Device-only reading progress is scoped by account, guide and revision. It does not perform an action or establish its success.
+- 326 numbered steps have both desktop and mobile synthetic screenshots. Captures use the actual client and production CSS splitting. Only concrete, visible callouts are retained; other images are captioned as screen overviews.
+- Individual guide PDFs and five role handbooks use the same guide data and ordering. PDF generation fails for missing screenshots and records its exact inputs.
+- CI checks route declarations, relevant screen/control imports, launch/permission sources, guide content, screenshots and PDF freshness. Normal checks never update the review baseline.
+- Account access and work eligibility are separate. Identity approval/skip does not complete other onboarding checks; business access follows business permissions.
+- Legacy car-care/planned-needs surfaces redirect, so their guides explain current job-posting alternatives. Business setup uses its real onboarding page. Consulting intake does not promise access to a disabled consulting portal.
 
-## Conditional workflows and their conditions
+## Conditional workflows
 
-1. **helper-earnings** (View earnings overview) - Visible only when the `helperEarnings` launch
-   flag is enabled (default off in `client/src/utils/launchScope.js`). The flag hides the
-   dashboard earnings section in `HelperDashboard.jsx`. The `/helper/payouts` page and
-   helper-earnings statements are not flag-gated and remain available.
-2. **business-specialized-intakes** (Submit specialized intake requests: maintenance, trades,
-   beauty, creative, professional, continuity) - Requires the `specializedProfileTemplates`
-   launch flag (default false). While disabled, `server/middleware/launchGate.js` returns 404
-   for the public intake API and the client hides the flow. Hub intake tabs are pre-registered
-   in `LAUNCH_BUSINESS_HUB_TABS` for launch.
-3. **financial-oxsteed-credit** (Use OxSteed Credit: top-ups, transfers, withdrawals, cards) -
-   Requires the `oxsteed_credit_enabled` feature flag (feature_flags table). It is ON in
-   production as of 2026-10-11. When the rail is off, food-wallet writes fail open with
-   backfill markers replayed by a sweeper on re-enable, while fiat paths (top-ups,
-   withdrawals, conversions, cards, compliance) fail closed.
-4. **logistics-accept-quotes** (Publish and accept quotes) - Requires
-   `LOGISTICS_PAYMENTS_ENABLED=true` (default off). While disabled the quote lifecycle
-   routes (`/api/logistics/finance/quotes*`) answer 503 via
-   `server/middleware/requireLogisticsPayments.js`.
-5. **logistics-confirm-payments** (Confirm payments at checkout) - Same
-   `LOGISTICS_PAYMENTS_ENABLED` gate (default off). While disabled, `/logistics/checkout`
-   and `/logistics/payments` answer 503 and the client checkout shows a disabled state.
+- **Submit specialized intake requests (maintenance, trades, beauty, creative, professional, continuity)**: Specialized intake requests require the specializedProfileTemplates launch flag, which is off by default. While it is off, the intake entry buttons are hidden on business profile pages and the public intake API returns 404. The hub intake triage tabs (beauty-ops, creative-ops, continuity-ops, professional-ops, trades-ops, maintenance) are already registered so they appear automatically at launch.
+- **Use OxSteed Credit (top-ups, transfers, withdrawals, cards)**: OxSteed Credit requires the oxsteed_credit_enabled feature flag. It is ON in production as of 2026-10-11. If the rail is off, the page shows "OxSteed Credit is temporarily paused" and spending, top-ups, and withdrawals stay paused while balances and history remain visible.
+- **View your earnings overview**: The Earnings tab on the helper dashboard is visible only while the helperEarnings launch flag is enabled (it is off by default). Your payouts at /helper/payouts and your earnings statements at /helper-earnings/statements stay available while the tab is hidden.
+- **Publish and accept quotes**: Requires LOGISTICS_PAYMENTS_ENABLED=true (default off). While disabled, the quote lifecycle routes answer 503 and the checkout shows a disabled state.
+- **Confirm payments at checkout**: Requires LOGISTICS_PAYMENTS_ENABLED=true (default off). While disabled, every checkout route answers 503 and the checkout shows the disabled state "Online payments are not enabled yet. Please try again later."
+- **Get help with vehicle care**: This specialized workspace is not available in the current launch. Its legacy address redirects to your dashboard.
+- **Arrange recurring household work**: This specialized workspace is not available in the current launch. Its legacy address redirects to your dashboard.
 
-## Unavailable workflows and reasons
+## Evidence boundaries
 
-1. **business-leads** (Work the lead pipeline) - `client/src/pages/BusinessLeadsPage.jsx`
-   exists but is never imported or routed in `client/src/App.jsx`, so there is no reachable
-   UI. Server lead-pipeline APIs (`/api/business-leads`, `/api/business-lead-pipeline`)
-   exist but have no user surface. No SOP guide can be written against a reachable workflow.
+Screenshots and browser checks use synthetic accounts and API responses. Empty, gated and overview examples do not imply that a record exists or an action was performed. Provider-owned identity/payment steps are explained using the OxSteed handoff, without invented provider screens. Published guides retain actual eligibility and permission requirements; no production flag, backend API, migration or authorization policy was changed.
 
-## Notable gaps and ambiguities
-
-- **OxSteed Credit vs Restaurant Credit are distinct products** and are tracked as separate
-  workflows (`financial-oxsteed-credit`, `financial-restaurant-credit`). OxSteed Credit is
-  user-scoped with cards, top-ups, and withdrawals; Restaurant Credit is per-restaurant
-  wallets used at food checkout. Guides must not conflate them.
-- **Quotes exist in three separate systems**: helper quotes (`/api/helper-quotes`), business
-  quotes (`/api/businesses/:businessId/quotes`), and Direct quote requests
-  (`/api/quote-requests`), plus gated logistics finance quotes. Each has its own lifecycle
-  and audience.
-- **Receipts have no standalone hub** (`financial-receipts`): receipts render in context
-  (Direct payment receipt view, food order detail). A receipts guide should point at those
-  surfaces rather than a dedicated page.
-- **Logistics claims and refund requests have no standalone pages**: both are filed via API
-  and surfaced inside the buyer dashboard (`/logistics/buyer`) and finance page.
-- **Car care is a vehicle garage, not a service-booking flow** (`other-car-care`): it manages
-  owned-vehicle records via `/api/vehicles`. Do not write it as a booking guide.
-- **Client management for helpers is conversation-based** (`helper-clients`): the
-  `/helper/clients` page manages conversations, guest inquiries, and quote history; there
-  is no separate helper CRM record store.
-- **Unlaunched product surfaces present in the repo but excluded from workflows**:
-  product marketplace and carts (`productMarketplace: false`, launchGate 404s
-  `/api/marketplace/products`, `/api/carts`, `/api/shared-carts`, `/api/job-kits`,
-  `/api/templates`), background-check request UI (`backgroundChecks: false`),
-  subscriptions (`subscriptions: false`), affiliate rewards (`AFFILIATE_ENABLED` gate),
-  generic QR generator flag (`genericQrGenerator: false`, though the `/qr-generator` page
-  itself has no code-level gate), Vortex (`VORTEX_ENABLED`), and the personal life
-  dashboard (`personalLifeDashboard: false`). These must not get SOP guides until launched.
-- **Mode/role model**: `server/utils/modeRole.js` maps modes to RBAC roles; customer and
-  helper are the base roles, with `helper_pro` and `broker` as helper tiers. Business,
-  restaurant, consultant, and tool-owner modes are helper-class at the DB level. Granted
-  modes (business_manager, business_representative, business_employee,
-  business_support_agent) require membership and manual entry via the mode switcher.
-- **Permission patterns verified**: `requireAuth` on nearly all mutations;
-  `requireEmailVerified` and `requireTermsAcceptance` on booking creation;
-  `bizIdAccess('any'|'manager')` capability checks on business-scoped writes;
-  `checkRestrictions('checkout')` on money movement; `requireLogisticsPayments` 503 gate
-  on logistics payments; tax-identity (W-9) gate on helper payouts.
-- **Ambiguity**: the Direct quote-request lookup (`/direct/view-quote`) is guest-accessible
-  by code, while quote detail requires auth; guides should note both paths.
-- **Ambiguity**: `/wallet` is an overview and `/oxsteed-credit` is the full credit page;
-  the wallet guide should direct detail-seekers to the credit page.
+See `completion-2026-10-16.md` for the executed validation and `scripts/sop/pdf/README.md` for regeneration.

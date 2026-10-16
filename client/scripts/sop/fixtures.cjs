@@ -252,6 +252,11 @@ __sopRoute('get', /^\\/businesses\\/managed$/, () => ({
 __sopRoute('get', /^\\/businesses\\/invitations$/, () => ({
   invitations: [ { id: 'sop-inv-1', business_name: 'Greenline Yard Co', role: 'member', status: 'pending' } ],
 }));
+__sopRoute('get', /^\\/businesses\\/([^/]+)\\/onboarding$/, () => ({
+ business: {id: '00000000-0000-4000-8000-000000000001', business_name: 'SOP Service Studio', address_city: 'Springfield', description: 'Synthetic service business', business_kind: 'service', setup_status: 'draft', is_active: true},
+ checks: [{id:'name',complete:true},{id:'category',complete:true},{id:'location',complete:true},{id:'description',complete:true},{id:'service',complete:false}],
+ permissions: {canEdit:true,canPublish:true}, readyToPublish: false,
+}));
 __sopRoute('get', /^\\/businesses\\/([^/]+)$/, (m) => ({
   business: { id: m[1], business_name: 'Maple Street Plumbing', status: 'active', city: 'Dayton', description: 'Full-service plumbing for homes and businesses.' },
 }));
@@ -442,4 +447,35 @@ __sopRoute('get', /^\\/restaurants\\/runner\\/([^/]+)$/, (m) => ({
 __sopRoute('get', /^\\/restaurants\\/pos\\/([^/]+)$/, (m) => ({
   items: [ { id: 'sop-item-1', name: 'Griot Plate', price: 12.99 } ],
 }));
+`);
+
+// Current API response contracts used by the illustrated guides. Synthetic only.
+addSection('reviewed-contracts', String.raw`
+const __reviewStart=__ROUTES.length;
+const __restaurant={id:'sop-rest-1',business_id:'sop-biz-1',name:'SOP Kitchen',slug:'sop-kitchen',status:'active',currency_code:'USD',timezone:'America/New_York',address_city:'Springfield',address_line1:'123 Example Street',is_accepting_orders:true,fulfillment_modes:['pickup','delivery'],can_manage:true};
+const __menuItem={id:'sop-item-1',name:'Griot Plate',description:'Pork with rice and plantains',price_cents:1299,price:12.99,is_available:true,is_active:true,sort_order:0,modifier_groups:[]};
+const __orders=['received','accepted','preparing','ready'].map((status,index)=>({id:'sop-order-'+index,queue_number:'A'+(12+index),status,fulfillment_type:'pickup',total_cents:2598,currency_code:'USD',created_at:new Date(Date.now()-index*60000).toISOString(),customer_name:'SOP Customer',items:[{id:'sop-item-'+index,itemName:'Griot Plate',name:'Griot Plate',quantity:2,kitchenStatus:status==='preparing'?'preparing':status==='ready'?'ready':'queued'}]}));
+__sopRoute('get', /^\/food\/my\/restaurants$/,()=>({restaurants:[__restaurant]}));
+__sopRoute('get', /^\/food\/restaurants$/,()=>({restaurants:[__restaurant]}));
+__sopRoute('get', /^\/food\/restaurants\/[^/]+(?:\/menu\/manage)?$/,()=>({restaurant:__restaurant,menu:[{id:'sop-category-1',name:'Main dishes',is_active:true,items:[__menuItem]}],uncategorizedItems:[]}));
+__sopRoute('get', /^\/food\/restaurants\/[^/]+\/orders$/,()=>({orders:__orders,meta:{total:4,limit:50,offset:0,hasMore:false}}));
+__sopRoute('get', /^\/restaurants\/[^/]+\/kitchen\/feed$/,()=>({orders:__orders,workflow:{requireQualityCheck:true,handoffDisplaySeconds:15}}));
+__sopRoute('get', /^\/food\/orders\/([^/]+)$/,m=>({order:{...__orders[2],id:m[1],restaurant:__restaurant,restaurant_name:__restaurant.name,payment_status:'paid',payment_method:'card'}}));
+__sopRoute('get', /^\/helper-registration\/onboarding\/status$/,()=>{
+ const mode=__sopFlag('onboarding');const done=mode==='done'||mode==='ready'||(!mode && window.__sopUser?.onboarding_step==='active');
+ return {onboarding_completed:mode!=='ready'&&done,steps:{email:true,terms:done,profile:done,identityVerified:done,identitySubmitted:done,background:done?'passed':'none'}};
+});
+__sopRoute('get', /^\/jobs\/([^/]+)$/,m=>{
+ const state=__sopFlag('sopCaptureState')||'';
+ const status=/completed|review form/i.test(state)?'completed':/finished|in.progress/i.test(state)?'in_progress':/accepted|assigned|record.*payment|start job/i.test(state)?'accepted':'published';
+ return {id:m[1],title:'Fix leaky kitchen faucet',description:'Repair a dripping kitchen faucet. Please bring suitable tools.',status,client_id:'sop-user-customer',client_name:'SOP Customer',assigned_helper_id:status==='published'?null:'sop-user-helper',location_city:'Springfield',location_state:'Ohio',country:'US',category_name:'Plumbing',budget_type:'range',budget_min:50,budget_max:120,bid_count:2,created_at:new Date().toISOString(),urgency:'flexible',job_type:'one_time',required_skills:[],requirements:[],media_urls:[]};
+});
+__sopRoute('get', /^\/bids\/job\/[^/]+$/,()=>window.__sopUser?.role==='helper'?[]:[{id:'sop-bid-1',helper_id:'sop-user-helper',helper_name:'Sam Helper',amount:85,status:'pending',message:'I can repair the faucet this week.',created_at:new Date().toISOString()}]);
+__sopRoute('get', /^\/jobs\/[^/]+\/bids$/,()=>[]);
+__sopRoute('get', /^\/oxsteed-credit\/accounts$/,()=>({accounts:[{id:'sop-account-1',accountId:'sop-account-1',name:'Personal credit',currency:'USD',currencyCode:'USD',balance:125.5,balanceCents:12550}]}));
+__sopRoute('get', /^\/statement-archive\/scopes$/,()=>({accounts:[{accountId:'sop-account-1',name:'Personal credit',currencyCode:'USD',product:'oxsteed_credit'}]}));
+__sopRoute('get', /^\/statements\/exports\/([^/]+)$/,m=>({data:{id:m[1],state:'complete',product:'oxsteed_credit',format:'csv',createdAt:'2026-10-15T12:00:00Z',rowCount:2}}));
+__sopRoute('get', /^\/statements\/exports\/[^/]+\/manifest$/,()=>({data:{complete:true,fileCount:1,files:[{id:'sop-file-1',name:'statement.csv',format:'csv',kind:'csv',part:1,rowFrom:1,rowTo:2,rowCount:2}]}}));
+__sopRoute('get', /^\/statements\/exports$/,()=>({data:{items:[],pagination:{page:1,totalPages:1,total:0}}}));
+__ROUTES.unshift(...__ROUTES.splice(__reviewStart));
 `);

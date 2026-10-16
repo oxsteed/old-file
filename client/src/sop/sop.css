@@ -960,3 +960,19 @@
 .sop-back-link:hover {
   text-decoration: underline;
 }
+
+/* Contextual instructions stay above the assistant and scroll within the dialog. */
+.sop-modal-overlay { z-index: 10050; }
+.sop-modal { max-block-size: 90dvh; overflow-y: auto; overscroll-behavior: contain; inline-size: min(1100px, 96vw); }
+.sop-modal-head { position: sticky; inset-block-start: 0; z-index: 2; background: var(--color-surface); }
+.sop-modal .sop-modal-list { max-block-size: 12rem; overflow: auto; }
+.sop-modal .sop-guide-title { font-size: clamp(1.4rem, 4vw, 2rem); }
+.sop-btn, .sop-back-link, .sop-view-link { min-block-size: 44px; display: inline-flex; align-items: center; }
+.sop-page { overflow-wrap: anywhere; }
+.sop-page :focus-visible, .sop-modal :focus-visible { outline: 3px solid var(--color-accent); outline-offset: 3px; }
+/* Keep guide controls usable on touch screens and with coarse pointers. */
+.sop-guide-button, .sop-select, .sop-input, .sop-shot-zoom-btn,
+.sop-checklist-item, .sop-process-map summary { min-block-size: 44px; }
+.sop-link-list a, .sop-list a, .sop-toc a {
+  min-block-size: 44px; display: inline-flex; align-items: center;
+}

@@ -1,88 +1,44 @@
-# SOP PDF generation
+# Visual guide artifacts
 
-Builds the downloadable PDFs for the Visual SOP library from the guide data
-source. The online HTML guides are the primary edition; these PDFs are
-generated snapshots.
+The online guides, contextual instruction dialogs and PDFs use `client/src/sop/guides/index.js`.
+Five role handbooks follow the same guide ordering as the online handbook pages.
+English instructions are the first edition; the surrounding UI is localized.
 
-## What is produced
+## Refresh workflow
 
-- `client/public/sop/pdfs/guides/<guide-id>.pdf` - one PDF per guide (81).
-  Each has a first-page note pointing at its online URL
-  (`/how-it-works/<area>/<slug>`), an "English" label, revision info, the
-  process map, numbered steps with desktop screenshots and annotation
-  callouts, the text equivalent of the process map, expected results,
-  recovery table, and support/related/link sections. Checklists are
-  intentionally omitted (device-only feature). Steps whose screenshot is
-  still planned render a labeled placeholder box instead of failing.
-- `client/public/sop/pdfs/handbooks/<role>.pdf` - one per role
-  (`customer`, `helper`, `business`, `restaurant`, `logistics`). Each has a
-  cover page (title, role, revision date, "English" label, revision info),
-  a linked table of contents, page numbers on every page
-  ("Page X of Y" in the footer), and a revision-history line per guide
-  (guide ID + revision number).
+Run from the repository root after installing client dependencies. Chromium/Google Chrome must
+be installed locally. CI uses its installed Chrome. Set `SOP_CHROME_PATH` or
+`SOP_PDF_CHROME` to override the executable; no workstation-specific path is assumed.
 
-No em dashes are emitted in any PDF (replaced with " - ").
+1. Review changed sources and instructions using `node scripts/sop/check-manifest.mjs`.
+2. Capture the real client with synthetic API responses:
+   `node client/scripts/sop/capture.cjs all`.
+   Use an area plus `--guide <id> --force` for a targeted refresh, or `--missing` for missing assets.
+   Equivalent route/state recipes share one image. Desktop captures use 1360px and mobile 390px.
+   Progress is resumable in the OS temporary directory. Failed actions and unresolved annotation
+   targets make the capture command nonzero; review its report instead of ignoring the failure.
+   `node client/scripts/sop/discover.cjs <area>` lists actual controls and requested APIs for repair.
+3. Inspect the images. A screen overview is explicitly captioned when a requested control is
+   absent; do not add a numbered marker to an unrelated element. Hosted provider steps use
+   the actual OxSteed handoff, never an invented Didit or Stripe screen.
+4. Generate downloads: `node scripts/sop/pdf/generate.mjs`.
+   Options: `--guide <id>`, `--guides-only`, `--handbooks-only`.
+   Static outputs are under `client/public/sop/pdfs/{guides,handbooks}` and require no
+   production browser process. Missing screenshots abort generation.
+5. Render and inspect every PDF page:
+   `python3 scripts/sop/pdf/verify.py` (PyMuPDF and Pillow required).
+   Page images, contact sheets and text-bound checks go under `/tmp/sop-pdf-review`.
+   Also inspect selected full-size pages and linked handbook contents.
+6. After reviewing content, captures and PDFs, record the baseline:
+   `node scripts/sop/check-manifest.mjs --regenerate`.
+   This does not bypass stale PDF checks. `docs/sop/pdf-build.json` records the actual
+   guide/image inputs used by the PDF generator.
+7. Run `cd client && npm run test:sop`, the SOP browser check, and `npm run build:ci`.
+   `node scripts/sop/verify-layouts.cjs` checks 320/390/768/1360/1600px, light/dark,
+   English/French/Arabic shells, zoom dismissal/focus return and PDF bytes using synthetic data.
 
-## Regenerate
-
-```bash
-cd ~/workspace/old-file
-node scripts/sop/pdf/generate.mjs
-```
-
-Options:
-
-```bash
-node scripts/sop/pdf/generate.mjs --guides-only      # skip handbooks
-node scripts/sop/pdf/generate.mjs --handbooks-only   # skip individual guides
-node scripts/sop/pdf/generate.mjs --guide <guide-id> # rebuild one guide PDF
-```
-
-## Dependencies
-
-- Node 18+.
-- `playwright-core` (already vendored in `client/node_modules`; the script
-  imports it by absolute path so it also runs outside an npm workspace).
-- A headless Chromium binary. Default:
-  `~/.cache/ms-playwright/chromium_headless_shell-1243/chrome-headless-shell-linux64/chrome-headless-shell`
-  Override with the `SOP_PDF_CHROME` environment variable.
-- For visual review: `pdftoppm`, `pdfinfo`, `pdftotext` (poppler-utils) and
-  optionally `pypdf` (`pip install pypdf`) to assert link annotations.
-
-## Inputs (read-only; this script never writes to them)
-
-- `client/src/sop/guides/<family>/<guide-id>.js` - guide data (the same
-  source the online pages render).
-- `client/src/sop/screenshots.json` - screenshot sidecar: image `src`,
-  `alt`, `caption`, and annotation callout coordinates, keyed
-  `<guideId>/<stepId>/<viewport>`.
-- `client/public/sop/screenshots/` - optimized JPEGs, embedded as base64
-  data URIs (no network requests during rendering).
-
-Intermediate print HTML goes to `/tmp/sop-pdf-html/` (ephemeral).
-
-## Revision bumping
-
-Each guide data file carries a `revision` number. Bump it whenever that
-guide's content changes, then re-run this script (or `--guide <guide-id>`
-for a single guide). The revision date stamped on covers and revision
-lines is the generation date (US Eastern).
-
-## Size budget
-
-Keep `client/public/sop/pdfs/` under ~200MB total. As of 2026-10-16 the 86
-PDFs total roughly 70MB with original-quality JPEG embeds. If the total
-approaches the budget, reduce embed quality: add a JPEG encoder (e.g.
-`sharp`) and recompress in `imageDataUri()` in `generate.mjs` before
-base64-encoding (quality 60 is the agreed fallback).
-
-## Visual review checklist (after regenerating)
-
-1. `pdfinfo` every PDF: opens, page count > 0.
-2. Render pages with `pdftoppm` and check: readable text (no overflow or
-   clipping), annotation badges legible, sane page breaks, cover and TOC
-   of every handbook.
-3. Verify TOC links: extract `/Annots` with pypdf and confirm `/Link`
-   annotations with `/Dest` entries exist on the TOC pages.
-4. Spot-check at least one full guide PDF and ten pages of one handbook
-   by eye.
+`docs/sop/source-manifest.json` records hashes for documented controls, imports, routes,
+launch/permission gates, guide revisions, images and downloads. Normal checks never update it.
+Source changes identify affected guides and their screenshot keys. Regenerate artifacts and
+review them before accepting a new baseline. Reading a guide or checking its device-only
+checklist does not perform, approve, verify, book or pay for an action.

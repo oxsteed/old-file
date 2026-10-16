@@ -27,42 +27,11 @@ async function launchBrowser() {
 
 const mocks = {
   'react-i18next': `export const useTranslation = () => ({ t: (k) => k, i18n: { language: 'en' } }); export const initReactI18next = { type: '3rdParty', init: () => {} };`,
-  '../../context/AuthContext': `import React from 'react'; export const useAuth = () => ({ user: null, mode: 'customer' }); export default { useAuth };`,
-  '../context/AuthContext': `import React from 'react'; export const useAuth = () => ({ user: null, mode: 'customer' }); export default { useAuth };`,
+  '../../context/AuthContext': `import React from 'react'; export const useAuth = () => { const user=React.useSyncExternalStore(cb=>{window.addEventListener('sop-auth',cb);return()=>window.removeEventListener('sop-auth',cb)},()=>window.__sopAuth||null);return {user}; }; export default {useAuth};`,
+  '../context/AuthContext': `import React from 'react'; export const useAuth = () => { const user=React.useSyncExternalStore(cb=>{window.addEventListener('sop-auth',cb);return()=>window.removeEventListener('sop-auth',cb)},()=>window.__sopAuth||null);return {user}; }; export default {useAuth};`,
   '../../components/PageMeta': `export default () => null;`,
   '../components/PageMeta': `export default () => null;`,
-  // Bypass import.meta.glob (unsupported by the esbuild fixture bundler):
-  // wire the registry straight to the real guides index.
-  '../guideRegistry.js': `
-    import { GUIDES, GUIDES_BY_ID, AREAS } from '${root}/src/sop/guides/index.js';
-    export { GUIDES, GUIDES_BY_ID, AREAS };
-    export const getArea = (slug) => AREAS.find((a) => a.slug === slug) || null;
-    export const getGuide = (area, slug) => GUIDES.find((g) => g.area === area && g.slug === slug) || null;
-    export const getGuideById = (id) => GUIDES_BY_ID[id] || null;
-    export const guideUrl = (g) => '/how-it-works/' + g.area + '/' + g.slug;
-    export const handbookUrl = (role) => '/how-it-works/handbooks/' + role;
-    export const getGuidesByArea = (area) => GUIDES.filter((g) => g.area === area);
-    export const searchGuides = (q, opts) => {
-      const query = (q || '').toLowerCase();
-      return GUIDES.filter((g) => {
-        if (opts && opts.audience && !(g.audiences || []).includes(opts.audience)) return false;
-        if (opts && opts.area && g.area !== opts.area) return false;
-        if (!query) return true;
-        return ((g.title || '') + ' ' + (g.goal || '') + ' ' + g.id).toLowerCase().includes(query);
-      });
-    };
-    export const guidesForRoute = (pathname) => {
-      if (pathname === '/sop-button-test') return [GUIDES[0]];
-      return [];
-    };
-    export const validateRegistry = () => [];
-    export const HANDBOOKS = ['customer', 'helper', 'business', 'restaurant', 'logistics'].map((role) => ({
-      role,
-      title: role.charAt(0).toUpperCase() + role.slice(1) + ' handbook',
-      guideIds: GUIDES.filter((g) => (g.audiences || []).includes(role)).map((g) => g.id),
-    }));
-    export const getHandbook = (role) => HANDBOOKS.find((h) => h.role === role) || null;
-  `,
+
 };
 
 async function fixture() {
@@ -86,7 +55,7 @@ async function fixture() {
                 <Route path="/how-it-works/guides" element={<SopLibraryPage />} />
                 <Route path="/how-it-works/:area/:guideSlug" element={<SopGuidePage />} />
                 <Route path="/how-it-works/handbooks/:role" element={<SopHandbookPage />} />
-                <Route path="/sop-button-test" element={<div><h1>Task page</h1><SopGuideButton /></div>} />
+                <Route path="/post-job" element={<div><h1>Task page</h1><input aria-label="Unsaved task" defaultValue="Keep my draft"/><SopGuideButton /></div>} />
               </Routes>
             </MemoryRouter>
           );
@@ -171,6 +140,17 @@ test('SOP library routes render for guests', async (t) => {
   );
   await page.close();
 
+  // Progress is account scoped, even when switching accounts without navigation.
+  page = await loadRoute('/how-it-works/account/sign-in');
+  await page.waitForSelector('.sop-checklist input');
+    await page.evaluate(()=>{window.__sopAuth={id:'one',default_mode:'helper'};window.dispatchEvent(new Event('sop-auth'));});
+    await page.waitForTimeout(100);await page.check('.sop-checklist input');
+    await page.evaluate(()=>{window.__sopAuth={id:'two',default_mode:'helper'};window.dispatchEvent(new Event('sop-auth'));});
+    await page.waitForTimeout(100);assert.equal(await page.isChecked('.sop-checklist input'),false);
+    await page.evaluate(()=>{window.__sopAuth={id:'one',default_mode:'helper'};window.dispatchEvent(new Event('sop-auth'));});
+    await page.waitForTimeout(100);assert.equal(await page.isChecked('.sop-checklist input'),true);
+  await page.close();
+
   // 3. Handbook page
   page = await loadRoute('/how-it-works/handbooks/customer');
   const hbText = await page.textContent('body');
@@ -178,16 +158,21 @@ test('SOP library routes render for guests', async (t) => {
   await page.close();
 
   // 4. Modal keyboard behavior via guide button
-  page = await loadRoute('/sop-button-test');
+  page = await loadRoute('/post-job');
   const guideBtn = await page.$('.sop-guide-button');
   assert.ok(guideBtn, 'guide button renders on mapped task page');
   await guideBtn.click();
   await page.waitForTimeout(800);
   const modal = await page.$('[role="dialog"], [aria-modal="true"]');
   assert.ok(modal, 'guide modal opens');
+  assert.ok(await page.$('.sop-step'), 'instructions render inside the contextual modal');
+  assert.ok(await page.$('a[download][href$=".pdf?revision=1"]') || await page.$('a[download]'), 'PDF download available');
+  assert.equal(await page.getAttribute('.sop-modal-actions a', 'target'), '_blank', 'full guide opens separately');
   await page.keyboard.press('Escape');
   await page.waitForTimeout(500);
   const modalAfter = await page.$('[role="dialog"], [aria-modal="true"]');
   assert.ok(!modalAfter, 'Escape closes the modal');
+  assert.equal(await page.inputValue('[aria-label="Unsaved task"]'), 'Keep my draft');
+  assert.equal(await page.evaluate(()=>document.activeElement?.classList.contains('sop-guide-button')),true,'focus returns to opener');
   await page.close();
 });

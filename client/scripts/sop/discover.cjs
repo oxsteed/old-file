@@ -8,8 +8,8 @@
  */
 const path = require('node:path');
 const fs = require('node:fs');
-const plans = require('/tmp/plans-full.json');
-const { readCatalog, buildFixture, createServer, launchBrowser, newFixturePage, settle, apiLog } = require('./harness.cjs');
+const {loadPlans} = require('./plans.cjs');
+const { startAppFixture, launchBrowser, newFixturePage, settle, apiLog } = require('./harness.cjs');
 const { buildApiMockSource } = require('./fixtures.cjs');
 const { routeForScreen } = require('./recipes.cjs');
 
@@ -68,21 +68,16 @@ async function dumpElements(page) {
 }
 
 async function main() {
+  const plans = await loadPlans();
   const area = process.argv[2] || 'account';
-  const areaPlans = plans.filter((p) => p.area === area);
+  const areaPlans = plans.filter((p) => area === "all" || p.area === area);
   const screens = [...new Set(areaPlans.map((p) => p.screen))];
   console.log(`Area ${area}: ${areaPlans.length} plans, ${screens.length} screens`);
 
   const outDir = `/tmp/sop-discover/${area}`;
   fs.mkdirSync(outDir, { recursive: true });
 
-  const catalog = readCatalog();
-  const apiMockSource = buildApiMockSource();
-  const bundle = await buildFixture(apiMockSource);
-  const tailwindCssPath = '/tmp/sop-tailwind.css';
-  const { server, port, close } = await createServer({
-    entryJs: bundle.entryJs, cssBundle: bundle.cssBundle, byBase: bundle.byBase, catalog, tailwindCssPath,
-  });
+  const {port,close} = await startAppFixture();
   const browser = await launchBrowser();
   const report = [];
 

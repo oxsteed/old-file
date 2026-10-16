@@ -1,3 +1,4 @@
+import SopHelp from '../sop/components/SopHelp';
 import { useLocation } from 'react-router-dom';
 import PrefetchLink from './PrefetchLink';
 import { useAuth } from '../context/AuthContext';
@@ -251,6 +252,7 @@ export default function Navbar() {
   const isActive = (path) => location.pathname === path;
 
   return (
+    <>
     <nav
       ref={mobileRef}
       data-nav-disclosure
@@ -523,6 +525,8 @@ export default function Navbar() {
       {/* Responsive hide/show via CSS */}
       <style>{NAVBAR_STYLES}</style>
     </nav>
+    <SopHelp user={user} />
+    </>
   );
 }
 

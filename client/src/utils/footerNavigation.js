@@ -9,7 +9,7 @@ export function footerNavigation(user, { showSupportWorkspace = false, visibilit
   if (visibility.productMarketplace) explore.push(link('/products', 'footer.products'));
   const company = [link('/how-it-works', 'footer.howOxsteedWorks'), link('/about', 'footer.about'),
     link('/careers', 'footer.careers'), link('/consulting-intake', 'footer.consultingIntake')];
-  const help = [link('/support', 'footer.support'), link('/learn', 'nav.learnToDiy')];
+  const help = [link('/support', 'footer.support'), link('/learn', 'nav.learnToDiy'), link('/how-it-works/guides', 'sop.libraryLink')];
   if (visibility.footerUtilityPills) help.push(link('/vortex', 'footer.teamAccess'));
   if (visibility.genericQrGenerator && canUseQrGenerator(user)) help.push(link('/qr-generator', 'footer.qrGenerator'));
   if (user && showSupportWorkspace) help.push(link('/support/agent', 'nav.supportWorkspace'));

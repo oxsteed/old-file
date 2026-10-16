@@ -4,7 +4,7 @@
  * anyone who prefers text.
  */
 
-import { useMemo } from 'react';
+import { useId, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import '../sop.css';
 
@@ -94,6 +94,7 @@ function wrapLabel(label, maxChars = 22) {
 
 export default function SopProcessMap({ processMap, processMapText }) {
   const { t } = useTranslation();
+  const markerId = useId();
 
   const { positions, width, height } = useMemo(
     () => layoutNodes(processMap.nodes, processMap.edges),
@@ -109,7 +110,7 @@ export default function SopProcessMap({ processMap, processMapText }) {
       >
         <defs>
           <marker
-            id="sop-pm-arrow"
+            id={markerId}
             viewBox="0 0 10 10"
             refX="9"
             refY="5"
@@ -139,7 +140,7 @@ export default function SopProcessMap({ processMap, processMapText }) {
                 x2={x2}
                 y2={y2}
                 className="sop-pm-edge"
-                markerEnd="url(#sop-pm-arrow)"
+                markerEnd={`url(#${markerId})`}
               />
               {edge.label ? (
                 <text x={midX + 6} y={midY - 4} className="sop-pm-edge-label" textAnchor="start">

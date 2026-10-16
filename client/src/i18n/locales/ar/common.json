@@ -1,4 +1,87 @@
 {
+  "sop": {
+    "unavailable": "غير متاح",
+    "unavailableTitle": "غير متاح في هذا الإصدار",
+  "downloadGuide": "تنزيل الدليل (PDF)",
+  "downloadHandbook": "تنزيل الكتيب (PDF)",
+  "imageUnavailable": "لقطة الشاشة غير متاحة. حاول تحميلها مجددًا.",
+  "libraryLink": "أدلة مرئية خطوة بخطوة",
+  "guideButton": "دليل خطوة بخطوة",
+  "englishBadge": "English",
+  "modal": {
+    "title": "أدلة خطوة بخطوة",
+    "close": "إغلاق",
+    "openFullGuide": "فتح الدليل الكامل",
+    "chooseGuide": "اختر الدليل المناسب لمهمتك",
+    "noneLinked": "لا يوجد دليل خطوة بخطوة مرتبط بهذه الصفحة بعد."
+  },
+  "library": {
+    "title": "أدلة خطوة بخطوة",
+    "subtitle": "شروحات مرئية للمهام الشائعة على OxSteed. محتوى الأدلة مكتوب باللغة الإنجليزية.",
+    "searchLabel": "البحث في الأدلة",
+    "searchPlaceholder": "ابحث حسب المهمة، على سبيل المثال نشر وظيفة",
+    "areaLabel": "المجال",
+    "audienceLabel": "الجمهور",
+    "allAreas": "كل المجالات",
+    "allAudiences": "كل الجماهير",
+    "suggestedForYou": "مقترح لك",
+    "useSuggestion": "استخدام الاقتراح",
+    "clearFilters": "مسح عوامل التصفية",
+    "results": "{{count}} من الأدلة",
+    "noResults": "لا توجد أدلة تطابق بحثك. جرّب كلمات مختلفة أو امسح عوامل التصفية.",
+    "viewGuide": "عرض الدليل",
+    "supported": "مدعوم",
+    "conditional": "مشروط",
+    "handbooksTitle": "الأدلة حسب الدور",
+    "handbooksSubtitle": "قوائم قراءة مرتبة لكل دور على OxSteed.",
+    "openHandbook": "فتح الدليل",
+    "guidesInHandbook": "{{count}} من الأدلة"
+  },
+  "audience": {
+    "customer": "عميل",
+    "helper": "مساعد",
+    "business": "نشاط تجاري",
+    "restaurant": "مطعم",
+    "logistics": "لوجستيات"
+  },
+  "guide": {
+    "goal": "الهدف",
+    "prerequisites": "قبل أن تبدأ",
+    "processMap": "خريطة العملية",
+    "processMapTextToggle": "النسخة النصية لهذه الخريطة",
+    "steps": "الخطوات",
+    "stepNumber": "الخطوة {{n}}",
+    "expectedResult": "النتيجة المتوقعة",
+    "viewLarger": "عرض أكبر",
+    "closeZoom": "إغلاق الصورة المكبرة",
+    "screenshotPending": "لقطة الشاشة بانتظار الالتقاط",
+    "confirmOutcome": "تأكد من نجاح العملية",
+    "recovery": "إذا حدث خطأ ما",
+    "support": "الحصول على المساعدة",
+    "relatedGuides": "أدلة ذات صلة",
+    "siteLinks": "صفحات ذات صلة",
+    "sources": "المصادر",
+    "revision": "المراجعة {{revision}}",
+    "notFound": "الدليل غير موجود",
+    "notFoundBody": "هذا الدليل غير منشور بعد. تصفح المكتبة الكاملة للعثور على شرح مناسب لمهمتك.",
+    "backToLibrary": "العودة إلى كل الأدلة"
+  },
+  "checklist": {
+    "title": "تقدمك",
+    "reset": "إعادة تعيين التقدم",
+    "progress": "{{done}} من {{total}} خطوات مكتملة",
+    "markDone": "وضع علامة على الخطوة كمنجزة",
+    "markNotDone": "وضع علامة على الخطوة كغير منجزة"
+  },
+  "handbook": {
+    "contents": "المحتويات",
+    "notFound": "الدليل غير موجود",
+    "notFoundBody": "دليل هذا الدور غير منشور بعد.",
+    "backToLibrary": "العودة إلى كل الأدلة",
+    "guideNotPublished": "غير منشور بعد",
+    "openGuide": "فتح الدليل"
+  }
+},
   "helperOnboarding": {
     "background": "فحص الخلفية (قد يكون مطلوبًا لبعض الأنشطة أو بناءً على طلب بعض العملاء)"
   },

@@ -14,7 +14,7 @@ const { build } = require('esbuild');
 const { chromium } = require('playwright-core');
 
 const ROOT = path.resolve(__dirname, '..', '..');
-const SHELL = '/home/hatch/.cache/ms-playwright/chromium_headless_shell-1243/chrome-headless-shell-linux64/chrome-headless-shell';
+const SHELL = process.env.SOP_CHROME_PATH;
 
 const STRIPE_MOCK = `export function loadStripe(){ return Promise.resolve(null); }`;
 
@@ -37,6 +37,7 @@ i18next.use(initReactI18next).init({
   ns: Object.keys(namespaces), defaultNS: 'translation',
   resources: { en: namespaces }, interpolation: { escapeValue: false },
 });
+window.__sopI18n = i18next;
 export default i18next;
 `;
 
@@ -44,7 +45,8 @@ const ENTRY = `
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './src/App';
-createRoot(document.getElementById('root')).render(<App />);
+import './src/index.css';
+createRoot(document.getElementById('root')).render(React.createElement(App));
 window.__sopAppMounted = true;
 `;
 
@@ -115,7 +117,7 @@ function createServer({ entryJs, cssBundle, byBase, catalog, tailwindCssPath }) 
       res.setHeader('Content-Type', 'text/css'); res.end(cssBundle); return;
     }
     if (url.pathname === '/tailwind.css') {
-      res.setHeader('Content-Type', 'text/css'); res.end(fs.readFileSync(tailwindCssPath)); return;
+      res.setHeader('Content-Type', 'text/css'); res.end(tailwindCssPath ? fs.readFileSync(tailwindCssPath) : ''); return;
     }
     if (url.pathname.startsWith('/socket.io/')) {
       // No realtime server in the fixture; fail socket.io fast and quietly.
@@ -123,6 +125,12 @@ function createServer({ entryJs, cssBundle, byBase, catalog, tailwindCssPath }) 
     }
     if (base.endsWith('.js') && byBase.has(base)) {
       res.setHeader('Content-Type', 'text/javascript'); res.end(byBase.get(base).contents); return;
+    }
+    const asset = path.resolve(ROOT, 'public', '.' + url.pathname);
+    if (asset.startsWith(path.join(ROOT,'public') + path.sep) && fs.existsSync(asset) && fs.statSync(asset).isFile()) {
+      const types={'.pdf':'application/pdf','.jpg':'image/jpeg','.png':'image/png','.svg':'image/svg+xml'};
+      res.setHeader('Content-Type',types[path.extname(asset)] || 'application/octet-stream');
+      res.end(fs.readFileSync(asset)); return;
     }
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.end(`<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
@@ -141,7 +149,7 @@ function createServer({ entryJs, cssBundle, byBase, catalog, tailwindCssPath }) 
 }
 
 async function launchBrowser() {
-  return chromium.launch({ headless: true, executablePath: SHELL });
+  return chromium.launch({ headless: true, ...(SHELL ? { executablePath: SHELL } : { channel: 'chrome' }) });
 }
 
 /**
@@ -330,3 +338,53 @@ module.exports = {
   newFixturePage, settle, apiLog, attachErrorCollector, pageErrors,
   applyActions, measureAnnotations, screenshotJpeg,
 };
+
+// Compile the same Tailwind entry used by the client; no /tmp input dependency.
+async function buildTailwind() {
+ const postcss = require('postcss');
+ const tailwind = require('@tailwindcss/postcss');
+ const input = path.join(ROOT, 'src/index.css');
+ const result = await postcss([tailwind({base: ROOT})]).process(fs.readFileSync(input, 'utf8'), {from: input});
+ const out = path.join(require('node:os').tmpdir(), `sop-tailwind-${process.pid}.css`);
+ fs.writeFileSync(out, result.css);
+ return out;
+}
+module.exports.buildTailwind = buildTailwind;
+
+// Build the real App with Vite's production CSS splitting and local API fixtures.
+// The resulting static server has no HMR reloads or development dependency races.
+async function startAppFixture(apiMockSource = require('./fixtures.cjs').buildApiMockSource()) {
+ const {build} = await import('vite');
+ const catalog=readCatalog();
+ const entry=ENTRY.replaceAll("'./src/", "'/src/");
+ const fixtureModules={'sop-api':apiMockSource,'sop-i18n':I18N_MOCK,'sop-stripe':STRIPE_MOCK,'sop-entry':entry};
+ const result=await build({
+  root:ROOT,configFile:false,logLevel:'error',esbuild:{jsx:'automatic'},
+  build:{write:false,minify:false,cssCodeSplit:true,rollupOptions:{input:'/sop-entry.jsx'}},
+  plugins:[{name:'sop-real-app',enforce:'pre',
+   resolveId(id){
+    if(id==='/sop-entry.jsx')return '\0sop-entry';
+    if(/(^|\/)axios$/.test(id))return '\0sop-api';
+    if(/(?:^|\/)i18n$/.test(id))return '\0sop-i18n';
+    if(/^@stripe\/stripe-js(?:\/pure)?$/.test(id))return '\0sop-stripe';
+   },load(id){if(id.startsWith('\0sop-'))return fixtureModules[id.slice(1)];}
+  }]
+ });
+ const output=result.output;
+ const files=new Map(output.map(f=>['/'+f.fileName,f]));
+ const main=output.find(f=>f.type==='chunk'&&f.isEntry);
+ const styles=[...(main.viteMetadata?.importedCss || [])].map(f=>`<link rel="stylesheet" href="/${f}">`).join('');
+ const server=http.createServer((req,res)=>{
+  const url=new URL(req.url,'http://127.0.0.1');const f=files.get(url.pathname);
+  if(f){res.setHeader('Content-Type',url.pathname.endsWith('.js')?'text/javascript':url.pathname.endsWith('.css')?'text/css':'application/octet-stream');res.end(f.type==='chunk'?f.code:f.source);return;}
+  const asset=path.resolve(ROOT,'public','.'+url.pathname);
+  if(asset.startsWith(path.join(ROOT,'public')+path.sep)&&fs.existsSync(asset)&&fs.statSync(asset).isFile()){
+   res.setHeader('Content-Type',asset.endsWith('.pdf')?'application/pdf':asset.endsWith('.jpg')?'image/jpeg':'application/octet-stream');res.end(fs.readFileSync(asset));return;
+  }
+  if(url.pathname.startsWith('/socket.io/')){res.statusCode=204;res.end();return;}
+  res.setHeader('Content-Type','text/html');res.end(`<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">${styles}<style>${HIDE_CHROME_CSS}</style></head><body><div id="root"></div><script>window.__sopCatalog=${JSON.stringify(catalog).replace(/</g,'\\u003c')};</script><script type="module" src="/${main.fileName}"></script></body></html>`);
+ });
+ await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
+ return {port:server.address().port,close:()=>new Promise(resolve=>server.close(resolve))};
+}
+module.exports.startAppFixture=startAppFixture;

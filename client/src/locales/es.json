@@ -1,5 +1,12 @@
 {
   "sop": {
+    "unavailable": "No disponible",
+    "unavailableTitle": "No disponible en esta versión",
+    "downloadGuide": "Descargar guía (PDF)",
+    "downloadHandbook": "Descargar manual (PDF)",
+    "imageUnavailable": "Captura no disponible. Intenta cargarla de nuevo.",
+    "libraryLink": "Guías visuales paso a paso",
+
     "guideButton": "Guía paso a paso",
     "englishBadge": "English",
     "modal": {

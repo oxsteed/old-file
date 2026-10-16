@@ -10,7 +10,7 @@
  * instead so the guide never crashes on missing captures.
  */
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useId } from 'react';
 import { useTranslation } from 'react-i18next';
 import { loadScreenshotSidecar, screenshotRecord } from '../screenshotSidecar.js';
 import '../sop.css';
@@ -52,7 +52,7 @@ function CapturedScreenshot({ entry, record, stepNumber }) {
   const dialogRef = useRef(null);
   const [failed, setFailed] = useState(false);
 
-  if (failed) return null;
+  if (failed) return <figure className="sop-shot"><p role="status">{t("sop.imageUnavailable")}</p><button type="button" className="sop-btn" onClick={() => setFailed(false)}>{t("common.retry", { defaultValue: "Try again" })}</button></figure>;
 
   const alt = record.alt || entry.alt;
   const caption = record.caption || entry.caption;
@@ -120,6 +120,7 @@ function StepScreenshot({ guideId, stepId, entry, stepNumber, sidecar }) {
 export default function SopStep({ guide, step, index }) {
   const { t } = useTranslation();
   const stepNumber = index + 1;
+  const stepHeadingId = useId();
   const [sidecar, setSidecar] = useState(null);
 
   useEffect(() => {
@@ -133,10 +134,10 @@ export default function SopStep({ guide, step, index }) {
   }, []);
 
   return (
-    <article className="sop-step" aria-labelledby={`sop-step-${step.id}`}>
+    <article className="sop-step" aria-labelledby={stepHeadingId}>
       <div className="sop-step-head">
         <span className="sop-step-number" aria-hidden="true">{stepNumber}</span>
-        <h3 id={`sop-step-${step.id}`}>
+        <h3 id={stepHeadingId}>
           <span className="sop-sr-only">{t('sop.guide.stepNumber', { n: stepNumber })}: </span>
           {step.title}
         </h3>

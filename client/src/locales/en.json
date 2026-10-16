@@ -1,5 +1,12 @@
 {
   "sop": {
+    "unavailable": "Unavailable",
+    "unavailableTitle": "Not available in this launch",
+    "downloadGuide": "Download guide (PDF)",
+    "downloadHandbook": "Download handbook (PDF)",
+    "imageUnavailable": "Screenshot unavailable. Try loading it again.",
+    "libraryLink": "Visual step-by-step guides",
+
     "guideButton": "Step-by-step guide",
     "englishBadge": "English",
     "modal": {

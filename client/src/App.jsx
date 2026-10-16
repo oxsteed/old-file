@@ -1,3 +1,4 @@
+import PageShell from './components/PageShell';
 import LogisticsRouteBoundary from './components/logistics/LogisticsRouteBoundary';
 import { Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useParams } from 'react-router-dom';
@@ -404,9 +405,9 @@ export default function App() {
                     <Route path="/how-it-works"            element={<Guarded><FeatureGuidePage /></Guarded>} />
                     {/* SOP library routes must precede /how-it-works/:area or
                         the :area param swallows "guides" and "handbooks". */}
-                    <Route path="/how-it-works/guides"         element={<Guarded><SopLibraryPage /></Guarded>} />
-                    <Route path="/how-it-works/handbooks/:role" element={<Guarded><SopHandbookPage /></Guarded>} />
-                    <Route path="/how-it-works/:area/:guideSlug" element={<Guarded><SopGuidePage /></Guarded>} />
+                    <Route path="/how-it-works/guides"         element={<Guarded><PageShell><SopLibraryPage /></PageShell></Guarded>} />
+                    <Route path="/how-it-works/handbooks/:role" element={<Guarded><PageShell><SopHandbookPage /></PageShell></Guarded>} />
+                    <Route path="/how-it-works/:area/:guideSlug" element={<Guarded><PageShell><SopGuidePage /></PageShell></Guarded>} />
                     <Route path="/how-it-works/:area"      element={<Guarded><ExperienceGuidePage /></Guarded>} />
                     <Route path="/features"                element={<Navigate to="/how-it-works" replace />} />
                     {/* /hire is the Learn guides' "Find a helper" CTA target. */}

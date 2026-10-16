@@ -14,7 +14,7 @@
  */
 const path = require('node:path');
 const fs = require('node:fs');
-const plans = require('/tmp/plans-full.json');
+const { loadPlans } = require('./plans.cjs');
 const H = require('./harness.cjs');
 const { buildApiMockSource } = require('./fixtures.cjs');
 const { routeForScreen, recipeFor, USERS } = require('./recipes.cjs');
@@ -128,7 +128,8 @@ async function queryBox(page, locator) {
       const modeBtn = els.find((el) => visible(el) && /mode/i.test(el.textContent || ''));
       if (modeBtn) els = [modeBtn, ...els.filter((e) => e !== modeBtn)];
     }
-    const el = els.find(visible) || els[0];
+    const el = els.find(visible);
+    if (!el) return null;
     const r = el.getBoundingClientRect();
     return { x: r.x, y: r.y, w: r.width, h: r.height };
   }, locator);
@@ -159,6 +160,7 @@ async function measureUnion(page, items, viewport) {
     const box = await queryBox(page, items[i].locator);
     if (!box) { out.push({ ...items[i], found: false }); continue; }
     const cx = box.x + box.w / 2, cy = box.y + box.h / 2;
+    if (cx <= 0 || cy <= 0 || cx >= viewport.width || cy >= viewport.height) { out.push({...items[i], found:false}); continue; }
     out.push({
       ...items[i], found: true,
       x: Math.round((cx / viewport.width) * 1000) / 10,
@@ -169,12 +171,18 @@ async function measureUnion(page, items, viewport) {
 }
 
 async function main() {
+  const plans = await loadPlans();
   const area = process.argv[2];
   if (!area) { console.error('usage: capture.cjs <area> [--screen <substr>]'); process.exit(1); }
   const screenFilter = process.argv.includes('--screen') ? process.argv[process.argv.indexOf('--screen') + 1] : null;
 
-  let areaPlans = plans.filter((p) => p.area === area);
+  let areaPlans = plans.filter((p) => area === 'all' || p.area === area);
   if (screenFilter) areaPlans = areaPlans.filter((p) => p.screen.includes(screenFilter));
+  if (process.argv.includes('--guide')) areaPlans = areaPlans.filter(p => process.argv[process.argv.indexOf('--guide')+1].split(',').includes(p.guide));
+  if (process.argv.includes('--missing')) {
+    const existing = fs.existsSync(MANIFEST_PATH) ? JSON.parse(fs.readFileSync(MANIFEST_PATH)) : {};
+    areaPlans = areaPlans.filter(p => !existing[`${p.guide}/${p.step}/${p.vp}`]);
+  }
   console.log(`Area ${area}: ${areaPlans.length} plans`);
 
   // Screens the app redirects away from per launchScope.js (launch-gated);
@@ -187,7 +195,7 @@ async function main() {
   // group plans by combo
   const combos = new Map();
   for (const p of areaPlans) {
-    const k = `${p.screen}|${p.state}|${p.vp}`;
+    const k = JSON.stringify([p.screen, p.vp, recipeFor(p)]);
     if (!combos.has(k)) combos.set(k, []);
     combos.get(k).push(p);
   }
@@ -196,18 +204,11 @@ async function main() {
   const progressPath = `/tmp/sop-capture/${area}-progress.json`;
   fs.mkdirSync('/tmp/sop-capture', { recursive: true });
   let done = new Set();
-  if (fs.existsSync(progressPath)) {
+  if (!process.argv.includes('--force') && fs.existsSync(progressPath)) {
     try { done = new Set(JSON.parse(fs.readFileSync(progressPath, 'utf8')).done || []); } catch {}
   }
 
-  const catalog = H.readCatalog();
-  const apiMockSource = buildApiMockSource();
-  console.log('Building fixture...');
-  const bundle = await H.buildFixture(apiMockSource);
-  console.log(`CSS files: ${bundle.cssFiles.length}, total CSS ${(bundle.cssBundle.length / 1024).toFixed(0)}KB`);
-  const { server, port, close } = await H.createServer({
-    entryJs: bundle.entryJs, cssBundle: bundle.cssBundle, byBase: bundle.byBase, catalog, tailwindCssPath: '/tmp/sop-tailwind.css',
-  });
+  const {port,close} = await H.startAppFixture();
   const browser = await H.launchBrowser();
 
   let manifest = {};
@@ -222,25 +223,31 @@ async function main() {
   let captured = 0;
 
   try {
-    for (const [comboKey, comboPlans] of combos) {
-      if (done.has(comboKey)) continue;
+    const queue = [...combos];
+    const attempts = new Map();
+    async function worker() {
+    while (queue.length) {
+      const [comboKey, comboPlans] = queue.shift();
+      if (done.has(comboKey) || comboPlans.every(p => done.has(`${p.screen}|${p.state}|${p.vp}`))) continue;
+      const attempt = (attempts.get(comboKey) || 0) + 1; attempts.set(comboKey, attempt);
+      let succeeded = false;
       const first = comboPlans[0];
-      const [screen, state, vp] = comboKey.split('|');
+      const {screen,state,vp} = first;
       if (SKIP_SCREENS.has(screen)) { console.log(`  skip (launch-gated redirect): ${comboKey}`); continue; }
       // Desktop captures render at 1440px wide (the app's desktop nav
       // breakpoint hides .ox-nav-desktop at <=1360px) then downscale to
       // 1360px wide for the published image.
-      const viewport = vp === 'mobile' ? { width: 390, height: 844 } : { width: 1440, height: 900 };
+      const viewport = vp === 'mobile' ? { width: 390, height: 844 } : { width: 1360, height: 900 };
       const recipe = recipeFor(first);
       const user = USERS[recipe.user || 'customer'] || null;
       const page = await H.newFixturePage(browser, {
-        viewport, user, dataMode: recipe.dataMode || 'full', flags: recipe.flags || {},
+        viewport, user, dataMode: recipe.dataMode || 'full', flags: {...(recipe.flags || {}),sopCaptureState:state},
       });
       H.attachErrorCollector(page);
       const url = recipe.url || routeForScreen(screen);
       try {
         await page.goto(`http://127.0.0.1:${port}${url}`, { waitUntil: 'domcontentloaded', timeout: 30000 });
-        const s = await H.settle(page);
+        const s = await H.settle(page, {maxWaitMs:10000, quietWindows:1, pollMs:250});
         if (!s.mounted) throw new Error('app did not mount');
         if (recipe.actions && recipe.actions.length) {
           await H.applyActions(page, recipe.actions);
@@ -261,9 +268,12 @@ async function main() {
           if (!m.found) missingAnnotations.push(`${m.planKey}#${m.n} (${m.locator})`);
         }
         const errors = await H.pageErrors(page);
+        const heading = await page.locator('h1').first().textContent().catch(() => null);
+        const unmapped = await page.evaluate(()=>window.__sopUnmapped || []);
+
 
         // write image (first claimant's filename)
-        const relDir = `${area}/${first.guide}`;
+        const relDir = `${first.area}/${first.guide}`;
         const fileName = `${first.step}-${vp}.jpg`;
         const absDir = path.join(SHOTS_DIR, relDir);
         fs.mkdirSync(absDir, { recursive: true });
@@ -271,21 +281,8 @@ async function main() {
         const tmpShot = path.join('/tmp/sop-capture', `shot-${Date.now()}-${Math.random().toString(36).slice(2)}.jpg`);
         await H.screenshotJpeg(page, tmpShot);
         let imgW = viewport.width, imgH = viewport.height;
-        if (vp === 'desktop') {
-          // Downscale 1440x900 -> 1360x850, JPEG q70.
-          const { execSync } = require('node:child_process');
-          execSync(`python3 -c "
-from PIL import Image
-im = Image.open('${tmpShot}').convert('RGB')
-im = im.resize((1360, 850), Image.LANCZOS)
-im.save('${absPath}', 'JPEG', quality=70, optimize=True)
-"`);
-          fs.unlinkSync(tmpShot);
-          imgW = 1360; imgH = 850;
-        } else {
-          fs.copyFileSync(tmpShot, absPath);
-          fs.unlinkSync(tmpShot);
-        }
+        fs.copyFileSync(tmpShot, absPath);
+        fs.unlinkSync(tmpShot);
         const src = `/sop/screenshots/${relDir}/${fileName}`;
 
         for (const p of comboPlans) {
@@ -294,29 +291,36 @@ im.save('${absPath}', 'JPEG', quality=70, optimize=True)
             src,
             width: imgW,
             height: imgH,
-            alt: p.alt,
-            caption: p.caption || undefined,
+            alt: heading ? `Synthetic example: ${heading.trim()}` : p.alt,
+            caption: measured.some(m=>m.planKey===`${p.guide}/${p.step}` && !m.found)
+              ? 'Screen overview. Some controls described in this step are not shown in this synthetic example.'
+              : p.caption || undefined,
+            captureReview: { missingControls: measured.filter(m=>m.planKey===`${p.guide}/${p.step}` && !m.found).map(m=>m.label), unmapped: [...new Set(unmapped)] },
             annotations: measured
               .filter((m) => m.planKey === `${p.guide}/${p.step}` && m.found)
               .map((m) => ({ n: m.n, x: m.x, y: m.y, label: m.label })),
           };
           if (!manifest[key].caption) delete manifest[key].caption;
         }
-        captured++;
+        captured++; succeeded = true;
         const missCount = measured.filter((m) => !m.found).length;
         console.log(`  ok ${comboKey} ${missCount ? `MISSING_ANN:${missCount}` : ''} pageerr=${errors.length}`);
 
       } catch (e) {
         const errors = await H.pageErrors(page).catch(() => []);
-        failed.push(`${comboKey}: ${e.message} pageerrors=[${errors.slice(0, 2).join(' | ')}]`);
+        if (attempt < 2) queue.push([comboKey, comboPlans]);
+        else failed.push(`${comboKey}: ${e.message} pageerrors=[${errors.slice(0, 2).join(' | ')}]`);
         console.log(`  FAIL ${comboKey}: ${e.message}`);
         fs.writeFileSync(failPath, JSON.stringify(failed, null, 1));
       } finally {
         await page.close().catch(() => {});
       }
-      done.add(comboKey);
+      if (succeeded) done.add(comboKey);
       fs.writeFileSync(progressPath, JSON.stringify({ done: [...done] }));
+      fs.writeFileSync(MANIFEST_PATH, JSON.stringify(manifest, null, 1)+"\n");
     }
+    }
+    await Promise.all(Array.from({length: Number(process.env.SOP_CAPTURE_WORKERS || 4)}, () => worker()));
   } finally {
     await browser.close();
     await close();
@@ -328,6 +332,7 @@ im.save('${absPath}', 'JPEG', quality=70, optimize=True)
   if (missingAnnotations.length) console.log('MISSING ANNOTATIONS:\n' + [...new Set(missingAnnotations)].join('\n'));
   if (fallbackUsed.size) console.log('FALLBACK LOCATORS:\n' + [...fallbackUsed].join('\n'));
   console.log('Manifest entries:', Object.keys(manifest).length);
+  if (failed.length || missingAnnotations.length) process.exitCode = 1;
 }
 
 main().catch((e) => { console.error('CAPTURE FAILED:', e); process.exit(1); });

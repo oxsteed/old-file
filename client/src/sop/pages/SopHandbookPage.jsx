@@ -55,6 +55,7 @@ export default function SopHandbookPage() {
           </div>
         </div>
 
+        <p><a className="sop-btn" href={`/sop/pdfs/handbooks/${role}.pdf`} download>{t("sop.downloadHandbook")}</a></p>
         <nav className="sop-toc" aria-label={t('sop.handbook.contents')}>
           <h2>{t('sop.handbook.contents')}</h2>
           <ol>

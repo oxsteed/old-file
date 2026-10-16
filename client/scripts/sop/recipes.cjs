@@ -56,6 +56,8 @@ const USERS = {
 };
 
 const RECIPES = {
+ '/business-hub||Business workspace, signed in owner, light mode': {user:'business'},
+ '/business/:businessId/onboarding||Business setup checks, signed in owner, light mode': {user:'business'},
   // filled per area as capture work proceeds
 };
 
@@ -147,7 +149,7 @@ Object.assign(RECIPES, {
       // persistence) then reload, the same state the app reaches after a UI switch
       { eval: `sessionStorage.setItem('__sop_mode', 'helper')` },
       { reload: true },
-      { waitFor: '.ox-nav-desktop [data-nav-disclosure] button:has-text("Helper")' },
+      { waitFor: '.ox-nav-mobile-mode' },
     ],
   },
   '/dashboard||Signed in after mode switch, new mode active, light mode||mobile': {
@@ -185,7 +187,7 @@ Object.assign(RECIPES, {
     ],
   },
   '/dashboard||All onboarding steps done, signed in, light mode': {
-    user: 'helperOnboarding', flags: { onboarding: 'done' },
+    user: 'helperOnboarding', flags: { onboarding: 'ready' },
     actions: [
       { waitFor: '[data-testid="helper-onboarding-checklist"]' },
       { scroll: '[data-testid="helper-onboarding-checklist"]' },
@@ -358,6 +360,8 @@ function clickModeSwitcher() {
     const b = mm.querySelector('[data-nav-disclosure] button');
     if (b && b.offsetParent !== null) { b.click(); return true; }
   }
+  const menu=document.querySelector('button.ox-btn-icon[aria-expanded="false"]');
+  if(menu){menu.click();setTimeout(clickModeSwitcher,100);}
   return false;
 }
 
@@ -812,4 +816,9 @@ Object.assign(RECIPES, {
   '/restaurants/inventory/:restaurantId||Inventory list with adjust dialog, light mode': { user: 'restaurant', url: '/restaurants/inventory/sop-rest-1' },
   '/restaurants/inventory/:restaurantId||Inventory purchase order form, light mode': { user: 'restaurant', url: '/restaurants/inventory/sop-rest-1' },
   '/restaurants/crew/:restaurantId||Crew page with shifts and checklists, light mode': { user: 'restaurant', url: '/restaurants/crew/sop-rest-1' },
+});
+
+Object.assign(RECIPES, {
+ '/oxsteed-credit/statements/archive||Export panel with request form, light mode': {user:'customer',actions:[{click:'details.sa-export-disclosure > summary'}]},
+ '/oxsteed-credit/statements/archive||Export form with parameters filled, light mode': {user:'customer',actions:[{click:'details.sa-export-disclosure > summary'}]},
 });

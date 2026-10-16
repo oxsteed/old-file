@@ -9,7 +9,7 @@
  * verify, pay, book, or submit anything.
  */
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../context/AuthContext';
 import '../sop.css';
@@ -39,16 +39,8 @@ function writeStored(key, checkedIds) {
   }
 }
 
-export default function SopChecklist({ guide }) {
+function AccountChecklist({ guide, storageKey: key }) {
   const { t } = useTranslation();
-  const { user } = useAuth();
-
-  const accountIdOrGuest = user?.id ? String(user.id) : 'guest';
-  const key = useMemo(
-    () => checklistKey(accountIdOrGuest, guide.id, guide.revision),
-    [accountIdOrGuest, guide.id, guide.revision],
-  );
-
   const [checkedIds, setCheckedIds] = useState(() => readStored(key));
 
   // Re-read when the scoping key changes (account switch or guide revision).
@@ -113,4 +105,10 @@ export default function SopChecklist({ guide }) {
       <p className="sop-checklist-disclaimer">{DISCLAIMER}</p>
     </section>
   );
+}
+
+export default function SopChecklist({ guide }) {
+ const { user } = useAuth();
+ const key = checklistKey(user?.id ? String(user.id) : 'guest', guide.id, guide.revision);
+ return <AccountChecklist key={key} storageKey={key} guide={guide}/>;
 }

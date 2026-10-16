@@ -1,5 +1,12 @@
 {
   "sop": {
+    "unavailable": "Pa disponib",
+    "unavailableTitle": "Pa disponib nan vèsyon sa a",
+    "downloadGuide": "Telechaje gid la (PDF)",
+    "downloadHandbook": "Telechaje manyèl la (PDF)",
+    "imageUnavailable": "Ekran an pa disponib. Eseye chaje li ankò.",
+    "libraryLink": "Gid vizyèl etap pa etap",
+
     "guideButton": "Gid etap pa etap",
     "englishBadge": "English",
     "modal": {

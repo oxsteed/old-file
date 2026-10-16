@@ -1,5 +1,12 @@
 {
   "sop": {
+    "unavailable": "غير متاح",
+    "unavailableTitle": "غير متاح في هذا الإصدار",
+    "downloadGuide": "تنزيل الدليل (PDF)",
+    "downloadHandbook": "تنزيل الكتيب (PDF)",
+    "imageUnavailable": "لقطة الشاشة غير متاحة. حاول تحميلها مجددًا.",
+    "libraryLink": "أدلة مرئية خطوة بخطوة",
+
     "guideButton": "دليل خطوة بخطوة",
     "englishBadge": "English",
     "modal": {

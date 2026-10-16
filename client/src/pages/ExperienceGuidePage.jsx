@@ -42,6 +42,7 @@ export default function ExperienceGuidePage() {
 
   return (
     <PageShell>
+      <div className="ox-container"><Link to="/how-it-works/guides" className="ox-btn ox-btn-primary" style={{minHeight:44}}>{t("sop.libraryLink")}</Link></div>
       <PageMeta
         title={t(`experienceGuides.areas.${translationKey}.metaTitle`, { defaultValue: `${areaTitle} | OxSteed` })}
         description={t(`experienceGuides.areas.${translationKey}.metaDescription`, { defaultValue: areaDescription })}
