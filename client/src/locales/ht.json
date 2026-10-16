@@ -1,4 +1,81 @@
 {
+  "sop": {
+    "guideButton": "Gid etap pa etap",
+    "englishBadge": "English",
+    "modal": {
+      "title": "Gid etap pa etap",
+      "close": "Fèmen",
+      "openFullGuide": "Louvri gid konplè a",
+      "chooseGuide": "Chwazi gid ki koresponn ak travay ou a",
+      "noneLinked": "Pa gen gid etap pa etap ki lye ak paj sa a pou kounye a."
+    },
+    "library": {
+      "title": "Gid etap pa etap",
+      "subtitle": "Leson vizyèl pou travay komen sou OxSteed. Kontni gid yo ekri an anglè.",
+      "searchLabel": "Chèche gid",
+      "searchPlaceholder": "Chèche pa travay, pa egzanp pibliye yon djòb",
+      "areaLabel": "Domèn",
+      "audienceLabel": "Odyans",
+      "allAreas": "Tout domèn yo",
+      "allAudiences": "Tout odyans yo",
+      "suggestedForYou": "Sijere pou ou",
+      "useSuggestion": "Sèvi ak sijesyon an",
+      "clearFilters": "Efase filtè yo",
+      "results": "{{count}} gid",
+      "noResults": "Okenn gid pa koresponn ak rechèch ou a. Eseye lòt mo oswa efase filtè yo.",
+      "viewGuide": "Wè gid la",
+      "supported": "Disponib",
+      "conditional": "Kondisyonèl",
+      "handbooksTitle": "Gid pa wòl",
+      "handbooksSubtitle": "Lis lekti òdone pou chak wòl sou OxSteed.",
+      "openHandbook": "Louvri manyèl la",
+      "guidesInHandbook": "{{count}} gid"
+    },
+    "audience": {
+      "customer": "Kliyan",
+      "helper": "Edan",
+      "business": "Biznis",
+      "restaurant": "Restoran",
+      "logistics": "Lojistik"
+    },
+    "guide": {
+      "goal": "Objektif",
+      "prerequisites": "Anvan ou kòmanse",
+      "processMap": "Kat pwosesis la",
+      "processMapTextToggle": "Vèsyon tèks kat sa a",
+      "steps": "Etap yo",
+      "stepNumber": "Etap {{n}}",
+      "expectedResult": "Rezilta ou dwe wè",
+      "viewLarger": "Wè pi gwo",
+      "closeZoom": "Fèmen imaj agrandi a",
+      "screenshotPending": "Ekran poko pran",
+      "confirmOutcome": "Verifye li mache",
+      "recovery": "Si yon bagay pa mache",
+      "support": "Jwenn èd",
+      "relatedGuides": "Gid ki gen rapò",
+      "siteLinks": "Paj ki gen rapò",
+      "sources": "Sous",
+      "revision": "Revizyon {{revision}}",
+      "notFound": "Gid pa jwenn",
+      "notFoundBody": "Gid sa a poko pibliye. Gade bibliyotèk konplè a pou jwenn yon leson pou travay ou a.",
+      "backToLibrary": "Tounen nan tout gid yo"
+    },
+    "checklist": {
+      "title": "Pwogrè ou",
+      "reset": "Rekòmanse pwogrè a",
+      "progress": "{{done}} sou {{total}} etap fini",
+      "markDone": "Make etap la kòm fini",
+      "markNotDone": "Make etap la kòm pa fini"
+    },
+    "handbook": {
+      "contents": "Kontni",
+      "notFound": "Manyèl pa jwenn",
+      "notFoundBody": "Manyèl wòl sa a poko pibliye.",
+      "backToLibrary": "Tounen nan tout gid yo",
+      "guideNotPublished": "Poko pibliye",
+      "openGuide": "Louvri gid la"
+    }
+  },
   "attention": {
     "onboarding": {
       "title": "Konfigire {{name}}",

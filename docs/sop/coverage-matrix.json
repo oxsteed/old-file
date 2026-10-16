@@ -1,0 +1,2532 @@
+{
+  "generatedAt": "2026-10-16T03:55:20Z",
+  "source": {
+    "repo": "~/workspace/old-file",
+    "branch": "feat/sop-library",
+    "audited": [
+      "client/src/App.jsx (<Route> paths)",
+      "client/src/pages/*.jsx (screens)",
+      "server/routes/*.js and server/controllers/*.js (handlers)",
+      "server/constants/roles.js, server/utils/modeRole.js, capability/grant checks, requireAuth/requireRole usage",
+      "feature flags: client/src/utils/launchScope.js, server/middleware/launchGate.js, requireLogisticsPayments.js, feature_flags table"
+    ],
+    "excluded": [
+      "platform admin pages and /api/admin/*",
+      "support-agent tooling (/support/agent, agent* routes)",
+      "internal operations (/internal/*, /logistics/operations/*, compliance-workspace, admin-control, delivery operations)"
+    ]
+  },
+  "workflows": [
+    {
+      "id": "account-join",
+      "family": "account",
+      "title": "Create an account",
+      "status": "supported",
+      "condition": "",
+      "clientRoutes": [
+        "/join",
+        "/register/customer (redirect)",
+        "/register/helper (redirect)"
+      ],
+      "screenFiles": [
+        "client/src/pages/JoinPage.jsx"
+      ],
+      "serverHandlers": [
+        "POST /api/auth/register/start",
+        "POST /api/auth/register/accept-terms",
+        "POST /api/auth/register/verify-otp",
+        "POST /api/auth/register/resend-otp",
+        "POST /api/auth/check-email",
+        "POST /api/auth/check-zip"
+      ],
+      "permissions": "Guest (no auth). Self-selectable modes: customer, helper, business_owner.",
+      "featureFlags": [],
+      "audiences": [
+        "customer",
+        "helper",
+        "business"
+      ],
+      "notes": "Email OTP verification is part of the flow; /verify-email handles verification links. Mode-specific onboarding follows (see account-onboarding)."
+    },
+    {
+      "id": "account-signin",
+      "family": "account",
+      "title": "Sign in",
+      "status": "supported",
+      "condition": "",
+      "clientRoutes": [
+        "/login",
+        "/investor/login",
+        "/access-gate/recovery"
+      ],
+      "screenFiles": [
+        "client/src/pages/Login.jsx",
+        "client/src/pages/InvestorLoginPage.jsx",
+        "client/src/pages/AccessGateRecoveryPage.jsx"
+      ],
+      "serverHandlers": [
+        "POST /api/auth/login",
+        "POST /api/auth/login/2fa",
+        "POST /api/auth/login/passkey/options",
+        "POST /api/auth/login/passkey",
+        "POST /api/auth/refresh",
+        "POST /api/auth/logout"
+      ],
+      "permissions": "Guest (no auth); rate-limited.",
+      "featureFlags": [],
+      "audiences": [
+        "customer",
+        "helper",
+        "business",
+        "restaurant",
+        "logistics"
+      ],
+      "notes": "Supports password, TOTP 2FA step-up, and passkey login. Sessions managed at /settings/sessions."
+    },
+    {
+      "id": "account-password-recovery",
+      "family": "account",
+      "title": "Recover a forgotten password",
+      "status": "supported",
+      "condition": "",
+      "clientRoutes": [
+        "/forgot-password",
+        "/reset-password/:token"
+      ],
+      "screenFiles": [
+        "client/src/pages/ForgotPassword.jsx",
+        "client/src/pages/ResetPassword.jsx"
+      ],
+      "serverHandlers": [
+        "POST /api/auth/forgot-password",
+        "POST /api/auth/reset-password"
+      ],
+      "permissions": "Guest (no auth); token-based.",
+      "featureFlags": [],
+      "audiences": [
+        "customer",
+        "helper",
+        "business",
+        "restaurant",
+        "logistics"
+      ],
+      "notes": "Standard email-token reset flow; no admin involvement needed."
+    },
+    {
+      "id": "account-mode-switching",
+      "family": "account",
+      "title": "Switch between customer, helper, business and other modes",
+      "status": "supported",
+      "condition": "",
+      "clientRoutes": [
+        "Mode switcher (in-app navigation; no dedicated route)"
+      ],
+      "screenFiles": [
+        "client/src/pages/SmartDashboard.jsx",
+        "mode switcher component"
+      ],
+      "serverHandlers": [
+        "POST /api/auth/switch-role (mode switch)",
+        "server/utils/modeRole.js MODE_ROLE_MAP"
+      ],
+      "permissions": "Authenticated. Self-selectable: customer, helper, business_owner. Granted (membership required): business_manager, business_representative, business_employee, business_support_agent. Admin mode reserved for admin roles.",
+      "featureFlags": [
+        "LAUNCH_SELF_SELECTABLE_MODES",
+        "LAUNCH_GRANTED_MODES",
+        "LAUNCH_SWITCHER_MODES (client/src/utils/launchScope.js)"
+      ],
+      "audiences": [
+        "customer",
+        "helper",
+        "business",
+        "restaurant",
+        "logistics"
+      ],
+      "notes": "Modes map to RBAC roles (e.g. restaurant_owner -> helper class). Granted modes require proof of underlying membership; they do not auto-activate."
+    },
+    {
+      "id": "account-identity-verification",
+      "family": "account",
+      "title": "Verify identity (Didit)",
+      "status": "supported",
+      "condition": "",
+      "clientRoutes": [
+        "/verify-identity",
+        "/media/verify-identity"
+      ],
+      "screenFiles": [
+        "client/src/pages/VerifyIdentityPage.tsx"
+      ],
+      "serverHandlers": [
+        "POST /api/verification/identity/session",
+        "GET /api/verification/identity/status",
+        "GET /api/verification/badges",
+        "POST /api/didit/session",
+        "POST /api/didit/start",
+        "GET /api/didit/status",
+        "POST /api/didit/skip"
+      ],
+      "permissions": "Authenticated.",
+      "featureFlags": [],
+      "audiences": [
+        "customer",
+        "helper"
+      ],
+      "notes": "Didit phase two: verification anchored to the universal public entity ID, 2-year TTL, fail-closed; Didit-verified users auto-pass the credit rail identity review. DIDIT_ALLOW_USER_SKIP is default-open per standing decision. The background-check request UI in HelperDashboard is additionally gated by the backgroundChecks launch flag (default false)."
+    },
+    {
+      "id": "account-onboarding",
+      "family": "account",
+      "title": "Complete helper or business onboarding",
+      "status": "supported",
+      "condition": "",
+      "clientRoutes": [
+        "/business/:businessId/onboarding",
+        "/business-launch-status",
+        "/franchise/status"
+      ],
+      "screenFiles": [
+        "client/src/pages/BusinessOnboardingPage.jsx",
+        "client/src/pages/BusinessLaunchStatusPage.jsx",
+        "client/src/pages/FranchiseApplicantDashboard.jsx",
+        "client/src/pages/HelperDashboard.jsx"
+      ],
+      "serverHandlers": [
+        "POST /api/helper-registration/start",
+        "POST /api/helper-registration/verify-otp",
+        "POST /api/helper-registration/complete",
+        "POST /api/helper-registration/tier",
+        "POST /api/helper-registration/w9",
+        "POST /api/business-launch/submit",
+        "GET /api/business-launch/my-requests",
+        "ProtectedRoute requireOnboarded enforcement"
+      ],
+      "permissions": "Authenticated. Listing, bidding and starting work enforce onboarding server-side.",
+      "featureFlags": [],
+      "audiences": [
+        "helper",
+        "business"
+      ],
+      "notes": "Helpers onboard via the helper-registration API (tiers helper/helper_pro/broker, W-9); businesses via BusinessOnboardingPage and the launch-request flow."
+    },
+    {
+      "id": "account-settings",
+      "family": "account",
+      "title": "Manage account settings",
+      "status": "supported",
+      "condition": "",
+      "clientRoutes": [
+        "/settings",
+        "/settings/2fa",
+        "/settings/passkeys",
+        "/settings/sessions",
+        "/settings/notifications",
+        "/settings/country",
+        "/settings/payment-policies"
+      ],
+      "screenFiles": [
+        "client/src/pages/SettingsPage.jsx",
+        "client/src/pages/Settings/ (directory)",
+        "client/src/pages/HelperCancellationSettings.jsx"
+      ],
+      "serverHandlers": [
+        "GET/PATCH /api/users/me",
+        "GET/DELETE /api/users/me/sessions",
+        "/api/two-factor",
+        "/api/passkeys",
+        "/api/user-passkeys",
+        "/api/settings",
+        "/api/email-preferences",
+        "/api/helper-cancellation-policies"
+      ],
+      "permissions": "Authenticated.",
+      "featureFlags": [
+        "LAUNCH_SETTINGS_TABS (profile, security, businesses, notifications, privacy, account, danger, tax)"
+      ],
+      "audiences": [
+        "customer",
+        "helper",
+        "business",
+        "restaurant",
+        "logistics"
+      ],
+      "notes": "Includes 2FA, passkeys, sessions, notification and country settings. The tax (W-9) tab is helper-only and satisfies the tax-identity gate on payouts."
+    },
+    {
+      "id": "account-privacy",
+      "family": "account",
+      "title": "Privacy controls, data export, account deletion",
+      "status": "supported",
+      "condition": "",
+      "clientRoutes": [
+        "/privacy",
+        "/do-not-sell",
+        "/cookie-policy",
+        "/terms",
+        "/legal/*"
+      ],
+      "screenFiles": [
+        "client/src/pages/privacy.tsx",
+        "client/src/pages/donotsell.tsx",
+        "client/src/pages/cookiepolicy.tsx",
+        "client/src/pages/LegalPolicyPage.tsx"
+      ],
+      "serverHandlers": [
+        "POST /api/privacy/export/verification/request",
+        "POST /api/privacy/export/verification/verify",
+        "GET /api/privacy/export",
+        "DELETE /api/privacy/delete-account",
+        "GET /api/privacy/data-categories",
+        "GET /api/privacy/status",
+        "/api/consent"
+      ],
+      "permissions": "Guest for public policy pages; authenticated for export/deletion.",
+      "featureFlags": [],
+      "audiences": [
+        "customer",
+        "helper",
+        "business",
+        "restaurant",
+        "logistics"
+      ],
+      "notes": "Public legal pages plus authenticated data-subject actions (verified export, deletion request)."
+    },
+    {
+      "id": "account-support",
+      "family": "account",
+      "title": "Get help and track support tickets",
+      "status": "supported",
+      "condition": "",
+      "clientRoutes": [
+        "/support",
+        "/support/escalation",
+        "/support/my-tickets/:ticketId"
+      ],
+      "screenFiles": [
+        "client/src/pages/SupportEscalationPage.jsx",
+        "client/src/pages/SupportTicketDetailPage.jsx"
+      ],
+      "serverHandlers": [
+        "POST /api/support/public/conversations (+ verify, resend-code, messages, review, reopen, download)",
+        "POST /api/support/request",
+        "GET /api/support/my-tickets",
+        "GET /api/support/my-tickets/:ticketId"
+      ],
+      "permissions": "Guest for public conversations (code-verified); authenticated for tickets.",
+      "featureFlags": [],
+      "audiences": [
+        "customer",
+        "helper",
+        "business",
+        "restaurant"
+      ],
+      "notes": "Excludes /support/agent and /support/agent/workspace, which are support-agent tooling and out of scope for this matrix."
+    },
+    {
+      "id": "hiring-find-help",
+      "family": "hiring",
+      "title": "Find helpers and services",
+      "status": "supported",
+      "condition": "",
+      "clientRoutes": [
+        "/helpers",
+        "/discover",
+        "/helpers/:id",
+        "/direct",
+        "/direct/services",
+        "/direct/skills",
+        "/direct/tools"
+      ],
+      "screenFiles": [
+        "client/src/pages/HelpersDirectoryPage.tsx",
+        "client/src/pages/DiscoverPage.jsx",
+        "client/src/pages/HelperBusinessProfilePage.tsx",
+        "client/src/pages/DirectPortalPage.jsx",
+        "client/src/pages/DirectCatalogDirectoryPage.jsx"
+      ],
+      "serverHandlers": [
+        "GET /api/users/helpers/search",
+        "GET /api/direct/catalog",
+        "/api/discover"
+      ],
+      "permissions": "Guest can browse the directory; sign-in required to book.",
+      "featureFlags": [
+        "discoverEverything: false (full 'everything' scope not launched; Discover page exists)"
+      ],
+      "audiences": [
+        "customer"
+      ],
+      "notes": "Public helper directory plus the OxSteed-operated Direct catalog. Helper profiles at /helpers/:id are public."
+    },
+    {
+      "id": "hiring-post-job",
+      "family": "hiring",
+      "title": "Post a job",
+      "status": "supported",
+      "condition": "",
+      "clientRoutes": [
+        "/post-job"
+      ],
+      "screenFiles": [
+        "client/src/pages/PostJobPage.jsx"
+      ],
+      "serverHandlers": [
+        "POST /api/jobs",
+        "GET/PUT/DELETE /api/jobs/draft"
+      ],
+      "permissions": "Authenticated (customer mode).",
+      "featureFlags": [],
+      "audiences": [
+        "customer"
+      ],
+      "notes": "Draft autosave supported via the draft endpoints; the public job page /jobs/public/:jobId is read-only."
+    },
+    {
+      "id": "hiring-manage-jobs",
+      "family": "hiring",
+      "title": "Manage posted jobs",
+      "status": "supported",
+      "condition": "",
+      "clientRoutes": [
+        "/my-jobs",
+        "/jobs/:id",
+        "/jobs/:id/edit",
+        "/jobs/public/:jobId"
+      ],
+      "screenFiles": [
+        "client/src/pages/MyJobsPage.jsx",
+        "client/src/pages/JobDetailPage.jsx",
+        "client/src/pages/JobEditPage.jsx",
+        "client/src/pages/JobPublicPage.tsx"
+      ],
+      "serverHandlers": [
+        "GET /api/jobs",
+        "GET /api/jobs/me/list",
+        "GET/PATCH/PUT /api/jobs/:id",
+        "POST /api/jobs/:id/cancel",
+        "POST /api/jobs/:id/complete",
+        "POST /api/jobs/assign",
+        "GET /api/jobs/:id/appointment"
+      ],
+      "permissions": "Authenticated (job owner for mutations).",
+      "featureFlags": [],
+      "audiences": [
+        "customer"
+      ],
+      "notes": "Covers edit, cancel, complete, assign, and appointment scheduling on owned jobs."
+    },
+    {
+      "id": "hiring-compare-bids",
+      "family": "hiring",
+      "title": "Compare bids on a job",
+      "status": "supported",
+      "condition": "",
+      "clientRoutes": [
+        "/bids/:bidId",
+        "/my-bids"
+      ],
+      "screenFiles": [
+        "client/src/pages/BidDetailPage.jsx",
+        "client/src/pages/MyBidsPage.jsx"
+      ],
+      "serverHandlers": [
+        "GET /api/bids/recent",
+        "GET /api/bids/me",
+        "GET /api/bids/job/:jobId",
+        "GET /api/bids/:id",
+        "PUT /api/bids/:id (accept/decline)",
+        "POST /api/bids/:id/withdraw",
+        "POST /api/bids/:id/reconfirm"
+      ],
+      "permissions": "Authenticated.",
+      "featureFlags": [],
+      "audiences": [
+        "customer",
+        "helper"
+      ],
+      "notes": "Customers compare per-job bids and accept/decline; helpers track their own bids in the same views."
+    },
+    {
+      "id": "hiring-book",
+      "family": "hiring",
+      "title": "Book a helper, business, or service slot",
+      "status": "supported",
+      "condition": "",
+      "clientRoutes": [
+        "/book/:id",
+        "/book/business/:id",
+        "/business/:businessId/services/:serviceId/book",
+        "/direct/book-slot",
+        "/direct/book/:id",
+        "/my-bookings"
+      ],
+      "screenFiles": [
+        "client/src/pages/BookHelperPage.jsx",
+        "client/src/pages/BookBusinessPage.jsx",
+        "client/src/pages/BookServicePage.jsx",
+        "client/src/pages/DirectBookSlotPage.jsx",
+        "client/src/pages/DirectPortalPage.jsx (view=book)",
+        "client/src/pages/MyBookingsPage.tsx"
+      ],
+      "serverHandlers": [
+        "POST /api/bookings",
+        "POST /api/bookings/recurring",
+        "GET /api/bookings",
+        "POST /api/bookings/:bookingId/accept|decline|cancel|helper-cancel|counter-propose|convert-to-job",
+        "POST /api/bookings/recurring/:id/cancel|pause|resume",
+        "GET /api/bookings/helper/:helperId/available-slots",
+        "GET /api/bookings/business/:businessId/available-slots",
+        "POST /api/direct/catalog/services/:id/holds",
+        "POST /api/direct/catalog/services/:id/book"
+      ],
+      "permissions": "Authenticated; requireEmailVerified and requireTermsAcceptance on booking creation.",
+      "featureFlags": [],
+      "audiences": [
+        "customer"
+      ],
+      "notes": "Supports counter-proposals, recurring bookings (pause/resume/cancel), and converting a booking into a job."
+    },
+    {
+      "id": "hiring-message",
+      "family": "hiring",
+      "title": "Message about a job or booking",
+      "status": "supported",
+      "condition": "",
+      "clientRoutes": [
+        "/messages",
+        "/messages/:conversationId",
+        "/messages/conversations/:conversationId",
+        "/messages/guest/:inquiryId"
+      ],
+      "screenFiles": [
+        "client/src/pages/MessagesPage.jsx",
+        "client/src/pages/ConversationPage.jsx",
+        "client/src/pages/HelperGuestInquiryPage.jsx"
+      ],
+      "serverHandlers": [
+        "GET/POST /api/messages/conversations (+ meta, search)",
+        "POST /api/messages/jobs/:jobId/conversation",
+        "GET/POST /api/messages/guest-inquiries (+ mark-read)"
+      ],
+      "permissions": "Authenticated.",
+      "featureFlags": [],
+      "audiences": [
+        "customer",
+        "helper"
+      ],
+      "notes": "Job-scoped conversations plus guest inquiries so customers can ask pre-booking questions."
+    },
+    {
+      "id": "hiring-payment-records",
+      "family": "hiring",
+      "title": "See payment and order records",
+      "status": "supported",
+      "condition": "",
+      "clientRoutes": [
+        "/my-bookings",
+        "/orders",
+        "/orders/:id",
+        "/food/orders/:orderId",
+        "/food/track/:token"
+      ],
+      "screenFiles": [
+        "client/src/pages/MyBookingsPage.tsx",
+        "client/src/pages/OrderHistoryPage.jsx",
+        "client/src/pages/OrderDetailsPage.jsx",
+        "client/src/pages/food/FoodTrackPage.jsx"
+      ],
+      "serverHandlers": [
+        "GET /api/bookings",
+        "/api/orders (+ POST /:orderId/cancel)",
+        "GET /api/food/orders/:orderId",
+        "GET /api/food/orders/track/:trackingToken"
+      ],
+      "permissions": "Authenticated; food tracking token is guest-accessible.",
+      "featureFlags": [],
+      "audiences": [
+        "customer"
+      ],
+      "notes": "Bookings, product orders, and food orders each have their own history views."
+    },
+    {
+      "id": "hiring-completion",
+      "family": "hiring",
+      "title": "Mark a job complete",
+      "status": "supported",
+      "condition": "",
+      "clientRoutes": [
+        "/my-jobs",
+        "/jobs/:id",
+        "/agreements/:id"
+      ],
+      "screenFiles": [
+        "client/src/pages/MyJobsPage.jsx",
+        "client/src/pages/JobDetailPage.jsx",
+        "client/src/pages/WorkAgreementPage.jsx"
+      ],
+      "serverHandlers": [
+        "POST /api/jobs/:id/complete",
+        "POST /api/work-agreements/:id/complete"
+      ],
+      "permissions": "Authenticated.",
+      "featureFlags": [],
+      "audiences": [
+        "customer",
+        "helper"
+      ],
+      "notes": "Completion opens review eligibility; work-agreement completion is a separate step from job completion."
+    },
+    {
+      "id": "hiring-reviews",
+      "family": "hiring",
+      "title": "Leave and respond to reviews",
+      "status": "supported",
+      "condition": "",
+      "clientRoutes": [
+        "(in job detail and order views; no dedicated route)"
+      ],
+      "screenFiles": [
+        "client/src/pages/JobDetailPage.jsx",
+        "client/src/pages/OrderDetailsPage.jsx"
+      ],
+      "serverHandlers": [
+        "POST /api/reviews/jobs/:jobId",
+        "GET /api/reviews/jobs/:jobId/eligibility",
+        "PUT /api/reviews/:id/respond",
+        "PUT /api/reviews/:id/hide",
+        "POST/PUT/DELETE /api/food/orders/:orderId/review",
+        "POST /api/food/orders/:orderId/review/respond"
+      ],
+      "permissions": "Authenticated; eligibility-checked.",
+      "featureFlags": [],
+      "audiences": [
+        "customer",
+        "helper",
+        "restaurant"
+      ],
+      "notes": "Bilateral reviews (review plus response); food order reviews are a separate per-order flow."
+    },
+    {
+      "id": "hiring-cancellations",
+      "family": "hiring",
+      "title": "Cancel a booking or job",
+      "status": "supported",
+      "condition": "",
+      "clientRoutes": [
+        "/my-bookings",
+        "/my-jobs",
+        "/settings/payment-policies"
+      ],
+      "screenFiles": [
+        "client/src/pages/MyBookingsPage.tsx",
+        "client/src/pages/MyJobsPage.jsx",
+        "client/src/pages/HelperCancellationSettings.jsx"
+      ],
+      "serverHandlers": [
+        "POST /api/bookings/:bookingId/cancel",
+        "POST /api/bookings/:bookingId/helper-cancel",
+        "POST /api/bookings/recurring/:id/cancel|pause|resume",
+        "POST /api/jobs/:id/cancel",
+        "/api/helper-cancellation-policies"
+      ],
+      "permissions": "Authenticated.",
+      "featureFlags": [],
+      "audiences": [
+        "customer",
+        "helper"
+      ],
+      "notes": "Helper cancellation policies are configurable at /settings/payment-policies; food-order cancellation is POST /api/orders/:orderId/cancel (see restaurant-cancellations)."
+    },
+    {
+      "id": "hiring-disputes",
+      "family": "hiring",
+      "title": "Open and manage a dispute",
+      "status": "supported",
+      "condition": "",
+      "clientRoutes": [
+        "/disputes",
+        "/disputes/:id"
+      ],
+      "screenFiles": [
+        "client/src/pages/disputes/ (DisputeCenter, DisputeDetail)"
+      ],
+      "serverHandlers": [
+        "POST /api/disputes",
+        "POST /api/disputes/jobs/:jobId",
+        "GET /api/disputes/my",
+        "GET /api/disputes/:disputeId",
+        "POST /api/disputes/:disputeId/evidence",
+        "POST /api/disputes/:disputeId/messages"
+      ],
+      "permissions": "Authenticated.",
+      "featureFlags": [],
+      "audiences": [
+        "customer",
+        "helper"
+      ],
+      "notes": "User-facing dispute flow with evidence and messaging. Admin review/resolve endpoints are platform-admin tooling (excluded); the arbitration policy page at /legal/arbitration is public."
+    },
+    {
+      "id": "hiring-work-agreements",
+      "family": "hiring",
+      "title": "Create and sign work agreements",
+      "status": "supported",
+      "condition": "",
+      "clientRoutes": [
+        "/agreements/new",
+        "/agreements/:id"
+      ],
+      "screenFiles": [
+        "client/src/pages/NewWorkAgreementPage.jsx",
+        "client/src/pages/WorkAgreementPage.jsx"
+      ],
+      "serverHandlers": [
+        "POST /api/work-agreements/draft",
+        "POST /api/work-agreements",
+        "GET /api/work-agreements",
+        "GET /api/work-agreements/:id",
+        "POST /api/work-agreements/:id/versions",
+        "POST /api/work-agreements/:id/complete",
+        "POST /api/work-agreements/:id/sign",
+        "GET /api/work-agreements/:id/signatures",
+        "POST /api/work-agreements/:id/change-orders",
+        "GET /api/work-agreements/by-job/:jobId"
+      ],
+      "permissions": "Authenticated.",
+      "featureFlags": [],
+      "audiences": [
+        "customer",
+        "helper"
+      ],
+      "notes": "Records-room model: drawn signatures required from both parties, version timeline, change orders, warranty claims."
+    },
+    {
+      "id": "hiring-request-quote",
+      "family": "hiring",
+      "title": "Request a quote (Direct)",
+      "status": "supported",
+      "condition": "",
+      "clientRoutes": [
+        "/direct/request-quote",
+        "/request-quote",
+        "/quote-request",
+        "/direct/view-quote",
+        "/direct/quotes/:id"
+      ],
+      "screenFiles": [
+        "client/src/pages/DirectPortalPage.jsx (views: request, lookup, quote)",
+        "client/src/pages/QuoteRequestPage.jsx"
+      ],
+      "serverHandlers": [
+        "POST /api/quote-requests",
+        "GET /api/quote-requests/my",
+        "GET /api/quote-requests/:id",
+        "POST /api/direct/public/lookup (+ send-code, verify-code)"
+      ],
+      "permissions": "Guest can request and look up by code; authenticated for detail.",
+      "featureFlags": [],
+      "audiences": [
+        "customer"
+      ],
+      "notes": "Distinct from helper quotes (helper-quotes) and business quotes (business-quotes)."
+    },
+    {
+      "id": "helper-profile",
+      "family": "helper-work",
+      "title": "Manage helper profile and public listing",
+      "status": "supported",
+      "condition": "",
+      "clientRoutes": [
+        "/helpers/:id (public)",
+        "/dashboard (edit profile tab)"
+      ],
+      "screenFiles": [
+        "client/src/pages/HelperBusinessProfilePage.tsx",
+        "client/src/pages/HelperDashboard.jsx"
+      ],
+      "serverHandlers": [
+        "GET /api/helper-profile/me",
+        "PUT /api/helper-profile/slug|core|visibility|photo",
+        "PATCH /api/helper-profile/listing",
+        "GET/POST/PUT/DELETE /api/helper-profile/services",
+        "GET/POST /api/helper-profile/faqs"
+      ],
+      "permissions": "Authenticated for edits; public profile is guest-visible.",
+      "featureFlags": [
+        "specializedProfileTemplates: false (specialized profile templates unlaunched)"
+      ],
+      "audiences": [
+        "helper"
+      ],
+      "notes": "Vanity slug support via profileSlugs; services and FAQs managed on the profile."
+    },
+    {
+      "id": "helper-skills",
+      "family": "helper-work",
+      "title": "Manage skills",
+      "status": "supported",
+      "condition": "",
+      "clientRoutes": [
+        "/dashboard?tab=skills"
+      ],
+      "screenFiles": [
+        "client/src/pages/HelperDashboard.jsx"
+      ],
+      "serverHandlers": [
+        "GET /api/user-skills/categories",
+        "GET /api/user-skills/lookup",
+        "GET /api/user-skills/me",
+        "POST /api/user-skills",
+        "PUT /api/user-skills/:id",
+        "DELETE /api/user-skills/:id"
+      ],
+      "permissions": "Authenticated helper.",
+      "featureFlags": [],
+      "audiences": [
+        "helper"
+      ],
+      "notes": "Skill categories with lookup; /profile/tool-rentals redirects to the skills tab."
+    },
+    {
+      "id": "helper-availability",
+      "family": "helper-work",
+      "title": "Set availability",
+      "status": "supported",
+      "condition": "",
+      "clientRoutes": [
+        "/dashboard",
+        "/consultant-availability"
+      ],
+      "screenFiles": [
+        "client/src/pages/HelperDashboard.jsx",
+        "client/src/pages/ConsultantAvailabilityPage.jsx"
+      ],
+      "serverHandlers": [
+        "GET/PUT /api/helpers/me/availability",
+        "POST /api/calendar/availability"
+      ],
+      "permissions": "Authenticated helper.",
+      "featureFlags": [],
+      "audiences": [
+        "helper"
+      ],
+      "notes": "General availability on the helper profile plus a dedicated consultant availability page (consultant is a helper-class mode)."
+    },
+    {
+      "id": "helper-find-work",
+      "family": "helper-work",
+      "title": "Browse open jobs",
+      "status": "supported",
+      "condition": "",
+      "clientRoutes": [
+        "/jobs",
+        "/saved-searches"
+      ],
+      "screenFiles": [
+        "client/src/pages/JobListPage.jsx",
+        "client/src/pages/SavedSearchesPage.jsx"
+      ],
+      "serverHandlers": [
+        "GET /api/jobs (public list)",
+        "/api/saved-searches"
+      ],
+      "permissions": "Guest can browse; authenticated for saved searches; sign-in plus completed onboarding to bid.",
+      "featureFlags": [],
+      "audiences": [
+        "helper"
+      ],
+      "notes": "The job list is public; bidding is gated on auth and onboarding."
+    },
+    {
+      "id": "helper-bid",
+      "family": "helper-work",
+      "title": "Bid on a job",
+      "status": "supported",
+      "condition": "",
+      "clientRoutes": [
+        "/my-bids",
+        "/bids/:bidId",
+        "/jobs/:id"
+      ],
+      "screenFiles": [
+        "client/src/pages/MyBidsPage.jsx",
+        "client/src/pages/BidDetailPage.jsx",
+        "client/src/pages/JobDetailPage.jsx"
+      ],
+      "serverHandlers": [
+        "POST /api/bids",
+        "GET /api/bids/me",
+        "PUT /api/bids/:id",
+        "POST /api/bids/:id/withdraw",
+        "POST /api/bids/:id/reconfirm"
+      ],
+      "permissions": "Authenticated helper; onboarding enforced server-side.",
+      "featureFlags": [],
+      "audiences": [
+        "helper"
+      ],
+      "notes": "Bid withdrawal and reconfirmation supported."
+    },
+    {
+      "id": "helper-quotes",
+      "family": "helper-work",
+      "title": "Send quotes to customers",
+      "status": "supported",
+      "condition": "",
+      "clientRoutes": [
+        "/my-bids",
+        "/dashboard"
+      ],
+      "screenFiles": [
+        "client/src/pages/MyBidsPage.jsx",
+        "client/src/pages/HelperDashboard.jsx"
+      ],
+      "serverHandlers": [
+        "POST /api/helper-quotes",
+        "GET /api/helper-quotes/sent",
+        "GET /api/helper-quotes/job/:jobId",
+        "GET /api/helper-quotes/:id",
+        "PATCH /api/helper-quotes/:id/status",
+        "DELETE /api/helper-quotes/:id"
+      ],
+      "permissions": "Authenticated helper.",
+      "featureFlags": [],
+      "audiences": [
+        "helper"
+      ],
+      "notes": "Helper-issued quotes, distinct from business quotes and Direct quote requests."
+    },
+    {
+      "id": "helper-assigned-jobs",
+      "family": "helper-work",
+      "title": "Work assigned jobs and incoming bookings",
+      "status": "supported",
+      "condition": "",
+      "clientRoutes": [
+        "/helper-dashboard",
+        "/my-jobs"
+      ],
+      "screenFiles": [
+        "client/src/pages/HelperDashboard.jsx",
+        "client/src/pages/MyJobsPage.jsx"
+      ],
+      "serverHandlers": [
+        "GET /api/bookings/incoming",
+        "POST /api/bookings/:bookingId/accept|decline",
+        "GET /api/jobs/me/list",
+        "POST /api/jobs/assign (customer assigns)"
+      ],
+      "permissions": "Authenticated helper.",
+      "featureFlags": [],
+      "audiences": [
+        "helper"
+      ],
+      "notes": "Helpers accept or decline incoming booking requests and work assigned jobs."
+    },
+    {
+      "id": "helper-invoices",
+      "family": "helper-work",
+      "title": "Create and send invoices",
+      "status": "supported",
+      "condition": "",
+      "clientRoutes": [
+        "/invoices",
+        "/invoice/p/:token"
+      ],
+      "screenFiles": [
+        "client/src/pages/InvoicesPage.jsx",
+        "client/src/pages/PublicInvoiceView.jsx"
+      ],
+      "serverHandlers": [
+        "GET/POST /api/helpers/invoices",
+        "PUT /api/helpers/invoices/:invoiceId",
+        "POST /api/helpers/invoices/:invoiceId/pay|send|void",
+        "DELETE /api/helpers/invoices/:invoiceId"
+      ],
+      "permissions": "Authenticated helper; public token link is guest-viewable.",
+      "featureFlags": [
+        "helperInvoices: true"
+      ],
+      "audiences": [
+        "helper"
+      ],
+      "notes": "Public invoice link via token; separate from business invoices (/api/invoices)."
+    },
+    {
+      "id": "helper-payouts",
+      "family": "helper-work",
+      "title": "Receive payouts",
+      "status": "supported",
+      "condition": "",
+      "clientRoutes": [
+        "/helper/payouts"
+      ],
+      "screenFiles": [
+        "client/src/pages/helper/HelperPayoutsPage.jsx"
+      ],
+      "serverHandlers": [
+        "/api/payouts (PayoutController)",
+        "GET /api/local-delivery/driver-payouts"
+      ],
+      "permissions": "Authenticated helper; tax-identity (W-9) gate on withdrawals.",
+      "featureFlags": [],
+      "audiences": [
+        "helper"
+      ],
+      "notes": "Payouts require tax identity; the dashboard earnings overview section is separately gated (see helper-earnings)."
+    },
+    {
+      "id": "helper-earnings",
+      "family": "helper-work",
+      "title": "View earnings overview",
+      "status": "conditional",
+      "condition": "Visible only when the helperEarnings launch flag is enabled (default off). The /helper/payouts page and helper-earnings statements remain available while the dashboard section is hidden.",
+      "clientRoutes": [
+        "/helper-dashboard (earnings section)",
+        "/helper-earnings/statements"
+      ],
+      "screenFiles": [
+        "client/src/pages/HelperDashboard.jsx",
+        "client/src/pages/food/StatementArchivePage.jsx (product=helper_earnings)"
+      ],
+      "serverHandlers": [
+        "earnings via payout and statement APIs",
+        "GET /api/statement-archive/archive (helper_earnings scope)"
+      ],
+      "permissions": "Authenticated helper.",
+      "featureFlags": [
+        "helperEarnings: false (LAUNCH_VISIBILITY.helperEarnings, client/src/utils/launchScope.js)"
+      ],
+      "audiences": [
+        "helper"
+      ],
+      "notes": "The flag only hides the dashboard earnings section; payouts and statements are not flag-gated."
+    },
+    {
+      "id": "helper-clients",
+      "family": "helper-work",
+      "title": "Manage client relationships",
+      "status": "supported",
+      "condition": "",
+      "clientRoutes": [
+        "/helper/clients"
+      ],
+      "screenFiles": [
+        "client/src/pages/ClientManagementPage.jsx"
+      ],
+      "serverHandlers": [
+        "GET /api/messages/conversations",
+        "GET /api/messages/guest-inquiries",
+        "GET /api/chat/quotes/history"
+      ],
+      "permissions": "Authenticated helper.",
+      "featureFlags": [],
+      "audiences": [
+        "helper"
+      ],
+      "notes": "Client management is conversation- and quote-history based; there is no separate helper CRM record store."
+    },
+    {
+      "id": "business-setup",
+      "family": "business-work",
+      "title": "Set up a business (launch request, onboarding, franchise)",
+      "status": "supported",
+      "condition": "",
+      "clientRoutes": [
+        "/business-launch-status",
+        "/business/:businessId/onboarding",
+        "/franchise/apply",
+        "/franchise/status",
+        "/franchise/territory"
+      ],
+      "screenFiles": [
+        "client/src/pages/BusinessLaunchStatusPage.jsx",
+        "client/src/pages/BusinessOnboardingPage.jsx",
+        "client/src/pages/FranchiseIntakePage.jsx",
+        "client/src/pages/FranchiseApplicantDashboard.jsx",
+        "client/src/pages/FranchiseTerritoryOpsPage.jsx"
+      ],
+      "serverHandlers": [
+        "POST /api/business-launch/submit",
+        "GET /api/business-launch/my-requests",
+        "GET /api/business-launch/search",
+        "/api/franchise"
+      ],
+      "permissions": "Launch submit is public (rate-limited); status views authenticated.",
+      "featureFlags": [],
+      "audiences": [
+        "business"
+      ],
+      "notes": "Launch requests go through a request/approval flow, not instant provisioning; franchise is a separate intake track."
+    },
+    {
+      "id": "business-select",
+      "family": "business-work",
+      "title": "Select and switch between businesses",
+      "status": "supported",
+      "condition": "",
+      "clientRoutes": [
+        "/business-hub",
+        "/business/:businessId/workspace",
+        "/business/:businessId/workspace/:tab"
+      ],
+      "screenFiles": [
+        "client/src/pages/BusinessHubPage.jsx"
+      ],
+      "serverHandlers": [
+        "GET /api/businesses/managed",
+        "GET /api/businesses/invitations",
+        "POST /api/businesses/invitations/:id/accept",
+        "POST /api/businesses/invitations/:id/decline"
+      ],
+      "permissions": "Authenticated.",
+      "featureFlags": [
+        "LAUNCH_BUSINESS_HUB_TABS"
+      ],
+      "audiences": [
+        "business"
+      ],
+      "notes": "Users with several businesses switch via the managed list; team invitations are accepted here."
+    },
+    {
+      "id": "business-team-access",
+      "family": "business-work",
+      "title": "Manage team members and roles",
+      "status": "supported",
+      "condition": "",
+      "clientRoutes": [
+        "/business-hub (team tab)",
+        "/business/:businessId/workspace/team"
+      ],
+      "screenFiles": [
+        "client/src/pages/BusinessHubPage.jsx"
+      ],
+      "serverHandlers": [
+        "businessTeam.js staff CRUD (server/routes/businessTeam.js)",
+        "/api/staff-scheduling/:businessId/staff-schedule (GET/POST/DELETE)",
+        "/api/staff-scheduling/:businessId/time-entries (GET/POST/DELETE)",
+        "bizIdAccess('any'|'manager') capability checks"
+      ],
+      "permissions": "Authenticated; bizIdAccess capability checks per business.",
+      "featureFlags": [],
+      "audiences": [
+        "business"
+      ],
+      "notes": "Team member modes (business_manager, business_representative, business_employee) are granted, not self-selected, and entered via the mode switcher."
+    },
+    {
+      "id": "business-services",
+      "family": "business-work",
+      "title": "Manage business services",
+      "status": "supported",
+      "condition": "",
+      "clientRoutes": [
+        "/business-hub (services tab)",
+        "/business/:businessId/workspace/services"
+      ],
+      "screenFiles": [
+        "client/src/pages/BusinessHubPage.jsx"
+      ],
+      "serverHandlers": [
+        "GET /api/businesses/:businessId/services (public)",
+        "POST /api/businesses/:businessId/services",
+        "PUT /api/businesses/:businessId/services/:serviceId",
+        "DELETE /api/businesses/:businessId/services/:serviceId",
+        "GET /api/businesses/:businessId/services/:serviceId/blocked-times (manager)"
+      ],
+      "permissions": "Authenticated for management; public read.",
+      "featureFlags": [],
+      "audiences": [
+        "business"
+      ],
+      "notes": "Core services CRUD is live; specialized intake request pages are separately gated (see business-specialized-intakes)."
+    },
+    {
+      "id": "business-specialized-intakes",
+      "family": "business-work",
+      "title": "Submit specialized intake requests (maintenance, trades, beauty, creative, professional, continuity)",
+      "status": "conditional",
+      "condition": "Requires the specializedProfileTemplates launch flag (default false). While disabled the server launchGate returns 404 for the public intake API and the client hides the flow; the hub intake tabs are pre-defined in LAUNCH_BUSINESS_HUB_TABS for launch.",
+      "clientRoutes": [
+        "/business/:businessId/maintenance-request",
+        "/business/:businessId/trades-request",
+        "/business/:businessId/beauty-intake",
+        "/business/:businessId/creative-intake",
+        "/business/:businessId/professional-intake",
+        "/business/:businessId/continuity-intake"
+      ],
+      "screenFiles": [
+        "client/src/pages/MaintenanceRequestPage.jsx",
+        "client/src/pages/TradesDiagnosticRequestPage.jsx",
+        "client/src/pages/BeautyIntakeRequestPage.jsx",
+        "client/src/pages/CreativeIntakeRequestPage.jsx",
+        "client/src/pages/ProfessionalIntakeRequestPage.jsx",
+        "client/src/pages/ContinuityIntakeRequestPage.jsx"
+      ],
+      "serverHandlers": [
+        "/api/maintenance-requests/public (launch-gated 404)",
+        "specialized operations controllers"
+      ],
+      "permissions": "Guest can open the pages; submission blocked while gated.",
+      "featureFlags": [
+        "specializedProfileTemplates: false (server/middleware/launchGate.js, client/src/utils/launchScope.js)"
+      ],
+      "audiences": [
+        "customer",
+        "business"
+      ],
+      "notes": "Intake triage tabs (beauty-ops, creative-ops, continuity-ops, professional-ops, trades-ops, maintenance) exist in the hub tab registry for when the flag launches."
+    },
+    {
+      "id": "business-clients",
+      "family": "business-work",
+      "title": "Manage business clients",
+      "status": "supported",
+      "condition": "",
+      "clientRoutes": [
+        "/business-hub (clients tab)"
+      ],
+      "screenFiles": [
+        "client/src/pages/BusinessHubPage.jsx"
+      ],
+      "serverHandlers": [
+        "GET /api/businesses/:id/clients",
+        "POST /api/businesses/:id/clients",
+        "PUT /api/businesses/:id/clients/:clientId",
+        "DELETE /api/businesses/:id/clients/:clientId"
+      ],
+      "permissions": "Authenticated; bizIdAccess('any').",
+      "featureFlags": [],
+      "audiences": [
+        "business"
+      ],
+      "notes": "Full client record CRUD scoped to the business."
+    },
+    {
+      "id": "business-scheduling",
+      "family": "business-work",
+      "title": "Schedule appointments and manage staff schedules",
+      "status": "supported",
+      "condition": "",
+      "clientRoutes": [
+        "/calendar",
+        "/calendar/appointments/:appointmentId",
+        "/business-hub (calendar tab)"
+      ],
+      "screenFiles": [
+        "client/src/pages/CalendarPage.jsx",
+        "client/src/pages/CalendarAppointmentDetailPage.jsx",
+        "client/src/pages/BusinessHubPage.jsx"
+      ],
+      "serverHandlers": [
+        "POST/GET /api/calendar/appointments",
+        "GET /api/calendar/appointments/:id",
+        "POST /api/calendar/appointments/:id/confirm|cancel",
+        "POST /api/calendar/appointments/:id/reschedule-request",
+        "GET /api/calendar/appointments/:id/ical",
+        "/api/staff-scheduling/:businessId/staff-schedule"
+      ],
+      "permissions": "Authenticated.",
+      "featureFlags": [],
+      "audiences": [
+        "business",
+        "helper"
+      ],
+      "notes": "Shared calendar across modes; iCal export per appointment; staff scheduling and time entries for teams."
+    },
+    {
+      "id": "business-jobs",
+      "family": "business-work",
+      "title": "Post and manage jobs as a business",
+      "status": "supported",
+      "condition": "",
+      "clientRoutes": [
+        "/business-hub (hiring tab)",
+        "/post-job"
+      ],
+      "screenFiles": [
+        "client/src/pages/BusinessHubPage.jsx",
+        "client/src/pages/PostJobPage.jsx"
+      ],
+      "serverHandlers": [
+        "/api/jobs (post, assign, manage, cancel, complete)"
+      ],
+      "permissions": "Authenticated.",
+      "featureFlags": [],
+      "audiences": [
+        "business"
+      ],
+      "notes": "Businesses reuse the standard job workflows (post, assign, cancel, complete)."
+    },
+    {
+      "id": "business-invoices",
+      "family": "business-work",
+      "title": "Invoice clients as a business",
+      "status": "supported",
+      "condition": "",
+      "clientRoutes": [
+        "/business-hub (invoices tab)",
+        "/invoice/p/:token"
+      ],
+      "screenFiles": [
+        "client/src/pages/BusinessHubPage.jsx",
+        "client/src/pages/PublicInvoiceView.jsx"
+      ],
+      "serverHandlers": [
+        "GET /api/invoices",
+        "GET /api/invoices/:id",
+        "GET /api/invoices/:id/credit-payee-enrollment",
+        "GET /api/invoices/:id/credit-eligibility",
+        "GET /api/invoices/:id/card-eligibility",
+        "PATCH /api/invoices/:id/mark-paid",
+        "PATCH /api/invoices/:id/status",
+        "POST /api/invoices/:id/resend-email"
+      ],
+      "permissions": "Authenticated.",
+      "featureFlags": [],
+      "audiences": [
+        "business"
+      ],
+      "notes": "Per-invoice OxSteed Credit and card payment eligibility checks (businessInvoiceCreditPayService)."
+    },
+    {
+      "id": "business-attention-inbox",
+      "family": "business-work",
+      "title": "Work the attention inbox",
+      "status": "supported",
+      "condition": "",
+      "clientRoutes": [
+        "/business-hub (overview tab)"
+      ],
+      "screenFiles": [
+        "client/src/pages/BusinessHubPage.jsx"
+      ],
+      "serverHandlers": [
+        "GET /api/businesses/attention (attentionInboxController)"
+      ],
+      "permissions": "Authenticated.",
+      "featureFlags": [],
+      "audiences": [
+        "business"
+      ],
+      "notes": "Aggregates tasks needing owner attention (intakes, approvals, alerts) into the hub overview."
+    },
+    {
+      "id": "business-leads",
+      "family": "business-work",
+      "title": "Work the lead pipeline",
+      "status": "unavailable",
+      "condition": "",
+      "clientRoutes": [
+        "(no route; BusinessLeadsPage.jsx is not routed in App.jsx)"
+      ],
+      "screenFiles": [
+        "client/src/pages/BusinessLeadsPage.jsx (unreachable)"
+      ],
+      "serverHandlers": [
+        "/api/business-leads",
+        "/api/business-lead-pipeline (server only, no client surface)"
+      ],
+      "permissions": "n/a",
+      "featureFlags": [],
+      "audiences": [
+        "business"
+      ],
+      "notes": "UNAVAILABLE: the client page exists but is never imported or routed in client/src/App.jsx, so there is no reachable UI. Server lead-pipeline APIs exist but have no user surface."
+    },
+    {
+      "id": "restaurant-setup",
+      "family": "restaurants",
+      "title": "Set up a restaurant (merchant onboarding)",
+      "status": "supported",
+      "condition": "",
+      "clientRoutes": [
+        "/restaurants/merchant",
+        "/food/merchant"
+      ],
+      "screenFiles": [
+        "client/src/pages/food/FoodMerchantPage.jsx",
+        "client/src/pages/food/FoodSetupWizard.jsx"
+      ],
+      "serverHandlers": [
+        "GET /api/food/restaurants/:restaurantId/setup-progress",
+        "GET /api/food/merchant/credit-approval",
+        "GET /api/food/merchant/credit-approval/funding-path",
+        "POST /api/food/merchant/credit-approval/funding-proof"
+      ],
+      "permissions": "Authenticated (restaurant_owner/manager modes).",
+      "featureFlags": [],
+      "audiences": [
+        "restaurant"
+      ],
+      "notes": "Setup progress tracking plus the restaurant-credit approval funding path with proof submission."
+    },
+    {
+      "id": "restaurant-menus",
+      "family": "restaurants",
+      "title": "Manage menus and items",
+      "status": "supported",
+      "condition": "",
+      "clientRoutes": [
+        "/restaurants/merchant (menus section)"
+      ],
+      "screenFiles": [
+        "client/src/pages/food/RestaurantMenuManager.jsx"
+      ],
+      "serverHandlers": [
+        "GET /api/food/restaurants/:restaurantId/menu/manage",
+        "POST /api/food/restaurants/:restaurantId/menu-items",
+        "POST /api/food/restaurants/:restaurantId/menu-items/:itemId/duplicate",
+        "PATCH /api/food/restaurants/:restaurantId/menu-items/:itemId",
+        "DELETE /api/food/restaurants/:restaurantId/menu-items/:itemId",
+        "POST /api/food/restaurants/:restaurantId/menu-items/:itemId/modifier-groups"
+      ],
+      "permissions": "Authenticated (restaurant modes).",
+      "featureFlags": [],
+      "audiences": [
+        "restaurant"
+      ],
+      "notes": "Full menu-item CRUD with duplication and modifier groups."
+    },
+    {
+      "id": "restaurant-store-settings",
+      "family": "restaurants",
+      "title": "Configure store settings",
+      "status": "supported",
+      "condition": "",
+      "clientRoutes": [
+        "/restaurants/merchant",
+        "/restaurants/pos/:restaurantId",
+        "/restaurants/queue/:restaurantId",
+        "/restaurants/kiosk/:restaurantId"
+      ],
+      "screenFiles": [
+        "client/src/pages/food/FoodMerchantPage.jsx",
+        "client/src/pages/food/RestaurantPOSPage.jsx",
+        "client/src/pages/food/RestaurantOpsPanels.jsx",
+        "client/src/pages/food/RestaurantAuditPanels.jsx"
+      ],
+      "serverHandlers": [
+        "GET /api/food/payment-config",
+        "GET /api/food/restaurants/:restaurantId/kiosk-config",
+        "GET/PATCH /api/restaurants/:restaurantId/display/settings",
+        "GET /api/restaurants/:restaurantId/display/stats",
+        "POST /api/restaurants/:restaurantId/devices/pair"
+      ],
+      "permissions": "Authenticated (restaurant modes).",
+      "featureFlags": [],
+      "audiences": [
+        "restaurant"
+      ],
+      "notes": "Store panels cover ops, reports, audit, and training; device pairing for displays and POS."
+    },
+    {
+      "id": "restaurant-ordering",
+      "family": "restaurants",
+      "title": "Order food as a customer",
+      "status": "supported",
+      "condition": "",
+      "clientRoutes": [
+        "/food",
+        "/restaurants",
+        "/food/restaurants/:restaurantId",
+        "/restaurants/r/:restaurantId",
+        "/food/orders/:orderId",
+        "/orders"
+      ],
+      "screenFiles": [
+        "client/src/pages/food/FoodHomePage.jsx",
+        "client/src/pages/food/FoodRestaurantPage.jsx",
+        "client/src/pages/OrderDetailsPage.jsx",
+        "client/src/pages/OrderHistoryPage.jsx"
+      ],
+      "serverHandlers": [
+        "GET /api/food/restaurants (+ queue-board, promotions, locations)",
+        "POST /api/food/restaurants/:restaurantId/orders/quote",
+        "POST /api/food/orders/:orderId/checkout",
+        "GET /api/food/orders/:orderId/checkout/complete|cancelled",
+        "POST /api/food/customer/wallets/:restaurantId/payment-sessions (+ cancel)",
+        "POST /api/food/customer/wallets/:restaurantId/holds (+ release)",
+        "POST /api/food/customer/wallets/:restaurantId/transfers",
+        "POST /api/food/customer/wallets/:restaurantId/load-requests (+ cancel)",
+        "POST /api/orders/:orderId/cancel (customer cancel)"
+      ],
+      "permissions": "Guest can browse and quote; authenticated to order; checkRestrictions('checkout') on payment.",
+      "featureFlags": [],
+      "audiences": [
+        "customer"
+      ],
+      "notes": "Quote-to-checkout flow with restaurant-credit wallet payment sessions. Separate from the product-marketplace cart checkout, which is launch-gated (productMarketplace: false)."
+    },
+    {
+      "id": "restaurant-preparation",
+      "family": "restaurants",
+      "title": "Prepare orders (kitchen)",
+      "status": "supported",
+      "condition": "",
+      "clientRoutes": [
+        "/restaurants/kitchen/:restaurantId",
+        "/food/queue/:restaurantId"
+      ],
+      "screenFiles": [
+        "client/src/pages/food/FoodKitchenPage.jsx",
+        "client/src/pages/food/FoodQueueBoardPage.jsx"
+      ],
+      "serverHandlers": [
+        "PATCH /api/food/restaurants/:restaurantId/orders/:orderId/status",
+        "POST /api/food/restaurants/:restaurantId/orders/:orderId/split",
+        "GET/POST /api/restaurants/:restaurantId/devices/:deviceId/kitchen-feed (+ ack)",
+        "GET /api/restaurants/:restaurantId/devices/:deviceId/queue-board"
+      ],
+      "permissions": "Kitchen page behind auth; queue board is public.",
+      "featureFlags": [],
+      "audiences": [
+        "restaurant"
+      ],
+      "notes": "Kitchen display feed with device API for KDS-style screens; order splitting supported."
+    },
+    {
+      "id": "restaurant-pickup-delivery-handoff",
+      "family": "restaurants",
+      "title": "Hand off pickup and delivery orders",
+      "status": "supported",
+      "condition": "",
+      "clientRoutes": [
+        "/food/track/:token",
+        "/restaurants/runner/:restaurantId",
+        "/t/:token"
+      ],
+      "screenFiles": [
+        "client/src/pages/food/FoodTrackPage.jsx",
+        "client/src/pages/food/RestaurantRunnerPage.jsx",
+        "client/src/pages/PublicTrackingPage.jsx"
+      ],
+      "serverHandlers": [
+        "GET /api/food/orders/track/:trackingToken",
+        "POST /api/local-delivery/jobs",
+        "GET /api/local-delivery/jobs",
+        "POST /api/local-delivery/jobs/:id/claim",
+        "PATCH /api/local-delivery/jobs/:id/status",
+        "POST /api/local-delivery/jobs/:id/proof-upload|proof-pin",
+        "POST /api/local-delivery/jobs/:id/issues"
+      ],
+      "permissions": "Guest via tracking token; runner actions authenticated.",
+      "featureFlags": [],
+      "audiences": [
+        "customer",
+        "restaurant"
+      ],
+      "notes": "Public order tracking plus runner handoff through local delivery jobs with proof-of-delivery."
+    },
+    {
+      "id": "restaurant-cancellations",
+      "family": "restaurants",
+      "title": "Cancel a food order",
+      "status": "supported",
+      "condition": "",
+      "clientRoutes": [
+        "/food/orders/:orderId",
+        "/orders"
+      ],
+      "screenFiles": [
+        "client/src/pages/OrderDetailsPage.jsx"
+      ],
+      "serverHandlers": [
+        "POST /api/orders/:orderId/cancel (customer)",
+        "PATCH /api/food/restaurants/:restaurantId/orders/:orderId/status (merchant)"
+      ],
+      "permissions": "Authenticated.",
+      "featureFlags": [],
+      "audiences": [
+        "customer",
+        "restaurant"
+      ],
+      "notes": "Both customer-initiated cancellation and merchant status-driven cancellation."
+    },
+    {
+      "id": "restaurant-refund-requests",
+      "family": "restaurants",
+      "title": "Request refunds on restaurant credit and orders",
+      "status": "supported",
+      "condition": "",
+      "clientRoutes": [
+        "/restaurant-credit",
+        "/restaurants/support/cases/:caseId"
+      ],
+      "screenFiles": [
+        "client/src/pages/food/RestaurantCreditPage.jsx",
+        "client/src/pages/RestaurantSupportCasePage.jsx"
+      ],
+      "serverHandlers": [
+        "POST /api/food/customer/wallets/:restaurantId/load-requests/:requestId/disputes",
+        "GET /api/food/customer/wallets/:restaurantId/refunds",
+        "POST /api/food/merchant/wallets/:restaurantId/refunds (merchant-initiated credit refunds)",
+        "POST /api/restaurant-support/support/cases",
+        "GET /api/restaurant-support/support/cases/my",
+        "POST /api/restaurant-support/support/cases/:caseId/messages|attachments|reopen|accept-resolution"
+      ],
+      "permissions": "Authenticated.",
+      "featureFlags": [],
+      "audiences": [
+        "customer",
+        "restaurant"
+      ],
+      "notes": "Food-order refunds re-credit credit transactionally; direct/pay-at-restaurant orders are marked refunded with no automatic money movement. Support cases are the escalation path."
+    },
+    {
+      "id": "restaurant-staff-tools",
+      "family": "restaurants",
+      "title": "Use POS, inventory, crew, and runner tools",
+      "status": "supported",
+      "condition": "",
+      "clientRoutes": [
+        "/restaurants/pos/:restaurantId",
+        "/restaurants/inventory/:restaurantId",
+        "/restaurants/crew/:restaurantId",
+        "/restaurants/runner/:restaurantId"
+      ],
+      "screenFiles": [
+        "client/src/pages/food/RestaurantPOSPage.jsx",
+        "client/src/pages/food/RestaurantInventoryPage.jsx",
+        "client/src/pages/food/RestaurantCrewPage.jsx",
+        "client/src/pages/food/RestaurantRunnerPage.jsx"
+      ],
+      "serverHandlers": [
+        "POST /api/restaurants/:restaurantId/devices/pair",
+        "POST /api/restaurants/:restaurantId/devices/:deviceId/heartbeat",
+        "POST /api/restaurants/:restaurantId/devices/:deviceId/report-issue",
+        "POST /api/restaurants/:restaurantId/devices/:deviceId/orders",
+        "GET /api/restaurants/:restaurantId/devices/:deviceId/runtime-config"
+      ],
+      "permissions": "Authenticated; restaurant_owner/manager/staff/runner modes (helper-class roles).",
+      "featureFlags": [],
+      "audiences": [
+        "restaurant"
+      ],
+      "notes": "Device-oriented staff tooling (POS, inventory, crew, runner) with heartbeat and issue reporting."
+    },
+    {
+      "id": "financial-wallet",
+      "family": "financial",
+      "title": "View the wallet overview",
+      "status": "supported",
+      "condition": "",
+      "clientRoutes": [
+        "/wallet"
+      ],
+      "screenFiles": [
+        "client/src/pages/food/WalletPage.jsx",
+        "client/src/pages/food/WalletRestaurantWallets.jsx"
+      ],
+      "serverHandlers": [
+        "GET /api/oxsteed-credit/account"
+      ],
+      "permissions": "Authenticated.",
+      "featureFlags": [],
+      "audiences": [
+        "customer"
+      ],
+      "notes": "/wallet is the overview; full credit detail lives at /oxsteed-credit."
+    },
+    {
+      "id": "financial-oxsteed-credit",
+      "family": "financial",
+      "title": "Use OxSteed Credit (top-ups, transfers, withdrawals, cards)",
+      "status": "conditional",
+      "condition": "Requires the oxsteed_credit_enabled feature flag (feature_flags table). It is ON in production as of 2026-10-11. When the rail is off, food-wallet writes fail open with backfill markers replayed by a sweeper on re-enable, while fiat paths (top-ups, withdrawals, conversions, cards, compliance) fail closed.",
+      "clientRoutes": [
+        "/oxsteed-credit",
+        "/oxsteed-credit/cards",
+        "/oxsteed-credit/transactions/:transactionId",
+        "/credit/apply"
+      ],
+      "screenFiles": [
+        "client/src/pages/food/OxsteedCreditPage.jsx",
+        "client/src/pages/food/OxsteedCreditCardsPage.jsx",
+        "client/src/pages/food/OxsteedCreditTransactionPage.jsx",
+        "client/src/pages/CreditApplyPage.jsx"
+      ],
+      "serverHandlers": [
+        "GET /api/oxsteed-credit/account|accounts|status|limits|eligibility",
+        "POST /api/oxsteed-credit/conversions",
+        "GET /api/oxsteed-credit/conversion-quotes/:quoteId",
+        "POST /api/oxsteed-credit/holds (+ release)",
+        "POST /api/oxsteed-credit/transfers",
+        "POST /api/oxsteed-credit/topups",
+        "POST /api/oxsteed-credit/withdrawals (+ cancel)",
+        "POST /api/oxsteed-credit/restaurant-conversions",
+        "GET/POST /api/oxsteed-credit/cards (+ security-challenges, history)",
+        "POST /api/oxsteed-credit/participants/apply",
+        "GET /api/oxsteed-credit/statement (+ .csv, periods, documents)"
+      ],
+      "permissions": "Authenticated; checkRestrictions('checkout') and rate limiters on money movement.",
+      "featureFlags": [
+        "oxsteed_credit_enabled (feature_flags table; ON in production 2026-10-11)"
+      ],
+      "audiences": [
+        "customer"
+      ],
+      "notes": "Distinct from Restaurant Credit (restaurant-scoped wallets). Identity verification via Didit auto-passes the credit rail review."
+    },
+    {
+      "id": "financial-restaurant-credit",
+      "family": "financial",
+      "title": "Use Restaurant Credit (per-restaurant wallets)",
+      "status": "supported",
+      "condition": "",
+      "clientRoutes": [
+        "/restaurant-credit",
+        "/restaurant-credit/statements",
+        "/restaurant-credit/statements/archive"
+      ],
+      "screenFiles": [
+        "client/src/pages/food/RestaurantCreditPage.jsx",
+        "client/src/pages/food/RestaurantCreditManager.jsx",
+        "client/src/pages/food/RestaurantCreditFundingPanel.jsx",
+        "client/src/pages/food/RestaurantCreditExposurePanel.jsx",
+        "client/src/pages/food/RestaurantCreditReservePanel.jsx",
+        "client/src/pages/food/RestaurantTopupEligibilityPanel.jsx",
+        "client/src/pages/food/RestaurantPayoutsPanel.jsx"
+      ],
+      "serverHandlers": [
+        "POST /api/food/customer/wallets/:restaurantId/payment-sessions",
+        "POST /api/food/customer/wallets/:restaurantId/holds|transfers|load-requests",
+        "GET /api/food/customer/wallets/:restaurantId/refunds",
+        "POST /api/food/merchant/wallets/:restaurantId/refunds",
+        "GET /api/food/merchant/credit-approval",
+        "GET /api/food/merchant/wallets/:restaurantId/exposure",
+        "POST /api/food/merchant/credit-reserve/purchase (+ confirm)",
+        "GET /api/food/merchant/credit-reserve/balance|ledger",
+        "/api/restaurant-topups"
+      ],
+      "permissions": "Authenticated; restaurantCreditMutationLimiter on mutations.",
+      "featureFlags": [],
+      "audiences": [
+        "customer",
+        "restaurant"
+      ],
+      "notes": "Distinct from OxSteed Credit: wallets are scoped per restaurant. Customer top-ups $5-$500 with a $1,000/day/user/restaurant cap and step-up auth at $250."
+    },
+    {
+      "id": "financial-qr-payments",
+      "family": "financial",
+      "title": "Get paid by QR / pay by QR",
+      "status": "supported",
+      "condition": "",
+      "clientRoutes": [
+        "/qr-payments",
+        "/pay/:code",
+        "/pay/:code/success",
+        "/qr-generator"
+      ],
+      "screenFiles": [
+        "client/src/pages/QrPaySetupPage.jsx",
+        "client/src/pages/PayByQrPage.jsx",
+        "client/src/pages/QRCodeGeneratorPage.jsx",
+        "client/src/pages/QrGeneratorLandingPage.jsx"
+      ],
+      "serverHandlers": [
+        "POST/GET /api/qr-payments/codes",
+        "PATCH/DELETE /api/qr-payments/codes/:id",
+        "GET /api/qr-payments/public/user/:userId/pay-code",
+        "GET /api/qr-payments/public/business/:businessId/pay-code",
+        "GET /api/qr-payments/pay/:code",
+        "POST /api/qr-payments/pay/:code/checkout",
+        "POST /api/qr-codes/export-checkout (+ verify)"
+      ],
+      "permissions": "Authenticated for setup; guest can pay at /pay/:code.",
+      "featureFlags": [
+        "genericQrGenerator: false (no code enforcement found on /qr-generator; page is reachable)"
+      ],
+      "audiences": [
+        "helper",
+        "business",
+        "customer"
+      ],
+      "notes": "Helpers and businesses create reusable pay codes; payers need no account (Stripe Checkout)."
+    },
+    {
+      "id": "financial-receipts",
+      "family": "financial",
+      "title": "View receipts",
+      "status": "supported",
+      "condition": "",
+      "clientRoutes": [
+        "/direct/payments/:id (receipt view)",
+        "/food/orders/:orderId (order detail)"
+      ],
+      "screenFiles": [
+        "client/src/pages/DirectPortalPage.jsx (view=receipt)",
+        "client/src/pages/OrderDetailsPage.jsx"
+      ],
+      "serverHandlers": [
+        "/api/direct payment receipt views"
+      ],
+      "permissions": "Authenticated.",
+      "featureFlags": [],
+      "audiences": [
+        "customer"
+      ],
+      "notes": "Receipts are rendered in context (Direct payment receipt, food order detail); there is no standalone receipts hub."
+    },
+    {
+      "id": "financial-statements",
+      "family": "financial",
+      "title": "View statements",
+      "status": "supported",
+      "condition": "",
+      "clientRoutes": [
+        "/statements",
+        "/restaurant-credit/statements",
+        "/oxsteed-credit/statements",
+        "/helper-earnings/statements",
+        "/business/statements",
+        "/restaurant-settlement/statements",
+        "/statements/:documentId/entries/:entryId",
+        "/statements/:documentId/accessible"
+      ],
+      "screenFiles": [
+        "client/src/pages/food/StatementCenterPage.jsx",
+        "client/src/pages/food/StatementTransactionView.jsx",
+        "client/src/pages/food/StatementAccessibleView.jsx",
+        "client/src/pages/food/CreditStatementsPage.jsx",
+        "client/src/pages/food/StatementArchivePage.jsx"
+      ],
+      "serverHandlers": [
+        "GET /api/statements/center",
+        "GET /api/statement-archive/scopes",
+        "GET /api/statement-archive/archive",
+        "GET /api/oxsteed-credit/statement (+ .csv, periods)"
+      ],
+      "permissions": "Authenticated.",
+      "featureFlags": [],
+      "audiences": [
+        "customer",
+        "helper",
+        "business",
+        "restaurant"
+      ],
+      "notes": "Per-product statement archives (restaurant, oxsteed, helper_earnings, business, restaurant_settlement) with an accessible view."
+    },
+    {
+      "id": "financial-archives",
+      "family": "financial",
+      "title": "Browse archived statements",
+      "status": "supported",
+      "condition": "",
+      "clientRoutes": [
+        "/restaurant-credit/statements/archive",
+        "/oxsteed-credit/statements/archive"
+      ],
+      "screenFiles": [
+        "client/src/pages/food/StatementArchivePage.jsx"
+      ],
+      "serverHandlers": [
+        "GET /api/statement-archive/archive/:documentId",
+        "GET /api/statement-archive/archive/:documentId/download",
+        "GET /api/statement-archive/archive/:documentId/link"
+      ],
+      "permissions": "Authenticated.",
+      "featureFlags": [],
+      "audiences": [
+        "customer",
+        "helper",
+        "business",
+        "restaurant"
+      ],
+      "notes": "Archive is per product; documents support download and share links."
+    },
+    {
+      "id": "financial-downloads",
+      "family": "financial",
+      "title": "Download statement exports",
+      "status": "supported",
+      "condition": "",
+      "clientRoutes": [
+        "/statements/exports/:jobId"
+      ],
+      "screenFiles": [
+        "client/src/pages/food/StatementExportPage.jsx",
+        "client/src/pages/food/StatementExportPanel.jsx"
+      ],
+      "serverHandlers": [
+        "GET/POST /api/statement-exports",
+        "POST /api/statement-exports/bulk",
+        "POST /api/statement-exports/bulk/package",
+        "POST /api/statement-exports/accounting",
+        "GET/POST/DELETE /api/statement-exports/notes"
+      ],
+      "permissions": "Authenticated.",
+      "featureFlags": [],
+      "audiences": [
+        "customer",
+        "business"
+      ],
+      "notes": "Bulk and accounting exports plus CSV/PDF statement downloads; export jobs tracked by ID."
+    },
+    {
+      "id": "logistics-browse",
+      "family": "logistics",
+      "title": "Browse logistics campaigns and lanes",
+      "status": "supported",
+      "condition": "",
+      "clientRoutes": [
+        "/logistics",
+        "/logistics/campaigns",
+        "/logistics/campaigns/:id"
+      ],
+      "screenFiles": [
+        "client/src/pages/logistics/LogisticsHomePage.jsx",
+        "client/src/pages/logistics/CampaignsPage.jsx",
+        "client/src/pages/logistics/CampaignDetailPage.jsx"
+      ],
+      "serverHandlers": [
+        "GET /api/logistics/campaigns",
+        "GET /api/logistics/campaigns/:id",
+        "GET /api/logistics/lanes",
+        "GET /api/logistics/suppliers",
+        "GET /api/logistics/trade-rules",
+        "GET /api/logistics/capabilities"
+      ],
+      "permissions": "Guest can browse; sign-in required to participate.",
+      "featureFlags": [],
+      "audiences": [
+        "logistics",
+        "customer"
+      ],
+      "notes": "Campaign browsing is public; participation, sourcing, and finance require auth."
+    },
+    {
+      "id": "logistics-pledge",
+      "family": "logistics",
+      "title": "Pledge to a campaign (buyer)",
+      "status": "supported",
+      "condition": "",
+      "clientRoutes": [
+        "/logistics/buyer",
+        "/logistics/campaigns/:id",
+        "/logistics/allocations/:id"
+      ],
+      "screenFiles": [
+        "client/src/pages/logistics/BuyerDashboardPage.jsx",
+        "client/src/pages/logistics/AllocationDetailPage.jsx",
+        "client/src/pages/logistics/CampaignDetailPage.jsx"
+      ],
+      "serverHandlers": [
+        "POST /api/logistics/campaigns/:id/join",
+        "GET /api/logistics/my-participation",
+        "GET/POST /api/logistics/allocations",
+        "GET /api/logistics/allocations/:id",
+        "POST /api/logistics/allocations/:id/release"
+      ],
+      "permissions": "Authenticated.",
+      "featureFlags": [],
+      "audiences": [
+        "logistics"
+      ],
+      "notes": "Pledging is joining a campaign; allocations track the buyer's share with release support."
+    },
+    {
+      "id": "logistics-organize-campaign",
+      "family": "logistics",
+      "title": "Organize a campaign",
+      "status": "supported",
+      "condition": "",
+      "clientRoutes": [
+        "/logistics/organizer",
+        "/logistics/campaigns/new",
+        "/logistics/campaigns/:id/edit"
+      ],
+      "screenFiles": [
+        "client/src/pages/logistics/OrganizerDashboardPage.jsx",
+        "client/src/pages/logistics/NewCampaignPage.jsx",
+        "client/src/pages/logistics/EditCampaignPage.jsx"
+      ],
+      "serverHandlers": [
+        "POST /api/logistics/campaigns",
+        "PATCH /api/logistics/campaigns/:id",
+        "POST /api/logistics/campaigns/:id/submit|withdraw|review",
+        "GET /api/logistics/campaigns/:id/approval-history",
+        "POST /api/logistics/campaigns/:id/placement-approval",
+        "GET /api/logistics/organizer/campaigns",
+        "POST/PATCH /api/logistics/recurring-programs (+ status)"
+      ],
+      "permissions": "Authenticated.",
+      "featureFlags": [],
+      "audiences": [
+        "logistics"
+      ],
+      "notes": "Draft submission/approval state machine with guarded transitions and approval history; recurring programs supported."
+    },
+    {
+      "id": "logistics-sourcing",
+      "family": "logistics",
+      "title": "Create sourcing requests and collect supplier quotes",
+      "status": "supported",
+      "condition": "",
+      "clientRoutes": [
+        "/logistics/sourcing",
+        "/logistics/sourcing/new",
+        "/logistics/requests/new",
+        "/logistics/requests/:id",
+        "/logistics/business-procurement"
+      ],
+      "screenFiles": [
+        "client/src/pages/logistics/SourcingPage.jsx",
+        "client/src/pages/logistics/NewRequestPage.jsx",
+        "client/src/pages/logistics/RequestDetailPage.jsx",
+        "client/src/pages/logistics/BusinessProcurementPage.jsx"
+      ],
+      "serverHandlers": [
+        "POST/GET /api/logistics/requests",
+        "GET/PATCH /api/logistics/requests/:id",
+        "PATCH /api/logistics/requests/:id/status",
+        "POST /api/logistics/requests/:requestId/quotes (supplier quotes)"
+      ],
+      "permissions": "Authenticated.",
+      "featureFlags": [],
+      "audiences": [
+        "logistics",
+        "business"
+      ],
+      "notes": "Supplier quotes attach to requests; quote acceptance is the gated payments flow (see logistics-accept-quotes)."
+    },
+    {
+      "id": "logistics-accept-quotes",
+      "family": "logistics",
+      "title": "Publish and accept quotes",
+      "status": "conditional",
+      "condition": "Requires LOGISTICS_PAYMENTS_ENABLED=true (default off). While disabled the quote lifecycle routes answer 503.",
+      "clientRoutes": [
+        "/logistics/finance",
+        "/logistics/checkout"
+      ],
+      "screenFiles": [
+        "client/src/pages/logistics/LogisticsFinancePage.jsx",
+        "client/src/pages/logistics/CheckoutPage.jsx"
+      ],
+      "serverHandlers": [
+        "POST /api/logistics/finance/quotes",
+        "POST /api/logistics/finance/quotes/:id/publish",
+        "POST /api/logistics/finance/quotes/:id/accept",
+        "GET /api/logistics/finance/quotes"
+      ],
+      "permissions": "Authenticated; requireLogisticsPayments gate.",
+      "featureFlags": [
+        "LOGISTICS_PAYMENTS_ENABLED (default off; server/middleware/requireLogisticsPayments.js)"
+      ],
+      "audiences": [
+        "logistics"
+      ],
+      "notes": "Versioned quotes; dual-admin refund approval is platform-admin tooling (excluded)."
+    },
+    {
+      "id": "logistics-confirm-payments",
+      "family": "logistics",
+      "title": "Confirm payments at checkout",
+      "status": "conditional",
+      "condition": "Requires LOGISTICS_PAYMENTS_ENABLED=true (default off). While disabled every route below answers 503 and the client checkout shows a disabled state.",
+      "clientRoutes": [
+        "/logistics/checkout",
+        "/logistics/payments"
+      ],
+      "screenFiles": [
+        "client/src/pages/logistics/CheckoutPage.jsx",
+        "client/src/pages/logistics/LogisticsPaymentsPage.jsx"
+      ],
+      "serverHandlers": [
+        "POST /api/logistics/checkout/attempt",
+        "GET /api/logistics/checkout/attempt/:id",
+        "POST /api/logistics/checkout/attempt/:id/cancel",
+        "GET/PATCH /api/logistics/checkout/reconciliation (+ sweep)",
+        "GET /api/logistics/checkout/exceptions (+ resolve)",
+        "GET /api/logistics/finance/checkout-context",
+        "GET /api/logistics/finance/payment-history"
+      ],
+      "permissions": "Authenticated; requireLogisticsPayments gate.",
+      "featureFlags": [
+        "LOGISTICS_PAYMENTS_ENABLED (default off; server/middleware/requireLogisticsPayments.js)"
+      ],
+      "audiences": [
+        "logistics"
+      ],
+      "notes": "Stripe plus OxSteed Credit checkout with signed-webhook-only settlement and reconciliation."
+    },
+    {
+      "id": "logistics-track-shipments",
+      "family": "logistics",
+      "title": "Track shipments",
+      "status": "supported",
+      "condition": "",
+      "clientRoutes": [
+        "/logistics/shipments",
+        "/logistics/shipments/:id"
+      ],
+      "screenFiles": [
+        "client/src/pages/logistics/ShipmentsPage.jsx",
+        "client/src/pages/logistics/ShipmentDetailPage.jsx"
+      ],
+      "serverHandlers": [
+        "GET/POST /api/logistics/shipments",
+        "GET /api/logistics/shipments/:id",
+        "POST /api/logistics/shipments/:id/milestone",
+        "PATCH /api/logistics/shipments/:id/tracking",
+        "POST /api/logistics/shipments/:id/documents",
+        "GET /api/logistics/shipments/:id/documents/:docId/download"
+      ],
+      "permissions": "Authenticated.",
+      "featureFlags": [],
+      "audiences": [
+        "logistics"
+      ],
+      "notes": "Milestone and document tracking per shipment."
+    },
+    {
+      "id": "logistics-distribution",
+      "family": "logistics",
+      "title": "Manage distribution and deliveries",
+      "status": "supported",
+      "condition": "",
+      "clientRoutes": [
+        "/logistics/distribution",
+        "/logistics/distributor"
+      ],
+      "screenFiles": [
+        "client/src/pages/logistics/DistributionPage.jsx",
+        "client/src/pages/logistics/DistributorResellerPage.jsx"
+      ],
+      "serverHandlers": [
+        "GET/POST /api/logistics/deliveries",
+        "GET /api/logistics/deliveries/:id",
+        "PATCH /api/logistics/deliveries/:id/status",
+        "GET /api/logistics/dashboard/counts"
+      ],
+      "permissions": "Authenticated.",
+      "featureFlags": [],
+      "audiences": [
+        "logistics"
+      ],
+      "notes": "Distributor/reseller dashboard plus delivery status management."
+    },
+    {
+      "id": "logistics-claims",
+      "family": "logistics",
+      "title": "File and track claims",
+      "status": "supported",
+      "condition": "",
+      "clientRoutes": [
+        "/logistics/buyer (claims section)"
+      ],
+      "screenFiles": [
+        "client/src/pages/logistics/BuyerDashboardPage.jsx"
+      ],
+      "serverHandlers": [
+        "POST /api/logistics/claims",
+        "GET /api/logistics/claims"
+      ],
+      "permissions": "Authenticated.",
+      "featureFlags": [],
+      "audiences": [
+        "logistics"
+      ],
+      "notes": "Claims are filed via API and surfaced in the buyer dashboard; there is no standalone claims page."
+    },
+    {
+      "id": "logistics-refund-requests",
+      "family": "logistics",
+      "title": "Request logistics refunds",
+      "status": "supported",
+      "condition": "",
+      "clientRoutes": [
+        "/logistics/buyer (refunds section)",
+        "/logistics/finance"
+      ],
+      "screenFiles": [
+        "client/src/pages/logistics/BuyerDashboardPage.jsx",
+        "client/src/pages/logistics/LogisticsFinancePage.jsx"
+      ],
+      "serverHandlers": [
+        "POST /api/logistics/refund-cases",
+        "GET /api/logistics/refund-cases (user-scoped)"
+      ],
+      "permissions": "Authenticated.",
+      "featureFlags": [],
+      "audiences": [
+        "logistics"
+      ],
+      "notes": "User-scoped refund cases linked to claims; dual-admin approval is platform-admin tooling (excluded)."
+    },
+    {
+      "id": "logistics-warehousing",
+      "family": "logistics",
+      "title": "Manage warehousing and inventory receipts",
+      "status": "supported",
+      "condition": "",
+      "clientRoutes": [
+        "/logistics/warehousing"
+      ],
+      "screenFiles": [
+        "client/src/pages/logistics/WarehousingPage.jsx"
+      ],
+      "serverHandlers": [
+        "GET /api/logistics/warehouses",
+        "GET/POST /api/logistics/inventory-receipts",
+        "POST /api/logistics/inventory-receipts/:id/receive",
+        "POST /api/logistics/inventory-receipts/:id/reconcile",
+        "GET /api/logistics/dashboard/warehouse-counts"
+      ],
+      "permissions": "Authenticated.",
+      "featureFlags": [],
+      "audiences": [
+        "logistics"
+      ],
+      "notes": "Inventory receipts with receive/reconcile; operator warehouse-ops dashboards are internal (excluded)."
+    },
+    {
+      "id": "logistics-compliance",
+      "family": "logistics",
+      "title": "Check trade compliance and restrictions",
+      "status": "supported",
+      "condition": "",
+      "clientRoutes": [
+        "/logistics/compliance"
+      ],
+      "screenFiles": [
+        "client/src/pages/logistics/CompliancePage.jsx"
+      ],
+      "serverHandlers": [
+        "GET /api/logistics/compliance/access",
+        "GET /api/logistics/compliance/restrictions",
+        "GET /api/logistics/trade-rules"
+      ],
+      "permissions": "Authenticated.",
+      "featureFlags": [],
+      "audiences": [
+        "logistics"
+      ],
+      "notes": "Buyer-facing restrictions and trade rules; the compliance review workspace is operator-gated (excluded)."
+    },
+    {
+      "id": "other-media",
+      "family": "other",
+      "title": "Use OxSteed Media (feed, posts, communities)",
+      "status": "supported",
+      "condition": "",
+      "clientRoutes": [
+        "/media",
+        "/media/compose",
+        "/media/bookmarks",
+        "/media/verification",
+        "/media/verify-identity",
+        "/media/creator",
+        "/media/post/:id",
+        "/media/search",
+        "/media/communities",
+        "/media/communities/:slug",
+        "/media/notifications",
+        "/media/messages",
+        "/media/:handle"
+      ],
+      "screenFiles": [
+        "client/src/pages/media/MediaFeedPage.jsx",
+        "client/src/pages/media/MediaComposePage.jsx",
+        "client/src/pages/media/MediaBookmarksPage.jsx",
+        "client/src/pages/media/MediaCreatorPage.jsx",
+        "client/src/pages/media/MediaPostDetailPage.jsx",
+        "client/src/pages/media/MediaSearchPage.jsx",
+        "client/src/pages/media/MediaCommunitiesPage.jsx",
+        "client/src/pages/media/MediaCommunityPage.jsx",
+        "client/src/pages/media/MediaNotificationsPage.jsx",
+        "client/src/pages/media/MediaMessagesPage.jsx",
+        "client/src/pages/media/MediaActorPage.jsx",
+        "client/src/pages/media/MediaVerificationPage.jsx",
+        "client/src/pages/media/MediaLaunchGate.jsx"
+      ],
+      "serverHandlers": [
+        "GET /api/media/capabilities",
+        "GET/POST /api/media/verification (+ requests)",
+        "GET /api/media/feed",
+        "GET /api/media/posts/drafts|bookmarks",
+        "GET /api/media/search",
+        "GET /api/media/entities",
+        "GET /api/media/badges",
+        "GET/POST /api/media/communities (+ seen, suggestions)"
+      ],
+      "permissions": "Guest for feed; authenticated for compose, bookmarks, notifications, messages.",
+      "featureFlags": [
+        "oxsteedMedia: true (server/middleware/launchGate.js, client MediaLaunchGate)"
+      ],
+      "audiences": [
+        "customer",
+        "helper",
+        "business"
+      ],
+      "notes": "Media is launched; compose, notifications, and messages require sign-in."
+    },
+    {
+      "id": "other-direct",
+      "family": "other",
+      "title": "Use Direct (OxSteed-operated services)",
+      "status": "supported",
+      "condition": "",
+      "clientRoutes": [
+        "/direct",
+        "/direct/services",
+        "/direct/skills",
+        "/direct/tools",
+        "/direct/request-quote",
+        "/direct/view-quote",
+        "/direct/quotes/:id",
+        "/direct/book-slot",
+        "/direct/book/:id",
+        "/direct/jobs/:id",
+        "/direct/payments/:id",
+        "/direct/payments/:id/proof",
+        "/direct/history",
+        "/direct/support",
+        "/direct/account",
+        "/direct/jobs/:id/change"
+      ],
+      "screenFiles": [
+        "client/src/pages/DirectPortalPage.jsx",
+        "client/src/pages/DirectCatalogDirectoryPage.jsx",
+        "client/src/pages/DirectBookSlotPage.jsx"
+      ],
+      "serverHandlers": [
+        "GET /api/direct/profile",
+        "GET /api/direct/catalog",
+        "GET /api/direct/catalog/services/:id/slots",
+        "POST /api/direct/catalog/services/:id/holds",
+        "POST /api/direct/catalog/services/:id/book",
+        "GET/POST /api/direct/service-areas|service-availability",
+        "GET /api/direct/history",
+        "GET/PATCH /api/direct/account (+ locations)"
+      ],
+      "permissions": "Guest for landing, catalog, and lookup; authenticated for booking, history, account.",
+      "featureFlags": [],
+      "audiences": [
+        "customer"
+      ],
+      "notes": "Direct is OxSteed-operated services, distinct from the helper marketplace. Excludes /direct/admin/* (platform admin tooling)."
+    },
+    {
+      "id": "other-delivery",
+      "family": "other",
+      "title": "Request and track deliveries",
+      "status": "supported",
+      "condition": "",
+      "clientRoutes": [
+        "/delivery",
+        "/delivery/jobs/:id",
+        "/t/:token"
+      ],
+      "screenFiles": [
+        "client/src/pages/DeliveryLandingPage.jsx",
+        "client/src/pages/DeliveryPage.jsx",
+        "client/src/pages/DeliveryDetailPage.jsx",
+        "client/src/pages/PublicTrackingPage.jsx"
+      ],
+      "serverHandlers": [
+        "POST /api/local-delivery/quote",
+        "POST/GET /api/local-delivery/jobs",
+        "GET /api/local-delivery/jobs/:id",
+        "POST /api/local-delivery/jobs/:id/checkout",
+        "POST /api/local-delivery/jobs/:id/claim",
+        "PATCH /api/local-delivery/jobs/:id/status",
+        "POST /api/local-delivery/jobs/:id/proof-upload|proof-pin",
+        "POST /api/local-delivery/jobs/:id/issues",
+        "POST/GET /api/local-delivery/driver-profile",
+        "GET /api/local-delivery/driver-payouts"
+      ],
+      "permissions": "Guest for landing and quoting; authenticated for jobs; drivers claim jobs.",
+      "featureFlags": [],
+      "audiences": [
+        "customer",
+        "helper"
+      ],
+      "notes": "Excludes /delivery/operations/*, which is logistics-operator-gated internal dispatch."
+    },
+    {
+      "id": "other-calendar",
+      "family": "other",
+      "title": "Manage the calendar",
+      "status": "supported",
+      "condition": "",
+      "clientRoutes": [
+        "/calendar",
+        "/calendar/appointments/:appointmentId"
+      ],
+      "screenFiles": [
+        "client/src/pages/CalendarPage.jsx",
+        "client/src/pages/CalendarAppointmentDetailPage.jsx"
+      ],
+      "serverHandlers": [
+        "POST/GET /api/calendar/appointments",
+        "GET /api/calendar/appointments/:id",
+        "POST /api/calendar/appointments/:id/confirm|cancel",
+        "POST /api/calendar/appointments/:id/reschedule-request",
+        "PUT /api/calendar/appointments/:id/reschedule-request/:reqId",
+        "GET /api/calendar/appointments/:id/ical",
+        "POST /api/calendar/availability"
+      ],
+      "permissions": "Authenticated.",
+      "featureFlags": [],
+      "audiences": [
+        "customer",
+        "helper",
+        "business"
+      ],
+      "notes": "Shared calendar across modes with confirm/cancel/reschedule and iCal export."
+    },
+    {
+      "id": "other-messages",
+      "family": "other",
+      "title": "Message across the platform",
+      "status": "supported",
+      "condition": "",
+      "clientRoutes": [
+        "/messages",
+        "/messages/:conversationId",
+        "/helper/messages",
+        "/helper/messages/:conversationId"
+      ],
+      "screenFiles": [
+        "client/src/pages/MessagesPage.jsx",
+        "client/src/pages/ConversationPage.jsx",
+        "client/src/pages/HelperInboxPage.jsx",
+        "client/src/pages/HelperConversationPage.jsx"
+      ],
+      "serverHandlers": [
+        "GET/POST /api/messages/conversations (+ meta, search)",
+        "/api/chat"
+      ],
+      "permissions": "Authenticated.",
+      "featureFlags": [],
+      "audiences": [
+        "customer",
+        "helper",
+        "business"
+      ],
+      "notes": "Mode-specific inboxes (customer and helper); job-context messaging is covered under hiring-message."
+    },
+    {
+      "id": "other-consulting",
+      "family": "other",
+      "title": "Request and deliver consulting",
+      "status": "supported",
+      "condition": "",
+      "clientRoutes": [
+        "/consulting-intake",
+        "/consulting",
+        "/consulting/portal",
+        "/consulting/feedback/:sessionId/:token",
+        "/consultant-availability",
+        "/consulting/contractor-dashboard"
+      ],
+      "screenFiles": [
+        "client/src/pages/ConsultingIntakePage.jsx",
+        "client/src/pages/ConsultingPortalPage.jsx",
+        "client/src/pages/ConsultingFullPortal.jsx",
+        "client/src/pages/ConsultingFeedbackPage.jsx",
+        "client/src/pages/ConsultantAvailabilityPage.jsx",
+        "client/src/pages/ConsultantContractorDashboard.jsx"
+      ],
+      "serverHandlers": [
+        "POST /api/consulting/submit",
+        "GET /api/consulting/areas|tiers|my-sessions|/:id",
+        "GET/PUT /api/consultant-network/profile",
+        "GET /api/consultant-network/dashboard",
+        "PATCH /api/consultant-network/referrals/:requestId",
+        "/api/consulting-feedback"
+      ],
+      "permissions": "Guest for intake; authenticated for portal and contractor dashboard.",
+      "featureFlags": [],
+      "audiences": [
+        "customer",
+        "helper"
+      ],
+      "notes": "Consultant is a helper-class mode with its own availability and contractor dashboard."
+    },
+    {
+      "id": "other-rentals",
+      "family": "other",
+      "title": "Rent and list tools",
+      "status": "supported",
+      "condition": "",
+      "clientRoutes": [
+        "/tool-rentals",
+        "/tool-rentals/:toolId",
+        "/tool-rentals/analytics"
+      ],
+      "screenFiles": [
+        "client/src/pages/ToolRentalsBrowse.jsx",
+        "client/src/pages/ToolRentalsAnalytics.tsx",
+        "client/src/pages/ToolOwnerDashboard.jsx"
+      ],
+      "serverHandlers": [
+        "GET /api/tool-rentals/categories|browse|public/:id|me",
+        "GET/POST/DELETE /api/tool-rentals/payment-method",
+        "POST/PUT/DELETE /api/tool-rentals",
+        "GET /api/tool-rentals/favorites"
+      ],
+      "permissions": "Guest can browse; authenticated to list or rent.",
+      "featureFlags": [
+        "toolRentals: true"
+      ],
+      "audiences": [
+        "customer",
+        "helper"
+      ],
+      "notes": "tool_owner is a helper-class mode; owners get an analytics dashboard."
+    },
+    {
+      "id": "other-planned-needs",
+      "family": "other",
+      "title": "Plan recurring needs",
+      "status": "supported",
+      "condition": "",
+      "clientRoutes": [
+        "/planned-needs"
+      ],
+      "screenFiles": [
+        "client/src/pages/PlannedNeedsPage.jsx"
+      ],
+      "serverHandlers": [
+        "GET /api/planned-needs/suggestions|templates",
+        "GET /api/planned-needs/helper/offers (+ preferred-count)",
+        "GET/POST /api/planned-needs",
+        "PUT /api/planned-needs/:id"
+      ],
+      "permissions": "Authenticated.",
+      "featureFlags": [],
+      "audiences": [
+        "customer"
+      ],
+      "notes": "Recurring household-need planning with templates, suggestions, and preferred-helper offers."
+    },
+    {
+      "id": "other-car-care",
+      "family": "other",
+      "title": "Manage vehicle records (car care garage)",
+      "status": "supported",
+      "condition": "",
+      "clientRoutes": [
+        "/car-care"
+      ],
+      "screenFiles": [
+        "client/src/pages/CarCarePage.jsx"
+      ],
+      "serverHandlers": [
+        "GET /api/vehicles/my|makes|models",
+        "POST /api/vehicles/my",
+        "PATCH/DELETE /api/vehicles/my/:id"
+      ],
+      "permissions": "Authenticated.",
+      "featureFlags": [],
+      "audiences": [
+        "customer"
+      ],
+      "notes": "A vehicle garage for owned-vehicle records (makes/models), not a service-booking flow."
+    }
+  ]
+}

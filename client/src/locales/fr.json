@@ -1,4 +1,81 @@
 {
+  "sop": {
+    "guideButton": "Guide étape par étape",
+    "englishBadge": "English",
+    "modal": {
+      "title": "Guides étape par étape",
+      "close": "Fermer",
+      "openFullGuide": "Ouvrir le guide complet",
+      "chooseGuide": "Choisissez le guide qui correspond à votre tâche",
+      "noneLinked": "Aucun guide étape par étape n'est encore lié à cette page."
+    },
+    "library": {
+      "title": "Guides étape par étape",
+      "subtitle": "Des tutoriels visuels pour les tâches courantes sur OxSteed. Le contenu des guides est rédigé en anglais.",
+      "searchLabel": "Rechercher des guides",
+      "searchPlaceholder": "Rechercher par tâche, par exemple publier une annonce",
+      "areaLabel": "Domaine",
+      "audienceLabel": "Public",
+      "allAreas": "Tous les domaines",
+      "allAudiences": "Tous les publics",
+      "suggestedForYou": "Suggéré pour vous",
+      "useSuggestion": "Utiliser la suggestion",
+      "clearFilters": "Effacer les filtres",
+      "results": "{{count}} guides",
+      "noResults": "Aucun guide ne correspond à votre recherche. Essayez d'autres mots-clés ou effacez les filtres.",
+      "viewGuide": "Voir le guide",
+      "supported": "Disponible",
+      "conditional": "Conditionnel",
+      "handbooksTitle": "Guides par rôle",
+      "handbooksSubtitle": "Listes de lecture ordonnées pour chaque rôle sur OxSteed.",
+      "openHandbook": "Ouvrir le manuel",
+      "guidesInHandbook": "{{count}} guides"
+    },
+    "audience": {
+      "customer": "Client",
+      "helper": "Aidant",
+      "business": "Entreprise",
+      "restaurant": "Restaurant",
+      "logistics": "Logistique"
+    },
+    "guide": {
+      "goal": "Objectif",
+      "prerequisites": "Avant de commencer",
+      "processMap": "Schéma du processus",
+      "processMapTextToggle": "Version texte de ce schéma",
+      "steps": "Étapes",
+      "stepNumber": "Étape {{n}}",
+      "expectedResult": "Résultat attendu",
+      "viewLarger": "Agrandir",
+      "closeZoom": "Fermer l'image agrandie",
+      "screenshotPending": "Capture en attente",
+      "confirmOutcome": "Vérifiez que cela a fonctionné",
+      "recovery": "En cas de problème",
+      "support": "Obtenir de l'aide",
+      "relatedGuides": "Guides associés",
+      "siteLinks": "Pages associées",
+      "sources": "Sources",
+      "revision": "Révision {{revision}}",
+      "notFound": "Guide introuvable",
+      "notFoundBody": "Ce guide n'est pas encore publié. Parcourez la bibliothèque complète pour trouver un tutoriel adapté à votre tâche.",
+      "backToLibrary": "Retour à tous les guides"
+    },
+    "checklist": {
+      "title": "Votre progression",
+      "reset": "Réinitialiser la progression",
+      "progress": "{{done}} étapes sur {{total}} terminées",
+      "markDone": "Marquer l'étape comme terminée",
+      "markNotDone": "Marquer l'étape comme non terminée"
+    },
+    "handbook": {
+      "contents": "Sommaire",
+      "notFound": "Manuel introuvable",
+      "notFoundBody": "Le manuel de ce rôle n'est pas encore publié.",
+      "backToLibrary": "Retour à tous les guides",
+      "guideNotPublished": "Pas encore publié",
+      "openGuide": "Ouvrir le guide"
+    }
+  },
   "attention": {
     "onboarding": {
       "title": "Configurer {{name}}",

@@ -1,0 +1,2528 @@
+{
+ "generatedAt": "2026-10-16T07:16:37.284Z",
+ "guideCount": 81,
+ "entries": [
+  {
+   "type": "route",
+   "ref": "/agreements/:id",
+   "guideIds": [
+    "hiring-completion",
+    "hiring-work-agreements"
+   ]
+  },
+  {
+   "type": "route",
+   "ref": "/agreements/new",
+   "guideIds": [
+    "hiring-work-agreements"
+   ]
+  },
+  {
+   "type": "route",
+   "ref": "/bids/:bidId",
+   "guideIds": [
+    "hiring-compare-bids"
+   ]
+  },
+  {
+   "type": "route",
+   "ref": "/book/:id",
+   "guideIds": [
+    "hiring-book"
+   ]
+  },
+  {
+   "type": "route",
+   "ref": "/business-hub",
+   "guideIds": [
+    "business-work-select"
+   ]
+  },
+  {
+   "type": "route",
+   "ref": "/business-hub?tab=calendar",
+   "guideIds": [
+    "business-work-scheduling"
+   ]
+  },
+  {
+   "type": "route",
+   "ref": "/business-hub?tab=clients",
+   "guideIds": [
+    "business-work-clients"
+   ]
+  },
+  {
+   "type": "route",
+   "ref": "/business-hub?tab=hiring",
+   "guideIds": [
+    "business-work-jobs"
+   ]
+  },
+  {
+   "type": "route",
+   "ref": "/business-hub?tab=invoices",
+   "guideIds": [
+    "business-work-invoices"
+   ]
+  },
+  {
+   "type": "route",
+   "ref": "/business-hub?tab=services",
+   "guideIds": [
+    "business-work-services"
+   ]
+  },
+  {
+   "type": "route",
+   "ref": "/business-hub?tab=team",
+   "guideIds": [
+    "business-work-team-access"
+   ]
+  },
+  {
+   "type": "route",
+   "ref": "/business-launch-status",
+   "guideIds": [
+    "business-work-setup"
+   ]
+  },
+  {
+   "type": "route",
+   "ref": "/business/:businessId/maintenance-request",
+   "guideIds": [
+    "business-work-specialized-intakes"
+   ]
+  },
+  {
+   "type": "route",
+   "ref": "/business/:businessId/onboarding",
+   "guideIds": [
+    "business-work-setup"
+   ]
+  },
+  {
+   "type": "route",
+   "ref": "/business/:businessId/workspace",
+   "guideIds": [
+    "business-work-select"
+   ]
+  },
+  {
+   "type": "route",
+   "ref": "/business/statements",
+   "guideIds": [
+    "financial-archives"
+   ]
+  },
+  {
+   "type": "route",
+   "ref": "/calendar",
+   "guideIds": [
+    "business-work-scheduling",
+    "helper-work-assigned-jobs",
+    "other-calendar"
+   ]
+  },
+  {
+   "type": "route",
+   "ref": "/calendar/appointments/:appointmentId",
+   "guideIds": [
+    "other-calendar"
+   ]
+  },
+  {
+   "type": "route",
+   "ref": "/car-care",
+   "guideIds": [
+    "other-car-care"
+   ]
+  },
+  {
+   "type": "route",
+   "ref": "/consultant-availability",
+   "guideIds": [
+    "helper-work-availability"
+   ]
+  },
+  {
+   "type": "route",
+   "ref": "/consulting-intake",
+   "guideIds": [
+    "business-work-setup",
+    "other-consulting"
+   ]
+  },
+  {
+   "type": "route",
+   "ref": "/consulting/contractor-dashboard",
+   "guideIds": [
+    "other-consulting"
+   ]
+  },
+  {
+   "type": "route",
+   "ref": "/consulting/portal",
+   "guideIds": [
+    "other-consulting"
+   ]
+  },
+  {
+   "type": "route",
+   "ref": "/credit/apply",
+   "guideIds": [
+    "financial-oxsteed-credit"
+   ]
+  },
+  {
+   "type": "route",
+   "ref": "/dashboard (business_owner mode)",
+   "guideIds": [
+    "business-work-attention-inbox"
+   ]
+  },
+  {
+   "type": "route",
+   "ref": "/dashboard?tab=availability",
+   "guideIds": [
+    "helper-work-availability"
+   ]
+  },
+  {
+   "type": "route",
+   "ref": "/dashboard?tab=earnings",
+   "guideIds": [
+    "helper-work-earnings"
+   ]
+  },
+  {
+   "type": "route",
+   "ref": "/dashboard?tab=editprofile",
+   "guideIds": [
+    "helper-work-profile"
+   ]
+  },
+  {
+   "type": "route",
+   "ref": "/dashboard?tab=invoices",
+   "guideIds": [
+    "helper-work-invoices"
+   ]
+  },
+  {
+   "type": "route",
+   "ref": "/dashboard?tab=skills",
+   "guideIds": [
+    "helper-work-skills"
+   ]
+  },
+  {
+   "type": "route",
+   "ref": "/delivery",
+   "guideIds": [
+    "other-delivery"
+   ]
+  },
+  {
+   "type": "route",
+   "ref": "/delivery/jobs/:id",
+   "guideIds": [
+    "other-delivery"
+   ]
+  },
+  {
+   "type": "route",
+   "ref": "/direct",
+   "guideIds": [
+    "other-direct"
+   ]
+  },
+  {
+   "type": "route",
+   "ref": "/direct/history",
+   "guideIds": [
+    "other-direct"
+   ]
+  },
+  {
+   "type": "route",
+   "ref": "/direct/payments/:id",
+   "guideIds": [
+    "financial-receipts"
+   ]
+  },
+  {
+   "type": "route",
+   "ref": "/direct/request-quote",
+   "guideIds": [
+    "hiring-request-quote",
+    "other-direct"
+   ]
+  },
+  {
+   "type": "route",
+   "ref": "/direct/services",
+   "guideIds": [
+    "other-direct"
+   ]
+  },
+  {
+   "type": "route",
+   "ref": "/direct/view-quote",
+   "guideIds": [
+    "hiring-request-quote"
+   ]
+  },
+  {
+   "type": "route",
+   "ref": "/disputes",
+   "guideIds": [
+    "hiring-disputes"
+   ]
+  },
+  {
+   "type": "route",
+   "ref": "/disputes/:id",
+   "guideIds": [
+    "hiring-disputes"
+   ]
+  },
+  {
+   "type": "route",
+   "ref": "/do-not-sell",
+   "guideIds": [
+    "account-privacy"
+   ]
+  },
+  {
+   "type": "route",
+   "ref": "/food",
+   "guideIds": [
+    "restaurant-ordering"
+   ]
+  },
+  {
+   "type": "route",
+   "ref": "/food/orders/:orderId",
+   "guideIds": [
+    "financial-receipts",
+    "restaurant-cancellations",
+    "restaurant-ordering"
+   ]
+  },
+  {
+   "type": "route",
+   "ref": "/food/queue/:restaurantId",
+   "guideIds": [
+    "restaurant-preparation"
+   ]
+  },
+  {
+   "type": "route",
+   "ref": "/food/restaurants/:restaurantId",
+   "guideIds": [
+    "restaurant-ordering"
+   ]
+  },
+  {
+   "type": "route",
+   "ref": "/food/track/:token",
+   "guideIds": [
+    "hiring-payment-records",
+    "restaurant-pickup-delivery-handoff"
+   ]
+  },
+  {
+   "type": "route",
+   "ref": "/forgot-password",
+   "guideIds": [
+    "account-password-recovery"
+   ]
+  },
+  {
+   "type": "route",
+   "ref": "/helper-earnings/statements",
+   "guideIds": [
+    "financial-archives",
+    "helper-work-earnings"
+   ]
+  },
+  {
+   "type": "route",
+   "ref": "/helper/clients",
+   "guideIds": [
+    "helper-work-clients"
+   ]
+  },
+  {
+   "type": "route",
+   "ref": "/helper/messages",
+   "guideIds": [
+    "other-messages"
+   ]
+  },
+  {
+   "type": "route",
+   "ref": "/helper/payouts",
+   "guideIds": [
+    "helper-work-payouts"
+   ]
+  },
+  {
+   "type": "route",
+   "ref": "/helpers",
+   "guideIds": [
+    "hiring-find-help"
+   ]
+  },
+  {
+   "type": "route",
+   "ref": "/helpers/:id",
+   "guideIds": [
+    "helper-work-profile",
+    "hiring-find-help"
+   ]
+  },
+  {
+   "type": "route",
+   "ref": "/invoice/p/:token",
+   "guideIds": [
+    "business-work-invoices",
+    "helper-work-invoices"
+   ]
+  },
+  {
+   "type": "route",
+   "ref": "/jobs",
+   "guideIds": [
+    "helper-work-find-work"
+   ]
+  },
+  {
+   "type": "route",
+   "ref": "/jobs/:id",
+   "guideIds": [
+    "helper-work-bid",
+    "hiring-completion",
+    "hiring-manage-jobs"
+   ]
+  },
+  {
+   "type": "route",
+   "ref": "/jobs/:id/edit",
+   "guideIds": [
+    "hiring-manage-jobs"
+   ]
+  },
+  {
+   "type": "route",
+   "ref": "/join",
+   "guideIds": [
+    "account-join"
+   ]
+  },
+  {
+   "type": "route",
+   "ref": "/login",
+   "guideIds": [
+    "account-signin"
+   ]
+  },
+  {
+   "type": "route",
+   "ref": "/logistics",
+   "guideIds": [
+    "logistics-browse"
+   ]
+  },
+  {
+   "type": "route",
+   "ref": "/logistics/buyer",
+   "guideIds": [
+    "logistics-claims",
+    "logistics-pledge"
+   ]
+  },
+  {
+   "type": "route",
+   "ref": "/logistics/campaigns",
+   "guideIds": [
+    "logistics-browse"
+   ]
+  },
+  {
+   "type": "route",
+   "ref": "/logistics/campaigns/:id",
+   "guideIds": [
+    "logistics-pledge"
+   ]
+  },
+  {
+   "type": "route",
+   "ref": "/logistics/campaigns/new",
+   "guideIds": [
+    "logistics-organize-campaign"
+   ]
+  },
+  {
+   "type": "route",
+   "ref": "/logistics/checkout",
+   "guideIds": [
+    "logistics-accept-quotes",
+    "logistics-confirm-payments"
+   ]
+  },
+  {
+   "type": "route",
+   "ref": "/logistics/compliance",
+   "guideIds": [
+    "logistics-compliance"
+   ]
+  },
+  {
+   "type": "route",
+   "ref": "/logistics/distribution",
+   "guideIds": [
+    "logistics-distribution"
+   ]
+  },
+  {
+   "type": "route",
+   "ref": "/logistics/distributor",
+   "guideIds": [
+    "logistics-distribution"
+   ]
+  },
+  {
+   "type": "route",
+   "ref": "/logistics/finance",
+   "guideIds": [
+    "logistics-accept-quotes",
+    "logistics-refund-requests"
+   ]
+  },
+  {
+   "type": "route",
+   "ref": "/logistics/organizer",
+   "guideIds": [
+    "logistics-organize-campaign"
+   ]
+  },
+  {
+   "type": "route",
+   "ref": "/logistics/payments",
+   "guideIds": [
+    "logistics-confirm-payments"
+   ]
+  },
+  {
+   "type": "route",
+   "ref": "/logistics/requests/:id",
+   "guideIds": [
+    "logistics-sourcing"
+   ]
+  },
+  {
+   "type": "route",
+   "ref": "/logistics/shipments",
+   "guideIds": [
+    "logistics-track-shipments"
+   ]
+  },
+  {
+   "type": "route",
+   "ref": "/logistics/shipments/:id",
+   "guideIds": [
+    "logistics-track-shipments"
+   ]
+  },
+  {
+   "type": "route",
+   "ref": "/logistics/sourcing",
+   "guideIds": [
+    "logistics-sourcing"
+   ]
+  },
+  {
+   "type": "route",
+   "ref": "/logistics/sourcing/new",
+   "guideIds": [
+    "logistics-sourcing"
+   ]
+  },
+  {
+   "type": "route",
+   "ref": "/logistics/warehousing",
+   "guideIds": [
+    "logistics-warehousing"
+   ]
+  },
+  {
+   "type": "route",
+   "ref": "/media",
+   "guideIds": [
+    "other-media"
+   ]
+  },
+  {
+   "type": "route",
+   "ref": "/media/communities",
+   "guideIds": [
+    "other-media"
+   ]
+  },
+  {
+   "type": "route",
+   "ref": "/media/compose",
+   "guideIds": [
+    "other-media"
+   ]
+  },
+  {
+   "type": "route",
+   "ref": "/media/search",
+   "guideIds": [
+    "other-media"
+   ]
+  },
+  {
+   "type": "route",
+   "ref": "/messages",
+   "guideIds": [
+    "hiring-message",
+    "other-messages"
+   ]
+  },
+  {
+   "type": "route",
+   "ref": "/messages/:conversationId",
+   "guideIds": [
+    "helper-work-quotes",
+    "hiring-message",
+    "other-messages"
+   ]
+  },
+  {
+   "type": "route",
+   "ref": "/my-bids",
+   "guideIds": [
+    "helper-work-bid",
+    "hiring-compare-bids"
+   ]
+  },
+  {
+   "type": "route",
+   "ref": "/my-bookings",
+   "guideIds": [
+    "hiring-book",
+    "hiring-cancellations",
+    "hiring-payment-records"
+   ]
+  },
+  {
+   "type": "route",
+   "ref": "/my-jobs",
+   "guideIds": [
+    "hiring-cancellations",
+    "hiring-completion",
+    "hiring-manage-jobs"
+   ]
+  },
+  {
+   "type": "route",
+   "ref": "/orders",
+   "guideIds": [
+    "hiring-payment-records",
+    "restaurant-cancellations"
+   ]
+  },
+  {
+   "type": "route",
+   "ref": "/orders/:id",
+   "guideIds": [
+    "hiring-payment-records"
+   ]
+  },
+  {
+   "type": "route",
+   "ref": "/oxsteed-credit",
+   "guideIds": [
+    "financial-oxsteed-credit"
+   ]
+  },
+  {
+   "type": "route",
+   "ref": "/oxsteed-credit/cards",
+   "guideIds": [
+    "financial-oxsteed-credit"
+   ]
+  },
+  {
+   "type": "route",
+   "ref": "/oxsteed-credit/statements",
+   "guideIds": [
+    "financial-statements"
+   ]
+  },
+  {
+   "type": "route",
+   "ref": "/oxsteed-credit/statements/archive",
+   "guideIds": [
+    "financial-archives"
+   ]
+  },
+  {
+   "type": "route",
+   "ref": "/oxsteed-credit/transactions/:transactionId",
+   "guideIds": [
+    "financial-oxsteed-credit"
+   ]
+  },
+  {
+   "type": "route",
+   "ref": "/pay/:code",
+   "guideIds": [
+    "financial-qr-payments"
+   ]
+  },
+  {
+   "type": "route",
+   "ref": "/pay/:code/success",
+   "guideIds": [
+    "financial-qr-payments"
+   ]
+  },
+  {
+   "type": "route",
+   "ref": "/planned-needs",
+   "guideIds": [
+    "other-planned-needs"
+   ]
+  },
+  {
+   "type": "route",
+   "ref": "/post-job",
+   "guideIds": [
+    "business-work-jobs",
+    "hiring-post-job"
+   ]
+  },
+  {
+   "type": "route",
+   "ref": "/privacy",
+   "guideIds": [
+    "account-privacy"
+   ]
+  },
+  {
+   "type": "route",
+   "ref": "/qr-payments",
+   "guideIds": [
+    "financial-qr-payments"
+   ]
+  },
+  {
+   "type": "route",
+   "ref": "/reset-password/:token",
+   "guideIds": [
+    "account-password-recovery"
+   ]
+  },
+  {
+   "type": "route",
+   "ref": "/restaurant-credit",
+   "guideIds": [
+    "financial-restaurant-credit",
+    "restaurant-refund-requests"
+   ]
+  },
+  {
+   "type": "route",
+   "ref": "/restaurant-credit/statements",
+   "guideIds": [
+    "financial-restaurant-credit",
+    "financial-statements"
+   ]
+  },
+  {
+   "type": "route",
+   "ref": "/restaurant-credit/statements/archive",
+   "guideIds": [
+    "financial-archives"
+   ]
+  },
+  {
+   "type": "route",
+   "ref": "/restaurant-settlement/statements",
+   "guideIds": [
+    "financial-archives"
+   ]
+  },
+  {
+   "type": "route",
+   "ref": "/restaurants/crew/:restaurantId",
+   "guideIds": [
+    "restaurant-staff-tools"
+   ]
+  },
+  {
+   "type": "route",
+   "ref": "/restaurants/inventory/:restaurantId",
+   "guideIds": [
+    "restaurant-staff-tools"
+   ]
+  },
+  {
+   "type": "route",
+   "ref": "/restaurants/kiosk/:restaurantId",
+   "guideIds": [
+    "restaurant-store-settings"
+   ]
+  },
+  {
+   "type": "route",
+   "ref": "/restaurants/kitchen/:restaurantId",
+   "guideIds": [
+    "restaurant-preparation"
+   ]
+  },
+  {
+   "type": "route",
+   "ref": "/restaurants/merchant",
+   "guideIds": [
+    "restaurant-menus",
+    "restaurant-setup",
+    "restaurant-store-settings"
+   ]
+  },
+  {
+   "type": "route",
+   "ref": "/restaurants/pos/:restaurantId",
+   "guideIds": [
+    "restaurant-staff-tools",
+    "restaurant-store-settings"
+   ]
+  },
+  {
+   "type": "route",
+   "ref": "/restaurants/queue/:restaurantId",
+   "guideIds": [
+    "restaurant-store-settings"
+   ]
+  },
+  {
+   "type": "route",
+   "ref": "/restaurants/runner/:restaurantId",
+   "guideIds": [
+    "restaurant-pickup-delivery-handoff",
+    "restaurant-staff-tools"
+   ]
+  },
+  {
+   "type": "route",
+   "ref": "/restaurants/support/cases/:caseId",
+   "guideIds": [
+    "restaurant-refund-requests"
+   ]
+  },
+  {
+   "type": "route",
+   "ref": "/saved-searches",
+   "guideIds": [
+    "helper-work-find-work"
+   ]
+  },
+  {
+   "type": "route",
+   "ref": "/settings",
+   "guideIds": [
+    "account-settings"
+   ]
+  },
+  {
+   "type": "route",
+   "ref": "/settings/payment-policies",
+   "guideIds": [
+    "hiring-cancellations"
+   ]
+  },
+  {
+   "type": "route",
+   "ref": "/statements",
+   "guideIds": [
+    "financial-statements"
+   ]
+  },
+  {
+   "type": "route",
+   "ref": "/statements/:documentId/accessible",
+   "guideIds": [
+    "financial-statements"
+   ]
+  },
+  {
+   "type": "route",
+   "ref": "/statements/:documentId/entries/:entryId",
+   "guideIds": [
+    "financial-statements"
+   ]
+  },
+  {
+   "type": "route",
+   "ref": "/statements/exports/:jobId",
+   "guideIds": [
+    "financial-downloads"
+   ]
+  },
+  {
+   "type": "route",
+   "ref": "/support",
+   "guideIds": [
+    "account-support"
+   ]
+  },
+  {
+   "type": "route",
+   "ref": "/support/escalation",
+   "guideIds": [
+    "account-support"
+   ]
+  },
+  {
+   "type": "route",
+   "ref": "/support/my-tickets/:ticketId",
+   "guideIds": [
+    "account-support"
+   ]
+  },
+  {
+   "type": "route",
+   "ref": "/t/:token",
+   "guideIds": [
+    "other-delivery",
+    "restaurant-pickup-delivery-handoff"
+   ]
+  },
+  {
+   "type": "route",
+   "ref": "/tool-rentals",
+   "guideIds": [
+    "other-rentals"
+   ]
+  },
+  {
+   "type": "route",
+   "ref": "/tool-rentals/:toolId",
+   "guideIds": [
+    "other-rentals"
+   ]
+  },
+  {
+   "type": "route",
+   "ref": "/tool-rentals/analytics",
+   "guideIds": [
+    "other-rentals"
+   ]
+  },
+  {
+   "type": "route",
+   "ref": "/verify-identity",
+   "guideIds": [
+    "account-identity-verification"
+   ]
+  },
+  {
+   "type": "route",
+   "ref": "/wallet",
+   "guideIds": [
+    "financial-wallet"
+   ]
+  },
+  {
+   "type": "permission",
+   "ref": "Authenticated (customer mode).",
+   "guideIds": [
+    "hiring-post-job"
+   ]
+  },
+  {
+   "type": "permission",
+   "ref": "Authenticated (job owner for mutations).",
+   "guideIds": [
+    "hiring-manage-jobs"
+   ]
+  },
+  {
+   "type": "permission",
+   "ref": "Authenticated; eligibility-checked.",
+   "guideIds": [
+    "hiring-reviews"
+   ]
+  },
+  {
+   "type": "permission",
+   "ref": "Authenticated; food tracking token is guest-accessible.",
+   "guideIds": [
+    "hiring-payment-records"
+   ]
+  },
+  {
+   "type": "permission",
+   "ref": "Authenticated; requireEmailVerified and requireTermsAcceptance on booking creation.",
+   "guideIds": [
+    "hiring-book"
+   ]
+  },
+  {
+   "type": "permission",
+   "ref": "Authenticated.",
+   "guideIds": [
+    "hiring-cancellations",
+    "hiring-compare-bids",
+    "hiring-completion",
+    "hiring-disputes",
+    "hiring-message",
+    "hiring-work-agreements"
+   ]
+  },
+  {
+   "type": "permission",
+   "ref": "Authenticated. Listing, bidding and starting work enforce onboarding server-side.",
+   "guideIds": [
+    "account-onboarding"
+   ]
+  },
+  {
+   "type": "permission",
+   "ref": "bizIdAccess('any'|'manager') capability checks",
+   "guideIds": [
+    "business-work-team-access"
+   ]
+  },
+  {
+   "type": "handler",
+   "ref": "businessTeam.js staff CRUD (server/routes/businessTeam.js)",
+   "guideIds": [
+    "business-work-team-access"
+   ]
+  },
+  {
+   "type": "screen",
+   "ref": "client/src/components/attention/AttentionModal.jsx",
+   "guideIds": [
+    "business-work-attention-inbox"
+   ]
+  },
+  {
+   "type": "screen",
+   "ref": "client/src/components/businessHub/AppointmentCalendarView.jsx",
+   "guideIds": [
+    "business-work-scheduling"
+   ]
+  },
+  {
+   "type": "screen",
+   "ref": "client/src/components/businessHub/BusinessClientsTab.jsx",
+   "guideIds": [
+    "business-work-clients"
+   ]
+  },
+  {
+   "type": "screen",
+   "ref": "client/src/components/businessHub/BusinessOnboarding.jsx",
+   "guideIds": [
+    "account-onboarding"
+   ]
+  },
+  {
+   "type": "screen",
+   "ref": "client/src/components/calendar/BookingRequestsPanel.jsx",
+   "guideIds": [
+    "helper-work-assigned-jobs"
+   ]
+  },
+  {
+   "type": "screen",
+   "ref": "client/src/components/careers/HiringPipelineBoard.jsx",
+   "guideIds": [
+    "business-work-jobs"
+   ]
+  },
+  {
+   "type": "screen",
+   "ref": "client/src/components/EditProfileTab.jsx",
+   "guideIds": [
+    "helper-work-profile"
+   ]
+  },
+  {
+   "type": "screen",
+   "ref": "client/src/components/HelperOnboardingChecklist.jsx",
+   "guideIds": [
+    "account-onboarding"
+   ]
+  },
+  {
+   "type": "screen",
+   "ref": "client/src/components/helperProfile/chat/QuoteSharePanel.jsx",
+   "guideIds": [
+    "helper-work-quotes"
+   ]
+  },
+  {
+   "type": "screen",
+   "ref": "client/src/components/logistics/QuoteAcceptanceGate.jsx",
+   "guideIds": [
+    "logistics-accept-quotes"
+   ]
+  },
+  {
+   "type": "screen",
+   "ref": "client/src/components/messaging/MessagingWorkspace.jsx",
+   "guideIds": [
+    "hiring-message"
+   ]
+  },
+  {
+   "type": "screen",
+   "ref": "client/src/components/ModeSwitcher.jsx",
+   "guideIds": [
+    "account-mode-switching"
+   ]
+  },
+  {
+   "type": "screen",
+   "ref": "client/src/components/registration/DiditPanel.tsx",
+   "guideIds": [
+    "account-identity-verification"
+   ]
+  },
+  {
+   "type": "screen",
+   "ref": "client/src/components/ReviewModal.jsx",
+   "guideIds": [
+    "hiring-reviews"
+   ]
+  },
+  {
+   "type": "screen",
+   "ref": "client/src/pages/BidDetailPage.jsx",
+   "guideIds": [
+    "hiring-compare-bids"
+   ]
+  },
+  {
+   "type": "screen",
+   "ref": "client/src/pages/BookHelperPage.jsx",
+   "guideIds": [
+    "hiring-book"
+   ]
+  },
+  {
+   "type": "screen",
+   "ref": "client/src/pages/BookServicePage.jsx",
+   "guideIds": [
+    "hiring-book"
+   ]
+  },
+  {
+   "type": "screen",
+   "ref": "client/src/pages/BusinessHubPage.jsx (business switcher)",
+   "guideIds": [
+    "business-work-select"
+   ]
+  },
+  {
+   "type": "screen",
+   "ref": "client/src/pages/BusinessHubPage.jsx (Invoices tab)",
+   "guideIds": [
+    "business-work-invoices"
+   ]
+  },
+  {
+   "type": "screen",
+   "ref": "client/src/pages/BusinessHubPage.jsx (Services tab)",
+   "guideIds": [
+    "business-work-services"
+   ]
+  },
+  {
+   "type": "screen",
+   "ref": "client/src/pages/BusinessHubPage.jsx (Team tab, TeamTab)",
+   "guideIds": [
+    "business-work-team-access"
+   ]
+  },
+  {
+   "type": "screen",
+   "ref": "client/src/pages/BusinessLaunchStatusPage.jsx",
+   "guideIds": [
+    "account-onboarding",
+    "business-work-setup"
+   ]
+  },
+  {
+   "type": "screen",
+   "ref": "client/src/pages/BusinessOwnerDashboard.jsx",
+   "guideIds": [
+    "business-work-attention-inbox"
+   ]
+  },
+  {
+   "type": "screen",
+   "ref": "client/src/pages/CalendarAppointmentDetailPage.jsx",
+   "guideIds": [
+    "other-calendar"
+   ]
+  },
+  {
+   "type": "screen",
+   "ref": "client/src/pages/CalendarPage.jsx",
+   "guideIds": [
+    "other-calendar"
+   ]
+  },
+  {
+   "type": "screen",
+   "ref": "client/src/pages/CarCarePage.jsx",
+   "guideIds": [
+    "other-car-care"
+   ]
+  },
+  {
+   "type": "screen",
+   "ref": "client/src/pages/ClientManagementPage.jsx",
+   "guideIds": [
+    "helper-work-clients"
+   ]
+  },
+  {
+   "type": "screen",
+   "ref": "client/src/pages/ConsultantContractorDashboard.jsx",
+   "guideIds": [
+    "other-consulting"
+   ]
+  },
+  {
+   "type": "screen",
+   "ref": "client/src/pages/ConsultingFullPortal.jsx",
+   "guideIds": [
+    "other-consulting"
+   ]
+  },
+  {
+   "type": "screen",
+   "ref": "client/src/pages/ConsultingIntakePage.jsx",
+   "guideIds": [
+    "business-work-setup",
+    "other-consulting"
+   ]
+  },
+  {
+   "type": "screen",
+   "ref": "client/src/pages/ConversationPage.jsx",
+   "guideIds": [
+    "other-messages"
+   ]
+  },
+  {
+   "type": "screen",
+   "ref": "client/src/pages/CreditApplyPage.jsx",
+   "guideIds": [
+    "financial-oxsteed-credit"
+   ]
+  },
+  {
+   "type": "screen",
+   "ref": "client/src/pages/DeliveryDetailPage.jsx",
+   "guideIds": [
+    "other-delivery"
+   ]
+  },
+  {
+   "type": "screen",
+   "ref": "client/src/pages/DeliveryPage.jsx",
+   "guideIds": [
+    "other-delivery"
+   ]
+  },
+  {
+   "type": "screen",
+   "ref": "client/src/pages/DirectCatalogLanding.jsx",
+   "guideIds": [
+    "other-direct"
+   ]
+  },
+  {
+   "type": "screen",
+   "ref": "client/src/pages/DirectPortalPage.jsx",
+   "guideIds": [
+    "financial-receipts",
+    "hiring-request-quote",
+    "other-direct"
+   ]
+  },
+  {
+   "type": "screen",
+   "ref": "client/src/pages/disputes/DisputeCenter.jsx",
+   "guideIds": [
+    "hiring-disputes"
+   ]
+  },
+  {
+   "type": "screen",
+   "ref": "client/src/pages/disputes/DisputeDetail.jsx",
+   "guideIds": [
+    "hiring-disputes"
+   ]
+  },
+  {
+   "type": "screen",
+   "ref": "client/src/pages/food/CreditStatementsPage.jsx",
+   "guideIds": [
+    "financial-statements"
+   ]
+  },
+  {
+   "type": "screen",
+   "ref": "client/src/pages/food/FoodHomePage.jsx",
+   "guideIds": [
+    "restaurant-ordering"
+   ]
+  },
+  {
+   "type": "screen",
+   "ref": "client/src/pages/food/FoodKitchenPage.jsx",
+   "guideIds": [
+    "restaurant-cancellations",
+    "restaurant-preparation"
+   ]
+  },
+  {
+   "type": "screen",
+   "ref": "client/src/pages/food/FoodMerchantPage.jsx",
+   "guideIds": [
+    "restaurant-cancellations",
+    "restaurant-refund-requests",
+    "restaurant-setup",
+    "restaurant-store-settings"
+   ]
+  },
+  {
+   "type": "screen",
+   "ref": "client/src/pages/food/FoodQueueBoardPage.jsx",
+   "guideIds": [
+    "restaurant-preparation"
+   ]
+  },
+  {
+   "type": "screen",
+   "ref": "client/src/pages/food/FoodRestaurantPage.jsx",
+   "guideIds": [
+    "restaurant-ordering"
+   ]
+  },
+  {
+   "type": "screen",
+   "ref": "client/src/pages/food/FoodSetupWizard.jsx",
+   "guideIds": [
+    "restaurant-setup"
+   ]
+  },
+  {
+   "type": "screen",
+   "ref": "client/src/pages/food/FoodTrackPage.jsx",
+   "guideIds": [
+    "restaurant-pickup-delivery-handoff"
+   ]
+  },
+  {
+   "type": "screen",
+   "ref": "client/src/pages/food/OxsteedCreditCardsPage.jsx",
+   "guideIds": [
+    "financial-oxsteed-credit"
+   ]
+  },
+  {
+   "type": "screen",
+   "ref": "client/src/pages/food/OxsteedCreditPage.jsx",
+   "guideIds": [
+    "financial-oxsteed-credit"
+   ]
+  },
+  {
+   "type": "screen",
+   "ref": "client/src/pages/food/OxsteedCreditTransactionPage.jsx",
+   "guideIds": [
+    "financial-oxsteed-credit"
+   ]
+  },
+  {
+   "type": "screen",
+   "ref": "client/src/pages/food/RestaurantAuditPanels.jsx",
+   "guideIds": [
+    "restaurant-store-settings"
+   ]
+  },
+  {
+   "type": "screen",
+   "ref": "client/src/pages/food/RestaurantCreditFundingPanel.jsx",
+   "guideIds": [
+    "financial-restaurant-credit",
+    "restaurant-setup"
+   ]
+  },
+  {
+   "type": "screen",
+   "ref": "client/src/pages/food/RestaurantCreditManager.jsx",
+   "guideIds": [
+    "financial-restaurant-credit",
+    "restaurant-refund-requests"
+   ]
+  },
+  {
+   "type": "screen",
+   "ref": "client/src/pages/food/RestaurantCreditPage.jsx",
+   "guideIds": [
+    "financial-restaurant-credit",
+    "restaurant-refund-requests"
+   ]
+  },
+  {
+   "type": "screen",
+   "ref": "client/src/pages/food/RestaurantCrewPage.jsx",
+   "guideIds": [
+    "restaurant-staff-tools"
+   ]
+  },
+  {
+   "type": "screen",
+   "ref": "client/src/pages/food/RestaurantInventoryPage.jsx",
+   "guideIds": [
+    "restaurant-staff-tools"
+   ]
+  },
+  {
+   "type": "screen",
+   "ref": "client/src/pages/food/RestaurantMenuManager.jsx",
+   "guideIds": [
+    "restaurant-menus"
+   ]
+  },
+  {
+   "type": "screen",
+   "ref": "client/src/pages/food/RestaurantOpsPanels.jsx",
+   "guideIds": [
+    "restaurant-store-settings"
+   ]
+  },
+  {
+   "type": "screen",
+   "ref": "client/src/pages/food/RestaurantPOSPage.jsx",
+   "guideIds": [
+    "restaurant-staff-tools"
+   ]
+  },
+  {
+   "type": "screen",
+   "ref": "client/src/pages/food/RestaurantRunnerPage.jsx",
+   "guideIds": [
+    "restaurant-pickup-delivery-handoff",
+    "restaurant-staff-tools"
+   ]
+  },
+  {
+   "type": "screen",
+   "ref": "client/src/pages/food/StatementAccessibleView.jsx",
+   "guideIds": [
+    "financial-statements"
+   ]
+  },
+  {
+   "type": "screen",
+   "ref": "client/src/pages/food/StatementArchivePage.jsx",
+   "guideIds": [
+    "financial-archives"
+   ]
+  },
+  {
+   "type": "screen",
+   "ref": "client/src/pages/food/StatementCenterPage.jsx",
+   "guideIds": [
+    "financial-statements"
+   ]
+  },
+  {
+   "type": "screen",
+   "ref": "client/src/pages/food/StatementExportPage.jsx",
+   "guideIds": [
+    "financial-downloads"
+   ]
+  },
+  {
+   "type": "screen",
+   "ref": "client/src/pages/food/StatementExportPanel.jsx",
+   "guideIds": [
+    "financial-downloads"
+   ]
+  },
+  {
+   "type": "screen",
+   "ref": "client/src/pages/food/StatementTransactionView.jsx",
+   "guideIds": [
+    "financial-statements"
+   ]
+  },
+  {
+   "type": "screen",
+   "ref": "client/src/pages/food/WalletPage.jsx",
+   "guideIds": [
+    "financial-wallet"
+   ]
+  },
+  {
+   "type": "screen",
+   "ref": "client/src/pages/food/WalletRestaurantWallets.jsx",
+   "guideIds": [
+    "financial-wallet"
+   ]
+  },
+  {
+   "type": "screen",
+   "ref": "client/src/pages/ForgotPassword.jsx",
+   "guideIds": [
+    "account-password-recovery"
+   ]
+  },
+  {
+   "type": "screen",
+   "ref": "client/src/pages/helper/HelperPayoutsPage.jsx",
+   "guideIds": [
+    "helper-work-payouts"
+   ]
+  },
+  {
+   "type": "screen",
+   "ref": "client/src/pages/HelperBusinessProfilePage.tsx",
+   "guideIds": [
+    "hiring-find-help"
+   ]
+  },
+  {
+   "type": "screen",
+   "ref": "client/src/pages/HelperCancellationSettings.jsx",
+   "guideIds": [
+    "hiring-cancellations"
+   ]
+  },
+  {
+   "type": "screen",
+   "ref": "client/src/pages/HelperDashboard.jsx (availability tab)",
+   "guideIds": [
+    "helper-work-availability"
+   ]
+  },
+  {
+   "type": "screen",
+   "ref": "client/src/pages/HelperDashboard.jsx (earnings tab)",
+   "guideIds": [
+    "helper-work-earnings"
+   ]
+  },
+  {
+   "type": "screen",
+   "ref": "client/src/pages/HelperDashboard.jsx (invoices tab)",
+   "guideIds": [
+    "helper-work-invoices"
+   ]
+  },
+  {
+   "type": "screen",
+   "ref": "client/src/pages/HelperDashboard.jsx (skills tab)",
+   "guideIds": [
+    "helper-work-skills"
+   ]
+  },
+  {
+   "type": "screen",
+   "ref": "client/src/pages/HelperInboxPage.jsx",
+   "guideIds": [
+    "other-messages"
+   ]
+  },
+  {
+   "type": "screen",
+   "ref": "client/src/pages/HelpersDirectoryPage.tsx",
+   "guideIds": [
+    "hiring-find-help"
+   ]
+  },
+  {
+   "type": "screen",
+   "ref": "client/src/pages/JobDetailPage.jsx",
+   "guideIds": [
+    "helper-work-bid",
+    "hiring-compare-bids",
+    "hiring-completion",
+    "hiring-manage-jobs",
+    "hiring-reviews"
+   ]
+  },
+  {
+   "type": "screen",
+   "ref": "client/src/pages/JobEditPage.jsx",
+   "guideIds": [
+    "hiring-manage-jobs"
+   ]
+  },
+  {
+   "type": "screen",
+   "ref": "client/src/pages/JobListPage.jsx",
+   "guideIds": [
+    "helper-work-find-work"
+   ]
+  },
+  {
+   "type": "screen",
+   "ref": "client/src/pages/JoinPage.jsx",
+   "guideIds": [
+    "account-join"
+   ]
+  },
+  {
+   "type": "screen",
+   "ref": "client/src/pages/Login.jsx",
+   "guideIds": [
+    "account-signin"
+   ]
+  },
+  {
+   "type": "screen",
+   "ref": "client/src/pages/logistics/BuyerDashboardPage.jsx",
+   "guideIds": [
+    "logistics-claims",
+    "logistics-pledge"
+   ]
+  },
+  {
+   "type": "screen",
+   "ref": "client/src/pages/logistics/CampaignDetailPage.jsx",
+   "guideIds": [
+    "logistics-browse",
+    "logistics-pledge"
+   ]
+  },
+  {
+   "type": "screen",
+   "ref": "client/src/pages/logistics/CampaignsPage.jsx",
+   "guideIds": [
+    "logistics-browse"
+   ]
+  },
+  {
+   "type": "screen",
+   "ref": "client/src/pages/logistics/CheckoutPage.jsx",
+   "guideIds": [
+    "logistics-accept-quotes",
+    "logistics-confirm-payments"
+   ]
+  },
+  {
+   "type": "screen",
+   "ref": "client/src/pages/logistics/CompliancePage.jsx",
+   "guideIds": [
+    "logistics-compliance"
+   ]
+  },
+  {
+   "type": "screen",
+   "ref": "client/src/pages/logistics/DistributionPage.jsx",
+   "guideIds": [
+    "logistics-distribution"
+   ]
+  },
+  {
+   "type": "screen",
+   "ref": "client/src/pages/logistics/DistributorResellerPage.jsx",
+   "guideIds": [
+    "logistics-distribution"
+   ]
+  },
+  {
+   "type": "screen",
+   "ref": "client/src/pages/logistics/LogisticsFinancePage.jsx",
+   "guideIds": [
+    "logistics-refund-requests"
+   ]
+  },
+  {
+   "type": "screen",
+   "ref": "client/src/pages/logistics/LogisticsHomePage.jsx",
+   "guideIds": [
+    "logistics-browse"
+   ]
+  },
+  {
+   "type": "screen",
+   "ref": "client/src/pages/logistics/LogisticsPaymentsPage.jsx",
+   "guideIds": [
+    "logistics-confirm-payments"
+   ]
+  },
+  {
+   "type": "screen",
+   "ref": "client/src/pages/logistics/NewCampaignPage.jsx",
+   "guideIds": [
+    "logistics-organize-campaign"
+   ]
+  },
+  {
+   "type": "screen",
+   "ref": "client/src/pages/logistics/NewRequestPage.jsx",
+   "guideIds": [
+    "logistics-sourcing"
+   ]
+  },
+  {
+   "type": "screen",
+   "ref": "client/src/pages/logistics/OrganizerDashboardPage.jsx",
+   "guideIds": [
+    "logistics-organize-campaign"
+   ]
+  },
+  {
+   "type": "screen",
+   "ref": "client/src/pages/logistics/RequestDetailPage.jsx",
+   "guideIds": [
+    "logistics-sourcing"
+   ]
+  },
+  {
+   "type": "screen",
+   "ref": "client/src/pages/logistics/ShipmentDetailPage.jsx",
+   "guideIds": [
+    "logistics-track-shipments"
+   ]
+  },
+  {
+   "type": "screen",
+   "ref": "client/src/pages/logistics/ShipmentsPage.jsx",
+   "guideIds": [
+    "logistics-track-shipments"
+   ]
+  },
+  {
+   "type": "screen",
+   "ref": "client/src/pages/logistics/SourcingPage.jsx",
+   "guideIds": [
+    "logistics-sourcing"
+   ]
+  },
+  {
+   "type": "screen",
+   "ref": "client/src/pages/logistics/WarehousingPage.jsx",
+   "guideIds": [
+    "logistics-warehousing"
+   ]
+  },
+  {
+   "type": "screen",
+   "ref": "client/src/pages/MaintenanceRequestPage.jsx",
+   "guideIds": [
+    "business-work-specialized-intakes"
+   ]
+  },
+  {
+   "type": "screen",
+   "ref": "client/src/pages/media/MediaComposePage.jsx",
+   "guideIds": [
+    "other-media"
+   ]
+  },
+  {
+   "type": "screen",
+   "ref": "client/src/pages/media/MediaFeedPage.jsx",
+   "guideIds": [
+    "other-media"
+   ]
+  },
+  {
+   "type": "screen",
+   "ref": "client/src/pages/MessagesPage.jsx",
+   "guideIds": [
+    "hiring-message",
+    "other-messages"
+   ]
+  },
+  {
+   "type": "screen",
+   "ref": "client/src/pages/MyBidsPage.jsx",
+   "guideIds": [
+    "hiring-compare-bids"
+   ]
+  },
+  {
+   "type": "screen",
+   "ref": "client/src/pages/MyBookingsPage.tsx",
+   "guideIds": [
+    "hiring-book",
+    "hiring-cancellations",
+    "hiring-payment-records"
+   ]
+  },
+  {
+   "type": "screen",
+   "ref": "client/src/pages/MyJobsPage.jsx",
+   "guideIds": [
+    "hiring-cancellations",
+    "hiring-completion",
+    "hiring-manage-jobs"
+   ]
+  },
+  {
+   "type": "screen",
+   "ref": "client/src/pages/NewWorkAgreementPage.jsx",
+   "guideIds": [
+    "hiring-work-agreements"
+   ]
+  },
+  {
+   "type": "screen",
+   "ref": "client/src/pages/OrderDetailsPage.jsx",
+   "guideIds": [
+    "financial-receipts",
+    "hiring-payment-records",
+    "restaurant-cancellations",
+    "restaurant-ordering"
+   ]
+  },
+  {
+   "type": "screen",
+   "ref": "client/src/pages/OrderHistoryPage.jsx",
+   "guideIds": [
+    "hiring-payment-records",
+    "restaurant-ordering"
+   ]
+  },
+  {
+   "type": "screen",
+   "ref": "client/src/pages/PayByQrPage.jsx",
+   "guideIds": [
+    "financial-qr-payments",
+    "financial-receipts"
+   ]
+  },
+  {
+   "type": "screen",
+   "ref": "client/src/pages/PlannedNeedsPage.jsx",
+   "guideIds": [
+    "other-planned-needs"
+   ]
+  },
+  {
+   "type": "screen",
+   "ref": "client/src/pages/PostJobPage.jsx",
+   "guideIds": [
+    "business-work-jobs",
+    "hiring-post-job"
+   ]
+  },
+  {
+   "type": "screen",
+   "ref": "client/src/pages/PublicTrackingPage.jsx",
+   "guideIds": [
+    "restaurant-pickup-delivery-handoff"
+   ]
+  },
+  {
+   "type": "screen",
+   "ref": "client/src/pages/QRCodeGeneratorPage.jsx",
+   "guideIds": [
+    "financial-qr-payments"
+   ]
+  },
+  {
+   "type": "screen",
+   "ref": "client/src/pages/QrPaySetupPage.jsx",
+   "guideIds": [
+    "financial-qr-payments"
+   ]
+  },
+  {
+   "type": "screen",
+   "ref": "client/src/pages/ResetPassword.jsx",
+   "guideIds": [
+    "account-password-recovery"
+   ]
+  },
+  {
+   "type": "screen",
+   "ref": "client/src/pages/RestaurantSupportCasePage.jsx",
+   "guideIds": [
+    "restaurant-refund-requests"
+   ]
+  },
+  {
+   "type": "screen",
+   "ref": "client/src/pages/SettingsPage.jsx",
+   "guideIds": [
+    "account-privacy",
+    "account-settings"
+   ]
+  },
+  {
+   "type": "screen",
+   "ref": "client/src/pages/SupportEscalationPage.jsx",
+   "guideIds": [
+    "account-support"
+   ]
+  },
+  {
+   "type": "screen",
+   "ref": "client/src/pages/SupportTicketDetailPage.jsx",
+   "guideIds": [
+    "account-support"
+   ]
+  },
+  {
+   "type": "screen",
+   "ref": "client/src/pages/ToolOwnerDashboard.jsx",
+   "guideIds": [
+    "other-rentals"
+   ]
+  },
+  {
+   "type": "screen",
+   "ref": "client/src/pages/ToolRentalsAnalytics.tsx",
+   "guideIds": [
+    "other-rentals"
+   ]
+  },
+  {
+   "type": "screen",
+   "ref": "client/src/pages/ToolRentalsBrowse.jsx",
+   "guideIds": [
+    "other-rentals"
+   ]
+  },
+  {
+   "type": "screen",
+   "ref": "client/src/pages/VerifyIdentityPage.tsx",
+   "guideIds": [
+    "account-identity-verification"
+   ]
+  },
+  {
+   "type": "screen",
+   "ref": "client/src/pages/WorkAgreementPage.jsx",
+   "guideIds": [
+    "hiring-completion",
+    "hiring-work-agreements"
+   ]
+  },
+  {
+   "type": "handler",
+   "ref": "GET /api/bids/job/:jobId, PUT /api/bids/:id (accept/decline), POST /api/bids/:id/withdraw",
+   "guideIds": [
+    "hiring-compare-bids"
+   ]
+  },
+  {
+   "type": "handler",
+   "ref": "GET /api/bookings, /api/orders, GET /api/food/orders/track/:trackingToken",
+   "guideIds": [
+    "hiring-payment-records"
+   ]
+  },
+  {
+   "type": "handler",
+   "ref": "GET /api/bookings/incoming",
+   "guideIds": [
+    "helper-work-assigned-jobs"
+   ]
+  },
+  {
+   "type": "handler",
+   "ref": "GET /api/businesses/attention",
+   "guideIds": [
+    "business-work-attention-inbox"
+   ]
+  },
+  {
+   "type": "handler",
+   "ref": "GET /api/businesses/managed",
+   "guideIds": [
+    "business-work-select"
+   ]
+  },
+  {
+   "type": "handler",
+   "ref": "GET /api/chat/quotes/history",
+   "guideIds": [
+    "helper-work-clients"
+   ]
+  },
+  {
+   "type": "handler",
+   "ref": "GET /api/invoices",
+   "guideIds": [
+    "business-work-invoices"
+   ]
+  },
+  {
+   "type": "handler",
+   "ref": "GET /api/jobs",
+   "guideIds": [
+    "helper-work-find-work"
+   ]
+  },
+  {
+   "type": "handler",
+   "ref": "GET /api/jobs, PATCH/PUT /api/jobs/:id, POST /api/jobs/:id/cancel",
+   "guideIds": [
+    "hiring-manage-jobs"
+   ]
+  },
+  {
+   "type": "handler",
+   "ref": "GET /api/logistics/claims",
+   "guideIds": [
+    "logistics-claims"
+   ]
+  },
+  {
+   "type": "handler",
+   "ref": "GET /api/logistics/compliance/restrictions",
+   "guideIds": [
+    "logistics-compliance"
+   ]
+  },
+  {
+   "type": "handler",
+   "ref": "GET /api/logistics/deliveries",
+   "guideIds": [
+    "logistics-distribution"
+   ]
+  },
+  {
+   "type": "handler",
+   "ref": "GET /api/logistics/inventory-receipts",
+   "guideIds": [
+    "logistics-warehousing"
+   ]
+  },
+  {
+   "type": "handler",
+   "ref": "GET /api/logistics/refund-cases",
+   "guideIds": [
+    "logistics-refund-requests"
+   ]
+  },
+  {
+   "type": "handler",
+   "ref": "GET /api/logistics/shipments/:id",
+   "guideIds": [
+    "logistics-track-shipments"
+   ]
+  },
+  {
+   "type": "handler",
+   "ref": "GET /api/logistics/trade-rules",
+   "guideIds": [
+    "logistics-compliance"
+   ]
+  },
+  {
+   "type": "handler",
+   "ref": "GET /api/logistics/warehouses",
+   "guideIds": [
+    "logistics-warehousing"
+   ]
+  },
+  {
+   "type": "handler",
+   "ref": "GET /api/messages/conversations",
+   "guideIds": [
+    "helper-work-clients",
+    "other-messages"
+   ]
+  },
+  {
+   "type": "handler",
+   "ref": "GET /api/planned-needs",
+   "guideIds": [
+    "other-planned-needs"
+   ]
+  },
+  {
+   "type": "handler",
+   "ref": "GET /api/statement-archive/archive (helper_earnings scope)",
+   "guideIds": [
+    "helper-work-earnings"
+   ]
+  },
+  {
+   "type": "handler",
+   "ref": "GET /api/tool-rentals/browse",
+   "guideIds": [
+    "other-rentals"
+   ]
+  },
+  {
+   "type": "handler",
+   "ref": "GET /api/users/helpers/search",
+   "guideIds": [
+    "hiring-find-help"
+   ]
+  },
+  {
+   "type": "handler",
+   "ref": "GET /api/vehicles/my",
+   "guideIds": [
+    "other-car-care"
+   ]
+  },
+  {
+   "type": "handler",
+   "ref": "GET/PATCH /api/users/me, /api/two-factor, /api/passkeys, /api/settings",
+   "guideIds": [
+    "account-settings"
+   ]
+  },
+  {
+   "type": "handler",
+   "ref": "GET/POST /api/messages/conversations, POST /api/messages/jobs/:jobId/conversation",
+   "guideIds": [
+    "hiring-message"
+   ]
+  },
+  {
+   "type": "permission",
+   "ref": "Guest can browse the directory; sign-in required to book.",
+   "guideIds": [
+    "hiring-find-help"
+   ]
+  },
+  {
+   "type": "permission",
+   "ref": "Guest can request and look up by code; authenticated for detail.",
+   "guideIds": [
+    "hiring-request-quote"
+   ]
+  },
+  {
+   "type": "permission",
+   "ref": "Guest for public conversations (code-verified); authenticated for tickets.",
+   "guideIds": [
+    "account-support"
+   ]
+  },
+  {
+   "type": "permission",
+   "ref": "Guest for public policy pages; authenticated for export/deletion.",
+   "guideIds": [
+    "account-privacy"
+   ]
+  },
+  {
+   "type": "flag",
+   "ref": "helperEarnings: false (LAUNCH_VISIBILITY)",
+   "guideIds": [
+    "helper-work-earnings"
+   ]
+  },
+  {
+   "type": "flag",
+   "ref": "helperInvoices: true (LAUNCH_VISIBILITY)",
+   "guideIds": [
+    "helper-work-invoices"
+   ]
+  },
+  {
+   "type": "flag",
+   "ref": "LAUNCH_SELF_SELECTABLE_MODES, LAUNCH_GRANTED_MODES, LAUNCH_SWITCHER_MODES (client/src/utils/launchScope.js)",
+   "guideIds": [
+    "account-mode-switching"
+   ]
+  },
+  {
+   "type": "flag",
+   "ref": "LAUNCH_SETTINGS_TABS (profile, security, businesses, notifications, privacy, account, danger, tax)",
+   "guideIds": [
+    "account-settings"
+   ]
+  },
+  {
+   "type": "flag",
+   "ref": "LOGISTICS_PAYMENTS_ENABLED (default off; server/middleware/requireLogisticsPayments.js)",
+   "guideIds": [
+    "logistics-accept-quotes",
+    "logistics-confirm-payments"
+   ]
+  },
+  {
+   "type": "handler",
+   "ref": "PATCH /api/logistics/deliveries/:id/status",
+   "guideIds": [
+    "logistics-distribution"
+   ]
+  },
+  {
+   "type": "handler",
+   "ref": "POST /api/auth/forgot-password, POST /api/auth/reset-password",
+   "guideIds": [
+    "account-password-recovery"
+   ]
+  },
+  {
+   "type": "handler",
+   "ref": "POST /api/auth/login, POST /api/auth/login/2fa, passkey endpoints",
+   "guideIds": [
+    "account-signin"
+   ]
+  },
+  {
+   "type": "handler",
+   "ref": "POST /api/auth/register/start, /verify-otp, /resend-otp",
+   "guideIds": [
+    "account-join"
+   ]
+  },
+  {
+   "type": "handler",
+   "ref": "POST /api/auth/switch-role, server/utils/modeRole.js MODE_ROLE_MAP",
+   "guideIds": [
+    "account-mode-switching"
+   ]
+  },
+  {
+   "type": "handler",
+   "ref": "POST /api/bids",
+   "guideIds": [
+    "helper-work-bid"
+   ]
+  },
+  {
+   "type": "handler",
+   "ref": "POST /api/bookings, POST /api/bookings/:bookingId/cancel",
+   "guideIds": [
+    "hiring-book"
+   ]
+  },
+  {
+   "type": "handler",
+   "ref": "POST /api/bookings/:bookingId/accept|decline",
+   "guideIds": [
+    "helper-work-assigned-jobs"
+   ]
+  },
+  {
+   "type": "handler",
+   "ref": "POST /api/bookings/:bookingId/cancel, POST /api/jobs/:id/cancel, /api/helper-cancellation-policies",
+   "guideIds": [
+    "hiring-cancellations"
+   ]
+  },
+  {
+   "type": "handler",
+   "ref": "POST /api/businesses/:businessId/services",
+   "guideIds": [
+    "business-work-services"
+   ]
+  },
+  {
+   "type": "handler",
+   "ref": "POST /api/businesses/:id/clients",
+   "guideIds": [
+    "business-work-clients"
+   ]
+  },
+  {
+   "type": "handler",
+   "ref": "POST /api/calendar/appointments/:id/cancel",
+   "guideIds": [
+    "other-calendar"
+   ]
+  },
+  {
+   "type": "handler",
+   "ref": "POST /api/calendar/appointments/:id/confirm",
+   "guideIds": [
+    "other-calendar"
+   ]
+  },
+  {
+   "type": "handler",
+   "ref": "POST /api/calendar/appointments/:id/confirm|cancel",
+   "guideIds": [
+    "business-work-scheduling"
+   ]
+  },
+  {
+   "type": "handler",
+   "ref": "POST /api/chat/quotes/share",
+   "guideIds": [
+    "helper-work-quotes"
+   ]
+  },
+  {
+   "type": "handler",
+   "ref": "POST /api/consulting/submit",
+   "guideIds": [
+    "other-consulting"
+   ]
+  },
+  {
+   "type": "handler",
+   "ref": "POST /api/didit/session, POST /api/didit/start, GET /api/didit/status, POST /api/didit/skip",
+   "guideIds": [
+    "account-identity-verification"
+   ]
+  },
+  {
+   "type": "handler",
+   "ref": "POST /api/direct/catalog/services/:id/book",
+   "guideIds": [
+    "other-direct"
+   ]
+  },
+  {
+   "type": "handler",
+   "ref": "POST /api/disputes, POST /api/disputes/jobs/:jobId, POST /api/disputes/:disputeId/evidence, /messages",
+   "guideIds": [
+    "hiring-disputes"
+   ]
+  },
+  {
+   "type": "handler",
+   "ref": "POST /api/helper-registration/start, /verify-otp, /complete, /api/helper-registration/finalize",
+   "guideIds": [
+    "account-onboarding"
+   ]
+  },
+  {
+   "type": "handler",
+   "ref": "POST /api/helpers/invoices",
+   "guideIds": [
+    "helper-work-invoices"
+   ]
+  },
+  {
+   "type": "handler",
+   "ref": "POST /api/jobs",
+   "guideIds": [
+    "business-work-jobs"
+   ]
+  },
+  {
+   "type": "handler",
+   "ref": "POST /api/jobs, GET/PUT/DELETE /api/jobs/draft",
+   "guideIds": [
+    "hiring-post-job"
+   ]
+  },
+  {
+   "type": "handler",
+   "ref": "POST /api/jobs/:id/complete, POST /api/work-agreements/:id/complete",
+   "guideIds": [
+    "hiring-completion"
+   ]
+  },
+  {
+   "type": "handler",
+   "ref": "POST /api/local-delivery/jobs/:id/claim",
+   "guideIds": [
+    "other-delivery"
+   ]
+  },
+  {
+   "type": "handler",
+   "ref": "POST /api/local-delivery/quote",
+   "guideIds": [
+    "other-delivery"
+   ]
+  },
+  {
+   "type": "handler",
+   "ref": "POST /api/logistics/campaigns",
+   "guideIds": [
+    "logistics-organize-campaign"
+   ]
+  },
+  {
+   "type": "handler",
+   "ref": "POST /api/logistics/campaigns/:id/join",
+   "guideIds": [
+    "logistics-pledge"
+   ]
+  },
+  {
+   "type": "handler",
+   "ref": "POST /api/logistics/campaigns/:id/submit",
+   "guideIds": [
+    "logistics-organize-campaign"
+   ]
+  },
+  {
+   "type": "handler",
+   "ref": "POST /api/logistics/checkout/attempt",
+   "guideIds": [
+    "logistics-confirm-payments"
+   ]
+  },
+  {
+   "type": "handler",
+   "ref": "POST /api/logistics/claims",
+   "guideIds": [
+    "logistics-claims"
+   ]
+  },
+  {
+   "type": "handler",
+   "ref": "POST /api/logistics/finance/quotes/:id/accept",
+   "guideIds": [
+    "logistics-accept-quotes"
+   ]
+  },
+  {
+   "type": "handler",
+   "ref": "POST /api/logistics/refund-cases",
+   "guideIds": [
+    "logistics-refund-requests"
+   ]
+  },
+  {
+   "type": "handler",
+   "ref": "POST /api/logistics/requests",
+   "guideIds": [
+    "logistics-sourcing"
+   ]
+  },
+  {
+   "type": "handler",
+   "ref": "POST /api/logistics/requests/:requestId/quotes",
+   "guideIds": [
+    "logistics-sourcing"
+   ]
+  },
+  {
+   "type": "handler",
+   "ref": "POST /api/planned-needs",
+   "guideIds": [
+    "other-planned-needs"
+   ]
+  },
+  {
+   "type": "handler",
+   "ref": "POST /api/privacy/export/verification/request, /verify, GET /api/privacy/export, DELETE /api/privacy/delete-account",
+   "guideIds": [
+    "account-privacy"
+   ]
+  },
+  {
+   "type": "handler",
+   "ref": "POST /api/quote-requests",
+   "guideIds": [
+    "other-direct"
+   ]
+  },
+  {
+   "type": "handler",
+   "ref": "POST /api/quote-requests, GET /api/quote-requests/my, POST /api/direct/public/lookup",
+   "guideIds": [
+    "hiring-request-quote"
+   ]
+  },
+  {
+   "type": "handler",
+   "ref": "POST /api/reviews/jobs/:jobId, GET /api/reviews/jobs/:jobId/eligibility, PUT /api/reviews/:id/respond",
+   "guideIds": [
+    "hiring-reviews"
+   ]
+  },
+  {
+   "type": "handler",
+   "ref": "POST /api/support/public/conversations, POST /api/support/request, GET /api/support/my-tickets",
+   "guideIds": [
+    "account-support"
+   ]
+  },
+  {
+   "type": "handler",
+   "ref": "POST /api/user-skills",
+   "guideIds": [
+    "helper-work-skills"
+   ]
+  },
+  {
+   "type": "handler",
+   "ref": "POST /api/vehicles/my",
+   "guideIds": [
+    "other-car-care"
+   ]
+  },
+  {
+   "type": "handler",
+   "ref": "POST /api/work-agreements, POST /api/work-agreements/:id/sign, POST /api/work-agreements/:id/change-orders",
+   "guideIds": [
+    "hiring-work-agreements"
+   ]
+  },
+  {
+   "type": "handler",
+   "ref": "POST /consulting/business-launch/submit",
+   "guideIds": [
+    "business-work-setup"
+   ]
+  },
+  {
+   "type": "handler",
+   "ref": "POST /payments/payout/instant",
+   "guideIds": [
+    "helper-work-payouts"
+   ]
+  },
+  {
+   "type": "handler",
+   "ref": "PUT /api/helper-profile/core|visibility|photo",
+   "guideIds": [
+    "helper-work-profile"
+   ]
+  },
+  {
+   "type": "handler",
+   "ref": "PUT /api/helpers/me/availability",
+   "guideIds": [
+    "helper-work-availability"
+   ]
+  },
+  {
+   "type": "handler",
+   "ref": "PUT /api/planned-needs/:id",
+   "guideIds": [
+    "other-planned-needs"
+   ]
+  },
+  {
+   "type": "flag",
+   "ref": "specializedProfileTemplates: false (server/middleware/launchGate.js, client/src/utils/launchScope.js)",
+   "guideIds": [
+    "business-work-specialized-intakes"
+   ]
+  },
+  {
+   "type": "permission",
+   "ref": "tax-identity (W-9) gate on withdrawals",
+   "guideIds": [
+    "helper-work-payouts"
+   ]
+  },
+  {
+   "type": "flag",
+   "ref": "toolRentals: true",
+   "guideIds": [
+    "other-rentals"
+   ]
+  }
+ ]
+}

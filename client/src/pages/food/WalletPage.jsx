@@ -18,6 +18,7 @@ import {
 import toast from 'react-hot-toast';
 import './OxsteedCreditPage.css';
 import { formatCreditMinorUnits } from '../../lib/creditCurrency';
+import SopGuideButton from '../../sop/components/SopGuideButton';
 import { formatCreditDateTime } from '../../lib/creditDateTime';
 import { safeCreditErrorMessage } from '../../lib/creditErrors';
 
@@ -121,6 +122,7 @@ export default function WalletPage() {
               <p>{t('walletDescription')}</p>
             </div>
             <div className="ox-credit-hero-actions">
+              <SopGuideButton />
               {accounts.length > 1 && (
                 <label className="ox-credit-currency-picker">{t('currency')}<select value={selectedCurrency} onChange={changeCurrency} disabled={loading || refreshing}>{[...new Set(accounts.map((item) => item.currencyCode).filter(Boolean))].sort().map((code) => <option key={code} value={code}>{code}</option>)}</select></label>
               )}
