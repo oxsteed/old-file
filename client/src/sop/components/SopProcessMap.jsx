@@ -23,15 +23,22 @@ function layoutNodes(nodes, edges) {
   }
 
   // Layered layout: BFS levels from entry nodes (no incoming edges).
+  // A settled set guards against cycles (e.g. retry loops like
+  // code -> resend -> code): back edges are still drawn, they just do
+  // not raise the target's layer a second time.
   const level = new Map();
   const queue = nodes.filter((node) => incoming.get(node.id) === 0).map((node) => node.id);
   for (const id of queue) level.set(id, 0);
+  const settled = new Set();
   let head = 0;
   while (head < queue.length) {
     const id = queue[head++];
+    if (settled.has(id)) continue;
+    settled.add(id);
     const nextLevel = (level.get(id) ?? 0) + 1;
     for (const target of outgoing.get(id) ?? []) {
-      if (!level.has(target) || level.get(target) < nextLevel) {
+      if (settled.has(target)) continue;
+      if ((level.get(target) ?? -1) < nextLevel) {
         level.set(target, nextLevel);
         queue.push(target);
       }
