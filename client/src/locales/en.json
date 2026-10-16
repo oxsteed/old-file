@@ -1,4 +1,81 @@
 {
+  "sop": {
+    "guideButton": "Step-by-step guide",
+    "englishBadge": "English",
+    "modal": {
+      "title": "Step-by-step guides",
+      "close": "Close",
+      "openFullGuide": "Open full guide",
+      "chooseGuide": "Choose the guide that matches your task",
+      "noneLinked": "No step-by-step guide is linked to this page yet."
+    },
+    "library": {
+      "title": "Step-by-step guides",
+      "subtitle": "Visual walkthroughs for common tasks on OxSteed. Guide content is written in English.",
+      "searchLabel": "Search guides",
+      "searchPlaceholder": "Search by task, for example post a job",
+      "areaLabel": "Area",
+      "audienceLabel": "Audience",
+      "allAreas": "All areas",
+      "allAudiences": "All audiences",
+      "suggestedForYou": "Suggested for you",
+      "useSuggestion": "Use suggestion",
+      "clearFilters": "Clear filters",
+      "results": "{{count}} guides",
+      "noResults": "No guides match your search. Try different keywords or clear the filters.",
+      "viewGuide": "View guide",
+      "supported": "Supported",
+      "conditional": "Conditional",
+      "handbooksTitle": "Guides by role",
+      "handbooksSubtitle": "Ordered reading lists for each role on OxSteed.",
+      "openHandbook": "Open handbook",
+      "guidesInHandbook": "{{count}} guides"
+    },
+    "audience": {
+      "customer": "Customer",
+      "helper": "Helper",
+      "business": "Business",
+      "restaurant": "Restaurant",
+      "logistics": "Logistics"
+    },
+    "guide": {
+      "goal": "Goal",
+      "prerequisites": "Before you start",
+      "processMap": "Process map",
+      "processMapTextToggle": "Text version of this map",
+      "steps": "Steps",
+      "stepNumber": "Step {{n}}",
+      "expectedResult": "Expected result",
+      "viewLarger": "View larger",
+      "closeZoom": "Close enlarged image",
+      "screenshotPending": "Screenshot pending capture",
+      "confirmOutcome": "Confirm it worked",
+      "recovery": "If something goes wrong",
+      "support": "Get help",
+      "relatedGuides": "Related guides",
+      "siteLinks": "Related pages",
+      "sources": "Sources",
+      "revision": "Revision {{revision}}",
+      "notFound": "Guide not found",
+      "notFoundBody": "This guide is not published yet. Browse the full library to find a walkthrough for your task.",
+      "backToLibrary": "Back to all guides"
+    },
+    "checklist": {
+      "title": "Your progress",
+      "reset": "Reset progress",
+      "progress": "{{done}} of {{total}} steps done",
+      "markDone": "Mark step as done",
+      "markNotDone": "Mark step as not done"
+    },
+    "handbook": {
+      "contents": "Contents",
+      "notFound": "Handbook not found",
+      "notFoundBody": "This role handbook is not published yet.",
+      "backToLibrary": "Back to all guides",
+      "guideNotPublished": "Not published yet",
+      "openGuide": "Open guide"
+    }
+  },
   "attention": {
     "onboarding": {
       "title": "Set up {{name}}",

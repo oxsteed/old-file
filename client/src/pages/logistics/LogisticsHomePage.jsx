@@ -7,6 +7,7 @@ import PageShell from '../../components/PageShell';
 import PageMeta from '../../components/PageMeta';
 import LogisticsLayout from '../../components/logistics/LogisticsLayout';
 import CampaignBrowser from '../../components/logistics/CampaignBrowser';
+import SopGuideButton from '../../sop/components/SopGuideButton';
 import {
   isBusinessProcurementEligibleMembership,
 } from '../../utils/logisticsWorkspaces';
@@ -65,6 +66,7 @@ export default function LogisticsHomePage() {
           <h1 className="lx-hub-title">{t('logistics.hub.title')}</h1>
           <p className="lx-hub-intro">{t('logistics.hub.intro')}</p>
           <div className="lx-hub-actions">
+            <SopGuideButton />
             <Link
               to={user ? '/logistics/campaigns/new' : '/join'}
               className="lx-cb-btn-primary"

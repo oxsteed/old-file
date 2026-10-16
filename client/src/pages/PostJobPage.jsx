@@ -10,6 +10,7 @@ import '../styles/PostJobPage.css';
 import PageMeta from '../components/PageMeta';
 import PageShell from '../components/PageShell';
 import { useTranslation } from 'react-i18next';
+import SopGuideButton from '../sop/components/SopGuideButton';
 import { useCapabilities } from '../hooks/useCapabilities';
 import AddressAutocomplete from '../components/AddressAutocomplete';
 import PriceGuidance from '../components/PriceGuidance';
@@ -1197,6 +1198,7 @@ export default function PostJobPage() {
                 <div className="pjw-hero-kicker">{t('postJob.hero.kicker')}</div>
                 <h1 className="pjw-page-title">{t('postJob.title')}</h1>
                 <p className="pjw-page-sub">{t('postJob.hero.subtitle')}</p>
+                <div className="sop-guide-button-wrap"><SopGuideButton /></div>
 
                 <div className="pjw-hero-trust">
                   <span className="pjw-hero-pill">{t('postJob.hero.free')}</span>

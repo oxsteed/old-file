@@ -13,6 +13,7 @@ import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { SlidersHorizontal, X, ChevronDown, Sparkles, MapPin } from 'lucide-react';
+import SopGuideButton from '../sop/components/SopGuideButton';
 
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
@@ -363,6 +364,7 @@ const DirectoryHero: React.FC<{
         <p className="text-gray-400 mt-2 text-base leading-relaxed">
           {isDirect ? t('directCatalog.skillsDirectorySubtitle', { defaultValue: 'Browse trusted helper skills connected to Direct work.' }) : t('helpersDir.heroSubtitle')}
         </p>
+        <div className="sop-guide-button-wrap"><SopGuideButton /></div>
 
         {/* Hero search */}
         <div className="mt-6">

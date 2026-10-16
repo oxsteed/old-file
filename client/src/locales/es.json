@@ -1,4 +1,81 @@
 {
+  "sop": {
+    "guideButton": "Guía paso a paso",
+    "englishBadge": "English",
+    "modal": {
+      "title": "Guías paso a paso",
+      "close": "Cerrar",
+      "openFullGuide": "Abrir la guía completa",
+      "chooseGuide": "Elige la guía que corresponda a tu tarea",
+      "noneLinked": "Aún no hay ninguna guía paso a paso vinculada a esta página."
+    },
+    "library": {
+      "title": "Guías paso a paso",
+      "subtitle": "Tutoriales visuales para las tareas comunes en OxSteed. El contenido de las guías está escrito en inglés.",
+      "searchLabel": "Buscar guías",
+      "searchPlaceholder": "Busca por tarea, por ejemplo publicar un trabajo",
+      "areaLabel": "Área",
+      "audienceLabel": "Audiencia",
+      "allAreas": "Todas las áreas",
+      "allAudiences": "Todas las audiencias",
+      "suggestedForYou": "Sugerido para ti",
+      "useSuggestion": "Usar sugerencia",
+      "clearFilters": "Borrar filtros",
+      "results": "{{count}} guías",
+      "noResults": "Ninguna guía coincide con tu búsqueda. Prueba con otras palabras o borra los filtros.",
+      "viewGuide": "Ver guía",
+      "supported": "Disponible",
+      "conditional": "Condicional",
+      "handbooksTitle": "Guías por rol",
+      "handbooksSubtitle": "Listas de lectura ordenadas para cada rol en OxSteed.",
+      "openHandbook": "Abrir manual",
+      "guidesInHandbook": "{{count}} guías"
+    },
+    "audience": {
+      "customer": "Cliente",
+      "helper": "Ayudante",
+      "business": "Negocio",
+      "restaurant": "Restaurante",
+      "logistics": "Logística"
+    },
+    "guide": {
+      "goal": "Objetivo",
+      "prerequisites": "Antes de empezar",
+      "processMap": "Mapa del proceso",
+      "processMapTextToggle": "Versión en texto de este mapa",
+      "steps": "Pasos",
+      "stepNumber": "Paso {{n}}",
+      "expectedResult": "Resultado esperado",
+      "viewLarger": "Ver más grande",
+      "closeZoom": "Cerrar imagen ampliada",
+      "screenshotPending": "Captura de pantalla pendiente",
+      "confirmOutcome": "Confirma que funcionó",
+      "recovery": "Si algo sale mal",
+      "support": "Obtener ayuda",
+      "relatedGuides": "Guías relacionadas",
+      "siteLinks": "Páginas relacionadas",
+      "sources": "Fuentes",
+      "revision": "Revisión {{revision}}",
+      "notFound": "Guía no encontrada",
+      "notFoundBody": "Esta guía aún no está publicada. Explora la biblioteca completa para encontrar un tutorial para tu tarea.",
+      "backToLibrary": "Volver a todas las guías"
+    },
+    "checklist": {
+      "title": "Tu progreso",
+      "reset": "Restablecer progreso",
+      "progress": "{{done}} de {{total}} pasos completados",
+      "markDone": "Marcar paso como completado",
+      "markNotDone": "Marcar paso como no completado"
+    },
+    "handbook": {
+      "contents": "Contenido",
+      "notFound": "Manual no encontrado",
+      "notFoundBody": "El manual de este rol aún no está publicado.",
+      "backToLibrary": "Volver a todas las guías",
+      "guideNotPublished": "Aún no publicada",
+      "openGuide": "Abrir guía"
+    }
+  },
   "attention": {
     "onboarding": {
       "title": "Configurar {{name}}",
