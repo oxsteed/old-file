@@ -58,17 +58,17 @@ export default function StatCard({
     <div className={`rounded-xl p-4 flex flex-col gap-1 h-full ${
       highlight
         ? 'bg-gradient-to-br from-orange-500 to-orange-600 text-white'
-        : 'bg-[#111318] border border-gray-800 text-white'
-    } ${href ? 'hover:border-gray-600 transition-colors cursor-pointer' : ''}`}>
+        : 'bg-white dark:bg-[#111318] border border-gray-200 dark:border-gray-800 text-gray-900 dark:text-white'
+    } ${href ? 'hover:border-gray-300 dark:hover:border-gray-600 transition-colors cursor-pointer' : ''}`}>
       <div className="flex items-center justify-between">
         <p className={`text-xs font-medium uppercase tracking-wider ${
-          highlight ? 'text-orange-100' : 'text-gray-400'
+          highlight ? 'text-orange-100' : 'text-gray-500 dark:text-gray-400'
         }`}>
           {label}
         </p>
         {Icon && <Icon size={14} className={highlight ? 'text-orange-200' : color} />}
       </div>
-      <p className={`text-2xl font-bold leading-tight ${highlight ? 'text-white' : 'text-white'}`}>
+      <p className={`text-2xl font-bold leading-tight ${highlight ? 'text-white' : 'text-gray-900 dark:text-white'}`}>
         {formatted}
       </p>
       {subtitle && (

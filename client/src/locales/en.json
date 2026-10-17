@@ -27008,6 +27008,8 @@
     "daysAgo_other": "{{count}}d ago",
     "entityRef": "Entity #{{id}}",
     "errorLoadStats": "Failed to load dashboard stats.",
+    "errorSessionExpired": "Your session expired. Please sign in again.",
+    "signInAgain": "Sign in again",
     "eventCancelledJob": "Job cancelled",
     "eventCompletedJob": "Job completed",
     "eventInProgressJob": "Job started",
@@ -30479,7 +30481,13 @@
     "countryPlaceholder": "Filter by country (ISO-2)",
     "loading": "Loading org chart...",
     "emptyTitle": "No corporate assignments yet",
-    "emptyBody": "Start by assigning yourself or another admin a corporate title."
+    "emptyBody": "Start by assigning yourself or another admin a corporate title.",
+    "treeView": "Tree",
+    "departmentView": "Department",
+    "viewLabel": "Org chart view",
+    "vacant": "Vacant",
+    "expand": "Expand",
+    "collapse": "Collapse"
   },
   "adminAllocations": {
     "title": "📊 Allocations & Delivery",

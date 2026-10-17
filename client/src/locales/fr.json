@@ -27008,6 +27008,8 @@
     "daysAgo_other": "il y a {{count}} j",
     "entityRef": "Entité #{{id}}",
     "errorLoadStats": "Échec du chargement des statistiques du tableau de bord.",
+    "errorSessionExpired": "Votre session a expiré. Veuillez vous reconnecter.",
+    "signInAgain": "Se reconnecter",
     "eventCancelledJob": "Mission annulée",
     "eventCompletedJob": "Mission terminée",
     "eventInProgressJob": "Mission démarrée",
@@ -30479,7 +30481,13 @@
     "countryPlaceholder": "Filtrer par pays (ISO-2)",
     "loading": "Chargement de l'organigramme...",
     "emptyTitle": "Aucune affectation d'entreprise pour le moment",
-    "emptyBody": "Commencez par vous attribuer, à vous ou à un autre administrateur, un titre d'entreprise."
+    "emptyBody": "Commencez par vous attribuer, à vous ou à un autre administrateur, un titre d'entreprise.",
+    "treeView": "Arbre",
+    "departmentView": "Département",
+    "viewLabel": "Vue de l'organigramme",
+    "vacant": "Vacant",
+    "expand": "Développer",
+    "collapse": "Réduire"
   },
   "adminAllocations": {
     "title": "📊 Allocations et livraisons",

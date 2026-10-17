@@ -5,6 +5,7 @@ import {
   ChevronDown, ChevronRight, Loader2, Filter,
 } from 'lucide-react';
 import { getCorporateOrgChart, getCorporateCatalog } from '../../../api/corporateRoles';
+import OrgTreeView from './OrgTreeView';
 
 function userName(row) {
   const f = row.first_name || '';
@@ -110,6 +111,7 @@ export default function CorporateOrgChart() {
   const [chart,   setChart]   = useState(null);
   const [catalog, setCatalog] = useState(null);
   const [country, setCountry] = useState('');
+  const [view, setView] = useState('tree');
   const [loading, setLoading] = useState(true);
   const [error,   setError]   = useState(null);
 
@@ -145,6 +147,27 @@ export default function CorporateOrgChart() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <div
+            role="tablist"
+            aria-label={t('adminOrgChart.viewLabel')}
+            className="flex bg-gray-800 border border-gray-700 rounded-lg p-0.5"
+          >
+            {['tree', 'department'].map((v) => (
+              <button
+                key={v}
+                role="tab"
+                aria-selected={view === v}
+                onClick={() => setView(v)}
+                className={`px-3 py-1.5 text-sm rounded-md ${
+                  view === v
+                    ? 'bg-gray-700 text-white font-medium'
+                    : 'text-gray-400 hover:text-gray-200'
+                }`}
+              >
+                {t(`adminOrgChart.${v}View`)}
+              </button>
+            ))}
+          </div>
           <Filter size={14} className="text-gray-500" />
           <input
             type="text"
@@ -174,6 +197,8 @@ export default function CorporateOrgChart() {
             {t('adminOrgChart.emptyBody')}
           </p>
         </div>
+      ) : view === 'tree' ? (
+        <OrgTreeView titles={chart.titles} />
       ) : (
         <div className="space-y-4">
           {(chart.by_department || []).map(block => (

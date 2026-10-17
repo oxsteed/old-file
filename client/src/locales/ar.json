@@ -27019,6 +27019,8 @@
     "daysAgo_other": "منذ {{count}} يوم",
     "entityRef": "الكيان #{{id}}",
     "errorLoadStats": "تعذر تحميل إحصاءات لوحة التحكم.",
+    "errorSessionExpired": "انتهت جلستك. يرجى تسجيل الدخول مرة أخرى.",
+    "signInAgain": "تسجيل الدخول مرة أخرى",
     "eventCancelledJob": "أُلغيت المهمة",
     "eventCompletedJob": "اكتملت المهمة",
     "eventInProgressJob": "بدأت المهمة",
@@ -30490,7 +30492,13 @@
     "countryPlaceholder": "تصفية حسب البلد (ISO-2)",
     "loading": "جارٍ تحميل المخطط التنظيمي...",
     "emptyTitle": "لا توجد تعيينات مؤسسية بعد",
-    "emptyBody": "ابدأ بمنح نفسك أو مشرف آخر لقبًا مؤسسيًا."
+    "emptyBody": "ابدأ بمنح نفسك أو مشرف آخر لقبًا مؤسسيًا.",
+    "treeView": "شجرة",
+    "departmentView": "القسم",
+    "viewLabel": "عرض المخطط التنظيمي",
+    "vacant": "شاغر",
+    "expand": "توسيع",
+    "collapse": "طي"
   },
   "adminAllocations": {
     "title": "📊 التخصيصات والتسليم",

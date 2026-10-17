@@ -847,12 +847,66 @@ exports.getOrgChart = async (req, res, next) => {
         total_assignments: rows.length,
         by_department: Array.from(byDepartment.values()),
         flat: rows,
+        titles: await getTitleTree(pool, country),
       },
     });
   } catch (err) {
     next(err);
   }
 };
+
+// ─────────────────────────────────────────────────────────────────────────
+// Position tree for the org chart tree view (migration 884).
+// Returns every active title with its reports_to_title_id and the active
+// assignment's person (or null when vacant), so the tree renders from
+// positions rather than only from assigned people.
+// ─────────────────────────────────────────────────────────────────────────
+async function getTitleTree(pool, country, params) {
+  const tParams = [];
+  let assignWhere = 'ca.is_active = TRUE';
+  if (country) {
+    tParams.push(country);
+    assignWhere += ` AND (ca.country_code IS NULL OR ca.country_code = $${tParams.length})`;
+  }
+  const { rows } = await pool.query(
+    `SELECT t.id, t.code, t.name, t.seniority_level, t.is_csuite,
+            t.reports_to_title_id, t.sort_order,
+            d.code AS department_code, d.name AS department_name,
+            d.color AS department_color,
+            ca.user_id,
+            u.first_name, u.last_name, u.email, u.profile_photo_url,
+            ca.country_code AS assignment_country
+       FROM corporate_titles t
+       JOIN corporate_departments d ON d.id = t.department_id
+       LEFT JOIN corporate_assignments ca
+         ON ca.title_id = t.id AND ${assignWhere}
+       LEFT JOIN users u ON u.id = ca.user_id
+      WHERE t.is_active = TRUE
+      ORDER BY t.seniority_level DESC, t.sort_order`,
+    tParams
+  );
+  return rows.map((r) => ({
+    id: r.id,
+    code: r.code,
+    name: r.name,
+    seniority_level: r.seniority_level,
+    is_csuite: r.is_csuite,
+    reports_to_title_id: r.reports_to_title_id,
+    department_code: r.department_code,
+    department_name: r.department_name,
+    department_color: r.department_color,
+    assignee: r.user_id
+      ? {
+          user_id: r.user_id,
+          first_name: r.first_name,
+          last_name: r.last_name,
+          email: r.email,
+          profile_photo_url: r.profile_photo_url,
+          country_code: r.assignment_country,
+        }
+      : null,
+  }));
+}
 
 // ─────────────────────────────────────────────────────────────────────────
 // Audit log readout

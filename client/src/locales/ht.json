@@ -27008,6 +27008,8 @@
     "daysAgo_other": "{{count}} jou pase",
     "entityRef": "Antite #{{id}}",
     "errorLoadStats": "Nou pa t ka chaje estatistik tablodbò a.",
+    "errorSessionExpired": "Sesyon w lan ekspire. Tanpri konekte ankò.",
+    "signInAgain": "Konekte ankò",
     "eventCancelledJob": "Travay anile",
     "eventCompletedJob": "Travay fini",
     "eventInProgressJob": "Travay kòmanse",
@@ -30479,7 +30481,13 @@
     "countryPlaceholder": "Filtre pa peyi (ISO-2)",
     "loading": "Ap chaje òganigram lan...",
     "emptyTitle": "Pa gen asiyasyon antrepriz pou kounye a",
-    "emptyBody": "Kòmanse pa bay tèt ou oswa yon lòt admin yon tit antrepriz."
+    "emptyBody": "Kòmanse pa bay tèt ou oswa yon lòt admin yon tit antrepriz.",
+    "treeView": "Pyebwa",
+    "departmentView": "Depatman",
+    "viewLabel": "Vi òganigram lan",
+    "vacant": "Vid",
+    "expand": "Deplwaye",
+    "collapse": "Pliye"
   },
   "adminAllocations": {
     "title": "📊 Alokasyon ak Livrezon",
