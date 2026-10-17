@@ -12677,7 +12677,10 @@
     "addCountry": "Agregar país",
     "centerLatitude": "Latitud central",
     "centerLongitude": "Longitud central",
-    "radiusMiles": "Radio (millas)"
+    "radiusMiles": "Radio (millas)",
+    "country": "País",
+    "countryGlobalOption": "Global — utilizable con cualquier país",
+    "countryHint": "Etiquete esta región con un país para que solo aparezca en asignaciones de ese país. Déjelo en Global para ofrecerla en todas partes."
   },
   "templateBehavior": {
     "bestSetup": "Mejor configuración para este modo",
@@ -28745,9 +28748,8 @@
     "titleOptionLabel": "{{name}}{{csuite}} - N{{level}}",
     "csuiteTag": " (C-suite)",
     "titleHint": "Los niveles de antigüedad más altos y los títulos C-suite solo pueden ser asignados por un superadministrador.",
-    "fieldCountry": "País (ISO-2)",
-    "placeholderCountry": "p. ej., US, MX, HT, FR",
-    "countryHint": "Vacío = alcance global",
+    "fieldCountry": "País",
+    "countryHint": "Elija Global para una asignación mundial.",
     "fieldRegion": "Región",
     "selectNoneOption": "- Ninguno -",
     "fieldReportsTo": "Reporta a",
@@ -28778,7 +28780,15 @@
     "scopeGlobal": "Global",
     "editTitleAttr": "Editar",
     "endAssignmentTitle": "Finalizar asignación",
-    "endAssignmentMessage": "¿Finalizar esta asignación? El usuario perderá los permisos asociados."
+    "endAssignmentMessage": "¿Finalizar esta asignación? El usuario perderá los permisos asociados.",
+    "globalCountryOption": "Global — todos los países",
+    "regionHint": "Reduce el alcance dentro del país seleccionado. Solo se listan las regiones etiquetadas para ese país, además de las regiones globales.",
+    "boundaryZipRange": "Rango de códigos postales",
+    "boundaryCityState": "Ciudad / estado",
+    "boundaryGeoRadius": "Radio geográfico",
+    "boundaryCountryRegion": "País + región",
+    "boundaryCountryOnly": "Solo país",
+    "boundaryCustom": "Personalizado"
   },
   "adminBusinessLaunchDetail": {
     "loadConsultantsFailed": "No se pudieron cargar los consultores",

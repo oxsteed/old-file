@@ -19,6 +19,7 @@
 const pool = require('../db');
 const logger = require('../utils/logger');
 const corporateRolesService = require('../services/corporateRolesService');
+const { isValidCountry } = require('../utils/countries');
 
 function isSuper(req) {
   return Boolean(req.isSuper) || req.user?.role === 'super_admin';
@@ -30,6 +31,23 @@ function badRequest(res, message, code = 'bad_request', extra = {}) {
 
 function notFound(res, message = 'Not found.') {
   return res.status(404).json({ error: message, code: 'not_found' });
+}
+
+/**
+ * Normalize + validate an ISO-2 country code coming from the client.
+ * Returns null for empty input (global scope). Throws a 400-friendly
+ * Error on malformed input.
+ */
+function normalizeCountryCode(raw) {
+  if (raw === undefined || raw === null || String(raw).trim() === '') return null;
+  const code = String(raw).trim().toUpperCase();
+  if (!isValidCountry(code)) {
+    const err = new Error('country_code must be a valid 2-letter ISO country code.');
+    err.statusCode = 400;
+    err.code = 'invalid_country_code';
+    throw err;
+  }
+  return code;
 }
 
 function forbidden(res, message, code = 'forbidden', extra = {}) {
@@ -395,17 +413,25 @@ exports.getAssignment = async (req, res, next) => {
 };
 
 exports.createAssignment = async (req, res, next) => {
+  const {
+    user_id, title_id, country_code, region_id,
+    reports_to_user_id, started_at, notes,
+  } = req.body || {};
+
+  if (!user_id || !title_id) {
+    return badRequest(res, 'user_id and title_id are required.', 'validation_failed');
+  }
+
+  // Validate country code before touching the DB (400s thrown as errors)
+  let normalizedCountry;
+  try {
+    normalizedCountry = normalizeCountryCode(country_code);
+  } catch (err) {
+    return badRequest(res, err.message, err.code || 'invalid_country_code');
+  }
+
   const client = await pool.connect();
   try {
-    const {
-      user_id, title_id, country_code, region_id,
-      reports_to_user_id, started_at, notes,
-    } = req.body || {};
-
-    if (!user_id || !title_id) {
-      return badRequest(res, 'user_id and title_id are required.', 'validation_failed');
-    }
-
     await client.query('BEGIN');
 
     // Verify target user exists AND is internal staff (corporate titles are
@@ -492,7 +518,7 @@ exports.createAssignment = async (req, res, next) => {
        RETURNING *`,
       [
         user_id, title.id, title.department_id,
-        country_code ? String(country_code).toUpperCase() : null,
+        normalizedCountry,
         region_id || null,
         reports_to_user_id || null,
         started_at || null,
@@ -561,6 +587,13 @@ exports.updateAssignment = async (req, res, next) => {
 
     const { country_code, region_id, reports_to_user_id, notes, ended_at, is_active } = req.body || {};
 
+    let normalizedCountry;
+    try {
+      normalizedCountry = normalizeCountryCode(country_code);
+    } catch (err) {
+      return badRequest(res, err.message, err.code || 'invalid_country_code');
+    }
+
     const upd = await client.query(
       `UPDATE corporate_assignments
           SET country_code       = $1,
@@ -572,8 +605,7 @@ exports.updateAssignment = async (req, res, next) => {
         WHERE id = $7
       RETURNING *`,
       [
-        country_code === undefined ? before.country_code
-          : (country_code ? String(country_code).toUpperCase() : null),
+        country_code === undefined ? before.country_code : normalizedCountry,
         region_id === undefined ? before.region_id : (region_id || null),
         reports_to_user_id === undefined ? before.reports_to_user_id : (reports_to_user_id || null),
         notes === undefined ? before.notes : (notes || null),

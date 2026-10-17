@@ -12677,7 +12677,10 @@
     "addCountry": "Ajouter un pays",
     "centerLatitude": "Latitude du centre",
     "centerLongitude": "Longitude du centre",
-    "radiusMiles": "Rayon (miles)"
+    "radiusMiles": "Rayon (miles)",
+    "country": "Pays",
+    "countryGlobalOption": "Global — utilisable avec tous les pays",
+    "countryHint": "Étiquetez cette région avec un pays pour qu’elle n’apparaisse que pour les affectations de ce pays. Laissez Global pour la proposer partout."
   },
   "templateBehavior": {
     "bestSetup": "Configuration recommandée pour ce mode",
@@ -28745,9 +28748,8 @@
     "titleOptionLabel": "{{name}}{{csuite}} - N{{level}}",
     "csuiteTag": " (C-suite)",
     "titleHint": "Les niveaux d'ancienneté élevés et les titres C-suite ne peuvent être attribués que par un super-administrateur.",
-    "fieldCountry": "Pays (ISO-2)",
-    "placeholderCountry": "ex. : US, MX, HT, FR",
-    "countryHint": "Vide = portée mondiale",
+    "fieldCountry": "Pays",
+    "countryHint": "Choisissez Global pour une affectation mondiale.",
     "fieldRegion": "Région",
     "selectNoneOption": "- Aucun -",
     "fieldReportsTo": "Rend compte à",
@@ -28778,7 +28780,15 @@
     "scopeGlobal": "Mondial",
     "editTitleAttr": "Modifier",
     "endAssignmentTitle": "Mettre fin à l'affectation",
-    "endAssignmentMessage": "Mettre fin à cette affectation ? L'utilisateur perdra les autorisations associées."
+    "endAssignmentMessage": "Mettre fin à cette affectation ? L'utilisateur perdra les autorisations associées.",
+    "globalCountryOption": "Global — tous les pays",
+    "regionHint": "Restreint la portée au pays sélectionné. Seules les régions étiquetées pour ce pays, plus les régions globales, sont listées.",
+    "boundaryZipRange": "Plage de codes postaux",
+    "boundaryCityState": "Ville / état",
+    "boundaryGeoRadius": "Rayon géographique",
+    "boundaryCountryRegion": "Pays + région",
+    "boundaryCountryOnly": "Pays uniquement",
+    "boundaryCustom": "Personnalisé"
   },
   "adminBusinessLaunchDetail": {
     "loadConsultantsFailed": "Échec du chargement des consultants",

@@ -15,6 +15,14 @@ const countriesUtil  = require('../utils/countries');
 
 // ── Validation helpers ──────────────────────────────────────────────────────
 
+// Normalize a region country tag: null/empty -> null (global), a valid ISO-2
+// code -> uppercase code, anything else -> false (invalid).
+function normalizeRegionCountry(raw) {
+  if (raw === undefined || raw === null || String(raw).trim() === '') return null;
+  const code = String(raw).trim().toUpperCase();
+  return countriesUtil.isValidCountry(code) ? code : false;
+}
+
 function validateBoundary(def) {
   if (!def || typeof def !== 'object') return 'boundary_definition must be an object.';
   if (!def.type) return 'boundary_definition.type is required.';
@@ -95,7 +103,7 @@ function validateBoundary(def) {
 exports.listRegions = async (_req, res) => {
   try {
     const { rows } = await db.query(`
-      SELECT r.id, r.name, r.description, r.boundary_definition,
+      SELECT r.id, r.name, r.description, r.boundary_definition, r.country_code,
              r.created_by, r.created_at, r.updated_at,
              u.first_name || ' ' || u.last_name AS created_by_name,
              (SELECT COUNT(*) FROM admin_permission_grants g
@@ -117,18 +125,22 @@ exports.listRegions = async (_req, res) => {
 
 exports.createRegion = async (req, res) => {
   try {
-    const { name, description = null, boundary_definition } = req.body || {};
+    const { name, description = null, boundary_definition, country_code } = req.body || {};
     if (!name || !name.toString().trim()) {
       return res.status(400).json({ error: 'name is required.' });
     }
     const boundaryError = validateBoundary(boundary_definition);
     if (boundaryError) return res.status(400).json({ error: boundaryError });
+    const normalizedCountry = normalizeRegionCountry(country_code);
+    if (normalizedCountry === false) {
+      return res.status(400).json({ error: 'country_code must be a valid 2-letter ISO country code.' });
+    }
 
     const { rows } = await db.query(`
-      INSERT INTO admin_regions (name, description, boundary_definition, created_by)
-      VALUES ($1, $2, $3::jsonb, $4)
+      INSERT INTO admin_regions (name, description, boundary_definition, country_code, created_by)
+      VALUES ($1, $2, $3::jsonb, $4, $5)
       RETURNING *
-    `, [name.trim(), description, JSON.stringify(boundary_definition), req.user.id]);
+    `, [name.trim(), description, JSON.stringify(boundary_definition), normalizedCountry, req.user.id]);
 
     logAdminAction({
       adminId: req.user.id,
@@ -155,7 +167,7 @@ exports.createRegion = async (req, res) => {
 exports.updateRegion = async (req, res) => {
   try {
     const { regionId } = req.params;
-    const { name, description, boundary_definition } = req.body || {};
+    const { name, description, boundary_definition, country_code } = req.body || {};
 
     const { rows: existing } = await db.query(
       'SELECT * FROM admin_regions WHERE id = $1', [regionId]
@@ -183,6 +195,14 @@ exports.updateRegion = async (req, res) => {
     if (boundary_definition !== undefined) {
       updates.push(`boundary_definition = $${p++}::jsonb`);
       values.push(JSON.stringify(boundary_definition));
+    }
+    if (country_code !== undefined) {
+      const normalizedCountry = normalizeRegionCountry(country_code);
+      if (normalizedCountry === false) {
+        return res.status(400).json({ error: 'country_code must be a valid 2-letter ISO country code.' });
+      }
+      updates.push(`country_code = $${p++}`);
+      values.push(normalizedCountry);
     }
     if (!updates.length) {
       return res.status(400).json({ error: 'No updatable fields supplied.' });
