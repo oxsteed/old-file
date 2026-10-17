@@ -29637,7 +29637,10 @@
       "payments": "Peman",
       "tickets": "Tikè sipò",
       "notes": "Nòt",
-      "investigation": "Ankèt"
+      "investigation": "Ankèt",
+      "trust": "Konfyans",
+      "devices": "Aparèy",
+      "network": "Rezo"
     },
     "tickets": {
       "created": "Kreye",
@@ -29678,7 +29681,85 @@
       "reactivateTitle": "Reaktive {name}",
       "reactivateMessage": "Reaktive {name}? Sa ap retire sispansyon oswa restriksyon sou kont li.",
       "reasonLabel": "Rezon",
-      "reasonPlaceholder": "Eksplike poukisa - sa ap anrejistre nan jounal odit la."
+      "reasonPlaceholder": "Eksplike poukisa - sa ap anrejistre nan jounal odit la.",
+      "impersonate": "Wè kòm itilizatè",
+      "impersonateConfirm": "Louvri kont {name} nan yon nouvo onglè? Sa ap anrejistre.",
+      "impersonateFailed": "Pa t kapab kòmanse imitasyon an.",
+      "exportPdf": "Ekspòte / enprime"
+    },
+    "watch": {
+      "watch": "Veye",
+      "watching": "Ap veye",
+      "hint": "Resevwa notifikasyon lè yo louvri yon diskisyon ki konsène itilizatè sa a.",
+      "since": "Ap veye depi {date}"
+    },
+    "caseOwner": {
+      "owner": "Mèt dosye a: {name}",
+      "release": "Lage",
+      "claim": "Pran dosye a"
+    },
+    "trust": {
+      "title": "Istwa konfyans",
+      "subtitle": "Avètisman, sispansyon ak restriksyon ak rezon.",
+      "empty": "Okenn aksyon konfyans anrejistre."
+    },
+    "devices": {
+      "title": "Aparèy ak IP",
+      "subtitle": "Istwa koneksyon ak drapo IP pataje.",
+      "empty": "Okenn istwa koneksyon.",
+      "totalLogins": "Koneksyon",
+      "distinctIps": "IP",
+      "distinctDevices": "Aparèy",
+      "failedAttempts": "Echwe",
+      "sharedIp": "Pataje ak {count} lòt kont",
+      "unknownDevice": "Aparèy enkoni",
+      "failed": "Koneksyon echwe"
+    },
+    "network": {
+      "duplicatesTitle": "Doulon posib",
+      "duplicatesSubtitle": "Kont ki lye pa verifikasyon idantite.",
+      "duplicatesEmpty": "Okenn kont doub detekte.",
+      "entitiesTitle": "Biznis lye",
+      "entitiesSubtitle": "Biznis moun sa a posede oswa jere.",
+      "entitiesEmpty": "Okenn biznis lye.",
+      "searchTitle": "Mansyone lòt kote",
+      "searchSubtitle": "Chèche nòt, diskisyon ak tikè sou moun sa a nan lòt dosye.",
+      "searchPlaceholder": "Non, imèl oswa mo kle (min 3 lèt)",
+      "search": "Chèche",
+      "searchEmpty": "Okenn lòt dosye pa mansyone sa a."
+    },
+    "health": {
+      "title": "Sante kliyan",
+      "subtitle": "Metrik konpòtman ak mwayèn platfòm lan.",
+      "jobs": "Djòb",
+      "completed": "{count} fini",
+      "cancelRate": "To anilasyon",
+      "platformAvg": "Mwayèn: {value}",
+      "avgJobValue": "Valè mwayèn",
+      "disputes": "Diskisyon"
+    },
+    "helperSide": {
+      "title": "Kòm èdè",
+      "subtitle": "Dosye yo kòm founisè.",
+      "rating": "Nòt",
+      "reviews": "Avi",
+      "completedJobs": "Djòb fè",
+      "tier": "Nivo",
+      "idVerified": "ID verifye",
+      "bgPassed": "Verifikasyon antesedan pase"
+    },
+    "onboarding": {
+      "title": "Entegrasyon",
+      "subtitle": "{done} sou {total} etap fini",
+      "contact": "Enfòmasyon kontak",
+      "profile": "Pwofil",
+      "identity": "Idantite verifye",
+      "w9": "W-9 anrejistre"
+    },
+    "conversations": {
+      "title": "Konvèsasyon resan",
+      "subtitle": "Fil mesaj ak sipò ak itilizatè.",
+      "unknownUser": "Itilizatè enkoni"
     },
     "risk": {
       "title": "Risk ak verifikasyon",
@@ -29723,7 +29804,9 @@
       "empty": "Poko gen nòt. Kite premye a.",
       "placeholder": "Ekri yon nòt dosye... (admin yo selman ka we l)",
       "add": "Ajoute nòt",
-      "edited": "modifye"
+      "edited": "modifye",
+      "pinToggle": "Plake / lage nòt",
+      "pinned": "Plake"
     },
     "investigation": {
       "title": "Ankèt",

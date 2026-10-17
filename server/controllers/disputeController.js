@@ -363,6 +363,19 @@ exports.openDispute = async (req, res, next) => {
         logger.error('Failed to send dispute notification:', notifErr);
         // Don't fail the response if notifications fail
       }
+      // Customer 360 watchlist: notify admins watching any involved user.
+      try {
+        const { notifyWatchers } = require('./customer360Controller');
+        const watchedIds = [userId, againstUserId, dispute.client_id, dispute.assigned_helper_id]
+          .filter(Boolean).map(String);
+        await notifyWatchers({
+          targetUserIds: [...new Set(watchedIds)],
+          disputeId: dispute.id,
+          jobTitle: jobParty?.title || '',
+        });
+      } catch (watchErr) {
+        logger.warn('Watchlist dispute notification failed', { error: watchErr.message });
+      }
     }
 
     res.status(result.replayed ? 200 : 201).json({

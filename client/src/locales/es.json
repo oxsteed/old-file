@@ -29637,7 +29637,10 @@
       "payments": "Pagos",
       "tickets": "Tickets de soporte",
       "notes": "Notas",
-      "investigation": "Investigacion"
+      "investigation": "Investigacion",
+      "trust": "Confianza",
+      "devices": "Dispositivos",
+      "network": "Red"
     },
     "tickets": {
       "created": "Creado",
@@ -29678,7 +29681,85 @@
       "reactivateTitle": "Reactivar a {name}",
       "reactivateMessage": "Reactivar a {name}? Esto elimina la suspension o restriccion de su cuenta.",
       "reasonLabel": "Motivo",
-      "reasonPlaceholder": "Explica por que - se guarda en el registro de auditoria."
+      "reasonPlaceholder": "Explica por que - se guarda en el registro de auditoria.",
+      "impersonate": "Ver como usuario",
+      "impersonateConfirm": "¿Abrir la cuenta de {name} en una pestaña nueva? Esto se registra.",
+      "impersonateFailed": "No se pudo iniciar la suplantación.",
+      "exportPdf": "Exportar / imprimir"
+    },
+    "watch": {
+      "watch": "Vigilar",
+      "watching": "Vigilando",
+      "hint": "Recibe una notificación cuando se abra una disputa relacionada con este usuario.",
+      "since": "Vigilando desde el {date}"
+    },
+    "caseOwner": {
+      "owner": "Responsable del caso: {name}",
+      "release": "Liberar",
+      "claim": "Tomar el caso"
+    },
+    "trust": {
+      "title": "Historial de confianza",
+      "subtitle": "Advertencias, suspensiones y restricciones con motivos.",
+      "empty": "Sin acciones de confianza registradas."
+    },
+    "devices": {
+      "title": "Dispositivos e IP",
+      "subtitle": "Historial de inicios de sesión con alertas de IP compartida.",
+      "empty": "Sin historial de inicios de sesión.",
+      "totalLogins": "Inicios",
+      "distinctIps": "IPs",
+      "distinctDevices": "Dispositivos",
+      "failedAttempts": "Fallidos",
+      "sharedIp": "Compartida con {count} otra(s) cuenta(s)",
+      "unknownDevice": "Dispositivo desconocido",
+      "failed": "Inicio fallido"
+    },
+    "network": {
+      "duplicatesTitle": "Posibles duplicados",
+      "duplicatesSubtitle": "Cuentas vinculadas por verificación de identidad.",
+      "duplicatesEmpty": "No se detectaron cuentas duplicadas.",
+      "entitiesTitle": "Negocios vinculados",
+      "entitiesSubtitle": "Negocios que esta persona posee o gestiona.",
+      "entitiesEmpty": "Sin negocios vinculados.",
+      "searchTitle": "Mencionado en otro lugar",
+      "searchSubtitle": "Busca notas, disputas y tickets sobre esta persona en otros registros.",
+      "searchPlaceholder": "Nombre, correo o palabra clave (mín. 3)",
+      "search": "Buscar",
+      "searchEmpty": "Ningún otro registro lo menciona."
+    },
+    "health": {
+      "title": "Salud del cliente",
+      "subtitle": "Métricas de comportamiento con promedios de la plataforma.",
+      "jobs": "Trabajos",
+      "completed": "{count} completados",
+      "cancelRate": "Tasa de cancelación",
+      "platformAvg": "Promedio: {value}",
+      "avgJobValue": "Valor medio",
+      "disputes": "Disputas"
+    },
+    "helperSide": {
+      "title": "Como ayudante",
+      "subtitle": "Su historial como proveedor.",
+      "rating": "Calificación",
+      "reviews": "Reseñas",
+      "completedJobs": "Trabajos hechos",
+      "tier": "Nivel",
+      "idVerified": "ID verificada",
+      "bgPassed": "Verificación de antecedentes aprobada"
+    },
+    "onboarding": {
+      "title": "Incorporación",
+      "subtitle": "{done} de {total} pasos completos",
+      "contact": "Datos de contacto",
+      "profile": "Perfil",
+      "identity": "Identidad verificada",
+      "w9": "W-9 archivado"
+    },
+    "conversations": {
+      "title": "Conversaciones recientes",
+      "subtitle": "Hilos de mensajes con soporte y usuarios.",
+      "unknownUser": "Usuario desconocido"
     },
     "risk": {
       "title": "Riesgo y verificacion",
@@ -29723,7 +29804,9 @@
       "empty": "Sin notas todavia. Deja la primera.",
       "placeholder": "Escribe una nota del caso... (solo visible para administradores)",
       "add": "Agregar nota",
-      "edited": "editado"
+      "edited": "editado",
+      "pinToggle": "Fijar / soltar nota",
+      "pinned": "Fijada"
     },
     "investigation": {
       "title": "Investigacion",

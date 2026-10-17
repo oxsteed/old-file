@@ -283,6 +283,21 @@ router.post('/users/:userId/notes',                 requireAdmin, requirePermiss
 router.put('/users/:userId/notes/:noteId',          requireAdmin, requirePermission('manage_users'), superCtrl.updateUserNote);
 router.delete('/users/:userId/notes/:noteId',       requireAdmin, requirePermission('manage_users'), superCtrl.deleteUserNote);
 
+// Customer 360 second wave (all read/write behind manage_users)
+const c360Ctrl = require('../controllers/customer360Controller');
+router.get('/users/:userId/duplicates',             requireAdmin, requirePermission('manage_users'), c360Ctrl.getDuplicates);
+router.get('/users/:userId/linked-entities',        requireAdmin, requirePermission('manage_users'), c360Ctrl.getLinkedEntities);
+router.get('/users/:userId/login-history',          requireAdmin, requirePermission('manage_users'), c360Ctrl.getLoginHistory);
+router.get('/users/:userId/health',                 requireAdmin, requirePermission('manage_users'), c360Ctrl.getHealth);
+router.get('/users/:userId/related-search',         requireAdmin, requirePermission('manage_users'), c360Ctrl.relatedSearch);
+router.get('/users/:userId/watch',                  requireAdmin, requirePermission('manage_users'), c360Ctrl.getWatchStatus);
+router.post('/users/:userId/watch',                 requireAdmin, requirePermission('manage_users'), c360Ctrl.addWatch);
+router.delete('/users/:userId/watch',               requireAdmin, requirePermission('manage_users'), c360Ctrl.removeWatch);
+router.patch('/users/:userId/notes/:noteId/pin',    requireAdmin, requirePermission('manage_users'), c360Ctrl.toggleNotePin);
+router.get('/users/:userId/case-owner',             requireAdmin, requirePermission('manage_users'), c360Ctrl.getCaseOwner);
+router.put('/users/:userId/case-owner',             requireAdmin, requirePermission('manage_users'), c360Ctrl.setCaseOwner);
+router.delete('/users/:userId/case-owner',          requireAdmin, requirePermission('manage_users'), c360Ctrl.clearCaseOwner);
+
 // Granular status controls (super-admin only)
 router.post('/users/:userId/suspend',    requireSuperAdmin, superCtrl.suspendUser);
 router.post('/users/:userId/restrict',   requireSuperAdmin, superCtrl.restrictUser);

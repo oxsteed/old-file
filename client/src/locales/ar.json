@@ -29648,7 +29648,10 @@
       "payments": "المدفوعات",
       "tickets": "تذاكر الدعم",
       "notes": "ملاحظات",
-      "investigation": "تحقيق"
+      "investigation": "تحقيق",
+      "trust": "الثقة",
+      "devices": "الأجهزة",
+      "network": "الشبكة"
     },
     "tickets": {
       "created": "أُنشئت",
@@ -29689,7 +29692,85 @@
       "reactivateTitle": "إعادة تفعيل {name}",
       "reactivateMessage": "إعادة تفعيل {name}؟ سيؤدي هذا إلى إزالة الإيقاف أو التقييد عن حسابه.",
       "reasonLabel": "السبب",
-      "reasonPlaceholder": "اشرح السبب - سيُحفظ في سجل التدقيق."
+      "reasonPlaceholder": "اشرح السبب - سيُحفظ في سجل التدقيق.",
+      "impersonate": "عرض كمستخدم",
+      "impersonateConfirm": "فتح حساب {name} في علامة تبويب جديدة؟ يتم تسجيل هذا.",
+      "impersonateFailed": "تعذر بدء انتحال الهوية.",
+      "exportPdf": "تصدير / طباعة"
+    },
+    "watch": {
+      "watch": "راقب",
+      "watching": "قيد المراقبة",
+      "hint": "تلقي إشعار عند فتح نزاع يتعلق بهذا المستخدم.",
+      "since": "قيد المراقبة منذ {date}"
+    },
+    "caseOwner": {
+      "owner": "مسؤول القضية: {name}",
+      "release": "تحرير",
+      "claim": "تولّي المسؤولية"
+    },
+    "trust": {
+      "title": "سجل الثقة",
+      "subtitle": "التحذيرات والتعليقات والقيود مع الأسباب.",
+      "empty": "لا توجد إجراءات ثقة مسجلة."
+    },
+    "devices": {
+      "title": "الأجهزة وعناوين IP",
+      "subtitle": "سجل تسجيل الدخول مع تنبيهات عناوين IP المشتركة.",
+      "empty": "لا يوجد سجل تسجيل دخول.",
+      "totalLogins": "تسجيلات الدخول",
+      "distinctIps": "عناوين IP",
+      "distinctDevices": "الأجهزة",
+      "failedAttempts": "فاشلة",
+      "sharedIp": "مشتركة مع {count} حساب آخر",
+      "unknownDevice": "جهاز غير معروف",
+      "failed": "فشل تسجيل الدخول"
+    },
+    "network": {
+      "duplicatesTitle": "حسابات مكررة محتملة",
+      "duplicatesSubtitle": "حسابات مرتبطة عبر التحقق من الهوية.",
+      "duplicatesEmpty": "لم يتم اكتشاف حسابات مكررة.",
+      "entitiesTitle": "شركات مرتبطة",
+      "entitiesSubtitle": "الشركات التي يملكها هذا الشخص أو يديرها.",
+      "entitiesEmpty": "لا توجد شركات مرتبطة.",
+      "searchTitle": "مذكور في مكان آخر",
+      "searchSubtitle": "ابحث عن الملاحظات والنزاعات والتذاكر المتعلقة بهذا الشخص في سجلات أخرى.",
+      "searchPlaceholder": "الاسم أو البريد أو كلمة مفتاحية (3 أحرف على الأقل)",
+      "search": "بحث",
+      "searchEmpty": "لا توجد سجلات أخرى تذكر هذا."
+    },
+    "health": {
+      "title": "صحة العميل",
+      "subtitle": "مقاييس السلوك مع متوسطات المنصة للمقارنة.",
+      "jobs": "المهام",
+      "completed": "{count} مكتملة",
+      "cancelRate": "معدل الإلغاء",
+      "platformAvg": "متوسط المنصة: {value}",
+      "avgJobValue": "متوسط قيمة المهمة",
+      "disputes": "النزاعات"
+    },
+    "helperSide": {
+      "title": "كمقدم خدمة",
+      "subtitle": "سجلهم كمقدم خدمة.",
+      "rating": "التقييم",
+      "reviews": "المراجعات",
+      "completedJobs": "مهام منجزة",
+      "tier": "المستوى",
+      "idVerified": "تم التحقق من الهوية",
+      "bgPassed": "تم اجتياز فحص الخلفية"
+    },
+    "onboarding": {
+      "title": "الإعداد",
+      "subtitle": "{done} من {total} خطوات مكتملة",
+      "contact": "معلومات الاتصال",
+      "profile": "الملف الشخصي",
+      "identity": "تم التحقق من الهوية",
+      "w9": "نموذج W-9 مسجل"
+    },
+    "conversations": {
+      "title": "محادثات أخيرة",
+      "subtitle": "سلاسل رسائل الدعم والمستخدمين.",
+      "unknownUser": "مستخدم غير معروف"
     },
     "risk": {
       "title": "المخاطر والتحقق",
@@ -29734,7 +29815,9 @@
       "empty": "لا توجد ملاحظات بعد. اترك الأولى.",
       "placeholder": "اكتب ملاحظة قضية... (مرئية للمشرفين فقط)",
       "add": "إضافة ملاحظة",
-      "edited": "معدّلة"
+      "edited": "معدّلة",
+      "pinToggle": "تثبيت / إلغاء تثبيت الملاحظة",
+      "pinned": "مثبتة"
     },
     "investigation": {
       "title": "تحقيق",

@@ -29637,7 +29637,10 @@
       "payments": "Paiements",
       "tickets": "Tickets de support",
       "notes": "Notes",
-      "investigation": "Enquete"
+      "investigation": "Enquete",
+      "trust": "Confiance",
+      "devices": "Appareils",
+      "network": "Réseau"
     },
     "tickets": {
       "created": "Créé",
@@ -29678,7 +29681,85 @@
       "reactivateTitle": "Reactiver {name}",
       "reactivateMessage": "Reactiver {name} ? Cela leve la suspension ou la restriction de son compte.",
       "reasonLabel": "Motif",
-      "reasonPlaceholder": "Expliquez pourquoi - c'est enregistre dans le journal d'audit."
+      "reasonPlaceholder": "Expliquez pourquoi - c'est enregistre dans le journal d'audit.",
+      "impersonate": "Voir comme l’utilisateur",
+      "impersonateConfirm": "Ouvrir le compte de {name} dans un nouvel onglet ? C’est journalisé.",
+      "impersonateFailed": "Impossible de démarrer l’usurpation.",
+      "exportPdf": "Exporter / imprimer"
+    },
+    "watch": {
+      "watch": "Surveiller",
+      "watching": "Surveillé",
+      "hint": "Être notifié quand un litige est ouvert impliquant cet utilisateur.",
+      "since": "Surveillé depuis le {date}"
+    },
+    "caseOwner": {
+      "owner": "Responsable du dossier : {name}",
+      "release": "Libérer",
+      "claim": "Prendre le dossier"
+    },
+    "trust": {
+      "title": "Historique de confiance",
+      "subtitle": "Avertissements, suspensions et restrictions avec motifs.",
+      "empty": "Aucune action de confiance enregistrée."
+    },
+    "devices": {
+      "title": "Appareils et IP",
+      "subtitle": "Historique de connexion avec alertes IP partagée.",
+      "empty": "Aucun historique de connexion.",
+      "totalLogins": "Connexions",
+      "distinctIps": "IP",
+      "distinctDevices": "Appareils",
+      "failedAttempts": "Échoués",
+      "sharedIp": "Partagée avec {count} autre(s) compte(s)",
+      "unknownDevice": "Appareil inconnu",
+      "failed": "Connexion échouée"
+    },
+    "network": {
+      "duplicatesTitle": "Doublons possibles",
+      "duplicatesSubtitle": "Comptes liés par la vérification d’identité.",
+      "duplicatesEmpty": "Aucun compte en double détecté.",
+      "entitiesTitle": "Entreprises liées",
+      "entitiesSubtitle": "Entreprises que cette personne possède ou gère.",
+      "entitiesEmpty": "Aucune entreprise liée.",
+      "searchTitle": "Mentionné ailleurs",
+      "searchSubtitle": "Rechercher notes, litiges et tickets concernant cette personne ailleurs.",
+      "searchPlaceholder": "Nom, e-mail ou mot-clé (min 3 car.)",
+      "search": "Rechercher",
+      "searchEmpty": "Aucun autre dossier ne le mentionne."
+    },
+    "health": {
+      "title": "Santé du client",
+      "subtitle": "Indicateurs de comportement avec moyennes de la plateforme.",
+      "jobs": "Missions",
+      "completed": "{count} terminées",
+      "cancelRate": "Taux d’annulation",
+      "platformAvg": "Moyenne : {value}",
+      "avgJobValue": "Valeur moyenne",
+      "disputes": "Litiges"
+    },
+    "helperSide": {
+      "title": "En tant qu’aidant",
+      "subtitle": "Son dossier côté prestataire.",
+      "rating": "Note",
+      "reviews": "Avis",
+      "completedJobs": "Missions faites",
+      "tier": "Niveau",
+      "idVerified": "ID vérifiée",
+      "bgPassed": "Vérification d’antécédents réussie"
+    },
+    "onboarding": {
+      "title": "Intégration",
+      "subtitle": "{done} étapes sur {total} terminées",
+      "contact": "Coordonnées",
+      "profile": "Profil",
+      "identity": "Identité vérifiée",
+      "w9": "W-9 enregistré"
+    },
+    "conversations": {
+      "title": "Conversations récentes",
+      "subtitle": "Fils de discussion avec le support et les utilisateurs.",
+      "unknownUser": "Utilisateur inconnu"
     },
     "risk": {
       "title": "Risque et verification",
@@ -29723,7 +29804,9 @@
       "empty": "Aucune note. Laissez la premiere.",
       "placeholder": "Ecrivez une note du dossier... (visible par les admins uniquement)",
       "add": "Ajouter",
-      "edited": "modifie"
+      "edited": "modifie",
+      "pinToggle": "Épingler / désépingler",
+      "pinned": "Épinglée"
     },
     "investigation": {
       "title": "Enquete",

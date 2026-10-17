@@ -4,7 +4,8 @@ import { useTranslation } from 'react-i18next';
 import {
   AlertTriangle, BadgeCheck, Briefcase, Calendar, ChevronLeft, Eye, FileWarning,
   Gavel, History, Landmark, LayoutDashboard, Loader2, Mail, MapPin, MessageSquare,
-  Phone, RefreshCw, ShieldAlert, ShieldCheck, StickyNote, Ticket, Wallet,
+  Network, Phone, Pin, Printer, RefreshCw, Search, ShieldAlert, ShieldCheck,
+  Smartphone, StickyNote, Ticket, UserCheck, Wallet,
 } from 'lucide-react';
 import adminApi from '../lib/adminApi';
 import { useAbortableFetch } from '../lib/useAbortableFetch';
@@ -361,7 +362,14 @@ export default function Customer360() {
   const [messageBusy, setMessageBusy] = useState(false);
   const [messageError, setMessageError] = useState(null);
   const [messageSent, setMessageSent] = useState(false);
-  const [confirmAction, setConfirmAction] = useState(null); // 'warn' | 'suspend' | 'restrict' | 'reactivate'
+  const [confirmAction, setConfirmAction] = useState(null); // 'warn' | 'suspend' | 'restrict' | 'reactivate' | 'impersonate'
+  const [impersonateError, setImpersonateError] = useState(null);
+  const [watchBusy, setWatchBusy] = useState(false);
+  const [ownerBusy, setOwnerBusy] = useState(false);
+  const [relatedQuery, setRelatedQuery] = useState('');
+  const [relatedResults, setRelatedResults] = useState(null);
+  const [relatedBusy, setRelatedBusy] = useState(false);
+  const [relatedError, setRelatedError] = useState(null);
   const [investigation, setInvestigation] = useState({ loading: false, data: null, error: null, needsGrant: false });
   const [grantPurpose, setGrantPurpose] = useState('');
   const [grantBusy, setGrantBusy] = useState(false);
@@ -423,6 +431,17 @@ export default function Customer360() {
         (d) => d?.log ?? [],
       ),
       run('notes', adminApi.get(`/admin/users/${userId}/notes`, { signal }), (d) => d?.notes ?? []),
+      run('loginHistory', adminApi.get(`/admin/users/${userId}/login-history`, { signal }), (d) => d ?? {}),
+      run('duplicates', adminApi.get(`/admin/users/${userId}/duplicates`, { signal }), (d) => d?.duplicates ?? []),
+      run('linkedEntities', adminApi.get(`/admin/users/${userId}/linked-entities`, { signal }), (d) => d?.entities ?? []),
+      run('health', adminApi.get(`/admin/users/${userId}/health`, { signal }), (d) => d ?? {}),
+      run('watch', adminApi.get(`/admin/users/${userId}/watch`, { signal }), (d) => d ?? {}),
+      run('caseOwner', adminApi.get(`/admin/users/${userId}/case-owner`, { signal }), (d) => d ?? {}),
+      ...(canMessage ? [run(
+        'conversations',
+        adminApi.get('/admin/messages/conversations', { signal, params: { q: user?.email || '', limit: 10 } }),
+        (d) => d?.conversations ?? d?.data ?? [],
+      )] : []),
       ...DISPUTE_STATUSES.map((status) => run(
         `disputes:${status}`,
         adminApi.get('/disputes/admin/all', { signal, params: { status, user_id: userId, limit: 100 } }),
@@ -447,6 +466,27 @@ export default function Customer360() {
   const activity = sectionValue('activity');
   const adminAudit = sectionValue('adminAudit');
   const notes = sectionValue('notes');
+  const loginHistory = sectionValue('loginHistory');
+  const duplicates = sectionValue('duplicates');
+  const linkedEntities = sectionValue('linkedEntities');
+  const health = sectionValue('health');
+  const watchState = sectionValue('watch');
+  const caseOwnerState = sectionValue('caseOwner');
+  const conversations = sectionValue('conversations');
+
+  // Trust history: warnings / suspensions / restrictions pulled from the
+  // activity + audit events the page already fetches.
+  const trustEvents = useMemo(() => {
+    const out = [];
+    const push = (e, source) => {
+      const type = String(e.event_type || e.action || '').toLowerCase();
+      if (!/warn|suspend|restrict|ban|reactivat/.test(type)) return;
+      out.push({ ...e, _source: source });
+    };
+    activity.forEach((e) => push(e, 'activity'));
+    adminAudit.forEach((e) => push(e, 'audit'));
+    return out.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+  }, [activity, adminAudit]);
 
   const disputeSectionError = DISPUTE_STATUSES.map((s) => sectionError(`disputes:${s}`)).find(Boolean) || null;
   const disputes = useMemo(() => {
@@ -566,6 +606,11 @@ export default function Customer360() {
   };
 
   const runPrivilegedAction = async (action, reason, extra = {}) => {
+    if (action === 'impersonate') {
+      setConfirmAction(null);
+      await impersonate();
+      return;
+    }
     const endpoints = {
       warn: ['post', `/admin/users/${userId}/warn`, { reason }],
       suspend: ['post', `/admin/users/${userId}/suspend`, { reason, days: extra.days || 0 }],
@@ -635,6 +680,9 @@ export default function Customer360() {
     { id: 'fraud', icon: ShieldAlert, label: t(`${NS}.tabs.fraud`), count: fraudCases.length },
     { id: 'incidents', icon: FileWarning, label: t(`${NS}.tabs.incidents`), count: incidents.length },
     { id: 'notes', icon: StickyNote, label: t(`${NS}.tabs.notes`), count: notes.length },
+    { id: 'trust', icon: ShieldCheck, label: t(`${NS}.tabs.trust`), count: trustEvents.length },
+    { id: 'devices', icon: Smartphone, label: t(`${NS}.tabs.devices`), count: loginHistory?.summary?.distinct_ips || undefined },
+    { id: 'network', icon: Network, label: t(`${NS}.tabs.network`), count: (duplicates.length + linkedEntities.length) || undefined },
     { id: 'investigation', icon: Eye, label: t(`${NS}.tabs.investigation`) },
     { id: 'audit', icon: History, label: t(`${NS}.tabs.audit`) },
   ];
@@ -652,15 +700,87 @@ export default function Customer360() {
       quickActions.push({ id: 'reactivate', icon: BadgeCheck, label: t(`${NS}.actions.reactivate`), onClick: () => setConfirmAction('reactivate') });
     }
     quickActions.push({ id: 'credit', icon: Landmark, label: t(`${NS}.actions.adjustCredit`), href: '/admin/super/oxsteed-credit' });
+    quickActions.push({ id: 'impersonate', icon: UserCheck, label: t(`${NS}.actions.impersonate`), danger: true, onClick: () => { setImpersonateError(null); setConfirmAction('impersonate'); } });
   }
+  quickActions.push({ id: 'print', icon: Printer, label: t(`${NS}.actions.exportPdf`), onClick: () => window.print() });
 
   const refreshAll = () => { reload(); reloadAux(); };
+
+  const toggleWatch = async () => {
+    if (watchBusy) return;
+    setWatchBusy(true);
+    try {
+      const watching = !!watchState?.watching;
+      if (watching) {
+        await adminApi.delete(`/admin/users/${userId}/watch`);
+      } else {
+        await adminApi.post(`/admin/users/${userId}/watch`, { triggers: ['dispute'] });
+      }
+      reloadAux();
+    } catch { /* per-section error surfaces on reload */ }
+    setWatchBusy(false);
+  };
+
+  const claimCase = async () => {
+    if (ownerBusy) return;
+    setOwnerBusy(true);
+    try {
+      await adminApi.put(`/admin/users/${userId}/case-owner`, {});
+      reloadAux();
+    } catch { /* ignore */ }
+    setOwnerBusy(false);
+  };
+
+  const releaseCase = async () => {
+    if (ownerBusy) return;
+    setOwnerBusy(true);
+    try {
+      await adminApi.delete(`/admin/users/${userId}/case-owner`);
+      reloadAux();
+    } catch { /* ignore */ }
+    setOwnerBusy(false);
+  };
+
+  const togglePin = async (noteId, pinned) => {
+    try {
+      await adminApi.patch(`/admin/users/${userId}/notes/${noteId}/pin`, { pinned });
+      reloadAux();
+    } catch { /* ignore */ }
+  };
+
+  const runRelatedSearch = async () => {
+    const q = relatedQuery.trim();
+    if (q.length < 3 || relatedBusy) return;
+    setRelatedBusy(true);
+    setRelatedError(null);
+    try {
+      const { data } = await adminApi.get(`/admin/users/${userId}/related-search`, { params: { q } });
+      setRelatedResults(data?.results ?? []);
+    } catch (err) {
+      setRelatedError(err?.response?.data?.error || err?.message);
+      setRelatedResults(null);
+    }
+    setRelatedBusy(false);
+  };
+
+  const impersonate = async () => {
+    try {
+      const { data } = await adminApi.post(`/admin/users/${userId}/impersonate`);
+      const url = data?.exchangeCode
+        ? `${window.location.origin}/impersonate?code=${encodeURIComponent(data.exchangeCode)}`
+        : `${window.location.origin}/impersonate?token=${encodeURIComponent(data.impersonationToken)}`;
+      window.open(url, '_blank', 'noopener');
+    } catch (err) {
+      setImpersonateError(err?.response?.data?.error || t(`${NS}.actions.impersonateFailed`));
+    }
+  };
 
   const confirmConfig = confirmAction ? {
     warn: { title: t(`${NS}.actions.warnTitle`), message: t(`${NS}.actions.warnMessage`, { name }), confirmLabel: t(`${NS}.actions.warn`), danger: false, requireReason: true },
     suspend: { title: t(`${NS}.actions.suspendTitle`), message: t(`${NS}.actions.suspendMessage`, { name }), confirmLabel: t(`${NS}.actions.suspend`), danger: true, requireReason: true },
     restrict: { title: t(`${NS}.actions.restrictTitle`), message: t(`${NS}.actions.restrictMessage`, { name }), confirmLabel: t(`${NS}.actions.restrict`), danger: true, requireReason: true },
     reactivate: { title: t(`${NS}.actions.reactivateTitle`), message: t(`${NS}.actions.reactivateMessage`, { name }), confirmLabel: t(`${NS}.actions.reactivate`), danger: false, requireReason: false },
+    impersonate: { title: t(`${NS}.actions.impersonate`), message: t(`${NS}.actions.impersonateConfirm`, { name }), confirmLabel: t(`${NS}.actions.impersonate`), danger: true, requireReason: false },
   }[confirmAction] : null;
 
   return (
@@ -701,7 +821,42 @@ export default function Customer360() {
             <RefreshCw size={13} className={profileLoading || auxLoading ? 'animate-spin' : ''} />
             {t(`${NS}.refresh`)}
           </button>
+          <button
+            type="button"
+            onClick={toggleWatch}
+            disabled={watchBusy}
+            className={`inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-semibold self-start transition ${
+              watchState?.watching
+                ? 'border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-200'
+                : 'border-gray-300 dark:border-gray-700 bg-gray-50/60 dark:bg-gray-950/60 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
+            }`}
+            title={t(`${NS}.watch.hint`)}
+          >
+            <Eye size={13} />
+            {watchState?.watching ? t(`${NS}.watch.watching`) : t(`${NS}.watch.watch`)}
+          </button>
         </div>
+        {(caseOwnerState?.owner || watchState?.watching) && (
+          <div className="flex flex-wrap items-center gap-2 mt-3 text-[11px]">
+            {caseOwnerState?.owner && (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-violet-50 dark:bg-violet-950/40 border border-violet-200 dark:border-violet-800 px-2.5 py-1 text-violet-800 dark:text-violet-200">
+                <UserCheck size={11} />
+                {t(`${NS}.caseOwner.owner`, { name: caseOwnerState.owner.owner_name })}
+                <button type="button" onClick={releaseCase} disabled={ownerBusy} className="underline hover:no-underline">
+                  {t(`${NS}.caseOwner.release`)}
+                </button>
+              </span>
+            )}
+            {!caseOwnerState?.owner && (
+              <button type="button" onClick={claimCase} disabled={ownerBusy} className="inline-flex items-center gap-1.5 rounded-full border border-dashed border-gray-300 dark:border-gray-700 px-2.5 py-1 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">
+                <UserCheck size={11} />{t(`${NS}.caseOwner.claim`)}
+              </button>
+            )}
+            {watchState?.watching && watchState?.watch?.created_at && (
+              <span className="text-gray-400">{t(`${NS}.watch.since`, { date: adminDate(watchState.watch.created_at, { dateStyle: 'medium' }) })}</span>
+            )}
+          </div>
+        )}
 
         {/* Quick actions */}
         {quickActions.length > 0 && (
@@ -805,6 +960,118 @@ export default function Customer360() {
               hint={t(`${NS}.overview.viewTab`)}
             />
           </div>
+
+          {/* Health metrics vs platform */}
+          {!sectionError('health') && health?.user && (
+            <Section title={t(`${NS}.health.title`)} subtitle={t(`${NS}.health.subtitle`)}>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                {[
+                  {
+                    label: t(`${NS}.health.jobs`),
+                    value: health.user.total_jobs ?? '—',
+                    sub: health.user.completed_jobs != null ? t(`${NS}.health.completed`, { count: health.user.completed_jobs }) : null,
+                  },
+                  {
+                    label: t(`${NS}.health.cancelRate`),
+                    value: health.user.total_jobs ? `${Math.round(((health.user.cancelled_jobs || 0) / health.user.total_jobs) * 100)}%` : '—',
+                    sub: health.platform?.cancel_rate != null ? t(`${NS}.health.platformAvg`, { value: `${Math.round(health.platform.cancel_rate * 100)}%` }) : null,
+                  },
+                  {
+                    label: t(`${NS}.health.avgJobValue`),
+                    value: health.user.avg_job_value != null ? adminMoney(health.user.avg_job_value / 100) : '—',
+                    sub: health.platform?.avg_job_value != null ? t(`${NS}.health.platformAvg`, { value: adminMoney(health.platform.avg_job_value / 100) }) : null,
+                  },
+                  {
+                    label: t(`${NS}.health.disputes`),
+                    value: health.user.dispute_count ?? '—',
+                    sub: health.platform?.avg_disputes_per_user != null ? t(`${NS}.health.platformAvg`, { value: Number(health.platform.avg_disputes_per_user).toFixed(1) }) : null,
+                  },
+                ].map((s) => (
+                  <div key={s.label} className="rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50/55 dark:bg-gray-950/55 px-3 py-2.5">
+                    <p className="text-lg font-bold text-gray-900 dark:text-white">{s.value}</p>
+                    <p className="text-[10px] font-semibold text-gray-500">{s.label}</p>
+                    {s.sub && <p className="text-[10px] text-gray-400">{s.sub}</p>}
+                  </div>
+                ))}
+              </div>
+            </Section>
+          )}
+
+          {/* Helper side (dual-role view) */}
+          {(user.role === 'helper' || user.role === 'helper_pro') && (
+            <Section title={t(`${NS}.helperSide.title`)} subtitle={t(`${NS}.helperSide.subtitle`)}>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                {[
+                  { label: t(`${NS}.helperSide.rating`), value: user.average_rating != null ? Number(user.average_rating).toFixed(1) : '—' },
+                  { label: t(`${NS}.helperSide.reviews`), value: user.total_reviews ?? '—' },
+                  { label: t(`${NS}.helperSide.completedJobs`), value: user.completed_jobs_count ?? '—' },
+                  { label: t(`${NS}.helperSide.tier`), value: user.helper_tier ? humanize(user.helper_tier) : '—' },
+                ].map((s) => (
+                  <div key={s.label} className="rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50/55 dark:bg-gray-950/55 px-3 py-2.5">
+                    <p className="text-lg font-bold text-gray-900 dark:text-white">{s.value}</p>
+                    <p className="text-[10px] text-gray-500">{s.label}</p>
+                  </div>
+                ))}
+              </div>
+              {(user.identity_verified || user.background_check_passed) && (
+                <p className="mt-2 text-[11px] text-gray-500">
+                  {[user.identity_verified && t(`${NS}.helperSide.idVerified`), user.background_check_passed && t(`${NS}.helperSide.bgPassed`)]
+                    .filter(Boolean).join(' · ')}
+                </p>
+              )}
+            </Section>
+          )}
+
+          {/* Onboarding checklist */}
+          {(() => {
+            const steps = [
+              { label: t(`${NS}.onboarding.contact`), done: !!user.contact_completed },
+              { label: t(`${NS}.onboarding.profile`), done: !!user.profile_completed },
+              { label: t(`${NS}.onboarding.identity`), done: !!user.identity_verified || !!user.id_verified },
+              { label: t(`${NS}.onboarding.w9`), done: !!user.w9_completed },
+            ];
+            const doneCount = steps.filter((s) => s.done).length;
+            if (doneCount === steps.length) return null;
+            return (
+              <Section title={t(`${NS}.onboarding.title`)} subtitle={t(`${NS}.onboarding.subtitle`, { done: doneCount, total: steps.length })}>
+                <ul className="space-y-1.5">
+                  {steps.map((s) => (
+                    <li key={s.label} className="flex items-center gap-2 text-xs">
+                      {s.done
+                        ? <BadgeCheck size={14} className="text-emerald-600 dark:text-emerald-300 shrink-0" />
+                        : <span className="inline-block size-3.5 rounded-full border-2 border-gray-300 dark:border-gray-700 shrink-0" />}
+                      <span className={s.done ? 'text-gray-500 line-through' : 'text-gray-800 dark:text-gray-200 font-medium'}>{s.label}</span>
+                    </li>
+                  ))}
+                </ul>
+              </Section>
+            );
+          })()}
+
+          {/* Recent conversations */}
+          {canMessage && !!conversations.length && (
+            <Section
+              title={t(`${NS}.conversations.title`)}
+              subtitle={t(`${NS}.conversations.subtitle`)}
+              count={conversations.length}
+              error={sectionError('conversations')}
+              onRetry={reloadAux}
+            >
+              <div className="space-y-2">
+                {conversations.slice(0, 5).map((c) => (
+                  <Link key={c.id} to={`/admin/messages?conversation=${c.id}`} className="block rounded-lg border border-gray-200 dark:border-gray-800 bg-gray-50/55 dark:bg-gray-950/55 px-3 py-2.5 hover:bg-gray-100 dark:hover:bg-gray-900 transition">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-xs font-semibold text-gray-900 dark:text-white truncate">
+                        {c.user_first_name || c.user_email || t(`${NS}.conversations.unknownUser`)}
+                      </p>
+                      <p className="text-[10px] text-gray-500 shrink-0">{c.last_message_at ? adminDateTime(c.last_message_at) : ''}</p>
+                    </div>
+                    {c.last_message_preview && <p className="mt-1 text-[11px] text-gray-500 truncate">{c.last_message_preview}</p>}
+                  </Link>
+                ))}
+              </div>
+            </Section>
+          )}
 
           <Section
             title={t(`${NS}.timeline.title`)}
@@ -1069,10 +1336,21 @@ export default function Customer360() {
             </div>
             {!notes.length ? <EmptyState message={t(`${NS}.notes.empty`)} /> : (
               <div className="space-y-2">
-                {notes.map((note) => (
-                  <div key={note.id} className="rounded-lg border border-gray-200 dark:border-gray-800 bg-gray-50/55 dark:bg-gray-950/55 px-3 py-3">
-                    <p className="text-xs leading-5 text-gray-700 dark:text-gray-200 whitespace-pre-wrap">{note.note_text}</p>
+                {[...notes].sort((a, b) => Number(b.is_pinned || false) - Number(a.is_pinned || false)).map((note) => (
+                  <div key={note.id} className={`rounded-lg border px-3 py-3 ${note.is_pinned ? 'border-amber-300 dark:border-amber-700 bg-amber-50/60 dark:bg-amber-950/30' : 'border-gray-200 dark:border-gray-800 bg-gray-50/55 dark:bg-gray-950/55'}`}>
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="text-xs leading-5 text-gray-700 dark:text-gray-200 whitespace-pre-wrap flex-1">{note.note_text}</p>
+                      <button
+                        type="button"
+                        onClick={() => togglePin(note.id, !note.is_pinned)}
+                        title={t(`${NS}.notes.pinToggle`)}
+                        className={`shrink-0 rounded-lg p-1.5 transition ${note.is_pinned ? 'text-amber-600 dark:text-amber-300 bg-amber-100 dark:bg-amber-900/40' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-200'}`}
+                      >
+                        <Pin size={12} className={note.is_pinned ? 'fill-current' : ''} />
+                      </button>
+                    </div>
                     <p className="mt-2 text-[10px] text-gray-500">
+                      {note.is_pinned && <span className="font-semibold text-amber-700 dark:text-amber-300">{t(`${NS}.notes.pinned`)} · </span>}
                       {note.author_name || note.author_email || t(`${NS}.audit.system`)}
                       {' · '}{adminDateTime(note.created_at)}
                       {note.updated_at && note.updated_at !== note.created_at && ` (${t(`${NS}.notes.edited`)})`}
@@ -1083,6 +1361,165 @@ export default function Customer360() {
             )}
           </div>
         </Section>
+      )}
+
+      {/* ── Trust history: warnings, suspensions, restrictions ── */}
+      {tab === 'trust' && (
+        <Section
+          title={t(`${NS}.trust.title`)}
+          subtitle={t(`${NS}.trust.subtitle`)}
+          count={trustEvents.length}
+          error={sectionError('activity') || sectionError('adminAudit')}
+          onRetry={reloadAux}
+        >
+          {!trustEvents.length ? <EmptyState message={t(`${NS}.trust.empty`)} /> : (
+            <div className="space-y-2">
+              {trustEvents.map((e, i) => (
+                <div key={`${e._source}-${e.id || i}`} className="rounded-lg border border-gray-200 dark:border-gray-800 bg-gray-50/55 dark:bg-gray-950/55 px-3 py-3">
+                  <p className="text-xs font-semibold text-gray-900 dark:text-white font-mono">{e.event_type || e.action}</p>
+                  {(e.notes || e.new_value || e.description) && (
+                    <p className="mt-1 text-xs leading-5 text-gray-600 dark:text-gray-300">{e.notes || e.new_value || e.description}</p>
+                  )}
+                  <p className="mt-2 text-[10px] text-gray-500">
+                    {e.actor_name || e.actor_email || t(`${NS}.audit.system`)}
+                    {' · '}{adminDateTime(e.created_at)}
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
+        </Section>
+      )}
+
+      {/* ── Devices & IPs ── */}
+      {tab === 'devices' && (
+        <Section
+          title={t(`${NS}.devices.title`)}
+          subtitle={t(`${NS}.devices.subtitle`)}
+          error={sectionError('loginHistory')}
+          onRetry={reloadAux}
+        >
+          {loginHistory?.summary && (
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
+              {[
+                { label: t(`${NS}.devices.totalLogins`), value: loginHistory.summary.total_logins },
+                { label: t(`${NS}.devices.distinctIps`), value: loginHistory.summary.distinct_ips },
+                { label: t(`${NS}.devices.distinctDevices`), value: loginHistory.summary.distinct_devices },
+                { label: t(`${NS}.devices.failedAttempts`), value: loginHistory.summary.failed_attempts },
+              ].map((s) => (
+                <div key={s.label} className="rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50/55 dark:bg-gray-950/55 px-3 py-2.5">
+                  <p className="text-lg font-bold text-gray-900 dark:text-white">{s.value ?? '—'}</p>
+                  <p className="text-[10px] text-gray-500">{s.label}</p>
+                </div>
+              ))}
+            </div>
+          )}
+          {!(loginHistory?.logins?.length) ? <EmptyState message={t(`${NS}.devices.empty`)} /> : (
+            <div className="space-y-2">
+              {loginHistory.logins.map((l) => (
+                <div key={l.id} className={`rounded-lg border px-3 py-2.5 ${Number(l.other_users_on_ip) > 0 ? 'border-red-300 dark:border-red-800 bg-red-50/60 dark:bg-red-950/30' : 'border-gray-200 dark:border-gray-800 bg-gray-50/55 dark:bg-gray-950/55'}`}>
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-xs font-mono font-semibold text-gray-900 dark:text-white">{l.ip_address || '—'}</p>
+                    {Number(l.other_users_on_ip) > 0 && (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-red-100 dark:bg-red-900/50 px-2 py-0.5 text-[10px] font-semibold text-red-700 dark:text-red-200">
+                        <AlertTriangle size={10} />{t(`${NS}.devices.sharedIp`, { count: l.other_users_on_ip })}
+                      </span>
+                    )}
+                  </div>
+                  <p className="mt-1 text-[10px] text-gray-500 truncate">{l.user_agent || t(`${NS}.devices.unknownDevice`)}</p>
+                  <p className="mt-1 text-[10px] text-gray-500">
+                    {adminDateTime(l.login_at)}
+                    {l.success ? '' : ` · ${t(`${NS}.devices.failed`)}${l.failure_reason ? `: ${l.failure_reason}` : ''}`}
+                    {l.country_code ? ` · ${l.country_code}` : ''}
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
+        </Section>
+      )}
+
+      {/* ── Network: duplicates, linked entities, related search ── */}
+      {tab === 'network' && (
+        <>
+          <Section
+            title={t(`${NS}.network.duplicatesTitle`)}
+            subtitle={t(`${NS}.network.duplicatesSubtitle`)}
+            count={duplicates.length}
+            error={sectionError('duplicates')}
+            onRetry={reloadAux}
+          >
+            {!duplicates.length ? <EmptyState message={t(`${NS}.network.duplicatesEmpty`)} /> : (
+              <div className="space-y-2">
+                {duplicates.map((d) => (
+                  <Link key={d.id} to={`/admin/customers/${d.id}/360`} className="flex items-center justify-between gap-2 rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50/60 dark:bg-amber-950/30 px-3 py-2.5 hover:bg-amber-50 dark:hover:bg-amber-950/50 transition">
+                    <div className="min-w-0">
+                      <p className="text-xs font-semibold text-gray-900 dark:text-white truncate">{d.first_name} {d.last_name}</p>
+                      <p className="text-[10px] text-gray-500 truncate">{d.email} · {d.role}</p>
+                    </div>
+                    <ChevronLeft size={14} className="rotate-180 text-gray-400 shrink-0" />
+                  </Link>
+                ))}
+              </div>
+            )}
+          </Section>
+          <Section
+            title={t(`${NS}.network.entitiesTitle`)}
+            subtitle={t(`${NS}.network.entitiesSubtitle`)}
+            count={linkedEntities.length}
+            error={sectionError('linkedEntities')}
+            onRetry={reloadAux}
+          >
+            {!linkedEntities.length ? <EmptyState message={t(`${NS}.network.entitiesEmpty`)} /> : (
+              <div className="space-y-2">
+                {linkedEntities.map((e, i) => (
+                  <div key={`${e.public_id}-${i}`} className="rounded-lg border border-gray-200 dark:border-gray-800 bg-gray-50/55 dark:bg-gray-950/55 px-3 py-2.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-xs font-semibold text-gray-900 dark:text-white truncate">{e.name}</p>
+                      <ToneBadge tone="sky">{e.relation}</ToneBadge>
+                    </div>
+                    <p className="mt-1 text-[10px] text-gray-500">{e.entity_type} · {e.public_id}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Section>
+          <Section title={t(`${NS}.network.searchTitle`)} subtitle={t(`${NS}.network.searchSubtitle`)}>
+            <div className="flex gap-2">
+              <input
+                value={relatedQuery}
+                onChange={(e) => setRelatedQuery(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') runRelatedSearch(); }}
+                placeholder={t(`${NS}.network.searchPlaceholder`)}
+                className="flex-1 rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-950/60 px-3 py-2 text-xs text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500/50"
+              />
+              <button
+                type="button"
+                onClick={runRelatedSearch}
+                disabled={relatedQuery.trim().length < 3 || relatedBusy}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-orange-500 px-3 py-2 text-xs font-semibold text-white hover:bg-orange-600 disabled:opacity-50"
+              >
+                {relatedBusy ? <Loader2 size={12} className="animate-spin" /> : <Search size={12} />}
+                {t(`${NS}.network.search`)}
+              </button>
+            </div>
+            {relatedError && <p className="mt-2 text-[11px] text-red-600 dark:text-red-300">{relatedError}</p>}
+            {relatedResults && (
+              <div className="mt-3 space-y-2">
+                {!relatedResults.length ? <EmptyState message={t(`${NS}.network.searchEmpty`)} /> : relatedResults.map((r, i) => (
+                  <Link key={`${r.kind}-${r.id}-${i}`} to={`/admin/customers/${r.target_user_id}/360`} className="block rounded-lg border border-gray-200 dark:border-gray-800 bg-gray-50/55 dark:bg-gray-950/55 px-3 py-2.5 hover:bg-gray-100 dark:hover:bg-gray-900 transition">
+                    <div className="flex items-center justify-between gap-2">
+                      <ToneBadge tone={r.kind === 'dispute' ? 'red' : r.kind === 'ticket' ? 'amber' : 'sky'}>{r.kind}</ToneBadge>
+                      <p className="text-[10px] text-gray-500">{adminDateTime(r.created_at)}</p>
+                    </div>
+                    <p className="mt-1 text-xs text-gray-700 dark:text-gray-200 line-clamp-2">{r.note_text || r.description || r.subject}</p>
+                    <p className="mt-1 text-[10px] text-gray-500">{r.subject_name || r.subject_email}</p>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </Section>
+        </>
       )}
 
       {/* ── Investigation (E13 gated) ── */}
@@ -1285,6 +1722,9 @@ export default function Customer360() {
         onClose={() => setConfirmAction(null)}
         onConfirm={(reason) => runPrivilegedAction(confirmAction, reason)}
       />
+      {impersonateError && (
+        <p className="text-[11px] text-red-600 dark:text-red-300">{impersonateError}</p>
+      )}
 
       {/* ── Related: reviews ── */}
       {tab === 'overview' && recentReviews.length > 0 && (

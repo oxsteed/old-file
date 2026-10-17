@@ -29637,7 +29637,10 @@
       "payments": "Payments",
       "tickets": "Support tickets",
       "notes": "Notes",
-      "investigation": "Investigation"
+      "investigation": "Investigation",
+      "trust": "Trust",
+      "devices": "Devices",
+      "network": "Network"
     },
     "tickets": {
       "created": "Created",
@@ -29678,7 +29681,85 @@
       "reactivateTitle": "Reactivate {name}",
       "reactivateMessage": "Reactivate {name}? This clears the suspension or restriction on their account.",
       "reasonLabel": "Reason",
-      "reasonPlaceholder": "Explain why - this is saved to the audit log."
+      "reasonPlaceholder": "Explain why - this is saved to the audit log.",
+      "impersonate": "View as user",
+      "impersonateConfirm": "Open {name}’s account in a new tab? This is logged.",
+      "impersonateFailed": "Could not start impersonation.",
+      "exportPdf": "Export / print"
+    },
+    "watch": {
+      "watch": "Watch",
+      "watching": "Watching",
+      "hint": "Get notified when a dispute is opened involving this user.",
+      "since": "Watching since {date}"
+    },
+    "caseOwner": {
+      "owner": "Case owner: {name}",
+      "release": "Release",
+      "claim": "Take ownership"
+    },
+    "trust": {
+      "title": "Trust history",
+      "subtitle": "Warnings, suspensions, and restrictions with reasons.",
+      "empty": "No trust actions on record."
+    },
+    "devices": {
+      "title": "Devices & IPs",
+      "subtitle": "Login history with shared-IP fraud flags.",
+      "empty": "No login history.",
+      "totalLogins": "Logins",
+      "distinctIps": "IPs",
+      "distinctDevices": "Devices",
+      "failedAttempts": "Failed",
+      "sharedIp": "Shared with {count} other account(s)",
+      "unknownDevice": "Unknown device",
+      "failed": "Failed login"
+    },
+    "network": {
+      "duplicatesTitle": "Possible duplicates",
+      "duplicatesSubtitle": "Accounts linked by identity verification.",
+      "duplicatesEmpty": "No duplicate accounts detected.",
+      "entitiesTitle": "Linked businesses",
+      "entitiesSubtitle": "Businesses this person owns or manages.",
+      "entitiesEmpty": "No linked businesses.",
+      "searchTitle": "Mentioned elsewhere",
+      "searchSubtitle": "Find notes, disputes, and tickets about this person in other records.",
+      "searchPlaceholder": "Name, email, or keyword (min 3 chars)",
+      "search": "Search",
+      "searchEmpty": "No other records mention this."
+    },
+    "health": {
+      "title": "Customer health",
+      "subtitle": "Behavior metrics with platform averages for calibration.",
+      "jobs": "Jobs",
+      "completed": "{count} completed",
+      "cancelRate": "Cancel rate",
+      "platformAvg": "Platform avg: {value}",
+      "avgJobValue": "Avg job value",
+      "disputes": "Disputes"
+    },
+    "helperSide": {
+      "title": "As a helper",
+      "subtitle": "Their provider-side record.",
+      "rating": "Rating",
+      "reviews": "Reviews",
+      "completedJobs": "Jobs done",
+      "tier": "Tier",
+      "idVerified": "ID verified",
+      "bgPassed": "Background check passed"
+    },
+    "onboarding": {
+      "title": "Onboarding",
+      "subtitle": "{done} of {total} steps complete",
+      "contact": "Contact info",
+      "profile": "Profile",
+      "identity": "Identity verified",
+      "w9": "W-9 on file"
+    },
+    "conversations": {
+      "title": "Recent conversations",
+      "subtitle": "Support and user message threads.",
+      "unknownUser": "Unknown user"
     },
     "risk": {
       "title": "Risk & verification",
@@ -29723,7 +29804,9 @@
       "empty": "No notes yet. Leave the first one.",
       "placeholder": "Write a case note... (visible to admins only)",
       "add": "Add note",
-      "edited": "edited"
+      "edited": "edited",
+      "pinToggle": "Pin / unpin note",
+      "pinned": "Pinned"
     },
     "investigation": {
       "title": "Investigation",
