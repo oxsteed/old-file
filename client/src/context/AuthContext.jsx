@@ -45,6 +45,14 @@ export function AuthProvider({ children }) {
     setUser(null);
   }, []);
 
+  // The axios interceptor clears storage on a dead session; mirror that into
+  // React state so the login page stops bouncing back to the dashboard.
+  useEffect(() => {
+    const onSessionExpired = () => clearAuthState();
+    window.addEventListener('oxsteed:session-expired', onSessionExpired);
+    return () => window.removeEventListener('oxsteed:session-expired', onSessionExpired);
+  }, [clearAuthState]);
+
   const fetchMe = useCallback(async () => {
     const res = await api.get('/auth/me', { withCredentials: true });
     const fullUser = normalizeUserPayload(res.data);
