@@ -38,11 +38,32 @@ function rejectAdminWithout2FA(user, res) {
   return false;
 }
 
+// Resolve the access token for admin routes. Prefer an explicit Bearer
+// token (API clients, impersonation sessions) and fall back to the
+// httpOnly oxsteed_access session cookie that the web admin SPA uses
+// since raw tokens were removed from web login responses (P1-114).
+// Without the cookie fallback every admin API call from the browser 401s.
+function getRequestToken(req) {
+  const header = req.headers.authorization;
+  if (header?.startsWith('Bearer ')) {
+    const bearer = header.split(' ')[1];
+    if (bearer) return bearer;
+  }
+  const cookieHeader = req.headers.cookie;
+  if (cookieHeader) {
+    const match = cookieHeader.match(/(?:^|;\s*)oxsteed_access=([^;]+)/);
+    if (match) {
+      try { return decodeURIComponent(match[1]); } catch { return match[1]; }
+    }
+  }
+  return null;
+}
+
 // ── Core admin authentication ─────────────────────────────────────────────────
 
 exports.requireAdmin = async (req, res, next) => {
   try {
-    const token = req.headers.authorization?.split(' ')[1];
+    const token = getRequestToken(req);
     if (!token) return res.status(401).json({ error: 'Unauthorized.' });
 
     const decoded = verifyToken(token);
@@ -94,7 +115,7 @@ exports.requireAdmin = async (req, res, next) => {
 
 exports.requireSuperAdmin = async (req, res, next) => {
   try {
-    const token = req.headers.authorization?.split(' ')[1];
+    const token = getRequestToken(req);
     if (!token) return res.status(401).json({ error: 'Unauthorized.' });
 
     const decoded = verifyToken(token);
