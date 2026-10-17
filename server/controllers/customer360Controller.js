@@ -246,7 +246,9 @@ exports.removeWatch = async (req, res) => {
  */
 exports.notifyWatchers = async ({ targetUserIds, disputeId, jobTitle }) => {
   try {
-    if (!targetUserIds?.length || !(await tableExists('admin_user_watchlist'))) return;
+    if (!targetUserIds?.length) return;
+    // Single query, no tableExists probe: if the watchlist table is missing
+    // (pre-migration), this throws and we return silently.
     const { rows } = await db.query(
       `SELECT DISTINCT admin_id FROM admin_user_watchlist
        WHERE target_user_id = ANY($1::UUID[]) AND 'dispute' = ANY(triggers)`,

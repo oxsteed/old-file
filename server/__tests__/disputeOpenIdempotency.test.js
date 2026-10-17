@@ -65,10 +65,11 @@ describe('job dispute creation idempotency', () => {
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [] }) // P1-3-F08: no signed work agreement
       .mockResolvedValueOnce({ rows: [dispute] })
-      // Link support, hold escrow, and notify admins.
+      // Link support, hold escrow, notify admins, and notify watchlist.
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] }) // watchlist: no watchers
       // Second request: authorization and user profile.
       .mockResolvedValueOnce({ rows: [{ id: JOB_ID, title: 'Kitchen repair' }] })
       .mockResolvedValueOnce({ rows: [{ first_name: 'Test', last_name: 'Customer', email: 'customer@example.com' }] })
